@@ -707,7 +707,7 @@ describe('2027 triple peak', () => {
     ]);
   });
 
-  it('outgoing officer at the 10 August election: final, and no 2027 biennial', () => {
+  it('outgoing declarant at the 10 August election: final, and no 2027 biennial', () => {
     const result = plan({
       record: record({ exitDate: '2027-08-10' }),
       today: '2027-08-20',
@@ -730,7 +730,7 @@ describe('2027 triple peak', () => {
     ]);
   });
 
-  it('newly elected officer sworn in after the election: initial and the 2027 biennial', () => {
+  it('newly elected declarant sworn in after the election: initial and the 2027 biennial', () => {
     const result = plan({ record: record({ appointmentDate: '2027-08-25' }), today: '2027-09-01' });
     expect(summary(result.obligations)).toEqual([
       {
@@ -748,7 +748,7 @@ describe('2027 triple peak', () => {
     ]);
   });
 
-  it('long-serving officer in the December biennial: due on 1 November, overdue on 1 January', () => {
+  it('long-serving declarant in the December biennial: due on 1 November, overdue on 1 January', () => {
     const due = plan({ record: record(), today: '2027-11-01' });
     expect(created(due)[0]).toMatchObject({ cycleKey: 'biennial:2027', status: 'due' });
     const overdue = plan({ record: record(), today: '2028-01-01' });

@@ -281,14 +281,14 @@ describe('S8 roster.exits.confirmed.v1', () => {
     });
   });
 
-  it('keeps the biennial when the officer exited after its statement date', async () => {
+  it('keeps the biennial when the declarant exited after its statement date', async () => {
     api.clock.setToday('2027-11-25');
-    const officer = longServing();
-    await imported([officer]);
+    const declarant = longServing();
+    await imported([declarant]);
 
-    await confirmedExits([exited(officer, '2027-11-20')]);
+    await confirmedExits([exited(declarant, '2027-11-20')]);
 
-    expect(await obligationsOf(officer)).toEqual([
+    expect(await obligationsOf(declarant)).toEqual([
       expect.objectContaining({ cycleKey: 'biennial:2027', status: 'due', cancelReason: null }),
       expect.objectContaining({
         cycleKey: 'final:2027-11-20',
@@ -300,16 +300,16 @@ describe('S8 roster.exits.confirmed.v1', () => {
   });
 
   it('cancels a biennial already due when the exit before its statement date is confirmed late', async () => {
-    const officer = longServing();
-    await imported([officer]);
-    const biennial = await obligationIdOf(officer, 'biennial:2027');
+    const declarant = longServing();
+    await imported([declarant]);
+    const biennial = await obligationIdOf(declarant, 'biennial:2027');
     // The workflow moved it to due on the statement date.
     await asPlatform((tx) =>
       tx.update(filingObligations).set({ status: 'due' }).where(eq(filingObligations.id, biennial)),
     );
     api.clock.setToday('2027-11-05');
 
-    await confirmedExits([exited(officer, '2027-10-20')]);
+    await confirmedExits([exited(declarant, '2027-10-20')]);
 
     expect(await eventsOf('obligation.status-changed.v1')).toEqual([
       {
@@ -319,47 +319,47 @@ describe('S8 roster.exits.confirmed.v1', () => {
         reason: 'exited-before-statement-date',
       },
     ]);
-    expect((await obligationsOf(officer)).map((o) => [o.cycleKey, o.status])).toEqual([
+    expect((await obligationsOf(declarant)).map((o) => [o.cycleKey, o.status])).toEqual([
       ['biennial:2027', 'cancelled'],
       ['final:2027-10-20', 'due'],
     ]);
   });
 
   it('creates a final already overdue when the exit is confirmed late', async () => {
-    const officer = longServing();
-    await imported([officer]);
+    const declarant = longServing();
+    await imported([declarant]);
 
-    await confirmedExits([exited(officer, '2027-05-01')]);
+    await confirmedExits([exited(declarant, '2027-05-01')]);
 
-    const final = await obligationIdOf(officer, 'final:2027-05-01');
-    expect((await obligationsOf(officer)).find((o) => o.id === final)).toMatchObject({
+    const final = await obligationIdOf(declarant, 'final:2027-05-01');
+    expect((await obligationsOf(declarant)).find((o) => o.id === final)).toMatchObject({
       dueDate: '2027-05-31',
       status: 'overdue',
     });
     expect(await skippedOffsets(final)).toEqual([30, 14, 7]);
   });
 
-  it('creates the final of an officer whose import was never seen', async () => {
-    const officer = exited(longServing(), '2027-07-01');
+  it('creates the final of a declarant whose import was never seen', async () => {
+    const declarant = exited(longServing(), '2027-07-01');
 
-    await confirmedExits([officer]);
+    await confirmedExits([declarant]);
 
-    expect(await obligationsOf(officer)).toEqual([
+    expect(await obligationsOf(declarant)).toEqual([
       expect.objectContaining({ cycleKey: 'final:2027-07-01', status: 'due' }),
     ]);
-    expect(await snapshotOf(officer)).toMatchObject({ state: 'exited', exitDate: '2027-07-01' });
+    expect(await snapshotOf(declarant)).toMatchObject({ state: 'exited', exitDate: '2027-07-01' });
   });
 
   it('is a no-op when the same event is delivered again', async () => {
-    const officer = longServing();
-    await imported([officer]);
+    const declarant = longServing();
+    await imported([declarant]);
     const batchId = randomUUID();
-    const records = [exited(officer, '2027-07-05')];
+    const records = [exited(declarant, '2027-07-05')];
     api.directory.givenExitBatch(batchId, records);
     const event = exitsConfirmed(batchId, records);
     await api.consumers.exitsConfirmed(event);
     const before = {
-      obligations: await obligationsOf(officer),
+      obligations: await obligationsOf(declarant),
       created: await eventsOf('obligation.created.v1'),
       changed: await eventsOf('obligation.status-changed.v1'),
       pulls: api.directory.pulls.length,
@@ -368,7 +368,7 @@ describe('S8 roster.exits.confirmed.v1', () => {
 
     await api.consumers.exitsConfirmed(event);
 
-    expect(await obligationsOf(officer)).toEqual(before.obligations);
+    expect(await obligationsOf(declarant)).toEqual(before.obligations);
     expect(await eventsOf('obligation.created.v1')).toEqual(before.created);
     expect(await eventsOf('obligation.status-changed.v1')).toEqual(before.changed);
     expect(api.directory.pulls).toHaveLength(before.pulls);
@@ -382,21 +382,21 @@ describe('S8 roster.exits.confirmed.v1', () => {
   });
 
   it('leaves the event for retry when the batch cannot be pulled', async () => {
-    const officer = longServing();
-    await imported([officer]);
+    const declarant = longServing();
+    await imported([declarant]);
     const batchId = randomUUID();
-    const records = [exited(officer, '2027-07-05')];
+    const records = [exited(declarant, '2027-07-05')];
     api.directory.givenExitBatch(batchId, records);
     api.directory.failPull(0);
     const event = exitsConfirmed(batchId, records);
 
     await expect(api.consumers.exitsConfirmed(event)).rejects.toThrow('unreachable');
-    expect(await obligationsOf(officer)).toEqual([
+    expect(await obligationsOf(declarant)).toEqual([
       expect.objectContaining({ cycleKey: 'biennial:2027', status: 'upcoming' }),
     ]);
 
     await api.consumers.exitsConfirmed(event);
-    expect((await obligationsOf(officer)).map((o) => [o.cycleKey, o.status])).toEqual([
+    expect((await obligationsOf(declarant)).map((o) => [o.cycleKey, o.status])).toEqual([
       ['biennial:2027', 'cancelled'],
       ['final:2027-07-05', 'due'],
     ]);
@@ -412,16 +412,16 @@ describe('S8 roster.exits.confirmed.v1', () => {
 
 describe('exit reversed by a later import', () => {
   it('cancels the final as exit-reversed and recreates the biennial', async () => {
-    const officer = longServing();
-    await imported([officer]);
-    const withExit = exited(officer, '2027-07-05');
+    const declarant = longServing();
+    await imported([declarant]);
+    const withExit = exited(declarant, '2027-07-05');
     await confirmedExits([withExit]);
-    const final = await obligationIdOf(officer, 'final:2027-07-05');
+    const final = await obligationIdOf(declarant, 'final:2027-07-05');
     api.workflows.reset();
 
     const importId = await imported([reimported(withExit)]);
 
-    const obligations = await obligationsOf(officer);
+    const obligations = await obligationsOf(declarant);
     expect(obligations).toEqual([
       expect.objectContaining({
         cycleKey: 'biennial:2027',
@@ -437,7 +437,7 @@ describe('exit reversed by a later import', () => {
         cancelReason: null,
       }),
     ]);
-    const restored = await obligationIdOf(officer, 'biennial:2027');
+    const restored = await obligationIdOf(declarant, 'biennial:2027');
     expect((await eventsOf('obligation.status-changed.v1')).at(-1)).toEqual({
       obligationId: final,
       from: 'due',
@@ -450,7 +450,7 @@ describe('exit reversed by a later import', () => {
     });
     expect(api.workflows.cancelled()).toEqual([{ obligationId: final, reason: 'exit-reversed' }]);
     expect(api.workflows.created()).toEqual([restored]);
-    expect(await snapshotOf(officer)).toEqual({
+    expect(await snapshotOf(declarant)).toEqual({
       state: 'not_onboarded',
       appointmentDate: '2012-10-01',
       exitDate: null,
@@ -460,16 +460,16 @@ describe('exit reversed by a later import', () => {
   });
 
   it('restores the biennial in the status it has today', async () => {
-    const officer = longServing();
-    await imported([officer]);
-    const withExit = exited(officer, '2027-07-05');
+    const declarant = longServing();
+    await imported([declarant]);
+    const withExit = exited(declarant, '2027-07-05');
     await confirmedExits([withExit]);
     api.clock.setToday('2027-11-05');
 
     await imported([reimported(withExit)]);
 
-    const restored = await obligationIdOf(officer, 'biennial:2027');
-    expect((await obligationsOf(officer)).find((o) => o.id === restored)).toMatchObject({
+    const restored = await obligationIdOf(declarant, 'biennial:2027');
+    expect((await obligationsOf(declarant)).find((o) => o.id === restored)).toMatchObject({
       status: 'due',
     });
     // Due 2027-12-31: every reminder (1, 17 and 24 December) is still ahead.
@@ -477,9 +477,9 @@ describe('exit reversed by a later import', () => {
   });
 
   it('gives a new final when the exit is confirmed again, even on the same date', async () => {
-    const officer = longServing();
-    await imported([officer]);
-    const firstExit = exited(officer, '2027-07-05');
+    const declarant = longServing();
+    await imported([declarant]);
+    const firstExit = exited(declarant, '2027-07-05');
     await confirmedExits([firstExit]);
     const reversed = reimported(firstExit);
     await imported([reversed]);
@@ -487,7 +487,7 @@ describe('exit reversed by a later import', () => {
     await confirmedExits([exited(reversed, '2027-07-05')]);
 
     expect(
-      (await obligationsOf(officer)).map((o) => [o.cycleKey, o.status, o.cancelReason]),
+      (await obligationsOf(declarant)).map((o) => [o.cycleKey, o.status, o.cancelReason]),
     ).toEqual([
       ['biennial:2027', 'cancelled', 'exited-before-statement-date'],
       ['final:2027-07-05', 'cancelled', 'exit-reversed'],
@@ -497,16 +497,16 @@ describe('exit reversed by a later import', () => {
   });
 
   it('never touches a filed final', async () => {
-    const officer = longServing();
-    await imported([officer]);
-    const withExit = exited(officer, '2027-07-05');
+    const declarant = longServing();
+    await imported([declarant]);
+    const withExit = exited(declarant, '2027-07-05');
     await confirmedExits([withExit]);
-    const final = await obligationIdOf(officer, 'final:2027-07-05');
+    const final = await obligationIdOf(declarant, 'final:2027-07-05');
     await markFiled(final);
 
     await imported([reimported(withExit)]);
 
-    expect((await obligationsOf(officer)).find((o) => o.id === final)).toMatchObject({
+    expect((await obligationsOf(declarant)).find((o) => o.id === final)).toMatchObject({
       status: 'filed',
       cancelReason: null,
     });
@@ -516,15 +516,15 @@ describe('exit reversed by a later import', () => {
 
 describe('appointment date corrected by a later import', () => {
   it('supersedes the initial with one on the new dates', async () => {
-    const officer = longServing({ appointmentDate: '2027-06-20' });
-    await imported([officer]);
-    const initial = await obligationIdOf(officer, 'initial:2027-06-20');
-    const biennial = await obligationIdOf(officer, 'biennial:2027');
+    const declarant = longServing({ appointmentDate: '2027-06-20' });
+    await imported([declarant]);
+    const initial = await obligationIdOf(declarant, 'initial:2027-06-20');
+    const biennial = await obligationIdOf(declarant, 'biennial:2027');
     api.workflows.reset();
 
-    await imported([reimported(officer, { appointmentDate: '2027-06-25' })]);
+    await imported([reimported(declarant, { appointmentDate: '2027-06-25' })]);
 
-    expect(await obligationsOf(officer)).toEqual([
+    expect(await obligationsOf(declarant)).toEqual([
       expect.objectContaining({ id: initial, status: 'cancelled', cancelReason: 'superseded' }),
       expect.objectContaining({ id: biennial, status: 'upcoming' }),
       expect.objectContaining({
@@ -535,7 +535,7 @@ describe('appointment date corrected by a later import', () => {
         cancelReason: null,
       }),
     ]);
-    const replacement = await obligationIdOf(officer, 'initial:2027-06-25');
+    const replacement = await obligationIdOf(declarant, 'initial:2027-06-25');
     expect((await eventsOf('obligation.status-changed.v1')).at(-1)).toEqual({
       obligationId: initial,
       from: 'due',
@@ -550,18 +550,18 @@ describe('appointment date corrected by a later import', () => {
     });
     expect(api.workflows.cancelled()).toEqual([{ obligationId: initial, reason: 'superseded' }]);
     expect(api.workflows.created()).toEqual([replacement]);
-    expect(await snapshotOf(officer)).toMatchObject({ appointmentDate: '2027-06-25' });
+    expect(await snapshotOf(declarant)).toMatchObject({ appointmentDate: '2027-06-25' });
   });
 
   it('computes the new initial status as of today', async () => {
-    const officer = longServing({ appointmentDate: '2027-06-20' });
-    await imported([officer]);
+    const declarant = longServing({ appointmentDate: '2027-06-20' });
+    await imported([declarant]);
 
     // HR corrects the appointment to months earlier: the initial was due long ago.
-    await imported([reimported(officer, { appointmentDate: '2027-03-10' })]);
+    await imported([reimported(declarant, { appointmentDate: '2027-03-10' })]);
 
-    const replacement = await obligationIdOf(officer, 'initial:2027-03-10');
-    expect((await obligationsOf(officer)).find((o) => o.id === replacement)).toMatchObject({
+    const replacement = await obligationIdOf(declarant, 'initial:2027-03-10');
+    expect((await obligationsOf(declarant)).find((o) => o.id === replacement)).toMatchObject({
       dueDate: '2027-04-09',
       status: 'overdue',
     });
@@ -569,14 +569,14 @@ describe('appointment date corrected by a later import', () => {
   });
 
   it('cancels the initial when the corrected date is before the obligations-start date', async () => {
-    const officer = longServing({ appointmentDate: '2027-06-20' });
-    await imported([officer]);
-    const initial = await obligationIdOf(officer, 'initial:2027-06-20');
+    const declarant = longServing({ appointmentDate: '2027-06-20' });
+    await imported([declarant]);
+    const initial = await obligationIdOf(declarant, 'initial:2027-06-20');
 
-    await imported([reimported(officer, { appointmentDate: '2026-12-01' })]);
+    await imported([reimported(declarant, { appointmentDate: '2026-12-01' })]);
 
     expect(
-      (await obligationsOf(officer)).map((o) => [o.cycleKey, o.status, o.cancelReason]),
+      (await obligationsOf(declarant)).map((o) => [o.cycleKey, o.status, o.cancelReason]),
     ).toEqual([
       ['initial:2027-06-20', 'cancelled', 'superseded'],
       ['biennial:2027', 'upcoming', null],
@@ -588,18 +588,18 @@ describe('appointment date corrected by a later import', () => {
   });
 
   it('never touches a filed initial, and creates no replacement', async () => {
-    const officer = longServing({ appointmentDate: '2027-06-20' });
-    await imported([officer]);
-    const initial = await obligationIdOf(officer, 'initial:2027-06-20');
+    const declarant = longServing({ appointmentDate: '2027-06-20' });
+    await imported([declarant]);
+    const initial = await obligationIdOf(declarant, 'initial:2027-06-20');
     await markFiled(initial);
-    const before = await obligationsOf(officer);
+    const before = await obligationsOf(declarant);
     const events = (await eventsOf('obligation.created.v1')).length;
 
-    await imported([reimported(officer, { appointmentDate: '2027-06-25' })]);
+    await imported([reimported(declarant, { appointmentDate: '2027-06-25' })]);
 
-    expect(await obligationsOf(officer)).toEqual(before);
+    expect(await obligationsOf(declarant)).toEqual(before);
     expect(await eventsOf('obligation.created.v1')).toHaveLength(events);
     expect(await eventsOf('obligation.status-changed.v1')).toEqual([]);
-    expect(await snapshotOf(officer)).toMatchObject({ appointmentDate: '2027-06-25' });
+    expect(await snapshotOf(declarant)).toMatchObject({ appointmentDate: '2027-06-25' });
   });
 });

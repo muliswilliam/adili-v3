@@ -29,7 +29,7 @@ import { policyVersion, rosterRecord } from '../support/fake-directory.js';
  * The steps `FilingObligationWorkflow`'s activities take (S11 and the reminder rules), against
  * real Postgres with the fake notifications client: statuses, reminder rows and events.
  *
- * Today is 2027-07-10. The officer was appointed on 2027-07-01: an initial due 2027-07-31 whose
+ * Today is 2027-07-10. The declarant was appointed on 2027-07-01: an initial due 2027-07-31 whose
  * 30-day reminder (1 July) was already past at creation, and the 14 and 7-day ones (17 and 24
  * July) ahead; the 2027 biennial is upcoming.
  */
@@ -56,8 +56,8 @@ function asPlatform<T>(work: (tx: Transaction) => Promise<T>): Promise<T> {
   return withTenant(api.db, { tenant: 'platform', subject: 'test' }, work);
 }
 
-/** Imports one officer and returns the ids of their initial and biennial obligations. */
-async function officer(personId: string | null = null) {
+/** Imports one declarant and returns the ids of their initial and biennial obligations. */
+async function declarant(personId: string | null = null) {
   const record = rosterRecord('psc', {
     appointmentDate: '2027-07-01',
     personId,
@@ -124,7 +124,7 @@ async function sentByWorkflow() {
 
 describe('sendReminder', () => {
   it('S11: records skipped-not-onboarded without calling notifications when no person is linked', async () => {
-    const { initial } = await officer();
+    const { initial } = await declarant();
 
     await expect(api.steps.sendReminder(reminder(initial), attempt().run)).resolves.toBe(
       'skipped-not-onboarded',
@@ -146,7 +146,7 @@ describe('sendReminder', () => {
   });
 
   it('S11: sends SMS and email to the linked person and records both message ids and an event', async () => {
-    const { initial } = await officer(PERSON);
+    const { initial } = await declarant(PERSON);
 
     await expect(api.steps.sendReminder(reminder(initial), attempt().run)).resolves.toBe('sent');
 
@@ -186,7 +186,7 @@ describe('sendReminder', () => {
   });
 
   it('records skipped-no-contact when the person has no contact on either channel', async () => {
-    const { initial } = await officer(PERSON);
+    const { initial } = await declarant(PERSON);
     api.notifications.answer('sms', { failed: 'no-contact' });
     api.notifications.answer('email', { failed: 'no-contact' });
 
@@ -197,7 +197,7 @@ describe('sendReminder', () => {
   });
 
   it('counts a reminder sent on the one channel with a contact', async () => {
-    const { initial } = await officer(PERSON);
+    const { initial } = await declarant(PERSON);
     api.notifications.answer('sms', { failed: 'no-contact' });
 
     await expect(api.steps.sendReminder(reminder(initial), attempt(false).run)).resolves.toBe(
@@ -210,7 +210,7 @@ describe('sendReminder', () => {
   });
 
   it('asks for a retry when a channel failed for now, and never sends a channel twice', async () => {
-    const { initial } = await officer(PERSON);
+    const { initial } = await declarant(PERSON);
     api.notifications.answer('sms', 'unreachable', { failed: 'provider-error' });
     const first = attempt(false);
 
@@ -233,7 +233,7 @@ describe('sendReminder', () => {
   });
 
   it('does not retry a channel that timed out at the provider: it may have been delivered', async () => {
-    const { initial } = await officer(PERSON);
+    const { initial } = await declarant(PERSON);
     api.notifications.answer('sms', { failed: 'timeout' });
 
     await expect(api.steps.sendReminder(reminder(initial), attempt(false).run)).resolves.toBe(
@@ -247,7 +247,7 @@ describe('sendReminder', () => {
   });
 
   it('sends each channel of a reminder with its own Idempotency-Key, the same on every attempt', async () => {
-    const { initial } = await officer(PERSON);
+    const { initial } = await declarant(PERSON);
     api.notifications.answer('sms', 'unreachable', 'sent');
 
     await expect(
@@ -266,7 +266,7 @@ describe('sendReminder', () => {
   });
 
   it('resends the body of its first attempt, so a Commission renamed between attempts does not break the Idempotency-Key', async () => {
-    const { initial } = await officer(PERSON);
+    const { initial } = await declarant(PERSON);
     // The first SMS reached notifications, but its answer did not come back in time.
     api.notifications.answer('sms', 'lost');
     const first = attempt(false);
@@ -294,7 +294,7 @@ describe('sendReminder', () => {
   });
 
   it('counts a channel whose key was taken by another message as failed, without sending it again', async () => {
-    const { initial } = await officer(PERSON);
+    const { initial } = await declarant(PERSON);
     // Another body under the SMS key: what notifications answers is 422.
     await api.notifications.sendReminder({
       channel: 'sms',
@@ -321,7 +321,7 @@ describe('sendReminder', () => {
   });
 
   it("counts the days left from the reminder's planned day, so a retried request is the same", async () => {
-    const { initial } = await officer(PERSON);
+    const { initial } = await declarant(PERSON);
     // Planned for 17 July, sent late on 20 July: still "14 days" (due 31 July).
     api.clock.setToday('2027-07-20');
 
@@ -331,7 +331,7 @@ describe('sendReminder', () => {
   });
 
   it('records failed when the last attempt sent nothing', async () => {
-    const { initial } = await officer(PERSON);
+    const { initial } = await declarant(PERSON);
     api.notifications.answer('sms', { failed: 'timeout' });
     api.notifications.answer('email', { failed: 'rejected-recipient' });
 
@@ -342,7 +342,7 @@ describe('sendReminder', () => {
   });
 
   it('does not send a reminder already recorded again', async () => {
-    const { initial } = await officer(PERSON);
+    const { initial } = await declarant(PERSON);
     await api.steps.sendReminder(reminder(initial), attempt().run);
 
     await expect(api.steps.sendReminder(reminder(initial), attempt().run)).resolves.toBe('sent');
@@ -356,7 +356,7 @@ describe('sendReminder', () => {
   });
 
   it('sends nothing and records nothing for an obligation no longer open for reminders', async () => {
-    const { initial, biennial } = await officer(PERSON);
+    const { initial, biennial } = await declarant(PERSON);
     await asPlatform(async (tx) => {
       await tx
         .update(filingObligations)
@@ -381,7 +381,7 @@ describe('sendReminder', () => {
 
 describe('setStatus, loadObligation, recordSkipped', () => {
   it('moves an open obligation on with one status-changed event, and leaves a cancelled one', async () => {
-    const { initial, biennial } = await officer();
+    const { initial, biennial } = await declarant();
 
     await expect(api.steps.setStatus(psc(biennial), 'due')).resolves.toBe('due');
     await expect(api.steps.setStatus(psc(biennial), 'due')).resolves.toBe('due');
@@ -399,7 +399,7 @@ describe('setStatus, loadObligation, recordSkipped', () => {
   });
 
   it('never moves an open status back, so it converges with ingest on the later date-based status', async () => {
-    const { initial } = await officer();
+    const { initial } = await declarant();
 
     await expect(api.steps.setStatus(psc(initial), 'overdue')).resolves.toBe('overdue');
     await expect(api.steps.setStatus(psc(initial), 'due')).resolves.toBe('overdue');
@@ -410,7 +410,7 @@ describe('setStatus, loadObligation, recordSkipped', () => {
   });
 
   it("runs in the obligation's tenant: named with another tenant, a step finds nothing", async () => {
-    const { biennial } = await officer();
+    const { biennial } = await declarant();
 
     await expect(
       api.steps.setStatus({ obligationId: biennial, tenant: 'tsc' }, 'due'),
@@ -425,7 +425,7 @@ describe('setStatus, loadObligation, recordSkipped', () => {
   });
 
   it('loads what the workflow plans from: dates, status, offsets of its policy version, reminders recorded', async () => {
-    const { initial } = await officer(PERSON);
+    const { initial } = await declarant(PERSON);
 
     await expect(api.steps.load(initial)).resolves.toEqual({
       obligationId: initial,
@@ -443,14 +443,14 @@ describe('setStatus, loadObligation, recordSkipped', () => {
   });
 
   it("plans reminders with the offsets of the obligation's policy version, not a later one (ADR-003 §4)", async () => {
-    const { initial } = await officer(PERSON);
+    const { initial } = await declarant(PERSON);
     // Version 2 changes the offsets; the next roster event caches it.
     api.directory.givenCommission(
       'psc',
       'Public Service Commission',
       policyVersion({ id: randomUUID(), version: 2, reminderOffsetsDays: [22, 7, 1] }),
     );
-    await officer();
+    await declarant();
 
     await expect(api.steps.load(initial)).resolves.toMatchObject({
       reminderOffsetsDays: [30, 14, 7],
@@ -461,7 +461,7 @@ describe('setStatus, loadObligation, recordSkipped', () => {
     // Created 2027-07-10, due 2027-07-31: the 25-day reminder (6 July) was already past then;
     // the 21-day one (10 July, the day of creation) and the 14-day one (17 July) were ahead, so a
     // workflow that plans them later missed them.
-    const { initial } = await officer();
+    const { initial } = await declarant();
     // The test clock says 10 July; the row's created_at is the database's real time.
     await asPlatform((tx) =>
       tx
@@ -488,7 +488,7 @@ describe('setStatus, loadObligation, recordSkipped', () => {
   });
 
   it('records reminders missed by the workflow as skipped, once', async () => {
-    const { biennial } = await officer();
+    const { biennial } = await declarant();
     const missed = [{ offsetDays: 30, scheduledAt: '2027-12-01T09:41:07.000Z' }];
 
     await api.steps.recordSkipped(psc(biennial), missed);
@@ -521,7 +521,7 @@ describe('setStatus, loadObligation, recordSkipped', () => {
   });
 
   it('announces reminders already past when the obligation was created', async () => {
-    const { initial } = await officer();
+    const { initial } = await declarant();
 
     expect(
       (await events('obligation.reminder.recorded.v1'))

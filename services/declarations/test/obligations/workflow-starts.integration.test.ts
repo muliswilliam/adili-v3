@@ -19,7 +19,7 @@ import { rosterRecord } from '../support/fake-directory.js';
  * and stopped runs: the real `TemporalObligationWorkflows` against a fake Temporal client, real
  * Postgres.
  *
- * Today is 2027-07-10 (the 2027 cycle is open): each officer owes the 2027 biennial, and those
+ * Today is 2027-07-10 (the 2027 cycle is open): each declarant owes the 2027 biennial, and those
  * appointed on 2027-07-01 an initial too.
  */
 const TODAY = '2027-07-10';

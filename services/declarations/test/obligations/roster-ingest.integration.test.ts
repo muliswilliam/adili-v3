@@ -385,7 +385,7 @@ describe('S9 declarant.onboarded.v1', () => {
 });
 
 describe('#91 statuses recomputed on ingest', () => {
-  /** An officer appointed 2027-06-20: initial due 2027-07-20, and the 2027 biennial (1 Nov). */
+  /** A declarant appointed 2027-06-20: initial due 2027-07-20, and the 2027 biennial (1 Nov). */
   const appointed = rosterRecord('psc', { appointmentDate: '2027-06-20' });
 
   async function ingest() {

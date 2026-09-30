@@ -23,8 +23,8 @@ import { rosterRecord } from '../support/fake-directory.js';
 
 /**
  * Spec 04 S16 (national part) over HTTP: EACC and platform admins read per-Commission counts of a
- * cycle, the officers due or overdue who have not onboarded and each Commission's last roster
- * import, with totals. No officer data. Everyone else gets 403.
+ * cycle, the declarants due or overdue who have not onboarded and each Commission's last roster
+ * import, with totals. No declarant data. Everyone else gets 403.
  *
  * Today is 2027-10-15: the 2027 cycle is open, its biennials upcoming.
  */
@@ -47,8 +47,8 @@ const PSC_OVERDUE = rosterRecord('psc', { appointmentDate: '2027-08-01' });
 const TSC_ONBOARDING = rosterRecord('tsc', { appointmentDate: '2027-10-01' });
 
 /**
- * PSC: an officer appointed 2027-08-01, not onboarded (overdue initial, biennial) and a
- * long-serving onboarded one (biennial); imported twice, the later on 2027-10-01. TSC: an officer
+ * PSC: a declarant appointed 2027-08-01, not onboarded (overdue initial, biennial) and a
+ * long-serving onboarded one (biennial); imported twice, the later on 2027-10-01. TSC: a declarant
  * appointed 2027-10-01, not onboarded (due initial, biennial), imported 2027-10-10. KRA: an
  * empty roster, imported 2027-09-01.
  */

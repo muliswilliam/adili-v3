@@ -25,7 +25,7 @@ import { rosterRecord } from '../support/fake-directory.js';
  * service's real activities against real Postgres (fake directory, recorded obligation workflows).
  *
  * The 2027 cycle opens on 2027-07-04 (120 days before 1 November). PSC imported its roster on
- * 2027-06-01, before that: three active officers and one who left on 2027-05-15.
+ * 2027-06-01, before that: three active declarants and one who left on 2027-05-15.
  */
 const workflowsPath = fileURLToPath(
   new URL('../../src/obligations/workflow/workflows.ts', import.meta.url),
@@ -118,7 +118,7 @@ function pscRoster() {
 }
 
 describe('S13 cycle opening', () => {
-  it('creates the cycle’s biennial for each active officer and announces the count', async () => {
+  it('creates the cycle’s biennial for each active declarant and announces the count', async () => {
     const { active, exited } = pscRoster();
     await importRecords('psc', [...active, exited]);
     expect(await biennials()).toEqual([]);
@@ -239,7 +239,7 @@ describe('S13 cycle opening', () => {
     expect(await openedEvents()).toEqual([]);
   });
 
-  it('gives an officer ingested after the opening the biennial on ingest', async () => {
+  it('gives a declarant ingested after the opening the biennial on ingest', async () => {
     await importRecords('psc', pscRoster().active);
     api.clock.setToday(OPENING_DAY);
     await open('psc');
@@ -252,7 +252,7 @@ describe('S13 cycle opening', () => {
     expect(lateBiennials).toMatchObject([{ cycleKey: 'biennial:2027', status: 'upcoming' }]);
   });
 
-  it('pages through the active officers 1,000 at a time', async () => {
+  it('pages through the active declarants 1,000 at a time', async () => {
     await importRecords(
       'psc',
       Array.from({ length: 2_500 }, () => rosterRecord('psc')),
