@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { clientIp } from './client-ip';
+import { clientIp } from './client-ip.js';
 
 const SOCKET = '10.0.0.5';
 

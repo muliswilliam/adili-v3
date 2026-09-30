@@ -9,10 +9,10 @@ export const envSchema = bffEnvSchema.extend({
    */
   DIRECTORY_MOCK: z.stringbool().default(false),
   /**
-   * Trusted proxies in front of the portal that append to X-Forwarded-For; see
-   * server/client-ip.ts. Defaults to 1: every deployment serves the portal behind one edge proxy
-   * (Traefik on Dokploy, the ingress on Kubernetes), and with 0 every browser would share that
-   * proxy's address and so one per-IP rate limit. Must equal the real number of proxies: a
+   * Trusted proxies in front of the portal that append to X-Forwarded-For; see `clientIp` in
+   * @adili/api-kit/client. Defaults to 1: every deployment serves the portal behind one edge
+   * proxy (Traefik on Dokploy, the ingress on Kubernetes), and with 0 every browser would share
+   * that proxy's address and so one per-IP rate limit. Must equal the real number of proxies: a
    * higher value lets a client pick its own address. Without a proxy (local dev) the header is
    * short and the socket address is used anyway.
    */

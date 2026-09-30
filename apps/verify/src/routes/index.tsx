@@ -1,81 +1,117 @@
-import { Button, Card, CardContent, Icon, Input, Label } from '@adili/ui';
-import { createFileRoute, useNavigate } from '@tanstack/react-router';
-import { QrCodeIcon } from '@hugeicons/core-free-icons';
-import { type SubmitEvent, useId, useState } from 'react';
+import { Card, Icon, QrCode } from '@adili/ui';
+import {
+  File01Icon,
+  QrCodeIcon,
+  SecurityCheckIcon,
+  ViewOffSlashIcon,
+} from '@hugeicons/core-free-icons';
+import { createFileRoute, Link, useNavigate, useRouterState } from '@tanstack/react-router';
 
-import { isVerificationId, normalizeVerificationId } from '../lib/verification-id';
+import { CodeForm } from '../components/code-form';
+import { verifyMessages as copy } from '../copy';
+
+/** The code printed on the sample footer, and the host its QR code points at. */
+const SAMPLE_CODE = 'ADL-7Q4K-M2XR-9HTC-W3NB-5FJD-K6RT-8P';
+const SAMPLE_HOST = 'verify.adili.go.ke';
 
 export const Route = createFileRoute('/')({
+  // "Edit code" on a not-found result comes back with the code to correct.
+  validateSearch: (search: Record<string, unknown>): { code?: string } =>
+    typeof search.code === 'string' && search.code.length <= 40 ? { code: search.code } : {},
   component: VerifyHome,
 });
 
 function VerifyHome() {
   const navigate = useNavigate();
-  const inputId = useId();
-  const hintId = useId();
-  const errorId = useId();
-  const [value, setValue] = useState('');
-  const [error, setError] = useState<string | null>(null);
-
-  function submit(event: SubmitEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const id = normalizeVerificationId(value);
-    if (!isVerificationId(id)) {
-      setError('Enter the code exactly as printed under the QR code, starting with ADL.');
-      return;
-    }
-    void navigate({ to: '/v/$verificationId', params: { verificationId: id } });
-  }
+  const { code } = Route.useSearch();
+  const pending = useRouterState({ select: (state) => state.status === 'pending' });
 
   return (
-    <div className="grid gap-8">
-      <div className="grid gap-3 text-center">
-        <div className="mx-auto flex size-12 items-center justify-center rounded-xl bg-muted text-secondary-foreground">
-          <Icon icon={QrCodeIcon} className="size-6" />
+    <div className="grid gap-[26px]">
+      <div className="text-center">
+        <div className="mx-auto mb-[18px] flex size-[52px] items-center justify-center rounded-[14px] bg-brand-subtle text-brand-subtle-foreground">
+          <Icon icon={QrCodeIcon} className="size-[26px]" />
         </div>
-        <h1 className="text-3xl font-semibold tracking-tight text-balance">Verify a document</h1>
-        <p className="text-pretty text-muted-foreground">
-          Scan the QR code on an acknowledgement, letter or certificate, or enter the verification
-          code printed under it.
-        </p>
+        <h1 className="text-[28px] leading-tight font-semibold tracking-[-0.02em] text-balance">
+          {copy.homeHeading}
+        </h1>
+        <p className="mt-2.5 text-[15.5px] text-pretty text-muted-foreground">{copy.homeIntro}</p>
       </div>
       <Card>
-        <CardContent>
-          <form className="grid gap-4" onSubmit={submit} noValidate>
-            <div className="grid gap-2">
-              <Label htmlFor={inputId}>Verification code</Label>
-              <Input
-                id={inputId}
-                name="verificationId"
-                placeholder="ADL-7Q4K-M2XR-9HTC"
-                autoComplete="off"
-                autoCapitalize="characters"
-                spellCheck={false}
-                className="font-mono tracking-wide uppercase placeholder:normal-case"
-                value={value}
-                aria-invalid={error ? true : undefined}
-                aria-describedby={error ? errorId : hintId}
-                onChange={(event) => {
-                  setValue(event.target.value);
-                  setError(null);
-                }}
-              />
-              {error ? (
-                <p id={errorId} className="text-sm text-destructive-subtle-foreground">
-                  {error}
-                </p>
-              ) : (
-                <p id={hintId} className="text-sm text-muted-foreground">
-                  Codes are not case sensitive.
-                </p>
-              )}
-            </div>
-            <Button type="submit" className="w-full">
-              Verify
-            </Button>
-          </form>
-        </CardContent>
+        <CodeForm
+          key={code}
+          initialCode={code}
+          pending={pending}
+          onSubmit={(verificationId) => {
+            void navigate({ to: '/v/$verificationId', params: { verificationId } });
+          }}
+        />
       </Card>
+      <div className="mt-1.5 grid gap-7">
+        <section aria-labelledby="where-heading">
+          <h2 id="where-heading" className="text-base font-semibold tracking-[-0.01em]">
+            {copy.whereHeading}
+          </h2>
+          <figure className="mt-3 flex items-center gap-3.5 rounded-xl bg-card p-3.5 shadow-card">
+            <QrCode
+              value={`https://${SAMPLE_HOST}/v/${SAMPLE_CODE}`}
+              label={copy.whereAlt}
+              size={64}
+            />
+            <figcaption className="min-w-0 text-[13px] text-muted-foreground">
+              <span className="block">{copy.whereVerifyAt(SAMPLE_HOST)}</span>
+              <span className="my-1 inline-block rounded-[3px] bg-[#fff5c2] font-mono text-[11.5px] font-semibold tracking-[0.03em] text-foreground shadow-[0_0_0_3px_#fff5c2] sm:text-[13px] dark:bg-warning-subtle dark:shadow-warning-subtle">
+                {SAMPLE_CODE}
+              </span>
+              <span className="block">{copy.whereSample}</span>
+            </figcaption>
+          </figure>
+        </section>
+        <section aria-labelledby="shows-heading">
+          <h2 id="shows-heading" className="text-base font-semibold tracking-[-0.01em]">
+            {copy.showsHeading}
+          </h2>
+          <ul className="mt-3 grid gap-2.5 text-[14.5px]">
+            <ShowsItem icon={SecurityCheckIcon} className="bg-success-subtle text-success">
+              {copy.showsGenuine}
+            </ShowsItem>
+            <ShowsItem icon={File01Icon} className="bg-muted text-secondary-foreground">
+              {copy.showsDetails}
+            </ShowsItem>
+            <ShowsItem icon={ViewOffSlashIcon} className="bg-destructive-subtle text-destructive">
+              {copy.showsNever}
+            </ShowsItem>
+          </ul>
+          <Link
+            to="/about"
+            className="mt-3 inline-block text-sm font-medium underline decoration-border underline-offset-4 hover:decoration-foreground"
+          >
+            {copy.showsMore}
+          </Link>
+        </section>
+      </div>
     </div>
+  );
+}
+
+function ShowsItem({
+  icon,
+  className,
+  children,
+}: {
+  icon: typeof File01Icon;
+  className: string;
+  children: string;
+}) {
+  return (
+    <li className="flex items-center gap-3">
+      <span
+        aria-hidden="true"
+        className={`flex size-[30px] shrink-0 items-center justify-center rounded-lg ${className}`}
+      >
+        <Icon icon={icon} />
+      </span>
+      {children}
+    </li>
   );
 }

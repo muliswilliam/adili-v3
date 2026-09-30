@@ -4,3 +4,4 @@
  */
 export { type RequestTimeout, type SendRequest, withDeadline } from './deadline.js';
 export { type MockableClientOptions, type MockFetch, mockableClient } from './mockable-client.js';
+export { clientIp } from './client-ip.js';
