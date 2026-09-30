@@ -35,6 +35,29 @@ export {
   type ChartValue,
 } from './components/chart';
 export {
+  CHAT_QUESTION_MAX_LENGTH,
+  ChatComposer,
+  type ChatComposerMessages,
+  type ChatComposerProps,
+} from './components/chat-composer';
+export {
+  AssistantMessage,
+  type AssistantMessageProps,
+  type AssistantMessageStatus,
+  type ChatMessageMessages,
+  nextAnnouncement,
+  type ReportingOfficer,
+  UserMessage,
+  type UserMessageProps,
+} from './components/chat-message';
+export {
+  ChatLog,
+  type ChatLogProps,
+  ChatPanel,
+  type ChatPanelMessages,
+  type ChatPanelProps,
+} from './components/chat-panel';
+export {
   Checkbox,
   CheckboxGroup,
   type CheckboxGroupProps,
@@ -42,6 +65,15 @@ export {
   type CheckboxItemProps,
   type CheckboxProps,
 } from './components/checkbox';
+export {
+  type Citation,
+  CitationChip,
+  type CitationChipProps,
+  CitationList,
+  type CitationListProps,
+  type CitationMessages,
+  type CitationSource,
+} from './components/citation-chip';
 export {
   CodeBlock,
   type CodeBlockProps,
@@ -233,6 +265,7 @@ export {
   statusMarkVariants,
 } from './components/status-mark';
 export { Stepper, type StepperProps, type StepperStep } from './components/stepper';
+export { SuggestedQuestions, type SuggestedQuestionsProps } from './components/suggested-questions';
 export {
   emptyFieldDiff,
   SUGGESTION_MESSAGES,
