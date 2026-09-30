@@ -42,7 +42,7 @@ export class DirectoryEventsConsumer {
     await this.commissions.created('obligations.commission-created', ingested(event));
   }
 
-  /** The records the import had rows for: new officers, changed dates, reversed exits. */
+  /** The records the import had rows for: new declarants, changed dates, reversed exits. */
   @OnEvent(ROSTER_IMPORT_COMPLETED)
   async importCompleted(@Payload() event: EventEnvelope): Promise<void> {
     const { importId } = importCompletedData.parse(event.data);

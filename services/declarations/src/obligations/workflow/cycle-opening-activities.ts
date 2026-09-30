@@ -17,7 +17,7 @@ export class CycleOpeningActivities {
     return this.opening.cyclesToOpen(tenant);
   }
 
-  /** Creates the cycle's biennials for one page (1,000) of the tenant's active officers. */
+  /** Creates the cycle's biennials for one page (1,000) of the tenant's active declarants. */
   openCyclePage(request: CycleOpeningPageRequest): Promise<CycleOpeningPage> {
     const context = Context.current();
     return this.opening.openPage(request, () => {

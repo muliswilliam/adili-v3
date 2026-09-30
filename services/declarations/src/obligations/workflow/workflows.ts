@@ -196,7 +196,7 @@ export async function obligationsSweep(): Promise<SweepResult> {
 /**
  * `CycleOpeningWorkflow` (spec 04), started by the Commission's cycle-opening schedule
  * (`cycleOpeningScheduleId`): opens every cycle the calendar has opened by today that was not
- * opened for the Commission yet, creating its biennial obligations for the active officers page by
+ * opened for the Commission yet, creating its biennial obligations for the active declarants page by
  * page, then records it opened (`obligation.cycle.opened.v1`). Continues as new every 100 pages
  * to keep histories short. Returns the cycles this run finished opening; a firing with nothing to
  * open returns none.
