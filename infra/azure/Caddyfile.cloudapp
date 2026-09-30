@@ -1,0 +1,27 @@
+{
+  email __EMAIL__
+}
+
+http://__HOST__ {
+  redir https://__HOST__{uri} permanent
+}
+
+https://__HOST__ {
+  reverse_proxy 127.0.0.1:13010
+}
+
+https://__HOST__:3010 {
+  redir https://__HOST__{uri} permanent
+}
+
+https://__HOST__:3020 {
+  reverse_proxy 127.0.0.1:13020
+}
+
+https://__HOST__:3030 {
+  reverse_proxy 127.0.0.1:13030
+}
+
+https://__HOST__:8080 {
+  reverse_proxy 127.0.0.1:18080
+}
