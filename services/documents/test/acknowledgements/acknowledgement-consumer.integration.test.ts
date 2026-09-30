@@ -13,6 +13,7 @@ import {
   type DocumentIssuedData,
   type DocumentSupersededData,
 } from '@adili/events/contracts';
+import { DCB, format } from '@adili/numbering/references';
 import amqp from 'amqplib';
 import { eq } from 'drizzle-orm';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
@@ -51,7 +52,7 @@ function declaration(): Declaration {
   sequence += 1;
   return {
     declarationId: randomUUID(),
-    reference: `DCB-PSC-2027-${String(sequence).padStart(7, '0')}-1`,
+    reference: format(DCB, { issuer: 'PSC', period: 2027, sequence }),
   };
 }
 

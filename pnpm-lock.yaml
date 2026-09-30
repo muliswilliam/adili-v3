@@ -1622,6 +1622,9 @@ importers:
       '@adili/events':
         specifier: workspace:*
         version: link:../../packages/events
+      '@adili/numbering':
+        specifier: workspace:*
+        version: link:../../packages/numbering
       '@adili/roles':
         specifier: workspace:*
         version: link:../../packages/roles

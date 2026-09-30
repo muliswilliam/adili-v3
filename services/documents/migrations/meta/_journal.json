@@ -57,6 +57,27 @@
       "when": 1790788973677,
       "tag": "0007_verification_records_reference",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1790794736804,
+      "tag": "0008_upload_linked_at",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1790795065184,
+      "tag": "0009_issued_documents_reference",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1790795075390,
+      "tag": "0010_issued_documents_reference_backfill",
+      "breakpoints": true
     }
   ]
 }

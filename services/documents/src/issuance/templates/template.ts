@@ -1,4 +1,4 @@
-import type { DisclosureLevel, PublicPayload } from '@adili/events/contracts';
+import type { DisclosureLevel, DocumentType, PublicPayload } from '@adili/events/contracts';
 import type { z } from 'zod';
 
 import type { FooterFields } from './page.js';
@@ -17,13 +17,15 @@ export interface RenderContext {
  * publish more of a document than its type allows.
  */
 export interface DocumentTemplate<TPayload = unknown> {
-  type: string;
+  type: DocumentType;
   version: number;
   disclosureLevel: DisclosureLevel;
   /** Human title, e.g. `Acknowledgement slip`. */
   title: string;
   /** The fields the template renders; validated before anything is rendered. */
   payload: z.ZodType<TPayload>;
+  /** The reference number the document is about (a declaration's), or null when none. */
+  reference(payload: TPayload): string | null;
   /** What the verify page may show; null for confidential documents. */
   publicPayload(payload: TPayload, context: { issuedAt: Date }): PublicPayload | null;
   /** The footer fields the template decides; issuance adds the code, URL and date. */

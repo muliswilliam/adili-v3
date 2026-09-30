@@ -29,6 +29,11 @@ export const issuedDocuments = pgTable(
     disclosureLevel: text().$type<DisclosureLevel>().notNull(),
     /** The record the document is about, e.g. `declaration-version:<uuid>`. */
     subjectRef: text().notNull(),
+    /**
+     * The reference number of what the document is about (the declaration's), when it has one:
+     * the documents about one reference supersede each other.
+     */
+    reference: text(),
     /** The person who may download it (the declarant); null when no person may. */
     subjectPersonId: uuid(),
     verificationId: text().notNull().unique(),
@@ -48,6 +53,7 @@ export const issuedDocuments = pgTable(
   (table) => [
     unique('issued_documents_type_subject_key').on(table.type, table.subjectRef),
     index('issued_documents_subject_person_idx').on(table.subjectPersonId),
+    index('issued_documents_reference_idx').on(table.tenant, table.type, table.reference),
     check(
       'issued_documents_disclosure_level_check',
       sql`${table.disclosureLevel} in ('public', 'restricted', 'confidential')`,
@@ -88,12 +94,6 @@ export const verificationRecords = pgTable(
     recordSigningKeyVersion: integer().notNull(),
   },
   (table) => [
-    // A declaration's slips share its reference across versions: the newest supersedes the rest.
-    index('verification_records_reference_idx').on(
-      table.tenant,
-      table.documentType,
-      sql`(${table.publicPayload}->>'reference')`,
-    ),
     check(
       'verification_records_status_check',
       sql`${table.status} in ('valid', 'superseded', 'revoked', 'expired')`,

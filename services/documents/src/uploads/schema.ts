@@ -49,6 +49,11 @@ export const uploads = pgTable(
     /** Set while a completion runs, so a concurrent one (or the expiry sweep) keeps off. */
     completionStartedAt: timestamp({ withTimezone: true }),
     completedAt: timestamp({ withTimezone: true }),
+    /**
+     * When the owning service first linked the clean upload to its record (a declaration
+     * attachment); unlinked clean uploads are orphans.
+     */
+    linkedAt: timestamp({ withTimezone: true }),
   },
   (table) => [
     index('uploads_awaiting_expires_at_idx')
@@ -70,6 +75,7 @@ export const uploads = pgTable(
       'uploads_completed_at_check',
       sql`(${table.state} in ('clean', 'infected', 'rejected')) = (${table.completedAt} is not null)`,
     ),
+    check('uploads_linked_at_check', sql`${table.linkedAt} is null or ${table.state} = 'clean'`),
     check('uploads_declared_size_check', sql`${table.declaredSize} > 0`),
   ],
 );
