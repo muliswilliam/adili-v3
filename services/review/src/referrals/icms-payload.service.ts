@@ -12,23 +12,17 @@ import { GROUNDS_LABELS } from './representation.js';
 import { type ReferralGrounds, referrals } from './schema.js';
 
 /**
- * review.yaml `ReferralIcmsPayload`: what ICMS needs of a sent referral (spec 09 BE-5), in the
- * names of the package's cover sheet (`ReferralPackagePayload`) with the declarant's national ID
- * added. The evidence itself stays in the Confidential package EACC downloads.
+ * review.yaml `ReferralIcmsPayload`: what ICMS needs of a sent referral (spec 09 BE-5) and no
+ * more, in the names of the package's cover sheet (`ReferralPackagePayload`). The evidence stays
+ * in the Confidential package EACC downloads.
  */
 export interface ReferralIcmsPayload {
   reference: string;
   grounds: ReferralGrounds;
   groundsLabel: string;
-  cycleYear: number;
   commission: { name: string; issuerCode: string };
-  declarant: { name: string; personnelFileNumber: string; nationalId: string };
+  declarant: { name: string; nationalId: string };
   narrative: string;
-  proposedBy: string;
-  proposedAt: string;
-  approvedBy: string;
-  approvedAt: string;
-  sentAt: string;
 }
 
 /** 409 `roster-record-unknown`: the declarant's national ID cannot be read. */
@@ -70,10 +64,8 @@ export class ReferralIcmsPayloadService {
         return notFoundIfInvisible(found);
       },
     );
-    const { reference, approver, approvedAt, sentAt } = referral;
-    if (reference === null || approver === null || approvedAt === null || sentAt === null) {
-      throw new Error(`Referral ${referralId} is sent without its reference or dates`);
-    }
+    const { reference } = referral;
+    if (reference === null) throw new Error(`Referral ${referralId} is sent without its reference`);
     if (rosterRecordId === null) {
       throw rosterRecordUnknown(
         'The referral names no roster record of the declarant, so their national ID cannot be read.',
@@ -94,22 +86,9 @@ export class ReferralIcmsPayloadService {
       reference,
       grounds: referral.grounds,
       groundsLabel: GROUNDS_LABELS[referral.grounds],
-      cycleYear: referral.cycleYear,
       commission: { name: commission.name, issuerCode: commission.issuerCode },
-      declarant: {
-        name: referral.declarantName,
-        personnelFileNumber: referral.personnelFileNumber,
-        nationalId: roster.nationalId,
-      },
+      declarant: { name: referral.declarantName, nationalId: roster.nationalId },
       narrative: referral.narrative,
-      proposedBy:
-        referral.proposerKind === 'system'
-          ? 'Adili (system proposal)'
-          : (referral.proposerName ?? referral.proposer ?? 'unknown'),
-      proposedAt: referral.proposedAt.toISOString(),
-      approvedBy: referral.approverName ?? approver,
-      approvedAt: approvedAt.toISOString(),
-      sentAt: sentAt.toISOString(),
     };
   }
 }

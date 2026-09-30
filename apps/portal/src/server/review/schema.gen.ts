@@ -458,8 +458,8 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * What ICMS needs of a sent referral, with the declarant's national ID (reporting service)
-         * @description Service tokens with `review:internal`; the Commission in `X-Acting-Tenant`. A sent referral only. The cover sheet's fields of `ReferralPackagePayload` without the evidence, plus the declarant's national ID, read from the directory's roster record of the referral's case at each call and kept nowhere in the review service. Every read is audited (`audit.read.v1`, action `review.referral.icms-payload.read`), naming the officer in `X-Acting-Subject` when the caller gives one.
+         * What ICMS needs of a sent referral, with the declarant's national ID (reporting)
+         * @description Service tokens with `review:internal`; the Commission in `X-Acting-Tenant`. A sent referral only. What ICMS needs and no more: the declarant's national ID is read from the directory's roster record of the referral's case at each call and kept nowhere in the review service. Every read is audited (`audit.read.v1`, action `review.referral.icms-payload.read`), naming the officer in `X-Acting-Subject` when the caller gives one.
          */
         get: operations["internalGetReferralIcmsPayload"];
         put?: never;
@@ -1682,32 +1682,22 @@ export interface components {
              */
             documentId: string | null;
         };
-        /** @description What ICMS needs of a sent referral (spec 09 BE-5): the package cover sheet's fields with the declarant's national ID. Personal data: the caller passes it to ICMS and keeps it nowhere. */
+        /** @description What ICMS needs of a sent referral (spec 09 BE-5): its reference, grounds, Commission and narrative, and the declarant's name and national ID. Personal data: the caller passes it to ICMS and keeps it nowhere. */
         ReferralIcmsPayload: {
             /** @description RFL-<ISSUER>-<YEAR>-<seq>-<check> */
             reference: string;
             grounds: components["schemas"]["ReferralGrounds"];
             groundsLabel: string;
-            cycleYear: number;
             commission: {
                 name: string;
                 issuerCode: string;
             };
             declarant: {
                 name: string;
-                personnelFileNumber: string;
                 /** @description From the directory's roster record of the referral's case */
                 nationalId: string;
             };
             narrative: string;
-            proposedBy: string;
-            /** Format: date-time */
-            proposedAt: string;
-            approvedBy: string;
-            /** Format: date-time */
-            approvedAt: string;
-            /** Format: date-time */
-            sentAt: string;
         };
         ReferralPackagePayload: {
             reference: string;
@@ -2725,7 +2715,7 @@ export interface operations {
             };
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
-            /** @description Problem code `roster-record-unknown`: the referral names no roster record of the declarant, or the Commission's roster has none, so the national ID cannot be read */
+            /** @description Problem code `roster-record-unknown`: no roster record of the declarant is known, so the national ID cannot be read */
             409: {
                 headers: {
                     [name: string]: unknown;

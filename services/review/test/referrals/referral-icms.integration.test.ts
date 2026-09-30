@@ -97,19 +97,10 @@ describe('referrals: ICMS payload and case number (S12)', () => {
         reference: REFERENCE,
         grounds: 'undeclared-assets',
         groundsLabel: 'Undeclared assets',
-        cycleYear: 2027,
         commission: { name: 'Public Service Commission', issuerCode: 'PSC' },
-        declarant: {
-          name: 'James Otieno',
-          personnelFileNumber: 'PSC/00042',
-          nationalId: NATIONAL_ID,
-        },
+        // What ICMS needs and no more: no file number, dates or officers' names.
+        declarant: { name: 'James Otieno', nationalId: NATIONAL_ID },
         narrative: 'NTSA records a vehicle registered to the officer that is not declared.',
-        proposedBy: 'Amina Wafula',
-        proposedAt: '2027-12-18T09:00:00.000Z',
-        approvedBy: 'Samuel Njoroge',
-        approvedAt: '2027-12-20T06:00:00.000Z',
-        sentAt: '2027-12-20T06:00:00.000Z',
       });
       // Read from the directory at each call, by the case's roster record.
       expect(api.directory.rosterReads).toEqual([

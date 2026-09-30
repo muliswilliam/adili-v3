@@ -710,12 +710,11 @@ paths:
     get:
       tags: [internal]
       operationId: internalGetReferralIcmsPayload
-      summary: What ICMS needs of a sent referral, with the declarant's national ID (reporting service)
+      summary: What ICMS needs of a sent referral, with the declarant's national ID (reporting)
       description: >-
         Service tokens with `review:internal`; the Commission in `X-Acting-Tenant`. A sent referral
-        only. The cover sheet's fields of `ReferralPackagePayload` without the evidence, plus the
-        declarant's national ID, read from the directory's roster record of the referral's case at
-        each call and kept nowhere in the review service. Every read is audited (`audit.read.v1`,
+        only. What ICMS needs and no more: the declarant's national ID is read from the directory's
+        roster record of the referral's case at each call and kept nowhere in the review service. Every read is audited (`audit.read.v1`,
         action `review.referral.icms-payload.read`), naming the officer in `X-Acting-Subject` when
         the caller gives one.
       x-audited-read:
@@ -741,8 +740,8 @@ paths:
           $ref: '#/components/responses/NotFound'
         '409':
           description: >-
-            Problem code `roster-record-unknown`: the referral names no roster record of the
-            declarant, or the Commission's roster has none, so the national ID cannot be read
+            Problem code `roster-record-unknown`: no roster record of the declarant is known, so the
+            national ID cannot be read
           content:
             application/problem+json:
               schema:
@@ -3230,23 +3229,10 @@ components:
     ReferralIcmsPayload:
       type: object
       description: >-
-        What ICMS needs of a sent referral (spec 09 BE-5): the package cover sheet's fields with the
-        declarant's national ID. Personal data: the caller passes it to ICMS and keeps it nowhere.
-      required:
-        [
-          reference,
-          grounds,
-          groundsLabel,
-          cycleYear,
-          commission,
-          declarant,
-          narrative,
-          proposedBy,
-          proposedAt,
-          approvedBy,
-          approvedAt,
-          sentAt,
-        ]
+        What ICMS needs of a sent referral (spec 09 BE-5): its reference, grounds, Commission and
+        narrative, and the declarant's name and national ID. Personal data: the caller passes it to
+        ICMS and keeps it nowhere.
+      required: [reference, grounds, groundsLabel, commission, declarant, narrative]
       properties:
         reference:
           type: string
@@ -3255,8 +3241,6 @@ components:
           $ref: '#/components/schemas/ReferralGrounds'
         groundsLabel:
           type: string
-        cycleYear:
-          type: integer
         commission:
           type: object
           required: [name, issuerCode]
@@ -3267,30 +3251,15 @@ components:
               type: string
         declarant:
           type: object
-          required: [name, personnelFileNumber, nationalId]
+          required: [name, nationalId]
           properties:
             name:
-              type: string
-            personnelFileNumber:
               type: string
             nationalId:
               type: string
               description: From the directory's roster record of the referral's case
         narrative:
           type: string
-        proposedBy:
-          type: string
-        proposedAt:
-          type: string
-          format: date-time
-        approvedBy:
-          type: string
-        approvedAt:
-          type: string
-          format: date-time
-        sentAt:
-          type: string
-          format: date-time
     ReferralPackagePayload:
       type: object
       required:

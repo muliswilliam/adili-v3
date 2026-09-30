@@ -21,8 +21,8 @@ import type { NewEvent } from './envelope.js';
 export const AUDIT_READ = 'audit.read.v1';
 
 /**
- * The header a calling service names the officer it reads for in (e.g. `X-Acting-Subject` on
- * internal reads); recorded as the actor's `onBehalfOf` (ADR-008 `actor.on-behalf-of`).
+ * The header in which a calling service names the officer it reads for (`X-Acting-Subject` on
+ * internal reads), recorded as the actor's `onBehalfOf` (ADR-008 `actor.on-behalf-of`).
  */
 export const ACTING_SUBJECT_HEADER = 'x-acting-subject';
 
