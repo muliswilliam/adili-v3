@@ -36,6 +36,7 @@ const MAX_KEY_LENGTH = 255;
 const RECORD_RETRY_DELAYS_MS = [50, 250];
 const IDEMPOTENCY_OWNER = 'adili:idempotency-owner';
 const IDEMPOTENCY_OPTIONAL = 'adili:idempotency-optional';
+const IDEMPOTENCY_SETTLED = 'adili:idempotency-settled';
 
 export interface RequireIdempotencyKeyOptions {
   /**
@@ -44,6 +45,13 @@ export interface RequireIdempotencyKeyOptions {
    * another's stored response. Authenticated routes leave it out: keys belong to the token's `sub`.
    */
   owner?: (request: AuthenticatedRequest) => string;
+  /**
+   * Whether a 2xx answer is final. One that is not (a transient failure reported in the body,
+   * which the caller is expected to retry) frees the key instead of being stored, so the retry
+   * runs the handler again rather than getting the same failure replayed. Default: every 2xx is
+   * final.
+   */
+  settled?: (body: never) => boolean;
 }
 
 /**
@@ -55,7 +63,8 @@ export interface RequireIdempotencyKeyOptions {
  * - Missing or malformed header: 400 `idempotency-key-missing`.
  * - Same key, different method, URL or body: 422 `idempotency-key-reused`.
  * - Same key while the first request is still running: 409 `idempotency-key-in-use`.
- * - 2xx and 4xx outcomes are stored; 5xx are not, so the client can retry.
+ * - 2xx and 4xx outcomes are stored; 5xx are not, so the client can retry. Nor are 2xx answers
+ *   that `options.settled` says are not final.
  * - Storing an outcome is retried briefly. If it still fails, the client gets the handler's
  *   outcome anyway: turning a write that happened into an error would invite the very retry
  *   that runs it twice once the unfinished claim is taken for abandoned.
@@ -88,6 +97,7 @@ function idempotencyKey(
   return applyDecorators(
     SetMetadata(IDEMPOTENCY_OWNER, options.owner),
     SetMetadata(IDEMPOTENCY_OPTIONAL, optional),
+    SetMetadata(IDEMPOTENCY_SETTLED, options.settled),
     UseInterceptors(IdempotencyInterceptor),
     ApiHeader({
       name: 'Idempotency-Key',
@@ -162,12 +172,20 @@ export class IdempotencyInterceptor implements NestInterceptor {
     }
 
     const { token } = claim;
+    const settled = this.reflector.get<((body: unknown) => boolean) | undefined>(
+      IDEMPOTENCY_SETTLED,
+      context.getHandler(),
+    );
     return next.handle().pipe(
       catchError((error: unknown) => from(this.recordFailure(scope, token, request.url, error))),
       mergeMap(async (body: unknown) => {
-        await this.record(scope, 'complete', () =>
-          this.complete(scope, token, { status: reply.statusCode, body: toJson(body) }),
-        );
+        if (settled && !settled(body)) {
+          await this.record(scope, 'release', () => this.store.release(scope, token));
+        } else {
+          await this.record(scope, 'complete', () =>
+            this.complete(scope, token, { status: reply.statusCode, body: toJson(body) }),
+          );
+        }
         return body;
       }),
     );

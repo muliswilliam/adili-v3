@@ -19,7 +19,7 @@ import {
 } from '@adili/api-kit';
 import { z } from 'zod';
 
-import { MessagesService } from './messages.service.js';
+import { isSettled, MessagesService } from './messages.service.js';
 import type { MessageView } from './representation.js';
 import { type SendMessage, sendMessageSchema } from './send-message.schema.js';
 
@@ -32,12 +32,12 @@ export class MessagesController {
   constructor(private readonly messages: MessagesService) {}
 
   @Post()
-  @AcceptIdempotencyKey()
+  @AcceptIdempotencyKey({ settled: isSettled })
   @ApiOperation({
     operationId: 'sendMessage',
     summary: 'Render a template and send it by email or SMS',
     description:
-      'Synchronous with a 5-second budget. A provider failure is not an error: the message is created with status `failed` and the reason in `error`. With an `Idempotency-Key` (optional; keys are per caller, kept 24 hours) a retry gets the first answer back instead of a second message.',
+      'Synchronous with a 5-second budget. A provider failure is not an error: the message is created with status `failed` and the reason in `error`. With an `Idempotency-Key` (optional; keys are per caller, kept 24 hours) a retry gets the first answer back instead of a second message, unless that answer failed for a reason worth retrying (`contact-lookup-failed`, `timeout`, `provider-error`): then the key is freed and the retry sends again.',
   })
   @ApiBody({ required: true, schema: schemaRef('SendMessage') })
   @ApiCreatedResponse({

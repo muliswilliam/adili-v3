@@ -40,6 +40,22 @@ export interface MessagesOptions {
  */
 export type MessageFailure = DeliveryFailure | 'no-contact' | 'contact-lookup-failed';
 
+/**
+ * Failures that say nothing lasting about the recipient: the directory or the provider did not
+ * answer. A retry may succeed, so an answer carrying one is never replayed under its
+ * Idempotency-Key.
+ */
+const TRANSIENT_FAILURES: ReadonlySet<string> = new Set<MessageFailure>([
+  'contact-lookup-failed',
+  'timeout',
+  'provider-error',
+]);
+
+/** Whether a message's outcome is final: sent, or failed for a reason a retry will not change. */
+export function isSettled(message: MessageView): boolean {
+  return message.error === null || !TRANSIENT_FAILURES.has(message.error);
+}
+
 type Resolution = { to: string } | { failure: 'no-contact' | 'contact-lookup-failed' };
 
 @Injectable()

@@ -476,6 +476,52 @@ describe('internal messages API', () => {
       expect(sms.sent).toHaveLength(1);
     });
 
+    it('does not replay a failed contact lookup: a retry with the same key looks up and sends', async () => {
+      const personId = newPerson();
+      directory.set(personId, { email: null, phone: '+254712345678' });
+      directory.failNext(new ContactLookupError('directory answered 503'));
+      const headers = { ...auth, 'idempotency-key': '0199a8f0-5555-7000-8000-00000000abcf' };
+
+      const failed = await send(reminder('sms', personId), headers);
+      const retried = await send(reminder('sms', personId), headers);
+      const replayed = await send(reminder('sms', personId), headers);
+
+      expect(failed.json()).toMatchObject({ status: 'failed', error: 'contact-lookup-failed' });
+      expect(retried.headers['idempotent-replayed']).toBeUndefined();
+      expect(retried.json()).toMatchObject({ status: 'sent', error: null });
+      expect(replayed.headers['idempotent-replayed']).toBe('true');
+      expect(replayed.json()).toEqual(retried.json());
+      expect(sms.sent).toHaveLength(1);
+    });
+
+    it('does not replay a provider failure: a retry with the same key sends', async () => {
+      const personId = newPerson();
+      directory.set(personId, { email: null, phone: '+254712345678' });
+      sms.fail(new DeliveryError('provider-error', 'gateway answered 502'));
+      const headers = { ...auth, 'idempotency-key': '0199a8f0-5555-7000-8000-00000000abd0' };
+
+      const failed = await send(reminder('sms', personId), headers);
+      sms.reset();
+      const retried = await send(reminder('sms', personId), headers);
+
+      expect(failed.json()).toMatchObject({ status: 'failed', error: 'provider-error' });
+      expect(retried.headers['idempotent-replayed']).toBeUndefined();
+      expect(retried.json()).toMatchObject({ status: 'sent' });
+      expect(sms.sent).toHaveLength(1);
+    });
+
+    it('replays a lasting failure (no-contact) under the same key', async () => {
+      const personId = newPerson();
+      const headers = { ...auth, 'idempotency-key': '0199a8f0-5555-7000-8000-00000000abd1' };
+
+      const first = await send(reminder('sms', personId), headers);
+      const retry = await send(reminder('sms', personId), headers);
+
+      expect(first.json()).toMatchObject({ status: 'failed', error: 'no-contact' });
+      expect(retry.headers['idempotent-replayed']).toBe('true');
+      expect(retry.json()).toEqual(first.json());
+    });
+
     it('refuses an Idempotency-Key reused for another message', async () => {
       const personId = newPerson();
       directory.set(personId, { email: 'wanjiku@example.go.ke', phone: '+254712345678' });
