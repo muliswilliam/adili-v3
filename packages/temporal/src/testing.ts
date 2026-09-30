@@ -7,6 +7,7 @@ import {
   type WorkflowResultType,
   type WorkflowStartOptions,
 } from '@temporalio/client';
+import { historyToJSON } from '@temporalio/common/lib/proto-utils.js';
 import { TestWorkflowEnvironment } from '@temporalio/testing';
 import {
   bundleWorkflowCode,
@@ -127,6 +128,52 @@ export class WorkflowTestEnvironment {
       this.bundles.set(workflowsPath, bundle);
     }
     return bundle;
+  }
+}
+
+/** A workflow run's history as committed to a replay fixture. */
+export interface RecordedHistory {
+  workflowId: string;
+  /** The history in Temporal's JSON form (`temporal workflow show --output json`). */
+  history: unknown;
+}
+
+/** Fetches a finished (or continued-as-new) run's history in the fixture's form. */
+export async function recordHistory(handle: {
+  workflowId: string;
+  fetchHistory: () => Promise<Parameters<typeof historyToJSON>[0]>;
+}): Promise<RecordedHistory> {
+  return {
+    workflowId: handle.workflowId,
+    history: JSON.parse(historyToJSON(await handle.fetchHistory())) as unknown,
+  };
+}
+
+/**
+ * Replays recorded histories against the current workflow code (ADR-003: replay tests in CI) and
+ * throws if any no longer replays: a change that would break the workflows already running needs
+ * `patched()`. Needs no Temporal server.
+ */
+export async function replayHistories(
+  workflowsPath: string,
+  histories: readonly RecordedHistory[],
+): Promise<void> {
+  installQuietRuntime();
+  const workflowBundle = await bundleWorkflowCode({ workflowsPath, logger: quietLogger });
+  const failures: string[] = [];
+  for (const { workflowId, history } of histories) {
+    try {
+      await Worker.runReplayHistory(
+        { workflowBundle, replayName: 'replay-test' },
+        history,
+        workflowId,
+      );
+    } catch (error) {
+      failures.push(`${workflowId}: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+  if (failures.length > 0) {
+    throw new Error(`Workflow histories no longer replay:\n${failures.join('\n')}`);
   }
 }
 

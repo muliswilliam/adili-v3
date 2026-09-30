@@ -21,3 +21,5 @@ packages/schemas/internal/declarations.yaml
 packages/schemas/internal/directory.yaml
 packages/schemas/internal/documents.yaml
 packages/schemas/internal/notifications.yaml
+# Recorded Temporal histories (replay fixtures)
+services/*/test/**/workflow-histories
