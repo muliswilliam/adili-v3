@@ -147,7 +147,7 @@ function route(request: Request): Response {
   if (verificationId === MOCK_CODES.rateLimited) {
     return json(
       429,
-      { type: 'about:blank', title: 'Too many requests', status: 429 },
+      { type: 'about:blank', title: 'Too many requests', status: 429, code: 'rate-limit-exceeded' },
       { 'retry-after': '42' },
     );
   }

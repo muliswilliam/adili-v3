@@ -8,13 +8,13 @@ export interface paths {
         parameters: {
             query?: never;
             header?: never;
-            path: {
-                /** @description Code printed under the QR, e.g. ADL-7Q4K-M2XR-9HTC-2B7F-Q3ZD-9K; hyphens and case are normalised */
-                verificationId: string;
-            };
+            path?: never;
             cookie?: never;
         };
-        /** Status of a document issued through Adili Online */
+        /**
+         * Status of a document issued through Adili Online
+         * @description Every lookup of a well-formed code is recorded (verification.checked.v1). Restricted and public documents show their public-safe fields and hash; confidential ones validity only.
+         */
         get: operations["verifyDocument"];
         put?: never;
         post?: never;
@@ -33,6 +33,7 @@ export interface components {
         /** @enum {string} */
         DisclosureLevel: "public" | "restricted" | "confidential";
         VerificationResult: {
+            /** @description The code looked up, in its printed form (normalised) */
             verificationId: string;
             status: components["schemas"]["VerificationStatus"];
             disclosureLevel: components["schemas"]["DisclosureLevel"] | null;
@@ -51,8 +52,7 @@ export interface components {
             sha256: string | null;
             /** @description Verification id of the current version, when the level allows linking */
             supersededBy: string | null;
-            /** @enum {string|null} */
-            revokedReason: "issued-in-error" | "withdrawn" | "other" | null;
+            revokedReason: ("issued-in-error" | "withdrawn" | "other") | null;
             /** Format: date-time */
             checkedAt: string;
         };
@@ -60,10 +60,18 @@ export interface components {
             type: string;
             title: string;
             status: number;
+            /**
+             * @description Machine-readable cause, from the platform registry; clients map it to copy and never show `title` or `detail`
+             * @enum {string}
+             */
+            code?: "rate-limit-exceeded" | "no-match" | "already-onboarded" | "no-roster" | "otp-invalid" | "otp-expired" | "resend-cooldown" | "otp-send-failed" | "wrong-step" | "session-expired" | "iprs-unavailable" | "identity-unavailable" | "email-in-use";
             detail?: string;
             instance?: string;
-            code?: string;
-            retryAfterSeconds?: number;
+            /** @description Field-level errors; `path` is the dotted request field */
+            errors?: {
+                path: string;
+                message: string;
+            }[];
         };
     };
     responses: never;
@@ -79,7 +87,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                /** @description Code printed under the QR, e.g. ADL-7Q4K-M2XR-9HTC-2B7F-Q3ZD-9K; hyphens and case are normalised */
+                /** @description Code printed under the QR, e.g. ADL-7Q4K-M2XR-9HTC-2B7F-Q3ZD-8WNA-9K; hyphens and case are normalised */
                 verificationId: string;
             };
             cookie?: never;
@@ -89,8 +97,11 @@ export interface operations {
             /** @description Known document */
             200: {
                 headers: {
+                    /** @description Requests the caller's budget holds when full */
                     "RateLimit-Limit"?: number;
+                    /** @description Requests left in the budget after this one */
                     "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the budget is full again */
                     "RateLimit-Reset"?: number;
                     [name: string]: unknown;
                 };
@@ -98,7 +109,7 @@ export interface operations {
                     "application/json": components["schemas"]["VerificationResult"];
                 };
             };
-            /** @description Malformed code */
+            /** @description Problem type `malformed-verification-id` */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -110,15 +121,29 @@ export interface operations {
             /** @description No such document (same shape, status not-found) */
             404: {
                 headers: {
+                    /** @description Requests the caller's budget holds when full */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the budget after this one */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the budget is full again */
+                    "RateLimit-Reset"?: number;
                     [name: string]: unknown;
                 };
                 content: {
                     "application/json": components["schemas"]["VerificationResult"];
                 };
             };
-            /** @description Rate limit exceeded */
+            /** @description Problem code `rate-limit-exceeded`: rate limit exceeded; retry after the seconds in `retryAfterSeconds` and Retry-After */
             429: {
                 headers: {
+                    /** @description Requests the caller's budget holds when full */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the budget after this one */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the budget is full again */
+                    "RateLimit-Reset"?: number;
+                    /** @description Seconds until the next request would be allowed */
+                    "Retry-After"?: number;
                     [name: string]: unknown;
                 };
                 content: {
