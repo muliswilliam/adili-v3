@@ -26,3 +26,34 @@ export interface DeclarationSubmittedData extends Record<string, unknown> {
   /** Submitted after the obligation's due date. */
   late: boolean;
 }
+
+/**
+ * A version's acknowledgement slip was issued and set on it: the declarant can download it.
+ * Subject: the declaration; tenant: its Commission.
+ */
+export const DECLARATION_ACKNOWLEDGED = 'declaration.acknowledged.v1';
+
+export interface DeclarationAcknowledgedData extends Record<string, unknown> {
+  declarationId: string;
+  versionId: string;
+  /** The issued slip in the documents service. */
+  documentId: string;
+  /** The verification code printed under its QR code. */
+  verificationId: string;
+}
+
+/**
+ * The declarant asked for a version's acknowledgement slip again, as its issuance did not come
+ * through (spec 06 S11): the documents service issues it, or announces the slip it issued already.
+ * Subject: the declaration; tenant: its Commission. Idempotent consumers key on the event id, as
+ * each request is a new ask.
+ */
+export const DECLARATION_ACKNOWLEDGEMENT_REQUESTED = 'declaration.acknowledgement-requested.v1';
+
+export interface DeclarationAcknowledgementRequestedData extends Record<string, unknown> {
+  declarationId: string;
+  versionId: string;
+  version: number;
+  /** The reference number of the declaration (ADR-011). */
+  reference: string;
+}

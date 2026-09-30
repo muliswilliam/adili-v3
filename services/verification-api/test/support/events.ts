@@ -26,9 +26,11 @@ export function sha256(): string {
 /** The data of `document.issued.v1` for an acknowledgement slip, as the documents service emits it. */
 export function issuedData(overrides: Partial<DocumentIssuedData> = {}): DocumentIssuedData {
   const issuedAt = overrides.issuedAt ?? new Date().toISOString();
+  const verificationId = overrides.verificationId ?? newVerificationId();
   return {
     documentId: randomUUID(),
-    verificationId: newVerificationId(),
+    verificationId,
+    verifyUrl: `http://localhost:3030/v/${verificationId}`,
     documentType: 'acknowledgement-slip',
     templateVersion: 1,
     disclosureLevel: 'restricted',

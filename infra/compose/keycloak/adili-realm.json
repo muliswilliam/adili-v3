@@ -343,6 +343,22 @@
       "serviceAccountsEnabled": true,
       "defaultClientScopes": ["basic", "directory:person-contacts"],
       "optionalClientScopes": []
+    },
+    {
+      "clientId": "documents",
+      "name": "Documents service",
+      "description": "Service account the documents service uses to pull a submitted declaration version's acknowledgement slip payload from declarations",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "clientAuthenticatorType": "client-secret",
+      "secret": "documents-dev-secret",
+      "standardFlowEnabled": false,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": true,
+      "defaultClientScopes": ["basic", "declarations:internal"],
+      "optionalClientScopes": []
     }
   ],
   "clientScopes": [
@@ -1078,6 +1094,28 @@
     {
       "name": "directory:person-contacts",
       "description": "Read a person's verified contacts from the directory (notifications only)",
+      "protocol": "openid-connect",
+      "attributes": {
+        "include.in.token.scope": "true",
+        "display.on.consent.screen": "false"
+      },
+      "protocolMappers": [
+        {
+          "name": "adili-api audience",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "config": {
+            "included.custom.audience": "adili-api",
+            "access.token.claim": "true",
+            "id.token.claim": "false",
+            "introspection.token.claim": "true"
+          }
+        }
+      ]
+    },
+    {
+      "name": "declarations:internal",
+      "description": "Service tokens for the declarations service's internal API: a submitted version's acknowledgement slip payload, acting for a tenant (spec 06)",
       "protocol": "openid-connect",
       "attributes": {
         "include.in.token.scope": "true",

@@ -88,6 +88,12 @@ export const verificationRecords = pgTable(
     recordSigningKeyVersion: integer().notNull(),
   },
   (table) => [
+    // A declaration's slips share its reference across versions: the newest supersedes the rest.
+    index('verification_records_reference_idx').on(
+      table.tenant,
+      table.documentType,
+      sql`(${table.publicPayload}->>'reference')`,
+    ),
     check(
       'verification_records_status_check',
       sql`${table.status} in ('valid', 'superseded', 'revoked', 'expired')`,

@@ -2,7 +2,14 @@
  * `@adili/events/contracts`: event types and data other services read, with their enums. Plain
  * values and types, no framework imports, so schemas and workflow code can use them too.
  */
-export { DECLARATION_SUBMITTED, type DeclarationSubmittedData } from './declarations.js';
+export {
+  DECLARATION_ACKNOWLEDGED,
+  DECLARATION_ACKNOWLEDGEMENT_REQUESTED,
+  DECLARATION_SUBMITTED,
+  type DeclarationAcknowledgedData,
+  type DeclarationAcknowledgementRequestedData,
+  type DeclarationSubmittedData,
+} from './declarations.js';
 export {
   DISCLOSURE_LEVELS,
   type DisclosureLevel,

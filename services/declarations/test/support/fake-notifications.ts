@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 
 import {
+  type AcknowledgementMessage,
   NotificationsClient,
   NotificationsKeyReused,
   NotificationsUnavailable,
@@ -26,6 +27,8 @@ export type FakeAnswer = 'sent' | 'unreachable' | 'lost' | { failed: string };
  */
 export class FakeNotifications extends NotificationsClient {
   readonly sent: (ReminderMessage & { messageId: string | null })[] = [];
+  /** The acknowledgements asked for, answered like reminders (`sent`, keys kept). */
+  readonly acknowledgements: (AcknowledgementMessage & { messageId: string | null })[] = [];
   private readonly answers = new Map<ReminderChannel, FakeAnswer[]>();
   private readonly keys = new Map<string, { request: string; outcome: SendOutcome }>();
 
@@ -34,12 +37,23 @@ export class FakeNotifications extends NotificationsClient {
   }
 
   sendReminder(message: ReminderMessage): Promise<SendOutcome> {
+    return this.send(message, this.sent);
+  }
+
+  sendAcknowledgement(message: AcknowledgementMessage): Promise<SendOutcome> {
+    return this.send(message, this.acknowledgements);
+  }
+
+  private send<T extends ReminderMessage | AcknowledgementMessage>(
+    message: T,
+    sent: (T & { messageId: string | null })[],
+  ): Promise<SendOutcome> {
     const { idempotencyKey, ...body } = message;
     const request = JSON.stringify(body);
     const stored = this.keys.get(idempotencyKey);
     if (stored) {
       const { outcome } = stored;
-      this.sent.push({
+      sent.push({
         ...message,
         messageId: outcome.status === 'sent' ? outcome.messageId : null,
       });
@@ -50,19 +64,19 @@ export class FakeNotifications extends NotificationsClient {
     const queue = this.answers.get(message.channel) ?? [];
     const answer = (queue.length > 1 ? queue.shift() : queue[0]) ?? 'sent';
     if (answer === 'unreachable') {
-      this.sent.push({ ...message, messageId: null });
+      sent.push({ ...message, messageId: null });
       return Promise.reject(new NotificationsUnavailable('notifications unreachable'));
     }
     if (answer === 'sent' || answer === 'lost') {
       const messageId = randomUUID();
-      this.sent.push({ ...message, messageId });
+      sent.push({ ...message, messageId });
       const outcome: SendOutcome = { status: 'sent', messageId };
       this.keys.set(idempotencyKey, { request, outcome });
       return answer === 'lost'
         ? Promise.reject(new NotificationsUnavailable('no answer in time'))
         : Promise.resolve(outcome);
     }
-    this.sent.push({ ...message, messageId: null });
+    sent.push({ ...message, messageId: null });
     const outcome: SendOutcome = { status: 'failed', error: answer.failed };
     this.keys.set(idempotencyKey, { request, outcome });
     return Promise.resolve(outcome);
@@ -74,6 +88,7 @@ export class FakeNotifications extends NotificationsClient {
 
   reset(): void {
     this.sent.length = 0;
+    this.acknowledgements.length = 0;
     this.answers.clear();
     this.keys.clear();
   }

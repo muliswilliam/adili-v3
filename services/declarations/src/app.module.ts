@@ -16,6 +16,7 @@ import {
   TemporalWorkerReadinessCheck,
 } from '@adili/temporal';
 
+import { AcknowledgementModule } from './acknowledgement/acknowledgement.module.js';
 import { config, SERVICE_NAME } from './config.js';
 import { schema } from './db/schema.js';
 import { DraftsModule } from './drafts/drafts.module.js';
@@ -62,6 +63,7 @@ class FieldCipherModule {}
     ObligationsModule,
     DraftsModule,
     SubmissionModule,
+    AcknowledgementModule,
   ],
 })
 export class AppModule {}

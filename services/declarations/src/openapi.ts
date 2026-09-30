@@ -1,6 +1,10 @@
 import type { z } from 'zod';
 
 import {
+  acknowledgementPayloadSchema,
+  acknowledgementSlipSchema,
+} from './acknowledgement/representation.js';
+import {
   attachmentLinkSchema,
   completenessIssueSchema,
   declarationAttachmentSchema,
@@ -90,4 +94,6 @@ export const OPENAPI_SCHEMAS: Record<string, z.ZodType> = {
   DeclarationVersion: declarationVersionSchema,
   SubmissionResult: submissionResultSchema,
   SubmitProblem: submitProblemSchema,
+  AcknowledgementSlip: acknowledgementSlipSchema,
+  AcknowledgementPayload: acknowledgementPayloadSchema,
 };

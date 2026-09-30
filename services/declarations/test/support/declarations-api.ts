@@ -32,6 +32,7 @@ import { sql } from 'drizzle-orm';
 import { createLocalJWKSet, exportJWK, generateKeyPair, type JWK, SignJWT } from 'jose';
 import { v7 as uuidv7 } from 'uuid';
 
+import { AcknowledgementConsumer } from '../../src/acknowledgement/acknowledgement.consumer.js';
 import { AppModule } from '../../src/app.module.js';
 import { Clock } from '../../src/clock.js';
 import type { Transaction } from '../../src/db/transaction.js';
@@ -70,6 +71,10 @@ export interface Caller {
   acr?: string;
   /** The `auth_time` claim, in seconds since the epoch; absent by default. */
   authTime?: number;
+  /** Space-separated OAuth scopes, as service tokens carry them; absent by default. */
+  scope?: string;
+  /** The OAuth client; `portal` by default. */
+  azp?: string;
 }
 
 /** The clock the service computes "today" with; real time until a test sets it. */
@@ -83,6 +88,11 @@ export class TestClock extends Clock {
   /** Pins the time to noon in Nairobi on `date` (`YYYY-MM-DD`). */
   setToday(date: string): void {
     this.fixed = new Date(`${date}T12:00:00+03:00`);
+  }
+
+  /** Moves the time on by `ms` (from the pinned time, or from now). */
+  advance(ms: number): void {
+    this.fixed = new Date(this.now().getTime() + ms);
   }
 
   reset(): void {
@@ -211,6 +221,8 @@ export interface DeclarationsApi {
   clock: TestClock;
   /** The directory event consumers, called as the RabbitMQ transport would. */
   consumers: DirectoryEventsConsumer;
+  /** The acknowledgement slip's event consumers (documents, verification-api), likewise. */
+  acknowledgementConsumers: AcknowledgementConsumer;
   /**
    * Publishes a directory event to the RabbitMQ events exchange, as the directory's outbox relay
    * would (`events` option only): the service's consumers receive it on the suite's own queue.
@@ -339,6 +351,7 @@ export async function startDeclarationsApi({
     cycleSchedules,
     clock,
     consumers: app.get(DirectoryEventsConsumer),
+    acknowledgementConsumers: app.get(AcknowledgementConsumer),
     async get(path, caller) {
       const token = await signer(caller);
       return app.inject({
@@ -462,9 +475,12 @@ async function tokenSigner(): Promise<{ signer: (caller: Caller) => Promise<stri
     personId,
     acr,
     authTime,
+    scope,
+    azp = 'portal',
   }: Caller) =>
     new SignJWT({
-      azp: 'portal',
+      azp,
+      ...(scope ? { scope } : {}),
       tenant,
       realm_access: { roles },
       person_id: personId,

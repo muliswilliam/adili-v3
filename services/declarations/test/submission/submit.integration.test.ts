@@ -16,13 +16,8 @@ import {
   numberingCounters,
   obligationDrafts,
   outbox,
-  rosterSnapshots,
 } from '../../src/db/schema.js';
-import type {
-  Declaration,
-  DeclarationSummary,
-  SectionEnvelope,
-} from '../../src/drafts/representation.js';
+import type { DeclarationSummary } from '../../src/drafts/representation.js';
 import type { SubmissionResult } from '../../src/submission/representation.js';
 import { contractErrors, responseBody } from '../support/contract.js';
 import {
@@ -30,7 +25,15 @@ import {
   type DeclarationsApi,
   startDeclarationsApi,
 } from '../support/declarations-api.js';
-import { rosterRecord } from '../support/fake-directory.js';
+import {
+  ASSET,
+  DUE_DATE,
+  DUE_DAY,
+  INCOME,
+  LIABILITY,
+  STATEMENT_DATE,
+  submissionFixtures,
+} from '../support/submission.js';
 
 /**
  * Spec 06 S1-S6 and S21 over HTTP against Postgres, with the field cipher faked and the numbering
@@ -40,43 +43,12 @@ import { rosterRecord } from '../support/fake-directory.js';
  */
 
 const SUBMIT = '/v1/declarations/{declarationId}/submit';
-const STATEMENT_DATE = '2027-11-01';
-const DUE_DATE = '2027-12-31';
-/** A day the biennial of 2027 is due and not yet overdue. */
-const DUE_DAY = '2027-11-15';
-
 const ACHIENG = randomUUID();
 const BARAKA = randomUUID();
 
-const INCOME = {
-  id: '0192f1a0-5a11-7000-8000-000000001001',
-  type: 'salary-emoluments',
-  description: 'Salary from the Ministry',
-  amount: { kesCents: 480_000_017 },
-  location: { inKenya: true, county: '047' },
-  change: { changed: true, kind: 'value-change', explanation: 'Promoted in March 2026' },
-};
-const ASSET = {
-  id: '0192f1a0-5a11-7000-8000-000000002001',
-  type: 'land',
-  description: 'Shamba in Kitengela',
-  details: { parcelNumber: 'KAJIADO/KITENGELA/48213' },
-  value: { kesCents: 350_000_023 },
-  location: { inKenya: true, county: '034' },
-  joint: { isJoint: true, sharePercent: 50, coOwner: 'A brother' },
-  change: { changed: false },
-};
-const LIABILITY = {
-  id: '0192f1a0-5a11-7000-8000-000000003001',
-  type: 'loan',
-  description: 'Loan for a house in Kampala',
-  creditor: 'Stanbic Uganda',
-  outstanding: { kesCents: 120_000_000, original: { currency: 'UGX', minorUnits: 3_400_000_000 } },
-  location: { inKenya: false, country: 'UG' },
-  change: { changed: true, kind: 'acquisition', explanation: 'Took the loan in 2026' },
-};
-
 let api: DeclarationsApi;
+const { declarant, steppedUp, givenObligation, started, completeDraft, submit } =
+  submissionFixtures(() => api);
 
 beforeAll(async () => {
   api = await startDeclarationsApi();
@@ -95,137 +67,6 @@ beforeEach(async () => {
   );
   api.clock.setToday(DUE_DAY);
 });
-
-/** The declarant's token without the step-up; their account's `sub` is fixed. */
-function declarant(personId: string): Caller {
-  return { sub: `account-${personId}`, personId, roles: ['declarant'] };
-}
-
-/** The declarant's token right after a fresh one-time code (by the service's clock). */
-function steppedUp(personId: string, secondsAgo = 0): Caller {
-  return {
-    ...declarant(personId),
-    acr: 'step-up',
-    authTime: Math.floor(api.clock.now().getTime() / 1000) - secondsAgo,
-  };
-}
-
-/** A PSC declarant's biennial obligation of 2027. */
-async function givenObligation(
-  personId: string,
-  { status = 'due' }: { status?: 'upcoming' | 'due' | 'overdue' } = {},
-): Promise<string> {
-  const record = rosterRecord('psc', {
-    personId,
-    fullName: 'Achieng Wambui Otieno',
-    personnelFileNumber: `PSC/2015/${personId.slice(0, 4)}`,
-    designation: 'Senior Accountant',
-    appointmentDate: '2015-01-05',
-  });
-  api.directory.givenRecords([record]);
-  const obligationId = randomUUID();
-  await api.asPlatform(async (tx) => {
-    await tx.insert(rosterSnapshots).values({
-      rosterRecordId: record.id,
-      tenant: 'psc',
-      personnelFileNumber: record.personnelFileNumber,
-      fullName: record.fullName,
-      state: 'onboarded',
-      appointmentDate: '2015-01-05',
-      personId,
-      sourceUpdatedAt: new Date(),
-    });
-    await tx.insert(filingObligations).values({
-      id: obligationId,
-      tenant: 'psc',
-      rosterRecordId: record.id,
-      personId,
-      type: 'biennial',
-      cycleKey: 'biennial:2027',
-      statementDate: STATEMENT_DATE,
-      dueDate: DUE_DATE,
-      status,
-      policyVersionId: randomUUID(),
-      policyVersion: 1,
-      reminderOffsetsDays: [30, 14, 7],
-    });
-  });
-  return obligationId;
-}
-
-async function started(personId: string, obligationId: string): Promise<Declaration> {
-  const response = await api.request(
-    'POST',
-    `/v1/obligations/${obligationId}/declaration`,
-    declarant(personId),
-  );
-  expect(response.statusCode).toBe(201);
-  return response.json<Declaration>();
-}
-
-/** Saves at the draft's current version, as the portal does after reading it. */
-async function save(personId: string, id: string, key: string, body: unknown): Promise<void> {
-  const caller = declarant(personId);
-  const version = String((await api.request('GET', `/v1/declarations/${id}`, caller)).headers.etag);
-  const response = await api.request('PUT', `/v1/declarations/${id}/sections/${key}`, caller, {
-    headers: { 'if-match': version },
-    body,
-  });
-  expect(response.statusCode).toBe(200);
-}
-
-async function section(personId: string, id: string, key: string) {
-  const response = await api.request(
-    'GET',
-    `/v1/declarations/${id}/sections/${key}`,
-    declarant(personId),
-  );
-  return response.json<SectionEnvelope>().contents;
-}
-
-/** A single declarant with no household, one income, one joint plot and a loan abroad. */
-async function completeDraft(personId: string, obligationId?: string): Promise<Declaration> {
-  const draft = await started(personId, obligationId ?? (await givenObligation(personId)));
-  const bio = await section(personId, draft.id, 'bio');
-  await save(personId, draft.id, 'bio', {
-    ...bio,
-    birth: { date: '1980-04-02', place: 'Kisumu' },
-    maritalStatus: 'single',
-    address: { postal: 'P.O. Box 40123-00100, Nairobi', physical: 'Lavington, Nairobi' },
-    employment: { ...(bio.employment as object), nature: 'permanent' },
-  });
-  await save(personId, draft.id, 'household', {
-    spouses: { none: true, items: [] },
-    children: { none: true, items: [] },
-  });
-  const officer = await section(personId, draft.id, 'statement:officer');
-  await save(personId, draft.id, 'statement:officer', {
-    ...officer,
-    incomeNil: false,
-    income: [INCOME],
-    assetsNil: false,
-    assets: [ASSET],
-    liabilitiesNil: false,
-    liabilities: [LIABILITY],
-  });
-  await save(personId, draft.id, 'other', {
-    materialChanges: [],
-    registrableInterests: {
-      directorships: [],
-      memberships: [],
-      dualCitizenship: { holds: false, pendingApplication: false },
-      pendingCases: [],
-    },
-    freeText: '',
-  });
-  return draft;
-}
-
-function submit(id: string, caller: Caller, key: string | null = randomUUID()) {
-  return api.request('POST', `/v1/declarations/${id}/submit`, caller, {
-    headers: key === null ? {} : { 'idempotency-key': key },
-  });
-}
 
 function summary(id: string, personId: string) {
   return api.request('GET', `/v1/declarations/${id}/summary`, declarant(personId));
@@ -308,6 +149,7 @@ describe('submitting a complete draft (S1)', () => {
         status: 'pending',
         documentId: null,
         verificationId: null,
+        verifyUrl: null,
         issuedAt: null,
         verifiedCount: 0,
         downloadUrl: null,
@@ -554,7 +396,14 @@ describe('a retried submit (S2)', () => {
     const retry = await submit(draft.id, declarant(ACHIENG), key);
 
     expect(retry.statusCode).toBe(201);
-    expect(retry.json<SubmissionResult>()).toEqual(first);
+    // A day on, the slip that never came is reported failed (it may be asked for again).
+    expect(retry.json<SubmissionResult>()).toEqual({
+      ...first,
+      version: {
+        ...first.version,
+        acknowledgement: { ...first.version.acknowledgement, status: 'failed' },
+      },
+    });
     expect(await versionsOf(draft.id)).toHaveLength(1);
     expect(await events('declaration.submitted.v1')).toHaveLength(1);
   });
@@ -940,7 +789,9 @@ describe('versions and items are insert-only (S21)', () => {
           ackStatus: 'issued',
           ackDocumentId: documentId,
           ackVerificationId: 'ADL-AAAA-BBBB-CCCC-DDDD-EEEE-FF',
+          ackVerifyUrl: 'http://localhost:3030/v/ADL-AAAA-BBBB-CCCC-DDDD-EEEE-FF',
           ackIssuedAt: new Date(),
+          ackRequestedAt: new Date(),
           verifiedCount: 3,
           supersededAt: new Date(),
         })

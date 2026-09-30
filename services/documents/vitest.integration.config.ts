@@ -5,8 +5,8 @@ import swc from 'unplugin-swc';
 import { defineConfig } from 'vitest/config';
 
 // Needs Postgres, SeaweedFS (S3, with SSE-S3 configured and the ADR-002 buckets), ClamAV,
-// Keycloak (with the committed realm import), Gotenberg and OpenBao (with the demo CA of
-// infra/compose/openbao/create-demo-ca.sh).
+// Keycloak (with the committed realm import), Gotenberg, OpenBao (with the demo CA of
+// infra/compose/openbao/create-demo-ca.sh) and RabbitMQ (the acknowledgement consumer's retries).
 // Defaults point at local infra (`pnpm infra:up`); CI overrides them.
 export default defineConfig({
   plugins: [swc.vite({ module: { type: 'es6' } })],
@@ -28,6 +28,7 @@ export default defineConfig({
       TEST_GOTENBERG_URL: process.env.TEST_GOTENBERG_URL ?? 'http://localhost:3300',
       TEST_OPENBAO_URL: process.env.TEST_OPENBAO_URL ?? 'http://localhost:8200',
       TEST_OPENBAO_TOKEN: process.env.TEST_OPENBAO_TOKEN ?? 'adili-dev-root-token',
+      TEST_RABBITMQ_URL: process.env.TEST_RABBITMQ_URL ?? 'amqp://adili:adili_dev@localhost:55672',
     },
   },
 });

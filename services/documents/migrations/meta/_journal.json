@@ -50,6 +50,13 @@
       "when": 1790783362318,
       "tag": "0006_issued_documents_rls",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1790788973677,
+      "tag": "0007_verification_records_reference",
+      "breakpoints": true
     }
   ]
 }

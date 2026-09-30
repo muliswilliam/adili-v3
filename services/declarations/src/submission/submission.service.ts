@@ -15,6 +15,7 @@ import { allocateReference, declarationSchemes, issuerCode } from '@adili/number
 import { and, eq, isNull } from 'drizzle-orm';
 import { v7 as uuidv7 } from 'uuid';
 
+import { acknowledgementOf } from '../acknowledgement/status.js';
 import { Clock } from '../clock.js';
 import { config } from '../config.js';
 import type { DeclarationsSchema } from '../db/schema.js';
@@ -154,7 +155,7 @@ export class SubmissionService {
     }
     return {
       declaration: await this.drafts.get(principal, submitted.declarationId),
-      version: versionOf(submitted.version),
+      version: versionOf(submitted.version, now),
       obligationStatus: submitted.obligationStatus,
     };
   }
@@ -414,8 +415,8 @@ function stepUpUrl(declarationId: string): string {
   return url.toString();
 }
 
-/** The version as the contract shows it. */
-export function versionOf(row: VersionRow): DeclarationVersion {
+/** The version as the contract shows it, its acknowledgement as the declarant sees it at `now`. */
+export function versionOf(row: VersionRow, now: Date): DeclarationVersion {
   return {
     version: row.version,
     reference: row.reference,
@@ -423,14 +424,7 @@ export function versionOf(row: VersionRow): DeclarationVersion {
     late: row.late,
     canonicalSha256: row.canonicalSha256,
     supersededAt: row.supersededAt?.toISOString() ?? null,
-    acknowledgement: {
-      status: row.ackStatus,
-      documentId: row.ackDocumentId,
-      verificationId: row.ackVerificationId,
-      issuedAt: row.ackIssuedAt?.toISOString() ?? null,
-      verifiedCount: row.verifiedCount,
-      downloadUrl: null,
-    },
+    acknowledgement: acknowledgementOf(row, now),
   };
 }
 

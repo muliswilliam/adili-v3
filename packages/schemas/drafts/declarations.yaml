@@ -1,5 +1,5 @@
 # Drafted operations of the declarations API for specs not implemented yet: 05 (declaration
-# drafts), 06 (submission, versions, acknowledgement), 07a (internal reads for review) and 08
+# drafts), 06 (amendments and versions), 07a (internal reads for review) and 08
 # (person obligation history), with suggestions, the assistant and help. `pnpm --filter
 # @adili/declarations contracts` merges them into packages/schemas/internal/declarations.yaml,
 # where they may reference the implemented components (e.g. `#/components/schemas/Obligation`,
@@ -83,65 +83,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/DeclarationVersionDetail'
-        '404':
-          $ref: '#/components/responses/NotFound'
-  /v1/declarations/{declarationId}/versions/{version}/acknowledgement:
-    parameters:
-      - $ref: '#/components/parameters/DeclarationId'
-      - $ref: '#/components/parameters/VersionNumber'
-    get:
-      tags: [submission]
-      operationId: getAcknowledgement
-      summary: Acknowledgement slip status and download link for a version
-      responses:
-        '200':
-          description: Status
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Acknowledgement'
-        '404':
-          $ref: '#/components/responses/NotFound'
-  /v1/declarations/{declarationId}/versions/{version}/acknowledgement/reissue:
-    parameters:
-      - $ref: '#/components/parameters/DeclarationId'
-      - $ref: '#/components/parameters/VersionNumber'
-    post:
-      tags: [submission]
-      operationId: reissueAcknowledgement
-      summary: Ask for the slip again when issuance failed
-      responses:
-        '202':
-          description: Reissue requested
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '409':
-          description: Slip already issued or issuance in progress
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ProblemDetails'
-        '429':
-          description: Cooldown
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ProblemDetails'
-  /internal/v1/declarations/{declarationId}/versions/{version}/acknowledgement-payload:
-    parameters:
-      - $ref: '#/components/parameters/DeclarationId'
-      - $ref: '#/components/parameters/VersionNumber'
-    get:
-      tags: [internal]
-      operationId: internalGetAcknowledgementPayload
-      summary: Fields the acknowledgement slip needs (documents service)
-      responses:
-        '200':
-          description: Payload
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/AcknowledgementPayload'
         '404':
           $ref: '#/components/responses/NotFound'
   /internal/v1/declarations/{declarationId}/versions/{version}/document:
@@ -1222,51 +1163,6 @@ components:
               type: object
               description: The immutable declaration.v1 document (decrypted for the owner)
               additionalProperties: true
-    AcknowledgementPayload:
-      type: object
-      required:
-        - declarantName
-        - commission
-        - type
-        - statementDate
-        - reference
-        - version
-        - submittedAt
-        - late
-        - counts
-      properties:
-        declarantName:
-          type: string
-        commission:
-          $ref: '#/components/schemas/CommissionRef'
-        type:
-          $ref: '#/components/schemas/ObligationType'
-        statementDate:
-          type: string
-          format: date
-        reference:
-          $ref: '#/components/schemas/DeclarationReference'
-        version:
-          type: integer
-        submittedAt:
-          type: string
-          format: date-time
-        late:
-          type: boolean
-        counts:
-          type: object
-          required: [statements, income, assets, liabilities, attachments]
-          properties:
-            statements:
-              type: integer
-            income:
-              type: integer
-            assets:
-              type: integer
-            liabilities:
-              type: integer
-            attachments:
-              type: integer
     InternalVersionDocument:
       type: object
       required:

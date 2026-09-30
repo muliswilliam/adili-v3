@@ -202,7 +202,13 @@ if (!directory) {
 const scopes = new Map((realm.clientScopes ?? []).map((scope) => [scope.name, scope]));
 
 // Service scopes: each puts the adili-api audience on the token and names the internal API.
-for (const name of ['messages', 'iprs', 'directory:internal', 'directory:person-contacts']) {
+for (const name of [
+  'messages',
+  'iprs',
+  'directory:internal',
+  'directory:person-contacts',
+  'declarations:internal',
+]) {
   const scope = scopes.get(name);
   if (!scope) {
     fail(`missing client scope ${name}`);
@@ -248,9 +254,12 @@ if (directory) {
 // Services pull from the directory's internal API (spec 04): declarations (roster records and
 // policy after roster events, reminders through notifications, and declaration attachments in
 // documents, spec 05) and notifications (a person's verified contacts).
+// The documents service pulls a submitted version's acknowledgement slip payload from
+// declarations (spec 06).
 for (const [id, needed] of [
   ['declarations', ['directory:internal', 'messages', 'documents:internal']],
   ['notifications', ['directory:person-contacts']],
+  ['documents', ['declarations:internal']],
 ]) {
   const client = clients.get(id);
   if (!client) {

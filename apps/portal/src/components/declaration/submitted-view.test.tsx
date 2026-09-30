@@ -34,6 +34,7 @@ function versionOf(overrides: Partial<DeclarationVersion> = {}): DeclarationVers
       status: 'pending',
       documentId: null,
       verificationId: null,
+      verifyUrl: null,
       issuedAt: null,
       verifiedCount: 0,
       downloadUrl: null,

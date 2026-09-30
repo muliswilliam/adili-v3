@@ -286,6 +286,66 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/declarations/{declarationId}/versions/{version}/acknowledgement": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Acknowledgement slip status and download link for a version
+         * @description The declarant only. `pending` while the documents service prepares the slip (seconds after submission), `issued` with the document and its verification code once set on the version, `failed` when it has not come within a minute of the submission or of the last reissue (the stored acknowledgement stays pending): it may be asked for again. The slip downloads from the documents service (`getDocumentDownload` with `documentId`).
+         */
+        get: operations["getAcknowledgement"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/declarations/{declarationId}/versions/{version}/acknowledgement/reissue": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Ask for the slip again when issuance failed
+         * @description The declarant only. Accepted (202) once the slip has not come within a minute of the submission, or of the last reissue: the acknowledgement is `failed` (still `pending` as stored); records `declaration.acknowledgement-requested.v1`, the documents service issues the slip (or announces the one it issued), and the acknowledgement is `pending` again for a minute. 409 `acknowledgement-issued` once issued; 409 `acknowledgement-in-progress` within a minute of the submission; 429 `resend-cooldown` with `retryAfterSeconds` within a minute of the last reissue.
+         */
+        post: operations["reissueAcknowledgement"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/internal/v1/declarations/{declarationId}/versions/{version}/acknowledgement-payload": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Fields the acknowledgement slip needs (documents service)
+         * @description Service tokens with scope declarations:internal, acting for the Commission in X-Acting-Tenant; audited. What the slip prints of the version (its `acknowledgement-slip` v1 payload) and the declarant it is issued for, nothing more. Pulled after `declaration.submitted.v1` or `declaration.acknowledgement-requested.v1`.
+         */
+        get: operations["internalGetAcknowledgementPayload"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/declarations/{declarationId}/amend": {
         parameters: {
             query?: never;
@@ -355,66 +415,6 @@ export interface paths {
         };
         /** One immutable version with its document (decrypted for the owner) */
         get: operations["getDeclarationVersion"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/declarations/{declarationId}/versions/{version}/acknowledgement": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                declarationId: components["parameters"]["DeclarationId"];
-                version: components["parameters"]["VersionNumber"];
-            };
-            cookie?: never;
-        };
-        /** Acknowledgement slip status and download link for a version */
-        get: operations["getAcknowledgement"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/declarations/{declarationId}/versions/{version}/acknowledgement/reissue": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                declarationId: components["parameters"]["DeclarationId"];
-                version: components["parameters"]["VersionNumber"];
-            };
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Ask for the slip again when issuance failed */
-        post: operations["reissueAcknowledgement"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/internal/v1/declarations/{declarationId}/versions/{version}/acknowledgement-payload": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                declarationId: components["parameters"]["DeclarationId"];
-                version: components["parameters"]["VersionNumber"];
-            };
-            cookie?: never;
-        };
-        /** Fields the acknowledgement slip needs (documents service) */
-        get: operations["internalGetAcknowledgementPayload"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1199,10 +1199,12 @@ export interface components {
             documentId: string | null;
             /** @description Verification code printed under the QR; null until issued */
             verificationId: string | null;
+            /** @description Where the verify page answers for the slip, the QR code's payload (`<verify origin>/v/<code>`); null until issued */
+            verifyUrl: string | null;
             issuedAt: string | null;
             /** @description Lookups of the slip on the verify app */
             verifiedCount: number;
-            /** @description Short-lived presigned URL; fetched fresh on each call; null until issued */
+            /** @description Null: the slip downloads from the documents service (`getDocumentDownload` with `documentId`), the owner's short-lived link, audited there */
             downloadUrl: string | null;
         };
         DeclarationVersion: {
@@ -1247,6 +1249,37 @@ export interface components {
             /** @description Present for incomplete: what to complete, as the summary lists it */
             blocking?: components["schemas"]["CompletenessIssue"][];
         };
+        /** @description The fields the acknowledgement slip prints, and nothing more */
+        AcknowledgementSlip: {
+            /** @description As declared in the version (first, other and surname) */
+            declarantName: string;
+            commissionName: string;
+            /** @description The Commission's issuer code, as in the reference number */
+            issuerCode: string;
+            declarationType: components["schemas"]["ObligationType"];
+            /** Format: date */
+            statementDate: string;
+            /** @description The filing obligation's due date; null when it has none */
+            dueDate: string | null;
+            reference: components["schemas"]["DeclarationReference"];
+            version: number;
+            /** Format: date-time */
+            submittedAt: string;
+            /** @description Submitted after the obligation's due date */
+            late: boolean;
+            /** @description Statements in the version: the declarant, spouses and children */
+            statementCount: number;
+            /** @description Income, assets and liabilities across its statements */
+            itemCount: number;
+        };
+        AcknowledgementPayload: {
+            /**
+             * Format: uuid
+             * @description The declarant: the documents service issues the slip for them, the only person who may download it
+             */
+            declarantPersonId: string;
+            slip: components["schemas"]["AcknowledgementSlip"];
+        };
         ProblemDetails: {
             type: string;
             title: string;
@@ -1255,7 +1288,7 @@ export interface components {
              * @description Machine-readable cause, from the platform registry; clients map it to copy and never show `title` or `detail`
              * @enum {string}
              */
-            code?: "rate-limit-exceeded" | "no-match" | "already-onboarded" | "no-roster" | "otp-invalid" | "otp-expired" | "resend-cooldown" | "otp-send-failed" | "wrong-step" | "session-expired" | "iprs-unavailable" | "identity-unavailable" | "email-in-use" | "step-up-required" | "incomplete" | "before-statement-date" | "amendment-window-closed" | "not-a-draft" | "not-submitted" | "obligation-cancelled";
+            code?: "rate-limit-exceeded" | "no-match" | "already-onboarded" | "no-roster" | "otp-invalid" | "otp-expired" | "resend-cooldown" | "otp-send-failed" | "wrong-step" | "session-expired" | "iprs-unavailable" | "identity-unavailable" | "email-in-use" | "step-up-required" | "incomplete" | "before-statement-date" | "amendment-window-closed" | "not-a-draft" | "not-submitted" | "obligation-cancelled" | "acknowledgement-issued" | "acknowledgement-in-progress";
             detail?: string;
             instance?: string;
             /** @description Field-level errors; `path` is the dotted request field */
@@ -1411,25 +1444,6 @@ export interface components {
             /** @description The immutable declaration.v1 document (decrypted for the owner) */
             document: {
                 [key: string]: unknown;
-            };
-        };
-        AcknowledgementPayload: {
-            declarantName: string;
-            commission: components["schemas"]["CommissionRef"];
-            type: components["schemas"]["ObligationType"];
-            /** Format: date */
-            statementDate: string;
-            reference: components["schemas"]["DeclarationReference"];
-            version: number;
-            /** Format: date-time */
-            submittedAt: string;
-            late: boolean;
-            counts: {
-                statements: number;
-                income: number;
-                assets: number;
-                liabilities: number;
-                attachments: number;
             };
         };
         InternalVersionDocument: {
@@ -2254,6 +2268,157 @@ export interface operations {
             };
         };
     };
+    getAcknowledgement: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                declarationId: string;
+                version: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Status */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Acknowledgement"];
+                };
+            };
+            /** @description version is not a positive integer */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not found, or not visible to the caller */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    reissueAcknowledgement: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                declarationId: string;
+                version: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Reissue requested */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description version is not a positive integer */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not found, or not visible to the caller */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Problem code `acknowledgement-issued` (the slip is issued) or `acknowledgement-in-progress` (within a minute of the submission) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Problem code `resend-cooldown` with `retryAfterSeconds`: within a minute of the last reissue */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    internalGetAcknowledgementPayload: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Tenant the calling service acts for; the resource must belong to it */
+                "X-Acting-Tenant": string;
+            };
+            path: {
+                declarationId: string;
+                version: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Payload */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AcknowledgementPayload"];
+                };
+            };
+            /** @description X-Acting-Tenant is missing or not a tenant key */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Requires a service token with scope declarations:internal */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description No such version of the acting tenant's declarations */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
     amendDeclaration: {
         parameters: {
             query?: never;
@@ -2360,94 +2525,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["DeclarationVersionDetail"];
-                };
-            };
-            404: components["responses"]["NotFound"];
-        };
-    };
-    getAcknowledgement: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                declarationId: components["parameters"]["DeclarationId"];
-                version: components["parameters"]["VersionNumber"];
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Status */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Acknowledgement"];
-                };
-            };
-            404: components["responses"]["NotFound"];
-        };
-    };
-    reissueAcknowledgement: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                declarationId: components["parameters"]["DeclarationId"];
-                version: components["parameters"]["VersionNumber"];
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Reissue requested */
-            202: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            404: components["responses"]["NotFound"];
-            /** @description Slip already issued or issuance in progress */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetails"];
-                };
-            };
-            /** @description Cooldown */
-            429: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetails"];
-                };
-            };
-        };
-    };
-    internalGetAcknowledgementPayload: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                declarationId: components["parameters"]["DeclarationId"];
-                version: components["parameters"]["VersionNumber"];
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Payload */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["AcknowledgementPayload"];
                 };
             };
             404: components["responses"]["NotFound"];

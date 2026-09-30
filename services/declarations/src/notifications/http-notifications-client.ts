@@ -3,6 +3,7 @@ import { z } from 'zod';
 
 import type { components, paths } from './notifications-api.gen.js';
 import {
+  type AcknowledgementMessage,
   NotificationsClient,
   NotificationsKeyReused,
   NotificationsRejected,
@@ -22,10 +23,18 @@ export const NOTIFICATIONS_SEND_TIMEOUT_MS = 8_000;
 
 type SendMessage = components['schemas']['SendMessage'];
 
-const TEMPLATES = {
+const REMINDER_TEMPLATES = {
   sms: 'obligation-reminder-sms',
   email: 'obligation-reminder-email',
 } as const satisfies Record<ReminderChannel, SendMessage['template']>;
+
+const ACKNOWLEDGEMENT_TEMPLATES = {
+  sms: 'acknowledgement-sms',
+  email: 'acknowledgement-email',
+} as const satisfies Record<ReminderChannel, SendMessage['template']>;
+
+/** What either kind of message needs to go out. */
+type Outgoing = (ReminderMessage | AcknowledgementMessage) & { template: SendMessage['template'] };
 
 /** What the reminder reads of notifications' `Message`, validated at the boundary. */
 const messageSchema = z.object({
@@ -71,21 +80,29 @@ export class HttpNotificationsClient extends NotificationsClient {
     });
   }
 
-  async sendReminder(message: ReminderMessage): Promise<SendOutcome> {
+  sendReminder(message: ReminderMessage): Promise<SendOutcome> {
+    return this.send({ ...message, template: REMINDER_TEMPLATES[message.channel] });
+  }
+
+  sendAcknowledgement(message: AcknowledgementMessage): Promise<SendOutcome> {
+    return this.send({ ...message, template: ACKNOWLEDGEMENT_TEMPLATES[message.channel] });
+  }
+
+  private async send(message: Outgoing): Promise<SendOutcome> {
     const body: SendMessage = {
       channel: message.channel,
       recipient: { kind: 'person', personId: message.personId },
-      template: TEMPLATES[message.channel],
+      template: message.template,
       params: { ...message.params },
       locale: 'en',
       tenant: message.tenant,
     };
     const rejected = () => {
-      throw new NotificationsRejected(`notifications refused the ${message.channel} reminder`);
+      throw new NotificationsRejected(`notifications refused the ${message.template} message`);
     };
     const keyReused = () => {
       throw new NotificationsKeyReused(
-        `notifications took another ${message.channel} reminder under its Idempotency-Key`,
+        `notifications took another ${message.template} message under its Idempotency-Key`,
       );
     };
     const sent = await this.notifications.call(
