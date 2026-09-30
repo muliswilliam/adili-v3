@@ -5,6 +5,7 @@ import {
   Button,
   Icon,
   IconTile,
+  LateBadge,
   obligationTypeLabel,
   ProgressBar,
   ReferenceChip,
@@ -18,7 +19,6 @@ import {
   ArrowDown01Icon,
   ArrowRight01Icon,
   ArrowUp01Icon,
-  Clock01Icon,
   Download01Icon,
   PencilEdit02Icon,
   RefreshIcon,
@@ -459,10 +459,7 @@ export function FiledRow({ declaration }: { declaration: FiledDeclaration }) {
         </span>
         {declaration.late ? (
           <span>
-            <Badge variant="warning">
-              <Icon icon={Clock01Icon} />
-              {COPY.late}
-            </Badge>
+            <LateBadge />
           </span>
         ) : null}
       </Facts>

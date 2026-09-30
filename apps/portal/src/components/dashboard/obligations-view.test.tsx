@@ -267,7 +267,7 @@ describe('ObligationsView', () => {
     expect(filed.getByText('Filed')).toBeTruthy();
     expect(filed.getByText('DCI-TSC-2026-0000001-H')).toBeTruthy();
     expect(filed.getByText('Version 2')).toBeTruthy();
-    expect(filed.queryByText(messages.filedLate)).toBeNull();
+    expect(filed.queryByText('Filed late')).toBeNull();
     expect(filed.queryByText(messages.amendmentInProgress)).toBeNull();
     expect(filed.queryByRole('button', { name: 'Start declaration' })).toBeNull();
     expect(
@@ -309,7 +309,7 @@ describe('ObligationsView', () => {
     });
 
     const filed = within(card('Initial declaration'));
-    expect(filed.getByText(messages.filedLate)).toBeTruthy();
+    expect(filed.getByText('Filed late')).toBeTruthy();
     expect(filed.getByText(messages.amendmentInProgress)).toBeTruthy();
     expect(filed.getByRole('link', { name: messages.viewAcknowledgement })).toBeTruthy();
   });

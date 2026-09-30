@@ -13,16 +13,12 @@ import {
   formatDate,
   formatDateTime,
   Icon,
+  LateBadge,
   ProgressBar,
   Skeleton,
   useToast,
 } from '@adili/ui';
-import {
-  AlertCircleIcon,
-  ArrowRight01Icon,
-  Clock01Icon,
-  File01Icon,
-} from '@hugeicons/core-free-icons';
+import { AlertCircleIcon, ArrowRight01Icon, File01Icon } from '@hugeicons/core-free-icons';
 import { Link, useRouter } from '@tanstack/react-router';
 import { type ReactNode, Suspense, use } from 'react';
 
@@ -71,12 +67,7 @@ function DeclarationRow({ item }: { item: DeclarationListItem }) {
           <p className="text-sm text-muted-foreground">{facts(item)}</p>
         </div>
         <div className="flex flex-wrap gap-1.5">
-          {item.status === 'submitted' && item.late ? (
-            <Badge variant="warning">
-              <Icon icon={Clock01Icon} />
-              Filed late
-            </Badge>
-          ) : null}
+          {item.status === 'submitted' && item.late ? <LateBadge /> : null}
           <Badge variant={badge.variant}>{badge.label}</Badge>
         </div>
       </div>

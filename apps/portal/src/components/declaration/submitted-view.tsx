@@ -1,17 +1,16 @@
 import {
-  Badge,
   Button,
   Card,
   formatCalendarDate,
   formatDate,
   formatDateTime,
   Icon,
+  LateBadge,
   ReferenceChip,
   useToday,
   VersionBadge,
 } from '@adili/ui';
 import {
-  Clock01Icon,
   File01Icon,
   Message01Icon,
   PencilEdit02Icon,
@@ -29,7 +28,6 @@ export const SUBMITTED_COPY = {
   received: (commission: string, version: number) =>
     `Received by ${commission}${version > 1 ? `, replacing version ${String(version - 1)}` : ''}. Keep your reference number.`,
   submittedAt: (at: string) => `Submitted ${formatDateTime(at)}`,
-  late: 'Filed late',
   home: 'Home',
   myDeclarations: 'My declarations',
   nextTitle: 'What happens next',
@@ -90,12 +88,7 @@ export function SubmittedView({ declaration, version, slip, now }: SubmittedView
         <div className="mt-3 flex flex-wrap items-center justify-center gap-x-3.5 gap-y-2 text-sm text-muted-foreground">
           <VersionBadge version={version.version} />
           <span>{SUBMITTED_COPY.submittedAt(version.submittedAt)}</span>
-          {version.late ? (
-            <Badge variant="warning">
-              <Icon icon={Clock01Icon} />
-              {SUBMITTED_COPY.late}
-            </Badge>
-          ) : null}
+          {version.late ? <LateBadge /> : null}
         </div>
       </header>
       <SlipCard declaration={declaration} version={version} context={slip} />

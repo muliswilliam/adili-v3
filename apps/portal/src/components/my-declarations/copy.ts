@@ -15,7 +15,6 @@ export const MY_DECLARATIONS_COPY = {
   statementDate: (date: string) => `Statement date ${formatDate(date)}`,
   saved: (at: string) => `Saved ${formatDateTime(at)}`,
   submittedAt: (at: string) => `Submitted ${formatDateTime(at)}`,
-  late: 'Filed late',
   verified: (count: number) => `Verified ${plural(count, 'time')}`,
   percentComplete: (percent: number) => `${String(percent)}% complete`,
   continue: 'Continue',

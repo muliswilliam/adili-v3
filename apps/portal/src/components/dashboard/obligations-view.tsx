@@ -9,6 +9,7 @@ import {
   EmptyState,
   formatDate,
   Icon,
+  LateBadge,
   obligationTypeLabel,
   ReferenceChip,
   remindersSentLabel,
@@ -16,12 +17,7 @@ import {
   StatementDateTerm,
   VersionBadge,
 } from '@adili/ui';
-import {
-  AlertCircleIcon,
-  Calendar03Icon,
-  Clock01Icon,
-  RefreshIcon,
-} from '@hugeicons/core-free-icons';
+import { AlertCircleIcon, Calendar03Icon, RefreshIcon } from '@hugeicons/core-free-icons';
 import { type MouseEvent, type ReactNode, Suspense, use, useId, useState } from 'react';
 
 import type {
@@ -305,12 +301,7 @@ function Filing({ declaration }: { declaration: DeclarationListItem }) {
         parts={referenceParts(reference, declaration.commission.name)}
       />
       <VersionBadge version={currentVersion} />
-      {declaration.late ? (
-        <Badge variant="warning">
-          <Icon icon={Clock01Icon} />
-          {m.filedLate}
-        </Badge>
-      ) : null}
+      {declaration.late ? <LateBadge /> : null}
     </div>
   );
 }

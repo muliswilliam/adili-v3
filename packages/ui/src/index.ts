@@ -190,6 +190,7 @@ export { Icon, type IconProps } from './components/icon';
 export { IconTile, type IconTileProps, iconTileVariants } from './components/icon-tile';
 export { controlClassName, Input } from './components/input';
 export { Label } from './components/label';
+export { LateBadge, type LateBadgeProps } from './components/late-badge';
 export { Logo, LogoMark, LogoWordmark, type LogoProps } from './components/logo';
 export { MaskedContact, type MaskedContactProps } from './components/masked-contact';
 // The masking rules live in @adili/contacts (the services mask with them too).
