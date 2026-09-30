@@ -183,7 +183,9 @@ export class CycleOpening {
       this.logger.warn({ err: error, tenant }, 'Policy not pulled; opening with the cached one');
       return null;
     }
-    return withTenant(this.db, systemContext(tenant), (tx) => cachePolicy(tx, tenant, pulled));
+    return withTenant(this.db, systemContext(tenant), (tx) =>
+      cachePolicy(tx, tenant, pulled, this.clock.now()),
+    );
   }
 
   private async calendar(): Promise<CycleCalendar> {

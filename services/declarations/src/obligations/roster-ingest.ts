@@ -87,7 +87,7 @@ export class RosterIngest {
       const page = await this.pull(tenant, source, cursor);
       const last = page.nextCursor === null;
       const changes = await withTenant(this.db, systemContext(tenant), async (tx) => {
-        if (first) await refreshReferenceData(tx, commission, policy);
+        if (first) await refreshReferenceData(tx, commission, policy, this.clock.now());
         const applied = await applyRosterPage(tx, this.events, context, page.items);
         if (last) {
           if (source.kind === 'records' && 'importId' in source.selector)
@@ -127,7 +127,7 @@ export class RosterIngest {
         this.db,
         systemContext(tenant),
         async (tx) => {
-          if (first) await cachePolicy(tx, tenant, policy);
+          if (first) await cachePolicy(tx, tenant, policy, this.clock.now());
           // The cached policy: the version pulled, or a newer one a racing pull put there.
           const context = await storedReconcileContext(tx, tenant, today);
           const ids = await snapshotPage(tx, tenant, cursor);
@@ -209,9 +209,10 @@ async function refreshReferenceData(
   tx: Transaction,
   commission: PulledCommission,
   policy: PulledPolicy,
+  fetchedAt: Date,
 ): Promise<void> {
-  await upsertCommissionRef(tx, commission, new Date());
-  await cachePolicy(tx, commission.slug, policy);
+  await upsertCommissionRef(tx, commission, fetchedAt);
+  await cachePolicy(tx, commission.slug, policy, fetchedAt);
 }
 
 /**
@@ -222,13 +223,14 @@ export async function cachePolicy(
   tx: Transaction,
   tenant: string,
   policy: PulledPolicy,
+  fetchedAt: Date,
 ): Promise<ObligationPolicy | null> {
   const rules = obligationPolicyOf(policy);
   const cached = {
     policyVersionId: policy.id,
     version: policy.version,
     policy: rules,
-    fetchedAt: new Date(),
+    fetchedAt,
   };
   const [kept] = await tx
     .insert(tenantPolicyCache)
