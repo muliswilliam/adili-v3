@@ -70,10 +70,12 @@ export const declarations = pgTable(
     /** The section saved last, for "Continue"; null until the first save. */
     lastSection: text(),
     createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+    // The database's clock on insert and on every update alike, so "newest first" holds even when
+    // the service's clock and the database's disagree.
     updatedAt: timestamp({ withTimezone: true })
       .notNull()
       .defaultNow()
-      .$onUpdate(() => new Date()),
+      .$onUpdate(() => sql`now()`),
   },
   (table) => [
     uniqueIndex('declarations_live_obligation_key')
