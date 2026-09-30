@@ -567,5 +567,84 @@ describe('internal messages API', () => {
       expect(response.statusCode).toBe(400);
       expect(response.json()).toMatchObject({ errors: [{ path: 'recipient.personId' }] });
     });
+
+    describe('acknowledgement of a submitted declaration', () => {
+      const acknowledgementParams = {
+        reference: 'DCB-PSC-2027-0000001-1',
+        type: 'biennial',
+        commissionName: 'Public Service Commission',
+        statementDate: '2027-11-01',
+        verificationCode: 'ADL-7Q4K-M2XR-9HTC-2B7F-Q3ZD-9K',
+        portalUrl: 'https://portal.adili.go.ke/declarations',
+      };
+      const acknowledgement = (channel: 'sms' | 'email', personId: string) => ({
+        channel,
+        recipient: { kind: 'person', personId },
+        template: `acknowledgement-${channel}`,
+        params: acknowledgementParams,
+        tenant: 'psc',
+      });
+
+      it('emails the verified address a link to the slip, with no attachment', async () => {
+        const personId = newPerson();
+        directory.set(personId, { email: 'wanjiku@example.go.ke', phone: '+254712345678' });
+
+        const response = await send(acknowledgement('email', personId));
+
+        expect(response.statusCode).toBe(201);
+        expect(response.json()).toMatchObject({
+          channel: 'email',
+          template: 'acknowledgement-email',
+          status: 'sent',
+          error: null,
+        });
+        expect(email.sent).toHaveLength(1);
+        const sent = email.sent[0];
+        expect(sent?.to).toBe('wanjiku@example.go.ke');
+        expect(sent?.subject).toBe('Declaration DCB-PSC-2027-0000001-1 received');
+        for (const value of [
+          'DCB-PSC-2027-0000001-1',
+          'biennial',
+          'Public Service Commission',
+          '1 November 2027',
+          'ADL-7Q4K-M2XR-9HTC-2B7F-Q3ZD-9K',
+          'https://portal.adili.go.ke/declarations',
+        ]) {
+          expect(sent?.text).toContain(value);
+          expect(sent?.html).toContain(value);
+        }
+        expect(Object.keys(sent ?? {}).sort()).toEqual(['html', 'subject', 'text', 'to']);
+        expect(directory.lookups).toEqual([{ personId, tenant: 'psc' }]);
+      });
+
+      it('texts the verified phone the reference and verification code', async () => {
+        const personId = newPerson();
+        directory.set(personId, { email: 'wanjiku@example.go.ke', phone: '+254712345678' });
+
+        const response = await send(acknowledgement('sms', personId));
+
+        expect(response.json()).toMatchObject({
+          template: 'acknowledgement-sms',
+          status: 'sent',
+        });
+        expect(sms.sent).toEqual([
+          {
+            to: '+254712345678',
+            text: 'Adili: declaration DCB-PSC-2027-0000001-1 received. Verification code ADL-7Q4K-M2XR-9HTC-2B7F-Q3ZD-9K. Your slip is in Adili Online.',
+          },
+        ]);
+      });
+
+      it('rejects a reference with a wrong check character before looking anyone up', async () => {
+        const response = await send({
+          ...acknowledgement('sms', newPerson()),
+          params: { ...acknowledgementParams, reference: 'DCB-PSC-2027-0000001-2' },
+        });
+
+        expect(response.statusCode).toBe(400);
+        expect(response.json()).toMatchObject({ errors: [{ path: 'params.reference' }] });
+        expect(directory.lookups).toHaveLength(0);
+      });
+    });
   });
 });

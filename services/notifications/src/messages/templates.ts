@@ -1,3 +1,4 @@
+import { hasValidCheckCharacter } from '@adili/numbering';
 import { z } from 'zod';
 
 export const CHANNELS = ['email', 'sms'] as const;
@@ -134,6 +135,65 @@ function reminderEmail(params: ReminderParams): RenderedEmail {
   };
 }
 
+/** Declaration reference prefix by type (ADR-011): `DCB-TSC-2027-0012345-K`. */
+const REFERENCE_SCHEMES = { initial: 'DCI', biennial: 'DCB', final: 'DCF' } as const;
+
+const acknowledgementParams = z
+  .strictObject({
+    reference: z
+      .string()
+      // Aborts, so a malformed reference is not also reported for its check character.
+      .regex(/^DC[IBF]-[A-Z0-9]{2,8}-\d{4}-\d{7}-[0-9A-Z]$/, {
+        message: 'must be a declaration reference',
+        abort: true,
+      })
+      .refine(hasValidCheckCharacter, 'has a wrong check character'),
+    type: z.enum(OBLIGATION_TYPES),
+    commissionName: z.string().trim().min(1).max(120),
+    /** Civil date `YYYY-MM-DD`, as the declarations service stores it. */
+    statementDate: z.iso.date(),
+    /** Printed under the QR on the slip (ADR-010), e.g. `ADL-7Q4K-M2XR-9HTC-2B7F-Q3ZD-9K`. */
+    verificationCode: z
+      .string()
+      .max(40)
+      .regex(/^ADL(-[0-9A-Z]{1,8})+$/, 'must be a verification code such as ADL-7Q4K-M2XR'),
+    /** Where the declarant signs in to download the slip; the email carries no attachment. */
+    portalUrl: z.url({ protocol: /^https?$/ }).max(200),
+  })
+  .refine((params) => params.reference.startsWith(REFERENCE_SCHEMES[params.type]), {
+    path: ['type'],
+    message: 'is not the type the reference names',
+    // Compare only a valid reference and type, so either one malformed reports one issue.
+    when: (payload) =>
+      payload.issues.every(
+        (issue) => issue.path?.[0] !== 'reference' && issue.path?.[0] !== 'type',
+      ),
+  });
+type AcknowledgementParams = z.infer<typeof acknowledgementParams>;
+
+function acknowledgementEmail(params: AcknowledgementParams): RenderedEmail {
+  const paragraphs: { text: string; html: string }[] = [
+    `Your ${params.type} declaration for ${params.commissionName} has been received. Its reference number is ${params.reference}.`,
+    `It declares your income, assets and liabilities as at the statement date, ${longDate(params.statementDate)}.`,
+    `Your acknowledgement slip is ready. Its verification code is ${params.verificationCode}: anyone you show the slip to can use it, or the QR code on the slip, to check that it is genuine.`,
+  ].map((text) => ({ text, html: escapeHtml(text) }));
+  // The slip names the declarant and the Commission, so it stays behind sign-in, never attached.
+  const download =
+    'to download the slip. It is not attached to this email, so that only you can open it.';
+  paragraphs.push({
+    text: `Sign in to Adili Online at ${params.portalUrl} ${download}`,
+    html: `Sign in to Adili Online at <a href="${escapeHtml(params.portalUrl)}">${escapeHtml(params.portalUrl)}</a> ${escapeHtml(download)}`,
+  });
+  const closing =
+    'If you did not submit this declaration, contact your Commission at once. Adili Online will never ask you for your password or sign-in code.';
+  paragraphs.push({ text: closing, html: escapeHtml(closing) });
+  return {
+    subject: `Declaration ${params.reference} received`,
+    text: paragraphs.map((p) => p.text).join('\n\n'),
+    html: paragraphs.map((p) => `<p>${p.html}</p>`).join('\n'),
+  };
+}
+
 /** Every message the service can send, by template id. Params are validated before rendering. */
 export const templates = {
   'onboarding-otp-email': define({
@@ -189,6 +249,21 @@ export const templates = {
     channel: 'email',
     params: reminderParams,
     copy: { en: reminderEmail },
+  }),
+  'acknowledgement-email': define({
+    channel: 'email',
+    params: acknowledgementParams,
+    copy: { en: acknowledgementEmail },
+  }),
+  'acknowledgement-sms': define({
+    channel: 'sms',
+    params: acknowledgementParams,
+    // The reference and code reveal nothing on their own; the SMS names no Commission or link.
+    copy: {
+      en: (params) => ({
+        text: `Adili: declaration ${params.reference} received. Verification code ${params.verificationCode}. Your slip is in Adili Online.`,
+      }),
+    },
   }),
 } as const;
 
