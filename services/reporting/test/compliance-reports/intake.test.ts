@@ -4,10 +4,10 @@ import {
   buildIntake,
   outliersOf,
   rateOf,
-  type ReceiptFacts,
   sectionRates,
 } from '../../src/compliance-reports/intake.js';
 import type { ReportCounts } from '../../src/compliance-reports/schema.js';
+import { receiptOf, reportCounts } from '../support/receipts.js';
 
 /**
  * S9 at the unit seam: EACC's intake of a financial year from the receipts of submitted reports,
@@ -16,29 +16,9 @@ import type { ReportCounts } from '../../src/compliance-reports/schema.js';
  */
 const THRESHOLDS = { initial: 0.8, biennial: 0.9, final: 0.8 };
 
-function counts(overrides: Partial<ReportCounts> = {}): ReportCounts {
-  return {
-    initial: { expected: 12, declared: 10, notDeclared: 2 },
-    biennial: { expected: 100, declared: 95, notDeclared: 5, noCycleInPeriod: false },
-    final: { expected: 4, declared: 4, notDeclared: 0 },
-    clarifications: 6,
-    accessRequests: { received: 0, granted: 0, declined: 0 },
-    ...overrides,
-  };
-}
-
-function receipt(tenant: string, late: boolean, reportCounts = counts()): ReceiptFacts {
-  return {
-    reportId: `0199b000-0000-7000-8000-00000000000${tenant.length}`,
-    tenant,
-    reference: `RPT-${tenant.toUpperCase()}-2027-0000001-4`,
-    submittedAt: new Date(late ? '2028-08-05T07:00:00.000Z' : '2028-07-20T07:00:00.000Z'),
-    late,
-    counts: reportCounts,
-    formMDocumentId: null,
-    receiptDocumentId: null,
-  };
-}
+/** EACC's receipt of `tenant`'s report, `late` or on time, with `filed` counts. */
+const receipt = (tenant: string, late: boolean, filed = reportCounts()) =>
+  receiptOf(tenant, { late, counts: filed });
 
 const COMMISSIONS = [
   { slug: 'psc', issuerCode: 'PSC', name: 'Public Service Commission' },
@@ -50,7 +30,7 @@ describe('EACC intake', () => {
   it('rates are declared over expected to four decimals, null when nothing was expected', () => {
     expect(rateOf(10, 12)).toBe(0.8333);
     expect(rateOf(0, 0)).toBeNull();
-    expect(sectionRates(counts())).toEqual({
+    expect(sectionRates(reportCounts())).toEqual({
       initial: { expected: 12, declared: 10, rate: 0.8333 },
       biennial: { expected: 100, declared: 95, rate: 0.95 },
       final: { expected: 4, declared: 4, rate: 1 },
@@ -58,10 +38,10 @@ describe('EACC intake', () => {
   });
 
   it('flags a section whose declared rate is below its threshold', () => {
-    expect(outliersOf(counts(), THRESHOLDS)).toEqual([]);
+    expect(outliersOf(reportCounts(), THRESHOLDS)).toEqual([]);
     expect(
       outliersOf(
-        counts({
+        reportCounts({
           initial: { expected: 10, declared: 7, notDeclared: 3 },
           final: { expected: 4, declared: 3, notDeclared: 1 },
         }),
@@ -70,7 +50,7 @@ describe('EACC intake', () => {
     ).toEqual(['low-initial-rate', 'low-final-rate']);
     expect(
       outliersOf(
-        counts({
+        reportCounts({
           biennial: { expected: 100, declared: 89, notDeclared: 11, noCycleInPeriod: false },
         }),
         THRESHOLDS,
@@ -79,20 +59,24 @@ describe('EACC intake', () => {
   });
 
   it('flags missing sections', () => {
-    const withoutFinal: Partial<ReportCounts> = counts();
+    const withoutFinal: Partial<ReportCounts> = reportCounts();
     delete withoutFinal.final;
     expect(outliersOf(withoutFinal, THRESHOLDS)).toEqual(['section-missing']);
     // No officer in service expected to declare in a year with a biennial cycle.
     expect(
       outliersOf(
-        counts({ biennial: { expected: 0, declared: 0, notDeclared: 0, noCycleInPeriod: false } }),
+        reportCounts({
+          biennial: { expected: 0, declared: 0, notDeclared: 0, noCycleInPeriod: false },
+        }),
         THRESHOLDS,
       ),
     ).toEqual(['section-missing']);
     // A year without a cycle expects none: nothing stands out.
     expect(
       outliersOf(
-        counts({ biennial: { expected: 0, declared: 0, notDeclared: 0, noCycleInPeriod: true } }),
+        reportCounts({
+          biennial: { expected: 0, declared: 0, notDeclared: 0, noCycleInPeriod: true },
+        }),
         THRESHOLDS,
       ),
     ).toEqual([]);
@@ -103,7 +87,11 @@ describe('EACC intake', () => {
       fy: 2027,
       commissions: COMMISSIONS,
       receipts: [
-        receipt('psc', false, counts({ final: { expected: 4, declared: 3, notDeclared: 1 } })),
+        receipt(
+          'psc',
+          false,
+          reportCounts({ final: { expected: 4, declared: 3, notDeclared: 1 } }),
+        ),
         receipt('tsc', true),
       ],
       chases: [{ tenant: 'jsc', count: 2, lastAt: new Date('2028-08-08T06:00:00.000Z') }],
@@ -149,7 +137,11 @@ describe('EACC intake', () => {
       fy: 2027,
       commissions: COMMISSIONS,
       receipts: [
-        receipt('psc', false, counts({ final: { expected: 4, declared: 3, notDeclared: 1 } })),
+        receipt(
+          'psc',
+          false,
+          reportCounts({ final: { expected: 4, declared: 3, notDeclared: 1 } }),
+        ),
         receipt('tsc', true),
       ],
       chases: [],

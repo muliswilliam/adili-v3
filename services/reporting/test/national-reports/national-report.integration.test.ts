@@ -12,7 +12,6 @@ import {
   complianceReports,
   nationalReportParagraphs,
   nationalReports,
-  outbox,
   reportReceipts,
 } from '../../src/db/schema.js';
 import { nationalReportApprovalWorkflowId } from '../../src/national-reports/contract.js';
@@ -161,17 +160,6 @@ describe('National consolidated report (S11)', () => {
     return api.send('POST', `${NCR}/approve`, caller);
   }
 
-  const events = async () =>
-    (await api.db.select().from(outbox)).map(
-      (row) =>
-        row.envelope as {
-          type: string;
-          tenant?: string;
-          subject?: string;
-          data: Record<string, unknown>;
-        },
-    );
-
   it('S11: an eacc-analyst builds the NCR from the submitted reports: national totals, a row per Commission, rates', async () => {
     const { psc, tsc } = await givenPscAndTscReported();
 
@@ -242,7 +230,7 @@ describe('National consolidated report (S11)', () => {
     ).toEqual([]);
     expect(read.json()).toEqual(report);
 
-    const drafted = (await events()).filter((event) => event.type === 'ncr.drafted.v1');
+    const drafted = (await api.events()).filter((event) => event.type === 'ncr.drafted.v1');
     expect(drafted).toEqual([
       expect.objectContaining({
         tenant: 'eacc',
@@ -375,7 +363,7 @@ describe('National consolidated report (S11)', () => {
 
     const report = (await api.get(NCR, ANALYST)).json<NationalReportBody>();
     expect(report).toMatchObject({ status: 'draft', reference: null, approver: null });
-    expect((await events()).some((event) => event.type === 'ncr.approved.v1')).toBe(false);
+    expect((await api.events()).some((event) => event.type === 'ncr.approved.v1')).toBe(false);
   });
 
   it('S11: an eacc-supervisor approves: NCR-EACC-2027-0000001-<check>, the PDF, ncr.approved.v1, and the chase ends', async () => {
@@ -441,7 +429,7 @@ describe('National consolidated report (S11)', () => {
     expect(pdf?.payload).toHaveProperty('aggregates.national.all.rate', 0.8147);
 
     // The event: ids, the year and the reference only.
-    const approvedEvents = (await events()).filter((event) => event.type === 'ncr.approved.v1');
+    const approvedEvents = (await api.events()).filter((event) => event.type === 'ncr.approved.v1');
     expect(approvedEvents).toEqual([
       expect.objectContaining({
         tenant: 'eacc',
@@ -468,7 +456,7 @@ describe('National consolidated report (S11)', () => {
       nationalReportApprovalWorkflowId(approved.id),
     );
     expect(history).toContain(approved.id);
-    const published = JSON.stringify(await events());
+    const published = JSON.stringify(await api.events());
     for (const text of [
       'Amina Hassan',
       'Joseph Mwangi',

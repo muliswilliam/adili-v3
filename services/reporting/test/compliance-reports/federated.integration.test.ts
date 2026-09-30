@@ -54,15 +54,8 @@ describe('Federated Form M submission (S8)', () => {
   });
 
   /** Ends the workflows a test left waiting. */
-  async function endWorkflows() {
-    for (const tenant of ['tsc', 'psc']) {
-      try {
-        await api.temporal.workflow.getHandle(complianceReportWorkflowId(tenant, 2027)).terminate();
-      } catch {
-        // Not running.
-      }
-    }
-  }
+  const endWorkflows = () =>
+    api.endWorkflows(['tsc', 'psc'].map((tenant) => complianceReportWorkflowId(tenant, 2027)));
 
   const SUBMITTED_AT = '2028-07-20T07:00:00.000Z';
   const PATH = '/v1/compliance-reports';
@@ -78,11 +71,6 @@ describe('Federated Form M submission (S8)', () => {
     );
 
   const reports = () => api.asPlatform((tx) => tx.select().from(complianceReports));
-  const events = async () =>
-    (await api.db.select().from(outbox)).map(
-      (row) => row.envelope as { type: string; tenant: string; data: Record<string, unknown> },
-    );
-
   /** The report of tsc for FY 2027 as the Commission reads it, decrypted. */
   async function storedDocument(): Promise<FormMV1> {
     const [row] = await reports();
@@ -145,7 +133,7 @@ describe('Federated Form M submission (S8)', () => {
         counts: body.counts,
       }),
     ]);
-    expect(await events()).toContainEqual(
+    expect(await api.events()).toContainEqual(
       expect.objectContaining({
         type: 'compliance-report.submitted.v1',
         tenant: 'tsc',
@@ -303,7 +291,7 @@ describe('Federated Form M submission (S8)', () => {
     expect(duplicate.statusCode).toBe(409);
     expect(duplicate.json()).toMatchObject({ code: 'report-submitted' });
     expect(
-      (await events()).filter((event) => event.type === 'compliance-report.submitted.v1'),
+      (await api.events()).filter((event) => event.type === 'compliance-report.submitted.v1'),
     ).toHaveLength(1);
   });
 
@@ -323,7 +311,7 @@ describe('Federated Form M submission (S8)', () => {
     expect(reused.statusCode).toBe(422);
     expect(await reports()).toHaveLength(1);
     expect(
-      (await events()).filter((event) => event.type === 'compliance-report.submitted.v1'),
+      (await api.events()).filter((event) => event.type === 'compliance-report.submitted.v1'),
     ).toHaveLength(1);
   });
 

@@ -82,6 +82,10 @@ export interface ReportingApi {
   consumer: ProjectionsConsumer;
   /** The compile workflow's activities, for driving its steps directly. */
   activities: ComplianceReportActivities;
+  /** The events recorded in the outbox, of `type` when given, oldest first. */
+  events(type?: string): Promise<RecordedEvent[]>;
+  /** Terminates the workflows with these ids; one not running is fine. */
+  endWorkflows(ids: readonly string[]): Promise<void>;
   /** Delivers an event to its consumer as the RabbitMQ transport would; false for a redelivery. */
   deliver(event: EventEnvelope): Promise<boolean>;
   get(url: string, caller: Caller): ReturnType<NestFastifyApplication['inject']>;
@@ -96,6 +100,14 @@ export interface ReportingApi {
   /** Empties every table and forgets what the fakes were given. */
   reset(): Promise<void>;
   close(): Promise<void>;
+}
+
+/** An event the service recorded in its outbox. */
+export interface RecordedEvent {
+  type: string;
+  tenant?: string;
+  subject?: string;
+  data: Record<string, unknown>;
 }
 
 /** The consumer method of each projected event type. */
@@ -201,6 +213,22 @@ export async function startReportingApi(): Promise<ReportingApi> {
     temporal: app.get<Client>(TEMPORAL_CLIENT),
     consumer,
     activities: app.get(ComplianceReportActivities),
+    async events(type) {
+      const rows = await db.select().from(schema.outbox);
+      return rows
+        .map((row) => row.envelope as RecordedEvent)
+        .filter((event) => type === undefined || event.type === type);
+    },
+    async endWorkflows(ids) {
+      const temporal = app.get<Client>(TEMPORAL_CLIENT);
+      for (const id of ids) {
+        try {
+          await temporal.workflow.getHandle(id).terminate();
+        } catch {
+          // Not running.
+        }
+      }
+    },
     deliver(event) {
       const handler = HANDLERS[event.type];
       if (!handler) throw new Error(`No consumer for ${event.type}`);

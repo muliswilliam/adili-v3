@@ -36,13 +36,7 @@ describe('Form M yearly compile', () => {
     givenPscDirectory(api);
   });
 
-  async function endWorkflows() {
-    try {
-      await api.temporal.workflow.getHandle(complianceReportWorkflowId('psc', 2027)).terminate();
-    } catch {
-      // Not running.
-    }
-  }
+  const endWorkflows = () => api.endWorkflows([complianceReportWorkflowId('psc', 2027)]);
 
   it('on 1 July compiles the draft of each Commission for the year that just ended; a submitted report is left alone', async () => {
     await givenFy2027Facts(api);

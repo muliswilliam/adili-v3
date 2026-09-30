@@ -14,7 +14,7 @@ import {
 import { NationalChaseActivities } from '../../src/compliance-reports/national-chase-activities.js';
 import { NationalChaseSchedule } from '../../src/compliance-reports/national-chase-schedule.js';
 import { config } from '../../src/config.js';
-import { complianceReports, outbox, reportChases, reportReceipts } from '../../src/db/schema.js';
+import { complianceReports, reportChases, reportReceipts } from '../../src/db/schema.js';
 import { contractErrors, okResponse } from '../support/contract.js';
 import { asTsc, REPORTS_SUBMIT, TSC_SYSTEM, validFormM } from '../support/federated.js';
 import {
@@ -65,19 +65,11 @@ describe('EACC intake, report viewer and chase (S9, S10)', () => {
   });
 
   /** Ends the workflows a test left waiting. */
-  async function endWorkflows() {
-    const ids = [
+  const endWorkflows = () =>
+    api.endWorkflows([
       ...['psc', 'tsc', 'jsc'].map((tenant) => complianceReportWorkflowId(tenant, 2027)),
       nationalConsolidationWorkflowId(2025),
-    ];
-    for (const id of ids) {
-      try {
-        await api.temporal.workflow.getHandle(id).terminate();
-      } catch {
-        // Not running.
-      }
-    }
-  }
+    ]);
 
   /** psc, tsc and jsc in the directory, each with a supervisor, commission-admin and officer. */
   function givenDirectory() {
@@ -99,17 +91,6 @@ describe('EACC intake, report viewer and chase (S9, S10)', () => {
       );
     }
   }
-
-  const events = async () =>
-    (await api.db.select().from(outbox)).map(
-      (row) =>
-        row.envelope as {
-          type: string;
-          tenant?: string;
-          subject?: string;
-          data: Record<string, unknown>;
-        },
-    );
 
   /** psc's FY 2027 report compiled, reviewed and confirmed on 20 July; its PDF issued. */
   async function pscSubmittedOnTime(): Promise<ReportBody> {
@@ -252,7 +233,7 @@ describe('EACC intake, report viewer and chase (S9, S10)', () => {
     });
 
     it("S9: an eacc-analyst opens psc's report as filed, with its PDF and receipt; the read is audited", async () => {
-      const before = (await events()).length;
+      const before = (await api.events()).length;
 
       const response = await api.get(viewer(psc.id), EACC_ANALYST);
 
@@ -275,7 +256,7 @@ describe('EACC intake, report viewer and chase (S9, S10)', () => {
         disclosureLevel: 'restricted',
       });
 
-      const audited = (await events()).slice(before);
+      const audited = (await api.events()).slice(before);
       expect(audited.map((event) => event.type)).toEqual(['audit.read.v1']);
       // The read is psc's data, recorded under psc's tenant; the actor is EACC's.
       expect(audited[0]?.tenant).toBe('psc');
@@ -420,7 +401,7 @@ describe('EACC intake, report viewer and chase (S9, S10)', () => {
         tenant: 'jsc',
         params: { financialYear: '2027/2028', dueDate: '2028-07-31', round: 2 },
       });
-      const chased = (await events()).filter(
+      const chased = (await api.events()).filter(
         (event) => event.type === 'compliance-report.chased.v1',
       );
       expect(chased).toEqual([
@@ -478,7 +459,7 @@ describe('EACC intake, report viewer and chase (S9, S10)', () => {
         'officer@tsc.go.ke',
       ]);
       const chased = await vi.waitFor(async () => {
-        const found = (await events()).filter(
+        const found = (await api.events()).filter(
           (event) => event.type === 'compliance-report.chased.v1',
         );
         if (found.length < 2) throw new Error('not recorded yet');

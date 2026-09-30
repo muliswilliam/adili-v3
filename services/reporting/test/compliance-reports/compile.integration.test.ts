@@ -44,15 +44,8 @@ describe('Form M compile (S2, S3, S4)', () => {
   });
 
   /** Ends the workflows a test left waiting for a recompile. */
-  async function endWorkflows() {
-    for (const fy of [2027, 2028]) {
-      try {
-        await api.temporal.workflow.getHandle(complianceReportWorkflowId('psc', fy)).terminate();
-      } catch {
-        // Not running.
-      }
-    }
-  }
+  const endWorkflows = () =>
+    api.endWorkflows([2027, 2028].map((fy) => complianceReportWorkflowId('psc', fy)));
 
   const reportPath = (fy: number) => `/v1/commissions/psc/compliance-reports/${String(fy)}`;
   const compile = (fy: number) => api.send('POST', `${reportPath(fy)}/compile`, SUPERVISOR);
@@ -209,8 +202,8 @@ describe('Form M compile (S2, S3, S4)', () => {
         params: { financialYear: '2027/2028', dueDate: '2028-07-31' },
       });
 
-      const events = await api.db.select().from(outbox);
-      expect(events.map((event) => event.envelope)).toEqual([
+      // Reading the report is audited too (audit.read.v1): only the drafts are asserted here.
+      expect(await api.events('compliance-report.drafted.v1')).toEqual([
         expect.objectContaining({
           type: 'compliance-report.drafted.v1',
           tenant: 'psc',

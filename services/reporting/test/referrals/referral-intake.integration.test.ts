@@ -4,7 +4,7 @@ import { eq } from 'drizzle-orm';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
 import { config } from '../../src/config.js';
-import { outbox, referralFacts, referralIntake } from '../../src/db/schema.js';
+import { referralFacts, referralIntake } from '../../src/db/schema.js';
 import { ReferralIcmsActivities } from '../../src/referrals/activities.js';
 import { referralIcmsRegistrationWorkflowId } from '../../src/referrals/contract.js';
 import type { ReferralIcmsRegisteredData } from '../../src/referrals/events.js';
@@ -98,19 +98,6 @@ describe('Referrals intake and ICMS push (S12)', () => {
     return row;
   };
 
-  const events = async (type?: string) =>
-    (await api.db.select().from(outbox))
-      .map(
-        (row) =>
-          row.envelope as {
-            type: string;
-            tenant?: string;
-            subject?: string;
-            data: Record<string, unknown>;
-          },
-      )
-      .filter((event) => type === undefined || event.type === type);
-
   it('S12: referral.sent.v1 lands in the intake with its package, once; no personal data stored', async () => {
     const referralId = randomUUID();
     const packageDocumentId = randomUUID();
@@ -190,7 +177,7 @@ describe('Referrals intake and ICMS push (S12)', () => {
       },
     ]);
     // The case number goes back to review with the Commission as tenant.
-    const registered = await events('referral.icms-registered.v1');
+    const registered = await api.events('referral.icms-registered.v1');
     expect(registered).toHaveLength(1);
     expect(registered[0]).toMatchObject({ tenant: 'psc', subject: referralId });
     const data = registered[0]?.data as ReferralIcmsRegisteredData;
@@ -201,7 +188,7 @@ describe('Referrals intake and ICMS push (S12)', () => {
       registeredAt: body.icmsRegisteredAt,
     });
     // The intake and every event carry no name, ID number or narrative.
-    const everything = JSON.stringify([await intakeRow(referralId), await events()]);
+    const everything = JSON.stringify([await intakeRow(referralId), await api.events()]);
     expect(everything).not.toContain(NATIONAL_ID);
     expect(everything).not.toContain(FULL_NAME);
     expect(everything).not.toContain(PAYLOAD.narrative);
@@ -225,7 +212,7 @@ describe('Referrals intake and ICMS push (S12)', () => {
     });
     expect(api.gateway.submitCalls).toBe(1);
     expect(api.review.payloadCalls).toHaveLength(1);
-    expect(await events('referral.icms-registered.v1')).toHaveLength(1);
+    expect(await api.events('referral.icms-registered.v1')).toHaveLength(1);
   });
 
   it('S12: gateway down: retried with backoff, then push-failed; pushing again registers it', async () => {
@@ -247,7 +234,7 @@ describe('Referrals intake and ICMS push (S12)', () => {
     expect(listed.json<{ items: { referralId: string }[] }>().items).toEqual([
       expect.objectContaining({ referralId, icmsStatus: 'push-failed', error: 'icms-unavailable' }),
     ]);
-    const pushFailed = await events('referral.icms-push-failed.v1');
+    const pushFailed = await api.events('referral.icms-push-failed.v1');
     expect(pushFailed.map((event) => event.data)).toEqual([
       { referralId, tenant: 'psc', reference: REFERENCE, error: 'icms-unavailable' },
     ]);
@@ -257,7 +244,7 @@ describe('Referrals intake and ICMS push (S12)', () => {
     expect(retried.statusCode).toBe(200);
     expect(retried.json()).toMatchObject({ icmsStatus: 'registered', error: null });
     expect(await intakeRow(referralId)).toMatchObject({ pushAttempts: 2 });
-    expect(await events('referral.icms-registered.v1')).toHaveLength(1);
+    expect(await api.events('referral.icms-registered.v1')).toHaveLength(1);
   });
 
   it('S12: an outage shorter than the retries still registers the referral in one push', async () => {
@@ -306,7 +293,7 @@ describe('Referrals intake and ICMS push (S12)', () => {
 
     expect(response.statusCode).toBe(200);
     expect(response.json()).toMatchObject({ icmsStatus: 'pushed', icmsCaseNumber: null });
-    expect((await events('referral.icms-pushed.v1')).map((event) => event.data)).toEqual([
+    expect((await api.events('referral.icms-pushed.v1')).map((event) => event.data)).toEqual([
       expect.objectContaining({ referralId, tenant: 'psc', reference: REFERENCE }),
     ]);
     const handle = api.temporal.workflow.getHandle(
@@ -333,7 +320,7 @@ describe('Referrals intake and ICMS push (S12)', () => {
       icmsCaseNumber: 'ICMS/2028/000777',
       icmsRegisteredAt: new Date('2028-03-12T10:00:00.000Z'),
     });
-    expect((await events('referral.icms-registered.v1')).map((event) => event.data)).toEqual([
+    expect((await api.events('referral.icms-registered.v1')).map((event) => event.data)).toEqual([
       {
         referralId,
         tenant: 'psc',

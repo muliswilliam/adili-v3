@@ -1,37 +1,26 @@
 import { describe, expect, it } from 'vitest';
 
-import type { ReceiptFacts } from '../../src/compliance-reports/intake.js';
 import type { ReportCounts } from '../../src/compliance-reports/schema.js';
 import { aggregateKeys, buildAggregates } from '../../src/national-reports/aggregates.js';
+import { receiptOf, reportCounts, section } from '../support/receipts.js';
 
 /**
  * S11 aggregates: national totals per section, the year's reporting and a row per Commission,
  * from EACC's receipts of the submitted reports; every number at a stable dot path.
  */
 describe('NCR aggregates', () => {
-  const counts = (initial: [number, number], biennial: [number, number]): ReportCounts => ({
-    initial: { expected: initial[0], declared: initial[1], notDeclared: initial[0] - initial[1] },
-    biennial: {
-      expected: biennial[0],
-      declared: biennial[1],
-      notDeclared: biennial[0] - biennial[1],
-      noCycleInPeriod: false,
-    },
-    final: { expected: 0, declared: 0, notDeclared: 0 },
-    clarifications: 1,
-    accessRequests: { received: 1, granted: 1, declined: 0 },
-  });
+  /** Counts with `[expected, declared]` initial and biennial sections, one clarification and access request. */
+  const counts = (initial: [number, number], biennial: [number, number]): ReportCounts =>
+    reportCounts({
+      initial: section(...initial),
+      biennial: { ...section(...biennial), noCycleInPeriod: false },
+      final: section(0, 0),
+      clarifications: 1,
+      accessRequests: { received: 1, granted: 1, declined: 0 },
+    });
 
-  const receipt = (tenant: string, reportCounts: ReportCounts, late = false): ReceiptFacts => ({
-    reportId: `report-${tenant}`,
-    tenant,
-    reference: `RPT-${tenant.toUpperCase()}-2027-0000001-X`,
-    submittedAt: new Date('2028-07-20T07:00:00.000Z'),
-    late,
-    counts: reportCounts,
-    formMDocumentId: null,
-    receiptDocumentId: null,
-  });
+  const receipt = (tenant: string, filed: ReportCounts, late = false) =>
+    receiptOf(tenant, { late, counts: filed });
 
   const commissions = [
     { slug: 'psc', issuerCode: 'PSC', name: 'Public Service Commission' },

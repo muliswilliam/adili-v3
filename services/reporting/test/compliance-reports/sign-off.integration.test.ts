@@ -57,15 +57,8 @@ describe('Form M review, confirm and submit (S3, S5, S6, S7)', () => {
   });
 
   /** Ends the workflows a test left waiting. */
-  async function endWorkflows() {
-    for (const fy of [2026, 2027]) {
-      try {
-        await api.temporal.workflow.getHandle(complianceReportWorkflowId('psc', fy)).terminate();
-      } catch {
-        // Not running.
-      }
-    }
-  }
+  const endWorkflows = () =>
+    api.endWorkflows([2026, 2027].map((fy) => complianceReportWorkflowId('psc', fy)));
 
   const path = (fy = 2027) => `/v1/commissions/psc/compliance-reports/${String(fy)}`;
   const contract = (operation: string, method: 'get' | 'post' | 'patch') =>
@@ -120,9 +113,6 @@ describe('Form M review, confirm and submit (S3, S5, S6, S7)', () => {
     );
   }
 
-  const events = async () =>
-    (await api.db.select().from(outbox)).map((row) => row.envelope as { type: string });
-
   describe('S5: review', () => {
     it('S5: the supervisor edits a remark and marks the draft reviewed: Part III compiled-by is set', async () => {
       const { report, facts } = await draft();
@@ -171,7 +161,7 @@ describe('Form M review, confirm and submit (S3, S5, S6, S7)', () => {
         },
         confirmedBy: { name: null, designation: null, date: null },
       });
-      expect(await events()).toContainEqual(
+      expect(await api.events()).toContainEqual(
         expect.objectContaining({
           type: 'compliance-report.reviewed.v1',
           tenant: 'psc',
@@ -381,7 +371,7 @@ describe('Form M review, confirm and submit (S3, S5, S6, S7)', () => {
           counts: report.counts,
         }),
       ]);
-      expect(await events()).toContainEqual(
+      expect(await api.events()).toContainEqual(
         expect.objectContaining({
           type: 'compliance-report.submitted.v1',
           tenant: 'psc',
@@ -537,7 +527,7 @@ describe('Form M review, confirm and submit (S3, S5, S6, S7)', () => {
       expect(second.statusCode).toBe(409);
       expect(second.json()).toMatchObject({ code: 'report-submitted' });
       expect(
-        (await events()).filter((event) => event.type === 'compliance-report.submitted.v1'),
+        (await api.events()).filter((event) => event.type === 'compliance-report.submitted.v1'),
       ).toHaveLength(1);
     });
 
@@ -662,7 +652,7 @@ describe('Form M review, confirm and submit (S3, S5, S6, S7)', () => {
         },
       ]);
       expect(
-        (await events()).filter((event) => event.type === 'compliance-report.reminder-sent.v1'),
+        (await api.events()).filter((event) => event.type === 'compliance-report.reminder-sent.v1'),
       ).toEqual([
         expect.objectContaining({
           tenant: 'psc',
