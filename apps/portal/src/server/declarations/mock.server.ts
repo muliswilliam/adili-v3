@@ -148,7 +148,7 @@ const ROSTER: Record<
   { name: PersonName; designation: string; employer: string; file: string; hr?: RosterHr }
 > = {
   tsc: {
-    name: { surname: 'Kamau', firstName: 'Mwangi', otherNames: 'Njoroge' },
+    name: { surname: 'Kamau', firstName: 'Wanjiku', otherNames: 'Njoki' },
     designation: 'Deputy Principal',
     employer: 'Nyeri High School',
     file: 'TSC/999999',
@@ -160,7 +160,7 @@ const ROSTER: Record<
     },
   },
   psc: {
-    name: { surname: 'Kamau', firstName: 'Mwangi', otherNames: 'Njoroge' },
+    name: { surname: 'Kamau', firstName: 'Wanjiku', otherNames: 'Njoki' },
     designation: 'Principal Accountant',
     employer: 'State Department for Devolution',
     file: 'PSC/300400',

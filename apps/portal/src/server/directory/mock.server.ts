@@ -99,12 +99,12 @@ const ROSTER: RosterRecord[] = [
   },
   {
     commission: 'tsc',
-    fullName: 'Mwangi Njoroge Kamau',
+    fullName: 'Wanjiku Njoki Kamau',
     designation: 'Deputy Principal',
     reportingEntity: 'Nyeri High School',
     personnelFileNumber: 'TSC/999999',
     nationalId: '11111111',
-    email: 'm***@tsc.go.ke',
+    email: 'w***@tsc.go.ke',
     phone: '07** *** 789',
     onboarded: true,
     iprs: 'match',
@@ -165,8 +165,8 @@ const ROSTER: RosterRecord[] = [
 const DEMO_DECLARANT: DeclarantProfile = {
   personId: '5b0c8f7e-3f5d-4d59-9a53-0d6c1f0b2a11',
   ofr: 'OFR-0000312-7',
-  fullName: 'Mwangi Njoroge Kamau',
-  contacts: { email: 'mwangi.kamau@tsc.go.ke', phone: '+254712345789' },
+  fullName: 'Wanjiku Njoki Kamau',
+  contacts: { email: 'wanjiku.kamau@tsc.go.ke', phone: '+254712345789' },
   commissions: [
     {
       slug: 'tsc',
