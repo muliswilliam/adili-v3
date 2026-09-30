@@ -2,6 +2,9 @@ export {
   AuditedRead,
   auditedReadOf,
   type AuditedReadOptions,
+  AuditedTenant,
+  auditedTenantOf,
+  type SetAuditedTenant,
 } from './audit/audited-read.decorator.js';
 export { CurrentPrincipal } from './auth/current-principal.decorator.js';
 export { type AuthenticatedRequest, JwtAuthGuard } from './auth/jwt-auth.guard.js';

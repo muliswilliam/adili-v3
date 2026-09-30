@@ -4,7 +4,7 @@ import { Controller, Get, NotFoundException, Param } from '@nestjs/common';
 import { APP_INTERCEPTOR } from '@nestjs/core';
 import { FastifyAdapter, type NestFastifyApplication } from '@nestjs/platform-fastify';
 import { Test } from '@nestjs/testing';
-import { AuditedRead } from '@adili/api-kit';
+import { AuditedRead, AuditedTenant, type SetAuditedTenant } from '@adili/api-kit';
 import { DATABASE } from '@adili/data-access';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
@@ -27,6 +27,17 @@ class RecordsController {
   }
 }
 
+/** A read by id across tenants: the handler names the tenant whose record it returned. */
+@Controller('v1/reports')
+class ReportsController {
+  @Get(':reportId')
+  @AuditedRead({ action: 'report.viewed', resource: 'report' })
+  get(@Param('reportId') reportId: string, @AuditedTenant() audit: SetAuditedTenant) {
+    audit('psc');
+    return { id: reportId };
+  }
+}
+
 const recorded: NewEvent[] = [];
 let failing = false;
 const publisher = {
@@ -41,7 +52,7 @@ let app: NestFastifyApplication;
 
 beforeAll(async () => {
   const moduleRef = await Test.createTestingModule({
-    controllers: [RecordsController],
+    controllers: [RecordsController, ReportsController],
     providers: [
       { provide: EventPublisher, useValue: publisher },
       { provide: DATABASE, useValue: {} },
@@ -85,6 +96,20 @@ describe('AuditedReadInterceptor', () => {
           request: { method: 'GET', route: '/v1/commissions/:slug/records/:recordId' },
         },
       },
+    ]);
+  });
+
+  it('records the tenant the handler named, for a route that names none', async () => {
+    const response = await app.inject({ method: 'GET', url: '/v1/reports/rep-1' });
+
+    expect(response.statusCode).toBe(200);
+    expect(recorded).toEqual([
+      expect.objectContaining({
+        tenant: 'psc',
+        data: expect.objectContaining({
+          resource: { type: 'report', params: { reportId: 'rep-1' } },
+        }) as unknown,
+      }),
     ]);
   });
 

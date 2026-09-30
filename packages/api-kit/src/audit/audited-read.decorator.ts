@@ -1,8 +1,14 @@
-import { applyDecorators, SetMetadata } from '@nestjs/common';
+import {
+  applyDecorators,
+  createParamDecorator,
+  type ExecutionContext,
+  SetMetadata,
+} from '@nestjs/common';
 import type { Reflector } from '@nestjs/core';
 import { ApiExtension } from '@nestjs/swagger';
 
 const AUDITED_READ = Symbol('AUDITED_READ');
+const AUDITED_TENANT = Symbol('AUDITED_TENANT');
 
 export interface AuditedReadOptions {
   /** Audit action of the read, e.g. `roster.record.viewed` (ADR-008 event schema). */
@@ -35,4 +41,37 @@ export function auditedReadOf(
   handler: object,
 ): AuditedReadOptions | undefined {
   return reflector.get<AuditedReadOptions | undefined>(AUDITED_READ, handler as () => void);
+}
+
+/** Names the tenant whose data an audited read returned (see `AuditedTenant`). */
+export type SetAuditedTenant = (tenant: string) => void;
+
+interface AuditableRequest {
+  [AUDITED_TENANT]?: string;
+}
+
+/**
+ * Injects a setter for the tenant whose data an audited read returned, for a route whose path
+ * does not name it (a read by id across tenants, e.g. EACC reading a Commission's report). The
+ * handler calls it once it knows the record's tenant; the audit interceptor records that tenant
+ * in place of the route's `slug` or the caller's.
+ *
+ * @example
+ * get(@Param('id') id: string, @AuditedTenant() audit: SetAuditedTenant) {
+ *   const record = find(id);
+ *   audit(record.tenant);
+ * }
+ */
+export const AuditedTenant = createParamDecorator(
+  (_data: unknown, context: ExecutionContext): SetAuditedTenant => {
+    const request = context.switchToHttp().getRequest<AuditableRequest>();
+    return (tenant) => {
+      request[AUDITED_TENANT] = tenant;
+    };
+  },
+);
+
+/** The tenant a handler named through `AuditedTenant`; undefined when it named none. */
+export function auditedTenantOf(request: object): string | undefined {
+  return (request as AuditableRequest)[AUDITED_TENANT];
 }

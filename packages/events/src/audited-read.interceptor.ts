@@ -10,6 +10,7 @@ import {
   type AuditedReadOptions,
   type AuthenticatedRequest,
   auditedReadOf,
+  auditedTenantOf,
 } from '@adili/api-kit';
 import { type Database, InjectDatabase } from '@adili/data-access';
 import { mergeMap, type Observable } from 'rxjs';
@@ -51,9 +52,9 @@ type AuditedRequest = AuthenticatedRequest & { params?: Record<string, string> }
  * `@AuditedRead` (api-kit), before the response is sent: a read the audit trail cannot record
  * fails instead of going unrecorded. The event carries the action, the resource's path
  * parameters, the actor from the verified token and the route, no response data; its `tenant`
- * is the tenant whose data was read (the route's `slug`, else the tenant a service acts for,
- * else the caller's). Registered for every route by `EventsModule`; routes without the mark
- * pass through untouched. Refused requests never reach it (guards run first); they are the
+ * is the tenant whose data was read (the one the handler named with `AuditedTenant`, else the
+ * route's `slug`, else the tenant a service acts for, else the caller's). Registered for every
+ * route by `EventsModule`; routes without the mark pass through untouched. Refused requests never reach it (guards run first); they are the
  * audit service's to record from denials.
  */
 @Injectable()
@@ -85,6 +86,7 @@ function auditRead(mark: AuditedReadOptions, request: AuditedRequest): NewEvent<
   const params = request.params ?? {};
   const actingTenant = request.headers[ACTING_TENANT_HEADER];
   const tenant =
+    auditedTenantOf(request) ??
     params.slug ??
     (typeof actingTenant === 'string' ? actingTenant : undefined) ??
     principal?.tenant ??
