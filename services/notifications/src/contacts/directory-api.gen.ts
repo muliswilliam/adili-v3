@@ -208,6 +208,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/internal/v1/commissions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Slug, issuer code and name of every Commission (services)
+         * @description Service tokens with scope directory:internal; no X-Acting-Tenant (platform reference data, no personal data). E.g. declarations lists Commissions without a roster yet in the national obligations summary.
+         */
+        get: operations["internalListCommissions"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/roster/template": {
         parameters: {
             query?: never;
@@ -986,6 +1006,9 @@ export interface components {
              */
             issuerCode: string;
             name: string;
+        };
+        InternalCommissionList: {
+            items: components["schemas"]["InternalCommission"][];
         };
         TenantPolicyVersion: {
             /** Format: uuid */
@@ -2412,6 +2435,35 @@ export interface operations {
             };
             /** @description Not found, or not the acting tenant */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    internalListCommissions: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Every Commission, by slug */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InternalCommissionList"];
+                };
+            };
+            /** @description Requires one of the scopes: directory:internal */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
