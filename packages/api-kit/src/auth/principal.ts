@@ -56,7 +56,7 @@ export const principalSchema = z.object({
   issuedAt: z.int().nullable().meta({
     description: 'When the token was issued (`iat`), in seconds since the epoch',
   }),
-  personId: z.string().nullable().meta({
+  personId: z.uuid().nullable().meta({
     description: 'Person the declarant account is linked to (`person_id`); null for staff',
   }),
 }) satisfies z.ZodType<Principal>;

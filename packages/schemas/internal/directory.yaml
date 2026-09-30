@@ -2962,10 +2962,11 @@ components:
             - integer
             - 'null'
         personId:
+          anyOf:
+            - type: string
+              format: uuid
+            - type: 'null'
           description: Person the declarant account is linked to (`person_id`); null for staff
-          type:
-            - string
-            - 'null'
       required:
         - subject
         - tenant
