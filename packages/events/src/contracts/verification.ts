@@ -3,16 +3,10 @@
  * "verified n times" count of an acknowledgement) and audit. Identifiers and the outcome only:
  * nothing about who checked.
  */
-import type { DocumentStatus } from './documents.js';
+import { DOCUMENT_STATUSES } from './documents.js';
 
 /** What a lookup answered: the document's status, or `not-found` for an unknown code. */
-export const VERIFICATION_OUTCOMES = [
-  'valid',
-  'superseded',
-  'revoked',
-  'expired',
-  'not-found',
-] as const satisfies readonly (DocumentStatus | 'not-found')[];
+export const VERIFICATION_OUTCOMES = [...DOCUMENT_STATUSES, 'not-found'] as const;
 export type VerificationOutcome = (typeof VERIFICATION_OUTCOMES)[number];
 
 /**
