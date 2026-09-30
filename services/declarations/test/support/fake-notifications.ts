@@ -5,7 +5,7 @@ import {
   NotificationsClient,
   NotificationsKeyReused,
   NotificationsUnavailable,
-  type ReminderChannel,
+  type MessageChannel,
   type ReminderMessage,
   type SendOutcome,
 } from '../../src/notifications/notifications-client.js';
@@ -29,10 +29,10 @@ export class FakeNotifications extends NotificationsClient {
   readonly sent: (ReminderMessage & { messageId: string | null })[] = [];
   /** The acknowledgements asked for, answered like reminders (`sent`, keys kept). */
   readonly acknowledgements: (AcknowledgementMessage & { messageId: string | null })[] = [];
-  private readonly answers = new Map<ReminderChannel, FakeAnswer[]>();
+  private readonly answers = new Map<MessageChannel, FakeAnswer[]>();
   private readonly keys = new Map<string, { request: string; outcome: SendOutcome }>();
 
-  answer(channel: ReminderChannel, ...answers: FakeAnswer[]): void {
+  answer(channel: MessageChannel, ...answers: FakeAnswer[]): void {
     this.answers.set(channel, answers);
   }
 
@@ -82,7 +82,7 @@ export class FakeNotifications extends NotificationsClient {
     return Promise.resolve(outcome);
   }
 
-  channels(): ReminderChannel[] {
+  channels(): MessageChannel[] {
     return this.sent.map((message) => message.channel);
   }
 

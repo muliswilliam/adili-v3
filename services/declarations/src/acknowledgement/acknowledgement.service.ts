@@ -29,7 +29,7 @@ import {
   NotificationsClient,
   NotificationsKeyReused,
   NotificationsRejected,
-  type ReminderChannel,
+  type MessageChannel,
 } from '../notifications/notifications-client.js';
 import { commissionRefs, filingObligations } from '../obligations/schema.js';
 import { PLATFORM_CONTEXT, systemContext } from '../obligations/system-context.js';
@@ -52,7 +52,7 @@ const CHECKED_CONSUMER = 'declarations.verification-checked';
 
 /** Namespace of the acknowledgement messages' idempotency keys (UUID v5). */
 const ACKNOWLEDGEMENT_KEY_NAMESPACE = '0c8e4a2f-6b1d-4f3e-9a75-3d2c1b0e9f84';
-const CHANNELS: readonly ReminderChannel[] = ['email', 'sms'];
+const CHANNELS: readonly MessageChannel[] = ['email', 'sms'];
 
 type VersionRow = typeof declarationVersions.$inferSelect;
 
@@ -304,7 +304,7 @@ export class AcknowledgementService {
    */
   private async notify(
     version: VersionRow,
-    channel: ReminderChannel,
+    channel: MessageChannel,
     params: Parameters<NotificationsClient['sendAcknowledgement']>[0]['params'],
   ): Promise<void> {
     try {
