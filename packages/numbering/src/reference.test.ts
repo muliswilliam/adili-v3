@@ -1,7 +1,8 @@
+import { TENANT_KEY as API_KIT_TENANT_KEY } from '@adili/api-kit';
 import { describe, expect, it } from 'vitest';
 
 import { ALPHABET, hasValidCheckCharacter } from './check-character.js';
-import { format, InvalidReferenceError, issuerCode, parse } from './reference.js';
+import { format, InvalidReferenceError, issuerCode, parse, TENANT_KEY } from './reference.js';
 import { DCB, DCF, DCI, OFR } from './schemes.js';
 
 const schemes = [OFR, DCB];
@@ -233,3 +234,10 @@ function seededRandom(seed: number): () => number {
     return ((t ^ (t >>> 14)) >>> 0) / 4_294_967_296;
   };
 }
+
+describe('the tenant key', () => {
+  it("is api-kit's, which this browser-safe package repeats rather than imports", () => {
+    expect(TENANT_KEY.source).toBe(API_KIT_TENANT_KEY.source);
+    expect(TENANT_KEY.flags).toBe(API_KIT_TENANT_KEY.flags);
+  });
+});

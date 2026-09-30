@@ -29,7 +29,12 @@ export class InvalidReferenceError extends Error {
 
 /** A tenant key upper-cased: the issuer is always the issuing tenant (ADR-011 §2). */
 const ISSUER = /^[A-Z][A-Z0-9]{1,19}$/;
-const TENANT_KEY = /^[a-z][a-z0-9]{1,19}$/;
+/**
+ * A tenant key, as `TENANT_KEY` in `@adili/api-kit` defines it. Repeated, not imported: this
+ * package is a leaf that the browser bundles (packages/ui, the portal, the verify app) import,
+ * and api-kit's entry point pulls in Nest. `reference.test.ts` keeps the two in step.
+ */
+export const TENANT_KEY = /^[a-z][a-z0-9]{1,19}$/;
 const PERIOD = /^\d{4}$/;
 
 /** The issuer code of a tenant: its key upper-cased (`tsc` to `TSC`, `cpsb047` to `CPSB047`). */
