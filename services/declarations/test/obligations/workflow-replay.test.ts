@@ -80,16 +80,16 @@ describe.runIf(RECORD)('record workflow histories', () => {
 
   type Activities = { [K in keyof ObligationActivities]: ObligationActivities[K] };
 
-  /** The obligation as the database would keep it; `failReminders` sends fail throughout. */
+  /**
+   * The obligation as the database would keep it, linked to `person.id` as it is at each send;
+   * `failReminders` sends fail throughout.
+   */
   function obligationActivities(
     row: LoadedObligation,
-    options: { personId?: string | null; failReminders?: boolean } = {},
-  ): Activities & { link: () => void } {
-    let personId = options.personId ?? null;
+    options: { person?: { id: string | null }; failReminders?: boolean } = {},
+  ): Activities {
+    const person = options.person ?? { id: null };
     return {
-      link: () => {
-        personId = 'person-1';
-      },
       loadObligation: () => Promise.resolve({ ...row }),
       setStatus: (_ref, status: ObligationStatus) => {
         if (row.status !== 'cancelled' && row.status !== 'filed') row.status = status;
@@ -98,7 +98,7 @@ describe.runIf(RECORD)('record workflow histories', () => {
       recordSkippedReminders: () => Promise.resolve(),
       sendReminder: () => {
         if (options.failReminders) return Promise.reject(new Error('notifications unreachable'));
-        return Promise.resolve(personId === null ? 'skipped-not-onboarded' : 'sent');
+        return Promise.resolve(person.id === null ? 'skipped-not-onboarded' : 'sent');
       },
       sweepObligations: () => Promise.resolve({ started: 0, cancelled: 0 }),
     };
@@ -163,7 +163,7 @@ describe.runIf(RECORD)('record workflow histories', () => {
     await playObligation(
       'filing-obligation.biennial-cancelled',
       row,
-      obligationActivities(row, { personId: 'person-1' }),
+      obligationActivities(row, { person: { id: 'person-1' } }),
       async (handle) => {
         await env.skipTime({ until: nairobi('2028-01-02') });
         await handle.signal(cancelSignal, 'superseded');
@@ -180,14 +180,15 @@ describe.runIf(RECORD)('record workflow histories', () => {
       '2028-04-09',
       'due',
     );
-    const activities = obligationActivities(row);
+    const person: { id: string | null } = { id: null };
+    const activities = obligationActivities(row, { person });
     await playObligation(
       'filing-obligation.initial-linked-filed',
       row,
       activities,
       async (handle) => {
         await env.skipTime({ until: nairobi('2028-03-20') });
-        activities.link();
+        person.id = 'person-1';
         await handle.signal(personLinkedSignal);
         await env.skipTime({ until: nairobi('2028-04-11') });
         await handle.signal(filedSignal);
@@ -207,7 +208,7 @@ describe.runIf(RECORD)('record workflow histories', () => {
     await playObligation(
       'filing-obligation.missed-and-failed',
       row,
-      obligationActivities(row, { personId: 'person-1', failReminders: true }),
+      obligationActivities(row, { person: { id: 'person-1' }, failReminders: true }),
       async (handle) => {
         await env.skipTime({ until: nairobi('2029-03-14') });
         await handle.signal(cancelSignal, 'exited-before-statement-date');
