@@ -1,3 +1,4 @@
+import { declarationSchemes, InvalidReferenceError, parse } from '@adili/numbering/references';
 import { z } from 'zod';
 
 export const CHANNELS = ['email', 'sms'] as const;
@@ -134,6 +135,80 @@ function reminderEmail(params: ReminderParams): RenderedEmail {
   };
 }
 
+/** Declaration reference schemes (ADR-011): `DCB-TSC-2027-0012345-K`. */
+const DECLARATION_SCHEMES = Object.values(declarationSchemes);
+
+const acknowledgementParams = z
+  .strictObject({
+    reference: z.string().superRefine((reference, ctx) => {
+      try {
+        parse(reference, DECLARATION_SCHEMES);
+      } catch (error) {
+        if (!(error instanceof InvalidReferenceError)) throw error;
+        ctx.addIssue({
+          code: 'custom',
+          message:
+            error.reason === 'bad-check-character'
+              ? 'has a wrong check character'
+              : 'must be a DCI, DCB or DCF declaration reference',
+        });
+      }
+    }),
+    type: z.enum(OBLIGATION_TYPES),
+    /** The submitted version the slip is for; above 1 is an amendment, same reference. */
+    version: z.number().int().min(1).max(99),
+    commissionName: z.string().trim().min(1).max(120),
+    /** Civil date `YYYY-MM-DD`, as the declarations service stores it. */
+    statementDate: z.iso.date(),
+    /** Printed under the QR on the slip (ADR-010), e.g. `ADL-7Q4K-M2XR-9HTC-2B7F-Q3ZD-9K`. */
+    verificationCode: z
+      .string()
+      .max(40)
+      .regex(/^ADL(-[0-9A-Z]{1,8})+$/, 'must be a verification code such as ADL-7Q4K-M2XR'),
+    /** Where the declarant signs in to download the slip; the email carries no attachment. */
+    portalUrl: z.url({ protocol: /^https?$/ }).max(200),
+  })
+  .refine((params) => params.reference.startsWith(`${declarationSchemes[params.type].code}-`), {
+    path: ['type'],
+    message: 'is not the type the reference names',
+    // Compare only a valid reference and type, so either one malformed reports one issue.
+    when: (payload) =>
+      payload.issues.every(
+        (issue) => issue.path?.[0] !== 'reference' && issue.path?.[0] !== 'type',
+      ),
+  });
+type AcknowledgementParams = z.infer<typeof acknowledgementParams>;
+
+/** `DCB-PSC-2027-0000001-1`, or `DCB-PSC-2027-0000001-1 version 2` for an amendment. */
+const referenceAndVersion = (params: AcknowledgementParams) =>
+  params.version > 1 ? `${params.reference} version ${String(params.version)}` : params.reference;
+
+function acknowledgementEmail(params: AcknowledgementParams): RenderedEmail {
+  const amended = params.version > 1;
+  const paragraphs: { text: string; html: string }[] = [
+    amended
+      ? `Version ${String(params.version)} of your ${params.type} declaration for ${params.commissionName}, your amendment, has been received. Its reference number stays ${params.reference}.`
+      : `Your ${params.type} declaration for ${params.commissionName} has been received. Its reference number is ${params.reference}.`,
+    `It declares your income, assets and liabilities as at the statement date, ${longDate(params.statementDate)}.`,
+    `${amended ? `Your acknowledgement slip for version ${String(params.version)} is ready and replaces the slip for the previous version, which now shows as superseded.` : 'Your acknowledgement slip is ready.'} Its verification code is ${params.verificationCode}: anyone you show the slip to can use it, or the QR code on the slip, to check that it is genuine.`,
+  ].map((text) => ({ text, html: escapeHtml(text) }));
+  // The slip names the declarant and the Commission, so it stays behind sign-in, never attached.
+  const download =
+    'to download the slip. It is not attached to this email, so that only you can open it.';
+  paragraphs.push({
+    text: `Sign in to Adili Online at ${params.portalUrl} ${download}`,
+    html: `Sign in to Adili Online at <a href="${escapeHtml(params.portalUrl)}">${escapeHtml(params.portalUrl)}</a> ${escapeHtml(download)}`,
+  });
+  const closing =
+    'If you did not submit this declaration, contact your Commission at once. Adili Online will never ask you for your password or sign-in code.';
+  paragraphs.push({ text: closing, html: escapeHtml(closing) });
+  return {
+    subject: `Declaration ${referenceAndVersion(params)} received`,
+    text: paragraphs.map((p) => p.text).join('\n\n'),
+    html: paragraphs.map((p) => `<p>${p.html}</p>`).join('\n'),
+  };
+}
+
 /** Every message the service can send, by template id. Params are validated before rendering. */
 export const templates = {
   'onboarding-otp-email': define({
@@ -189,6 +264,21 @@ export const templates = {
     channel: 'email',
     params: reminderParams,
     copy: { en: reminderEmail },
+  }),
+  'acknowledgement-email': define({
+    channel: 'email',
+    params: acknowledgementParams,
+    copy: { en: acknowledgementEmail },
+  }),
+  'acknowledgement-sms': define({
+    channel: 'sms',
+    params: acknowledgementParams,
+    // The reference and code reveal nothing on their own; the SMS names no Commission or link.
+    copy: {
+      en: (params) => ({
+        text: `Adili: declaration ${referenceAndVersion(params)} received. Verification code ${params.verificationCode}. Slip in Adili Online.`,
+      }),
+    },
   }),
 } as const;
 
