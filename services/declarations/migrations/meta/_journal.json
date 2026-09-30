@@ -64,6 +64,13 @@
       "when": 1790666548198,
       "tag": "0008_reminder_outcome_missed",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1790764641182,
+      "tag": "0009_platform_tables_without_rls",
+      "breakpoints": true
     }
   ]
 }

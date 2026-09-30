@@ -227,7 +227,7 @@ export const tenantPolicyCache = pgTable('tenant_policy_cache', {
 /**
  * How a Commission is named to declarants and staff (slug, issuer code, name), as last pulled
  * from the directory, and when its latest roster import completed (the national summary). Public
- * facts, platform-level.
+ * facts, platform-level: no row-level security (migration 0009).
  */
 export const commissionRefs = pgTable('commission_refs', {
   slug: text().primaryKey(),
@@ -240,7 +240,8 @@ export const commissionRefs = pgTable('commission_refs', {
 
 /**
  * The biennial cycles (platform data, not tenant policy): each cycle's obligations are created
- * `openingLeadDays` before its statement date. Seeded 2027, 2029, 2031.
+ * `openingLeadDays` before its statement date. Seeded 2027, 2029, 2031. No row-level security
+ * (migration 0009).
  */
 export const cycleCalendar = pgTable('cycle_calendar', {
   cycleYear: integer().primaryKey(),
