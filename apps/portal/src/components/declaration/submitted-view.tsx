@@ -2,17 +2,14 @@ import {
   Badge,
   Button,
   Card,
-  declarationReferenceParts,
   formatCalendarDate,
   formatDate,
   formatDateTime,
   Icon,
   ReferenceChip,
-  type ReferencePart,
   useToday,
   VersionBadge,
 } from '@adili/ui';
-import { findScheme, parse } from '@adili/numbering/references';
 import {
   Clock01Icon,
   File01Icon,
@@ -22,6 +19,7 @@ import {
 } from '@hugeicons/core-free-icons';
 import { Link } from '@tanstack/react-router';
 
+import { referenceParts } from '../../declaration/reference-parts';
 import type { Declaration, DeclarationVersion } from '../../server/declarations/types';
 import { SlipCard, type SlipCardProps } from './slip-card';
 
@@ -49,24 +47,6 @@ export function nextSteps(dueDate: string, now: number): string[] {
   const steps: string[] = [SUBMITTED_COPY.nextReview, SUBMITTED_COPY.nextClarification];
   if (formatCalendarDate(now) <= dueDate) steps.push(SUBMITTED_COPY.nextAmend(dueDate));
   return steps;
-}
-
-/**
- * What each part of a declaration reference means, with the type's name from the numbering
- * scheme registry and the issuer's from the Commission; none when the reference does not parse.
- */
-export function referenceParts(
-  reference: string,
-  commissionName: string,
-): ReferencePart[] | undefined {
-  try {
-    const scheme = findScheme(parse(reference).scheme);
-    return scheme
-      ? declarationReferenceParts({ type: scheme.name, issuer: commissionName })
-      : undefined;
-  } catch {
-    return undefined;
-  }
 }
 
 export interface SubmittedViewProps {

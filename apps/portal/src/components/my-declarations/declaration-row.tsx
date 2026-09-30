@@ -39,7 +39,7 @@ import {
   DISCARD_AMENDMENT_COPY,
   DiscardAmendmentButton,
 } from '../declaration/discard-amendment-dialog';
-import { referenceParts } from '../declaration/submitted-view';
+import { referenceParts } from '../../declaration/reference-parts';
 import { downloadFrom } from '../download';
 import { signInAgain } from '../sign-in';
 import { AmendButton } from './amend-dialog';
