@@ -19,6 +19,7 @@ import { Clock, nairobiDate } from '../clock.js';
 import type { ReportingSchema } from '../db/schema.js';
 import { type CommissionFacts, DirectoryClient } from '../directory/directory-client.js';
 import { dueDateOf } from '../financial-year.js';
+import { officerOf } from '../officer.js';
 import {
   badRequest,
   forbidden,
@@ -184,7 +185,7 @@ export class ReportSignOffService {
       return {
         status: REVIEWED,
         reviewedBy: principal.subject,
-        reviewedByName: principal.name,
+        reviewedByName: officerOf(principal).name,
         reviewedAt: now,
       };
     });
@@ -353,7 +354,7 @@ export class ReportSignOffService {
         source,
         reference,
         confirmedBy: signedBy.subject,
-        confirmedByName: signedBy.name,
+        confirmedByName: officerOf(signedBy).name,
         confirmedAt: now,
         submittedAt: now,
         late,

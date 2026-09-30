@@ -2,6 +2,7 @@ import type { FormMV1 } from '@adili/forms';
 
 import type { CommissionFacts } from '../directory/directory-client.js';
 import { dueDateOf } from '../financial-year.js';
+import { type Officer, storedOfficer } from '../officer.js';
 import type { ReportRow } from './reports.js';
 import type { ReportCounts, ReportSource } from './schema.js';
 
@@ -17,12 +18,6 @@ export interface ComplianceReportSummary {
   submittedAt: string | null;
   late: boolean | null;
   previewAvailable: boolean;
-}
-
-/** reporting.yaml `Officer`. */
-export interface Officer {
-  subject: string;
-  name: string;
 }
 
 /** reporting.yaml `ComplianceReport`. */
@@ -68,8 +63,6 @@ export function reportView(
   commission: CommissionFacts,
   document: FormMV1 | null,
 ): ComplianceReportView {
-  const officer = (subject: string | null, name: string | null) =>
-    subject === null ? null : { subject, name: name ?? '' };
   return {
     id: report.id,
     commission,
@@ -77,8 +70,8 @@ export function reportView(
     status: report.status,
     source: report.source,
     compiledAt: report.compiledAt?.toISOString() ?? null,
-    reviewedBy: officer(report.reviewedBy, report.reviewedByName),
-    confirmedBy: officer(report.confirmedBy, report.confirmedByName),
+    reviewedBy: storedOfficer(report.reviewedBy, report.reviewedByName),
+    confirmedBy: storedOfficer(report.confirmedBy, report.confirmedByName),
     submittedAt: report.submittedAt?.toISOString() ?? null,
     late: report.late,
     reference: report.reference,

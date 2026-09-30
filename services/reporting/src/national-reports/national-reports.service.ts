@@ -13,12 +13,14 @@ import { reportReceipts } from '../compliance-reports/schema.js';
 import type { ReportingSchema } from '../db/schema.js';
 import { activeCommissions } from '../compliance-reports/commission.js';
 import { DirectoryClient } from '../directory/directory-client.js';
+import { officerOf } from '../officer.js';
 import { conflict, forbidden, notFound, workflowUnavailable } from '../problems.js';
 import { buildAggregates } from './aggregates.js';
 import { eaccContext } from '../system-context.js';
 import { NCR_ISSUER } from './contract.js';
 import { NCR_APPROVED, NCR_DRAFTED, type NcrApprovedData, type NcrDraftedData } from './events.js';
 import { type Narrative, type Paragraph, saveSection } from './narrative.js';
+import { NationalReportWorkflows } from './national-report-workflows.js';
 import {
   type NationalReportRow,
   type NationalReportView,
@@ -31,7 +33,6 @@ import {
   nationalReportParagraphs,
   nationalReports,
 } from './schema.js';
-import { NationalReportWorkflows } from './national-report-workflows.js';
 
 const NOT_BUILT = 'The national consolidated report for the year has not been built yet.';
 
@@ -92,7 +93,7 @@ export class NationalReportsService {
           status: 'draft',
           version: 0,
           authorSubject: principal.subject,
-          authorName: nameOf(principal),
+          authorName: officerOf(principal).name,
           contributors: [],
         })
         .onConflictDoNothing();
@@ -184,7 +185,7 @@ export class NationalReportsService {
           status: 'approved',
           version: report.version + 1,
           approverSubject: principal.subject,
-          approverName: nameOf(principal),
+          approverName: officerOf(principal).name,
           approvedAt: now,
           reference,
         })
@@ -312,8 +313,4 @@ async function replaceParagraphs(
 
 function sameParagraph(a: Paragraph, b: Paragraph): boolean {
   return a.section === b.section && a.position === b.position && a.text === b.text;
-}
-
-function nameOf(principal: Principal): string {
-  return principal.name ?? principal.subject;
 }

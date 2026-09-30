@@ -1,3 +1,4 @@
+import { type Officer, storedOfficer } from '../officer.js';
 import type { ReferralGrounds } from '../projections/events.js';
 import type { ReferralIntakeRow } from './intake.js';
 import type { IcmsPushError, IcmsStatus } from './schema.js';
@@ -15,7 +16,7 @@ export interface ReferralIntakeItem {
   icmsCaseNumber: string | null;
   icmsRegisteredAt: string | null;
   pushedAt: string | null;
-  pushedBy: { subject: string; name: string } | null;
+  pushedBy: Officer | null;
   error: IcmsPushError | null;
 }
 
@@ -42,10 +43,7 @@ export function referralIntakeItem(
     icmsCaseNumber: row.icmsCaseNumber,
     icmsRegisteredAt: row.icmsRegisteredAt?.toISOString() ?? null,
     pushedAt: row.pushedAt?.toISOString() ?? null,
-    pushedBy:
-      row.pushedBy === null
-        ? null
-        : { subject: row.pushedBy, name: row.pushedByName ?? row.pushedBy },
+    pushedBy: storedOfficer(row.pushedBy, row.pushedByName),
     error: row.error,
   };
 }

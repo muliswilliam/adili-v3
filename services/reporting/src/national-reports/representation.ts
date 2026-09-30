@@ -1,3 +1,4 @@
+import { type Officer, storedOfficer } from '../officer.js';
 import type { NationalAggregates } from './aggregates.js';
 import { type Narrative, narrativeOf, type Paragraph } from './narrative.js';
 import type {
@@ -11,12 +12,6 @@ export type NationalReportRow = typeof nationalReports.$inferSelect;
 export type AggregatesRow = typeof nationalReportAggregates.$inferSelect;
 export type ParagraphRow = typeof nationalReportParagraphs.$inferSelect;
 
-/** reporting.yaml `Officer`. */
-interface OfficerView {
-  subject: string;
-  name: string;
-}
-
 /** reporting.yaml `NationalReport`. */
 export interface NationalReportView {
   id: string;
@@ -28,8 +23,8 @@ export interface NationalReportView {
   aggregates: NationalAggregates | Record<string, never>;
   narrative: Narrative;
   narrativeParagraphs: Paragraph[];
-  author: OfficerView | null;
-  approver: OfficerView | null;
+  author: Officer | null;
+  approver: Officer | null;
   approvedAt: string | null;
   reference: string | null;
   documentId: string | null;
@@ -68,10 +63,7 @@ export function nationalReportView(
     narrative: narrativeOf(ordered),
     narrativeParagraphs: ordered,
     author: { subject: report.authorSubject, name: report.authorName },
-    approver:
-      report.approverSubject === null
-        ? null
-        : { subject: report.approverSubject, name: report.approverName ?? report.approverSubject },
+    approver: storedOfficer(report.approverSubject, report.approverName),
     approvedAt: report.approvedAt?.toISOString() ?? null,
     reference: report.reference,
     documentId: report.documentId,

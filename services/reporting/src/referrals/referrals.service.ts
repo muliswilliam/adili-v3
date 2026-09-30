@@ -18,6 +18,7 @@ import {
   IntegrationGatewayUnavailable,
 } from '../integration-gateway/integration-gateway-client.js';
 import { InternalApiRejected } from '../internal-api/internal-api.js';
+import { officerOf } from '../officer.js';
 import { badRequest, notFound, workflowUnavailable } from '../problems.js';
 import { ReviewClient, ReviewUnavailable } from '../review/review-client.js';
 import { eaccContext } from '../system-context.js';
@@ -28,13 +29,13 @@ import {
   recordRegistered,
   type ReferralIntakeRow,
 } from './intake.js';
+import { ReferralWorkflows } from './referral-workflows.js';
 import {
   type ReferralIntakeItem,
   referralIntakeItem,
   type ReferralIntakePage,
 } from './representation.js';
 import { type IcmsPushError, type IcmsStatus, referralIntake } from './schema.js';
-import { ReferralWorkflows } from './referral-workflows.js';
 
 const NOT_IN_INTAKE = 'No referral in the intake has this id.';
 
@@ -135,7 +136,7 @@ export class ReferralsService {
           pushAttempts: row.pushAttempts + 1,
           pushedAt: this.clock.now(),
           pushedBy: principal.subject,
-          pushedByName: principal.name ?? principal.subject,
+          pushedByName: officerOf(principal).name,
         })
         .where(eq(referralIntake.referralId, referralId))
         .returning();
