@@ -105,7 +105,7 @@ async function openedEvents() {
   const rows = await api.db
     .select({ envelope: outbox.envelope })
     .from(outbox)
-    .where(eq(outbox.eventType, 'obligation.cycle-opened.v1'))
+    .where(eq(outbox.eventType, 'obligation.cycle.opened.v1'))
     .orderBy(asc(outbox.id));
   return rows.map(({ envelope }) => envelope);
 }
@@ -142,7 +142,7 @@ describe('S13 cycle opening', () => {
     expect(api.workflows.created().sort()).toEqual(created.map((o) => o.id).sort());
     expect(await openedEvents()).toEqual([
       expect.objectContaining({
-        type: 'obligation.cycle-opened.v1',
+        type: 'obligation.cycle.opened.v1',
         tenant: 'psc',
         subject: 'biennial:2027',
         data: { cycleYear: 2027, count: 3 },

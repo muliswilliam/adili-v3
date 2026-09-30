@@ -25,7 +25,7 @@ export class CycleOpeningActivities {
     });
   }
 
-  /** Records the cycle opened for the tenant and announces it (`obligation.cycle-opened.v1`). */
+  /** Records the cycle opened for the tenant and announces it (`obligation.cycle.opened.v1`). */
   recordCycleOpened(tenant: string, cycle: CycleOpened): Promise<void> {
     return this.opening.recordOpened(tenant, cycle);
   }

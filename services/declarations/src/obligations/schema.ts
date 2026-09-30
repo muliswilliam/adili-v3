@@ -1,3 +1,9 @@
+import {
+  REMINDER_CHANNELS,
+  REMINDER_OUTCOMES,
+  type ReminderChannel,
+  type ReminderOutcome,
+} from '@adili/events/contracts';
 import { sql } from 'drizzle-orm';
 import {
   check,
@@ -144,18 +150,12 @@ export const filingObligations = pgTable(
   ],
 );
 
-export const REMINDER_OUTCOME_VALUES = [
-  'sent',
-  'skipped-not-onboarded',
-  'skipped-no-contact',
-  'skipped-past-due-at-creation',
-  'skipped-missed',
-  'failed',
-] as const;
-export type ReminderOutcome = (typeof REMINDER_OUTCOME_VALUES)[number];
+/** The event contract's values (`obligation.reminder.recorded.v1`), stored as they are published. */
+export const REMINDER_OUTCOME_VALUES = REMINDER_OUTCOMES;
+export type { ReminderOutcome };
 
-export const REMINDER_CHANNEL_VALUES = ['sms', 'email'] as const;
-export type ReminderChannel = (typeof REMINDER_CHANNEL_VALUES)[number];
+export const REMINDER_CHANNEL_VALUES = REMINDER_CHANNELS;
+export type { ReminderChannel };
 
 /**
  * What became of each reminder of an obligation: sent, skipped (and why) or failed. One row per

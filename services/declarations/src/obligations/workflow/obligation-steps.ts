@@ -211,7 +211,7 @@ export class ObligationSteps {
 
   /**
    * Sends one reminder of an obligation (SMS and email, recipient the linked person) and records
-   * its outcome with an `obligation.reminder-recorded.v1` event:
+   * its outcome with an `obligation.reminder.recorded.v1` event:
    *
    * - no person linked (not onboarded): `skipped-not-onboarded`, nothing sent;
    * - notifications has no contact for either channel: `skipped-no-contact`;
