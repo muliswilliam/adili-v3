@@ -9,7 +9,6 @@ import { v7 as uuidv7 } from 'uuid';
 import { EACC_TENANT, requireEacc, requireEaccSupervisor } from '../access.js';
 import { Clock } from '../clock.js';
 import type { ReportingTransaction } from '../compliance-reports/reports.js';
-import { ReportWorkflows } from '../compliance-reports/report-workflows.js';
 import { reportReceipts } from '../compliance-reports/schema.js';
 import type { ReportingSchema } from '../db/schema.js';
 import { activeCommissions } from '../compliance-reports/commission.js';
@@ -32,6 +31,7 @@ import {
   nationalReportParagraphs,
   nationalReports,
 } from './schema.js';
+import { NationalReportWorkflows } from './national-report-workflows.js';
 
 const NOT_BUILT = 'The national consolidated report for the year has not been built yet.';
 
@@ -51,7 +51,7 @@ export class NationalReportsService {
   constructor(
     @InjectDatabase() private readonly db: Database<ReportingSchema>,
     private readonly directory: DirectoryClient,
-    private readonly workflows: ReportWorkflows,
+    private readonly workflows: NationalReportWorkflows,
     private readonly events: EventPublisher,
     private readonly clock: Clock,
   ) {}
@@ -231,7 +231,7 @@ export class NationalReportsService {
   /** Starts the approval workflow; 503 while Temporal is unreachable (nothing is approved). */
   private async startApproval(nationalReportId: string, fy: number): Promise<void> {
     try {
-      await this.workflows.nationalReportApproved({ nationalReportId, fy });
+      await this.workflows.approved({ nationalReportId, fy });
     } catch {
       throw workflowUnavailable('The report could not be approved just now. Try again shortly.');
     }

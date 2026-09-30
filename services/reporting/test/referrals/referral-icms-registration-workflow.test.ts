@@ -4,7 +4,7 @@ import { WorkflowTestEnvironment } from '@adili/temporal/testing';
 import { Context } from '@temporalio/activity';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 
-import { referralIcmsRegistration } from '../../src/compliance-reports/workflows.js';
+import { referralIcmsRegistration } from '../../src/referrals/workflows.js';
 import type { ReferralIcmsActivities } from '../../src/referrals/activities.js';
 import {
   ICMS_CHECK_FIRST_DELAY_MS,
@@ -23,9 +23,7 @@ import { historyPayloads } from '../support/workflow-history.js';
  * seven days it leaves the referral `push-failed`. History holds the referral id, the push
  * attempt and outcomes only.
  */
-const workflowsPath = fileURLToPath(
-  new URL('../../src/compliance-reports/workflows.ts', import.meta.url),
-);
+const workflowsPath = fileURLToPath(new URL('../../src/referrals/workflows.ts', import.meta.url));
 
 type Activities = { [K in keyof ReferralIcmsActivities]: ReferralIcmsActivities[K] };
 

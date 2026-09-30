@@ -8,7 +8,6 @@ import { and, desc, eq, lt, or, type SQL } from 'drizzle-orm';
 
 import { requireEacc } from '../access.js';
 import { Clock } from '../clock.js';
-import { ReportWorkflows } from '../compliance-reports/report-workflows.js';
 import { config } from '../config.js';
 import type { ReportingSchema } from '../db/schema.js';
 import { DirectoryClient, DirectoryUnavailable } from '../directory/directory-client.js';
@@ -35,6 +34,7 @@ import {
   type ReferralIntakePage,
 } from './representation.js';
 import { type IcmsPushError, type IcmsStatus, referralIntake } from './schema.js';
+import { ReferralWorkflows } from './referral-workflows.js';
 
 const NOT_IN_INTAKE = 'No referral in the intake has this id.';
 
@@ -77,7 +77,7 @@ export class ReferralsService {
     private readonly review: ReviewClient,
     private readonly gateway: IntegrationGatewayClient,
     private readonly directory: DirectoryClient,
-    private readonly workflows: ReportWorkflows,
+    private readonly workflows: ReferralWorkflows,
     private readonly events: EventPublisher,
     private readonly clock: Clock,
   ) {}

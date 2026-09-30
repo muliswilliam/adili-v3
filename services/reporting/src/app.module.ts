@@ -17,8 +17,10 @@ import { OPENBAO } from './cipher.module.js';
 import { ComplianceReportsModule } from './compliance-reports/compliance-reports.module.js';
 import { config, SERVICE_NAME } from './config.js';
 import { schema } from './db/schema.js';
+import { NationalReportsModule } from './national-reports/national-reports.module.js';
 import { ProjectionsModule } from './projections/projections.module.js';
 import { ReferralsModule } from './referrals/referrals.module.js';
+import { ReportingWorkerModule } from './worker.module.js';
 
 @Module({
   imports: [
@@ -47,7 +49,9 @@ import { ReferralsModule } from './referrals/referrals.module.js';
     }),
     ProjectionsModule,
     ComplianceReportsModule,
+    NationalReportsModule,
     ReferralsModule,
+    ReportingWorkerModule,
   ],
 })
 export class AppModule {}

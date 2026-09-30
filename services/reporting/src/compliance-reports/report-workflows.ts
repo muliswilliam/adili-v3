@@ -1,22 +1,9 @@
 import { Injectable, Module } from '@nestjs/common';
 import { InjectTemporalClient } from '@adili/temporal';
-import {
-  type Client,
-  WorkflowExecutionAlreadyStartedError,
-  WorkflowNotFoundError,
-} from '@temporalio/client';
+import { type Client, WorkflowNotFoundError } from '@temporalio/client';
 
 import { config } from '../config.js';
-import {
-  NATIONAL_REPORT_APPROVAL_WORKFLOW,
-  type NationalReportApprovalInput,
-  nationalReportApprovalWorkflowId,
-} from '../national-reports/contract.js';
-import {
-  type IcmsRegistrationInput,
-  REFERRAL_ICMS_REGISTRATION_WORKFLOW,
-  referralIcmsRegistrationWorkflowId,
-} from '../referrals/contract.js';
+import { startOnce } from '../workflow-start.js';
 import {
   COMPLIANCE_REPORT_WORKFLOW,
   complianceReportWorkflowId,
@@ -27,17 +14,11 @@ import {
   type ReportWorkflowInput,
   SUBMITTED_SIGNAL,
 } from './contract.js';
-import type {
-  complianceReport,
-  nationalConsolidation,
-  nationalReportApproval,
-  referralIcmsRegistration,
-} from './workflows.js';
+import type { complianceReport, nationalConsolidation } from './workflows.js';
 
 /**
  * Starts `ComplianceReportWorkflow` on Temporal (ADR-003), one per Commission and financial
- * year, or signals the running one; EACC's chase, one per financial year; the approval of the
- * year's national consolidated report; and the wait for ICMS's case number of a pushed referral.
+ * year, or signals the running one; and EACC's chase, one per financial year.
  */
 @Injectable()
 export class ReportWorkflows {
@@ -60,40 +41,13 @@ export class ReportWorkflows {
    * Starts EACC's chase of the year's non-reporting Commissions (`NationalConsolidationWorkflow`,
    * one per financial year). False when it runs already.
    */
-  async startNationalChase(fy: number): Promise<boolean> {
-    try {
-      await this.temporal.workflow.start<typeof nationalConsolidation>(
-        NATIONAL_CONSOLIDATION_WORKFLOW,
-        {
-          taskQueue: config.TEMPORAL_TASK_QUEUE,
-          workflowId: nationalConsolidationWorkflowId(fy),
-          args: [{ fy }],
-        },
-      );
-      return true;
-    } catch (error) {
-      if (error instanceof WorkflowExecutionAlreadyStartedError) return false;
-      throw error;
-    }
-  }
-
-  /**
-   * The national consolidated report was approved: starts its approval workflow, which issues the
-   * NCR PDF and ends the year's chase. Already started (a retried approval) is fine.
-   */
-  async nationalReportApproved(input: NationalReportApprovalInput): Promise<void> {
-    try {
-      await this.temporal.workflow.start<typeof nationalReportApproval>(
-        NATIONAL_REPORT_APPROVAL_WORKFLOW,
-        {
-          taskQueue: config.TEMPORAL_TASK_QUEUE,
-          workflowId: nationalReportApprovalWorkflowId(input.nationalReportId),
-          args: [input],
-        },
-      );
-    } catch (error) {
-      if (!(error instanceof WorkflowExecutionAlreadyStartedError)) throw error;
-    }
+  startNationalChase(fy: number): Promise<boolean> {
+    return startOnce<typeof nationalConsolidation>(
+      this.temporal,
+      NATIONAL_CONSOLIDATION_WORKFLOW,
+      nationalConsolidationWorkflowId(fy),
+      [{ fy }],
+    );
   }
 
   /**
@@ -109,25 +63,6 @@ export class ReportWorkflows {
     } catch (error) {
       if (error instanceof WorkflowNotFoundError) return false;
       throw error;
-    }
-  }
-
-  /**
-   * ICMS accepted a push of the referral without a case number: starts the workflow that waits
-   * for it (one per push). Already started (a retried push) is fine.
-   */
-  async awaitIcmsRegistration(input: IcmsRegistrationInput): Promise<void> {
-    try {
-      await this.temporal.workflow.start<typeof referralIcmsRegistration>(
-        REFERRAL_ICMS_REGISTRATION_WORKFLOW,
-        {
-          taskQueue: config.TEMPORAL_TASK_QUEUE,
-          workflowId: referralIcmsRegistrationWorkflowId(input.referralId, input.attempt),
-          args: [input],
-        },
-      );
-    } catch (error) {
-      if (!(error instanceof WorkflowExecutionAlreadyStartedError)) throw error;
     }
   }
 
