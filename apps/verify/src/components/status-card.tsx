@@ -42,7 +42,7 @@ export function StatusCard({ tone, icon, title, detail, children }: StatusCardPr
         <span
           aria-hidden="true"
           className={cn(
-            'flex size-12 shrink-0 items-center justify-center rounded-[14px] text-card [&_svg]:size-6',
+            'flex size-12 shrink-0 items-center justify-center rounded-item text-card [&_svg]:size-6',
             TONE[tone].mark,
           )}
         >

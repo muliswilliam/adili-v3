@@ -29,7 +29,7 @@ function VerifyHome() {
   return (
     <div className="grid gap-[26px]">
       <div className="text-center">
-        <div className="mx-auto mb-[18px] flex size-[52px] items-center justify-center rounded-[14px] bg-brand-subtle text-brand-subtle-foreground">
+        <div className="mx-auto mb-[18px] flex size-[52px] items-center justify-center rounded-item bg-brand-subtle text-brand-subtle-foreground">
           <Icon icon={QrCodeIcon} className="size-[26px]" />
         </div>
         <h1 className="text-[28px] leading-tight font-semibold tracking-[-0.02em] text-balance">
@@ -60,7 +60,7 @@ function VerifyHome() {
             />
             <figcaption className="min-w-0 text-[13px] text-muted-foreground">
               <span className="block">{copy.whereVerifyAt(SAMPLE_HOST)}</span>
-              <span className="my-1 inline-block rounded-[3px] bg-[#fff5c2] font-mono text-[11.5px] font-semibold tracking-[0.03em] text-foreground shadow-[0_0_0_3px_#fff5c2] sm:text-[13px] dark:bg-warning-subtle dark:shadow-warning-subtle">
+              <span className="my-1 inline-block rounded-xs bg-highlight font-mono text-[11.5px] font-semibold tracking-[0.03em] text-foreground ring-3 ring-highlight sm:text-[13px]">
                 {SAMPLE_CODE}
               </span>
               <span className="block">{copy.whereSample}</span>

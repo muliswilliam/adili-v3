@@ -322,7 +322,7 @@ export function ResultSkeleton() {
       </div>
       <div className="rounded-2xl bg-card shadow-card">
         <div className="flex gap-3.5 p-5 sm:px-6 sm:py-[22px]">
-          <Skeleton className="size-12 rounded-[14px]" />
+          <Skeleton className="size-12 rounded-item" />
           <div className="grid flex-1 content-start gap-3">
             <Skeleton className="h-[18px] w-[70%]" />
             <Skeleton className="w-[90%]" />
