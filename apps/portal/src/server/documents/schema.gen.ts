@@ -84,6 +84,29 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/internal/v1/uploads/{id}/linked": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Record that the owning service linked a clean upload (spec 05)
+         * @description Service tokens with scope documents:internal, acting for the tenant in X-Acting-Tenant.
+         *     The owning service calls it when it links a clean upload to its record (declarations: an
+         *     attachment on an item), so the orphan sweep keeps the object; clean uploads with no link
+         *     recorded are deleted after 30 days. Idempotent.
+         */
+        post: operations["markUploadLinked"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/internal/v1/documents/issue": {
         parameters: {
             query?: never;
@@ -549,6 +572,48 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
+            /** @description Problem type `upload-not-clean`: the upload is not clean */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    markUploadLinked: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Tenant the calling service acts for; the resource must belong to it */
+                "X-Acting-Tenant": string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Link recorded */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Requires a service token with scope documents:internal */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            404: components["responses"]["NotFound"];
             /** @description Problem type `upload-not-clean`: the upload is not clean */
             409: {
                 headers: {
