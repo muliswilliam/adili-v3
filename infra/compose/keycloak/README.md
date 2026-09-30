@@ -19,6 +19,8 @@ Demo users in the file are a local convenience. #371 can replace them with seed 
 
 ACR mapping: `step-up` → 2. Portal and console default ACR is `step-up`, so login is MFA.
 
+Step-up before submission (spec 06): the portal's `/auth/step-up` (`Bff.stepUp` in `packages/bff-auth`) sends `acr_values=step-up`. Once the code's 300 s have lapsed Keycloak asks for a new code only (the password holds for the session) and issues tokens with `acr` `step-up` and a new `auth_time`; within the 300 s it answers without a page. The `acr` scope and the `basic` scope's `auth_time` mapper put both claims in ID and access tokens, which services read as `Principal.acr` and `Principal.authTime` (`packages/api-kit`). S16 in `apps/keycloak-extension/test/step-up.stack.test.ts` drives it.
+
 ## Person claim (spec 04)
 
 Declarant data is keyed by person, not tenant. The `portal` and `console` clients map the user attribute `person_id` (admin-only in the user profile, set when onboarding links the account to a person) to the `person_id` claim; staff have none, so their tokens are unchanged. Services read it as `Principal.personId` (`packages/api-kit`) and scope declarant transactions with `withPerson` (`packages/data-access`). The demo `declarant` has a fixed `person_id`.

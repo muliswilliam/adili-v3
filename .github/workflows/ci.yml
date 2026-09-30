@@ -221,7 +221,8 @@ jobs:
             || { docker logs keycloak; exit 1; }
       - run: pnpm test:integration
       # S22 and S23 (spec 03): sign-in with the adili-otp extension through the notifications
-      # service, the SMS mock and Mailpit, as a user drives it.
+      # service, the SMS mock and Mailpit, as a user drives it; S16 (spec 06): step-up through the
+      # portal's BFF.
       - uses: astral-sh/setup-uv@v6
         with:
           # The default globs walk the whole checkout, node_modules included (minutes here).
@@ -257,7 +258,7 @@ jobs:
           echo $! > "$RUNNER_TEMP/notifications.pid"
           timeout 60 sh -c 'until curl -sf http://localhost:4010/health/live >/dev/null; do sleep 1; done' \
             || { cat "$RUNNER_TEMP/notifications.log"; exit 1; }
-      - name: Sign-in stack tests (S22, S23)
+      - name: Sign-in stack tests (S22, S23, S16)
         env:
           TEST_KEYCLOAK_URL: http://localhost:8080
           TEST_MOCKS_URL: http://localhost:8000

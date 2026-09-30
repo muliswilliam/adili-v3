@@ -28,5 +28,37 @@ export function keycloakAdmin(keycloakUrl: string) {
     return response;
   }
 
-  return { adminToken, adminFetch };
+  /**
+   * Changes the config of an execution in the `adili otp` flow (by provider id) and returns how
+   * to put it back, so a case can shorten a lifetime, cooldown or max age without waiting it out.
+   */
+  async function changeConfig(
+    token: string,
+    providerId: string,
+    changes: Record<string, string>,
+  ): Promise<() => Promise<void>> {
+    const executions = (await (
+      await adminFetch(token, `/authentication/flows/${encodeURIComponent('adili otp')}/executions`)
+    ).json()) as { authenticationConfig?: string; providerId?: string }[];
+    const configId = executions.find(
+      (execution) => execution.providerId === providerId,
+    )?.authenticationConfig;
+    if (!configId) throw new Error(`adili otp has no configured ${providerId}`);
+    const original = (await (
+      await adminFetch(token, `/authentication/config/${configId}`)
+    ).json()) as {
+      config: Record<string, string>;
+    };
+    const put = (config: Record<string, string>) =>
+      adminFetch(token, `/authentication/config/${configId}`, {
+        method: 'PUT',
+        body: JSON.stringify({ ...original, config }),
+      });
+    await put({ ...original.config, ...changes });
+    return async () => {
+      await put(original.config);
+    };
+  }
+
+  return { adminToken, adminFetch, changeConfig };
 }
