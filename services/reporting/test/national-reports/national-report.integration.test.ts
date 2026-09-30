@@ -1,5 +1,3 @@
-import { randomUUID } from 'node:crypto';
-
 import { eq } from 'drizzle-orm';
 import { v7 as uuidv7 } from 'uuid';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -159,8 +157,8 @@ describe('National consolidated report (S11)', () => {
     return response.json<NationalReportBody>();
   }
 
-  function approve(caller: Caller, key: string = randomUUID()) {
-    return api.send('POST', `${NCR}/approve`, caller, undefined, { 'idempotency-key': key });
+  function approve(caller: Caller) {
+    return api.send('POST', `${NCR}/approve`, caller);
   }
 
   const events = async () =>
@@ -392,8 +390,7 @@ describe('National consolidated report (S11)', () => {
     });
 
     api.clock.set('2028-08-25T08:00:00.000Z');
-    const key = randomUUID();
-    const response = await approve(SUPERVISOR_A, key);
+    const response = await approve(SUPERVISOR_A);
     expect(response.statusCode, response.body).toBe(200);
     const approved = response.json<NationalReportBody>();
     expect(
@@ -484,11 +481,10 @@ describe('National consolidated report (S11)', () => {
       expect(published).not.toContain(text);
     }
 
-    // A retried approval replays; the report no longer changes.
-    const replay = await approve(SUPERVISOR_A, key);
-    expect(replay.statusCode).toBe(200);
-    expect(replay.json<NationalReportBody>().reference).toBe(approved.reference);
+    // A retried approval is refused by the report's state: it no longer changes, and no second
+    // reference is allocated.
     for (const refused of [
+      await approve(SUPERVISOR_A),
       await approve(SUPERVISOR_B),
       await api.send('POST', `${NCR}/build`, ANALYST),
       await api.send('PATCH', `${NCR}/narrative`, ANALYST, NARRATIVE),

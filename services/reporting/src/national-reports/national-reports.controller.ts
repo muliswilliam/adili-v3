@@ -4,7 +4,6 @@ import {
   ApiProblemResponse,
   CurrentPrincipal,
   type Principal,
-  RequireIdempotencyKey,
   ZodValidationPipe,
 } from '@adili/api-kit';
 import { z } from 'zod';
@@ -99,7 +98,6 @@ export class NationalReportsController {
 
   @Post(':fy/approve')
   @HttpCode(HttpStatus.OK)
-  @RequireIdempotencyKey()
   @ApiFinancialYearParam()
   @ApiOperation({
     operationId: 'approveNationalReport',

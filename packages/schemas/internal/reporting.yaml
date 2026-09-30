@@ -584,9 +584,8 @@ paths:
         the report or saved its narrative, gets 403 `separation-of-duties`. Allocates
         `NCR-EACC-<FY>-<seq>-<check>`, freezes the report and emits `ncr.approved.v1` (ids, year,
         version, reference). The Restricted PDF follows (`documentId`, polled on the report), and
-        the year's chase of non-reporting Commissions ends.
-      parameters:
-        - $ref: '#/components/parameters/IdempotencyKey'
+        the year's chase of non-reporting Commissions ends. Approving is safe to retry without an
+        Idempotency-Key: once approved, a retry is 409 `ncr-approved` and allocates nothing.
       responses:
         '200':
           description: Approved
@@ -962,9 +961,7 @@ paths:
         backoff while unreachable. A case number is stored (`registered`) and
         `referral.icms-registered.v1` published; a registration ICMS only accepted is `pushed` and
         followed to its case number. A registered referral is answered as it is and never sent
-        again.
-      parameters:
-        - $ref: '#/components/parameters/IdempotencyKey'
+        again, so a push is safe to retry without an Idempotency-Key.
       responses:
         '200':
           description: Registered (or already registered), or pushed and awaiting the case number
@@ -973,7 +970,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ReferralIntakeItem'
         '400':
-          description: Idempotency-Key missing, or referralId is not a UUID
+          description: referralId is not a UUID
           content:
             application/problem+json:
               schema:

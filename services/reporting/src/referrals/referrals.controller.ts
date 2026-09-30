@@ -4,7 +4,6 @@ import {
   ApiProblemResponse,
   CurrentPrincipal,
   type Principal,
-  RequireIdempotencyKey,
   ZodValidationPipe,
 } from '@adili/api-kit';
 import { z } from 'zod';
@@ -54,7 +53,6 @@ export class ReferralsController {
 
   @Post(':referralId/push')
   @HttpCode(HttpStatus.OK)
-  @RequireIdempotencyKey()
   @ApiParam({ name: 'referralId', schema: { type: 'string', format: 'uuid' } })
   @ApiOperation({
     operationId: 'pushReferralToIcms',

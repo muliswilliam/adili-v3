@@ -21,8 +21,7 @@ export const schema = {
   // `RPT` and `NCR` reference counters (ADR-011), allocated in the transaction that submits a
   // report or approves the national consolidated report.
   ...numberingSchema,
-  // Stored outcomes of `Idempotency-Key` writes (confirming and submitting a report, approving
-  // the national consolidated report, pushing a referral to ICMS).
+  // Stored outcomes of `Idempotency-Key` writes (confirming and submitting a report).
   ...idempotencySchema,
 };
 
