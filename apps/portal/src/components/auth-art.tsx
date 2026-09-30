@@ -61,8 +61,8 @@ export function AuthArt({ variant }: { variant: AuthArtVariant }) {
         />
       </picture>
       {/* Lifts the sky behind the headline, so the ink text stays above 4.5:1. */}
-      <div className="absolute inset-x-0 top-0 h-1/2 bg-linear-to-b from-white/35 to-transparent" />
-      <div className="absolute inset-0 bg-[radial-gradient(rgb(255_255_255/0.22)_1px,transparent_1.4px)] bg-size-[5px_5px] mix-blend-soft-light" />
+      <div className="absolute inset-x-0 top-0 h-1/2 bg-linear-to-b from-art-lift to-transparent" />
+      <div className="absolute inset-0 bg-art-grain mix-blend-soft-light" />
       <div className="absolute inset-x-11 top-12 text-art-foreground">
         <h2 className="max-w-[460px] text-[34px] leading-[1.12] font-semibold tracking-[-0.025em] text-balance">
           {title}
@@ -72,9 +72,9 @@ export function AuthArt({ variant }: { variant: AuthArtVariant }) {
         {items.map(([icon, text]) => (
           <li
             key={text}
-            className="flex max-w-[400px] items-center gap-3 rounded-item bg-white/72 px-3.5 py-3 text-sm font-medium text-art-foreground shadow-[0_1px_2px_rgb(0_0_0/0.06)] backdrop-blur-[10px]"
+            className="flex max-w-[400px] items-center gap-3 rounded-item bg-art-item px-3.5 py-3 text-sm font-medium text-art-foreground shadow-art-item backdrop-blur-[10px]"
           >
-            <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-white text-brand">
+            <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-art-tile text-brand">
               <Icon icon={icon} className="size-[17px]" />
             </span>
             {text}
