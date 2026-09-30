@@ -53,11 +53,14 @@ export abstract class ReviewClient {
   ): Promise<ClarificationDetails[]>;
 
   /**
-   * What ICMS needs of the referral `referralId` of Commission `tenant`; null when review knows
-   * no sent referral by that id. Throws `ReviewUnavailable` when review cannot be reached.
+   * What ICMS needs of the referral `referralId` of Commission `tenant`, read for the officer
+   * `actingSubject` (named in review's audit of the read); null when review knows no sent
+   * referral by that id. Throws `ReviewUnavailable` when review cannot be reached, and
+   * `InternalApiRejected` when it refuses (409: no roster record of the declarant).
    */
   abstract referralIcmsPayload(
     tenant: string,
     referralId: string,
+    actingSubject: string,
   ): Promise<ReferralIcmsPayload | null>;
 }

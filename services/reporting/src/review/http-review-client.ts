@@ -85,10 +85,15 @@ export class HttpReviewClient extends ReviewClient {
     return found;
   }
 
-  referralIcmsPayload(tenant: string, referralId: string): Promise<ReferralIcmsPayload | null> {
+  referralIcmsPayload(
+    tenant: string,
+    referralId: string,
+    actingSubject: string,
+  ): Promise<ReferralIcmsPayload | null> {
     return this.api.get({
       path: `internal/v1/review/referrals/${encodeURIComponent(referralId)}/icms-payload`,
       tenant,
+      headers: { 'x-acting-subject': actingSubject },
       schema: icmsPayloadSchema,
     });
   }

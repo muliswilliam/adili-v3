@@ -1066,6 +1066,7 @@ components:
         [
           review-unavailable,
           payload-not-found,
+          payload-refused,
           icms-unavailable,
           icms-rejected,
           icms-failed,

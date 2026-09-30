@@ -163,8 +163,10 @@ describe('Referrals intake and ICMS push (S12)', () => {
     });
     expect(typeof body.icmsRegisteredAt).toBe('string');
     expect(typeof body.pushedAt).toBe('string');
-    // What ICMS needs, pulled from review for the referring Commission.
-    expect(api.review.payloadCalls).toEqual([{ tenant: 'psc', referralId }]);
+    // What ICMS needs, pulled from review for the referring Commission, naming the analyst.
+    expect(api.review.payloadCalls).toEqual([
+      { tenant: 'psc', referralId, actingSubject: ANALYST.sub },
+    ]);
     expect(api.gateway.submitted).toEqual([
       {
         tenant: 'psc',
@@ -282,6 +284,22 @@ describe('Referrals intake and ICMS push (S12)', () => {
       error: 'icms-rejected',
     });
     // A refusal is not retried.
+    expect(api.gateway.submitCalls).toBe(1);
+
+    const noRoster = await givenSent({ reference: 'RFL-PSC-2028-0000004-8' });
+    api.review.refusePayloads(1);
+
+    const unregistrable = await push(ANALYST, noRoster.referralId);
+
+    expect(unregistrable.statusCode).toBe(502);
+    expect(unregistrable.json()).toMatchObject({
+      code: 'icms-push-failed',
+      error: 'payload-refused',
+    });
+    expect(await intakeRow(noRoster.referralId)).toMatchObject({
+      icmsStatus: 'push-failed',
+      error: 'payload-refused',
+    });
     expect(api.gateway.submitCalls).toBe(1);
   });
 

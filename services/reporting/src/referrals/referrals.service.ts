@@ -147,7 +147,7 @@ export class ReferralsService {
 
     let registration: IcmsReferral;
     try {
-      registration = await this.register(claimed.row);
+      registration = await this.register(claimed.row, principal.subject);
     } catch (error) {
       if (!(error instanceof PushFailed)) throw error;
       const failed = await withTenant(this.db, eaccContext(principal.subject), (tx) =>
@@ -180,11 +180,14 @@ export class ReferralsService {
     return this.itemOf(pushed ?? claimed.row);
   }
 
-  /** Pulls the ICMS payload from review and registers it through the gateway, with retries. */
-  private async register(row: ReferralIntakeRow): Promise<IcmsReferral> {
+  /**
+   * Pulls the ICMS payload from review for the pushing analyst and registers it through the
+   * gateway, with retries.
+   */
+  private async register(row: ReferralIntakeRow, analyst: string): Promise<IcmsReferral> {
     let request: IcmsReferralRequest;
     try {
-      const payload = await this.review.referralIcmsPayload(row.tenant, row.referralId);
+      const payload = await this.review.referralIcmsPayload(row.tenant, row.referralId, analyst);
       if (!payload) throw new PushFailed('payload-not-found');
       request = {
         referralReference: row.reference,
@@ -196,6 +199,7 @@ export class ReferralsService {
       };
     } catch (error) {
       if (error instanceof ReviewUnavailable) throw new PushFailed('review-unavailable');
+      if (error instanceof InternalApiRejected) throw new PushFailed('payload-refused');
       throw error;
     }
     for (let attempt = 1; ; attempt += 1) {

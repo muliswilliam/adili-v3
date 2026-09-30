@@ -85,10 +85,11 @@ export class FakeDeclarations extends DeclarationsClient {
 export class FakeReview extends ReviewClient {
   readonly calls: { tenant: string; ids: number }[] = [];
   /** Each ICMS payload asked for: the Commission and the referral. */
-  readonly payloadCalls: { tenant: string; referralId: string }[] = [];
+  readonly payloadCalls: { tenant: string; referralId: string; actingSubject: string }[] = [];
   private readonly clarifications = new Map<string, ClarificationDetails & { tenant: string }>();
   private readonly referrals = new Map<string, { tenant: string; payload: ReferralIcmsPayload }>();
   private payloadFailures = 0;
+  private payloadRefusals = 0;
 
   givenReferral(tenant: string, referralId: string, payload: ReferralIcmsPayload): void {
     this.referrals.set(referralId, { tenant, payload });
@@ -99,8 +100,21 @@ export class FakeReview extends ReviewClient {
     this.payloadFailures = count;
   }
 
-  referralIcmsPayload(tenant: string, referralId: string): Promise<ReferralIcmsPayload | null> {
-    this.payloadCalls.push({ tenant, referralId });
+  /** The next `count` ICMS payload reads are refused (409), as for an unknown roster record. */
+  refusePayloads(count: number): void {
+    this.payloadRefusals = count;
+  }
+
+  referralIcmsPayload(
+    tenant: string,
+    referralId: string,
+    actingSubject: string,
+  ): Promise<ReferralIcmsPayload | null> {
+    this.payloadCalls.push({ tenant, referralId, actingSubject });
+    if (this.payloadRefusals > 0) {
+      this.payloadRefusals -= 1;
+      return Promise.reject(new InternalApiRejected('review', 409));
+    }
     if (this.payloadFailures > 0) {
       this.payloadFailures -= 1;
       return Promise.reject(new ReviewUnavailable('The review service is unreachable'));
@@ -122,6 +136,7 @@ export class FakeReview extends ReviewClient {
     this.clarifications.clear();
     this.referrals.clear();
     this.payloadFailures = 0;
+    this.payloadRefusals = 0;
   }
 
   clarificationDetails(

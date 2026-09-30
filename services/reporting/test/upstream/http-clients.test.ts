@@ -126,13 +126,13 @@ describe('HttpReviewClient', () => {
       .mockResolvedValueOnce(new Response(null, { status: 404 }));
     const client = new HttpReviewClient({ reviewUrl: 'http://review.test', tokens, fetch });
 
-    expect(await client.referralIcmsPayload('psc', referralId)).toEqual(payload);
+    expect(await client.referralIcmsPayload('psc', referralId, 'analyst-e')).toEqual(payload);
     expect(request(fetch)).toMatchObject({
       url: `http://review.test/internal/v1/review/referrals/${referralId}/icms-payload`,
       method: 'GET',
-      headers: { 'x-acting-tenant': 'psc' },
+      headers: { 'x-acting-tenant': 'psc', 'x-acting-subject': 'analyst-e' },
     });
-    expect(await client.referralIcmsPayload('psc', referralId)).toBeNull();
+    expect(await client.referralIcmsPayload('psc', referralId, 'analyst-e')).toBeNull();
   });
 });
 

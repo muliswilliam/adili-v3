@@ -29,6 +29,8 @@ export const ICMS_PUSH_ERRORS = [
   'review-unavailable',
   /** Review knows no ICMS payload for the referral. */
   'payload-not-found',
+  /** Review refused the payload: no roster record of the declarant, so no national ID. */
+  'payload-refused',
   /** The integration-gateway or ICMS could not be reached, after retries with backoff. */
   'icms-unavailable',
   /** The gateway refused the request (a contract mismatch: retrying unchanged will not help). */
