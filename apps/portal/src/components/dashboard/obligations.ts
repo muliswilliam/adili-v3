@@ -1,4 +1,5 @@
 import type { Obligation, ObligationGroup } from '../../server/declarations/types';
+import type { MyObligationsResult } from '../../server/obligations.server';
 import type { DraftsState } from './drafts';
 import { messages as m } from './obligation-messages';
 
@@ -62,4 +63,13 @@ export function startAvailability(
       (declaration.status === 'draft' || declaration.status === 'amending'),
   );
   return draft ? { kind: 'continue', declarationId: draft.id } : { kind: 'start' };
+}
+
+/**
+ * `getMyObligations`' answer, with a call that fails outright (the network, the server function)
+ * read as unavailable: the obligations section then offers a retry, where the rejection would
+ * reach `use()` and replace the whole dashboard with the route's error boundary.
+ */
+export function orUnavailable(load: Promise<MyObligationsResult>): Promise<MyObligationsResult> {
+  return load.catch(() => ({ status: 'unavailable' }) as const);
 }

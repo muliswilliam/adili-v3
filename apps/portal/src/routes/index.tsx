@@ -16,6 +16,7 @@ import { z } from 'zod';
 import { authErrorMessage } from '../components/auth-error';
 import { AuthShell } from '../components/auth-shell';
 import { DashboardCards } from '../components/dashboard/dashboard-cards';
+import { orUnavailable } from '../components/dashboard/obligations';
 import { ObligationsSection } from '../components/dashboard/obligations-view';
 import { DISCARDED_TOAST } from '../components/declaration/discard-dialog';
 import { SignOutButton } from '../components/sign-out-button';
@@ -34,14 +35,14 @@ export const Route = createFileRoute('/')({
     const viewer = await getViewer();
     // Not awaited: the dashboard renders with skeleton cards, and the obligations and the
     // declarations stream in, each on its own.
-    const obligations = viewer ? getMyObligations() : null;
+    const obligations = viewer ? orUnavailable(getMyObligations()) : null;
     const declarations = viewer?.declarant.status === 'onboarded' ? loadDeclarations() : null;
     return { viewer, obligations, declarations };
   },
   component: Home,
 });
 
-const reloadObligations = () => getMyObligations();
+const reloadObligations = () => orUnavailable(getMyObligations());
 const loadObligationDetail = (id: string) => getObligationDetail({ data: { id } });
 
 /** The declarant's declarations; an ended session or a failed call reads as unavailable. */

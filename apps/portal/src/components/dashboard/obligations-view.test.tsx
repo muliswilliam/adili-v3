@@ -17,6 +17,7 @@ import type { MyObligationsResult, ObligationDetailResult } from '../../server/o
 import { navigate } from '../declaration/testing-mocks';
 import { DraftsProvider } from './drafts';
 import { messages } from './obligation-messages';
+import { orUnavailable } from './obligations';
 import { ObligationsSection, ObligationsView } from './obligations-view';
 
 vi.mock('@tanstack/react-router', async () =>
@@ -654,5 +655,26 @@ describe('ObligationsSection', () => {
 
     expect(reload).toHaveBeenCalledOnce();
     expect(screen.getByRole('heading', { name: 'Initial declaration' })).toBeTruthy();
+  });
+
+  it('shows the error with a retry, not a broken dashboard, when the call itself fails', async () => {
+    const failed = orUnavailable(Promise.reject(new Error('fetch failed')));
+    const reload = vi.fn(() => orUnavailable(Promise.reject(new Error('fetch failed'))));
+    await act(async () => {
+      render(
+        <ObligationsSection obligations={failed} reload={reload} loadDetail={vi.fn()} now={now} />,
+      );
+      await failed;
+    });
+
+    expect(screen.getByText(messages.errorTitle)).toBeTruthy();
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
+      await reload.mock.results[0]?.value;
+    });
+
+    expect(reload).toHaveBeenCalledOnce();
+    expect(screen.getByText(messages.errorTitle)).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Try again' })).toBeTruthy();
   });
 });
