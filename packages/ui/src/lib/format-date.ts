@@ -1,3 +1,5 @@
+import { daysBetween } from './calendar-days';
+
 const PARTS = new Intl.DateTimeFormat('en', {
   day: 'numeric',
   month: 'short',
@@ -72,13 +74,10 @@ const KENYA_OFFSET_MS = 3 * 60 * 60 * 1000;
 
 /**
  * Whole calendar days in Kenyan time from `now` (epoch ms) to the day of `iso` (a date or a
- * date-time): 0 on the day itself, negative once it has passed. Both days are read as UTC
- * midnights, so month lengths, leap days and the year end cannot shift the count.
+ * date-time): 0 on the day itself, negative once it has passed (`daysBetween` from now).
  */
 export function calendarDaysUntil(iso: string, now: number): number {
-  return Math.round(
-    (Date.parse(formatCalendarDate(iso)) - Date.parse(formatCalendarDate(now))) / DAY_MS,
-  );
+  return daysBetween(new Date(now).toISOString(), iso);
 }
 
 /** Milliseconds from `now` (epoch ms) to the next midnight in Kenyan time. */

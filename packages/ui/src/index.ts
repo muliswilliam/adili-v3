@@ -235,6 +235,13 @@ export {
   type ObligationStatusBadgeProps,
 } from './components/obligation-status-badge';
 export {
+  hasCountdown,
+  ObligationCountdown,
+  type ObligationCountdownProps,
+  StatementDateTerm,
+  type StatementDateTermProps,
+} from './components/obligation-dates';
+export {
   ReminderHistory,
   type ReminderHistoryEntry,
   type ReminderHistoryError,
@@ -282,7 +289,7 @@ export {
   useCountdown,
   useCountdownAnnouncement,
 } from './lib/countdown';
-export { focusRing, focusRingInset } from './lib/focus';
+export { focusRing, focusRingInset, focusRingWithin } from './lib/focus';
 export {
   daysInMonth,
   formatDayMonthYear,

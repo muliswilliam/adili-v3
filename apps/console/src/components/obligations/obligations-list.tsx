@@ -4,7 +4,9 @@ import {
   cn,
   EmptyState,
   formatDate,
+  hasCountdown,
   Icon,
+  ObligationCountdown,
   ObligationStatusBadge,
   obligationStatusMeta,
   obligationTypeNames,
@@ -14,6 +16,7 @@ import {
   remindersSentLabel,
   Select,
   SelectItem,
+  SegmentedChoice,
   Skeleton,
   Table,
   TableBody,
@@ -42,7 +45,7 @@ import { LoadError } from '../load-error';
 import { appendPage, type LoadedPages } from '../roster/records-query';
 import { SearchBox } from '../search-box';
 import { goToSignIn } from '../sign-in-redirect';
-import { ObligationWhen, OnboardedBadge } from './obligation-badges';
+import { OnboardedBadge } from './obligation-badges';
 import { messages as m } from './messages';
 import {
   type CycleOption,
@@ -172,13 +175,14 @@ function Toolbar({ search, onSearchChange, cycles, result }: ObligationsListProp
           </SelectItem>
         ))}
       </Select>
-      <Segmented
+      <SegmentedChoice
+        variant="track"
         name={`${id}-onboarded`}
-        label={m.onboardedLabel}
+        legend={m.onboardedLabel}
         value={onboarded}
         disabled={disabled}
-        choices={ONBOARDED_CHOICES}
-        onChange={(value) => {
+        options={ONBOARDED_CHOICES}
+        onValueChange={(value) => {
           const choice = ONBOARDED_CHOICES.find((entry) => entry.value === value);
           onSearchChange(withFilter(search, 'onboarded', choice?.onboarded));
         }}
@@ -216,55 +220,6 @@ function Toolbar({ search, onSearchChange, cycles, result }: ObligationsListProp
         </Button>
       ) : null}
     </div>
-  );
-}
-
-/**
- * A small set of exclusive choices as a segmented control (the kit's `.seg`): native radios, so
- * arrow keys move between them and the group reads as one question.
- */
-function Segmented({
-  name,
-  label,
-  value,
-  disabled,
-  choices,
-  onChange,
-}: {
-  name: string;
-  label: string;
-  value: string;
-  disabled: boolean;
-  choices: readonly { value: string; label: string }[];
-  onChange: (value: string) => void;
-}) {
-  return (
-    <fieldset className="flex shrink-0 gap-0.5 rounded-lg bg-muted p-0.75" disabled={disabled}>
-      <legend className="sr-only">{label}</legend>
-      {choices.map((choice) => (
-        <label
-          key={choice.value}
-          className={cn(
-            'relative flex h-7.5 cursor-pointer items-center rounded-md px-3 text-[13.5px] font-medium whitespace-nowrap text-secondary-foreground select-none',
-            'has-checked:bg-card has-checked:text-foreground has-checked:shadow-card',
-            'has-focus-visible:outline-2 has-focus-visible:outline-offset-1 has-focus-visible:outline-ring',
-            'has-disabled:cursor-default has-disabled:opacity-50',
-          )}
-        >
-          <input
-            type="radio"
-            name={name}
-            value={choice.value}
-            checked={value === choice.value}
-            className="sr-only"
-            onChange={() => {
-              onChange(choice.value);
-            }}
-          />
-          {choice.label}
-        </label>
-      ))}
-    </fieldset>
   );
 }
 
@@ -429,7 +384,7 @@ function DueDate({ obligation }: { obligation: ObligationListItem }) {
     <>
       <span className="block whitespace-nowrap">{formatDate(obligation.dueDate)}</span>
       <span className="block text-[12.5px] whitespace-nowrap text-muted-foreground">
-        <ObligationWhen obligation={obligation} />
+        <ObligationCountdown obligation={obligation} />
       </span>
     </>
   );
@@ -548,10 +503,10 @@ function ObligationsCards({
             <span>{obligationTypeShortLabel(obligation.type, obligation.statementDate)}</span>
             <span aria-hidden="true">·</span>
             <span>{formatDate(obligation.dueDate)}</span>
-            {obligation.status === 'filed' || obligation.status === 'cancelled' ? null : (
+            {!hasCountdown(obligation.status) ? null : (
               <>
                 <span aria-hidden="true">·</span>
-                <ObligationWhen obligation={obligation} />
+                <ObligationCountdown obligation={obligation} />
               </>
             )}
           </p>

@@ -9,13 +9,12 @@ import {
   DrawerHeader,
   DrawerTitle,
   formatLongDate,
+  ObligationCountdown,
   ObligationStatusBadge,
   obligationTypeLabel,
   ReminderHistory,
-  Tooltip,
+  StatementDateTerm,
   useObligationDetail,
-  cn,
-  focusRing,
 } from '@adili/ui';
 import { type ReactNode, useEffect, useEffectEvent } from 'react';
 
@@ -26,7 +25,7 @@ import type {
   DeclarantRef,
 } from '../../server/declarations/client';
 import { DetailItem, DetailList } from '../page';
-import { ObligationWhen, OnboardedBadge } from './obligation-badges';
+import { OnboardedBadge } from './obligation-badges';
 import { messages as m } from './messages';
 
 const unavailable: DeclarationsResult<ObligationDetail> = {
@@ -99,7 +98,7 @@ function Fields({ obligation }: { obligation: ObligationListItem }) {
     <>
       <div className="flex flex-wrap items-center gap-2 text-sm font-medium">
         <ObligationStatusBadge status={obligation.status} />
-        <ObligationWhen obligation={obligation} />
+        <ObligationCountdown obligation={obligation} />
       </div>
       <DetailList className="px-0 py-0">
         <DetailItem term={m.fileNumber}>
@@ -126,19 +125,7 @@ function Fields({ obligation }: { obligation: ObligationListItem }) {
           <span className="font-mono text-[13px]">{obligation.cycleKey}</span>
         </DetailItem>
         <DetailItem
-          term={
-            <Tooltip content={m.statementDateHint}>
-              <span
-                tabIndex={0}
-                className={cn(
-                  'cursor-help rounded-sm border-b border-dashed border-input',
-                  focusRing,
-                )}
-              >
-                {m.statementDate}
-              </span>
-            </Tooltip>
-          }
+          term={<StatementDateTerm hint={m.statementDateHint}>{m.statementDate}</StatementDateTerm>}
         >
           {formatLongDate(obligation.statementDate)}
         </DetailItem>

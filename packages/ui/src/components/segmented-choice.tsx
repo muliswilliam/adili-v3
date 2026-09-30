@@ -1,6 +1,7 @@
 import { type ComponentProps, type ReactNode, useId } from 'react';
 
 import { cn } from '../lib/cn';
+import { focusRingWithin } from '../lib/focus';
 import { FieldError, FieldHint, joinIds } from './form-field';
 
 export interface SegmentedChoiceOption {
@@ -11,7 +12,7 @@ export interface SegmentedChoiceOption {
 export type SegmentedChoiceProps = Omit<ComponentProps<'fieldset'>, 'onChange' | 'children'> & {
   /** Names the group, e.g. "Marital status". */
   legend: ReactNode;
-  options: SegmentedChoiceOption[];
+  options: readonly SegmentedChoiceOption[];
   /** The chosen option's value, or null when nothing is chosen yet. */
   value: string | null;
   onValueChange: (value: string) => void;
@@ -20,12 +21,19 @@ export type SegmentedChoiceProps = Omit<ComponentProps<'fieldset'>, 'onChange' |
   hint?: ReactNode;
   /** When set, the group is marked invalid and the message is announced. */
   error?: ReactNode;
+  /**
+   * `buttons` (default): a form question, the legend shown above 40px buttons. `track`: a
+   * compact filter in a toolbar (the kit's `.seg`), 30px options on a muted track, the chosen one
+   * raised; the legend is for screen readers only.
+   */
+  variant?: 'buttons' | 'track';
 };
 
 /**
- * A short single choice shown as a row of buttons, e.g. marital status. Built from native
- * radios in a fieldset, so arrow keys move between options and screen readers hear the legend
- * and the chosen option.
+ * A short single choice shown as a row of buttons, e.g. marital status, or as a compact track
+ * of options in a toolbar (`variant="track"`), e.g. an Any / Onboarded / Not onboarded filter.
+ * Built from native radios in a fieldset, so arrow keys move between options and screen readers
+ * hear the legend and the chosen option.
  */
 export function SegmentedChoice({
   legend,
@@ -38,6 +46,7 @@ export function SegmentedChoice({
   disabled,
   id,
   className,
+  variant = 'buttons',
   ...props
 }: SegmentedChoiceProps) {
   const generatedId = useId();
@@ -45,6 +54,48 @@ export function SegmentedChoice({
   const groupName = name ?? groupId;
   const hintId = hint ? `${groupId}-hint` : undefined;
   const errorId = error ? `${groupId}-error` : undefined;
+
+  const radio = (option: SegmentedChoiceOption) => (
+    <input
+      type="radio"
+      name={groupName}
+      value={option.value}
+      checked={value === option.value}
+      aria-invalid={error ? true : undefined}
+      onChange={() => {
+        onValueChange(option.value);
+      }}
+      className="pointer-events-none absolute opacity-0"
+    />
+  );
+
+  if (variant === 'track') {
+    return (
+      <fieldset
+        id={groupId}
+        disabled={disabled}
+        aria-describedby={joinIds(hintId, errorId)}
+        className={cn('flex shrink-0 gap-0.5 rounded-lg bg-muted p-0.75', className)}
+        {...props}
+      >
+        <legend className="sr-only">{legend}</legend>
+        {options.map((option) => (
+          <label
+            key={option.value}
+            className={cn(
+              'relative flex h-7.5 cursor-pointer items-center rounded-md px-3 text-[13.5px] font-medium whitespace-nowrap text-secondary-foreground select-none',
+              'has-checked:bg-card has-checked:text-foreground has-checked:shadow-card',
+              'has-disabled:cursor-default has-disabled:opacity-50',
+              focusRingWithin,
+            )}
+          >
+            {radio(option)}
+            {option.label}
+          </label>
+        ))}
+      </fieldset>
+    );
+  }
 
   return (
     <fieldset
@@ -63,19 +114,12 @@ export function SegmentedChoice({
           <label
             key={option.value}
             data-invalid={error ? true : undefined}
-            className="relative inline-flex h-10 cursor-pointer items-center rounded-lg bg-control px-3.5 text-sm font-medium shadow-control select-none hover:shadow-control-hover has-checked:bg-primary has-checked:text-primary-foreground has-checked:shadow-none has-focus-visible:outline-2 has-focus-visible:outline-offset-2 has-focus-visible:outline-ring has-disabled:cursor-not-allowed has-disabled:opacity-50 data-invalid:shadow-control-error"
+            className={cn(
+              'relative inline-flex h-10 cursor-pointer items-center rounded-lg bg-control px-3.5 text-sm font-medium shadow-control select-none hover:shadow-control-hover has-checked:bg-primary has-checked:text-primary-foreground has-checked:shadow-none has-disabled:cursor-not-allowed has-disabled:opacity-50 data-invalid:shadow-control-error',
+              focusRingWithin,
+            )}
           >
-            <input
-              type="radio"
-              name={groupName}
-              value={option.value}
-              checked={value === option.value}
-              aria-invalid={error ? true : undefined}
-              onChange={() => {
-                onValueChange(option.value);
-              }}
-              className="pointer-events-none absolute opacity-0"
-            />
+            {radio(option)}
             {option.label}
           </label>
         ))}

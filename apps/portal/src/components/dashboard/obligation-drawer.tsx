@@ -15,6 +15,7 @@ import {
   obligationCycleLabel,
   obligationTypeLabel,
   ReminderHistory,
+  StatementDateTerm,
   type ReminderHistoryError,
   useObligationDetail,
 } from '@adili/ui';
@@ -30,7 +31,6 @@ import {
   ObligationStatus,
   SessionEnded,
   StartDeclarationButton,
-  StatementDateTerm,
 } from './obligation-parts';
 
 const unavailable: ObligationDetailResult = { status: 'unavailable' };
@@ -87,7 +87,11 @@ export function ObligationDrawer({
             <Fact term={m.cycle}>
               {obligationCycleLabel(obligation.type, obligation.statementDate)}
             </Fact>
-            <Fact term={<StatementDateTerm />}>
+            <Fact
+              term={
+                <StatementDateTerm hint={m.statementDateTip}>{m.statementDate}</StatementDateTerm>
+              }
+            >
               {formatDate(obligation.statementDate)}
               <span className="mt-0.5 block text-[13px] font-normal text-muted-foreground">
                 {m.statementDateTip}

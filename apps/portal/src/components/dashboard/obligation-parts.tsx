@@ -5,18 +5,14 @@ import {
   Badge,
   Button,
   cn,
-  DateText,
   focusRing,
+  hasCountdown,
   Icon,
+  ObligationCountdown,
   ObligationStatusBadge,
   Tooltip,
 } from '@adili/ui';
-import {
-  AlertCircleIcon,
-  ArrowRight01Icon,
-  InformationCircleIcon,
-  Login03Icon,
-} from '@hugeicons/core-free-icons';
+import { AlertCircleIcon, ArrowRight01Icon, Login03Icon } from '@hugeicons/core-free-icons';
 import { Link, useNavigate } from '@tanstack/react-router';
 import { useId, useState } from 'react';
 
@@ -48,20 +44,16 @@ export function ObligationStatus({
   return (
     <>
       <ObligationStatusBadge status={status} />
-      {status === 'filed' ? null : (
+      {hasCountdown(status) ? (
         <Badge
           className={cn(
             onTint && 'bg-card/80 shadow-card',
             onTint && status === 'due' && 'text-brand-subtle-foreground',
           )}
         >
-          {status === 'upcoming' ? (
-            <DateText date={obligation.statementDate} kind="opens" now={now} />
-          ) : (
-            <DateText date={obligation.dueDate} now={now} />
-          )}
+          <ObligationCountdown obligation={obligation} now={now} />
         </Badge>
-      )}
+      ) : null}
     </>
   );
 }
@@ -99,24 +91,6 @@ export function OverdueNote({ className }: { className?: string }) {
         <strong className="font-semibold text-destructive">{m.overdueLead}</strong> {m.overdueText}
       </span>
     </p>
-  );
-}
-
-/** "Statement date" with its meaning in a tooltip, reachable by keyboard. */
-export function StatementDateTerm() {
-  return (
-    <Tooltip content={m.statementDateTip} side="bottom">
-      <span
-        tabIndex={0}
-        className={cn(
-          'inline-flex cursor-help items-center gap-1 rounded-sm underline decoration-current/40 decoration-dotted underline-offset-[3px]',
-          focusRing,
-        )}
-      >
-        {m.statementDate}
-        <Icon icon={InformationCircleIcon} className="size-[13px]" aria-hidden="true" />
-      </span>
-    </Tooltip>
   );
 }
 

@@ -12,6 +12,7 @@ import {
   obligationTypeLabel,
   remindersSentLabel,
   Skeleton,
+  StatementDateTerm,
 } from '@adili/ui';
 import { AlertCircleIcon, Calendar03Icon, RefreshIcon } from '@hugeicons/core-free-icons';
 import { type MouseEvent, type ReactNode, Suspense, use, useId, useState } from 'react';
@@ -27,7 +28,6 @@ import {
   OverdueNote,
   SessionEnded,
   StartDeclarationButton,
-  StatementDateTerm,
 } from './obligation-parts';
 import { dashboardGroups, type StartAvailability, startAvailability } from './obligations';
 
@@ -249,7 +249,12 @@ function ObligationCard({
           {title}
         </Heading>
         <dl className="relative mt-4.5 mb-5 grid grid-cols-2 gap-x-5 gap-y-3 sm:grid-cols-[repeat(3,auto)] sm:justify-start sm:gap-x-10">
-          <CardFact pressing={pressing} term={<StatementDateTerm />}>
+          <CardFact
+            pressing={pressing}
+            term={
+              <StatementDateTerm hint={m.statementDateTip}>{m.statementDate}</StatementDateTerm>
+            }
+          >
             {formatDate(obligation.statementDate)}
           </CardFact>
           <CardFact pressing={pressing} term={m.due}>
