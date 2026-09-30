@@ -32,12 +32,12 @@ const HEARTBEAT_EVERY_MS = 15_000;
 /**
  * What `CycleOpeningWorkflow` does for a Commission (the activities delegate here): find the cycles
  * the calendar has opened by today that were not opened for it yet, create each cycle's biennial
- * obligations for its active declarants page by page, and record the cycle opened. Each step is safe
- * to repeat: the engine creates only what is missing, and a cycle is recorded (and announced)
- * once.
+ * obligations for its active declarants page by page, and record the cycle opened. Each step is
+ * safe to repeat: the engine creates only what is missing, and a cycle is recorded (and
+ * announced) once.
  *
- * Declarants ingested after the opening date get the biennial on ingest (the engine's horizon is the
- * calendar, not this record), so the opening only has to reach the declarants ingested before it.
+ * Declarants ingested after the opening date get the biennial on ingest (the engine's horizon is
+ * the calendar, not this record), so the opening only has to reach those ingested before it.
  */
 @Injectable()
 export class CycleOpening {

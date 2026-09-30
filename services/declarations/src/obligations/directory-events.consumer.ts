@@ -25,8 +25,8 @@ const commissionCreatedData = z.object({ commissionId: z.uuid(), slug: z.string(
 /**
  * The directory's events the obligations follow (spec 04): the roster events that change who owes
  * what, policy changes, and new Commissions. Events carry ids only; records, policies and
- * Commission names are pulled (`RosterIngest`, `CommissionRefs`). Each consumer handles an event once (inbox); a handler that throws is retried
- * once, then dead-lettered.
+ * Commission names are pulled (`RosterIngest`, `CommissionRefs`). Each consumer handles an event
+ * once (inbox); a handler that throws is retried once, then dead-lettered.
  */
 @Controller()
 export class DirectoryEventsConsumer {
