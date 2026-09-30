@@ -60,7 +60,7 @@ export class CycleOpening {
   async cyclesToOpen(tenant: string): Promise<number[]> {
     const cached = await this.cachedPolicy(tenant);
     if (!cached) return [];
-    const rules = (await this.refreshPolicy(tenant)) ?? cached.rules;
+    const rules = await this.refreshPolicy(tenant, cached.rules);
     const [calendar, opened] = await Promise.all([
       loadCalendar(this.db),
       withTenant(this.db, systemContext(tenant), (tx) =>
@@ -175,17 +175,23 @@ export class CycleOpening {
     return row;
   }
 
-  /** Pulls the policy in force into the cache; null when the directory could not be reached. */
-  private async refreshPolicy(tenant: string): Promise<ObligationPolicy | null> {
+  /**
+   * Pulls the policy in force into the cache and returns the cached one: the version pulled, or a
+   * newer one a racing pull cached first. `cached` (read before) serves while the directory is
+   * unreachable.
+   */
+  private async refreshPolicy(tenant: string, cached: ObligationPolicy): Promise<ObligationPolicy> {
     let pulled;
     try {
       pulled = await this.directory.getPolicy(tenant);
     } catch (error) {
       this.logger.warn({ err: error, tenant }, 'Policy not pulled; opening with the cached one');
-      return null;
+      return cached;
     }
-    return withTenant(this.db, systemContext(tenant), (tx) =>
+    const kept = await withTenant(this.db, systemContext(tenant), (tx) =>
       cachePolicy(tx, tenant, pulled, this.clock.now()),
     );
+    // Null: the cache already held a newer version than the one pulled.
+    return kept ?? (await this.cachedPolicy(tenant))?.rules ?? cached;
   }
 }

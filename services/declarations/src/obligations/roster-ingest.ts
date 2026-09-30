@@ -214,7 +214,7 @@ async function refreshReferenceData(
 
 /**
  * Caches the tenant's policy in force as pulled. A pull that raced a policy change never puts an
- * older version back.
+ * older version back: then nothing is written and the result is null, else the rules cached.
  */
 export async function cachePolicy(
   tx: Transaction,
