@@ -11,6 +11,7 @@ import {
   DialogTitle,
   DialogTrigger,
   Icon,
+  IconTile,
   Spinner,
 } from '@adili/ui';
 import { AlertCircleIcon, PencilEdit02Icon, RefreshIcon } from '@hugeicons/core-free-icons';
@@ -97,9 +98,9 @@ export function AmendButton({ declarationId, version, dueDate, srContext }: Amen
       </DialogTrigger>
       <DialogContent busy={busy}>
         <DialogHeader className="flex-row items-center gap-3">
-          <span className="flex size-[34px] shrink-0 items-center justify-center rounded-[10px] bg-muted text-secondary-foreground">
-            <Icon icon={PencilEdit02Icon} className="size-[18px]" />
-          </span>
+          <IconTile>
+            <Icon icon={PencilEdit02Icon} />
+          </IconTile>
           <DialogTitle>{COPY.amendTitle(version)}</DialogTitle>
         </DialogHeader>
         <DialogBody className="gap-3">

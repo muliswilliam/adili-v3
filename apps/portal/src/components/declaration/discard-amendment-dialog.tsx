@@ -12,6 +12,7 @@ import {
   DialogTitle,
   DialogTrigger,
   Icon,
+  IconTile,
 } from '@adili/ui';
 import { AlertCircleIcon, Delete02Icon, Undo02Icon } from '@hugeicons/core-free-icons';
 import { useState } from 'react';
@@ -102,9 +103,9 @@ export function DiscardAmendmentButton({
       </DialogTrigger>
       <DialogContent busy={busy}>
         <DialogHeader className="flex-row items-center gap-3">
-          <span className="flex size-[34px] shrink-0 items-center justify-center rounded-[10px] bg-muted text-secondary-foreground">
-            <Icon icon={Undo02Icon} className="size-[18px]" />
-          </span>
+          <IconTile>
+            <Icon icon={Undo02Icon} />
+          </IconTile>
           <DialogTitle>{copy.title}</DialogTitle>
         </DialogHeader>
         <DialogBody>
