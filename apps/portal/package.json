@@ -16,6 +16,7 @@
   "dependencies": {
     "@adili/api-kit": "workspace:*",
     "@adili/bff-auth": "workspace:*",
+    "@adili/numbering": "workspace:*",
     "@adili/ui": "workspace:*",
     "@hugeicons/core-free-icons": "^4.3.5",
     "@tanstack/react-router": "^1.170.39",

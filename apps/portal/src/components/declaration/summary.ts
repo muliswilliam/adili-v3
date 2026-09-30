@@ -1,4 +1,4 @@
-import { formatDate, formatMoney } from '@adili/ui';
+import { formatDate, formatMoney, plural } from '@adili/ui';
 
 import type { JsonObject, LoadedSummary } from '../../server/declarations.server';
 import type {
@@ -26,24 +26,33 @@ import { type SectionKind, sectionKind } from '../../declaration/section-key';
 import { liveSections, stepTitle } from './steps';
 
 /**
- * The summary's rules and words (FE-8): what the disabled Submit says (S20), the blocking
+ * The summary's rules and words (FE-8): what the note beside Submit says (S20), the blocking
  * issues panel, and the paragraph cards read from the summary's assembled document. Works on
  * draft contents, so anything may be missing.
  */
 
 export const SUBMIT_NEXT_RELEASE = 'Submission opens in the next release.';
+export const SUBMIT_READY =
+  'You will confirm your identity with a one-time code before submitting.';
 export const NOT_ANSWERED = 'Not answered yet.';
 export const BLOCKING_LIMIT = 12;
 
 /**
- * S20: submission is never open in spec 05. Before the statement date the declarant is told
- * when it will be ("Available from 1 Nov 2027"); otherwise that it opens in the next release.
+ * What the note beside Submit says (spec 05 S20, spec 06 FE-2): that a one-time code comes
+ * first when the declaration can be submitted; otherwise why not, in order: what is left to
+ * complete, the statement date that has not come ("Available from 1 Nov 2027"), or that the
+ * service has not opened submission.
  */
 export function submitNote(
-  summary: Pick<LoadedSummary, 'cannotSubmitReason'> & {
+  summary: Pick<LoadedSummary, 'canSubmit' | 'cannotSubmitReason'> & {
+    blocking: readonly unknown[];
     declaration: { statementDate: string };
   },
 ): string {
+  if (summary.canSubmit) return SUBMIT_READY;
+  if (summary.blocking.length > 0) {
+    return `Complete the ${plural(summary.blocking.length, 'item')} listed above to submit.`;
+  }
   if (summary.cannotSubmitReason === 'before-statement-date') {
     return `Available from ${formatDate(summary.declaration.statementDate)}`;
   }

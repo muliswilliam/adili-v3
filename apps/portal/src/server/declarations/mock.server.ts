@@ -30,11 +30,21 @@
  * Registry lookups, document extraction, suggestions, accept and dismiss (spec 05b) live in
  * `./mock/suggestions.ts`.
  *
- * Tests can make the next saves fail (`failNextSaves`), simulate an edit on another device
- * (`editElsewhere`), make registries answer at once (`setLookupDelay(0)`) or play a Commission
- * without AI (`setExtractionEnabled(false)`).
+ * Submission (spec 06) follows the service's preconditions in order: the declaration is a draft
+ * (409 `not-a-draft`), `Idempotency-Key` is present (400) and a replay answers the stored 201,
+ * the token has a step-up at most five minutes old (403 `step-up-required` with `stepUpUrl`,
+ * see `./mock/submission.ts`), nothing blocks (400 `incomplete` with the blocking issues), and
+ * the obligation is open: before its statement date 409 `before-statement-date`, cancelled 409
+ * `obligation-cancelled`, an amendment after the due date 409 `amendment-window-closed`. Then
+ * the declaration is `submitted` with a new version: the reference is allocated on version 1
+ * (`DCB-TSC-2027-0000001-B`), `late` when after the due date, the acknowledgement `pending`.
+ * Summaries say `canSubmit` once nothing blocks and the statement date has come.
+ *
+ * Tests can make the next saves fail (`failNextSaves`) or submits fail (`failNextSubmits`),
+ * simulate an edit on another device (`editElsewhere`), make registries answer at once
+ * (`setLookupDelay(0)`) or play a Commission without AI (`setExtractionEnabled(false)`).
  */
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 
 import type {
   AssetItem,
@@ -62,6 +72,14 @@ import { anyMockObligation, isObligationRead, obligationReads } from './mock/obl
 import { composeMaterialChanges, otherCompleteness } from './mock/other';
 import { nilConflictsWithItems, statementCompleteness } from './mock/statement';
 import {
+  allocateReference,
+  filingWindow,
+  hasStepUp,
+  type MockFiling,
+  pendingAcknowledgement,
+  resetSubmissionMock,
+} from './mock/submission';
+import {
   acceptSuggestion,
   dismissSuggestion,
   listSuggestions,
@@ -79,8 +97,10 @@ import type {
   DeclarationListItem,
   DeclarationSection,
   DeclarationSummary,
+  DeclarationVersion,
   Obligation,
   SectionSaveResult,
+  SubmissionResult,
 } from './types';
 
 const COMMISSIONS = {
@@ -203,23 +223,38 @@ interface Stored {
   archived: Set<string>;
   attachments: Map<string, DeclarationAttachment>;
   suggestions: SuggestionState;
+  /** The obligation's dates, kept from when the draft was started. */
+  filing: MockFiling;
+  /** Submitted versions, oldest first. */
+  versions: DeclarationVersion[];
 }
 
 export { setExtractionEnabled, setLookupDelay } from './mock/suggestions';
 
 const store = new Map<string, Stored>();
+/** Submissions by Idempotency-Key: the declaration they filed and the 201 to replay. */
+const submissions = new Map<string, { declarationId: string; result: SubmissionResult }>();
 let failingSaves = 0;
+let failingSubmits = 0;
 
 /** Clears every draft (tests). */
 export function resetDeclarationsMock() {
   store.clear();
+  submissions.clear();
   failingSaves = 0;
+  failingSubmits = 0;
   resetSuggestionsMock();
+  resetSubmissionMock();
 }
 
 /** The next `count` section saves answer 503 (tests). */
 export function failNextSaves(count: number) {
   failingSaves = count;
+}
+
+/** The next `count` submits answer 503 before doing anything (tests). */
+export function failNextSubmits(count: number) {
+  failingSubmits = count;
 }
 
 /** Bumps a draft's version as if another device saved it, so the next save gets 412 (tests). */
@@ -319,6 +354,12 @@ async function route(
       ? acceptSuggestion(request, stored, decide[2], (key) => commit(stored, key))
       : dismissSuggestion(request, stored, decide[2]);
   }
+
+  const submit = /^\/v1\/declarations\/([^/]+)\/submit$/.exec(path);
+  if (method === 'POST' && submit?.[1]) return submitDeclaration(request, submit[1]);
+
+  const versions = /^\/v1\/declarations\/([^/]+)\/versions$/.exec(path);
+  if (method === 'GET' && versions?.[1]) return listVersions(versions[1]);
 
   const summary = /^\/v1\/declarations\/([^/]+)\/summary$/.exec(path);
   if (method === 'GET' && summary?.[1]) return getSummary(summary[1]);
@@ -524,6 +565,13 @@ function startDeclaration(obligationId: string, obligation: Obligation | undefin
   if (obligation.status === 'filed' || obligation.status === 'cancelled') {
     return problem(409, `The obligation is ${obligation.status}`);
   }
+  // Filed here, though the obligation fixtures do not know it.
+  const filed = [...store.values()].some(
+    (stored) =>
+      stored.header.obligationId === obligationId &&
+      (stored.status === 'submitted' || stored.status === 'amending'),
+  );
+  if (filed) return problem(409, 'The obligation is filed');
   const existing = [...store.values()].find(
     (stored) => stored.header.obligationId === obligationId && stored.status === 'draft',
   );
@@ -578,6 +626,12 @@ function startDeclaration(obligationId: string, obligation: Obligation | undefin
     archived: new Set(),
     attachments: new Map(),
     suggestions: newSuggestionState(),
+    filing: {
+      statementDate: obligation.statementDate,
+      dueDate: obligation.dueDate,
+      cancelled: false,
+    },
+    versions: [],
   };
   store.set(header.id, stored);
   return json(201, view(stored), { ETag: etag(stored) });
@@ -814,10 +868,98 @@ function getSummary(id: string) {
     },
     valid: blocking.length === 0,
     blocking,
-    canSubmit: false,
+    canSubmit:
+      blocking.length === 0 &&
+      (stored.status === 'draft' || stored.status === 'amending') &&
+      filingWindow(stored.filing) !== 'upcoming' &&
+      filingWindow(stored.filing) !== 'cancelled',
+    // The contract has no value for "nothing stops you" or "incomplete" yet (#140).
     cannotSubmitReason:
       today() < stored.header.statementDate ? 'before-statement-date' : 'submission-not-available',
     attestationText: ATTESTATION_TEXT,
   };
   return json(200, summary);
+}
+
+function submitProblem(status: number, title: string, code: string, extra: object = {}) {
+  return json(status, { type: 'about:blank', title, status, code, ...extra });
+}
+
+/** `POST /v1/declarations/{id}/submit`, preconditions in the service's order. */
+function submitDeclaration(request: Request, id: string) {
+  const stored = store.get(id);
+  if (!stored || stored.status === 'discarded') return problem(404, 'Not found');
+  if (failingSubmits > 0) {
+    failingSubmits -= 1;
+    return problem(503, 'Service unavailable');
+  }
+  const key = request.headers.get('idempotency-key');
+  if (!key) return problem(400, 'Idempotency-Key is required');
+  const replay = submissions.get(key);
+  if (replay) {
+    return replay.declarationId === id
+      ? json(201, replay.result)
+      : problem(422, 'Idempotency-Key reused with a different request');
+  }
+  if (stored.status !== 'draft' && stored.status !== 'amending') {
+    return submitProblem(409, 'The declaration is not a draft', 'not-a-draft');
+  }
+  if (!hasStepUp(request)) {
+    const stepUpUrl = new URL(
+      `/auth/step-up?returnTo=${encodeURIComponent(`/declarations/${id}/summary`)}`,
+      'http://portal.invalid',
+    ).toString();
+    return submitProblem(403, 'Confirm your identity to submit', 'step-up-required', {
+      stepUpUrl,
+    });
+  }
+  const live = sectionKeys(stored).filter((section) => !stored.archived.has(section));
+  const blocking = live.flatMap((section) => issuesFor(stored, section));
+  if (blocking.length > 0) {
+    return submitProblem(400, 'The declaration is incomplete', 'incomplete', { blocking });
+  }
+  const window = filingWindow(stored.filing);
+  if (window === 'upcoming') {
+    return submitProblem(409, 'The statement date has not come', 'before-statement-date');
+  }
+  if (window === 'cancelled') {
+    return submitProblem(409, 'The obligation is cancelled', 'obligation-cancelled');
+  }
+  if (stored.status === 'amending' && window === 'overdue') {
+    return submitProblem(409, 'Amendments closed on the due date', 'amendment-window-closed');
+  }
+
+  const now = new Date().toISOString();
+  const previous = stored.versions.at(-1);
+  if (previous) previous.supersededAt = now;
+  const version: DeclarationVersion = {
+    version: stored.versions.length + 1,
+    reference:
+      previous?.reference ??
+      allocateReference(stored.header.type, stored.header.commission, stored.header.statementDate),
+    submittedAt: now,
+    late: window === 'overdue',
+    canonicalSha256: createHash('sha256')
+      .update(JSON.stringify([...stored.contents]))
+      .digest('hex'),
+    supersededAt: null,
+    acknowledgement: pendingAcknowledgement(),
+  };
+  stored.versions.push(version);
+  stored.status = 'submitted';
+  stored.updatedAt = now;
+  const result: SubmissionResult = {
+    declaration: view(stored),
+    version,
+    obligationStatus: 'filed',
+  };
+  submissions.set(key, { declarationId: id, result });
+  return json(201, result);
+}
+
+/** `GET /v1/declarations/{id}/versions`, newest first. */
+function listVersions(id: string) {
+  const stored = store.get(id);
+  if (!stored || stored.status === 'discarded') return problem(404, 'Not found');
+  return json(200, [...stored.versions].reverse());
 }

@@ -209,6 +209,9 @@ importers:
       '@adili/bff-auth':
         specifier: workspace:*
         version: link:../../packages/bff-auth
+      '@adili/numbering':
+        specifier: workspace:*
+        version: link:../../packages/numbering
       '@adili/ui':
         specifier: workspace:*
         version: link:../../packages/ui
