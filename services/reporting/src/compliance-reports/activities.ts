@@ -11,7 +11,7 @@ import type { ReportingSchema } from '../db/schema.js';
 import { DeclarationsClient } from '../declarations/declarations-client.js';
 import { DirectoryClient } from '../directory/directory-client.js';
 import { DocumentsClient } from '../documents/documents-client.js';
-import { dueDateOf } from '../financial-year.js';
+import { dueDateOf, fyLabel } from '../financial-year.js';
 import { NotificationsClient } from '../notifications/notifications-client.js';
 import { actionFacts, clarificationFacts, obligationFacts } from '../projections/schema.js';
 import { ReviewClient } from '../review/review-client.js';
@@ -256,7 +256,7 @@ export class ComplianceReportActivities {
       await this.notifications.send({
         to: email,
         template: 'form-m-draft-ready-email',
-        params: { financialYear: `${String(fy)}/${String(fy + 1)}`, dueDate: dueDateOf(fy) },
+        params: { financialYear: fyLabel(fy), dueDate: dueDateOf(fy) },
         tenant,
         idempotencyKey: uuidv5(`${reportId}:draft-ready:${subject}`, MESSAGE_KEY_NAMESPACE),
       });
@@ -281,7 +281,7 @@ export class ComplianceReportActivities {
         to: email,
         template: 'form-m-reminder-email',
         params: {
-          financialYear: `${String(fy)}/${String(fy + 1)}`,
+          financialYear: fyLabel(fy),
           dueDate: dueDateOf(fy),
           daysLeft: daysBefore,
         },
@@ -370,7 +370,7 @@ export class ComplianceReportActivities {
           submittedAt: submitted.submittedAt.toISOString(),
           commissionName: commission.name,
           issuerCode: commission.issuerCode,
-          financialYear: `${String(fy)}/${String(fy + 1)}`,
+          financialYear: fyLabel(fy),
           dueDate: dueDateOf(fy),
           late: submitted.late,
           source: report.source,
@@ -400,7 +400,7 @@ export class ComplianceReportActivities {
         to: email,
         template: 'form-m-receipt-email',
         params: {
-          financialYear: `${String(fy)}/${String(fy + 1)}`,
+          financialYear: fyLabel(fy),
           reference: submitted.reference,
           submittedOn: nairobiDate(submitted.submittedAt),
           late: submitted.late ? 'yes' : 'no',

@@ -7,7 +7,12 @@ import { formMTenant, requireSupervisor } from '../access.js';
 import { Clock, nairobiDate } from '../clock.js';
 import type { ReportingSchema } from '../db/schema.js';
 import { DirectoryClient } from '../directory/directory-client.js';
-import { FIRST_FINANCIAL_YEAR, financialYearAt, previewFromOf } from '../financial-year.js';
+import {
+  FIRST_FINANCIAL_YEAR,
+  financialYearAt,
+  fyLabel,
+  previewFromOf,
+} from '../financial-year.js';
 import { conflict, notFound } from '../problems.js';
 import { clarificationFacts, obligationFacts } from '../projections/schema.js';
 import { commissionOf } from './commission.js';
@@ -104,7 +109,7 @@ export class ComplianceReportsService {
     if (nairobiDate(now) < previewFromOf(fy)) {
       throw conflict(
         'preview-not-available',
-        `A preview of Form M for ${String(fy)}/${String(fy + 1)} can be compiled from ${previewFromOf(fy)}.`,
+        `A preview of Form M for ${fyLabel(fy)} can be compiled from ${previewFromOf(fy)}.`,
       );
     }
     await withTenant(this.db, { tenant, subject: principal.subject }, async (tx) => {

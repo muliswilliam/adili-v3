@@ -4,8 +4,10 @@ import {
   INTAKE_SECTIONS,
   type IntakeSection,
   type IntakeStatus,
+  intakeStatusOf,
   rateOf,
   type ReceiptFacts,
+  statusCounts,
 } from '../compliance-reports/intake.js';
 
 /**
@@ -101,7 +103,7 @@ export function buildAggregates(input: {
     if (!receipt) {
       byCommission[slug] = {
         name,
-        status: 'not-reported',
+        status: intakeStatusOf(undefined),
         reportId: null,
         reference: null,
         submittedAt: null,
@@ -123,7 +125,7 @@ export function buildAggregates(input: {
     totals.accessRequests.declined += access.declined;
     byCommission[slug] = {
       name,
-      status: receipt.late ? 'submitted-late' : 'submitted-on-time',
+      status: intakeStatusOf(receipt),
       reportId: receipt.reportId,
       reference: receipt.reference,
       submittedAt: receipt.submittedAt.toISOString(),
@@ -141,8 +143,7 @@ export function buildAggregates(input: {
   const all = emptySection();
   for (const section of INTAKE_SECTIONS) add(all, totals[section]);
   const rows = Object.values(byCommission);
-  const onTime = rows.filter((row) => row.status === 'submitted-on-time').length;
-  const late = rows.filter((row) => row.status === 'submitted-late').length;
+  const { onTime, late, notReported } = statusCounts(rows.map((row) => row.status));
   return {
     fy: input.fy,
     reporting: {
@@ -150,7 +151,7 @@ export function buildAggregates(input: {
       reported: onTime + late,
       onTime,
       late,
-      notReported: rows.length - onTime - late,
+      notReported,
       rate: rateOf(onTime + late, rows.length),
     },
     national: {

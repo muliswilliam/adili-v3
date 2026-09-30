@@ -18,6 +18,11 @@ export function financialYearAt(instant: Date): number {
   return financialYearOf(nairobiDate(instant));
 }
 
+/** How a financial year reads to people: `2027/2028`. */
+export function fyLabel(fy: number): string {
+  return `${String(fy)}/${String(fy + 1)}`;
+}
+
 /** The period Form M reports on: Part I `period`. */
 export function periodOf(fy: number): { from: string; to: string; financialYearStart: number } {
   return { from: `${String(fy)}-07-01`, to: `${String(fy + 1)}-06-30`, financialYearStart: fy };

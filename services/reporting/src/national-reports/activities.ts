@@ -7,6 +7,7 @@ import { EACC_TENANT } from '../access.js';
 import { ReportWorkflows } from '../compliance-reports/report-workflows.js';
 import type { ReportingSchema } from '../db/schema.js';
 import { DocumentsClient } from '../documents/documents-client.js';
+import { fyLabel } from '../financial-year.js';
 import { eaccContext } from '../system-context.js';
 import {
   type NationalReportApprovalInput,
@@ -82,7 +83,7 @@ export class NationalReportActivities {
       subjectPersonId: null,
       payload: {
         reference: report.reference,
-        financialYear: `${String(report.fy)}/${String(report.fy + 1)}`,
+        financialYear: fyLabel(report.fy),
         builtAt: aggregates.builtAt.toISOString(),
         reportsIncluded: aggregates.reportsIncluded,
         aggregates: aggregates.aggregates,

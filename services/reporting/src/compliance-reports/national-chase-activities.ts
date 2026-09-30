@@ -8,7 +8,7 @@ import { COMMISSION_ADMIN, REPORTING_OFFICER } from '../access.js';
 import { Clock } from '../clock.js';
 import type { ReportingSchema } from '../db/schema.js';
 import { DirectoryClient } from '../directory/directory-client.js';
-import { dueDateOf, financialYearAt } from '../financial-year.js';
+import { dueDateOf, financialYearAt, fyLabel } from '../financial-year.js';
 import { nationalReports } from '../national-reports/schema.js';
 import { NotificationsClient } from '../notifications/notifications-client.js';
 import { PLATFORM_TENANT, systemContext } from '../system-context.js';
@@ -99,7 +99,7 @@ export class NationalChaseActivities {
         to: email,
         template: 'form-m-chase-email',
         params: {
-          financialYear: `${String(fy)}/${String(fy + 1)}`,
+          financialYear: fyLabel(fy),
           dueDate: dueDateOf(fy),
           round,
         },

@@ -78,6 +78,26 @@ export interface IntakeFilters {
   outliersOnly?: boolean;
 }
 
+/** A Commission's status for the year from EACC's receipt of its report, if any. */
+export function intakeStatusOf(receipt: { late: boolean } | undefined): IntakeStatus {
+  if (!receipt) return 'not-reported';
+  return receipt.late ? 'submitted-late' : 'submitted-on-time';
+}
+
+/** How many of `statuses` are on time, late and not reported. */
+export function statusCounts(statuses: readonly IntakeStatus[]): {
+  onTime: number;
+  late: number;
+  notReported: number;
+} {
+  const count = (status: IntakeStatus) => statuses.filter((found) => found === status).length;
+  return {
+    onTime: count('submitted-on-time'),
+    late: count('submitted-late'),
+    notReported: count('not-reported'),
+  };
+}
+
 /** declared / expected to four decimals; null when nothing was expected. */
 export function rateOf(declared: number, expected: number): number | null {
   return expected > 0 ? Math.round((declared / expected) * 10_000) / 10_000 : null;
@@ -159,7 +179,7 @@ export function buildIntake(input: {
       const chase = chases.get(slug);
       return {
         commission: { slug, name },
-        status: receipt ? (receipt.late ? 'submitted-late' : 'submitted-on-time') : 'not-reported',
+        status: intakeStatusOf(receipt),
         reportId: receipt?.reportId ?? null,
         reference: receipt?.reference ?? null,
         submittedAt: receipt?.submittedAt.toISOString() ?? null,
@@ -185,9 +205,7 @@ export function buildIntake(input: {
   return {
     fy: input.fy,
     totals: {
-      onTime: items.filter((item) => item.status === 'submitted-on-time').length,
-      late: items.filter((item) => item.status === 'submitted-late').length,
-      notReported: items.filter((item) => item.status === 'not-reported').length,
+      ...statusCounts(items.map((item) => item.status)),
       nationalDeclaredRate: rateOf(declared, expected),
     },
     commissions: items.filter(
