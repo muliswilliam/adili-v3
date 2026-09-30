@@ -6,7 +6,7 @@ import {
   type ObligationReminderRecordedData,
 } from '@adili/events';
 
-import { biennialCycleKey } from './cycle-key.js';
+import { biennialCycleKey, type CycleKey } from './cycle-key.js';
 import type { CancelReason, ObligationStatus, ObligationType } from './engine.js';
 
 /**
@@ -21,7 +21,7 @@ export interface ObligationCreatedData extends Record<string, unknown> {
   obligationId: string;
   rosterRecordId: string;
   type: ObligationType;
-  cycleKey: string;
+  cycleKey: CycleKey;
   statementDate: string;
   dueDate: string;
 }

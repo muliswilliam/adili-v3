@@ -16,7 +16,10 @@ export const finalCycleKey = (exitDate: CivilDate): CycleKey => `final:${exitDat
 /** A biennial cycle key, `biennial:<year>`. */
 export const BIENNIAL_CYCLE_KEY = /^biennial:(\d{4})$/;
 
-/** The year of a biennial cycle key; null for any other key. */
+/**
+ * The year of a biennial cycle key; null for any other string. Takes any string: it parses keys
+ * from requests and stored rows, which are not typed `CycleKey`.
+ */
 export function biennialYear(key: string): number | null {
   const year = BIENNIAL_CYCLE_KEY.exec(key)?.[1];
   return year === undefined ? null : Number(year);
