@@ -16,7 +16,6 @@ import {
   obligationTypeLabel,
   QrCode,
   Spinner,
-  useToast,
 } from '@adili/ui';
 import {
   AlertCircleIcon,
@@ -33,11 +32,10 @@ import { Fragment, useEffect, useReducer, useRef, useState } from 'react';
 import type { Declaration, DeclarationVersion } from '../../server/declarations/types';
 import {
   getMyAcknowledgement,
-  getMySlipDownload,
   reissueMyAcknowledgement,
   type SlipContext,
 } from '../../server/submission';
-import { downloadFrom } from '../download';
+import { useSlipDownload } from '../slip-download';
 import {
   cooldownLeft,
   initialSlipState,
@@ -260,126 +258,116 @@ function IssuedSlip({
   const delivered = context.declarant
     ? sentTo(context.declarant.maskedEmail, context.declarant.maskedPhone)
     : [];
-  const { toast } = useToast();
-  const [downloading, setDownloading] = useState(false);
+  const slips = useSlipDownload();
+  const downloading = slips.pending !== null;
 
   async function download() {
     const { documentId } = acknowledgement;
     if (documentId === null) return;
-    setDownloading(true);
-    // The link comes from the documents service; the acknowledgement, read alongside, brings a
-    // fresh verified count.
-    const [link, answer] = await Promise.all([
-      getMySlipDownload({ data: { documentId } }).catch(() => null),
-      getMyAcknowledgement({
-        data: { declarationId: declaration.id, version: version.version },
-      }).catch(() => null),
-    ]);
-    setDownloading(false);
+    // The acknowledgement, read alongside the link, brings a fresh verified count.
+    const fresh = getMyAcknowledgement({
+      data: { declarationId: declaration.id, version: version.version },
+    }).catch(() => null);
+    await slips.download(documentId);
+    const answer = await fresh;
     if (answer?.status === 'ok' && answer.acknowledgement.status === 'issued') {
       onRead(answer.acknowledgement);
-    }
-    if (link?.status === 'ok') {
-      downloadFrom(link.downloadUrl);
-    } else {
-      toast({ title: SLIP_COPY.downloadFailed, urgency: 'assertive' });
     }
   }
 
   return (
-    <section
-      aria-labelledby="slip-heading"
-      className="overflow-hidden rounded-2xl bg-card text-card-foreground shadow-card"
-    >
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-dashed border-brand/30 bg-stripes-brand px-5 py-[18px]">
-        <LogoWordmark className="h-5" />
-        <h2 id="slip-heading" className="ml-1 text-sm font-semibold">
-          {SLIP_COPY.issued}
-        </h2>
-        <Badge variant="success" className="ml-auto">
-          <Icon icon={SecurityCheckIcon} />
-          {SLIP_COPY.signed}
-        </Badge>
-      </div>
-      <div className="grid gap-4 p-5 sm:grid-cols-[1fr_auto] sm:items-start sm:gap-6">
-        <DescriptionList className="min-w-0 [&>div:first-child]:pt-[11px] [&>div:last-child]:pb-[11px]">
-          <DescriptionItem term={SLIP_COPY.reference} className="items-center">
-            <span className="font-mono text-sm">{version.reference}</span>
-          </DescriptionItem>
-          {context.declarant ? (
-            <DescriptionItem term={SLIP_COPY.declarant}>
-              {context.declarant.fullName}
-            </DescriptionItem>
-          ) : null}
-          <DescriptionItem term={SLIP_COPY.commission}>
-            {declaration.commission.name}
-          </DescriptionItem>
-          <DescriptionItem term={SLIP_COPY.type}>
-            {obligationTypeLabel(declaration.type, declaration.statementDate)}
-          </DescriptionItem>
-          <DescriptionItem term={SLIP_COPY.statementDate}>
-            {formatDate(declaration.statementDate)}
-          </DescriptionItem>
-          <DescriptionItem term={SLIP_COPY.version}>{version.version}</DescriptionItem>
-          <DescriptionItem term={SLIP_COPY.submitted}>
-            {formatDateTime(version.submittedAt)}
-            {version.late ? ` · ${SLIP_COPY.late}` : ''}
-          </DescriptionItem>
-        </DescriptionList>
-        <div className="grid justify-items-center">
-          <QrCode value={link} label={SLIP_COPY.qrLabel(code)} size={124} />
-          <p className="mt-1 text-[11.5px] text-muted-foreground">{SLIP_COPY.scanHint}</p>
+    <Card asChild className="overflow-hidden p-0 sm:p-0">
+      <section aria-labelledby="slip-heading">
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-dashed border-brand/30 bg-stripes-brand px-5 py-[18px]">
+          <LogoWordmark className="h-5" />
+          <h2 id="slip-heading" className="ml-1 text-sm font-semibold">
+            {SLIP_COPY.issued}
+          </h2>
+          <Badge variant="success" className="ml-auto">
+            <Icon icon={SecurityCheckIcon} />
+            {SLIP_COPY.signed}
+          </Badge>
         </div>
-      </div>
-      <div className="grid gap-2.5 px-5 pb-4">
-        <div>
-          <p className="mb-1 text-sm font-medium text-muted-foreground">
-            {SLIP_COPY.verificationCode}
-          </p>
-          <div className="flex items-center gap-1.5 rounded-lg bg-muted py-2 pr-2 pl-3">
-            <span className="flex-1 font-mono text-sm font-semibold tracking-[0.03em] break-words">
-              {code}
-            </span>
-            <CopyButton
-              value={code}
-              label={SLIP_COPY.copyCode}
-              copiedMessage={SLIP_COPY.codeCopied}
-            />
+        <div className="grid gap-4 p-5 sm:grid-cols-[1fr_auto] sm:items-start sm:gap-6">
+          <DescriptionList className="min-w-0 [&>div:first-child]:pt-[11px] [&>div:last-child]:pb-[11px]">
+            <DescriptionItem term={SLIP_COPY.reference} className="items-center">
+              <span className="font-mono text-sm">{version.reference}</span>
+            </DescriptionItem>
+            {context.declarant ? (
+              <DescriptionItem term={SLIP_COPY.declarant}>
+                {context.declarant.fullName}
+              </DescriptionItem>
+            ) : null}
+            <DescriptionItem term={SLIP_COPY.commission}>
+              {declaration.commission.name}
+            </DescriptionItem>
+            <DescriptionItem term={SLIP_COPY.type}>
+              {obligationTypeLabel(declaration.type, declaration.statementDate)}
+            </DescriptionItem>
+            <DescriptionItem term={SLIP_COPY.statementDate}>
+              {formatDate(declaration.statementDate)}
+            </DescriptionItem>
+            <DescriptionItem term={SLIP_COPY.version}>{version.version}</DescriptionItem>
+            <DescriptionItem term={SLIP_COPY.submitted}>
+              {formatDateTime(version.submittedAt)}
+              {version.late ? ` · ${SLIP_COPY.late}` : ''}
+            </DescriptionItem>
+          </DescriptionList>
+          <div className="grid justify-items-center">
+            <QrCode value={link} label={SLIP_COPY.qrLabel(code)} size={124} />
+            <p className="mt-1 text-[11.5px] text-muted-foreground">{SLIP_COPY.scanHint}</p>
           </div>
         </div>
-        <div className="flex flex-wrap gap-x-4 gap-y-1.5 text-sm text-muted-foreground">
-          {delivered.length > 0 ? (
-            <span className="inline-flex items-center gap-1.5">
-              <Icon icon={SentIcon} className="size-3.5" />
-              <span>
-                {SLIP_COPY.sentTo}
-                {delivered.map((contact, index) => (
-                  <Fragment key={contact.kind}>
-                    {index > 0 ? ` ${SLIP_COPY.and}` : null}{' '}
-                    <MaskedContact kind={contact.kind} value={contact.value} />
-                  </Fragment>
-                ))}
+        <div className="grid gap-2.5 px-5 pb-4">
+          <div>
+            <p className="mb-1 text-sm font-medium text-muted-foreground">
+              {SLIP_COPY.verificationCode}
+            </p>
+            <div className="flex items-center gap-1.5 rounded-lg bg-muted py-2 pr-2 pl-3">
+              <span className="flex-1 font-mono text-sm font-semibold tracking-[0.03em] break-words">
+                {code}
               </span>
+              <CopyButton
+                value={code}
+                label={SLIP_COPY.copyCode}
+                copiedMessage={SLIP_COPY.codeCopied}
+              />
+            </div>
+          </div>
+          <div className="flex flex-wrap gap-x-4 gap-y-1.5 text-sm text-muted-foreground">
+            {delivered.length > 0 ? (
+              <span className="inline-flex items-center gap-1.5">
+                <Icon icon={SentIcon} className="size-3.5" />
+                <span>
+                  {SLIP_COPY.sentTo}
+                  {delivered.map((contact, index) => (
+                    <Fragment key={contact.kind}>
+                      {index > 0 ? ` ${SLIP_COPY.and}` : null}{' '}
+                      <MaskedContact kind={contact.kind} value={contact.value} />
+                    </Fragment>
+                  ))}
+                </span>
+              </span>
+            ) : null}
+            <span className="inline-flex items-center gap-1.5">
+              <Icon icon={ViewIcon} className="size-3.5" />
+              {SLIP_COPY.verified(acknowledgement.verifiedCount)}
             </span>
-          ) : null}
-          <span className="inline-flex items-center gap-1.5">
-            <Icon icon={ViewIcon} className="size-3.5" />
-            {SLIP_COPY.verified(acknowledgement.verifiedCount)}
-          </span>
+          </div>
         </div>
-      </div>
-      <div className="flex flex-wrap items-center gap-3 border-t px-5 py-3.5 sm:px-6">
-        <Button size="sm" disabled={downloading} onClick={() => void download()}>
-          {downloading ? <Spinner /> : <Icon icon={Download01Icon} />}
-          {SLIP_COPY.download}
-        </Button>
-        <Button asChild variant="ghost" size="sm">
-          <a href={link} target="_blank" rel="noopener noreferrer">
-            <Icon icon={LinkSquare02Icon} />
-            {SLIP_COPY.verifyOnline}
-          </a>
-        </Button>
-      </div>
-    </section>
+        <div className="flex flex-wrap items-center gap-3 border-t px-5 py-3.5 sm:px-6">
+          <Button size="sm" disabled={downloading} onClick={() => void download()}>
+            {downloading ? <Spinner /> : <Icon icon={Download01Icon} />}
+            {SLIP_COPY.download}
+          </Button>
+          <Button asChild variant="ghost" size="sm">
+            <a href={link} target="_blank" rel="noopener noreferrer">
+              <Icon icon={LinkSquare02Icon} />
+              {SLIP_COPY.verifyOnline}
+            </a>
+          </Button>
+        </div>
+      </section>
+    </Card>
   );
 }

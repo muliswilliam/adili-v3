@@ -24,7 +24,6 @@ export const MY_DECLARATIONS_COPY = {
   slipOf: (version: number) => `Download the slip of version ${String(version)}`,
   slipPreparing: 'Slip being prepared',
   slipFailed: 'Get your slip',
-  slipDownloadFailed: 'We could not download your slip. Try again.',
   amend: 'Amend',
   amendmentsClosed: (dueDate: string) => `Amendments closed ${formatDate(dueDate)}`,
   versions: (count: number) => plural(count, 'version'),

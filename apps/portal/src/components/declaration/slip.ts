@@ -171,7 +171,6 @@ export const SLIP_COPY = {
   and: 'and',
   verified: (count: number) => `Verified ${plural(count, 'time')}`,
   download: 'Download slip',
-  downloadFailed: 'We could not download your slip. Try again.',
   verifyOnline: 'Verify online',
 } as const;
 

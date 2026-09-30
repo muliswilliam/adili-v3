@@ -3,6 +3,7 @@ import {
   AlertDescription,
   Badge,
   Button,
+  Card,
   Icon,
   IconTile,
   LateBadge,
@@ -33,15 +34,14 @@ import { amendAvailability } from '../../declaration/my-declarations';
 import type { DeclarationListItem, DeclarationVersion } from '../../server/declarations/types';
 import { getMyDeclarationVersions } from '../../server/my-declarations';
 import type { FiledDeclaration } from '../../server/my-declarations.server';
-import { getMySlipDownload } from '../../server/submission';
 import { DISCARDED_TOAST, DiscardDraftButton } from '../declaration/discard-dialog';
 import {
   DISCARD_AMENDMENT_COPY,
   DiscardAmendmentButton,
 } from '../declaration/discard-amendment-dialog';
 import { referenceParts } from '../../declaration/reference-parts';
-import { downloadFrom } from '../download';
 import { signInAgain } from '../sign-in';
+import { type SlipDownload, useSlipDownload } from '../slip-download';
 import { AmendButton } from './amend-dialog';
 import { MY_DECLARATIONS_COPY as COPY } from './copy';
 
@@ -63,22 +63,24 @@ function RowFrame({
   after?: ReactNode;
 }) {
   return (
-    <li className="rounded-2xl bg-card text-card-foreground shadow-card">
-      <article aria-label={title}>
-        <div className="flex flex-wrap items-start gap-3.5 px-5 py-[18px]">
-          {mark}
-          <div className="min-w-[240px] flex-1">
-            <h2 className="text-base font-semibold tracking-[-0.01em]">{title}</h2>
-            {children}
+    <Card asChild className="p-0 sm:p-0">
+      <li>
+        <article aria-label={title}>
+          <div className="flex flex-wrap items-start gap-3.5 px-5 py-[18px]">
+            {mark}
+            <div className="min-w-[240px] flex-1">
+              <h2 className="text-base font-semibold tracking-[-0.01em]">{title}</h2>
+              {children}
+            </div>
+            {badge}
           </div>
-          {badge}
-        </div>
-        <div className="flex flex-wrap items-center gap-2 border-t border-border px-5 py-3">
-          {bar}
-        </div>
-        {after}
-      </article>
-    </li>
+          <div className="flex flex-wrap items-center gap-2 border-t border-border px-5 py-3">
+            {bar}
+          </div>
+          {after}
+        </article>
+      </li>
+    </Card>
   );
 }
 
@@ -153,21 +155,6 @@ export function DraftRow({ declaration }: { declaration: DeclarationListItem }) 
   );
 }
 
-/** Downloads an issued slip through a short-lived link from the documents service. */
-function useSlipDownload() {
-  const { toast } = useToast();
-  const [pending, setPending] = useState<string | null>(null);
-  async function download(documentId: string) {
-    setPending(documentId);
-    const link = await getMySlipDownload({ data: { documentId } }).catch(() => null);
-    setPending(null);
-    if (link?.status === 'ok') downloadFrom(link.downloadUrl);
-    else toast({ title: COPY.slipDownloadFailed, urgency: 'assertive' });
-  }
-  return { pending, download };
-}
-
-type SlipDownload = ReturnType<typeof useSlipDownload>;
 type SlipAcknowledgement = Pick<Acknowledgement, 'status' | 'documentId'>;
 
 function SlipButton({
