@@ -82,13 +82,6 @@ export interface CycleCalendarEntry {
 }
 export type CycleCalendar = readonly CycleCalendarEntry[];
 
-/** The seeded calendar: cycles every two years from 2027, each opening 120 days ahead. */
-export const DEFAULT_CYCLE_CALENDAR: CycleCalendar = [
-  { cycleYear: 2027, openingLeadDays: 120 },
-  { cycleYear: 2029, openingLeadDays: 120 },
-  { cycleYear: 2031, openingLeadDays: 120 },
-];
-
 /** An obligation as stored, with what reconciliation reads. */
 export interface ExistingObligation {
   id: string;

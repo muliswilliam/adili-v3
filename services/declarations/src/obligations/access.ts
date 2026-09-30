@@ -1,11 +1,5 @@
-import { notFoundIfInvisible, type Principal } from '@adili/api-kit';
+import { notFoundIfInvisible, PLATFORM_TENANT, type Principal, TENANT_KEY } from '@adili/api-kit';
 import { COMMISSION_STAFF_ROLES, EACC_ROLES, PLATFORM_ADMIN } from '@adili/roles';
-
-/** `app.tenant` of reads across every Commission. */
-export const PLATFORM_TENANT = 'platform';
-
-/** A tenant key (Commission slug), as the directory issues them. */
-export const TENANT_SLUG = /^[a-z][a-z0-9]{1,19}$/;
 
 /** A Commission's issuer code until the directory has named it: its slug in capitals. */
 export function fallbackIssuerCode(slug: string): string {
@@ -37,6 +31,6 @@ export function commissionReadTenant(
   slug: string,
   options: { counts?: boolean } = {},
 ): string {
-  const tenant = TENANT_SLUG.test(slug) ? staffTenant(principal, options) : null;
+  const tenant = TENANT_KEY.test(slug) ? staffTenant(principal, options) : null;
   return notFoundIfInvisible(tenant === PLATFORM_TENANT || tenant === slug ? tenant : null);
 }

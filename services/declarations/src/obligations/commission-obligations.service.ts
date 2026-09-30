@@ -1,5 +1,10 @@
 import { HttpStatus, Injectable } from '@nestjs/common';
-import { notFoundIfInvisible, type Principal, ProblemException } from '@adili/api-kit';
+import {
+  notFoundIfInvisible,
+  PLATFORM_TENANT,
+  type Principal,
+  ProblemException,
+} from '@adili/api-kit';
 import { type Database, InjectDatabase, withTenant } from '@adili/data-access';
 import {
   and,
@@ -20,7 +25,7 @@ import {
 import { Clock } from '../clock.js';
 import type { DeclarationsSchema } from '../db/schema.js';
 import { loadCalendar, type Transaction } from './apply-page.js';
-import { commissionReadTenant, fallbackIssuerCode, PLATFORM_TENANT } from './access.js';
+import { commissionReadTenant, fallbackIssuerCode } from './access.js';
 import {
   decodeListCursor,
   encodeListCursor,

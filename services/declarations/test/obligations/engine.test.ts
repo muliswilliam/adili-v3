@@ -4,7 +4,6 @@ import type { CivilDate } from '../../src/obligations/dates.js';
 import {
   type CycleCalendar,
   cycleOpeningDate,
-  DEFAULT_CYCLE_CALENDAR,
   type DesiredObligation,
   type ExistingObligation,
   type ObligationPolicy,
@@ -23,7 +22,12 @@ const policy: ObligationPolicy = {
   reminderOffsetsDays: [30, 14, 7],
 };
 
-const calendar: CycleCalendar = DEFAULT_CYCLE_CALENDAR;
+/** The seeded calendar (migration 0002): cycles every two years from 2027, each opening 120 days ahead. */
+const calendar: CycleCalendar = [
+  { cycleYear: 2027, openingLeadDays: 120 },
+  { cycleYear: 2029, openingLeadDays: 120 },
+  { cycleYear: 2031, openingLeadDays: 120 },
+];
 
 function record(overrides: Partial<RosterSnapshot> = {}): RosterSnapshot {
   return {

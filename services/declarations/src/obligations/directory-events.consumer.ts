@@ -1,9 +1,9 @@
 import { Controller } from '@nestjs/common';
 import { Payload } from '@nestjs/microservices';
+import { TENANT_KEY } from '@adili/api-kit';
 import { type EventEnvelope, OnEvent } from '@adili/events';
 import { z } from 'zod';
 
-import { TENANT_SLUG } from './access.js';
 import { CommissionRefs } from './commission-refs.js';
 import {
   COMMISSION_CREATED,
@@ -14,7 +14,7 @@ import {
 } from './events.js';
 import { type IngestedEvent, RosterIngest } from './roster-ingest.js';
 
-const tenantSchema = z.string().regex(TENANT_SLUG);
+const tenantSchema = z.string().regex(TENANT_KEY);
 
 const importCompletedData = z.object({ importId: z.uuid() });
 const exitsConfirmedData = z.object({ batchId: z.uuid() });

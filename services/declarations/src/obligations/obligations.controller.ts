@@ -10,12 +10,12 @@ import {
   type ReadAudit,
   Roles,
   schemaRef,
+  TENANT_KEY,
   ZodValidationPipe,
 } from '@adili/api-kit';
 
 import { COMMISSION_STAFF_ROLES, EACC_ROLES, PLATFORM_ADMIN } from '@adili/roles';
 
-import { TENANT_SLUG } from './access.js';
 import { CommissionObligationsService } from './commission-obligations.service.js';
 import {
   type ListCommissionObligationsQuery,
@@ -36,7 +36,7 @@ const NOT_VISIBLE = 'Not found, or not visible to the caller';
 
 /** The `slug` path parameter, as the contract's `Slug`. */
 const ApiSlugParam = () =>
-  ApiParam({ name: 'slug', schema: { type: 'string', pattern: TENANT_SLUG.source } });
+  ApiParam({ name: 'slug', schema: { type: 'string', pattern: TENANT_KEY.source } });
 
 @ApiTags('obligations')
 @Controller('v1')

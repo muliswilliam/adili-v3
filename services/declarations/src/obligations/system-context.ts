@@ -1,3 +1,4 @@
+import { PLATFORM_TENANT } from '@adili/api-kit';
 import type { TenantContext } from '@adili/data-access';
 
 /** `app.subject` of the service's own transactions (consumers, workflows, schedules). */
@@ -9,4 +10,4 @@ export function systemContext(tenant: string): TenantContext {
 }
 
 /** The RLS context of the service's own work across tenants (the sweep, start-up schedules). */
-export const PLATFORM_CONTEXT: TenantContext = { tenant: 'platform', subject: SYSTEM_SUBJECT };
+export const PLATFORM_CONTEXT: TenantContext = { tenant: PLATFORM_TENANT, subject: SYSTEM_SUBJECT };
