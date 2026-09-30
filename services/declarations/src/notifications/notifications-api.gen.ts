@@ -117,11 +117,6 @@ export interface components {
                 message: string;
             }[];
         };
-        /**
-         * @description Templates later specs register. Not accepted yet; each moves into `TemplateId` when implemented.
-         * @enum {string}
-         */
-        PlannedTemplateId: "clarification-issued-email" | "clarification-issued-sms" | "clarification-reminder-email" | "clarification-reminder-sms" | "decision-email" | "decision-sms" | "notice-email" | "notice-sms" | "salary-stopped-email" | "salary-stopped-sms" | "salary-reinstated-email" | "salary-reinstated-sms" | "form-m-draft-ready-email" | "form-m-reminder-email" | "form-m-chase-email" | "form-m-receipt-email" | "access-request-acknowledged-email" | "access-request-notified-email" | "access-request-notified-sms" | "access-decision-applicant-email" | "access-decision-declarant-email" | "access-package-ready-email" | "access-officer-reminder-email" | "lea-grant-notice-email" | "lea-decision-email" | "certified-copy-ready-email";
     };
     responses: never;
     parameters: never;

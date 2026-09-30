@@ -1549,7 +1549,6 @@ export interface components {
     parameters: {
         Slug: string;
         DeclarationId: string;
-        SectionKey: components["schemas"]["SectionKey"];
         VersionNumber: number;
         SuggestionId: string;
         ConversationId: string;
