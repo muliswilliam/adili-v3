@@ -3,7 +3,7 @@
  * draft store: the step-up check on the bearer token, the obligation's window, reference
  * allocation and the idempotent replay. `mock.server.ts` wires them to its drafts.
  */
-import { STEP_UP_ACR, STEP_UP_WINDOW_SECONDS } from '@adili/bff-auth';
+import { isFreshStepUp } from '@adili/api-kit/client';
 import { declarationSchemes, format } from '@adili/numbering/references';
 import { formatCalendarDate } from '@adili/ui';
 
@@ -12,15 +12,12 @@ import { bearerClaims } from './obligations';
 
 /**
  * Whether the bearer token carries a step-up (`acr`) with an `auth_time` at most five minutes
- * old, as the service checks it (S3). Unverified, like every claim the mock reads.
+ * old (and not ahead of the clock beyond its skew), as the service checks it (S3). Unverified,
+ * like every claim the mock reads.
  */
 export function hasStepUp(request: Request, now: number = Date.now()): boolean {
   const claims = bearerClaims(request);
-  return (
-    claims?.acr === STEP_UP_ACR &&
-    typeof claims.auth_time === 'number' &&
-    now / 1000 - claims.auth_time <= STEP_UP_WINDOW_SECONDS
-  );
+  return isFreshStepUp({ acr: claims?.acr, authTime: claims?.auth_time }, now);
 }
 
 /** The obligation a draft was started for, as the submit rules need it. */

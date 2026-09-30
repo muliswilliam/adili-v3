@@ -17,3 +17,23 @@ export const STEP_UP_ACR = 'step-up';
  * silently with the old `auth_time` still leaves time to affirm and submit.
  */
 export const STEP_UP_WINDOW_SECONDS = 300;
+
+/**
+ * How far ahead of the checking service's clock an `auth_time` may be and still count: the skew
+ * between Keycloak's clock and the service's. Further ahead, the token is not trusted as fresh.
+ */
+export const STEP_UP_CLOCK_SKEW_SECONDS = 60;
+
+/**
+ * Whether a token's `acr` and `auth_time` (seconds since the epoch) are a step-up still inside
+ * the window at `now`: `auth_time` at most {@link STEP_UP_WINDOW_SECONDS} old and at most
+ * {@link STEP_UP_CLOCK_SKEW_SECONDS} ahead.
+ */
+export function isFreshStepUp(
+  token: { acr: string | null | undefined; authTime: number | null | undefined },
+  now: Date | number,
+): boolean {
+  if (token.acr !== STEP_UP_ACR || typeof token.authTime !== 'number') return false;
+  const age = (typeof now === 'number' ? now : now.getTime()) / 1000 - token.authTime;
+  return age <= STEP_UP_WINDOW_SECONDS && age >= -STEP_UP_CLOCK_SKEW_SECONDS;
+}

@@ -470,6 +470,17 @@ describe('the step-up and the key (S3)', () => {
     expect((await submit(draft.id, steppedUp(ACHIENG, 300))).statusCode).toBe(201);
   });
 
+  it('refuses an auth_time further ahead of the clock than a minute of skew', async () => {
+    const draft = await completeDraft(ACHIENG);
+
+    const ahead = await submit(draft.id, steppedUp(ACHIENG, -61));
+
+    expect(ahead.statusCode).toBe(403);
+    expect(ahead.json()).toMatchObject({ code: 'step-up-required' });
+    // A minute ahead is clock skew, and counts as fresh.
+    expect((await submit(draft.id, steppedUp(ACHIENG, -60))).statusCode).toBe(201);
+  });
+
   it('refuses a submit without an Idempotency-Key (400) and changes nothing', async () => {
     const obligationId = await givenObligation(ACHIENG);
     const draft = await completeDraft(ACHIENG, obligationId);

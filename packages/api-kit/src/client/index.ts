@@ -5,4 +5,9 @@
 export { type RequestTimeout, type SendRequest, withDeadline } from './deadline.js';
 export { type MockableClientOptions, type MockFetch, mockableClient } from './mockable-client.js';
 export { clientIp } from './client-ip.js';
-export { STEP_UP_ACR, STEP_UP_WINDOW_SECONDS } from '../auth/step-up.js';
+export {
+  isFreshStepUp,
+  STEP_UP_ACR,
+  STEP_UP_CLOCK_SKEW_SECONDS,
+  STEP_UP_WINDOW_SECONDS,
+} from '../auth/step-up.js';

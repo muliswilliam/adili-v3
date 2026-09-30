@@ -3,10 +3,10 @@ import { createHash } from 'node:crypto';
 import { Injectable, Logger } from '@nestjs/common';
 import {
   canonicalJson,
+  isFreshStepUp,
   notFoundIfInvisible,
   type Principal,
   STEP_UP_ACR,
-  STEP_UP_WINDOW_SECONDS,
 } from '@adili/api-kit';
 import {
   type Database,
@@ -390,24 +390,25 @@ interface StepUp {
 }
 
 /**
- * The token's step-up, or 403 unless it was issued after a fresh one-time code (`acr` step-up) no
- * more than five minutes ago by the service's clock. An `auth_time` ahead of the clock (skew)
- * counts as fresh.
+ * The token's step-up, or 403 unless it was issued after a fresh one-time code (`acr` step-up)
+ * no more than five minutes ago by the service's clock. An `auth_time` ahead of the clock counts
+ * only within the clock skew allowed (a minute): further ahead, it is not trusted as fresh.
  */
 function requireFreshStepUp(principal: Principal, now: Date, declarationId: string): StepUp {
-  if (principal.acr !== STEP_UP_ACR || principal.authTime === null) {
+  const { acr, authTime } = principal;
+  if (acr !== STEP_UP_ACR || authTime === null) {
     throw stepUpRequired(
       stepUpUrl(declarationId),
       'Confirm your identity with a one-time code before submitting.',
     );
   }
-  if (now.getTime() / 1000 - principal.authTime > STEP_UP_WINDOW_SECONDS) {
+  if (!isFreshStepUp({ acr, authTime }, now)) {
     throw stepUpRequired(
       stepUpUrl(declarationId),
-      'The one-time code was confirmed more than five minutes ago; confirm your identity again.',
+      'The one-time code was not confirmed in the last five minutes; confirm your identity again.',
     );
   }
-  return { acr: principal.acr, authTime: principal.authTime };
+  return { acr, authTime };
 }
 
 /** The portal's step-up, returning to the declaration's summary (the BFF adds the outcome). */

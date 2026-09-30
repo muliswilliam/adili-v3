@@ -13,7 +13,12 @@ export { ActingTenant, InternalApi, PLATFORM_TENANT, TENANT_KEY } from './auth/a
 export { CurrentPrincipal } from './auth/current-principal.decorator.js';
 export { type AuthenticatedRequest, JwtAuthGuard } from './auth/jwt-auth.guard.js';
 export { callerOf, type Principal, principalSchema } from './auth/principal.js';
-export { STEP_UP_ACR, STEP_UP_WINDOW_SECONDS } from './auth/step-up.js';
+export {
+  isFreshStepUp,
+  STEP_UP_ACR,
+  STEP_UP_CLOCK_SKEW_SECONDS,
+  STEP_UP_WINDOW_SECONDS,
+} from './auth/step-up.js';
 export { Public } from './auth/public.decorator.js';
 export { notFoundIfInvisible, Roles, RolesGuard, Scopes } from './auth/roles.js';
 export {
