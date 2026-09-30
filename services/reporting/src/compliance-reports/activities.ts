@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { type Database, FieldCipher, InjectDatabase, withTenant } from '@adili/data-access';
 import { EventPublisher } from '@adili/events';
 import { formMIssues } from '@adili/forms';
-import { and, desc, eq, inArray, lt, ne, sql } from 'drizzle-orm';
+import { and, desc, eq, inArray, lt } from 'drizzle-orm';
 import { v5 as uuidv5 } from 'uuid';
 
 import { COMMISSION_ADMIN, SUPERVISOR } from '../access.js';
@@ -33,6 +33,7 @@ import {
   type ComplianceReportReminderSentData,
 } from './events.js';
 import { aggregateFacts, assemble, carriedContacts, manualEntriesOf } from './form-m.js';
+import { isSubmitted, notSubmitted, statusAfterCompile } from './report-status.js';
 import { ensureReport, findReport, type ReportRow } from './reports.js';
 import { complianceReports, reportReceipts, reportReminders, reportRemarks } from './schema.js';
 import { openSnapshot, sealSnapshot } from './snapshot.js';
@@ -123,7 +124,7 @@ export class ComplianceReportActivities {
     ];
     const read = await withTenant(this.db, systemContext(tenant), async (tx) => {
       const report = await ensureReport(tx, tenant, fy, compiledAt);
-      if (report.status === 'submitted') return { report, facts: null };
+      if (isSubmitted(report)) return { report, facts: null };
       const obligations =
         listed.length === 0
           ? []
@@ -222,9 +223,9 @@ export class ComplianceReportActivities {
           reviewedAt: null,
           // A recompile asked for while this one ran leaves the report compiling: the workflow
           // compiles again.
-          status: sql`case when ${complianceReports.compileRequestedAt} > ${compiledAt.toISOString()}::timestamptz then 'compiling' else 'draft' end`,
+          status: statusAfterCompile(compiledAt),
         })
-        .where(and(eq(complianceReports.id, report.id), ne(complianceReports.status, 'submitted')))
+        .where(and(eq(complianceReports.id, report.id), notSubmitted()))
         .returning({ status: complianceReports.status });
       if (!updated) return false;
       await this.events.record<ComplianceReportDraftedData>(tx, {
@@ -273,7 +274,7 @@ export class ComplianceReportActivities {
       findReport(tx, tenant, fy),
     );
     if (!report) return { outcome: 'sent', recipients: 0 };
-    if (report.status === 'submitted') return { outcome: 'submitted' };
+    if (isSubmitted(report)) return { outcome: 'submitted' };
     const staff = await reportOfficers(this.directory, tenant);
     for (const [subject, email] of staff) {
       await this.notifications.send({
@@ -327,7 +328,7 @@ export class ComplianceReportActivities {
     const report = await withTenant(this.db, systemContext(tenant), (tx) =>
       findReport(tx, tenant, fy),
     );
-    if (report?.status !== 'submitted') throw new ReportNotSubmitted(tenant, fy);
+    if (!report || !isSubmitted(report)) throw new ReportNotSubmitted(tenant, fy);
     const submitted = submittedFacts(report);
     const document = await openSnapshot(this.cipher, tenant, report);
     if (!document) throw new Error(`The submitted report ${report.id} has no document`);
@@ -391,7 +392,7 @@ export class ComplianceReportActivities {
     const report = await withTenant(this.db, systemContext(tenant), (tx) =>
       findReport(tx, tenant, fy),
     );
-    if (report?.status !== 'submitted') throw new ReportNotSubmitted(tenant, fy);
+    if (!report || !isSubmitted(report)) throw new ReportNotSubmitted(tenant, fy);
     const submitted = submittedFacts(report);
     const staff = await reportOfficers(this.directory, tenant);
     for (const [subject, email] of staff) {

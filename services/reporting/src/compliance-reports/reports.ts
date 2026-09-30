@@ -3,6 +3,7 @@ import { and, eq } from 'drizzle-orm';
 import { v7 as uuidv7 } from 'uuid';
 
 import type { ReportingSchema } from '../db/schema.js';
+import { compileRequested, isSubmitted } from './report-status.js';
 import { complianceReports } from './schema.js';
 
 export type ReportingTransaction = Parameters<
@@ -36,10 +37,10 @@ export async function markCompiling(
   at: Date,
 ): Promise<ReportRow | undefined> {
   const report = await ensureReport(tx, tenant, fy, at);
-  if (report.status === 'submitted') return undefined;
+  if (isSubmitted(report)) return undefined;
   const [marked] = await tx
     .update(complianceReports)
-    .set({ status: 'compiling', compileRequestedAt: at })
+    .set(compileRequested(at))
     .where(eq(complianceReports.id, report.id))
     .returning();
   return marked;
@@ -57,7 +58,7 @@ export async function ensureReport(
 ): Promise<ReportRow> {
   await tx
     .insert(complianceReports)
-    .values({ id: uuidv7(), tenant, fy, status: 'compiling', compileRequestedAt: at })
+    .values({ id: uuidv7(), tenant, fy, ...compileRequested(at) })
     .onConflictDoNothing();
   const found = await findReport(tx, tenant, fy);
   if (!found) throw new Error(`No report for ${tenant} ${String(fy)}`);

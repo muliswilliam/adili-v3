@@ -21,7 +21,6 @@ import { type CommissionFacts, DirectoryClient } from '../directory/directory-cl
 import { dueDateOf } from '../financial-year.js';
 import {
   badRequest,
-  conflict,
   forbidden,
   notFound,
   type ProblemError,
@@ -36,6 +35,13 @@ import {
 } from './events.js';
 import { federatedRuleProblems, reportCountsOf } from './federated-submission.js';
 import { ACTION_LABELS } from './form-m.js';
+import {
+  REVIEWED,
+  requireEditable,
+  requireNotSubmitted,
+  requireReviewed,
+  SUBMITTED,
+} from './report-status.js';
 import { ensureReport, type ReportingTransaction, type ReportRow } from './reports.js';
 import { ReportWorkflows } from './report-workflows.js';
 import { type ComplianceReportView, reportView } from './representation.js';
@@ -176,7 +182,7 @@ export class ReportSignOffService {
         data: { reportId: report.id, fy, status: 'reviewed', source: report.source },
       });
       return {
-        status: 'reviewed',
+        status: REVIEWED,
         reviewedBy: principal.subject,
         reviewedByName: principal.name,
         reviewedAt: now,
@@ -210,11 +216,7 @@ export class ReportSignOffService {
       { tenant, subject: principal.subject },
       async (tx) => {
         const report = await lockedReport(tx, tenant, fy);
-        if (report.status !== 'reviewed') {
-          throw badRequest('A supervisor marks the draft reviewed before it is confirmed.', {
-            code: 'not-reviewed',
-          });
-        }
+        requireReviewed(report);
         const document = await this.draftOf(tenant, report);
         document.partIII.confirmedBy = {
           name: principal.name,
@@ -291,7 +293,7 @@ export class ReportSignOffService {
           .where(eq(complianceReports.id, id))
           .for('update');
         if (!report) throw new Error(`Report ${id} vanished while it was submitted`);
-        if (report.status === 'submitted') throw reportSubmitted();
+        requireNotSubmitted(report);
         // The federated document supersedes a draft compiled here, remarks and review included.
         await tx.delete(reportRemarks).where(eq(reportRemarks.reportId, report.id));
         return this.submit(tx, report, document, {
@@ -347,7 +349,7 @@ export class ReportSignOffService {
       .update(complianceReports)
       .set({
         ...changes,
-        status: 'submitted',
+        status: SUBMITTED,
         source,
         reference,
         confirmedBy: signedBy.subject,
@@ -445,19 +447,8 @@ async function lockedReport(
     .where(and(eq(complianceReports.tenant, tenant), eq(complianceReports.fy, fy)))
     .for('update');
   if (!report) throw notFound();
-  if (report.status === 'submitted') throw reportSubmitted();
-  if (report.status === 'compiling') {
-    throw conflict(
-      'report-compiling',
-      'The report is being compiled. Try again once the draft is ready.',
-    );
-  }
+  requireEditable(report);
   return report;
-}
-
-/** 409 `report-submitted`: one report per Commission per year, frozen once submitted. */
-function reportSubmitted() {
-  return conflict('report-submitted', 'The report is submitted and can no longer change.');
 }
 
 /** 400 with the document's problems by field path (`errors`), under `code`. */
