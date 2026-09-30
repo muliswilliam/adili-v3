@@ -1,3 +1,4 @@
+import { VERIFICATION_ID_PATTERN } from '@adili/events/contracts';
 import { declarationSchemes, InvalidReferenceError, parse } from '@adili/numbering/references';
 import { z } from 'zod';
 
@@ -160,11 +161,13 @@ const acknowledgementParams = z
     commissionName: z.string().trim().min(1).max(120),
     /** Civil date `YYYY-MM-DD`, as the declarations service stores it. */
     statementDate: z.iso.date(),
-    /** Printed under the QR on the slip (ADR-010), e.g. `ADL-7Q4K-M2XR-9HTC-2B7F-Q3ZD-9K`. */
+    /** Printed under the QR on the slip (ADR-010), e.g. `ADL-7Q4K-M2XR-9HTC-2B7F-Q3ZD-8WNA-9K`. */
     verificationCode: z
       .string()
-      .max(40)
-      .regex(/^ADL(-[0-9A-Z]{1,8})+$/, 'must be a verification code such as ADL-7Q4K-M2XR'),
+      .regex(
+        VERIFICATION_ID_PATTERN,
+        'must be a verification code in its printed form, such as ADL-7Q4K-M2XR-9HTC-2B7F-Q3ZD-8WNA-9K',
+      ),
     /** Where the declarant signs in to download the slip; the email carries no attachment. */
     portalUrl: z.url({ protocol: /^https?$/ }).max(200),
   })
