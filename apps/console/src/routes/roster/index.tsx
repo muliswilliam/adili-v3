@@ -499,7 +499,11 @@ function OverviewSkeleton() {
         <Skeleton className="mt-2 h-4 w-[180px]" />
       </PageHead>
       <Card className="p-0 sm:p-0">
-        <div className="flex flex-col items-center gap-3 px-5 pt-12 pb-10" aria-label={m.loading}>
+        <div
+          role="status"
+          className="flex flex-col items-center gap-3 px-5 pt-12 pb-10"
+          aria-label={m.loading}
+        >
           <Skeleton className="size-11 rounded-xl" />
           <Skeleton className="h-5 w-[140px]" />
           <Skeleton className="h-4 w-full max-w-[420px]" />

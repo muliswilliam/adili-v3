@@ -279,7 +279,7 @@ export function ImportReportSkeleton() {
           <Skeleton className="h-6 w-[92px] rounded-full" />
         </div>
       </PageHead>
-      <Card aria-busy="true" aria-label={m.loading}>
+      <Card role="status" aria-busy="true" aria-label={m.loading}>
         <div className="grid grid-cols-2 gap-x-6 gap-y-4 min-[700px]:grid-cols-3 min-[1100px]:grid-cols-5">
           {Array.from({ length: 5 }, (_, index) => (
             <div key={index} className="grid gap-2">

@@ -109,7 +109,7 @@ function PolicyBody({
 
 export function PolicyCardSkeleton() {
   return (
-    <Card aria-busy="true" aria-label={m.cardTitle} className="gap-3.5">
+    <Card role="status" aria-busy="true" aria-label={m.cardTitle} className="gap-3.5">
       <Skeleton className="h-5 w-2/5" />
       {Array.from({ length: 5 }, (_, line) => (
         <Skeleton key={line} className={line % 2 ? 'w-3/5' : 'w-4/5'} />
