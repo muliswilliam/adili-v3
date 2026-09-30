@@ -4,7 +4,7 @@ import { canonicalJson } from '@adili/api-kit';
 import { hasValidCheckCharacter, parse } from '@adili/numbering/references';
 import { DCB } from '@adili/numbering';
 import { and, eq, sql } from 'drizzle-orm';
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
   commissionRefs,
@@ -47,7 +47,7 @@ const ACHIENG = randomUUID();
 const BARAKA = randomUUID();
 
 let api: DeclarationsApi;
-const { declarant, steppedUp, givenObligation, started, completeDraft, submit } =
+const { declarant, steppedUp, givenObligation, started, completeDraft, save, section, submit } =
   submissionFixtures(() => api);
 
 beforeAll(async () => {
@@ -366,6 +366,45 @@ describe('submitting a complete draft (S1)', () => {
     expect(response.statusCode).toBe(201);
     expect(api.workflows.filed()).toEqual([obligationId]);
     expect((await obligationOf(obligationId))?.status).toBe('filed');
+  });
+});
+
+describe('a section saved while the submission is prepared', () => {
+  it('prepares it again, and files what was saved last', async () => {
+    const draft = await completeDraft(ACHIENG);
+    // The items are sealed with no lock held: a save lands meanwhile, as from another tab.
+    const encrypt = api.cipher.encrypt.bind(api.cipher);
+    let saved = false;
+    const spy = vi.spyOn(api.cipher, 'encrypt').mockImplementation(async (input) => {
+      if (!saved && input.recordId.startsWith('declaration-item:')) {
+        saved = true;
+        const other = await section(ACHIENG, draft.id, 'other');
+        await save(ACHIENG, draft.id, 'other', { ...other, freeText: 'Saved while submitting' });
+      }
+      return encrypt(input);
+    });
+
+    try {
+      const response = await submit(draft.id, steppedUp(ACHIENG));
+
+      expect(response.statusCode).toBe(201);
+    } finally {
+      spy.mockRestore();
+    }
+    expect(saved).toBe(true);
+    const [version] = await versionsOf(draft.id);
+    if (!version) throw new Error('no version');
+    const document = JSON.parse(
+      await decrypt(
+        `declaration-version:${version.id}`,
+        version.snapshotCiphertext,
+        version.envelope,
+      ),
+    ) as { otherInformation: { freeText: string } };
+    expect(document.otherInformation.freeText).toBe('Saved while submitting');
+    // One version, one reference: the stale preparation wrote nothing.
+    expect(await versionsOf(draft.id)).toHaveLength(1);
+    expect(version.reference).toBe('DCB-PSC-2027-0000001-1');
   });
 });
 

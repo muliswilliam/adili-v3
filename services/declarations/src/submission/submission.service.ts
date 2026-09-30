@@ -11,6 +11,7 @@ import {
 import {
   type Database,
   FieldCipher,
+  type SealedField,
   InjectDatabase,
   switchTenant,
   withPerson,
@@ -59,9 +60,31 @@ import type { SubmissionResult } from './representation.js';
 const ENCRYPT_CONCURRENCY = 16;
 /** Items sealed at once: each item makes two key service calls (description and value). */
 const ITEM_CONCURRENCY = ENCRYPT_CONCURRENCY / 2;
+/** Tries at a submission whose declaration keeps changing between preparing and writing it. */
+const MAX_SUBMIT_ATTEMPTS = 3;
 
 type VersionRow = typeof declarationVersions.$inferSelect;
 type ItemRow = typeof declarationItems.$inferInsert;
+
+/** The legal record sealed, with the reference it carries and the hash of its plaintext. */
+interface SealedSnapshot {
+  reference: string;
+  sealed: SealedField;
+  sha256: string;
+}
+
+/** What a submission needs from the key service, prepared with no transaction open. */
+interface Prepared {
+  /** The declaration as read; the transaction goes ahead only while it is still so. */
+  declaration: DeclarationRow;
+  document: DeclarationV1;
+  stepUp: StepUp;
+  versionId: string;
+  cycleYear: number;
+  items: ItemRow[];
+  /** Sealed already when the reference was known (an amendment); else sealed once allocated. */
+  snapshot: SealedSnapshot | null;
+}
 
 /** What the transaction committed (or found committed, for a replay), for the response. */
 interface Submitted {
@@ -75,16 +98,19 @@ interface Submitted {
 }
 
 /**
- * Submission (spec 06): the legal act, in one transaction. The declaration is locked, then checked
- * in order: the caller owns it, it is a draft or an amendment in progress, the token carries a
- * fresh step-up (checked here from the principal, never trusted to the BFF), the assembled
- * `declaration.v1` document validates, and the obligation takes it today. Then the reference is
- * allocated (first version only, gapless: a rollback returns the number), the immutable version
- * and its items are written encrypted, the previous version is superseded, the declaration is
- * submitted, the obligation filed, and the events recorded. The obligation's workflow is told
- * after commit; a lost signal is healed by the workflow reading the row. The `Idempotency-Key`
- * store (api-kit) replays a retried request; the key's hash is also kept on the version, so a
- * retry whose stored answer was lost still gets the same submission back rather than a conflict.
+ * Submission (spec 06): the legal act, in one transaction. The declaration is checked in order:
+ * the caller owns it, it is a draft or an amendment in progress, the token carries a fresh
+ * step-up (checked here from the principal, never trusted to the BFF), and the assembled
+ * `declaration.v1` document validates; its items are sealed then, with no lock held, since
+ * sealing calls the key service (ADR-013). The transaction locks the declaration, goes ahead only
+ * while it is as prepared (else it is prepared again), and checks the obligation takes it today.
+ * Then the reference is allocated (first version only, gapless: a rollback returns the number),
+ * the immutable version and its items are written encrypted, the previous version is superseded,
+ * the declaration is submitted, the obligation filed, and the events recorded. The obligation's
+ * workflow is told after commit; a lost signal is healed by the workflow reading the row. The
+ * `Idempotency-Key` store (api-kit) replays a retried request; the key's hash is also kept on the
+ * version, so a retry whose stored answer was lost still gets the same submission back rather
+ * than a conflict.
  */
 @Injectable()
 export class SubmissionService {
@@ -109,45 +135,46 @@ export class SubmissionService {
     const keyHash = sha256(idempotencyKey);
     const now = this.clock.now();
     const today = nairobiDate(now);
-    const submitted = await withPerson(this.db, person, async (tx): Promise<Submitted> => {
-      const declaration = notFoundIfInvisible(
-        await liveDeclaration(tx, declarationId, { lock: true }),
-      );
-      // Only a draft or an amendment in progress, what can be edited, is submitted.
-      if (!isEditable(declaration.status)) {
-        const replayed = await this.replayed(tx, declaration, keyHash);
-        if (replayed) return replayed;
-        throw refused('not-a-draft');
+    let submitted: Submitted | undefined;
+    for (let attempt = 1; !submitted; attempt++) {
+      const prepared = await this.prepare(principal, declarationId, keyHash, now);
+      if ('replayed' in prepared) {
+        submitted = prepared.replayed;
+        break;
       }
-      const stepUp = requireFreshStepUp(principal, now, declaration.id);
+      const outcome = await withPerson(this.db, person, async (tx) => {
+        const declaration = notFoundIfInvisible(
+          await liveDeclaration(tx, declarationId, { lock: true }),
+        );
+        if (!isEditable(declaration.status)) {
+          const replayed = await this.replayed(tx, declaration, keyHash);
+          if (replayed) return replayed;
+          throw refused('not-a-draft');
+        }
+        if (!stillAsPrepared(declaration, prepared.declaration)) return 'stale' as const;
 
-      const rows = await liveSections(tx, declaration.id);
-      const review = reviewDraft(
-        documentFrame(declaration),
-        await this.sections.openAll(declaration.tenant, rows),
-        rows.map((row) => ({ key: row.sectionKey, completeness: row.completeness })),
-      );
-      if (!review.valid) throw incomplete(review.blocking);
+        // The obligation, the version and its items are the Commission's data, which the
+        // declarant only reads: the rest of the transaction writes them in its tenant's context
+        // (ADR-018), the person's still set for the declaration itself.
+        await switchTenant(tx, { tenant: declaration.tenant, subject: person.subject });
+        const obligation = await obligationOf(tx, declaration, { lock: true });
+        const refusal = obligationRefusal(declaration.status, obligation, today);
+        if (refusal) throw refused(refusal);
 
-      // The obligation, the version and its items are the Commission's data, which the declarant
-      // only reads: the rest of the transaction writes them in its tenant's context (ADR-018),
-      // the person's still set for the declaration itself.
-      await switchTenant(tx, { tenant: declaration.tenant, subject: person.subject });
-      const obligation = await obligationOf(tx, declaration, { lock: true });
-      const refusal = obligationRefusal(declaration.status, obligation, today);
-      if (refusal) throw refused(refusal);
-
-      return this.record(tx, {
-        declaration,
-        obligation,
-        // It validated against declaration.v1 just above.
-        document: review.document as unknown as DeclarationV1,
-        stepUp,
-        now,
-        late: isLate(obligation.dueDate, today),
-        keyHash,
+        return this.record(tx, {
+          declaration,
+          obligation,
+          prepared,
+          now,
+          late: isLate(obligation.dueDate, today),
+          keyHash,
+        });
       });
-    });
+      if (outcome !== 'stale') submitted = outcome;
+      else if (attempt === MAX_SUBMIT_ATTEMPTS) {
+        throw new Error(`Declaration ${declarationId} kept changing while it was submitted`);
+      }
+    }
 
     if (submitted.filed) {
       await tellWorkflows(this.workflows, this.logger, submitted.tenant, {
@@ -162,52 +189,119 @@ export class SubmissionService {
     };
   }
 
+  /**
+   * The checks before the transaction and everything that calls the key service, with no lock
+   * held (ADR-013): the declaration read, its preconditions in order (visible to the caller,
+   * editable, a fresh step-up, the assembled document valid), its sections opened, the items
+   * derived and sealed, and the snapshot sealed too when the reference is known already (an
+   * amendment). The transaction then checks the declaration is still as read. A declaration that
+   * is no longer editable is answered by `replayed` when this request submitted it already.
+   */
+  private async prepare(
+    principal: Principal,
+    declarationId: string,
+    keyHash: string,
+    now: Date,
+  ): Promise<Prepared | { replayed: Submitted }> {
+    const found = await withPerson(this.db, personOf(principal), async (tx) => {
+      const declaration = notFoundIfInvisible(await liveDeclaration(tx, declarationId));
+      // Only a draft or an amendment in progress, what can be edited, is submitted.
+      if (!isEditable(declaration.status)) {
+        const replayed = await this.replayed(tx, declaration, keyHash);
+        if (replayed) return { replayed };
+        throw refused('not-a-draft');
+      }
+      return { declaration, rows: await liveSections(tx, declaration.id) };
+    });
+    if (found.replayed) return { replayed: found.replayed };
+    const { declaration, rows } = found;
+    const stepUp = requireFreshStepUp(principal, now, declaration.id);
+
+    const review = reviewDraft(
+      documentFrame(declaration),
+      await this.sections.openAll(declaration.tenant, rows),
+      rows.map((row) => ({ key: row.sectionKey, completeness: row.completeness })),
+    );
+    if (!review.valid) throw incomplete(review.blocking);
+    // It validated against declaration.v1 just above.
+    const document = review.document as unknown as DeclarationV1;
+
+    const { tenant } = declaration;
+    const versionId = uuidv7();
+    const cycleYear = Number(declaration.statementDate.slice(0, 4));
+    const items = await this.sealItems(tenant, versionId, cycleYear, deriveItems(document));
+    const snapshot =
+      declaration.reference === null
+        ? null
+        : await this.sealSnapshot(tenant, versionId, document, declaration.reference, now);
+    return { declaration, document, stepUp, versionId, cycleYear, items, snapshot };
+  }
+
+  /**
+   * The legal record, sealed: the assembled document with its own reference and time (First
+   * Schedule note 11), canonical JSON (RFC 8785) encrypted with the Commission's key, and the
+   * SHA-256 of exactly the bytes that are encrypted.
+   */
+  private async sealSnapshot(
+    tenant: string,
+    versionId: string,
+    document: DeclarationV1,
+    reference: string,
+    now: Date,
+  ): Promise<SealedSnapshot> {
+    const record: DeclarationV1 = {
+      ...document,
+      attestation: { ...document.attestation, declaredAt: now.toISOString(), reference },
+    };
+    const canonical = canonicalJson(record);
+    const sealed = await this.cipher.encrypt({
+      tenant,
+      recordId: versionRecordId(versionId),
+      plaintext: canonical,
+    });
+    return { reference, sealed, sha256: sha256(canonical) };
+  }
+
   /** Writes the version, its items and everything the legal act changes, in the transaction. */
   private async record(
     tx: Transaction,
     {
       declaration,
       obligation,
-      document,
-      stepUp,
+      prepared,
       now,
       late,
       keyHash,
     }: {
       declaration: DeclarationRow;
       obligation: { id: string; status: ObligationStatus };
-      document: DeclarationV1;
-      stepUp: StepUp;
+      prepared: Prepared;
       now: Date;
       late: boolean;
       keyHash: string;
     },
   ): Promise<Submitted> {
     const { tenant } = declaration;
-    const cycleYear = Number(declaration.statementDate.slice(0, 4));
-    const versionId = uuidv7();
+    const { versionId, cycleYear, items, stepUp } = prepared;
     const version = (declaration.currentVersion ?? 0) + 1;
-    // Encrypted before the reference is allocated, so the counter stays locked for as short a
-    // time as can be: concurrent submissions of the Commission and year queue behind it.
-    const items = await this.sealItems(tenant, versionId, cycleYear, deriveItems(document));
-    const reference =
-      declaration.reference ??
-      (await allocateReference(tx, declarationSchemes[declaration.type], {
-        issuer: issuerCode(tenant),
-        period: cycleYear,
-      }));
-    // The legal record carries its own reference and time (First Schedule note 11), and the hash
-    // is of exactly the bytes that are encrypted.
-    const record: DeclarationV1 = {
-      ...document,
-      attestation: { ...document.attestation, declaredAt: now.toISOString(), reference },
-    };
-    const canonical = canonicalJson(record);
-    const snapshot = await this.cipher.encrypt({
-      tenant,
-      recordId: versionRecordId(versionId),
-      plaintext: canonical,
-    });
+    // A first version's reference is allocated here, gapless (a rollback returns the number),
+    // and its snapshot, which carries the reference, is sealed after it: the Commission and
+    // year's counter stays locked across that one key service call, so concurrent first
+    // submissions of the Commission and year queue behind it. Everything else that calls the
+    // key service was done before the transaction.
+    const snapshot =
+      prepared.snapshot ??
+      (await this.sealSnapshot(
+        tenant,
+        versionId,
+        prepared.document,
+        await allocateReference(tx, declarationSchemes[declaration.type], {
+          issuer: issuerCode(tenant),
+          period: cycleYear,
+        }),
+        now,
+      ));
+    const { reference } = snapshot;
 
     const [inserted] = await tx
       .insert(declarationVersions)
@@ -219,9 +313,9 @@ export class SubmissionService {
         tenant,
         personId: declaration.personId,
         reference,
-        snapshotCiphertext: Buffer.from(snapshot.ciphertext, 'base64'),
-        envelope: snapshot.envelope,
-        canonicalSha256: sha256(canonical),
+        snapshotCiphertext: Buffer.from(snapshot.sealed.ciphertext, 'base64'),
+        envelope: snapshot.sealed.envelope,
+        canonicalSha256: snapshot.sha256,
         submittedAt: now,
         late,
         stepUpAcr: stepUp.acr,
@@ -380,6 +474,19 @@ export class SubmissionService {
       };
     });
   }
+}
+
+/**
+ * Whether the locked declaration is as it was prepared from: no section saved (`draftVersion`),
+ * and the same status, version in force and reference.
+ */
+function stillAsPrepared(locked: DeclarationRow, prepared: DeclarationRow): boolean {
+  return (
+    locked.draftVersion === prepared.draftVersion &&
+    locked.status === prepared.status &&
+    locked.currentVersion === prepared.currentVersion &&
+    locked.reference === prepared.reference
+  );
 }
 
 /** The step-up a submission was made with: its evidence on the version. */
