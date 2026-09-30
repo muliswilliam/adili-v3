@@ -255,6 +255,99 @@ describe('submitting (S1, S2)', () => {
   });
 });
 
+describe('amending in the mock, as the service does (S7, S8)', () => {
+  const path = (declarationId: string) => ({ params: { path: { declarationId } } });
+
+  async function submitted() {
+    const id = await completeDraft();
+    submittedOf(await submitDeclaration(client(), { declarationId: id, idempotencyKey: key() }));
+    return id;
+  }
+
+  it('reopens version 1, files version 2 under the same reference, and lists both', async () => {
+    const id = await submitted();
+    const listed = await client().GET('/v1/me/declarations');
+    expect(listed.data?.[0]).toMatchObject({
+      id,
+      status: 'submitted',
+      currentVersion: 1,
+      amendable: true,
+      late: false,
+      acknowledgement: { status: 'pending', documentId: null, verifiedCount: 0 },
+    });
+
+    const amended = await client().POST('/v1/declarations/{declarationId}/amend', path(id));
+    expect(amended.data).toMatchObject({
+      status: 'amending',
+      currentVersion: 1,
+      amendingFromVersion: 1,
+    });
+    expect((await client().GET('/v1/me/declarations')).data?.[0]).toMatchObject({
+      status: 'amending',
+      amendable: false,
+    });
+    await save(id, 'other', {
+      registrableInterests: {
+        directorships: [],
+        memberships: [],
+        dualCitizenship: { holds: false, pendingApplication: false },
+        pendingCases: [],
+      },
+      freeText: 'Amended',
+    });
+    const second = submittedOf(
+      await submitDeclaration(client(), { declarationId: id, idempotencyKey: key() }),
+    );
+
+    expect(second.version).toMatchObject({ version: 2 });
+    expect(second.declaration).toMatchObject({ currentVersion: 2, amendingFromVersion: null });
+    const versions = await client().GET('/v1/declarations/{declarationId}/versions', path(id));
+    expect(versions.data?.map((version) => version.version)).toEqual([2, 1]);
+    expect(versions.data?.[1]?.reference).toBe(second.version.reference);
+    expect(versions.data?.[1]?.supersededAt).not.toBeNull();
+    const first = await client().GET('/v1/declarations/{declarationId}/versions/{version}', {
+      params: { path: { declarationId: id, version: 1 } },
+    });
+    expect(first.data?.document).toMatchObject({ otherInformation: { freeText: '' } });
+  });
+
+  it('refuses to amend after the due date and a draft, and discarding puts version 1 back', async () => {
+    const id = await submitted();
+    expect(
+      (await client().POST('/v1/declarations/{declarationId}/amend', path(id))).data,
+    ).toBeTruthy();
+    await save(id, 'other', {
+      registrableInterests: {
+        directorships: [],
+        memberships: [],
+        dualCitizenship: { holds: false, pendingApplication: false },
+        pendingCases: [],
+      },
+      freeText: 'Changed my mind',
+    });
+
+    const discarded = await client().POST(
+      '/v1/declarations/{declarationId}/amend/discard',
+      path(id),
+    );
+
+    expect(discarded.data).toMatchObject({ status: 'submitted', amendingFromVersion: null });
+    const summary = await loadSummary(client(), id);
+    if (summary.status !== 'ok') throw new Error(summary.status);
+    expect(summary.summary.document).toMatchObject({ otherInformation: { freeText: '' } });
+    vi.setSystemTime(Date.parse('2026-10-11T07:00:00Z'));
+    const closed = await client().POST('/v1/declarations/{declarationId}/amend', path(id));
+    expect(closed.response.status).toBe(409);
+    expect(closed.error).toMatchObject({ code: 'amendment-window-closed' });
+    expect((await client().GET('/v1/me/declarations')).data?.[0]).toMatchObject({
+      amendable: false,
+    });
+    const draft = await completeDraft(MOCK_OBLIGATIONS.biennial);
+    const notSubmitted = await client().POST('/v1/declarations/{declarationId}/amend', path(draft));
+    expect(notSubmitted.error).toMatchObject({ code: 'not-submitted' });
+  });
+});
+
 describe('what stops a submit (S3, S4)', () => {
   it('needs a step-up at most five minutes old', async () => {
     const id = await completeDraft();
