@@ -5,7 +5,7 @@ import { eq } from 'drizzle-orm';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
 import { complianceReportWorkflowId } from '../../src/compliance-reports/contract.js';
-import { complianceReports, outbox } from '../../src/db/schema.js';
+import { complianceReports } from '../../src/db/schema.js';
 import { contractErrors, okResponse } from '../support/contract.js';
 import { declarationSubmitted, obligationCreated } from '../support/events.js';
 import {
@@ -221,7 +221,7 @@ describe('Form M compile (S2, S3, S4)', () => {
         tx.select().from(complianceReports).where(eq(complianceReports.id, report.id)),
       );
       const stored = JSON.stringify(row);
-      const events = JSON.stringify(await api.db.select().from(outbox));
+      const events = JSON.stringify(await api.events());
       const history = await historyPayloads(api.temporal, complianceReportWorkflowId('psc', 2027));
       expect(history).toContain(facts.initial.noticed.obligationId);
       for (const value of facts.personalData) {

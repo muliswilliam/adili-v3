@@ -10,7 +10,6 @@ import { complianceReportWorkflowId } from '../../src/compliance-reports/contrac
 import {
   complianceReports,
   idempotencyKeys,
-  outbox,
   reportReceipts,
   reportReminders,
   reportRemarks,
@@ -469,7 +468,7 @@ describe('Form M review, confirm and submit (S3, S5, S6, S7)', () => {
       await api.temporal.workflow.getHandle(complianceReportWorkflowId('psc', 2027)).result();
 
       const history = await historyPayloads(api.temporal, complianceReportWorkflowId('psc', 2027));
-      const published = JSON.stringify(await api.db.select().from(outbox));
+      const published = JSON.stringify(await api.events());
       const receipts = JSON.stringify(
         await api.asPlatform((tx) => tx.select().from(reportReceipts)),
       );
@@ -602,9 +601,7 @@ describe('Form M review, confirm and submit (S3, S5, S6, S7)', () => {
       expect(response.json()).toMatchObject({ status: 'submitted', late: true });
       const receipts = await api.asPlatform((tx) => tx.select().from(reportReceipts));
       expect(receipts).toEqual([expect.objectContaining({ reportId: report.id, late: true })]);
-      const submitted = (await api.db.select().from(outbox))
-        .map((event) => event.envelope)
-        .filter((event) => event.type === 'compliance-report.submitted.v1');
+      const submitted = await api.events('compliance-report.submitted.v1');
       expect(submitted.map((event) => event.data)).toEqual([
         expect.objectContaining({ reportId: report.id, late: true }),
       ]);

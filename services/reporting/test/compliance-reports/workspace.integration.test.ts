@@ -3,7 +3,7 @@ import { randomUUID } from 'node:crypto';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
 import { complianceReportWorkflowId } from '../../src/compliance-reports/contract.js';
-import { complianceReports, outbox } from '../../src/db/schema.js';
+import { complianceReports } from '../../src/db/schema.js';
 import { contractErrors, okResponse } from '../support/contract.js';
 import { clarificationEvent, obligationCreated } from '../support/events.js';
 import {
@@ -38,13 +38,7 @@ describe('Form M workspace: periods and access', () => {
     givenPscDirectory(api);
   });
 
-  async function endWorkflow() {
-    try {
-      await api.temporal.workflow.getHandle(complianceReportWorkflowId('psc', 2027)).terminate();
-    } catch {
-      // Not running.
-    }
-  }
+  const endWorkflow = () => api.endWorkflows([complianceReportWorkflowId('psc', 2027)]);
 
   const PERIODS = '/v1/commissions/psc/compliance-reports';
 
@@ -182,15 +176,13 @@ describe('Form M workspace: periods and access', () => {
     });
 
     it("reading the report is audited under the Commission's tenant; the periods are not", async () => {
-      const before = (await api.db.select().from(outbox)).length;
+      const before = (await api.events()).length;
 
       await api.get(PERIODS, REPORTING_OFFICER);
       const response = await api.get(`${PERIODS}/2027`, REPORTING_OFFICER);
 
       expect(response.statusCode).toBe(200);
-      const audited = (await api.db.select().from(outbox))
-        .slice(before)
-        .map((row) => row.envelope as { type: string; tenant?: string; data: unknown });
+      const audited = (await api.events()).slice(before);
       expect(audited).toEqual([
         expect.objectContaining({
           type: 'audit.read.v1',

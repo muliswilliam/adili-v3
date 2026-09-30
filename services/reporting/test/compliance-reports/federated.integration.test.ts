@@ -9,7 +9,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vites
 
 import { complianceReportWorkflowId } from '../../src/compliance-reports/contract.js';
 import { openSnapshot } from '../../src/compliance-reports/snapshot.js';
-import { complianceReports, idempotencyKeys, outbox, reportReceipts } from '../../src/db/schema.js';
+import { complianceReports, idempotencyKeys, reportReceipts } from '../../src/db/schema.js';
 import { contractErrors, okResponse } from '../support/contract.js';
 import {
   asTsc,
@@ -202,7 +202,7 @@ describe('Federated Form M submission (S8)', () => {
     // Names stay in the encrypted snapshot and the documents: not in history, events, receipts
     // or the answer kept for replays.
     const history = await historyPayloads(api.temporal, complianceReportWorkflowId('tsc', 2027));
-    const published = JSON.stringify(await api.db.select().from(outbox));
+    const published = JSON.stringify(await api.events());
     const receipts = JSON.stringify(await api.asPlatform((tx) => tx.select().from(reportReceipts)));
     const replays = JSON.stringify(await api.db.select().from(idempotencyKeys));
     for (const name of ['Peter Kamau Njoroge', 'PF-2027-000341', 'Dr. Mercy Wanjiku Kamau']) {

@@ -93,13 +93,7 @@ describe('National consolidated report (S11)', () => {
     for (const slug of ['psc', 'tsc', 'jsc']) api.directory.givenCommission(slug);
   });
 
-  async function endChase() {
-    try {
-      await api.temporal.workflow.getHandle(nationalConsolidationWorkflowId(2027)).terminate();
-    } catch {
-      // Not running.
-    }
-  }
+  const endChase = () => api.endWorkflows([nationalConsolidationWorkflowId(2027)]);
 
   /** The Commission's FY 2027 report as submitted, and EACC's receipt of it. */
   async function givenSubmitted(
