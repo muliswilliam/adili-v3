@@ -1,0 +1,62 @@
+#cloud-config
+package_update: true
+packages:
+  - docker.io
+  - docker-compose-v2
+  - git
+  - jq
+  - curl
+  - caddy
+
+write_files:
+  - path: /etc/adili/public.env
+    owner: root:root
+    permissions: "0644"
+    content: |
+      ADILI_PORTAL_URL=${portal_url}
+      ADILI_CONSOLE_URL=${console_url}
+      ADILI_VERIFY_URL=${verify_url}
+      KC_HOSTNAME=${keycloak_url}
+      ADILI_PUBLIC_BASE=${public_base}
+      ADILI_USE_CUSTOM_DOMAIN=${use_custom_domain}
+      ADILI_CUSTOM_DOMAIN=${custom_domain}
+      ADILI_LETSENCRYPT_EMAIL=${letsencrypt_email}
+      ADILI_ACR_NAME=${acr_name}
+  - path: /etc/adili/Caddyfile
+    owner: root:root
+    permissions: "0644"
+    content: |
+      {
+        email ${letsencrypt_email}
+      }
+
+      portal.${custom_domain} {
+        reverse_proxy 127.0.0.1:3010
+      }
+
+      console.${custom_domain} {
+        reverse_proxy 127.0.0.1:3020
+      }
+
+      verify.${custom_domain} {
+        reverse_proxy 127.0.0.1:3030
+      }
+
+      auth.${custom_domain} {
+        reverse_proxy 127.0.0.1:8080
+      }
+  - path: /etc/sudoers.d/adili-demo
+    owner: root:root
+    permissions: "0440"
+    content: |
+      ${admin_username} ALL=(root) NOPASSWD: /opt/adili/infra/azure/deploy.sh
+
+runcmd:
+  - usermod -aG docker ${admin_username}
+  - systemctl enable --now docker
+  - mkdir -p /opt/adili
+  - chown ${admin_username}:${admin_username} /opt/adili
+  - |
+    systemctl enable caddy
+    install -m 644 /etc/adili/Caddyfile /etc/caddy/Caddyfile
+    systemctl restart caddy

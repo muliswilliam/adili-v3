@@ -1,0 +1,80 @@
+name: Azure demo
+
+# The demo VM is created by Terraform on a laptop (state is local, not applied here).
+# This workflow ships the repo onto that VM after a push to main.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    paths:
+      - 'infra/azure/**'
+      - 'infra/compose/docker-compose.azure.yml'
+      - '.github/workflows/azure-demo.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: azure-demo
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  AZURE_DEMO_HOST: adili-demo.southafricanorth.cloudapp.azure.com
+  AZURE_DEMO_USER: adili
+
+jobs:
+  terraform:
+    name: Terraform validate
+    if: github.event_name != 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: infra/azure
+    steps:
+      - uses: actions/checkout@v5
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_wrapper: false
+      - run: terraform fmt -check -recursive
+      - run: terraform init -backend=false
+      - run: terraform validate
+
+  deploy:
+    name: Deploy to Azure VM
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: SSH key
+        env:
+          SSH_KEY: ${{ secrets.AZURE_DEMO_SSH_KEY }}
+        run: |
+          test -n "$SSH_KEY" || { echo 'Set repo secret AZURE_DEMO_SSH_KEY' >&2; exit 1; }
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan -H "$AZURE_DEMO_HOST" >> ~/.ssh/known_hosts
+      - name: Sync repo to /opt/adili
+        run: |
+          rsync -az --delete --exclude-from=infra/azure/rsync-exclude \
+            ./ "${AZURE_DEMO_USER}@${AZURE_DEMO_HOST}:/opt/adili/"
+      - name: Run deploy.sh
+        run: ssh "${AZURE_DEMO_USER}@${AZURE_DEMO_HOST}" 'sudo /opt/adili/infra/azure/deploy.sh'
+      - name: Check HTTPS
+        run: |
+          fqdn="$AZURE_DEMO_HOST"
+          for i in $(seq 1 36); do
+            p=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 8 "https://$fqdn/" || echo down)
+            c=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 8 "https://$fqdn:3020/" || echo down)
+            k=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 8 \
+              "https://$fqdn:8080/realms/adili/.well-known/openid-configuration" || echo down)
+            echo "t=$i portal=$p console=$c keycloak=$k"
+            if [ "$p" = 200 ] && [ "$c" = 200 ] && [ "$k" = 200 ]; then
+              exit 0
+            fi
+            sleep 8
+          done
+          echo 'HTTPS checks did not return 200' >&2
+          exit 1

@@ -12,9 +12,11 @@ function ignoreUseClientDirectives(
   if (warning.code !== 'MODULE_LEVEL_DIRECTIVE') warn(warning);
 }
 
+const port = Number(process.env.PORT) || 3020;
+
 export default defineConfig({
-  server: { port: 3020, strictPort: true },
-  preview: { port: 3020, strictPort: true },
+  server: { host: true, allowedHosts: true, port, strictPort: true },
+  preview: { host: true, port, strictPort: true },
   resolve: { tsconfigPaths: true },
   build: { rolldownOptions: { onwarn: ignoreUseClientDirectives } },
   plugins: [

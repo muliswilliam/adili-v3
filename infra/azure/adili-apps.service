@@ -1,0 +1,20 @@
+[Unit]
+Description=Adili demo apps (pnpm dev)
+After=docker.service network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=adili
+Group=adili
+WorkingDirectory=/opt/adili
+Environment=HOME=/home/adili
+Environment=PATH=/usr/bin:/usr/local/bin:/home/adili/.local/bin:/home/adili/.local/share/pnpm
+EnvironmentFile=/etc/adili/public.env
+ExecStart=/usr/bin/pnpm dev
+Restart=on-failure
+RestartSec=5
+TimeoutStartSec=180
+
+[Install]
+WantedBy=multi-user.target
