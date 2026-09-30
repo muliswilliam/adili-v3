@@ -153,9 +153,9 @@ describe('DashboardCards', () => {
       await Promise.resolve();
     });
 
-    expect(screen.getByLabelText('Loading your declarations').getAttribute('aria-busy')).toBe(
-      'true',
-    );
+    expect(
+      screen.getByRole('status', { name: 'Loading your declarations' }).getAttribute('aria-busy'),
+    ).toBe('true');
     expect(screen.getByText('Your obligations')).toBeTruthy();
     expect(screen.getByRole('heading', { name: 'Your account' })).toBeTruthy();
 

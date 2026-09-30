@@ -144,7 +144,12 @@ function DeclarationsCardFrame({ children }: { children: ReactNode }) {
 export function DeclarationsCardSkeleton() {
   return (
     <DeclarationsCardFrame>
-      <div aria-busy="true" aria-label="Loading your declarations" className="grid gap-3">
+      <div
+        role="status"
+        aria-busy="true"
+        aria-label="Loading your declarations"
+        className="grid gap-3"
+      >
         <Skeleton className="h-5 w-3/5" />
         <Skeleton className="w-2/5" />
         <Skeleton className="h-2 w-full rounded-full" />
