@@ -13,7 +13,6 @@ import {
   type SlipEvent,
   slipReducer,
   type SlipState,
-  verifyUrl,
 } from './slip';
 
 const NOW = Date.parse('2026-09-30T07:42:00Z');
@@ -22,6 +21,7 @@ const pending: Acknowledgement = {
   status: 'pending',
   documentId: null,
   verificationId: null,
+  verifyUrl: null,
   issuedAt: null,
   verifiedCount: 0,
   downloadUrl: null,
@@ -30,9 +30,10 @@ const issued: Acknowledgement = {
   status: 'issued',
   documentId: '9d7c1a52-0f3e-4b8a-9c6d-2e1f0a3b4c5d',
   verificationId: 'ADL-7K3M-Q9TX-4HWD-2PBN-8RFE-V6ZC-J5',
+  verifyUrl: 'https://verify.adili.test/v/ADL-7K3M-Q9TX-4HWD-2PBN-8RFE-V6ZC-J5',
   issuedAt: '2026-09-30T07:42:04Z',
   verifiedCount: 0,
-  downloadUrl: 'https://s3.test/issued/slip.pdf?signature=x',
+  downloadUrl: null,
 };
 const failed: Acknowledgement = { ...pending, status: 'failed' };
 
@@ -256,14 +257,5 @@ describe('the slip card copy', () => {
     );
     expect(slipAnnouncement(initialSlipState(issued))).toBe('Your acknowledgement slip is ready.');
     expect(slipAnnouncement(initialSlipState(failed))).toBe('The slip could not be prepared.');
-  });
-
-  it('links the QR to the verify page of the code', () => {
-    expect(verifyUrl('http://localhost:3030', 'ADL-7K3M-Q9TX-4HWD-2PBN-8RFE-V6ZC-J5')).toBe(
-      'http://localhost:3030/v/ADL-7K3M-Q9TX-4HWD-2PBN-8RFE-V6ZC-J5',
-    );
-    expect(verifyUrl('https://verify.adili.test/', 'ADL-1')).toBe(
-      'https://verify.adili.test/v/ADL-1',
-    );
   });
 });

@@ -196,8 +196,3 @@ export function slipAnnouncement(state: SlipState): string {
       return state.problem === 'error' ? SLIP_COPY.reissueError : SLIP_COPY.failed;
   }
 }
-
-/** The verify app's page for a verification code, which the slip's QR opens. */
-export function verifyUrl(verifyBaseUrl: string, verificationId: string): string {
-  return new URL(`/v/${encodeURIComponent(verificationId)}`, verifyBaseUrl).toString();
-}

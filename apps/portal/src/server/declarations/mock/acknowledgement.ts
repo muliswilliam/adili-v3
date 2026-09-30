@@ -1,22 +1,32 @@
 /**
  * The mock's acknowledgement slips (spec 06, `getAcknowledgement` and `reissueAcknowledgement`),
- * apart from the draft store: a submitted version's slip is `pending` for a few seconds, then
- * issued (or failed, or kept pending, per `setSlipIssuance`), as the documents service would
- * answer asynchronously. A failed slip can be asked for again, at most once a minute (429 with
- * `Retry-After` meanwhile); an issued one or one in progress answers 409. The download link
- * points at `/api/mock-slips/{documentId}` (`routes/api/mock-slips.$documentId.ts`).
+ * apart from the draft store, on the declarations service's rules: a submitted version's slip is
+ * `pending` for a few seconds, then issued, as the documents service would answer
+ * asynchronously; under `setSlipIssuance('fail')` it never comes, and a minute after the
+ * submission (or the last reissue) it reads `failed`, as the service derives it. Reissue answers
+ * 202 for a failed slip, 409 `acknowledgement-issued` once issued, 409
+ * `acknowledgement-in-progress` within a minute of the submission, and 429 `resend-cooldown`
+ * with `retryAfterSeconds` within a minute of the last reissue. The slip downloads from the
+ * documents mock (`GET /v1/documents/{id}/download`), which serves `/api/mock-slips/{id}`
+ * (`routes/api/mock-slips.$documentId.ts`).
  */
 import { randomBytes, randomUUID } from 'node:crypto';
 
+import { placeholderPdf } from '../../mock-pdf';
 import type { Acknowledgement, DeclarationVersion } from '../types';
 
 /** What issuance does with the slips asked for from now on (tests, and dev by editing). */
-export type SlipIssuance = 'issue' | 'fail' | 'hold';
+export type SlipIssuance = 'issue' | 'fail';
 
-/** How long a slip stays `pending` after the submit or a reissue. */
+/** How long a slip stays `pending` after the submit or a reissue before it is issued. */
 export const MOCK_SLIP_DELAY_MS = 4000;
-/** How long after a reissue the next one answers 429. */
-export const MOCK_REISSUE_COOLDOWN_MS = 60_000;
+/**
+ * How long a slip may take before it reads `failed` and may be asked for again, and so how
+ * long after a reissue the next one answers 429 (the service's `ACKNOWLEDGEMENT_DEADLINE_MS`).
+ */
+export const MOCK_ACKNOWLEDGEMENT_DEADLINE_MS = 60_000;
+/** The verify app in development (`apps/verify`), where the slip's QR points. */
+const MOCK_VERIFY_ORIGIN = 'http://localhost:3030';
 
 interface SlipRequest {
   /** When the slip was last asked for: the submit, then each reissue. */
@@ -40,9 +50,21 @@ export function resetAcknowledgementMock() {
   slips.clear();
 }
 
-/** The slip issued with `documentId`, for the mock download route. */
-export function mockSlip(documentId: string) {
-  return slips.get(documentId);
+/**
+ * The slip issued with `documentId` as a placeholder PDF naming it, for the documents mock's
+ * download and the route that serves it; undefined when no such slip was issued.
+ */
+export function mockSlipFile(documentId: string): { fileName: string; pdf: string } | undefined {
+  const issued = slips.get(documentId);
+  if (!issued) return undefined;
+  return {
+    fileName: `${issued.reference}-v${String(issued.version)}.pdf`,
+    pdf: placeholderPdf([
+      `Acknowledgement slip ${issued.reference}, version ${String(issued.version)}`,
+      `Verification code ${issued.verificationId}`,
+      'Placeholder slip from the development mock.',
+    ]),
+  };
 }
 
 const CROCKFORD = '0123456789ABCDEFGHJKMNPQRSTVWXYZ';
@@ -73,60 +95,62 @@ export function slipRequested(version: DeclarationVersion) {
   requestOf(version);
 }
 
-/** Moves a pending slip on once its delay went by, as issuance would have. */
-export function settleAcknowledgement(version: DeclarationVersion, now: number) {
+/** Issues a pending slip once its delay went by, as the documents service would have. */
+function settleAcknowledgement(version: DeclarationVersion, now: number) {
   const request = requestOf(version);
   const ack = version.acknowledgement;
-  if (ack.status !== 'pending' || now - request.requestedAt < MOCK_SLIP_DELAY_MS) return;
-  if (request.issuance === 'fail') {
-    ack.status = 'failed';
-  } else if (request.issuance === 'issue') {
-    const documentId = randomUUID();
-    const code = verificationId();
-    slips.set(documentId, {
-      reference: version.reference,
-      version: version.version,
-      verificationId: code,
-    });
-    Object.assign(ack, {
-      status: 'issued',
-      documentId,
-      verificationId: code,
-      issuedAt: new Date(request.requestedAt + MOCK_SLIP_DELAY_MS).toISOString(),
-    } satisfies Partial<Acknowledgement>);
-  }
+  if (ack.status !== 'pending' || request.issuance !== 'issue') return;
+  if (now - request.requestedAt < MOCK_SLIP_DELAY_MS) return;
+  const documentId = randomUUID();
+  const code = verificationId();
+  slips.set(documentId, {
+    reference: version.reference,
+    version: version.version,
+    verificationId: code,
+  });
+  Object.assign(ack, {
+    status: 'issued',
+    documentId,
+    verificationId: code,
+    verifyUrl: `${MOCK_VERIFY_ORIGIN}/v/${code}`,
+    issuedAt: new Date(request.requestedAt + MOCK_SLIP_DELAY_MS).toISOString(),
+  } satisfies Partial<Acknowledgement>);
 }
 
-/** `GET …/acknowledgement`: the slip's status, with a fresh download link once issued. */
+/**
+ * The acknowledgement as the service reports it: a slip still pending a minute after it was
+ * last asked for reads `failed` (stored, it stays `pending`).
+ */
 export function readAcknowledgement(
   version: DeclarationVersion,
   now: number = Date.now(),
 ): Acknowledgement {
   settleAcknowledgement(version, now);
   const ack = version.acknowledgement;
-  return {
-    ...ack,
-    downloadUrl:
-      ack.status === 'issued' && ack.documentId ? `/api/mock-slips/${ack.documentId}` : null,
-  };
+  const overdue =
+    ack.status === 'pending' &&
+    now - requestOf(version).requestedAt > MOCK_ACKNOWLEDGEMENT_DEADLINE_MS;
+  return overdue ? { ...ack, status: 'failed' } : { ...ack };
 }
 
 export type ReissueAnswer =
-  { status: 202 } | { status: 409 } | { status: 429; retryAfterSeconds: number };
+  | { status: 202 }
+  | { status: 409; code: 'acknowledgement-issued' | 'acknowledgement-in-progress' }
+  | { status: 429; retryAfterSeconds: number };
 
-/** `POST …/acknowledgement/reissue`: only a failed slip, at most once per cooldown. */
+/** `POST …/acknowledgement/reissue`, on the service's `reissueDecision`. */
 export function reissueAcknowledgement(
   version: DeclarationVersion,
   now: number = Date.now(),
 ): ReissueAnswer {
-  settleAcknowledgement(version, now);
+  const status = readAcknowledgement(version, now).status;
   const request = requestOf(version);
-  if (version.acknowledgement.status !== 'failed') return { status: 409 };
-  if (request.reissuedAt !== null && now - request.reissuedAt < MOCK_REISSUE_COOLDOWN_MS) {
-    const left = MOCK_REISSUE_COOLDOWN_MS - (now - request.reissuedAt);
-    return { status: 429, retryAfterSeconds: Math.ceil(left / 1000) };
+  if (status === 'issued') return { status: 409, code: 'acknowledgement-issued' };
+  if (status === 'pending') {
+    if (request.reissuedAt === null) return { status: 409, code: 'acknowledgement-in-progress' };
+    const left = request.reissuedAt + MOCK_ACKNOWLEDGEMENT_DEADLINE_MS - now;
+    return { status: 429, retryAfterSeconds: Math.max(1, Math.ceil(left / 1000)) };
   }
-  version.acknowledgement.status = 'pending';
   request.requestedAt = now;
   request.reissuedAt = now;
   request.issuance = issuance;

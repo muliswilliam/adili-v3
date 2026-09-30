@@ -5,14 +5,16 @@ import { asDeclarant } from './bff.server';
 import { loadDeclarantAccount } from './declarant.server';
 import { declarationsClient } from './declarations/client.server';
 import { directoryClient } from './directory/client.server';
-import { env } from './env.server';
+import { documentsClient } from './documents/client.server';
 import type { Unauthenticated } from './results';
 import {
   type AcknowledgementRead,
   loadSubmission,
   readAcknowledgement,
+  readSlipDownload,
   reissueAcknowledgement,
   type ReissueOutcome,
+  type SlipDownload,
   type SubmissionLoad,
   submitDeclaration,
   type SubmitOutcome,
@@ -46,11 +48,19 @@ export const reissueMyAcknowledgement = createServerFn({ method: 'POST' })
     asDeclarant(declarationsClient, (client) => reissueAcknowledgement(client, data)),
   );
 
+/**
+ * A short-lived link to the issued slip, from the documents service (the acknowledgement's
+ * `downloadUrl` is null: the slip is the declarant's document there, and downloads are audited).
+ */
+export const getMySlipDownload = createServerFn({ method: 'GET' })
+  .validator(z.object({ documentId: z.uuid() }))
+  .handler(({ data }): Promise<SlipDownload | Unauthenticated> =>
+    asDeclarant(documentsClient, (client) => readSlipDownload(client, data.documentId)),
+  );
+
 /** What the slip card shows besides the acknowledgement. */
 export interface SlipContext {
   status: 'ok';
-  /** Origin of the verify app, for the QR's link. */
-  verifyBaseUrl: string;
   /**
    * The declarant's name and where the slip was sent (masked on the server); null when the
    * directory did not answer.
@@ -64,7 +74,6 @@ export const getMySlipContext = createServerFn({ method: 'GET' }).handler(
     if (account.status === 'unauthenticated') return account;
     return {
       status: 'ok',
-      verifyBaseUrl: env().VERIFY_BASE_URL,
       declarant:
         account.status === 'onboarded'
           ? {

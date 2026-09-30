@@ -70,6 +70,7 @@ export function submissionMock() {
     getMySubmission: vi.fn(),
     getMyAcknowledgement: vi.fn(),
     reissueMyAcknowledgement: vi.fn(),
+    getMySlipDownload: vi.fn(),
     getMySlipContext: vi.fn(),
   };
 }

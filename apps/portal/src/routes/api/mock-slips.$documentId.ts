@@ -4,23 +4,17 @@ import { env } from '../../server/env.server';
 
 /**
  * Stands in for the documents service's presigned slip download while DECLARATIONS_DRAFTS_MOCK
- * is on: the declarations mock's acknowledgement `downloadUrl` points here. Serves a one-page
+ * is on: the documents mock's `GET /v1/documents/{id}/download` points here. Serves a one-page
  * placeholder PDF naming the slip. Development and tests only; everywhere else it is a 404.
  */
 async function slip(documentId: string): Promise<Response> {
-  const { mockSlip } = await import('../../server/declarations/mock/acknowledgement');
-  const { placeholderPdf } = await import('../../server/mock-pdf');
-  const issued = mockSlip(documentId);
-  if (!issued) return new Response(null, { status: 404 });
-  const lines = [
-    `Acknowledgement slip ${issued.reference}, version ${String(issued.version)}`,
-    `Verification code ${issued.verificationId}`,
-    'Placeholder slip from the development mock.',
-  ];
-  return new Response(placeholderPdf(lines), {
+  const { mockSlipFile } = await import('../../server/declarations/mock/acknowledgement');
+  const file = mockSlipFile(documentId);
+  if (!file) return new Response(null, { status: 404 });
+  return new Response(file.pdf, {
     headers: {
       'content-type': 'application/pdf',
-      'content-disposition': `attachment; filename="${issued.reference}-v${String(issued.version)}.pdf"`,
+      'content-disposition': `attachment; filename="${file.fileName}"`,
     },
   });
 }

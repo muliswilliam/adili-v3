@@ -5,7 +5,11 @@ import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { Acknowledgement, DeclarationVersion } from '../../server/declarations/types';
-import { getMyAcknowledgement, reissueMyAcknowledgement } from '../../server/submission';
+import {
+  getMyAcknowledgement,
+  getMySlipDownload,
+  reissueMyAcknowledgement,
+} from '../../server/submission';
 import { downloadFrom } from '../download';
 import { SlipCard, type SlipCardProps } from './slip-card';
 import { sampleDeclaration } from './testing';
@@ -17,6 +21,7 @@ vi.mock('../download', async () => (await import('./testing-mocks')).downloadMoc
 
 const read = vi.mocked(getMyAcknowledgement);
 const reissue = vi.mocked(reissueMyAcknowledgement);
+const slipDownload = vi.mocked(getMySlipDownload);
 const download = vi.mocked(downloadFrom);
 
 const NOW = Date.parse('2026-09-30T07:42:30Z');
@@ -34,6 +39,7 @@ const pending: Acknowledgement = {
   status: 'pending',
   documentId: null,
   verificationId: null,
+  verifyUrl: null,
   issuedAt: null,
   verifiedCount: 0,
   downloadUrl: null,
@@ -42,6 +48,7 @@ const issued: Acknowledgement = {
   status: 'issued',
   documentId: '9d7c1a52-0f3e-4b8a-9c6d-2e1f0a3b4c5d',
   verificationId: CODE,
+  verifyUrl: `https://verify.adili.test/v/${CODE}`,
   issuedAt: '2026-09-30T07:42:04Z',
   verifiedCount: 0,
   downloadUrl: null,
@@ -65,7 +72,7 @@ const declarant = {
   maskedEmail: 'm***@tsc.go.ke',
   maskedPhone: '07** *** 789',
 };
-const context: SlipCardProps['context'] = { verifyBaseUrl: 'http://localhost:3030', declarant };
+const context: SlipCardProps['context'] = { declarant };
 
 function renderSlip(acknowledgement: Acknowledgement, overrides: Partial<SlipCardProps> = {}) {
   return render(
@@ -120,6 +127,7 @@ beforeEach(() => {
   vi.setSystemTime(NOW);
   read.mockReset().mockResolvedValue(answer(pending));
   reissue.mockReset();
+  slipDownload.mockReset();
   download.mockReset();
 });
 
@@ -228,7 +236,7 @@ describe('an issued slip', () => {
     );
     expect(within(slip).getByText('Verified 0 times')).toBeTruthy();
     expect(within(slip).getByRole('link', { name: 'Verify online' }).getAttribute('href')).toBe(
-      `http://localhost:3030/v/${CODE}`,
+      `https://verify.adili.test/v/${CODE}`,
     );
   });
 
@@ -263,22 +271,38 @@ describe('an issued slip', () => {
     expect(sentLine()?.textContent).toBe('Sent to m***@tsc.go.ke (partially hidden for privacy)');
   });
 
-  it('downloads from a link fetched on click, with a fresh verified count', async () => {
+  it('downloads from a link the documents service gives on click, with a fresh verified count', async () => {
     const url = 'https://s3.test/issued/slip.pdf?signature=fresh';
-    read.mockResolvedValue(answer({ ...issued, verifiedCount: 2, downloadUrl: url }));
+    slipDownload.mockResolvedValue({ status: 'ok', downloadUrl: url });
+    read.mockResolvedValue(answer({ ...issued, verifiedCount: 2 }));
     renderSlip(issued);
     expect(read).not.toHaveBeenCalled();
 
     fireEvent.click(screen.getByRole('button', { name: 'Download slip' }));
     await wait(0);
 
+    expect(slipDownload).toHaveBeenCalledWith({ data: { documentId: issued.documentId } });
     expect(read).toHaveBeenCalledWith({ data: { declarationId: declaration.id, version: 1 } });
     expect(download).toHaveBeenCalledWith(url);
     expect(screen.getByText('Verified 2 times')).toBeTruthy();
   });
 
-  it('says so when the link could not be fetched', async () => {
+  it('downloads even when the verified count could not be refreshed', async () => {
+    const url = 'https://s3.test/issued/slip.pdf?signature=fresh';
+    slipDownload.mockResolvedValue({ status: 'ok', downloadUrl: url });
     read.mockResolvedValue({ status: 'unavailable' });
+    renderSlip(issued);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Download slip' }));
+    await wait(0);
+
+    expect(download).toHaveBeenCalledWith(url);
+    expect(screen.getByText('Verified 0 times')).toBeTruthy();
+  });
+
+  it('says so when the link could not be fetched', async () => {
+    slipDownload.mockResolvedValue({ status: 'unavailable' });
+    read.mockResolvedValue(answer(issued));
     renderSlip(issued);
 
     fireEvent.click(screen.getByRole('button', { name: 'Download slip' }));

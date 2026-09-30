@@ -12,7 +12,6 @@ const base = {
   DIRECTORY_API_URL: 'http://localhost:4001',
   DECLARATIONS_API_URL: 'http://localhost:4002',
   DOCUMENTS_API_URL: 'http://localhost:4006',
-  VERIFY_BASE_URL: 'http://localhost:3030',
   REVIEW_API_URL: 'http://localhost:4003',
 };
 

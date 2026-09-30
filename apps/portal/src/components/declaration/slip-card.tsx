@@ -33,6 +33,7 @@ import { Fragment, useEffect, useReducer, useRef, useState } from 'react';
 import type { Declaration, DeclarationVersion } from '../../server/declarations/types';
 import {
   getMyAcknowledgement,
+  getMySlipDownload,
   reissueMyAcknowledgement,
   type SlipContext,
 } from '../../server/submission';
@@ -46,20 +47,19 @@ import {
   slipAnnouncement,
   slipReducer,
   type SlipState,
-  verifyUrl,
 } from './slip';
 
 export interface SlipCardProps {
   declaration: Declaration;
   version: DeclarationVersion;
-  context: Pick<SlipContext, 'verifyBaseUrl' | 'declarant'>;
+  context: Pick<SlipContext, 'declarant'>;
 }
 
 /**
  * The acknowledgement slip of a submitted version on the success page (spec 06 FE-3): while it
  * is prepared the card polls `getAcknowledgement` every two seconds for a minute, then says it is
  * taking longer with "Check again"; once issued it shows the slip's details, verification code
- * and QR with a download fetched fresh on click; a failed slip can be asked for again after a
+ * and QR (the acknowledgement's `verifyUrl`) with a download link fetched fresh on click; a failed slip can be asked for again after a
  * cooldown. A screen reader hears each change of state once, not each poll.
  */
 export function SlipCard({ declaration, version, context }: SlipCardProps) {
@@ -234,7 +234,7 @@ function IssuedSlip({
 }) {
   const { acknowledgement } = state;
   const code = acknowledgement.verificationId ?? '';
-  const link = verifyUrl(context.verifyBaseUrl, code);
+  const link = acknowledgement.verifyUrl ?? '';
   const delivered = context.declarant
     ? sentTo(context.declarant.maskedEmail, context.declarant.maskedPhone)
     : [];
@@ -242,15 +242,23 @@ function IssuedSlip({
   const [downloading, setDownloading] = useState(false);
 
   async function download() {
+    const { documentId } = acknowledgement;
+    if (documentId === null) return;
     setDownloading(true);
-    const answer = await getMyAcknowledgement({
-      data: { declarationId: declaration.id, version: version.version },
-    }).catch(() => null);
+    // The link comes from the documents service; the acknowledgement, read alongside, brings a
+    // fresh verified count.
+    const [link, answer] = await Promise.all([
+      getMySlipDownload({ data: { documentId } }).catch(() => null),
+      getMyAcknowledgement({
+        data: { declarationId: declaration.id, version: version.version },
+      }).catch(() => null),
+    ]);
     setDownloading(false);
-    const fresh = answer?.status === 'ok' ? answer.acknowledgement : null;
-    if (fresh?.status === 'issued' && fresh.downloadUrl) {
-      onRead(fresh);
-      downloadFrom(fresh.downloadUrl);
+    if (answer?.status === 'ok' && answer.acknowledgement.status === 'issued') {
+      onRead(answer.acknowledgement);
+    }
+    if (link?.status === 'ok') {
+      downloadFrom(link.downloadUrl);
     } else {
       toast({ title: SLIP_COPY.downloadFailed, urgency: 'assertive' });
     }

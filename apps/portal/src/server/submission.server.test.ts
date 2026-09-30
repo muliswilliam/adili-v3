@@ -11,9 +11,12 @@ import {
   setSlipIssuance,
 } from './declarations/mock.server';
 import type { paths } from './declarations/schema.gen';
+import { mockDocumentsFetch } from './documents/mock.server';
+import type { paths as documentsPaths } from './documents/schema.gen';
 import {
   loadSubmission,
   readAcknowledgement,
+  readSlipDownload,
   reissueAcknowledgement,
   submitDeclaration,
   type SubmitOutcome,
@@ -34,6 +37,14 @@ function client(authorization = STEPPED_UP) {
     baseUrl: 'http://declarations.test',
     fetch: mockDeclarationsFetch,
     headers: { authorization },
+  });
+}
+
+function documents() {
+  return createClient<documentsPaths>({
+    baseUrl: 'http://documents.test',
+    fetch: mockDocumentsFetch,
+    headers: { authorization: STEPPED_UP },
   });
 }
 
@@ -327,7 +338,7 @@ describe('the acknowledgement slip', () => {
     vi.setSystemTime(Date.now() + seconds * 1000);
   }
 
-  it('is pending right after the submit, then issued with a code and a fresh download link', async () => {
+  it('is pending right after the submit, then issued with a code, verify link and download', async () => {
     const ref = await submitted();
 
     expect(await readAcknowledgement(client(), ref)).toEqual({
@@ -336,6 +347,7 @@ describe('the acknowledgement slip', () => {
         status: 'pending',
         documentId: null,
         verificationId: null,
+        verifyUrl: null,
         issuedAt: null,
         verifiedCount: 0,
         downloadUrl: null,
@@ -345,42 +357,69 @@ describe('the acknowledgement slip', () => {
     const read = await readAcknowledgement(client(), ref);
     if (read.status !== 'ok') throw new Error(read.status);
     const { acknowledgement } = read;
-    expect(acknowledgement).toMatchObject({ status: 'issued', verifiedCount: 0 });
+    expect(acknowledgement).toMatchObject({
+      status: 'issued',
+      verifiedCount: 0,
+      downloadUrl: null,
+    });
     expect(acknowledgement.verificationId).toMatch(
       /^ADL-(?:[0-9A-HJKMNP-TV-Z]{4}-){6}[0-9A-HJKMNP-TV-Z]{2}$/,
     );
-    expect(acknowledgement.downloadUrl).toBe(`/api/mock-slips/${acknowledgement.documentId ?? ''}`);
+    expect(acknowledgement.verifyUrl).toBe(
+      `http://localhost:3030/v/${acknowledgement.verificationId ?? ''}`,
+    );
 
-    // The versions list shows the slip issued too, without a download link.
+    // The versions list shows the same slip; it downloads from the documents service.
     const load = await loadSubmission(client(), ref.declarationId);
     if (load.status !== 'ok') throw new Error(load.status);
-    expect(load.version.acknowledgement).toEqual({ ...acknowledgement, downloadUrl: null });
+    expect(load.version.acknowledgement).toEqual(acknowledgement);
+    const documentId = acknowledgement.documentId ?? '';
+    expect(await readSlipDownload(documents(), documentId)).toEqual({
+      status: 'ok',
+      downloadUrl: `/api/mock-slips/${documentId}`,
+    });
+    expect(await readSlipDownload(documents(), '9d3c2b1a-0f4e-4d5c-8b7a-6f5e4d3c2b1a')).toEqual({
+      status: 'not-found',
+    });
   });
 
-  it('can be asked for again when it failed, at most once a minute', async () => {
+  it('reads failed a minute after the submit when it did not come, and not before', async () => {
     setSlipIssuance('fail');
     const ref = await submitted();
     expect(await reissueAcknowledgement(client(), ref)).toEqual({ status: 'in-progress' });
-    later(4);
+    later(60);
+    expect(await readAcknowledgement(client(), ref)).toMatchObject({
+      acknowledgement: { status: 'pending' },
+    });
+    expect(await reissueAcknowledgement(client(), ref)).toEqual({ status: 'in-progress' });
+    later(1);
     expect(await readAcknowledgement(client(), ref)).toMatchObject({
       acknowledgement: { status: 'failed' },
     });
+    const load = await loadSubmission(client(), ref.declarationId);
+    expect(load).toMatchObject({ version: { acknowledgement: { status: 'failed' } } });
+  });
+
+  it('can be asked for again when it failed, with a cooldown until that ask is due', async () => {
+    setSlipIssuance('fail');
+    const ref = await submitted();
+    later(61);
 
     expect(await reissueAcknowledgement(client(), ref)).toEqual({ status: 'requested' });
     expect(await readAcknowledgement(client(), ref)).toMatchObject({
       acknowledgement: { status: 'pending' },
     });
     later(4);
-    expect(await readAcknowledgement(client(), ref)).toMatchObject({
-      acknowledgement: { status: 'failed' },
-    });
     expect(await reissueAcknowledgement(client(), ref)).toEqual({
       status: 'cooldown',
       retryAfterSeconds: 56,
     });
+    later(57);
+    expect(await readAcknowledgement(client(), ref)).toMatchObject({
+      acknowledgement: { status: 'failed' },
+    });
 
     setSlipIssuance('issue');
-    later(56);
     expect(await reissueAcknowledgement(client(), ref)).toEqual({ status: 'requested' });
     later(4);
     expect(await readAcknowledgement(client(), ref)).toMatchObject({

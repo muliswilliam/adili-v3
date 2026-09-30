@@ -54,7 +54,6 @@ set_env "$ROOT/apps/portal/.env" OIDC_ISSUER_URL "$issuer"
 set_env "$ROOT/apps/portal/.env" PORT "$portal_port"
 set_env "$ROOT/apps/portal/.env" TRUSTED_PROXY_HOPS "$proxy_hops"
 set_env "$ROOT/apps/portal/.env" ADILI_DEMO_BIND 1
-set_env "$ROOT/apps/portal/.env" VERIFY_BASE_URL "${ADILI_VERIFY_URL}"
 
 set_env "$ROOT/apps/console/.env" APP_URL "${ADILI_CONSOLE_URL}"
 set_env "$ROOT/apps/console/.env" OIDC_ISSUER_URL "$issuer"

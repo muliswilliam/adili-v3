@@ -9,12 +9,15 @@
  * - `POST /v1/uploads/{id}/complete` decides the scan: a file name containing "virus" is
  *   infected, anything else is clean.
  * - `GET /v1/uploads/{id}` returns the upload.
+ * - `GET /v1/documents/{id}/download` links to an acknowledgement slip the declarations mock
+ *   issued, served in mock mode by `routes/api/mock-slips.$documentId.ts`.
  *
  * Limits for `declaration-attachment` and `clarification-attachment`: PDF, JPEG, PNG or HEIC, up
  * to 20 MB.
  */
 import { createHash, randomUUID } from 'node:crypto';
 
+import { mockSlipFile } from '../declarations/mock/acknowledgement';
 import { isRecord, json, problem, readJson } from '../mock-http';
 import type { Upload, UploadPurpose } from './types';
 import { ATTACHMENT_PURPOSES } from './uploads.server';
@@ -68,7 +71,21 @@ async function route(request: Request): Promise<Response> {
     return upload ? json(200, upload) : problem(404, 'Not found');
   }
 
+  const download = /^\/v1\/documents\/([^/]+)\/download$/.exec(pathname);
+  if (method === 'GET' && download?.[1]) return slipDownload(download[1]);
+
   return problem(404, 'Not found');
+}
+
+/** `GET /v1/documents/{id}/download`: a link valid for five minutes, as the service presigns. */
+function slipDownload(documentId: string) {
+  const file = mockSlipFile(documentId);
+  if (!file) return problem(404, 'Not found');
+  return json(200, {
+    downloadUrl: `/api/mock-slips/${documentId}`,
+    expiresAt: new Date(Date.now() + 5 * 60_000).toISOString(),
+    sha256: createHash('sha256').update(file.pdf).digest('hex'),
+  });
 }
 
 async function createUpload(request: Request) {

@@ -1,3 +1,5 @@
+import { z } from 'zod';
+
 import type { DeclarationsClient } from './declarations/client.server';
 import type {
   Acknowledgement,
@@ -7,6 +9,7 @@ import type {
   SubmissionResult,
   SubmitProblem,
 } from './declarations/types';
+import type { DocumentsClient } from './documents/client.server';
 import { attempt, type NotFound, notFound, type Unavailable, unavailable } from './results';
 
 /**
@@ -120,7 +123,8 @@ export type AcknowledgementRead =
 
 /**
  * `GET /v1/declarations/{id}/versions/{n}/acknowledgement`: the slip's status, and once issued
- * a download link fresh from this call (short-lived, so read it again for each download).
+ * its document, verification code and verify link. The slip downloads from the documents
+ * service (`readSlipDownload`).
  */
 export function readAcknowledgement(
   client: DeclarationsClient,
@@ -139,16 +143,19 @@ export function readAcknowledgement(
 export type ReissueOutcome =
   /** 202: issuance starts over; the slip is pending again. */
   | { status: 'requested' }
-  /** 409: the slip is issued or being prepared already. */
+  /** 409 `acknowledgement-issued` or `acknowledgement-in-progress`: the next read says which. */
   | { status: 'in-progress' }
-  /** 429: asked too recently; ask again after this many seconds (`Retry-After`), if it said. */
+  /** 429 `resend-cooldown`: asked again a moment ago; ask after `retryAfterSeconds`, if it said. */
   | { status: 'cooldown'; retryAfterSeconds: number | null }
   | NotFound
   | Unavailable;
 
-function retryAfterSeconds(response: Response): number | null {
-  const seconds = Number(response.headers.get('retry-after') ?? Number.NaN);
-  return Number.isInteger(seconds) && seconds > 0 ? seconds : null;
+/** The `resend-cooldown` problem's extension (not in the generated `ProblemDetails`). */
+const cooldownProblem = z.object({ retryAfterSeconds: z.number().int().positive() });
+
+function retryAfterSeconds(problem: unknown): number | null {
+  const parsed = cooldownProblem.safeParse(problem);
+  return parsed.success ? parsed.data.retryAfterSeconds : null;
 }
 
 /** `POST /v1/declarations/{id}/versions/{n}/acknowledgement/reissue`, when issuance failed. */
@@ -157,7 +164,7 @@ export function reissueAcknowledgement(
   { declarationId, version }: VersionRef,
 ): Promise<ReissueOutcome> {
   return attempt(async () => {
-    const { response } = await client.POST(
+    const { error, response } = await client.POST(
       '/v1/declarations/{declarationId}/versions/{version}/acknowledgement/reissue',
       { params: { path: { declarationId, version } } },
     );
@@ -167,11 +174,30 @@ export function reissueAcknowledgement(
       case 409:
         return { status: 'in-progress' };
       case 429:
-        return { status: 'cooldown', retryAfterSeconds: retryAfterSeconds(response) };
+        return { status: 'cooldown', retryAfterSeconds: retryAfterSeconds(error) };
       case 404:
         return notFound;
       default:
         return unavailable;
     }
+  });
+}
+
+export type SlipDownload = { status: 'ok'; downloadUrl: string } | NotFound | Unavailable;
+
+/**
+ * `GET /v1/documents/{id}/download` on the documents service: a presigned link to the issued
+ * slip, valid for minutes, so fetch one for each download.
+ */
+export function readSlipDownload(
+  client: DocumentsClient,
+  documentId: string,
+): Promise<SlipDownload> {
+  return attempt(async () => {
+    const { data, response } = await client.GET('/v1/documents/{documentId}/download', {
+      params: { path: { documentId } },
+    });
+    if (data) return { status: 'ok', downloadUrl: data.downloadUrl };
+    return response.status === 404 ? notFound : unavailable;
   });
 }

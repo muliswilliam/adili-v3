@@ -43,7 +43,7 @@ function versionOf(overrides: Partial<DeclarationVersion> = {}): DeclarationVers
   };
 }
 
-const slip = { verifyBaseUrl: 'http://localhost:3030', declarant: null };
+const slip = { declarant: null };
 
 /** Before the due date (31 Dec 2027). */
 const BEFORE_DUE = Date.parse('2026-09-30T07:42:00Z');

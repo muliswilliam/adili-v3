@@ -40,10 +40,11 @@
  * (`DCB-TSC-2027-0000001-B`), `late` when after the due date, the acknowledgement `pending`.
  * Summaries answer `cannotSubmitReason` as the service does (the refusal first, then
  * `incomplete`), `canSubmit` when there is none, and `late` after the due date. The slip is
- * issued a few seconds later, and a failed one can be asked for again (`./mock/acknowledgement.ts`).
+ * issued a few seconds later, or reads failed a minute on, when it can be asked for again
+ * (`./mock/acknowledgement.ts`).
  *
  * Tests can make the next saves fail (`failNextSaves`) or submits fail (`failNextSubmits`), make
- * slips fail or stay pending (`setSlipIssuance`),
+ * slips never come (`setSlipIssuance`),
  * simulate an edit on another device (`editElsewhere`), make registries answer at once
  * (`setLookupDelay(0)`) or play a Commission without AI (`setExtractionEnabled(false)`).
  */
@@ -75,7 +76,6 @@ import {
   readAcknowledgement,
   reissueAcknowledgement,
   resetAcknowledgementMock,
-  settleAcknowledgement,
   slipRequested,
 } from './mock/acknowledgement';
 import { anyMockObligation, isObligationRead, obligationReads } from './mock/obligations';
@@ -992,8 +992,12 @@ function listVersions(id: string) {
   const stored = store.get(id);
   if (!stored || stored.status === 'discarded') return problem(404, 'Not found');
   const now = Date.now();
-  for (const version of stored.versions) settleAcknowledgement(version, now);
-  return json(200, [...stored.versions].reverse());
+  return json(
+    200,
+    [...stored.versions]
+      .reverse()
+      .map((version) => ({ ...version, acknowledgement: readAcknowledgement(version, now) })),
+  );
 }
 
 function submittedVersion(id: string, number: number) {
@@ -1014,10 +1018,20 @@ function reissue(id: string, number: number) {
   if (!version) return problem(404, 'Not found');
   const answer = reissueAcknowledgement(version);
   if (answer.status === 202) return new Response(null, { status: 202 });
-  if (answer.status === 409) return problem(409, 'The slip is issued or being prepared');
-  return json(
-    429,
-    { type: 'about:blank', title: 'Asked for the slip too recently', status: 429 },
-    { 'retry-after': String(answer.retryAfterSeconds) },
-  );
+  if (answer.status === 409) {
+    return problem(
+      409,
+      answer.code === 'acknowledgement-issued'
+        ? 'The acknowledgement slip is issued'
+        : 'The acknowledgement slip is still being prepared',
+      answer.code,
+    );
+  }
+  return json(429, {
+    type: 'about:blank',
+    title: 'The acknowledgement slip was asked for again a moment ago',
+    status: 429,
+    code: 'resend-cooldown',
+    retryAfterSeconds: answer.retryAfterSeconds,
+  });
 }
