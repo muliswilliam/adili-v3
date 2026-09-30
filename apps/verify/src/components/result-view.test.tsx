@@ -71,6 +71,23 @@ describe('ResultView', () => {
     expect(within(breakdown).getByText('Teachers Service Commission')).toBeTruthy();
   });
 
+  it('offers no breakdown for a reference that does not parse, e.g. a wrong check character', async () => {
+    const outcome = await outcomeFor(MOCK_CODES.valid);
+    if (outcome.kind !== 'found' || !outcome.result.document)
+      throw new Error('expected a document');
+    const document = { ...outcome.result.document, reference: 'DCI-TSC-2026-0012345-9' };
+    render(
+      <ResultView
+        code={MOCK_CODES.valid}
+        outcome={{ ...outcome, result: { ...outcome.result, document } }}
+        onRetry={vi.fn()}
+      />,
+    );
+
+    expect(detail('Reference number')).toContain('DCI-TSC-2026-0012345-9');
+    expect(screen.queryByRole('button', { name: 'What does this reference mean?' })).toBeNull();
+  });
+
   it('superseded: warns, and links to the current version when the API gives it', async () => {
     await renderResult(MOCK_CODES.superseded);
 

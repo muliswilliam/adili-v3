@@ -1,4 +1,4 @@
-import { findScheme } from '@adili/numbering/references';
+import { findScheme, parse } from '@adili/numbering/references';
 import {
   Button,
   DescriptionItem,
@@ -228,12 +228,20 @@ function DocumentDetails({
 
 /**
  * What each part of a declaration reference means, from the numbering scheme registry. Other
- * references show without a breakdown.
+ * references, and any that do not parse, show without a breakdown.
  */
 function referenceParts(document: VerifiedDocument) {
-  const scheme = findScheme(document.reference?.split('-')[0] ?? '');
+  const scheme = document.reference ? parsedScheme(document.reference) : undefined;
   if (!scheme?.issuer || !scheme.period) return undefined;
   return declarationReferenceParts({ type: scheme.name, issuer: document.issuerName });
+}
+
+function parsedScheme(reference: string) {
+  try {
+    return findScheme(parse(reference).scheme);
+  } catch {
+    return undefined;
+  }
 }
 
 function CurrentVersion({ supersededBy }: { supersededBy: VerificationResult['supersededBy'] }) {
