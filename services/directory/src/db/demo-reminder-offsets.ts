@@ -3,7 +3,8 @@
  * [offsets] [obligations-start-date]` puts a policy version with short reminder offsets in force
  * for a demo Commission (default `psc`, offsets `29,7,1`, the current start date), so an officer
  * appointed yesterday is reminded today. The running directory's outbox relay announces it to the
- * declarations service. Local data only.
+ * declarations service. Local data only: refused when NODE_ENV is production, whatever the
+ * Commission (the hosted demo seeds the same demo Commissions).
  */
 import { createDatabase } from '@adili/data-access';
 import { EventPublisher } from '@adili/events';
@@ -12,6 +13,11 @@ import { DEMO_COMMISSIONS, useDemoReminderOffsets } from '../commissions/demo-se
 import { config } from '../config.js';
 import { schema } from './schema.js';
 
+if (config.NODE_ENV === 'production') {
+  throw new Error(
+    'The reminder demo changes policy offsets, which the product never does: not in production',
+  );
+}
 const [tenant = 'psc', offsets = '29,7,1', obligationsStartDate] = process.argv.slice(2);
 if (!DEMO_COMMISSIONS.some((demo) => demo.slug === tenant)) {
   throw new Error(`Not a demo Commission: ${tenant}`);
