@@ -9,7 +9,8 @@
   ],
   "exports": {
     ".": "./src/index.ts",
-    "./styles.css": "./src/styles.css"
+    "./styles.css": "./src/styles.css",
+    "./vitest.icons": "./vitest.icons.ts"
   },
   "scripts": {
     "lint": "eslint .",
@@ -19,6 +20,7 @@
     "build-storybook": "storybook build --output-dir storybook-static"
   },
   "dependencies": {
+    "@adili/contacts": "workspace:*",
     "@fontsource-variable/inter": "^5.3.0",
     "@hugeicons/core-free-icons": "^4.3.5",
     "@hugeicons/react": "^1.1.10",

@@ -1,14 +1,14 @@
-import { Controller, Get, Param } from '@nestjs/common';
+import { Controller, Get } from '@nestjs/common';
 import { ApiOkResponse, ApiOperation } from '@nestjs/swagger';
 import { byClientIp, RATE_LIMIT_HEADERS, RateLimit, schemaRef } from '@adili/api-kit';
 
-import { ApiSessionRoute, OnboardingController, SessionSecret } from '../public-route.js';
+import { ApiSessionRoute, OnboardingController, SessionCredentials } from '../public-route.js';
 import type { OnboardingSession } from '../representation.js';
 import { OnboardingSessions } from '../sessions.repository.js';
 
 /**
  * Reading a session. The steps that change one live in controllers of their own under the same
- * path (codes and contacts, confirm), each with `@ApiSessionRoute()`, `@SessionSecret()` and the
+ * path (codes and contacts, confirm), each with `@ApiSessionRoute()`, `@SessionCredentials()` and the
  * `onboarding-session` rate limit.
  */
 @OnboardingController()
@@ -29,11 +29,8 @@ export class OnboardingSessionsController {
     schema: schemaRef('OnboardingSession'),
     headers: RATE_LIMIT_HEADERS,
   })
-  get(
-    @Param('sessionId') sessionId: string,
-    @SessionSecret() secret: string | undefined,
-  ): Promise<OnboardingSession> {
-    return this.sessions.withLiveSession(sessionId, secret, ({ tx, session, now }) =>
+  get(@SessionCredentials() credentials: SessionCredentials): Promise<OnboardingSession> {
+    return this.sessions.withLiveSession(credentials, ({ tx, session, now }) =>
       this.sessions.view(tx, session, now),
     );
   }

@@ -16,10 +16,10 @@ import {
   SentIcon,
   Tick02Icon,
 } from '@hugeicons/core-free-icons';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 
 import type { OnboardingSession } from '../../server/directory/types';
-import { leaveOnboarding, resendSetPasswordEmail } from '../../server/onboarding';
+import { resendSetPasswordEmail } from '../../server/onboarding';
 import type { CheckEmailGuard, StepGuard } from './guard';
 import { RECOVER_ACCESS, SIGN_IN } from './links';
 import { StepHeading, SuccessMark } from './onboarding-layout';
@@ -188,7 +188,8 @@ function ResendEmail({
     try {
       const result = await resendSetPasswordEmail();
       if (result.ok) {
-        // It has just gone, so there is always a wait.
+        // It has just gone, so there is always a wait, even if the directory's clock says
+        // the next one is already allowed.
         startCountdown(emailWait(result.session) || RESEND_COOLDOWN_SECONDS);
         toast({ title: neverSent ? 'Email sent' : 'Email sent again' });
         onSent(result.session);
@@ -248,13 +249,12 @@ export function DoneStep({ guard }: { guard: StepGuard }) {
   return <Done session={guard.session} />;
 }
 
+/**
+ * The session is kept, so a refresh or Back comes back here while the cookie lasts. It does not
+ * hold the declarant: Get started does not resume a finished session (`resumeRoute`), and
+ * "Start again for another Commission" forgets it.
+ */
 function Done({ session }: { session: OnboardingSession }) {
-  // Nothing more happens on this session, so this browser forgets it once the page is shown;
-  // Get started then starts a new onboarding rather than coming back here.
-  useEffect(() => {
-    void leaveOnboarding();
-  }, []);
-
   return (
     <>
       <SuccessMark>

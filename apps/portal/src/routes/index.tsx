@@ -6,26 +6,36 @@ import {
   SiteFooter,
   SiteHeader,
   ToastProvider,
+  useToast,
 } from '@adili/ui';
-import { createFileRoute, Link } from '@tanstack/react-router';
+import { createFileRoute, Link, useNavigate } from '@tanstack/react-router';
 import { AlertCircleIcon, ArrowRight01Icon } from '@hugeicons/core-free-icons';
+import { useEffect, useRef } from 'react';
 import { z } from 'zod';
 
 import { authErrorMessage } from '../components/auth-error';
 import { AuthShell } from '../components/auth-shell';
 import { DashboardCards } from '../components/dashboard/dashboard-cards';
 import { ObligationsSection } from '../components/dashboard/obligations-view';
+import { DISCARDED_TOAST } from '../components/declaration/discard-dialog';
 import { SignOutButton } from '../components/sign-out-button';
+import { getMyDeclarations } from '../server/declarations';
+import type { DeclarationListResult } from '../server/declarations.server';
 import { getMyObligations, getObligationDetail } from '../server/obligations';
 import type { MyObligationsResult } from '../server/obligations.server';
 import { getViewer, type Viewer } from '../server/viewer';
 
 export const Route = createFileRoute('/')({
-  validateSearch: z.object({ auth_error: z.string().optional() }),
+  validateSearch: z.object({
+    auth_error: z.string().optional(),
+    discarded: z.boolean().optional(),
+  }),
   loader: async () => {
     const viewer = await getViewer();
     // Not awaited: the dashboard renders with skeleton cards and the obligations stream in.
-    return { viewer, obligations: viewer ? getMyObligations() : null };
+    const obligations = viewer ? getMyObligations() : null;
+    const declarations = viewer?.declarant.status === 'onboarded' ? await loadDeclarations() : null;
+    return { viewer, obligations, declarations };
   },
   component: Home,
 });
@@ -33,14 +43,39 @@ export const Route = createFileRoute('/')({
 const reloadObligations = () => getMyObligations();
 const loadObligationDetail = (id: string) => getObligationDetail({ data: { id } });
 
+/** The declarant's declarations; an ended session reads as unavailable. */
+async function loadDeclarations(): Promise<DeclarationListResult> {
+  const declarations = await getMyDeclarations();
+  return declarations.status === 'unauthenticated' ? { status: 'unavailable' } : declarations;
+}
+
 function Home() {
-  const { viewer, obligations } = Route.useLoaderData();
-  const { auth_error } = Route.useSearch();
+  const { viewer, obligations, declarations } = Route.useLoaderData();
+  const { auth_error, discarded } = Route.useSearch();
   return viewer && obligations ? (
-    <Dashboard viewer={viewer} obligations={obligations} />
+    <Dashboard
+      viewer={viewer}
+      obligations={obligations}
+      declarations={declarations}
+      discarded={discarded === true}
+    />
   ) : (
     <Landing error={authErrorMessage(auth_error)} />
   );
+}
+
+/** Confirms a draft discarded in the workspace, which sends the declarant here. */
+function DiscardedToast() {
+  const { toast } = useToast();
+  const navigate = useNavigate();
+  const shown = useRef(false);
+  useEffect(() => {
+    if (shown.current) return;
+    shown.current = true;
+    toast({ title: DISCARDED_TOAST });
+    void navigate({ to: '/', search: {}, replace: true });
+  }, [toast, navigate]);
+  return null;
 }
 
 function Landing({ error }: { error: string | null }) {
@@ -77,13 +112,18 @@ function Landing({ error }: { error: string | null }) {
 function Dashboard({
   viewer,
   obligations,
+  declarations,
+  discarded,
 }: {
   viewer: Viewer;
   obligations: Promise<MyObligationsResult>;
+  declarations: DeclarationListResult | null;
+  discarded: boolean;
 }) {
   const firstName = viewer.user.name.split(' ')[0];
   return (
     <ToastProvider>
+      {discarded ? <DiscardedToast /> : null}
       <SiteHeader
         actions={
           <>
@@ -99,11 +139,13 @@ function Dashboard({
         <div className="mt-8">
           <DashboardCards
             viewer={viewer}
+            declarations={declarations}
             obligations={
               <ObligationsSection
                 obligations={obligations}
                 reload={reloadObligations}
                 loadDetail={loadObligationDetail}
+                declarations={declarations?.status === 'ok' ? declarations.declarations : []}
               />
             }
           />

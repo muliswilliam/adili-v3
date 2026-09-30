@@ -212,7 +212,7 @@ function WorkspaceCard({ workspace }: { workspace: Workspace }) {
         <h3 className="text-base font-semibold tracking-[-0.01em]">
           <Link
             to={workspace.href}
-            className="rounded-sm outline-none after:absolute after:inset-0 after:rounded-2xl focus-visible:after:outline-2 focus-visible:after:outline-offset-2 focus-visible:after:outline-ring"
+            className="rounded-sm outline-hidden after:absolute after:inset-0 after:rounded-2xl focus-visible:after:outline-2 focus-visible:after:outline-solid focus-visible:after:outline-offset-2 focus-visible:after:outline-ring"
           >
             {workspace.title}
           </Link>

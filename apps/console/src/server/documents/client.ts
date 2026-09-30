@@ -1,6 +1,7 @@
 import createClient, { type Client } from 'openapi-fetch';
 
 import { callDirectory, type DirectoryResult } from '../directory/client';
+import type { MockFetch } from '../mockable-client.server';
 import type { components, paths } from './api.gen';
 
 /**
@@ -35,8 +36,17 @@ export function createDocumentsClient(options: {
   baseUrl: string;
   accessToken: string;
   fetch?: typeof fetch;
+  /**
+   * An in-memory mock to answer instead of the service, or null. Build it inline at the call
+   * site behind `import.meta.env.DEV` so production builds drop it (see `mockableClient`); it
+   * is also ignored under NODE_ENV=production.
+   */
+  mock?: MockFetch | null;
 }): DocumentsClient {
-  const fetchImpl = options.fetch ?? fetch;
+  const fetchImpl: (request: Request, init: RequestInit) => Promise<Response> =
+    options.mock && process.env.NODE_ENV !== 'production'
+      ? options.mock
+      : (request, init) => (options.fetch ?? fetch)(request, init);
   return createClient<paths>({
     baseUrl: options.baseUrl,
     headers: { authorization: `Bearer ${options.accessToken}`, accept: 'application/json' },

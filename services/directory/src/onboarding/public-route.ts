@@ -10,6 +10,12 @@ import {
 import { config } from '../config.js';
 import { keyedHash } from './secret.js';
 
+/**
+ * The per client IP budget of identify (`RATE_LIMITS`). A session that runs out of codes or
+ * resends uses up an attempt of it too (`OnboardingCodesService`).
+ */
+export const IDENTIFY_RATE_LIMIT = 'onboarding-identify';
+
 /** The header the portal BFF copies the session secret into from its httpOnly cookie. */
 export const ONBOARDING_SECRET_HEADER = 'x-onboarding-secret';
 
@@ -24,17 +30,31 @@ function noSecurityRequirement(target: object): void {
   Reflect.defineMetadata(DECORATORS.API_SECURITY, [], target);
 }
 
+/** Which onboarding session a request is for, and the secret that opens it. */
+export interface SessionCredentials {
+  sessionId: string;
+  /** From `X-Onboarding-Secret`; undefined when the request sent none. */
+  secret: string | undefined;
+}
+
+/** The `:sessionId` path parameter and the `X-Onboarding-Secret` header of a session route. */
+function credentialsOf(request: AuthenticatedRequest): SessionCredentials {
+  const { sessionId } = request.params as { sessionId?: string };
+  const secret = request.headers[ONBOARDING_SECRET_HEADER];
+  return {
+    sessionId: sessionId ?? '',
+    secret: typeof secret === 'string' && secret !== '' ? secret : undefined,
+  };
+}
+
 /**
- * The session secret from `X-Onboarding-Secret`, or undefined. Pass it to
- * `OnboardingSessions.withLiveSession`, which answers 404 when it is missing or wrong.
+ * The session a route under `v1/onboarding/sessions/:sessionId` is for, with the secret from
+ * `X-Onboarding-Secret` (undefined when absent). Pass them to `OnboardingSessions.withLiveSession`,
+ * which answers 404 when the session is unknown or the secret missing or wrong.
  */
-export const SessionSecret = createParamDecorator(
-  (_data: unknown, context: ExecutionContext): string | undefined => {
-    const value = context.switchToHttp().getRequest<AuthenticatedRequest>().headers[
-      ONBOARDING_SECRET_HEADER
-    ];
-    return typeof value === 'string' && value !== '' ? value : undefined;
-  },
+export const SessionCredentials = createParamDecorator(
+  (_data: unknown, context: ExecutionContext): SessionCredentials =>
+    credentialsOf(context.switchToHttp().getRequest<AuthenticatedRequest>()),
 );
 
 /**
@@ -70,12 +90,11 @@ export const ApiSessionRoute = () =>
 export const SessionIdempotencyKey = () => RequireIdempotencyKey({ owner: sessionKeyOwner });
 
 function sessionKeyOwner(request: AuthenticatedRequest): string {
-  const { sessionId } = request.params as { sessionId?: string };
-  const secret = request.headers[ONBOARDING_SECRET_HEADER];
+  const { sessionId, secret } = credentialsOf(request);
   return `onboarding-session:${keyedHash(
     config.ONBOARDING_HMAC_KEY,
     'idempotency',
-    sessionId ?? '',
-    typeof secret === 'string' ? secret : '',
+    sessionId,
+    secret ?? '',
   )}`;
 }

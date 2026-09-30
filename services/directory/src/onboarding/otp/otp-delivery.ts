@@ -1,8 +1,8 @@
-import type { OtpChannel } from '../session-state.js';
+import type { ContactChannel } from '@adili/contacts';
 
 /** One one-time code to send: through the notifications service's onboarding OTP templates. */
 export interface OtpMessage {
-  channel: OtpChannel;
+  channel: ContactChannel;
   /** The email address, or the phone number in E.164. */
   to: string;
   code: string;

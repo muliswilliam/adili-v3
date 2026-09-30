@@ -3,15 +3,29 @@ import { TooltipProvider } from '@adili/ui';
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
+import { startMyDeclaration } from '../../server/declarations';
 import type {
   CommissionRef,
+  DeclarationListItem,
   Obligation,
   ObligationDetail,
   Reminder,
   ReminderOutcome,
 } from '../../server/declarations/types';
 import type { MyObligationsResult, ObligationDetailResult } from '../../server/obligations.server';
+import { navigate } from '../declaration/testing-mocks';
+import { CLOSED_REASONS } from './obligations';
 import { ObligationsSection, ObligationsView } from './obligations-view';
+
+vi.mock('@tanstack/react-router', async () =>
+  (await import('../declaration/testing-mocks')).routerMock(),
+);
+// Start declaration calls a server function, which does not load in the VM test pool.
+vi.mock('../../server/declarations', async () =>
+  (await import('../declaration/testing-mocks')).serverMock(),
+);
+
+const startMock = vi.mocked(startMyDeclaration);
 
 const TSC: CommissionRef = { slug: 'tsc', issuerCode: 'TSC', name: 'Teachers Service Commission' };
 const PSC: CommissionRef = { slug: 'psc', issuerCode: 'PSC', name: 'Public Service Commission' };
@@ -66,14 +80,22 @@ function renderView(
   {
     onRetry = vi.fn(),
     loadDetail = vi.fn(() => new Promise<ObligationDetailResult>(() => undefined)),
+    declarations = [],
   }: {
     onRetry?: () => void;
     loadDetail?: (id: string) => Promise<ObligationDetailResult>;
+    declarations?: DeclarationListItem[];
   } = {},
 ) {
   render(
     <TooltipProvider delayDuration={0}>
-      <ObligationsView result={result} onRetry={onRetry} loadDetail={loadDetail} now={now} />
+      <ObligationsView
+        result={result}
+        onRetry={onRetry}
+        loadDetail={loadDetail}
+        declarations={declarations}
+        now={now}
+      />
     </TooltipProvider>,
   );
   return { onRetry, loadDetail };
@@ -93,7 +115,7 @@ describe('ObligationsView', () => {
       groups: [{ commission: TSC, obligations: [biennial, obligation()] }],
     });
 
-    expect(screen.getByRole('heading', { name: 'Your declarations' })).toBeTruthy();
+    expect(screen.getByRole('heading', { name: 'Your obligations' })).toBeTruthy();
     expect(
       screen
         .getAllByRole('article')
@@ -170,23 +192,110 @@ describe('ObligationsView', () => {
     );
   });
 
-  // S22: the disabled action renders with its tooltip.
-  it('renders Start declaration disabled, explained by a tooltip and aria-describedby', () => {
-    renderView({ status: 'ok', groups: [{ commission: TSC, obligations: [obligation()] }] });
+  // S20: due, overdue and upcoming obligations can be started.
+  it('enables Start declaration on due and upcoming obligations', () => {
+    renderView({
+      status: 'ok',
+      groups: [{ commission: TSC, obligations: [obligation(), biennial] }],
+    });
+
+    for (const title of ['Initial declaration', 'Biennial declaration 2027']) {
+      const start = within(card(title)).getByRole('button', { name: 'Start declaration' });
+      expect(start.hasAttribute('disabled')).toBe(false);
+    }
+  });
+
+  // S20: a filed obligation keeps the action disabled, explained by a tooltip.
+  it('disables Start declaration on a filed obligation with the reason', () => {
+    renderView({
+      status: 'ok',
+      groups: [{ commission: TSC, obligations: [obligation({ status: 'filed' })] }],
+    });
 
     const start = within(card('Initial declaration')).getByRole('button', {
       name: 'Start declaration',
     });
     expect(start.hasAttribute('disabled')).toBe(true);
     const description = document.getElementById(start.getAttribute('aria-describedby') ?? '');
-    expect(description?.textContent).toBe('Filing opens soon. You will be reminded.');
+    expect(description?.textContent).toBe(CLOSED_REASONS.filed);
 
     const trigger = start.parentElement;
     if (!trigger) throw new Error('Start declaration has no tooltip trigger');
     fireEvent.focus(trigger);
-    expect(screen.getByRole('tooltip').textContent).toBe(
-      'Filing opens soon. You will be reminded.',
+    expect(screen.getByRole('tooltip').textContent).toBe(CLOSED_REASONS.filed);
+  });
+
+  // S20: an existing draft is continued, not started again.
+  it('continues an existing draft', () => {
+    const entry = obligation();
+    renderView(
+      { status: 'ok', groups: [{ commission: TSC, obligations: [entry] }] },
+      {
+        declarations: [
+          {
+            id: 'd-1',
+            obligationId: entry.id,
+            commission: TSC,
+            type: 'initial',
+            statementDate: entry.statementDate,
+            status: 'draft',
+            completenessPercent: 25,
+            updatedAt: '2026-12-20T08:00:00Z',
+          },
+        ],
+      },
     );
+
+    const initial = within(card('Initial declaration'));
+    expect(initial.getByText('Draft in progress')).toBeTruthy();
+    expect(initial.getByRole('link', { name: 'Continue declaration' }).getAttribute('href')).toBe(
+      '/declarations/d-1',
+    );
+  });
+
+  it('starts a declaration and opens its overview', async () => {
+    startMock.mockReset();
+    navigate.mockReset();
+    startMock.mockResolvedValue({
+      status: 'started',
+      created: true,
+      declaration: { id: 'd-9' } as never,
+    });
+    renderView({ status: 'ok', groups: [{ commission: TSC, obligations: [obligation()] }] });
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Start declaration' }));
+      await Promise.resolve();
+    });
+
+    expect(startMock).toHaveBeenCalledWith({ data: { obligationId: obligation().id } });
+    expect(navigate).toHaveBeenCalledWith({
+      to: '/declarations/$id',
+      params: { id: 'd-9' },
+      search: { started: true },
+    });
+  });
+
+  it('says so when the obligation closed in the meantime', async () => {
+    startMock.mockReset();
+    navigate.mockReset();
+    startMock.mockResolvedValue({ status: 'not-open' });
+    renderView({ status: 'ok', groups: [{ commission: TSC, obligations: [obligation()] }] });
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Start declaration' }));
+      await Promise.resolve();
+    });
+
+    expect(
+      await screen.findByText(
+        'This obligation is no longer open, so a declaration cannot be started.',
+      ),
+    ).toBeTruthy();
+    expect(navigate).not.toHaveBeenCalled();
+    expect(
+      screen.getByRole<HTMLButtonElement>('button', { name: 'Start declaration' }).disabled,
+    ).toBe(false);
   });
 
   it('shows the empty state when the declarant owes nothing', () => {
@@ -237,7 +346,7 @@ describe('ObligationsView', () => {
   it('renders nothing for someone who is not a declarant', () => {
     renderView({ status: 'not-declarant' });
 
-    expect(screen.queryByRole('heading', { name: 'Your declarations' })).toBeNull();
+    expect(screen.queryByRole('heading', { name: 'Your obligations' })).toBeNull();
     expect(screen.queryByRole('alert')).toBeNull();
   });
 });
@@ -321,8 +430,7 @@ describe('Obligation drawer', () => {
     ]);
 
     const start = within(drawer).getByRole('button', { name: 'Start declaration' });
-    expect(start.hasAttribute('disabled')).toBe(true);
-    expect(drawer.textContent).toContain('Filing opens soon. You will be reminded.');
+    expect(start.hasAttribute('disabled')).toBe(false);
   });
 
   // A Record over the contract's enum: a new outcome in declarations.yaml fails typecheck here.
@@ -481,7 +589,7 @@ describe('ObligationsSection', () => {
       await Promise.resolve();
     });
 
-    const loading = screen.getByLabelText('Loading your declarations');
+    const loading = screen.getByLabelText('Loading your obligations');
     expect(loading.getAttribute('aria-busy')).toBe('true');
 
     await act(async () => {
@@ -489,7 +597,7 @@ describe('ObligationsSection', () => {
       await pending;
     });
 
-    expect(screen.queryByLabelText('Loading your declarations')).toBeNull();
+    expect(screen.queryByLabelText('Loading your obligations')).toBeNull();
     expect(screen.getByRole('heading', { name: 'Initial declaration' })).toBeTruthy();
   });
 

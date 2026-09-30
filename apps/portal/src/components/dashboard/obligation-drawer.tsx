@@ -21,7 +21,7 @@ import {
 import { AlertCircleIcon } from '@hugeicons/core-free-icons';
 import type { ReactNode } from 'react';
 
-import type { Obligation } from '../../server/declarations/types';
+import type { DeclarationListItem, Obligation } from '../../server/declarations/types';
 import type { ObligationDetailResult } from '../../server/obligations.server';
 import { messages as m } from './obligation-messages';
 import {
@@ -44,12 +44,14 @@ export function ObligationDrawer({
   open,
   onOpenChange,
   loadDetail,
+  declarations,
   now,
 }: {
   obligation: Obligation;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   loadDetail: LoadObligationDetail;
+  declarations: readonly DeclarationListItem[];
   now?: number;
 }) {
   const { id } = obligation;
@@ -105,14 +107,20 @@ export function ObligationDrawer({
         </DrawerBody>
         <DrawerFooter className="flex-wrap items-center">
           <p className="mr-auto text-[13px] text-muted-foreground max-sm:w-full">
-            {m.filingOpensSoon}
+            {obligation.status === 'upcoming'
+              ? m.submitFrom(formatDate(obligation.statementDate))
+              : null}
           </p>
           <DrawerClose asChild>
             <Button variant="secondary" className="max-sm:flex-1">
               {m.close}
             </Button>
           </DrawerClose>
-          <StartDeclarationButton className="max-sm:flex-1" />
+          <StartDeclarationButton
+            obligation={obligation}
+            declarations={declarations}
+            className="max-sm:flex-1"
+          />
         </DrawerFooter>
       </DrawerContent>
     </Drawer>

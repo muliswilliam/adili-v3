@@ -15,6 +15,10 @@ vi.mock('@tanstack/react-router', () => ({
     </a>
   ),
 }));
+// The start and discard buttons call server functions, which do not load in the VM test pool.
+vi.mock('../../server/declarations', async () =>
+  (await import('../declaration/testing-mocks')).serverMock(),
+);
 
 const account: DeclarantAccount = {
   fullName: 'Mwangi Njoroge Kamau',
@@ -37,7 +41,7 @@ function renderCards(declarant: DeclarantAccountResult) {
   } as Viewer;
   render(
     <ToastProvider>
-      <DashboardCards viewer={viewer} obligations={<section>Your declarations</section>} />
+      <DashboardCards viewer={viewer} obligations={<section>Your obligations</section>} />
     </ToastProvider>,
   );
 }
@@ -68,7 +72,7 @@ describe('DashboardCards', () => {
     expect(within(phone).getByText('Verified')).toBeTruthy();
 
     expect(screen.getByText('Onboarded on 26 Sep 2026')).toBeTruthy();
-    expect(screen.getByText('Your declarations')).toBeTruthy();
+    expect(screen.getByText('Your obligations')).toBeTruthy();
   });
 
   it('copies the OFR and announces it politely', async () => {
@@ -126,7 +130,7 @@ describe('DashboardCards', () => {
     renderCards({ status: 'unavailable' });
 
     expect(screen.getByText('Account details unavailable').closest('[role="alert"]')).toBeTruthy();
-    expect(screen.getByText('Your declarations')).toBeTruthy();
+    expect(screen.getByText('Your obligations')).toBeTruthy();
     expect(screen.queryByText('Officer reference')).toBeNull();
   });
 });

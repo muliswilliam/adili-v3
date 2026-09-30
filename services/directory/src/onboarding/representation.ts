@@ -1,13 +1,14 @@
 import { type ProblemCode, problemDetailsSchema } from '@adili/api-kit';
+import { CONTACT_CHANNELS } from '@adili/contacts';
 import { z } from 'zod';
 
 import { slugSchema } from '../commissions/create-commission.js';
 import { CONTACT_SOURCES } from '../roster/schema.js';
-import { normaliseEmail, normalisePhone } from '../roster/normalise.js';
+import { EMAIL_MAX_LENGTH } from '../roster/normalise.js';
+import { CHANNELS } from './channels.js';
 import {
   ONBOARDING_OUTCOMES,
   ONBOARDING_STATES,
-  OTP_CHANNELS,
   SET_PASSWORD_EMAIL_STATUSES,
 } from './session-state.js';
 
@@ -21,7 +22,7 @@ export const ofrSchema = z
     examples: ['OFR-0482913-L'],
   });
 
-export const otpChannelSchema = z.enum(OTP_CHANNELS);
+export const otpChannelSchema = z.enum(CONTACT_CHANNELS);
 
 export const onboardingStateSchema = z.enum(ONBOARDING_STATES);
 
@@ -114,7 +115,10 @@ export const onboardingSessionSchema = z.object({
     description:
       'Once confirmed with a new account (`account-created`): `sent`, the set-password email went; `failed`, the account stands but the email could not be sent, so the portal offers resend-password-email at once. Null for every other session',
   }),
-  expiresAt: z.iso.datetime(),
+  expiresAt: z.iso.datetime().meta({
+    description:
+      'When the session ends: 30 minutes after identify, 10 more per successful step, at most 60 minutes after identify. Once confirmed with a new account, 24 hours after confirm (the set-password link lifespan), so resend-password-email works while the link could lapse',
+  }),
 });
 
 export type OnboardingSession = z.infer<typeof onboardingSessionSchema>;
@@ -153,23 +157,16 @@ export type VerifyOnboardingOtpBody = z.infer<typeof verifyOnboardingOtpBody>;
 export const provideOnboardingContactBody = z
   .object({
     channel: otpChannelSchema,
-    value: z.string().max(254).meta({
+    value: z.string().max(EMAIL_MAX_LENGTH).meta({
       description:
         'An email address, or a phone number (E.164, or a Kenyan number such as 0712345678)',
     }),
   })
   .transform((body, context) => {
-    const value =
-      body.channel === 'email' ? normaliseEmail(body.value) : normalisePhone(body.value);
+    const channel = CHANNELS[body.channel];
+    const value = channel.normalise(body.value);
     if (value === null) {
-      context.addIssue({
-        code: 'custom',
-        path: ['value'],
-        message:
-          body.channel === 'email'
-            ? 'Enter a valid email address'
-            : 'Enter a valid phone number, e.g. 0712345678 or +254712345678',
-      });
+      context.addIssue({ code: 'custom', path: ['value'], message: channel.invalidMessage });
       return z.NEVER;
     }
     return { channel: body.channel, value };

@@ -4,6 +4,9 @@ import {
   Card,
   CardIcon,
   formatDateTime,
+  cn,
+  focusRing,
+  focusRingInset,
   Icon,
   type IconProps,
   Menu,
@@ -324,7 +327,10 @@ function SummaryTiles({ roster }: { roster: RosterSummary }) {
             <Link
               to="/roster/flagged"
               aria-label={m.reviewFlagged}
-              className="inline-flex items-center gap-0.5 rounded-sm text-[13.5px] font-medium underline-offset-[3px] outline-none hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring [&_svg]:size-3.5"
+              className={cn(
+                focusRing,
+                'inline-flex items-center gap-0.5 rounded-sm text-[13.5px] font-medium underline-offset-[3px] hover:underline [&_svg]:size-3.5',
+              )}
             >
               {m.review}
               <Icon icon={ArrowRight01Icon} />
@@ -436,8 +442,10 @@ function NextStepsCard({ steps }: { steps: NextStep[] }) {
   );
 }
 
-const STEP_LINK =
-  'flex items-center gap-3 px-5 py-3.5 text-sm font-medium outline-none hover:bg-muted/50 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring';
+const STEP_LINK = cn(
+  focusRingInset,
+  'flex items-center gap-3 px-5 py-3.5 text-sm font-medium hover:bg-muted/50',
+);
 
 function StepBody({ step, label }: { step: NextStep; label: string }) {
   return (

@@ -10,7 +10,7 @@ import {
 } from 'react';
 
 import { cn } from '../lib/cn';
-import { describedBy, FieldError, FieldHint } from './form-field';
+import { FieldError, FieldHint, joinIds } from './form-field';
 import { Input } from './input';
 import { Label } from './label';
 
@@ -49,28 +49,80 @@ function digitsOf(text: string): string {
   return text.replace(/\D/g, '');
 }
 
+/** The code held by `value`: its digits, at most `length` of them. */
+function codeOf(value: string, length: number): string {
+  return digitsOf(value).slice(0, length);
+}
+
 /** One entry per box, each a digit or '' when the box is empty. */
 function slotsOf(value: string, length: number): string[] {
-  const digits = digitsOf(value).slice(0, length);
-  return Array.from({ length }, (_, index) => digits.charAt(index));
+  const code = codeOf(value, length);
+  return Array.from({ length }, (_, index) => code.charAt(index));
 }
 
 /**
- * The digits a change put in a box. Typing into a box that already holds a digit (with the
- * caret beside it rather than selecting it) yields two characters; keep the new one.
+ * A run of digits standing on its own in a text, e.g. the code in an SMS. The digits may be
+ * grouped by single spaces or dashes ("123 456", "123-456"), so a phone number such as
+ * "0712 345 678" is one run of ten digits rather than three short ones.
  */
-function typedDigits(raw: string, previous: string): string {
-  const digits = digitsOf(raw);
-  if (previous === '' || digits.length !== 2) return digits;
-  return digits.startsWith(previous) ? digits.slice(1) : digits.slice(0, 1);
+const DIGIT_RUN = /\d(?:[ -]?\d)*/g;
+
+/**
+ * The whole code in a pasted or autofilled text, or null when the text does not hold exactly
+ * one. It is the only run of exactly `length` digits (so "Your code: 123456. It expires in 10
+ * minutes" gives 123456), or else every digit of the text when there are exactly `length` of
+ * them. Anything else is ambiguous and gives null: a phone number, a longer number, or two
+ * runs of `length` digits.
+ */
+function wholeCodeIn(text: string, length: number): string | null {
+  const runs = (text.match(DIGIT_RUN) ?? []).map(digitsOf).filter((run) => run.length === length);
+  if (runs.length === 1) return runs[0] ?? null;
+  const digits = digitsOf(text);
+  return digits.length === length ? digits : null;
+}
+
+/**
+ * The digits to write from a pasted or autofilled text: the whole code when the text holds
+ * one, the digits of a short text (part of a code), and none for anything longer.
+ */
+function insertedDigits(text: string, length: number): string {
+  const code = wholeCodeIn(text, length);
+  if (code !== null) return code;
+  const digits = digitsOf(text);
+  return digits.length < length ? digits : '';
+}
+
+/**
+ * The text a change put into a box that held `previous`. The box selects its digit on focus,
+ * so the new text usually replaces it; but with the caret beside the old digit (a tap, or the
+ * keyboard's code chip) the box briefly holds both, and the old digit is dropped. `caret` is
+ * where the caret ended up, i.e. just after the inserted text.
+ */
+function insertedText(raw: string, previous: string, caret: number | null): string {
+  if (previous === '' || raw.length <= previous.length) return raw;
+  const insertedBefore = caret !== null && caret < raw.length;
+  if (insertedBefore && raw.endsWith(previous)) return raw.slice(0, -previous.length);
+  if (raw.startsWith(previous)) return raw.slice(previous.length);
+  if (raw.endsWith(previous)) return raw.slice(0, -previous.length);
+  return raw;
+}
+
+/** The box after the last digit, i.e. how far ArrowRight and End go. */
+function endOf(slots: string[]): number {
+  // A plain loop: Array.prototype.findLastIndex is ES2023, missing from older WebViews.
+  for (let index = slots.length - 1; index >= 0; index -= 1) {
+    if (slots[index] !== '') return index + 1;
+  }
+  return 0;
 }
 
 /**
  * A one-time code entered in single-digit boxes. Each box is its own slot: typing overwrites
  * the box and moves to the next, Backspace clears the box (or, in an empty box, moves back and
  * clears the previous one), and Delete clears the box without moving anything. Pasting (or the
- * phone's code autofill) a full code fills every box at once; a paste longer than the code is
- * ignored, since it is not the code.
+ * phone's code autofill) a full code fills every box at once, even from a whole SMS such as
+ * "Your code: 123456. It expires in 10 minutes"; a paste with no single code in it (a phone
+ * number, two codes) is ignored.
  */
 export function OtpInput({
   label,
@@ -98,12 +150,12 @@ export function OtpInput({
   // when `value` no longer matches them, e.g. the code is cleared from outside after an error.
   const [slots, setSlots] = useState(() => slotsOf(value, length));
   const code = slots.join('');
-  if (slots.length !== length || digitsOf(value).slice(0, length) !== code) {
+  if (slots.length !== length || codeOf(value, length) !== code) {
     setSlots(slotsOf(value, length));
   }
   const firstEmpty = slots.indexOf('');
   // The box after the last digit: ArrowRight and End go no further.
-  const end = slots.findLastIndex((slot) => slot !== '') + 1;
+  const end = endOf(slots);
 
   useEffect(() => {
     if (autoFocus) inputs.current[0]?.focus();
@@ -115,13 +167,16 @@ export function OtpInput({
     box?.select();
   }
 
-  /** `fullCode` marks a whole code pasted or autofilled at once, which always completes. */
-  function commit(next: string[], fullCode = false) {
+  /**
+   * `wholeCode` marks a whole code pasted or autofilled at once, which always completes, even
+   * over a code that was already complete.
+   */
+  function commit(next: string[], { wholeCode = false }: { wholeCode?: boolean } = {}) {
     const nextCode = next.join('');
     setSlots(next);
     if (nextCode !== code) onChange(nextCode);
     const complete = nextCode.length === length;
-    if (complete && (fullCode || code.length < length)) onComplete?.(nextCode);
+    if (complete && (wholeCode || code.length < length)) onComplete?.(nextCode);
   }
 
   /** Writes digits from `index` on, e.g. one typed digit or a pasted code. */
@@ -129,7 +184,7 @@ export function OtpInput({
     if (digits === '' || digits.length > length) return;
     if (digits.length === length) {
       // A full code always starts at the first box, wherever the cursor was.
-      commit(digits.split(''), true);
+      commit(digits.split(''), { wholeCode: true });
       focusBox(length - 1);
       return;
     }
@@ -189,7 +244,7 @@ export function OtpInput({
 
   function handlePaste(event: ClipboardEvent<HTMLInputElement>, index: number) {
     event.preventDefault();
-    fill(index, digitsOf(event.clipboardData.getData('text')));
+    fill(index, insertedDigits(event.clipboardData.getData('text'), length));
   }
 
   return (
@@ -197,7 +252,7 @@ export function OtpInput({
       role="group"
       id={groupId}
       aria-labelledby={labelId}
-      aria-describedby={describedBy(hintId, errorId)}
+      aria-describedby={joinIds(hintId, errorId)}
       className={cn('grid gap-1.5', className)}
     >
       <Label asChild id={labelId}>
@@ -242,7 +297,11 @@ export function OtpInput({
                 handlePaste(event, index);
               }}
               onChange={(event) => {
-                fill(index, typedDigits(event.target.value, slots[index] ?? ''));
+                const { value: raw, selectionStart } = event.target;
+                fill(
+                  index,
+                  insertedDigits(insertedText(raw, slots[index] ?? '', selectionStart), length),
+                );
               }}
               className="h-[58px] max-w-[54px] px-0 text-center text-2xl font-semibold tabular-nums"
             />

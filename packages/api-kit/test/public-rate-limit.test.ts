@@ -16,6 +16,7 @@ import {
   Public,
   RATE_LIMIT_CLOCK,
   RateLimit,
+  RateLimiter,
   RateLimitModule,
   rateLimitsSchema,
   TRUSTED_PROXIES_DEFAULT,
@@ -234,6 +235,28 @@ describe('RateLimit on public routes', () => {
     const reset = await identify('commission-6');
     expect(limitHeaders(reset)).toEqual({ limit: '2', remaining: '1', reset: '60' });
     expect((await identify(undefined)).headers['ratelimit-remaining']).toBe('3');
+  });
+
+  it('lets code charge a route budget through RateLimiter, as a request to the route would', async () => {
+    const limiter = app.get(RateLimiter);
+    const clientIp = '203.0.113.9';
+    const caller = `ip:${clientIp}`;
+
+    const charges = [];
+    for (let i = 0; i < 4; i++) charges.push(await limiter.consume('onboarding-identify', caller));
+    const lastRequest = await identify('commission-0', clientIp);
+    const refused = await identify('commission-1', clientIp);
+    const overLimit = await limiter.consume('onboarding-identify', caller);
+
+    expect(charges.map((charge) => charge?.decision.remaining)).toEqual([4, 3, 2, 1]);
+    expect(lastRequest.statusCode).toBe(201);
+    expect(refused.statusCode).toBe(429);
+    expect(overLimit?.decision).toMatchObject({ allowed: false, remaining: 0 });
+    const [first] = charges;
+    if (!first) throw new Error('no charge');
+    expect(await limiter.refund(first)).toMatchObject({ remaining: 1 });
+    expect((await identify('commission-2', clientIp)).statusCode).toBe(201);
+    await expect(limiter.consume('no-such-group', caller)).rejects.toThrow(/No rate limit/);
   });
 
   it('documents one 429 for a route with several budgets', () => {

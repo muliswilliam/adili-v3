@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 
 import { withTenant } from '@adili/data-access';
 import { allocateReference, OFR } from '@adili/numbering';
+import type { ContactChannel } from '@adili/contacts';
 import { eq, inArray } from 'drizzle-orm';
 
 import { PLATFORM_TENANT } from '../../src/commissions/access.js';
@@ -20,7 +21,6 @@ import {
   isTerminal,
   ONBOARDING_TIMING,
   type OnboardingState,
-  type OtpChannel,
 } from '../../src/onboarding/session-state.js';
 import type { ContactSource, RosterRecordState } from '../../src/roster/schema.js';
 import { recomputeRosterSummary } from '../../src/roster/summary.js';
@@ -148,7 +148,7 @@ export interface SessionFixture {
   expiresAt?: Date;
   /** The channel's current code, as `OtpIssuer` would have stored it when sending `code`. */
   otp?: {
-    channel: OtpChannel;
+    channel: ContactChannel;
     code: string;
     /** `createdAt` by default. */
     sentAt?: Date;

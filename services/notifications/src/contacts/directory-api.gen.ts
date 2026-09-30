@@ -571,7 +571,7 @@ export interface paths {
         put?: never;
         /**
          * Match personnel file number and national ID against a Commission's roster
-         * @description Public, rate-limited per client IP and per client IP and Commission (a slug that is no active Commission with a roster uses up neither). Every non-match cause returns the same `no-match` problem. On success the response carries the session and, once only, the session secret the BFF stores in an httpOnly cookie.
+         * @description Public, rate-limited per client IP and per client IP and Commission (a slug that is no active Commission with a roster uses up neither; a session of the client IP that ran out of codes or resends uses up a per client IP attempt). Every non-match cause returns the same `no-match` problem. On success the response carries the session and, once only, the session secret the BFF stores in an httpOnly cookie.
          */
         post: operations["identifyDeclarant"];
         delete?: never;
@@ -611,7 +611,7 @@ export interface paths {
         put?: never;
         /**
          * Verify the 6-digit code for a channel
-         * @description Public, with the session secret; rate-limited per client IP. The right code verifies the contact and moves the session on: after email to the phone (its code sent at once, or `phone-contact-required`), after phone to `phone-verified`. Five wrong codes end the session (410).
+         * @description Public, with the session secret; rate-limited per client IP. The right code verifies the contact and moves the session on: after email to the phone (its code sent at once, or `phone-contact-required`), after phone to `phone-verified`. Five wrong codes end the session (410), which also uses up an identify attempt of the client IP.
          */
         post: operations["verifyOnboardingOtp"];
         delete?: never;
@@ -631,7 +631,7 @@ export interface paths {
         put?: never;
         /**
          * Send a new code (60-second cooldown, at most 3 per channel)
-         * @description Public, with the session secret; rate-limited per client IP. The new code replaces the old one. A fourth resend of a channel ends the session (410). Re-read the session for the next `resendAvailableAt` and `resendsLeft`.
+         * @description Public, with the session secret; rate-limited per client IP. The new code replaces the old one. A fourth resend of a channel ends the session (410), which also uses up an identify attempt of the client IP. Re-read the session for the next `resendAvailableAt` and `resendsLeft`.
          */
         post: operations["resendOnboardingOtp"];
         delete?: never;
@@ -691,7 +691,7 @@ export interface paths {
         put?: never;
         /**
          * Send the set-password email again
-         * @description Public, with the session secret; rate-limited per client IP. Only for a session confirmed with a new account (`account-created`), a minute after the last email; the session then says when the next may be sent (`otp.resendAvailableAt`). Idempotent per Idempotency-Key: a retry sends no second email.
+         * @description Public, with the session secret; rate-limited per client IP. Only for a session confirmed with a new account (`account-created`), a minute after the last email, until 24 hours after confirm (the session `expiresAt`, then 410); the session then says when the next may be sent (`otp.resendAvailableAt`). Idempotent per Idempotency-Key: a retry sends no second email.
          */
         post: operations["resendSetPasswordEmail"];
         delete?: never;
@@ -1623,7 +1623,10 @@ export interface components {
             ofr?: components["schemas"]["Ofr"] | null;
             /** @description Once confirmed with a new account (`account-created`): `sent`, the set-password email went; `failed`, the account stands but the email could not be sent, so the portal offers resend-password-email at once. Null for every other session */
             setPasswordEmail: ("sent" | "failed") | null;
-            /** Format: date-time */
+            /**
+             * Format: date-time
+             * @description When the session ends: 30 minutes after identify, 10 more per successful step, at most 60 minutes after identify. Once confirmed with a new account, 24 hours after confirm (the set-password link lifespan), so resend-password-email works while the link could lapse
+             */
             expiresAt: string;
         };
         OnboardingSessionCreated: {
@@ -1654,7 +1657,10 @@ export interface components {
             ofr?: components["schemas"]["Ofr"] | null;
             /** @description Once confirmed with a new account (`account-created`): `sent`, the set-password email went; `failed`, the account stands but the email could not be sent, so the portal offers resend-password-email at once. Null for every other session */
             setPasswordEmail: ("sent" | "failed") | null;
-            /** Format: date-time */
+            /**
+             * Format: date-time
+             * @description When the session ends: 30 minutes after identify, 10 more per successful step, at most 60 minutes after identify. Once confirmed with a new account, 24 hours after confirm (the set-password link lifespan), so resend-password-email works while the link could lapse
+             */
             expiresAt: string;
             /** @description Returned once; the BFF stores it in an httpOnly cookie and sends it back in X-Onboarding-Secret */
             secret: string;
@@ -4246,10 +4252,10 @@ export interface operations {
         parameters: {
             query?: never;
             header: {
-                /** @description Client-generated UUID, unique per logical request; reuse on retry */
-                "Idempotency-Key": string;
                 /** @description Session secret returned once at creation; held by the portal BFF in an httpOnly cookie */
                 "X-Onboarding-Secret": string;
+                /** @description Client-generated UUID, unique per logical request; reuse on retry */
+                "Idempotency-Key": string;
             };
             path: {
                 sessionId: string;
@@ -4350,10 +4356,10 @@ export interface operations {
         parameters: {
             query?: never;
             header: {
-                /** @description Client-generated UUID, unique per logical request; reuse on retry */
-                "Idempotency-Key": string;
                 /** @description Session secret returned once at creation; held by the portal BFF in an httpOnly cookie */
                 "X-Onboarding-Secret": string;
+                /** @description Client-generated UUID, unique per logical request; reuse on retry */
+                "Idempotency-Key": string;
             };
             path: {
                 sessionId: string;

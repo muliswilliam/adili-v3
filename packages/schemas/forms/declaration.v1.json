@@ -82,7 +82,22 @@
               "description": "Tenant key of the Responsible Commission",
               "pattern": "^[a-z][a-z0-9]{1,19}$"
             },
-            "personnelFileNumber": { "type": "string", "maxLength": 30 }
+            "personnelFileNumber": { "type": "string", "maxLength": 30 },
+            "jobGroup": {
+              "type": "string",
+              "maxLength": 40,
+              "description": "Pre-filled from the Commission's roster when it has one (spec 05b); editable"
+            },
+            "appointmentDate": {
+              "type": "string",
+              "format": "date",
+              "description": "Date of appointment; pre-filled from the Commission's roster when it has one (spec 05b); editable"
+            },
+            "workStation": {
+              "type": "string",
+              "maxLength": 100,
+              "description": "Pre-filled from the Commission's roster when it has one (spec 05b); editable"
+            }
           }
         }
       }
@@ -242,9 +257,14 @@
     },
     "Attachment": {
       "type": "object",
-      "required": ["uploadId", "fileName", "sha256"],
+      "required": ["attachmentId", "uploadId", "fileName", "sha256"],
       "additionalProperties": false,
       "properties": {
+        "attachmentId": {
+          "type": "string",
+          "format": "uuid",
+          "description": "The link's id, set by the declarations service when it links the upload; unlinking takes it"
+        },
         "uploadId": { "type": "string", "format": "uuid" },
         "fileName": { "type": "string", "maxLength": 255 },
         "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" }

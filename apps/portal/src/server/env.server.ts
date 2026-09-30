@@ -8,17 +8,30 @@ export const envSchema = bffEnvSchema.extend({
    * `vite dev` and tests only; production builds do not contain the mock.
    */
   DIRECTORY_MOCK: z.stringbool().default(false),
-  DECLARATIONS_API_URL: z.url(),
   /**
-   * Serve obligations from in-memory fixtures until the declarations service implements its
-   * read API (#90). Honoured in `vite dev` and tests only; production builds do not contain it.
+   * Trusted proxies in front of the portal that append to X-Forwarded-For; see
+   * server/client-ip.ts. Defaults to 1: every deployment serves the portal behind one edge proxy
+   * (Traefik on Dokploy, the ingress on Kubernetes), and with 0 every browser would share that
+   * proxy's address and so one per-IP rate limit. Must equal the real number of proxies: a
+   * higher value lets a client pick its own address. Without a proxy (local dev) the header is
+   * short and the socket address is used anyway.
+   */
+  TRUSTED_PROXY_HOPS: z.coerce.number().int().min(0).default(1),
+  DECLARATIONS_API_URL: z.url(),
+  DOCUMENTS_API_URL: z.url(),
+  /**
+   * Serve obligations, declaration drafts and uploads from in-memory fixtures, to work on the
+   * portal without the services; drafts need it until they implement spec 05 (#115). Honoured
+   * in `vite dev` and tests only; production builds do not contain the mocks.
    */
   DECLARATIONS_MOCK: z.stringbool().default(false),
+  REVIEW_API_URL: z.url(),
   /**
-   * Proxies in front of the portal that append to X-Forwarded-For (e.g. 1 behind one load
-   * balancer). 0 ignores the header and uses the socket address; see server/client-ip.ts.
+   * Serve the declarant's clarifications from in-memory fixtures until the review service
+   * implements spec 07a (#174). Attachments are checked against the documents mock, so turn on
+   * DECLARATIONS_MOCK too. Honoured in `vite dev` and tests only, like the other mocks.
    */
-  TRUSTED_PROXY_HOPS: z.coerce.number().int().min(0).default(0),
+  REVIEW_MOCK: z.stringbool().default(false),
 });
 
 export type Env = z.infer<typeof envSchema>;

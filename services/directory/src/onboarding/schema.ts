@@ -1,3 +1,4 @@
+import { CONTACT_CHANNELS } from '@adili/contacts';
 import { sql } from 'drizzle-orm';
 import {
   check,
@@ -20,7 +21,6 @@ import {
   IPRS_OUTCOMES,
   ONBOARDING_OUTCOMES,
   ONBOARDING_STATES,
-  OTP_CHANNELS,
 } from './session-state.js';
 
 /**
@@ -118,7 +118,7 @@ export const onboardingOtps = pgTable(
   'onboarding_otps',
   {
     sessionId: uuid().notNull(),
-    channel: text({ enum: OTP_CHANNELS }).notNull(),
+    channel: text({ enum: CONTACT_CHANNELS }).notNull(),
     /** Denormalised from the session for RLS; the foreign key keeps it the session's. */
     tenant: text().notNull(),
     /** `otpCodeHmac(key, sessionId, channel, code)`: keyed per session (HKDF, `sessionOtpKey`). */

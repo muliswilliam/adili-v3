@@ -75,18 +75,21 @@ export {
   type InMemoryRateLimitStoreOptions,
 } from './rate-limit/in-memory-rate-limit.store.js';
 export { rateLimitsSchema } from './rate-limit/rate-limit.config.js';
+export { RateLimit } from './rate-limit/rate-limit.decorator.js';
+export { RateLimitGuard } from './rate-limit/rate-limit.guard.js';
 export {
   RATE_LIMIT_HEADERS,
-  RATE_LIMIT_POLICIES,
   RATE_LIMIT_LIMIT_HEADER,
   RATE_LIMIT_REMAINING_HEADER,
   RATE_LIMIT_RESET_HEADER,
-  RateLimit,
-  RateLimitGuard,
-  type RateLimitOptions,
-  RateLimitRefundInterceptor,
-  type RateLimitRule,
-} from './rate-limit/rate-limit.guard.js';
+} from './rate-limit/rate-limit.headers.js';
+export { RateLimitRefundInterceptor } from './rate-limit/rate-limit-refund.interceptor.js';
+export { type RateLimitOptions, type RateLimitRule } from './rate-limit/rate-limit.rules.js';
+export {
+  RATE_LIMIT_POLICIES,
+  type RateLimitCharge,
+  RateLimiter,
+} from './rate-limit/rate-limiter.js';
 export {
   byCaller,
   byClientIp,

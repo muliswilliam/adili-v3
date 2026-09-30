@@ -9,6 +9,12 @@ x-healthcheck-defaults: &healthcheck-defaults
   retries: 60
   start_period: 10s
 
+# One-shot init jobs that exit once done. The label is how scripts/lib/compose.sh tells them
+# from long-running services: infra-up runs them last, infra-health requires exit code 0.
+x-init-job: &init-job
+  restart: on-failure:5
+  labels: { adili.init-job: 'true' }
+
 services:
   postgres:
     image: postgres:18.6-alpine
@@ -57,7 +63,7 @@ services:
       SQL_PASSWORD: temporal_dev
     volumes: [./temporal/setup-schema.sh:/scripts/setup-schema.sh:ro]
     entrypoint: ['/bin/sh', '/scripts/setup-schema.sh']
-    restart: on-failure:5
+    <<: *init-job
 
   temporal:
     image: temporalio/server:1.32.0
@@ -86,7 +92,7 @@ services:
       DEFAULT_NAMESPACE: adili
     volumes: [./temporal/create-namespace.sh:/scripts/create-namespace.sh:ro]
     entrypoint: ['/bin/sh', '/scripts/create-namespace.sh']
-    restart: on-failure:5
+    <<: *init-job
 
   temporal-ui:
     image: temporalio/ui:2.54.1
@@ -181,7 +187,7 @@ services:
       seaweedfs: { condition: service_healthy }
     volumes: [./seaweedfs/create-buckets.sh:/scripts/create-buckets.sh:ro]
     entrypoint: ['/bin/sh', '/scripts/create-buckets.sh']
-    restart: on-failure:5
+    <<: *init-job
 
   openbao:
     image: openbao/openbao:2.7.0
@@ -203,7 +209,7 @@ services:
       BAO_TOKEN: adili-dev-root-token
     volumes: [./openbao/create-transit-keys.sh:/scripts/create-transit-keys.sh:ro]
     entrypoint: ['/bin/sh', '/scripts/create-transit-keys.sh']
-    restart: on-failure:5
+    <<: *init-job
 
   clamav:
     image: clamav/clamav:1.5-debian

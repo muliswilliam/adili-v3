@@ -8,9 +8,11 @@
  * Every text pair meets WCAG 2.2 AA (4.5:1) in both themes: foreground, muted-foreground and
  * secondary-foreground on the page, card and muted fills; each -foreground on its solid; each
  * -subtle-foreground on its -subtle fill; and the solid status colours that badges use on their
- * -subtle fill. Two exceptions, both deliberate: the light placeholder (#8f8d89, 3.3:1, taken from
- * the kit and open with design) and disabled buttons, which WCAG exempts. The solid info and brand
- * colours miss 4.5:1 on their light -subtle fills, so text on those fills uses -subtle-foreground.
+ * -subtle fill. The dark placeholder meets it on the card and on muted (read-only controls). Two
+ * exceptions, both deliberate: the light placeholder (#8f8d89, 3.3:1 on card and 3.0:1 on muted,
+ * taken from the kit and open with design) and disabled buttons, which WCAG exempts. The solid
+ * info and brand colours miss 4.5:1 on their light -subtle fills, so text on those fills uses
+ * -subtle-foreground.
  */
 @import '@fontsource-variable/inter';
 
@@ -85,6 +87,7 @@
     0 0 0 1.5px var(--destructive),
     0 0 0 4px color-mix(in oklch, var(--destructive) 12%, transparent);
   --elevation-card: 0 1px 2px rgb(20 20 20 / 0.04), 0 0 0 1px var(--border);
+  --elevation-card-editing: 0 0 0 1.5px var(--ring), 0 8px 24px -12px rgb(20 20 20 / 0.2);
   --elevation-pop: 0 12px 40px -8px rgb(20 20 20 / 0.22), 0 0 0 1px rgb(20 20 20 / 0.06);
   --elevation-button-primary: 0 1px 2px rgb(0 0 0 / 0.25), inset 0 1px 0 rgb(255 255 255 / 0.12);
   --elevation-button-destructive:
@@ -101,7 +104,7 @@
     --muted: oklch(0.265 0.004 84.6); /* #262523 */
     --muted-foreground: oklch(0.709 0.006 84.6); /* #a3a19d */
     --secondary-foreground: oklch(0.852 0.007 88.6); /* #d0cec9 */
-    --placeholder: oklch(0.62 0.006 84.6); /* #888682 */
+    --placeholder: oklch(0.644 0.006 84.6); /* #8f8d89: 4.6:1 on muted, 5.2:1 on card */
     --primary: oklch(0.964 0.003 84.6); /* #f4f3f1 */
     --primary-foreground: oklch(0.218 0 0);
     --primary-disabled: oklch(0.345 0.005 91.5); /* #3a3936 */
@@ -141,6 +144,7 @@
     --elevation-control: 0 1px 2px rgb(0 0 0 / 0.3), 0 0 0 1px var(--border);
     --elevation-control-hover: 0 1px 2px rgb(0 0 0 / 0.3), 0 0 0 1px var(--input);
     --elevation-card: 0 1px 2px rgb(0 0 0 / 0.3), 0 0 0 1px var(--border);
+    --elevation-card-editing: 0 0 0 1.5px var(--ring), 0 8px 24px -12px rgb(0 0 0 / 0.6);
     --elevation-pop: 0 12px 40px -8px rgb(0 0 0 / 0.6), 0 0 0 1px rgb(255 255 255 / 0.08);
     --elevation-button-primary: 0 1px 2px rgb(0 0 0 / 0.4), inset 0 1px 0 rgb(255 255 255 / 0.3);
     --elevation-button-destructive:
@@ -195,11 +199,12 @@
   --color-code-string: var(--code-string);
   --color-code-comment: var(--code-comment);
   --color-code-border: var(--code-border);
-  /* 6, 8, 10, 12 and 16px. The kit's --r-sm, --r and --r-lg are md, lg and 2xl. */
+  /* 6, 8, 10, 12, 14 and 16px. The kit's --r-sm, --r and --r-lg are md, lg and 2xl. */
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 2px);
+  --radius-item: calc(var(--radius) + 4px);
   --radius-2xl: calc(var(--radius) + 6px);
   --shadow-control: var(--elevation-control);
   --shadow-control-hover: var(--elevation-control-hover);
@@ -208,6 +213,7 @@
   --shadow-control-error-focus: var(--elevation-control-error-focus);
   --shadow-control-selected: var(--elevation-control-selected);
   --shadow-card: var(--elevation-card);
+  --shadow-card-editing: var(--elevation-card-editing);
   --shadow-pop: var(--elevation-pop);
   --shadow-button-primary: var(--elevation-button-primary);
   --shadow-button-destructive: var(--elevation-button-destructive);

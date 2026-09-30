@@ -2,13 +2,14 @@ import { describe, expect, it } from 'vitest';
 
 import {
   canTransition,
+  confirmedExpiry,
   extendedExpiry,
   hasExpired,
   initialExpiry,
   ONBOARDING_STATES,
-  pendingChannel,
   TERMINAL_STATES,
 } from '../../src/onboarding/session-state.js';
+import { contactRequiredChannel, pendingChannel } from '../../src/onboarding/channels.js';
 
 const MINUTE = 60 * 1000;
 const created = new Date('2026-10-01T09:00:00Z');
@@ -45,6 +46,12 @@ describe('onboarding session state machine', () => {
     expect(pendingChannel('email-pending')).toBe('email');
     expect(pendingChannel('phone-pending')).toBe('phone');
     expect(pendingChannel('email-verified')).toBeNull();
+    expect(contactRequiredChannel('phone-contact-required')).toBe('phone');
+    expect(contactRequiredChannel('email-pending')).toBeNull();
+  });
+
+  it('lives 24 hours after a confirm with a new account, as long as the set-password link', () => {
+    expect(confirmedExpiry(created).getTime() - created.getTime()).toBe(24 * 60 * MINUTE);
   });
 
   it('lives 30 minutes, 10 more per step, at most 60', () => {

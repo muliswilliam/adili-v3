@@ -5,6 +5,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { PLATFORM_TENANT } from '../../src/commissions/access.js';
 import { onboardingOtps, onboardingSessions, outbox } from '../../src/db/schema.js';
 import type { OnboardingSession } from '../../src/onboarding/representation.js';
+import { confirmedExpiry } from '../../src/onboarding/session-state.js';
 import { OnboardingSessionSweeper } from '../../src/onboarding/sessions/expiry-sweep.js';
 import { componentSchema, contractErrors, okResponse } from '../support/contract.js';
 import { type DirectoryApi, startDirectoryApi } from '../support/directory-api.js';
@@ -19,6 +20,7 @@ import { givenRoster, givenSession, onSession } from '../support/onboarding.js';
 
 const NOW = new Date('2026-10-01T09:00:00Z');
 const MINUTE = 60 * 1000;
+const HOUR = 60 * MINUTE;
 const SESSION_PATH = '/v1/onboarding/sessions/{sessionId}';
 
 /**
@@ -149,7 +151,7 @@ describe('S10 expiry', () => {
     expect((await onSession(api, 'GET', id, '', 'wrong')).statusCode).toBe(404);
   });
 
-  it('keeps a confirmed session readable until its expiry, then 410 without changing it', async () => {
+  it('keeps a confirmed session readable until its own expiry, past the 60-minute cap, then 410 without changing it', async () => {
     const { id, secret } = await givenSession(api, {
       recordId,
       state: 'confirmed',
@@ -157,13 +159,19 @@ describe('S10 expiry', () => {
       emailVerified: true,
       phone: '+254712345123',
       phoneVerified: true,
+      expiresAt: confirmedExpiry(NOW),
     });
 
     expect((await onSession(api, 'GET', id, '', secret)).json()).toMatchObject({
       state: 'confirmed',
     });
-    api.clock.advance(30 * MINUTE);
+    api.clock.advance(2 * HOUR);
+    expect((await onSession(api, 'GET', id, '', secret)).statusCode).toBe(200);
+    // The sweep ends live sessions only: a confirmed one is never ended early.
+    expect(await api.app.get(OnboardingSessionSweeper).sweep()).toBe(0);
+    api.clock.set(confirmedExpiry(NOW));
     expect((await onSession(api, 'GET', id, '', secret)).statusCode).toBe(410);
+    expect(await api.app.get(OnboardingSessionSweeper).sweep()).toBe(0);
     expect(await sessionRow(id)).toMatchObject({ state: 'confirmed' });
     expect(await endedEvents()).toEqual([]);
   });

@@ -4,8 +4,8 @@
  * One English string per key; the Swahili slot stays empty until EACC reviews translations.
  */
 export const en = {
-  heading: 'Your declarations',
-  loading: 'Loading your declarations',
+  heading: 'Your obligations',
+  loading: 'Loading your obligations',
   emptyTitle: 'No obligations yet',
   emptyText:
     "Your Commission's roster shows no declaration due for you right now. Obligations appear here when a cycle opens or when your appointment or exit creates one.",
@@ -24,7 +24,12 @@ export const en = {
   overdueLead: 'Overdue.',
   overdueText: 'If you have already declared by other means, contact your Commission.',
   startDeclaration: 'Start declaration',
-  filingOpensSoon: 'Filing opens soon. You will be reminded.',
+  continueDeclaration: 'Continue declaration',
+  draftInProgress: 'Draft in progress',
+  submitFrom: (date: string) => `Submit from ${date}.`,
+  startNotOpen: 'This obligation is no longer open, so a declaration cannot be started.',
+  startNotFound: 'We could not find this obligation. Reload the page and try again.',
+  startUnavailable: 'We could not start your declaration. Try again in a few minutes.',
   details: 'Details',
   detailsOf: (title: string) => ` of ${title}`,
   close: 'Close',

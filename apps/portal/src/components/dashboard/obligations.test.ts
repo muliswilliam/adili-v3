@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import type { CommissionRef, Obligation, ObligationGroup } from '../../server/declarations/types';
-import { dashboardGroups } from './obligations';
+import { CLOSED_REASONS, dashboardGroups, startAvailability } from './obligations';
 
 const TSC: CommissionRef = { slug: 'tsc', issuerCode: 'TSC', name: 'Teachers Service Commission' };
 const PSC: CommissionRef = { slug: 'psc', issuerCode: 'PSC', name: 'Public Service Commission' };
@@ -77,5 +77,33 @@ describe('dashboardGroups', () => {
 
   it('returns no groups when nothing is left to show', () => {
     expect(dashboardGroups([])).toEqual([]);
+  });
+});
+
+describe('startAvailability (S20)', () => {
+  it('lets the declarant start due, overdue and upcoming obligations', () => {
+    for (const status of ['due', 'overdue', 'upcoming'] as const) {
+      expect(startAvailability({ id: 'o-1', status }, [])).toEqual({ kind: 'start' });
+    }
+  });
+
+  it('continues an existing draft for the obligation', () => {
+    expect(
+      startAvailability({ id: 'o-1', status: 'due' }, [
+        { id: 'd-0', obligationId: 'o-2', status: 'draft' },
+        { id: 'd-1', obligationId: 'o-1', status: 'draft' },
+      ]),
+    ).toEqual({ kind: 'continue', declarationId: 'd-1' });
+  });
+
+  it('disables filed and cancelled obligations with a reason', () => {
+    expect(startAvailability({ id: 'o-1', status: 'filed' }, [])).toEqual({
+      kind: 'closed',
+      reason: CLOSED_REASONS.filed,
+    });
+    expect(startAvailability({ id: 'o-1', status: 'cancelled' }, [])).toEqual({
+      kind: 'closed',
+      reason: CLOSED_REASONS.cancelled,
+    });
   });
 });

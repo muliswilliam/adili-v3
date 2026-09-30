@@ -6,7 +6,9 @@
  *                 └─> email-contact-required ─> ──┘                   └─> phone-contact-required ─> ─┘                  └─> identity-mismatch
  *
  * Any live state may also end as `expired` (session past `expiresAt`, or codes or resends
- * exhausted). `confirmed`, `identity-mismatch` and `expired` are terminal.
+ * exhausted). `confirmed`, `identity-mismatch` and `expired` are terminal. A terminal session
+ * stays readable until its `expiresAt`; a `confirmed` one with a new account lives as long as
+ * its set-password link (`confirmedExpiry`), for resend-password-email.
  */
 
 export const ONBOARDING_STATES = [
@@ -29,9 +31,6 @@ export const TERMINAL_STATES = [
   'expired',
 ] as const satisfies readonly OnboardingState[];
 export type TerminalState = (typeof TERMINAL_STATES)[number];
-
-export const OTP_CHANNELS = ['email', 'phone'] as const;
-export type OtpChannel = (typeof OTP_CHANNELS)[number];
 
 /** How confirm ended, as the declarant is told (`OnboardingOutcome` in the contract). */
 export const ONBOARDING_OUTCOMES = [
@@ -91,26 +90,13 @@ export function canTransition(from: OnboardingState, to: OnboardingState): boole
   return TRANSITIONS[from].includes(to);
 }
 
-/** The channel whose code the session waits for, if any. */
-export function pendingChannel(state: OnboardingState): OtpChannel | null {
-  if (state === 'email-pending') return 'email';
-  if (state === 'phone-pending') return 'phone';
-  return null;
-}
-
-/** The channel whose contact the session waits for the declarant to supply, if any. */
-export function contactRequiredChannel(state: OnboardingState): OtpChannel | null {
-  if (state === 'email-contact-required') return 'email';
-  if (state === 'phone-contact-required') return 'phone';
-  return null;
-}
-
 /** Whether the session shows the roster details (the confirm step and after). */
 export function showsDetails(state: OnboardingState): boolean {
   return state === 'phone-verified' || state === 'confirmed' || state === 'identity-mismatch';
 }
 
 const MINUTE_MS = 60 * 1000;
+const HOUR_MS = 60 * MINUTE_MS;
 
 /** Timing rules of sessions and their one-time codes (spec 03, OTP and rate limits). */
 export const ONBOARDING_TIMING = {
@@ -118,8 +104,13 @@ export const ONBOARDING_TIMING = {
   sessionTtlMs: 30 * MINUTE_MS,
   /** ...extended by this on each successful step... */
   stepExtensionMs: 10 * MINUTE_MS,
-  /** ...up to this long after it was created. */
+  /** ...up to this long after it was created (the steps before confirm). */
   sessionCapMs: 60 * MINUTE_MS,
+  /**
+   * How long a set-password link stays valid, and so how long a session confirmed with a new
+   * account lives after confirm: the check-email step can resend the link while it could lapse.
+   */
+  setPasswordLinkTtlMs: 24 * HOUR_MS,
   /** A one-time code is valid this long after it was sent. */
   otpTtlMs: 10 * MINUTE_MS,
   /** Wrong codes allowed against one code; the last one ends the session. */
@@ -148,6 +139,16 @@ export function extendedExpiry(session: { createdAt: Date; expiresAt: Date }): D
       session.createdAt.getTime() + ONBOARDING_TIMING.sessionCapMs,
     ),
   );
+}
+
+/**
+ * The expiry of a session confirmed at `now` with a new account: the set-password link's
+ * lifespan, so the check-email step can send a fresh link however late the first one lapses.
+ * The 60-minute cap bounds only the steps before confirm; a confirmed session serves nothing
+ * but reading it and resend-password-email.
+ */
+export function confirmedExpiry(now: Date): Date {
+  return new Date(now.getTime() + ONBOARDING_TIMING.setPasswordLinkTtlMs);
 }
 
 /** Whether a session has run out at `now`, whatever its state. */

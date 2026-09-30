@@ -95,6 +95,21 @@ describe('CheckEmailStep', () => {
     });
   });
 
+  it('holds the next resend for 60 seconds when the directory says it is already allowed', async () => {
+    renderCheckEmail(session({ otp: { ...session().otp, resendAvailableAt: inSeconds(-1) } }));
+    resendMock.mockResolvedValue({
+      ok: true,
+      session: session({ otp: { ...session().otp, resendAvailableAt: inSeconds(-5) } }),
+    });
+
+    fireEvent.click(resendButton());
+
+    expect(await screen.findByText('Email sent again')).toBeDefined();
+    await waitFor(() => {
+      expect(resendButton().textContent).toMatch(/Resend email in (59|60)s/);
+    });
+  });
+
   it('shows where the link went, the officer reference and a way to sign in', () => {
     renderCheckEmail();
 
@@ -234,10 +249,10 @@ describe('DoneStep', () => {
     expect(screen.getByRole('link', { name: 'Sign in' }).getAttribute('href')).toBe('/auth/login');
   });
 
-  it('forgets the finished session once shown, so Get started starts afresh', () => {
+  it('keeps the session, so a refresh or Back comes back to Done', () => {
     render(<DoneStep guard={{ status: 'active', session: linked }} />);
 
-    expect(leaveOnboarding).toHaveBeenCalledTimes(1);
+    expect(leaveOnboarding).not.toHaveBeenCalled();
   });
 
   it('offers to start again for another Commission', async () => {

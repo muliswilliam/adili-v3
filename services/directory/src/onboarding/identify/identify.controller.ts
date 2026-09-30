@@ -11,7 +11,7 @@ import {
   ZodValidationPipe,
 } from '@adili/api-kit';
 
-import { OnboardingController } from '../public-route.js';
+import { IDENTIFY_RATE_LIMIT, OnboardingController } from '../public-route.js';
 import {
   type IdentifyDeclarantBody,
   identifyDeclarantBody,
@@ -26,7 +26,7 @@ export class IdentifyController {
 
   @Post()
   @HttpCode(HttpStatus.CREATED)
-  @RateLimit('onboarding-identify', { key: byClientIp, refundOn: ['no-roster'] })
+  @RateLimit(IDENTIFY_RATE_LIMIT, { key: byClientIp, refundOn: ['no-roster'] })
   @RateLimit('onboarding-identify-commission', {
     key: byClientIpAnd({ body: 'commission' }),
     refundOn: ['no-roster'],
@@ -35,7 +35,7 @@ export class IdentifyController {
     operationId: 'identifyDeclarant',
     summary: "Match personnel file number and national ID against a Commission's roster",
     description:
-      'Public, rate-limited per client IP and per client IP and Commission (a slug that is no active Commission with a roster uses up neither). Every non-match cause returns the same `no-match` problem. On success the response carries the session and, once only, the session secret the BFF stores in an httpOnly cookie.',
+      'Public, rate-limited per client IP and per client IP and Commission (a slug that is no active Commission with a roster uses up neither; a session of the client IP that ran out of codes or resends uses up a per client IP attempt). Every non-match cause returns the same `no-match` problem. On success the response carries the session and, once only, the session secret the BFF stores in an httpOnly cookie.',
   })
   @ApiBody({ schema: schemaRef('IdentifyDeclarant') })
   @ApiCreatedResponse({

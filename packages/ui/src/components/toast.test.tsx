@@ -121,10 +121,45 @@ describe('Toast', () => {
     expect(screen.queryByText('Commission created')).toBeNull();
   });
 
+  it('treats a non-finite duration as sticky rather than dismissing at once', () => {
+    renderWithToast({ title: 'Commission created', duration: Number.POSITIVE_INFINITY });
+
+    act(() => {
+      vi.advanceTimersByTime(60_000);
+    });
+    expect(screen.getByText('Commission created')).toBeDefined();
+  });
+
+  it('caps a duration longer than a timer can hold instead of dismissing at once', () => {
+    const maxDelay = 2 ** 31 - 1;
+    renderWithToast({ title: 'Commission created', duration: 2 ** 31 + 5000 });
+
+    act(() => {
+      vi.advanceTimersByTime(60_000);
+    });
+    expect(screen.getByText('Commission created')).toBeDefined();
+
+    act(() => {
+      vi.advanceTimersByTime(maxDelay - 60_000);
+    });
+    expect(screen.queryByText('Commission created')).toBeNull();
+  });
+
   it('styles assertive toasts as destructive', () => {
     renderWithToast({ title: 'Email already in use', urgency: 'assertive' });
 
     expect(toastElement('Email already in use').className).toContain('bg-destructive');
+  });
+
+  it('does not dim the description of an assertive toast, which would miss 4.5:1', () => {
+    renderWithToast({
+      title: 'Could not send the invite',
+      description: 'Check the address and try again.',
+      urgency: 'assertive',
+    });
+
+    const description = screen.getByText('Check the address and try again.');
+    expect(description.className).not.toMatch(/opacity/);
   });
 
   it('does not style polite toasts as destructive', () => {

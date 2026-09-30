@@ -24,6 +24,7 @@ import { withOutboxRefusing } from '../support/reporting-officers.js';
 
 const NOW = new Date('2026-10-01T09:00:00Z');
 const SECOND = 1000;
+const HOUR = 60 * 60 * SECOND;
 const CONFIRM_PATH = '/v1/onboarding/sessions/{sessionId}/confirm';
 const PLATFORM_ADMIN: Caller = { tenant: 'platform', roles: ['platform-admin'] };
 const OFR_PATTERN = /^OFR-[0-9]{7}-[0-9A-Z]$/;
@@ -274,8 +275,8 @@ describe('S11 confirm creates the account', () => {
       resendsLeft: 0,
       attemptsLeft: 0,
     });
-    // A successful step: ten more minutes to receive the email and ask for another.
-    expect(confirmed.expiresAt).toBe(new Date(NOW.getTime() + 40 * 60 * SECOND).toISOString());
+    // As long as the set-password link: the check-email step can resend it until then.
+    expect(confirmed.expiresAt).toBe(new Date(NOW.getTime() + 24 * HOUR).toISOString());
     api.clock.advance(60 * SECOND);
     expect((await getSession(api, session.id, session.secret)).json()).toMatchObject({
       otp: { resendAvailableAt: null },
@@ -887,6 +888,46 @@ describe('S17 resend the set-password email', () => {
         resendAvailableAt: new Date(NOW.getTime() + 120 * SECOND).toISOString(),
       },
     });
+  });
+
+  it('sends it again two hours after confirm, past the 60-minute cap, and nothing else runs on the session', async () => {
+    const session = await atConfirm(tscRecord);
+    await confirm(session);
+    api.clock.advance(2 * HOUR);
+
+    expect((await resendPasswordEmail(session)).statusCode).toBe(202);
+    expect(api.identity.calls('sendExecuteActionsEmail')).toHaveLength(2);
+    expect((await getSession(api, session.id, session.secret)).json()).toMatchObject({
+      state: 'confirmed',
+      expiresAt: new Date(NOW.getTime() + 24 * HOUR).toISOString(),
+    });
+    const steps: [path: string, body?: unknown][] = [
+      ['/otp/email/verify', { code: '123456' }],
+      ['/otp/phone/resend'],
+      ['/contacts', { channel: 'email', value: 'someone@example.com' }],
+      ['/confirm'],
+    ];
+    for (const [path, body] of steps) {
+      const response = await onSession(api, 'POST', session.id, path, session.secret, body);
+      expect(response.statusCode, path).toBe(409);
+      expect(response.json()).toMatchObject({ code: 'wrong-step' });
+    }
+  });
+
+  it('answers 410 once the 24 hours of the set-password link are up, leaving the session confirmed', async () => {
+    const session = await atConfirm(tscRecord);
+    await confirm(session);
+    api.clock.advance(24 * HOUR - SECOND);
+    expect((await getSession(api, session.id, session.secret)).statusCode).toBe(200);
+    api.clock.advance(SECOND);
+
+    const late = await resendPasswordEmail(session);
+
+    expect(late.statusCode).toBe(410);
+    expect(late.json()).toMatchObject({ code: 'session-expired' });
+    expect((await getSession(api, session.id, session.secret)).statusCode).toBe(410);
+    expect(api.identity.calls('sendExecuteActionsEmail')).toHaveLength(1);
+    expect(await sessionRow(session.id)).toMatchObject({ state: 'confirmed' });
   });
 
   it('answers 502 when the email fails, and starts no cooldown', async () => {

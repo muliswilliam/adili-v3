@@ -2,9 +2,9 @@ import { createFileRoute, redirect } from '@tanstack/react-router';
 import { z } from 'zod';
 
 import { CommissionsUnavailable } from '../../components/onboarding/commission-step';
+import { redirectIfInProgress } from '../../components/onboarding/guard';
 import { IdentifyStep } from '../../components/onboarding/identify-step';
 import { StepHeading } from '../../components/onboarding/onboarding-layout';
-import { resumeRoute } from '../../components/onboarding/steps';
 import { getOnboardingCommissions, getOnboardingSession } from '../../server/onboarding';
 
 export const Route = createFileRoute('/get-started/identify')({
@@ -20,9 +20,7 @@ export const Route = createFileRoute('/get-started/identify')({
       getOnboardingSession(),
       getOnboardingCommissions(),
     ]);
-    // A session in progress resumes; a finished one does not hold the declarant on its page.
-    const resume = lookup.status === 'active' ? resumeRoute(lookup.session) : null;
-    if (resume) throw redirect({ to: resume });
+    redirectIfInProgress(lookup);
     if (!commissions) return { commission: null };
     const commission = commissions.find((entry) => entry.slug === deps.commission);
     // Without a Commission that has a roster there is nothing to match against: choose again.

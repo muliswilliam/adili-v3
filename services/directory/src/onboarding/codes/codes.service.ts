@@ -1,23 +1,21 @@
 import { Injectable } from '@nestjs/common';
-import { ProblemException } from '@adili/api-kit';
+import { ProblemException, RateLimiter } from '@adili/api-kit';
+import type { ContactChannel } from '@adili/contacts';
 import { and, eq } from 'drizzle-orm';
 
 import type { Transaction } from '../../commissions/commissions.service.js';
 import { config } from '../../config.js';
+import { CHANNELS, contactRequiredChannel, pendingChannel } from '../channels.js';
 import { commissionOfSession } from '../commissions/onboarding-commission.js';
-import { sessionContactChanges, writeBackDeclarantContact } from '../contacts.js';
+import { sessionContact, sessionContactChanges, writeBackDeclarantContact } from '../contacts.js';
 import { OnboardingFailures } from '../failures/onboarding-failures.js';
 import { otpCodeMatches } from '../otp/otp-codes.js';
 import { OtpIssuer } from '../otp/otp-issuer.js';
+import { IDENTIFY_RATE_LIMIT, type SessionCredentials } from '../public-route.js';
 import { reject } from '../rejection.js';
 import type { OnboardingSession, ProvideOnboardingContactBody } from '../representation.js';
 import { onboardingOtps } from '../schema.js';
-import {
-  contactRequiredChannel,
-  ONBOARDING_TIMING,
-  type OtpChannel,
-  pendingChannel,
-} from '../session-state.js';
+import { ONBOARDING_TIMING } from '../session-state.js';
 import {
   OnboardingSessions,
   refuseDuringCooldown,
@@ -45,7 +43,10 @@ type OtpRow = typeof onboardingOtps.$inferSelect;
  *   `declarant`) and its first code sent.
  *
  * A session that runs out of codes or resends counts as a failed attempt against its Commission
- * (`OnboardingFailures`), as a no-match at identify does. A code that cannot be sent answers 502
+ * (`OnboardingFailures`), as a no-match at identify does, and, once it has ended, uses up an
+ * identify attempt of the client IP (the spec's "the counter feeds the rate limits"), so running
+ * out of codes and starting again cannot go on at more than identify's own pace per IP.
+ * A code that cannot be sent answers 502
  * `otp-send-failed` and changes nothing (it is sent before the step commits:
  * `OtpIssuer.sending`), so the declarant can simply try again.
  */
@@ -55,96 +56,120 @@ export class OnboardingCodesService {
     private readonly sessions: OnboardingSessions,
     private readonly otp: OtpIssuer,
     private readonly failures: OnboardingFailures,
+    private readonly limiter: RateLimiter,
   ) {}
 
   verify(
-    sessionId: string,
-    secret: string | undefined,
-    channel: OtpChannel,
+    credentials: SessionCredentials,
+    channel: ContactChannel,
     code: string,
+    clientKey: string | undefined,
   ): Promise<OnboardingSession> {
-    return this.otp.sending((issue) =>
-      this.sessions.withLiveSession(sessionId, secret, async (context) => {
-        const { tx, session, now } = context;
-        if (pendingChannel(session.state) !== channel) throw wrongStep();
-        const otp = await currentOtp(tx, session, channel);
-        if (otp.expiresAt.getTime() <= now.getTime()) {
-          throw ProblemException.fromCode('otp-expired');
-        }
+    return this.chargingExhaustion(clientKey, () =>
+      this.otp.sending((issue) =>
+        this.sessions.withLiveSession(credentials, async (context) => {
+          const { tx, session, now } = context;
+          if (pendingChannel(session.state) !== channel) throw wrongStep();
+          const otp = await currentOtp(tx, session, channel);
+          if (otp.expiresAt.getTime() <= now.getTime()) {
+            throw ProblemException.fromCode('otp-expired');
+          }
 
-        if (!otpCodeMatches(config.ONBOARDING_HMAC_KEY, session.id, channel, code, otp.codeHmac)) {
-          const attempts = otp.attempts + 1;
+          if (
+            !otpCodeMatches(config.ONBOARDING_HMAC_KEY, session.id, channel, code, otp.codeHmac)
+          ) {
+            const attempts = otp.attempts + 1;
+            await tx
+              .update(onboardingOtps)
+              .set({ attempts })
+              .where(
+                and(eq(onboardingOtps.sessionId, session.id), eq(onboardingOtps.channel, channel)),
+              );
+            const attemptsLeft = ONBOARDING_TIMING.otpAttempts - attempts;
+            if (attemptsLeft <= 0) return this.exhausted(context);
+            return reject(
+              ProblemException.fromCode('otp-invalid', { extensions: { attemptsLeft } }),
+            );
+          }
+
           await tx
             .update(onboardingOtps)
-            .set({ attempts })
+            .set({ verifiedAt: now })
             .where(
               and(eq(onboardingOtps.sessionId, session.id), eq(onboardingOtps.channel, channel)),
             );
-          const attemptsLeft = ONBOARDING_TIMING.otpAttempts - attempts;
-          if (attemptsLeft <= 0) return this.exhausted(context);
-          return reject(ProblemException.fromCode('otp-invalid', { extensions: { attemptsLeft } }));
-        }
-
-        await tx
-          .update(onboardingOtps)
-          .set({ verifiedAt: now })
-          .where(
-            and(eq(onboardingOtps.sessionId, session.id), eq(onboardingOtps.channel, channel)),
+          let current = await this.sessions.transition(
+            tx,
+            session,
+            CHANNELS[channel].states.verified,
+            now,
+            { set: sessionContactChanges(channel, { verifiedAt: now }) },
           );
-        const verifiedState = channel === 'email' ? 'email-verified' : 'phone-verified';
-        let current = await this.sessions.transition(tx, session, verifiedState, now, {
-          set: sessionContactChanges(channel, { verifiedAt: now }),
-        });
-        await writeBackDeclarantContact(tx, current, channel, now);
+          await writeBackDeclarantContact(tx, current, channel, now);
 
-        if (channel === 'email') {
-          if (current.phone) {
-            const commission = await commissionOfSession(tx, session);
-            await issue(tx, current, 'phone', { commissionName: commission.name, now });
-            current = await this.sessions.transition(tx, current, 'phone-pending', now, {
-              extend: false,
-            });
-          } else {
-            current = await this.sessions.transition(tx, current, 'phone-contact-required', now, {
-              extend: false,
-            });
+          const next = CHANNELS[channel].next;
+          if (next !== null) {
+            if (sessionContact(current, next).value !== null) {
+              const commission = await commissionOfSession(tx, session);
+              await issue(tx, current, next, { commissionName: commission.name, now });
+              current = await this.sessions.transition(
+                tx,
+                current,
+                CHANNELS[next].states.pending,
+                now,
+                { extend: false },
+              );
+            } else {
+              current = await this.sessions.transition(
+                tx,
+                current,
+                CHANNELS[next].states.contactRequired,
+                now,
+                { extend: false },
+              );
+            }
           }
-        }
-        return this.sessions.view(tx, current, now);
-      }),
+          return this.sessions.view(tx, current, now);
+        }),
+      ),
     );
   }
 
-  resend(sessionId: string, secret: string | undefined, channel: OtpChannel): Promise<void> {
-    return this.otp.sending((issue) =>
-      this.sessions.withLiveSession(sessionId, secret, async (context) => {
-        const { tx, session, now } = context;
-        if (pendingChannel(session.state) !== channel) throw wrongStep();
-        const otp = await currentOtp(tx, session, channel);
-        refuseDuringCooldown(otp.lastSentAt, now);
-        if (otp.resends >= ONBOARDING_TIMING.otpResends) return this.exhausted(context);
-        const commission = await commissionOfSession(tx, session);
-        await issue(tx, session, channel, {
-          resend: true,
-          commissionName: commission.name,
-          now,
-        });
-      }),
+  resend(
+    credentials: SessionCredentials,
+    channel: ContactChannel,
+    clientKey: string | undefined,
+  ): Promise<void> {
+    return this.chargingExhaustion(clientKey, () =>
+      this.otp.sending((issue) =>
+        this.sessions.withLiveSession(credentials, async (context) => {
+          const { tx, session, now } = context;
+          if (pendingChannel(session.state) !== channel) throw wrongStep();
+          const otp = await currentOtp(tx, session, channel);
+          refuseDuringCooldown(otp.lastSentAt, now);
+          if (otp.resends >= ONBOARDING_TIMING.otpResends) return this.exhausted(context);
+          const commission = await commissionOfSession(tx, session);
+          await issue(tx, session, channel, {
+            resend: true,
+            commissionName: commission.name,
+            now,
+          });
+        }),
+      ),
     );
   }
 
   provideContact(
-    sessionId: string,
-    secret: string | undefined,
+    credentials: SessionCredentials,
     { channel, value }: ProvideOnboardingContactBody,
   ): Promise<OnboardingSession> {
     return this.otp.sending((issue) =>
-      this.sessions.withLiveSession(sessionId, secret, async ({ tx, session, now }) => {
+      this.sessions.withLiveSession(credentials, async ({ tx, session, now }) => {
         if (contactRequiredChannel(session.state) !== channel) throw wrongStep();
         const pending = await this.sessions.transition(
           tx,
           session,
-          channel === 'email' ? 'email-pending' : 'phone-pending',
+          CHANNELS[channel].states.pending,
           now,
           { set: sessionContactChanges(channel, { value, source: 'declarant' }) },
         );
@@ -162,12 +187,40 @@ export class OnboardingCodesService {
   private async exhausted({ tx, session, now }: SessionContext) {
     await this.sessions.end(tx, session, 'rate-limited', now);
     await this.failures.record(tx, session.tenant, now);
-    return reject(sessionEnded());
+    const ended = sessionEnded();
+    RATE_LIMITED_ENDINGS.add(ended);
+    return reject(ended);
+  }
+
+  /**
+   * Runs a code step; should it end the session for running out of codes or resends, charges an
+   * identify attempt to the client (`clientKey`, as `byClientIp` keys identify's budget) once the
+   * ending has committed. Past that budget the charge is simply refused: the next identify is.
+   */
+  private async chargingExhaustion<T>(
+    clientKey: string | undefined,
+    step: () => Promise<T>,
+  ): Promise<T> {
+    try {
+      return await step();
+    } catch (error) {
+      if (
+        clientKey !== undefined &&
+        error instanceof ProblemException &&
+        RATE_LIMITED_ENDINGS.has(error)
+      ) {
+        await this.limiter.consume(IDENTIFY_RATE_LIMIT, clientKey);
+      }
+      throw error;
+    }
   }
 }
 
+/** The 410s of sessions that ran out of codes or resends (`exhausted`), not of time. */
+const RATE_LIMITED_ENDINGS = new WeakSet<ProblemException>();
+
 /** The channel's current code; a session waiting for one always has it. */
-async function currentOtp(tx: Transaction, session: SessionRow, channel: OtpChannel) {
+async function currentOtp(tx: Transaction, session: SessionRow, channel: ContactChannel) {
   const [otp]: OtpRow[] = await tx
     .select()
     .from(onboardingOtps)

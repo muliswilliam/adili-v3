@@ -1,4 +1,4 @@
-import { calendarDaysUntil } from '@adili/ui';
+import { calendarDaysUntil, formatNumber } from '@adili/ui';
 
 /**
  * The console's own formatting: relative dates, numbers and file sizes. Absolute dates come from
@@ -34,12 +34,8 @@ export function formatRelativeTime(iso: string, now: Date = new Date()): string 
   return formatRelativeDate(iso, now);
 }
 
-const numberFormat = new Intl.NumberFormat('en-KE');
-
-/** `48,312` */
-export function formatNumber(value: number): string {
-  return numberFormat.format(value);
-}
+/** `48,312`, as `@adili/ui` prints it, so console copy and charts agree. */
+export { formatNumber };
 
 const MEBIBYTE = 1024 * 1024;
 

@@ -3,9 +3,10 @@ import {
   DECLARANT_REQUIRED_ACTIONS,
   type ExecuteActionsEmailOptions,
 } from '../../identity/identity-provisioning.js';
+import { ONBOARDING_TIMING } from '../session-state.js';
 
-/** How long a set-password link stays valid (spec 03). */
-export const SET_PASSWORD_LINK_LIFESPAN_SECONDS = 24 * 60 * 60;
+/** How long a set-password link stays valid (spec 03): 24 hours. */
+export const SET_PASSWORD_LINK_LIFESPAN_SECONDS = ONBOARDING_TIMING.setPasswordLinkTtlMs / 1000;
 
 /**
  * Keycloak's execute-actions email that has a new declarant set their password: valid 24 hours,

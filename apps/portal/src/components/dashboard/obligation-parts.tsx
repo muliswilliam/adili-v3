@@ -6,17 +6,27 @@ import {
   Button,
   cn,
   DateText,
+  focusRing,
   Icon,
   ObligationStatusBadge,
   Tooltip,
 } from '@adili/ui';
-import { AlertCircleIcon, InformationCircleIcon, Login03Icon } from '@hugeicons/core-free-icons';
-import { useId } from 'react';
+import {
+  AlertCircleIcon,
+  ArrowRight01Icon,
+  InformationCircleIcon,
+  Login03Icon,
+} from '@hugeicons/core-free-icons';
+import { Link, useNavigate } from '@tanstack/react-router';
+import { useId, useState } from 'react';
 
-import type { Obligation } from '../../server/declarations/types';
+import { startMyDeclaration } from '../../server/declarations';
+import type { DeclarationListItem, Obligation } from '../../server/declarations/types';
 import type { ObligationDetailResult } from '../../server/obligations.server';
 import { SIGN_IN } from '../onboarding/links';
+import { signInAgain } from '../sign-in';
 import { messages as m } from './obligation-messages';
+import { startAvailability } from './obligations';
 
 export type LoadObligationDetail = (id: string) => Promise<ObligationDetailResult>;
 
@@ -98,7 +108,10 @@ export function StatementDateTerm() {
     <Tooltip content={m.statementDateTip} side="bottom">
       <span
         tabIndex={0}
-        className="inline-flex cursor-help items-center gap-1 rounded-sm underline decoration-current/40 decoration-dotted underline-offset-[3px] outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+        className={cn(
+          'inline-flex cursor-help items-center gap-1 rounded-sm underline decoration-current/40 decoration-dotted underline-offset-[3px]',
+          focusRing,
+        )}
       >
         {m.statementDate}
         <Icon icon={InformationCircleIcon} className="size-[13px]" aria-hidden="true" />
@@ -107,29 +120,95 @@ export function StatementDateTerm() {
   );
 }
 
+const START_FAILED = {
+  'not-open': m.startNotOpen,
+  'not-found': m.startNotFound,
+  unavailable: m.startUnavailable,
+} as const;
+
 /**
- * Start declaration, disabled until capture ships (slice 05). A disabled button takes neither
- * hover nor focus, so a focusable wrapper carries the tooltip; the button itself is described
- * by the same words for screen readers.
+ * Start declaration, or Continue declaration when a draft for the obligation exists (S20). A
+ * filed or cancelled obligation keeps the button disabled with the reason: a disabled button
+ * takes neither hover nor focus, so a focusable wrapper carries the tooltip and the button is
+ * described by the same words for screen readers.
  */
-export function StartDeclarationButton({ className }: { className?: string }) {
+export function StartDeclarationButton({
+  obligation,
+  declarations,
+  className,
+}: {
+  obligation: Obligation;
+  /** The declarant's declarations, to find a draft to continue. */
+  declarations: readonly DeclarationListItem[];
+  className?: string;
+}) {
+  const availability = startAvailability(obligation, declarations);
   const hintId = useId();
-  return (
-    <Tooltip content={m.filingOpensSoon}>
-      <span
-        tabIndex={0}
-        className={cn(
-          'inline-flex rounded-lg outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring',
-          className,
-        )}
-      >
-        <Button disabled aria-describedby={hintId} className="w-full">
-          {m.startDeclaration}
-        </Button>
-        <span id={hintId} className="sr-only">
-          {m.filingOpensSoon}
+  const navigate = useNavigate();
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  if (availability.kind === 'continue') {
+    return (
+      <Button asChild className={className}>
+        <Link to="/declarations/$id" params={{ id: availability.declarationId }}>
+          {m.continueDeclaration}
+          <Icon icon={ArrowRight01Icon} />
+        </Link>
+      </Button>
+    );
+  }
+
+  if (availability.kind === 'closed') {
+    return (
+      <Tooltip content={availability.reason}>
+        <span tabIndex={0} className={cn('inline-flex rounded-lg', focusRing, className)}>
+          <Button disabled aria-describedby={hintId} className="w-full">
+            {m.startDeclaration}
+          </Button>
+          <span id={hintId} className="sr-only">
+            {availability.reason}
+          </span>
         </span>
-      </span>
-    </Tooltip>
+      </Tooltip>
+    );
+  }
+
+  async function start() {
+    setBusy(true);
+    setError(null);
+    const result = await startMyDeclaration({ data: { obligationId: obligation.id } }).catch(
+      () => ({ status: 'unavailable' }) as const,
+    );
+    if (result.status === 'started') {
+      await navigate({
+        to: '/declarations/$id',
+        params: { id: result.declaration.id },
+        search: result.created ? { started: true } : {},
+      });
+      return;
+    }
+    if (result.status === 'unauthenticated') {
+      signInAgain('/');
+      return;
+    }
+    setBusy(false);
+    setError(START_FAILED[result.status]);
+  }
+
+  // In the card's and the drawer's wrapping action rows, the error takes a line of its own.
+  return (
+    <>
+      <Button disabled={busy} onClick={() => void start()} className={className}>
+        {m.startDeclaration}
+        <Icon icon={ArrowRight01Icon} />
+      </Button>
+      {error ? (
+        <Alert variant="destructive" className="order-last basis-full">
+          <Icon icon={AlertCircleIcon} />
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      ) : null}
+    </>
   );
 }

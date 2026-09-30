@@ -60,6 +60,14 @@ describe('FileDropZone', () => {
     );
   });
 
+  it('keeps a visible focus outline', () => {
+    const { button } = renderZone();
+
+    expect(button.className).not.toContain('outline-none');
+    expect(button.className).toContain('outline-hidden');
+    expect(button.className).toContain('focus-visible:outline-solid');
+  });
+
   it('accepts a dropped file of the right type and size', () => {
     const { button, onFileAccepted } = renderZone();
     const roster = file('roster.csv', 2 * MB, 'text/csv');
@@ -194,6 +202,79 @@ describe('FileDropZone', () => {
     expect(screen.getByRole('alert').textContent).toBe('Row 9 has no ID number.');
   });
 
+  it('keeps a client message when the parent clears its error on rejection', () => {
+    function Upload() {
+      const [error, setError] = useState<string | undefined>('Server said no');
+      return (
+        <FileDropZone
+          label="Drop your roster file here or browse."
+          accept={['.csv']}
+          messages={{ type: () => 'Use a .csv file.', size: () => 'Too big.' }}
+          onFileAccepted={() => {
+            setError(undefined);
+          }}
+          onFileRejected={() => {
+            setError(undefined);
+          }}
+          error={error}
+        />
+      );
+    }
+    render(<Upload />);
+    const zone = screen.getByRole('button', { name: 'Drop your roster file here or browse.' });
+    expect(screen.getByRole('alert').textContent).toBe('Server said no');
+
+    drop(zone, file('roster.pdf', MB, 'application/pdf'));
+
+    expect(screen.getByRole('alert').textContent).toBe('Use a .csv file.');
+  });
+
+  it('shows the same server message again once the parent sets it after a rejection', () => {
+    function Upload() {
+      const [error, setError] = useState<string | undefined>('Server said no');
+      return (
+        <>
+          <FileDropZone
+            label="Drop your roster file here or browse."
+            accept={['.csv']}
+            messages={{ type: () => 'Use a .csv file.', size: () => 'Too big.' }}
+            onFileAccepted={vi.fn()}
+            onFileRejected={() => {
+              setError(undefined);
+            }}
+            error={error}
+          />
+          <button
+            type="button"
+            onClick={() => {
+              setError('Server said no');
+            }}
+          >
+            Server says
+          </button>
+        </>
+      );
+    }
+    render(<Upload />);
+    const zone = screen.getByRole('button', { name: 'Drop your roster file here or browse.' });
+
+    drop(zone, file('roster.pdf', MB, 'application/pdf'));
+    expect(screen.getByRole('alert').textContent).toBe('Use a .csv file.');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Server says' }));
+    expect(screen.getByRole('alert').textContent).toBe('Server said no');
+  });
+
+  it('shows an unchanged server message again after the next accepted file', () => {
+    const { button } = renderZone({ error: 'Server said no' });
+
+    drop(button, file('roster.pdf', MB, 'application/pdf'));
+    expect(screen.getByRole('alert').textContent).toBe('Use a .csv or .xlsx file.');
+
+    drop(button, file('roster.csv', MB, 'text/csv'));
+    expect(screen.getByRole('alert').textContent).toBe('Server said no');
+  });
+
   it('ignores clicks and drops while disabled', () => {
     const { button, onFileAccepted } = renderZone({ disabled: true });
     const click = vi.spyOn(fileInput(), 'click');
@@ -218,6 +299,25 @@ describe('FileDropZone', () => {
       false,
     );
     expect(onFileAccepted).not.toHaveBeenCalled();
+  });
+
+  it('lets drag events fall through to the wrapper while disabled', () => {
+    const { button } = renderZone({ disabled: true });
+
+    expect(button.className).toContain('disabled:pointer-events-none');
+    expect(button.parentElement?.className).toContain('cursor-not-allowed');
+  });
+
+  it('leaves drops on the error below an enabled zone alone', () => {
+    const { button, onFileAccepted } = renderZone({ error: 'Server said no' });
+    const alert = screen.getByRole('alert');
+
+    const dataTransfer = { dropEffect: 'copy', files: [] };
+    expect(fireEvent.dragOver(alert, { dataTransfer })).toBe(true);
+    expect(dataTransfer.dropEffect).toBe('copy');
+    expect(fireEvent.drop(alert, { dataTransfer: { files: [file('roster.csv', MB)] } })).toBe(true);
+    expect(onFileAccepted).not.toHaveBeenCalled();
+    expect(button.hasAttribute('data-dragging')).toBe(false);
   });
 });
 

@@ -107,6 +107,20 @@ function codeSentTo(to: string): string {
 /** A 6-digit code other than `code`. */
 const otherThan = (code: string) => (code === '000000' ? '111111' : '000000');
 
+/**
+ * Identify attempts the test's IP has left (`onboarding-identify`, 5 per 15 minutes), as the
+ * `RateLimit-Remaining` of one more identify says less the one it uses.
+ */
+async function identifyAttemptsLeft(): Promise<number> {
+  const response = await identify(
+    api,
+    { commission: 'tsc', personnelFileNumber: 'TSC/999999', nationalId: '99999999' },
+    ip,
+  );
+  expect(response.statusCode).toBe(404);
+  return Number(response.headers['ratelimit-remaining']) + 1;
+}
+
 /** Failed attempts counted against `tenant`, over every window. */
 async function failuresOf(tenant: string) {
   const rows = await withTenant(api.db, { tenant: PLATFORM_TENANT, subject: 'test' }, (tx) =>
@@ -284,6 +298,8 @@ describe('S7 email code', () => {
     expectProblem(await verify(session, 'email', wrong), 410, 'session-expired');
     // Running out of codes counts against the Commission as a no-match at identify does.
     expect(await failuresOf('tsc')).toBe(1);
+    // ...and uses up an identify attempt of the IP: 5 per IP, less the first identify.
+    expect(await identifyAttemptsLeft()).toBe(3);
 
     expect(await sessionRow(session.id)).toMatchObject({
       state: 'expired',
@@ -409,6 +425,7 @@ describe('S8 resend', () => {
     expectProblem(await resend(session, 'email'), 410, 'session-expired');
 
     expect(await failuresOf('tsc')).toBe(1);
+    expect(await identifyAttemptsLeft()).toBe(3);
     expect(api.otpDelivery.sent()).toHaveLength(4);
     expect(await sessionRow(session.id)).toMatchObject({
       state: 'expired',
