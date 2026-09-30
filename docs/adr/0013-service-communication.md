@@ -106,6 +106,13 @@ So the header chooses among the tenants a trusted service may act for; it never 
 
 **8.4 No `Idempotency-Key` on reopening and discarding an amendment (§7.5, spec 06).** The declarations service's `POST /v1/declarations/{id}/amend` and `POST /v1/declarations/{id}/amend/discard` take no key. Each answers with the declaration and its `ETag`, which a client needs for its next section save (`If-Match`); the idempotency store keeps only status and body, so a replay would answer without it. Neither needs a key to be safe to retry, because each is idempotent by the declaration's state, decided under its row lock: a retried amend finds the declaration `amending` and answers it as it is, copying nothing and recording no second `declaration.amendment-started.v1`; a retried discard finds it `submitted` and answers it as it is. Two requests at once make one change and one event.
 
+**8.5 Acting tenant on the acknowledgement slip's internal routes (§5, spec 06).** The routes below take the tenant in `X-Acting-Tenant` from a service's client credentials token, each under every control of 8.1 (`InternalApi(scope)` and `@ActingTenant()` from `packages/api-kit`; the resource checked against the named tenant, 404 otherwise):
+- declarations' `GET /internal/v1/declarations/{declarationId}/versions/{version}/acknowledgement-payload` (scope `declarations:internal`, audited), pulled by the documents service's acknowledgement issuer, an event consumer with no user token, after `declaration.submitted.v1` or `declaration.acknowledgement-requested.v1`;
+- documents' `POST /internal/v1/documents/issue` and `POST /internal/v1/documents/{documentId}/supersede` (scope `documents:internal`), how a service issues a document for the tenant it names and supersedes one of its documents; today only the documents service's own acknowledgement issuer issues, in process, so no service calls them over HTTP yet;
+- documents' `POST /internal/v1/uploads/{id}/linked` (scope `documents:internal`), called by declarations when it links an attachment to an item and when a discarded amendment links one again.
+
+Token exchange (§5) replaces these with 8.1's.
+
 ## Alternatives considered
 
 | Option | Why not |
