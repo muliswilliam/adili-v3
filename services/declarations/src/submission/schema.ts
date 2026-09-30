@@ -26,7 +26,7 @@ import { declarations } from '../drafts/schema.js';
  * list-partitioned by cycle year (the statement date's year) and insert-only: a trigger refuses
  * every DELETE, every UPDATE of an item, and every UPDATE of a version except to the columns that
  * follow the legal act (supersession, set once; the acknowledgement; the verified count). See
- * migration 0016 for the partitions, triggers and row-level security.
+ * migrations 0016 and 0018 for the partitions, triggers and row-level security.
  */
 
 const bytea = customType<{ data: Buffer; driverData: Buffer }>({
@@ -42,7 +42,9 @@ export const MUTABLE_VERSION_COLUMNS = [
   'ack_status',
   'ack_document_id',
   'ack_verification_id',
+  'ack_verify_url',
   'ack_issued_at',
+  'ack_requested_at',
   'verified_count',
 ] as const;
 
@@ -80,7 +82,11 @@ export const declarationVersions = pgTable(
     ackStatus: text({ enum: ACKNOWLEDGEMENT_STATUS_VALUES }).notNull().default('pending'),
     ackDocumentId: uuid(),
     ackVerificationId: text(),
+    /** Where the verify page answers for the slip: its QR code's payload. */
+    ackVerifyUrl: text(),
     ackIssuedAt: timestamp({ withTimezone: true }),
+    /** When the declarant last asked for the slip again (reissue); null until they do. */
+    ackRequestedAt: timestamp({ withTimezone: true }),
     /** Lookups of its acknowledgement slip on the verify app. */
     verifiedCount: integer().notNull().default(0),
     createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
@@ -94,6 +100,8 @@ export const declarationVersions = pgTable(
       table.cycleYear,
       table.version,
     ),
+    // The verified count follows lookups of a slip by its verification code.
+    index('declaration_versions_ack_verification_id_idx').on(table.ackVerificationId),
     check('declaration_versions_version_check', sql`${table.version} >= 1`),
     check(
       'declaration_versions_ack_status_check',

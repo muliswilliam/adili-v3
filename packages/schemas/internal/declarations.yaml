@@ -721,6 +721,147 @@ paths:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/ProblemDetails'
+  /v1/declarations/{declarationId}/versions/{version}/acknowledgement:
+    get:
+      tags:
+        - submission
+      summary: Acknowledgement slip status and download link for a version
+      description: 'The declarant only. `pending` while the documents service prepares the slip (seconds after submission), `issued` with the document and its verification code once set on the version, `failed` when it has not come within a minute of the submission or of the last reissue (the stored acknowledgement stays pending): it may be asked for again. The slip downloads from the documents service (`getDocumentDownload` with `documentId`).'
+      operationId: getAcknowledgement
+      parameters:
+        - name: declarationId
+          required: true
+          in: path
+          schema:
+            type: string
+            format: uuid
+        - name: version
+          required: true
+          in: path
+          schema:
+            type: integer
+            minimum: 1
+      responses:
+        '200':
+          description: Status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Acknowledgement'
+        '400':
+          description: version is not a positive integer
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: Not found, or not visible to the caller
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+  /v1/declarations/{declarationId}/versions/{version}/acknowledgement/reissue:
+    post:
+      tags:
+        - submission
+      summary: Ask for the slip again when issuance failed
+      description: 'The declarant only. Accepted (202) once the slip has not come within a minute of the submission, or of the last reissue: the acknowledgement is `failed` (still `pending` as stored); records `declaration.acknowledgement-requested.v1`, the documents service issues the slip (or announces the one it issued), and the acknowledgement is `pending` again for a minute. 409 `acknowledgement-issued` once issued; 409 `acknowledgement-in-progress` within a minute of the submission; 429 `resend-cooldown` with `retryAfterSeconds` within a minute of the last reissue.'
+      operationId: reissueAcknowledgement
+      parameters:
+        - name: declarationId
+          required: true
+          in: path
+          schema:
+            type: string
+            format: uuid
+        - name: version
+          required: true
+          in: path
+          schema:
+            type: integer
+            minimum: 1
+      responses:
+        '202':
+          description: Reissue requested
+        '400':
+          description: version is not a positive integer
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: Not found, or not visible to the caller
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '409':
+          description: Problem code `acknowledgement-issued` (the slip is issued) or `acknowledgement-in-progress` (within a minute of the submission)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '429':
+          description: 'Problem code `resend-cooldown` with `retryAfterSeconds`: within a minute of the last reissue'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+  /internal/v1/declarations/{declarationId}/versions/{version}/acknowledgement-payload:
+    get:
+      tags:
+        - internal
+      summary: Fields the acknowledgement slip needs (documents service)
+      description: Service tokens with scope declarations:internal, acting for the Commission in X-Acting-Tenant; audited. What the slip prints of the version (its `acknowledgement-slip` v1 payload) and the declarant it is issued for, nothing more. Pulled after `declaration.submitted.v1` or `declaration.acknowledgement-requested.v1`.
+      operationId: internalGetAcknowledgementPayload
+      parameters:
+        - name: X-Acting-Tenant
+          in: header
+          description: Tenant the calling service acts for; the resource must belong to it
+          required: true
+          schema:
+            type: string
+            pattern: ^[a-z][a-z0-9]{1,19}$
+        - name: declarationId
+          required: true
+          in: path
+          schema:
+            type: string
+            format: uuid
+        - name: version
+          required: true
+          in: path
+          schema:
+            type: integer
+            minimum: 1
+      responses:
+        '200':
+          description: Payload
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AcknowledgementPayload'
+        '400':
+          description: X-Acting-Tenant is missing or not a tenant key
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '403':
+          description: Requires a service token with scope declarations:internal
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: No such version of the acting tenant's declarations
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+      x-audited-read:
+        action: declaration.acknowledgement-payload.pulled
+        resource: declaration-version
   /v1/declarations/{declarationId}/amend:
     parameters:
       - $ref: '#/components/parameters/DeclarationId'
@@ -806,71 +947,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/DeclarationVersionDetail'
-        '404':
-          $ref: '#/components/responses/NotFound'
-  /v1/declarations/{declarationId}/versions/{version}/acknowledgement:
-    parameters:
-      - $ref: '#/components/parameters/DeclarationId'
-      - $ref: '#/components/parameters/VersionNumber'
-    get:
-      tags:
-        - submission
-      summary: Acknowledgement slip status and download link for a version
-      operationId: getAcknowledgement
-      x-draft: true
-      responses:
-        '200':
-          description: Status
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Acknowledgement'
-        '404':
-          $ref: '#/components/responses/NotFound'
-  /v1/declarations/{declarationId}/versions/{version}/acknowledgement/reissue:
-    parameters:
-      - $ref: '#/components/parameters/DeclarationId'
-      - $ref: '#/components/parameters/VersionNumber'
-    post:
-      tags:
-        - submission
-      summary: Ask for the slip again when issuance failed
-      operationId: reissueAcknowledgement
-      x-draft: true
-      responses:
-        '202':
-          description: Reissue requested
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '409':
-          description: Slip already issued or issuance in progress
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ProblemDetails'
-        '429':
-          description: Cooldown
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ProblemDetails'
-  /internal/v1/declarations/{declarationId}/versions/{version}/acknowledgement-payload:
-    parameters:
-      - $ref: '#/components/parameters/DeclarationId'
-      - $ref: '#/components/parameters/VersionNumber'
-    get:
-      tags:
-        - internal
-      summary: Fields the acknowledgement slip needs (documents service)
-      operationId: internalGetAcknowledgementPayload
-      x-draft: true
-      responses:
-        '200':
-          description: Payload
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/AcknowledgementPayload'
         '404':
           $ref: '#/components/responses/NotFound'
   /internal/v1/declarations/{declarationId}/versions/{version}/document:
@@ -2623,6 +2699,12 @@ components:
           type:
             - string
             - 'null'
+        verifyUrl:
+          anyOf:
+            - type: string
+              format: uri
+            - type: 'null'
+          description: Where the verify page answers for the slip, the QR code's payload (`<verify origin>/v/<code>`); null until issued
         issuedAt:
           anyOf:
             - type: string
@@ -2636,11 +2718,12 @@ components:
             - type: string
               format: uri
             - type: 'null'
-          description: Short-lived presigned URL; fetched fresh on each call; null until issued
+          description: "Null: the slip downloads from the documents service (`getDocumentDownload` with `documentId`), the owner's short-lived link, audited there"
       required:
         - status
         - documentId
         - verificationId
+        - verifyUrl
         - issuedAt
         - verifiedCount
         - downloadUrl
@@ -2741,6 +2824,78 @@ components:
         - type
         - title
         - status
+    AcknowledgementSlip:
+      type: object
+      properties:
+        declarantName:
+          type: string
+          minLength: 1
+          maxLength: 200
+          description: As declared in the version (first, other and surname)
+        commissionName:
+          type: string
+          minLength: 1
+          maxLength: 200
+        issuerCode:
+          type: string
+          pattern: ^[A-Z0-9]{2,20}$
+          description: The Commission's issuer code, as in the reference number
+        declarationType:
+          $ref: '#/components/schemas/ObligationType'
+        statementDate:
+          type: string
+          format: date
+        dueDate:
+          anyOf:
+            - type: string
+              format: date
+            - type: 'null'
+          description: The filing obligation's due date; null when it has none
+        reference:
+          $ref: '#/components/schemas/DeclarationReference'
+        version:
+          type: integer
+          minimum: 1
+        submittedAt:
+          type: string
+          format: date-time
+        late:
+          type: boolean
+          description: Submitted after the obligation's due date
+        statementCount:
+          type: integer
+          minimum: 0
+          description: 'Statements in the version: the declarant, spouses and children'
+        itemCount:
+          type: integer
+          minimum: 0
+          description: Income, assets and liabilities across its statements
+      required:
+        - declarantName
+        - commissionName
+        - issuerCode
+        - declarationType
+        - statementDate
+        - dueDate
+        - reference
+        - version
+        - submittedAt
+        - late
+        - statementCount
+        - itemCount
+      description: The fields the acknowledgement slip prints, and nothing more
+    AcknowledgementPayload:
+      type: object
+      properties:
+        declarantPersonId:
+          type: string
+          format: uuid
+          description: 'The declarant: the documents service issues the slip for them, the only person who may download it'
+        slip:
+          $ref: '#/components/schemas/AcknowledgementSlip'
+      required:
+        - declarantPersonId
+        - slip
     ProblemDetails:
       type: object
       properties:
@@ -2773,6 +2928,8 @@ components:
             - not-a-draft
             - not-submitted
             - obligation-cancelled
+            - acknowledgement-issued
+            - acknowledgement-in-progress
           description: Machine-readable cause, from the platform registry; clients map it to copy and never show `title` or `detail`
         detail:
           type: string
@@ -3199,56 +3356,6 @@ components:
               type: object
               description: The immutable declaration.v1 document (decrypted for the owner)
               additionalProperties: true
-    AcknowledgementPayload:
-      type: object
-      required:
-        - declarantName
-        - commission
-        - type
-        - statementDate
-        - reference
-        - version
-        - submittedAt
-        - late
-        - counts
-      properties:
-        declarantName:
-          type: string
-        commission:
-          $ref: '#/components/schemas/CommissionRef'
-        type:
-          $ref: '#/components/schemas/ObligationType'
-        statementDate:
-          type: string
-          format: date
-        reference:
-          $ref: '#/components/schemas/DeclarationReference'
-        version:
-          type: integer
-        submittedAt:
-          type: string
-          format: date-time
-        late:
-          type: boolean
-        counts:
-          type: object
-          required:
-            - statements
-            - income
-            - assets
-            - liabilities
-            - attachments
-          properties:
-            statements:
-              type: integer
-            income:
-              type: integer
-            assets:
-              type: integer
-            liabilities:
-              type: integer
-            attachments:
-              type: integer
     InternalVersionDocument:
       type: object
       required:

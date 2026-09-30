@@ -23,10 +23,15 @@ export const acknowledgementSchema = z.object({
     .string()
     .nullable()
     .meta({ description: 'Verification code printed under the QR; null until issued' }),
+  verifyUrl: z.url().nullable().meta({
+    description:
+      "Where the verify page answers for the slip, the QR code's payload (`<verify origin>/v/<code>`); null until issued",
+  }),
   issuedAt: z.iso.datetime().nullable(),
   verifiedCount: z.int().meta({ description: 'Lookups of the slip on the verify app' }),
   downloadUrl: z.url().nullable().meta({
-    description: 'Short-lived presigned URL; fetched fresh on each call; null until issued',
+    description:
+      "Null: the slip downloads from the documents service (`getDocumentDownload` with `documentId`), the owner's short-lived link, audited there",
   }),
 });
 export type Acknowledgement = z.infer<typeof acknowledgementSchema>;
