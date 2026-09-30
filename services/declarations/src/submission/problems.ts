@@ -18,12 +18,15 @@ export function incomplete(blocking: DeclarationIssue[]): ProblemException {
   });
 }
 
+/** Submitting an amendment and starting one are refused alike once the due date has passed. */
+const AMENDMENT_WINDOW_CLOSED =
+  'Amendments closed on the due date; changes now go through the Commission.';
+
 const REFUSALS: Record<ObligationRefusal, string> = {
   'not-a-draft': 'Only a draft declaration or an amendment in progress can be submitted.',
   'obligation-cancelled': 'The filing obligation was cancelled; there is nothing to file.',
   'before-statement-date': 'A declaration can be submitted from its statement date.',
-  'amendment-window-closed':
-    'Amendments close on the due date; changes now go through the Commission.',
+  'amendment-window-closed': AMENDMENT_WINDOW_CLOSED,
 };
 
 /** 409 for a declaration or obligation that does not take the submission now. */
@@ -34,8 +37,7 @@ export function refused(refusal: ObligationRefusal): ProblemException {
 const AMEND_REFUSALS: Record<AmendRefusal, string> = {
   'not-submitted': 'Only a submitted declaration can be amended.',
   'obligation-cancelled': 'The filing obligation was cancelled; there is nothing to amend.',
-  'amendment-window-closed':
-    'Amendments closed on the due date; changes now go through the Commission.',
+  'amendment-window-closed': AMENDMENT_WINDOW_CLOSED,
 };
 
 /** 409 for a declaration that cannot be reopened for amendment (or have one discarded) now. */
