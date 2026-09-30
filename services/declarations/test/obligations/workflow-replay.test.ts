@@ -100,7 +100,7 @@ describe.runIf(RECORD)('record workflow histories', () => {
         if (options.failReminders) return Promise.reject(new Error('notifications unreachable'));
         return Promise.resolve(person.id === null ? 'skipped-not-onboarded' : 'sent');
       },
-      sweepObligations: () => Promise.resolve({ started: 0, cancelled: 0 }),
+      sweepObligations: () => Promise.resolve({ started: 0, restarted: 0, cancelled: 0 }),
     };
   }
 

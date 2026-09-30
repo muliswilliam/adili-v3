@@ -10,7 +10,8 @@ import { filingObligations } from '../../src/db/schema.js';
 import type { Transaction } from '../../src/obligations/apply-page.js';
 import { addDays, nairobiDate } from '../../src/obligations/dates.js';
 import { DECLARANT_ONBOARDED, ROSTER_IMPORT_COMPLETED } from '../../src/obligations/events.js';
-import { stateQuery } from '../../src/obligations/workflow/contract.js';
+import { cancelSignal, stateQuery } from '../../src/obligations/workflow/contract.js';
+import { ObligationWorkflows } from '../../src/obligations/workflows.js';
 import {
   type DeclarationsApi,
   directoryEvent,
@@ -154,5 +155,59 @@ describe('S24 FilingObligationWorkflow on Temporal', () => {
       },
       { timeout: 30_000, interval: 250 },
     );
+  }, 60_000);
+
+  it('the sweep starts again the workflow of an open obligation whose run was terminated; a completed one is never run again', async () => {
+    const today = nairobiDate(new Date());
+    api.directory.givenCommission(
+      'psc',
+      'Public Service Commission',
+      policyVersion({ obligationsStartDate: `${today.slice(0, 4)}-01-01` }),
+    );
+    const record = rosterRecord('psc', { appointmentDate: addDays(today, -2) });
+    const importId = randomUUID();
+    api.directory.givenImport(importId, [record]);
+    await api.publish(
+      directoryEvent(ROSTER_IMPORT_COMPLETED, 'psc', { importId, channel: 'file' }),
+    );
+    await vi.waitFor(
+      async () => {
+        expect((await obligationOf(record.id))?.workflowStartedAt).toBeInstanceOf(Date);
+      },
+      { timeout: 30_000, interval: 250 },
+    );
+    const id = (await obligationOf(record.id))?.id ?? '';
+    started.push(id);
+    const handle = temporal.workflow.getHandle(id);
+    const { runId: terminatedRun } = await handle.describe();
+
+    await handle.terminate('operator mistake');
+
+    // Visibility lists the terminated run within seconds; a sweep after that starts a new run.
+    await vi.waitFor(
+      async () => {
+        await api.sweep.run({ graceMs: 0 });
+        const now = await handle.describe();
+        expect(now.runId).not.toBe(terminatedRun);
+        expect(now.status.name).toBe('RUNNING');
+      },
+      { timeout: 30_000, interval: 1_000 },
+    );
+
+    // The new run completes (a cancel signal ends it; the row is left open on purpose).
+    await handle.signal(cancelSignal, 'superseded');
+    await expect(temporal.workflow.getHandle(id).result()).resolves.toBe('cancelled');
+    const { runId: completedRun } = await handle.describe();
+
+    // Neither a start nor the sweep runs a completed workflow again.
+    await api.app.get(ObligationWorkflows).apply('psc', {
+      created: [id],
+      cancelled: [],
+      personLinked: [],
+    });
+    await api.sweep.run({ graceMs: 0 });
+    const after = await handle.describe();
+    expect(after.runId).toBe(completedRun);
+    expect(after.status.name).toBe('COMPLETED');
   }, 60_000);
 });

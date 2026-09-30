@@ -6,13 +6,13 @@ import {
   WorkflowExecutionAlreadyStartedError,
   WorkflowNotFoundError,
 } from '@temporalio/client';
-import { and, inArray, isNull, sql } from 'drizzle-orm';
+import { inArray, sql } from 'drizzle-orm';
 
 import { config } from '../../config.js';
 import type { DeclarationsSchema } from '../../db/schema.js';
 import { systemContext } from '../system-context.js';
 import { filingObligations } from '../schema.js';
-import { type ObligationChanges, ObligationWorkflows } from '../workflows.js';
+import { type ObligationChanges, ObligationWorkflows, type StoppedWorkflow } from '../workflows.js';
 import {
   cancelSignal,
   FILING_OBLIGATION_WORKFLOW,
@@ -23,13 +23,18 @@ import type { filingObligation } from './workflows.js';
 
 /** Starts and signals in flight at once: a page brings up to 1,000 of each. */
 const CONCURRENCY = 25;
+/** Executions listed per page of Temporal visibility. */
+const LIST_PAGE_SIZE = 500;
+/** Execution statuses of a run that ended without completing (the obligation still needs one). */
+const STOPPED_STATUSES = ['Failed', 'TimedOut', 'Terminated', 'Canceled'];
 
 /**
  * Starts and signals `FilingObligationWorkflow`s on Temporal (ADR-003), one per obligation with the
- * obligation id as workflow id. A start is idempotent (a running or finished workflow is left as
- * it is) and marks the obligation `workflow_started_at`; a signal to a workflow that was never
- * started is dropped, since that obligation is unmarked and the sweep starts its workflow, which
- * reads the current row. Every call is attempted; failures are thrown together at the end.
+ * obligation id as workflow id. A start is idempotent (a running or completed workflow is left as
+ * it is; one that failed, timed out, was terminated or cancelled is run again) and marks the
+ * obligation `workflow_started_at` with the time; a signal to a workflow that was never started is
+ * dropped, since that obligation is unmarked and the sweep starts its workflow, which reads the
+ * current row. Every call is attempted; failures are thrown together at the end.
  */
 @Injectable()
 export class TemporalObligationWorkflows extends ObligationWorkflows {
@@ -69,13 +74,34 @@ export class TemporalObligationWorkflows extends ObligationWorkflows {
         workflowId: obligationId,
         args: [input],
         workflowIdConflictPolicy: 'USE_EXISTING',
-        // One workflow per obligation, ever: a finished one is not run again.
-        workflowIdReusePolicy: 'REJECT_DUPLICATE',
+        // A completed workflow is never run again; one that stopped short is (the sweep's restart).
+        workflowIdReusePolicy: 'ALLOW_DUPLICATE_FAILED_ONLY',
       });
     } catch (error) {
       if (!(error instanceof WorkflowExecutionAlreadyStartedError)) throw error;
     }
     return obligationId;
+  }
+
+  /**
+   * Visibility's closed runs of this task queue's obligation workflows that did not complete.
+   * Eventually consistent: a run that just stopped shows up within seconds.
+   */
+  async *stopped(): AsyncIterable<StoppedWorkflow> {
+    const statuses = STOPPED_STATUSES.map((status) => `'${status}'`).join(', ');
+    const query = [
+      `WorkflowType = '${FILING_OBLIGATION_WORKFLOW}'`,
+      `TaskQueue = '${config.TEMPORAL_TASK_QUEUE}'`,
+      `ExecutionStatus IN (${statuses})`,
+    ].join(' AND ');
+    for await (const execution of this.temporal.workflow.list({
+      query,
+      pageSize: LIST_PAGE_SIZE,
+    })) {
+      if (execution.closeTime) {
+        yield { obligationId: execution.workflowId, closedAt: execution.closeTime };
+      }
+    }
   }
 
   private async signal(
@@ -90,17 +116,16 @@ export class TemporalObligationWorkflows extends ObligationWorkflows {
     }
   }
 
+  /**
+   * The latest start: a run that stopped before it is one the sweep has restarted already (see
+   * `ObligationsSweep`).
+   */
   private async markStarted(tenant: string, obligationIds: string[]): Promise<void> {
     await withTenant(this.db, systemContext(tenant), (tx) =>
       tx
         .update(filingObligations)
         .set({ workflowStartedAt: sql`now()` })
-        .where(
-          and(
-            inArray(filingObligations.id, obligationIds),
-            isNull(filingObligations.workflowStartedAt),
-          ),
-        ),
+        .where(inArray(filingObligations.id, obligationIds)),
     );
   }
 }

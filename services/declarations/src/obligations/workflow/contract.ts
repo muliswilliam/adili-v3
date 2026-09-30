@@ -61,6 +61,8 @@ export type SendReminderResult = ReminderOutcome | 'not-open';
 export interface SweepResult {
   /** Workflows started for open obligations that had none. */
   started: number;
+  /** Workflows started again for open obligations whose run stopped (failed, terminated...). */
+  restarted: number;
   /** Upcoming obligations of exited declarants cancelled. */
   cancelled: number;
 }

@@ -15,8 +15,9 @@ import {
 import { rosterRecord } from '../support/fake-directory.js';
 
 /**
- * Workflow starts and signals after commit, and the reconciliation sweep that heals lost starts:
- * the real `TemporalObligationWorkflows` against a fake Temporal client, real Postgres.
+ * Workflow starts and signals after commit, and the reconciliation sweep that heals lost starts
+ * and stopped runs: the real `TemporalObligationWorkflows` against a fake Temporal client, real
+ * Postgres.
  *
  * Today is 2027-07-10 (the 2027 cycle is open): each officer owes the 2027 biennial, and those
  * appointed on 2027-07-01 an initial too.
@@ -90,7 +91,7 @@ describe('workflow starts after commit', () => {
         taskQueue: process.env.TEMPORAL_TASK_QUEUE,
         args: [{ obligationId: api.temporal.starts[0]?.workflowId }],
         workflowIdConflictPolicy: 'USE_EXISTING',
-        workflowIdReusePolicy: 'REJECT_DUPLICATE',
+        workflowIdReusePolicy: 'ALLOW_DUPLICATE_FAILED_ONLY',
       },
     });
     expect(rows.every((row) => row.workflowStartedAt instanceof Date)).toBe(true);
@@ -137,17 +138,25 @@ describe('workflow starts after commit', () => {
     expect(await unstarted()).toHaveLength(2);
 
     api.temporal.down = false;
-    await expect(api.sweep.run({ graceMs: 0 })).resolves.toEqual({ started: 2, cancelled: 0 });
+    await expect(api.sweep.run({ graceMs: 0 })).resolves.toEqual({
+      started: 2,
+      restarted: 0,
+      cancelled: 0,
+    });
     expect(await unstarted()).toEqual([]);
-    await expect(api.sweep.run({ graceMs: 0 })).resolves.toEqual({ started: 0, cancelled: 0 });
+    await expect(api.sweep.run({ graceMs: 0 })).resolves.toEqual({
+      started: 0,
+      restarted: 0,
+      cancelled: 0,
+    });
     expect(api.temporal.startedIds().sort()).toEqual(
       (await obligations()).map((row) => row.id).sort(),
     );
   });
 
-  it('sweeps only open obligations past the grace period, and counts a finished workflow as started', async () => {
+  it('sweeps only open obligations past the grace period, and counts a completed workflow as started', async () => {
     await importRecords([rosterRecord('psc'), rosterRecord('psc'), rosterRecord('psc')]);
-    const [open, cancelled, closed] = await obligations();
+    const [, cancelled, completed] = await obligations();
     await asPlatform(async (tx) => {
       await tx.update(filingObligations).set({ workflowStartedAt: null });
       await tx
@@ -155,15 +164,83 @@ describe('workflow starts after commit', () => {
         .set({ status: 'cancelled', cancelReason: 'exited-before-statement-date' })
         .where(eq(filingObligations.id, cancelled?.id ?? ''));
     });
-    api.temporal.reset();
-    api.temporal.closed.add(closed?.id ?? '');
+    api.temporal.stop(completed?.id ?? '', 'Completed');
 
     // Just created: left to the start that follows the commit.
-    await expect(api.sweep.run()).resolves.toEqual({ started: 0, cancelled: 0 });
+    await expect(api.sweep.run()).resolves.toEqual({ started: 0, restarted: 0, cancelled: 0 });
 
-    await expect(api.sweep.run({ graceMs: 0 })).resolves.toEqual({ started: 2, cancelled: 0 });
-    expect(api.temporal.startedIds().sort()).toEqual([open?.id, closed?.id].sort());
+    await expect(api.sweep.run({ graceMs: 0 })).resolves.toEqual({
+      started: 2,
+      restarted: 0,
+      cancelled: 0,
+    });
+    // The completed workflow is not run again: its start is refused as already started.
+    expect(api.temporal.runsOf(completed?.id ?? '')).toEqual(['Completed']);
     expect(await unstarted()).toEqual([{ id: cancelled?.id }]);
+  });
+
+  it('starts again, once, the workflows of open obligations whose run failed, timed out or was terminated', async () => {
+    await importRecords([
+      rosterRecord('psc'),
+      rosterRecord('psc'),
+      rosterRecord('psc'),
+      rosterRecord('psc'),
+    ]);
+    const [failed, timedOut, terminated, running] = await obligations();
+    // Started 20 minutes ago; three runs stopped 10 minutes ago.
+    await asPlatform((tx) =>
+      tx.update(filingObligations).set({ workflowStartedAt: new Date(Date.now() - 20 * 60_000) }),
+    );
+    const earlier = new Date(Date.now() - 10 * 60_000);
+    api.temporal.stop(failed?.id ?? '', 'Failed', earlier);
+    api.temporal.stop(timedOut?.id ?? '', 'TimedOut', earlier);
+    api.temporal.stop(terminated?.id ?? '', 'Terminated', earlier);
+    const startsBefore = api.temporal.starts.length;
+
+    await expect(api.sweep.run({ graceMs: 0 })).resolves.toEqual({
+      started: 0,
+      restarted: 3,
+      cancelled: 0,
+    });
+    expect(api.temporal.runsOf(failed?.id ?? '')).toEqual(['Failed', 'Running']);
+    expect(api.temporal.runsOf(timedOut?.id ?? '')).toEqual(['TimedOut', 'Running']);
+    expect(api.temporal.runsOf(terminated?.id ?? '')).toEqual(['Terminated', 'Running']);
+    expect(api.temporal.runsOf(running?.id ?? '')).toEqual(['Running']);
+
+    // Started since those runs closed: the next sweep leaves them be.
+    await expect(api.sweep.run({ graceMs: 0 })).resolves.toEqual({
+      started: 0,
+      restarted: 0,
+      cancelled: 0,
+    });
+    expect(api.temporal.starts.length).toBe(startsBefore + 3);
+
+    // The restarted run of one fails too: that one is started again.
+    api.temporal.stop(failed?.id ?? '', 'Failed');
+    await expect(api.sweep.run({ graceMs: 0 })).resolves.toEqual({
+      started: 0,
+      restarted: 1,
+      cancelled: 0,
+    });
+    expect(api.temporal.runsOf(failed?.id ?? '')).toEqual(['Failed', 'Failed', 'Running']);
+  });
+
+  it('leaves a stopped run be once its obligation is no longer open', async () => {
+    await importRecords([rosterRecord('psc')]);
+    const [obligation] = await obligations();
+    api.temporal.stop(obligation?.id ?? '', 'Terminated');
+    await asPlatform((tx) =>
+      tx
+        .update(filingObligations)
+        .set({ status: 'cancelled', cancelReason: 'exited-before-statement-date' }),
+    );
+
+    await expect(api.sweep.run({ graceMs: 0 })).resolves.toEqual({
+      started: 0,
+      restarted: 0,
+      cancelled: 0,
+    });
+    expect(api.temporal.runsOf(obligation?.id ?? '')).toEqual(['Terminated']);
   });
 
   it("cancels an exited declarant's upcoming biennial the engine no longer owes, and signals its workflow", async () => {
@@ -179,7 +256,11 @@ describe('workflow starts after commit', () => {
     );
     const signalled = api.temporal.signals.length;
 
-    await expect(api.sweep.run({ graceMs: 0 })).resolves.toEqual({ started: 0, cancelled: 1 });
+    await expect(api.sweep.run({ graceMs: 0 })).resolves.toEqual({
+      started: 0,
+      restarted: 0,
+      cancelled: 1,
+    });
 
     const rows = await asPlatform((tx) =>
       tx
@@ -208,6 +289,10 @@ describe('workflow starts after commit', () => {
         args: ['exited-before-statement-date'],
       },
     ]);
-    await expect(api.sweep.run({ graceMs: 0 })).resolves.toEqual({ started: 0, cancelled: 0 });
+    await expect(api.sweep.run({ graceMs: 0 })).resolves.toEqual({
+      started: 0,
+      restarted: 0,
+      cancelled: 0,
+    });
   });
 });

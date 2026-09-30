@@ -37,7 +37,11 @@ import {
 } from '../../src/obligations/workflow/cycle-opening-schedules.js';
 import { ObligationSteps } from '../../src/obligations/workflow/obligation-steps.js';
 import { ObligationsSweep, SweepSchedule } from '../../src/obligations/workflow/sweep.js';
-import { type ObligationChanges, ObligationWorkflows } from '../../src/obligations/workflows.js';
+import {
+  type ObligationChanges,
+  ObligationWorkflows,
+  type StoppedWorkflow,
+} from '../../src/obligations/workflows.js';
 import { FakeDirectory } from './fake-directory.js';
 import { FakeNotifications } from './fake-notifications.js';
 import { FakeTemporal } from './fake-temporal.js';
@@ -101,6 +105,11 @@ export class RecordingWorkflows extends ObligationWorkflows {
     });
     this.held = { reached, released };
     return { reached: reachedPromise, release };
+  }
+
+  /** None: recorded workflows never stop. */
+  async *stopped(): AsyncIterable<StoppedWorkflow> {
+    // Nothing to yield.
   }
 
   created(): string[] {

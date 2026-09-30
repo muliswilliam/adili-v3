@@ -20,12 +20,17 @@ import { PLATFORM_CONTEXT, systemContext } from '../system-context.js';
 import { reconcileSnapshots, storedReconcileContext } from '../apply-page.js';
 import { nairobiDate } from '../dates.js';
 import { filingObligations, rosterSnapshots } from '../schema.js';
-import { ObligationWorkflows } from '../workflows.js';
+import { ObligationWorkflows, type StoppedWorkflow } from '../workflows.js';
 import { OBLIGATIONS_SWEEP_WORKFLOW, type SweepResult } from './contract.js';
 import type { obligationsSweep } from './workflows.js';
 
 /** Obligations started per round of the sweep. */
 const BATCH = 500;
+/**
+ * Allowance for the Temporal server's clock against the database's: a stopped run that closed
+ * up to this long after the obligation was last marked started is restarted (again) anyway.
+ */
+const CLOCK_SKEW_MS = 60_000;
 /**
  * Obligations younger than this are left to the start that follows their commit, so the sweep
  * does not race it (harmless if it did: starts are idempotent).
@@ -46,6 +51,10 @@ export function sweepScheduleId(taskQueue: string): string {
  * - starts the workflow of every open obligation that has none (`workflow_started_at` null), the
  *   obligations whose start after commit was lost to a crash or a Temporal outage. Round by round,
  *   oldest first; an obligation it cannot start ends the run (thrown), to be tried again next hour;
+ * - starts again the workflow of every open obligation whose run stopped without completing
+ *   (failed, timed out, terminated or cancelled on Temporal), from Temporal's visibility. A stopped
+ *   run that closed before the obligation was last marked started has been restarted already;
+ *   a completed run is never run again (the start's reuse policy);
  * - cancels the `upcoming` obligations of exited declarants that the engine no longer owes (a
  *   reconciliation lost between an exit and its obligations), and signals their workflows. It
  *   creates nothing: finals come with the exit's own ingest.
@@ -64,10 +73,13 @@ export class ObligationsSweep {
     progress = () => undefined,
   }: { graceMs?: number; progress?: (done: number) => void } = {}): Promise<SweepResult> {
     const started = await this.startMissing(graceMs, progress);
-    const cancelled = await this.cancelExited((done) => {
+    const restarted = await this.restartStopped((done) => {
       progress(started + done);
     });
-    return { started, cancelled };
+    const cancelled = await this.cancelExited((done) => {
+      progress(started + restarted + done);
+    });
+    return { started, restarted, cancelled };
   }
 
   private async startMissing(
@@ -108,6 +120,51 @@ export class ObligationsSweep {
       progress(started);
       if (rows.length < BATCH) return started;
     }
+  }
+
+  /**
+   * Pages through the stopped runs Temporal lists, and starts again those whose obligation is
+   * still open and was not started since the run closed, one tenant at a time.
+   */
+  private async restartStopped(progress: (restarted: number) => void): Promise<number> {
+    let restarted = 0;
+    for await (const page of pages(this.workflows.stopped(), BATCH)) {
+      // An obligation's latest stopped run is the one that counts.
+      const closedAt = new Map<string, number>();
+      for (const { obligationId, closedAt: at } of page) {
+        closedAt.set(obligationId, Math.max(at.getTime(), closedAt.get(obligationId) ?? 0));
+      }
+      const rows = await withTenant(this.db, PLATFORM_CONTEXT, (tx) =>
+        tx
+          .select({
+            id: filingObligations.id,
+            tenant: filingObligations.tenant,
+            workflowStartedAt: filingObligations.workflowStartedAt,
+          })
+          .from(filingObligations)
+          .where(
+            and(
+              inArray(filingObligations.id, [...closedAt.keys()]),
+              inArray(filingObligations.status, [...OPEN_STATUSES]),
+            ),
+          ),
+      );
+      const stopped = rows.filter(
+        (row) =>
+          row.workflowStartedAt === null ||
+          row.workflowStartedAt.getTime() < (closedAt.get(row.id) ?? 0) + CLOCK_SKEW_MS,
+      );
+      for (const [tenant, group] of Map.groupBy(stopped, (row) => row.tenant)) {
+        await this.workflows.apply(tenant, {
+          created: group.map((row) => row.id),
+          cancelled: [],
+          personLinked: [],
+        });
+      }
+      restarted += stopped.length;
+      progress(restarted);
+    }
+    return restarted;
   }
 
   /**
@@ -161,6 +218,22 @@ export class ObligationsSweep {
       if (rows.length < BATCH) return cancelled;
     }
   }
+}
+
+/** `items` in arrays of up to `size`. */
+async function* pages(
+  items: AsyncIterable<StoppedWorkflow>,
+  size: number,
+): AsyncIterable<StoppedWorkflow[]> {
+  let page: StoppedWorkflow[] = [];
+  for await (const item of items) {
+    page.push(item);
+    if (page.length === size) {
+      yield page;
+      page = [];
+    }
+  }
+  if (page.length > 0) yield page;
 }
 
 /**

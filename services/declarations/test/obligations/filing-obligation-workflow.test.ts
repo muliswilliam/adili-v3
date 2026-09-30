@@ -86,7 +86,7 @@ class FakeObligation {
         this.reminders.push({ request, result, at: await this.env.now() });
         return result;
       }),
-      sweepObligations: vi.fn(() => Promise.resolve({ started: 0, cancelled: 0 })),
+      sweepObligations: vi.fn(() => Promise.resolve({ started: 0, restarted: 0, cancelled: 0 })),
     };
   }
 

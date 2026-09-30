@@ -24,14 +24,32 @@ export function hasChanges(changes: ObligationChanges): boolean {
 }
 
 /**
+ * An obligation's workflow run that ended without completing: it failed, timed out, was
+ * terminated or was cancelled on Temporal, so nothing sends its reminders any more.
+ */
+export interface StoppedWorkflow {
+  obligationId: string;
+  /** When that run closed. */
+  closedAt: Date;
+}
+
+/**
  * Starts and signals obligation workflows (ADR-003), called after the transaction that changed
  * the obligations commits. Starts and signals are idempotent by workflow id, and a failure here
- * is not retried by the caller: the reconciliation sweep starts a workflow for any obligation
- * without a running one (`workflow_started_at` is null). Implemented on Temporal by
- * `TemporalObligationWorkflows`; a Nest token so tests record the calls.
+ * is not retried by the caller: the reconciliation sweep starts a workflow for any open obligation
+ * without a running one, whether it was never started (`workflow_started_at` is null) or its run
+ * stopped (`stopped`). Implemented on Temporal by `TemporalObligationWorkflows`; a Nest token so
+ * tests record the calls.
  */
 export abstract class ObligationWorkflows {
+  /**
+   * Starts a workflow for every created obligation that has none running and did not complete
+   * (a run that stopped is started again), signals the others.
+   */
   abstract apply(tenant: string, changes: ObligationChanges): Promise<void>;
+
+  /** Every run of an obligation workflow that stopped without completing, in no order. */
+  abstract stopped(): AsyncIterable<StoppedWorkflow>;
 }
 
 /**

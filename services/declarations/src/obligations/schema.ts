@@ -125,7 +125,10 @@ export const filingObligations = pgTable(
      * workflow plans reminders with (ADR-003 §4: a later version never re-plans a running case).
      */
     reminderOffsetsDays: integer().array().notNull(),
-    /** When its `FilingObligationWorkflow` was started; null until then. */
+    /**
+     * When its `FilingObligationWorkflow` was last started (or found running or completed); null
+     * until then. A run that stopped before this was restarted.
+     */
     workflowStartedAt: timestamp({ withTimezone: true }),
     /** The declaration that filed it (slice 06); null before. */
     filedDeclarationId: uuid(),

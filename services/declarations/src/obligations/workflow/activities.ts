@@ -61,7 +61,9 @@ export class ObligationActivities {
     });
   }
 
-  /** The hourly sweep: starts the workflows missing, cancels what exits no longer owe. */
+  /**
+   * The hourly sweep: starts the workflows missing or stopped, cancels what exits no longer owe.
+   */
   sweepObligations(): Promise<SweepResult> {
     const context = Context.current();
     return this.sweep.run({

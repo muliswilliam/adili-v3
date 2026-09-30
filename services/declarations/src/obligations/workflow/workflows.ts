@@ -186,8 +186,9 @@ export async function filingObligation({
 
 /**
  * The hourly reconciliation sweep (started by the sweep schedule, `sweepScheduleId`): starts the
- * workflow of every open obligation that has none, and cancels the upcoming obligations exited
- * declarants no longer owe. Returns how many of each.
+ * workflow of every open obligation that has none running (never started, or its run stopped
+ * short), and cancels the upcoming obligations exited declarants no longer owe. Returns how many
+ * of each.
  */
 export async function obligationsSweep(): Promise<SweepResult> {
   return sweepObligations();
