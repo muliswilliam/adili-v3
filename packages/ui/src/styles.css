@@ -284,6 +284,15 @@
   background-attachment: fixed;
 }
 
+/* The acknowledgement slip's header band: diagonal brand stripes (.slip-head in declarant-journey). */
+@utility bg-stripes-brand {
+  background-image: repeating-linear-gradient(
+    135deg,
+    var(--brand-faint) 0 10px,
+    var(--brand-subtle) 10px 20px
+  );
+}
+
 @layer base {
   *,
   ::before,

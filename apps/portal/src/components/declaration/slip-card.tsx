@@ -269,7 +269,7 @@ function IssuedSlip({
       aria-labelledby="slip-heading"
       className="overflow-hidden rounded-2xl bg-card text-card-foreground shadow-card"
     >
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-dashed border-brand/30 bg-[repeating-linear-gradient(135deg,var(--brand-faint)_0_10px,var(--brand-subtle)_10px_20px)] px-5 py-[18px]">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-dashed border-brand/30 bg-stripes-brand px-5 py-[18px]">
         <LogoWordmark className="h-5" />
         <h2 id="slip-heading" className="ml-1 text-sm font-semibold">
           {SLIP_COPY.issued}

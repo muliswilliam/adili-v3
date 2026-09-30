@@ -62,7 +62,7 @@ Status colours come in three steps: the solid colour (`text-success`, dots, bars
 | `ai` | `--ai` | `#6d4ae0` | `#f1edfd` | `#43299f` |
 | `brand` | `--brand`, `--brand-soft`, `--brand-ink` | `#e95a24` | `#fdf0e9` | `#b8430f` |
 
-`brand-faint` (`--brand-softer`, `#fef7f3`) tints selected table rows and a drop zone while a file is dragged over it.
+`brand-faint` (`--brand-softer`, `#fef7f3`) tints selected table rows and a drop zone while a file is dragged over it. `bg-stripes-brand` lays `brand-faint` and `brand-subtle` in 10px diagonal stripes for the acknowledgement slip's header band (`.slip-head` in `declarant-journey`).
 
 **Brand and logo.** The kit's brand orange (`#e95a24`) is for UI accents: the brand badge, eyebrows, icon tiles on `brand-subtle`. The logo keeps the Figma orange (`#f06225`) through its own `logo` token, so the mark does not shift when UI accents are tuned.
 
