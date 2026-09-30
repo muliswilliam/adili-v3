@@ -59,6 +59,8 @@ export const STEP_UP_ACR = 'step-up';
 export const STEP_UP_MAX_AGE_SECONDS = 300;
 /** Key service calls in flight at once while items are encrypted. */
 const ENCRYPT_CONCURRENCY = 16;
+/** Items sealed at once: each item makes two key service calls (description and value). */
+const ITEM_CONCURRENCY = ENCRYPT_CONCURRENCY / 2;
 
 type VersionRow = typeof declarationVersions.$inferSelect;
 type ItemRow = typeof declarationItems.$inferInsert;
@@ -345,7 +347,7 @@ export class SubmissionService {
     cycleYear: number,
     items: DerivedItem[],
   ): Promise<ItemRow[]> {
-    return mapConcurrently(items, ENCRYPT_CONCURRENCY / 2, async (item) => {
+    return mapConcurrently(items, ITEM_CONCURRENCY, async (item) => {
       const id = uuidv7();
       const [description, value] = await Promise.all([
         this.cipher.encrypt({
