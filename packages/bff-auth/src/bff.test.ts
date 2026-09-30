@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { Bff } from './bff.ts';
+import { Bff, hasFreshStepUp, STEP_UP_MAX_AGE_SECONDS } from './bff.ts';
 import type { OidcProvider, TokenSet } from './oidc-provider.ts';
 import { MemorySessionStore } from './session-store.ts';
 
@@ -14,7 +14,13 @@ function tokens(overrides: Partial<TokenSet> = {}): TokenSet {
     refreshToken: 'refresh-1',
     refreshExpiresInSeconds: 1800,
     idToken: 'id-1',
-    claims: { sub: 'user-1', name: 'Wanjiku Kamau', preferred_username: 'declarant' },
+    claims: {
+      sub: 'user-1',
+      name: 'Wanjiku Kamau',
+      preferred_username: 'declarant',
+      acr: 'step-up',
+      auth_time: 999,
+    },
     ...overrides,
   };
 }
@@ -101,7 +107,19 @@ describe('Bff', () => {
     expect(session).toEqual({
       accessToken: 'access-1',
       user: { subject: 'user-1', name: 'Wanjiku Kamau', username: 'declarant' },
+      acr: 'step-up',
+      authTime: 999,
     });
+  });
+
+  it('reports absent acr and auth_time claims as null', async () => {
+    provider.exchangeCode.mockResolvedValueOnce(tokens({ claims: { sub: 'user-1' } }));
+
+    const session = await bff.getSession(
+      new Request(APP_URL, { headers: { cookie: await signIn() } }),
+    );
+
+    expect(session).toMatchObject({ acr: null, authTime: null });
   });
 
   it('refuses to reuse a login transaction', async () => {
@@ -180,6 +198,141 @@ describe('Bff', () => {
     );
 
     expect(response.status).toBe(403);
+  });
+
+  describe('step-up (S17)', () => {
+    async function stepUp(cookie: string, returnTo: string) {
+      const start = await bff.stepUp(
+        new Request(`${APP_URL}/auth/step-up?returnTo=${encodeURIComponent(returnTo)}`, {
+          headers: { cookie },
+        }),
+      );
+      const loginCookie = cookieFrom(start, `${COOKIE}_login`);
+      const callback = (query = 'code=def&state=s') =>
+        bff.callback(
+          new Request(`${APP_URL}/auth/callback?${query}`, {
+            headers: { cookie: `${cookie}; ${loginCookie}` },
+          }),
+        );
+      return { start, callback };
+    }
+
+    it('asks Keycloak for the step-up ACR, which a plain sign-in leaves to the client default', async () => {
+      const cookie = await signIn();
+
+      const { start } = await stepUp(cookie, '/declarations/d-1/summary');
+
+      expect(start.status).toBe(302);
+      expect(start.headers.get('location')).toMatch(/^http:\/\/keycloak\.test\/auth/);
+      const [signInParams, stepUpParams] = provider.authorizationUrl.mock.calls.map(([p]) => p);
+      expect(signInParams?.acrValues).toBeUndefined();
+      expect(stepUpParams).toMatchObject({
+        redirectUri: `${APP_URL}/auth/callback`,
+        acrValues: 'step-up',
+      });
+      expect(stepUpParams?.codeChallenge).toMatch(/^[\w-]{43}$/);
+    });
+
+    it('stores the new acr and auth_time and returns with stepUp=done', async () => {
+      const cookie = await signIn();
+      provider.exchangeCode.mockResolvedValueOnce(
+        tokens({
+          accessToken: 'access-stepped-up',
+          claims: { sub: 'user-1', name: 'Wanjiku Kamau', acr: 'step-up', auth_time: 1_900 },
+        }),
+      );
+      const { callback } = await stepUp(cookie, '/declarations/d-1/summary?stepUp=done');
+
+      const response = await callback();
+
+      expect(response.headers.get('location')).toBe(
+        `${APP_URL}/declarations/d-1/summary?stepUp=done`,
+      );
+      const stepped = cookieFrom(response, COOKIE);
+      expect(stepped).not.toBe(cookie);
+      expect(
+        await bff.getSession(new Request(APP_URL, { headers: { cookie: stepped } })),
+      ).toMatchObject({ accessToken: 'access-stepped-up', acr: 'step-up', authTime: 1_900 });
+      // The session it replaced is over.
+      expect(await bff.getSession(new Request(APP_URL, { headers: { cookie } }))).toBeNull();
+    });
+
+    it('returns with stepUp=failed when Keycloak refuses', async () => {
+      const cookie = await signIn();
+      const { callback } = await stepUp(cookie, '/declarations/d-1/summary');
+
+      const response = await callback('error=access_denied&state=s');
+
+      expect(response.headers.get('location')).toBe(
+        `${APP_URL}/declarations/d-1/summary?stepUp=failed`,
+      );
+      expect(provider.exchangeCode).toHaveBeenCalledTimes(1);
+      // The declarant stays signed in as before.
+      expect(await bff.getSession(new Request(APP_URL, { headers: { cookie } }))).toMatchObject({
+        accessToken: 'access-1',
+      });
+    });
+
+    it('returns with stepUp=failed when the token does not carry the step-up ACR', async () => {
+      const cookie = await signIn();
+      provider.exchangeCode.mockResolvedValueOnce(
+        tokens({ claims: { sub: 'user-1', acr: '1', auth_time: 1_900 } }),
+      );
+      const { callback } = await stepUp(cookie, '/declarations/d-1/summary?stepUp=done');
+
+      const response = await callback();
+
+      expect(response.headers.get('location')).toBe(
+        `${APP_URL}/declarations/d-1/summary?stepUp=failed`,
+      );
+    });
+
+    it('returns with stepUp=failed when the code exchange fails', async () => {
+      const cookie = await signIn();
+      provider.exchangeCode.mockRejectedValueOnce(new Error('invalid_grant'));
+      const { callback } = await stepUp(cookie, '/declarations/d-1/summary');
+
+      const response = await callback();
+
+      expect(response.headers.get('location')).toBe(
+        `${APP_URL}/declarations/d-1/summary?stepUp=failed`,
+      );
+    });
+
+    it('never returns off-site', async () => {
+      const cookie = await signIn();
+      const { callback } = await stepUp(cookie, 'https://evil.example/');
+
+      const response = await callback();
+
+      expect(response.headers.get('location')).toBe(`${APP_URL}/?stepUp=done`);
+    });
+
+    it('keeps acr and auth_time across a refresh that does not report them', async () => {
+      const cookie = await signIn();
+      now += 290_000;
+      provider.refresh.mockResolvedValueOnce(
+        tokens({ accessToken: 'access-2', claims: { sub: 'user-1' } }),
+      );
+
+      expect(await bff.getSession(new Request(APP_URL, { headers: { cookie } }))).toMatchObject({
+        accessToken: 'access-2',
+        acr: 'step-up',
+        authTime: 999,
+      });
+    });
+
+    it('counts a step-up as fresh for the code max age only', () => {
+      const authTime = 2_000;
+      const at = (seconds: number) => (authTime + seconds) * 1000;
+
+      expect(hasFreshStepUp({ acr: 'step-up', authTime }, at(STEP_UP_MAX_AGE_SECONDS))).toBe(true);
+      expect(hasFreshStepUp({ acr: 'step-up', authTime }, at(STEP_UP_MAX_AGE_SECONDS + 1))).toBe(
+        false,
+      );
+      expect(hasFreshStepUp({ acr: '1', authTime }, at(0))).toBe(false);
+      expect(hasFreshStepUp({ acr: 'step-up', authTime: null }, at(0))).toBe(false);
+    });
   });
 
   it('marks cookies Secure on HTTPS origins', async () => {

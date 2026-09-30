@@ -15,6 +15,7 @@ import { Route as AuthCallbackRouteImport } from './routes/auth/callback'
 import { Route as AuthLoginRouteImport } from './routes/auth/login'
 import { Route as AuthLogoutRouteImport } from './routes/auth/logout'
 import { Route as AuthRecoverRouteImport } from './routes/auth/recover'
+import { Route as AuthStepUpRouteImport } from './routes/auth/step-up'
 import { Route as ClarificationsIdRouteImport } from './routes/clarifications/$id'
 import { Route as DeclarationsIdRouteRouteImport } from './routes/declarations/$id/route'
 import { Route as GetStartedIndexRouteImport } from './routes/get-started/index'
@@ -62,6 +63,11 @@ const AuthLogoutRoute = AuthLogoutRouteImport.update({
 const AuthRecoverRoute = AuthRecoverRouteImport.update({
   id: '/auth/recover',
   path: '/auth/recover',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthStepUpRoute = AuthStepUpRouteImport.update({
+  id: '/auth/step-up',
+  path: '/auth/step-up',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ClarificationsIdRoute = ClarificationsIdRouteImport.update({
@@ -164,6 +170,7 @@ export interface FileRoutesByFullPath {
   '/auth/login': typeof AuthLoginRoute
   '/auth/logout': typeof AuthLogoutRoute
   '/auth/recover': typeof AuthRecoverRoute
+  '/auth/step-up': typeof AuthStepUpRoute
   '/clarifications/$id': typeof ClarificationsIdRoute
   '/get-started/check-email': typeof GetStartedCheckEmailRoute
   '/get-started/confirm': typeof GetStartedConfirmRoute
@@ -188,6 +195,7 @@ export interface FileRoutesByTo {
   '/auth/login': typeof AuthLoginRoute
   '/auth/logout': typeof AuthLogoutRoute
   '/auth/recover': typeof AuthRecoverRoute
+  '/auth/step-up': typeof AuthStepUpRoute
   '/clarifications/$id': typeof ClarificationsIdRoute
   '/get-started/check-email': typeof GetStartedCheckEmailRoute
   '/get-started/confirm': typeof GetStartedConfirmRoute
@@ -215,6 +223,7 @@ export interface FileRoutesById {
   '/auth/login': typeof AuthLoginRoute
   '/auth/logout': typeof AuthLogoutRoute
   '/auth/recover': typeof AuthRecoverRoute
+  '/auth/step-up': typeof AuthStepUpRoute
   '/clarifications/$id': typeof ClarificationsIdRoute
   '/get-started/check-email': typeof GetStartedCheckEmailRoute
   '/get-started/confirm': typeof GetStartedConfirmRoute
@@ -243,6 +252,7 @@ export interface FileRouteTypes {
     | '/auth/login'
     | '/auth/logout'
     | '/auth/recover'
+    | '/auth/step-up'
     | '/clarifications/$id'
     | '/get-started/check-email'
     | '/get-started/confirm'
@@ -267,6 +277,7 @@ export interface FileRouteTypes {
     | '/auth/login'
     | '/auth/logout'
     | '/auth/recover'
+    | '/auth/step-up'
     | '/clarifications/$id'
     | '/get-started/check-email'
     | '/get-started/confirm'
@@ -293,6 +304,7 @@ export interface FileRouteTypes {
     | '/auth/login'
     | '/auth/logout'
     | '/auth/recover'
+    | '/auth/step-up'
     | '/clarifications/$id'
     | '/get-started/check-email'
     | '/get-started/confirm'
@@ -320,6 +332,7 @@ export interface RootRouteChildren {
   AuthLoginRoute: typeof AuthLoginRoute
   AuthLogoutRoute: typeof AuthLogoutRoute
   AuthRecoverRoute: typeof AuthRecoverRoute
+  AuthStepUpRoute: typeof AuthStepUpRoute
   ClarificationsIdRoute: typeof ClarificationsIdRoute
   ApiMockLettersIdRoute: typeof ApiMockLettersIdRoute
   ApiMockUploadsIdRoute: typeof ApiMockUploadsIdRoute
@@ -367,6 +380,13 @@ declare module '@tanstack/react-router' {
       path: '/auth/recover'
       fullPath: '/auth/recover'
       preLoaderRoute: typeof AuthRecoverRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/auth/step-up': {
+      id: '/auth/step-up'
+      path: '/auth/step-up'
+      fullPath: '/auth/step-up'
+      preLoaderRoute: typeof AuthStepUpRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/clarifications/$id': {
@@ -554,6 +574,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthLoginRoute: AuthLoginRoute,
   AuthLogoutRoute: AuthLogoutRoute,
   AuthRecoverRoute: AuthRecoverRoute,
+  AuthStepUpRoute: AuthStepUpRoute,
   ClarificationsIdRoute: ClarificationsIdRoute,
   ApiMockLettersIdRoute: ApiMockLettersIdRoute,
   ApiMockUploadsIdRoute: ApiMockUploadsIdRoute,
