@@ -6,14 +6,18 @@ export {
   DISCLOSURE_LEVELS,
   type DisclosureLevel,
   DOCUMENT_ISSUED,
+  DOCUMENT_REVOKED,
   DOCUMENT_STATUSES,
   DOCUMENT_SUPERSEDED,
   type DocumentEventData,
   type DocumentIssuedData,
+  type DocumentRevokedData,
   type DocumentStatus,
   type DocumentSupersededData,
   normalizeVerificationId,
   type PublicPayload,
+  REVOCATION_REASONS,
+  type RevocationReason,
   VERIFICATION_ID_PATTERN,
 } from './documents.js';
 export {
@@ -26,3 +30,9 @@ export {
   type ReminderChannel,
   type ReminderOutcome,
 } from './obligations.js';
+export {
+  VERIFICATION_CHECKED,
+  VERIFICATION_OUTCOMES,
+  type VerificationCheckedData,
+  type VerificationOutcome,
+} from './verification.js';

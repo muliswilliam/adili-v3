@@ -82,3 +82,15 @@ export interface DocumentSupersededData extends DocumentEventData {
   supersededByVerificationId: string;
   statusChangedAt: string;
 }
+
+/** Why a document was revoked: a category the verify page may show, never a free-text reason. */
+export const REVOCATION_REASONS = ['issued-in-error', 'withdrawn', 'other'] as const;
+export type RevocationReason = (typeof REVOCATION_REASONS)[number];
+
+/** A document was withdrawn; the verify page shows it revoked with the reason category. */
+export const DOCUMENT_REVOKED = 'document.revoked.v1';
+
+export interface DocumentRevokedData extends DocumentEventData {
+  reasonCategory: RevocationReason;
+  statusChangedAt: string;
+}
