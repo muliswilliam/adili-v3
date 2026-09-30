@@ -1,5 +1,6 @@
 /**
- * The browser's address, for the directory's per-IP rate limits.
+ * The browser's address, for per-IP rate limits in the service an app server calls for it
+ * (directory onboarding, verification lookups). Send it as the only X-Forwarded-For entry.
  *
  * X-Forwarded-For is a list the client can start: every proxy appends the address it received
  * the request from, so only entries appended by proxies we run can be trusted. With
