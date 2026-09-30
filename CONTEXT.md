@@ -90,7 +90,7 @@ The signed PDF receipt issued for each submitted version of a declaration, carry
 _Avoid_: receipt (alone), certificate, confirmation
 
 **Verification code**:
-The random, unguessable identifier of an issued document's verification record, printed under its QR code (e.g. `ADL-7Q4K-M2XR-9HTC-2B7F-Q3ZD-9K`), with which anyone can check that the document is genuine and current.
+The random, unguessable identifier of an issued document's verification record, printed under its QR code (e.g. `ADL-7Q4K-M2XR-9HTC-2B7F-Q3ZD-8WNA-9K`), with which anyone can check that the document is genuine and current.
 _Avoid_: reference number, document ID, serial
 
 ### Review

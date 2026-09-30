@@ -19,6 +19,28 @@ export type DocumentStatus = (typeof DOCUMENT_STATUSES)[number];
  */
 export const VERIFICATION_ID_PATTERN = /^ADL(?:-[0-9A-HJKMNP-TV-Z]{4}){6}-[0-9A-HJKMNP-TV-Z]{2}$/;
 
+/** Crockford base32: no I, L, O or U, so a code read aloud or typed by hand survives. */
+const CROCKFORD_BASE32 = '0123456789ABCDEFGHJKMNPQRSTVWXYZ';
+
+/**
+ * A fresh verification id (ADR-010): 128 random bits in Crockford base32 (26 characters, the
+ * last carrying two zero bits), in its printed form. Random, so issued documents cannot be
+ * enumerated from one code. `random` (16 bytes) is for tests.
+ */
+export function newVerificationId(
+  random: Uint8Array = globalThis.crypto.getRandomValues(new Uint8Array(16)),
+): string {
+  if (random.length !== 16) throw new Error('a verification id takes 16 random bytes');
+  let bits = 0n;
+  for (const byte of random) bits = (bits << 8n) | BigInt(byte);
+  bits <<= 2n;
+  let encoded = '';
+  for (let shift = 125n; shift >= 0n; shift -= 5n) {
+    encoded += CROCKFORD_BASE32.charAt(Number((bits >> shift) & 31n));
+  }
+  return `ADL-${encoded.match(/.{1,4}/g)?.join('-') ?? ''}`;
+}
+
 /**
  * A verification id as typed or scanned, in its printed form: case, spaces and hyphens are
  * ignored, the `ADL` prefix is optional and Crockford look-alikes are read as digits (I and L as

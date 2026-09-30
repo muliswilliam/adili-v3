@@ -17,6 +17,7 @@ import {
   type DocumentEventData,
   type DocumentIssuedData,
   type DocumentSupersededData,
+  newVerificationId,
 } from '@adili/events/contracts';
 import { and, eq, sql } from 'drizzle-orm';
 import { v7 as uuidv7 } from 'uuid';
@@ -32,7 +33,6 @@ import type { DocumentDownload, IssuedDocument } from './representation.js';
 import { issuedDocuments, verificationRecords } from './schema.js';
 import { footerDocument } from './templates/page.js';
 import { templateOf } from './templates/registry.js';
-import { newVerificationId } from './verification-id.js';
 
 /** Injection token of the verify app's origin (`VERIFY_BASE_URL`). */
 export const VERIFY_BASE_URL = Symbol('VERIFY_BASE_URL');

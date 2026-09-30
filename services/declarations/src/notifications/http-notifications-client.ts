@@ -8,7 +8,7 @@ import {
   NotificationsKeyReused,
   NotificationsRejected,
   NotificationsUnavailable,
-  type ReminderChannel,
+  type MessageChannel,
   type ReminderMessage,
   type SendOutcome,
 } from './notifications-client.js';
@@ -26,12 +26,12 @@ type SendMessage = components['schemas']['SendMessage'];
 const REMINDER_TEMPLATES = {
   sms: 'obligation-reminder-sms',
   email: 'obligation-reminder-email',
-} as const satisfies Record<ReminderChannel, SendMessage['template']>;
+} as const satisfies Record<MessageChannel, SendMessage['template']>;
 
 const ACKNOWLEDGEMENT_TEMPLATES = {
   sms: 'acknowledgement-sms',
   email: 'acknowledgement-email',
-} as const satisfies Record<ReminderChannel, SendMessage['template']>;
+} as const satisfies Record<MessageChannel, SendMessage['template']>;
 
 /** What either kind of message needs to go out. */
 type Outgoing = (ReminderMessage | AcknowledgementMessage) & { template: SendMessage['template'] };

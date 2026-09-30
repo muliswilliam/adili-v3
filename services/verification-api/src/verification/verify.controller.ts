@@ -1,4 +1,4 @@
-import { Controller, Get, HttpStatus, Param, Res } from '@nestjs/common';
+import { Controller, Get, HttpStatus, Param, Req, Res } from '@nestjs/common';
 import { ApiOperation, ApiParam, ApiResponse, ApiTags, DECORATORS } from '@nestjs/swagger';
 import {
   ApiProblemResponse,
@@ -13,7 +13,11 @@ import { VERIFY_RATE_LIMIT } from '../config.js';
 import type { VerificationResult } from './representation.js';
 import { MAX_CODE_LENGTH, VerifyService } from './verify.service.js';
 
-/** The part of Fastify's reply the route uses. */
+/** The parts of Fastify's request and reply the route uses. */
+interface Request {
+  /** The client address, as the trusted proxies forwarded it. */
+  ip: string;
+}
 interface Reply {
   status(code: number): unknown;
 }
@@ -34,7 +38,7 @@ export class VerifyController {
     operationId: 'verifyDocument',
     summary: 'Status of a document issued through Adili Online',
     description:
-      'Every lookup of a well-formed code is recorded (verification.checked.v1). Restricted and public documents show their public-safe fields and hash; confidential ones validity only.',
+      'Every lookup of a well-formed code is recorded: verification.checked.v1 (id and outcome) and, for the audit trail, audit.verification.v1 (also the IPv4 /24 or IPv6 /48 network it came from, never the address). Restricted and public documents show their public-safe fields and hash; confidential ones validity only.',
   })
   @ApiParam({
     name: 'verificationId',
@@ -57,9 +61,10 @@ export class VerifyController {
   })
   async verify(
     @Param('verificationId') code: string,
+    @Req() request: Request,
     @Res({ passthrough: true }) reply: Reply,
   ): Promise<VerificationResult> {
-    const result = await this.verification.verify(code);
+    const result = await this.verification.verify(code, request.ip);
     if (result.status === 'not-found') reply.status(HttpStatus.NOT_FOUND);
     return result;
   }

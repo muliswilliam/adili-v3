@@ -575,7 +575,7 @@ describe('internal messages API', () => {
         version: 1,
         commissionName: 'Public Service Commission',
         statementDate: '2027-11-01',
-        verificationCode: 'ADL-7Q4K-M2XR-9HTC-2B7F-Q3ZD-9K',
+        verificationCode: 'ADL-7Q4K-M2XR-9HTC-2B7F-Q3ZD-8WNA-9K',
         portalUrl: 'https://portal.adili.go.ke/declarations',
       };
       const acknowledgement = (channel: 'sms' | 'email', personId: string) => ({
@@ -608,7 +608,7 @@ describe('internal messages API', () => {
           'biennial',
           'Public Service Commission',
           '1 November 2027',
-          'ADL-7Q4K-M2XR-9HTC-2B7F-Q3ZD-9K',
+          'ADL-7Q4K-M2XR-9HTC-2B7F-Q3ZD-8WNA-9K',
           'https://portal.adili.go.ke/declarations',
         ]) {
           expect(sent?.text).toContain(value);
@@ -631,7 +631,7 @@ describe('internal messages API', () => {
         expect(sms.sent).toEqual([
           {
             to: '+254712345678',
-            text: 'Adili: declaration DCB-PSC-2027-0000001-1 received. Verification code ADL-7Q4K-M2XR-9HTC-2B7F-Q3ZD-9K. Slip in Adili Online.',
+            text: 'Adili: declaration DCB-PSC-2027-0000001-1 received. Verification code ADL-7Q4K-M2XR-9HTC-2B7F-Q3ZD-8WNA-9K. Slip in Adili Online.',
           },
         ]);
       });

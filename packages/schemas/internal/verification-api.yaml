@@ -13,7 +13,7 @@ paths:
       tags:
         - verify
       summary: Status of a document issued through Adili Online
-      description: Every lookup of a well-formed code is recorded (verification.checked.v1). Restricted and public documents show their public-safe fields and hash; confidential ones validity only.
+      description: 'Every lookup of a well-formed code is recorded: verification.checked.v1 (id and outcome) and, for the audit trail, audit.verification.v1 (also the IPv4 /24 or IPv6 /48 network it came from, never the address). Restricted and public documents show their public-safe fields and hash; confidential ones validity only.'
       operationId: verifyDocument
       parameters:
         - name: verificationId
@@ -131,12 +131,15 @@ components:
               properties:
                 type:
                   type: string
+                  minLength: 1
                   examples:
                     - acknowledgement-slip
                 issuerName:
                   type: string
+                  minLength: 1
                 issuerCode:
                   type: string
+                  minLength: 1
                 issuedAt:
                   type: string
                   format: date-time
@@ -145,9 +148,10 @@ components:
                     - string
                     - 'null'
                 version:
-                  type:
-                    - integer
-                    - 'null'
+                  anyOf:
+                    - type: integer
+                      exclusiveMinimum: 0
+                    - type: 'null'
               required:
                 - type
                 - issuerName

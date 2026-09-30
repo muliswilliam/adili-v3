@@ -183,7 +183,7 @@ describe('acknowledgement templates', () => {
     version: 1,
     commissionName: 'Public Service Commission',
     statementDate: '2027-11-01',
-    verificationCode: 'ADL-7Q4K-M2XR-9HTC-2B7F-Q3ZD-9K',
+    verificationCode: 'ADL-7Q4K-M2XR-9HTC-2B7F-Q3ZD-8WNA-9K',
     portalUrl: 'https://portal.adili.go.ke/declarations',
   };
 
@@ -191,7 +191,7 @@ describe('acknowledgement templates', () => {
     const text = renderTemplate('acknowledgement-sms', 'en', params).text;
 
     expect(text).toBe(
-      'Adili: declaration DCB-PSC-2027-0000001-1 received. Verification code ADL-7Q4K-M2XR-9HTC-2B7F-Q3ZD-9K. Slip in Adili Online.',
+      'Adili: declaration DCB-PSC-2027-0000001-1 received. Verification code ADL-7Q4K-M2XR-9HTC-2B7F-Q3ZD-8WNA-9K. Slip in Adili Online.',
     );
     expect(text).not.toContain('Public Service Commission');
     expect(text).not.toContain('https://');
@@ -201,7 +201,7 @@ describe('acknowledgement templates', () => {
     const text = renderTemplate('acknowledgement-sms', 'en', { ...params, version: 2 }).text;
 
     expect(text).toBe(
-      'Adili: declaration DCB-PSC-2027-0000001-1 version 2 received. Verification code ADL-7Q4K-M2XR-9HTC-2B7F-Q3ZD-9K. Slip in Adili Online.',
+      'Adili: declaration DCB-PSC-2027-0000001-1 version 2 received. Verification code ADL-7Q4K-M2XR-9HTC-2B7F-Q3ZD-8WNA-9K. Slip in Adili Online.',
     );
   });
 
@@ -220,7 +220,7 @@ describe('acknowledgement templates', () => {
       reference: 'DCF-ABCDEFGHIJKLMNOPQRST-2027-9999999-V',
       type: 'final',
       version: 99,
-      verificationCode: 'ADL-ABCDEFGH-ABCDEFGH-ABCDEFGH-ABCDEFGH',
+      verificationCode: 'ADL-ZZZZ-ZZZZ-ZZZZ-ZZZZ-ZZZZ-ZZZZ-ZW',
     }).text;
 
     expect(text.length).toBeLessThanOrEqual(160);
@@ -240,7 +240,7 @@ describe('acknowledgement templates', () => {
       [
         'Your initial declaration for Teachers Service Commission has been received. Its reference number is DCI-TSC-2028-0012345-U.',
         'It declares your income, assets and liabilities as at the statement date, 29 February 2028.',
-        'Your acknowledgement slip is ready. Its verification code is ADL-7Q4K-M2XR-9HTC-2B7F-Q3ZD-9K: anyone you show the slip to can use it, or the QR code on the slip, to check that it is genuine.',
+        'Your acknowledgement slip is ready. Its verification code is ADL-7Q4K-M2XR-9HTC-2B7F-Q3ZD-8WNA-9K: anyone you show the slip to can use it, or the QR code on the slip, to check that it is genuine.',
         'Sign in to Adili Online at https://portal.adili.go.ke/declarations to download the slip. It is not attached to this email, so that only you can open it.',
         'If you did not submit this declaration, contact your Commission at once. Adili Online will never ask you for your password or sign-in code.',
       ].join('\n\n'),
@@ -249,7 +249,7 @@ describe('acknowledgement templates', () => {
       '<a href="https://portal.adili.go.ke/declarations">https://portal.adili.go.ke/declarations</a>',
     );
     expect(rendered.html).toContain('DCI-TSC-2028-0012345-U');
-    expect(rendered.html).toContain('ADL-7Q4K-M2XR-9HTC-2B7F-Q3ZD-9K');
+    expect(rendered.html).toContain('ADL-7Q4K-M2XR-9HTC-2B7F-Q3ZD-8WNA-9K');
     expect(rendered.html).toContain('29 February 2028');
     expect(Object.keys(rendered).sort()).toEqual(['html', 'subject', 'text']);
   });
@@ -262,7 +262,7 @@ describe('acknowledgement templates', () => {
       'Version 3 of your biennial declaration for Public Service Commission, your amendment, has been received. Its reference number stays DCB-PSC-2027-0000001-1.',
     );
     expect(rendered.text).toContain(
-      'Your acknowledgement slip for version 3 is ready and replaces the slip for the previous version, which now shows as superseded. Its verification code is ADL-7Q4K-M2XR-9HTC-2B7F-Q3ZD-9K',
+      'Your acknowledgement slip for version 3 is ready and replaces the slip for the previous version, which now shows as superseded. Its verification code is ADL-7Q4K-M2XR-9HTC-2B7F-Q3ZD-8WNA-9K',
     );
     expect(rendered.html).toContain('Version 3 of your biennial declaration');
   });
@@ -319,6 +319,21 @@ describe('acknowledgement templates', () => {
     [
       'a verification code over 40 characters',
       { verificationCode: `ADL${'-ABCD'.repeat(8)}` },
+      ['params.verificationCode'],
+    ],
+    [
+      'a verification code of five groups (22 characters, not 26)',
+      { verificationCode: 'ADL-7Q4K-M2XR-9HTC-2B7F-Q3ZD-9K' },
+      ['params.verificationCode'],
+    ],
+    [
+      'a verification code with a letter outside Crockford base32',
+      { verificationCode: 'ADL-7Q4K-M2XR-9HTC-2B7F-Q3ZD-8WNA-9U' },
+      ['params.verificationCode'],
+    ],
+    [
+      'a verification code not in its printed form',
+      { verificationCode: 'adl-7q4k-m2xr-9htc-2b7f-q3zd-8wna-9k' },
       ['params.verificationCode'],
     ],
     [

@@ -1,21 +1,31 @@
-import { DISCLOSURE_LEVELS, DOCUMENT_STATUSES, REVOCATION_REASONS } from '@adili/events/contracts';
+import {
+  DISCLOSURE_LEVELS,
+  REVOCATION_REASONS,
+  VERIFICATION_OUTCOMES,
+} from '@adili/events/contracts';
 import { z } from 'zod';
 
 import type { ProjectionRow } from './schema.js';
 
-export const verificationStatusSchema = z.enum([...DOCUMENT_STATUSES, 'not-found']);
+export const verificationStatusSchema = z.enum(VERIFICATION_OUTCOMES);
 export type VerificationStatus = z.infer<typeof verificationStatusSchema>;
 
 export const disclosureLevelSchema = z.enum(DISCLOSURE_LEVELS);
 
-/** The public-safe fields of a public or restricted document (ADR-010 §2). */
+/**
+ * The public-safe fields of a public or restricted document (ADR-010 §2): what the projection
+ * keeps of an event's public payload, and what the page shows.
+ */
 export const verifiedDocumentSchema = z.object({
-  type: z.string().meta({ examples: ['acknowledgement-slip'] }),
-  issuerName: z.string(),
-  issuerCode: z.string(),
+  type: z
+    .string()
+    .min(1)
+    .meta({ examples: ['acknowledgement-slip'] }),
+  issuerName: z.string().min(1),
+  issuerCode: z.string().min(1),
   issuedAt: z.iso.datetime({ offset: true }),
   reference: z.string().nullable(),
-  version: z.int().nullable(),
+  version: z.int().positive().nullable(),
 });
 
 export const verificationResultSchema = z.object({
@@ -39,30 +49,16 @@ export const verificationResultSchema = z.object({
 });
 export type VerificationResult = z.infer<typeof verificationResultSchema>;
 
-/**
- * What the page may show of a projected document: everything its level allows, validity only
- * for confidential documents (the projection holds no payload or link for them either).
- */
+/** The answer for a projected document: its row as is, the projection kept only what may show. */
 export function toVerificationResult(row: ProjectionRow, checkedAt: Date): VerificationResult {
-  const disclosed = row.disclosureLevel !== 'confidential';
-  const payload = disclosed ? row.publicPayload : null;
   return {
     verificationId: row.verificationId,
     status: row.status,
     disclosureLevel: row.disclosureLevel,
-    document: payload
-      ? {
-          type: payload.type,
-          issuerName: payload.issuerName,
-          issuerCode: payload.issuerCode,
-          issuedAt: payload.issuedAt,
-          reference: payload.reference,
-          version: payload.version,
-        }
-      : null,
-    sha256: disclosed ? row.sha256 : null,
-    supersededBy: disclosed && row.status === 'superseded' ? row.supersededBy : null,
-    revokedReason: disclosed && row.status === 'revoked' ? row.revokedReason : null,
+    document: row.publicPayload,
+    sha256: row.sha256,
+    supersededBy: row.supersededBy,
+    revokedReason: row.revokedReason,
     checkedAt: checkedAt.toISOString(),
   };
 }
