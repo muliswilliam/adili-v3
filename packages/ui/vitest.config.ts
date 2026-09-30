@@ -1,6 +1,6 @@
 import { defineConfig } from 'vitest/config';
 
-import { hugeiconsPerIcon } from './vitest.icons';
+import { hugeiconsPerIcon } from './vitest.icons.ts';
 
 export default defineConfig({
   plugins: [hugeiconsPerIcon()],

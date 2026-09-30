@@ -169,6 +169,14 @@ export {
   type FileDropZoneProps,
   type FileRejection,
 } from './components/file-drop-zone';
+export {
+  HASH_DROP_ZONE_MESSAGES,
+  type HashCheckResult,
+  type HashCheckStatus,
+  HashDropZone,
+  type HashDropZoneMessages,
+  type HashDropZoneProps,
+} from './components/hash-drop-zone';
 export { FilterChip, type FilterChipProps } from './components/filter-chip';
 export { FieldError, FieldHint, FormField, type FormFieldProps } from './components/form-field';
 export {
@@ -199,12 +207,24 @@ export { OtpInput, type OtpInputProps } from './components/otp-input';
 export { OfficerReference } from './components/officer-reference';
 export { PercentInput, type PercentInputProps } from './components/percent-input';
 export { ProgressBar, type ProgressBarProps } from './components/progress-bar';
+export { QrCode, qrCodePath, type QrCodeProps } from './components/qr-code';
 export {
   RadioCard,
   type RadioCardProps,
   RadioGroup,
   type RadioGroupProps,
 } from './components/radio';
+export {
+  DECLARATION_REFERENCE_COPY,
+  type DeclarationReferenceCopy,
+  type DeclarationReferenceNames,
+  declarationReferenceParts,
+  REFERENCE_CHIP_MESSAGES,
+  ReferenceChip,
+  type ReferenceChipMessages,
+  type ReferenceChipProps,
+  type ReferencePart,
+} from './components/reference-chip';
 export {
   type HeadingLevel,
   REGISTER_KINDS,
@@ -350,6 +370,13 @@ export {
   type UsageMeterProps,
   usagePercent,
 } from './components/usage-meter';
+export {
+  VERSION_BADGE_MESSAGES,
+  VersionBadge,
+  type VersionBadgeMessages,
+  type VersionBadgeProps,
+  type VersionState,
+} from './components/version-badge';
 export { cn } from './lib/cn';
 export { type Tone, toneClassNames } from './lib/tone';
 export {
@@ -403,6 +430,13 @@ export {
 export type { Assert, Same } from './lib/type-checks';
 export { useObligationDetail } from './lib/use-obligation-detail';
 export { listNames } from './lib/list-names';
+export {
+  formatDigest,
+  looksLikePdf,
+  sameDigest,
+  sha256Hex,
+  Sha256UnavailableError,
+} from './lib/sha256';
 export { formatNumber } from './lib/format-number';
 export {
   formatMoney,
