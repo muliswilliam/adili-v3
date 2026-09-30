@@ -12,6 +12,9 @@
 export const DOCUMENT_TYPES = ['acknowledgement-slip'] as const;
 export type DocumentType = (typeof DOCUMENT_TYPES)[number];
 
+/** A declaration version's acknowledgement slip (spec 06). */
+export const ACKNOWLEDGEMENT_SLIP = 'acknowledgement-slip' satisfies DocumentType;
+
 /** How much of a document the public verify page may show; fixed per document type. */
 export const DISCLOSURE_LEVELS = ['public', 'restricted', 'confidential'] as const;
 export type DisclosureLevel = (typeof DISCLOSURE_LEVELS)[number];

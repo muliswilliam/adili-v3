@@ -10,6 +10,7 @@ import {
 } from '@adili/data-access';
 import { consumeIdempotent, consumeOnce, type EventEnvelope, EventPublisher } from '@adili/events';
 import {
+  ACKNOWLEDGEMENT_SLIP,
   DECLARATION_ACKNOWLEDGED,
   DECLARATION_ACKNOWLEDGEMENT_REQUESTED,
   type DeclarationAcknowledgedData,
@@ -39,8 +40,6 @@ import { PLATFORM_CONTEXT, systemContext } from '../obligations/system-context.j
 import { deriveItems } from '../submission/items.js';
 import type { AcknowledgementPayload } from './representation.js';
 
-/** The document type of acknowledgement slips in the documents service. */
-export const ACKNOWLEDGEMENT_SLIP = 'acknowledgement-slip';
 /** How a slip names the version it acknowledges: `declaration-version:<version id>`. */
 const SUBJECT_PREFIX = 'declaration-version:';
 

@@ -22,6 +22,7 @@ export {
   type DocumentRevokedData,
   type DocumentStatus,
   type DocumentSupersededData,
+  ACKNOWLEDGEMENT_SLIP,
   DOCUMENT_TYPES,
   type DocumentType,
   newVerificationId,

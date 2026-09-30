@@ -4,6 +4,7 @@ import {
   InvalidReferenceError,
   parse,
 } from '@adili/numbering/references';
+import { ACKNOWLEDGEMENT_SLIP } from '@adili/events/contracts';
 import { z } from 'zod';
 
 import {
@@ -116,7 +117,7 @@ function breakdown(type: DeclarationType, reference: string): string {
  * received, restricted (the verify page shows reference, type, Commission and date only).
  */
 export const acknowledgementSlipV1: DocumentTemplate<AcknowledgementSlipPayload> = {
-  type: 'acknowledgement-slip',
+  type: ACKNOWLEDGEMENT_SLIP,
   version: 1,
   disclosureLevel: 'restricted',
   title: 'Acknowledgement slip',
@@ -128,7 +129,7 @@ export const acknowledgementSlipV1: DocumentTemplate<AcknowledgementSlipPayload>
 
   publicPayload(payload, { issuedAt }) {
     return {
-      type: 'acknowledgement-slip',
+      type: ACKNOWLEDGEMENT_SLIP,
       issuerName: payload.commissionName,
       issuerCode: payload.issuerCode,
       issuedAt: issuedAt.toISOString(),

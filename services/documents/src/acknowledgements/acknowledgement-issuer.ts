@@ -2,14 +2,14 @@ import { Injectable, Logger } from '@nestjs/common';
 import { errorType, ProblemException, TENANT_KEY } from '@adili/api-kit';
 import { type Database, InjectDatabase } from '@adili/data-access';
 import { consumeIdempotent, type EventEnvelope } from '@adili/events';
+import { ACKNOWLEDGEMENT_SLIP } from '@adili/events/contracts';
 
 import { SYSTEM_SUBJECT } from '../config.js';
 import type { DocumentsSchema } from '../db/schema.js';
 import { DeclarationsClient } from '../declarations/declarations-client.js';
 import { IssuanceService } from '../issuance/issuance.service.js';
 
-/** The slip's document type and template (ADR-010 registry). */
-const ACKNOWLEDGEMENT_SLIP = 'acknowledgement-slip';
+/** The slip's template (ADR-010 registry). */
 const TEMPLATE_VERSION = 1;
 
 /** What an event asking for a version's slip says about it (identifiers only). */
