@@ -1,6 +1,6 @@
 import { readdirSync, readFileSync } from 'node:fs';
 
-import { sql } from 'drizzle-orm';
+import { and, inArray, sql } from 'drizzle-orm';
 import { drizzle, type NodePgDatabase } from 'drizzle-orm/node-postgres';
 import pg from 'pg';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
@@ -8,7 +8,13 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import {
   allocate,
   allocateReference,
+  DCB,
+  DCF,
+  DCI,
+  declarationSchemes,
   defineScheme,
+  issuerCode,
+  numberingCounters,
   numberingSchema,
   OFR,
   parse,
@@ -20,7 +26,6 @@ import {
  */
 const DATABASE_URL = requireEnv('TEST_DATABASE_URL');
 const SCHEMA = `numbering_test_${process.pid}`;
-const DCB = defineScheme({ code: 'DCB', issuer: true, period: true, sequenceDigits: 7 });
 
 let admin: pg.Pool;
 let pool: pg.Pool;
@@ -61,8 +66,9 @@ describe('allocate', () => {
   });
 
   it('starts at 1 and increments per (scheme, issuer, period)', async () => {
+    const scheme = testScheme('INC', { issuer: true, period: true });
     const next = (parts: { issuer?: string; period?: number }) =>
-      db.transaction((tx) => allocate(tx, DCB, parts));
+      db.transaction((tx) => allocate(tx, scheme, parts));
 
     expect(await next({ issuer: 'PSC', period: 2027 })).toBe(1);
     expect(await next({ issuer: 'PSC', period: 2027 })).toBe(2);
@@ -72,12 +78,7 @@ describe('allocate', () => {
   });
 
   it('20 concurrent allocators produce 1,000 consecutive numbers without gaps or duplicates', async () => {
-    const scheme = defineScheme({
-      code: 'CCY',
-      issuer: false,
-      period: false,
-      sequenceDigits: 7,
-    });
+    const scheme = testScheme('CCY');
     const perWorker = 50;
     const workers = Array.from({ length: 20 }, async () => {
       const values: number[] = [];
@@ -100,7 +101,7 @@ describe('allocate', () => {
   });
 
   it('leaves no gap when the allocating transaction rolls back', async () => {
-    const scheme = defineScheme({ code: 'RBK', issuer: false, period: false, sequenceDigits: 7 });
+    const scheme = testScheme('RBK');
     await db.transaction((tx) => allocate(tx, scheme));
 
     await expect(
@@ -131,6 +132,109 @@ describe('allocateReference', () => {
     expect(parse(reference, [DCB])).toMatchObject({ issuer: 'EACC', period: 2027, sequence: 1 });
   });
 });
+
+describe('S18: declaration schemes', () => {
+  it('keeps one counter per (scheme, issuer, year)', async () => {
+    const issue = (type: keyof typeof declarationSchemes, tenant: string, year: number) =>
+      db.transaction((tx) =>
+        allocateReference(tx, declarationSchemes[type], {
+          issuer: issuerCode(tenant),
+          period: year,
+        }),
+      );
+
+    expect(await issue('biennial', 'tsc', 2027)).toBe('DCB-TSC-2027-0000001-B');
+    expect(await issue('biennial', 'tsc', 2027)).toBe('DCB-TSC-2027-0000002-9');
+    expect(await issue('initial', 'tsc', 2027)).toBe('DCI-TSC-2027-0000001-S');
+    expect(await issue('final', 'tsc', 2027)).toBe('DCF-TSC-2027-0000001-Y');
+    expect(await issue('biennial', 'psc', 2027)).toBe('DCB-PSC-2027-0000001-1');
+    expect(parse(await issue('biennial', 'tsc', 2029))).toMatchObject({
+      period: 2029,
+      sequence: 1,
+    });
+
+    const counters = await db
+      .select()
+      .from(numberingCounters)
+      .where(
+        and(
+          inArray(numberingCounters.scheme, ['DCI', 'DCB', 'DCF']),
+          inArray(numberingCounters.issuer, ['TSC', 'PSC']),
+        ),
+      )
+      .orderBy(numberingCounters.scheme, numberingCounters.issuer, numberingCounters.period);
+    expect(counters).toEqual([
+      { scheme: 'DCB', issuer: 'PSC', period: 2027, value: 1 },
+      { scheme: 'DCB', issuer: 'TSC', period: 2027, value: 2 },
+      { scheme: 'DCB', issuer: 'TSC', period: 2029, value: 1 },
+      { scheme: 'DCF', issuer: 'TSC', period: 2027, value: 1 },
+      { scheme: 'DCI', issuer: 'TSC', period: 2027, value: 1 },
+    ]);
+  });
+
+  it('gives concurrent submissions of one Commission and year consecutive references', async () => {
+    const key = { issuer: issuerCode('npsc'), period: 2027 };
+    // A parallel burst for another scheme and year of the same issuer must not interleave.
+    const others = Array.from({ length: 10 }, () =>
+      db.transaction((tx) => allocateReference(tx, DCI, { ...key, period: 2028 })),
+    );
+    const submissions = Array.from({ length: 200 }, () =>
+      db.transaction(async (tx) => {
+        const reference = await allocateReference(tx, DCB, key);
+        // Hold the counter lock like a submit transaction writing its version rows.
+        await tx.execute(sql`select pg_sleep(0.002)`);
+        return reference;
+      }),
+    );
+
+    const references = await Promise.all(submissions);
+    const sequences = references
+      .map((reference) => parse(reference))
+      .map((parsed) => {
+        expect(parsed).toMatchObject({ scheme: 'DCB', issuer: 'NPSC', period: 2027 });
+        return parsed.sequence;
+      })
+      .sort((a, b) => a - b);
+    expect(sequences).toEqual(Array.from({ length: 200 }, (_, index) => index + 1));
+    const otherSequences = (await Promise.all(others)).map(
+      (reference) => parse(reference).sequence,
+    );
+    expect(otherSequences.sort((a, b) => a - b)).toEqual(
+      Array.from({ length: 10 }, (_, index) => index + 1),
+    );
+  });
+
+  it('returns the number when the submit transaction rolls back after allocating', async () => {
+    const key = { issuer: issuerCode('jsc'), period: 2028 };
+    expect(await db.transaction((tx) => allocateReference(tx, DCF, key))).toBe(
+      'DCF-JSC-2028-0000001-M',
+    );
+
+    await expect(
+      db.transaction(async (tx) => {
+        expect(await allocateReference(tx, DCF, key)).toMatch(/^DCF-JSC-2028-0000002-/);
+        throw new Error('version insert failed');
+      }),
+    ).rejects.toThrow('version insert failed');
+
+    expect(parse(await db.transaction((tx) => allocateReference(tx, DCF, key)))).toMatchObject({
+      sequence: 2,
+    });
+  });
+});
+
+function testScheme(code: string, { issuer = false, period = false } = {}) {
+  return defineScheme({
+    code,
+    name: `Test scheme ${code}`,
+    description: 'Only in tests.',
+    legalBasis: 'None',
+    issuer,
+    period,
+    periodName: period ? 'Year' : undefined,
+    sequenceDigits: 7,
+  });
+}
 
 function withSearchPath(url: string, schema: string): string {
   const parsed = new URL(url);
