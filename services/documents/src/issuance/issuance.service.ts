@@ -184,6 +184,7 @@ export class IssuanceService {
               subjectRef: request.subjectRef,
               subjectPersonId: request.subjectPersonId,
               reference: template.reference(payload),
+              subjectVersion: template.subjectVersion(payload),
               verificationId,
               objectKey,
               sha256,
@@ -329,8 +330,8 @@ export class IssuanceService {
 
   /**
    * The tenant's valid documents of the type about the reference number, with the version of
-   * what each is about (from the public payload, null when it has none): e.g. the
-   * acknowledgement slips of a declaration's versions not yet superseded.
+   * what each is about (null when it has none): e.g. the acknowledgement slips of a
+   * declaration's versions not yet superseded.
    */
   async validOfReference(
     tenant: string,
@@ -347,9 +348,9 @@ export class IssuanceService {
         ),
       ),
     );
-    return rows.map(({ document, record }) => ({
+    return rows.map(({ document }) => ({
       documentId: document.id,
-      version: record.publicPayload?.version ?? null,
+      version: document.subjectVersion,
     }));
   }
 

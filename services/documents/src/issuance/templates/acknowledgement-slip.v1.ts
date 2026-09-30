@@ -127,6 +127,10 @@ export const acknowledgementSlipV1: DocumentTemplate<AcknowledgementSlipPayload>
     return payload.reference;
   },
 
+  subjectVersion(payload) {
+    return payload.version;
+  },
+
   publicPayload(payload, { issuedAt }) {
     return {
       type: ACKNOWLEDGEMENT_SLIP,

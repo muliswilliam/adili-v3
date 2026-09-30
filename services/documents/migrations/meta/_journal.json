@@ -78,6 +78,20 @@
       "when": 1790795075390,
       "tag": "0010_issued_documents_reference_backfill",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1790811679895,
+      "tag": "0011_issued_documents_subject_version",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1790811680434,
+      "tag": "0012_issued_documents_subject_version_backfill",
+      "breakpoints": true
     }
   ]
 }

@@ -26,6 +26,11 @@ export interface DocumentTemplate<TPayload = unknown> {
   payload: z.ZodType<TPayload>;
   /** The reference number the document is about (a declaration's), or null when none. */
   reference(payload: TPayload): string | null;
+  /**
+   * The version of what the document is about (a declaration version), or null when it is not
+   * versioned: of the documents about one reference, the highest version's supersedes the rest.
+   */
+  subjectVersion(payload: TPayload): number | null;
   /** What the verify page may show; null for confidential documents. */
   publicPayload(payload: TPayload, context: { issuedAt: Date }): PublicPayload | null;
   /** The footer fields the template decides; issuance adds the code, URL and date. */

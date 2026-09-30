@@ -34,6 +34,11 @@ export const issuedDocuments = pgTable(
      * the documents about one reference supersede each other.
      */
     reference: text(),
+    /**
+     * The version of what the document is about (a declaration version), when versioned: of the
+     * documents about one reference, the highest version's supersedes the rest.
+     */
+    subjectVersion: integer(),
     /** The person who may download it (the declarant); null when no person may. */
     subjectPersonId: uuid(),
     verificationId: text().notNull().unique(),
