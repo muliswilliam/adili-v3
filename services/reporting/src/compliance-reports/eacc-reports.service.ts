@@ -3,11 +3,12 @@ import { type Principal, type SetAuditedTenant } from '@adili/api-kit';
 import { type Database, FieldCipher, InjectDatabase, withTenant } from '@adili/data-access';
 import { and, count, eq, max } from 'drizzle-orm';
 
-import { EACC_TENANT, requireEacc, submittedReportReader } from '../access.js';
+import { requireEacc, submittedReportReader } from '../access.js';
 import { config } from '../config.js';
 import type { ReportingSchema } from '../db/schema.js';
 import { DirectoryClient } from '../directory/directory-client.js';
 import { notFound } from '../problems.js';
+import { eaccContext } from '../system-context.js';
 import { activeCommissions, commissionOf } from './commission.js';
 import { REPORTS_SUBMIT_SCOPE } from './federated-submission.js';
 import { buildIntake, type IntakeFilters, type IntakeView, type RateThresholds } from './intake.js';
@@ -43,7 +44,7 @@ export class EaccReportsService {
     const commissions = await activeCommissions(this.directory);
     const { receipts, chases } = await withTenant(
       this.db,
-      { tenant: EACC_TENANT, subject: principal.subject },
+      eaccContext(principal.subject),
       async (tx) => {
         const receipts = await tx.select().from(reportReceipts).where(eq(reportReceipts.fy, fy));
         const chases = await tx

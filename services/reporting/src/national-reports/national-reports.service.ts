@@ -16,6 +16,7 @@ import { activeCommissions } from '../compliance-reports/commission.js';
 import { DirectoryClient } from '../directory/directory-client.js';
 import { conflict, forbidden, notFound, workflowUnavailable } from '../problems.js';
 import { buildAggregates } from './aggregates.js';
+import { eaccContext } from '../system-context.js';
 import { NCR_ISSUER } from './contract.js';
 import { NCR_APPROVED, NCR_DRAFTED, type NcrApprovedData, type NcrDraftedData } from './events.js';
 import { type Narrative, type Paragraph, saveSection } from './narrative.js';
@@ -58,7 +59,7 @@ export class NationalReportsService {
   /** The year's report (EACC roles; anyone else 403); 404 until first built. */
   async get(principal: Principal, fy: number): Promise<NationalReportView> {
     requireEacc(principal, EACC_ONLY);
-    return this.inEacc(principal, async (tx) => {
+    return withTenant(this.db, eaccContext(principal.subject), async (tx) => {
       const [report] = await tx.select().from(nationalReports).where(eq(nationalReports.fy, fy));
       if (!report) throw notFound(NOT_BUILT);
       return this.viewOf(tx, report);
@@ -75,7 +76,7 @@ export class NationalReportsService {
     requireEacc(principal, EACC_ONLY);
     const commissions = await activeCommissions(this.directory);
     const now = this.clock.now();
-    return this.inEacc(principal, async (tx) => {
+    return withTenant(this.db, eaccContext(principal.subject), async (tx) => {
       const receipts = await tx.select().from(reportReceipts).where(eq(reportReceipts.fy, fy));
       if (receipts.length === 0) {
         throw conflict(
@@ -137,7 +138,7 @@ export class NationalReportsService {
     narrative: Narrative,
   ): Promise<NationalReportView> {
     requireEacc(principal, EACC_ONLY);
-    return this.inEacc(principal, async (tx) => {
+    return withTenant(this.db, eaccContext(principal.subject), async (tx) => {
       const report = await lockedDraft(tx, fy);
       const stored = (
         await tx
@@ -165,7 +166,7 @@ export class NationalReportsService {
   async approve(principal: Principal, fy: number): Promise<NationalReportView> {
     requireEaccSupervisor(principal, 'approve the national consolidated report');
     const now = this.clock.now();
-    return this.inEacc(principal, async (tx) => {
+    return withTenant(this.db, eaccContext(principal.subject), async (tx) => {
       const report = await lockedDraft(tx, fy);
       if (
         report.authorSubject === principal.subject ||
@@ -210,10 +211,6 @@ export class NationalReportsService {
       await this.startApproval(approved.id, fy);
       return this.viewOf(tx, approved);
     });
-  }
-
-  private inEacc<T>(principal: Principal, work: (tx: ReportingTransaction) => Promise<T>) {
-    return withTenant(this.db, { tenant: EACC_TENANT, subject: principal.subject }, work);
   }
 
   private async viewOf(

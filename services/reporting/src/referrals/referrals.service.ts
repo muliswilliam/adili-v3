@@ -6,9 +6,8 @@ import { type Database, InjectDatabase, withTenant } from '@adili/data-access';
 import { EventPublisher } from '@adili/events';
 import { and, desc, eq, lt, or, type SQL } from 'drizzle-orm';
 
-import { EACC_TENANT, requireEacc } from '../access.js';
+import { requireEacc } from '../access.js';
 import { Clock } from '../clock.js';
-import type { ReportingTransaction } from '../compliance-reports/reports.js';
 import { ReportWorkflows } from '../compliance-reports/report-workflows.js';
 import { config } from '../config.js';
 import type { ReportingSchema } from '../db/schema.js';
@@ -22,6 +21,7 @@ import {
 import { InternalApiRejected } from '../internal-api/internal-api.js';
 import { badRequest, notFound, workflowUnavailable } from '../problems.js';
 import { ReviewClient, ReviewUnavailable } from '../review/review-client.js';
+import { eaccContext } from '../system-context.js';
 import {
   lockIntake,
   recordPushed,
@@ -86,7 +86,7 @@ export class ReferralsService {
   async list(principal: Principal, query: IntakeQuery): Promise<ReferralIntakePage> {
     requireEacc(principal, EACC_ONLY);
     const after = query.cursor === undefined ? undefined : decodeCursor(query.cursor);
-    const rows = await this.inEacc(principal, (tx) => {
+    const rows = await withTenant(this.db, eaccContext(principal.subject), (tx) => {
       const filters: (SQL | undefined)[] = [];
       if (query.icmsStatus !== undefined) {
         filters.push(eq(referralIntake.icmsStatus, query.icmsStatus));
@@ -125,7 +125,7 @@ export class ReferralsService {
    */
   async push(principal: Principal, referralId: string): Promise<ReferralIntakeItem> {
     requireEacc(principal, EACC_ONLY);
-    const claimed = await this.inEacc(principal, async (tx) => {
+    const claimed = await withTenant(this.db, eaccContext(principal.subject), async (tx) => {
       const row = await lockIntake(tx, referralId);
       if (!row) throw notFound(NOT_IN_INTAKE);
       if (row.icmsStatus === 'registered') return { row, attempt: null };
@@ -149,7 +149,7 @@ export class ReferralsService {
       registration = await this.register(claimed.row);
     } catch (error) {
       if (!(error instanceof PushFailed)) throw error;
-      const failed = await this.inEacc(principal, (tx) =>
+      const failed = await withTenant(this.db, eaccContext(principal.subject), (tx) =>
         recordPushFailed(tx, this.events, referralId, error.error),
       );
       // Registered by a concurrent push meanwhile: that is the answer.
@@ -160,19 +160,21 @@ export class ReferralsService {
     const { caseNumber } = registration;
     if (registration.status === 'registered' && caseNumber !== null) {
       const registeredAt = new Date(registration.registeredAt ?? this.clock.now());
-      const registered = await this.inEacc(principal, (tx) =>
+      const registered = await withTenant(this.db, eaccContext(principal.subject), (tx) =>
         recordRegistered(tx, this.events, referralId, { caseNumber, registeredAt }),
       );
       return this.itemOf(registered ?? claimed.row);
     }
     if (registration.status === 'failed') {
-      const failed = await this.inEacc(principal, (tx) =>
+      const failed = await withTenant(this.db, eaccContext(principal.subject), (tx) =>
         recordPushFailed(tx, this.events, referralId, 'icms-failed'),
       );
       if (failed?.icmsStatus === 'registered') return this.itemOf(failed);
       throw pushFailed('icms-failed');
     }
-    const pushed = await this.inEacc(principal, (tx) => recordPushed(tx, this.events, referralId));
+    const pushed = await withTenant(this.db, eaccContext(principal.subject), (tx) =>
+      recordPushed(tx, this.events, referralId),
+    );
     if (pushed?.icmsStatus === 'pushed') await this.awaitRegistration(referralId, claimed.attempt);
     return this.itemOf(pushed ?? claimed.row);
   }
@@ -235,10 +237,6 @@ export class ReferralsService {
       if (error instanceof DirectoryUnavailable) return new Map();
       throw error;
     }
-  }
-
-  private inEacc<T>(principal: Principal, work: (tx: ReportingTransaction) => Promise<T>) {
-    return withTenant(this.db, { tenant: EACC_TENANT, subject: principal.subject }, work);
   }
 }
 

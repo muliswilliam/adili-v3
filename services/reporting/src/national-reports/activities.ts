@@ -7,7 +7,7 @@ import { EACC_TENANT } from '../access.js';
 import { ReportWorkflows } from '../compliance-reports/report-workflows.js';
 import type { ReportingSchema } from '../db/schema.js';
 import { DocumentsClient } from '../documents/documents-client.js';
-import { SYSTEM_SUBJECT } from '../system-context.js';
+import { eaccContext } from '../system-context.js';
 import {
   type NationalReportApprovalInput,
   type NationalReportDocument,
@@ -52,8 +52,7 @@ export class NationalReportActivities {
   async issueNationalReportDocument({
     nationalReportId,
   }: NationalReportApprovalInput): Promise<NationalReportDocument> {
-    const context = { tenant: EACC_TENANT, subject: SYSTEM_SUBJECT };
-    const found = await withTenant(this.db, context, async (tx) => {
+    const found = await withTenant(this.db, eaccContext(), async (tx) => {
       const [report] = await tx
         .select()
         .from(nationalReports)
@@ -100,7 +99,7 @@ export class NationalReportActivities {
       },
       idempotencyKey: uuidv5(`${report.id}:ncr`, DOCUMENT_KEY_NAMESPACE),
     });
-    await withTenant(this.db, context, (tx) =>
+    await withTenant(this.db, eaccContext(), (tx) =>
       tx
         .update(nationalReports)
         .set({ documentId: issued.id })

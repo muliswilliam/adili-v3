@@ -2,6 +2,7 @@ import type { ServiceTokenClient } from '@adili/api-kit';
 import { z } from 'zod';
 
 import { InternalApi } from '../internal-api/internal-api.js';
+import { PLATFORM_TENANT } from '../system-context.js';
 import {
   type CommissionFacts,
   DirectoryClient,
@@ -32,9 +33,6 @@ const commissionSchema = z.object({
 });
 
 const commissionListSchema = z.object({ items: z.array(commissionSchema) });
-
-/** Whose behalf a call about every Commission acts on (`X-Acting-Tenant`). */
-const PLATFORM_TENANT = 'platform';
 
 const staffSchema = z.object({
   items: z.array(z.object({ subject: z.string().min(1), email: z.email() })),

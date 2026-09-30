@@ -6,7 +6,7 @@ import { Clock } from '../clock.js';
 import type { ReportingSchema } from '../db/schema.js';
 import { financialYearAt } from '../financial-year.js';
 import { obligationFacts } from '../projections/schema.js';
-import { SYSTEM_SUBJECT, systemContext } from '../system-context.js';
+import { PLATFORM_TENANT, systemContext } from '../system-context.js';
 import type { AnnualCompilePlan, ReportWorkflowInput } from './contract.js';
 import { markCompiling } from './reports.js';
 import { ReportWorkflows } from './report-workflows.js';
@@ -31,20 +31,16 @@ export class AnnualCompileActivities {
    */
   async annualCompileTargets(): Promise<AnnualCompilePlan> {
     const fy = financialYearAt(this.clock.now()) - 1;
-    const tenants = await withTenant(
-      this.db,
-      { tenant: 'platform', subject: SYSTEM_SUBJECT },
-      async (tx) => {
-        const known = await tx
-          .selectDistinct({ tenant: obligationFacts.tenant })
-          .from(obligationFacts);
-        const reported = await tx
-          .selectDistinct({ tenant: complianceReports.tenant })
-          .from(complianceReports)
-          .where(eq(complianceReports.fy, fy));
-        return [...known, ...reported].map((row) => row.tenant);
-      },
-    );
+    const tenants = await withTenant(this.db, systemContext(PLATFORM_TENANT), async (tx) => {
+      const known = await tx
+        .selectDistinct({ tenant: obligationFacts.tenant })
+        .from(obligationFacts);
+      const reported = await tx
+        .selectDistinct({ tenant: complianceReports.tenant })
+        .from(complianceReports)
+        .where(eq(complianceReports.fy, fy));
+      return [...known, ...reported].map((row) => row.tenant);
+    });
     return { fy, tenants: [...new Set(tenants)].sort() };
   }
 

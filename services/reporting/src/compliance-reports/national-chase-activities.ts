@@ -11,7 +11,7 @@ import { DirectoryClient } from '../directory/directory-client.js';
 import { dueDateOf, financialYearAt } from '../financial-year.js';
 import { nationalReports } from '../national-reports/schema.js';
 import { NotificationsClient } from '../notifications/notifications-client.js';
-import { SYSTEM_SUBJECT, systemContext } from '../system-context.js';
+import { PLATFORM_TENANT, systemContext } from '../system-context.js';
 import type { ChaseOutcome, ChaseRequest, ChaseTargets, ChaseWorkflowInput } from './contract.js';
 import { COMPLIANCE_REPORT_CHASED, type ComplianceReportChasedData } from './events.js';
 import { findReport } from './reports.js';
@@ -48,7 +48,7 @@ export class NationalChaseActivities {
   async chaseTargets({ fy }: ChaseWorkflowInput): Promise<ChaseTargets> {
     const { reported, approved } = await withTenant(
       this.db,
-      { tenant: 'platform', subject: SYSTEM_SUBJECT },
+      systemContext(PLATFORM_TENANT),
       async (tx) => ({
         reported: await tx
           .select({ tenant: reportReceipts.tenant })
