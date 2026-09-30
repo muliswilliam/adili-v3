@@ -299,6 +299,7 @@ export {
 export { addDays, daysBetween, plural } from './lib/calendar-days';
 export {
   calendarDaysUntil,
+  formatMonthDay,
   formatCalendarDate,
   formatDate,
   formatDateTime,
@@ -327,7 +328,9 @@ export {
   type ReminderOutcomeMeta,
   remindersSentLabel,
   type ObligationStatusMeta,
+  type MatchesObligationCopy,
 } from './lib/obligations';
+export type { Assert, Same } from './lib/type-checks';
 export { useObligationDetail } from './lib/use-obligation-detail';
 export { listNames } from './lib/list-names';
 export { formatNumber } from './lib/format-number';

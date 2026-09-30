@@ -9,13 +9,9 @@ import { goToSignIn, signInRedirect } from '../../components/sign-in-redirect';
 import { opensOwnPolicy } from '../../components/workspaces';
 import type { DirectoryResult, TenantPolicyHistory } from '../../server/directory/client';
 import { createTenantPolicyVersion, getTenantPolicy } from '../../server/policy';
+import { SERVICE_UNAVAILABLE } from '../../server/service-call';
 
 /** A Commission role without a tenant: a broken account, shown as a failed load. */
-const noCommission: DirectoryResult<never> = {
-  ok: false,
-  error: { kind: 'unavailable', detail: null },
-};
-
 /** Staff of the Commission other than its admin: they do not see the policy (spec 04). */
 const notAdmin = 'not-admin' as const;
 
@@ -29,7 +25,7 @@ export const Route = createFileRoute('/obligations/policy')({
     // The layout shows no page without the workspace; do not fetch the policy.
     if (!context.workspace) return null;
     if (!opensOwnPolicy(context.roles)) return notAdmin;
-    if (!context.tenant) return noCommission;
+    if (!context.tenant) return SERVICE_UNAVAILABLE;
     const policy = await getTenantPolicy({ data: { slug: context.tenant } });
     if (!policy.ok && policy.error.kind === 'unauthenticated') throw signInRedirect(location.href);
     return policy;

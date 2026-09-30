@@ -62,6 +62,21 @@ export function formatCalendarDate(time: string | number): string {
   return `${part('year')}-${part('month')}-${part('day')}`;
 }
 
+/**
+ * A month-day as policies state it (`11-01`) → `1 Nov`; anything that is not a calendar
+ * month-day reads as itself.
+ */
+export function formatMonthDay(monthDay: string): string {
+  const match = /^(\d{2})-(\d{2})$/.exec(monthDay);
+  // A leap year, so 02-29 is a day too; noon UTC is the same day in Kenya.
+  const time = match ? Date.parse(`2000-${monthDay}T12:00:00Z`) : Number.NaN;
+  if (Number.isNaN(time) || new Date(time).toISOString().slice(5, 10) !== monthDay) {
+    return monthDay;
+  }
+  const part = parts(time);
+  return `${part('day')} ${part('month')}`;
+}
+
 /** `2026-09-26T07:42:00Z` → `September 2026`, in Kenyan time. */
 export function formatMonth(iso: string): string {
   const part = parts(iso, MONTH_PARTS);

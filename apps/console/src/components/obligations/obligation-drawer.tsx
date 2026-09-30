@@ -24,14 +24,10 @@ import type {
   ObligationListItem,
   DeclarantRef,
 } from '../../server/declarations/client';
+import { SERVICE_UNAVAILABLE } from '../../server/service-call';
 import { DetailItem, DetailList } from '../page';
 import { OnboardedBadge } from './obligation-badges';
 import { messages as m } from './messages';
-
-const unavailable: DeclarationsResult<ObligationDetail> = {
-  ok: false,
-  error: { kind: 'unavailable', detail: null },
-};
 
 export interface ObligationDrawerProps {
   /** The row that was opened; null when the drawer is closed. */
@@ -55,7 +51,7 @@ export function ObligationDrawer({
   onUnauthenticated,
   recordLink,
 }: ObligationDrawerProps) {
-  const { detail, retry } = useObligationDetail(obligation?.id ?? null, load, unavailable);
+  const { detail, retry } = useObligationDetail(obligation?.id ?? null, load, SERVICE_UNAVAILABLE);
   const signIn = useEffectEvent(onUnauthenticated);
   const ended = detail?.ok === false && detail.error.kind === 'unauthenticated';
   useEffect(() => {

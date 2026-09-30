@@ -1,11 +1,10 @@
+import type { Assert, Same } from '@adili/ui';
 import { z } from 'zod';
 
 import type {
-  Assert,
   CommissionObligationsSummary,
   ListObligationsQuery,
   ObligationType,
-  Same,
 } from '../../server/declarations/client';
 
 export const OBLIGATION_TYPES = ['initial', 'biennial', 'final'] as const;

@@ -1,13 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import type { DirectoryError, TenantPolicyVersion } from '../../server/directory/client';
-import {
-  checkStartDate,
-  monthDayText,
-  policyFailure,
-  policyVersions,
-  reminderOffsetsText,
-} from './policy-form';
+import { checkStartDate, policyFailure, policyVersions, reminderOffsetsText } from './policy-form';
 
 const problem = (status: number, extra: Record<string, unknown> = {}): DirectoryError => ({
   kind: 'problem',
@@ -43,12 +37,6 @@ describe('S19 policy card words', () => {
 
   it('orders the offsets from the earliest reminder', () => {
     expect(reminderOffsetsText([7, 30, 14])).toBe('30, 14 and 7 days before due');
-  });
-
-  it('reads a month-day as a short date', () => {
-    expect(monthDayText('11-01')).toBe('1 Nov');
-    expect(monthDayText('12-31')).toBe('31 Dec');
-    expect(monthDayText('nonsense')).toBe('nonsense');
   });
 
   it('lists versions newest first, the one in force at the top', () => {

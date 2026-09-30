@@ -6,6 +6,7 @@ import {
   DialogTrigger,
   formatDate,
   formatDateTime,
+  formatMonthDay,
   Icon,
   Tooltip,
   useToast,
@@ -23,7 +24,7 @@ import type { TenantPolicyHistory, TenantPolicyVersion } from '../../server/dire
 import { SectionCard } from '../page';
 import { messages as m } from './messages';
 import { PolicyDialogContent, type SavePolicyVersion } from './policy-dialog';
-import { monthDayText, policyVersions, reminderOffsetsText } from './policy-form';
+import { policyVersions, reminderOffsetsText } from './policy-form';
 
 export interface PolicyCardProps {
   history: TenantPolicyHistory;
@@ -69,8 +70,8 @@ export function PolicyCard({ history, save, onUnauthenticated, className }: Poli
           <span className="block">{m.initialPeriod(current.initialDueAfterAppointmentDays)}</span>
           <span className="block">
             {m.biennialPeriod(
-              monthDayText(current.biennial.statementDate),
-              monthDayText(current.biennial.dueDate),
+              formatMonthDay(current.biennial.statementDate),
+              formatMonthDay(current.biennial.dueDate),
             )}
           </span>
           <span className="block">{m.finalPeriod(current.finalDueAfterExitDays)}</span>

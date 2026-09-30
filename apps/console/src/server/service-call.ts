@@ -26,6 +26,12 @@ export type ServiceError<Problem extends BaseProblem = BaseProblem> =
 export type ServiceResult<T, Problem extends BaseProblem = BaseProblem> =
   { ok: true; data: T } | { ok: false; error: ServiceError<Problem> };
 
+/** The outcome of a call that could not be made, or got no answer: worth retrying. */
+export const SERVICE_UNAVAILABLE = {
+  ok: false,
+  error: { kind: 'unavailable', detail: null },
+} as const satisfies ServiceResult<never>;
+
 interface FetchOutcome<T> {
   data?: T;
   error?: unknown;
@@ -45,7 +51,7 @@ export async function callService<T, Problem extends BaseProblem = BaseProblem>(
   try {
     outcome = await request();
   } catch {
-    return { ok: false, error: { kind: 'unavailable', detail: null } };
+    return SERVICE_UNAVAILABLE;
   }
   const { data, error, response } = outcome;
   if (response.ok) {

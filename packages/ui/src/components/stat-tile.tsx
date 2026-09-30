@@ -1,8 +1,7 @@
 import type { ReactNode } from 'react';
 
 import { cn } from '../lib/cn';
-
-const NUMBER = new Intl.NumberFormat('en');
+import { formatNumber } from '../lib/format-number';
 
 /** Grid rows a tile spans: label and value, then the description and breakdown it has. */
 const ROW_SPAN = ['row-span-2', 'row-span-3', 'row-span-4'] as const;
@@ -55,7 +54,7 @@ export function StatTile({
   className,
 }: StatTileProps) {
   const title = breakdown?.length
-    ? `${label}: ${breakdown.map((item) => `${item.label} ${NUMBER.format(item.value)}`).join(', ')}`
+    ? `${label}: ${breakdown.map((item) => `${item.label} ${formatNumber(item.value)}`).join(', ')}`
     : undefined;
   const rows = ROW_SPAN[(description ? 1 : 0) + (breakdown?.length ? 1 : 0)];
   const heading = (
@@ -70,7 +69,7 @@ export function StatTile({
           tone === 'warning' && 'text-warning-subtle-foreground',
         )}
       >
-        {NUMBER.format(value)}
+        {formatNumber(value)}
       </span>
     </>
   );
@@ -112,7 +111,7 @@ export function StatTile({
             <li key={item.label} className="flex justify-between gap-2">
               <span>{item.label}</span>
               <span className="font-semibold text-secondary-foreground tabular-nums">
-                {NUMBER.format(item.value)}
+                {formatNumber(item.value)}
               </span>
             </li>
           ))}

@@ -8,6 +8,7 @@ import {
 import type { IconProps } from '../components/icon';
 import type { StatusBadgeVariant } from '../components/status-badge';
 import { formatDate } from './format-date';
+import type { Same } from './type-checks';
 
 /**
  * The words for filing obligations, shared by the portal and the console (spec 04 frontend:
@@ -27,6 +28,22 @@ export type ReminderOutcome =
   | 'failed';
 
 export type ReminderChannel = 'sms' | 'email';
+
+/**
+ * `true` when a contract's obligation unions (as an app's generated client names them) equal this
+ * table's. Apps assert it, `Assert<MatchesObligationCopy<{ ... }>>`, so a contract value the
+ * table lacks fails to compile.
+ */
+export type MatchesObligationCopy<
+  C extends { type: string; status: string; outcome: string; channel: string },
+> = [
+  Same<C['type'], ObligationType>,
+  Same<C['status'], ObligationStatus>,
+  Same<C['outcome'], ReminderOutcome>,
+  Same<C['channel'], ReminderChannel>,
+] extends [true, true, true, true]
+  ? true
+  : false;
 
 /** One English string per key; the Swahili slot stays empty until EACC reviews translations. */
 export const obligationMessages = {

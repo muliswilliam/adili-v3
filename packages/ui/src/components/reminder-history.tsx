@@ -76,7 +76,12 @@ export function ReminderHistory({
   }
   if (reminders === null) {
     return (
-      <div role="status" aria-busy="true" aria-label={m.reminderHistory} className="grid gap-3 py-2">
+      <div
+        role="status"
+        aria-busy="true"
+        aria-label={m.reminderHistory}
+        className="grid gap-3 py-2"
+      >
         <Skeleton className="w-full" />
         <Skeleton className="w-4/5" />
         <Skeleton className="w-3/5" />

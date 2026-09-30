@@ -6,15 +6,6 @@ import type {
 import { formatNumber } from '../format';
 import { messages as m } from './messages';
 
-const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-
-/** A policy month-day (`11-01`) as a short date, "1 Nov"; anything else reads as itself. */
-export function monthDayText(monthDay: string): string {
-  const match = /^(\d{2})-(\d{2})$/.exec(monthDay);
-  const month = match ? MONTHS[Number(match[1]) - 1] : undefined;
-  return match && month ? `${Number(match[2])} ${month}` : monthDay;
-}
-
 /** "30, 14 and 7 days before due", earliest reminder first. */
 export function reminderOffsetsText(offsets: readonly number[]): string {
   if (offsets.length === 0) return m.remindersNone;

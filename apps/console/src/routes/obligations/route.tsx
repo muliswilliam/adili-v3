@@ -16,6 +16,7 @@ import type {
 } from '../../server/declarations/client';
 import type { Commission, DirectoryResult } from '../../server/directory/client';
 import { getCommissionObligationsSummary } from '../../server/obligations';
+import { SERVICE_UNAVAILABLE } from '../../server/service-call';
 import { getViewer } from '../../server/viewer';
 
 /** What every obligations page shares: the viewer's own Commission and its counts. */
@@ -26,11 +27,6 @@ export interface ObligationsLayoutData {
 }
 
 /** A Commission role without a tenant: a broken account, shown as a failed load. */
-const noCommission: DirectoryResult<never> = {
-  ok: false,
-  error: { kind: 'unavailable', detail: null },
-};
-
 /** Whether a match's route context opens the Obligations workspace. */
 function opensWorkspace(context: unknown): boolean {
   return typeof context === 'object' && context !== null && 'workspace' in context
@@ -62,7 +58,7 @@ export const Route = createFileRoute('/obligations')({
   loader: async ({ context, location }): Promise<ObligationsLayoutData | null> => {
     if (!context.workspace) return null;
     const slug = context.tenant;
-    if (!slug) return { commission: noCommission, summary: noCommission };
+    if (!slug) return { commission: SERVICE_UNAVAILABLE, summary: SERVICE_UNAVAILABLE };
     const [commission, summary] = await Promise.all([
       getCommission({ data: { slug } }),
       getCommissionObligationsSummary({ data: { slug } }),

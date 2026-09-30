@@ -7,6 +7,7 @@ import {
   formatDateTime,
   formatLongDate,
   formatMonth,
+  formatMonthDay,
   msUntilKenyanMidnight,
 } from './format-date';
 
@@ -88,5 +89,19 @@ describe('calendarDaysUntil', () => {
     expect(calendarDaysUntil('2028-03-01', Date.parse('2028-02-28T09:00:00Z'))).toBe(2);
     expect(calendarDaysUntil('2027-01-05', Date.parse('2026-12-29T09:00:00Z'))).toBe(7);
     expect(calendarDaysUntil('2027-12-31', Date.parse('2028-01-03T09:00:00Z'))).toBe(-3);
+  });
+});
+
+describe('formatMonthDay', () => {
+  it('reads a policy month-day as a short date', () => {
+    expect(formatMonthDay('11-01')).toBe('1 Nov');
+    expect(formatMonthDay('12-31')).toBe('31 Dec');
+    expect(formatMonthDay('02-29')).toBe('29 Feb');
+  });
+
+  it('leaves anything that is not a month-day as it is', () => {
+    expect(formatMonthDay('nonsense')).toBe('nonsense');
+    expect(formatMonthDay('13-01')).toBe('13-01');
+    expect(formatMonthDay('02-30')).toBe('02-30');
   });
 });

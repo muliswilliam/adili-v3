@@ -1,9 +1,4 @@
-import type {
-  ObligationStatus as SharedObligationStatus,
-  ObligationType as SharedObligationType,
-  ReminderChannel as SharedReminderChannel,
-  ReminderOutcome as SharedReminderOutcome,
-} from '@adili/ui';
+import type { Assert, MatchesObligationCopy } from '@adili/ui';
 
 import type { components, operations } from './schema.gen';
 
@@ -41,13 +36,12 @@ export type RegistrySystem = Exclude<SuggestionSource, 'document'>;
 export type DocumentKind =
   operations['extractAttachment']['requestBody']['content']['application/json']['documentKindHint'];
 
-type Same<A, B> = [A] extends [B] ? ([B] extends [A] ? true : false) : false;
-type Assert<T extends true> = T;
-
 /** Fails to compile when the contract and the shared copy table in @adili/ui drift apart. */
-export type ContractMatchesSharedCopy = [
-  Assert<Same<ObligationType, SharedObligationType>>,
-  Assert<Same<ObligationStatus, SharedObligationStatus>>,
-  Assert<Same<ReminderOutcome, SharedReminderOutcome>>,
-  Assert<Same<Reminder['channels'][number], SharedReminderChannel>>,
-];
+export type ContractMatchesSharedCopy = Assert<
+  MatchesObligationCopy<{
+    type: ObligationType;
+    status: ObligationStatus;
+    outcome: ReminderOutcome;
+    channel: Reminder['channels'][number];
+  }>
+>;
