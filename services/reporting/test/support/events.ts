@@ -38,6 +38,8 @@ export function obligationCreated(
   tenant: string,
   fixture: {
     obligationId?: string;
+    /** The officer, where the event carries it (a later producer version). */
+    personId?: string;
     type: 'initial' | 'biennial' | 'final';
     statementDate: string;
     dueDate?: string;
@@ -55,6 +57,7 @@ export function obligationCreated(
     obligationId,
     {
       obligationId,
+      ...(fixture.personId ? { personId: fixture.personId } : {}),
       rosterRecordId: randomUUID(),
       type: fixture.type,
       cycleKey,
@@ -111,7 +114,7 @@ export function declarationSubmitted(
 export function clarificationEvent(
   tenant: string,
   status: 'issued' | 'responded' | 'resolved' | 'overdue' | 'withdrawn',
-  ids: { clarificationId: string; caseId: string },
+  ids: { clarificationId: string; caseId: string; personId?: string },
   time: string,
 ): EventEnvelope {
   return envelope(
@@ -139,6 +142,8 @@ export function actionEvent(
     subjectId: string;
     step: 'notice-to-comply' | 'warning' | 'salary-stoppage' | 'disciplinary-referral';
     subjectKind?: 'obligation' | 'clarification';
+    /** The officer, where the event carries it (`action.disciplinary-referred.v1` does). */
+    personId?: string;
   },
   time: string,
 ): EventEnvelope {
@@ -153,6 +158,7 @@ export function actionEvent(
       subjectKind: action.subjectKind ?? 'obligation',
       subjectId: action.subjectId,
       step: action.step,
+      ...(action.personId ? { personId: action.personId } : {}),
       proposerKind: 'system',
       approver: decided ? 'reviewer-psc' : null,
       ...(decided && status !== 'declined' ? { reference: 'ADM-PSC-2027-0000001-4' } : {}),

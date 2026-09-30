@@ -32,9 +32,16 @@ export const REFERRAL_SENT = 'referral.sent.v1';
 
 const civilDate = z.iso.date();
 
+/**
+ * The person an event is about, by id only, where its producer carries it (spec 09 projections
+ * keep `person_id`); absent or null otherwise, and never a name.
+ */
+const personId = z.uuid().nullish();
+
 /** `obligation.created.v1` (declarations, spec 04). */
 export const obligationCreatedData = z.object({
   obligationId: z.uuid(),
+  personId,
   rosterRecordId: z.uuid(),
   type: z.enum(OBLIGATION_TYPES),
   cycleKey: z.string().min(1),
@@ -59,12 +66,14 @@ export const declarationSubmittedData = z.object({
 export const clarificationData = z.object({
   clarificationId: z.uuid(),
   caseId: z.uuid(),
+  personId,
 });
 
 /**
  * Every `action.*` event (review, spec 08 #206 `ActionEventData`): the action, its ladder, the
- * subject the ladder enforces and the step. The events also carry the proposer kind, the approver,
- * the `ADM` reference and what closed the ladder, which Form M does not need.
+ * subject the ladder enforces, the step and the person where the event carries it. The events also
+ * carry the proposer kind, the approver, the `ADM` reference and what closed the ladder, which
+ * Form M does not need.
  */
 export const actionData = z.object({
   actionId: z.uuid(),
@@ -72,6 +81,7 @@ export const actionData = z.object({
   subjectKind: z.enum(['obligation', 'clarification']),
   subjectId: z.uuid(),
   step: z.enum(ACTION_STEPS),
+  personId,
 });
 
 /** `determination.approved.v1` (review, spec 08). */

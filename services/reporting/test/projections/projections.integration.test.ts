@@ -209,6 +209,56 @@ describe('projections (S1)', () => {
     });
   });
 
+  it('S1: obligation, clarification, action and referral facts keep the person by id, where the event carries it', async () => {
+    const personId = randomUUID();
+    const obligationId = randomUUID();
+    const clarification = { clarificationId: randomUUID(), caseId: randomUUID(), personId };
+    const action = {
+      actionId: randomUUID(),
+      subjectId: obligationId,
+      step: 'notice-to-comply',
+      personId,
+    } as const;
+    const referralId = randomUUID();
+    const withoutPerson = randomUUID();
+
+    await api.deliver(
+      obligationCreated('psc', {
+        obligationId,
+        personId,
+        type: 'initial',
+        statementDate: '2027-08-15',
+      }),
+    );
+    await api.deliver(
+      obligationCreated('psc', {
+        obligationId: withoutPerson,
+        type: 'initial',
+        statementDate: '2027-08-15',
+      }),
+    );
+    await api.deliver(
+      clarificationEvent('psc', 'issued', clarification, '2027-12-01T09:00:00.000Z'),
+    );
+    // A later event without the person keeps the id an earlier one brought.
+    const unnamed = {
+      clarificationId: clarification.clarificationId,
+      caseId: clarification.caseId,
+    };
+    await api.deliver(clarificationEvent('psc', 'responded', unnamed, '2027-12-02T09:00:00.000Z'));
+    await api.deliver(actionEvent('psc', 'proposed', action, '2027-10-01T09:00:00.000Z'));
+    await api.deliver(referralSent('psc', referralId, '2028-07-02T09:00:00.000Z', { personId }));
+
+    expect(await obligation(obligationId)).toMatchObject({ personId });
+    expect(await obligation(withoutPerson)).toMatchObject({ personId: null });
+    const [clarified] = await api.asPlatform((tx) => tx.select().from(clarificationFacts));
+    expect(clarified).toMatchObject({ status: 'responded', personId });
+    const [acted] = await api.asPlatform((tx) => tx.select().from(actionFacts));
+    expect(acted).toMatchObject({ actionId: action.actionId, personId });
+    const [referred] = await api.asPlatform((tx) => tx.select().from(referralFacts));
+    expect(referred).toMatchObject({ referralId, personId });
+  });
+
   it('S1: a redelivered event is projected once', async () => {
     const obligationId = randomUUID();
     const created = obligationCreated('psc', {

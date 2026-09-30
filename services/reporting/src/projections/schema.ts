@@ -17,6 +17,8 @@ export const obligationFacts = pgTable(
   {
     obligationId: uuid().primaryKey(),
     tenant: text().notNull(),
+    /** The officer, by id only; null until an event that carries it arrives. */
+    personId: uuid(),
     rosterRecordId: uuid(),
     /** `initial` | `biennial` | `final`; null until `obligation.created.v1` arrives. */
     type: text().$type<ObligationType>(),
@@ -42,6 +44,8 @@ export const clarificationFacts = pgTable(
   {
     clarificationId: uuid().primaryKey(),
     tenant: text().notNull(),
+    /** The declarant asked, by id only; null until an event that carries it arrives. */
+    personId: uuid(),
     caseId: uuid().notNull(),
     fy: integer(),
     issuedAt: timestamp({ withTimezone: true }),
@@ -60,6 +64,8 @@ export const actionFacts = pgTable(
   {
     actionId: uuid().primaryKey(),
     tenant: text().notNull(),
+    /** The officer the ladder enforces, by id only; null until an event that carries it arrives. */
+    personId: uuid(),
     /** `obligation` | `clarification`: what the ladder enforces. */
     subjectKind: text().notNull(),
     subjectId: uuid().notNull(),
@@ -87,6 +93,8 @@ export const determinationFacts = pgTable('determination_facts', {
 export const referralFacts = pgTable('referral_facts', {
   referralId: uuid().primaryKey(),
   tenant: text().notNull(),
+  /** The person referred, by id only (null for a row projected before it was kept). */
+  personId: uuid(),
   reference: text().notNull(),
   grounds: text().notNull(),
   fy: integer().notNull(),

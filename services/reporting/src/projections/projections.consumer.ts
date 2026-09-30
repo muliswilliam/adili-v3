@@ -67,6 +67,7 @@ export class ProjectionsConsumer {
   obligationCreated(@Payload() event: EventEnvelope): Promise<boolean> {
     const data = obligationCreatedData.parse(event.data);
     const facts = {
+      ...personOf(data),
       rosterRecordId: data.rosterRecordId,
       type: data.type,
       cycleKey: data.cycleKey,
@@ -212,6 +213,7 @@ export class ProjectionsConsumer {
         .values({
           referralId: data.referralId,
           tenant,
+          personId: data.personId,
           reference: data.reference,
           grounds: data.grounds,
           fy: financialYearAt(sentAt),
@@ -237,6 +239,7 @@ export class ProjectionsConsumer {
         .values({
           clarificationId: data.clarificationId,
           tenant,
+          ...personOf(data),
           caseId: data.caseId,
           status,
           statusAt: at,
@@ -246,6 +249,7 @@ export class ProjectionsConsumer {
           target: clarificationFacts.clarificationId,
           set: {
             ...newerStatus(clarificationFacts.status, clarificationFacts.statusAt),
+            ...personOf(data),
             ...dated,
           },
         }),
@@ -266,6 +270,7 @@ export class ProjectionsConsumer {
         .values({
           actionId: data.actionId,
           tenant,
+          ...personOf(data),
           subjectKind: data.subjectKind,
           subjectId: data.subjectId,
           step: data.step,
@@ -275,7 +280,11 @@ export class ProjectionsConsumer {
         })
         .onConflictDoUpdate({
           target: actionFacts.actionId,
-          set: { ...newerStatus(actionFacts.status, actionFacts.statusAt), ...dated },
+          set: {
+            ...newerStatus(actionFacts.status, actionFacts.statusAt),
+            ...personOf(data),
+            ...dated,
+          },
         }),
     );
   }
@@ -296,6 +305,14 @@ export class ProjectionsConsumer {
       await work(tx, tenant);
     });
   }
+}
+
+/**
+ * The person an event names, by id, for the facts it projects; nothing when it names none, so an
+ * event without it never clears the id another event brought.
+ */
+function personOf(data: { personId?: string | null }): { personId?: string } {
+  return data.personId ? { personId: data.personId } : {};
 }
 
 /**
