@@ -509,14 +509,17 @@ describe('S20: Submit stays disabled with the reason', () => {
     expect(note?.textContent).toBe('Available from 1 Nov 2027');
   });
 
-  it('says submission opens in the next release for a due obligation', () => {
+  it('says amendments closed on the due date', () => {
     renderSummary(
-      summaryOf({ cannotSubmitReason: null }, { statementDate: '2026-09-10', type: 'initial' }),
+      summaryOf(
+        { cannotSubmitReason: 'amendment-window-closed' },
+        { status: 'amending', dueDate: '2027-12-31' },
+      ),
     );
 
     expect(submit().disabled).toBe(true);
     const note = document.getElementById(submit().getAttribute('aria-describedby') ?? '');
-    expect(note?.textContent).toBe('Submission opens in the next release.');
+    expect(note?.textContent).toBe('Amendments closed on 31 Dec 2027. Contact your Commission.');
   });
 });
 

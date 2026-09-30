@@ -140,7 +140,7 @@ export const SUBMIT_COPY = {
 /** The dialog's message for a problem; conflict copy names the dates it is about. */
 export function problemMessage(
   problem: SubmitProblem,
-  dates: { statementDate: string; dueDate: string | null },
+  dates: { statementDate: string; dueDate: string },
 ): string {
   switch (problem) {
     case 'error':
@@ -148,9 +148,7 @@ export function problemMessage(
     case 'before-statement-date':
       return `You can submit from ${formatDate(dates.statementDate)}.`;
     case 'amendment-window-closed':
-      return dates.dueDate
-        ? `Amendments closed on ${formatDate(dates.dueDate)}. Contact your Commission.`
-        : 'Amendments are closed. Contact your Commission.';
+      return `Amendments closed on ${formatDate(dates.dueDate)}. Contact your Commission.`;
     case 'not-a-draft':
       return 'This declaration changed in another window. Reload to see its current state.';
     case 'obligation-cancelled':

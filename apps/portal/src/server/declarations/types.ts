@@ -28,6 +28,7 @@ export type SectionEnvelope = Schemas['SectionEnvelope'];
 export type SectionKey = Schemas['SectionKey'];
 export type SectionSaveResult = Schemas['SectionSaveResult'];
 export type SubmissionResult = Schemas['SubmissionResult'];
+export type SubmitProblem = Schemas['SubmitProblem'];
 export type Suggestion = Schemas['Suggestion'];
 export type SuggestionSet = Schemas['SuggestionSet'];
 export type SuggestionSource = Schemas['SuggestionSource'];

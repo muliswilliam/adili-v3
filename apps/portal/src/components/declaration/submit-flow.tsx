@@ -39,13 +39,6 @@ import {
   type SubmitState,
 } from './submit';
 
-/** What the dialog needs to know about the obligation; null when it could not be loaded. */
-export interface SubmitFiling {
-  dueDate: string;
-  /** Past the due date: submitting now files late. */
-  overdue: boolean;
-}
-
 export interface SubmitFlow {
   state: SubmitState;
   dispatch: Dispatch<SubmitEvent>;
@@ -146,7 +139,9 @@ export interface AffirmationDialogProps {
   flow: SubmitFlow;
   attestationText: string;
   statementDate: string;
-  filing: SubmitFiling | null;
+  dueDate: string;
+  /** Past the due date: submitting now files late. */
+  late: boolean;
 }
 
 /**
@@ -158,7 +153,8 @@ export function AffirmationDialog({
   flow,
   attestationText,
   statementDate,
-  filing,
+  dueDate,
+  late,
 }: AffirmationDialogProps) {
   const { state, dispatch, confirmedAt } = flow;
   const open = dialogOpen(state);
@@ -189,10 +185,10 @@ export function AffirmationDialog({
               {SUBMIT_COPY.identityConfirmed(formatTime(confirmedAt * 1000))}
             </p>
           ) : null}
-          {filing?.overdue ? (
+          {late ? (
             <Alert variant="warning">
               <Icon icon={Alert02Icon} />
-              <AlertDescription>{SUBMIT_COPY.late(filing.dueDate)}</AlertDescription>
+              <AlertDescription>{SUBMIT_COPY.late(dueDate)}</AlertDescription>
             </Alert>
           ) : null}
           <figure className="grid gap-1.5 rounded-lg bg-brand-faint p-4 ring-1 ring-brand-subtle-foreground/15">
@@ -216,12 +212,7 @@ export function AffirmationDialog({
             <Alert variant={problem === 'error' ? 'destructive' : 'warning'}>
               <Icon icon={AlertCircleIcon} />
               <AlertDescription className="grid justify-items-start gap-2">
-                <p>
-                  {problemMessage(problem, {
-                    statementDate,
-                    dueDate: filing?.dueDate ?? null,
-                  })}
-                </p>
+                <p>{problemMessage(problem, { statementDate, dueDate })}</p>
                 {problem === 'not-a-draft' ? (
                   <Button type="button" variant="secondary" size="sm" onClick={flow.reload}>
                     <Icon icon={RefreshIcon} />

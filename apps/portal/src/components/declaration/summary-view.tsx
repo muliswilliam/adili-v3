@@ -34,12 +34,7 @@ import { CompletenessBadge } from './completeness-badge';
 import type { Draft, Statement } from '../../declaration/contents';
 import { HR_LABELS, SUMMARY_COPY } from '../../declaration/copy';
 import { DiscardDraftButton } from './discard-dialog';
-import {
-  AffirmationDialog,
-  StepUpFailedAlert,
-  type SubmitFiling,
-  useSubmitFlow,
-} from './submit-flow';
+import { AffirmationDialog, StepUpFailedAlert, useSubmitFlow } from './submit-flow';
 import { type StepUpMarker, SUBMIT_COPY } from './submit';
 import { fullName, orUnanswered, UNANSWERED } from '../../declaration/format';
 import { sourceDetails } from '../../declaration/item-source';
@@ -715,8 +710,6 @@ function useFreshSummary(loaded: LoadedSummary): LoadedSummary {
 
 export interface SummaryViewProps {
   summary: LoadedSummary;
-  /** The obligation's due date, for the late warning and conflict copy; null if not loaded. */
-  filing?: SubmitFiling | null;
   /** Set when the summary was opened on the way back from a step-up (`?stepUp=`). */
   stepUpMarker?: StepUpMarker | null;
 }
@@ -728,11 +721,7 @@ export interface SummaryViewProps {
  * declarant's identity with a one-time code, then asks them to affirm the solemn declaration
  * and files it. Disabled, it says why (S20).
  */
-export function SummaryView({
-  summary: loaded,
-  filing = null,
-  stepUpMarker = null,
-}: SummaryViewProps) {
+export function SummaryView({ summary: loaded, stepUpMarker = null }: SummaryViewProps) {
   const summary = useFreshSummary(loaded);
   const navigate = useNavigate();
   const { declaration } = summary;
@@ -744,8 +733,10 @@ export function SummaryView({
   const isDraft = declaration.status === 'draft';
   // A 400 from submit is fresher than the summary: show what it says blocks.
   const blocking = state.step === 'incomplete' ? state.blocking : summary.blocking;
-  const canSubmit = summary.canSubmit && state.step !== 'incomplete';
-  const note = submitNote({ ...summary, canSubmit, blocking });
+  const cannotSubmitReason =
+    state.step === 'incomplete' ? 'incomplete' : summary.cannotSubmitReason;
+  const canSubmit = cannotSubmitReason === null;
+  const note = submitNote({ cannotSubmitReason, blocking, declaration });
 
   return (
     <div className="grid gap-6">
@@ -811,7 +802,8 @@ export function SummaryView({
         flow={flow}
         attestationText={summary.attestationText}
         statementDate={declaration.statementDate}
-        filing={filing}
+        dueDate={declaration.dueDate}
+        late={summary.late}
       />
 
       <div className="flex flex-wrap items-center justify-between gap-3">

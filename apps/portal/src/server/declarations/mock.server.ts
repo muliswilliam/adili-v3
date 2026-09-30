@@ -38,7 +38,8 @@
  * `obligation-cancelled`, an amendment after the due date 409 `amendment-window-closed`. Then
  * the declaration is `submitted` with a new version: the reference is allocated on version 1
  * (`DCB-TSC-2027-0000001-B`), `late` when after the due date, the acknowledgement `pending`.
- * Summaries say `canSubmit` once nothing blocks and the statement date has come.
+ * Summaries answer `cannotSubmitReason` as the service does (the refusal first, then
+ * `incomplete`), `canSubmit` when there is none, and `late` after the due date.
  *
  * Tests can make the next saves fail (`failNextSaves`) or submits fail (`failNextSubmits`),
  * simulate an edit on another device (`editElsewhere`), make registries answer at once

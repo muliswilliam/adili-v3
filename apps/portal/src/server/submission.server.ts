@@ -4,6 +4,7 @@ import type {
   Declaration,
   DeclarationVersion,
   SubmissionResult,
+  SubmitProblem,
 } from './declarations/types';
 import { attempt, type NotFound, notFound, type Unavailable, unavailable } from './results';
 
@@ -14,21 +15,24 @@ import { attempt, type NotFound, notFound, type Unavailable, unavailable } from 
  */
 
 /**
- * The 409 codes of `SubmitProblem`, each with its own copy. Listed here: the contract's
- * `SubmitProblem` extends `ProblemDetails`, whose `code` enum has none of them, so the
- * generated `SubmitProblem` intersects to `never`.
+ * The 409 refusals of `SubmitProblem`: the declaration or its obligation does not take the
+ * submission now. Its other codes have their own outcomes (or, `not-submitted`, are not a submit's).
  */
-export const SUBMIT_CONFLICTS = [
-  'before-statement-date',
-  'amendment-window-closed',
-  'not-a-draft',
-  'obligation-cancelled',
-] as const;
+export type SubmitConflict = Exclude<
+  NonNullable<SubmitProblem['code']>,
+  'step-up-required' | 'incomplete' | 'not-submitted'
+>;
 
-export type SubmitConflict = (typeof SUBMIT_CONFLICTS)[number];
+/** The refusals, checked against the generated contract: a code it adds fails typecheck here. */
+const SUBMIT_CONFLICTS = {
+  'before-statement-date': true,
+  'amendment-window-closed': true,
+  'not-a-draft': true,
+  'obligation-cancelled': true,
+} as const satisfies Record<SubmitConflict, true>;
 
-function isSubmitConflict(code: unknown): code is SubmitConflict {
-  return SUBMIT_CONFLICTS.includes(code as SubmitConflict);
+function isSubmitConflict(code: string | undefined): code is SubmitConflict {
+  return code !== undefined && Object.hasOwn(SUBMIT_CONFLICTS, code);
 }
 
 export type SubmitOutcome =
@@ -61,15 +65,14 @@ export function submitDeclaration(
       },
     });
     if (data) return { status: 'submitted', result: data };
-    const problem = error as { code?: unknown; blocking?: CompletenessIssue[] } | undefined;
-    if (response.status === 403 && problem?.code === 'step-up-required') {
+    if (response.status === 403 && error.code === 'step-up-required') {
       return { status: 'step-up-required' };
     }
-    if (response.status === 400 && problem?.blocking) {
-      return { status: 'incomplete', blocking: problem.blocking };
+    if (response.status === 400 && error.code === 'incomplete' && 'blocking' in error) {
+      return { status: 'incomplete', blocking: error.blocking ?? [] };
     }
-    if (response.status === 409 && isSubmitConflict(problem?.code)) {
-      return { status: 'conflict', code: problem.code };
+    if (response.status === 409 && isSubmitConflict(error.code)) {
+      return { status: 'conflict', code: error.code };
     }
     return response.status === 404 ? notFound : unavailable;
   });

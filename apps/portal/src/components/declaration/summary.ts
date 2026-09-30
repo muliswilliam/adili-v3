@@ -24,6 +24,7 @@ import { changeWord, OCCUPATION_SECTOR_LABELS } from '../../declaration/labels';
 import type { Category } from '../../declaration/statement';
 import { type SectionKind, sectionKind } from '../../declaration/section-key';
 import { liveSections, stepTitle } from './steps';
+import { problemMessage } from './submit';
 
 /**
  * The summary's rules and words (FE-8): what the note beside Submit says (S20), the blocking
@@ -31,32 +32,37 @@ import { liveSections, stepTitle } from './steps';
  * draft contents, so anything may be missing.
  */
 
-export const SUBMIT_NEXT_RELEASE = 'Submission opens in the next release.';
 export const SUBMIT_READY =
   'You will confirm your identity with a one-time code before submitting.';
 export const NOT_ANSWERED = 'Not answered yet.';
 export const BLOCKING_LIMIT = 12;
 
 /**
- * What the note beside Submit says (spec 05 S20, spec 06 FE-2): that a one-time code comes
- * first when the declaration can be submitted; otherwise why not, in order: what is left to
- * complete, the statement date that has not come ("Available from 1 Nov 2027"), or that the
- * service has not opened submission.
+ * What the note beside Submit says (spec 05 S20, spec 06 FE-2), from the service's
+ * `cannotSubmitReason`: that a one-time code comes first when nothing stops it; otherwise how much
+ * is left to complete, the statement date that has not come ("Available from 1 Nov 2027"), or
+ * why the declaration or its obligation takes no submission, in the dialog's words.
  */
 export function submitNote(
-  summary: Pick<LoadedSummary, 'canSubmit' | 'cannotSubmitReason'> & {
+  summary: Pick<LoadedSummary, 'cannotSubmitReason'> & {
     blocking: readonly unknown[];
-    declaration: { statementDate: string };
+    declaration: { statementDate: string; dueDate: string };
   },
 ): string {
-  if (summary.canSubmit) return SUBMIT_READY;
-  if (summary.blocking.length > 0) {
-    return `Complete the ${plural(summary.blocking.length, 'item')} listed above to submit.`;
+  const { declaration } = summary;
+  switch (summary.cannotSubmitReason) {
+    case null:
+      return SUBMIT_READY;
+    case 'incomplete':
+      return `Complete the ${plural(summary.blocking.length, 'item')} listed above to submit.`;
+    case 'before-statement-date':
+      return `Available from ${formatDate(declaration.statementDate)}`;
+    case 'not-a-draft':
+      return 'This declaration has already been submitted.';
+    case 'amendment-window-closed':
+    case 'obligation-cancelled':
+      return problemMessage(summary.cannotSubmitReason, declaration);
   }
-  if (summary.cannotSubmitReason === 'before-statement-date') {
-    return `Available from ${formatDate(summary.declaration.statementDate)}`;
-  }
-  return SUBMIT_NEXT_RELEASE;
 }
 
 export function blockingTitle(count: number): string {

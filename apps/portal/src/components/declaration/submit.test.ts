@@ -148,9 +148,6 @@ describe('dialog problem copy', () => {
     expect(problemMessage('amendment-window-closed', dates)).toBe(
       'Amendments closed on 31 Dec 2027. Contact your Commission.',
     );
-    expect(problemMessage('amendment-window-closed', { ...dates, dueDate: null })).toBe(
-      'Amendments are closed. Contact your Commission.',
-    );
     expect(problemMessage('not-a-draft', dates)).toBe(
       'This declaration changed in another window. Reload to see its current state.',
     );

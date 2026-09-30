@@ -8,7 +8,6 @@ import { getStepUpStatus } from '../../server/step-up';
 import { submitMyDeclaration } from '../../server/submission';
 import type { SubmitOutcome } from '../../server/submission.server';
 import { signInAgain, stepUp } from '../sign-in';
-import type { SubmitFiling } from './submit-flow';
 import { SummaryView } from './summary-view';
 import { DECLARATION_ID, renderWorkspace, sampleDeclaration, sections } from './testing';
 import { invalidate, navigate } from './testing-mocks';
@@ -30,11 +29,12 @@ const SUMMARY_PATH = `/declarations/${DECLARATION_ID}/summary`;
 const AUTH_TIME = Date.parse('2026-09-30T07:42:00Z') / 1000;
 const KEYS = ['3f0c9a52-8d4e-4b1a-9c7d-2e6f5a4b3c21', '6a1b2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4d'];
 
-function summaryOf(overrides: Partial<LoadedSummary> = {}): LoadedSummary {
+function summaryOf(overrides: Partial<LoadedSummary> = {}, declaration = {}): LoadedSummary {
   return {
     declaration: sampleDeclaration({
       type: 'initial',
       statementDate: '2026-09-10',
+      dueDate: '2026-10-10',
       commission: { slug: 'psc', issuerCode: 'PSC', name: 'Public Service Commission' },
       sections: sections({
         bio: 'complete',
@@ -42,37 +42,37 @@ function summaryOf(overrides: Partial<LoadedSummary> = {}): LoadedSummary {
         'statement:officer': 'complete',
         other: 'complete',
       }),
+      ...declaration,
     }),
     document: { schemaVersion: 'declaration.v1' },
     valid: true,
     blocking: [],
     canSubmit: true,
-    cannotSubmitReason: 'submission-not-available',
+    cannotSubmitReason: null,
+    late: false,
     attestationText: ATTESTATION,
     ...overrides,
   };
 }
 
-const DUE: SubmitFiling = { dueDate: '2026-10-10', overdue: false };
-const OVERDUE: SubmitFiling = { dueDate: '2026-09-20', overdue: true };
+/** Past its due date: submitting files late. */
+const OVERDUE = summaryOf({ late: true }, { dueDate: '2026-09-20' });
 
 function renderSummary({
   summary = summaryOf(),
-  filing = DUE,
   marker = null,
 }: {
   summary?: LoadedSummary;
-  filing?: SubmitFiling | null;
   marker?: 'done' | 'failed' | null;
 } = {}) {
-  return renderWorkspace(<SummaryView summary={summary} filing={filing} stepUpMarker={marker} />, {
+  return renderWorkspace(<SummaryView summary={summary} stepUpMarker={marker} />, {
     step: 'summary',
     declaration: summary.declaration,
   });
 }
 
 /** Opens the summary on the way back from a step-up that went through. */
-async function returnFromStepUp(options: { filing?: SubmitFiling | null } = {}) {
+async function returnFromStepUp(options: { summary?: LoadedSummary } = {}) {
   stepUpStatusMock.mockResolvedValue({
     status: 'ok',
     acr: 'step-up',
@@ -151,6 +151,7 @@ describe('ready: Submit enabled when canSubmit', () => {
     renderSummary({
       summary: summaryOf({
         canSubmit: false,
+        cannotSubmitReason: 'incomplete',
         valid: false,
         blocking: [
           { sectionKey: 'bio', path: '/officer/birth', code: 'required', message: 'Birth date.' },
@@ -195,7 +196,10 @@ describe('step-up returned', () => {
 
   it('drops the marker without opening anything when the summary cannot be submitted', async () => {
     await act(async () => {
-      renderSummary({ summary: summaryOf({ canSubmit: false }), marker: 'done' });
+      renderSummary({
+        summary: summaryOf({ canSubmit: false, cannotSubmitReason: 'not-a-draft' }),
+        marker: 'done',
+      });
       await Promise.resolve();
     });
 
@@ -242,7 +246,7 @@ describe('affirm', () => {
   });
 
   it('warns that an overdue declaration is filed late', async () => {
-    const dialog = await returnFromStepUp({ filing: OVERDUE });
+    const dialog = await returnFromStepUp({ summary: OVERDUE });
 
     expect(
       within(dialog).getByText(

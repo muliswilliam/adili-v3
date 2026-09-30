@@ -2,7 +2,6 @@ import { hasValidCheckCharacter, parse } from '@adili/numbering/references';
 import createClient from 'openapi-fetch';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { contractEnum } from '../test/contract';
 import { loadSection, loadSummary, saveSection, startDeclaration } from './declarations.server';
 import {
   failNextSubmits,
@@ -11,12 +10,7 @@ import {
   resetDeclarationsMock,
 } from './declarations/mock.server';
 import type { paths } from './declarations/schema.gen';
-import {
-  loadSubmission,
-  SUBMIT_CONFLICTS,
-  submitDeclaration,
-  type SubmitOutcome,
-} from './submission.server';
+import { loadSubmission, submitDeclaration, type SubmitOutcome } from './submission.server';
 
 /** An unsigned JWT with these claims, as the mock reads them. */
 function bearer(claims: Record<string, unknown>) {
@@ -122,7 +116,47 @@ describe('the summary says when a declaration can be submitted', () => {
 
     expect(await loadSummary(client(), id)).toMatchObject({
       status: 'ok',
-      summary: { canSubmit: true, valid: true, blocking: [] },
+      summary: {
+        canSubmit: true,
+        cannotSubmitReason: null,
+        valid: true,
+        blocking: [],
+        late: false,
+      },
+    });
+  });
+
+  it('cannot while something blocks', async () => {
+    const started = await startDeclaration(client(), MOCK_OBLIGATIONS.initial);
+    if (started.status !== 'started') throw new Error(started.status);
+
+    expect(await loadSummary(client(), started.declaration.id)).toMatchObject({
+      status: 'ok',
+      summary: { canSubmit: false, cannotSubmitReason: 'incomplete', valid: false },
+    });
+  });
+
+  it('says a submission after the due date is late', async () => {
+    const id = await completeDraft();
+    vi.setSystemTime(Date.parse('2026-10-11T07:00:00Z'));
+
+    expect(await loadSummary(client(), id)).toMatchObject({
+      status: 'ok',
+      summary: {
+        declaration: { dueDate: '2026-10-10' },
+        canSubmit: true,
+        late: true,
+      },
+    });
+  });
+
+  it('cannot once submitted', async () => {
+    const id = await completeDraft();
+    submittedOf(await submitDeclaration(client(), { declarationId: id, idempotencyKey: key() }));
+
+    expect(await loadSummary(client(), id)).toMatchObject({
+      status: 'ok',
+      summary: { canSubmit: false, cannotSubmitReason: 'not-a-draft' },
     });
   });
 
@@ -261,11 +295,6 @@ describe('what stops a submit (S3, S4)', () => {
     expect(await submitDeclaration(offline, { declarationId, idempotencyKey: key() })).toEqual({
       status: 'unavailable',
     });
-  });
-
-  it('maps every 409 code of the contract it has copy for', () => {
-    const codes = contractEnum('SubmitProblem', 'declarations.yaml');
-    expect(codes).toEqual(expect.arrayContaining([...SUBMIT_CONFLICTS]));
   });
 });
 
