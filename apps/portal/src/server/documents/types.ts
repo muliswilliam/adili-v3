@@ -3,7 +3,7 @@ import type { components } from './schema.gen';
 type Schemas = components['schemas'];
 
 /**
- * The service widens `UploadPurpose` in code as specs add theirs (drafts/documents.yaml), so the
+ * The service widens `UploadPurpose` in code as specs add theirs (internal/documents.yaml), so the
  * contract lists only `roster-import` until #113 adds `declaration-attachment` and spec 07a adds
  * `clarification-attachment`.
  */
