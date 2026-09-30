@@ -118,6 +118,9 @@ importers:
 
   apps/keycloak-extension:
     devDependencies:
+      '@adili/bff-auth':
+        specifier: workspace:*
+        version: link:../../packages/bff-auth
       '@adili/eslint-config':
         specifier: workspace:*
         version: link:../../packages/eslint-config

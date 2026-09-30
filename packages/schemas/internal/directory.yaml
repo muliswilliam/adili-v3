@@ -2967,6 +2967,16 @@ components:
               format: uuid
             - type: 'null'
           description: Person the declarant account is linked to (`person_id`); null for staff
+        acr:
+          description: Authentication context class of the token (`acr`), e.g. `step-up`
+          type:
+            - string
+            - 'null'
+        authTime:
+          description: When the user last authenticated (`auth_time`), in seconds since the epoch
+          type:
+            - integer
+            - 'null'
       required:
         - subject
         - tenant
@@ -2976,6 +2986,8 @@ components:
         - name
         - issuedAt
         - personId
+        - acr
+        - authTime
     Slug:
       type: string
       pattern: ^[a-z][a-z0-9]{1,19}$
