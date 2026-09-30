@@ -51,7 +51,11 @@ import type { SubmissionResult } from './representation.js';
 
 /** The ACR of a token issued right after a fresh one-time code (the realm's LoA 2, spec 06). */
 export const STEP_UP_ACR = 'step-up';
-/** How long a step-up counts for submission: the one-time code's max age in the realm. */
+/**
+ * How long a step-up counts for submission (spec 06: `auth_time` at most five minutes old). The
+ * realm's max age for the one-time code (`loa-max-age`, 180 s) is shorter, so a step-up Keycloak
+ * answers silently with the old `auth_time` still leaves time to affirm and submit.
+ */
 export const STEP_UP_MAX_AGE_SECONDS = 300;
 /** Key service calls in flight at once while items are encrypted. */
 const ENCRYPT_CONCURRENCY = 16;
