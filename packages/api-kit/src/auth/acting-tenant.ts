@@ -16,9 +16,13 @@ import { ProblemException } from '../problem-details.filter.js';
 import type { AuthenticatedRequest } from './jwt-auth.guard.js';
 import { ACTING_TENANT_HEADER } from './service-token-client.js';
 
-/** Tenant keys (Commission slugs, `eacc`); `platform` is a reserved RLS context, not a tenant. */
-const TENANT_PATTERN = /^[a-z][a-z0-9]{1,19}$/;
-const PLATFORM_TENANT = 'platform';
+/**
+ * A tenant key: a Commission slug, or `eacc`. `platform` matches it but is the reserved RLS
+ * context of cross-tenant work, never a tenant (`PLATFORM_TENANT`).
+ */
+export const TENANT_KEY = /^[a-z][a-z0-9]{1,19}$/;
+/** The reserved RLS context (`app.tenant`) of work across every tenant. */
+export const PLATFORM_TENANT = 'platform';
 
 type InternalRequest = AuthenticatedRequest & { actingTenant?: string };
 
@@ -42,7 +46,7 @@ function actingTenantGuard(scope: string): Type<CanActivate> {
       }
       const header = request.headers[ACTING_TENANT_HEADER];
       const tenant = Array.isArray(header) ? undefined : header;
-      if (!tenant || !TENANT_PATTERN.test(tenant) || tenant === PLATFORM_TENANT) {
+      if (!tenant || !TENANT_KEY.test(tenant) || tenant === PLATFORM_TENANT) {
         throw new ProblemException({
           type: 'about:blank',
           title: 'Validation failed',
@@ -78,7 +82,7 @@ export const InternalApi = (scope: string) =>
       name: 'X-Acting-Tenant',
       required: true,
       description: 'Tenant the calling service acts for; the resource must belong to it',
-      schema: { type: 'string', pattern: TENANT_PATTERN.source },
+      schema: { type: 'string', pattern: TENANT_KEY.source },
     }),
     ApiProblemResponse(HttpStatus.BAD_REQUEST, 'X-Acting-Tenant is missing or not a tenant key'),
     ApiProblemResponse(HttpStatus.FORBIDDEN, `Requires a service token with scope ${scope}`),

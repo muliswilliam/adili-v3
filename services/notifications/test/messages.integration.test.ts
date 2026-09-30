@@ -534,6 +534,17 @@ describe('internal messages API', () => {
       expect(email.sent).toHaveLength(0);
     });
 
+    it('refuses a malformed tenant, and platform for a person, before looking anyone up', async () => {
+      const malformed = await send({ ...reminder('sms', newPerson()), tenant: 'PSC Kenya' });
+      const platform = await send({ ...reminder('sms', newPerson()), tenant: 'platform' });
+
+      expect(malformed.statusCode).toBe(400);
+      expect(malformed.json()).toMatchObject({ errors: [{ path: 'tenant' }] });
+      expect(platform.statusCode).toBe(400);
+      expect(platform.json()).toMatchObject({ errors: [{ path: 'tenant' }] });
+      expect(directory.lookups).toHaveLength(0);
+    });
+
     it('rejects a person id that is not a UUID', async () => {
       const response = await send(reminder('sms', 'OFR-0000417-4'));
 

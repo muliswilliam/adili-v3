@@ -1,3 +1,4 @@
+import { PLATFORM_TENANT, TENANT_KEY } from '@adili/api-kit';
 import { z } from 'zod';
 
 import {
@@ -54,7 +55,7 @@ export const sendMessageBody = z.object({
       "Validated against the template's parameter schema. `obligation-reminder-sms` and `obligation-reminder-email` take exactly `type` (initial, biennial, final), `commissionName` (1 to 120 characters), `statementDate` and `dueDate` (`YYYY-MM-DD`, due on or after statement), `daysLeft` (integer 0 to 366) and `portalUrl` (http or https URL).",
   }),
   locale: z.enum(LOCALES).default('en'),
-  tenant: z.string().min(1).max(64).optional().meta({
+  tenant: z.string().regex(TENANT_KEY).optional().meta({
     description:
       'Tenant key for audit and per-tenant branding. Required for a person recipient (whose contacts are read at that tenant); optional for platform messages to an address',
   }),
@@ -75,6 +76,13 @@ export const sendMessageSchema = sendMessageBody
         code: 'custom',
         path: ['tenant'],
         message: 'is required for a person recipient',
+      });
+    } else if (recipient.kind === 'person' && body.tenant === PLATFORM_TENANT) {
+      // The directory would refuse the lookup, and the retries would never end.
+      ctx.addIssue({
+        code: 'custom',
+        path: ['tenant'],
+        message: 'must name the Commission the person is onboarded at, not platform',
       });
     }
     // Only an address is checked here.

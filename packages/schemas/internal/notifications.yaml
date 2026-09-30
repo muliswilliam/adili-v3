@@ -172,8 +172,7 @@ components:
         tenant:
           description: Tenant key for audit and per-tenant branding. Required for a person recipient (whose contacts are read at that tenant); optional for platform messages to an address
           type: string
-          minLength: 1
-          maxLength: 64
+          pattern: ^[a-z][a-z0-9]{1,19}$
       required:
         - channel
         - recipient
