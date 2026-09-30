@@ -58,6 +58,18 @@ export function conflict(code: string, detail: string): ProblemException {
   );
 }
 
+/** 502 `code`: an upstream system refused or failed the work; `extensions` say how. */
+export function badGateway(
+  code: string,
+  detail: string,
+  extensions: Record<string, unknown> = {},
+): ProblemException {
+  return new ProblemException(
+    { type: 'about:blank', title: 'Bad Gateway', status: HttpStatus.BAD_GATEWAY, detail },
+    { code, ...extensions },
+  );
+}
+
 /** 503 `directory-unavailable`: the Commission directory cannot be reached. */
 export function directoryUnavailable(): ProblemException {
   return new ProblemException({

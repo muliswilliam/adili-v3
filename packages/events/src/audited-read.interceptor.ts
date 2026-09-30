@@ -54,8 +54,8 @@ type AuditedRequest = AuthenticatedRequest & { params?: Record<string, string> }
  * parameters, the actor from the verified token and the route, no response data; its `tenant`
  * is the tenant whose data was read (the one the handler named with `AuditedTenant`, else the
  * route's `slug`, else the tenant a service acts for, else the caller's). Registered for every
- * route by `EventsModule`; routes without the mark pass through untouched. Refused requests never reach it (guards run first); they are the
- * audit service's to record from denials.
+ * route by `EventsModule`; routes without the mark pass through untouched. Refused requests
+ * never reach it (guards run first); they are the audit service's to record from denials.
  */
 @Injectable()
 export class AuditedReadInterceptor implements NestInterceptor {

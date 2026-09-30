@@ -180,7 +180,7 @@ export class ReportSignOffService {
         type: COMPLIANCE_REPORT_REVIEWED,
         subject: report.id,
         tenant,
-        data: { reportId: report.id, fy, status: 'reviewed', source: report.source },
+        data: { reportId: report.id, fy, status: REVIEWED, source: report.source },
       });
       return {
         status: REVIEWED,
@@ -379,7 +379,7 @@ export class ReportSignOffService {
       type: COMPLIANCE_REPORT_SUBMITTED,
       subject: row.id,
       tenant,
-      data: { reportId: row.id, fy, status: 'submitted', reference, late, source },
+      data: { reportId: row.id, fy, status: SUBMITTED, reference, late, source },
     });
     await this.tellWorkflow(tenant, fy);
     return row;

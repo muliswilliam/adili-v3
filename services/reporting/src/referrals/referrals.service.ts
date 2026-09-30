@@ -1,6 +1,6 @@
 import { setTimeout as sleep } from 'node:timers/promises';
 
-import { HttpStatus, Injectable } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { type Principal, ProblemException } from '@adili/api-kit';
 import { type Database, InjectDatabase, withTenant } from '@adili/data-access';
 import { EventPublisher } from '@adili/events';
@@ -19,7 +19,7 @@ import {
 } from '../integration-gateway/integration-gateway-client.js';
 import { InternalApiRejected } from '../internal-api/internal-api.js';
 import { officerOf } from '../officer.js';
-import { badRequest, notFound, workflowUnavailable } from '../problems.js';
+import { badGateway, badRequest, notFound, workflowUnavailable } from '../problems.js';
 import { ReviewClient, ReviewUnavailable } from '../review/review-client.js';
 import { eaccContext } from '../system-context.js';
 import {
@@ -272,13 +272,9 @@ function decodeCursor(cursor: string): Cursor {
 
 /** 502 `icms-push-failed`: the referral is `push-failed` with `error`; push again to retry. */
 function pushFailed(error: IcmsPushError): ProblemException {
-  return new ProblemException(
-    {
-      type: 'about:blank',
-      title: 'Bad Gateway',
-      status: HttpStatus.BAD_GATEWAY,
-      detail: 'The referral could not be registered with ICMS. Push it again to retry.',
-    },
-    { code: 'icms-push-failed', error },
+  return badGateway(
+    'icms-push-failed',
+    'The referral could not be registered with ICMS. Push it again to retry.',
+    { error },
   );
 }

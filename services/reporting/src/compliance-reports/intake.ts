@@ -14,8 +14,10 @@ export type IntakeStatus = 'not-reported' | 'submitted-on-time' | 'submitted-lat
 export const INTAKE_SECTIONS = ['initial', 'biennial', 'final'] as const;
 export type IntakeSection = (typeof INTAKE_SECTIONS)[number];
 
-/** reporting.yaml `Intake` outliers. */
-// No "declared, none expected": hosted declared derives from expected; federated rules refuse it.
+/**
+ * reporting.yaml `Intake` outliers. No "declared, none expected": hosted declared derives from
+ * expected, and the federated rules refuse it.
+ */
 export type Outlier =
   'low-initial-rate' | 'low-biennial-rate' | 'low-final-rate' | 'section-missing';
 

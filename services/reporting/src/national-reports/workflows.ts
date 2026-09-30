@@ -1,6 +1,7 @@
 /**
- * The national consolidated report's workflow (ADR-003), hosted by the reporting worker (`../workflows.ts`).
- * Bundled into Temporal's deterministic sandbox: import only `@temporalio/workflow` and types.
+ * The national consolidated report's workflow (ADR-003), hosted by the reporting worker
+ * (`../workflows.ts`). Bundled into Temporal's deterministic sandbox: import only
+ * `@temporalio/workflow` and types.
  */
 import { proxyActivities } from '@temporalio/workflow';
 
