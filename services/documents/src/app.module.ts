@@ -11,6 +11,7 @@ import { TemporalModule, TemporalReadinessCheck } from '@adili/temporal';
 
 import { config, SERVICE_NAME } from './config.js';
 import { schema } from './db/schema.js';
+import { IssuanceModule } from './issuance/issuance.module.js';
 import { S3ReadinessCheck, StorageModule } from './storage/storage.module.js';
 import { UploadsModule } from './uploads/uploads.module.js';
 
@@ -51,6 +52,7 @@ import { UploadsModule } from './uploads/uploads.module.js';
     }),
     StorageModule,
     UploadsModule,
+    IssuanceModule,
   ],
 })
 export class AppModule {}

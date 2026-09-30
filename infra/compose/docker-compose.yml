@@ -211,6 +211,19 @@ services:
     entrypoint: ['/bin/sh', '/scripts/create-transit-keys.sh']
     <<: *init-job
 
+  # Demo root CA and the documents signing keys and certificate (ADR-010). OpenBao runs in dev
+  # mode (in memory), so every `infra:up` after a restart generates a fresh demo root.
+  openbao-demo-ca:
+    image: openbao/openbao:2.7.0
+    depends_on:
+      openbao: { condition: service_healthy }
+    environment:
+      BAO_ADDR: http://openbao:8200
+      BAO_TOKEN: adili-dev-root-token
+    volumes: [./openbao/create-demo-ca.sh:/scripts/create-demo-ca.sh:ro]
+    entrypoint: ['/bin/sh', '/scripts/create-demo-ca.sh']
+    <<: *init-job
+
   clamav:
     image: clamav/clamav:1.5-debian
     ports: ['3310:3310']
