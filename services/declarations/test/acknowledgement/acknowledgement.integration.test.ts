@@ -345,6 +345,29 @@ describe('document.issued.v1 sets the acknowledgement and tells the declarant (S
     expect(emailAgain?.messageId).toBe(email?.messageId);
   });
 
+  it('tells the declarant with no database transaction open, so a slow notifications holds nothing up', async () => {
+    const version = await submitted();
+    const event = issued(version);
+    api.notifications.answer('email', 'held', 'sent');
+
+    const first = api.acknowledgementConsumers.documentIssued(event);
+    await until(() => api.notifications.acknowledgements.length === 1);
+    // The transport delivers the event again while notifications has not answered the first
+    // email: nothing of the first delivery is holding the inbox, so it goes through, under the
+    // same keys (notifications sends each message once).
+    await expect(within(api.acknowledgementConsumers.documentIssued(event), 5_000)).resolves.toBe(
+      undefined,
+    );
+    api.notifications.release();
+    await first;
+
+    const [held, ...rest] = api.notifications.acknowledgements;
+    expect(rest.map((message) => message.channel)).toEqual(['email', 'sms', 'sms']);
+    expect(rest[0]?.idempotencyKey).toBe(held?.idempotencyKey);
+    expect(rest[1]?.idempotencyKey).toBe(rest[2]?.idempotencyKey);
+    expect(await events(DECLARATION_ACKNOWLEDGED)).toHaveLength(1);
+  });
+
   it('shows the slip while notifications is down, and sends once it is back', async () => {
     const version = await submitted();
     const event = issued(version);
@@ -498,3 +521,25 @@ describe('the verified count from verification.checked.v1', () => {
     ).toBe(3);
   });
 });
+
+/** Resolves once `condition` holds, polling; fails after five seconds. */
+async function until(condition: () => boolean): Promise<void> {
+  const deadline = Date.now() + 5_000;
+  while (!condition()) {
+    if (Date.now() > deadline) throw new Error('condition not met in time');
+    await new Promise((resolve) => setTimeout(resolve, 10));
+  }
+}
+
+/** `promise`, or a rejection once `ms` have passed without it settling. */
+function within<T>(promise: Promise<T>, ms: number): Promise<T> {
+  let timer: NodeJS.Timeout | undefined;
+  const timeout = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => {
+      reject(new Error(`still waiting after ${String(ms)}ms`));
+    }, ms);
+  });
+  return Promise.race([promise, timeout]).finally(() => {
+    clearTimeout(timer);
+  });
+}

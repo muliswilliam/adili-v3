@@ -8,7 +8,7 @@ import {
   withPerson,
   withTenant,
 } from '@adili/data-access';
-import { consumeOnce, type EventEnvelope, EventPublisher } from '@adili/events';
+import { consumeIdempotent, consumeOnce, type EventEnvelope, EventPublisher } from '@adili/events';
 import {
   DECLARATION_ACKNOWLEDGED,
   DECLARATION_ACKNOWLEDGEMENT_REQUESTED,
@@ -207,7 +207,8 @@ export class AcknowledgementService {
    * records `declaration.acknowledged.v1` (once; a slip announced again changes nothing), then
    * tells the declarant by email and SMS. The two steps have inbox entries of their own, so a
    * notifications outage retries only the messages, and the declarant sees the slip meanwhile.
-   * Each message keeps its `Idempotency-Key` per version and channel: never sent twice.
+   * The messages are sent with no transaction open, the step recorded once they are; each keeps
+   * its `Idempotency-Key` per version and channel: never sent twice.
    */
   async issued(event: EventEnvelope, data: IssuedDocument): Promise<void> {
     if (data.documentType !== ACKNOWLEDGEMENT_SLIP || !data.subjectRef.startsWith(SUBJECT_PREFIX)) {
@@ -253,19 +254,23 @@ export class AcknowledgementService {
       });
     });
 
-    await consumeOnce(this.db, NOTIFIED_CONSUMER, event, async (tx) => {
-      await switchTenant(tx, context);
-      const [found] = await tx
-        .select({
-          version: declarationVersions,
-          type: declarations.type,
-          statementDate: declarations.statementDate,
-          commissionName: commissionRefs.name,
-        })
-        .from(declarationVersions)
-        .innerJoin(declarations, eq(declarations.id, declarationVersions.declarationId))
-        .leftJoin(commissionRefs, eq(commissionRefs.slug, declarationVersions.tenant))
-        .where(eq(declarationVersions.id, versionId));
+    // The messages go out with no transaction open (ADR-013); the keys make a second run, a
+    // redelivery or a retry after a failed channel, send nothing twice.
+    await consumeIdempotent(this.db, NOTIFIED_CONSUMER, event, async () => {
+      const found = await withTenant(this.db, context, async (tx) => {
+        const [row] = await tx
+          .select({
+            version: declarationVersions,
+            type: declarations.type,
+            statementDate: declarations.statementDate,
+            commissionName: commissionRefs.name,
+          })
+          .from(declarationVersions)
+          .innerJoin(declarations, eq(declarations.id, declarationVersions.declarationId))
+          .leftJoin(commissionRefs, eq(commissionRefs.slug, declarationVersions.tenant))
+          .where(eq(declarationVersions.id, versionId));
+        return row;
+      });
       // Only the slip set on the version is announced to the declarant.
       if (found?.version.ackDocumentId !== data.documentId) return;
       if (found.commissionName === null) {
