@@ -448,6 +448,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/internal/v1/review/referrals/{referralId}/icms-payload": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                referralId: components["parameters"]["ReferralId"];
+            };
+            cookie?: never;
+        };
+        /**
+         * What ICMS needs of a sent referral, with the declarant's national ID (reporting service)
+         * @description Service tokens with `review:internal`; the Commission in `X-Acting-Tenant`. A sent referral only. The cover sheet's fields of `ReferralPackagePayload` without the evidence, plus the declarant's national ID, read from the directory's roster record of the referral's case at each call and kept nowhere in the review service. Every read is audited (`audit.read.v1`, action `review.referral.icms-payload.read`), naming the officer in `X-Acting-Subject` when the caller gives one.
+         */
+        get: operations["internalGetReferralIcmsPayload"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/review/cases/{caseId}/registry": {
         parameters: {
             query?: never;
@@ -1632,6 +1654,13 @@ export interface components {
             } | null;
             /** Format: date-time */
             sentAt: string | null;
+            /** @description ICMS's case number once EACC registered the sent referral there (`referral.icms-registered.v1`, spec 09); null until then */
+            icmsCaseNumber: string | null;
+            /**
+             * Format: date-time
+             * @description When ICMS registered it; null until then
+             */
+            icmsRegisteredAt: string | null;
             declarantName: string;
             personnelFileNumber: string;
             /** @description `getReferral` only: what the package includes, by reference (attachments are listed in the manifest once it is assembled) */
@@ -1652,6 +1681,33 @@ export interface components {
              * @description The upload (attachments) or issued document (letters); null for records
              */
             documentId: string | null;
+        };
+        /** @description What ICMS needs of a sent referral (spec 09 BE-5): the package cover sheet's fields with the declarant's national ID. Personal data: the caller passes it to ICMS and keeps it nowhere. */
+        ReferralIcmsPayload: {
+            /** @description RFL-<ISSUER>-<YEAR>-<seq>-<check> */
+            reference: string;
+            grounds: components["schemas"]["ReferralGrounds"];
+            groundsLabel: string;
+            cycleYear: number;
+            commission: {
+                name: string;
+                issuerCode: string;
+            };
+            declarant: {
+                name: string;
+                personnelFileNumber: string;
+                /** @description From the directory's roster record of the referral's case */
+                nationalId: string;
+            };
+            narrative: string;
+            proposedBy: string;
+            /** Format: date-time */
+            proposedAt: string;
+            approvedBy: string;
+            /** Format: date-time */
+            approvedAt: string;
+            /** Format: date-time */
+            sentAt: string;
         };
         ReferralPackagePayload: {
             reference: string;
@@ -2634,6 +2690,43 @@ export interface operations {
             404: components["responses"]["NotFound"];
             /** @description The evidence could not be read from declarations or documents */
             502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            503: components["responses"]["DirectoryUnavailable"];
+        };
+    };
+    internalGetReferralIcmsPayload: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description The officer on whose behalf the service reads it; recorded in the audit event */
+                "X-Acting-Subject"?: string;
+            };
+            path: {
+                referralId: components["parameters"]["ReferralId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Payload */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReferralIcmsPayload"];
+                };
+            };
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description Problem code `roster-record-unknown`: the referral names no roster record of the declarant, or the Commission's roster has none, so the national ID cannot be read */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };
