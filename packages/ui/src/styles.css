@@ -71,6 +71,10 @@
   --code-string: oklch(0.869 0.092 138.4); /* #b6e3a8 */
   --code-comment: oklch(0.637 0.006 84.6); /* #8d8b87 */
   --code-border: var(--code);
+  /* The photo panel beside the signed-out pages: the sky that fills it while the photo loads, and
+     the ink on the photo. The same in both themes, since the photo does not change. */
+  --art: oklch(0.815 0.071 244.9); /* #9cc8ee */
+  --art-foreground: oklch(0.218 0 0); /* #1a1a1a */
   /* Warm glow at the foot of the onboarding screens, sampled from the Figma frame
      "onboarding-step-1". Replace with the exact stops once exported. */
   --glow: #f0cab9;
@@ -203,13 +207,16 @@
   --color-code-string: var(--code-string);
   --color-code-comment: var(--code-comment);
   --color-code-border: var(--code-border);
-  /* 6, 8, 10, 12, 14 and 16px. The kit's --r-sm, --r and --r-lg are md, lg and 2xl. */
+  --color-art: var(--art);
+  --color-art-foreground: var(--art-foreground);
+  /* 6, 8, 10, 12, 14, 16 and 24px. The kit's --r-sm, --r and --r-lg are md, lg and 2xl. */
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 2px);
   --radius-item: calc(var(--radius) + 4px);
   --radius-2xl: calc(var(--radius) + 6px);
+  --radius-3xl: calc(var(--radius) + 14px);
   --shadow-control: var(--elevation-control);
   --shadow-control-hover: var(--elevation-control-hover);
   --shadow-control-focus: var(--elevation-control-focus);
