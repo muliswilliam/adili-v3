@@ -3,12 +3,13 @@
  * templated message to a person on one channel. Notifications resolves the person's verified contact through the
  * directory (spec 04 BE-3). A Nest token: tests replace it with a fake.
  */
+import type { DeclarationType } from '@adili/numbering';
 
 export type ReminderChannel = 'sms' | 'email';
 
 /** Parameters of the `obligation-reminder-sms` and `obligation-reminder-email` templates. */
 export interface ReminderParams {
-  type: 'initial' | 'biennial' | 'final';
+  type: DeclarationType;
   /** 1 to 120 characters. */
   commissionName: string;
   statementDate: string;
@@ -36,7 +37,7 @@ export interface AcknowledgementParams {
   /** The declaration's reference number, e.g. `DCB-PSC-2027-0000001-K`. */
   reference: string;
   /** The type the reference names. */
-  type: 'initial' | 'biennial' | 'final';
+  type: DeclarationType;
   /** Above 1 the copy names the version: an amendment. */
   version: number;
   /** 1 to 120 characters. */

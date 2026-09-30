@@ -4,6 +4,7 @@ import {
   MinusSignIcon,
   Tick02Icon,
 } from '@hugeicons/core-free-icons';
+import type { DeclarationType } from '@adili/numbering/references';
 
 import type { IconProps } from '../components/icon';
 import type { StatusBadgeVariant } from '../components/status-badge';
@@ -15,7 +16,7 @@ import type { Same } from './type-checks';
  * "type labels, status words and reminder outcomes come from one table"). The unions mirror
  * `declarations.yaml`; the apps check their generated types against them.
  */
-export type ObligationType = 'initial' | 'biennial' | 'final';
+export type ObligationType = DeclarationType;
 
 export type ObligationStatus = 'upcoming' | 'due' | 'overdue' | 'filed' | 'cancelled';
 

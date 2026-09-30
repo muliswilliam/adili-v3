@@ -4,6 +4,7 @@
  * (slice 07) opens its case. Identifiers, dates and flags only: no names, amounts or contents
  * (ADR-013 §3); consumers pull what else they need by version.
  */
+import type { DeclarationType } from '@adili/numbering/references';
 
 /**
  * A declaration version was submitted: the legal act committed. Subject: the declaration; tenant:
@@ -18,7 +19,7 @@ export interface DeclarationSubmittedData extends Record<string, unknown> {
   version: number;
   /** The reference number, allocated at version 1 and kept by later versions (ADR-011). */
   reference: string;
-  type: 'initial' | 'biennial' | 'final';
+  type: DeclarationType;
   statementDate: string;
   obligationId: string;
   /** Whether it is an amendment (version 2 or later). */

@@ -97,7 +97,13 @@ export const DCF = defineScheme({
   sequenceDigits: 7,
 });
 
-export type DeclarationType = 'initial' | 'biennial' | 'final';
+/**
+ * The kinds of declaration the Act requires (s.34): the one vocabulary for declaration and
+ * obligation types across services, events, templates and front ends.
+ */
+export const DECLARATION_TYPES = ['initial', 'biennial', 'final'] as const;
+
+export type DeclarationType = (typeof DECLARATION_TYPES)[number];
 
 /** The scheme a declaration of each type is numbered in. */
 export const declarationSchemes: Readonly<Record<DeclarationType, NumberingScheme>> = Object.freeze(
