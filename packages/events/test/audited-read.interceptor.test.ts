@@ -88,6 +88,19 @@ describe('AuditedReadInterceptor', () => {
     ]);
   });
 
+  it('records the subject a service acts for as the actor onBehalfOf', async () => {
+    const response = await app.inject({
+      method: 'GET',
+      url: '/v1/commissions/psc/records/rec-1',
+      headers: { 'x-acting-subject': 'analyst-e' },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(recorded.map((event) => (event.data as { actor: unknown }).actor)).toEqual([
+      { subject: 'anonymous', clientId: null, tenant: null, roles: [], onBehalfOf: 'analyst-e' },
+    ]);
+  });
+
   it('records nothing for routes without the mark, or reads that failed', async () => {
     await app.inject({ method: 'GET', url: '/v1/commissions/psc/records' });
     const missing = await app.inject({ method: 'GET', url: '/v1/commissions/psc/records/missing' });

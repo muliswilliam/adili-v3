@@ -20,6 +20,12 @@ import type { NewEvent } from './envelope.js';
 /** A read of sensitive data, for the audit trail (ADR-008 Pipeline step 2). */
 export const AUDIT_READ = 'audit.read.v1';
 
+/**
+ * The header a calling service names the officer it reads for in (e.g. `X-Acting-Subject` on
+ * internal reads); recorded as the actor's `onBehalfOf` (ADR-008 `actor.on-behalf-of`).
+ */
+export const ACTING_SUBJECT_HEADER = 'x-acting-subject';
+
 export interface AuditReadData extends Record<string, unknown> {
   /** The route's audit action, e.g. `roster.record.viewed`. */
   action: AuditedReadOptions['action'];
@@ -35,6 +41,8 @@ export interface AuditReadData extends Record<string, unknown> {
     clientId: string | null;
     tenant: string | null;
     roles: readonly string[];
+    /** The subject the caller says it acts for (`X-Acting-Subject`); absent when it names none. */
+    onBehalfOf?: string;
   };
   outcome: 'success';
   request: {
@@ -50,7 +58,8 @@ type AuditedRequest = AuthenticatedRequest & { params?: Record<string, string> }
  * Records an `audit.read.v1` event in the outbox for each successful response of a route marked
  * `@AuditedRead` (api-kit), before the response is sent: a read the audit trail cannot record
  * fails instead of going unrecorded. The event carries the action, the resource's path
- * parameters, the actor from the verified token and the route, no response data; its `tenant`
+ * parameters, the actor from the verified token (with the subject a service acts for, when it
+ * names one in `X-Acting-Subject`) and the route, no response data; its `tenant`
  * is the tenant whose data was read (the route's `slug`, else the tenant a service acts for,
  * else the caller's). Registered for every route by `EventsModule`; routes without the mark
  * pass through untouched. Refused requests never reach it (guards run first); they are the
@@ -84,6 +93,7 @@ function auditRead(mark: AuditedReadOptions, request: AuditedRequest): NewEvent<
   const principal = request.principal;
   const params = request.params ?? {};
   const actingTenant = request.headers[ACTING_TENANT_HEADER];
+  const actingSubject = request.headers[ACTING_SUBJECT_HEADER];
   const tenant =
     params.slug ??
     (typeof actingTenant === 'string' ? actingTenant : undefined) ??
@@ -100,6 +110,9 @@ function auditRead(mark: AuditedReadOptions, request: AuditedRequest): NewEvent<
         clientId: principal?.clientId ?? null,
         tenant: principal?.tenant ?? null,
         roles: principal?.roles ?? [],
+        ...(typeof actingSubject === 'string' && actingSubject !== ''
+          ? { onBehalfOf: actingSubject }
+          : {}),
       },
       outcome: 'success',
       request: { method: request.method, route: request.routeOptions.url ?? request.url },

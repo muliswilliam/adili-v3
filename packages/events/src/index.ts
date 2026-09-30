@@ -1,4 +1,5 @@
 export {
+  ACTING_SUBJECT_HEADER,
   AUDIT_READ,
   type AuditReadData,
   AuditedReadInterceptor,
