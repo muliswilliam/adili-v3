@@ -48,6 +48,7 @@ import {
  */
 
 const AMEND = '/v1/declarations/{declarationId}/amend';
+const SUBMIT = '/v1/declarations/{declarationId}/submit';
 const DISCARD = '/v1/declarations/{declarationId}/amend/discard';
 const VERSIONS = '/v1/declarations/{declarationId}/versions';
 const VERSION = '/v1/declarations/{declarationId}/versions/{version}';
@@ -352,6 +353,24 @@ describe('amending after the due date, and discarding an amendment (S8)', () => 
       draftVersion: declaration.draftVersion,
     });
     expect(await events('declaration.amendment-started.v1')).toEqual([]);
+  });
+
+  it('refuses to submit an amendment started before the due date once it has passed (409 amendment-window-closed)', async () => {
+    const { declaration, obligationId } = await submitted();
+    expect((await amend(declaration.id)).statusCode).toBe(200);
+    const filedBefore = await obligationOf(obligationId);
+    api.clock.setToday('2028-01-01');
+
+    const response = await submit(declaration.id, steppedUp(ACHIENG));
+
+    expect(response.statusCode).toBe(409);
+    expect(response.json()).toMatchObject({ code: 'amendment-window-closed' });
+    expect(contractErrors(responseBody(SUBMIT, 'post', 409), response.json())).toEqual([]);
+    expect((await versionRows(declaration.id)).map((row) => row.version)).toEqual([1]);
+    expect(await obligationOf(obligationId)).toEqual(filedBefore);
+    const read = await api.request('GET', `/v1/declarations/${declaration.id}`, declarant(ACHIENG));
+    expect(read.json<Declaration>()).toMatchObject({ status: 'amending', currentVersion: 1 });
+    expect(await events('declaration.submitted.v1')).toHaveLength(1);
   });
 
   it('puts the declaration back as submitted with version 1 untouched', async () => {
