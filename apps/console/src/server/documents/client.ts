@@ -1,7 +1,7 @@
-import createClient, { type Client } from 'openapi-fetch';
+import { type MockFetch, mockableClient } from '@adili/api-kit/client';
+import type { Client } from 'openapi-fetch';
 
 import { callDirectory, type DirectoryResult } from '../directory/client';
-import type { MockFetch } from '../mockable-client.server';
 import type { components, paths } from './api.gen';
 
 /**
@@ -43,19 +43,12 @@ export function createDocumentsClient(options: {
    */
   mock?: MockFetch | null;
 }): DocumentsClient {
-  const fetchImpl: (request: Request, init: RequestInit) => Promise<Response> =
-    options.mock && process.env.NODE_ENV !== 'production'
-      ? options.mock
-      : (request, init) => (options.fetch ?? fetch)(request, init);
-  return createClient<paths>({
+  return mockableClient<paths>({
     baseUrl: options.baseUrl,
-    headers: { authorization: `Bearer ${options.accessToken}`, accept: 'application/json' },
-    fetch: (request) => {
-      const timeoutMs = documentsTimeoutMs(request.method, new URL(request.url).pathname);
-      // The deadline goes to fetch itself: held only by a Request, a timeout signal can be
-      // garbage collected before it fires.
-      return fetchImpl(request, { signal: AbortSignal.timeout(timeoutMs) });
-    },
+    headers: { authorization: `Bearer ${options.accessToken}` },
+    timeoutMs: (request) => documentsTimeoutMs(request.method, new URL(request.url).pathname),
+    mock: options.mock,
+    fetch: options.fetch,
   });
 }
 

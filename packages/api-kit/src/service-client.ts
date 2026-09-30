@@ -2,6 +2,7 @@ import createClient, { type Client } from 'openapi-fetch';
 import type { z } from 'zod';
 
 import { type ServiceTokenClient, ServiceTokenError } from './auth/service-token-client.js';
+import { withDeadline } from './client/deadline.js';
 
 /** How long a synchronous call to another service may take by default (ADR-013 §2). */
 export const SERVICE_CALL_TIMEOUT_MS = 2_000;
@@ -131,7 +132,10 @@ function createAuthenticatedClient<Paths extends object>(
   options: ServiceClientOptions,
 ): Client<Paths> {
   const fetchImpl = options.fetch ?? globalThis.fetch;
-  const timeoutMs = options.timeoutMs ?? SERVICE_CALL_TIMEOUT_MS;
+  const send = withDeadline(
+    (request, init) => fetchImpl(request, init),
+    options.timeoutMs ?? SERVICE_CALL_TIMEOUT_MS,
+  );
 
   const attempt = async (request: Request): Promise<Response> => {
     let token: string;
@@ -146,12 +150,7 @@ function createAuthenticatedClient<Paths extends object>(
     const headers = new Headers(request.headers);
     headers.set('authorization', `Bearer ${token}`);
     try {
-      // The deadline goes to fetch itself: a timeout signal only held by a Request (which follows
-      // it through a weak reference) can be garbage collected before it fires, and the call then
-      // waits for the server whatever the timeout.
-      return await fetchImpl(new Request(request, { headers }), {
-        signal: AbortSignal.timeout(timeoutMs),
-      });
+      return await send(new Request(request, { headers }));
     } catch (error) {
       throw new ServiceCallFailed(`${request.method} ${new URL(request.url).pathname} unanswered`, {
         cause: error,

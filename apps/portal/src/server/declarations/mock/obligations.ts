@@ -218,14 +218,22 @@ export function anyMockObligation(id: string): Obligation | undefined {
   return fixture && toObligation(detail(fixture));
 }
 
+/** Whether the request reads the declarant's obligations or one obligation (OBLIGATIONS_MOCK). */
+export function isObligationRead(request: Request, path: string): boolean {
+  return (
+    request.method === 'GET' &&
+    (path === '/v1/me/obligations' || /^\/v1\/obligations\/[^/]+$/.test(path))
+  );
+}
+
 /**
  * Answers the obligation reads, or null for any other request. A request without a bearer
  * token gets 401.
  */
 export function obligationReads(request: Request, path: string): Response | null {
+  if (!isObligationRead(request, path)) return null;
   const one = /^\/v1\/obligations\/([^/]+)$/.exec(path)?.[1];
   const list = path === '/v1/me/obligations';
-  if (request.method !== 'GET' || (!list && !one)) return null;
 
   const claims = bearerClaims(request);
   if (!claims) return problem(401, 'Unauthorized');

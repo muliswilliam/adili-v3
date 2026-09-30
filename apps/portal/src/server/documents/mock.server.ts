@@ -1,6 +1,6 @@
 /**
  * In-memory stand-in for the documents service's upload endpoints (documents.yaml), used when
- * DECLARATIONS_MOCK is set until the service implements them.
+ * DECLARATIONS_DRAFTS_MOCK is set until the service implements them.
  *
  * - `POST /v1/uploads` reserves an upload. `uploadUrl` is the same-origin path
  *   `/api/mock-uploads/{id}`, served in mock mode by `routes/api/mock-uploads.$id.ts`, which

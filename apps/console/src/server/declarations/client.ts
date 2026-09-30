@@ -4,7 +4,8 @@ import type {
   ReminderChannel as SharedReminderChannel,
   ReminderOutcome as SharedReminderOutcome,
 } from '@adili/ui';
-import createClient, { type Client } from 'openapi-fetch';
+import { mockableClient } from '@adili/api-kit/client';
+import type { Client } from 'openapi-fetch';
 
 import { callDirectory, type DirectoryResult } from '../directory/client';
 import type { components, paths } from './api.gen';
@@ -54,14 +55,11 @@ export function createDeclarationsClient(options: {
   accessToken: string;
   fetch?: typeof fetch;
 }): DeclarationsClient {
-  const fetchImpl = options.fetch ?? fetch;
-  return createClient<paths>({
+  return mockableClient<paths>({
     baseUrl: options.baseUrl,
-    headers: { authorization: `Bearer ${options.accessToken}`, accept: 'application/json' },
-    // The deadline goes to fetch itself: held only by a Request, a timeout signal can be garbage
-    // collected before it fires.
-    fetch: (request) =>
-      fetchImpl(request, { signal: AbortSignal.timeout(DECLARATIONS_TIMEOUT_MS) }),
+    headers: { authorization: `Bearer ${options.accessToken}` },
+    timeoutMs: DECLARATIONS_TIMEOUT_MS,
+    fetch: options.fetch,
   });
 }
 

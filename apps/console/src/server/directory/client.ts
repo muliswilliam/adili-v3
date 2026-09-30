@@ -1,4 +1,5 @@
-import createClient, { type Client } from 'openapi-fetch';
+import { mockableClient } from '@adili/api-kit/client';
+import type { Client } from 'openapi-fetch';
 
 import { callService, type ServiceError, type ServiceResult } from '../service-call';
 import type { components, paths } from './api.gen';
@@ -88,16 +89,11 @@ export function createDirectoryClient(options: {
   accessToken: string;
   fetch?: typeof fetch;
 }): DirectoryClient {
-  const fetchImpl = options.fetch ?? fetch;
-  return createClient<paths>({
+  return mockableClient<paths>({
     baseUrl: options.baseUrl,
-    headers: { authorization: `Bearer ${options.accessToken}`, accept: 'application/json' },
-    fetch: (request) => {
-      const timeoutMs = directoryTimeoutMs(request.method, new URL(request.url).pathname);
-      // The deadline goes to fetch itself: held only by a Request, a timeout signal can be
-      // garbage collected before it fires.
-      return fetchImpl(request, { signal: AbortSignal.timeout(timeoutMs) });
-    },
+    headers: { authorization: `Bearer ${options.accessToken}` },
+    timeoutMs: (request) => directoryTimeoutMs(request.method, new URL(request.url).pathname),
+    fetch: options.fetch,
   });
 }
 

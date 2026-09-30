@@ -1,12 +1,15 @@
 /**
- * In-memory stand-in for the declarations service (declarations.yaml), used when
- * DECLARATIONS_MOCK is set: to work on the portal without the service, and for spec 05's
- * endpoints until the service implements them (#115). Every signed-in caller shares one draft
- * store; the service scopes drafts to their owner.
+ * In-memory stand-in for the declarations service (declarations.yaml), in two parts with a flag
+ * each: the declarant's obligations (OBLIGATIONS_MOCK, spec 04), and declaration drafts
+ * (DECLARATIONS_DRAFTS_MOCK), to work on the portal without the service and for spec 05's
+ * endpoints until the service implements them (#115). Requests of a part that is off go to the
+ * real service, so real obligations work with mocked drafts. Every signed-in caller shares one
+ * draft store; the service scopes drafts to their owner.
  *
- * The declarant's obligations and their detail (spec 04) come from `./mock/obligations.ts`, by
- * the token's person. A declaration can be started for any of those, or for one of these
- * (`MOCK_OBLIGATIONS`, for tests, not listed):
+ * The declarant's obligations and their detail come from `./mock/obligations.ts`, by the token's
+ * person. A declaration can be started for any of those (or, with the obligations mock off, for
+ * any obligation the real service shows the caller), or for one of these (`MOCK_OBLIGATIONS`,
+ * for tests, not listed):
  * - Teachers Service Commission, biennial 2027: upcoming, statement date 1 Nov 2027, income
  *   period assumed (S1). A draft can be prepared; submission waits for the statement date.
  * - Public Service Commission, initial: due, statement date 10 Sep 2026.
@@ -55,7 +58,7 @@ import {
   householdPersons,
 } from './mock/household';
 import { isRecord, json, noContent, problem, readJson } from '../mock-http';
-import { anyMockObligation, obligationReads } from './mock/obligations';
+import { anyMockObligation, isObligationRead, obligationReads } from './mock/obligations';
 import { composeMaterialChanges, otherCompleteness } from './mock/other';
 import { nilConflictsWithItems, statementCompleteness } from './mock/statement';
 import {
@@ -225,22 +228,55 @@ export function editElsewhere(declarationId: string) {
   if (stored) stored.draftVersion += 1;
 }
 
-export function mockDeclarationsFetch(request: Request): Promise<Response> {
-  return route(request);
+/** The parts of the service the mock answers; the others go to the real service. */
+export interface DeclarationsMockParts {
+  /** The declarant's obligations and one obligation's detail (OBLIGATIONS_MOCK). */
+  obligations: boolean;
+  /** Declaration drafts: everything else (DECLARATIONS_DRAFTS_MOCK). */
+  drafts: boolean;
 }
 
-async function route(request: Request): Promise<Response> {
+/** A client fetch answering `parts` in memory and passing the rest to the real service. */
+export function declarationsMock(
+  parts: DeclarationsMockParts,
+  realFetch: typeof fetch = fetch,
+): (request: Request, init?: RequestInit) => Promise<Response> {
+  return (request, init) => route(request, parts, (real) => realFetch(real, init));
+}
+
+/** The whole service in memory (tests). */
+export function mockDeclarationsFetch(request: Request): Promise<Response> {
+  return route(request, { obligations: true, drafts: true }, () =>
+    Promise.reject(new Error('every part is mocked')),
+  );
+}
+
+type RealService = (request: Request) => Promise<Response>;
+
+async function route(
+  request: Request,
+  parts: DeclarationsMockParts,
+  real: RealService,
+): Promise<Response> {
   const url = new URL(request.url);
   const { pathname } = url;
   const path = decodeURIComponent(pathname);
   const method = request.method;
 
-  const read = obligationReads(request, path);
-  if (read) return read;
+  if (isObligationRead(request, path)) {
+    return parts.obligations ? (obligationReads(request, path) ?? real(request)) : real(request);
+  }
+  if (!parts.drafts) return real(request);
   if (method === 'GET' && path === '/v1/me/declarations') return myDeclarations();
 
   const start = /^\/v1\/obligations\/([^/]+)\/declaration$/.exec(path);
-  if (method === 'POST' && start?.[1]) return startDeclaration(start[1]);
+  if (method === 'POST' && start?.[1]) {
+    const obligationId = start[1];
+    const obligation = parts.obligations
+      ? mockObligation(obligationId)
+      : await realObligation(request, obligationId, real);
+    return startDeclaration(obligationId, obligation);
+  }
 
   const section = /^\/v1\/declarations\/([^/]+)\/sections\/([^/]+)$/.exec(path);
   if (section?.[1] && section[2]) {
@@ -455,10 +491,35 @@ function sourcedAssets(at: string): Draft<AssetItem>[] {
   ];
 }
 
-function startDeclaration(obligationId: string) {
-  const obligation =
+function mockObligation(obligationId: string): Obligation | undefined {
+  return (
     OBLIGATIONS.find((candidate) => candidate.id === obligationId) ??
-    anyMockObligation(obligationId);
+    anyMockObligation(obligationId)
+  );
+}
+
+/** The obligation as the real service shows it to the caller; undefined when it answers 404. */
+async function realObligation(
+  request: Request,
+  obligationId: string,
+  real: RealService,
+): Promise<Obligation | undefined> {
+  const url = new URL(`/v1/obligations/${encodeURIComponent(obligationId)}`, request.url);
+  const response = await real(
+    new Request(url, {
+      headers: {
+        accept: 'application/json',
+        authorization: request.headers.get('authorization') ?? '',
+      },
+    }),
+  );
+  if (response.ok) return (await response.json()) as Obligation;
+  await response.body?.cancel();
+  if (response.status === 404) return undefined;
+  throw new Error(`The declarations service answered ${String(response.status)}`);
+}
+
+function startDeclaration(obligationId: string, obligation: Obligation | undefined) {
   if (!obligation) return problem(404, 'Not found');
   if (obligation.status === 'filed' || obligation.status === 'cancelled') {
     return problem(409, `The obligation is ${obligation.status}`);
