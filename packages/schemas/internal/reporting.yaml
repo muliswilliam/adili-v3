@@ -386,7 +386,6 @@ paths:
         section from the report's counts, outliers, and how often and when it was last chased.
         Outliers: `low-<section>-rate` when officers were expected and the declared rate is below
         the section's configured threshold (`INTAKE_MIN_<SECTION>_RATE`, 0.8 by default);
-        `zero-expected-with-declared` when a section declares officers where none were expected;
         `section-missing` when a section's counts are absent, or no officer in service is
         expected in a year with a biennial cycle. The totals cover the year whatever the filters;
         `nationalDeclaredRate` is declared over expected across the submitted reports' sections.
@@ -1292,14 +1291,7 @@ components:
                 type: array
                 items:
                   type: string
-                  enum:
-                    [
-                      low-initial-rate,
-                      low-biennial-rate,
-                      low-final-rate,
-                      zero-expected-with-declared,
-                      section-missing,
-                    ]
+                  enum: [low-initial-rate, low-biennial-rate, low-final-rate, section-missing]
               chases:
                 type: object
                 description: EACC's weekly chases from 1 August while not reported

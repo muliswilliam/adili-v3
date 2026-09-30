@@ -15,12 +15,9 @@ export const INTAKE_SECTIONS = ['initial', 'biennial', 'final'] as const;
 export type IntakeSection = (typeof INTAKE_SECTIONS)[number];
 
 /** reporting.yaml `Intake` outliers. */
+// No "declared, none expected": hosted declared derives from expected; federated rules refuse it.
 export type Outlier =
-  | 'low-initial-rate'
-  | 'low-biennial-rate'
-  | 'low-final-rate'
-  | 'zero-expected-with-declared'
-  | 'section-missing';
+  'low-initial-rate' | 'low-biennial-rate' | 'low-final-rate' | 'section-missing';
 
 /** The lowest declared rate (declared / expected) per section before a report is an outlier. */
 export type RateThresholds = Record<IntakeSection, number>;
@@ -108,7 +105,6 @@ export function sectionRates(
  *
  * - `low-<section>-rate`: officers were expected to declare and the declared rate is below the
  *   section's threshold;
- * - `zero-expected-with-declared`: a section declares officers where none were expected;
  * - `section-missing`: a section's counts are absent, or no officer in service is expected to
  *   declare in a year with a biennial cycle (the in-service section left empty).
  */
@@ -120,7 +116,6 @@ export function outliersOf(counts: Partial<ReportCounts>, thresholds: RateThresh
       outliers.add('section-missing');
       continue;
     }
-    if (found.expected === 0 && found.declared > 0) outliers.add('zero-expected-with-declared');
     const rate = rateOf(found.declared, found.expected);
     if (rate !== null && rate < thresholds[section]) outliers.add(`low-${section}-rate`);
   }
@@ -132,7 +127,6 @@ export function outliersOf(counts: Partial<ReportCounts>, thresholds: RateThresh
     'low-initial-rate',
     'low-biennial-rate',
     'low-final-rate',
-    'zero-expected-with-declared',
     'section-missing',
   ];
   return order.filter((outlier) => outliers.has(outlier));

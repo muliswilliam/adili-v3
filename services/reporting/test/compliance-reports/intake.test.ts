@@ -78,10 +78,7 @@ describe('EACC intake', () => {
     ).toEqual(['low-biennial-rate']);
   });
 
-  it('flags declared officers where none were expected, and missing sections', () => {
-    expect(
-      outliersOf(counts({ final: { expected: 0, declared: 2, notDeclared: 0 } }), THRESHOLDS),
-    ).toEqual(['zero-expected-with-declared']);
+  it('flags missing sections', () => {
     const withoutFinal: Partial<ReportCounts> = counts();
     delete withoutFinal.final;
     expect(outliersOf(withoutFinal, THRESHOLDS)).toEqual(['section-missing']);
