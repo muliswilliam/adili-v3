@@ -31,7 +31,7 @@ export const en = {
   columnCommission: 'Commission',
   columnType: 'Type',
   columnCategories: 'Categories',
-  columnDeclarant: 'Reporting officer',
+  columnReportingOfficer: 'Reporting officer',
   columnRoster: 'Roster',
   columnCreated: 'Created',
   moreCategories: (count: number, citations: string) => `${count} more: ${citations}`,
