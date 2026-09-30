@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 
-import { and, eq } from 'drizzle-orm';
+import { and, eq, sql } from 'drizzle-orm';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
 import {
@@ -147,6 +147,21 @@ function obligationOf(obligationId: string) {
       .where(eq(filingObligations.id, obligationId));
     return row;
   });
+}
+
+/** Whether another transaction holds the declaration's row lock right now. */
+async function isLocked(declarationId: string): Promise<boolean> {
+  try {
+    await api.asPerson(ACHIENG, (tx) =>
+      tx.execute(sql`select 1 from declarations where id = ${declarationId} for update nowait`),
+    );
+    return false;
+  } catch (error) {
+    let cause: unknown = error;
+    while (cause instanceof Error && cause.cause) cause = cause.cause;
+    if ((cause as { code?: string }).code === '55P03') return true;
+    throw error;
+  }
 }
 
 function events(type: string) {
@@ -470,6 +485,40 @@ describe('amending after the due date, and discarding an amendment (S8)', () => 
       declarationId: draft.id,
       uploadId: payslip.id,
     });
+  });
+
+  it('checks the attachments with documents before it locks the declaration (ADR-013)', async () => {
+    const obligationId = await givenObligation(ACHIENG);
+    const draft = await completeDraft(ACHIENG, obligationId);
+    const deed = upload('psc');
+    api.documents.givenUploads(deed);
+    const linked = await api.request(
+      'POST',
+      `/v1/declarations/${draft.id}/attachments`,
+      declarant(ACHIENG),
+      { body: { sectionKey: 'statement:officer', itemId: ASSET.id, uploadId: deed.id } },
+    );
+    const attachment = linked.json<DeclarationAttachment>();
+    expect((await submit(draft.id, steppedUp(ACHIENG))).statusCode).toBe(201);
+    expect((await amend(draft.id)).statusCode).toBe(200);
+    expect(
+      (
+        await api.request(
+          'DELETE',
+          `/v1/declarations/${draft.id}/attachments/${attachment.id}`,
+          declarant(ACHIENG),
+        )
+      ).statusCode,
+    ).toBe(204);
+    const lockedWhileAsking: boolean[] = [];
+    api.documents.whileAnswering = async () => {
+      lockedWhileAsking.push(await isLocked(draft.id));
+    };
+
+    expect((await discardAmendment(draft.id)).statusCode).toBe(200);
+
+    expect(lockedWhileAsking).toEqual([false]);
+    expect((await attachmentRows(draft.id)).map((row) => row.id)).toEqual([attachment.id]);
   });
 
   it('answers a declaration with no amendment in progress as it is, and refuses a draft', async () => {
