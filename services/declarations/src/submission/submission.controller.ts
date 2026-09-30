@@ -12,6 +12,11 @@ import {
   schemaRef,
 } from '@adili/api-kit';
 
+import type {
+  DeclarationVersion,
+  DeclarationVersionDetail,
+} from '../declaration/representation.js';
+import { versionNumber } from '../declaration/versions.js';
 import type { Declaration } from '../drafts/representation.js';
 import {
   ApiDeclarationIdParam,
@@ -22,13 +27,8 @@ import {
   type Reply,
 } from '../http.js';
 import { AmendmentService } from './amendment.service.js';
-import type {
-  DeclarationVersion,
-  DeclarationVersionDetail,
-  SubmissionResult,
-} from './representation.js';
+import type { SubmissionResult } from './representation.js';
 import { SubmissionService } from './submission.service.js';
-import { versionNumber } from './versions.js';
 
 /**
  * Submission, amendments and versions (spec 06). Declarant only, by the `person_id` claim: any

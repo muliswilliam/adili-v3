@@ -6,6 +6,7 @@ import { and, eq } from 'drizzle-orm';
 import { v7 as uuidv7 } from 'uuid';
 
 import { Clock } from '../clock.js';
+import { isEditable } from '../declaration/schema.js';
 import type { DeclarationsSchema } from '../db/schema.js';
 import type { Transaction } from '../db/transaction.js';
 import {
@@ -34,7 +35,7 @@ import {
   storeSection,
 } from './repository.js';
 import { attachmentLinkSchema, type DeclarationAttachment } from './representation.js';
-import { declarationAttachments, declarationSections, isEditable } from './schema.js';
+import { declarationAttachments, declarationSections } from './schema.js';
 import { SectionCipher } from './section-cipher.js';
 import { isStatementKey, type SectionContents, type StatementKey } from './sections.js';
 

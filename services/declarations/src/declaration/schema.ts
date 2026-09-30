@@ -4,6 +4,7 @@ import {
   boolean,
   check,
   customType,
+  date,
   foreignKey,
   index,
   integer,
@@ -14,10 +15,97 @@ import {
   text,
   timestamp,
   unique,
+  uniqueIndex,
   uuid,
 } from 'drizzle-orm/pg-core';
 
-import { declarations } from '../drafts/schema.js';
+import { OBLIGATION_TYPES } from '../obligations/engine.js';
+
+/**
+ * The declaration aggregate, shared by the drafts that edit it and the submission that files it:
+ * the declaration itself (spec 05), and its submitted versions with their items (spec 06).
+ * Drafts' sections and attachments are in `drafts/schema.ts`.
+ */
+
+/** Binary columns (ciphertexts). */
+export const bytea = customType<{ data: Buffer; driverData: Buffer }>({
+  dataType: () => 'bytea',
+});
+
+/**
+ * `draft` → `submitted` at the first submission; `submitted` → `amending` (reopened) → `submitted`
+ * (a new version); `draft` or `amending` → `discarded` (discarding an amendment restores
+ * `submitted`). `filed` is the obligation's status, not the declaration's.
+ */
+export const DECLARATION_STATUS_VALUES = ['draft', 'amending', 'submitted', 'discarded'] as const;
+export type DeclarationStatus = (typeof DECLARATION_STATUS_VALUES)[number];
+
+/** A draft, or a submitted declaration reopened for amendment: its sections can be edited. */
+export const EDITABLE_STATUSES = ['draft', 'amending'] as const satisfies DeclarationStatus[];
+
+export function isEditable(status: DeclarationStatus): boolean {
+  return (EDITABLE_STATUSES as readonly DeclarationStatus[]).includes(status);
+}
+
+export const INCOME_PERIOD_SOURCE_VALUES = ['declared', 'assumed'] as const;
+
+export const SCHEMA_VERSION = 'declaration.v1';
+
+/**
+ * One declaration: the aggregate. Type, statement date and income period are derived from the
+ * obligation when the draft starts, never chosen. `draft_version` is the optimistic concurrency
+ * token (the `ETag`), bumped by every section save in the save's transaction.
+ */
+export const declarations = pgTable(
+  'declarations',
+  {
+    id: uuid().primaryKey(),
+    tenant: text().notNull(),
+    personId: uuid().notNull(),
+    obligationId: uuid().notNull(),
+    rosterRecordId: uuid().notNull(),
+    type: text({ enum: OBLIGATION_TYPES }).notNull(),
+    statementDate: date({ mode: 'string' }).notNull(),
+    /** Exclusive: the income period is (from, to]. */
+    incomePeriodFrom: date({ mode: 'string' }).notNull(),
+    incomePeriodTo: date({ mode: 'string' }).notNull(),
+    /** `assumed` when no declaration on Adili gave the start, so reviewers can see it. */
+    previousStatementDateSource: text({ enum: INCOME_PERIOD_SOURCE_VALUES }).notNull(),
+    status: text({ enum: DECLARATION_STATUS_VALUES }).notNull().default('draft'),
+    schemaVersion: text().notNull().default(SCHEMA_VERSION),
+    draftVersion: integer().notNull().default(1),
+    /** The section saved last, for "Continue"; null until the first save. */
+    lastSection: text(),
+    /** Allocated at the first submission and kept by every later version (ADR-011). */
+    reference: text(),
+    /** The version in force: the latest submitted; null until the first submission. */
+    currentVersion: integer(),
+    /** The version an amendment in progress started from; null unless `amending`. */
+    amendingFromVersion: integer(),
+    createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+    // The database's clock on insert and on every update alike, so "newest first" holds even when
+    // the service's clock and the database's disagree.
+    updatedAt: timestamp({ withTimezone: true })
+      .notNull()
+      .defaultNow()
+      .$onUpdate(() => sql`now()`),
+  },
+  (table) => [
+    uniqueIndex('declarations_live_obligation_key')
+      .on(table.obligationId)
+      .where(sql`${table.status} <> 'discarded'`),
+    index('declarations_person_id_idx').on(table.personId),
+    check('declarations_type_check', sql`${table.type} in ('initial', 'biennial', 'final')`),
+    check(
+      'declarations_status_check',
+      sql`${table.status} in ('draft', 'amending', 'submitted', 'discarded')`,
+    ),
+    check(
+      'declarations_previous_statement_date_source_check',
+      sql`${table.previousStatementDateSource} in ('declared', 'assumed')`,
+    ),
+  ],
+);
 
 /**
  * Submitted declarations (spec 06): every submission is an immutable version, the assembled
@@ -29,10 +117,6 @@ import { declarations } from '../drafts/schema.js';
  * migrations 0016, 0018 and 0019 for the partitions, triggers and row-level security (the
  * declarant reads their own through `app.person`; only the Commission's context writes).
  */
-
-const bytea = customType<{ data: Buffer; driverData: Buffer }>({
-  dataType: () => 'bytea',
-});
 
 export const ACKNOWLEDGEMENT_STATUS_VALUES = ['pending', 'issued', 'failed'] as const;
 export type AcknowledgementStatus = (typeof ACKNOWLEDGEMENT_STATUS_VALUES)[number];
@@ -172,4 +256,4 @@ export const declarationItems = pgTable(
   ],
 );
 
-export const submissionSchema = { declarationVersions, declarationItems };
+export const declarationSchema = { declarations, declarationVersions, declarationItems };

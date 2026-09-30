@@ -14,8 +14,8 @@ import {
 import { DECLARATIONS_INTERNAL_SCOPE } from '@adili/roles';
 
 import { ApiVersionParams, NOT_VISIBLE } from '../http.js';
-import type { Acknowledgement } from '../submission/representation.js';
-import { versionNumber } from '../submission/versions.js';
+import type { Acknowledgement } from '../declaration/representation.js';
+import { versionNumber } from '../declaration/versions.js';
 import { AcknowledgementService } from './acknowledgement.service.js';
 import type { AcknowledgementPayload } from './representation.js';
 

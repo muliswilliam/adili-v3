@@ -13,9 +13,10 @@ import { eq } from 'drizzle-orm';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
 import type { AcknowledgementPayload } from '../../src/acknowledgement/representation.js';
-import { ACKNOWLEDGEMENT_DEADLINE_MS } from '../../src/acknowledgement/status.js';
+import { ACKNOWLEDGEMENT_DEADLINE_MS } from '../../src/declaration/acknowledgement.js';
 import { commissionRefs, declarationVersions, outbox } from '../../src/db/schema.js';
-import type { Acknowledgement, SubmissionResult } from '../../src/submission/representation.js';
+import type { Acknowledgement } from '../../src/declaration/representation.js';
+import type { SubmissionResult } from '../../src/submission/representation.js';
 import { contractErrors, okResponse } from '../support/contract.js';
 import {
   type Caller,

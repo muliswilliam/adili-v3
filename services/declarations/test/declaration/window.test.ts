@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { amendRefusal, isLate, submitRefusal } from '../../src/submission/window.js';
+import { amendRefusal, isLate, submitRefusal } from '../../src/declaration/window.js';
 
 const BIENNIAL = { statementDate: '2027-11-01', dueDate: '2027-12-31' };
 

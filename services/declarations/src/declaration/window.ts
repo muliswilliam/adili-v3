@@ -1,5 +1,5 @@
 import type { ObligationStatus } from '../obligations/engine.js';
-import { type DeclarationStatus, isEditable } from '../drafts/schema.js';
+import { type DeclarationStatus, isEditable } from './schema.js';
 
 /**
  * When a declaration can be submitted (spec 06), pure: the rules the submit transaction enforces

@@ -1,17 +1,12 @@
 import type { DeclarationSectionKey } from '@adili/forms';
 import { and, eq, inArray, like, ne, sql } from 'drizzle-orm';
 
+import { declarations, EDITABLE_STATUSES } from '../declaration/schema.js';
 import type { Transaction } from '../db/transaction.js';
 import { isUuid } from '../guards.js';
 import type { ObligationStatus } from '../obligations/engine.js';
 import { filingObligations } from '../obligations/schema.js';
-import {
-  declarationSections,
-  declarations,
-  EDITABLE_STATUSES,
-  type SectionCompleteness,
-  type SectionMetadata,
-} from './schema.js';
+import { type SectionCompleteness, type SectionMetadata, declarationSections } from './schema.js';
 import type { SectionCipher } from './section-cipher.js';
 import type { DocumentFrame } from './summary.js';
 import {

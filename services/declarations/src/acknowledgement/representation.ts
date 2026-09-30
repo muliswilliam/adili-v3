@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 import { obligationTypeSchema } from '../obligations/representation.js';
-import { declarationReferenceSchema } from '../submission/reference.js';
+import { declarationReferenceSchema } from '../declaration/reference.js';
 
 /**
  * Bodies of the acknowledgement API (spec 06). They are the contract: the OpenAPI document,

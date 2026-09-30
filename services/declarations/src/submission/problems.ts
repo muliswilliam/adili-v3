@@ -1,7 +1,7 @@
 import { ProblemException } from '@adili/api-kit';
 import type { DeclarationIssue } from '@adili/forms';
 
-import type { AmendRefusal, ObligationRefusal } from './window.js';
+import type { AmendRefusal, ObligationRefusal } from '../declaration/window.js';
 
 /** The problems the submission route answers with, each built in one place. */
 

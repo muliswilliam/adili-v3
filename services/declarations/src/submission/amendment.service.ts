@@ -6,6 +6,17 @@ import { desc, eq } from 'drizzle-orm';
 import { v7 as uuidv7 } from 'uuid';
 
 import { Clock } from '../clock.js';
+import type {
+  DeclarationVersion,
+  DeclarationVersionDetail,
+} from '../declaration/representation.js';
+import {
+  declarations,
+  type DeclarationStatus,
+  declarationVersions,
+} from '../declaration/schema.js';
+import { openSnapshot, versionOf, versionRow } from '../declaration/versions.js';
+import { amendRefusal } from '../declaration/window.js';
 import type { DeclarationsSchema } from '../db/schema.js';
 import type { Transaction } from '../db/transaction.js';
 import {
@@ -24,12 +35,7 @@ import {
   sectionIs,
 } from '../drafts/repository.js';
 import type { Declaration } from '../drafts/representation.js';
-import {
-  declarationAttachments,
-  declarationSections,
-  declarations,
-  type DeclarationStatus,
-} from '../drafts/schema.js';
+import { declarationAttachments, declarationSections } from '../drafts/schema.js';
 import { SectionCipher } from '../drafts/section-cipher.js';
 import { isUuid } from '../guards.js';
 import { nairobiDate } from '../obligations/dates.js';
@@ -41,11 +47,6 @@ import {
 } from './amendment.js';
 import { declarationAmendmentDiscarded, declarationAmendmentStarted } from './events.js';
 import { amendRefused } from './problems.js';
-import type { DeclarationVersion, DeclarationVersionDetail } from './representation.js';
-import { declarationVersions } from './schema.js';
-import { versionOf } from './submission.service.js';
-import { openSnapshot, versionRow } from './versions.js';
-import { amendRefusal } from './window.js';
 
 /** The sections a reset wrote, for the cache once committed. */
 interface Reset {

@@ -20,8 +20,8 @@ import type {
 import type {
   DeclarationVersion,
   DeclarationVersionDetail,
-  SubmissionResult,
-} from '../../src/submission/representation.js';
+} from '../../src/declaration/representation.js';
+import type { SubmissionResult } from '../../src/submission/representation.js';
 import { contractErrors, okResponse, responseBody } from '../support/contract.js';
 import {
   type Caller,

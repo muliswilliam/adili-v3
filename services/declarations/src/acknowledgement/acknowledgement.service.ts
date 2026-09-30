@@ -22,9 +22,12 @@ import { v5 as uuidv5 } from 'uuid';
 
 import { Clock } from '../clock.js';
 import { config } from '../config.js';
+import { acknowledgementOf, reissueDecision } from '../declaration/acknowledgement.js';
+import type { Acknowledgement } from '../declaration/representation.js';
+import { declarations, declarationVersions } from '../declaration/schema.js';
+import { openSnapshot, versionRow } from '../declaration/versions.js';
 import type { DeclarationsSchema } from '../db/schema.js';
 import { personOf } from '../drafts/access.js';
-import { declarations } from '../drafts/schema.js';
 import {
   NotificationsClient,
   NotificationsKeyReused,
@@ -34,11 +37,7 @@ import {
 import { commissionRefs, filingObligations } from '../obligations/schema.js';
 import { PLATFORM_CONTEXT, systemContext } from '../obligations/system-context.js';
 import { deriveItems } from '../submission/items.js';
-import type { Acknowledgement } from '../submission/representation.js';
-import { declarationVersions } from '../submission/schema.js';
-import { openSnapshot, versionRow } from '../submission/versions.js';
 import type { AcknowledgementPayload } from './representation.js';
-import { acknowledgementOf, reissueDecision } from './status.js';
 
 /** The document type of acknowledgement slips in the documents service. */
 export const ACKNOWLEDGEMENT_SLIP = 'acknowledgement-slip';

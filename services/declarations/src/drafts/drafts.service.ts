@@ -15,9 +15,9 @@ import { isRecord, isUuid, UUID } from '../guards.js';
 import { commissionRef } from '../obligations/access.js';
 import { nairobiDate } from '../obligations/dates.js';
 import { commissionRefs, filingObligations } from '../obligations/schema.js';
-import { acknowledgementOf } from '../acknowledgement/status.js';
-import { declarationVersions } from '../submission/schema.js';
-import { amendRefusal, isLate, submitRefusal } from '../submission/window.js';
+import { acknowledgementOf } from '../declaration/acknowledgement.js';
+import { declarations, declarationVersions, isEditable } from '../declaration/schema.js';
+import { amendRefusal, isLate, submitRefusal } from '../declaration/window.js';
 import { personOf } from './access.js';
 import { itemIds, keepAttachments } from './attachments.js';
 import { assessSections, type DraftSections, type SectionAssessment } from './completeness.js';
@@ -80,8 +80,6 @@ import { reviewDraft } from './summary.js';
 import {
   declarationAttachments,
   declarationSections,
-  declarations,
-  isEditable,
   obligationDrafts,
   type SectionMetadata,
 } from './schema.js';

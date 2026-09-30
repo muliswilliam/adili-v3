@@ -6,9 +6,14 @@ import { z } from 'zod';
 
 import type { Transaction } from '../db/transaction.js';
 import { isUuid } from '../guards.js';
+import { acknowledgementOf } from './acknowledgement.js';
+import type { DeclarationVersion } from './representation.js';
 import { declarationVersions } from './schema.js';
 
-/** Reads of submitted versions, inside a transaction the caller opened (person or tenant). */
+/**
+ * Submitted versions: reads inside a transaction the caller opened (person or tenant), and the
+ * version as the contract shows it.
+ */
 
 /** A `version` path parameter: a positive integer, else 400. */
 export const versionNumber = new ZodValidationPipe(z.coerce.number().int().min(1));
@@ -54,4 +59,17 @@ export async function versionRow(
     .limit(1);
   const [row] = lock ? await query.for('update') : await query;
   return row ?? null;
+}
+
+/** The version as the contract shows it, its acknowledgement as the declarant sees it at `now`. */
+export function versionOf(row: VersionRow, now: Date): DeclarationVersion {
+  return {
+    version: row.version,
+    reference: row.reference,
+    submittedAt: row.submittedAt.toISOString(),
+    late: row.late,
+    canonicalSha256: row.canonicalSha256,
+    supersededAt: row.supersededAt?.toISOString() ?? null,
+    acknowledgement: acknowledgementOf(row, now),
+  };
 }

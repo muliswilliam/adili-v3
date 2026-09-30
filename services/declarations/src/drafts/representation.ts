@@ -1,15 +1,15 @@
+import type { ProblemCode } from '@adili/api-kit';
 import { z } from 'zod';
 
 import { commissionRefSchema, obligationTypeSchema } from '../obligations/representation.js';
-import { acknowledgementStatusSchema } from '../submission/acknowledgement-status.js';
-import { declarationReferenceSchema } from '../submission/reference.js';
+import { acknowledgementStatusSchema } from '../declaration/representation.js';
+import { declarationReferenceSchema } from '../declaration/reference.js';
 import {
   DECLARATION_STATUS_VALUES,
   INCOME_PERIOD_SOURCE_VALUES,
   SCHEMA_VERSION,
-  SECTION_COMPLETENESS_VALUES,
-} from './schema.js';
-import type { SubmitProblemCode } from '../submission/representation.js';
+} from '../declaration/schema.js';
+import { SECTION_COMPLETENESS_VALUES } from './schema.js';
 import { SECTION_KEY } from './sections.js';
 
 /**
@@ -174,7 +174,7 @@ export const CANNOT_SUBMIT_REASON_VALUES = [
   'before-statement-date',
   'amendment-window-closed',
   'incomplete',
-] as const satisfies readonly SubmitProblemCode[];
+] as const satisfies readonly ProblemCode[];
 export type CannotSubmitReason = (typeof CANNOT_SUBMIT_REASON_VALUES)[number];
 
 export const declarationSummarySchema = z.object({

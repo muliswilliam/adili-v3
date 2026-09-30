@@ -41,15 +41,14 @@ import {
   statusCountsSchema,
   summaryCycleSchema,
 } from './obligations/representation.js';
-import { declarationReferenceSchema } from './submission/reference.js';
+import { declarationReferenceSchema } from './declaration/reference.js';
 import {
   acknowledgementSchema,
   acknowledgementStatusSchema,
   declarationVersionDetailSchema,
   declarationVersionSchema,
-  submissionResultSchema,
-  submitProblemSchema,
-} from './submission/representation.js';
+} from './declaration/representation.js';
+import { submissionResultSchema, submitProblemSchema } from './submission/representation.js';
 
 /**
  * Named schemas of the declarations service's OpenAPI document (`#/components/schemas/<name>`),
