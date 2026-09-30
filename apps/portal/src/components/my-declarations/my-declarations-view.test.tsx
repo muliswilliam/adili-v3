@@ -255,11 +255,12 @@ describe('my declarations (spec 06 FE-4)', () => {
     const versions = within(row).getByRole('list', { name: 'Versions of Initial declaration' });
     const [v2, v1] = within(versions).getAllByRole('listitem');
     if (!v2 || !v1) throw new Error('two versions expected');
-    expect(within(v2).getByText('Version 2')).toBeTruthy();
-    expect(within(v2).getByText('In force')).toBeTruthy();
+    // One badge says the version and whether it is in force, in text.
+    expect(within(v2).getByText('Version 2 · current')).toBeTruthy();
+    expect(within(v2).queryByText('In force')).toBeNull();
     expect(within(v2).getByText('Verified 1 time')).toBeTruthy();
-    expect(within(v1).getByText('Version 1')).toBeTruthy();
-    expect(within(v1).getByText('Superseded')).toBeTruthy();
+    expect(within(v1).getByText('Version 1 · superseded')).toBeTruthy();
+    expect(within(v1).queryByText('Superseded')).toBeNull();
     expect(within(v1).getByText('Submitted 26 Sep 2026, 10:42')).toBeTruthy();
     expect(within(v1).getByText('Verified 3 times')).toBeTruthy();
 

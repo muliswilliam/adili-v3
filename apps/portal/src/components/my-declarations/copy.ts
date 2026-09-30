@@ -33,8 +33,6 @@ export const MY_DECLARATIONS_COPY = {
   versionsLoading: 'Loading the versions',
   versionsFailed: 'We could not load the versions.',
   tryAgain: 'Try again',
-  superseded: 'Superseded',
-  inForce: 'In force',
   lateVersion: 'late',
   closedNote: (commission: string) => `Due date passed. To change it, contact ${commission}.`,
   // Amend

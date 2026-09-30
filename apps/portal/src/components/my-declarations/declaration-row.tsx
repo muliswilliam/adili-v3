@@ -305,36 +305,28 @@ function VersionList({
   }
   return (
     <ul aria-label={COPY.versionsOf(title)}>
-      {load.versions.map((version) => {
-        const superseded = version.supersededAt !== null;
-        return (
-          <li
-            key={version.version}
-            className="flex flex-wrap items-center gap-3 border-b border-border py-2.5 text-sm last:border-b-0"
-          >
-            <VersionBadge
-              version={version.version}
-              className={superseded ? 'bg-muted text-muted-foreground' : undefined}
-            />
-            <span className="min-w-[160px] flex-1">
-              {COPY.submittedAt(version.submittedAt)}
-              {version.late ? ` · ${COPY.lateVersion}` : ''}
-            </span>
-            {superseded ? (
-              <Badge>{COPY.superseded}</Badge>
-            ) : (
-              <Badge variant="success">{COPY.inForce}</Badge>
-            )}
-            <Verified count={version.acknowledgement.verifiedCount} />
-            <SlipButton
-              version={version.version}
-              acknowledgement={version.acknowledgement}
-              slips={slips}
-              variant="ghost"
-            />
-          </li>
-        );
-      })}
+      {load.versions.map((version) => (
+        <li
+          key={version.version}
+          className="flex flex-wrap items-center gap-3 border-b border-border py-2.5 text-sm last:border-b-0"
+        >
+          <VersionBadge
+            version={version.version}
+            state={version.supersededAt === null ? 'current' : 'superseded'}
+          />
+          <span className="min-w-[160px] flex-1">
+            {COPY.submittedAt(version.submittedAt)}
+            {version.late ? ` · ${COPY.lateVersion}` : ''}
+          </span>
+          <Verified count={version.acknowledgement.verifiedCount} />
+          <SlipButton
+            version={version.version}
+            acknowledgement={version.acknowledgement}
+            slips={slips}
+            variant="ghost"
+          />
+        </li>
+      ))}
     </ul>
   );
 }
