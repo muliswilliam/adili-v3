@@ -209,7 +209,15 @@ function acknowledgementEmail(params: AcknowledgementParams): RenderedEmail {
   };
 }
 
-/** Every message the service can send, by template id. Params are validated before rendering. */
+/**
+ * Every message the service can send, by template id. Params are validated before rendering.
+ *
+ * Later specs add theirs here, which widens the contract's `TemplateId` enum: 07a clarifications
+ * (issued, reminder), 08 decisions, notices, salary stopped and reinstated, 09 Form M (draft
+ * ready, reminder, chase, receipt), access requests (acknowledged, notified, decisions to
+ * applicant and declarant, package ready, officer reminder), law-enforcement access (grant
+ * notice, decision) and certified copies (ready).
+ */
 export const templates = {
   'onboarding-otp-email': define({
     channel: 'email',

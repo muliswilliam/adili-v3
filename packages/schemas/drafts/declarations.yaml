@@ -1,6 +1,5 @@
-# Drafted operations of the declarations API for specs not implemented yet: 05 (declaration
-# drafts), 07a (internal reads for review) and 08
-# (person obligation history), with suggestions, the assistant and help. `pnpm --filter
+# Drafted operations of the declarations API for specs not implemented yet: 07a (internal reads
+# for review) and 08 (person obligation history), with suggestions, the assistant and help. `pnpm --filter
 # @adili/declarations contracts` merges them into packages/schemas/internal/declarations.yaml,
 # where they may reference the implemented components (e.g. `#/components/schemas/Obligation`,
 # `CommissionRef`, `ObligationType`, `ProblemDetails`). When an operation or component is
@@ -730,12 +729,6 @@ components:
       schema:
         type: string
         format: uuid
-    SectionKey:
-      name: sectionKey
-      in: path
-      required: true
-      schema:
-        $ref: '#/components/schemas/SectionKey'
     VersionNumber:
       name: version
       in: path
