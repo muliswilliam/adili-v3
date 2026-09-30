@@ -103,7 +103,6 @@ export const Route = createFileRoute('/roster/')({
   component: RosterOverview,
 });
 
-/** A roster-workspace role without a tenant: a broken account, shown as a failed load. */
 function RosterOverview() {
   const data = Route.useLoaderData();
   const { workspace, tenant } = Route.useRouteContext();

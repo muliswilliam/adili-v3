@@ -19,7 +19,6 @@ export interface RosterLayoutData {
   commission: DirectoryResult<Commission>;
 }
 
-/** A roster-workspace role without a tenant: a broken account, shown as a failed load. */
 /** Whether a match's route context opens the Roster workspace. */
 function opensWorkspace(context: unknown): boolean {
   return typeof context === 'object' && context !== null && 'workspace' in context

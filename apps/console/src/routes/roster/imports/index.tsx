@@ -34,7 +34,6 @@ declare module '@tanstack/react-router' {
 const historySearch = z.object({ cursor: z.string().max(500).optional().catch(undefined) });
 type HistorySearch = z.infer<typeof historySearch>;
 
-/** A roster-workspace role without a tenant: a broken account, shown as a failed load. */
 export const Route = createFileRoute('/roster/imports/')({
   validateSearch: historySearch,
   loaderDeps: ({ search }) => search,

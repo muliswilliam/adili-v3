@@ -17,7 +17,6 @@ interface FlaggedData {
   records: DirectoryResult<RosterRecordPage>;
 }
 
-/** A roster-workspace role without a tenant: a broken account, shown as a failed load. */
 export const Route = createFileRoute('/roster/flagged')({
   loader: async ({ location, context }): Promise<FlaggedData | null> => {
     // The layout shows no list without the workspace; do not fetch one.

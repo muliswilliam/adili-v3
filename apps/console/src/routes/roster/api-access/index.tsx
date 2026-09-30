@@ -79,7 +79,6 @@ export const Route = createFileRoute('/roster/api-access/')({
   component: ApiAccess,
 });
 
-/** A roster-workspace role without a tenant: a broken account, shown as a failed load. */
 const isForbidden = (error: DirectoryError) =>
   error.kind === 'problem' && error.problem.status === 403;
 

@@ -23,7 +23,6 @@ interface RecordsData {
   records: DirectoryResult<RosterRecordPage>;
 }
 
-/** A roster-workspace role without a tenant: a broken account, shown as a failed load. */
 export const Route = createFileRoute('/roster/records/')({
   validateSearch: recordsSearchSchema,
   loaderDeps: ({ search }) => search,

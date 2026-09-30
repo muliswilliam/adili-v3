@@ -11,7 +11,6 @@ import type { DirectoryResult, TenantPolicyHistory } from '../../server/director
 import { createTenantPolicyVersion, getTenantPolicy } from '../../server/policy';
 import { SERVICE_UNAVAILABLE } from '../../server/service-call';
 
-/** A Commission role without a tenant: a broken account, shown as a failed load. */
 /** Staff of the Commission other than its admin: they do not see the policy (spec 04). */
 const notAdmin = 'not-admin' as const;
 

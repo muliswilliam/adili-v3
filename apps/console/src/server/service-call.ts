@@ -26,7 +26,10 @@ export type ServiceError<Problem extends BaseProblem = BaseProblem> =
 export type ServiceResult<T, Problem extends BaseProblem = BaseProblem> =
   { ok: true; data: T } | { ok: false; error: ServiceError<Problem> };
 
-/** The outcome of a call that could not be made, or got no answer: worth retrying. */
+/**
+ * The outcome of a call that could not be made, or got no answer: worth retrying. Also what a
+ * loader returns for a Commission role without a tenant (a broken account): a failed load.
+ */
 export const SERVICE_UNAVAILABLE = {
   ok: false,
   error: { kind: 'unavailable', detail: null },

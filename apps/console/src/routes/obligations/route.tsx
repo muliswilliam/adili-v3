@@ -26,7 +26,6 @@ export interface ObligationsLayoutData {
   summary: DeclarationsResult<CommissionObligationsSummary>;
 }
 
-/** A Commission role without a tenant: a broken account, shown as a failed load. */
 /** Whether a match's route context opens the Obligations workspace. */
 function opensWorkspace(context: unknown): boolean {
   return typeof context === 'object' && context !== null && 'workspace' in context

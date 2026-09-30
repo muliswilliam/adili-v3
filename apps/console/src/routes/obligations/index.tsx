@@ -25,7 +25,6 @@ import { SERVICE_UNAVAILABLE } from '../../server/service-call';
 
 const PATH = '/obligations';
 
-/** A Commission role without a tenant: a broken account, shown as a failed load. */
 export const Route = createFileRoute('/obligations/')({
   validateSearch: obligationsSearchSchema,
   loaderDeps: ({ search }) => search,
