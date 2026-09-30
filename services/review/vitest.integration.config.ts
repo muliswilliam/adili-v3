@@ -12,6 +12,9 @@ export default defineConfig({
     include: ['test/**/*.integration.test.ts'],
     testTimeout: 60_000,
     hookTimeout: 60_000,
+    // One file at a time: each file starts an app with its own pool and Temporal worker, and
+    // sixteen of them at once exhaust CI's Postgres connections (the reporting service does the same).
+    fileParallelism: false,
     setupFiles: ['test/support/temporal-task-queue.ts'],
     env: {
       ...parseEnv(readFileSync('.env.example', 'utf8')),
