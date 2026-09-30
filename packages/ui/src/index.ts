@@ -1,3 +1,12 @@
+export {
+  AI_PROVIDER_NAMES,
+  AI_TASK_NAMES,
+  AiLabel,
+  type AiLabelDetails,
+  type AiLabelMessages,
+  type AiLabelProps,
+  describeAiOutput,
+} from './components/ai-label';
 export { Alert, AlertDescription, AlertTitle, type AlertProps } from './components/alert';
 export {
   type AttachmentListItem,
@@ -93,6 +102,16 @@ export {
   DialogTrigger,
 } from './components/dialog';
 export { EmptyState, type EmptyStateProps } from './components/empty-state';
+export {
+  type Feedback,
+  FEEDBACK_NOTE_MAX_LENGTH,
+  FEEDBACK_REASONS,
+  FeedbackControl,
+  type FeedbackControlProps,
+  type FeedbackMessages,
+  type FeedbackRating,
+  type FeedbackReason,
+} from './components/feedback-control';
 export {
   FileDropZone,
   type FileDropZoneProps,
@@ -198,6 +217,14 @@ export {
   type SourceBadgeProps,
   type SourceKind,
 } from './components/source-badge';
+export {
+  type SourceRef,
+  SourceRefLink,
+  type SourceRefLinkMessages,
+  type SourceRefLinkProps,
+  type SourceRefTarget,
+  sourceRefTarget,
+} from './components/source-ref-link';
 export { Spinner } from './components/spinner';
 export {
   StatusMark,
@@ -232,6 +259,16 @@ export { Tabs, TabsContent, TabsCount, TabsList, TabsTrigger } from './component
 export { Textarea } from './components/textarea';
 export { type ToastOptions, ToastProvider, type ToastUrgency, useToast } from './components/toast';
 export { Tooltip, type TooltipProps, TooltipProvider } from './components/tooltip';
+export {
+  formatTokenCount,
+  USAGE_HIGH_PERCENT,
+  UsageMeter,
+  type UsageLevel,
+  usageLevel,
+  type UsageMeterMessages,
+  type UsageMeterProps,
+  usagePercent,
+} from './components/usage-meter';
 export { cn } from './lib/cn';
 export { type Tone, toneClassNames } from './lib/tone';
 export {
