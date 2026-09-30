@@ -9,6 +9,7 @@
   ],
   "exports": {
     ".": "./src/index.ts",
+    "./hash-drop-zone": "./src/components/hash-drop-zone.tsx",
     "./styles.css": "./src/styles.css",
     "./vitest.icons": "./vitest.icons.ts"
   },

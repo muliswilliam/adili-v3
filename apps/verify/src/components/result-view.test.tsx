@@ -12,7 +12,8 @@ import {
   mockVerificationFetch,
 } from '../server/verification/mock.server';
 import type { paths } from '../server/verification/schema.gen';
-import { ResultSkeleton, ResultView } from './result-view';
+import { ResultSkeleton } from './result-skeleton';
+import { ResultView } from './result-view';
 
 vi.mock('@tanstack/react-router', async () => (await import('../test/router-mock')).routerMock());
 
@@ -66,9 +67,26 @@ describe('ResultView', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'What does this reference mean?' }));
 
-    const breakdown = screen.getByRole('dialog', { name: 'How to read this reference' });
+    const breakdown = await screen.findByRole('dialog', { name: 'How to read this reference' });
     expect(within(breakdown).getByText('Initial declaration')).toBeTruthy();
     expect(within(breakdown).getByText('Teachers Service Commission')).toBeTruthy();
+  });
+
+  it('offers no breakdown for a reference that does not parse, e.g. a wrong check character', async () => {
+    const outcome = await outcomeFor(MOCK_CODES.valid);
+    if (outcome.kind !== 'found' || !outcome.result.document)
+      throw new Error('expected a document');
+    const document = { ...outcome.result.document, reference: 'DCI-TSC-2026-0012345-9' };
+    render(
+      <ResultView
+        code={MOCK_CODES.valid}
+        outcome={{ ...outcome, result: { ...outcome.result, document } }}
+        onRetry={vi.fn()}
+      />,
+    );
+
+    expect(detail('Reference number')).toContain('DCI-TSC-2026-0012345-9');
+    expect(screen.queryByRole('button', { name: 'What does this reference mean?' })).toBeNull();
   });
 
   it('superseded: warns, and links to the current version when the API gives it', async () => {
@@ -219,8 +237,12 @@ describe('Check your file (S15)', () => {
   });
 
   async function choose(bytes: Uint8Array<ArrayBuffer>, name: string) {
-    const input = document.querySelector<HTMLInputElement>('input[type="file"]');
-    if (!input) throw new Error('file input not rendered');
+    // The file check loads on demand.
+    const input = await vi.waitFor(() => {
+      const found = document.querySelector<HTMLInputElement>('input[type="file"]');
+      if (!found) throw new Error('file input not rendered');
+      return found;
+    });
     await userEvent.upload(input, new File([bytes], name, { type: 'application/pdf' }), {
       applyAccept: false,
     });

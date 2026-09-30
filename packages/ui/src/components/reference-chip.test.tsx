@@ -41,7 +41,7 @@ describe('ReferenceChip', () => {
 
     await user.click(explain());
 
-    const breakdown = screen.getByRole('dialog', { name: 'How to read this reference' });
+    const breakdown = await screen.findByRole('dialog', { name: 'How to read this reference' });
     expect(explain().getAttribute('aria-expanded')).toBe('true');
     const rows = within(breakdown)
       .getAllByRole('definition')
@@ -59,6 +59,7 @@ describe('ReferenceChip', () => {
     const user = userEvent.setup();
     renderChip();
     await user.click(explain());
+    await screen.findByRole('dialog');
 
     await user.keyboard('{Escape}');
 
@@ -73,7 +74,13 @@ describe('ReferenceChip', () => {
     explain().focus();
     await user.keyboard('{Enter}');
 
-    expect(screen.getByRole('dialog', { name: 'How to read this reference' })).toBeTruthy();
+    expect(await screen.findByRole('dialog', { name: 'How to read this reference' })).toBeTruthy();
+  });
+
+  it('says the button opens a dialog before the breakdown has loaded', () => {
+    renderChip();
+
+    expect(explain().getAttribute('aria-haspopup')).toBe('dialog');
   });
 
   it('offers no breakdown without parts, or when they do not fit the reference', () => {
@@ -106,7 +113,7 @@ describe('ReferenceChip', () => {
 
     await user.click(screen.getByRole('button', { name: 'Nambari hii inamaanisha nini?' }));
 
-    const breakdown = screen.getByRole('dialog', { name: 'Jinsi ya kusoma' });
+    const breakdown = await screen.findByRole('dialog', { name: 'Jinsi ya kusoma' });
     expect(within(breakdown).getByText('Mwaka')).toBeTruthy();
     expect(within(breakdown).getByText('Tume ya Huduma kwa Walimu')).toBeTruthy();
   });

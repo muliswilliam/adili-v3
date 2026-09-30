@@ -48,6 +48,7 @@ Warm neutrals with a near-black primary. Use the semantic utility (`bg-muted`, `
 | `scrim` | `.overlay` | `rgb(24 20 16 / 0.42)` | behind dialogs |
 | `glow` / `glow-soft` | | `#f0cab9` / `#f5e4dc` | the warm glow behind onboarding screens (`bg-glow`); *sampled from a screenshot, exact stops pending* |
 | `logo` | | `#f06225` | the Dials logo only |
+| `highlight` | `.sample .code` (verify prototype) | `#fff5c2` | a highlighter mark on printed text, e.g. the code in the verify app's sample footer (`bg-highlight ring-3 ring-highlight`); `warning-subtle` in the dark theme |
 | `code` / `code-foreground` | `.code` (roster prototype) | `#171717` / `#ecebe8` | code examples; dark in both themes (`#0f0f0e` with a `border` hairline, `code-border`, in the dark theme). `code-keyword` `#ffb48f`, `code-string` `#b6e3a8` and `code-comment` `#8d8b87` colour their parts, all at least 4.5:1 on the panel |
 
 Status colours come in three steps: the solid colour (`text-success`, dots, bars, badge text), a soft fill (`bg-success-subtle`) and a darker text for callouts on that fill (`text-success-subtle-foreground`). The info and brand solids miss 4.5:1 on their light soft fills, so their badges use `-subtle-foreground`, as the kit's `.badge-info` and `.badge-brand` do.
@@ -83,11 +84,12 @@ Controls and cards get their edges from a hairline ring in the shadow rather tha
 
 | Radius | Size | Kit | Where |
 |---|---|---|---|
+| `rounded-xs` | 2px | | `highlight` marks |
 | `rounded-sm` | 6px | | checkboxes, skeletons, code chips |
 | `rounded-md` | 8px | `--r-sm` | small and icon buttons, tooltips, menu items |
 | `rounded-lg` | 10px | `--r` | buttons, inputs, callouts |
 | `rounded-xl` | 12px | | menus, toasts, drop zone icon tiles |
-| `rounded-item` | 14px | | `Repeater` item cards and their add button, chat bubbles, `ChatComposer`, `SuggestedQuestions` chips |
+| `rounded-item` | 14px | | `Repeater` item cards and their add button, chat bubbles, `ChatComposer`, `SuggestedQuestions` chips, 48-52px icon tiles (the verify app's status mark and home tile) |
 | `rounded-2xl` | 16px | `--r-lg` | cards, drop zones |
 
 Dialogs use 20px (22px at the top of the phone sheet), as in the kit.

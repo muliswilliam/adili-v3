@@ -1,6 +1,7 @@
 import { createFileRoute, redirect, useRouter } from '@tanstack/react-router';
 
-import { ResultSkeleton, ResultView } from '../components/result-view';
+import { ResultSkeleton } from '../components/result-skeleton';
+import { ResultView } from '../components/result-view';
 import { outcomeTitles, verifyMessages as copy } from '../copy';
 import type { LookupOutcome } from '../lib/lookup-outcome';
 import { resolveCode } from '../lib/resolve-code';
