@@ -29,7 +29,7 @@ import {
   liveSections,
   obligationOf,
 } from '../drafts/repository.js';
-import { declarations, obligationDrafts } from '../drafts/schema.js';
+import { declarations, isEditable, obligationDrafts } from '../drafts/schema.js';
 import { SectionCipher } from '../drafts/section-cipher.js';
 import { reviewDraft } from '../drafts/summary.js';
 import { nairobiDate } from '../obligations/dates.js';
@@ -43,7 +43,7 @@ import { incomplete, refused, stepUpRequired } from './problems.js';
 import type { DeclarationVersion, SubmissionResult } from './representation.js';
 import { declarationItems, declarationVersions } from './schema.js';
 import { versionRecordId } from './versions.js';
-import { isLate, isSubmittable, obligationRefusal } from './window.js';
+import { isLate, obligationRefusal } from './window.js';
 
 /** The ACR of a token issued right after a fresh one-time code (the realm's LoA 2, spec 06). */
 export const STEP_UP_ACR = 'step-up';
@@ -105,7 +105,8 @@ export class SubmissionService {
       const declaration = notFoundIfInvisible(
         await liveDeclaration(tx, declarationId, { lock: true }),
       );
-      if (!isSubmittable(declaration.status)) {
+      // Only a draft or an amendment in progress, what can be edited, is submitted.
+      if (!isEditable(declaration.status)) {
         const replayed = await this.replayed(tx, declaration, keyHash);
         if (replayed) return replayed;
         throw refused('not-a-draft');
