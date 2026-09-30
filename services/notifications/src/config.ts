@@ -31,7 +31,7 @@ export const envSchema = baseEnvSchema
     PROVIDER_TIMEOUT_MS: z.coerce.number().int().positive().max(4_500).default(4_000),
     /** Base URL of the directory, whose internal API resolves a person's verified contacts. */
     DIRECTORY_URL: z.url(),
-    /** Confidential Keycloak client whose service account reads contacts (`directory:internal`). */
+    /** Confidential Keycloak client whose service account reads contacts (`directory:person-contacts`). */
     KEYCLOAK_CLIENT_ID: z.string().min(1).default('notifications'),
     KEYCLOAK_CLIENT_SECRET: z.string().min(1),
     /**
