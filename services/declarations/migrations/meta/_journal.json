@@ -71,6 +71,13 @@
       "when": 1790764641182,
       "tag": "0009_platform_tables_without_rls",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1790771223446,
+      "tag": "0010_roster_snapshots_person_read",
+      "breakpoints": true
     }
   ]
 }

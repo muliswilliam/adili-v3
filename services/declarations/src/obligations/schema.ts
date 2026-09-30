@@ -33,9 +33,9 @@ import {
  * reads or writes it (ADR-013); roster records and Commission names are pulled from the directory
  * into local read models, never joined across services.
  *
- * Row-level security (migration 0002): the roster snapshot, obligations and reminders are tenant
- * data for staff and system transactions (`app.tenant`, or `platform`), and a declarant reads their
- * own rows across Commissions through `app.person` (`withPerson`), read-only (ADR-018).
+ * Row-level security (migrations 0002 and 0010): the roster snapshot, obligations and reminders
+ * are tenant data for staff and system transactions (`app.tenant`, or `platform`), and a declarant
+ * reads their own rows across Commissions through `app.person` (`withPerson`), read-only (ADR-018).
  */
 
 const timestamps = {
