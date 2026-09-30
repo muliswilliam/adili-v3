@@ -6,14 +6,10 @@ import {
   COMMISSION_STAFF_ROLES,
   HELPDESK,
   NATIONAL_ROLES,
-  REPORTING_OFFICER,
 } from '@adili/roles';
 
 /** RLS context of platform-wide principals; also a reserved tenant key. */
 export const PLATFORM_TENANT = 'platform';
-
-/** Realm role that gives an account the roster tools of its tenant. */
-export const REPORTING_OFFICER_ROLE = REPORTING_OFFICER;
 
 /** Every console role. Declarants have no access to directory administration (spec 01). */
 export const STAFF_ROLES = [

@@ -12,11 +12,10 @@ import {
   schemaRef,
   ZodValidationPipe,
 } from '@adili/api-kit';
-import { DIRECTORY_PERSON_CONTACTS_SCOPE, HELPDESK, PLATFORM_ADMIN } from '@adili/roles';
+import { DECLARANT, DIRECTORY_PERSON_CONTACTS_SCOPE, HELPDESK, PLATFORM_ADMIN } from '@adili/roles';
 
 import { z } from 'zod';
 
-import { DECLARANT_ROLE } from '../identity/identity-provisioning.js';
 import { PersonsService } from './persons.service.js';
 import {
   type DeclarantProfile,
@@ -65,7 +64,7 @@ export class DeclarantProfileController {
   constructor(private readonly persons: PersonsService) {}
 
   @Get('declarant')
-  @Roles(DECLARANT_ROLE)
+  @Roles(DECLARANT)
   @ApiOperation({
     operationId: 'getMyDeclarantProfile',
     summary: "The signed-in declarant's person, OFR, Commissions and verified contacts",

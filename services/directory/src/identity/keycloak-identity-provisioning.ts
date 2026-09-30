@@ -1,3 +1,5 @@
+import { DECLARANT } from '@adili/roles';
+
 import {
   type ActivationEmailOptions,
   ApiClientExists,
@@ -7,7 +9,6 @@ import {
   type CreateDeclarantUserInput,
   type CreateStaffUserInput,
   DECLARANT_REQUIRED_ACTIONS,
-  DECLARANT_ROLE,
   EmailTaken,
   UsernameTaken,
   type ExecuteActionsEmailOptions,
@@ -172,13 +173,13 @@ export class KeycloakIdentityProvisioning extends IdentityProvisioning {
       requiredActions: DECLARANT_REQUIRED_ACTIONS,
     };
     try {
-      return await this.createUser(representation, DECLARANT_ROLE);
+      return await this.createUser(representation, DECLARANT);
     } catch (error) {
       if (!(error instanceof UsernameTaken)) throw error;
       const leftover = await this.userByUsername(input.ofr);
       if (leftover?.attributes?.ofr?.[0] !== input.ofr) throw error;
       await this.deleteUser(leftover.id);
-      return this.createUser(representation, DECLARANT_ROLE);
+      return this.createUser(representation, DECLARANT);
     }
   }
 

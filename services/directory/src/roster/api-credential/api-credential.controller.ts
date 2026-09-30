@@ -14,8 +14,8 @@ import {
   Roles,
   schemaRef,
 } from '@adili/api-kit';
+import { REPORTING_OFFICER } from '@adili/roles';
 
-import { REPORTING_OFFICER_ROLE } from '../../commissions/access.js';
 import { ApiCredentialService } from './api-credential.service.js';
 import type { RosterApiCredential, RosterApiCredentialWithSecret } from './representation.js';
 
@@ -30,7 +30,7 @@ const IDENTITY_UNAVAILABLE =
 @ApiTags('roster')
 @Controller('v1/commissions/:slug/roster/api-credential')
 @ApiParam({ name: 'slug', schema: schemaRef('Slug') })
-@Roles(REPORTING_OFFICER_ROLE)
+@Roles(REPORTING_OFFICER)
 export class ApiCredentialController {
   constructor(private readonly credentials: ApiCredentialService) {}
 

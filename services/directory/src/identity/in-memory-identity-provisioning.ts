@@ -1,4 +1,5 @@
 import { randomBytes, randomUUID } from 'node:crypto';
+import { DECLARANT } from '@adili/roles';
 
 import {
   type ActivationEmailOptions,
@@ -9,7 +10,6 @@ import {
   type CreateDeclarantUserInput,
   type CreateStaffUserInput,
   DECLARANT_REQUIRED_ACTIONS,
-  DECLARANT_ROLE,
   EmailTaken,
   type ExecuteActionsEmailOptions,
   IdentityProvisioning,
@@ -241,7 +241,7 @@ export class InMemoryIdentityProvisioning extends IdentityProvisioning {
       tenants: [input.tenant],
       ofr: input.ofr,
       personId: input.personId,
-      roles: [DECLARANT_ROLE],
+      roles: [DECLARANT],
       requiredActions: [...DECLARANT_REQUIRED_ACTIONS],
       enabled: true,
       commissionName: null,
