@@ -45,7 +45,7 @@ const DOCUMENTS: Caller = {
   azp: 'documents',
   scope: 'declarations:internal',
 };
-const OFFICER: Caller = { sub: 'officer-1', tenant: 'psc', roles: ['reporting-officer'] };
+const REPORTING_OFFICER: Caller = { sub: 'officer-1', tenant: 'psc', roles: ['reporting-officer'] };
 
 let api: DeclarationsApi;
 const { declarant, steppedUp, completeDraft, submit } = submissionFixtures(() => api);
@@ -249,7 +249,7 @@ describe('the acknowledgement payload the documents service pulls', () => {
     expect((await payload({ ...version, declarationId: randomUUID() })).statusCode).toBe(404);
     expect((await payload(version, { tenant: null })).statusCode).toBe(400);
     expect((await payload(version, { caller: declarant(ACHIENG) })).statusCode).toBe(403);
-    expect((await payload(version, { caller: OFFICER })).statusCode).toBe(403);
+    expect((await payload(version, { caller: REPORTING_OFFICER })).statusCode).toBe(403);
   });
 });
 
@@ -405,7 +405,7 @@ describe("the declarant's acknowledgement and the reissue (S11)", () => {
     const version = await submitted();
     await submitted(OTHER);
 
-    for (const caller of [declarant(OTHER), OFFICER]) {
+    for (const caller of [declarant(OTHER), REPORTING_OFFICER]) {
       expect((await acknowledgement(version, caller)).statusCode).toBe(404);
       expect((await reissue(version, caller)).statusCode).toBe(404);
     }
