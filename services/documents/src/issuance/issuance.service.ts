@@ -8,7 +8,7 @@ import {
 } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { HttpStatus, Inject, Injectable, Logger } from '@nestjs/common';
-import { errorType, ProblemException } from '@adili/api-kit';
+import { errorType, notFoundIfInvisible, ProblemException } from '@adili/api-kit';
 import { type Database, InjectDatabase, withPerson, withTenant } from '@adili/data-access';
 import { EventPublisher } from '@adili/events';
 import {
@@ -249,8 +249,7 @@ export class IssuanceService {
         this.db,
         { tenant: request.tenant, subject: request.actor },
         async (tx) => {
-          const current = await this.lockedRecord(tx, request.documentId);
-          if (!current) throw notFound();
+          const current = notFoundIfInvisible(await this.lockedRecord(tx, request.documentId));
           if (current.record.status !== 'valid') {
             throw new ProblemException({
               type: 'document-not-valid',
@@ -312,8 +311,8 @@ export class IssuanceService {
    */
   async announce(tenant: string, actor: string, documentId: string): Promise<void> {
     await withTenant(this.db, { tenant, subject: actor }, async (tx) => {
-      const [found] = await withRecord(tx).where(eq(issuedDocuments.id, documentId));
-      if (!found) throw notFound();
+      const [row] = await withRecord(tx).where(eq(issuedDocuments.id, documentId));
+      const found = notFoundIfInvisible(row);
       await this.events.record(tx, {
         type: DOCUMENT_ISSUED,
         subject: found.document.id,
@@ -379,12 +378,13 @@ export class IssuanceService {
     subject: string,
     id: string,
   ): Promise<{ document: DocumentRow; record: RecordRow }> {
-    if (!personId) throw notFound();
-    const [found] = await withPerson(this.db, { personId, subject }, (tx) =>
-      withRecord(tx).where(eq(issuedDocuments.id, id)),
-    );
-    if (!found) throw notFound();
-    return found;
+    // No person, no document to download: the same 404 as another person's.
+    const [found] = personId
+      ? await withPerson(this.db, { personId, subject }, (tx) =>
+          withRecord(tx).where(eq(issuedDocuments.id, id)),
+        )
+      : [];
+    return notFoundIfInvisible(found);
   }
 
   private async findBySubject(
@@ -521,14 +521,5 @@ function supersedingInvalid(detail: string): ProblemException {
     title: 'Superseding document is not valid',
     status: HttpStatus.CONFLICT,
     detail,
-  });
-}
-
-function notFound(): ProblemException {
-  return new ProblemException({
-    type: 'about:blank',
-    title: 'Not Found',
-    status: HttpStatus.NOT_FOUND,
-    detail: 'The resource does not exist or is not visible to you.',
   });
 }
