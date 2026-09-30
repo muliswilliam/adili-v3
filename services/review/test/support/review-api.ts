@@ -100,6 +100,18 @@ export interface ReviewApi {
  * service's own worker, polling the suite's own task queue (test/support/temporal-task-queue.ts).
  * The test role owns the tables, so FORCE row-level security applies to it as to the service's.
  */
+/** How often `reset` tries to truncate before a lock held for good fails the suite. */
+const RESET_ATTEMPTS = 20;
+
+/** Postgres `lock_not_available` (55P03), as the driver or drizzle's wrapper reports it. */
+function isLockTimeout(error: unknown): boolean {
+  const codeOf = (value: unknown) =>
+    typeof value === 'object' && value !== null && 'code' in value ? value.code : undefined;
+  const cause =
+    typeof error === 'object' && error !== null && 'cause' in error ? error.cause : undefined;
+  return codeOf(error) === '55P03' || codeOf(cause) === '55P03';
+}
+
 export async function startReviewApi(): Promise<ReviewApi> {
   const baseUrl = requireEnv('TEST_DATABASE_URL');
   const pgSchema = `review_test_${String(process.pid)}_${randomUUID().slice(0, 8)}`;
@@ -189,9 +201,23 @@ export async function startReviewApi(): Promise<ReviewApi> {
       });
     },
     async reset() {
-      await db.execute(
-        sql`truncate referrals, ladder_history, administrative_actions, enforcement_ladders, closure_sweeps, bulk_approvals, approval_reassignments, determinations, clarification_responses, clarifications, review_assignments, review_flags, review_notes, review_timeline, review_case_versions, review_cases, outbox, inbox, numbering_counters, idempotency_keys`,
-      );
+      // A letter activity of the previous test may still hold a row lock while the fake documents
+      // service pulls its payload over HTTP. That read would queue behind a waiting truncate, which
+      // waits for the lock: a wait Postgres cannot see as a deadlock (see `close`). So the truncate
+      // gives up after a moment, letting the read and the activity finish, and tries again.
+      for (let attempt = 1; ; attempt += 1) {
+        try {
+          await db.transaction(async (tx) => {
+            await tx.execute(sql`set local lock_timeout = '2s'`);
+            await tx.execute(
+              sql`truncate referrals, ladder_history, administrative_actions, enforcement_ladders, closure_sweeps, bulk_approvals, approval_reassignments, determinations, clarification_responses, clarifications, review_assignments, review_flags, review_notes, review_timeline, review_case_versions, review_cases, outbox, inbox, numbering_counters, idempotency_keys`,
+            );
+          });
+          break;
+        } catch (error) {
+          if (attempt >= RESET_ATTEMPTS || !isLockTimeout(error)) throw error;
+        }
+      }
       declarations.reset();
       directory.reset();
       documents.reset();
