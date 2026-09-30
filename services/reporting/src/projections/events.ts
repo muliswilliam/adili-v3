@@ -81,9 +81,34 @@ export const determinationApprovedData = z.object({
   outcome: z.string().min(1),
 });
 
-/** `referral.sent.v1` (review, spec 08): the payload as the epic drafts it, until #212 builds it. */
+/**
+ * review.yaml `ReferralGrounds` (spec 08 #212): undeclared or unexplained assets (a reviewer's
+ * proposal), or two missed cycles and an unanswered clarification (the referral sweep's).
+ */
+export const REFERRAL_GROUNDS = [
+  'undeclared-assets',
+  'unexplained-assets',
+  'two-missed-cycles',
+  'unanswered-clarification',
+] as const;
+export type ReferralGrounds = (typeof REFERRAL_GROUNDS)[number];
+
+/**
+ * `referral.sent.v1` (review, spec 08 #212 `ReferralSentData`): what every `referral.*` event
+ * carries (the referral, its Commission, grounds, cycle, the person referred by id and who
+ * proposed it) and, once sent, the approver, the `RFL` reference, the Confidential evidence
+ * package's document id and when it was sent. Identifiers only: no names.
+ */
 export const referralSentData = z.object({
   referralId: z.uuid(),
+  tenant: z.string().min(1),
+  grounds: z.enum(REFERRAL_GROUNDS),
+  cycleYear: z.number().int(),
+  personId: z.uuid(),
+  proposerKind: z.enum(['system', 'user']),
+  approver: z.string().min(1),
   reference: z.string().min(1),
-  grounds: z.string().min(1),
+  packageDocumentId: z.uuid(),
+  sentAt: z.iso.datetime({ offset: true }),
 });
+export type ReferralSentData = z.infer<typeof referralSentData>;

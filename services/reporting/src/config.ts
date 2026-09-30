@@ -22,6 +22,15 @@ export const envSchema = baseEnvSchema.extend({
   NOTIFICATIONS_URL: z.url(),
   /** Base URL of the documents service, which issues the Form M PDF and the receipt. */
   DOCUMENTS_URL: z.url(),
+  /** Base URL of the integration-gateway, whose ICMS adapter registers EACC's referrals. */
+  INTEGRATION_GATEWAY_URL: z.url(),
+  /**
+   * Pushing a referral to ICMS: how many times the gateway is tried while ICMS is unreachable,
+   * and the pause before the second try (doubling for each later one), before the push is left
+   * `push-failed` for EACC to push again.
+   */
+  ICMS_PUSH_ATTEMPTS: z.coerce.number().int().min(1).max(10).default(3),
+  ICMS_PUSH_BACKOFF_MS: z.coerce.number().int().min(0).default(500),
   /**
    * When the yearly compile runs (cron, Nairobi time): each Commission's draft for the financial
    * year that just ended, on 1 July. `off` keeps no schedule (tests).

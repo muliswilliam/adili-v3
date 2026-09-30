@@ -23,6 +23,8 @@ export default defineConfig({
       // shared Temporal.
       ANNUAL_COMPILE_CRON: 'off',
       NATIONAL_CHASE_CRON: 'off',
+      // Retries of an unreachable ICMS back off by milliseconds, not half seconds.
+      ICMS_PUSH_BACKOFF_MS: '5',
       TEMPORAL_ADDRESS: process.env.TEST_TEMPORAL_ADDRESS ?? 'localhost:7233',
       TEMPORAL_NAMESPACE: process.env.TEST_TEMPORAL_NAMESPACE ?? 'adili',
       TEST_DATABASE_URL:

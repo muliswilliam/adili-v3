@@ -21,7 +21,19 @@ import {
   type SentMessage,
   type StaffEmail,
 } from '../../src/notifications/notifications-client.js';
-import { type ClarificationDetails, ReviewClient } from '../../src/review/review-client.js';
+import {
+  type IcmsReferral,
+  type IcmsReferralRequest,
+  IntegrationGatewayClient,
+  IntegrationGatewayUnavailable,
+} from '../../src/integration-gateway/integration-gateway-client.js';
+import { InternalApiRejected } from '../../src/internal-api/internal-api.js';
+import {
+  type ClarificationDetails,
+  type ReferralIcmsPayload,
+  ReviewClient,
+  ReviewUnavailable,
+} from '../../src/review/review-client.js';
 
 /**
  * The other services the reporting service reads from, for tests: each holds what a test gives
@@ -66,10 +78,37 @@ export class FakeDeclarations extends DeclarationsClient {
   }
 }
 
-/** The review internal batch details: clarifications by id, per Commission. */
+/**
+ * The review internal API: clarification batch details by id, and referrals' ICMS payloads, per
+ * Commission.
+ */
 export class FakeReview extends ReviewClient {
   readonly calls: { tenant: string; ids: number }[] = [];
+  /** Each ICMS payload asked for: the Commission and the referral. */
+  readonly payloadCalls: { tenant: string; referralId: string }[] = [];
   private readonly clarifications = new Map<string, ClarificationDetails & { tenant: string }>();
+  private readonly referrals = new Map<string, { tenant: string; payload: ReferralIcmsPayload }>();
+  private payloadFailures = 0;
+
+  givenReferral(tenant: string, referralId: string, payload: ReferralIcmsPayload): void {
+    this.referrals.set(referralId, { tenant, payload });
+  }
+
+  /** The next `count` ICMS payload reads fail, as a review outage would. */
+  failPayloads(count: number): void {
+    this.payloadFailures = count;
+  }
+
+  referralIcmsPayload(tenant: string, referralId: string): Promise<ReferralIcmsPayload | null> {
+    this.payloadCalls.push({ tenant, referralId });
+    if (this.payloadFailures > 0) {
+      this.payloadFailures -= 1;
+      return Promise.reject(new ReviewUnavailable('The review service is unreachable'));
+    }
+    const found = this.referrals.get(referralId);
+    if (found?.tenant !== tenant) return Promise.resolve(null);
+    return Promise.resolve(structuredClone(found.payload));
+  }
 
   given(tenant: string, ...clarifications: ClarificationDetails[]): void {
     for (const found of clarifications) {
@@ -79,7 +118,10 @@ export class FakeReview extends ReviewClient {
 
   reset(): void {
     this.calls.length = 0;
+    this.payloadCalls.length = 0;
     this.clarifications.clear();
+    this.referrals.clear();
+    this.payloadFailures = 0;
   }
 
   clarificationDetails(
@@ -219,5 +261,95 @@ export class FakeDocuments extends DocumentsClient {
     this.byKey.set(request.idempotencyKey, issued);
     this.issued.push(structuredClone(request));
     return Promise.resolve(issued);
+  }
+}
+
+/**
+ * The integration-gateway's ICMS adapter with ICMS faked: registers each referral once by its
+ * reference (a replay answers the stored registration, as the adapter does), with a case number
+ * at once, or `pending` until a test registers it. Records every request that reached ICMS.
+ */
+export class FakeIntegrationGateway extends IntegrationGatewayClient {
+  /** Every `submitReferral` request that reached ICMS, with the Commission it was sent for. */
+  readonly submitted: (IcmsReferralRequest & { tenant: string })[] = [];
+  /** How many `submitReferral` calls were made, failed and replayed ones included. */
+  submitCalls = 0;
+  private readonly registrations = new Map<string, IcmsReferral>();
+  private mode: IcmsReferral['status'] = 'registered';
+  private failures = 0;
+  private rejections = 0;
+  private sequence = 0;
+
+  /** How ICMS answers new referrals from now: a case number at once, pending, or failed. */
+  answer(mode: IcmsReferral['status']): void {
+    this.mode = mode;
+  }
+
+  /** The next `count` calls fail, as an ICMS or gateway outage would (503). */
+  failCalls(count: number): void {
+    this.failures = count;
+  }
+
+  /** The next `count` submissions are refused (a 4xx from the gateway). */
+  rejectCalls(count: number): void {
+    this.rejections = count;
+  }
+
+  /** ICMS registers a pending referral under `caseNumber`. */
+  register(referralReference: string, caseNumber: string, registeredAt: string): void {
+    const found = this.registrations.get(referralReference);
+    if (!found) throw new Error(`ICMS holds no referral ${referralReference}`);
+    this.registrations.set(referralReference, {
+      ...found,
+      status: 'registered',
+      caseNumber,
+      registeredAt,
+    });
+  }
+
+  reset(): void {
+    this.submitted.length = 0;
+    this.submitCalls = 0;
+    this.registrations.clear();
+    this.mode = 'registered';
+    this.failures = 0;
+    this.rejections = 0;
+    this.sequence = 0;
+  }
+
+  submitReferral(tenant: string, referral: IcmsReferralRequest): Promise<IcmsReferral> {
+    this.submitCalls += 1;
+    if (this.failures > 0) {
+      this.failures -= 1;
+      return Promise.reject(new IntegrationGatewayUnavailable('ICMS is unreachable'));
+    }
+    if (this.rejections > 0) {
+      this.rejections -= 1;
+      return Promise.reject(new InternalApiRejected('integration-gateway', 400));
+    }
+    const replayed = this.registrations.get(referral.referralReference);
+    if (replayed) return Promise.resolve({ ...replayed });
+    this.submitted.push(structuredClone({ ...referral, tenant }));
+    this.sequence += 1;
+    const now = new Date().toISOString();
+    const registered = this.mode === 'registered';
+    const registration: IcmsReferral = {
+      referralReference: referral.referralReference,
+      caseNumber: registered ? `ICMS/2028/${String(this.sequence).padStart(6, '0')}` : null,
+      status: this.mode,
+      registeredAt: registered ? now : null,
+      sentAt: now,
+    };
+    this.registrations.set(referral.referralReference, registration);
+    return Promise.resolve({ ...registration });
+  }
+
+  getReferral(_tenant: string, referralReference: string): Promise<IcmsReferral | null> {
+    if (this.failures > 0) {
+      this.failures -= 1;
+      return Promise.reject(new IntegrationGatewayUnavailable('ICMS is unreachable'));
+    }
+    const found = this.registrations.get(referralReference);
+    return Promise.resolve(found ? { ...found } : null);
   }
 }

@@ -894,6 +894,10 @@ paths:
       tags: [referrals-intake]
       operationId: listReferralIntake
       summary: Referrals sent by Commissions with ICMS status (EACC roles)
+      description: >-
+        EACC's intake of the referrals Commissions sent (`referral.sent.v1`), the latest sent
+        first, with the Confidential evidence package's document id (downloaded from the documents
+        service) and where the hand-off to ICMS stands. EACC analysts and supervisors only.
       parameters:
         - name: icmsStatus
           in: query
@@ -925,6 +929,12 @@ paths:
                       $ref: '#/components/schemas/ReferralIntakeItem'
                   nextCursor:
                     type: [string, 'null']
+        '400':
+          description: Query failed validation, or a cursor this list did not give
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
         '403':
           $ref: '#/components/responses/Forbidden'
   /v1/eacc/referrals/{referralId}/push:
@@ -939,21 +949,45 @@ paths:
       tags: [referrals-intake]
       operationId: pushReferralToIcms
       summary: Push a referral to ICMS and store the case number (analyst)
+      description: >-
+        EACC analysts and supervisors. Pulls the referral's ICMS payload from review (national ID,
+        full name, grounds, details) and registers it through the integration-gateway's ICMS
+        adapter (`submitIcmsReferral`), idempotent by the `RFL` reference; ICMS is retried with
+        backoff while unreachable. A case number is stored (`registered`) and
+        `referral.icms-registered.v1` published; a registration ICMS only accepted is `pushed` and
+        followed to its case number. A registered referral is answered as it is and never sent
+        again.
       parameters:
         - $ref: '#/components/parameters/IdempotencyKey'
       responses:
         '200':
-          description: Registered (or already registered)
+          description: Registered (or already registered), or pushed and awaiting the case number
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ReferralIntakeItem'
+        '400':
+          description: Idempotency-Key missing, or referralId is not a UUID
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
         '403':
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
         '502':
-          description: ICMS unavailable; status push-failed, retry later
+          description: >-
+            Problem code `icms-push-failed` with `error` (an `IcmsPushError`): the referral is left
+            push-failed; push it again to retry
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '503':
+          description: >-
+            ICMS accepted the referral but the workflow following its case number could not be
+            started; push it again shortly
           content:
             application/problem+json:
               schema:
@@ -1020,6 +1054,25 @@ components:
     IcmsStatus:
       type: string
       enum: [not-pushed, pushed, registered, push-failed]
+      description: >-
+        not-pushed until EACC pushes it; pushed once ICMS accepted it without a case number yet;
+        registered with the case number; push-failed when the push could not be completed (push
+        again to retry)
+    IcmsPushError:
+      type: string
+      enum:
+        [
+          review-unavailable,
+          payload-not-found,
+          icms-unavailable,
+          icms-rejected,
+          icms-failed,
+          icms-registration-timeout,
+        ]
+      description: Why the last push failed
+    ReferralGrounds:
+      type: string
+      enum: [undeclared-assets, unexplained-assets, two-missed-cycles, unanswered-clarification]
     Officer:
       type: object
       required: [subject, name]
@@ -1468,10 +1521,12 @@ components:
           commission,
           reference,
           grounds,
+          cycleYear,
           sentAt,
           packageDocumentId,
           icmsStatus,
           icmsCaseNumber,
+          icmsRegisteredAt,
           pushedAt,
           pushedBy,
           error,
@@ -1490,27 +1545,38 @@ components:
               type: string
         reference:
           type: string
+          description: The RFL reference
         grounds:
-          type: string
+          $ref: '#/components/schemas/ReferralGrounds'
+        cycleYear:
+          type: integer
+          description: The declaration cycle the referral is about
         sentAt:
           type: string
           format: date-time
         packageDocumentId:
           type: string
           format: uuid
+          description: The Confidential referral-package document (documents service)
         icmsStatus:
           $ref: '#/components/schemas/IcmsStatus'
         icmsCaseNumber:
           type: [string, 'null']
+        icmsRegisteredAt:
+          type: [string, 'null']
+          format: date-time
         pushedAt:
           type: [string, 'null']
           format: date-time
         pushedBy:
+          description: Who last pushed it
           oneOf:
             - $ref: '#/components/schemas/Officer'
             - type: 'null'
         error:
-          type: [string, 'null']
+          oneOf:
+            - $ref: '#/components/schemas/IcmsPushError'
+            - type: 'null'
     ProblemDetails:
       type: object
       required: [type, title, status]

@@ -18,6 +18,11 @@ import {
   HttpDirectoryClient,
 } from './directory/http-directory-client.js';
 import {
+  HttpIntegrationGatewayClient,
+  ICMS_SCOPE,
+} from './integration-gateway/http-integration-gateway-client.js';
+import { IntegrationGatewayClient } from './integration-gateway/integration-gateway-client.js';
+import {
   HttpNotificationsClient,
   MESSAGES_SCOPE,
 } from './notifications/http-notifications-client.js';
@@ -37,8 +42,9 @@ const tokens = (scope: string) =>
 /**
  * The other services' internal APIs Form M reads from, called with the reporting service's own
  * token (ADR-013 §8.1): officer details (declarations), clarification details (review), the
- * Commission and its staff (directory), emails (notifications), and the submitted report's PDF
- * and receipt (documents).
+ * Commission and its staff (directory), emails (notifications), the submitted report's PDF
+ * and receipt (documents), a referral's ICMS payload (review) and its registration with ICMS
+ * (integration-gateway).
  */
 @Module({
   providers: [
@@ -82,6 +88,14 @@ const tokens = (scope: string) =>
           tokens: tokens(DOCUMENTS_INTERNAL_SCOPE),
         }),
     },
+    {
+      provide: IntegrationGatewayClient,
+      useFactory: () =>
+        new HttpIntegrationGatewayClient({
+          gatewayUrl: config.INTEGRATION_GATEWAY_URL,
+          tokens: tokens(ICMS_SCOPE),
+        }),
+    },
   ],
   exports: [
     DeclarationsClient,
@@ -89,6 +103,7 @@ const tokens = (scope: string) =>
     DirectoryClient,
     NotificationsClient,
     DocumentsClient,
+    IntegrationGatewayClient,
   ],
 })
 export class UpstreamModule {}

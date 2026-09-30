@@ -14,6 +14,22 @@ export interface ClarificationDetails {
   requirementLabels: string[];
 }
 
+/**
+ * What ICMS needs of a referral (BE-5 `GET /internal/v1/review/referrals/{id}/icms-payload`), in
+ * the names of review's `ReferralPackagePayload` (#212): the `RFL` reference, the grounds and
+ * their label, the referring Commission, the declarant's name and national ID, and the narrative.
+ * Personal data: it passes to the gateway only, never into the database, events or workflow
+ * history.
+ */
+export interface ReferralIcmsPayload {
+  reference: string;
+  grounds: string;
+  groundsLabel: string;
+  commission: { name: string; issuerCode: string };
+  declarant: { name: string; nationalId: string };
+  narrative: string;
+}
+
 /** Review is unreachable or answered outside its contract; activities retry. */
 export class ReviewUnavailable extends Error {
   constructor(message: string, options?: ErrorOptions) {
@@ -35,4 +51,13 @@ export abstract class ReviewClient {
     tenant: string,
     clarificationIds: string[],
   ): Promise<ClarificationDetails[]>;
+
+  /**
+   * What ICMS needs of the referral `referralId` of Commission `tenant`; null when review knows
+   * no sent referral by that id. Throws `ReviewUnavailable` when review cannot be reached.
+   */
+  abstract referralIcmsPayload(
+    tenant: string,
+    referralId: string,
+  ): Promise<ReferralIcmsPayload | null>;
 }

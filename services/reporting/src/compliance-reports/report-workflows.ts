@@ -13,6 +13,11 @@ import {
   nationalReportApprovalWorkflowId,
 } from '../national-reports/contract.js';
 import {
+  type IcmsRegistrationInput,
+  REFERRAL_ICMS_REGISTRATION_WORKFLOW,
+  referralIcmsRegistrationWorkflowId,
+} from '../referrals/contract.js';
+import {
   COMPLIANCE_REPORT_WORKFLOW,
   complianceReportWorkflowId,
   NATIONAL_CONSOLIDATION_WORKFLOW,
@@ -26,12 +31,13 @@ import type {
   complianceReport,
   nationalConsolidation,
   nationalReportApproval,
+  referralIcmsRegistration,
 } from './workflows.js';
 
 /**
  * Starts `ComplianceReportWorkflow` on Temporal (ADR-003), one per Commission and financial
- * year, or signals the running one; EACC's chase, one per financial year; and the approval of
- * the year's national consolidated report.
+ * year, or signals the running one; EACC's chase, one per financial year; the approval of the
+ * year's national consolidated report; and the wait for ICMS's case number of a pushed referral.
  */
 @Injectable()
 export class ReportWorkflows {
@@ -103,6 +109,25 @@ export class ReportWorkflows {
     } catch (error) {
       if (error instanceof WorkflowNotFoundError) return false;
       throw error;
+    }
+  }
+
+  /**
+   * ICMS accepted a push of the referral without a case number: starts the workflow that waits
+   * for it (one per push). Already started (a retried push) is fine.
+   */
+  async awaitIcmsRegistration(input: IcmsRegistrationInput): Promise<void> {
+    try {
+      await this.temporal.workflow.start<typeof referralIcmsRegistration>(
+        REFERRAL_ICMS_REGISTRATION_WORKFLOW,
+        {
+          taskQueue: config.TEMPORAL_TASK_QUEUE,
+          workflowId: referralIcmsRegistrationWorkflowId(input.referralId, input.attempt),
+          args: [input],
+        },
+      );
+    } catch (error) {
+      if (!(error instanceof WorkflowExecutionAlreadyStartedError)) throw error;
     }
   }
 

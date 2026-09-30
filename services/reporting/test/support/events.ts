@@ -6,7 +6,7 @@ import { v5 as uuidv5, v7 as uuidv7 } from 'uuid';
 /**
  * The events the reporting service projects, as the RabbitMQ transport delivers them, in the
  * shapes their producers publish (declarations spec 04, review spec 07a and spec 08 #206 actions)
- * or have drafted (declarations spec 06; review spec 08 referrals, assumed until #212).
+ * or have drafted (declarations spec 06); referrals as review spec 08 #212 publishes them.
  */
 
 export function envelope(
@@ -183,15 +183,31 @@ export function determinationApproved(
   );
 }
 
-export function referralSent(tenant: string, referralId: string, time: string): EventEnvelope {
+/**
+ * `referral.sent.v1` as review publishes it (spec 08 #212 `ReferralSentData`): a referral the
+ * referral sweep proposed for two missed cycles, approved, with its package issued and sent.
+ */
+export function referralSent(
+  tenant: string,
+  referralId: string,
+  time: string,
+  fixture: { reference?: string; packageDocumentId?: string; personId?: string } = {},
+): EventEnvelope {
   return envelope(
     'referral.sent.v1',
     tenant,
     referralId,
     {
       referralId,
-      reference: `RFL-${tenant.toUpperCase()}-2027-0000001-5`,
+      tenant,
       grounds: 'two-missed-cycles',
+      cycleYear: 2027,
+      personId: fixture.personId ?? randomUUID(),
+      proposerKind: 'system',
+      approver: `supervisor-${tenant}`,
+      reference: fixture.reference ?? `RFL-${tenant.toUpperCase()}-2028-0000001-5`,
+      packageDocumentId: fixture.packageDocumentId ?? randomUUID(),
+      sentAt: time,
     },
     time,
   );

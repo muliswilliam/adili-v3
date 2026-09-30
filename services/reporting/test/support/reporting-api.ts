@@ -29,6 +29,7 @@ import { type ReportingSchema, schema } from '../../src/db/schema.js';
 import { DeclarationsClient } from '../../src/declarations/declarations-client.js';
 import { DirectoryClient } from '../../src/directory/directory-client.js';
 import { DocumentsClient } from '../../src/documents/documents-client.js';
+import { IntegrationGatewayClient } from '../../src/integration-gateway/integration-gateway-client.js';
 import { NotificationsClient } from '../../src/notifications/notifications-client.js';
 import { ProjectionsConsumer } from '../../src/projections/projections.consumer.js';
 import { ReviewClient } from '../../src/review/review-client.js';
@@ -37,6 +38,7 @@ import {
   FakeDeclarations,
   FakeDirectory,
   FakeDocuments,
+  FakeIntegrationGateway,
   FakeNotifications,
   FakeReview,
 } from './fakes.js';
@@ -71,6 +73,7 @@ export interface ReportingApi {
   directory: FakeDirectory;
   notifications: FakeNotifications;
   documents: FakeDocuments;
+  gateway: FakeIntegrationGateway;
   cipher: FakeCipher;
   clock: FakeClock;
   /** The Temporal client the service starts workflows with. */
@@ -119,7 +122,8 @@ const HANDLERS: Record<string, keyof ProjectionsConsumer> = {
 /**
  * The reporting service over HTTP and at its event inbox, against a real Postgres
  * (`TEST_DATABASE_URL`) with a private schema per suite and the committed migrations applied.
- * Declarations, review, the directory and notifications are fakes, the cipher is the in-memory
+ * Declarations, review, the directory, notifications, documents and the integration-gateway are
+ * fakes, the cipher is the in-memory
  * one, tokens are signed locally and the outbox relay is off (events stay in the outbox for
  * assertions). Workflows run on the compose Temporal through the service's own worker, polling
  * the suite's own task queue (test/support/temporal-task-queue.ts). The test role owns the
@@ -144,6 +148,7 @@ export async function startReportingApi(): Promise<ReportingApi> {
   const directory = new FakeDirectory();
   const notifications = new FakeNotifications();
   const documents = new FakeDocuments();
+  const gateway = new FakeIntegrationGateway();
   const cipher = new FakeCipher();
   const clock = new FakeClock();
   const moduleRef = await Test.createTestingModule({ imports: [AppModule] })
@@ -161,6 +166,8 @@ export async function startReportingApi(): Promise<ReportingApi> {
     .useValue(notifications)
     .overrideProvider(DocumentsClient)
     .useValue(documents)
+    .overrideProvider(IntegrationGatewayClient)
+    .useValue(gateway)
     .overrideProvider(FieldCipher)
     .useValue(cipher)
     .overrideProvider(Clock)
@@ -188,6 +195,7 @@ export async function startReportingApi(): Promise<ReportingApi> {
     directory,
     notifications,
     documents,
+    gateway,
     cipher,
     clock,
     temporal: app.get<Client>(TEMPORAL_CLIENT),
@@ -217,13 +225,14 @@ export async function startReportingApi(): Promise<ReportingApi> {
     },
     async reset() {
       await db.execute(
-        sql`truncate national_report_paragraphs, national_report_aggregates, national_reports, report_remarks, report_reminders, report_chases, report_receipts, compliance_reports, obligation_facts, clarification_facts, action_facts, determination_facts, referral_facts, numbering_counters, idempotency_keys, outbox, inbox`,
+        sql`truncate referral_intake, national_report_paragraphs, national_report_aggregates, national_reports, report_remarks, report_reminders, report_chases, report_receipts, compliance_reports, obligation_facts, clarification_facts, action_facts, determination_facts, referral_facts, numbering_counters, idempotency_keys, outbox, inbox`,
       );
       declarations.reset();
       review.reset();
       directory.reset();
       notifications.reset();
       documents.reset();
+      gateway.reset();
       cipher.calls.length = 0;
       clock.reset();
     },

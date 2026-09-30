@@ -18,6 +18,7 @@ import { ComplianceReportsModule } from './compliance-reports/compliance-reports
 import { config, SERVICE_NAME } from './config.js';
 import { schema } from './db/schema.js';
 import { ProjectionsModule } from './projections/projections.module.js';
+import { ReferralsModule } from './referrals/referrals.module.js';
 
 @Module({
   imports: [
@@ -46,6 +47,7 @@ import { ProjectionsModule } from './projections/projections.module.js';
     }),
     ProjectionsModule,
     ComplianceReportsModule,
+    ReferralsModule,
   ],
 })
 export class AppModule {}

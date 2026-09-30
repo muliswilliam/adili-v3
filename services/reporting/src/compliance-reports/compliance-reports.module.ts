@@ -9,6 +9,7 @@ import { config } from '../config.js';
 import { NationalReportActivities } from '../national-reports/activities.js';
 import { NationalReportsController } from '../national-reports/national-reports.controller.js';
 import { NationalReportsService } from '../national-reports/national-reports.service.js';
+import { ReferralIcmsActivities } from '../referrals/activities.js';
 import { UpstreamModule } from '../upstream.module.js';
 import { ComplianceReportActivities } from './activities.js';
 import { AnnualCompileActivities } from './annual-compile-activities.js';
@@ -35,8 +36,8 @@ const workflowsPath = fileURLToPath(
  * Compliance reports (spec 09): the Form M workspace endpoints, federated submission, EACC's
  * intake and report viewer, EACC's national consolidated report, the schedules of the yearly
  * compile and of EACC's chase, and the reporting worker hosting `ComplianceReportWorkflow`, the
- * yearly compile, `NationalConsolidationWorkflow`, `NationalReportApprovalWorkflow` and their
- * activities.
+ * yearly compile, `NationalConsolidationWorkflow`, `NationalReportApprovalWorkflow`,
+ * `ReferralIcmsRegistrationWorkflow` (referrals intake) and their activities.
  */
 @Module({
   imports: [
@@ -55,6 +56,7 @@ const workflowsPath = fileURLToPath(
         AnnualCompileActivities,
         NationalChaseActivities,
         NationalReportActivities,
+        ReferralIcmsActivities,
       ],
       imports: [ClockModule, CipherModule, UpstreamModule, ReportWorkflowsModule],
     }),

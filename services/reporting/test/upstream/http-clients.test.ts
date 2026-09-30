@@ -5,6 +5,11 @@ import { HttpDeclarationsClient } from '../../src/declarations/http-declarations
 import { DirectoryUnavailable } from '../../src/directory/directory-client.js';
 import { HttpDirectoryClient } from '../../src/directory/http-directory-client.js';
 import { HttpDocumentsClient } from '../../src/documents/http-documents-client.js';
+import {
+  HttpIntegrationGatewayClient,
+  ICMS_LEGAL_BASIS,
+} from '../../src/integration-gateway/http-integration-gateway-client.js';
+import { IntegrationGatewayUnavailable } from '../../src/integration-gateway/integration-gateway-client.js';
 import { InternalApiRejected } from '../../src/internal-api/internal-api.js';
 import { HttpNotificationsClient } from '../../src/notifications/http-notifications-client.js';
 import { HttpReviewClient } from '../../src/review/http-review-client.js';
@@ -103,6 +108,111 @@ describe('HttpReviewClient', () => {
       url: 'http://review.test/internal/v1/review/clarifications/details',
       body: { clarificationIds: [clarificationId] },
     });
+  });
+
+  it("reads a referral's ICMS payload for the Commission; null when review knows none", async () => {
+    const referralId = '0199b000-0000-7000-8000-0000000000f1';
+    const payload = {
+      reference: 'RFL-PSC-2028-0000001-5',
+      grounds: 'two-missed-cycles',
+      groundsLabel: 'Two missed declaration cycles',
+      commission: { name: 'Public Service Commission', issuerCode: 'PSC' },
+      declarant: { name: 'Declarant Achieng', nationalId: '12345678' },
+      narrative: 'Missed two cycles.',
+    };
+    const fetch = vi
+      .fn<Fetch>()
+      .mockResolvedValueOnce(Response.json(payload))
+      .mockResolvedValueOnce(new Response(null, { status: 404 }));
+    const client = new HttpReviewClient({ reviewUrl: 'http://review.test', tokens, fetch });
+
+    expect(await client.referralIcmsPayload('psc', referralId)).toEqual(payload);
+    expect(request(fetch)).toMatchObject({
+      url: `http://review.test/internal/v1/review/referrals/${referralId}/icms-payload`,
+      method: 'GET',
+      headers: { 'x-acting-tenant': 'psc' },
+    });
+    expect(await client.referralIcmsPayload('psc', referralId)).toBeNull();
+  });
+});
+
+describe('HttpIntegrationGatewayClient', () => {
+  const referral = {
+    referralReference: 'RFL-PSC-2028-0000001-5',
+    nationalId: '12345678',
+    fullName: 'Declarant Achieng',
+    referringCommission: 'PSC',
+    grounds: 'Two missed declaration cycles',
+    details: 'Missed two cycles.',
+  };
+  const registered = {
+    referralReference: referral.referralReference,
+    caseNumber: 'ICMS/2028/000001',
+    status: 'registered',
+    registeredAt: '2028-03-10T08:00:00.000Z',
+    sentAt: '2028-03-10T08:00:00.000Z',
+  };
+
+  it('submits a referral to ICMS with the legal basis for the Commission (201 and 200 alike)', async () => {
+    const fetch = vi
+      .fn<Fetch>()
+      .mockResolvedValueOnce(Response.json(registered, { status: 201 }))
+      .mockResolvedValueOnce(Response.json(registered, { status: 200 }));
+    const client = new HttpIntegrationGatewayClient({
+      gatewayUrl: 'http://gateway.test',
+      tokens,
+      fetch,
+    });
+
+    expect(await client.submitReferral('psc', referral)).toEqual(registered);
+    expect(await client.submitReferral('psc', referral)).toEqual(registered);
+    expect(request(fetch)).toMatchObject({
+      url: 'http://gateway.test/internal/v1/icms/referrals',
+      method: 'POST',
+      headers: { 'x-acting-tenant': 'psc', 'x-legal-basis': ICMS_LEGAL_BASIS },
+      body: referral,
+    });
+  });
+
+  it('is unavailable while ICMS is down (503) and rejected on a 4xx', async () => {
+    const fetch = vi
+      .fn<Fetch>()
+      .mockResolvedValueOnce(new Response(null, { status: 503 }))
+      .mockResolvedValueOnce(new Response(null, { status: 400 }));
+    const client = new HttpIntegrationGatewayClient({
+      gatewayUrl: 'http://gateway.test',
+      tokens,
+      fetch,
+    });
+
+    await expect(client.submitReferral('psc', referral)).rejects.toBeInstanceOf(
+      IntegrationGatewayUnavailable,
+    );
+    await expect(client.submitReferral('psc', referral)).rejects.toBeInstanceOf(
+      InternalApiRejected,
+    );
+  });
+
+  it('reads a registration by referral reference; null for none', async () => {
+    const fetch = vi
+      .fn<Fetch>()
+      .mockResolvedValueOnce(Response.json({ ...registered, status: 'pending', caseNumber: null }))
+      .mockResolvedValueOnce(new Response(null, { status: 404 }));
+    const client = new HttpIntegrationGatewayClient({
+      gatewayUrl: 'http://gateway.test',
+      tokens,
+      fetch,
+    });
+
+    expect(await client.getReferral('psc', referral.referralReference)).toMatchObject({
+      status: 'pending',
+      caseNumber: null,
+    });
+    expect(request(fetch)).toMatchObject({
+      url: 'http://gateway.test/internal/v1/icms/referrals/RFL-PSC-2028-0000001-5',
+      method: 'GET',
+    });
+    expect(await client.getReferral('psc', referral.referralReference)).toBeNull();
   });
 });
 

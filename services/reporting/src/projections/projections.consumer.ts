@@ -7,6 +7,7 @@ import type { PgColumn } from 'drizzle-orm/pg-core';
 
 import { TENANT_SLUG } from '../access.js';
 import { financialYearAt, financialYearOf } from '../financial-year.js';
+import { takeInReferral } from '../referrals/intake.js';
 import { SYSTEM_SUBJECT } from '../system-context.js';
 import {
   ACTION_APPROVED,
@@ -197,23 +198,28 @@ export class ProjectionsConsumer {
     );
   }
 
+  /**
+   * A referral sent to EACC: counted for the Commission's year (by when it was sent) and taken
+   * into EACC's referrals intake, `not-pushed`.
+   */
   @OnEvent(REFERRAL_SENT)
   referralSent(@Payload() event: EventEnvelope): Promise<boolean> {
     const data = referralSentData.parse(event.data);
-    const at = new Date(event.time);
-    return this.project(event, (tx, tenant) =>
-      tx
+    const sentAt = new Date(data.sentAt);
+    return this.project(event, async (tx, tenant) => {
+      await tx
         .insert(referralFacts)
         .values({
           referralId: data.referralId,
           tenant,
           reference: data.reference,
           grounds: data.grounds,
-          fy: financialYearAt(at),
-          sentAt: at,
+          fy: financialYearAt(sentAt),
+          sentAt,
         })
-        .onConflictDoNothing(),
-    );
+        .onConflictDoNothing();
+      await takeInReferral(tx, tenant, data);
+    });
   }
 
   /** A clarification's status; issuing also dates it into the financial year it was issued in. */
