@@ -41,12 +41,13 @@ import type {
   ObligationListItem,
   ObligationPage,
 } from '../../server/declarations/client';
+import { SERVICE_UNAVAILABLE } from '../../server/service-call';
 import { LoadError } from '../load-error';
 import { appendPage, type LoadedPages } from '../roster/records-query';
 import { SearchBox } from '../search-box';
 import { goToSignIn } from '../sign-in-redirect';
-import { OnboardedBadge } from './obligation-badges';
 import { messages as m } from './messages';
+import { OnboardedBadge } from './obligation-badges';
 import {
   type CycleOption,
   hasObligationFilters,
@@ -55,7 +56,6 @@ import {
   type ObligationsSearch,
   withFilter,
 } from './obligations-query';
-import { SERVICE_UNAVAILABLE } from '../../server/service-call';
 
 /** Radix Select items cannot have an empty value, so "all" is this sentinel. */
 const ALL = 'all';
