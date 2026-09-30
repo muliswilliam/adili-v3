@@ -41,17 +41,21 @@ export interface MessagesOptions {
 export type MessageFailure = DeliveryFailure | 'no-contact' | 'contact-lookup-failed';
 
 /**
- * Failures that say nothing lasting about the recipient: the directory or the provider did not
- * answer. A retry may succeed, so an answer carrying one is never replayed under its
- * Idempotency-Key.
+ * Failures after which nothing reached the recipient and a retry may succeed: the directory did
+ * not answer, or the provider answered that it did not take the message. An answer carrying one
+ * is never replayed under its Idempotency-Key. A `timeout` is not one of them: the provider may
+ * have delivered a message it did not confirm in time, so it is final (delivery unknown), and a
+ * retry under the same key replays it rather than risk sending the message twice.
  */
 const TRANSIENT_FAILURES: ReadonlySet<string> = new Set<MessageFailure>([
   'contact-lookup-failed',
-  'timeout',
   'provider-error',
 ]);
 
-/** Whether a message's outcome is final: sent, or failed for a reason a retry will not change. */
+/**
+ * Whether a message's outcome is final: sent, failed for a reason a retry will not change, or
+ * timed out with delivery unknown.
+ */
 export function isSettled(message: MessageView): boolean {
   return message.error === null || !TRANSIENT_FAILURES.has(message.error);
 }

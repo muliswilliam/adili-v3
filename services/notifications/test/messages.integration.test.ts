@@ -510,6 +510,22 @@ describe('internal messages API', () => {
       expect(sms.sent).toHaveLength(1);
     });
 
+    it('replays a provider timeout under the same key: the first message may have gone out', async () => {
+      const personId = newPerson();
+      directory.set(personId, { email: null, phone: '+254712345678' });
+      sms.hang();
+      const headers = { ...auth, 'idempotency-key': '0199a8f0-5555-7000-8000-00000000abd2' };
+
+      const timedOut = await send(reminder('sms', personId), headers);
+      sms.reset();
+      const retry = await send(reminder('sms', personId), headers);
+
+      expect(timedOut.json()).toMatchObject({ status: 'failed', error: 'timeout' });
+      expect(retry.headers['idempotent-replayed']).toBe('true');
+      expect(retry.json()).toEqual(timedOut.json());
+      expect(sms.sent).toHaveLength(0);
+    });
+
     it('replays a lasting failure (no-contact) under the same key', async () => {
       const personId = newPerson();
       const headers = { ...auth, 'idempotency-key': '0199a8f0-5555-7000-8000-00000000abd1' };

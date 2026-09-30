@@ -232,6 +232,20 @@ describe('sendReminder', () => {
     });
   });
 
+  it('does not retry a channel that timed out at the provider: it may have been delivered', async () => {
+    const { initial } = await officer(PERSON);
+    api.notifications.answer('sms', { failed: 'timeout' });
+
+    await expect(api.steps.sendReminder(reminder(initial), attempt(false).run)).resolves.toBe(
+      'sent',
+    );
+    expect(api.notifications.channels()).toEqual(['sms', 'email']);
+    expect((await remindersOf(initial)).find((r) => r.offsetDays === 14)).toMatchObject({
+      outcome: 'sent',
+      channels: ['email'],
+    });
+  });
+
   it('sends each channel of a reminder with its own Idempotency-Key, the same on every attempt', async () => {
     const { initial } = await officer(PERSON);
     api.notifications.answer('sms', 'unreachable', 'sent');

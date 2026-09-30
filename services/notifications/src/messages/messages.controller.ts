@@ -38,7 +38,7 @@ export class MessagesController {
     operationId: 'sendMessage',
     summary: 'Render a template and send it by email or SMS',
     description:
-      'Synchronous with a 5-second budget. A provider failure is not an error: the message is created with status `failed` and the reason in `error`. With an `Idempotency-Key` (optional; keys are per caller, kept 24 hours) a retry gets the first answer back instead of a second message, unless that answer failed for a reason worth retrying (`contact-lookup-failed`, `timeout`, `provider-error`): then the key is freed and the retry sends again.',
+      'Synchronous with a 5-second budget. A provider failure is not an error: the message is created with status `failed` and the reason in `error`. With an `Idempotency-Key` (optional; keys are per caller, kept 24 hours) a retry gets the first answer back instead of a second message, unless that answer failed before anything could reach the recipient (`contact-lookup-failed`, `provider-error`): then the key is freed and the retry sends again. A `timeout` is final: the provider may have delivered it, so it is replayed rather than risk a second message.',
   })
   @ApiBody({ required: true, schema: schemaRef('SendMessage') })
   @ApiCreatedResponse({

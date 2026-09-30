@@ -65,8 +65,12 @@ export class ReminderRetryable extends Error {
   override readonly name = 'ReminderRetryable';
 }
 
-/** Notifications' reasons that name a lasting fact about the recipient: no retry. */
-const FINAL_REASONS = new Set(['no-contact', 'rejected-recipient']);
+/**
+ * Notifications' reasons that are final: a lasting fact about the recipient, or a provider
+ * `timeout`, where the message may have gone out (notifications replays it under the key, so a
+ * retry could not send it again anyway). No retry.
+ */
+const FINAL_REASONS = new Set(['no-contact', 'rejected-recipient', 'timeout']);
 
 /**
  * What the obligation workflows do to the database and the outside world (the activities
