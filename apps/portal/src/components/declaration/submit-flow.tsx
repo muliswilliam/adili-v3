@@ -12,6 +12,7 @@ import {
   DialogTitle,
   formatTime,
   Icon,
+  IconTile,
   Spinner,
 } from '@adili/ui';
 import {
@@ -176,9 +177,9 @@ export function AffirmationDialog({
     >
       <DialogContent busy={busy} aria-describedby={undefined}>
         <DialogHeader className="flex-row items-center gap-3">
-          <span className="flex size-[34px] shrink-0 items-center justify-center rounded-[10px] bg-brand-subtle text-brand-subtle-foreground">
-            <Icon icon={SentIcon} className="size-[18px]" />
-          </span>
+          <IconTile tone="brand">
+            <Icon icon={SentIcon} />
+          </IconTile>
           <DialogTitle>{SUBMIT_COPY.title(nextVersion)}</DialogTitle>
         </DialogHeader>
         <DialogBody>

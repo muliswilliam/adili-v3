@@ -3,8 +3,8 @@ import {
   AlertDescription,
   Badge,
   Button,
-  cn,
   Icon,
+  IconTile,
   obligationTypeLabel,
   ProgressBar,
   ReferenceChip,
@@ -84,17 +84,9 @@ function RowFrame({
 
 function Mark({ tone, icon }: { tone: 'brand' | 'success'; icon: typeof Tick02Icon }) {
   return (
-    <span
-      aria-hidden="true"
-      className={cn(
-        'flex size-[34px] shrink-0 items-center justify-center rounded-[10px]',
-        tone === 'brand'
-          ? 'bg-brand-subtle text-brand-subtle-foreground'
-          : 'bg-success-subtle text-success',
-      )}
-    >
-      <Icon icon={icon} className="size-[17px]" strokeWidth={tone === 'success' ? 2.4 : 2} />
-    </span>
+    <IconTile tone={tone} className="[&_svg]:size-[17px]">
+      <Icon icon={icon} strokeWidth={tone === 'success' ? 2.4 : 2} />
+    </IconTile>
   );
 }
 

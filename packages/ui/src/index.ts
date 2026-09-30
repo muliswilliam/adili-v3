@@ -187,6 +187,7 @@ export {
   groundMeta,
 } from './components/grounds-select';
 export { Icon, type IconProps } from './components/icon';
+export { IconTile, type IconTileProps, iconTileVariants } from './components/icon-tile';
 export { controlClassName, Input } from './components/input';
 export { Label } from './components/label';
 export { Logo, LogoMark, LogoWordmark, type LogoProps } from './components/logo';
