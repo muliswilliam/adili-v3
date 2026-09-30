@@ -8,6 +8,7 @@ import {
 } from '@nestjs/swagger';
 import {
   ApiProblemResponse,
+  AuditedRead,
   CurrentPrincipal,
   type Principal,
   RequireIdempotencyKey,
@@ -77,6 +78,7 @@ export class ComplianceReportsController {
   }
 
   @Get(':fy')
+  @AuditedRead({ action: 'compliance-report.viewed', resource: 'compliance-report' })
   @ApiSlugParam()
   @ApiFinancialYearParam()
   @ApiOperation({

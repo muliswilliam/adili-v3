@@ -1,5 +1,5 @@
 import { HttpStatus, Injectable } from '@nestjs/common';
-import { type Principal, ProblemException } from '@adili/api-kit';
+import { type Principal, ProblemException, type SetAuditedTenant } from '@adili/api-kit';
 import { type Database, FieldCipher, InjectDatabase, withTenant } from '@adili/data-access';
 import { and, count, eq, max } from 'drizzle-orm';
 
@@ -74,9 +74,14 @@ export class EaccReportsService {
   /**
    * A submitted report as filed, with its document and the ids of its PDF and receipt. EACC
    * roles read any Commission's; a Commission's staff and federated system their own. A draft,
-   * another Commission's report and an unknown id are all 404.
+   * another Commission's report and an unknown id are all 404. The read is audited under the
+   * report's Commission (`audit`), whoever reads it (ADR-008).
    */
-  async submittedReport(principal: Principal, reportId: string): Promise<ComplianceReportView> {
+  async submittedReport(
+    principal: Principal,
+    reportId: string,
+    audit: SetAuditedTenant,
+  ): Promise<ComplianceReportView> {
     const reader = submittedReportReader(principal, REPORTS_SUBMIT_SCOPE);
     const report = await withTenant(
       this.db,
@@ -96,6 +101,7 @@ export class EaccReportsService {
       },
     );
     if (!report) throw notFound();
+    audit(report.tenant);
     const document = await openSnapshot(this.cipher, report.tenant, report);
     return reportView(report, await commissionOf(this.directory, report.tenant), document);
   }

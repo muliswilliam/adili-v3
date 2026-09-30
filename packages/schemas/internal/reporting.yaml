@@ -45,6 +45,12 @@ paths:
       tags: [form-m]
       operationId: getComplianceReport
       summary: The report for a financial year (draft or submitted) with its document
+      description: |
+        Each read is audited (`audit.read.v1`, action `compliance-report.viewed`, under the
+        Commission's tenant).
+      x-audited-read:
+        action: compliance-report.viewed
+        resource: compliance-report
       responses:
         '200':
           description: Report
@@ -440,7 +446,7 @@ paths:
         report not submitted and an unknown id are 404. The document is the frozen `form-m.v1`
         as filed; the PDF and receipt download through documents by `formMDocumentId` and
         `receiptDocumentId` (null until issued). Each read is audited (`audit.read.v1`, action
-        `compliance-report.viewed`).
+        `compliance-report.viewed`) under the tenant of the Commission whose report it is.
       x-audited-read:
         action: compliance-report.viewed
         resource: compliance-report

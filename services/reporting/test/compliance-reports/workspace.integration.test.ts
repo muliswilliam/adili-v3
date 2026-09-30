@@ -3,7 +3,7 @@ import { randomUUID } from 'node:crypto';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
 import { complianceReportWorkflowId } from '../../src/compliance-reports/contract.js';
-import { complianceReports } from '../../src/db/schema.js';
+import { complianceReports, outbox } from '../../src/db/schema.js';
 import { contractErrors, okResponse } from '../support/contract.js';
 import { clarificationEvent, obligationCreated } from '../support/events.js';
 import {
@@ -179,6 +179,34 @@ describe('Form M workspace: periods and access', () => {
         status: 'draft',
         document: { schemaVersion: 'form-m.v1' },
       });
+    });
+
+    it("reading the report is audited under the Commission's tenant; the periods are not", async () => {
+      const before = (await api.db.select().from(outbox)).length;
+
+      await api.get(PERIODS, REPORTING_OFFICER);
+      const response = await api.get(`${PERIODS}/2027`, REPORTING_OFFICER);
+
+      expect(response.statusCode).toBe(200);
+      const audited = (await api.db.select().from(outbox))
+        .slice(before)
+        .map((row) => row.envelope as { type: string; tenant?: string; data: unknown });
+      expect(audited).toEqual([
+        expect.objectContaining({
+          type: 'audit.read.v1',
+          tenant: 'psc',
+          data: expect.objectContaining({
+            action: 'compliance-report.viewed',
+            resource: { type: 'compliance-report', params: { slug: 'psc', fy: '2027' } },
+            actor: expect.objectContaining({
+              tenant: 'psc',
+              roles: ['reporting-officer'],
+            }) as unknown,
+          }) as unknown,
+        }),
+      ]);
+      // The audit event carries identifiers, not the report.
+      expect(JSON.stringify(audited)).not.toContain('Public Service Commission');
     });
 
     it.each([

@@ -3,8 +3,10 @@ import { ApiOkResponse, ApiOperation, ApiParam, ApiQuery, ApiTags } from '@nestj
 import {
   ApiProblemResponse,
   AuditedRead,
+  AuditedTenant,
   CurrentPrincipal,
   type Principal,
+  type SetAuditedTenant,
   ZodValidationPipe,
 } from '@adili/api-kit';
 import { z } from 'zod';
@@ -29,7 +31,7 @@ type IntakeQuery = z.infer<typeof intakeQuery>;
  * time or late, their rates and outliers, and how often they were chased (EACC roles; everyone
  * else 403); and the report viewer, a submitted report as filed (EACC roles for every
  * Commission's, a Commission's staff and system for their own; everyone else 404). Reading a
- * report is audited (ADR-008).
+ * report is audited (ADR-008) under the Commission whose report it is.
  */
 @ApiTags('eacc')
 @Controller('v1/eacc/compliance-reports')
@@ -72,7 +74,8 @@ export class EaccReportsController {
   get(
     @CurrentPrincipal() principal: Principal,
     @Param('reportId', new ZodValidationPipe(z.uuid())) reportId: string,
+    @AuditedTenant() audit: SetAuditedTenant,
   ): Promise<ComplianceReportView> {
-    return this.reports.submittedReport(principal, reportId);
+    return this.reports.submittedReport(principal, reportId, audit);
   }
 }

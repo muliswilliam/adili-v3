@@ -277,6 +277,8 @@ describe('EACC intake, report viewer and chase (S9, S10)', () => {
 
       const audited = (await events()).slice(before);
       expect(audited.map((event) => event.type)).toEqual(['audit.read.v1']);
+      // The read is psc's data, recorded under psc's tenant; the actor is EACC's.
+      expect(audited[0]?.tenant).toBe('psc');
       expect(audited[0]?.data).toMatchObject({
         action: 'compliance-report.viewed',
         resource: { type: 'compliance-report', params: { reportId: psc.id } },
