@@ -504,6 +504,15 @@ describe('S16 visibility of Commission obligations', () => {
     expect(rows(tsc.items)).toEqual(['Akinyi Tsc biennial upcoming 2027-12-31']);
   });
 
+  it('answers 404 to a platform admin and EACC for a slug that names no Commission', async () => {
+    const admin = { tenant: 'platform', roles: ['platform-admin'] };
+    const eacc = { tenant: 'eacc', roles: ['eacc-analyst'] };
+
+    expect((await api.get(path(SUMMARY, 'nosuch'), admin)).statusCode).toBe(404);
+    expect((await api.get(path(LIST, 'nosuch'), admin)).statusCode).toBe(404);
+    expect((await api.get(path(SUMMARY, 'nosuch'), eacc)).statusCode).toBe(404);
+  });
+
   it('records each read of the list in the audit trail, never the summary (ADR-008)', async () => {
     const caller = { tenant: 'psc', roles: ['supervisor'] };
 

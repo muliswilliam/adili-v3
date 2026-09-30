@@ -1,5 +1,5 @@
 import { HttpStatus, Injectable } from '@nestjs/common';
-import { type Principal, ProblemException } from '@adili/api-kit';
+import { notFoundIfInvisible, type Principal, ProblemException } from '@adili/api-kit';
 import { type Database, InjectDatabase, withTenant } from '@adili/data-access';
 import {
   and,
@@ -125,7 +125,8 @@ export class CommissionObligationsService {
   /**
    * Counts by type and status for a cycle (the current one by default) and the declarants due or
    * overdue who have not onboarded, in one aggregate query. A Commission the service has no
-   * obligations for yet gets zeros.
+   * obligations for yet gets zeros; a slug that names no Commission is 404 for callers reading
+   * across Commissions (EACC, platform admins).
    */
   async summary(
     principal: Principal,
@@ -138,6 +139,8 @@ export class CommissionObligationsService {
         .select({ issuerCode: commissionRefs.issuerCode, name: commissionRefs.name })
         .from(commissionRefs)
         .where(eq(commissionRefs.slug, slug));
+      // Staff reading their own Commission know it exists, even before the read model has it.
+      if (tenant === PLATFORM_TENANT) notFoundIfInvisible(reference);
       const [cached] = await tx
         .select({ policy: tenantPolicyCache.policy })
         .from(tenantPolicyCache)
@@ -225,6 +228,7 @@ export class CommissionObligationsService {
     }
 
     return withTenant(this.db, { tenant, subject: principal.subject }, async (tx) => {
+      if (tenant === PLATFORM_TENANT) await knownCommission(tx, slug);
       const rows = await tx
         .select({
           ...obligationColumns,
@@ -406,6 +410,15 @@ export class CommissionObligationsService {
       cycleIn(Number(today.slice(0, 4)), UNLISTED_OPENING_LEAD_DAYS, false);
     return { counted, cycles };
   }
+}
+
+/** 404 unless the read model has the Commission `slug` (a read across Commissions of a slug). */
+async function knownCommission(tx: Transaction, slug: string): Promise<void> {
+  const [reference] = await tx
+    .select({ slug: commissionRefs.slug })
+    .from(commissionRefs)
+    .where(eq(commissionRefs.slug, slug));
+  notFoundIfInvisible(reference);
 }
 
 /**
