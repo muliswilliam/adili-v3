@@ -1,11 +1,10 @@
-import { findScheme } from '@adili/numbering/references';
+import { findScheme, parse } from '@adili/numbering/references';
 import {
   Button,
   DescriptionItem,
   DescriptionList,
   declarationReferenceParts,
   formatDateTime,
-  HashDropZone,
   Icon,
   ReferenceChip,
   Skeleton,
@@ -27,10 +26,18 @@ import {
   WifiDisconnected01Icon,
 } from '@hugeicons/core-free-icons';
 import { Link } from '@tanstack/react-router';
+import { lazy, Suspense } from 'react';
+
 import { documentTypeName, verifyMessages as copy } from '../copy';
 import type { LookupOutcome } from '../lib/lookup-outcome';
 import type { VerificationResult, VerifiedDocument } from '../server/verification/types';
 import { StatusCard, type StatusTone } from './status-card';
+
+// The file check (hashing, the drop zone and its states) is below the answer and only for
+// someone holding the PDF, so it loads after the page; a server-rendered page shows it at once.
+const HashDropZone = lazy(async () => ({
+  default: (await import('@adili/ui/hash-drop-zone')).HashDropZone,
+}));
 
 type Found = Extract<LookupOutcome, { kind: 'found' }>['result'];
 
@@ -228,12 +235,20 @@ function DocumentDetails({
 
 /**
  * What each part of a declaration reference means, from the numbering scheme registry. Other
- * references show without a breakdown.
+ * references, and any that do not parse, show without a breakdown.
  */
 function referenceParts(document: VerifiedDocument) {
-  const scheme = findScheme(document.reference?.split('-')[0] ?? '');
+  const scheme = document.reference ? parsedScheme(document.reference) : undefined;
   if (!scheme?.issuer || !scheme.period) return undefined;
   return declarationReferenceParts({ type: scheme.name, issuer: document.issuerName });
+}
+
+function parsedScheme(reference: string) {
+  try {
+    return findScheme(parse(reference).scheme);
+  } catch {
+    return undefined;
+  }
 }
 
 function CurrentVersion({ supersededBy }: { supersededBy: VerificationResult['supersededBy'] }) {
@@ -264,10 +279,12 @@ function FileCheck({ sha256, version }: { sha256: string; version: number | null
       <h2 id="check-file" className="mb-3 text-base font-semibold tracking-[-0.01em]">
         {copy.checkFileHeading}
       </h2>
-      <HashDropZone
-        expectedSha256={sha256}
-        messages={{ identicalDetail: copy.identicalDetail(version) }}
-      />
+      <Suspense fallback={<Skeleton className="h-[214px] rounded-2xl" />}>
+        <HashDropZone
+          expectedSha256={sha256}
+          messages={{ identicalDetail: copy.identicalDetail(version) }}
+        />
+      </Suspense>
     </section>
   );
 }
@@ -300,35 +317,5 @@ export function PrivacyNote() {
         {copy.why}
       </Link>
     </p>
-  );
-}
-
-/** The result page while the lookup is on its way. */
-export function ResultSkeleton() {
-  return (
-    <div role="status" aria-busy="true" className="grid gap-[18px]">
-      <span className="sr-only">{copy.loading}</span>
-      <div className="grid gap-2.5">
-        <Skeleton className="w-[120px]" />
-        <Skeleton className="h-[18px] w-[78%]" />
-      </div>
-      <div className="rounded-2xl bg-card shadow-card">
-        <div className="flex gap-3.5 p-5 sm:px-6 sm:py-[22px]">
-          <Skeleton className="size-12 rounded-[14px]" />
-          <div className="grid flex-1 content-start gap-3">
-            <Skeleton className="h-[18px] w-[70%]" />
-            <Skeleton className="w-[90%]" />
-          </div>
-        </div>
-        <div className="divide-y px-5 pb-5 sm:px-6">
-          {['w-[60%]', 'w-[45%]', 'w-[70%]', 'w-[30%]', 'w-1/2'].map((width) => (
-            <div key={width} className="flex justify-between gap-4 py-[13px]">
-              <Skeleton className="w-[28%]" />
-              <Skeleton className={width} />
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
   );
 }

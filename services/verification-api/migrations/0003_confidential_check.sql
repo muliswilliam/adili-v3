@@ -1,0 +1,3 @@
+ALTER TABLE "verification_projection" DROP CONSTRAINT "verification_projection_confidential_check";--> statement-breakpoint
+ALTER TABLE "verification_projection" ALTER COLUMN "sha256" DROP NOT NULL;--> statement-breakpoint
+ALTER TABLE "verification_projection" ADD CONSTRAINT "verification_projection_confidential_check" CHECK ("verification_projection"."disclosure_level" <> 'confidential' or ("verification_projection"."public_payload" is null and "verification_projection"."superseded_by" is null and "verification_projection"."sha256" is null and "verification_projection"."revoked_reason" is null));

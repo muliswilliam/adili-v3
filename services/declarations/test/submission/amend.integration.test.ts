@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 
-import { and, eq } from 'drizzle-orm';
+import { and, eq, sql } from 'drizzle-orm';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
 import {
@@ -20,8 +20,8 @@ import type {
 import type {
   DeclarationVersion,
   DeclarationVersionDetail,
-  SubmissionResult,
-} from '../../src/submission/representation.js';
+} from '../../src/declaration/representation.js';
+import type { SubmissionResult } from '../../src/submission/representation.js';
 import { contractErrors, okResponse, responseBody } from '../support/contract.js';
 import {
   type Caller,
@@ -48,6 +48,7 @@ import {
  */
 
 const AMEND = '/v1/declarations/{declarationId}/amend';
+const SUBMIT = '/v1/declarations/{declarationId}/submit';
 const DISCARD = '/v1/declarations/{declarationId}/amend/discard';
 const VERSIONS = '/v1/declarations/{declarationId}/versions';
 const VERSION = '/v1/declarations/{declarationId}/versions/{version}';
@@ -146,6 +147,21 @@ function obligationOf(obligationId: string) {
       .where(eq(filingObligations.id, obligationId));
     return row;
   });
+}
+
+/** Whether another transaction holds the declaration's row lock right now. */
+async function isLocked(declarationId: string): Promise<boolean> {
+  try {
+    await api.asPerson(ACHIENG, (tx) =>
+      tx.execute(sql`select 1 from declarations where id = ${declarationId} for update nowait`),
+    );
+    return false;
+  } catch (error) {
+    let cause: unknown = error;
+    while (cause instanceof Error && cause.cause) cause = cause.cause;
+    if ((cause as { code?: string }).code === '55P03') return true;
+    throw error;
+  }
 }
 
 function events(type: string) {
@@ -354,6 +370,24 @@ describe('amending after the due date, and discarding an amendment (S8)', () => 
     expect(await events('declaration.amendment-started.v1')).toEqual([]);
   });
 
+  it('refuses to submit an amendment started before the due date once it has passed (409 amendment-window-closed)', async () => {
+    const { declaration, obligationId } = await submitted();
+    expect((await amend(declaration.id)).statusCode).toBe(200);
+    const filedBefore = await obligationOf(obligationId);
+    api.clock.setToday('2028-01-01');
+
+    const response = await submit(declaration.id, steppedUp(ACHIENG));
+
+    expect(response.statusCode).toBe(409);
+    expect(response.json()).toMatchObject({ code: 'amendment-window-closed' });
+    expect(contractErrors(responseBody(SUBMIT, 'post', 409), response.json())).toEqual([]);
+    expect((await versionRows(declaration.id)).map((row) => row.version)).toEqual([1]);
+    expect(await obligationOf(obligationId)).toEqual(filedBefore);
+    const read = await api.request('GET', `/v1/declarations/${declaration.id}`, declarant(ACHIENG));
+    expect(read.json<Declaration>()).toMatchObject({ status: 'amending', currentVersion: 1 });
+    expect(await events('declaration.submitted.v1')).toHaveLength(1);
+  });
+
   it('puts the declaration back as submitted with version 1 untouched', async () => {
     const { declaration, obligationId } = await submitted();
     const [before] = await versionRows(declaration.id);
@@ -453,6 +487,40 @@ describe('amending after the due date, and discarding an amendment (S8)', () => 
     });
   });
 
+  it('checks the attachments with documents before it locks the declaration (ADR-013)', async () => {
+    const obligationId = await givenObligation(ACHIENG);
+    const draft = await completeDraft(ACHIENG, obligationId);
+    const deed = upload('psc');
+    api.documents.givenUploads(deed);
+    const linked = await api.request(
+      'POST',
+      `/v1/declarations/${draft.id}/attachments`,
+      declarant(ACHIENG),
+      { body: { sectionKey: 'statement:officer', itemId: ASSET.id, uploadId: deed.id } },
+    );
+    const attachment = linked.json<DeclarationAttachment>();
+    expect((await submit(draft.id, steppedUp(ACHIENG))).statusCode).toBe(201);
+    expect((await amend(draft.id)).statusCode).toBe(200);
+    expect(
+      (
+        await api.request(
+          'DELETE',
+          `/v1/declarations/${draft.id}/attachments/${attachment.id}`,
+          declarant(ACHIENG),
+        )
+      ).statusCode,
+    ).toBe(204);
+    const lockedWhileAsking: boolean[] = [];
+    api.documents.whileAnswering = async () => {
+      lockedWhileAsking.push(await isLocked(draft.id));
+    };
+
+    expect((await discardAmendment(draft.id)).statusCode).toBe(200);
+
+    expect(lockedWhileAsking).toEqual([false]);
+    expect((await attachmentRows(draft.id)).map((row) => row.id)).toEqual([attachment.id]);
+  });
+
   it('answers a declaration with no amendment in progress as it is, and refuses a draft', async () => {
     const { declaration } = await submitted();
 
@@ -517,6 +585,9 @@ describe('versions', () => {
         attestation: { reference: REFERENCE },
       },
     });
+    // ADR-008: the declarant reading their own version is not audited.
+    const audited = (await events('audit.read.v1')).map((event) => event.envelope.data.action);
+    expect(audited).not.toContain('declaration.version.read');
   });
 
   it('is 404 for another declarant, staff, an unknown declaration or version, and 401 without a token', async () => {

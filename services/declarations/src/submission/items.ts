@@ -7,7 +7,7 @@ import type {
   Money,
 } from '@adili/forms';
 
-import type { ItemCategory } from './schema.js';
+import type { ItemCategory } from '../declaration/schema.js';
 
 /**
  * The normalised items of a submitted document (ADR-001), pure: one per income, asset and

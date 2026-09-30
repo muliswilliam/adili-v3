@@ -17,7 +17,7 @@ import { type Database, InjectDatabase, withTenant } from '@adili/data-access';
 import { and, eq, inArray, isNull, lt, or, sql } from 'drizzle-orm';
 import { v7 as uuidv7 } from 'uuid';
 
-import { config } from '../config.js';
+import { config, SYSTEM_SUBJECT } from '../config.js';
 import type { DocumentsSchema } from '../db/schema.js';
 import { MalwareScanner } from '../scanning/malware-scanner.js';
 import { S3, S3_PUBLIC } from '../storage/storage.module.js';
@@ -225,14 +225,7 @@ export class UploadsService {
       (tx) => tx.select().from(uploads).where(eq(uploads.id, id)),
     );
     if (!upload) throw notFound();
-    if (upload.state !== 'clean' || !upload.cleanKey) {
-      throw new ProblemException({
-        type: 'upload-not-clean',
-        title: 'Upload is not clean',
-        status: HttpStatus.CONFLICT,
-        detail: `The upload is ${upload.state}; only clean uploads can be downloaded.`,
-      });
-    }
+    if (upload.state !== 'clean' || !upload.cleanKey) throw notClean(upload.state, 'downloaded');
     const expiresAt = new Date(Date.now() + DOWNLOAD_URL_TTL_SECONDS * 1000);
     const downloadUrl = await getSignedUrl(
       this.s3,
@@ -253,13 +246,41 @@ export class UploadsService {
   }
 
   /**
+   * Records that the owning service linked a clean upload of `actingTenant` to its record, so
+   * it is no orphan. Idempotent: the first link time is kept. Invisible uploads are 404,
+   * uploads that are not clean 409.
+   */
+  async markLinked(caller: Principal, actingTenant: string, id: string): Promise<void> {
+    const upload = await withTenant(
+      this.db,
+      { tenant: actingTenant, subject: caller.subject },
+      async (tx) => {
+        const [found] = await tx
+          .select({ state: uploads.state, linkedAt: uploads.linkedAt })
+          .from(uploads)
+          .where(eq(uploads.id, id))
+          .for('update');
+        if (found?.state === 'clean' && found.linkedAt === null) {
+          await tx
+            .update(uploads)
+            .set({ linkedAt: sql`now()` })
+            .where(eq(uploads.id, id));
+        }
+        return found;
+      },
+    );
+    if (!upload) throw notFound();
+    if (upload.state !== 'clean') throw notClean(upload.state, 'linked');
+  }
+
+  /**
    * Marks uploads still awaiting their bytes after the PUT expired as `expired` and deletes any
    * quarantine object they left. Idempotent, so every replica may run it. Returns the count.
    */
   async expireStale(): Promise<number> {
     const expired = await withTenant(
       this.db,
-      { tenant: PLATFORM_TENANT, subject: 'system' },
+      { tenant: PLATFORM_TENANT, subject: SYSTEM_SUBJECT },
       (tx) =>
         tx
           .update(uploads)
@@ -432,6 +453,15 @@ function notAwaitingUpload(upload: UploadRow): ProblemException {
     title: 'Upload already completed',
     status: HttpStatus.CONFLICT,
     detail: `The upload is already ${upload.state}.`,
+  });
+}
+
+function notClean(state: string, action: 'downloaded' | 'linked'): ProblemException {
+  return new ProblemException({
+    type: 'upload-not-clean',
+    title: 'Upload is not clean',
+    status: HttpStatus.CONFLICT,
+    detail: `The upload is ${state}; only clean uploads can be ${action}.`,
   });
 }
 

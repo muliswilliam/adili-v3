@@ -1,5 +1,5 @@
-import type { Acknowledgement } from '../submission/representation.js';
-import type { AcknowledgementStatus, declarationVersions } from '../submission/schema.js';
+import type { Acknowledgement } from './representation.js';
+import type { AcknowledgementStatus, declarationVersions } from './schema.js';
 
 /**
  * How long issuing a slip may take before the declarant is told it failed and may ask again

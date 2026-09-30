@@ -1,4 +1,4 @@
-import { HttpStatus, Logger } from '@nestjs/common';
+import { Logger } from '@nestjs/common';
 import { ProblemException } from '@adili/api-kit';
 import { sql } from 'drizzle-orm';
 import { drizzle, type NodePgDatabase } from 'drizzle-orm/node-postgres';
@@ -45,11 +45,8 @@ const logger = new Logger('Database');
  */
 export class DatabaseUnavailableError extends ProblemException {
   constructor(cause: unknown) {
-    super({
-      type: 'database-unavailable',
-      title: 'Service unavailable',
-      status: HttpStatus.SERVICE_UNAVAILABLE,
-    });
+    const { problem, extensions } = ProblemException.fromCode('database-unavailable');
+    super(problem, extensions);
     this.cause = cause;
   }
 }

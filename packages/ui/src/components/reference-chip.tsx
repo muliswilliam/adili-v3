@@ -1,6 +1,5 @@
 import { InformationCircleIcon } from '@hugeicons/core-free-icons';
-import * as PopoverPrimitive from '@radix-ui/react-popover';
-import type { ReactNode } from 'react';
+import { type ComponentProps, lazy, type ReactNode, Suspense, useState } from 'react';
 
 import { cn } from '../lib/cn';
 import { Button } from './button';
@@ -94,6 +93,11 @@ export interface ReferenceChipProps {
   className?: string;
 }
 
+// The breakdown's popover (Radix, Floating UI) loads when someone first reaches for it, so pages
+// that only show a reference, e.g. the verify app on a phone, do not download it up front.
+const loadBreakdown = () => import('./reference-breakdown');
+const ReferenceBreakdown = lazy(loadBreakdown);
+
 /**
  * A reference number in mono, with a button to copy it and one that opens what each part
  * means (ADR-011 §6). The breakdown opens on click, tap, Enter or Space and closes with Esc
@@ -107,17 +111,18 @@ export function ReferenceChip({
   messages,
   className,
 }: ReferenceChipProps) {
+  const [wanted, setWanted] = useState(false);
   const copy = { ...REFERENCE_CHIP_MESSAGES, ...messages };
   const segments = reference.split('-');
   const breakdown = parts?.length === segments.length ? parts : undefined;
   const small = size === 'sm';
   const large = size === 'lg';
 
-  const chip = (
+  const chip = (explain: ReactNode) => (
     <span
       className={cn(
-        'inline-flex max-w-full items-center gap-0.5 rounded-[10px] bg-card shadow-control',
-        small ? 'rounded-lg py-0.5 pr-0.5 pl-2' : large ? 'py-1.5 pr-1.5 pl-3.5' : 'py-1 pr-1 pl-3',
+        'inline-flex max-w-full items-center gap-0.5 rounded-lg bg-card shadow-control',
+        small ? 'py-0.5 pr-0.5 pl-2' : large ? 'py-1.5 pr-1.5 pl-3.5' : 'py-1 pr-1 pl-3',
         !copyable && !breakdown && (small ? 'pr-2' : large ? 'pr-3.5' : 'pr-3'),
         className,
       )}
@@ -138,59 +143,46 @@ export function ReferenceChip({
           className={small ? 'size-7 [&_svg]:size-4' : undefined}
         />
       ) : null}
-      {breakdown ? (
-        <>
-          <PopoverPrimitive.Trigger asChild>
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              className={small ? 'size-7 [&_svg]:size-4' : undefined}
-            >
-              <Icon icon={InformationCircleIcon} />
-              <span className="sr-only">{copy.explain}</span>
-            </Button>
-          </PopoverPrimitive.Trigger>
-          <PopoverPrimitive.Portal>
-            <PopoverPrimitive.Content
-              align="start"
-              sideOffset={8}
-              collisionPadding={8}
-              aria-label={copy.heading}
-              className="z-50 w-[320px] max-w-[calc(100vw-16px)] rounded-xl bg-card p-3.5 text-card-foreground shadow-pop outline-none"
-            >
-              <p className="mb-2 text-[11.5px] font-semibold tracking-[0.05em] text-muted-foreground uppercase">
-                {copy.heading}
-              </p>
-              <dl className="grid grid-cols-[auto_auto_1fr] gap-x-3 text-[13px]">
-                {breakdown.map((part, index) => (
-                  <div
-                    // Parts are positional; a label or value may repeat.
-                    key={index}
-                    className="col-span-3 grid grid-cols-subgrid border-b border-border py-1.5 last:border-b-0"
-                  >
-                    <dt className="contents">
-                      <span className="font-mono font-semibold whitespace-nowrap">
-                        {segments[index]}
-                      </span>
-                      <span className="whitespace-nowrap text-muted-foreground">{part.label}</span>
-                    </dt>
-                    <dd>{part.meaning}</dd>
-                  </div>
-                ))}
-              </dl>
-            </PopoverPrimitive.Content>
-          </PopoverPrimitive.Portal>
-        </>
-      ) : null}
+      {explain}
     </span>
   );
-  // The breakdown lines up with the chip, not with its button.
-  return breakdown ? (
-    <PopoverPrimitive.Root>
-      <PopoverPrimitive.Anchor asChild>{chip}</PopoverPrimitive.Anchor>
-    </PopoverPrimitive.Root>
-  ) : (
-    chip
+  if (!breakdown) return chip(null);
+
+  const explainButton = (props: ComponentProps<typeof Button> = {}) => (
+    <Button
+      type="button"
+      variant="ghost"
+      size="icon"
+      className={small ? 'size-7 [&_svg]:size-4' : undefined}
+      {...props}
+    >
+      <Icon icon={InformationCircleIcon} />
+      <span className="sr-only">{copy.explain}</span>
+    </Button>
+  );
+  // Until it is asked for, a plain button that fetches the breakdown on hover or focus and
+  // opens it on press; the same button stands in while it loads.
+  const placeholder = chip(
+    explainButton({
+      'aria-haspopup': 'dialog',
+      'aria-expanded': false,
+      onPointerEnter: () => void loadBreakdown(),
+      onFocus: () => void loadBreakdown(),
+      onClick: () => {
+        setWanted(true);
+      },
+    }),
+  );
+  if (!wanted) return placeholder;
+  return (
+    <Suspense fallback={placeholder}>
+      <ReferenceBreakdown
+        chip={chip}
+        trigger={explainButton()}
+        segments={segments}
+        parts={breakdown}
+        heading={copy.heading}
+      />
+    </Suspense>
   );
 }

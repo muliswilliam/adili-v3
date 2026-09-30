@@ -26,11 +26,11 @@ export interface SectionFromVersion {
 }
 
 /**
- * The capture sections of a submitted document, in First Schedule order: bio is the officer,
- * household the spouses and children, one statement per person, other the paragraph 9
- * information. Each is assessed as a save would (a submitted document is complete, unless a rule
- * has changed since), with the clear metadata a save derives; the bio keeps the fields the roster
- * locked (`lockedFields`, from the draft that was submitted).
+ * The capture sections of a submitted document, in First Schedule order: bio is the declarant
+ * (`officer` in declaration.v1), household the spouses and children, one statement per person,
+ * other the paragraph 9 information. Each is assessed as a save would (a submitted document is
+ * complete, unless a rule has changed since), with the clear metadata a save derives; the bio
+ * keeps the fields the roster locked (`lockedFields`, from the draft that was submitted).
  */
 export function sectionsOfVersion(
   document: DeclarationV1,

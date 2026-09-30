@@ -104,6 +104,64 @@ describe('DeclarationsCard', () => {
     expect(within(row).queryByRole('button')).toBeNull();
   });
 
+  it('says when a submitted declaration was filed and which version is in force', () => {
+    renderCard({
+      status: 'ok',
+      declarations: [
+        item({
+          status: 'submitted',
+          currentVersion: 2,
+          reference: 'DCB-TSC-2027-0000001-B',
+          submittedAt: '2026-09-30T09:00:00Z',
+          late: false,
+        }),
+      ],
+    });
+
+    const row = screen.getByRole('listitem');
+    expect(
+      within(row).getByText('Statement date 1 Nov 2027 · Version 2 · Submitted 30 Sep 2026, 12:00'),
+    ).toBeTruthy();
+    expect(within(row).queryByText(/Saved/)).toBeNull();
+    expect(within(row).queryByText('Filed late')).toBeNull();
+  });
+
+  it('marks a submitted declaration filed after its due date', () => {
+    renderCard({
+      status: 'ok',
+      declarations: [
+        item({
+          status: 'submitted',
+          currentVersion: 1,
+          submittedAt: '2028-01-02T09:00:00Z',
+          late: true,
+        }),
+      ],
+    });
+
+    expect(within(screen.getByRole('listitem')).getByText('Filed late')).toBeTruthy();
+  });
+
+  it('says when an amendment was last saved, not when the version in force was filed', () => {
+    renderCard({
+      status: 'ok',
+      declarations: [
+        item({
+          status: 'amending',
+          currentVersion: 1,
+          amendingFromVersion: 1,
+          submittedAt: '2026-09-20T09:00:00Z',
+        }),
+      ],
+    });
+
+    expect(
+      within(screen.getByRole('listitem')).getByText(
+        'Statement date 1 Nov 2027 · Saved 27 Sep 2026, 11:15',
+      ),
+    ).toBeTruthy();
+  });
+
   it('links to My declarations, where filed ones have their versions and amending', () => {
     renderCard({ status: 'ok', declarations: [item()] });
 

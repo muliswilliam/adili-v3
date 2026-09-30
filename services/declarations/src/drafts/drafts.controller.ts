@@ -28,6 +28,7 @@ import {
   schemaRef,
 } from '@adili/api-kit';
 
+import { ApiDeclarationIdParam, etag, etagHeader, NOT_VISIBLE, type Reply } from '../http.js';
 import { DraftsService } from './drafts.service.js';
 import type {
   Declaration,
@@ -37,30 +38,7 @@ import type {
   SectionSaveResult,
 } from './representation.js';
 
-const NOT_VISIBLE = 'Not found, or not visible to the caller';
-
-/** The part of Fastify's reply the routes use. */
-interface Reply {
-  status(code: number): unknown;
-  header(name: string, value: string): unknown;
-}
-
-const ETAG_HEADER = {
-  ETag: {
-    schema: { type: 'string' },
-    description: 'The draft version; send it as If-Match on section saves',
-  },
-};
-
-const ApiDeclarationIdParam = () =>
-  ApiParam({ name: 'declarationId', schema: { type: 'string', format: 'uuid' } });
-
 const ApiSectionKeyParam = () => ApiParam({ name: 'sectionKey', schema: schemaRef('SectionKey') });
-
-/** The draft version as an `ETag`. */
-function etag(draftVersion: number): string {
-  return `"${String(draftVersion)}"`;
-}
 
 /**
  * Declaration drafts (spec 05). Declarant only, by the `person_id` claim: any other caller gets
@@ -107,7 +85,7 @@ export class DraftsController {
   })
   @ApiOkResponse({
     description: 'The draft',
-    headers: ETAG_HEADER,
+    headers: etagHeader(),
     schema: schemaRef('Declaration'),
   })
   @ApiProblemResponse(404, NOT_VISIBLE)
@@ -185,7 +163,7 @@ export class DraftsController {
   })
   @ApiOkResponse({
     description: 'Section contents',
-    headers: ETAG_HEADER,
+    headers: etagHeader(),
     schema: schemaRef('SectionEnvelope'),
   })
   @ApiProblemResponse(404, NOT_VISIBLE)
@@ -218,7 +196,7 @@ export class DraftsController {
   @ApiBody({ required: true, schema: schemaRef('SectionContents') })
   @ApiOkResponse({
     description: 'Saved; new version in ETag',
-    headers: ETAG_HEADER,
+    headers: etagHeader(),
     schema: schemaRef('SectionSaveResult'),
   })
   @ApiProblemResponse(

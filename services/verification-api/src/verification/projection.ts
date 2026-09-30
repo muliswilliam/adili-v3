@@ -11,26 +11,20 @@ import { sql } from 'drizzle-orm';
 import { z } from 'zod';
 
 import type { VerificationSchema } from '../db/schema.js';
+import { verifiedDocumentSchema } from './representation.js';
 import { verificationProjection } from './schema.js';
 
 const verificationId = z.string().regex(VERIFICATION_ID_PATTERN);
 const timestamp = z.iso.datetime({ offset: true });
 
-/** Only these fields of the public payload reach the projection, whatever else an event holds. */
-const publicPayload = z.object({
-  type: z.string().min(1),
-  issuerName: z.string().min(1),
-  issuerCode: z.string().min(1),
-  issuedAt: timestamp,
-  reference: z.string().nullable(),
-  version: z.int().positive().nullable(),
-});
-
-/** The fields of `DocumentEventData` the projection keeps; the rest are never read. */
+/**
+ * The fields of `DocumentEventData` the projection keeps; the rest are never read. Of the public
+ * payload only the fields the page shows get through, whatever else an event holds.
+ */
 const documentEventData = z.object({
   verificationId,
   disclosureLevel: z.enum(DISCLOSURE_LEVELS),
-  publicPayload: publicPayload.nullable(),
+  publicPayload: verifiedDocumentSchema.nullable(),
   sha256: z.string().regex(/^[0-9a-f]{64}$/),
   issuedAt: timestamp,
   status: z.enum(DOCUMENT_STATUSES),
@@ -54,9 +48,11 @@ export type ProjectedEvent = z.infer<typeof documentEventData> & {
 };
 
 /**
- * Writes issuance events into `verification_projection`, once per event (inbox). Each event
- * carries the whole record, so they apply in any order: a row only moves forward in the
- * documents service's time (its status change time), and never back to valid on a tie.
+ * Writes issuance events into `verification_projection`, once per event (inbox), keeping only
+ * what the disclosure level lets the page show (ADR-010 §2): the row is the public answer, so
+ * reads mask nothing. Each event carries the whole record, so they apply in any order: a row only
+ * moves forward in the documents service's time (its status change time), and never back to
+ * valid on a tie.
  */
 @Injectable()
 export class VerificationProjection {
@@ -69,13 +65,13 @@ export class VerificationProjection {
       status: data.status,
       disclosureLevel: data.disclosureLevel,
       publicPayload: disclosed ? data.publicPayload : null,
-      sha256: data.sha256,
+      sha256: disclosed ? data.sha256 : null,
       issuedAt: new Date(data.issuedAt),
       supersededBy:
         disclosed && data.status === 'superseded'
           ? (data.supersededByVerificationId ?? null)
           : null,
-      revokedReason: data.status === 'revoked' ? (data.reasonCategory ?? null) : null,
+      revokedReason: disclosed && data.status === 'revoked' ? (data.reasonCategory ?? null) : null,
       updatedAt: new Date(data.statusChangedAt ?? data.issuedAt),
     };
     const t = verificationProjection;

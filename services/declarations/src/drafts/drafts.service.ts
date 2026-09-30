@@ -15,9 +15,9 @@ import { isRecord, isUuid, UUID } from '../guards.js';
 import { commissionRef } from '../obligations/access.js';
 import { nairobiDate } from '../obligations/dates.js';
 import { commissionRefs, filingObligations } from '../obligations/schema.js';
-import { acknowledgementOf } from '../acknowledgement/status.js';
-import { declarationVersions } from '../submission/schema.js';
-import { amendRefusal, isLate, submitRefusal } from '../submission/window.js';
+import { acknowledgementOf } from '../declaration/acknowledgement.js';
+import { declarations, declarationVersions, isEditable } from '../declaration/schema.js';
+import { amendRefusal, isLate, submitRefusal } from '../declaration/window.js';
 import { personOf } from './access.js';
 import { itemIds, keepAttachments } from './attachments.js';
 import { assessSections, type DraftSections, type SectionAssessment } from './completeness.js';
@@ -44,6 +44,7 @@ import {
   liveDeclaration,
   liveDeclarationOf,
   liveSections,
+  obligationOf,
   readSection,
   sectionIs,
   statementSections,
@@ -79,8 +80,6 @@ import { reviewDraft } from './summary.js';
 import {
   declarationAttachments,
   declarationSections,
-  declarations,
-  isEditable,
   obligationDrafts,
   type SectionMetadata,
 } from './schema.js';
@@ -271,17 +270,11 @@ export class DraftsService {
     const found = await withPerson(this.db, person, async (tx) => {
       const declaration = await liveDeclaration(tx, declarationId);
       if (!declaration) return null;
-      const [obligation] = await tx
-        .select({
-          status: filingObligations.status,
-          statementDate: filingObligations.statementDate,
-          dueDate: filingObligations.dueDate,
-        })
-        .from(filingObligations)
-        .where(eq(filingObligations.id, declaration.obligationId))
-        .limit(1);
-      if (!obligation) return null;
-      return { declaration, obligation, sections: await liveSections(tx, declaration.id) };
+      return {
+        declaration,
+        obligation: await obligationOf(tx, declaration),
+        sections: await liveSections(tx, declaration.id),
+      };
     });
     const { declaration, obligation, sections } = notFoundIfInvisible(found);
     const review = reviewDraft(
@@ -748,12 +741,7 @@ export class DraftsService {
         .from(commissionRefs)
         .where(eq(commissionRefs.slug, declaration.tenant))
         .limit(1);
-      const [obligation] = await tx
-        .select({ dueDate: filingObligations.dueDate })
-        .from(filingObligations)
-        .where(eq(filingObligations.id, declaration.obligationId))
-        .limit(1);
-      if (!obligation) return null;
+      const obligation = await obligationOf(tx, declaration);
       const sections = await tx
         .select({
           declarationId: declarationSections.declarationId,

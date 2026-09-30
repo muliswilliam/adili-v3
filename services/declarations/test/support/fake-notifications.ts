@@ -5,17 +5,18 @@ import {
   NotificationsClient,
   NotificationsKeyReused,
   NotificationsUnavailable,
-  type ReminderChannel,
+  type MessageChannel,
   type ReminderMessage,
   type SendOutcome,
 } from '../../src/notifications/notifications-client.js';
 
 /**
  * How the fake answers a channel: sent, a notifications failure reason, unreachable (never got
- * there), or `lost`: sent, but the answer never came back (a timeout after notifications stored it
- * under the key).
+ * there), `lost`: sent, but the answer never came back (a timeout after notifications stored it
+ * under the key), or `held`: sent, answered only once the test calls `release()` (a slow
+ * notifications).
  */
-export type FakeAnswer = 'sent' | 'unreachable' | 'lost' | { failed: string };
+export type FakeAnswer = 'sent' | 'unreachable' | 'lost' | 'held' | { failed: string };
 
 /**
  * The notifications messages API for tests: records every reminder asked for (`sent`, replays
@@ -29,11 +30,18 @@ export class FakeNotifications extends NotificationsClient {
   readonly sent: (ReminderMessage & { messageId: string | null })[] = [];
   /** The acknowledgements asked for, answered like reminders (`sent`, keys kept). */
   readonly acknowledgements: (AcknowledgementMessage & { messageId: string | null })[] = [];
-  private readonly answers = new Map<ReminderChannel, FakeAnswer[]>();
+  private readonly answers = new Map<MessageChannel, FakeAnswer[]>();
   private readonly keys = new Map<string, { request: string; outcome: SendOutcome }>();
+  private held: (() => void)[] = [];
 
-  answer(channel: ReminderChannel, ...answers: FakeAnswer[]): void {
+  answer(channel: MessageChannel, ...answers: FakeAnswer[]): void {
     this.answers.set(channel, answers);
+  }
+
+  /** Answers every `held` message, as sent. */
+  release(): void {
+    for (const answer of this.held) answer();
+    this.held = [];
   }
 
   sendReminder(message: ReminderMessage): Promise<SendOutcome> {
@@ -67,6 +75,16 @@ export class FakeNotifications extends NotificationsClient {
       sent.push({ ...message, messageId: null });
       return Promise.reject(new NotificationsUnavailable('notifications unreachable'));
     }
+    if (answer === 'held') {
+      const messageId = randomUUID();
+      sent.push({ ...message, messageId });
+      const outcome: SendOutcome = { status: 'sent', messageId };
+      return new Promise((resolve) => {
+        this.held.push(() => {
+          resolve(outcome);
+        });
+      });
+    }
     if (answer === 'sent' || answer === 'lost') {
       const messageId = randomUUID();
       sent.push({ ...message, messageId });
@@ -82,7 +100,7 @@ export class FakeNotifications extends NotificationsClient {
     return Promise.resolve(outcome);
   }
 
-  channels(): ReminderChannel[] {
+  channels(): MessageChannel[] {
     return this.sent.map((message) => message.channel);
   }
 
@@ -91,5 +109,6 @@ export class FakeNotifications extends NotificationsClient {
     this.acknowledgements.length = 0;
     this.answers.clear();
     this.keys.clear();
+    this.release();
   }
 }

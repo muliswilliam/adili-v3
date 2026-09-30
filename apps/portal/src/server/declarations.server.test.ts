@@ -86,7 +86,7 @@ describe('starting a declaration (S1, S3)', () => {
       status: 'ok',
       section: {
         contents: {
-          name: { surname: 'Kamau', firstName: 'Mwangi', otherNames: 'Njoroge' },
+          name: { surname: 'Kamau', firstName: 'Wanjiku', otherNames: 'Njoki' },
           employment: {
             designation: 'Deputy Principal',
             employer: 'Nyeri High School',

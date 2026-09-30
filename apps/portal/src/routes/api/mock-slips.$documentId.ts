@@ -3,7 +3,7 @@ import { createFileRoute } from '@tanstack/react-router';
 import { env } from '../../server/env.server';
 
 /**
- * Stands in for the documents service's presigned slip download while DECLARATIONS_DRAFTS_MOCK
+ * Stands in for the documents service's presigned slip download while DECLARATIONS_MOCK
  * is on: the documents mock's `GET /v1/documents/{id}/download` points here. Serves a one-page
  * placeholder PDF naming the slip. Development and tests only; everywhere else it is a 404.
  */
@@ -29,9 +29,7 @@ export const Route = createFileRoute('/api/mock-slips/$documentId')({
       GET: ({ params }) =>
         // `import.meta.env.DEV` is `false` in production builds, so the bundler drops the mock
         // branch and the mock's chunk with it; keep the check inline for that to work.
-        import.meta.env.DEV &&
-        process.env.NODE_ENV !== 'production' &&
-        env().DECLARATIONS_DRAFTS_MOCK
+        import.meta.env.DEV && process.env.NODE_ENV !== 'production' && env().DECLARATIONS_MOCK
           ? slip(params.documentId)
           : notFound(),
     },

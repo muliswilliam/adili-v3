@@ -54,6 +54,8 @@
   --brand-subtle: oklch(0.963 0.017 50.4); /* #fdf0e9 */
   --brand-subtle-foreground: oklch(0.539 0.162 40); /* #b8430f */
   --brand-faint: oklch(0.98 0.009 52.1); /* #fef7f3: selected rows, drag-over */
+  /* A highlighter mark on printed text, e.g. the verification code in a sample footer. */
+  --highlight: oklch(0.966 0.066 98.2); /* #fff5c2 */
   --logo: oklch(0.669 0.189 40.8); /* #f06225: the Dials logo only */
   --border: oklch(0.926 0.005 78.3); /* #e8e6e3 */
   --input: oklch(0.88 0.006 84.6); /* #d9d7d3: dashed zones, checkbox and step rings */
@@ -140,6 +142,7 @@
     --code-border: var(--border);
     --glow: oklch(0.35 0.05 45);
     --glow-soft: oklch(0.25 0.03 45);
+    --highlight: var(--warning-subtle);
 
     --elevation-control: 0 1px 2px rgb(0 0 0 / 0.3), 0 0 0 1px var(--border);
     --elevation-control-hover: 0 1px 2px rgb(0 0 0 / 0.3), 0 0 0 1px var(--input);
@@ -187,6 +190,7 @@
   --color-brand-subtle: var(--brand-subtle);
   --color-brand-subtle-foreground: var(--brand-subtle-foreground);
   --color-brand-faint: var(--brand-faint);
+  --color-highlight: var(--highlight);
   --color-logo: var(--logo);
   --color-border: var(--border);
   --color-input: var(--input);
@@ -278,6 +282,15 @@
     radial-gradient(90% 55% at 50% 100%, var(--glow) 0%, transparent 70%),
     radial-gradient(140% 70% at 50% 100%, var(--glow-soft) 0%, transparent 75%);
   background-attachment: fixed;
+}
+
+/* The acknowledgement slip's header band: diagonal brand stripes (.slip-head in declarant-journey). */
+@utility bg-stripes-brand {
+  background-image: repeating-linear-gradient(
+    135deg,
+    var(--brand-faint) 0 10px,
+    var(--brand-subtle) 10px 20px
+  );
 }
 
 @layer base {

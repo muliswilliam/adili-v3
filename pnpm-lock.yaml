@@ -649,6 +649,9 @@ importers:
       '@adili/data-access':
         specifier: workspace:*
         version: link:../data-access
+      '@adili/numbering':
+        specifier: workspace:*
+        version: link:../numbering
       amqp-connection-manager:
         specifier: ^5.0.0
         version: 5.0.0(amqplib@2.0.1)
@@ -935,6 +938,9 @@ importers:
       '@adili/contacts':
         specifier: workspace:*
         version: link:../contacts
+      '@adili/numbering':
+        specifier: workspace:*
+        version: link:../numbering
       '@fontsource-variable/inter':
         specifier: ^5.3.0
         version: 5.3.0
@@ -1616,6 +1622,9 @@ importers:
       '@adili/events':
         specifier: workspace:*
         version: link:../../packages/events
+      '@adili/numbering':
+        specifier: workspace:*
+        version: link:../../packages/numbering
       '@adili/roles':
         specifier: workspace:*
         version: link:../../packages/roles

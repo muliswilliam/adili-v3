@@ -212,6 +212,8 @@ async function startTimeSkippingServer(): Promise<TestWorkflowEnvironment> {
     try {
       return await TestWorkflowEnvironment.createTimeSkipping();
     } catch (error) {
+      // The native bridge turns sdk-core's `EphemeralServerError::StartupTimeout` into a plain
+      // Error (no name or code), so its message is the only thing that tells a timeout apart.
       const timedOut = error instanceof Error && error.message.includes('did not start within');
       if (!timedOut || attempt >= SERVER_START_ATTEMPTS) throw error;
     }

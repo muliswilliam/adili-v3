@@ -1,14 +1,17 @@
 /**
  * The notifications service, as the reminder activity and the acknowledgement need it: send one
- * templated message to a person on one channel. Notifications resolves the person's verified contact through the
- * directory (spec 04 BE-3). A Nest token: tests replace it with a fake.
+ * templated message to a person on one channel. Notifications resolves the person's verified
+ * contact through the directory (spec 04 BE-3). A Nest token: tests replace it with a fake.
  */
+import type { DeclarationType } from '@adili/numbering';
+import type { components } from './notifications-api.gen.js';
 
-export type ReminderChannel = 'sms' | 'email';
+/** A channel notifications sends a message on (its contract's `Channel`). */
+export type MessageChannel = components['schemas']['Channel'];
 
 /** Parameters of the `obligation-reminder-sms` and `obligation-reminder-email` templates. */
 export interface ReminderParams {
-  type: 'initial' | 'biennial' | 'final';
+  type: DeclarationType;
   /** 1 to 120 characters. */
   commissionName: string;
   statementDate: string;
@@ -19,7 +22,7 @@ export interface ReminderParams {
 }
 
 export interface ReminderMessage {
-  channel: ReminderChannel;
+  channel: MessageChannel;
   personId: string;
   /** The Commission's slug: the person's contacts are read there, and it is stored for audit. */
   tenant: string;
@@ -36,7 +39,7 @@ export interface AcknowledgementParams {
   /** The declaration's reference number, e.g. `DCB-PSC-2027-0000001-K`. */
   reference: string;
   /** The type the reference names. */
-  type: 'initial' | 'biennial' | 'final';
+  type: DeclarationType;
   /** Above 1 the copy names the version: an amendment. */
   version: number;
   /** 1 to 120 characters. */
@@ -50,7 +53,7 @@ export interface AcknowledgementParams {
 
 /** A version's acknowledgement, told to its declarant on one channel. */
 export interface AcknowledgementMessage {
-  channel: ReminderChannel;
+  channel: MessageChannel;
   personId: string;
   /** The Commission's slug: the person's contacts are read there, and it is stored for audit. */
   tenant: string;

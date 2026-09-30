@@ -77,11 +77,11 @@ describe('the success page (spec 06 FE-3)', () => {
     expect(screen.getByRole('link', { name: 'Home' }).getAttribute('href')).toBe('/');
   });
 
-  it("explains the reference with the registry's type name and the Commission's name", () => {
+  it("explains the reference with the registry's type name and the Commission's name", async () => {
     renderSubmitted();
 
     fireEvent.click(screen.getByRole('button', { name: 'What does this reference mean?' }));
-    const breakdown = screen.getByRole('dialog', { name: 'How to read this reference' });
+    const breakdown = await screen.findByRole('dialog', { name: 'How to read this reference' });
     const meanings = within(breakdown)
       .getAllByRole('definition')
       .map((meaning) => meaning.textContent);

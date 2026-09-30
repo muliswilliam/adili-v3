@@ -31,7 +31,7 @@ async function withStatus(maritalStatus: MaritalStatus) {
       sectionKey: 'bio',
       ifMatch: loaded.etag,
       contents: {
-        name: { surname: 'Kamau', firstName: 'Mwangi', otherNames: 'Njoroge' },
+        name: { surname: 'Kamau', firstName: 'Wanjiku', otherNames: 'Njoki' },
         employment: {
           designation: 'Deputy Principal',
           employer: 'Nyeri High School',

@@ -5,7 +5,7 @@ import {
   type AcknowledgementState,
   acknowledgementStatus,
   reissueDecision,
-} from '../../src/acknowledgement/status.js';
+} from '../../src/declaration/acknowledgement.js';
 
 const SUBMITTED = new Date('2027-11-15T09:00:00.000Z');
 const at = (ms: number) => new Date(SUBMITTED.getTime() + ms);

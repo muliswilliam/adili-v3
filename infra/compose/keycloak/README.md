@@ -12,14 +12,14 @@ Demo users in the file are a local convenience. #371 can replace them with seed 
 | --- | --- |
 | `adili browser` | Cookie, broker, then forms |
 | `adili password` | Username/password at LoA 1 (stays valid for the SSO session) |
-| `adili otp` | LoA 2, max age 300 seconds. A step-up request with `acr_values=step-up` re-runs only this |
+| `adili otp` | LoA 2, max age 180 seconds (the 300 s submit window less a 120 s margin, so a silent step-up still leaves time to submit). A step-up request with `acr_values=step-up` re-runs only this |
 | `adili declarant otp` | Role `declarant`. `adili-otp`: a code by SMS, email as fallback |
 | `adili applicant otp` | Role `applicant`. `adili-otp`, as for declarants |
 | `adili staff totp` | Everyone else (staff and law-enforcement). Built-in TOTP form |
 
 ACR mapping: `step-up` → 2. Portal and console default ACR is `step-up`, so login is MFA.
 
-Step-up before submission (spec 06): the portal's `/auth/step-up` (`Bff.stepUp` in `packages/bff-auth`) sends `acr_values=step-up`. Once the code's 300 s have lapsed Keycloak asks for a new code only (the password holds for the session) and issues tokens with `acr` `step-up` and a new `auth_time`; within the 300 s it answers without a page. The `acr` scope and the `basic` scope's `auth_time` mapper put both claims in ID and access tokens, which services read as `Principal.acr` and `Principal.authTime` (`packages/api-kit`). S16 in `apps/keycloak-extension/test/step-up.stack.test.ts` drives it.
+Step-up before submission (spec 06): the portal's `/auth/step-up` (`Bff.stepUp` in `packages/bff-auth`) sends `acr_values=step-up`. Once the code's 180 s have lapsed Keycloak asks for a new code only (the password holds for the session) and issues tokens with `acr` `step-up` and a new `auth_time`; within the 180 s it answers without a page and keeps the old `auth_time`, which the declarations service accepts for 300 s, so every step-up leaves at least 120 s to affirm and submit. The `acr` scope and the `basic` scope's `auth_time` mapper put both claims in ID and access tokens, which services read as `Principal.acr` and `Principal.authTime` (`packages/api-kit`). S16 in `apps/keycloak-extension/test/step-up.stack.test.ts` drives it.
 
 ## Person claim (spec 04)
 

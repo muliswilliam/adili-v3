@@ -8,16 +8,9 @@ import {
   type DocumentIssuedData,
   type DocumentRevokedData,
   type DocumentSupersededData,
+  newVerificationId,
   type RevocationReason,
 } from '@adili/events/contracts';
-
-const CROCKFORD = '0123456789ABCDEFGHJKMNPQRSTVWXYZ';
-
-/** A fresh verification id in its printed form, as the documents service allocates them. */
-export function newVerificationId(): string {
-  const body = [...randomBytes(26)].map((byte) => CROCKFORD[byte % 32]).join('');
-  return `ADL-${body.match(/.{1,4}/g)?.join('-') ?? ''}`;
-}
 
 export function sha256(): string {
   return randomBytes(32).toString('hex');

@@ -1,13 +1,5 @@
-import {
-  applyDecorators,
-  Controller,
-  Get,
-  HttpCode,
-  HttpStatus,
-  Param,
-  Post,
-} from '@nestjs/common';
-import { ApiOkResponse, ApiOperation, ApiParam, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { Controller, Get, HttpCode, HttpStatus, Param, Post } from '@nestjs/common';
+import { ApiOkResponse, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import {
   ActingTenant,
   ApiProblemResponse,
@@ -21,18 +13,11 @@ import {
 } from '@adili/api-kit';
 import { DECLARATIONS_INTERNAL_SCOPE } from '@adili/roles';
 
-import type { Acknowledgement } from '../submission/representation.js';
-import { versionNumber } from '../submission/versions.js';
+import { ApiVersionParams, NOT_VISIBLE } from '../http.js';
+import type { Acknowledgement } from '../declaration/representation.js';
+import { versionNumber } from '../declaration/versions.js';
 import { AcknowledgementService } from './acknowledgement.service.js';
 import type { AcknowledgementPayload } from './representation.js';
-
-const ApiVersionParams = () =>
-  applyDecorators(
-    ApiParam({ name: 'declarationId', schema: { type: 'string', format: 'uuid' } }),
-    ApiParam({ name: 'version', schema: { type: 'integer', minimum: 1 } }),
-  );
-
-const NOT_VISIBLE = 'Not found, or not visible to the caller';
 
 /**
  * A version's acknowledgement slip (spec 06). Declarant only, by the `person_id` claim: any other

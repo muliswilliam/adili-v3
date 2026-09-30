@@ -15,9 +15,16 @@ import { allocateReference, declarationSchemes, issuerCode } from '@adili/number
 import { and, eq, isNull } from 'drizzle-orm';
 import { v7 as uuidv7 } from 'uuid';
 
-import { acknowledgementOf } from '../acknowledgement/status.js';
 import { Clock } from '../clock.js';
 import { config } from '../config.js';
+import {
+  declarationItems,
+  declarations,
+  declarationVersions,
+  isEditable,
+} from '../declaration/schema.js';
+import { versionOf, versionRecordId } from '../declaration/versions.js';
+import { isLate, obligationRefusal } from '../declaration/window.js';
 import type { DeclarationsSchema } from '../db/schema.js';
 import type { Transaction } from '../db/transaction.js';
 import { personOf } from '../drafts/access.js';
@@ -27,8 +34,9 @@ import {
   documentFrame,
   liveDeclaration,
   liveSections,
+  obligationOf,
 } from '../drafts/repository.js';
-import { declarations, obligationDrafts } from '../drafts/schema.js';
+import { obligationDrafts } from '../drafts/schema.js';
 import { SectionCipher } from '../drafts/section-cipher.js';
 import { reviewDraft } from '../drafts/summary.js';
 import { nairobiDate } from '../obligations/dates.js';
@@ -39,10 +47,7 @@ import { noChanges, ObligationWorkflows, tellWorkflows } from '../obligations/wo
 import { declarationSubmitted } from './events.js';
 import { type DerivedItem, deriveItems } from './items.js';
 import { incomplete, refused, stepUpRequired } from './problems.js';
-import type { DeclarationVersion, SubmissionResult } from './representation.js';
-import { declarationItems, declarationVersions } from './schema.js';
-import { versionRecordId } from './versions.js';
-import { isLate, isSubmittable, obligationRefusal } from './window.js';
+import type { SubmissionResult } from './representation.js';
 
 /** The ACR of a token issued right after a fresh one-time code (the realm's LoA 2, spec 06). */
 export const STEP_UP_ACR = 'step-up';
@@ -104,7 +109,8 @@ export class SubmissionService {
       const declaration = notFoundIfInvisible(
         await liveDeclaration(tx, declarationId, { lock: true }),
       );
-      if (!isSubmittable(declaration.status)) {
+      // Only a draft or an amendment in progress, what can be edited, is submitted.
+      if (!isEditable(declaration.status)) {
         const replayed = await this.replayed(tx, declaration, keyHash);
         if (replayed) return replayed;
         throw refused('not-a-draft');
@@ -119,20 +125,11 @@ export class SubmissionService {
       );
       if (!review.valid) throw incomplete(review.blocking);
 
-      // The obligation is the Commission's data, which the declarant only reads: the rest of the
-      // transaction also acts in its tenant's context (ADR-018), the person's still set.
+      // The obligation, the version and its items are the Commission's data, which the declarant
+      // only reads: the rest of the transaction writes them in its tenant's context (ADR-018),
+      // the person's still set for the declaration itself.
       await switchTenant(tx, { tenant: declaration.tenant, subject: person.subject });
-      const [obligation] = await tx
-        .select({
-          id: filingObligations.id,
-          status: filingObligations.status,
-          statementDate: filingObligations.statementDate,
-          dueDate: filingObligations.dueDate,
-        })
-        .from(filingObligations)
-        .where(eq(filingObligations.id, declaration.obligationId))
-        .for('update');
-      if (!obligation) throw new Error(`Declaration ${declaration.id} has no obligation`);
+      const obligation = await obligationOf(tx, declaration, { lock: true });
       const refusal = obligationRefusal(declaration.status, obligation, today);
       if (refusal) throw refused(refusal);
 
@@ -414,19 +411,6 @@ function stepUpUrl(declarationId: string): string {
   const url = new URL('/auth/step-up', config.PORTAL_URL);
   url.searchParams.set('returnTo', `/declarations/${declarationId}/summary`);
   return url.toString();
-}
-
-/** The version as the contract shows it, its acknowledgement as the declarant sees it at `now`. */
-export function versionOf(row: VersionRow, now: Date): DeclarationVersion {
-  return {
-    version: row.version,
-    reference: row.reference,
-    submittedAt: row.submittedAt.toISOString(),
-    late: row.late,
-    canonicalSha256: row.canonicalSha256,
-    supersededAt: row.supersededAt?.toISOString() ?? null,
-    acknowledgement: acknowledgementOf(row, now),
-  };
 }
 
 /** The AAD record id of an item's encrypted field. */

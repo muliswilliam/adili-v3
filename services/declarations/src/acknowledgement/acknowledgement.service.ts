@@ -8,7 +8,7 @@ import {
   withPerson,
   withTenant,
 } from '@adili/data-access';
-import { consumeOnce, type EventEnvelope, EventPublisher } from '@adili/events';
+import { consumeIdempotent, consumeOnce, type EventEnvelope, EventPublisher } from '@adili/events';
 import {
   DECLARATION_ACKNOWLEDGED,
   DECLARATION_ACKNOWLEDGEMENT_REQUESTED,
@@ -22,23 +22,22 @@ import { v5 as uuidv5 } from 'uuid';
 
 import { Clock } from '../clock.js';
 import { config } from '../config.js';
+import { acknowledgementOf, reissueDecision } from '../declaration/acknowledgement.js';
+import type { Acknowledgement } from '../declaration/representation.js';
+import { declarations, declarationVersions } from '../declaration/schema.js';
+import { openSnapshot, versionRow } from '../declaration/versions.js';
 import type { DeclarationsSchema } from '../db/schema.js';
 import { personOf } from '../drafts/access.js';
-import { declarations } from '../drafts/schema.js';
 import {
   NotificationsClient,
   NotificationsKeyReused,
   NotificationsRejected,
-  type ReminderChannel,
+  type MessageChannel,
 } from '../notifications/notifications-client.js';
 import { commissionRefs, filingObligations } from '../obligations/schema.js';
 import { PLATFORM_CONTEXT, systemContext } from '../obligations/system-context.js';
 import { deriveItems } from '../submission/items.js';
-import type { Acknowledgement } from '../submission/representation.js';
-import { declarationVersions } from '../submission/schema.js';
-import { openSnapshot, versionRow } from '../submission/versions.js';
 import type { AcknowledgementPayload } from './representation.js';
-import { acknowledgementOf, reissueDecision } from './status.js';
 
 /** The document type of acknowledgement slips in the documents service. */
 export const ACKNOWLEDGEMENT_SLIP = 'acknowledgement-slip';
@@ -52,7 +51,7 @@ const CHECKED_CONSUMER = 'declarations.verification-checked';
 
 /** Namespace of the acknowledgement messages' idempotency keys (UUID v5). */
 const ACKNOWLEDGEMENT_KEY_NAMESPACE = '0c8e4a2f-6b1d-4f3e-9a75-3d2c1b0e9f84';
-const CHANNELS: readonly ReminderChannel[] = ['email', 'sms'];
+const CHANNELS: readonly MessageChannel[] = ['email', 'sms'];
 
 type VersionRow = typeof declarationVersions.$inferSelect;
 
@@ -104,7 +103,12 @@ export class AcknowledgementService {
    */
   async reissue(principal: Principal, declarationId: string, version: number): Promise<void> {
     const now = this.clock.now();
-    await withPerson(this.db, personOf(principal), async (tx) => {
+    const person = personOf(principal);
+    await withPerson(this.db, person, async (tx) => {
+      // The declarant's own version, read through the person axis; the ask is then recorded in
+      // the Commission's context, the declarant never writing through it (ADR-018).
+      const own = notFoundIfInvisible(await versionRow(tx, declarationId, version));
+      await switchTenant(tx, { tenant: own.tenant, subject: person.subject });
       const row = notFoundIfInvisible(await versionRow(tx, declarationId, version, { lock: true }));
       const decision = reissueDecision(row, now);
       if (decision.kind === 'refused') {
@@ -203,7 +207,8 @@ export class AcknowledgementService {
    * records `declaration.acknowledged.v1` (once; a slip announced again changes nothing), then
    * tells the declarant by email and SMS. The two steps have inbox entries of their own, so a
    * notifications outage retries only the messages, and the declarant sees the slip meanwhile.
-   * Each message keeps its `Idempotency-Key` per version and channel: never sent twice.
+   * The messages are sent with no transaction open, the step recorded once they are; each keeps
+   * its `Idempotency-Key` per version and channel: never sent twice.
    */
   async issued(event: EventEnvelope, data: IssuedDocument): Promise<void> {
     if (data.documentType !== ACKNOWLEDGEMENT_SLIP || !data.subjectRef.startsWith(SUBJECT_PREFIX)) {
@@ -249,19 +254,23 @@ export class AcknowledgementService {
       });
     });
 
-    await consumeOnce(this.db, NOTIFIED_CONSUMER, event, async (tx) => {
-      await switchTenant(tx, context);
-      const [found] = await tx
-        .select({
-          version: declarationVersions,
-          type: declarations.type,
-          statementDate: declarations.statementDate,
-          commissionName: commissionRefs.name,
-        })
-        .from(declarationVersions)
-        .innerJoin(declarations, eq(declarations.id, declarationVersions.declarationId))
-        .leftJoin(commissionRefs, eq(commissionRefs.slug, declarationVersions.tenant))
-        .where(eq(declarationVersions.id, versionId));
+    // The messages go out with no transaction open (ADR-013); the keys make a second run, a
+    // redelivery or a retry after a failed channel, send nothing twice.
+    await consumeIdempotent(this.db, NOTIFIED_CONSUMER, event, async () => {
+      const found = await withTenant(this.db, context, async (tx) => {
+        const [row] = await tx
+          .select({
+            version: declarationVersions,
+            type: declarations.type,
+            statementDate: declarations.statementDate,
+            commissionName: commissionRefs.name,
+          })
+          .from(declarationVersions)
+          .innerJoin(declarations, eq(declarations.id, declarationVersions.declarationId))
+          .leftJoin(commissionRefs, eq(commissionRefs.slug, declarationVersions.tenant))
+          .where(eq(declarationVersions.id, versionId));
+        return row;
+      });
       // Only the slip set on the version is announced to the declarant.
       if (found?.version.ackDocumentId !== data.documentId) return;
       if (found.commissionName === null) {
@@ -304,7 +313,7 @@ export class AcknowledgementService {
    */
   private async notify(
     version: VersionRow,
-    channel: ReminderChannel,
+    channel: MessageChannel,
     params: Parameters<NotificationsClient['sendAcknowledgement']>[0]['params'],
   ): Promise<void> {
     try {

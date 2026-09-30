@@ -48,6 +48,7 @@ Warm neutrals with a near-black primary. Use the semantic utility (`bg-muted`, `
 | `scrim` | `.overlay` | `rgb(24 20 16 / 0.42)` | behind dialogs |
 | `glow` / `glow-soft` | | `#f0cab9` / `#f5e4dc` | the warm glow behind onboarding screens (`bg-glow`); *sampled from a screenshot, exact stops pending* |
 | `logo` | | `#f06225` | the Dials logo only |
+| `highlight` | `.sample .code` (verify prototype) | `#fff5c2` | a highlighter mark on printed text, e.g. the code in the verify app's sample footer (`bg-highlight ring-3 ring-highlight`); `warning-subtle` in the dark theme |
 | `code` / `code-foreground` | `.code` (roster prototype) | `#171717` / `#ecebe8` | code examples; dark in both themes (`#0f0f0e` with a `border` hairline, `code-border`, in the dark theme). `code-keyword` `#ffb48f`, `code-string` `#b6e3a8` and `code-comment` `#8d8b87` colour their parts, all at least 4.5:1 on the panel |
 
 Status colours come in three steps: the solid colour (`text-success`, dots, bars, badge text), a soft fill (`bg-success-subtle`) and a darker text for callouts on that fill (`text-success-subtle-foreground`). The info and brand solids miss 4.5:1 on their light soft fills, so their badges use `-subtle-foreground`, as the kit's `.badge-info` and `.badge-brand` do.
@@ -61,7 +62,7 @@ Status colours come in three steps: the solid colour (`text-success`, dots, bars
 | `ai` | `--ai` | `#6d4ae0` | `#f1edfd` | `#43299f` |
 | `brand` | `--brand`, `--brand-soft`, `--brand-ink` | `#e95a24` | `#fdf0e9` | `#b8430f` |
 
-`brand-faint` (`--brand-softer`, `#fef7f3`) tints selected table rows and a drop zone while a file is dragged over it.
+`brand-faint` (`--brand-softer`, `#fef7f3`) tints selected table rows and a drop zone while a file is dragged over it. `bg-stripes-brand` lays `brand-faint` and `brand-subtle` in 10px diagonal stripes for the acknowledgement slip's header band (`.slip-head` in `declarant-journey`).
 
 **Brand and logo.** The kit's brand orange (`#e95a24`) is for UI accents: the brand badge, eyebrows, icon tiles on `brand-subtle`. The logo keeps the Figma orange (`#f06225`) through its own `logo` token, so the mark does not shift when UI accents are tuned.
 
@@ -83,11 +84,12 @@ Controls and cards get their edges from a hairline ring in the shadow rather tha
 
 | Radius | Size | Kit | Where |
 |---|---|---|---|
+| `rounded-xs` | 2px | | `highlight` marks |
 | `rounded-sm` | 6px | | checkboxes, skeletons, code chips |
 | `rounded-md` | 8px | `--r-sm` | small and icon buttons, tooltips, menu items |
 | `rounded-lg` | 10px | `--r` | buttons, inputs, callouts |
 | `rounded-xl` | 12px | | menus, toasts, drop zone icon tiles |
-| `rounded-item` | 14px | | `Repeater` item cards and their add button, chat bubbles, `ChatComposer`, `SuggestedQuestions` chips |
+| `rounded-item` | 14px | | `Repeater` item cards and their add button, chat bubbles, `ChatComposer`, `SuggestedQuestions` chips, 48-52px icon tiles (the verify app's status mark and home tile) |
 | `rounded-2xl` | 16px | `--r-lg` | cards, drop zones |
 
 Dialogs use 20px (22px at the top of the phone sheet), as in the kit.
@@ -110,8 +112,9 @@ The lockup and mark are always the `logo` orange. In Figma the mark carries an 8
 | `Input`, `Textarea` | `.input`, `.textarea` | 44px high (textarea 110px minimum), 12px padding, 15px text. Read-only (the `readonly` attribute) and disabled fill with `muted`; disabled text is dimmer. `controlClassName` carries these for other text controls. Error comes from `aria-invalid`, set by `FormField`. |
 | `Label` | `.label` | 14px medium in `secondary-foreground` |
 | `FormField` | `.field` | label, hint, control and error 6px apart. The hint sits under the label so it is read before the control; the error sits under the control with an icon and `role="alert"`. |
-| `Card` | `.card.card-pad` | white, 16px radius, `shadow-card`, 20px padding (24px from `sm`); `asChild` puts it on a semantic element such as an `article`. `CardHeader` (optional `CardIcon`: 34px `muted` tile; title 16px semibold; description 14px muted), 20px to `CardContent` (fields 16px apart), 20px to `CardFooter` (actions 12px apart; `flex-1` for an equal-width pair). |
+| `Card` | `.card.card-pad` | white, 16px radius, `shadow-card`, 20px padding (24px from `sm`); `asChild` puts it on a semantic element such as an `article`. `CardHeader` (optional `CardIcon`: an `IconTile` 8px above the title; title 16px semibold; description 14px muted), 20px to `CardContent` (fields 16px apart), 20px to `CardFooter` (actions 12px apart; `flex-1` for an equal-width pair). |
 | `Badge` | `.badge` | 24px pill, 12.5px medium. `default` (sunken), `success`, `warning`, `destructive`, `info`, `brand`, `ai`. Put an icon or clear text in it; never rely on colour alone. |
+| `IconTile` | `.card-head .ico`, dialog and row icons in `declarant-journey` | a decorative 34px tile, `rounded-lg` (10px), holding one 18px icon, hidden from assistive technology. `tone` takes the `Badge` tones (`default` muted, `brand`, `success`, …). Beside dialog titles, card titles and list rows; apps never draw their own tile. |
 | `Alert` | `.callout` | 14px on a soft fill, 18px icon 12px from the text. `neutral` (default, the kit's `.callout-info`), `info` (blue, the portal's `.alert-info`), `success`, `warning`, `destructive`, `ai` (`.callout-ai`), `brand` (`.callout-brand`; its text is `brand-subtle-foreground`, lighter than the kit's `#7a2f0c`). |
 | `DescriptionList` | `.dl` | term on the left in muted, value right-aligned in medium weight, rows split by hairlines |
 | `SiteHeader` | `.topbar` | 60px, translucent page colour with blur, hairline below; 16px side padding, 28px from `sm` |
@@ -178,8 +181,8 @@ The lockup and mark are always the `logo` orange. In Figma the mark carries an 8
 | `ChatComposer` | `.ask-compose` in `declarant-journey` | a 14px-radius `shadow-control` box (`shadow-control-focus` inside it) with a textarea growing to 120px and a 36px primary send button. Enter sends and Shift+Enter adds a line, never while an input method is composing; a blank question is not sent; up to 2,000 characters (`CHAT_QUESTION_MAX_LENGTH`). `busy` keeps typing open but holds the question, with Send `aria-disabled`. Controlled with `value` and `onValueChange` to keep a draft. |
 | `QrCode` | `Kit.qr` in `verify` and `declarant-journey` (`#primitives`, round 6), `.slip-qr` | an SVG drawn from a string (`uqr`, error correction M) with a four-module quiet zone on white, so it scans on any background and in the dark theme; `role="img"` named by `label`, which carries the verification code. Print the code as text beside it too. 112px by default. |
 | `HashDropZone` | `.hashdrop`, `.hres`, `.never` in `verify` (`#primitives`) | a `FileDropZone` with a file icon ("Drop the PDF you were given") that reads the file on the device and compares its Web Crypto SHA-256 with `expectedSha256`; never uploads, makes no request. Then the file line (name, size), a spinner "Checking the file on your device", and an `Alert`: `success` "Identical to the issued document", `destructive` "Does not match the issued document", `warning` "Could not read this file" (not a PDF or unreadable) or "This browser cannot check files on this page" (no secure context); both digests in mono groups of eight behind "Show technical details"; "Check another file". The outcome is announced politely; focus moves to the file line, then back to the zone. A green lock line "The file is checked on your device and never uploaded." describes the zone. |
-| `ReferenceChip` | `.refchip` in `declarant-journey`, `.refpop` in `verify` | a reference number in 15px semibold mono (`sm` 13px) on `card` with `shadow-control`, a `CopyButton` (`copyable`) and an info button opening a popover "How to read this reference": each hyphen-separated part in mono, its label muted and its meaning. `parts` come from the numbering scheme registry names; `declarationReferenceParts({ type, issuer })` builds the five parts of a declaration reference. No breakdown when the parts do not fit the reference. |
-| `VersionBadge` | `.vbadge` in `verify`, `.verbadge` in `declarant-journey` | a `Badge` with a file icon: "Version 3" (`default`), "Version 2 · current" (`success`), "Version 1 · superseded" (`warning`). |
+| `ReferenceChip` | `.refchip` in `declarant-journey`, `.refpop` in `verify` | a reference number in 15px semibold mono (`sm` 13px; `lg` 17px, for the one reference a page is about such as the submission success page) on `card` with `shadow-control`, a `CopyButton` (`copyable`) and an info button opening a popover "How to read this reference": each hyphen-separated part in mono, its label muted and its meaning. `parts` come from the numbering scheme registry names; `declarationReferenceParts({ type, issuer })` builds the five parts of a declaration reference. No breakdown when the parts do not fit the reference. |
+| `VersionBadge` | `.vbadge` in `verify`, `.verbadge` in `declarant-journey` | a `Badge` with a file icon: "Version 3" (`info`, no `state`), "Version 2 · current" (`success`), "Version 1 · superseded" (`warning`). |
 
 Shared helpers live next to the components: the obligations copy table (`lib/obligations.ts`: type labels, status words and variants, reminder outcome words and icons) that the portal and the console both use, `useObligationDetail` for a drawer that loads an obligation's detail with a retry, `formatDate`, `formatDateTime`, `formatLongDate`, `formatMonth` and `formatCalendarDate` print dates in Kenyan time the same on server and browser, `formatNumber` prints counts with thousands separators (`48,312`), `daysBetween`, `addDays` and `plural` count calendar days in Kenyan time for deadlines and periods ("Respond within 12 days"), `calendarDaysUntil` counts Kenyan calendar days to a date and `useToday` gives a now that moves on at each Kenyan midnight, and `useCountdown`, `useCountdownAnnouncement`, `secondsUntil`, `formatClock` and `countdownAnnouncement` drive resend countdowns (on screen every second, announced to screen readers at 10-second steps).
 

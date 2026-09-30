@@ -16,6 +16,7 @@ export {
   DCB,
   DCF,
   DCI,
+  DECLARATION_TYPES,
   type DeclarationType,
   declarationSchemes,
   defineScheme,

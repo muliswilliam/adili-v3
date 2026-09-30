@@ -5,6 +5,13 @@
  * allows, never the content of the document or who it is about.
  */
 
+/**
+ * Document types the documents service issues, each with its templates (ADR-010 registry); later
+ * specs add theirs.
+ */
+export const DOCUMENT_TYPES = ['acknowledgement-slip'] as const;
+export type DocumentType = (typeof DOCUMENT_TYPES)[number];
+
 /** How much of a document the public verify page may show; fixed per document type. */
 export const DISCLOSURE_LEVELS = ['public', 'restricted', 'confidential'] as const;
 export type DisclosureLevel = (typeof DISCLOSURE_LEVELS)[number];
@@ -18,6 +25,28 @@ export type DocumentStatus = (typeof DOCUMENT_STATUSES)[number];
  * (26 characters, no I, L, O or U), in groups of four with a last group of two.
  */
 export const VERIFICATION_ID_PATTERN = /^ADL(?:-[0-9A-HJKMNP-TV-Z]{4}){6}-[0-9A-HJKMNP-TV-Z]{2}$/;
+
+/** Crockford base32: no I, L, O or U, so a code read aloud or typed by hand survives. */
+const CROCKFORD_BASE32 = '0123456789ABCDEFGHJKMNPQRSTVWXYZ';
+
+/**
+ * A fresh verification id (ADR-010): 128 random bits in Crockford base32 (26 characters, the
+ * last carrying two zero bits), in its printed form. Random, so issued documents cannot be
+ * enumerated from one code. `random` (16 bytes) is for tests.
+ */
+export function newVerificationId(
+  random: Uint8Array = globalThis.crypto.getRandomValues(new Uint8Array(16)),
+): string {
+  if (random.length !== 16) throw new Error('a verification id takes 16 random bytes');
+  let bits = 0n;
+  for (const byte of random) bits = (bits << 8n) | BigInt(byte);
+  bits <<= 2n;
+  let encoded = '';
+  for (let shift = 125n; shift >= 0n; shift -= 5n) {
+    encoded += CROCKFORD_BASE32.charAt(Number((bits >> shift) & 31n));
+  }
+  return `ADL-${encoded.match(/.{1,4}/g)?.join('-') ?? ''}`;
+}
 
 /**
  * A verification id as typed or scanned, in its printed form: case, spaces and hyphens are
@@ -38,7 +67,7 @@ export function normalizeVerificationId(input: string): string | null {
  * documents, whose page shows validity only.
  */
 export interface PublicPayload extends Record<string, unknown> {
-  /** The document type, e.g. `acknowledgement-slip`. */
+  /** The document type (a `DocumentType`; consumers ignore types they do not know). */
   type: string;
   /** The issuing Commission's name. */
   issuerName: string;
@@ -55,6 +84,10 @@ export interface PublicPayload extends Record<string, unknown> {
 export interface DocumentEventData extends Record<string, unknown> {
   documentId: string;
   verificationId: string;
+  /**
+   * A `DocumentType`. Typed open: a later spec adds types without a new event version, and
+   * consumers ignore the types they do not handle.
+   */
   documentType: string;
   templateVersion: number;
   disclosureLevel: DisclosureLevel;

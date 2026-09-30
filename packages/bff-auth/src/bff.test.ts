@@ -1,6 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { Bff, hasFreshStepUp, STEP_UP_MAX_AGE_SECONDS } from './bff.ts';
+import {
+  Bff,
+  hasFreshStepUp,
+  STEP_UP_CODE_MAX_AGE_SECONDS,
+  STEP_UP_SUBMIT_MARGIN_SECONDS,
+  STEP_UP_WINDOW_SECONDS,
+} from './bff.ts';
 import type { OidcProvider, TokenSet } from './oidc-provider.ts';
 import { MemorySessionStore } from './session-store.ts';
 
@@ -326,12 +332,24 @@ describe('Bff', () => {
       const authTime = 2_000;
       const at = (seconds: number) => (authTime + seconds) * 1000;
 
-      expect(hasFreshStepUp({ acr: 'step-up', authTime }, at(STEP_UP_MAX_AGE_SECONDS))).toBe(true);
-      expect(hasFreshStepUp({ acr: 'step-up', authTime }, at(STEP_UP_MAX_AGE_SECONDS + 1))).toBe(
-        false,
+      expect(hasFreshStepUp({ acr: 'step-up', authTime }, at(STEP_UP_CODE_MAX_AGE_SECONDS))).toBe(
+        true,
       );
+      expect(
+        hasFreshStepUp({ acr: 'step-up', authTime }, at(STEP_UP_CODE_MAX_AGE_SECONDS + 1)),
+      ).toBe(false);
       expect(hasFreshStepUp({ acr: '1', authTime }, at(0))).toBe(false);
       expect(hasFreshStepUp({ acr: 'step-up', authTime: null }, at(0))).toBe(false);
+    });
+
+    it('lapses the code well before the window services accept, so a silent step-up leaves time to submit', () => {
+      // Keycloak is silent on a step-up while the code is within its max age and returns the
+      // old auth_time: the last silent answer must still leave the margin to affirm and submit.
+      expect(STEP_UP_WINDOW_SECONDS).toBe(300);
+      expect(STEP_UP_WINDOW_SECONDS - STEP_UP_CODE_MAX_AGE_SECONDS).toBeGreaterThanOrEqual(
+        STEP_UP_SUBMIT_MARGIN_SECONDS,
+      );
+      expect(STEP_UP_SUBMIT_MARGIN_SECONDS).toBeGreaterThanOrEqual(120);
     });
   });
 

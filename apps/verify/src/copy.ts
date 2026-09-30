@@ -82,7 +82,8 @@ export const verifyMessages = {
   neverShown: 'Names, amounts and contents are never shown.',
   why: 'Why',
 
-  footerRecorded: 'Verification is recorded (time and coarse location) to protect against abuse.',
+  footerRecorded:
+    'Each check is recorded (time, result and network area, never the full IP address) to protect against abuse.',
   footerAbout: 'What this page shows',
 
   aboutTitle: 'What this page shows | Adili Online',
@@ -108,7 +109,7 @@ export const verifyMessages = {
     'Names, ID numbers, amounts, assets, findings, or anything written inside the document.',
   aboutRecord: 'What we record',
   aboutRecordChecks:
-    'Time, result and coarse location (country or county) of each check. Never your name or device.',
+    'Time, result and network area of each check: the first three parts of an IPv4 address, or the first three groups of an IPv6 one. Never your full IP address, name or device.',
   aboutRecordOwner: "The document's owner sees how often it was checked, never by whom.",
   aboutRecordFiles: 'Files you check never leave your device.',
 } as const;

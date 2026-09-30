@@ -26,16 +26,17 @@ export const envSchema = bffEnvSchema.extend({
    */
   OBLIGATIONS_MOCK: z.stringbool().default(false),
   /**
-   * Serve declaration drafts and uploads from in-memory fixtures until the services implement
-   * spec 05 (#115). Independent of OBLIGATIONS_MOCK: with that off, drafts start from the real
+   * Serve declarations (drafts, submission, versions, amendments, acknowledgement slips) and
+   * uploads from in-memory fixtures, to work on the portal without the declarations and documents
+   * services. Independent of OBLIGATIONS_MOCK: with that off, drafts start from the real
    * service's obligations. Honoured in `vite dev` and tests only, like the other mocks.
    */
-  DECLARATIONS_DRAFTS_MOCK: z.stringbool().default(false),
+  DECLARATIONS_MOCK: z.stringbool().default(false),
   REVIEW_API_URL: z.url(),
   /**
    * Serve the declarant's clarifications from in-memory fixtures until the review service
    * implements spec 07a (#174). Attachments are checked against the documents mock, so turn on
-   * DECLARATIONS_DRAFTS_MOCK too. Honoured in `vite dev` and tests only, like the other mocks.
+   * DECLARATIONS_MOCK too. Honoured in `vite dev` and tests only, like the other mocks.
    */
   REVIEW_MOCK: z.stringbool().default(false),
 });

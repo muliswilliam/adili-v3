@@ -1,16 +1,11 @@
 import type { ObligationStatus } from '../obligations/engine.js';
-import { type DeclarationStatus, isEditable } from '../drafts/schema.js';
+import { type DeclarationStatus, isEditable } from './schema.js';
 
 /**
  * When a declaration can be submitted (spec 06), pure: the rules the submit transaction enforces
  * and the summary's `canSubmit` reports, in one place. Dates are civil dates in Africa/Nairobi
  * (`YYYY-MM-DD`), compared as strings.
  */
-
-/** Only a draft or an amendment in progress is submitted; anything else is `not-a-draft`. */
-export function isSubmittable(status: DeclarationStatus): boolean {
-  return isEditable(status);
-}
 
 export interface ObligationWindow {
   status: ObligationStatus;
@@ -53,7 +48,8 @@ export function submitRefusal(
   obligation: ObligationWindow,
   today: string,
 ): ObligationRefusal | null {
-  return isSubmittable(status) ? obligationRefusal(status, obligation, today) : 'not-a-draft';
+  // Only a draft or an amendment in progress, what can be edited, is submitted.
+  return isEditable(status) ? obligationRefusal(status, obligation, today) : 'not-a-draft';
 }
 
 /** Submitted after the due date: the version and the obligation record it as late. */

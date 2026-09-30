@@ -80,14 +80,14 @@ describe('stepUpStatus', () => {
   const authTime = 1_790_000_000;
   const at = (seconds: number) => (authTime + seconds) * 1000;
 
-  it('reports acr and auth_time, fresh within the five-minute max age', () => {
-    expect(stepUpStatus(session('step-up', authTime), at(300))).toEqual({
+  it('reports acr and auth_time, fresh within the code max age of three minutes', () => {
+    expect(stepUpStatus(session('step-up', authTime), at(180))).toEqual({
       status: 'ok',
       acr: 'step-up',
       authTime,
       fresh: true,
     });
-    expect(stepUpStatus(session('step-up', authTime), at(301))).toMatchObject({ fresh: false });
+    expect(stepUpStatus(session('step-up', authTime), at(181))).toMatchObject({ fresh: false });
   });
 
   it('is not fresh without the step-up ACR or an auth_time', () => {
