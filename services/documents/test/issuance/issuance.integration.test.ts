@@ -2,7 +2,11 @@ import { createHash, createPublicKey, randomUUID, verify } from 'node:crypto';
 
 import { GetObjectCommand } from '@aws-sdk/client-s3';
 import { withTenant } from '@adili/data-access';
-import { VERIFICATION_ID_PATTERN } from '@adili/events/contracts';
+import {
+  documentIssuedDataSchema,
+  documentSupersededDataSchema,
+  VERIFICATION_ID_PATTERN,
+} from '@adili/events/contracts';
 import { asc, eq } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 
@@ -325,6 +329,8 @@ describe('S9 issuing an acknowledgement slip', () => {
     const events = await eventsAbout(document.id);
     expect(events.map((event) => event.eventType)).toEqual(['document.issued.v1']);
     const [event] = events;
+    // What every consumer validates it with.
+    expect(documentIssuedDataSchema.safeParse(event?.envelope.data).error).toBeUndefined();
     expect(event?.envelope).toMatchObject({
       type: 'document.issued.v1',
       source: 'adili/documents',
@@ -452,6 +458,7 @@ describe('S10 superseding', () => {
       'document.issued.v1',
       'document.superseded.v1',
     ]);
+    expect(documentSupersededDataSchema.safeParse(events[1]?.envelope.data).error).toBeUndefined();
     expect(events[1]?.envelope.data).toMatchObject({
       documentId: version1.id,
       verificationId: version1.verificationId,
@@ -658,11 +665,7 @@ describe('a dependency down', () => {
     const down = await startDocumentsApi({ openbaoUrl: 'http://127.0.0.1:9' });
     try {
       const body = issueBody();
-      const stored = await listKeys(
-        down.s3,
-        requireEnv('S3_BUCKET_ISSUED'),
-        'issued/',
-      );
+      const stored = await listKeys(down.s3, requireEnv('S3_BUCKET_ISSUED'), 'issued/');
       const response = await down.post('/internal/v1/documents/issue', body, DECLARATIONS, {
         idempotencyKey: null,
         headers: { 'x-acting-tenant': 'psc' },
@@ -670,9 +673,7 @@ describe('a dependency down', () => {
       expect(response.statusCode).toBe(502);
       expect(response.json<Problem>().type).toBe('signer-unavailable');
       await nothingRegistered(down, body.subjectRef);
-      expect(
-        await listKeys(down.s3, requireEnv('S3_BUCKET_ISSUED'), 'issued/'),
-      ).toEqual(stored);
+      expect(await listKeys(down.s3, requireEnv('S3_BUCKET_ISSUED'), 'issued/')).toEqual(stored);
     } finally {
       await down.close();
     }

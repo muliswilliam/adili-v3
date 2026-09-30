@@ -2,43 +2,37 @@ import { Inject, Injectable } from '@nestjs/common';
 import { DATABASE, type Database } from '@adili/data-access';
 import { consumeOnce, type EventEnvelope } from '@adili/events';
 import {
-  DISCLOSURE_LEVELS,
-  DOCUMENT_STATUSES,
-  REVOCATION_REASONS,
-  VERIFICATION_ID_PATTERN,
+  documentIssuedDataSchema,
+  documentRevokedDataSchema,
+  documentSupersededDataSchema,
 } from '@adili/events/contracts';
 import { sql } from 'drizzle-orm';
-import { z } from 'zod';
+import type { z } from 'zod';
 
 import type { VerificationSchema } from '../db/schema.js';
 import { verifiedDocumentSchema } from './representation.js';
 import { verificationProjection } from './schema.js';
 
-const verificationId = z.string().regex(VERIFICATION_ID_PATTERN);
-const timestamp = z.iso.datetime({ offset: true });
+/** Of every document event, the fields the projection keeps; the rest are never read. */
+const KEPT = {
+  verificationId: true,
+  disclosureLevel: true,
+  sha256: true,
+  issuedAt: true,
+  status: true,
+} as const;
+/** Of the public payload only the fields the page shows get through, whatever else it holds. */
+const shown = { publicPayload: verifiedDocumentSchema.nullable() };
 
-/**
- * The fields of `DocumentEventData` the projection keeps; the rest are never read. Of the public
- * payload only the fields the page shows get through, whatever else an event holds.
- */
-const documentEventData = z.object({
-  verificationId,
-  disclosureLevel: z.enum(DISCLOSURE_LEVELS),
-  publicPayload: verifiedDocumentSchema.nullable(),
-  sha256: z.string().regex(/^[0-9a-f]{64}$/),
-  issuedAt: timestamp,
-  status: z.enum(DOCUMENT_STATUSES),
-});
+const documentEventData = documentIssuedDataSchema.pick(KEPT).extend(shown);
 
 export const documentIssuedData = documentEventData;
-export const documentSupersededData = documentEventData.extend({
-  supersededByVerificationId: verificationId,
-  statusChangedAt: timestamp,
-});
-export const documentRevokedData = documentEventData.extend({
-  reasonCategory: z.enum(REVOCATION_REASONS),
-  statusChangedAt: timestamp,
-});
+export const documentSupersededData = documentSupersededDataSchema
+  .pick({ ...KEPT, supersededByVerificationId: true, statusChangedAt: true })
+  .extend(shown);
+export const documentRevokedData = documentRevokedDataSchema
+  .pick({ ...KEPT, reasonCategory: true, statusChangedAt: true })
+  .extend(shown);
 
 /** A document event's data as the projection takes it. */
 export type ProjectedEvent = z.infer<typeof documentEventData> & {
