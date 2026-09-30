@@ -5,6 +5,7 @@ import {
   type Session,
   STEP_UP_ACR,
   STEP_UP_CODE_MAX_AGE_SECONDS,
+  STEP_UP_WINDOW_SECONDS,
 } from '@adili/bff-auth';
 import { afterEach, describe, expect, it } from 'vitest';
 
@@ -127,6 +128,19 @@ describe('S16: step-up re-runs only the one-time code', () => {
       'loa-condition-level': '2',
       'loa-max-age': String(STEP_UP_CODE_MAX_AGE_SECONDS),
     });
+  });
+
+  it('counts a sign-in as a step-up: it asks for the code too, so a submit within the window needs no other', async () => {
+    const signInStarted = nowSeconds();
+    const signedIn = await signIn(portal());
+
+    // The access token services check, as a step-up's: acr step-up, auth_time the sign-in's.
+    const claims = claimsOf(signedIn.accessToken);
+    expect(claims.acr).toBe(STEP_UP_ACR);
+    expect(claims.auth_time).toBe(signedIn.authTime);
+    // Keycloak's clock, a little off the host's.
+    expect(signedIn.authTime).toBeGreaterThanOrEqual(signInStarted - 2);
+    expect(nowSeconds() - (signedIn.authTime ?? 0)).toBeLessThan(STEP_UP_WINDOW_SECONDS);
   });
 
   it('asks a signed-in declarant for a new code only, then carries acr and a fresh auth_time', async () => {
