@@ -17,7 +17,12 @@ import {
   Skeleton,
   useToast,
 } from '@adili/ui';
-import { AlertCircleIcon, ArrowRight01Icon, File01Icon } from '@hugeicons/core-free-icons';
+import {
+  AlertCircleIcon,
+  ArrowRight01Icon,
+  Clock01Icon,
+  File01Icon,
+} from '@hugeicons/core-free-icons';
 import { Link, useRouter } from '@tanstack/react-router';
 import { type ReactNode, Suspense, use } from 'react';
 
@@ -37,6 +42,18 @@ const STATUS_BADGES: Record<
   discarded: { label: 'Discarded', variant: 'default' },
 };
 
+/**
+ * A filed declaration says which version is in force and when it was submitted; a draft or an
+ * amendment says when it was last saved.
+ */
+function facts(item: DeclarationListItem): string {
+  const statementDate = `Statement date ${formatDate(item.statementDate)}`;
+  if (item.status === 'submitted' && item.currentVersion !== null && item.submittedAt !== null) {
+    return `${statementDate} · Version ${String(item.currentVersion)} · Submitted ${formatDateTime(item.submittedAt)}`;
+  }
+  return `${statementDate} · Saved ${formatDateTime(item.updatedAt)}`;
+}
+
 const isOpen = (item: DeclarationListItem) => item.status === 'draft' || item.status === 'amending';
 
 function DeclarationRow({ item }: { item: DeclarationListItem }) {
@@ -51,11 +68,17 @@ function DeclarationRow({ item }: { item: DeclarationListItem }) {
           <h3 className="font-semibold">
             {title} · {item.commission.name}
           </h3>
-          <p className="text-sm text-muted-foreground">
-            Statement date {formatDate(item.statementDate)} · Saved {formatDateTime(item.updatedAt)}
-          </p>
+          <p className="text-sm text-muted-foreground">{facts(item)}</p>
         </div>
-        <Badge variant={badge.variant}>{badge.label}</Badge>
+        <div className="flex flex-wrap gap-1.5">
+          {item.status === 'submitted' && item.late ? (
+            <Badge variant="warning">
+              <Icon icon={Clock01Icon} />
+              Filed late
+            </Badge>
+          ) : null}
+          <Badge variant={badge.variant}>{badge.label}</Badge>
+        </div>
       </div>
       {isOpen(item) ? (
         <>
