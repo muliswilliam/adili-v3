@@ -39,9 +39,11 @@
  * the declaration is `submitted` with a new version: the reference is allocated on version 1
  * (`DCB-TSC-2027-0000001-B`), `late` when after the due date, the acknowledgement `pending`.
  * Summaries answer `cannotSubmitReason` as the service does (the refusal first, then
- * `incomplete`), `canSubmit` when there is none, and `late` after the due date.
+ * `incomplete`), `canSubmit` when there is none, and `late` after the due date. The slip is
+ * issued a few seconds later, and a failed one can be asked for again (`./mock/acknowledgement.ts`).
  *
- * Tests can make the next saves fail (`failNextSaves`) or submits fail (`failNextSubmits`),
+ * Tests can make the next saves fail (`failNextSaves`) or submits fail (`failNextSubmits`), make
+ * slips fail or stay pending (`setSlipIssuance`),
  * simulate an edit on another device (`editElsewhere`), make registries answer at once
  * (`setLookupDelay(0)`) or play a Commission without AI (`setExtractionEnabled(false)`).
  */
@@ -69,6 +71,13 @@ import {
   householdPersons,
 } from './mock/household';
 import { isRecord, json, noContent, problem, readJson } from '../mock-http';
+import {
+  readAcknowledgement,
+  reissueAcknowledgement,
+  resetAcknowledgementMock,
+  settleAcknowledgement,
+  slipRequested,
+} from './mock/acknowledgement';
 import { anyMockObligation, isObligationRead, obligationReads } from './mock/obligations';
 import { composeMaterialChanges, otherCompleteness } from './mock/other';
 import { nilConflictsWithItems, statementCompleteness } from './mock/statement';
@@ -230,6 +239,7 @@ interface Stored {
   versions: DeclarationVersion[];
 }
 
+export { setSlipIssuance } from './mock/acknowledgement';
 export { setExtractionEnabled, setLookupDelay } from './mock/suggestions';
 
 const store = new Map<string, Stored>();
@@ -246,6 +256,7 @@ export function resetDeclarationsMock() {
   failingSubmits = 0;
   resetSuggestionsMock();
   resetSubmissionMock();
+  resetAcknowledgementMock();
 }
 
 /** The next `count` section saves answer 503 (tests). */
@@ -361,6 +372,14 @@ async function route(
 
   const versions = /^\/v1\/declarations\/([^/]+)\/versions$/.exec(path);
   if (method === 'GET' && versions?.[1]) return listVersions(versions[1]);
+
+  const slip = /^\/v1\/declarations\/([^/]+)\/versions\/(\d+)\/acknowledgement(\/reissue)?$/.exec(
+    path,
+  );
+  if (slip?.[1] && slip[2]) {
+    if (method === 'GET' && !slip[3]) return getAcknowledgement(slip[1], Number(slip[2]));
+    if (method === 'POST' && slip[3]) return reissue(slip[1], Number(slip[2]));
+  }
 
   const summary = /^\/v1\/declarations\/([^/]+)\/summary$/.exec(path);
   if (method === 'GET' && summary?.[1]) return getSummary(summary[1]);
@@ -956,6 +975,7 @@ function submitDeclaration(request: Request, id: string) {
     acknowledgement: pendingAcknowledgement(),
   };
   stored.versions.push(version);
+  slipRequested(version);
   stored.status = 'submitted';
   stored.updatedAt = now;
   const result: SubmissionResult = {
@@ -971,5 +991,33 @@ function submitDeclaration(request: Request, id: string) {
 function listVersions(id: string) {
   const stored = store.get(id);
   if (!stored || stored.status === 'discarded') return problem(404, 'Not found');
+  const now = Date.now();
+  for (const version of stored.versions) settleAcknowledgement(version, now);
   return json(200, [...stored.versions].reverse());
+}
+
+function submittedVersion(id: string, number: number) {
+  const stored = store.get(id);
+  if (!stored || stored.status === 'discarded') return undefined;
+  return stored.versions.find((version) => version.version === number);
+}
+
+/** `GET /v1/declarations/{id}/versions/{n}/acknowledgement`. */
+function getAcknowledgement(id: string, number: number) {
+  const version = submittedVersion(id, number);
+  return version ? json(200, readAcknowledgement(version)) : problem(404, 'Not found');
+}
+
+/** `POST /v1/declarations/{id}/versions/{n}/acknowledgement/reissue`. */
+function reissue(id: string, number: number) {
+  const version = submittedVersion(id, number);
+  if (!version) return problem(404, 'Not found');
+  const answer = reissueAcknowledgement(version);
+  if (answer.status === 202) return new Response(null, { status: 202 });
+  if (answer.status === 409) return problem(409, 'The slip is issued or being prepared');
+  return json(
+    429,
+    { type: 'about:blank', title: 'Asked for the slip too recently', status: 429 },
+    { 'retry-after': String(answer.retryAfterSeconds) },
+  );
 }

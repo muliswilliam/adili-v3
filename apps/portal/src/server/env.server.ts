@@ -20,6 +20,12 @@ export const envSchema = bffEnvSchema.extend({
   DECLARATIONS_API_URL: z.url(),
   DOCUMENTS_API_URL: z.url(),
   /**
+   * Origin of the public verify app: the QR on an acknowledgement slip opens
+   * `<VERIFY_BASE_URL>/v/<verification code>`, as the documents service prints it (its own
+   * VERIFY_BASE_URL). Until the acknowledgement contract carries the link itself.
+   */
+  VERIFY_BASE_URL: z.url(),
+  /**
    * Serve the declarant's obligations (spec 04) from in-memory fixtures, to work on the portal
    * without the declarations service. Honoured in `vite dev` and tests only; production builds
    * do not contain the mocks.
