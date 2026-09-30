@@ -209,6 +209,13 @@ paths:
           schema:
             type: string
             format: uuid
+        - name: Idempotency-Key
+          in: header
+          description: Optional. Client-generated UUID, unique per logical request; reuse on retry and the stored answer is replayed instead of acting twice
+          required: false
+          schema:
+            type: string
+            format: uuid
       responses:
         '204':
           description: Link recorded
@@ -232,6 +239,12 @@ paths:
                 $ref: '#/components/schemas/ProblemDetails'
         '409':
           description: 'Problem type `upload-not-clean`: the upload is not clean'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '422':
+          description: Idempotency-Key reused with a different request body
           content:
             application/problem+json:
               schema:
@@ -308,6 +321,13 @@ paths:
           schema:
             type: string
             pattern: ^[a-z][a-z0-9]{1,19}$
+        - name: Idempotency-Key
+          in: header
+          description: Optional. Client-generated UUID, unique per logical request; reuse on retry and the stored answer is replayed instead of acting twice
+          required: false
+          schema:
+            type: string
+            format: uuid
       requestBody:
         required: true
         content:
@@ -339,6 +359,12 @@ paths:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/ProblemDetails'
+        '422':
+          description: Idempotency-Key reused with a different request body
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
         '502':
           description: 'Problem type `renderer-unavailable`, `signer-unavailable` or `storage-unavailable`: nothing was issued; retry'
           content:
@@ -363,6 +389,13 @@ paths:
         - name: documentId
           required: true
           in: path
+          schema:
+            type: string
+            format: uuid
+        - name: Idempotency-Key
+          in: header
+          description: Optional. Client-generated UUID, unique per logical request; reuse on retry and the stored answer is replayed instead of acting twice
+          required: false
           schema:
             type: string
             format: uuid
@@ -399,6 +432,12 @@ paths:
                 $ref: '#/components/schemas/ProblemDetails'
         '409':
           description: Problem type `document-not-valid` (superseded or revoked already) or `superseding-document-invalid` (the newer document is not a valid document of the same type)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '422':
+          description: Idempotency-Key reused with a different request body
           content:
             application/problem+json:
               schema:

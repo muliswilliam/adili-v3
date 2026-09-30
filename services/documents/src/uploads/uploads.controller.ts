@@ -9,6 +9,7 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import {
+  AcceptIdempotencyKey,
   ActingTenant,
   ApiProblemResponse,
   AuditedRead,
@@ -143,6 +144,7 @@ export class InternalUploadsController {
   @Post(':id/linked')
   @ApiUploadIdParam()
   @HttpCode(HttpStatus.NO_CONTENT)
+  @AcceptIdempotencyKey()
   @ApiOperation({
     operationId: 'markUploadLinked',
     summary: 'Record that the owning service linked a clean upload',

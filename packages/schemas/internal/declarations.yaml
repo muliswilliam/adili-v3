@@ -933,6 +933,13 @@ paths:
           schema:
             type: integer
             minimum: 1
+        - name: Idempotency-Key
+          in: header
+          description: Optional. Client-generated UUID, unique per logical request; reuse on retry and the stored answer is replayed instead of acting twice
+          required: false
+          schema:
+            type: string
+            format: uuid
       responses:
         '202':
           description: Reissue requested
@@ -950,6 +957,12 @@ paths:
                 $ref: '#/components/schemas/ProblemDetails'
         '409':
           description: Problem code `acknowledgement-issued` (the slip is issued) or `acknowledgement-in-progress` (within a minute of the submission)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '422':
+          description: Idempotency-Key reused with a different request body
           content:
             application/problem+json:
               schema:

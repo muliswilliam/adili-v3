@@ -1,6 +1,7 @@
 import { Controller, Get, HttpCode, HttpStatus, Param, Post } from '@nestjs/common';
 import { ApiOkResponse, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import {
+  AcceptIdempotencyKey,
   ActingTenant,
   ApiProblemResponse,
   AuditedRead,
@@ -49,6 +50,7 @@ export class AcknowledgementController {
 
   @Post('reissue')
   @HttpCode(HttpStatus.ACCEPTED)
+  @AcceptIdempotencyKey()
   @ApiVersionParams()
   @ApiOperation({
     operationId: 'reissueAcknowledgement',

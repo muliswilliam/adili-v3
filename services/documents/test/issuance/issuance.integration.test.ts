@@ -112,9 +112,14 @@ const issue = (body: unknown, tenant = 'psc', caller: Caller = DECLARATIONS) =>
     headers: { 'x-acting-tenant': tenant },
   });
 
-const supersede = (id: string, supersededBy: string, tenant = 'psc') =>
+const supersede = (
+  id: string,
+  supersededBy: string,
+  tenant = 'psc',
+  idempotencyKey: string | null = null,
+) =>
   api.post(`/internal/v1/documents/${id}/supersede`, { supersededBy }, DECLARATIONS, {
-    idempotencyKey: null,
+    idempotencyKey,
     headers: { 'x-acting-tenant': tenant },
   });
 
@@ -465,6 +470,21 @@ describe('S10 superseding', () => {
     expect(again.statusCode).toBe(409);
     expect(again.json<Problem>().type).toBe('document-not-valid');
     expect((await documentRow(version1.id)).record.supersededBy).toBe(version2.id);
+    expect(await eventsAbout(version1.id)).toHaveLength(2);
+  });
+
+  it('replays a retried supersede with the same Idempotency-Key instead of refusing it', async () => {
+    const version1 = await issued();
+    const version2 = await issued();
+    const key = randomUUID();
+    const first = await supersede(version1.id, version2.id, 'psc', key);
+    expect(first.statusCode).toBe(200);
+
+    const retry = await supersede(version1.id, version2.id, 'psc', key);
+
+    expect(retry.statusCode).toBe(200);
+    expect(retry.headers['idempotent-replayed']).toBe('true');
+    expect(retry.json()).toEqual(first.json());
     expect(await eventsAbout(version1.id)).toHaveLength(2);
   });
 

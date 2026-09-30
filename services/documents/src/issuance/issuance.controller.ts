@@ -8,6 +8,7 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import {
+  AcceptIdempotencyKey,
   ActingTenant,
   ApiProblemResponse,
   AuditedRead,
@@ -105,6 +106,7 @@ export class InternalDocumentsController {
   constructor(private readonly issuance: IssuanceService) {}
 
   @Post('issue')
+  @AcceptIdempotencyKey()
   @ApiOperation({
     operationId: 'issueDocument',
     summary: 'Render, sign and register a document (services)',
@@ -139,6 +141,7 @@ export class InternalDocumentsController {
 
   @Post(':documentId/supersede')
   @HttpCode(HttpStatus.OK)
+  @AcceptIdempotencyKey()
   @ApiDocumentIdParam()
   @ApiOperation({
     operationId: 'supersedeDocument',

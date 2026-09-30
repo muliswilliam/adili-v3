@@ -104,6 +104,8 @@ So the header chooses among the tenants a trusted service may act for; it never 
 - identify (`POST /v1/onboarding/sessions`) returns the session secret, which the idempotency store must not keep (as in 8.2). A retry just opens a fresh session (the lost one lapses at its expiry, 30 minutes), and it is rate limited per client IP and per client IP and Commission;
 - verify, resend and provide-contact (`/otp/{channel}/verify`, `/otp/{channel}/resend`, `/contacts`) each move the session's state machine one step, scoped by the session id and secret. A replay is refused by the state check (409 `wrong-step` once the step is done), by the one-minute resend cooldown (429 `resend-cooldown`), or counts as one more attempt against the code's five, never as a second effect.
 
+**8.4 No `Idempotency-Key` on reopening and discarding an amendment (§7.5, spec 06).** The declarations service's `POST /v1/declarations/{id}/amend` and `POST /v1/declarations/{id}/amend/discard` take no key. Each answers with the declaration and its `ETag`, which a client needs for its next section save (`If-Match`); the idempotency store keeps only status and body, so a replay would answer without it. Neither needs a key to be safe to retry, because each is idempotent by the declaration's state, decided under its row lock: a retried amend finds the declaration `amending` and answers it as it is, copying nothing and recording no second `declaration.amendment-started.v1`; a retried discard finds it `submitted` and answers it as it is. Two requests at once make one change and one event.
+
 ## Alternatives considered
 
 | Option | Why not |
