@@ -6,6 +6,8 @@
  * environment and the in-memory adapter in API tests.
  */
 
+import { DECLARANT } from '@adili/roles';
+
 /** Keycloak required actions a staff account must complete before first use. */
 export type RequiredAction = 'VERIFY_EMAIL' | 'UPDATE_PASSWORD' | 'CONFIGURE_TOTP';
 
@@ -17,7 +19,7 @@ export const STAFF_REQUIRED_ACTIONS: readonly RequiredAction[] = [
 ];
 
 /** Realm role of declarants: officers who onboarded from a Commission's roster (spec 03). */
-export const DECLARANT_ROLE = 'declarant';
+export const DECLARANT_ROLE = DECLARANT;
 
 /** What a new declarant account must do before first sign-in: set a password. */
 export const DECLARANT_REQUIRED_ACTIONS: readonly RequiredAction[] = ['UPDATE_PASSWORD'];

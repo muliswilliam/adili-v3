@@ -1,3 +1,4 @@
+import { PLATFORM_ADMIN } from '@adili/roles';
 import { Button, Icon } from '@adili/ui';
 import { Building03Icon } from '@hugeicons/core-free-icons';
 import { createFileRoute, Link, Outlet } from '@tanstack/react-router';
@@ -108,7 +109,7 @@ function NoWorkspace({ roles }: { roles: readonly string[] }) {
   if (workspaceFor(roles, 'commissions')) {
     return (
       <NoAccess
-        text={roles.includes('platform-admin') ? m.pickCommission : m.forbidden}
+        text={roles.includes(PLATFORM_ADMIN) ? m.pickCommission : m.forbidden}
         action={<OpenCommissions />}
       />
     );

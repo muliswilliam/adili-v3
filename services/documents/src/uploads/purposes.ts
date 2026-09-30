@@ -1,3 +1,4 @@
+import { REPORTING_OFFICER } from '@adili/roles';
 import { z } from 'zod';
 
 /** CSV as declared by clients and as detected by the sniffer. */
@@ -24,7 +25,7 @@ const MB = 1024 * 1024;
  */
 export const UPLOAD_PURPOSES = {
   'roster-import': {
-    roles: ['reporting-officer'],
+    roles: [REPORTING_OFFICER],
     contentTypes: [CSV, XLSX],
     maxSize: 50 * MB,
   },

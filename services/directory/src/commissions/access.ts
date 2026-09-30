@@ -1,32 +1,31 @@
 import { notFoundIfInvisible, type Principal } from '@adili/api-kit';
 import type { TenantContext } from '@adili/data-access';
+import {
+  ACCESS_OFFICER,
+  AUDITOR,
+  COMMISSION_STAFF_ROLES,
+  HELPDESK,
+  NATIONAL_ROLES,
+  REPORTING_OFFICER,
+} from '@adili/roles';
 
 /** RLS context of platform-wide principals; also a reserved tenant key. */
 export const PLATFORM_TENANT = 'platform';
 
 /** Realm role that gives an account the roster tools of its tenant. */
-export const REPORTING_OFFICER_ROLE = 'reporting-officer';
+export const REPORTING_OFFICER_ROLE = REPORTING_OFFICER;
 
 /** Every console role. Declarants have no access to directory administration (spec 01). */
 export const STAFF_ROLES = [
-  'platform-admin',
-  'eacc-analyst',
-  'eacc-supervisor',
-  'reporting-officer',
-  'reviewer',
-  'supervisor',
-  'commission-admin',
-  'access-officer',
-  'auditor',
-  'helpdesk',
+  ...NATIONAL_ROLES,
+  ...COMMISSION_STAFF_ROLES,
+  ACCESS_OFFICER,
+  AUDITOR,
+  HELPDESK,
 ] as const satisfies readonly string[];
 
 /** Roles that read every Commission; everyone else reads only their own tenant's. */
-export const NATIONAL_READ_ROLES = [
-  'platform-admin',
-  'eacc-analyst',
-  'eacc-supervisor',
-] as const satisfies readonly string[];
+export const NATIONAL_READ_ROLES = NATIONAL_ROLES;
 
 export function seesAllCommissions(principal: Principal): boolean {
   return principal.roles.some((role) => (NATIONAL_READ_ROLES as readonly string[]).includes(role));

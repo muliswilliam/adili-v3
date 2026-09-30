@@ -12,7 +12,7 @@ import {
   schemaRef,
   ZodValidationPipe,
 } from '@adili/api-kit';
-import { DIRECTORY_PERSON_CONTACTS_SCOPE } from '@adili/roles';
+import { DIRECTORY_PERSON_CONTACTS_SCOPE, HELPDESK, PLATFORM_ADMIN } from '@adili/roles';
 
 import { z } from 'zod';
 
@@ -27,7 +27,7 @@ import {
 } from './representation.js';
 
 /** Roles that look a person up by officer reference (spec 03 authorisation matrix). */
-export const PERSON_LOOKUP_ROLES = ['platform-admin', 'helpdesk'] as const;
+export const PERSON_LOOKUP_ROLES = [PLATFORM_ADMIN, HELPDESK] as const;
 
 @ApiTags('persons')
 @Controller('v1/persons')
