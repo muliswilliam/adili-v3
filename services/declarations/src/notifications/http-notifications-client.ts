@@ -12,9 +12,6 @@ import {
   type SendOutcome,
 } from './notifications-client.js';
 
-/** The scope the declarations service's token needs for the notifications messages API. */
-export const NOTIFICATIONS_MESSAGES_SCOPE = 'messages';
-
 /**
  * How long a reminder waits for notifications: its synchronous budget for the contact lookup and
  * the provider (5 s, spec 03 and 04) plus the hop. Recorded in ADR-016 (not ADR-013's 2 s

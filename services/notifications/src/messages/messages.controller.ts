@@ -17,6 +17,7 @@ import {
   Scopes,
   ZodValidationPipe,
 } from '@adili/api-kit';
+import { MESSAGES_SCOPE } from '@adili/roles';
 import { z } from 'zod';
 
 import { isSettled, MessagesService } from './messages.service.js';
@@ -26,7 +27,7 @@ import { type SendMessage, sendMessageSchema } from './send-message.schema.js';
 /** Internal: not routed by the public entrypoint. Callers are services with the messages scope. */
 @ApiTags('internal')
 @ApiBearerAuth()
-@Scopes('messages')
+@Scopes(MESSAGES_SCOPE)
 @Controller('internal/v1/messages')
 export class MessagesController {
   constructor(private readonly messages: MessagesService) {}

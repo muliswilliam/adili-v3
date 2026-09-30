@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { notFoundIfInvisible, type Principal } from '@adili/api-kit';
 import { type Database, InjectDatabase, withTenant } from '@adili/data-access';
 import { EventPublisher } from '@adili/events';
+import { PLATFORM_ADMIN } from '@adili/roles';
 
 import { Clock } from '../clock.js';
 import type { DirectorySchema } from '../db/schema.js';
@@ -13,8 +14,6 @@ import type {
   TenantPolicyVersion,
 } from './policy-representation.js';
 import { createPolicyVersion, readCurrentPolicy, readPolicyHistory } from './policy-versions.js';
-
-const PLATFORM_ADMIN_ROLE = 'platform-admin';
 
 /**
  * A Commission's policy (spec 04): staff read its versions with the Commission visibility rule,
@@ -43,7 +42,7 @@ export class PolicyService {
     slug: string,
     body: CreateTenantPolicyVersionBody,
   ): Promise<TenantPolicyVersion> {
-    const context = principal.roles.includes(PLATFORM_ADMIN_ROLE)
+    const context = principal.roles.includes(PLATFORM_ADMIN)
       ? { tenant: PLATFORM_TENANT, subject: principal.subject }
       : ownTenantContext(principal, slug);
     return withTenant(this.db, context, (tx) =>

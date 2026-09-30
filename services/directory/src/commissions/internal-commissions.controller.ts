@@ -8,8 +8,9 @@ import {
   schemaRef,
   Scopes,
 } from '@adili/api-kit';
+import { DIRECTORY_INTERNAL_SCOPE } from '@adili/roles';
 
-import { DIRECTORY_INTERNAL_SCOPE, DirectoryInternalApi } from '../internal-api.js';
+import { DirectoryInternalApi } from '../internal-api.js';
 import { CommissionsService } from './commissions.service.js';
 import type { InternalCommission, InternalCommissionList } from './representation.js';
 

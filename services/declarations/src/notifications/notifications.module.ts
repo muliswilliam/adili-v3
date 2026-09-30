@@ -1,11 +1,9 @@
 import { Module } from '@nestjs/common';
 import { ServiceTokenClient } from '@adili/api-kit';
+import { MESSAGES_SCOPE } from '@adili/roles';
 
 import { config } from '../config.js';
-import {
-  HttpNotificationsClient,
-  NOTIFICATIONS_MESSAGES_SCOPE,
-} from './http-notifications-client.js';
+import { HttpNotificationsClient } from './http-notifications-client.js';
 import { NotificationsClient } from './notifications-client.js';
 
 /** The notifications internal messages API, called with the service's own token (ADR-013 §5, ADR-016). */
@@ -20,7 +18,7 @@ import { NotificationsClient } from './notifications-client.js';
             issuerUrl: config.OIDC_ISSUER_URL,
             clientId: config.KEYCLOAK_CLIENT_ID,
             clientSecret: config.KEYCLOAK_CLIENT_SECRET,
-            scopes: [NOTIFICATIONS_MESSAGES_SCOPE],
+            scopes: [MESSAGES_SCOPE],
           }),
         }),
     },

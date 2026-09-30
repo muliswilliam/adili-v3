@@ -1423,6 +1423,9 @@ importers:
       '@adili/numbering':
         specifier: workspace:*
         version: link:../../packages/numbering
+      '@adili/roles':
+        specifier: workspace:*
+        version: link:../../packages/roles
       '@adili/telemetry':
         specifier: workspace:*
         version: link:../../packages/telemetry
@@ -1765,6 +1768,9 @@ importers:
       '@adili/events':
         specifier: workspace:*
         version: link:../../packages/events
+      '@adili/roles':
+        specifier: workspace:*
+        version: link:../../packages/roles
       '@adili/telemetry':
         specifier: workspace:*
         version: link:../../packages/telemetry

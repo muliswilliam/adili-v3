@@ -2,7 +2,7 @@
   "name": "@adili/roles",
   "version": "0.0.0",
   "private": true,
-  "description": "The Keycloak realm roles by name and the groups of them that the services and the apps both check, so each group is defined once.",
+  "description": "The Keycloak realm roles by name, the groups of them, and the client scopes that the services and the apps both check, so each is defined once.",
   "type": "module",
   "files": [
     "dist"

@@ -9,12 +9,6 @@ import {
   PersonContactsSource,
 } from './person-contacts.js';
 
-/**
- * The scope the notifications service token needs for the directory's person contacts: its own,
- * held by no other client, so no other service reads contacts (spec 04).
- */
-export const DIRECTORY_PERSON_CONTACTS_SCOPE = 'directory:person-contacts';
-
 export interface DirectoryPersonContactsOptions {
   /** Base URL of the directory service, e.g. `http://localhost:4001`. */
   directoryUrl: string;

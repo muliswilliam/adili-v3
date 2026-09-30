@@ -17,6 +17,7 @@ import {
   schemaRef,
   ZodValidationPipe,
 } from '@adili/api-kit';
+import { PLATFORM_ADMIN } from '@adili/roles';
 
 import { DirectoryInternalApi } from '../internal-api.js';
 import { STAFF_ROLES } from './access.js';
@@ -60,7 +61,7 @@ export class PolicyController {
   }
 
   @Post('versions')
-  @Roles('commission-admin', 'platform-admin')
+  @Roles('commission-admin', PLATFORM_ADMIN)
   @RequireIdempotencyKey()
   @ApiOperation({
     operationId: 'createTenantPolicyVersion',

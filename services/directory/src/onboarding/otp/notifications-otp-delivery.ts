@@ -4,9 +4,6 @@ import { z } from 'zod';
 import type { components, paths } from './notifications-api.gen.js';
 import { OtpDelivery, OtpDeliveryFailed, type OtpMessage } from './otp-delivery.js';
 
-/** The scope the directory's service token needs for the notifications internal API. */
-export const NOTIFICATIONS_MESSAGES_SCOPE = 'messages';
-
 /**
  * How long the directory waits for notifications to send a code: notifications' synchronous
  * budget for its provider (5 s, spec 03) plus a second for the hop. The recorded exception to

@@ -12,11 +12,11 @@ import {
   schemaRef,
   ZodValidationPipe,
 } from '@adili/api-kit';
+import { DIRECTORY_PERSON_CONTACTS_SCOPE } from '@adili/roles';
 
 import { z } from 'zod';
 
 import { DECLARANT_ROLE } from '../identity/identity-provisioning.js';
-import { DIRECTORY_PERSON_CONTACTS_SCOPE } from '../internal-api.js';
 import { PersonsService } from './persons.service.js';
 import {
   type DeclarantProfile,

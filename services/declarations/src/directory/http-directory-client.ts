@@ -12,9 +12,6 @@ import {
   type RosterRecordSelector,
 } from './directory-client.js';
 
-/** The scope the declarations service's token needs for the directory's internal API. */
-export const DIRECTORY_INTERNAL_SCOPE = 'directory:internal';
-
 /**
  * How long a pull may take: a page is up to 1,000 records. Recorded in ADR-016 (not ADR-013's
  * 2 s default); pulls run in event consumers and workflow activities, which retry.

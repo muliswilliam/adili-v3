@@ -1,11 +1,9 @@
 import { Module } from '@nestjs/common';
 import { ServiceTokenClient } from '@adili/api-kit';
+import { DIRECTORY_PERSON_CONTACTS_SCOPE } from '@adili/roles';
 
 import { config } from '../config.js';
-import {
-  DIRECTORY_PERSON_CONTACTS_SCOPE,
-  DirectoryPersonContacts,
-} from './directory-person-contacts.js';
+import { DirectoryPersonContacts } from './directory-person-contacts.js';
 import { PersonContactsSource } from './person-contacts.js';
 import { PersonContactsCache } from './person-contacts-cache.js';
 
