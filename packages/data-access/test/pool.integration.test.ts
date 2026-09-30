@@ -48,6 +48,7 @@ describe('a database that does not answer', () => {
 
     expect(toProblemDetails(error, '/x')).toMatchObject({
       type: 'database-unavailable',
+      code: 'database-unavailable',
       status: HttpStatus.SERVICE_UNAVAILABLE,
     });
   });

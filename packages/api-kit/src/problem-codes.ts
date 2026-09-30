@@ -9,6 +9,14 @@ import { z } from 'zod';
  * Add a code here before a service throws it, and give it the copy in the front ends' table.
  */
 export const PROBLEM_CODES = {
+  /**
+   * The service's database could not be reached (no connection in time, refused, or the session
+   * turned away); transient, so callers try again later.
+   */
+  'database-unavailable': {
+    status: HttpStatus.SERVICE_UNAVAILABLE,
+    title: 'Service unavailable',
+  },
   /** Too many requests for the caller's budget; `retryAfterSeconds` says when to try again. */
   'rate-limit-exceeded': { status: HttpStatus.TOO_MANY_REQUESTS, title: 'Too Many Requests' },
   /** Onboarding: nothing on the Commission's roster matches, whatever the cause. */

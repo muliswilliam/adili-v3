@@ -199,6 +199,7 @@ components:
         code:
           type: string
           enum:
+            - database-unavailable
             - rate-limit-exceeded
             - no-match
             - already-onboarded
