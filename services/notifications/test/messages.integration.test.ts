@@ -572,6 +572,7 @@ describe('internal messages API', () => {
       const acknowledgementParams = {
         reference: 'DCB-PSC-2027-0000001-1',
         type: 'biennial',
+        version: 1,
         commissionName: 'Public Service Commission',
         statementDate: '2027-11-01',
         verificationCode: 'ADL-7Q4K-M2XR-9HTC-2B7F-Q3ZD-9K',
@@ -630,7 +631,7 @@ describe('internal messages API', () => {
         expect(sms.sent).toEqual([
           {
             to: '+254712345678',
-            text: 'Adili: declaration DCB-PSC-2027-0000001-1 received. Verification code ADL-7Q4K-M2XR-9HTC-2B7F-Q3ZD-9K. Your slip is in Adili Online.',
+            text: 'Adili: declaration DCB-PSC-2027-0000001-1 received. Verification code ADL-7Q4K-M2XR-9HTC-2B7F-Q3ZD-9K. Slip in Adili Online.',
           },
         ]);
       });

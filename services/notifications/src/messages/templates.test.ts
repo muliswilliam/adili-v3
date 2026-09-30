@@ -180,6 +180,7 @@ describe('acknowledgement templates', () => {
   const params = {
     reference: 'DCB-PSC-2027-0000001-1',
     type: 'biennial',
+    version: 1,
     commissionName: 'Public Service Commission',
     statementDate: '2027-11-01',
     verificationCode: 'ADL-7Q4K-M2XR-9HTC-2B7F-Q3ZD-9K',
@@ -190,17 +191,35 @@ describe('acknowledgement templates', () => {
     const text = renderTemplate('acknowledgement-sms', 'en', params).text;
 
     expect(text).toBe(
-      'Adili: declaration DCB-PSC-2027-0000001-1 received. Verification code ADL-7Q4K-M2XR-9HTC-2B7F-Q3ZD-9K. Your slip is in Adili Online.',
+      'Adili: declaration DCB-PSC-2027-0000001-1 received. Verification code ADL-7Q4K-M2XR-9HTC-2B7F-Q3ZD-9K. Slip in Adili Online.',
     );
     expect(text).not.toContain('Public Service Commission');
     expect(text).not.toContain('https://');
   });
 
-  it('keeps the SMS to one segment with the longest issuer and code', () => {
+  it('names the version of an amendment in the SMS', () => {
+    const text = renderTemplate('acknowledgement-sms', 'en', { ...params, version: 2 }).text;
+
+    expect(text).toBe(
+      'Adili: declaration DCB-PSC-2027-0000001-1 version 2 received. Verification code ADL-7Q4K-M2XR-9HTC-2B7F-Q3ZD-9K. Slip in Adili Online.',
+    );
+  });
+
+  it('accepts an issuer longer than 8 characters, as tenant keys allow', () => {
     const text = renderTemplate('acknowledgement-sms', 'en', {
       ...params,
-      reference: 'DCF-CPSB047-2027-0000002-X',
+      reference: 'DCB-NAIROBICOUNTY-2027-0000003-M',
+    }).text;
+
+    expect(text).toContain('declaration DCB-NAIROBICOUNTY-2027-0000003-M received.');
+  });
+
+  it('keeps the SMS to one segment with the longest issuer, version and code', () => {
+    const text = renderTemplate('acknowledgement-sms', 'en', {
+      ...params,
+      reference: 'DCF-ABCDEFGHIJKLMNOPQRST-2027-9999999-V',
       type: 'final',
+      version: 99,
       verificationCode: 'ADL-ABCDEFGH-ABCDEFGH-ABCDEFGH-ABCDEFGH',
     }).text;
 
@@ -235,6 +254,19 @@ describe('acknowledgement templates', () => {
     expect(Object.keys(rendered).sort()).toEqual(['html', 'subject', 'text']);
   });
 
+  it('says an amendment is a new version of the same reference that supersedes the old slip', () => {
+    const rendered = renderTemplate('acknowledgement-email', 'en', { ...params, version: 3 });
+
+    expect(rendered.subject).toBe('Declaration DCB-PSC-2027-0000001-1 version 3 received');
+    expect(rendered.text).toContain(
+      'Version 3 of your biennial declaration for Public Service Commission, your amendment, has been received. Its reference number stays DCB-PSC-2027-0000001-1.',
+    );
+    expect(rendered.text).toContain(
+      'Your acknowledgement slip for version 3 is ready and replaces the slip for the previous version, which now shows as superseded. Its verification code is ADL-7Q4K-M2XR-9HTC-2B7F-Q3ZD-9K',
+    );
+    expect(rendered.html).toContain('Version 3 of your biennial declaration');
+  });
+
   it('escapes the Commission name and portal link in the HTML body', () => {
     const rendered = renderTemplate('acknowledgement-email', 'en', {
       ...params,
@@ -265,6 +297,15 @@ describe('acknowledgement templates', () => {
     ['a lower-case reference', { reference: 'dcb-psc-2027-0000001-1' }, ['params.reference']],
     ['a type the reference does not carry', { type: 'final' }, ['params.type']],
     ['an unknown type', { type: 'annual' }, ['params.type']],
+    [
+      'an issuer over 20 characters',
+      { reference: 'DCB-ABCDEFGHIJKLMNOPQRSTU-2027-0000001-1' },
+      ['params.reference'],
+    ],
+    ['version 0', { version: 0 }, ['params.version']],
+    ['a fractional version', { version: 1.5 }, ['params.version']],
+    ['a version over 99', { version: 100 }, ['params.version']],
+    ['a version as a string', { version: '2' }, ['params.version']],
     [
       'a verification code without the ADL prefix',
       { verificationCode: '7Q4K-M2XR-9HTC' },
@@ -316,6 +357,7 @@ describe('acknowledgement templates', () => {
         'params.statementDate',
         'params.type',
         'params.verificationCode',
+        'params.version',
       ]);
     }
   });
