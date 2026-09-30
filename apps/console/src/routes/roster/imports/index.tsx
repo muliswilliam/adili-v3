@@ -22,6 +22,7 @@ import { messages as m } from '../../../components/roster/messages';
 import { signInRedirect } from '../../../components/sign-in-redirect';
 import type { DirectoryResult, RosterImportPage } from '../../../server/directory/client';
 import { listRosterImports } from '../../../server/roster-imports';
+import { SERVICE_UNAVAILABLE } from '../../../server/service-call';
 
 declare module '@tanstack/react-router' {
   interface HistoryState {
@@ -34,18 +35,13 @@ const historySearch = z.object({ cursor: z.string().max(500).optional().catch(un
 type HistorySearch = z.infer<typeof historySearch>;
 
 /** A roster-workspace role without a tenant: a broken account, shown as a failed load. */
-const noCommission: DirectoryResult<RosterImportPage> = {
-  ok: false,
-  error: { kind: 'unavailable', detail: null },
-};
-
 export const Route = createFileRoute('/roster/imports/')({
   validateSearch: historySearch,
   loaderDeps: ({ search }) => search,
   loader: async ({ deps, location, context }) => {
     // The layout shows no history without the workspace; do not fetch one.
     if (!context.workspace) return null;
-    if (!context.tenant) return noCommission;
+    if (!context.tenant) return SERVICE_UNAVAILABLE;
     const result = await listRosterImports({
       data: { slug: context.tenant, cursor: deps.cursor },
     });

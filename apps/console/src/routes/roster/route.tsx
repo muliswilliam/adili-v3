@@ -12,6 +12,7 @@ import { workspaceFor, workspacesFor } from '../../components/workspaces';
 import { getCommission } from '../../server/commissions';
 import type { Commission, DirectoryResult } from '../../server/directory/client';
 import { getViewer } from '../../server/viewer';
+import { SERVICE_UNAVAILABLE } from '../../server/service-call';
 
 /** What every roster page shares: the viewer's own Commission with its roster summary. */
 export interface RosterLayoutData {
@@ -19,11 +20,6 @@ export interface RosterLayoutData {
 }
 
 /** A roster-workspace role without a tenant: a broken account, shown as a failed load. */
-const noCommission: DirectoryResult<never> = {
-  ok: false,
-  error: { kind: 'unavailable', detail: null },
-};
-
 /** Whether a match's route context opens the Roster workspace. */
 function opensWorkspace(context: unknown): boolean {
   return typeof context === 'object' && context !== null && 'workspace' in context
@@ -55,7 +51,7 @@ export const Route = createFileRoute('/roster')({
     staleReloadMode: 'blocking',
     handler: async ({ context, location }): Promise<RosterLayoutData | null> => {
       if (!context.workspace) return null;
-      if (!context.tenant) return { commission: noCommission };
+      if (!context.tenant) return { commission: SERVICE_UNAVAILABLE };
       const commission = await getCommission({ data: { slug: context.tenant } });
       if (!commission.ok && commission.error.kind === 'unauthenticated') {
         throw signInRedirect(location.href);

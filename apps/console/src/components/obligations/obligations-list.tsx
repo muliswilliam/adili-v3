@@ -55,6 +55,7 @@ import {
   type ObligationsSearch,
   withFilter,
 } from './obligations-query';
+import { SERVICE_UNAVAILABLE } from '../../server/service-call';
 
 /** Radix Select items cannot have an empty value, so "all" is this sentinel. */
 const ALL = 'all';
@@ -282,11 +283,8 @@ function Results({
     if (!loaded.nextCursor || loadingMore) return;
     setLoadingMore(true);
     setMoreFailed(false);
-    const page = await loadPage(loaded.nextCursor).catch(
-      (): DeclarationsResult<ObligationPage> => ({
-        ok: false,
-        error: { kind: 'unavailable', detail: null },
-      }),
+    const page: DeclarationsResult<ObligationPage> = await loadPage(loaded.nextCursor).catch(
+      () => SERVICE_UNAVAILABLE,
     );
     setLoadingMore(false);
     if (!page.ok && page.error.kind === 'unauthenticated') {

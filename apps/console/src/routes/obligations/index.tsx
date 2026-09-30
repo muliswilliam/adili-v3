@@ -21,15 +21,11 @@ import { signInRedirect } from '../../components/sign-in-redirect';
 import { opensOwnPolicy, ROSTER_WRITE_ROLES, workspaceFor } from '../../components/workspaces';
 import type { DeclarationsResult, ObligationPage } from '../../server/declarations/client';
 import { getObligation, listCommissionObligations } from '../../server/obligations';
+import { SERVICE_UNAVAILABLE } from '../../server/service-call';
 
 const PATH = '/obligations';
 
 /** A Commission role without a tenant: a broken account, shown as a failed load. */
-const noCommission: DeclarationsResult<never> = {
-  ok: false,
-  error: { kind: 'unavailable', detail: null },
-};
-
 export const Route = createFileRoute('/obligations/')({
   validateSearch: obligationsSearchSchema,
   loaderDeps: ({ search }) => search,
@@ -41,7 +37,7 @@ export const Route = createFileRoute('/obligations/')({
     // The layout shows no list without the workspace; do not fetch one.
     if (!context.workspace) return null;
     const slug = context.tenant;
-    if (!slug) return noCommission;
+    if (!slug) return SERVICE_UNAVAILABLE;
     const list = await listCommissionObligations({
       data: { slug, ...deps, limit: OBLIGATIONS_PAGE_SIZE },
     });

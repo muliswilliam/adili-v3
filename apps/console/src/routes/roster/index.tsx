@@ -58,6 +58,7 @@ import type {
 } from '../../server/directory/client';
 import { getRosterApiCredential } from '../../server/roster-api-credential';
 import { findRunningRosterImport, getRosterImport } from '../../server/roster-imports';
+import { SERVICE_UNAVAILABLE } from '../../server/service-call';
 
 interface OverviewData {
   commission: DirectoryResult<Commission>;
@@ -76,7 +77,7 @@ export const Route = createFileRoute('/roster/')({
     // Roster screens are about the viewer's own Commission, the tenant of their session.
     const slug = context.tenant;
     if (!slug) {
-      return { commission: noCommission, lastImport: null, credential: null, running: null };
+      return { commission: SERVICE_UNAVAILABLE, lastImport: null, credential: null, running: null };
     }
     const [layout, credential, running] = await Promise.all([
       // The layout loads the Commission (and signs in again when the session ended).
@@ -85,7 +86,7 @@ export const Route = createFileRoute('/roster/')({
       context.workspace.readOnly ? null : getRosterApiCredential({ data: { slug } }),
       findRunningRosterImport({ data: { slug } }),
     ]);
-    const commission = layout.loaderData?.commission ?? noCommission;
+    const commission = layout.loaderData?.commission ?? SERVICE_UNAVAILABLE;
     const lastImportId = commission.ok ? commission.data.roster.lastImportId : null;
     const lastImport = lastImportId
       ? await getRosterImport({ data: { slug, importId: lastImportId } })
@@ -103,11 +104,6 @@ export const Route = createFileRoute('/roster/')({
 });
 
 /** A roster-workspace role without a tenant: a broken account, shown as a failed load. */
-const noCommission: DirectoryResult<Commission> = {
-  ok: false,
-  error: { kind: 'unavailable', detail: null },
-};
-
 function RosterOverview() {
   const data = Route.useLoaderData();
   const { workspace, tenant } = Route.useRouteContext();

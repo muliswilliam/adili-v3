@@ -15,6 +15,7 @@ import { useRosterCommission } from '../../../components/roster/use-roster-commi
 import { signInRedirect } from '../../../components/sign-in-redirect';
 import type { DirectoryResult, RosterRecordPage } from '../../../server/directory/client';
 import { listRosterRecords } from '../../../server/roster-records';
+import { SERVICE_UNAVAILABLE } from '../../../server/service-call';
 
 const PATH = '/roster/records';
 
@@ -23,11 +24,6 @@ interface RecordsData {
 }
 
 /** A roster-workspace role without a tenant: a broken account, shown as a failed load. */
-const noCommission: DirectoryResult<never> = {
-  ok: false,
-  error: { kind: 'unavailable', detail: null },
-};
-
 export const Route = createFileRoute('/roster/records/')({
   validateSearch: recordsSearchSchema,
   loaderDeps: ({ search }) => search,
@@ -36,7 +32,7 @@ export const Route = createFileRoute('/roster/records/')({
     if (!context.workspace) return null;
     // Roster screens are about the viewer's own Commission, the tenant of their session.
     const slug = context.tenant;
-    if (!slug) return { records: noCommission };
+    if (!slug) return { records: SERVICE_UNAVAILABLE };
     const records = await listRosterRecords({ data: { slug, ...deps, limit: RECORDS_PAGE_SIZE } });
     if (!records.ok && records.error.kind === 'unauthenticated') {
       throw signInRedirect(location.href);

@@ -60,6 +60,7 @@ import {
   revokeRosterApiCredential,
   rotateRosterApiCredential,
 } from '../../../server/roster-api-credential';
+import { SERVICE_UNAVAILABLE } from '../../../server/service-call';
 
 const PAGE_PATH = '/roster/api-access';
 
@@ -68,7 +69,7 @@ export const Route = createFileRoute('/roster/api-access/')({
     // The layout shows no page without the workspace, and read-only users are told credentials
     // are not theirs (the directory refuses them); fetch nothing for either.
     if (!context.workspace || context.workspace.readOnly) return null;
-    if (!context.tenant) return noCommission;
+    if (!context.tenant) return SERVICE_UNAVAILABLE;
     const result = await getRosterApiCredential({ data: { slug: context.tenant } });
     if (!result.ok && result.error.kind === 'unauthenticated') throw signInRedirect(location.href);
     return result;
@@ -79,11 +80,6 @@ export const Route = createFileRoute('/roster/api-access/')({
 });
 
 /** A roster-workspace role without a tenant: a broken account, shown as a failed load. */
-const noCommission: DirectoryResult<RosterApiCredential | null> = {
-  ok: false,
-  error: { kind: 'unavailable', detail: null },
-};
-
 const isForbidden = (error: DirectoryError) =>
   error.kind === 'problem' && error.problem.status === 403;
 
