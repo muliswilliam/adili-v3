@@ -27,7 +27,7 @@ interface WorkspaceDefinition {
 }
 
 /** Roles that manage Responsible Commissions; EACC analysts and supervisors only read them. */
-export const COMMISSION_WRITE_ROLES = ['platform-admin'] as const;
+export const COMMISSION_WRITE_ROLES = [PLATFORM_ADMIN] as const;
 
 /** Roles that import and maintain a Commission's roster; commission admins only read it. */
 export const ROSTER_WRITE_ROLES = ['reporting-officer'] as const;
@@ -57,7 +57,7 @@ const WORKSPACES: WorkspaceDefinition[] = [
     description: 'Create Responsible Commissions and assign their reporting officers.',
     readOnlyDescription: 'Responsible Commissions, their reporting officers and roster coverage.',
     href: '/commissions',
-    roles: ['platform-admin', 'eacc-analyst', 'eacc-supervisor'],
+    roles: [PLATFORM_ADMIN, ...EACC_ROLES],
     writeRoles: COMMISSION_WRITE_ROLES,
   },
   {
@@ -112,7 +112,7 @@ const WORKSPACES: WorkspaceDefinition[] = [
     id: 'compliance',
     title: 'Compliance reports',
     description: 'Receive Form M reports and build the national consolidated report.',
-    roles: ['eacc-analyst', 'eacc-supervisor'],
+    roles: EACC_ROLES,
   },
   {
     id: 'audit',
@@ -130,7 +130,7 @@ const WORKSPACES: WorkspaceDefinition[] = [
     id: 'platform',
     title: 'Platform settings',
     description: 'Operate the platform: tenants, integrations and configuration.',
-    roles: ['platform-admin'],
+    roles: [PLATFORM_ADMIN],
   },
 ];
 
