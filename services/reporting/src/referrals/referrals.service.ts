@@ -20,6 +20,7 @@ import {
   IntegrationGatewayUnavailable,
 } from '../integration-gateway/integration-gateway-client.js';
 import { InternalApiRejected } from '../internal-api/internal-api.js';
+import { badRequest, notFound, workflowUnavailable } from '../problems.js';
 import { ReviewClient, ReviewUnavailable } from '../review/review-client.js';
 import {
   lockIntake,
@@ -34,6 +35,8 @@ import {
   type ReferralIntakePage,
 } from './representation.js';
 import { type IcmsPushError, type IcmsStatus, referralIntake } from './schema.js';
+
+const NOT_IN_INTAKE = 'No referral in the intake has this id.';
 
 const EACC_ONLY = 'Only EACC analysts and supervisors work on the referrals intake.';
 
@@ -124,7 +127,7 @@ export class ReferralsService {
     requireEacc(principal, EACC_ONLY);
     const claimed = await this.inEacc(principal, async (tx) => {
       const row = await lockIntake(tx, referralId);
-      if (!row) throw notFound();
+      if (!row) throw notFound(NOT_IN_INTAKE);
       if (row.icmsStatus === 'registered') return { row, attempt: null };
       const [pushing] = await tx
         .update(referralIntake)
@@ -136,7 +139,7 @@ export class ReferralsService {
         })
         .where(eq(referralIntake.referralId, referralId))
         .returning();
-      if (!pushing) throw notFound();
+      if (!pushing) throw notFound(NOT_IN_INTAKE);
       return { row: pushing, attempt: pushing.pushAttempts };
     });
     if (claimed.attempt === null) return this.itemOf(claimed.row);
@@ -212,12 +215,9 @@ export class ReferralsService {
     try {
       await this.workflows.awaitIcmsRegistration({ referralId, attempt });
     } catch {
-      throw new ProblemException({
-        type: 'workflow-unavailable',
-        title: 'Upstream service unavailable',
-        status: HttpStatus.SERVICE_UNAVAILABLE,
-        detail: 'ICMS accepted the referral; push it again shortly to follow its case number.',
-      });
+      throw workflowUnavailable(
+        'ICMS accepted the referral; push it again shortly to follow its case number.',
+      );
     }
   }
 
@@ -268,21 +268,7 @@ function decodeCursor(cursor: string): Cursor {
   } catch {
     // Reported below.
   }
-  throw new ProblemException({
-    type: 'about:blank',
-    title: 'Bad Request',
-    status: HttpStatus.BAD_REQUEST,
-    detail: 'The cursor is not one this list gave.',
-  });
-}
-
-function notFound(): ProblemException {
-  return new ProblemException({
-    type: 'about:blank',
-    title: 'Not Found',
-    status: HttpStatus.NOT_FOUND,
-    detail: 'No referral in the intake has this id.',
-  });
+  throw badRequest('The cursor is not one this list gave.');
 }
 
 /** 502 `icms-push-failed`: the referral is `push-failed` with `error`; push again to retry. */

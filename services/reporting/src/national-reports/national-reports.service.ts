@@ -1,5 +1,5 @@
-import { HttpStatus, Injectable } from '@nestjs/common';
-import { type Principal, ProblemException } from '@adili/api-kit';
+import { Injectable } from '@nestjs/common';
+import { type Principal } from '@adili/api-kit';
 import { type Database, InjectDatabase, withTenant } from '@adili/data-access';
 import { EventPublisher } from '@adili/events';
 import { allocateReference, NCR } from '@adili/numbering';
@@ -12,11 +12,9 @@ import type { ReportingTransaction } from '../compliance-reports/reports.js';
 import { ReportWorkflows } from '../compliance-reports/report-workflows.js';
 import { reportReceipts } from '../compliance-reports/schema.js';
 import type { ReportingSchema } from '../db/schema.js';
-import {
-  type CommissionFacts,
-  DirectoryClient,
-  DirectoryUnavailable,
-} from '../directory/directory-client.js';
+import { activeCommissions } from '../compliance-reports/commission.js';
+import { DirectoryClient } from '../directory/directory-client.js';
+import { conflict, forbidden, notFound, workflowUnavailable } from '../problems.js';
 import { buildAggregates } from './aggregates.js';
 import { NCR_ISSUER } from './contract.js';
 import { NCR_APPROVED, NCR_DRAFTED, type NcrApprovedData, type NcrDraftedData } from './events.js';
@@ -33,6 +31,8 @@ import {
   nationalReportParagraphs,
   nationalReports,
 } from './schema.js';
+
+const NOT_BUILT = 'The national consolidated report for the year has not been built yet.';
 
 const EACC_ONLY = 'Only EACC analysts and supervisors work on the national consolidated report.';
 
@@ -60,7 +60,7 @@ export class NationalReportsService {
     requireEacc(principal, EACC_ONLY);
     return this.inEacc(principal, async (tx) => {
       const [report] = await tx.select().from(nationalReports).where(eq(nationalReports.fy, fy));
-      if (!report) throw notFound();
+      if (!report) throw notFound(NOT_BUILT);
       return this.viewOf(tx, report);
     });
   }
@@ -73,7 +73,7 @@ export class NationalReportsService {
    */
   async build(principal: Principal, fy: number): Promise<NationalReportView> {
     requireEacc(principal, EACC_ONLY);
-    const commissions = await this.commissions();
+    const commissions = await activeCommissions(this.directory);
     const now = this.clock.now();
     return this.inEacc(principal, async (tx) => {
       const receipts = await tx.select().from(reportReceipts).where(eq(reportReceipts.fy, fy));
@@ -171,14 +171,9 @@ export class NationalReportsService {
         report.authorSubject === principal.subject ||
         report.contributors.includes(principal.subject)
       ) {
-        throw new ProblemException(
-          {
-            type: 'about:blank',
-            title: 'Forbidden',
-            status: HttpStatus.FORBIDDEN,
-            detail: 'The author cannot approve: another EACC supervisor approves the report.',
-          },
-          { code: 'separation-of-duties' },
+        throw forbidden(
+          'The author cannot approve: another EACC supervisor approves the report.',
+          'separation-of-duties',
         );
       }
       const reference = await allocateReference(tx, NCR, { issuer: NCR_ISSUER, period: fy });
@@ -241,27 +236,7 @@ export class NationalReportsService {
     try {
       await this.workflows.nationalReportApproved({ nationalReportId, fy });
     } catch {
-      throw new ProblemException({
-        type: 'workflow-unavailable',
-        title: 'Upstream service unavailable',
-        status: HttpStatus.SERVICE_UNAVAILABLE,
-        detail: 'The report could not be approved just now. Try again shortly.',
-      });
-    }
-  }
-
-  /** Every active Commission; 503 while the directory is unreachable. */
-  private async commissions(): Promise<CommissionFacts[]> {
-    try {
-      return await this.directory.listCommissions();
-    } catch (error) {
-      if (!(error instanceof DirectoryUnavailable)) throw error;
-      throw new ProblemException({
-        type: 'directory-unavailable',
-        title: 'Upstream service unavailable',
-        status: HttpStatus.SERVICE_UNAVAILABLE,
-        detail: 'The Commission directory cannot be reached. Try again shortly.',
-      });
+      throw workflowUnavailable('The report could not be approved just now. Try again shortly.');
     }
   }
 }
@@ -273,7 +248,7 @@ async function lockedDraft(tx: ReportingTransaction, fy: number): Promise<Nation
     .from(nationalReports)
     .where(eq(nationalReports.fy, fy))
     .for('update');
-  if (!report) throw notFound();
+  if (!report) throw notFound(NOT_BUILT);
   if (report.status === 'approved') {
     throw conflict('ncr-approved', 'The report is approved and can no longer change.');
   }
@@ -344,20 +319,4 @@ function sameParagraph(a: Paragraph, b: Paragraph): boolean {
 
 function nameOf(principal: Principal): string {
   return principal.name ?? principal.subject;
-}
-
-function notFound(): ProblemException {
-  return new ProblemException({
-    type: 'about:blank',
-    title: 'Not Found',
-    status: HttpStatus.NOT_FOUND,
-    detail: 'The national consolidated report for the year has not been built yet.',
-  });
-}
-
-function conflict(code: string, detail: string): ProblemException {
-  return new ProblemException(
-    { type: 'about:blank', title: 'Conflict', status: HttpStatus.CONFLICT, detail },
-    { code },
-  );
 }

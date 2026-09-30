@@ -1,11 +1,9 @@
-import { HttpStatus } from '@nestjs/common';
-import { ProblemException } from '@adili/api-kit';
-
 import {
   type CommissionFacts,
   type DirectoryClient,
   DirectoryUnavailable,
 } from '../directory/directory-client.js';
+import { directoryUnavailable } from '../problems.js';
 
 /** The Commission as Part I names it; 503 while the directory cannot be reached. */
 export async function commissionOf(
@@ -16,11 +14,16 @@ export async function commissionOf(
     return await directory.getCommission(tenant);
   } catch (error) {
     if (!(error instanceof DirectoryUnavailable)) throw error;
-    throw new ProblemException({
-      type: 'directory-unavailable',
-      title: 'Upstream service unavailable',
-      status: HttpStatus.SERVICE_UNAVAILABLE,
-      detail: 'The Commission directory cannot be reached. Try again shortly.',
-    });
+    throw directoryUnavailable();
+  }
+}
+
+/** Every active Commission; 503 while the directory cannot be reached. */
+export async function activeCommissions(directory: DirectoryClient): Promise<CommissionFacts[]> {
+  try {
+    return await directory.listCommissions();
+  } catch (error) {
+    if (!(error instanceof DirectoryUnavailable)) throw error;
+    throw directoryUnavailable();
   }
 }

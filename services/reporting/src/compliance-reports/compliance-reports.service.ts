@@ -1,5 +1,5 @@
-import { HttpStatus, Injectable } from '@nestjs/common';
-import { type Principal, ProblemException } from '@adili/api-kit';
+import { Injectable } from '@nestjs/common';
+import { type Principal } from '@adili/api-kit';
 import { type Database, FieldCipher, InjectDatabase, withTenant } from '@adili/data-access';
 import { and, eq, isNotNull } from 'drizzle-orm';
 
@@ -8,6 +8,7 @@ import { Clock, nairobiDate } from '../clock.js';
 import type { ReportingSchema } from '../db/schema.js';
 import { DirectoryClient } from '../directory/directory-client.js';
 import { FIRST_FINANCIAL_YEAR, financialYearAt, previewFromOf } from '../financial-year.js';
+import { conflict, notFound } from '../problems.js';
 import { clarificationFacts, obligationFacts } from '../projections/schema.js';
 import { commissionOf } from './commission.js';
 import { findReport, markCompiling } from './reports.js';
@@ -101,39 +102,20 @@ export class ComplianceReportsService {
     requireSupervisor(principal);
     const now = this.clock.now();
     if (nairobiDate(now) < previewFromOf(fy)) {
-      throw new ProblemException(
-        {
-          type: 'about:blank',
-          title: 'Conflict',
-          status: HttpStatus.CONFLICT,
-          detail: `A preview of Form M for ${String(fy)}/${String(fy + 1)} can be compiled from ${previewFromOf(fy)}.`,
-        },
-        { code: 'preview-not-available' },
+      throw conflict(
+        'preview-not-available',
+        `A preview of Form M for ${String(fy)}/${String(fy + 1)} can be compiled from ${previewFromOf(fy)}.`,
       );
     }
     await withTenant(this.db, { tenant, subject: principal.subject }, async (tx) => {
       const report = await markCompiling(tx, tenant, fy, now);
       if (!report) {
-        throw new ProblemException(
-          {
-            type: 'about:blank',
-            title: 'Conflict',
-            status: HttpStatus.CONFLICT,
-            detail: 'The report is submitted and can no longer be compiled.',
-          },
-          { code: 'report-submitted' },
+        throw conflict(
+          'report-submitted',
+          'The report is submitted and can no longer be compiled.',
         );
       }
     });
     await this.workflows.compile({ tenant, fy });
   }
-}
-
-function notFound(): ProblemException {
-  return new ProblemException({
-    type: 'about:blank',
-    title: 'Not Found',
-    status: HttpStatus.NOT_FOUND,
-    detail: 'The resource does not exist or is not visible to you.',
-  });
 }

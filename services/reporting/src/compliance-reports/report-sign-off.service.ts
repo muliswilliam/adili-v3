@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 
-import { HttpStatus, Injectable } from '@nestjs/common';
-import { canonicalJson, type Principal, ProblemException } from '@adili/api-kit';
+import { Injectable } from '@nestjs/common';
+import { canonicalJson, type Principal } from '@adili/api-kit';
 import { type Database, FieldCipher, InjectDatabase, withTenant } from '@adili/data-access';
 import { EventPublisher } from '@adili/events';
 import { type FormMV1, type FormValidationError, validateFormM } from '@adili/forms';
@@ -19,6 +19,14 @@ import { Clock, nairobiDate } from '../clock.js';
 import type { ReportingSchema } from '../db/schema.js';
 import { type CommissionFacts, DirectoryClient } from '../directory/directory-client.js';
 import { dueDateOf } from '../financial-year.js';
+import {
+  badRequest,
+  conflict,
+  forbidden,
+  notFound,
+  type ProblemError,
+  workflowUnavailable,
+} from '../problems.js';
 import { commissionOf } from './commission.js';
 import {
   COMPLIANCE_REPORT_REVIEWED,
@@ -203,15 +211,9 @@ export class ReportSignOffService {
       async (tx) => {
         const report = await lockedReport(tx, tenant, fy);
         if (report.status !== 'reviewed') {
-          throw new ProblemException(
-            {
-              type: 'about:blank',
-              title: 'Bad Request',
-              status: HttpStatus.BAD_REQUEST,
-              detail: 'A supervisor marks the draft reviewed before it is confirmed.',
-            },
-            { code: 'not-reviewed' },
-          );
+          throw badRequest('A supervisor marks the draft reviewed before it is confirmed.', {
+            code: 'not-reviewed',
+          });
         }
         const document = await this.draftOf(tenant, report);
         document.partIII.confirmedBy = {
@@ -221,15 +223,9 @@ export class ReportSignOffService {
         };
         const checked = validateFormM(document);
         if (!checked.ok) {
-          throw new ProblemException(
-            {
-              type: 'about:blank',
-              title: 'Bad Request',
-              status: HttpStatus.BAD_REQUEST,
-              detail: 'The report is incomplete: complete the sections named before confirming.',
-              errors: checked.errors,
-            },
-            { code: 'incomplete' },
+          throw badRequest(
+            'The report is incomplete: complete the sections named before confirming.',
+            { code: 'incomplete', errors: checked.errors },
           );
         }
         return this.submit(tx, report, document, {
@@ -269,14 +265,9 @@ export class ReportSignOffService {
     const document = checked.value;
     const commission = await commissionOf(this.directory, tenant);
     if (document.partI.issuerCode !== commission.issuerCode) {
-      throw new ProblemException(
-        {
-          type: 'about:blank',
-          title: 'Forbidden',
-          status: HttpStatus.FORBIDDEN,
-          detail: 'The document names another Commission than the one the token is issued for.',
-        },
-        { code: 'tenant-mismatch' },
+      throw forbidden(
+        'The document names another Commission than the one the token is issued for.',
+        'tenant-mismatch',
       );
     }
     const now = this.clock.now();
@@ -434,12 +425,7 @@ export class ReportSignOffService {
     try {
       await this.workflows.submitted({ tenant, fy });
     } catch {
-      throw new ProblemException({
-        type: 'workflow-unavailable',
-        title: 'Upstream service unavailable',
-        status: HttpStatus.SERVICE_UNAVAILABLE,
-        detail: 'The report could not be submitted just now. Try again shortly.',
-      });
+      throw workflowUnavailable('The report could not be submitted just now. Try again shortly.');
     }
   }
 }
@@ -458,40 +444,20 @@ async function lockedReport(
     .from(complianceReports)
     .where(and(eq(complianceReports.tenant, tenant), eq(complianceReports.fy, fy)))
     .for('update');
-  if (!report) {
-    throw new ProblemException({
-      type: 'about:blank',
-      title: 'Not Found',
-      status: HttpStatus.NOT_FOUND,
-      detail: 'The resource does not exist or is not visible to you.',
-    });
-  }
+  if (!report) throw notFound();
   if (report.status === 'submitted') throw reportSubmitted();
   if (report.status === 'compiling') {
-    throw new ProblemException(
-      {
-        type: 'about:blank',
-        title: 'Conflict',
-        status: HttpStatus.CONFLICT,
-        detail: 'The report is being compiled. Try again once the draft is ready.',
-      },
-      { code: 'report-compiling' },
+    throw conflict(
+      'report-compiling',
+      'The report is being compiled. Try again once the draft is ready.',
     );
   }
   return report;
 }
 
 /** 409 `report-submitted`: one report per Commission per year, frozen once submitted. */
-function reportSubmitted(): ProblemException {
-  return new ProblemException(
-    {
-      type: 'about:blank',
-      title: 'Conflict',
-      status: HttpStatus.CONFLICT,
-      detail: 'The report is submitted and can no longer change.',
-    },
-    { code: 'report-submitted' },
-  );
+function reportSubmitted() {
+  return conflict('report-submitted', 'The report is submitted and can no longer change.');
 }
 
 /** 400 with the document's problems by field path (`errors`), under `code`. */
@@ -499,16 +465,10 @@ function documentProblem(
   code: 'invalid-document' | 'inconsistent-document',
   detail: string,
   errors: FormValidationError[],
-): ProblemException {
-  return new ProblemException(
-    { type: 'about:blank', title: 'Bad Request', status: HttpStatus.BAD_REQUEST, detail, errors },
-    { code },
-  );
+) {
+  return badRequest(detail, { code, errors });
 }
 
-function invalid(detail: string, errors: { path: string; message: string }[]): ProblemException {
-  return new ProblemException(
-    { type: 'about:blank', title: 'Bad Request', status: HttpStatus.BAD_REQUEST, detail, errors },
-    { code: 'invalid-remarks' },
-  );
+function invalid(detail: string, errors: ProblemError[]) {
+  return badRequest(detail, { code: 'invalid-remarks', errors });
 }

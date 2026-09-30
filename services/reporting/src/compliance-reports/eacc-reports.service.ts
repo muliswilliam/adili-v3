@@ -1,17 +1,14 @@
-import { HttpStatus, Injectable } from '@nestjs/common';
-import { type Principal, ProblemException, type SetAuditedTenant } from '@adili/api-kit';
+import { Injectable } from '@nestjs/common';
+import { type Principal, type SetAuditedTenant } from '@adili/api-kit';
 import { type Database, FieldCipher, InjectDatabase, withTenant } from '@adili/data-access';
 import { and, count, eq, max } from 'drizzle-orm';
 
 import { EACC_TENANT, requireEacc, submittedReportReader } from '../access.js';
 import { config } from '../config.js';
 import type { ReportingSchema } from '../db/schema.js';
-import {
-  type CommissionFacts,
-  DirectoryClient,
-  DirectoryUnavailable,
-} from '../directory/directory-client.js';
-import { commissionOf } from './commission.js';
+import { DirectoryClient } from '../directory/directory-client.js';
+import { notFound } from '../problems.js';
+import { activeCommissions, commissionOf } from './commission.js';
 import { REPORTS_SUBMIT_SCOPE } from './federated-submission.js';
 import { buildIntake, type IntakeFilters, type IntakeView, type RateThresholds } from './intake.js';
 import { type ComplianceReportView, reportView } from './representation.js';
@@ -43,7 +40,7 @@ export class EaccReportsService {
   /** The year's intake (EACC roles; anyone else 403). 503 while the directory is unreachable. */
   async intake(principal: Principal, fy: number, filters: IntakeFilters): Promise<IntakeView> {
     requireEacc(principal);
-    const commissions = await this.commissions();
+    const commissions = await activeCommissions(this.directory);
     const { receipts, chases } = await withTenant(
       this.db,
       { tenant: EACC_TENANT, subject: principal.subject },
@@ -105,28 +102,4 @@ export class EaccReportsService {
     const document = await openSnapshot(this.cipher, report.tenant, report);
     return reportView(report, await commissionOf(this.directory, report.tenant), document);
   }
-
-  /** Every active Commission; 503 while the directory is unreachable. */
-  private async commissions(): Promise<CommissionFacts[]> {
-    try {
-      return await this.directory.listCommissions();
-    } catch (error) {
-      if (!(error instanceof DirectoryUnavailable)) throw error;
-      throw new ProblemException({
-        type: 'directory-unavailable',
-        title: 'Upstream service unavailable',
-        status: HttpStatus.SERVICE_UNAVAILABLE,
-        detail: 'The Commission directory cannot be reached. Try again shortly.',
-      });
-    }
-  }
-}
-
-function notFound(): ProblemException {
-  return new ProblemException({
-    type: 'about:blank',
-    title: 'Not Found',
-    status: HttpStatus.NOT_FOUND,
-    detail: 'The resource does not exist or is not visible to you.',
-  });
 }

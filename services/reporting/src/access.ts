@@ -1,5 +1,6 @@
-import { HttpStatus } from '@nestjs/common';
-import { notFoundIfInvisible, type Principal, ProblemException } from '@adili/api-kit';
+import { notFoundIfInvisible, type Principal } from '@adili/api-kit';
+
+import { forbidden } from './problems.js';
 
 /** A tenant key (Commission slug), as the directory issues them. */
 export const TENANT_SLUG = /^[a-z][a-z0-9]{1,19}$/;
@@ -35,12 +36,7 @@ export function formMTenant(principal: Principal, slug: string): string {
  */
 export function requireSupervisor(principal: Principal, action = 'compile its Form M'): void {
   if (principal.roles.includes(SUPERVISOR)) return;
-  throw new ProblemException({
-    type: 'about:blank',
-    title: 'Forbidden',
-    status: HttpStatus.FORBIDDEN,
-    detail: `Only a supervisor of the Commission can ${action}.`,
-  });
+  throw forbidden(`Only a supervisor of the Commission can ${action}.`);
 }
 
 /**
@@ -50,12 +46,7 @@ export function requireSupervisor(principal: Principal, action = 'compile its Fo
  */
 export function requireCommissionAdmin(principal: Principal, action: string): void {
   if (principal.roles.includes(COMMISSION_ADMIN)) return;
-  throw new ProblemException({
-    type: 'about:blank',
-    title: 'Forbidden',
-    status: HttpStatus.FORBIDDEN,
-    detail: `Only a commission-admin of the Commission can ${action}.`,
-  });
+  throw forbidden(`Only a commission-admin of the Commission can ${action}.`);
 }
 
 /** The level of authentication Keycloak's step-up re-authentication issues tokens at (ADR-004). */
@@ -72,15 +63,7 @@ export const STEP_UP_MAX_AGE_SECONDS = 5 * 60;
 export function requireStepUp(principal: Principal, now: Date): void {
   const age = principal.authTime === undefined ? null : now.getTime() / 1000 - principal.authTime;
   if (principal.acr === STEP_UP_ACR && age !== null && age <= STEP_UP_MAX_AGE_SECONDS) return;
-  throw new ProblemException(
-    {
-      type: 'about:blank',
-      title: 'Forbidden',
-      status: HttpStatus.FORBIDDEN,
-      detail: 'Confirm your identity again to submit the report.',
-    },
-    { code: 'step-up-required' },
-  );
+  throw forbidden('Confirm your identity again to submit the report.', 'step-up-required');
 }
 
 /**
@@ -90,12 +73,7 @@ export function requireStepUp(principal: Principal, now: Date): void {
 export function federatedTenant(principal: Principal): string {
   const { tenant } = principal;
   if (tenant !== null && TENANT_SLUG.test(tenant)) return tenant;
-  throw new ProblemException({
-    type: 'about:blank',
-    title: 'Forbidden',
-    status: HttpStatus.FORBIDDEN,
-    detail: 'The token is not issued for a Commission.',
-  });
+  throw forbidden('The token is not issued for a Commission.');
 }
 
 /** The tenant of EACC's accounts, and the RLS context its intake reads every Commission's in. */
@@ -124,12 +102,7 @@ export function requireEacc(
   detail = 'Only EACC analysts and supervisors see the compliance report intake.',
 ): void {
   if (isEacc(principal)) return;
-  throw new ProblemException({
-    type: 'about:blank',
-    title: 'Forbidden',
-    status: HttpStatus.FORBIDDEN,
-    detail,
-  });
+  throw forbidden(detail);
 }
 
 /**
@@ -138,12 +111,7 @@ export function requireEacc(
  */
 export function requireEaccSupervisor(principal: Principal, action: string): void {
   if (principal.tenant === EACC_TENANT && principal.roles.includes(EACC_SUPERVISOR)) return;
-  throw new ProblemException({
-    type: 'about:blank',
-    title: 'Forbidden',
-    status: HttpStatus.FORBIDDEN,
-    detail: `Only an EACC supervisor can ${action}.`,
-  });
+  throw forbidden(`Only an EACC supervisor can ${action}.`);
 }
 
 /**
