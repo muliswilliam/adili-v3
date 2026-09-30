@@ -493,6 +493,9 @@ importers:
 
   packages/bff-auth:
     dependencies:
+      '@adili/api-kit':
+        specifier: workspace:*
+        version: link:../api-kit
       iovalkey:
         specifier: ^0.4.0
         version: 0.4.0(supports-color@10.2.2)

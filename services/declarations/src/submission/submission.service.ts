@@ -1,7 +1,13 @@
 import { createHash } from 'node:crypto';
 
 import { Injectable, Logger } from '@nestjs/common';
-import { canonicalJson, notFoundIfInvisible, type Principal } from '@adili/api-kit';
+import {
+  canonicalJson,
+  notFoundIfInvisible,
+  type Principal,
+  STEP_UP_ACR,
+  STEP_UP_WINDOW_SECONDS,
+} from '@adili/api-kit';
 import {
   type Database,
   FieldCipher,
@@ -49,14 +55,6 @@ import { type DerivedItem, deriveItems } from './items.js';
 import { incomplete, refused, stepUpRequired } from './problems.js';
 import type { SubmissionResult } from './representation.js';
 
-/** The ACR of a token issued right after a fresh one-time code (the realm's LoA 2, spec 06). */
-export const STEP_UP_ACR = 'step-up';
-/**
- * How long a step-up counts for submission (spec 06: `auth_time` at most five minutes old). The
- * realm's max age for the one-time code (`loa-max-age`, 180 s) is shorter, so a step-up Keycloak
- * answers silently with the old `auth_time` still leaves time to affirm and submit.
- */
-export const STEP_UP_MAX_AGE_SECONDS = 300;
 /** Key service calls in flight at once while items are encrypted. */
 const ENCRYPT_CONCURRENCY = 16;
 /** Items sealed at once: each item makes two key service calls (description and value). */
@@ -403,7 +401,7 @@ function requireFreshStepUp(principal: Principal, now: Date, declarationId: stri
       'Confirm your identity with a one-time code before submitting.',
     );
   }
-  if (now.getTime() / 1000 - principal.authTime > STEP_UP_MAX_AGE_SECONDS) {
+  if (now.getTime() / 1000 - principal.authTime > STEP_UP_WINDOW_SECONDS) {
     throw stepUpRequired(
       stepUpUrl(declarationId),
       'The one-time code was confirmed more than five minutes ago; confirm your identity again.',

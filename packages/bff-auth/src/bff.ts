@@ -1,5 +1,6 @@
 import { createHash, randomBytes } from 'node:crypto';
 
+import { STEP_UP_ACR, STEP_UP_WINDOW_SECONDS } from '@adili/api-kit/client';
 import * as oidc from 'openid-client';
 
 import { clearCookie, readCookie, serializeCookie } from './cookies.ts';
@@ -51,21 +52,17 @@ interface LoginTransaction {
   stepUp?: boolean;
 }
 
-/**
- * The ACR a step-up asks Keycloak for (realm `acr.loa.map`: `step-up` is level 2, the one-time
- * code). Keycloak re-runs only the steps whose level has lapsed, so a step-up asks for the code
- * again once its max age ({@link STEP_UP_CODE_MAX_AGE_SECONDS}) is over and is silent before that.
+/*
+ * A step-up asks Keycloak for `STEP_UP_ACR` (realm `acr.loa.map`: `step-up` is level 2, the
+ * one-time code). Keycloak re-runs only the steps whose level has lapsed, so a step-up asks for
+ * the code again once its max age ({@link STEP_UP_CODE_MAX_AGE_SECONDS}) is over and is silent
+ * before that. The ACR and the window services accept it for come from api-kit, which the
+ * services check them with.
  */
-export const STEP_UP_ACR = 'step-up';
+export { STEP_UP_ACR, STEP_UP_WINDOW_SECONDS };
 
 /** Query parameter on a step-up's `returnTo` that says how it ended. */
 export const STEP_UP_PARAM = 'stepUp';
-
-/**
- * How long after the code a service accepts a step-up for a legal act such as submission
- * (`auth_time` at most this old; spec 06: five minutes).
- */
-export const STEP_UP_WINDOW_SECONDS = 300;
 
 /**
  * The least time a step-up leaves to affirm and submit: Keycloak's silent answer carries the old
