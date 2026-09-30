@@ -6,7 +6,7 @@ import { config } from '../config.js';
 import { HttpNotificationsClient } from './http-notifications-client.js';
 import { NotificationsClient } from './notifications-client.js';
 
-/** The notifications internal messages API, called with the service's own token (ADR-013 §5, ADR-016). */
+/** The notifications internal messages API, called with the service's own token (ADR-013 §5, ADR-017). */
 @Module({
   providers: [
     {

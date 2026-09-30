@@ -13,7 +13,7 @@ import {
 } from './directory-client.js';
 
 /**
- * How long a pull may take: a page is up to 1,000 records. Recorded in ADR-016 (not ADR-013's
+ * How long a pull may take: a page is up to 1,000 records. Recorded in ADR-017 (not ADR-013's
  * 2 s default); pulls run in event consumers and workflow activities, which retry.
  */
 export const DIRECTORY_PULL_TIMEOUT_MS = 10_000;
@@ -74,7 +74,7 @@ const commissionListSchema = z.object({ items: z.array(commissionSchema) });
  * The directory's internal API through the client generated from its contract
  * (packages/schemas/internal/directory.yaml → directory-api.gen.ts via `pnpm generate:api`) on
  * api-kit's service client: the service's own token (client credentials, `directory:internal`,
- * one retry after a 401), the Commission in `X-Acting-Tenant` (ADR-013 §8.1, ADR-016), answers
+ * one retry after a 401), the Commission in `X-Acting-Tenant` (ADR-013 §8.1, ADR-017), answers
  * validated at the boundary. Anything else unexpected is `DirectoryUnavailable`.
  */
 export class HttpDirectoryClient extends DirectoryClient {

@@ -661,6 +661,14 @@ flowchart TB
 - Demo accounts for every role, synthetic seed data, one-command reset.
 - Deploy instructions + a recorded demo backup (agenda requirement).
 
+### Hackathon stand-in (Azure VM)
+
+Until Dokploy is up, a **credit-funded Azure VM** in South Africa North is the public demo ([ADR-016](../adr/0016-azure-vm-demo-stand-in.md)). Same Compose stack and Keycloak image as local. Portal, console, verify and the NestJS services run with `pnpm dev` behind Caddy. This is not the production design and not Entra ID.
+
+- Host: `https://adili-demo.southafricanorth.cloudapp.azure.com` (console `:3020`, verify `:3030`, Keycloak `:8080`).
+- Terraform: `infra/azure` (Azure resources only). Pushes to `main` rsync and restart apps after CI; they do not `terraform apply`.
+- `TRUSTED_PROXY_HOPS=1` because Caddy is the only public proxy.
+
 ### Production target (EACC)
 
 ```mermaid
@@ -802,18 +810,19 @@ adili-v3/
 | [003](../adr/0003-temporal-as-workflow-engine.md) | Temporal as workflow engine |
 | [004](../adr/0004-identity-keycloak-self-registration.md) | Keycloak, Keycloakify UI (self-registration superseded by 014) |
 | [005](../adr/0005-message-queue-rabbitmq.md) | RabbitMQ with transactional outbox |
-| [006](../adr/0006-multi-tenancy-and-hierarchy.md) | Multi-tenancy and hierarchy (RLS, ltree, EACC not super-tenant; isolation partly superseded by 017) |
+| [006](../adr/0006-multi-tenancy-and-hierarchy.md) | Multi-tenancy and hierarchy (RLS, ltree, EACC not super-tenant; isolation partly superseded by 018) |
 | [007](../adr/0007-vendor-agnostic-ai-layer.md) | Vendor-agnostic AI layer (Anthropic now, self-hosted later) |
 | [008](../adr/0008-audit-trail.md) | Tamper-evident audit trail |
 | [009](../adr/0009-api-first-interoperability.md) | API-first for Commissions, employers and agencies |
 | [010](../adr/0010-verifiable-documents-qr.md) | Verifiable documents with QR codes |
 | [011](../adr/0011-human-readable-reference-numbers.md) | Human-readable reference numbers + glossary |
 | [012](../adr/0012-single-polyglot-monorepo.md) | One polyglot monorepo (TypeScript + Python) |
-| [013](../adr/0013-service-communication.md) | Service-to-service communication (REST · events · Temporal; partly superseded for spec 04 by 016) |
+| [013](../adr/0013-service-communication.md) | Service-to-service communication (REST · events · Temporal; partly superseded for spec 04 by 017) |
 | [014](../adr/0014-roster-gated-declarant-onboarding.md) | Roster-gated declarant onboarding (EACC-provisioned Commissions, file-number match, email + phone OTP) |
 | [015](../adr/0015-java-for-keycloak-providers.md) | Java (Maven) for Keycloak providers only, e.g. the `adili-otp` authenticator |
-| [016](../adr/0016-obligation-reminder-delivery.md) | Service calls for filing obligations: acting tenant on the directory's pulls, two hops for a reminder, longer timeouts |
-| [017](../adr/0017-person-scoped-row-level-security.md) | Person-scoped row-level security: a declarant reads their own rows across Commissions |
+| [016](../adr/0016-azure-vm-demo-stand-in.md) | Azure VM as a credit-funded stand-in for the Dokploy demo host |
+| [017](../adr/0017-obligation-reminder-delivery.md) | Service calls for filing obligations: acting tenant on the directory's pulls, two hops for a reminder, longer timeouts |
+| [018](../adr/0018-person-scoped-row-level-security.md) | Person-scoped row-level security: a declarant reads their own rows across Commissions |
 
 ---
 
