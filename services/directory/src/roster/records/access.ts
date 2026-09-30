@@ -1,9 +1,14 @@
 import { HttpStatus } from '@nestjs/common';
-import { notFoundIfInvisible, type Principal, ProblemException } from '@adili/api-kit';
+import {
+  notFoundIfInvisible,
+  type Principal,
+  ProblemException,
+  PLATFORM_TENANT,
+} from '@adili/api-kit';
 import type { TenantContext } from '@adili/data-access';
 import { COMMISSION_ROSTER_ROLES, PLATFORM_ADMIN } from '@adili/roles';
 
-import { canSeeCommission, PLATFORM_TENANT } from '../../commissions/access.js';
+import { canSeeCommission } from '../../commissions/access.js';
 
 /**
  * Roles that read roster records (spec #27 authorisation matrix): the Commission's reporting

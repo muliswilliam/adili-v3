@@ -1,4 +1,4 @@
-import { notFoundIfInvisible, type Principal } from '@adili/api-kit';
+import { notFoundIfInvisible, PLATFORM_TENANT, type Principal } from '@adili/api-kit';
 import type { TenantContext } from '@adili/data-access';
 import {
   ACCESS_OFFICER,
@@ -7,9 +7,6 @@ import {
   HELPDESK,
   NATIONAL_ROLES,
 } from '@adili/roles';
-
-/** RLS context of platform-wide principals; also a reserved tenant key. */
-export const PLATFORM_TENANT = 'platform';
 
 /** Every console role. Declarants have no access to directory administration (spec 01). */
 export const STAFF_ROLES = [

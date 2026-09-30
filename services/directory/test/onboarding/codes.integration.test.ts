@@ -1,8 +1,8 @@
+import { PLATFORM_TENANT } from '@adili/api-kit';
 import { withTenant } from '@adili/data-access';
 import { asc, eq } from 'drizzle-orm';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
-import { PLATFORM_TENANT } from '../../src/commissions/access.js';
 import {
   onboardingFailures,
   onboardingOtps,

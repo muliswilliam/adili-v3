@@ -1,3 +1,4 @@
+import { PLATFORM_TENANT } from '@adili/api-kit';
 import {
   type CallHandler,
   type ExecutionContext,
@@ -13,7 +14,6 @@ import { from, type Observable, switchMap } from 'rxjs';
 import { REPORTING_OFFICER } from '@adili/roles';
 
 import type { DirectorySchema } from '../db/schema.js';
-import { PLATFORM_TENANT } from './access.js';
 import { ActivationLookups } from './activation-lookups.js';
 import { reportingOfficerActivated } from './events.js';
 import { reportingOfficerAssignments } from './schema.js';

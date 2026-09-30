@@ -1,9 +1,9 @@
+import { PLATFORM_TENANT } from '@adili/api-kit';
 import { type Database, withTenant } from '@adili/data-access';
 import type { EventPublisher } from '@adili/events';
 import { eq } from 'drizzle-orm';
 
 import type { DirectorySchema } from '../db/schema.js';
-import { PLATFORM_TENANT } from './access.js';
 import { PLATFORM_DEFAULT_POLICY } from './policy.js';
 import { createPolicyVersion, nairobiToday, readCurrentPolicy } from './policy-versions.js';
 import { commissionCategories, commissions, tenantPolicyVersions } from './schema.js';

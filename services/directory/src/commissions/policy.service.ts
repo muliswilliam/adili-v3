@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { notFoundIfInvisible, type Principal } from '@adili/api-kit';
+import { notFoundIfInvisible, type Principal, PLATFORM_TENANT } from '@adili/api-kit';
 import { type Database, InjectDatabase, withTenant } from '@adili/data-access';
 import { EventPublisher } from '@adili/events';
 import { PLATFORM_ADMIN } from '@adili/roles';
@@ -7,7 +7,7 @@ import { PLATFORM_ADMIN } from '@adili/roles';
 import { Clock } from '../clock.js';
 import type { DirectorySchema } from '../db/schema.js';
 import { actingTenantContext } from '../internal-api.js';
-import { canSeeCommission, ownTenantContext, PLATFORM_TENANT, tenantContextOf } from './access.js';
+import { canSeeCommission, ownTenantContext, tenantContextOf } from './access.js';
 import type {
   CreateTenantPolicyVersionBody,
   TenantPolicyHistory,

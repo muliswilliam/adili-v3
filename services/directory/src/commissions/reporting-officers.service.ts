@@ -1,5 +1,10 @@
 import { HttpStatus, Injectable, Logger } from '@nestjs/common';
-import { notFoundIfInvisible, type Principal, ProblemException } from '@adili/api-kit';
+import {
+  notFoundIfInvisible,
+  type Principal,
+  ProblemException,
+  PLATFORM_TENANT,
+} from '@adili/api-kit';
 import { type Database, InjectDatabase, withTenant } from '@adili/data-access';
 import { EventPublisher } from '@adili/events';
 import { REPORTING_OFFICER } from '@adili/roles';
@@ -16,7 +21,6 @@ import {
   IdentityUserNotFound,
   STAFF_REQUIRED_ACTIONS,
 } from '../identity/identity-provisioning.js';
-import { PLATFORM_TENANT } from './access.js';
 import { ActivationLookups } from './activation-lookups.js';
 import { IdentityChanges } from './identity-changes.js';
 import type { AssignReportingOfficerBody } from './assign-reporting-officer.js';

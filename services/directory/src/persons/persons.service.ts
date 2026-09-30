@@ -1,9 +1,8 @@
 import { Injectable } from '@nestjs/common';
-import { notFoundIfInvisible } from '@adili/api-kit';
+import { notFoundIfInvisible, PLATFORM_TENANT } from '@adili/api-kit';
 import { type Database, InjectDatabase, type TenantContext, withTenant } from '@adili/data-access';
 import { and, asc, eq, exists } from 'drizzle-orm';
 
-import { PLATFORM_TENANT } from '../commissions/access.js';
 import { commissions, type DirectorySchema, persons, rosterRecords } from '../db/schema.js';
 import type { DeclarantProfile, PersonContacts, PersonSummary } from './representation.js';
 

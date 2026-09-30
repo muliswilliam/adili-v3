@@ -1,3 +1,4 @@
+import { PLATFORM_TENANT } from '@adili/api-kit';
 import { randomUUID } from 'node:crypto';
 
 import { withTenant } from '@adili/data-access';
@@ -5,7 +6,6 @@ import { hasValidCheckCharacter } from '@adili/numbering';
 import { asc, eq } from 'drizzle-orm';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
-import { PLATFORM_TENANT } from '../../src/commissions/access.js';
 import { onboardingSessions, outbox, persons, rosterRecords } from '../../src/db/schema.js';
 import { IdentityUnavailable } from '../../src/identity/identity-provisioning.js';
 import type { OnboardingConfirmResult } from '../../src/onboarding/representation.js';

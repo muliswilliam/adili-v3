@@ -1,8 +1,8 @@
+import { PLATFORM_TENANT } from '@adili/api-kit';
 import { randomUUID } from 'node:crypto';
 
 import { type Database, withTenant } from '@adili/data-access';
 
-import { PLATFORM_TENANT } from '../../src/commissions/access.js';
 import { PLATFORM_DEFAULT_POLICY } from '../../src/commissions/policy.js';
 import { nairobiToday } from '../../src/commissions/policy-versions.js';
 import {

@@ -1,5 +1,10 @@
 import { HttpStatus, Injectable } from '@nestjs/common';
-import { notFoundIfInvisible, type Principal, ProblemException } from '@adili/api-kit';
+import {
+  notFoundIfInvisible,
+  type Principal,
+  ProblemException,
+  PLATFORM_TENANT,
+} from '@adili/api-kit';
 import { type Database, InjectDatabase, withTenant } from '@adili/data-access';
 import { EventPublisher } from '@adili/events';
 import { and, asc, count, eq, ilike, isNull, ne, or, type SQL, sql } from 'drizzle-orm';
@@ -9,12 +14,7 @@ import type { DirectorySchema } from '../db/schema.js';
 import { rosterSummaries } from '../roster/schema.js';
 import { rosterSummaryColumns, toRosterSummary } from '../roster/summary.js';
 import { actingTenantContext } from '../internal-api.js';
-import {
-  canSeeCommission,
-  PLATFORM_TENANT,
-  seesAllCommissions,
-  tenantContextOf,
-} from './access.js';
+import { canSeeCommission, seesAllCommissions, tenantContextOf } from './access.js';
 import type { CreateCommissionBody } from './create-commission.js';
 import { commissionCreated } from './events.js';
 import { decodeCursor, encodeCursor, type ListCommissionsQuery } from './list-query.js';

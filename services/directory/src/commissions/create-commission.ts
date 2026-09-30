@@ -1,6 +1,5 @@
+import { PLATFORM_TENANT, TENANT_KEY } from '@adili/api-kit';
 import { z } from 'zod';
-
-import { PLATFORM_TENANT } from './access.js';
 
 /**
  * Tenant keys that can never be a Commission's slug: the platform-wide RLS context, and `new`,
@@ -36,7 +35,7 @@ export type OfficerCategoryCode = (typeof OFFICER_CATEGORY_CODES)[number];
 /** `Slug` in the contract: the tenant key. */
 export const slugSchema = z
   .string()
-  .regex(/^[a-z][a-z0-9]{1,19}$/, 'Use 2 to 20 lowercase letters or digits, starting with a letter')
+  .regex(TENANT_KEY, 'Use 2 to 20 lowercase letters or digits, starting with a letter')
   .refine((slug) => !RESERVED_SLUGS.includes(slug), 'This key is reserved')
   .meta({
     description: `Tenant key. Lowercase letter followed by lowercase letters or digits, 2-20 chars. Upper-cased it is the issuer code in reference numbers. ${RESERVED_SLUGS.map((slug) => `\`${slug}\``).join(' and ')} are reserved.`,

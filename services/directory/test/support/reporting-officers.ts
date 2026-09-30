@@ -1,8 +1,8 @@
+import { PLATFORM_TENANT } from '@adili/api-kit';
 import { withTenant } from '@adili/data-access';
 import { asc, eq, sql } from 'drizzle-orm';
 import { expect } from 'vitest';
 
-import { PLATFORM_TENANT } from '../../src/commissions/access.js';
 import { commissions, outbox, reportingOfficerAssignments } from '../../src/db/schema.js';
 import type { Caller, DirectoryApi } from './directory-api.js';
 
