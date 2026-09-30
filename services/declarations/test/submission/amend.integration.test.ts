@@ -536,6 +536,9 @@ describe('versions', () => {
         attestation: { reference: REFERENCE },
       },
     });
+    // ADR-008: the declarant reading their own version is not audited.
+    const audited = (await events('audit.read.v1')).map((event) => event.envelope.data.action);
+    expect(audited).not.toContain('declaration.version.read');
   });
 
   it('is 404 for another declarant, staff, an unknown declaration or version, and 401 without a token', async () => {

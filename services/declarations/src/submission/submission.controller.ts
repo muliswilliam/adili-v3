@@ -4,8 +4,10 @@ import {
   ApiProblemResponse,
   AuditedRead,
   CurrentPrincipal,
+  CurrentReadAudit,
   IdempotencyKey,
   type Principal,
+  ReadAudit,
   RequireIdempotencyKey,
   schemaRef,
 } from '@adili/api-kit';
@@ -176,17 +178,22 @@ export class SubmissionController {
     operationId: 'getDeclarationVersion',
     summary: 'One immutable version with its document (decrypted for the declarant)',
     description:
-      'The version as listed, with the `declaration.v1` document exactly as submitted (the canonical JSON `canonicalSha256` is the hash of), decrypted for the declarant; audited.',
+      'The version as listed, with the `declaration.v1` document exactly as submitted (the canonical JSON `canonicalSha256` is the hash of), decrypted for the declarant. Only the declarant reads it, their own record, which is not audited (ADR-008).',
   })
   @ApiOkResponse({ description: 'The version', schema: schemaRef('DeclarationVersionDetail') })
   @ApiProblemResponse(400, 'version is not a positive integer')
   @ApiProblemResponse(404, NOT_VISIBLE)
-  version(
+  async version(
     @CurrentPrincipal() principal: Principal,
     @Param('declarationId') declarationId: string,
     @Param('version', versionNumber) version: number,
+    @CurrentReadAudit() audit: ReadAudit,
   ): Promise<DeclarationVersionDetail> {
-    return this.amendments.version(principal, declarationId, version);
+    const detail = await this.amendments.version(principal, declarationId, version);
+    // ADR-008: only the declarant reads a version here (person row-level security), so it is
+    // always their own record, not audited, as a declarant's own obligation is not.
+    audit.ownRecord();
+    return detail;
   }
 }
 

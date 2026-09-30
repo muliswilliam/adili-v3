@@ -355,7 +355,7 @@ export interface paths {
         };
         /**
          * One immutable version with its document (decrypted for the declarant)
-         * @description The version as listed, with the `declaration.v1` document exactly as submitted (the canonical JSON `canonicalSha256` is the hash of), decrypted for the declarant; audited.
+         * @description The version as listed, with the `declaration.v1` document exactly as submitted (the canonical JSON `canonicalSha256` is the hash of), decrypted for the declarant. Only the declarant reads it, their own record, which is not audited (ADR-008).
          */
         get: operations["getDeclarationVersion"];
         put?: never;
