@@ -42,6 +42,10 @@ export interface TestApp {
   db: Database<typeof schema>;
   valkey: ReturnType<typeof createValkey>;
   clock: Clock;
+  /** This app's cache keys, without the key prefix. */
+  cacheKeys: () => Promise<string[]>;
+  /** Empties this app's cache, leaving other suites' keys on the shared Valkey alone. */
+  clearCache: () => Promise<void>;
   /** Signs an access token as the given OAuth client with the given scopes. */
   token: (options?: { clientId?: string; scope?: string }) => Promise<string>;
   close: () => Promise<void>;
@@ -74,6 +78,10 @@ export async function createTestApp(iprs: Partial<IprsClientOptions> = {}): Prom
     keyPrefix: `integration-gateway-test-${randomUUID()}:`,
   });
   const clock = new Clock();
+  const prefix = valkey.options.keyPrefix ?? '';
+  // KEYS takes its pattern as given (the key prefix is not applied), so match the prefix here.
+  const cacheKeys = async () =>
+    (await valkey.keys(`${prefix}*`)).map((key) => key.slice(prefix.length));
   const moduleRef = await Test.createTestingModule({ imports: [AppModule] })
     .overrideProvider(DATABASE)
     .useValue(db)
@@ -104,6 +112,11 @@ export async function createTestApp(iprs: Partial<IprsClientOptions> = {}): Prom
     db,
     valkey,
     clock,
+    cacheKeys,
+    clearCache: async () => {
+      const keys = await cacheKeys();
+      if (keys.length > 0) await valkey.del(...keys);
+    },
     token: ({ clientId = 'directory', scope = 'profile iprs' } = {}) =>
       new SignJWT({ azp: clientId, scope })
         .setProtectedHeader({ alg: 'RS256', kid: 'test' })
