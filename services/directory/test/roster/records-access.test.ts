@@ -19,6 +19,7 @@ function principal(tenant: string, roles: string[], scopes: string[] = []): Prin
     personId: null,
     acr: null,
     authTime: null,
+    tokenId: null,
   };
 }
 

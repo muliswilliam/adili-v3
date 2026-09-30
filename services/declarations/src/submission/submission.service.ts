@@ -320,6 +320,7 @@ export class SubmissionService {
         late,
         stepUpAcr: stepUp.acr,
         stepUpAuthTime: new Date(stepUp.authTime * 1000),
+        stepUpTokenIdHash: stepUp.tokenId === null ? null : sha256(stepUp.tokenId),
         idempotencyKeyHash: keyHash,
       })
       .returning();
@@ -494,6 +495,8 @@ interface StepUp {
   acr: string;
   /** Seconds since the epoch. */
   authTime: number;
+  /** The id (`jti`) of the token it came with, kept hashed. */
+  tokenId: string | null;
 }
 
 /**
@@ -515,7 +518,7 @@ function requireFreshStepUp(principal: Principal, now: Date, declarationId: stri
       'The one-time code was not confirmed in the last five minutes; confirm your identity again.',
     );
   }
-  return { acr, authTime };
+  return { acr, authTime, tokenId: principal.tokenId };
 }
 
 /** The portal's step-up, returning to the declaration's summary (the BFF adds the outcome). */

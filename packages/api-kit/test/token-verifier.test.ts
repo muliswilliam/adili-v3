@@ -55,4 +55,14 @@ describe('TokenVerifier', () => {
     expect(missing).toMatchObject({ acr: null, authTime: null });
     expect(malformed).toMatchObject({ acr: null, authTime: null });
   });
+
+  it('reads the token id, null when absent or empty', async () => {
+    const withId = await verifier.verify(await sign({ jti: 'onrtac:5b1f6c2e-token' }));
+    const missing = await verifier.verify(await sign({}));
+    const empty = await verifier.verify(await sign({ jti: '' }));
+
+    expect(withId.tokenId).toBe('onrtac:5b1f6c2e-token');
+    expect(missing.tokenId).toBeNull();
+    expect(empty.tokenId).toBeNull();
+  });
 });

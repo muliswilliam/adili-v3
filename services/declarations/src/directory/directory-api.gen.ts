@@ -898,6 +898,8 @@ export interface components {
             acr: string | null;
             /** @description When the user last authenticated (`auth_time`), in seconds since the epoch */
             authTime: number | null;
+            /** @description The token id (`jti`) */
+            tokenId: string | null;
         };
         /**
          * @description Tenant key. Lowercase letter followed by lowercase letters or digits, 2-20 chars. Upper-cased it is the issuer code in reference numbers. `platform` and `new` are reserved.

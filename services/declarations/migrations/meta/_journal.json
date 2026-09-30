@@ -141,6 +141,13 @@
       "when": 1790794809824,
       "tag": "0019_versions_person_read_only",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1790810748866,
+      "tag": "0020_versions_step_up_token_id",
+      "breakpoints": true
     }
   ]
 }

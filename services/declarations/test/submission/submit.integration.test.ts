@@ -132,7 +132,8 @@ describe('submitting a complete draft (S1)', () => {
       late: false,
     });
 
-    const response = await submit(draft.id, steppedUp(ACHIENG));
+    const tokenId = randomUUID();
+    const response = await submit(draft.id, { ...steppedUp(ACHIENG), jti: tokenId });
 
     expect(response.statusCode).toBe(201);
     const body = response.json<SubmissionResult>();
@@ -174,6 +175,7 @@ describe('submitting a complete draft (S1)', () => {
       reference,
       late: false,
       stepUpAcr: 'step-up',
+      stepUpTokenIdHash: sha256(tokenId),
       supersededAt: null,
       ackStatus: 'pending',
       verifiedCount: 0,

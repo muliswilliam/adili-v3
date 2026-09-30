@@ -2977,6 +2977,11 @@ components:
           type:
             - integer
             - 'null'
+        tokenId:
+          description: The token id (`jti`)
+          type:
+            - string
+            - 'null'
       required:
         - subject
         - tenant
@@ -2988,6 +2993,7 @@ components:
         - personId
         - acr
         - authTime
+        - tokenId
     Slug:
       type: string
       pattern: ^[a-z][a-z0-9]{1,19}$

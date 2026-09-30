@@ -71,6 +71,8 @@ export interface Caller {
   acr?: string;
   /** The `auth_time` claim, in seconds since the epoch; absent by default. */
   authTime?: number;
+  /** The token id (`jti`); a fresh one by default. */
+  jti?: string;
   /** Space-separated OAuth scopes, as service tokens carry them; absent by default. */
   scope?: string;
   /** The OAuth client; `portal` by default. */
@@ -478,6 +480,7 @@ async function tokenSigner(): Promise<{ signer: (caller: Caller) => Promise<stri
     personId,
     acr,
     authTime,
+    jti = randomUUID(),
     scope,
     azp = 'portal',
   }: Caller) =>
@@ -492,6 +495,7 @@ async function tokenSigner(): Promise<{ signer: (caller: Caller) => Promise<stri
     })
       .setProtectedHeader({ alg: 'RS256', kid: 'test' })
       .setIssuedAt()
+      .setJti(jti)
       .setIssuer(ISSUER)
       .setAudience(AUDIENCE)
       .setSubject(sub)

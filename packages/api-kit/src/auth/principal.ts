@@ -37,6 +37,11 @@ export interface Principal {
    * for tokens without it, such as service accounts'.
    */
   authTime: number | null;
+  /**
+   * The token's own id (`jti`); null when it has none. A legal act keeps a hash of it with its
+   * step-up evidence, tying the act to the one token it was made with.
+   */
+  tokenId: string | null;
 }
 
 /**
@@ -76,4 +81,5 @@ export const principalSchema = z.object({
   authTime: z.int().nullable().meta({
     description: 'When the user last authenticated (`auth_time`), in seconds since the epoch',
   }),
+  tokenId: z.string().nullable().meta({ description: 'The token id (`jti`)' }),
 }) satisfies z.ZodType<Principal>;

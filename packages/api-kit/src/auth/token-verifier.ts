@@ -51,6 +51,7 @@ export class TokenVerifier {
       personId: personIdSchema.safeParse(payload.person_id).data ?? null,
       acr: typeof payload.acr === 'string' ? payload.acr : null,
       authTime: Number.isSafeInteger(payload.auth_time) ? (payload.auth_time as number) : null,
+      tokenId: typeof payload.jti === 'string' && payload.jti !== '' ? payload.jti : null,
     };
   }
 }

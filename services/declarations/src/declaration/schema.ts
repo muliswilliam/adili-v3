@@ -160,6 +160,8 @@ export const declarationVersions = pgTable(
     /** Step-up evidence from the token the submission was made with. */
     stepUpAcr: text().notNull(),
     stepUpAuthTime: timestamp({ withTimezone: true }).notNull(),
+    /** Hex SHA-256 of that token's id (`jti`); null for a token without one. */
+    stepUpTokenIdHash: text(),
     /** Hex SHA-256 of the `Idempotency-Key` it was submitted with. */
     idempotencyKeyHash: text().notNull(),
     /** When a later version replaced it; set once. */
