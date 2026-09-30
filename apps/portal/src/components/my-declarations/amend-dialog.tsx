@@ -16,10 +16,9 @@ import {
 } from '@adili/ui';
 import { AlertCircleIcon, PencilEdit02Icon, RefreshIcon } from '@hugeicons/core-free-icons';
 import { useNavigate, useRouter } from '@tanstack/react-router';
-import { useState } from 'react';
 
 import { amendMyDeclaration } from '../../server/declarations';
-import { signInAgain } from '../sign-in';
+import { useConfirmAction } from '../confirm-action';
 import { MY_DECLARATIONS_COPY as COPY } from './copy';
 
 type Problem = 'amendment-window-closed' | 'not-submitted' | 'unavailable';
@@ -40,33 +39,26 @@ export interface AmendButtonProps {
 export function AmendButton({ declarationId, version, dueDate, srContext }: AmendButtonProps) {
   const navigate = useNavigate();
   const router = useRouter();
-  const [open, setOpen] = useState(false);
-  const [busy, setBusy] = useState(false);
-  const [problem, setProblem] = useState<Problem | null>(null);
-
-  async function amend() {
-    setBusy(true);
-    setProblem(null);
-    const result = await amendMyDeclaration({ data: { declarationId } }).catch(
-      () => ({ status: 'unavailable' }) as const,
-    );
-    if (result.status === 'amending') {
-      await navigate({ to: '/declarations/$id', params: { id: declarationId } });
-      return;
-    }
-    if (result.status === 'unauthenticated') {
-      signInAgain();
-      return;
-    }
-    setBusy(false);
-    setProblem(
-      result.status === 'conflict'
-        ? result.code
-        : result.status === 'not-found'
-          ? 'not-submitted'
-          : 'unavailable',
-    );
-  }
+  const { open, setOpen, busy, problem, run } = useConfirmAction<Problem>({
+    unavailable: 'unavailable',
+    action: async () => {
+      const result = await amendMyDeclaration({ data: { declarationId } });
+      if (result.status === 'amending') {
+        await navigate({ to: '/declarations/$id', params: { id: declarationId } });
+        return { status: 'done' };
+      }
+      if (result.status === 'unauthenticated') return result;
+      return {
+        status: 'problem',
+        problem:
+          result.status === 'conflict'
+            ? result.code
+            : result.status === 'not-found'
+              ? 'not-submitted'
+              : 'unavailable',
+      };
+    },
+  });
 
   const message =
     problem === 'amendment-window-closed'
@@ -78,13 +70,7 @@ export function AmendButton({ declarationId, version, dueDate, srContext }: Amen
           : null;
 
   return (
-    <Dialog
-      open={open}
-      onOpenChange={(next) => {
-        setOpen(next);
-        if (!next) setProblem(null);
-      }}
-    >
+    <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <Button
           type="button"
@@ -145,7 +131,7 @@ export function AmendButton({ declarationId, version, dueDate, srContext }: Amen
           <Button
             type="button"
             disabled={busy || (problem !== null && problem !== 'unavailable')}
-            onClick={() => void amend()}
+            onClick={() => void run()}
           >
             {busy ? <Spinner /> : null}
             {COPY.amendConfirm(version)}

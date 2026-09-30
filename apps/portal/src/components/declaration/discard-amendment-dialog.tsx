@@ -15,10 +15,9 @@ import {
   IconTile,
 } from '@adili/ui';
 import { AlertCircleIcon, Delete02Icon, Undo02Icon } from '@hugeicons/core-free-icons';
-import { useState } from 'react';
 
 import { discardMyAmendment } from '../../server/declarations';
-import { signInAgain } from '../sign-in';
+import { useConfirmAction } from '../confirm-action';
 
 export const DISCARD_AMENDMENT_COPY = {
   trigger: 'Discard amendment',
@@ -57,39 +56,25 @@ export function DiscardAmendmentButton({
   srContext,
   onDiscarded,
 }: DiscardAmendmentButtonProps) {
-  const [open, setOpen] = useState(false);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const copy = DISCARD_AMENDMENT_COPY;
-
-  async function discard() {
-    setBusy(true);
-    setError(null);
-    const result = await discardMyAmendment({ data: { declarationId } }).catch(
-      () => ({ status: 'unavailable' }) as const,
-    );
-    if (result.status === 'discarded' || result.status === 'not-found') {
-      await onDiscarded();
-      setBusy(false);
-      setOpen(false);
-      return;
-    }
-    if (result.status === 'unauthenticated') {
-      signInAgain();
-      return;
-    }
-    setBusy(false);
-    setError(result.status === 'not-amending' ? copy.notAmending : copy.unavailable);
-  }
+  const { open, setOpen, busy, problem, run } = useConfirmAction<'notAmending' | 'unavailable'>({
+    unavailable: 'unavailable',
+    action: async () => {
+      const result = await discardMyAmendment({ data: { declarationId } });
+      if (result.status === 'discarded' || result.status === 'not-found') {
+        await onDiscarded();
+        return { status: 'done' };
+      }
+      if (result.status === 'unauthenticated') return result;
+      return {
+        status: 'problem',
+        problem: result.status === 'not-amending' ? 'notAmending' : 'unavailable',
+      };
+    },
+  });
 
   return (
-    <Dialog
-      open={open}
-      onOpenChange={(next) => {
-        setOpen(next);
-        if (!next) setError(null);
-      }}
-    >
+    <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <Button
           type="button"
@@ -112,10 +97,10 @@ export function DiscardAmendmentButton({
           <DialogDescription className="text-[15px] text-foreground">
             {copy.body(fromVersion)}
           </DialogDescription>
-          {error ? (
+          {problem ? (
             <Alert variant="destructive">
               <Icon icon={AlertCircleIcon} />
-              <AlertDescription>{error}</AlertDescription>
+              <AlertDescription>{copy[problem]}</AlertDescription>
             </Alert>
           ) : null}
         </DialogBody>
@@ -130,12 +115,7 @@ export function DiscardAmendmentButton({
           >
             {copy.keep}
           </Button>
-          <Button
-            type="button"
-            variant="destructive"
-            disabled={busy}
-            onClick={() => void discard()}
-          >
+          <Button type="button" variant="destructive" disabled={busy} onClick={() => void run()}>
             {copy.confirm}
           </Button>
         </DialogFooter>

@@ -14,10 +14,9 @@ import {
   Icon,
 } from '@adili/ui';
 import { AlertCircleIcon, Delete02Icon } from '@hugeicons/core-free-icons';
-import { useState } from 'react';
 
 import { discardMyDeclaration } from '../../server/declarations';
-import { signInAgain } from '../sign-in';
+import { useConfirmAction } from '../confirm-action';
 
 export const DISCARD_TITLE = 'Discard this draft?';
 export const DISCARD_BODY = 'Everything you entered will be deleted.';
@@ -50,38 +49,21 @@ export function DiscardDraftButton({
   size = 'sm',
   onDiscarded,
 }: DiscardDraftButtonProps) {
-  const [open, setOpen] = useState(false);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  async function discard() {
-    setBusy(true);
-    setError(null);
-    const result = await discardMyDeclaration({ data: { declarationId } }).catch(
-      () => ({ status: 'unavailable' }) as const,
-    );
-    if (result.status === 'discarded' || result.status === 'not-found') {
-      await onDiscarded();
-      setBusy(false);
-      setOpen(false);
-      return;
-    }
-    if (result.status === 'unauthenticated') {
-      signInAgain();
-      return;
-    }
-    setBusy(false);
-    setError(FAILED[result.status]);
-  }
+  const { open, setOpen, busy, problem, run } = useConfirmAction<keyof typeof FAILED>({
+    unavailable: 'unavailable',
+    action: async () => {
+      const result = await discardMyDeclaration({ data: { declarationId } });
+      if (result.status === 'discarded' || result.status === 'not-found') {
+        await onDiscarded();
+        return { status: 'done' };
+      }
+      if (result.status === 'unauthenticated') return result;
+      return { status: 'problem', problem: result.status };
+    },
+  });
 
   return (
-    <Dialog
-      open={open}
-      onOpenChange={(next) => {
-        setOpen(next);
-        if (!next) setError(null);
-      }}
-    >
+    <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <Button
           type="button"
@@ -98,11 +80,11 @@ export function DiscardDraftButton({
           <DialogTitle>{DISCARD_TITLE}</DialogTitle>
           <DialogDescription>{DISCARD_BODY}</DialogDescription>
         </DialogHeader>
-        {error ? (
+        {problem ? (
           <DialogBody>
             <Alert variant="destructive">
               <Icon icon={AlertCircleIcon} />
-              <AlertDescription>{error}</AlertDescription>
+              <AlertDescription>{FAILED[problem]}</AlertDescription>
             </Alert>
           </DialogBody>
         ) : null}
@@ -117,12 +99,7 @@ export function DiscardDraftButton({
           >
             Keep draft
           </Button>
-          <Button
-            type="button"
-            variant="destructive"
-            disabled={busy}
-            onClick={() => void discard()}
-          >
+          <Button type="button" variant="destructive" disabled={busy} onClick={() => void run()}>
             Discard draft
           </Button>
         </DialogFooter>
