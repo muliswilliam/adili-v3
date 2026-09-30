@@ -1,5 +1,6 @@
 import { PLATFORM_TENANT } from '@adili/api-kit';
 import {
+  newVerificationId,
   VERIFICATION_AUDITED,
   VERIFICATION_CHECKED,
   VERIFICATION_OUTCOMES,
@@ -8,7 +9,7 @@ import {
 } from '@adili/events/contracts';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
-import { issued, issuedData, newVerificationId, revoked, superseded } from '../support/events.js';
+import { issued, issuedData, revoked, superseded } from '../support/events.js';
 import { startVerificationApi, type VerificationApi } from '../support/verification-api.js';
 
 describe('S20 every lookup is recorded as verification.checked.v1, identifiers only', () => {

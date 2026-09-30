@@ -1,6 +1,7 @@
+import { newVerificationId } from '@adili/events/contracts';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
-import { issued, issuedData, newVerificationId } from '../support/events.js';
+import { issued, issuedData } from '../support/events.js';
 import {
   randomPublicIp,
   startVerificationApi,

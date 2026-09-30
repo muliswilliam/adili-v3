@@ -1,10 +1,14 @@
 import { eq, inArray } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
-import type { DocumentIssuedData, PublicPayload } from '@adili/events/contracts';
+import {
+  type DocumentIssuedData,
+  newVerificationId,
+  type PublicPayload,
+} from '@adili/events/contracts';
 import { verificationProjection } from '../../src/db/schema.js';
 import { contractErrors, okResponse } from '../support/contract.js';
-import { issued, issuedData, newVerificationId, revoked, superseded } from '../support/events.js';
+import { issued, issuedData, revoked, superseded } from '../support/events.js';
 import { startVerificationApi, type VerificationApi } from '../support/verification-api.js';
 
 const VERIFY = '/v1/verify/{verificationId}';

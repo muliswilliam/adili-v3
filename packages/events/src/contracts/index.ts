@@ -22,6 +22,7 @@ export {
   type DocumentRevokedData,
   type DocumentStatus,
   type DocumentSupersededData,
+  newVerificationId,
   normalizeVerificationId,
   type PublicPayload,
   REVOCATION_REASONS,

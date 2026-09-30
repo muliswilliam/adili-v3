@@ -1,7 +1,10 @@
-import { normalizeVerificationId, VERIFICATION_ID_PATTERN } from '@adili/events/contracts';
 import { describe, expect, it } from 'vitest';
 
-import { newVerificationId } from '../../src/issuance/verification-id.js';
+import {
+  newVerificationId,
+  normalizeVerificationId,
+  VERIFICATION_ID_PATTERN,
+} from '../src/contracts/index.js';
 
 describe('verification ids', () => {
   it('prints 128 random bits as ADL- and seven Crockford base32 groups', () => {
@@ -12,9 +15,11 @@ describe('verification ids', () => {
   });
 
   it('encodes every bit: all zeros and all ones map to the ends of the alphabet', () => {
-    expect(newVerificationId(Buffer.alloc(16, 0))).toBe('ADL-0000-0000-0000-0000-0000-0000-00');
+    expect(newVerificationId(new Uint8Array(16))).toBe('ADL-0000-0000-0000-0000-0000-0000-00');
     // 128 one bits and two zero padding bits: the last character carries 0b11100.
-    expect(newVerificationId(Buffer.alloc(16, 0xff))).toBe('ADL-ZZZZ-ZZZZ-ZZZZ-ZZZZ-ZZZZ-ZZZZ-ZW');
+    expect(newVerificationId(new Uint8Array(16).fill(0xff))).toBe(
+      'ADL-ZZZZ-ZZZZ-ZZZZ-ZZZZ-ZZZZ-ZZZZ-ZW',
+    );
   });
 
   it('never repeats', () => {
