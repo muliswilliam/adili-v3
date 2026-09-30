@@ -544,9 +544,6 @@ function startDeclaration(obligationId: string, obligation: Obligation | undefin
       fromSource: 'assumed',
     },
     schemaVersion: 'declaration.v1',
-    reference: null,
-    currentVersion: null,
-    amendingFromVersion: null,
     createdAt: now,
   };
   const { maritalStatus, ...hr } = roster?.hr ?? {};
@@ -819,11 +816,7 @@ function getSummary(id: string) {
     blocking,
     canSubmit: false,
     cannotSubmitReason:
-      today() < stored.header.statementDate
-        ? 'before-statement-date'
-        : blocking.length > 0
-          ? 'incomplete'
-          : 'submission-not-available',
+      today() < stored.header.statementDate ? 'before-statement-date' : 'submission-not-available',
     attestationText: ATTESTATION_TEXT,
   };
   return json(200, summary);
