@@ -1,19 +1,29 @@
 import {
   Badge,
   Button,
+  Card,
   declarationReferenceParts,
+  formatCalendarDate,
+  formatDate,
   formatDateTime,
   Icon,
   ReferenceChip,
   type ReferencePart,
+  useToday,
   VersionBadge,
 } from '@adili/ui';
 import { findScheme, parse } from '@adili/numbering/references';
-import { Clock01Icon, Tick02Icon } from '@hugeicons/core-free-icons';
+import {
+  Clock01Icon,
+  File01Icon,
+  Message01Icon,
+  PencilEdit02Icon,
+  Tick02Icon,
+} from '@hugeicons/core-free-icons';
 import { Link } from '@tanstack/react-router';
 
 import type { Declaration, DeclarationVersion } from '../../server/declarations/types';
-import { SlipCard } from './slip-card';
+import { SlipCard, type SlipCardProps } from './slip-card';
 
 /** Copy of the success page (spec 06 FE-3). */
 export const SUBMITTED_COPY = {
@@ -23,7 +33,22 @@ export const SUBMITTED_COPY = {
   submittedAt: (at: string) => `Submitted ${formatDateTime(at)}`,
   late: 'Filed late',
   home: 'Home',
+  nextTitle: 'What happens next',
+  nextReview: 'Your Commission reviews your declaration within the statutory windows.',
+  nextClarification:
+    'You may be asked for clarification within six months, and you have 30 days to reply.',
+  nextAmend: (dueDate: string) => `You can amend until ${formatDate(dueDate)}.`,
 } as const;
+
+/**
+ * The "What happens next" lines: review, a possible clarification, and amending until the due
+ * date, which is left out once the due date has passed (Kenyan calendar date).
+ */
+export function nextSteps(dueDate: string, now: number): string[] {
+  const steps: string[] = [SUBMITTED_COPY.nextReview, SUBMITTED_COPY.nextClarification];
+  if (formatCalendarDate(now) <= dueDate) steps.push(SUBMITTED_COPY.nextAmend(dueDate));
+  return steps;
+}
 
 /**
  * What each part of a declaration reference means, with the type's name from the numbering
@@ -47,14 +72,21 @@ export interface SubmittedViewProps {
   declaration: Declaration;
   /** The newest submitted version. */
   version: DeclarationVersion;
+  /** The verify app's origin and where the slip was sent. */
+  slip: SlipCardProps['context'];
+  /** Today, for the amend line; the real clock when left out. */
+  now?: number;
 }
+
+const NEXT_ICONS = [File01Icon, Message01Icon, PencilEdit02Icon];
 
 /**
  * The submission success page (spec 06 FE-3): the reference number with its breakdown and a
- * copy button, the version, when it was submitted and whether late, then the acknowledgement
- * slip as it gets prepared.
+ * copy button, the version, when it was submitted and whether late, the acknowledgement slip as
+ * it gets prepared, then what happens next.
  */
-export function SubmittedView({ declaration, version }: SubmittedViewProps) {
+export function SubmittedView({ declaration, version, slip, now }: SubmittedViewProps) {
+  const today = useToday(now);
   return (
     <div>
       <header className="flex flex-col items-center pt-2 pb-[26px] text-center">
@@ -85,7 +117,28 @@ export function SubmittedView({ declaration, version }: SubmittedViewProps) {
           ) : null}
         </div>
       </header>
-      <SlipCard />
+      <SlipCard declaration={declaration} version={version} context={slip} />
+      <Card asChild className="mt-5">
+        <section aria-labelledby="next-heading">
+          <h2 id="next-heading" className="text-base font-semibold tracking-[-0.01em]">
+            {SUBMITTED_COPY.nextTitle}
+          </h2>
+          <ul className="mt-3.5 grid gap-3.5">
+            {nextSteps(declaration.dueDate, today).map((step, index) => (
+              <li key={step} className="flex items-start gap-3.5">
+                <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-muted text-secondary-foreground">
+                  <Icon
+                    icon={NEXT_ICONS[index] ?? File01Icon}
+                    className="size-3.5"
+                    strokeWidth={2.2}
+                  />
+                </span>
+                <span className="pt-0.5">{step}</span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      </Card>
       <div className="mt-6 flex justify-center">
         <Button asChild variant="secondary">
           <Link to="/">{SUBMITTED_COPY.home}</Link>

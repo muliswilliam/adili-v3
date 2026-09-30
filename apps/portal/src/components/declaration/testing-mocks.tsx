@@ -11,7 +11,8 @@ import { vi } from 'vitest';
  *   );
  *
  * Screens with the submit flow also mock `../../server/submission` (`submissionMock`) and
- * `../../server/step-up` (`stepUpMock`).
+ * `../../server/step-up` (`stepUpMock`); the success page mocks `../../server/submission` and
+ * `../download` (`downloadMock`).
  */
 
 export const navigate = vi.fn();
@@ -64,7 +65,17 @@ export function serverMock() {
 }
 
 export function submissionMock() {
-  return { submitMyDeclaration: vi.fn(), getMySubmission: vi.fn() };
+  return {
+    submitMyDeclaration: vi.fn(),
+    getMySubmission: vi.fn(),
+    getMyAcknowledgement: vi.fn(),
+    reissueMyAcknowledgement: vi.fn(),
+    getMySlipContext: vi.fn(),
+  };
+}
+
+export function downloadMock() {
+  return { downloadFrom: vi.fn() };
 }
 
 export function stepUpMock() {

@@ -1,5 +1,6 @@
 import type { DeclarationsClient } from './declarations/client.server';
 import type {
+  Acknowledgement,
   CompletenessIssue,
   Declaration,
   DeclarationVersion,
@@ -106,5 +107,71 @@ export function loadSubmission(
     const [latest] = versions.data;
     if (!latest) return { status: 'not-submitted' };
     return { status: 'ok', declaration: declaration.data, version: latest };
+  });
+}
+
+export interface VersionRef {
+  declarationId: string;
+  version: number;
+}
+
+export type AcknowledgementRead =
+  { status: 'ok'; acknowledgement: Acknowledgement } | NotFound | Unavailable;
+
+/**
+ * `GET /v1/declarations/{id}/versions/{n}/acknowledgement`: the slip's status, and once issued
+ * a download link fresh from this call (short-lived, so read it again for each download).
+ */
+export function readAcknowledgement(
+  client: DeclarationsClient,
+  { declarationId, version }: VersionRef,
+): Promise<AcknowledgementRead> {
+  return attempt(async () => {
+    const { data, response } = await client.GET(
+      '/v1/declarations/{declarationId}/versions/{version}/acknowledgement',
+      { params: { path: { declarationId, version } } },
+    );
+    if (data) return { status: 'ok', acknowledgement: data };
+    return response.status === 404 ? notFound : unavailable;
+  });
+}
+
+export type ReissueOutcome =
+  /** 202: issuance starts over; the slip is pending again. */
+  | { status: 'requested' }
+  /** 409: the slip is issued or being prepared already. */
+  | { status: 'in-progress' }
+  /** 429: asked too recently; ask again after this many seconds (`Retry-After`), if it said. */
+  | { status: 'cooldown'; retryAfterSeconds: number | null }
+  | NotFound
+  | Unavailable;
+
+function retryAfterSeconds(response: Response): number | null {
+  const seconds = Number(response.headers.get('retry-after') ?? Number.NaN);
+  return Number.isInteger(seconds) && seconds > 0 ? seconds : null;
+}
+
+/** `POST /v1/declarations/{id}/versions/{n}/acknowledgement/reissue`, when issuance failed. */
+export function reissueAcknowledgement(
+  client: DeclarationsClient,
+  { declarationId, version }: VersionRef,
+): Promise<ReissueOutcome> {
+  return attempt(async () => {
+    const { response } = await client.POST(
+      '/v1/declarations/{declarationId}/versions/{version}/acknowledgement/reissue',
+      { params: { path: { declarationId, version } } },
+    );
+    switch (response.status) {
+      case 202:
+        return { status: 'requested' };
+      case 409:
+        return { status: 'in-progress' };
+      case 429:
+        return { status: 'cooldown', retryAfterSeconds: retryAfterSeconds(response) };
+      case 404:
+        return notFound;
+      default:
+        return unavailable;
+    }
   });
 }

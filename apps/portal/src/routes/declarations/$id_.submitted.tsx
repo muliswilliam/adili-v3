@@ -18,7 +18,7 @@ import {
 } from '../../components/declaration/route-helpers';
 import { SubmittedView } from '../../components/declaration/submitted-view';
 import { SignOutButton } from '../../components/sign-out-button';
-import { getMySubmission } from '../../server/submission';
+import { getMySlipContext, getMySubmission } from '../../server/submission';
 
 /**
  * The submission success page (spec 06 FE-3), outside the workspace: the declaration is filed,
@@ -27,11 +27,15 @@ import { getMySubmission } from '../../server/submission';
 export const Route = createFileRoute('/declarations/$id_/submitted')({
   loader: async ({ params, location }) => {
     const declarationId = requireDeclarationId(params.id);
-    const load = settleLoad(await getMySubmission({ data: { declarationId } }), location.href);
+    const [submission, slipContext] = await Promise.all([
+      getMySubmission({ data: { declarationId } }),
+      getMySlipContext(),
+    ]);
+    const load = settleLoad(submission, location.href);
     if (load.status === 'not-submitted') {
       throw redirect({ to: '/declarations/$id/summary', params: { id: declarationId } });
     }
-    return load;
+    return { load, slip: settleLoad(slipContext, location.href) };
   },
   head: () => ({ meta: [{ title: 'Declaration submitted · Adili Online' }] }),
   component: SubmittedRoute,
@@ -53,11 +57,11 @@ function Page({ children }: { children: ReactNode }) {
 }
 
 function SubmittedRoute() {
-  const load = Route.useLoaderData();
+  const { load, slip } = Route.useLoaderData();
   return (
     <Page>
       {load.status === 'ok' ? (
-        <SubmittedView declaration={load.declaration} version={load.version} />
+        <SubmittedView declaration={load.declaration} version={load.version} slip={slip} />
       ) : (
         <Alert variant="destructive">
           <Icon icon={AlertCircleIcon} />

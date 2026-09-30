@@ -10,6 +10,8 @@ import { sampleDeclaration } from './testing';
 
 vi.mock('@tanstack/react-router', async () => (await import('./testing-mocks')).routerMock());
 vi.mock('../../server/declarations', async () => (await import('./testing-mocks')).serverMock());
+vi.mock('../../server/submission', async () => (await import('./testing-mocks')).submissionMock());
+vi.mock('../download', async () => (await import('./testing-mocks')).downloadMock());
 
 const REFERENCE = format(DCI, { issuer: 'PSC', period: 2026, sequence: 1 });
 
@@ -40,10 +42,20 @@ function versionOf(overrides: Partial<DeclarationVersion> = {}): DeclarationVers
   };
 }
 
-function renderSubmitted(version = versionOf(), reference = version.reference) {
+const slip = { verifyBaseUrl: 'http://localhost:3030', declarant: null };
+
+/** Before the due date (31 Dec 2027). */
+const BEFORE_DUE = Date.parse('2026-09-30T07:42:00Z');
+
+function renderSubmitted(version = versionOf(), reference = version.reference, now = BEFORE_DUE) {
   return render(
     <ToastProvider>
-      <SubmittedView declaration={declaration} version={{ ...version, reference }} />
+      <SubmittedView
+        declaration={declaration}
+        version={{ ...version, reference }}
+        slip={slip}
+        now={now}
+      />
     </ToastProvider>,
   );
 }
@@ -105,16 +117,39 @@ describe('the success page (spec 06 FE-3)', () => {
     ).toBeTruthy();
   });
 
-  it('says the acknowledgement slip is being prepared, politely announced', () => {
+  it('shows the acknowledgement slip as it is prepared', () => {
     renderSubmitted();
 
-    const status = screen
-      .getByText('Preparing your acknowledgement slip…')
-      .closest('[role="status"]');
-    if (!(status instanceof HTMLElement)) throw new Error('No slip status');
-    expect(status.getAttribute('aria-live')).toBe('polite');
+    expect(screen.getByText('Preparing your acknowledgement slip…')).toBeTruthy();
+    expect(screen.getByText('Usually a few seconds. We also email it to you.')).toBeTruthy();
+  });
+
+  it('says what happens next, amending until the due date', () => {
+    renderSubmitted();
+
+    const next = screen.getByRole('region', { name: 'What happens next' });
     expect(
-      within(status).getByText('Usually a few seconds. We also email it to you.'),
-    ).toBeTruthy();
+      within(next)
+        .getAllByRole('listitem')
+        .map((line) => line.textContent),
+    ).toEqual([
+      'Your Commission reviews your declaration within the statutory windows.',
+      'You may be asked for clarification within six months, and you have 30 days to reply.',
+      'You can amend until 31 Dec 2027.',
+    ]);
+  });
+
+  it('can still amend on the due date, Kenyan time', () => {
+    renderSubmitted(versionOf(), REFERENCE, Date.parse('2027-12-31T20:59:00Z'));
+
+    expect(screen.getByText('You can amend until 31 Dec 2027.')).toBeTruthy();
+  });
+
+  it('leaves amending out once the due date has passed', () => {
+    renderSubmitted(versionOf({ late: true }), REFERENCE, Date.parse('2027-12-31T21:00:00Z'));
+
+    const next = screen.getByRole('region', { name: 'What happens next' });
+    expect(within(next).getAllByRole('listitem')).toHaveLength(2);
+    expect(within(next).queryByText(/You can amend/)).toBeNull();
   });
 });

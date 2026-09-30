@@ -8,9 +8,16 @@ import {
   MOCK_OBLIGATIONS,
   mockDeclarationsFetch,
   resetDeclarationsMock,
+  setSlipIssuance,
 } from './declarations/mock.server';
 import type { paths } from './declarations/schema.gen';
-import { loadSubmission, submitDeclaration, type SubmitOutcome } from './submission.server';
+import {
+  loadSubmission,
+  readAcknowledgement,
+  reissueAcknowledgement,
+  submitDeclaration,
+  type SubmitOutcome,
+} from './submission.server';
 
 /** An unsigned JWT with these claims, as the mock reads them. */
 function bearer(claims: Record<string, unknown>) {
@@ -306,5 +313,96 @@ describe('loading a submission for the success page', () => {
     expect(await loadSubmission(client(), '9d3c2b1a-0f4e-4d5c-8b7a-6f5e4d3c2b1a')).toEqual({
       status: 'not-found',
     });
+  });
+});
+
+describe('the acknowledgement slip', () => {
+  async function submitted() {
+    const declarationId = await completeDraft();
+    submittedOf(await submitDeclaration(client(), { declarationId, idempotencyKey: key() }));
+    return { declarationId, version: 1 };
+  }
+
+  function later(seconds: number) {
+    vi.setSystemTime(Date.now() + seconds * 1000);
+  }
+
+  it('is pending right after the submit, then issued with a code and a fresh download link', async () => {
+    const ref = await submitted();
+
+    expect(await readAcknowledgement(client(), ref)).toEqual({
+      status: 'ok',
+      acknowledgement: {
+        status: 'pending',
+        documentId: null,
+        verificationId: null,
+        issuedAt: null,
+        verifiedCount: 0,
+        downloadUrl: null,
+      },
+    });
+    later(4);
+    const read = await readAcknowledgement(client(), ref);
+    if (read.status !== 'ok') throw new Error(read.status);
+    const { acknowledgement } = read;
+    expect(acknowledgement).toMatchObject({ status: 'issued', verifiedCount: 0 });
+    expect(acknowledgement.verificationId).toMatch(
+      /^ADL-(?:[0-9A-HJKMNP-TV-Z]{4}-){6}[0-9A-HJKMNP-TV-Z]{2}$/,
+    );
+    expect(acknowledgement.downloadUrl).toBe(`/api/mock-slips/${acknowledgement.documentId ?? ''}`);
+
+    // The versions list shows the slip issued too, without a download link.
+    const load = await loadSubmission(client(), ref.declarationId);
+    if (load.status !== 'ok') throw new Error(load.status);
+    expect(load.version.acknowledgement).toEqual({ ...acknowledgement, downloadUrl: null });
+  });
+
+  it('can be asked for again when it failed, at most once a minute', async () => {
+    setSlipIssuance('fail');
+    const ref = await submitted();
+    expect(await reissueAcknowledgement(client(), ref)).toEqual({ status: 'in-progress' });
+    later(4);
+    expect(await readAcknowledgement(client(), ref)).toMatchObject({
+      acknowledgement: { status: 'failed' },
+    });
+
+    expect(await reissueAcknowledgement(client(), ref)).toEqual({ status: 'requested' });
+    expect(await readAcknowledgement(client(), ref)).toMatchObject({
+      acknowledgement: { status: 'pending' },
+    });
+    later(4);
+    expect(await readAcknowledgement(client(), ref)).toMatchObject({
+      acknowledgement: { status: 'failed' },
+    });
+    expect(await reissueAcknowledgement(client(), ref)).toEqual({
+      status: 'cooldown',
+      retryAfterSeconds: 56,
+    });
+
+    setSlipIssuance('issue');
+    later(56);
+    expect(await reissueAcknowledgement(client(), ref)).toEqual({ status: 'requested' });
+    later(4);
+    expect(await readAcknowledgement(client(), ref)).toMatchObject({
+      acknowledgement: { status: 'issued' },
+    });
+    expect(await reissueAcknowledgement(client(), ref)).toEqual({ status: 'in-progress' });
+  });
+
+  it('reads an unknown version as not found, and a network failure as unavailable', async () => {
+    const ref = await submitted();
+
+    expect(await readAcknowledgement(client(), { ...ref, version: 2 })).toEqual({
+      status: 'not-found',
+    });
+    expect(await reissueAcknowledgement(client(), { ...ref, version: 2 })).toEqual({
+      status: 'not-found',
+    });
+    const offline = createClient<paths>({
+      baseUrl: 'http://declarations.test',
+      fetch: () => Promise.reject(new Error('offline')),
+    });
+    expect(await readAcknowledgement(offline, ref)).toEqual({ status: 'unavailable' });
+    expect(await reissueAcknowledgement(offline, ref)).toEqual({ status: 'unavailable' });
   });
 });
