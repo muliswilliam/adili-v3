@@ -6,7 +6,7 @@ export default defineConfig({
   plugins: [hugeiconsPerIcon()],
   test: {
     // Component tests opt into jsdom with a `@vitest-environment jsdom` comment.
-    include: ['src/**/*.test.{ts,tsx}'],
+    include: ['src/**/*.test.{ts,tsx}', 'vite-plugins/**/*.test.ts'],
     setupFiles: ['./vitest.setup.ts'],
     // Files mock the router with their own spies, so each keeps its own modules (see the portal).
     pool: 'vmThreads',
