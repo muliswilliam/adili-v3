@@ -345,23 +345,8 @@ export class ObligationSteps {
     });
   }
 
-  private async recordedOutcome({
-    obligationId,
-    tenant,
-    offsetDays,
-  }: ReminderRequest): Promise<ReminderOutcome | undefined> {
-    const [row] = await withTenant(this.db, systemContext(tenant), (tx) =>
-      tx
-        .select({ outcome: obligationReminders.outcome })
-        .from(obligationReminders)
-        .where(
-          and(
-            eq(obligationReminders.obligationId, obligationId),
-            eq(obligationReminders.offsetDays, offsetDays),
-          ),
-        ),
-    );
-    return row?.outcome;
+  private async recordedOutcome(request: ReminderRequest): Promise<ReminderOutcome | undefined> {
+    return withTenant(this.db, systemContext(request.tenant), (tx) => reminderOutcome(tx, request));
   }
 
   private async reminderContext({ obligationId, tenant }: ObligationRef) {
@@ -407,18 +392,7 @@ export class ObligationSteps {
         })
         .onConflictDoNothing()
         .returning({ outcome: obligationReminders.outcome });
-      if (inserted.length === 0) {
-        const [existing] = await tx
-          .select({ outcome: obligationReminders.outcome })
-          .from(obligationReminders)
-          .where(
-            and(
-              eq(obligationReminders.obligationId, obligationId),
-              eq(obligationReminders.offsetDays, offsetDays),
-            ),
-          );
-        return existing?.outcome ?? outcome;
-      }
+      if (inserted.length === 0) return (await reminderOutcome(tx, request)) ?? outcome;
       await this.events.record(
         tx,
         obligationReminderRecorded(tenant, { obligationId, offsetDays, channels, outcome }),
@@ -426,6 +400,23 @@ export class ObligationSteps {
       return outcome;
     });
   }
+}
+
+/** The outcome recorded for the reminder, if any. */
+async function reminderOutcome(
+  tx: Transaction,
+  { obligationId, offsetDays }: ReminderRequest,
+): Promise<ReminderOutcome | undefined> {
+  const [row] = await tx
+    .select({ outcome: obligationReminders.outcome })
+    .from(obligationReminders)
+    .where(
+      and(
+        eq(obligationReminders.obligationId, obligationId),
+        eq(obligationReminders.offsetDays, offsetDays),
+      ),
+    );
+  return row?.outcome;
 }
 
 /** Namespace of the reminder messages' idempotency keys (UUID v5). */
