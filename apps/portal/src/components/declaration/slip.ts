@@ -7,23 +7,23 @@ import type { ReissueOutcome } from '../../server/submission.server';
 /**
  * The acknowledgement slip on the success page (spec 06 FE-3, S19) as a pure state machine. The
  * slip is issued asynchronously after the submit, so the card reads `getAcknowledgement` every
- * two seconds while it is being prepared, and after a minute without an answer says it is taking
- * longer (with "Check again") instead of polling for ever. A failed slip can be asked for again,
- * with a cooldown between requests. The view (`slip-card.tsx`) runs the reads and requests.
+ * two seconds while it is being prepared, and a minute after it started (by the clock, however
+ * slow the answers) says it is taking longer (with "Check again") instead of polling for ever. A
+ * failed slip can be asked for again, with a cooldown between requests. The view
+ * (`slip-card.tsx`) runs the reads, the requests and the timer that ends the minute.
  */
 
+/** How long after an answer the card reads again. */
 export const SLIP_POLL_INTERVAL_MS = 2000;
 /** How long the card keeps polling before it says the slip is taking longer. */
 export const SLIP_POLL_WINDOW_MS = 60_000;
-/** Reads in one polling window: every two seconds for a minute. */
-export const SLIP_POLL_LIMIT = SLIP_POLL_WINDOW_MS / SLIP_POLL_INTERVAL_MS;
 /** How long "Request again" waits after a request, unless the service says (`Retry-After`). */
 export const REISSUE_COOLDOWN_SECONDS = 60;
 
 export type SlipState =
-  /** Polling; `reads` so far in this window. */
-  | { step: 'preparing'; reads: number; cooldownUntil: number | null }
-  /** A window of reads went by with the slip still pending: stop, offer "Check again". */
+  /** Polling since `since` (epoch ms); `reads` answered so far in this window. */
+  | { step: 'preparing'; since: number; reads: number; cooldownUntil: number | null }
+  /** The window went by with the slip still pending: stop, offer "Check again". */
   | { step: 'slow'; cooldownUntil: number | null }
   | { step: 'issued'; acknowledgement: Acknowledgement }
   /**
@@ -40,27 +40,36 @@ export type SlipState =
 export type ReissueAnswer = ReissueOutcome | Unauthenticated;
 
 export type SlipEvent =
-  /** A `getAcknowledgement` answer; null when the read failed (counts as still pending). */
-  | { type: 'read'; acknowledgement: Acknowledgement | null }
-  | { type: 'check-again' }
+  /**
+   * A `getAcknowledgement` answer at `now`; null when the read failed (counts as still pending).
+   */
+  | { type: 'read'; acknowledgement: Acknowledgement | null; now: number }
+  /** The window's minute is up (the view's timer), whether or not a read is still out. */
+  | { type: 'window-ended'; now: number }
+  | { type: 'check-again'; now: number }
   /** "Request again"; `now` to check the cooldown. */
   | { type: 'reissue-pressed'; now: number }
   | { type: 'reissue-answered'; answer: ReissueAnswer; now: number };
 
-/** Where the card starts from the acknowledgement the page loaded. */
-export function initialSlipState(acknowledgement: Acknowledgement): SlipState {
+/** Where the card starts at `now` from the acknowledgement the page loaded. */
+export function initialSlipState(acknowledgement: Acknowledgement, now: number): SlipState {
   switch (acknowledgement.status) {
     case 'issued':
       return { step: 'issued', acknowledgement };
     case 'failed':
       return { step: 'failed', cooldownUntil: null, requesting: false, problem: null };
     default:
-      return { step: 'preparing', reads: 0, cooldownUntil: null };
+      return preparing(null, now);
   }
 }
 
-function preparing(cooldownUntil: number | null): SlipState {
-  return { step: 'preparing', reads: 0, cooldownUntil };
+function preparing(cooldownUntil: number | null, now: number): SlipState {
+  return { step: 'preparing', since: now, reads: 0, cooldownUntil };
+}
+
+/** When a window of polling that started `since` ends (epoch ms). */
+export function windowEnd(since: number): number {
+  return since + SLIP_POLL_WINDOW_MS;
 }
 
 /** Whole seconds left before "Request again" works again; 0 when it does. */
@@ -69,7 +78,7 @@ export function cooldownLeft(state: SlipState, now: number): number {
   return Math.max(0, Math.ceil((state.cooldownUntil - now) / 1000));
 }
 
-function read(state: SlipState, acknowledgement: Acknowledgement | null): SlipState {
+function read(state: SlipState, acknowledgement: Acknowledgement | null, now: number): SlipState {
   if (state.step === 'issued') {
     // A later read (e.g. for a download) brings a fresh verified count.
     return acknowledgement?.status === 'issued' ? { step: 'issued', acknowledgement } : state;
@@ -84,19 +93,18 @@ function read(state: SlipState, acknowledgement: Acknowledgement | null): SlipSt
       problem: null,
     };
   }
-  const reads = state.reads + 1;
-  return reads >= SLIP_POLL_LIMIT
+  return now >= windowEnd(state.since)
     ? { step: 'slow', cooldownUntil: state.cooldownUntil }
-    : { ...state, reads };
+    : { ...state, reads: state.reads + 1 };
 }
 
 function answered(cooldownUntil: number | null, answer: ReissueAnswer, now: number): SlipState {
   switch (answer.status) {
     case 'requested':
-      return preparing(now + REISSUE_COOLDOWN_SECONDS * 1000);
+      return preparing(now + REISSUE_COOLDOWN_SECONDS * 1000, now);
     case 'in-progress':
       // Issued or being prepared meanwhile: the next read says which.
-      return preparing(cooldownUntil);
+      return preparing(cooldownUntil, now);
     case 'cooldown':
       return {
         step: 'failed',
@@ -112,9 +120,13 @@ function answered(cooldownUntil: number | null, answer: ReissueAnswer, now: numb
 export function slipReducer(state: SlipState, event: SlipEvent): SlipState {
   switch (event.type) {
     case 'read':
-      return read(state, event.acknowledgement);
+      return read(state, event.acknowledgement, event.now);
+    case 'window-ended':
+      return state.step === 'preparing' && event.now >= windowEnd(state.since)
+        ? { step: 'slow', cooldownUntil: state.cooldownUntil }
+        : state;
     case 'check-again':
-      return state.step === 'slow' ? preparing(state.cooldownUntil) : state;
+      return state.step === 'slow' ? preparing(state.cooldownUntil, event.now) : state;
     case 'reissue-pressed':
       return state.step === 'failed' && !state.requesting && cooldownLeft(state, event.now) === 0
         ? { ...state, requesting: true, problem: null }

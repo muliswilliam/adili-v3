@@ -47,6 +47,7 @@ import {
   slipAnnouncement,
   slipReducer,
   type SlipState,
+  windowEnd,
 } from './slip';
 
 export interface SlipCardProps {
@@ -57,13 +58,15 @@ export interface SlipCardProps {
 
 /**
  * The acknowledgement slip of a submitted version on the success page (spec 06 FE-3): while it
- * is prepared the card polls `getAcknowledgement` every two seconds for a minute, then says it is
- * taking longer with "Check again"; once issued it shows the slip's details, verification code
+ * is prepared the card polls `getAcknowledgement` every two seconds until a minute has gone by,
+ * then says it is taking longer with "Check again"; once issued it shows the slip's details, verification code
  * and QR (the acknowledgement's `verifyUrl`) with a download link fetched fresh on click; a failed slip can be asked for again after a
  * cooldown. A screen reader hears each change of state once, not each poll.
  */
 export function SlipCard({ declaration, version, context }: SlipCardProps) {
-  const [state, dispatch] = useReducer(slipReducer, version.acknowledgement, initialSlipState);
+  const [state, dispatch] = useReducer(slipReducer, version.acknowledgement, (acknowledgement) =>
+    initialSlipState(acknowledgement, Date.now()),
+  );
   const announcement = useAnnouncement(state);
 
   const { id: declarationId } = declaration;
@@ -72,7 +75,10 @@ export function SlipCard({ declaration, version, context }: SlipCardProps) {
     // Each read makes a new state, which schedules the next one.
     if (state.step !== 'preparing') return;
     let stopped = false;
+    const { since } = state;
     const timer = setTimeout(() => {
+      // No read starts once the minute is up; the window's own timer ends it.
+      if (Date.now() >= windowEnd(since)) return;
       void getMyAcknowledgement({ data: { declarationId, version: number } })
         .catch(() => null)
         .then((answer) => {
@@ -80,6 +86,7 @@ export function SlipCard({ declaration, version, context }: SlipCardProps) {
           dispatch({
             type: 'read',
             acknowledgement: answer?.status === 'ok' ? answer.acknowledgement : null,
+            now: Date.now(),
           });
         });
     }, SLIP_POLL_INTERVAL_MS);
@@ -88,6 +95,21 @@ export function SlipCard({ declaration, version, context }: SlipCardProps) {
       clearTimeout(timer);
     };
   }, [state, declarationId, number]);
+
+  // The window ends by the clock, even while a slow read is still out.
+  const since = state.step === 'preparing' ? state.since : null;
+  useEffect(() => {
+    if (since === null) return;
+    const timer = setTimeout(
+      () => {
+        dispatch({ type: 'window-ended', now: Date.now() });
+      },
+      Math.max(0, windowEnd(since) - Date.now()),
+    );
+    return () => {
+      clearTimeout(timer);
+    };
+  }, [since]);
 
   function reissue() {
     dispatch({ type: 'reissue-pressed', now: Date.now() });
@@ -125,7 +147,7 @@ export function SlipCard({ declaration, version, context }: SlipCardProps) {
               variant="secondary"
               size="sm"
               onClick={() => {
-                dispatch({ type: 'check-again' });
+                dispatch({ type: 'check-again', now: Date.now() });
               }}
             >
               <Icon icon={RefreshIcon} />
@@ -142,7 +164,7 @@ export function SlipCard({ declaration, version, context }: SlipCardProps) {
           context={context}
           state={state}
           onRead={(acknowledgement) => {
-            dispatch({ type: 'read', acknowledgement });
+            dispatch({ type: 'read', acknowledgement, now: Date.now() });
           }}
         />
       )}

@@ -160,24 +160,57 @@ describe('a slip being prepared (S19)', () => {
   it('stops after a minute and says it is taking longer, then checks again on request', async () => {
     renderSlip(pending);
 
-    await wait(58_000);
+    await wait(59_999);
     expect(screen.getByText('Preparing your acknowledgement slip…')).toBeTruthy();
-    await wait(2000);
+    await wait(1);
 
-    expect(read).toHaveBeenCalledTimes(30);
+    // Every two seconds within the minute: at 2 s, 4 s, … 58 s.
+    expect(read).toHaveBeenCalledTimes(29);
     expect(screen.getByText('Still preparing your slip')).toBeTruthy();
     const message = 'It is taking longer than usual. We will email you when it is ready.';
     expect(within(liveRegion()).getByText(message)).toBeTruthy();
     await wait(10_000);
-    expect(read).toHaveBeenCalledTimes(30);
+    expect(read).toHaveBeenCalledTimes(29);
 
     read.mockResolvedValue(answer(issued));
     fireEvent.click(screen.getByRole('button', { name: 'Check again' }));
     expect(onCard('Preparing your acknowledgement slip…')).toBeTruthy();
     await wait(2000);
 
-    expect(read).toHaveBeenCalledTimes(31);
+    expect(read).toHaveBeenCalledTimes(30);
     expect(screen.getByRole('heading', { name: 'Acknowledgement slip' })).toBeTruthy();
+  });
+
+  it('stops a minute after it started however slow the answers are', async () => {
+    // Each read takes five seconds to answer, and the next starts two seconds after it.
+    read.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          setTimeout(() => {
+            resolve(answer(pending));
+          }, 5000);
+        }),
+    );
+    renderSlip(pending);
+
+    await wait(59_000);
+    expect(screen.getByText('Preparing your acknowledgement slip…')).toBeTruthy();
+    await wait(1000);
+
+    expect(screen.getByText('Still preparing your slip')).toBeTruthy();
+    expect(read).toHaveBeenCalledTimes(9);
+    await wait(10_000);
+    expect(read).toHaveBeenCalledTimes(9);
+  });
+
+  it('stops at the minute while a read never answers', async () => {
+    read.mockReturnValue(new Promise(() => undefined));
+    renderSlip(pending);
+
+    await wait(60_000);
+
+    expect(screen.getByText('Still preparing your slip')).toBeTruthy();
+    expect(read).toHaveBeenCalledTimes(1);
   });
 
   it('keeps polling through a read that failed', async () => {

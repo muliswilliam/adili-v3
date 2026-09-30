@@ -7,7 +7,6 @@ import {
   REISSUE_COOLDOWN_SECONDS,
   sentTo,
   SLIP_POLL_INTERVAL_MS,
-  SLIP_POLL_LIMIT,
   SLIP_POLL_WINDOW_MS,
   slipAnnouncement,
   type SlipEvent,
@@ -41,16 +40,31 @@ function run(state: SlipState, ...events: SlipEvent[]): SlipState {
   return events.reduce(slipReducer, state);
 }
 
-const read = (acknowledgement: Acknowledgement | null): SlipEvent => ({
+/** A read answered `at` ms after the window started (NOW). */
+const read = (acknowledgement: Acknowledgement | null, at = 0): SlipEvent => ({
   type: 'read',
   acknowledgement,
+  now: NOW + at,
+});
+
+/** Reads every two seconds, answered at once, until `until` ms into the window. */
+const readsUntil = (until: number, acknowledgement: Acknowledgement | null = pending) =>
+  Array.from({ length: until / SLIP_POLL_INTERVAL_MS }, (_, index) =>
+    read(acknowledgement, (index + 1) * SLIP_POLL_INTERVAL_MS),
+  );
+
+const preparingSince = (since: number, reads: number, cooldownUntil: number | null = null) => ({
+  step: 'preparing',
+  since,
+  reads,
+  cooldownUntil,
 });
 
 describe('where the slip card starts', () => {
   it('prepares a pending slip, shows an issued one and offers a failed one again', () => {
-    expect(initialSlipState(pending)).toEqual({ step: 'preparing', reads: 0, cooldownUntil: null });
-    expect(initialSlipState(issued)).toEqual({ step: 'issued', acknowledgement: issued });
-    expect(initialSlipState(failed)).toEqual({
+    expect(initialSlipState(pending, NOW)).toEqual(preparingSince(NOW, 0));
+    expect(initialSlipState(issued, NOW)).toEqual({ step: 'issued', acknowledgement: issued });
+    expect(initialSlipState(failed, NOW)).toEqual({
       step: 'failed',
       cooldownUntil: null,
       requesting: false,
@@ -63,23 +77,16 @@ describe('polling while the slip is prepared (S19)', () => {
   it('reads every two seconds for up to a minute', () => {
     expect(SLIP_POLL_INTERVAL_MS).toBe(2000);
     expect(SLIP_POLL_WINDOW_MS).toBe(60_000);
-    expect(SLIP_POLL_LIMIT * SLIP_POLL_INTERVAL_MS).toBe(SLIP_POLL_WINDOW_MS);
   });
 
-  it('keeps preparing through the reads of the window', () => {
-    const reads = Array.from({ length: SLIP_POLL_LIMIT - 1 }, () => read(pending));
-
-    expect(run(initialSlipState(pending), ...reads)).toEqual({
-      step: 'preparing',
-      reads: SLIP_POLL_LIMIT - 1,
-      cooldownUntil: null,
-    });
+  it('keeps preparing through the reads answered within the minute', () => {
+    expect(run(initialSlipState(pending, NOW), ...readsUntil(58_000))).toEqual(
+      preparingSince(NOW, 29),
+    );
   });
 
-  it('stops after a minute still pending and says it is taking longer', () => {
-    const reads = Array.from({ length: SLIP_POLL_LIMIT }, () => read(pending));
-
-    const state = run(initialSlipState(pending), ...reads);
+  it('stops a minute after it started, still pending, and says it is taking longer', () => {
+    const state = run(initialSlipState(pending, NOW), ...readsUntil(60_000));
 
     expect(state).toEqual({ step: 'slow', cooldownUntil: null });
     expect(slipAnnouncement(state)).toBe(
@@ -87,23 +94,38 @@ describe('polling while the slip is prepared (S19)', () => {
     );
   });
 
-  it('counts a read that failed as still pending', () => {
-    const reads = Array.from({ length: SLIP_POLL_LIMIT }, () => read(null));
+  it('stops by the clock, not the number of reads, when the answers are slow', () => {
+    // Each read takes five seconds to answer, so a minute holds only a few.
+    const slow = [7000, 14_000, 21_000, 28_000, 35_000, 42_000, 49_000, 56_000];
+    const within = run(initialSlipState(pending, NOW), ...slow.map((at) => read(pending, at)));
+    expect(within).toEqual(preparingSince(NOW, slow.length));
 
-    expect(run(initialSlipState(pending), ...reads).step).toBe('slow');
+    expect(slipReducer(within, read(pending, 63_000))).toEqual({
+      step: 'slow',
+      cooldownUntil: null,
+    });
+  });
+
+  it('stops when the minute ends while a read is still out', () => {
+    const state = run(initialSlipState(pending, NOW), read(pending, 7000));
+
+    expect(slipReducer(state, { type: 'window-ended', now: NOW + 59_999 })).toBe(state);
+    expect(slipReducer(state, { type: 'window-ended', now: NOW + 60_000 })).toEqual({
+      step: 'slow',
+      cooldownUntil: null,
+    });
+  });
+
+  it('counts a read that failed as still pending', () => {
+    expect(run(initialSlipState(pending, NOW), ...readsUntil(60_000, null)).step).toBe('slow');
   });
 
   it('starts a new window on "Check again"', () => {
-    const slow = run(
-      initialSlipState(pending),
-      ...Array.from({ length: SLIP_POLL_LIMIT }, () => read(pending)),
-    );
+    const slow = run(initialSlipState(pending, NOW), ...readsUntil(60_000));
 
-    expect(slipReducer(slow, { type: 'check-again' })).toEqual({
-      step: 'preparing',
-      reads: 0,
-      cooldownUntil: null,
-    });
+    expect(slipReducer(slow, { type: 'check-again', now: NOW + 70_000 })).toEqual(
+      preparingSince(NOW + 70_000, 0),
+    );
   });
 
   it('ignores reads once it stopped', () => {
@@ -113,14 +135,14 @@ describe('polling while the slip is prepared (S19)', () => {
   });
 
   it('shows the slip as soon as it is issued', () => {
-    expect(run(initialSlipState(pending), read(pending), read(issued))).toEqual({
+    expect(run(initialSlipState(pending, NOW), read(pending), read(issued))).toEqual({
       step: 'issued',
       acknowledgement: issued,
     });
   });
 
   it('offers to ask again when issuance failed', () => {
-    expect(run(initialSlipState(pending), read(failed))).toEqual({
+    expect(run(initialSlipState(pending, NOW), read(failed))).toEqual({
       step: 'failed',
       cooldownUntil: null,
       requesting: false,
@@ -129,7 +151,7 @@ describe('polling while the slip is prepared (S19)', () => {
   });
 
   it('takes a fresher verified count on an issued slip, but not a regression', () => {
-    const state = initialSlipState(issued);
+    const state = initialSlipState(issued, NOW);
 
     expect(slipReducer(state, read({ ...issued, verifiedCount: 3 }))).toEqual({
       step: 'issued',
@@ -141,7 +163,7 @@ describe('polling while the slip is prepared (S19)', () => {
 });
 
 describe('asking for a failed slip again (S19)', () => {
-  const start = initialSlipState(failed);
+  const start = initialSlipState(failed, NOW);
 
   it('requests once, then prepares again with a cooldown', () => {
     const requesting = slipReducer(start, { type: 'reissue-pressed', now: NOW });
@@ -154,11 +176,7 @@ describe('asking for a failed slip again (S19)', () => {
       now: NOW,
     });
 
-    expect(state).toEqual({
-      step: 'preparing',
-      reads: 0,
-      cooldownUntil: NOW + REISSUE_COOLDOWN_SECONDS * 1000,
-    });
+    expect(state).toEqual(preparingSince(NOW, 0, NOW + REISSUE_COOLDOWN_SECONDS * 1000));
   });
 
   it('holds "Request again" back until the cooldown ends, when it failed again', () => {
@@ -203,7 +221,7 @@ describe('asking for a failed slip again (S19)', () => {
       { type: 'reissue-answered', answer: { status: 'in-progress' }, now: NOW },
     );
 
-    expect(state).toEqual({ step: 'preparing', reads: 0, cooldownUntil: null });
+    expect(state).toEqual(preparingSince(NOW, 0));
   });
 
   it('says so when the request did not go through, and lets the declarant try again', () => {
@@ -250,12 +268,14 @@ describe('the slip card copy', () => {
   });
 
   it('announces each state once, not each read', () => {
-    const preparing = initialSlipState(pending);
+    const preparing = initialSlipState(pending, NOW);
 
     expect(slipAnnouncement(slipReducer(preparing, read(pending)))).toBe(
       slipAnnouncement(preparing),
     );
-    expect(slipAnnouncement(initialSlipState(issued))).toBe('Your acknowledgement slip is ready.');
-    expect(slipAnnouncement(initialSlipState(failed))).toBe('The slip could not be prepared.');
+    expect(slipAnnouncement(initialSlipState(issued, NOW))).toBe(
+      'Your acknowledgement slip is ready.',
+    );
+    expect(slipAnnouncement(initialSlipState(failed, NOW))).toBe('The slip could not be prepared.');
   });
 });
