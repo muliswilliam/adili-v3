@@ -1,5 +1,10 @@
 import { HttpStatus, Injectable } from '@nestjs/common';
-import { notFoundIfInvisible, type Principal, ProblemException } from '@adili/api-kit';
+import {
+  notFoundIfInvisible,
+  type Principal,
+  ProblemException,
+  PLATFORM_TENANT,
+} from '@adili/api-kit';
 import { type Database, InjectDatabase, withTenant } from '@adili/data-access';
 import { EventPublisher } from '@adili/events';
 import { and, asc, count, eq, ilike, isNull, ne, or, type SQL, sql } from 'drizzle-orm';
@@ -8,12 +13,19 @@ import { violatedUniqueConstraint } from '../db/errors.js';
 import type { DirectorySchema } from '../db/schema.js';
 import { rosterSummaries } from '../roster/schema.js';
 import { rosterSummaryColumns, toRosterSummary } from '../roster/summary.js';
+import { actingTenantContext } from '../internal-api.js';
 import { canSeeCommission, seesAllCommissions, tenantContextOf } from './access.js';
 import type { CreateCommissionBody } from './create-commission.js';
 import { commissionCreated } from './events.js';
 import { decodeCursor, encodeCursor, type ListCommissionsQuery } from './list-query.js';
 import { PLATFORM_DEFAULT_POLICY } from './policy.js';
-import { type Commission, type CommissionPage, type OfficerCategory } from './representation.js';
+import { nairobiToday } from './policy-versions.js';
+import {
+  type Commission,
+  type CommissionPage,
+  type InternalCommission,
+  type OfficerCategory,
+} from './representation.js';
 import {
   commissionCategories,
   commissions,
@@ -88,7 +100,9 @@ export class CommissionsService {
    */
   async create(principal: Principal, body: CreateCommissionBody): Promise<Commission> {
     try {
-      return await this.db.transaction(async (tx) => {
+      // Platform work (platform admins only): the policy version is tenant data under RLS.
+      const platform = { tenant: PLATFORM_TENANT, subject: principal.subject };
+      return await withTenant(this.db, platform, async (tx) => {
         await this.refuseTaken(tx, body);
         const [created] = await tx
           .insert(commissions)
@@ -112,7 +126,10 @@ export class CommissionsService {
           tenant: body.slug,
           version: 1,
           policy: PLATFORM_DEFAULT_POLICY,
+          // The Commission's creation date: `now()` is the transaction's, as `created_at`'s.
+          obligationsStartDate: nairobiToday,
           createdBy: principal.subject,
+          createdByName: principal.name,
         });
         await this.events.record(
           tx,
@@ -183,6 +200,31 @@ export class CommissionsService {
   async read(tx: Transaction, slug: string): Promise<Commission> {
     const [found] = await this.select(tx).where(eq(commissions.slug, slug)).limit(1);
     return toCommission(notFoundIfInvisible(found));
+  }
+
+  /** Every Commission's reference, by slug: public facts, for services' read models. */
+  async internalRefs(): Promise<InternalCommission[]> {
+    const rows = await this.db
+      .select({ slug: commissions.slug, name: commissions.name })
+      .from(commissions)
+      .orderBy(asc(commissions.slug));
+    return rows.map(({ slug, name }) => ({ slug, issuerCode: slug.toUpperCase(), name }));
+  }
+
+  /** Slug, issuer code and name, for a service acting for `tenant`; another Commission's is 404. */
+  async internalRef(
+    principal: Principal,
+    tenant: string,
+    slug: string,
+  ): Promise<InternalCommission> {
+    actingTenantContext(principal, tenant, slug);
+    const [found] = await this.db
+      .select({ slug: commissions.slug, name: commissions.name })
+      .from(commissions)
+      .where(eq(commissions.slug, slug))
+      .limit(1);
+    const { name } = notFoundIfInvisible(found);
+    return { slug, issuerCode: slug.toUpperCase(), name };
   }
 
   async listOfficerCategories(): Promise<OfficerCategory[]> {

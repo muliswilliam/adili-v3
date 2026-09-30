@@ -128,6 +128,106 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/commissions/{slug}/policy": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Current policy version and history for a Commission
+         * @description Staff of the Commission; platform-admin, eacc-analyst and eacc-supervisor for every Commission. The console's policy card reads it.
+         */
+        get: operations["getTenantPolicy"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/commissions/{slug}/policy/versions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Create a new policy version (only obligationsStartDate is editable in this slice)
+         * @description The commission-admin of the tenant, or a platform-admin. Other fields are copied from the current version; the new one is in force from now and `directory.policy.changed.v1` announces it. Idempotent per Idempotency-Key.
+         */
+        post: operations["createTenantPolicyVersion"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/internal/v1/commissions/{slug}/policy": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Current policy version for a Commission (services)
+         * @description Service tokens with scope directory:internal, acting for the Commission in X-Acting-Tenant. Pull it again on `directory.policy.changed.v1`.
+         */
+        get: operations["internalGetTenantPolicy"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/internal/v1/commissions/{slug}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Slug, issuer code and name of a Commission (services)
+         * @description Service tokens with scope directory:internal, acting for the Commission in X-Acting-Tenant. E.g. declarations names the Commission of each obligation.
+         */
+        get: operations["internalGetCommission"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/internal/v1/commissions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Slug, issuer code and name of every Commission (services)
+         * @description Service tokens with scope directory:internal; no X-Acting-Tenant (platform reference data, no personal data). E.g. declarations lists Commissions without a roster yet in the national obligations summary.
+         */
+        get: operations["internalListCommissions"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/roster/template": {
         parameters: {
             query?: never;
@@ -352,6 +452,46 @@ export interface paths {
          * @description The Commission's reporting officer and commission admin; platform admins for every Commission, audited. EACC may not read records (403). The national ID in full.
          */
         get: operations["getRosterRecord"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/internal/v1/commissions/{slug}/roster/records": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Roster records touched by an import or an exit batch (services)
+         * @description Service tokens with scope directory:internal, acting for the Commission in X-Acting-Tenant; audited. Exactly one of importId and exitBatchId. Each record as it is now, up to 1,000 per page.
+         */
+        get: operations["internalListRosterRecords"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/internal/v1/commissions/{slug}/roster/records/{recordId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * One roster record (services)
+         * @description Service tokens with scope directory:internal, acting for the Commission in X-Acting-Tenant; audited. E.g. after `declarant.onboarded.v1`.
+         */
+        get: operations["internalGetRosterRecord"];
         put?: never;
         post?: never;
         delete?: never;
@@ -640,6 +780,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/internal/v1/persons/{personId}/contacts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Verified contacts of a person (notifications)
+         * @description Service tokens with scope directory:person-contacts (the notifications service only), acting for the tenant a message is sent for; audited. The email and phone verified at the latest onboarding, null where none. 404 when the person is unknown or not onboarded at that tenant.
+         */
+        get: operations["internalGetPersonContacts"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/onboarding/applicants": {
         parameters: {
             query?: never;
@@ -713,124 +873,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/commissions/{slug}/policy": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                slug: components["parameters"]["Slug"];
-            };
-            cookie?: never;
-        };
-        /** Current policy version and history for a Commission */
-        get: operations["getTenantPolicy"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/commissions/{slug}/policy/versions": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                slug: components["parameters"]["Slug"];
-            };
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Create a new policy version (only obligationsStartDate is editable in this slice)
-         * @description commission-admin of the tenant or platform-admin. Other fields are copied from the current version.
-         */
-        post: operations["createTenantPolicyVersion"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/internal/v1/commissions/{slug}/policy": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                slug: components["parameters"]["Slug"];
-            };
-            cookie?: never;
-        };
-        /** Current policy version for a Commission (services) */
-        get: operations["internalGetTenantPolicy"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/internal/v1/commissions/{slug}/roster/records": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                slug: components["parameters"]["Slug"];
-            };
-            cookie?: never;
-        };
-        /** Roster records touched by an import or an exit batch (services) */
-        get: operations["internalListRosterRecords"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/internal/v1/commissions/{slug}/roster/records/{recordId}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                slug: components["parameters"]["Slug"];
-                recordId: string;
-            };
-            cookie?: never;
-        };
-        /** One roster record (services) */
-        get: operations["internalGetRosterRecord"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/internal/v1/persons/{personId}/contacts": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                personId: string;
-            };
-            cookie?: never;
-        };
-        /** Verified contacts of a person (notifications) */
-        get: operations["internalGetPersonContacts"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -850,6 +892,8 @@ export interface components {
             name: string | null;
             /** @description When the token was issued (`iat`), in seconds since the epoch */
             issuedAt: number | null;
+            /** @description Person the declarant account is linked to (`person_id`); null for staff */
+            personId: string | null;
         };
         /**
          * @description Tenant key. Lowercase letter followed by lowercase letters or digits, 2-20 chars. Upper-cased it is the issuer code in reference numbers. `platform` and `new` are reserved.
@@ -953,6 +997,89 @@ export interface components {
             nextCursor: string | null;
             /** @description Commissions matching the filters across all pages */
             total: number;
+        };
+        InternalCommission: {
+            slug: components["schemas"]["Slug"];
+            /**
+             * @description slug upper-cased
+             * @example TSC
+             */
+            issuerCode: string;
+            name: string;
+        };
+        InternalCommissionList: {
+            items: components["schemas"]["InternalCommission"][];
+        };
+        TenantPolicyVersion: {
+            /** Format: uuid */
+            id: string;
+            /** @description 1 when the Commission is provisioned, then one per change */
+            version: number;
+            /**
+             * Format: date-time
+             * @description In force from its creation
+             */
+            effectiveFrom: string;
+            /**
+             * Format: date
+             * @description Obligations of every type (initial, biennial, final) are created only for statement dates on or after this date; earlier ones are assumed declared outside Adili. Version 1's is the date the Commission was created (Africa/Nairobi).
+             */
+            obligationsStartDate: string;
+            /** @description Initial declaration due this many days after appointment (Act s.34(1)) */
+            initialDueAfterAppointmentDays: number;
+            /** @description Biennial declaration statement and due dates (Act s.34(2)) */
+            biennial: {
+                /**
+                 * @description Month-day
+                 * @example 11-01
+                 */
+                statementDate: string;
+                /**
+                 * @description Month-day
+                 * @example 12-31
+                 */
+                dueDate: string;
+            };
+            /** @description Final declaration due this many days after leaving office (Act s.34(3)) */
+            finalDueAfterExitDays: number;
+            /**
+             * @description Reminders go this many days before a due date
+             * @example [
+             *       30,
+             *       14,
+             *       7
+             *     ]
+             */
+            reminderOffsetsDays: number[];
+            /** @description Clarification issue window and the declarant's reply window (Act s.35) */
+            clarification: {
+                issueWindowMonths: number;
+                replyWindowDays: number;
+            };
+            /**
+             * @description Form M compliance report due, month-day (Regs r.25(2))
+             * @example 07-31
+             */
+            formMDue: string;
+            /** @description `sub` of who created the version */
+            createdBy: string;
+            /** @description Their display name at the time; null when unknown */
+            createdByName: string | null;
+            /** Format: date-time */
+            createdAt: string;
+        };
+        TenantPolicyHistory: {
+            /** @description The version in force */
+            current: components["schemas"]["TenantPolicyVersion"];
+            /** @description Earlier versions, newest first */
+            previous: components["schemas"]["TenantPolicyVersion"][];
+        };
+        CreateTenantPolicyVersion: {
+            /**
+             * Format: date
+             * @description Obligations of every type are created only for statement dates on or after this date (appointments, biennial statement dates and exits). Earlier ones are assumed declared outside Adili.
+             */
+            obligationsStartDate: string;
         };
         RosterApiCredential: {
             /**
@@ -1384,6 +1511,36 @@ export interface components {
             /** @description Pass as `cursor` for the next page; null on the last page */
             nextCursor: string | null;
         };
+        InternalRosterRecord: {
+            /** Format: uuid */
+            id: string;
+            tenant: components["schemas"]["Slug"];
+            personnelFileNumber: string;
+            fullName: string;
+            designation: string | null;
+            jobGroup: string | null;
+            reportingEntity: components["schemas"]["ReportingEntityRef"] | null;
+            state: components["schemas"]["RosterRecordState"];
+            /** @description Null when the roster gives none */
+            appointmentDate: string | null;
+            /** @description Set while the record is exited */
+            exitDate: string | null;
+            /** @description The declarant the record is onboarded as; kept when it exits */
+            personId: string | null;
+            /** @description The declarant's officer reference */
+            ofr: components["schemas"]["Ofr"] | null;
+            onboardedAt: string | null;
+            /**
+             * Format: date-time
+             * @description Last change to the record
+             */
+            updatedAt: string;
+        };
+        InternalRosterRecordPage: {
+            items: components["schemas"]["InternalRosterRecord"][];
+            /** @description Pass as `cursor` for the next page; null on the last page */
+            nextCursor: string | null;
+        };
         ConfirmExits: {
             /** @description Records to exit; each at most once, none already exited */
             records: {
@@ -1609,6 +1766,14 @@ export interface components {
              */
             createdAt: string;
         };
+        PersonContacts: {
+            /** Format: uuid */
+            personId: string;
+            /** @description Verified at onboarding; null when none */
+            email: string | null;
+            /** @description E.164, verified at onboarding; null when none */
+            phone: string | null;
+        };
         VerifyOnboardingOtp: {
             /** @description The 6-digit code sent to the channel */
             code: string;
@@ -1662,48 +1827,6 @@ export interface components {
             /** Format: date-time */
             revokedAt: string | null;
         };
-        TenantPolicyVersion: {
-            /** Format: uuid */
-            id: string;
-            version: number;
-            /** Format: date-time */
-            effectiveFrom: string;
-            /**
-             * Format: date
-             * @description Initial-declaration obligations are created only for appointments on or after this date
-             */
-            obligationsStartDate: string;
-            initialDueAfterAppointmentDays: number;
-            biennial: {
-                /** @description Month-day, e.g. 11-01 */
-                statementDate: string;
-                /** @description Month-day, e.g. 12-31 */
-                dueDate: string;
-            };
-            finalDueAfterExitDays: number;
-            reminderOffsetsDays: number[];
-            clarification: {
-                issueWindowMonths: number;
-                replyWindowDays: number;
-            };
-            /** @description Month-day, e.g. 07-31 */
-            formMDue: string;
-            createdBy: string;
-            /** Format: date-time */
-            createdAt: string;
-        };
-        TenantPolicyHistory: {
-            current: components["schemas"]["TenantPolicyVersion"];
-            previous: components["schemas"]["TenantPolicyVersion"][];
-        };
-        InternalRosterRecord: components["schemas"]["RosterRecord"] & {
-            tenant: components["schemas"]["Slug"];
-            /** Format: uuid */
-            personId: string | null;
-            ofr: components["schemas"]["Ofr"] | null;
-            /** Format: date-time */
-            onboardedAt: string | null;
-        };
     };
     responses: {
         /** @description Problem code `rate-limit-exceeded`; RateLimit-* headers present */
@@ -1753,7 +1876,6 @@ export interface components {
         };
     };
     parameters: {
-        Slug: components["schemas"]["Slug"];
         /** @description Client-generated UUID, unique per logical request; reuse on retry */
         IdempotencyKey: string;
         SessionId: string;
@@ -2103,6 +2225,244 @@ export interface operations {
                 };
             };
             /** @description Requires one of the roles: platform-admin, eacc-analyst, eacc-supervisor, reporting-officer, reviewer, supervisor, commission-admin, access-officer, auditor, helpdesk */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    getTenantPolicy: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slug: components["schemas"]["Slug"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Current version and previous versions */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TenantPolicyHistory"];
+                };
+            };
+            /** @description Requires one of the roles: platform-admin, eacc-analyst, eacc-supervisor, reporting-officer, reviewer, supervisor, commission-admin, access-officer, auditor, helpdesk */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not found, or not visible to the caller */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    createTenantPolicyVersion: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Client-generated UUID, unique per logical request; reuse on retry */
+                "Idempotency-Key": string;
+            };
+            path: {
+                slug: components["schemas"]["Slug"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateTenantPolicyVersion"];
+            };
+        };
+        responses: {
+            /** @description New version in force */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TenantPolicyVersion"];
+                };
+            };
+            /** @description Request failed validation */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Requires one of the roles: commission-admin, platform-admin */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not found, or another Commission's */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Idempotency-Key reused with a different request body */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    internalGetTenantPolicy: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Tenant the calling service acts for; the resource must belong to it */
+                "X-Acting-Tenant": string;
+            };
+            path: {
+                slug: components["schemas"]["Slug"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Current version */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TenantPolicyVersion"];
+                };
+            };
+            /** @description X-Acting-Tenant is missing or not a tenant key */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Requires a service token with scope directory:internal */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not found, or not the acting tenant */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    internalGetCommission: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Tenant the calling service acts for; the resource must belong to it */
+                "X-Acting-Tenant": string;
+            };
+            path: {
+                slug: components["schemas"]["Slug"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The Commission */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InternalCommission"];
+                };
+            };
+            /** @description X-Acting-Tenant is missing or not a tenant key */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Requires a service token with scope directory:internal */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not found, or not the acting tenant */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    internalListCommissions: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Every Commission, by slug */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InternalCommissionList"];
+                };
+            };
+            /** @description Requires one of the scopes: directory:internal */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -3094,6 +3454,119 @@ export interface operations {
                 };
             };
             /** @description Not found: another Commission, or the Commission does not exist, or no such record in it */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    internalListRosterRecords: {
+        parameters: {
+            query?: {
+                /** @description The records the import had a row for (`roster.import.completed.v1`), in row order. Import rows are kept 30 days after the import ends. */
+                importId?: string;
+                /** @description The records the exit confirmation exited (`roster.exits.confirmed.v1` `batchId`), in id order */
+                exitBatchId?: string;
+                /** @description `nextCursor` of the previous page; omit for the first page */
+                cursor?: string;
+                limit?: number;
+            };
+            header: {
+                /** @description Tenant the calling service acts for; the resource must belong to it */
+                "X-Acting-Tenant": string;
+            };
+            path: {
+                slug: components["schemas"]["Slug"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Page of records */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InternalRosterRecordPage"];
+                };
+            };
+            /** @description Query failed validation: not exactly one of importId and exitBatchId, or an unknown cursor */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Requires a service token with scope directory:internal */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description No such import or exit batch of the acting tenant's Commission */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    internalGetRosterRecord: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Tenant the calling service acts for; the resource must belong to it */
+                "X-Acting-Tenant": string;
+            };
+            path: {
+                slug: components["schemas"]["Slug"];
+                recordId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The record */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InternalRosterRecord"];
+                };
+            };
+            /** @description recordId is not a UUID */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Requires a service token with scope directory:internal */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description No such record in the acting tenant's Commission */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -4157,6 +4630,58 @@ export interface operations {
             };
         };
     };
+    internalGetPersonContacts: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Tenant the calling service acts for; the resource must belong to it */
+                "X-Acting-Tenant": string;
+            };
+            path: {
+                personId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Contacts, null where none is verified */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PersonContacts"];
+                };
+            };
+            /** @description personId is not a UUID */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Requires a service token with scope directory:person-contacts */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description No person has this id, or not one onboarded at the acting tenant */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
     startApplicantOnboarding: {
         parameters: {
             query?: never;
@@ -4316,172 +4841,6 @@ export interface operations {
                 };
             };
             403: components["responses"]["Forbidden"];
-            404: components["responses"]["NotFound"];
-        };
-    };
-    getTenantPolicy: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                slug: components["parameters"]["Slug"];
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Current version and previous versions */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["TenantPolicyHistory"];
-                };
-            };
-            403: components["responses"]["Forbidden"];
-            404: components["responses"]["NotFound"];
-        };
-    };
-    createTenantPolicyVersion: {
-        parameters: {
-            query?: never;
-            header: {
-                /** @description Client-generated UUID, unique per logical request; reuse on retry */
-                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
-            };
-            path: {
-                slug: components["parameters"]["Slug"];
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": {
-                    /** Format: date */
-                    obligationsStartDate: string;
-                };
-            };
-        };
-        responses: {
-            /** @description New version in force */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["TenantPolicyVersion"];
-                };
-            };
-            400: components["responses"]["ValidationProblem"];
-            403: components["responses"]["Forbidden"];
-            404: components["responses"]["NotFound"];
-        };
-    };
-    internalGetTenantPolicy: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                slug: components["parameters"]["Slug"];
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Current version */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["TenantPolicyVersion"];
-                };
-            };
-            404: components["responses"]["NotFound"];
-        };
-    };
-    internalListRosterRecords: {
-        parameters: {
-            query?: {
-                importId?: string;
-                exitBatchId?: string;
-                state?: components["schemas"]["RosterRecordState"];
-                cursor?: string;
-                limit?: number;
-            };
-            header?: never;
-            path: {
-                slug: components["parameters"]["Slug"];
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Page of full records */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        items: components["schemas"]["InternalRosterRecord"][];
-                        nextCursor: string | null;
-                    };
-                };
-            };
-            404: components["responses"]["NotFound"];
-        };
-    };
-    internalGetRosterRecord: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                slug: components["parameters"]["Slug"];
-                recordId: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description The record */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["InternalRosterRecord"];
-                };
-            };
-            404: components["responses"]["NotFound"];
-        };
-    };
-    internalGetPersonContacts: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                personId: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Contacts, null where none is verified */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        /** Format: uuid */
-                        personId: string;
-                        email: string | null;
-                        phone: string | null;
-                    };
-                };
-            };
             404: components["responses"]["NotFound"];
         };
     };

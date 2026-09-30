@@ -9,7 +9,7 @@ await createService({
   name: SERVICE_NAME,
   description: SERVICE_DESCRIPTION,
   module: AppModule,
-  config,
   openApiSchemas: OPENAPI_SCHEMAS,
+  config,
   microservices: [eventsServerOptions({ service: SERVICE_NAME, rabbitmqUrl: config.RABBITMQ_URL })],
 });

@@ -50,6 +50,7 @@ export function SectionCard({
   id,
   icon,
   title,
+  description,
   headingRef,
   actions,
   className,
@@ -58,6 +59,8 @@ export function SectionCard({
   id: string;
   icon: IconProps['icon'];
   title: ReactNode;
+  /** A line under the title, e.g. the version in force. */
+  description?: ReactNode;
   /** Lets the page move focus to the heading, e.g. after the control that had it is gone. */
   headingRef?: Ref<HTMLHeadingElement>;
   /** Shown at the end of the header, e.g. a status badge. */
@@ -72,14 +75,19 @@ export function SectionCard({
         <CardIcon className="mb-0 size-[30px]">
           <Icon icon={icon} />
         </CardIcon>
-        <CardTitle
-          id={headingId}
-          ref={headingRef}
-          tabIndex={headingRef ? -1 : undefined}
-          className="outline-none"
-        >
-          {title}
-        </CardTitle>
+        <div className="min-w-0">
+          <CardTitle
+            id={headingId}
+            ref={headingRef}
+            tabIndex={headingRef ? -1 : undefined}
+            className="outline-none"
+          >
+            {title}
+          </CardTitle>
+          {description ? (
+            <p className="mt-0.5 text-[13px] text-muted-foreground">{description}</p>
+          ) : null}
+        </div>
         {actions ? <div className="ml-auto flex items-center gap-2">{actions}</div> : null}
       </CardHeader>
       {children}

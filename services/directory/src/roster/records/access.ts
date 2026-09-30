@@ -1,24 +1,21 @@
 import { HttpStatus } from '@nestjs/common';
-import { notFoundIfInvisible, type Principal, ProblemException } from '@adili/api-kit';
-import type { TenantContext } from '@adili/data-access';
-
 import {
-  canSeeCommission,
+  notFoundIfInvisible,
+  type Principal,
+  ProblemException,
   PLATFORM_TENANT,
-  REPORTING_OFFICER_ROLE,
-} from '../../commissions/access.js';
+} from '@adili/api-kit';
+import type { TenantContext } from '@adili/data-access';
+import { COMMISSION_ROSTER_ROLES, PLATFORM_ADMIN } from '@adili/roles';
 
-const PLATFORM_ADMIN_ROLE = 'platform-admin';
-
-/** Roles that read their own Commission's roster records. */
-const OWN_RECORDS_ROLES = [REPORTING_OFFICER_ROLE, 'commission-admin'] as const;
+import { canSeeCommission } from '../../commissions/access.js';
 
 /**
  * Roles that read roster records (spec #27 authorisation matrix): the Commission's reporting
  * officer and commission admin, and platform admins for every Commission (audited). EACC reads
  * summaries and imports only, never the roster's personal data (user story 42).
  */
-export const RECORD_READ_ROLES = [...OWN_RECORDS_ROLES, PLATFORM_ADMIN_ROLE] as const;
+export const RECORD_READ_ROLES = [...COMMISSION_ROSTER_ROLES, PLATFORM_ADMIN] as const;
 
 /**
  * The RLS context in which `principal` reads the roster records of Commission `slug`, or the
@@ -28,11 +25,11 @@ export const RECORD_READ_ROLES = [...OWN_RECORDS_ROLES, PLATFORM_ADMIN_ROLE] as 
  */
 export function recordsReadContext(principal: Principal, slug: string): TenantContext {
   notFoundIfInvisible(slug, () => canSeeCommission(principal, slug));
-  if (principal.roles.includes(PLATFORM_ADMIN_ROLE)) {
+  if (principal.roles.includes(PLATFORM_ADMIN)) {
     return { tenant: PLATFORM_TENANT, subject: principal.subject };
   }
   const ownRecords = principal.roles.some((role) =>
-    (OWN_RECORDS_ROLES as readonly string[]).includes(role),
+    (COMMISSION_ROSTER_ROLES as readonly string[]).includes(role),
   );
   if (ownRecords && principal.tenant === slug) {
     return { tenant: slug, subject: principal.subject };

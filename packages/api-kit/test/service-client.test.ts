@@ -200,9 +200,10 @@ describe('createServiceClient', () => {
 
   it('gives up after the timeout, 2 s unless configured', async () => {
     expect(SERVICE_CALL_TIMEOUT_MS).toBe(2_000);
-    const hanging = ((input: string | URL | Request) =>
+    const hanging = ((_input: string | URL | Request, init?: RequestInit) =>
       new Promise<Response>((_resolve, reject) => {
-        const { signal } = input as Request;
+        const signal = init?.signal;
+        if (!signal) throw new Error('no deadline given to fetch');
         signal.addEventListener('abort', () => {
           reject(signal.reason as Error);
         });

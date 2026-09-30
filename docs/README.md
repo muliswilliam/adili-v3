@@ -25,7 +25,7 @@ Adili Online V3, Track 3: **Declaration of Income, Assets and Liabilities (DIALs
 ```text
 docs/
 ├── architecture/     # system architecture and diagrams
-├── adr/              # architecture decision records (0001-0014)
+├── adr/              # architecture decision records (0001-0017)
 ├── agents/           # config read by engineering agent skills
 ├── requirements/     # legal traceability, user story coverage, flowcharts
 ├── research/         # scope, population, sizing

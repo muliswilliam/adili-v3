@@ -30,8 +30,8 @@ import {
   ZodValidationPipe,
 } from '@adili/api-kit';
 import { z } from 'zod';
+import { REPORTING_OFFICER } from '@adili/roles';
 
-import { REPORTING_OFFICER_ROLE } from '../../commissions/access.js';
 import { ROSTER_OVERVIEW_ROLES } from '../access.js';
 import { HrSystemAccess } from '../api-credential/hr-system-access.js';
 import { RECORD_READ_ROLES } from '../records/access.js';
@@ -100,7 +100,7 @@ export class RosterImportsController {
   }
 
   @Post()
-  @Roles(REPORTING_OFFICER_ROLE)
+  @Roles(REPORTING_OFFICER)
   @HrSystemAccess('roster-write')
   @RequireIdempotencyKey()
   @HttpCode(HttpStatus.ACCEPTED)
@@ -143,7 +143,7 @@ export class RosterImportsController {
   }
 
   @Post('preview')
-  @Roles(REPORTING_OFFICER_ROLE)
+  @Roles(REPORTING_OFFICER)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     operationId: 'previewRosterImport',

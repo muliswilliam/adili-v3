@@ -109,6 +109,13 @@ export {
 } from './components/data-table';
 export { DateInput, type DateInputProps } from './components/date-input';
 export {
+  DateText,
+  type DateTextKind,
+  type DateTextProps,
+  type DateTextState,
+  duePhrase,
+} from './components/date-text';
+export {
   DeadlineChip,
   type DeadlineChipProps,
   deadlineSoonDays,
@@ -133,6 +140,19 @@ export {
   DialogTitle,
   DialogTrigger,
 } from './components/dialog';
+export {
+  Drawer,
+  DrawerBody,
+  DrawerClose,
+  DrawerContent,
+  type DrawerContentProps,
+  DrawerDescription,
+  DrawerFooter,
+  DrawerHeader,
+  DrawerTitle,
+  DrawerTrigger,
+  drawerVariants,
+} from './components/drawer';
 export { EmptyState, type EmptyStateProps } from './components/empty-state';
 export {
   type Feedback,
@@ -259,6 +279,34 @@ export {
 } from './components/source-ref-link';
 export { Spinner } from './components/spinner';
 export {
+  StatTile,
+  type StatTileBreakdownItem,
+  type StatTileProps,
+  type StatTileTone,
+} from './components/stat-tile';
+export {
+  StatusBadge,
+  type StatusBadgeProps,
+  type StatusBadgeVariant,
+} from './components/status-badge';
+export {
+  ObligationStatusBadge,
+  type ObligationStatusBadgeProps,
+} from './components/obligation-status-badge';
+export {
+  hasCountdown,
+  ObligationCountdown,
+  type ObligationCountdownProps,
+  StatementDateTerm,
+  type StatementDateTermProps,
+} from './components/obligation-dates';
+export {
+  ReminderHistory,
+  type ReminderHistoryEntry,
+  type ReminderHistoryError,
+} from './components/reminder-history';
+export { ReminderOutcomeText } from './components/reminder-outcome';
+export {
   StatusMark,
   type StatusMarkProps,
   type StatusMarkTone,
@@ -311,7 +359,7 @@ export {
   useCountdown,
   useCountdownAnnouncement,
 } from './lib/countdown';
-export { focusRing, focusRingInset } from './lib/focus';
+export { focusRing, focusRingInset, focusRingWithin } from './lib/focus';
 export {
   daysInMonth,
   formatDayMonthYear,
@@ -320,12 +368,40 @@ export {
 } from './lib/date-input';
 export { addDays, daysBetween, plural } from './lib/calendar-days';
 export {
+  calendarDaysUntil,
+  formatMonthDay,
   formatCalendarDate,
   formatDate,
   formatDateTime,
+  formatLongDate,
   formatMonth,
   msUntilKenyanMidnight,
 } from './lib/format-date';
+export { useToday } from './lib/use-today';
+export {
+  obligationCycleLabel,
+  obligationMessages,
+  obligationMessagesSw,
+  type ObligationStatus,
+  obligationStatusLabel,
+  obligationStatusMeta,
+  type ObligationType,
+  obligationTypeLabel,
+  obligationTypeNames,
+  obligationTypeShortLabel,
+  type ReminderChannel,
+  reminderChannelsLabel,
+  reminderOffsetLabel,
+  type ReminderOutcome,
+  reminderOutcomeLabel,
+  reminderOutcomeMeta,
+  type ReminderOutcomeMeta,
+  remindersSentLabel,
+  type ObligationStatusMeta,
+  type MatchesObligationCopy,
+} from './lib/obligations';
+export type { Assert, Same } from './lib/type-checks';
+export { useObligationDetail } from './lib/use-obligation-detail';
 export { listNames } from './lib/list-names';
 export { formatNumber } from './lib/format-number';
 export {

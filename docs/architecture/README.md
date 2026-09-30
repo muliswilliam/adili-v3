@@ -207,6 +207,7 @@ flowchart TB
 - `cache`: Valkey client and readiness
 - `telemetry`: OpenTelemetry preload
 - `bff-auth`: OIDC sign-in and server-side sessions for the portal and console BFFs
+- `roles`: realm role names and the role groups a service enforces and an app shows (e.g. a Commission's staff, EACC), defined once
 - `schemas`: external-system contracts (OpenAPI)
 - `ui`: design system shared by the apps and the Keycloak theme
 - Added with the features that need them: `authz` (CASL policies), `audit-client`, `numbering`, `clients` (generated internal API clients)
@@ -778,6 +779,7 @@ adili-v3/
 │   ├── api-kit/  data-access/  events/  temporal/  numbering/  cache/  telemetry/  bff-auth/
 │   ├── schemas/             # JSON Schemas, OpenAPI, AsyncAPI (incl. external/ contracts)
 │   ├── forms/               # validators, generated types and Zod schemas for the form JSON Schemas (FE + BE)
+│   ├── roles/               # realm role groups checked by services and shown by apps (FE + BE)
 │   ├── tsconfig/  eslint-config/
 ├── mocks/                   # Django project (uv): iprs, kra, ntsa, brs, ardhisasa, hr, payroll, icms, sms
 ├── infra/                   # compose (local infra), docker (image builds), Dokploy config, seed data, runbooks
@@ -808,17 +810,19 @@ adili-v3/
 | [003](../adr/0003-temporal-as-workflow-engine.md) | Temporal as workflow engine |
 | [004](../adr/0004-identity-keycloak-self-registration.md) | Keycloak, Keycloakify UI (self-registration superseded by 014) |
 | [005](../adr/0005-message-queue-rabbitmq.md) | RabbitMQ with transactional outbox |
-| [006](../adr/0006-multi-tenancy-and-hierarchy.md) | Multi-tenancy and hierarchy (RLS, ltree, EACC not super-tenant) |
+| [006](../adr/0006-multi-tenancy-and-hierarchy.md) | Multi-tenancy and hierarchy (RLS, ltree, EACC not super-tenant; isolation partly superseded by 018) |
 | [007](../adr/0007-vendor-agnostic-ai-layer.md) | Vendor-agnostic AI layer (Anthropic now, self-hosted later) |
 | [008](../adr/0008-audit-trail.md) | Tamper-evident audit trail |
 | [009](../adr/0009-api-first-interoperability.md) | API-first for Commissions, employers and agencies |
 | [010](../adr/0010-verifiable-documents-qr.md) | Verifiable documents with QR codes |
 | [011](../adr/0011-human-readable-reference-numbers.md) | Human-readable reference numbers + glossary |
 | [012](../adr/0012-single-polyglot-monorepo.md) | One polyglot monorepo (TypeScript + Python) |
-| [013](../adr/0013-service-communication.md) | Service-to-service communication (REST · events · Temporal) |
+| [013](../adr/0013-service-communication.md) | Service-to-service communication (REST · events · Temporal; partly superseded for spec 04 by 017) |
 | [014](../adr/0014-roster-gated-declarant-onboarding.md) | Roster-gated declarant onboarding (EACC-provisioned Commissions, file-number match, email + phone OTP) |
 | [015](../adr/0015-java-for-keycloak-providers.md) | Java (Maven) for Keycloak providers only, e.g. the `adili-otp` authenticator |
 | [016](../adr/0016-azure-vm-demo-stand-in.md) | Azure VM as a credit-funded stand-in for the Dokploy demo host |
+| [017](../adr/0017-obligation-reminder-delivery.md) | Service calls for filing obligations: acting tenant on the directory's pulls, two hops for a reminder, longer timeouts |
+| [018](../adr/0018-person-scoped-row-level-security.md) | Person-scoped row-level security: a declarant reads their own rows across Commissions |
 
 ---
 

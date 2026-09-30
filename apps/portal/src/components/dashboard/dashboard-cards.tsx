@@ -1,23 +1,44 @@
+import type { ReactNode } from 'react';
+
+import type { DeclarationListResult } from '../../server/declarations.server';
 import type { Viewer } from '../../server/viewer';
 import { IdentityCard } from '../identity-card';
 import { DeclarantCard, DeclarantUnavailableCard } from './account-card';
-import { DeclarationsCard } from './declarations-card';
-import { type DashboardWork, ObligationsCard } from './obligations-card';
+import { DeclarationsSection } from './declarations-card';
+import { DraftsProvider } from './drafts';
 
 /**
- * The dashboard's cards: the declarant's declarations (spec 05) above the obligations card, with
- * Start declaration for an onboarded declarant and spec 01's placeholder otherwise, next to the
- * declarant's account once onboarded (spec 03, FE-6), or next to the sign-in identity for someone
- * who is not.
+ * The dashboard's cards: the declarant's declarations (spec 05) above their obligations (spec
+ * 04, FE-2), next to their account once onboarded (spec 03, FE-6), or next to the sign-in
+ * identity for someone who is not. The obligations render nothing for someone who is not a
+ * declarant, so the account card then takes the wide column on its own. Neither waits for the
+ * other: the declarations stream in (`DeclarationsSection`) and reach the obligations' Start
+ * buttons through `DraftsProvider`.
  */
-export function DashboardCards({ viewer, work }: { viewer: Viewer; work?: DashboardWork | null }) {
+export function DashboardCards({
+  viewer,
+  declarations,
+  obligations,
+}: {
+  viewer: Viewer;
+  /** An onboarded declarant's declarations, on their way; null for anyone else. */
+  declarations?: Promise<DeclarationListResult> | null;
+  /** The obligations section (`ObligationsSection`). */
+  obligations: ReactNode;
+}) {
   const { declarant } = viewer;
   return (
-    <div className="grid gap-6 lg:grid-cols-[1.4fr_1fr]">
-      <div className="grid content-start gap-6">
-        {work ? <DeclarationsCard declarations={work.declarations} /> : null}
-        <ObligationsCard work={work} />
-      </div>
+    <div className="grid items-start gap-6 lg:grid-cols-[1.4fr_1fr]">
+      <DraftsProvider declarations={declarations ?? null}>
+        {declarations ? (
+          <div className="grid content-start gap-6">
+            <DeclarationsSection declarations={declarations} />
+            {obligations}
+          </div>
+        ) : (
+          obligations
+        )}
+      </DraftsProvider>
       {declarant.status === 'onboarded' ? (
         <DeclarantCard account={declarant.account} />
       ) : declarant.status === 'not-declarant' ? (

@@ -1,5 +1,6 @@
 import type { NewEvent } from '@adili/events';
 
+import { tenantEvent } from '../tenant-event.js';
 import type { CommissionType } from './representation.js';
 
 /**
@@ -56,3 +57,19 @@ export function reportingOfficerActivated(
 ): NewEvent<ReportingOfficerActivatedData> {
   return { type: REPORTING_OFFICER_ACTIVATED, subject: data.commissionId, tenant: slug, data };
 }
+
+export const POLICY_CHANGED = 'directory.policy.changed.v1';
+
+export interface PolicyChangedData extends Record<string, unknown> {
+  policyVersionId: string;
+  version: number;
+}
+
+/**
+ * A new policy version is in force for the Commission (spec 04): services caching its policy
+ * pull the current version again. The subject is the version.
+ */
+export const policyChanged = tenantEvent<PolicyChangedData>(
+  POLICY_CHANGED,
+  (data) => data.policyVersionId,
+);

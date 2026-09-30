@@ -12,6 +12,8 @@ import pg from 'pg';
 import { AppModule } from '../../src/app.module.js';
 import { config } from '../../src/config.js';
 import { schema } from '../../src/db/schema.js';
+import { DIRECTORY_CONTACTS } from '../../src/contacts/contacts.module.js';
+import type { PersonContactsSource } from '../../src/contacts/person-contacts.js';
 import { EMAIL_SENDER, type MessageSender, SMS_SENDER } from '../../src/messages/message-sender.js';
 
 const MIGRATIONS = new URL('../../migrations', import.meta.url).pathname;
@@ -27,6 +29,8 @@ export interface TestApp {
 export interface TestAppOptions {
   email?: MessageSender;
   sms?: MessageSender;
+  /** Stands in for the directory; the service's contacts cache still sits in front of it. */
+  contacts?: PersonContactsSource;
 }
 
 /**
@@ -64,6 +68,9 @@ export async function createTestApp(options: TestAppOptions = {}): Promise<TestA
     );
   if (options.email) builder = builder.overrideProvider(EMAIL_SENDER).useValue(options.email);
   if (options.sms) builder = builder.overrideProvider(SMS_SENDER).useValue(options.sms);
+  if (options.contacts) {
+    builder = builder.overrideProvider(DIRECTORY_CONTACTS).useValue(options.contacts);
+  }
   const moduleRef = await builder.compile();
 
   const app = moduleRef.createNestApplication<NestFastifyApplication>(new FastifyAdapter());

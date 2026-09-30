@@ -5,6 +5,7 @@ import type { ReactNode } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 
 import type { DeclarantAccount, DeclarantAccountResult } from '../../server/declarant.server';
+import type { DeclarationListResult } from '../../server/declarations.server';
 import type { Viewer } from '../../server/viewer';
 import { DashboardCards } from './dashboard-cards';
 
@@ -30,7 +31,10 @@ const account: DeclarantAccount = {
   maskedPhone: '07** *** 789',
 };
 
-function renderCards(declarant: DeclarantAccountResult) {
+function renderCards(
+  declarant: DeclarantAccountResult,
+  declarations: Promise<DeclarationListResult> | null = null,
+) {
   const viewer: Viewer = {
     user: { name: 'Mwangi Kamau', username: 'OFR-0000312-7', email: 'mwangi.kamau@tsc.go.ke' },
     directory: {
@@ -41,7 +45,11 @@ function renderCards(declarant: DeclarantAccountResult) {
   } as Viewer;
   render(
     <ToastProvider>
-      <DashboardCards viewer={viewer} />
+      <DashboardCards
+        viewer={viewer}
+        declarations={declarations}
+        obligations={<section>Your obligations</section>}
+      />
     </ToastProvider>,
   );
 }
@@ -72,7 +80,7 @@ describe('DashboardCards', () => {
     expect(within(phone).getByText('Verified')).toBeTruthy();
 
     expect(screen.getByText('Onboarded on 26 Sep 2026')).toBeTruthy();
-    expect(screen.getByText('No obligations yet')).toBeTruthy();
+    expect(screen.getByText('Your obligations')).toBeTruthy();
   });
 
   it('copies the OFR and announces it politely', async () => {
@@ -118,21 +126,45 @@ describe('DashboardCards', () => {
     expect(valueOf('Phone').textContent).toBe('Not provided');
   });
 
-  it('keeps the obligations placeholder and sign-in identity for someone not onboarded', () => {
+  it('shows the sign-in identity for someone not onboarded', () => {
     renderCards({ status: 'not-declarant' });
 
-    expect(screen.getByText('Filing obligations')).toBeTruthy();
-    expect(screen.getByText('No obligations yet')).toBeTruthy();
     expect(screen.getByText('Your account')).toBeTruthy();
     expect(screen.queryByText('You are not onboarded as a declarant')).toBeNull();
     expect(screen.queryByText('Officer reference')).toBeNull();
   });
 
-  it('warns when the account details cannot be loaded, keeping the obligations placeholder', () => {
+  it('warns when the account details cannot be loaded, keeping the obligations', () => {
     renderCards({ status: 'unavailable' });
 
     expect(screen.getByText('Account details unavailable').closest('[role="alert"]')).toBeTruthy();
-    expect(screen.getByText('No obligations yet')).toBeTruthy();
+    expect(screen.getByText('Your obligations')).toBeTruthy();
     expect(screen.queryByText('Officer reference')).toBeNull();
+  });
+
+  // The loader does not wait for the declarations: the other cards render while they load.
+  it('shows the declarations card loading next to the obligations, then the declarations', async () => {
+    let arrive: (result: DeclarationListResult) => void = () => undefined;
+    const declarations = new Promise<DeclarationListResult>((done) => {
+      arrive = done;
+    });
+    await act(async () => {
+      renderCards({ status: 'onboarded', account }, declarations);
+      await Promise.resolve();
+    });
+
+    expect(
+      screen.getByRole('status', { name: 'Loading your declarations' }).getAttribute('aria-busy'),
+    ).toBe('true');
+    expect(screen.getByText('Your obligations')).toBeTruthy();
+    expect(screen.getByRole('heading', { name: 'Your account' })).toBeTruthy();
+
+    await act(async () => {
+      arrive({ status: 'ok', declarations: [] });
+      await declarations;
+    });
+
+    expect(screen.queryByLabelText('Loading your declarations')).toBeNull();
+    expect(screen.getByText('No declarations yet')).toBeTruthy();
   });
 });

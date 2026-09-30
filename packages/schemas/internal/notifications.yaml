@@ -15,8 +15,16 @@ paths:
       tags:
         - internal
       summary: Render a template and send it by email or SMS
-      description: 'Synchronous with a 5-second budget. A provider failure is not an error: the message is created with status `failed` and the reason in `error`.'
+      description: 'Synchronous with a 5-second budget. A provider failure is not an error: the message is created with status `failed` and the reason in `error`. With an `Idempotency-Key` (optional; keys are per caller, kept 24 hours) a retry gets the first answer back instead of a second message, unless that answer failed before anything could reach the recipient (`contact-lookup-failed`, `provider-error`): then the key is freed and the retry sends again. A `timeout` is final: the provider may have delivered it, so it is replayed rather than risk a second message.'
       operationId: sendMessage
+      parameters:
+        - name: Idempotency-Key
+          in: header
+          description: Optional. Client-generated UUID, unique per logical request; reuse on retry and the stored answer is replayed instead of acting twice
+          required: false
+          schema:
+            type: string
+            format: uuid
       requestBody:
         required: true
         content:
@@ -37,7 +45,13 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetails'
         '403':
-          description: 'Requires one of the scopes: messages'
+          description: Caller lacks the messages scope
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '422':
+          description: Idempotency-Key reused with a different request body
           content:
             application/problem+json:
               schema:
@@ -72,7 +86,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetails'
         '403':
-          description: 'Requires one of the scopes: messages'
+          description: Caller lacks the messages scope
           content:
             application/problem+json:
               schema:
@@ -104,7 +118,9 @@ components:
         - onboarding-otp-sms
         - login-otp-sms
         - login-otp-email
-      description: Registered templates; each declares its params
+        - obligation-reminder-sms
+        - obligation-reminder-email
+      description: Registered templates; each declares its channel and params
     Recipient:
       oneOf:
         - type: object
@@ -128,7 +144,7 @@ components:
             personId:
               type: string
               format: uuid
-              description: 'Contacts resolved through the directory. Not supported yet: rejected with 400 until the directory serves contacts'
+              description: The person's verified contacts are resolved through the directory at the message's `tenant` (required for a person; cached for 10 minutes) and the one for the channel is used. None for the channel, or a person not onboarded at that tenant, is status failed with error no-contact; a directory that cannot answer is failed with error contact-lookup-failed (worth retrying).
           required:
             - kind
             - personId
@@ -146,7 +162,7 @@ components:
           propertyNames:
             type: string
           additionalProperties: {}
-          description: Validated against the template's parameter schema
+          description: Validated against the template's parameter schema. `obligation-reminder-sms` and `obligation-reminder-email` take exactly `type` (initial, biennial, final), `commissionName` (1 to 120 characters), `statementDate` and `dueDate` (`YYYY-MM-DD`, due on or after statement), `daysLeft` (integer 0 to 366) and `portalUrl` (http or https URL).
         locale:
           default: en
           type: string
@@ -154,10 +170,9 @@ components:
             - en
             - sw
         tenant:
-          description: Tenant key for audit and per-tenant branding; optional for platform messages
+          description: Tenant key for audit and per-tenant branding. Required for a person recipient (whose contacts are read at that tenant); optional for platform messages to an address
           type: string
-          minLength: 1
-          maxLength: 64
+          pattern: ^[a-z][a-z0-9]{1,19}$
       required:
         - channel
         - recipient
@@ -177,11 +192,12 @@ components:
         channel:
           $ref: '#/components/schemas/Channel'
         template:
-          $ref: '#/components/schemas/TemplateId'
+          type: string
+          description: The `TemplateId` it was rendered from, as recorded when sent
         status:
           $ref: '#/components/schemas/MessageStatus'
         error:
-          description: 'Reason when failed: timeout, rejected-recipient or provider-error'
+          description: 'Reason when failed: timeout, rejected-recipient, provider-error, no-contact or contact-lookup-failed'
           type:
             - string
             - 'null'
@@ -251,8 +267,6 @@ components:
       type: string
       description: Templates later specs register. Not accepted yet; each moves into `TemplateId` when implemented.
       enum:
-        - obligation-reminder-sms
-        - obligation-reminder-email
         - acknowledgement-email
         - acknowledgement-sms
         - clarification-issued-email

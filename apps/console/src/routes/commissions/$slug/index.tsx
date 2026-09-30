@@ -1,16 +1,30 @@
-import { Badge, Button, Dialog, DialogTrigger, EmptyState, Icon, useToast } from '@adili/ui';
 import {
+  Badge,
+  Button,
+  Dialog,
+  DialogTrigger,
+  EmptyState,
+  formatDate,
+  formatDateTime,
+  Icon,
+  useToast,
+} from '@adili/ui';
+import {
+  AlertCircleIcon,
   ArrowDataTransferHorizontalIcon,
+  ArrowRight02Icon,
   Building03Icon,
   Clock01Icon,
   Loading03Icon,
   SentIcon,
+  Settings01Icon,
   UserAdd01Icon,
   UserSquareIcon,
 } from '@hugeicons/core-free-icons';
 import {
   createFileRoute,
   getRouteApi,
+  Link,
   useLocation,
   useNavigate,
   useRouter,
@@ -29,7 +43,9 @@ import { formatPhone } from '../../../components/commissions/phone';
 import { resendOutcome } from '../../../components/commissions/resend';
 import { RosterCard } from '../../../components/commissions/roster-card';
 import { CursorPager } from '../../../components/cursor-pager';
-import { formatDate, formatDateTime, formatRelativeDate } from '../../../components/format';
+import { CommissionObligationsCard } from '../../../components/obligations/commission-obligations-card';
+import { messages as obligationMessages } from '../../../components/obligations/messages';
+import { formatRelativeDate } from '../../../components/format';
 import { DetailItem, DetailList, Page, PageHead, SectionCard } from '../../../components/page';
 import {
   nextPage,
@@ -39,10 +55,24 @@ import {
   pagingView,
   previousPage,
 } from '../../../components/paging';
+import { messages as policyMessages } from '../../../components/policy/messages';
+import { PolicyCard } from '../../../components/policy/policy-card';
 import { messages as rosterMessages } from '../../../components/roster/messages';
 import { goToSignIn, signInRedirect } from '../../../components/sign-in-redirect';
+import { readsCommissionPolicy } from '../../../components/workspaces';
 import { resendInvitation } from '../../../server/commissions';
-import type { Commission, RosterImportPage } from '../../../server/directory/client';
+import type {
+  CommissionObligationsSummary,
+  DeclarationsResult,
+} from '../../../server/declarations/client';
+import type {
+  Commission,
+  DirectoryResult,
+  RosterImportPage,
+  TenantPolicyHistory,
+} from '../../../server/directory/client';
+import { getCommissionObligationsSummary } from '../../../server/obligations';
+import { createTenantPolicyVersion, getTenantPolicy } from '../../../server/policy';
 import { listRosterImports } from '../../../server/roster-imports';
 
 declare module '@tanstack/react-router' {
@@ -56,19 +86,36 @@ declare module '@tanstack/react-router' {
 const detailSearch = z.object({ imports: z.string().max(500).optional().catch(undefined) });
 type DetailSearch = z.infer<typeof detailSearch>;
 
+/** What the detail page loads besides the Commission (the layout's). */
+interface DetailData {
+  imports: DirectoryResult<RosterImportPage>;
+  obligations: DeclarationsResult<CommissionObligationsSummary>;
+  /** Null for EACC staff, who do not see the policy. */
+  policy: DirectoryResult<TenantPolicyHistory> | null;
+}
+
 export const Route = createFileRoute('/commissions/$slug/')({
   validateSearch: detailSearch,
   loaderDeps: ({ search }) => search,
-  loader: async ({ params, deps, location, context }) => {
+  loader: async ({ params, deps, location, context }): Promise<DetailData | null> => {
     // The layout shows no Commission without the workspace; do not fetch its imports.
     if (!context.workspace) return null;
-    const imports = await listRosterImports({
-      data: { slug: params.slug, cursor: deps.imports },
-    });
-    if (!imports.ok && imports.error.kind === 'unauthenticated') {
+    const [imports, obligations, policy] = await Promise.all([
+      listRosterImports({ data: { slug: params.slug, cursor: deps.imports } }),
+      getCommissionObligationsSummary({ data: { slug: params.slug } }),
+      // The policy card is the platform admin's; EACC sees counts only.
+      readsCommissionPolicy(context.roles)
+        ? getTenantPolicy({ data: { slug: params.slug } })
+        : null,
+    ]);
+    if (
+      [imports, obligations, policy].some(
+        (result) => result && !result.ok && result.error.kind === 'unauthenticated',
+      )
+    ) {
       throw signInRedirect(location.href);
     }
-    return imports;
+    return { imports, obligations, policy };
   },
   component: CommissionDetail,
 });
@@ -84,7 +131,9 @@ function CommissionDetail() {
 
 function Detail({ commission }: { commission: Commission }) {
   const { workspace } = Route.useRouteContext();
-  const imports = Route.useLoaderData();
+  const data = Route.useLoaderData();
+  const imports = data?.imports ?? null;
+  const canWrite = workspace?.readOnly === false;
   return (
     <Page>
       <PageHead title={commission.name}>
@@ -95,17 +144,75 @@ function Detail({ commission }: { commission: Commission }) {
         </div>
       </PageHead>
       <div className="grid items-start gap-4 min-[980px]:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)]">
-        <DetailsCard commission={commission} />
-        <OfficerCard commission={commission} />
+        <div className="grid min-w-0 gap-4">
+          <DetailsCard commission={commission} />
+          {data?.policy ? (
+            <CommissionPolicy slug={commission.slug} policy={data.policy} canChange={canWrite} />
+          ) : null}
+        </div>
+        <div className="grid min-w-0 gap-4">
+          <OfficerCard commission={commission} />
+          {data ? (
+            <CommissionObligationsCard
+              summary={data.obligations}
+              link={
+                canWrite ? (
+                  <Button asChild variant="secondary" size="sm">
+                    <Link to="/commissions/$slug/obligations" params={{ slug: commission.slug }}>
+                      {obligationMessages.openObligations}
+                      <Icon icon={ArrowRight02Icon} />
+                    </Link>
+                  </Button>
+                ) : undefined
+              }
+            />
+          ) : null}
+        </div>
         <RosterCard
           commission={commission}
           imports={imports}
           pager={imports?.ok ? <ImportsPager page={imports.data} /> : null}
-          canOpenRecords={workspace?.readOnly === false}
+          canOpenRecords={canWrite}
           className="min-[980px]:col-span-2"
         />
       </div>
     </Page>
+  );
+}
+
+/** The platform admin's policy card, or why it is missing. */
+function CommissionPolicy({
+  slug,
+  policy,
+  canChange,
+}: {
+  slug: string;
+  policy: DirectoryResult<TenantPolicyHistory>;
+  canChange: boolean;
+}) {
+  if (!policy.ok) {
+    return (
+      <SectionCard id="policy" icon={Settings01Icon} title={policyMessages.cardTitle}>
+        <p className="flex items-start gap-2 px-5 py-4 text-sm text-muted-foreground">
+          <Icon icon={AlertCircleIcon} className="mt-0.5 size-4 shrink-0" />
+          <span>{policyMessages.cardError}</span>
+        </p>
+      </SectionCard>
+    );
+  }
+  return (
+    <PolicyCard
+      history={policy.data}
+      save={
+        canChange
+          ? ({ idempotencyKey, obligationsStartDate }) =>
+              createTenantPolicyVersion({ data: { slug, idempotencyKey, obligationsStartDate } })
+          : undefined
+      }
+      onUnauthenticated={() => {
+        goToSignIn(`/commissions/${slug}`);
+      }}
+    />
   );
 }
 

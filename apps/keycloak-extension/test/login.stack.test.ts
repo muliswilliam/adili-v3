@@ -2,6 +2,7 @@ import { createHash, randomBytes, randomUUID } from 'node:crypto';
 
 import { describe, expect, it } from 'vitest';
 
+import { keycloakAdmin } from './support/admin.js';
 import { Browser, type KcContext, type Page } from './support/browser.js';
 import { latestEmail, latestSmsCode, waitForNew } from './support/inboxes.js';
 
@@ -13,6 +14,7 @@ const KEYCLOAK = requireEnv('TEST_KEYCLOAK_URL');
 const MAILPIT = requireEnv('TEST_MAILPIT_URL');
 const MOCKS = requireEnv('TEST_MOCKS_URL');
 const REALM = `${KEYCLOAK}/realms/adili`;
+const { adminToken, adminFetch } = keycloakAdmin(KEYCLOAK);
 const PORTAL = 'http://localhost:3010';
 const REDIRECT_URI = `${PORTAL}/auth/callback`;
 
@@ -305,31 +307,6 @@ describe('S23: a new declarant sets their password from the emailed link', () =>
     await adminFetch(admin, `/users/${userId}`, { method: 'DELETE' });
   });
 });
-
-async function adminToken(): Promise<string> {
-  const response = await fetch(`${KEYCLOAK}/realms/master/protocol/openid-connect/token`, {
-    method: 'POST',
-    headers: { 'content-type': 'application/x-www-form-urlencoded' },
-    body: new URLSearchParams({
-      grant_type: 'password',
-      client_id: 'admin-cli',
-      username: 'admin',
-      password: 'admin_dev',
-    }),
-  });
-  if (!response.ok) throw new Error(`admin token: ${response.status}`);
-  return ((await response.json()) as { access_token: string }).access_token;
-}
-
-async function adminFetch(token: string, path: string, init: RequestInit = {}): Promise<Response> {
-  const response = await fetch(`${KEYCLOAK}/admin/realms/adili${path}`, {
-    ...init,
-    headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' },
-  });
-  if (!response.ok)
-    throw new Error(`${init.method ?? 'GET'} ${path}: ${response.status} ${await response.text()}`);
-  return response;
-}
 
 async function createDeclarant(
   token: string,

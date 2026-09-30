@@ -1,10 +1,9 @@
 import { Injectable } from '@nestjs/common';
-import { ProblemException } from '@adili/api-kit';
+import { ProblemException, PLATFORM_TENANT } from '@adili/api-kit';
 import { type Database, InjectDatabase, withTenant } from '@adili/data-access';
 import { and, eq, sql } from 'drizzle-orm';
 
 import { Clock } from '../../clock.js';
-import { PLATFORM_TENANT } from '../../commissions/access.js';
 import { config } from '../../config.js';
 import type { DirectorySchema } from '../../db/schema.js';
 import { fileNumberKey, normaliseNationalId } from '../../roster/normalise.js';

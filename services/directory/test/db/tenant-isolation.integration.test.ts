@@ -9,12 +9,6 @@ import { type DirectoryApi, startDirectoryApi } from '../support/directory-api.j
  * A table is tenant-scoped when it has a `tenant` column.
  */
 
-/**
- * Tenant-keyed tables of the Commission registry, which platform admins write outside any tenant
- * context (Commission creation) and which carry platform-default configuration, not tenant data.
- */
-const REGISTRY_TABLES = new Set(['tenant_policy_versions']);
-
 interface TableSecurity extends Record<string, unknown> {
   table: string;
   enabled: boolean;
@@ -58,9 +52,11 @@ describe('directory schema', () => {
       group by c.relname, c.relrowsecurity, c.relforcerowsecurity
       order by c.relname
     `);
-    const tables = result.rows.filter((row) => !REGISTRY_TABLES.has(row.table));
+    const tables = result.rows;
 
-    expect(tables.map((row) => row.table)).toContain('roster_import_batches');
+    expect(tables.map((row) => row.table)).toEqual(
+      expect.arrayContaining(['roster_import_batches', 'tenant_policy_versions']) as string[],
+    );
     const unprotected = tables.filter(
       (row) => !row.enabled || !row.forced || row.policies.length === 0,
     );

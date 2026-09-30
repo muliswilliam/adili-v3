@@ -9,6 +9,7 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import {
+  AcceptIdempotencyKey,
   ApiProblemResponse,
   CurrentPrincipal,
   type Principal,
@@ -16,25 +17,28 @@ import {
   Scopes,
   ZodValidationPipe,
 } from '@adili/api-kit';
+import { MESSAGES_SCOPE } from '@adili/roles';
 import { z } from 'zod';
 
-import { type MessageView, MessagesService } from './messages.service.js';
+import { isSettled, MessagesService } from './messages.service.js';
+import type { MessageView } from './representation.js';
 import { type SendMessage, sendMessageSchema } from './send-message.schema.js';
 
 /** Internal: not routed by the public entrypoint. Callers are services with the messages scope. */
 @ApiTags('internal')
 @ApiBearerAuth()
-@Scopes('messages')
+@Scopes(MESSAGES_SCOPE)
 @Controller('internal/v1/messages')
 export class MessagesController {
   constructor(private readonly messages: MessagesService) {}
 
   @Post()
+  @AcceptIdempotencyKey({ settled: isSettled })
   @ApiOperation({
     operationId: 'sendMessage',
     summary: 'Render a template and send it by email or SMS',
     description:
-      'Synchronous with a 5-second budget. A provider failure is not an error: the message is created with status `failed` and the reason in `error`.',
+      'Synchronous with a 5-second budget. A provider failure is not an error: the message is created with status `failed` and the reason in `error`. With an `Idempotency-Key` (optional; keys are per caller, kept 24 hours) a retry gets the first answer back instead of a second message, unless that answer failed before anything could reach the recipient (`contact-lookup-failed`, `provider-error`): then the key is freed and the retry sends again. A `timeout` is final: the provider may have delivered it, so it is replayed rather than risk a second message.',
   })
   @ApiBody({ required: true, schema: schemaRef('SendMessage') })
   @ApiCreatedResponse({
@@ -42,6 +46,7 @@ export class MessagesController {
     schema: schemaRef('Message'),
   })
   @ApiProblemResponse(400, 'Unknown template, or a recipient or params the template rejects')
+  @ApiProblemResponse(403, 'Caller lacks the messages scope')
   send(
     @Body(new ZodValidationPipe(sendMessageSchema)) body: SendMessage,
     @CurrentPrincipal() caller: Principal,
@@ -58,6 +63,7 @@ export class MessagesController {
   @ApiParam({ name: 'id', schema: { type: 'string', format: 'uuid' } })
   @ApiOkResponse({ description: 'The message', schema: schemaRef('Message') })
   @ApiProblemResponse(400, 'The id is not a UUID')
+  @ApiProblemResponse(403, 'Caller lacks the messages scope')
   @ApiProblemResponse(404, 'No message with this id, or another caller sent it')
   async get(
     @Param('id', new ZodValidationPipe(z.uuid())) id: string,

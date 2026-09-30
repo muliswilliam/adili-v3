@@ -3,6 +3,7 @@ import {
   Button,
   Card,
   CardIcon,
+  formatDateTime,
   cn,
   focusRing,
   focusRingInset,
@@ -34,7 +35,7 @@ import { createFileRoute, Link, useRouter } from '@tanstack/react-router';
 import type { ReactNode } from 'react';
 
 import { ReadOnlyBadge } from '../../components/commissions/badges';
-import { formatDateTime, formatNumber, formatRelativeTime } from '../../components/format';
+import { formatNumber, formatRelativeTime } from '../../components/format';
 import { LoadError } from '../../components/load-error';
 import { Page, PageHead } from '../../components/page';
 import { type CredentialState, credentialState } from '../../components/roster/api-credential';
@@ -57,6 +58,7 @@ import type {
 } from '../../server/directory/client';
 import { getRosterApiCredential } from '../../server/roster-api-credential';
 import { findRunningRosterImport, getRosterImport } from '../../server/roster-imports';
+import { SERVICE_UNAVAILABLE } from '../../server/service-call';
 
 interface OverviewData {
   commission: DirectoryResult<Commission>;
@@ -75,7 +77,7 @@ export const Route = createFileRoute('/roster/')({
     // Roster screens are about the viewer's own Commission, the tenant of their session.
     const slug = context.tenant;
     if (!slug) {
-      return { commission: noCommission, lastImport: null, credential: null, running: null };
+      return { commission: SERVICE_UNAVAILABLE, lastImport: null, credential: null, running: null };
     }
     const [layout, credential, running] = await Promise.all([
       // The layout loads the Commission (and signs in again when the session ended).
@@ -84,7 +86,7 @@ export const Route = createFileRoute('/roster/')({
       context.workspace.readOnly ? null : getRosterApiCredential({ data: { slug } }),
       findRunningRosterImport({ data: { slug } }),
     ]);
-    const commission = layout.loaderData?.commission ?? noCommission;
+    const commission = layout.loaderData?.commission ?? SERVICE_UNAVAILABLE;
     const lastImportId = commission.ok ? commission.data.roster.lastImportId : null;
     const lastImport = lastImportId
       ? await getRosterImport({ data: { slug, importId: lastImportId } })
@@ -100,12 +102,6 @@ export const Route = createFileRoute('/roster/')({
   pendingComponent: OverviewSkeleton,
   component: RosterOverview,
 });
-
-/** A roster-workspace role without a tenant: a broken account, shown as a failed load. */
-const noCommission: DirectoryResult<Commission> = {
-  ok: false,
-  error: { kind: 'unavailable', detail: null },
-};
 
 function RosterOverview() {
   const data = Route.useLoaderData();
@@ -498,7 +494,11 @@ function OverviewSkeleton() {
         <Skeleton className="mt-2 h-4 w-[180px]" />
       </PageHead>
       <Card className="p-0 sm:p-0">
-        <div className="flex flex-col items-center gap-3 px-5 pt-12 pb-10" aria-label={m.loading}>
+        <div
+          role="status"
+          className="flex flex-col items-center gap-3 px-5 pt-12 pb-10"
+          aria-label={m.loading}
+        >
           <Skeleton className="size-11 rounded-xl" />
           <Skeleton className="h-5 w-[140px]" />
           <Skeleton className="h-4 w-full max-w-[420px]" />

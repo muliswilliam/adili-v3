@@ -14,6 +14,10 @@
     "./schema": {
       "types": "./dist/idempotency/schema.d.ts",
       "default": "./dist/idempotency/schema.js"
+    },
+    "./client": {
+      "types": "./dist/client/index.d.ts",
+      "default": "./dist/client/index.js"
     }
   },
   "scripts": {

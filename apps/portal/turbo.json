@@ -1,0 +1,20 @@
+{
+  "$schema": "https://turborepo.com/schema.json",
+  "extends": ["//"],
+  "tasks": {
+    "build": {
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "$TURBO_ROOT$/packages/schemas/internal/directory.yaml",
+        "$TURBO_ROOT$/packages/schemas/internal/declarations.yaml"
+      ]
+    },
+    "typecheck": {
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "$TURBO_ROOT$/packages/schemas/internal/directory.yaml",
+        "$TURBO_ROOT$/packages/schemas/internal/declarations.yaml"
+      ]
+    }
+  }
+}

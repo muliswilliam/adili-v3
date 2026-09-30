@@ -1,9 +1,9 @@
+import { PLATFORM_TENANT } from '@adili/api-kit';
 import { Injectable } from '@nestjs/common';
 import { type Database, InjectDatabase, withTenant } from '@adili/data-access';
 import { and, asc, lte, notInArray } from 'drizzle-orm';
 
 import { Clock } from '../../clock.js';
-import { PLATFORM_TENANT } from '../../commissions/access.js';
 import type { DirectorySchema } from '../../db/schema.js';
 import { onboardingSessions } from '../schema.js';
 import { TERMINAL_STATES } from '../session-state.js';
