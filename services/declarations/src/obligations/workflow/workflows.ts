@@ -107,14 +107,7 @@ export async function filingObligation({
   const terminal = endOf(loaded.status);
   if (terminal) return terminal;
   const ref = { obligationId, tenant: loaded.tenant };
-  const schedule: ObligationSchedule = {
-    obligationId,
-    type: loaded.type,
-    statementDate: loaded.statementDate,
-    dueDate: loaded.dueDate,
-    reminderOffsetsDays: loaded.reminderOffsetsDays,
-    jitterWindowMs: loaded.jitterWindowMs,
-  };
+  const schedule: ObligationSchedule = loaded;
   Object.assign(state, {
     status: loaded.status,
     statementDate: schedule.statementDate,

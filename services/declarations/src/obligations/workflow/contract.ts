@@ -6,8 +6,9 @@
 import { defineQuery, defineSignal } from '@temporalio/workflow';
 
 import type { CivilDate } from '../dates.js';
-import type { CancelReason, ObligationStatus, ObligationType } from '../engine.js';
+import type { CancelReason, ObligationStatus } from '../engine.js';
 import type { ReminderOutcome } from '../schema.js';
+import type { ObligationSchedule } from './timeline.js';
 
 /** Workflow type names, for starting by name (the worker bundles the code, not the caller). */
 export const FILING_OBLIGATION_WORKFLOW = 'filingObligation';
@@ -21,22 +22,17 @@ export interface FilingObligationInput {
   obligationId: string;
 }
 
-/** The obligation as its workflow needs it, read by `loadObligation`. */
-export interface LoadedObligation {
-  obligationId: string;
+/**
+ * The obligation as its workflow needs it, read by `loadObligation`: its schedule (what its
+ * timers are computed from) and where it stands.
+ */
+export interface LoadedObligation extends ObligationSchedule {
   tenant: string;
-  type: ObligationType;
-  statementDate: CivilDate;
-  dueDate: CivilDate;
   status: ObligationStatus;
   /** Whether the declarant has onboarded (a person is linked). */
   personLinked: boolean;
-  /** The reminder offsets of the obligation's policy version, days before the due date. */
-  reminderOffsetsDays: number[];
   /** Offsets that already have a reminder row (sent, skipped or failed). */
   recordedOffsets: number[];
-  /** Platform configuration: reminders are spread this much either way. */
-  jitterWindowMs: number;
 }
 
 /**

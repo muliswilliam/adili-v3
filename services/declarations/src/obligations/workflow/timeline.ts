@@ -12,15 +12,21 @@ const HOUR_MS = 60 * 60 * 1000;
 /** Reminders are centred on midday so the default ±6 hour jitter keeps them between 06:00 and 18:00. */
 const REMINDER_HOUR = 12;
 
-/** What the workflow's timers are computed from, as `loadObligation` reads it. */
+/**
+ * What the workflow's timers are computed from, as `loadObligation` reads it (part of
+ * `LoadedObligation`).
+ */
 export interface ObligationSchedule {
   obligationId: string;
   type: ObligationType;
   statementDate: CivilDate;
   dueDate: CivilDate;
-  /** Days before the due date, from the Commission's policy. */
+  /**
+   * Days before the due date: the reminder offsets of the policy version the obligation was
+   * created under.
+   */
   reminderOffsetsDays: readonly number[];
-  /** Reminders are shifted by up to this much either way. */
+  /** Platform configuration: reminders are shifted by up to this much either way. */
   jitterWindowMs: number;
 }
 
