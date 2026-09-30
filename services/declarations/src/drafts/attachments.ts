@@ -3,12 +3,14 @@ import type { SectionContents } from './sections.js';
 
 /**
  * Attachment references inside a statement's items (spec 05): `declaration.v1`'s `Attachment`
- * (upload id, file name, SHA-256) in an item's `attachments`. The references are the service's:
+ * (the link's id, upload id, file name, SHA-256) in an item's `attachments`. The references are the service's:
  * written by link and unlink only, never taken from a section save. Pure; the contents are the
  * decrypted section.
  */
 
 export interface AttachmentRef {
+  /** The link's row id (`declaration_attachments.id`): what unlinking takes. */
+  attachmentId: string;
   uploadId: string;
   fileName: string;
   sha256: string;
@@ -80,6 +82,19 @@ export function keepAttachments(body: SectionContents, stored: SectionContents):
     if (!('attachments' in item)) return item;
     return { ...item, attachments: [] };
   });
+}
+
+/** Every attachment reference of the statement, with the item it is on. */
+export function attachmentRefs(
+  contents: SectionContents,
+): { itemId: string; ref: AttachmentRef }[] {
+  return ITEM_LISTS.flatMap((list) =>
+    itemsOf(contents, list).flatMap((item) =>
+      typeof item.id === 'string'
+        ? refsOf(item).map((ref) => ({ itemId: item.id as string, ref }))
+        : [],
+    ),
+  );
 }
 
 type Item = Record<string, unknown>;

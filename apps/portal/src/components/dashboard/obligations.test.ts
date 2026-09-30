@@ -96,6 +96,14 @@ describe('startAvailability (S20)', () => {
     statementDate: '2027-11-01',
     status: 'draft',
     completenessPercent: 10,
+    dueDate: '2027-12-31',
+    reference: null,
+    currentVersion: null,
+    amendingFromVersion: null,
+    submittedAt: null,
+    late: null,
+    amendable: false,
+    acknowledgement: null,
     updatedAt: '2026-12-20T08:00:00Z',
   });
 

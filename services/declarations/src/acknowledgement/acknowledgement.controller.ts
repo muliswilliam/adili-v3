@@ -18,16 +18,13 @@ import {
   type Principal,
   type ReadAudit,
   schemaRef,
-  ZodValidationPipe,
 } from '@adili/api-kit';
 import { DECLARATIONS_INTERNAL_SCOPE } from '@adili/roles';
-import { z } from 'zod';
 
 import type { Acknowledgement } from '../submission/representation.js';
+import { versionNumber } from '../submission/versions.js';
 import { AcknowledgementService } from './acknowledgement.service.js';
 import type { AcknowledgementPayload } from './representation.js';
-
-const versionNumber = new ZodValidationPipe(z.coerce.number().int().min(1));
 
 const ApiVersionParams = () =>
   applyDecorators(

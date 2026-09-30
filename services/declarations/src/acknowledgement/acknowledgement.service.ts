@@ -17,17 +17,14 @@ import {
   type DocumentIssuedData,
   type VerificationCheckedData,
 } from '@adili/events/contracts';
-import type { DeclarationV1 } from '@adili/forms';
 import { and, eq, sql } from 'drizzle-orm';
 import { v5 as uuidv5 } from 'uuid';
 
 import { Clock } from '../clock.js';
 import { config } from '../config.js';
 import type { DeclarationsSchema } from '../db/schema.js';
-import type { Transaction } from '../db/transaction.js';
 import { personOf } from '../drafts/access.js';
 import { declarations } from '../drafts/schema.js';
-import { isUuid } from '../guards.js';
 import {
   NotificationsClient,
   NotificationsKeyReused,
@@ -39,7 +36,7 @@ import { PLATFORM_CONTEXT, systemContext } from '../obligations/system-context.j
 import { deriveItems } from '../submission/items.js';
 import type { Acknowledgement } from '../submission/representation.js';
 import { declarationVersions } from '../submission/schema.js';
-import { versionRecordId } from '../submission/submission.service.js';
+import { openSnapshot, versionRow } from '../submission/versions.js';
 import type { AcknowledgementPayload } from './representation.js';
 import { acknowledgementOf, reissueDecision } from './status.js';
 
@@ -177,7 +174,7 @@ export class AcknowledgementService {
       // The read model has every Commission (CommissionRefs); a gap is transient: retry.
       throw new Error(`No Commission reference for ${row.tenant}`);
     }
-    const document = await this.snapshot(row);
+    const document = await openSnapshot(this.cipher, row);
     const name = document.officer.name;
     return {
       declarantPersonId: row.personId,
@@ -335,38 +332,6 @@ export class AcknowledgementService {
       throw error;
     }
   }
-
-  private async snapshot(row: VersionRow): Promise<DeclarationV1> {
-    const plaintext = await this.cipher.decrypt({
-      tenant: row.tenant,
-      recordId: versionRecordId(row.id),
-      ciphertext: row.snapshotCiphertext.toString('base64'),
-      envelope: row.envelope,
-    });
-    return JSON.parse(plaintext.toString('utf8')) as DeclarationV1;
-  }
-}
-
-/** A version of the declaration by number, as the transaction's context lets it be seen. */
-async function versionRow(
-  tx: Transaction,
-  declarationId: string,
-  version: number,
-  { lock = false }: { lock?: boolean } = {},
-): Promise<VersionRow | null> {
-  if (!isUuid(declarationId)) return null;
-  const query = tx
-    .select()
-    .from(declarationVersions)
-    .where(
-      and(
-        eq(declarationVersions.declarationId, declarationId),
-        eq(declarationVersions.version, version),
-      ),
-    )
-    .limit(1);
-  const [row] = lock ? await query.for('update') : await query;
-  return row ?? null;
 }
 
 /** The portal page where the declarant downloads the slip, behind sign-in. */

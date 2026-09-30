@@ -1,6 +1,7 @@
 import { z } from 'zod';
 
 import { commissionRefSchema, obligationTypeSchema } from '../obligations/representation.js';
+import { acknowledgementStatusSchema } from '../submission/acknowledgement-status.js';
 import { declarationReferenceSchema } from '../submission/reference.js';
 import {
   DECLARATION_STATUS_VALUES,
@@ -217,6 +218,46 @@ export const declarationListItemSchema = z.object({
     description:
       'Complete sections out of the live ones (archived statements left out), rounded down',
   }),
+  dueDate: z.iso.date().meta({
+    description: "The obligation's due date: filed after it is late, and amendments close on it",
+  }),
+  reference: declarationReferenceSchema
+    .nullable()
+    .meta({ description: 'Allocated at the first submission; null before' }),
+  currentVersion: z
+    .int()
+    .min(1)
+    .nullable()
+    .meta({ description: 'The submitted version in force; null before the first submission' }),
+  amendingFromVersion: z.int().min(1).nullable().meta({
+    description: 'The version an amendment in progress started from; null unless amending',
+  }),
+  submittedAt: z.iso
+    .datetime()
+    .nullable()
+    .meta({ description: 'When the version in force was submitted; null before' }),
+  late: z
+    .boolean()
+    .nullable()
+    .meta({ description: 'The version in force was filed after the due date; null before' }),
+  amendable: z.boolean().meta({
+    description:
+      'Amend is open now: submitted (no amendment in progress) and today, Africa/Nairobi by the service clock, is on or before the due date. False otherwise; when submitted and false, amendments are closed',
+  }),
+  acknowledgement: z
+    .object({
+      status: acknowledgementStatusSchema,
+      documentId: z
+        .uuid()
+        .nullable()
+        .meta({ description: 'The issued slip, for its download; null until issued' }),
+      verifiedCount: z.int().meta({ description: 'Lookups of the slip on the verify app' }),
+    })
+    .nullable()
+    .meta({
+      description:
+        "The version in force's acknowledgement slip (as getAcknowledgement answers it); null before the first submission",
+    }),
   updatedAt: z.iso.datetime(),
 });
 export type DeclarationListItem = z.infer<typeof declarationListItemSchema>;

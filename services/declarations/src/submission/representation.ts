@@ -3,15 +3,15 @@ import { z } from 'zod';
 
 import { completenessIssueSchema, declarationSchema } from '../drafts/representation.js';
 import { obligationStatusSchema } from '../obligations/representation.js';
+import { acknowledgementStatusSchema } from './acknowledgement-status.js';
 import { declarationReferenceSchema } from './reference.js';
-import { ACKNOWLEDGEMENT_STATUS_VALUES } from './schema.js';
 
 /**
  * Bodies of the submission API (spec 06). They are the contract: the OpenAPI document,
  * packages/schemas/internal/declarations.yaml, is generated from them (`pnpm contracts`).
  */
 
-export const acknowledgementStatusSchema = z.enum(ACKNOWLEDGEMENT_STATUS_VALUES);
+export { acknowledgementStatusSchema };
 
 export const acknowledgementSchema = z.object({
   status: acknowledgementStatusSchema.meta({
@@ -53,6 +53,14 @@ export const declarationVersionSchema = z.object({
 });
 export type DeclarationVersion = z.infer<typeof declarationVersionSchema>;
 
+export const declarationVersionDetailSchema = declarationVersionSchema.extend({
+  document: z.record(z.string(), z.unknown()).meta({
+    description:
+      'The immutable declaration.v1 document as submitted (decrypted for the declarant), its attestation carrying the reference and the time it was declared',
+  }),
+});
+export type DeclarationVersionDetail = z.infer<typeof declarationVersionDetailSchema>;
+
 export const submissionResultSchema = z.object({
   declaration: declarationSchema,
   version: declarationVersionSchema,
@@ -60,7 +68,7 @@ export const submissionResultSchema = z.object({
 });
 export type SubmissionResult = z.infer<typeof submissionResultSchema>;
 
-/** The problem codes the submission routes answer with (and amendment, in the next ticket). */
+/** The problem codes the submission and amendment routes answer with. */
 export const SUBMIT_PROBLEM_CODES = [
   'step-up-required',
   'incomplete',

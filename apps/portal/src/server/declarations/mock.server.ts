@@ -43,6 +43,13 @@
  * issued a few seconds later, or reads failed a minute on, when it can be asked for again
  * (`./mock/acknowledgement.ts`).
  *
+ * Amendments follow the service too: amend reopens a submitted declaration until its due date
+ * (after it 409 `amendment-window-closed`, a draft 409 `not-submitted`, an amendment in progress
+ * answered as it is) with the sections as the version in force filed them; discarding the
+ * amendment puts them back and the declaration is `submitted` again. Each version keeps its
+ * document (`GET /v1/declarations/{id}/versions/{n}`). "My declarations" rows carry the
+ * reference, the version in force (submitted at, late, slip), and `amendable`.
+ *
  * Tests can make the next saves fail (`failNextSaves`) or submits fail (`failNextSubmits`), make
  * slips never come (`setSlipIssuance`),
  * simulate an edit on another device (`editElsewhere`), make registries answer at once
@@ -237,6 +244,14 @@ interface Stored {
   filing: MockFiling;
   /** Submitted versions, oldest first. */
   versions: DeclarationVersion[];
+  /** What each version filed, by number: its document, and the sections to reopen it from. */
+  filed: Map<number, Filed>;
+}
+
+/** A submitted version's content, kept as the service keeps its immutable snapshot. */
+interface Filed {
+  document: Record<string, unknown>;
+  sections: Pick<Stored, 'contents' | 'savedAt' | 'persons' | 'archived' | 'attachments'>;
 }
 
 export { setSlipIssuance } from './mock/acknowledgement';
@@ -370,8 +385,18 @@ async function route(
   const submit = /^\/v1\/declarations\/([^/]+)\/submit$/.exec(path);
   if (method === 'POST' && submit?.[1]) return submitDeclaration(request, submit[1]);
 
+  const amend = /^\/v1\/declarations\/([^/]+)\/amend(\/discard)?$/.exec(path);
+  if (method === 'POST' && amend?.[1]) {
+    return amend[2] ? discardAmendment(amend[1]) : amendDeclaration(amend[1]);
+  }
+
   const versions = /^\/v1\/declarations\/([^/]+)\/versions$/.exec(path);
   if (method === 'GET' && versions?.[1]) return listVersions(versions[1]);
+
+  const oneVersion = /^\/v1\/declarations\/([^/]+)\/versions\/(\d+)$/.exec(path);
+  if (method === 'GET' && oneVersion?.[1] && oneVersion[2]) {
+    return getVersion(oneVersion[1], Number(oneVersion[2]));
+  }
 
   const slip = /^\/v1\/declarations\/([^/]+)\/versions\/(\d+)\/acknowledgement(\/reissue)?$/.exec(
     path,
@@ -478,19 +503,36 @@ function percentComplete(stored: Stored) {
 }
 
 function myDeclarations() {
+  const now = Date.now();
   const items: DeclarationListItem[] = [...store.values()]
     .filter((stored) => stored.status !== 'discarded')
     .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
-    .map((stored) => ({
-      id: stored.header.id,
-      obligationId: stored.header.obligationId,
-      commission: stored.header.commission,
-      type: stored.header.type,
-      statementDate: stored.header.statementDate,
-      status: stored.status,
-      completenessPercent: percentComplete(stored),
-      updatedAt: stored.updatedAt,
-    }));
+    .map((stored) => {
+      const inForce = stored.versions.at(-1);
+      const acknowledgement = inForce ? readAcknowledgement(inForce, now) : null;
+      return {
+        id: stored.header.id,
+        obligationId: stored.header.obligationId,
+        commission: stored.header.commission,
+        type: stored.header.type,
+        statementDate: stored.header.statementDate,
+        status: stored.status,
+        completenessPercent: percentComplete(stored),
+        dueDate: stored.header.dueDate,
+        reference: stored.header.reference,
+        currentVersion: stored.header.currentVersion,
+        amendingFromVersion: stored.header.amendingFromVersion,
+        submittedAt: inForce?.submittedAt ?? null,
+        late: inForce?.late ?? null,
+        amendable: amendRefusal(stored) === null,
+        acknowledgement: acknowledgement && {
+          status: acknowledgement.status,
+          documentId: acknowledgement.documentId,
+          verifiedCount: acknowledgement.verifiedCount,
+        },
+        updatedAt: stored.updatedAt,
+      };
+    });
   return json(200, items);
 }
 
@@ -652,6 +694,7 @@ function startDeclaration(obligationId: string, obligation: Obligation | undefin
       cancelled: false,
     },
     versions: [],
+    filed: new Map(),
   };
   store.set(header.id, stored);
   return json(201, view(stored), { ETag: etag(stored) });
@@ -871,7 +914,6 @@ function getSummary(id: string) {
   if (!stored || stored.status === 'discarded') return problem(404, 'Not found');
   const live = sectionKeys(stored).filter((key) => !stored.archived.has(key));
   const blocking = live.flatMap((key) => issuesFor(stored, key));
-  const household = (stored.contents.get('household') ?? {}) as Draft<Household>;
   const window = filingWindow(stored.filing);
   // In the service's order: why the obligation refuses it, then whether anything blocks.
   const cannotSubmitReason =
@@ -888,18 +930,7 @@ function getSummary(id: string) {
               : null;
   const summary: DeclarationSummary = {
     declaration: view(stored),
-    document: {
-      schemaVersion: 'declaration.v1',
-      type: stored.header.type,
-      statementDate: stored.header.statementDate,
-      incomePeriod: stored.header.incomePeriod,
-      officer: stored.contents.get('bio'),
-      spouses: household.spouses ?? { none: false, items: [] },
-      children: household.children ?? { none: false, items: [] },
-      statements: liveStatementKeys(stored).map((key) => stored.contents.get(key)),
-      otherInformation: sectionContents(stored, 'other'),
-      attestation: { text: ATTESTATION_TEXT },
-    },
+    document: documentOf(stored),
     valid: blocking.length === 0,
     blocking,
     canSubmit: cannotSubmitReason === null,
@@ -908,6 +939,23 @@ function getSummary(id: string) {
     attestationText: ATTESTATION_TEXT,
   };
   return json(200, summary);
+}
+
+/** The declaration.v1 document assembled from the live sections, as the summary shows it. */
+function documentOf(stored: Stored): Record<string, unknown> {
+  const household = (stored.contents.get('household') ?? {}) as Draft<Household>;
+  return {
+    schemaVersion: 'declaration.v1',
+    type: stored.header.type,
+    statementDate: stored.header.statementDate,
+    incomePeriod: stored.header.incomePeriod,
+    officer: stored.contents.get('bio'),
+    spouses: household.spouses ?? { none: false, items: [] },
+    children: household.children ?? { none: false, items: [] },
+    statements: liveStatementKeys(stored).map((key) => stored.contents.get(key)),
+    otherInformation: sectionContents(stored, 'other'),
+    attestation: { text: ATTESTATION_TEXT },
+  };
 }
 
 function submitProblem(status: number, title: string, code: string, extra: object = {}) {
@@ -975,8 +1023,29 @@ function submitDeclaration(request: Request, id: string) {
     acknowledgement: pendingAcknowledgement(),
   };
   stored.versions.push(version);
+  const document = documentOf(stored);
+  stored.filed.set(version.version, {
+    document: {
+      ...document,
+      attestation: {
+        ...(document.attestation as object),
+        declaredAt: now,
+        reference: version.reference,
+      },
+    },
+    sections: structuredClone({
+      contents: stored.contents,
+      savedAt: stored.savedAt,
+      persons: stored.persons,
+      archived: stored.archived,
+      attachments: stored.attachments,
+    }),
+  });
   slipRequested(version);
   stored.status = 'submitted';
+  stored.header.reference = version.reference;
+  stored.header.currentVersion = version.version;
+  stored.header.amendingFromVersion = null;
   stored.updatedAt = now;
   const result: SubmissionResult = {
     declaration: view(stored),
@@ -998,6 +1067,65 @@ function listVersions(id: string) {
       .reverse()
       .map((version) => ({ ...version, acknowledgement: readAcknowledgement(version, now) })),
   );
+}
+
+/** `GET /v1/declarations/{id}/versions/{n}`, with the document as filed. */
+function getVersion(id: string, number: number) {
+  const version = submittedVersion(id, number);
+  const filed = store.get(id)?.filed.get(number);
+  if (!version || !filed) return problem(404, 'Not found');
+  return json(200, {
+    ...version,
+    acknowledgement: readAcknowledgement(version),
+    document: filed.document,
+  });
+}
+
+/** Why Amend is refused today, in the service's order, or null when it is open. */
+function amendRefusal(stored: Stored) {
+  if (stored.status !== 'submitted') return 'not-submitted';
+  const window = filingWindow(stored.filing);
+  if (window === 'cancelled') return 'obligation-cancelled';
+  if (window === 'overdue') return 'amendment-window-closed';
+  return null;
+}
+
+/** The sections back as the version in force filed them, at a new draft version. */
+function reopen(stored: Stored) {
+  const filed = stored.header.currentVersion && stored.filed.get(stored.header.currentVersion);
+  if (!filed) return;
+  Object.assign(stored, structuredClone(filed.sections));
+  stored.draftVersion += 1;
+  stored.updatedAt = new Date().toISOString();
+}
+
+/** `POST /v1/declarations/{id}/amend`: until the due date; an amendment in progress as it is. */
+function amendDeclaration(id: string) {
+  const stored = store.get(id);
+  if (!stored || stored.status === 'discarded') return problem(404, 'Not found');
+  if (stored.status !== 'amending') {
+    const refusal = amendRefusal(stored);
+    if (refusal) return submitProblem(409, 'The declaration cannot be amended', refusal);
+    reopen(stored);
+    stored.status = 'amending';
+    stored.header.amendingFromVersion = stored.header.currentVersion;
+  }
+  return json(200, view(stored), { ETag: etag(stored) });
+}
+
+/** `POST /v1/declarations/{id}/amend/discard`: back to the version in force. */
+function discardAmendment(id: string) {
+  const stored = store.get(id);
+  if (!stored || stored.status === 'discarded') return problem(404, 'Not found');
+  if (stored.status === 'draft') {
+    return submitProblem(409, 'The declaration was never submitted', 'not-submitted');
+  }
+  if (stored.status === 'amending') {
+    reopen(stored);
+    stored.status = 'submitted';
+    stored.header.amendingFromVersion = null;
+  }
+  return json(200, view(stored), { ETag: etag(stored) });
 }
 
 function submittedVersion(id: string, number: number) {

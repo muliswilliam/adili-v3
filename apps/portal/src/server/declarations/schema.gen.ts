@@ -173,8 +173,8 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * The signed-in declarant's declarations (drafts now; submitted later)
-         * @description Live declarations across Commissions, last updated first, with the share of live sections complete. Authorised by the person_id claim; staff tokens without it get 404.
+         * The signed-in declarant's declarations: drafts, submitted and being amended
+         * @description Live declarations across Commissions, last updated first, with the share of live sections complete and, once submitted, the reference, the version in force (submitted at, late, acknowledgement slip) and whether Amend is open today (until the due date, Africa/Nairobi), so the list renders without a call per row. Authorised by the person_id claim; staff tokens without it get 404.
          */
         get: operations["getMyDeclarations"];
         put?: never;
@@ -286,6 +286,86 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/declarations/{declarationId}/amend": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Reopen a submitted declaration for amendment (until the due date)
+         * @description Until the obligation's due date (the due date itself included; Africa/Nairobi by the service's clock). The version in force is copied into editable sections, the declaration is `amending` with `amendingFromVersion`, and `declaration.amendment-started.v1` is recorded. The version stays in force until the amendment is submitted as the next version. An amendment already in progress is answered as it is.
+         */
+        post: operations["amendDeclaration"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/declarations/{declarationId}/amend/discard": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Discard the amendment in progress; the version in force stays
+         * @description The declaration is `submitted` again, its sections as the version in force has them (what the amendment changed, attachments included, is taken back); `declaration.amendment-discarded.v1` is recorded. No version changes. A submitted declaration with no amendment in progress is answered as it is.
+         */
+        post: operations["discardAmendment"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/declarations/{declarationId}/versions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Submitted versions, newest first
+         * @description Every version with its reference, submission time, lateness, hash, supersession and acknowledgement slip; empty before the first submission.
+         */
+        get: operations["listDeclarationVersions"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/declarations/{declarationId}/versions/{version}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * One immutable version with its document (decrypted for the declarant)
+         * @description The version as listed, with the `declaration.v1` document exactly as submitted (the canonical JSON `canonicalSha256` is the hash of), decrypted for the declarant; audited.
+         */
+        get: operations["getDeclarationVersion"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/declarations/{declarationId}/versions/{version}/acknowledgement": {
         parameters: {
             query?: never;
@@ -338,83 +418,6 @@ export interface paths {
          * @description Service tokens with scope declarations:internal, acting for the Commission in X-Acting-Tenant; audited. What the slip prints of the version (its `acknowledgement-slip` v1 payload) and the declarant it is issued for, nothing more. Pulled after `declaration.submitted.v1` or `declaration.acknowledgement-requested.v1`.
          */
         get: operations["internalGetAcknowledgementPayload"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/declarations/{declarationId}/amend": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                declarationId: components["parameters"]["DeclarationId"];
-            };
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Reopen a submitted declaration for amendment (before the due date) */
-        post: operations["amendDeclaration"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/declarations/{declarationId}/amend/discard": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                declarationId: components["parameters"]["DeclarationId"];
-            };
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Discard an amendment in progress; the submitted version stays in force */
-        post: operations["discardAmendment"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/declarations/{declarationId}/versions": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                declarationId: components["parameters"]["DeclarationId"];
-            };
-            cookie?: never;
-        };
-        /** Submitted versions, newest first */
-        get: operations["listDeclarationVersions"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/declarations/{declarationId}/versions/{version}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                declarationId: components["parameters"]["DeclarationId"];
-                version: components["parameters"]["VersionNumber"];
-            };
-            cookie?: never;
-        };
-        /** One immutable version with its document (decrypted for the owner) */
-        get: operations["getDeclarationVersion"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1187,6 +1190,31 @@ export interface components {
             status: components["schemas"]["DeclarationStatus"];
             /** @description Complete sections out of the live ones (archived statements left out), rounded down */
             completenessPercent: number;
+            /**
+             * Format: date
+             * @description The obligation's due date: filed after it is late, and amendments close on it
+             */
+            dueDate: string;
+            /** @description Allocated at the first submission; null before */
+            reference: components["schemas"]["DeclarationReference"] | null;
+            /** @description The submitted version in force; null before the first submission */
+            currentVersion: number | null;
+            /** @description The version an amendment in progress started from; null unless amending */
+            amendingFromVersion: number | null;
+            /** @description When the version in force was submitted; null before */
+            submittedAt: string | null;
+            /** @description The version in force was filed after the due date; null before */
+            late: boolean | null;
+            /** @description Amend is open now: submitted (no amendment in progress) and today, Africa/Nairobi by the service clock, is on or before the due date. False otherwise; when submitted and false, amendments are closed */
+            amendable: boolean;
+            /** @description The version in force's acknowledgement slip (as getAcknowledgement answers it); null before the first submission */
+            acknowledgement: {
+                status: components["schemas"]["AcknowledgementStatus"];
+                /** @description The issued slip, for its download; null until issued */
+                documentId: string | null;
+                /** @description Lookups of the slip on the verify app */
+                verifiedCount: number;
+            } | null;
             /** Format: date-time */
             updatedAt: string;
         };
@@ -1219,6 +1247,23 @@ export interface components {
             /** @description When a later version replaced it; null while in force */
             supersededAt: string | null;
             acknowledgement: components["schemas"]["Acknowledgement"];
+        };
+        DeclarationVersionDetail: {
+            version: number;
+            reference: components["schemas"]["DeclarationReference"];
+            /** Format: date-time */
+            submittedAt: string;
+            /** @description Submitted after the obligation's due date */
+            late: boolean;
+            /** @description Hex SHA-256 of the document's RFC 8785 canonical JSON */
+            canonicalSha256: string;
+            /** @description When a later version replaced it; null while in force */
+            supersededAt: string | null;
+            acknowledgement: components["schemas"]["Acknowledgement"];
+            /** @description The immutable declaration.v1 document as submitted (decrypted for the declarant), its attestation carrying the reference and the time it was declared */
+            document: {
+                [key: string]: unknown;
+            };
         };
         SubmissionResult: {
             declaration: components["schemas"]["Declaration"];
@@ -1439,12 +1484,6 @@ export interface components {
             version: number;
             /** Format: date-time */
             updatedAt: string;
-        };
-        DeclarationVersionDetail: components["schemas"]["DeclarationVersion"] & {
-            /** @description The immutable declaration.v1 document (decrypted for the owner) */
-            document: {
-                [key: string]: unknown;
-            };
         };
         InternalVersionDocument: {
             /** Format: uuid */
@@ -2268,6 +2307,171 @@ export interface operations {
             };
         };
     };
+    amendDeclaration: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                declarationId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Amending, with sections copied from the version in force */
+            200: {
+                headers: {
+                    /** @description The draft version; send it as If-Match on section saves */
+                    ETag?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Declaration"];
+                };
+            };
+            /** @description Not found, or not visible to the caller */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Problem code `not-submitted` (never submitted), `amendment-window-closed` (after the due date) or `obligation-cancelled` */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["SubmitProblem"];
+                };
+            };
+        };
+    };
+    discardAmendment: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                declarationId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Submitted again */
+            200: {
+                headers: {
+                    /** @description The draft version; send it as If-Match on section saves */
+                    ETag?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Declaration"];
+                };
+            };
+            /** @description Not found, or not visible to the caller */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Problem code `not-submitted`: a draft, discarded with discardDeclaration */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["SubmitProblem"];
+                };
+            };
+            /** @description An attachment the amendment unlinked could not be checked with documents (`documents-unavailable`); retry */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    listDeclarationVersions: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                declarationId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Versions, newest first */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeclarationVersion"][];
+                };
+            };
+            /** @description Not found, or not visible to the caller */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    getDeclarationVersion: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                declarationId: string;
+                version: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The version */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeclarationVersionDetail"];
+                };
+            };
+            /** @description version is not a positive integer */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not found, or not visible to the caller */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
     getAcknowledgement: {
         parameters: {
             query?: never;
@@ -2417,117 +2621,6 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
-        };
-    };
-    amendDeclaration: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                declarationId: components["parameters"]["DeclarationId"];
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Declaration in state amending with sections copied from the current version */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Declaration"];
-                };
-            };
-            404: components["responses"]["NotFound"];
-            /** @description Problem code `amendment-window-closed` or `not-submitted` */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["SubmitProblem"];
-                };
-            };
-        };
-    };
-    discardAmendment: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                declarationId: components["parameters"]["DeclarationId"];
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Declaration back to submitted */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Declaration"];
-                };
-            };
-            404: components["responses"]["NotFound"];
-            /** @description Not amending */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetails"];
-                };
-            };
-        };
-    };
-    listDeclarationVersions: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                declarationId: components["parameters"]["DeclarationId"];
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Versions */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["DeclarationVersion"][];
-                };
-            };
-            404: components["responses"]["NotFound"];
-        };
-    };
-    getDeclarationVersion: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                declarationId: components["parameters"]["DeclarationId"];
-                version: components["parameters"]["VersionNumber"];
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Version */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["DeclarationVersionDetail"];
-                };
-            };
-            404: components["responses"]["NotFound"];
         };
     };
     internalGetVersionDocument: {

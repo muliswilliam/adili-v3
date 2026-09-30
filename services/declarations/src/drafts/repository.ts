@@ -1,11 +1,12 @@
 import type { DeclarationSectionKey } from '@adili/forms';
-import { and, eq, like, ne, sql } from 'drizzle-orm';
+import { and, eq, inArray, like, ne, sql } from 'drizzle-orm';
 
 import type { Transaction } from '../db/transaction.js';
 import { isUuid } from '../guards.js';
 import {
   declarationSections,
   declarations,
+  EDITABLE_STATUSES,
   type SectionCompleteness,
   type SectionMetadata,
 } from './schema.js';
@@ -159,7 +160,7 @@ export function inScheduleOrder<T extends Pick<SectionRow, 'sectionKey' | 'creat
 /** What a section change sets besides its sealed contents. */
 export interface SectionWrite {
   now: Date;
-  /** Bump only from this draft version, and only while a draft (a save's `If-Match`). */
+  /** Bump only from this draft version, and only while editable (a save's `If-Match`). */
   ifVersion?: number;
   /** Record the section as the one saved last, for "Continue". */
   lastSection?: boolean;
@@ -192,7 +193,10 @@ export async function storeSection(
         eq(declarations.id, declaration.id),
         ...(write.ifVersion === undefined
           ? []
-          : [eq(declarations.draftVersion, write.ifVersion), eq(declarations.status, 'draft')]),
+          : [
+              eq(declarations.draftVersion, write.ifVersion),
+              inArray(declarations.status, EDITABLE_STATUSES),
+            ]),
       ),
     )
     .returning({ draftVersion: declarations.draftVersion });

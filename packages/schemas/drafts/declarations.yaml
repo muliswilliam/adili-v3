@@ -1,90 +1,11 @@
 # Drafted operations of the declarations API for specs not implemented yet: 05 (declaration
-# drafts), 06 (amendments and versions), 07a (internal reads for review) and 08
+# drafts), 07a (internal reads for review) and 08
 # (person obligation history), with suggestions, the assistant and help. `pnpm --filter
 # @adili/declarations contracts` merges them into packages/schemas/internal/declarations.yaml,
 # where they may reference the implemented components (e.g. `#/components/schemas/Obligation`,
 # `CommissionRef`, `ObligationType`, `ProblemDetails`). When an operation or component is
 # implemented, delete it here: the export fails while both define it.
 paths:
-  /v1/declarations/{declarationId}/amend:
-    parameters:
-      - $ref: '#/components/parameters/DeclarationId'
-    post:
-      tags: [submission]
-      operationId: amendDeclaration
-      summary: Reopen a submitted declaration for amendment (before the due date)
-      responses:
-        '200':
-          description: Declaration in state amending with sections copied from the current version
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Declaration'
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '409':
-          description: 'Problem code `amendment-window-closed` or `not-submitted`'
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/SubmitProblem'
-  /v1/declarations/{declarationId}/amend/discard:
-    parameters:
-      - $ref: '#/components/parameters/DeclarationId'
-    post:
-      tags: [submission]
-      operationId: discardAmendment
-      summary: Discard an amendment in progress; the submitted version stays in force
-      responses:
-        '200':
-          description: Declaration back to submitted
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Declaration'
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '409':
-          description: Not amending
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ProblemDetails'
-  /v1/declarations/{declarationId}/versions:
-    parameters:
-      - $ref: '#/components/parameters/DeclarationId'
-    get:
-      tags: [submission]
-      operationId: listDeclarationVersions
-      summary: Submitted versions, newest first
-      responses:
-        '200':
-          description: Versions
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/DeclarationVersion'
-        '404':
-          $ref: '#/components/responses/NotFound'
-  /v1/declarations/{declarationId}/versions/{version}:
-    parameters:
-      - $ref: '#/components/parameters/DeclarationId'
-      - $ref: '#/components/parameters/VersionNumber'
-    get:
-      tags: [submission]
-      operationId: getDeclarationVersion
-      summary: One immutable version with its document (decrypted for the owner)
-      responses:
-        '200':
-          description: Version
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/DeclarationVersionDetail'
-        '404':
-          $ref: '#/components/responses/NotFound'
   /internal/v1/declarations/{declarationId}/versions/{version}/document:
     parameters:
       - $ref: '#/components/parameters/DeclarationId'
@@ -1153,16 +1074,6 @@ components:
             updatedAt:
               type: string
               format: date-time
-    DeclarationVersionDetail:
-      allOf:
-        - $ref: '#/components/schemas/DeclarationVersion'
-        - type: object
-          required: [document]
-          properties:
-            document:
-              type: object
-              description: The immutable declaration.v1 document (decrypted for the owner)
-              additionalProperties: true
     InternalVersionDocument:
       type: object
       required:

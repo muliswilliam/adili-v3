@@ -1,7 +1,7 @@
 import { ProblemException } from '@adili/api-kit';
 import type { DeclarationIssue } from '@adili/forms';
 
-import type { ObligationRefusal } from './window.js';
+import type { AmendRefusal, ObligationRefusal } from './window.js';
 
 /** The problems the submission route answers with, each built in one place. */
 
@@ -29,4 +29,16 @@ const REFUSALS: Record<ObligationRefusal, string> = {
 /** 409 for a declaration or obligation that does not take the submission now. */
 export function refused(refusal: ObligationRefusal): ProblemException {
   return ProblemException.fromCode(refusal, { detail: REFUSALS[refusal] });
+}
+
+const AMEND_REFUSALS: Record<AmendRefusal, string> = {
+  'not-submitted': 'Only a submitted declaration can be amended.',
+  'obligation-cancelled': 'The filing obligation was cancelled; there is nothing to amend.',
+  'amendment-window-closed':
+    'Amendments closed on the due date; changes now go through the Commission.',
+};
+
+/** 409 for a declaration that cannot be reopened for amendment (or have one discarded) now. */
+export function amendRefused(refusal: AmendRefusal): ProblemException {
+  return ProblemException.fromCode(refusal, { detail: AMEND_REFUSALS[refusal] });
 }

@@ -236,6 +236,14 @@ describe('ObligationsView', () => {
       statementDate: entry.statementDate,
       status: 'draft',
       completenessPercent: 25,
+      dueDate: '2027-12-31',
+      reference: null,
+      currentVersion: null,
+      amendingFromVersion: null,
+      submittedAt: null,
+      late: null,
+      amendable: false,
+      acknowledgement: null,
       updatedAt: '2026-12-20T08:00:00Z',
     };
     let arrive: (result: DeclarationListResult) => void = () => undefined;
