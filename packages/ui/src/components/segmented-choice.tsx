@@ -83,7 +83,7 @@ export function SegmentedChoice({
       <fieldset
         id={groupId}
         disabled={disabled}
-        className={cn('flex shrink-0 gap-0.5 rounded-lg bg-muted p-0.75', className)}
+        className={cn('flex w-fit shrink-0 gap-0.5 rounded-lg bg-muted p-0.75', className)}
         {...props}
       >
         <legend className="sr-only">{legend}</legend>
