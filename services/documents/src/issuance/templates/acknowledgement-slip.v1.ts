@@ -122,6 +122,10 @@ export const acknowledgementSlipV1: DocumentTemplate<AcknowledgementSlipPayload>
   title: 'Acknowledgement slip',
   payload: acknowledgementSlipPayload,
 
+  reference(payload) {
+    return payload.reference;
+  },
+
   publicPayload(payload, { issuedAt }) {
     return {
       type: 'acknowledgement-slip',

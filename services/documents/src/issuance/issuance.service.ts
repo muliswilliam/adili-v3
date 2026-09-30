@@ -17,11 +17,12 @@ import {
   type DocumentEventData,
   type DocumentIssuedData,
   type DocumentSupersededData,
+  type DocumentType,
 } from '@adili/events/contracts';
-import { and, eq, sql } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 import { v7 as uuidv7 } from 'uuid';
 
-import { config } from '../config.js';
+import { config, SYSTEM_SUBJECT } from '../config.js';
 import type { DocumentsSchema } from '../db/schema.js';
 import { S3, S3_PUBLIC } from '../storage/storage.module.js';
 import { dependencyProblem, IssuanceDependencyUnavailable } from './errors.js';
@@ -49,7 +50,7 @@ export interface IssueRequest {
   tenant: string;
   /** `sub` of the service or user asking, recorded on the document. */
   actor: string;
-  type: string;
+  type: DocumentType;
   templateVersion: number;
   subjectRef: string;
   subjectPersonId: string | null;
@@ -98,22 +99,21 @@ export class IssuanceService {
   async issue(request: IssueRequest): Promise<IssueOutcome> {
     const template = templateOf(request.type, request.templateVersion);
     if (!template) {
-      throw validationProblem(
-        'templateVersion',
-        `No template ${request.type} v${request.templateVersion}`,
-      );
+      throw validationProblem([
+        {
+          path: 'templateVersion',
+          message: `No template ${request.type} v${request.templateVersion}`,
+        },
+      ]);
     }
     const parsed = template.payload.safeParse(request.payload);
     if (!parsed.success) {
-      throw new ProblemException({
-        type: 'about:blank',
-        title: 'Validation failed',
-        status: HttpStatus.BAD_REQUEST,
-        errors: parsed.error.issues.map((issue) => ({
+      throw validationProblem(
+        parsed.error.issues.map((issue) => ({
           path: ['payload', ...issue.path].join('.'),
           message: issue.message,
         })),
-      });
+      );
     }
     const existing = await this.findBySubject(request.tenant, request.type, request.subjectRef);
     if (existing) return { document: existing, created: false };
@@ -176,6 +176,7 @@ export class IssuanceService {
               disclosureLevel: template.disclosureLevel,
               subjectRef: request.subjectRef,
               subjectPersonId: request.subjectPersonId,
+              reference: template.reference(payload),
               verificationId,
               objectKey,
               sha256,
@@ -311,11 +312,7 @@ export class IssuanceService {
    */
   async announce(tenant: string, actor: string, documentId: string): Promise<void> {
     await withTenant(this.db, { tenant, subject: actor }, async (tx) => {
-      const [found] = await tx
-        .select({ document: issuedDocuments, record: verificationRecords })
-        .from(issuedDocuments)
-        .innerJoin(verificationRecords, eq(verificationRecords.documentId, issuedDocuments.id))
-        .where(eq(issuedDocuments.id, documentId));
+      const [found] = await withRecord(tx).where(eq(issuedDocuments.id, documentId));
       if (!found) throw notFound();
       await this.events.record(tx, {
         type: DOCUMENT_ISSUED,
@@ -327,34 +324,28 @@ export class IssuanceService {
   }
 
   /**
-   * The tenant's valid documents of the type about the reference number (by their public
-   * payload), with the version of what each is about: e.g. the acknowledgement slips of a
-   * declaration's versions not yet superseded.
+   * The tenant's valid documents of the type about the reference number, with the version of
+   * what each is about (from the public payload, null when it has none): e.g. the
+   * acknowledgement slips of a declaration's versions not yet superseded.
    */
   async validOfReference(
     tenant: string,
-    type: string,
+    type: DocumentType,
     reference: string,
   ): Promise<{ documentId: string; version: number | null }[]> {
-    const rows = await withTenant(this.db, { tenant, subject: 'documents' }, (tx) =>
-      tx
-        .select({
-          documentId: verificationRecords.documentId,
-          payload: verificationRecords.publicPayload,
-        })
-        .from(verificationRecords)
-        .where(
-          and(
-            eq(verificationRecords.tenant, tenant),
-            eq(verificationRecords.documentType, type),
-            sql`(${verificationRecords.publicPayload}->>'reference') = ${reference}`,
-            eq(verificationRecords.status, 'valid'),
-          ),
+    const rows = await withTenant(this.db, { tenant, subject: SYSTEM_SUBJECT }, (tx) =>
+      withRecord(tx).where(
+        and(
+          eq(issuedDocuments.tenant, tenant),
+          eq(issuedDocuments.type, type),
+          eq(issuedDocuments.reference, reference),
+          eq(verificationRecords.status, 'valid'),
         ),
+      ),
     );
-    return rows.map((row) => ({
-      documentId: row.documentId,
-      version: row.payload?.version ?? null,
+    return rows.map(({ document, record }) => ({
+      documentId: document.id,
+      version: record.publicPayload?.version ?? null,
     }));
   }
 
@@ -390,11 +381,7 @@ export class IssuanceService {
   ): Promise<{ document: DocumentRow; record: RecordRow }> {
     if (!personId) throw notFound();
     const [found] = await withPerson(this.db, { personId, subject }, (tx) =>
-      tx
-        .select({ document: issuedDocuments, record: verificationRecords })
-        .from(issuedDocuments)
-        .innerJoin(verificationRecords, eq(verificationRecords.documentId, issuedDocuments.id))
-        .where(eq(issuedDocuments.id, id)),
+      withRecord(tx).where(eq(issuedDocuments.id, id)),
     );
     if (!found) throw notFound();
     return found;
@@ -402,15 +389,13 @@ export class IssuanceService {
 
   private async findBySubject(
     tenant: string,
-    type: string,
+    type: DocumentType,
     subjectRef: string,
   ): Promise<IssuedDocument | undefined> {
-    const [found] = await withTenant(this.db, { tenant, subject: 'documents' }, (tx) =>
-      tx
-        .select({ document: issuedDocuments, record: verificationRecords })
-        .from(issuedDocuments)
-        .innerJoin(verificationRecords, eq(verificationRecords.documentId, issuedDocuments.id))
-        .where(and(eq(issuedDocuments.type, type), eq(issuedDocuments.subjectRef, subjectRef))),
+    const [found] = await withTenant(this.db, { tenant, subject: SYSTEM_SUBJECT }, (tx) =>
+      withRecord(tx).where(
+        and(eq(issuedDocuments.type, type), eq(issuedDocuments.subjectRef, subjectRef)),
+      ),
     );
     return found ? this.toIssuedDocument(found.document, found.record) : undefined;
   }
@@ -420,10 +405,7 @@ export class IssuanceService {
     tx: Tx,
     id: string,
   ): Promise<{ document: DocumentRow; record: RecordRow } | undefined> {
-    const [found] = await tx
-      .select({ document: issuedDocuments, record: verificationRecords })
-      .from(issuedDocuments)
-      .innerJoin(verificationRecords, eq(verificationRecords.documentId, issuedDocuments.id))
+    const [found] = await withRecord(tx)
       .where(eq(issuedDocuments.id, id))
       .for('update', { of: verificationRecords });
     return found;
@@ -481,7 +463,7 @@ export class IssuanceService {
   private toIssuedDocument(document: DocumentRow, record: RecordRow): IssuedDocument {
     return {
       id: document.id,
-      type: document.type as IssuedDocument['type'],
+      type: document.type as DocumentType,
       templateVersion: document.templateVersion,
       disclosureLevel: document.disclosureLevel,
       issuerTenant: document.tenant,
@@ -494,6 +476,14 @@ export class IssuanceService {
       issuedAt: document.issuedAt.toISOString(),
     };
   }
+}
+
+/** Documents with their verification records; the caller adds the filter. */
+function withRecord(tx: Tx) {
+  return tx
+    .select({ document: issuedDocuments, record: verificationRecords })
+    .from(issuedDocuments)
+    .innerJoin(verificationRecords, eq(verificationRecords.documentId, issuedDocuments.id));
 }
 
 /** The signed form of a stored record whose superseding document is not needed (valid). */
@@ -516,12 +506,12 @@ function signedRecordOf(record: RecordRow): SignedRecord {
   };
 }
 
-function validationProblem(path: string, message: string): ProblemException {
+function validationProblem(errors: { path: string; message: string }[]): ProblemException {
   return new ProblemException({
     type: 'about:blank',
     title: 'Validation failed',
     status: HttpStatus.BAD_REQUEST,
-    errors: [{ path, message }],
+    errors,
   });
 }
 

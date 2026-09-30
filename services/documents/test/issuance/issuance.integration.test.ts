@@ -220,6 +220,10 @@ describe('S9 issuing an acknowledgement slip', () => {
     expect(document.verificationId).toMatch(VERIFICATION_ID_PATTERN);
   });
 
+  it('registers the reference number the slip is about, for supersession', async () => {
+    expect((await documentRow(document.id)).document.reference).toBe('DCB-PSC-2027-0000001-1');
+  });
+
   it('stores the PDF whose SHA-256 is the one registered', async () => {
     const { document: row, record } = await documentRow(document.id);
     expect(row.objectKey).toBe(`acknowledgement-slip/${document.id}.pdf`);
