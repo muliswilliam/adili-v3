@@ -27,6 +27,11 @@ export const envSchema = baseEnvSchema.extend({
   GOTENBERG_URL: z.url(),
   OPENBAO_ADDR: z.url(),
   OPENBAO_TOKEN: z.string().min(1),
+  /**
+   * Origin of the public verify app: QR codes on issued documents point at `<origin>/v/<code>`
+   * (the demo's verify app on its own port, so a demo slip resolves on the demo machine).
+   */
+  VERIFY_BASE_URL: z.url(),
 });
 
 export type Env = z.infer<typeof envSchema>;

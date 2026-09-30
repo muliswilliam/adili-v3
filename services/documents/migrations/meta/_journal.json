@@ -36,6 +36,20 @@
       "when": 1790585709155,
       "tag": "0004_idempotency",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1790783338043,
+      "tag": "0005_issued_documents",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1790783362318,
+      "tag": "0006_issued_documents_rls",
+      "breakpoints": true
     }
   ]
 }

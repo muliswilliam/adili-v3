@@ -65,5 +65,7 @@ set_env "$ROOT/apps/verify/.env" PORT "$verify_port"
 set_env "$ROOT/apps/verify/.env" ADILI_DEMO_BIND 1
 
 set_env "$ROOT/services/documents/.env" S3_PUBLIC_ENDPOINT "$s3_public"
+# QR codes on issued documents open the public verify app.
+set_env "$ROOT/services/documents/.env" VERIFY_BASE_URL "${ADILI_VERIFY_URL}"
 
 echo "App URLs: portal=${ADILI_PORTAL_URL} console=${ADILI_CONSOLE_URL} issuer=${issuer}"
