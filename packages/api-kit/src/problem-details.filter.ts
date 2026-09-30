@@ -6,6 +6,7 @@ import {
   HttpStatus,
   Logger,
 } from '@nestjs/common';
+import { DrizzleQueryError } from 'drizzle-orm';
 import type { FastifyReply, FastifyRequest } from 'fastify';
 import { type Observable, throwError } from 'rxjs';
 import { ZodError } from 'zod';
@@ -84,8 +85,19 @@ export function toProblemDetails(
   exception: unknown,
   instance: string,
 ): ProblemDetails & ProblemExtensions {
-  const extensions = exception instanceof ProblemException ? exception.extensions : {};
-  return { ...extensions, ...toProblem(exception), instance };
+  const error = unwrapQueryError(exception);
+  const extensions = error instanceof ProblemException ? error.extensions : {};
+  return { ...extensions, ...toProblem(error), instance };
+}
+
+/**
+ * Drizzle wraps whatever fails a query with the query text; the problem is the wrapped error,
+ * e.g. the data layer's 503 when the database does not answer.
+ */
+function unwrapQueryError(exception: unknown): unknown {
+  let error = exception;
+  while (error instanceof DrizzleQueryError && error.cause !== undefined) error = error.cause;
+  return error;
 }
 
 /** Renders every HTTP error as RFC 9457 problem details. */
