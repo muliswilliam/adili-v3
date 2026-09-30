@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { isLate, submitRefusal } from '../../src/submission/window.js';
+import { amendRefusal, isLate, submitRefusal } from '../../src/submission/window.js';
 
 const BIENNIAL = { statementDate: '2027-11-01', dueDate: '2027-12-31' };
 
@@ -20,6 +20,21 @@ describe('submitRefusal', () => {
     ['amending', 'filed', '2028-01-01', 'amendment-window-closed'],
   ] as const)('%s declaration, %s obligation, on %s: %s', (status, obligation, today, refusal) => {
     expect(submitRefusal(status, { ...BIENNIAL, status: obligation }, today)).toBe(refusal);
+  });
+});
+
+describe('amendRefusal', () => {
+  it.each([
+    ['submitted', 'filed', '2027-11-15', null],
+    // Open on the due date itself (Africa/Nairobi), closed the day after.
+    ['submitted', 'filed', '2027-12-31', null],
+    ['submitted', 'filed', '2028-01-01', 'amendment-window-closed'],
+    ['submitted', 'cancelled', '2027-11-15', 'obligation-cancelled'],
+    ['draft', 'due', '2027-11-15', 'not-submitted'],
+    ['amending', 'filed', '2027-11-15', 'not-submitted'],
+    ['discarded', 'due', '2027-11-15', 'not-submitted'],
+  ] as const)('%s declaration, %s obligation, on %s: %s', (status, obligation, today, refusal) => {
+    expect(amendRefusal(status, { ...BIENNIAL, status: obligation }, today)).toBe(refusal);
   });
 });
 

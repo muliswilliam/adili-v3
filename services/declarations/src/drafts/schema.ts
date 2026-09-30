@@ -44,6 +44,13 @@ const bytea = customType<{ data: Buffer; driverData: Buffer }>({
 export const DECLARATION_STATUS_VALUES = ['draft', 'amending', 'submitted', 'discarded'] as const;
 export type DeclarationStatus = (typeof DECLARATION_STATUS_VALUES)[number];
 
+/** A draft, or a submitted declaration reopened for amendment: its sections can be edited. */
+export const EDITABLE_STATUSES = ['draft', 'amending'] as const satisfies DeclarationStatus[];
+
+export function isEditable(status: DeclarationStatus): boolean {
+  return (EDITABLE_STATUSES as readonly DeclarationStatus[]).includes(status);
+}
+
 export const INCOME_PERIOD_SOURCE_VALUES = ['declared', 'assumed'] as const;
 
 export const SCHEMA_VERSION = 'declaration.v1';

@@ -34,7 +34,7 @@ import {
   storeSection,
 } from './repository.js';
 import { attachmentLinkSchema, type DeclarationAttachment } from './representation.js';
-import { declarationAttachments, declarationSections } from './schema.js';
+import { declarationAttachments, declarationSections, isEditable } from './schema.js';
 import { SectionCipher } from './section-cipher.js';
 import { isStatementKey, type SectionContents, type StatementKey } from './sections.js';
 
@@ -118,6 +118,7 @@ export class AttachmentsService {
         // Null when a save removed the item since it was checked.
         const changed = notFoundIfInvisible(
           withAttachment(stored, itemId, {
+            attachmentId: attachment.id,
             uploadId,
             fileName,
             sha256: attachment.sha256,
@@ -339,7 +340,7 @@ async function draftOf(
 ): Promise<DeclarationRow | null> {
   const declaration = await liveDeclaration(tx, declarationId, { lock });
   if (!declaration) return null;
-  if (declaration.status !== 'draft') throw declarationNotDraft('edited');
+  if (!isEditable(declaration.status)) throw declarationNotDraft('edited');
   return declaration;
 }
 

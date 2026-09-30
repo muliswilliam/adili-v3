@@ -124,9 +124,9 @@ export class DraftsController {
   @Get('me/declarations')
   @ApiOperation({
     operationId: 'getMyDeclarations',
-    summary: "The signed-in declarant's declarations (drafts now; submitted later)",
+    summary: "The signed-in declarant's declarations: drafts, submitted and being amended",
     description:
-      'Live declarations across Commissions, last updated first, with the share of live sections complete. Authorised by the person_id claim; staff tokens without it get 404.',
+      'Live declarations across Commissions, last updated first, with the share of live sections complete and, once submitted, the reference, the version in force (submitted at, late, acknowledgement slip) and whether Amend is open today (until the due date, Africa/Nairobi), so the list renders without a call per row. Authorised by the person_id claim; staff tokens without it get 404.',
   })
   @ApiOkResponse({
     description: 'Declarations, last updated first',

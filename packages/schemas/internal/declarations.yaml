@@ -408,8 +408,8 @@ paths:
     get:
       tags:
         - declarations
-      summary: The signed-in declarant's declarations (drafts now; submitted later)
-      description: Live declarations across Commissions, last updated first, with the share of live sections complete. Authorised by the person_id claim; staff tokens without it get 404.
+      summary: "The signed-in declarant's declarations: drafts, submitted and being amended"
+      description: Live declarations across Commissions, last updated first, with the share of live sections complete and, once submitted, the reference, the version in force (submitted at, late, acknowledgement slip) and whether Amend is open today (until the due date, Africa/Nairobi), so the list renders without a call per row. Authorised by the person_id claim; staff tokens without it get 404.
       operationId: getMyDeclarations
       responses:
         '200':
@@ -721,6 +721,159 @@ paths:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/ProblemDetails'
+  /v1/declarations/{declarationId}/amend:
+    post:
+      tags:
+        - submission
+      summary: Reopen a submitted declaration for amendment (until the due date)
+      description: Until the obligation's due date (the due date itself included; Africa/Nairobi by the service's clock). The version in force is copied into editable sections, the declaration is `amending` with `amendingFromVersion`, and `declaration.amendment-started.v1` is recorded. The version stays in force until the amendment is submitted as the next version. An amendment already in progress is answered as it is.
+      operationId: amendDeclaration
+      parameters:
+        - name: declarationId
+          required: true
+          in: path
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Amending, with sections copied from the version in force
+          headers:
+            ETag:
+              schema:
+                type: string
+              description: The draft version; send it as If-Match on section saves
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Declaration'
+        '404':
+          description: Not found, or not visible to the caller
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '409':
+          description: Problem code `not-submitted` (never submitted), `amendment-window-closed` (after the due date) or `obligation-cancelled`
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/SubmitProblem'
+  /v1/declarations/{declarationId}/amend/discard:
+    post:
+      tags:
+        - submission
+      summary: Discard the amendment in progress; the version in force stays
+      description: The declaration is `submitted` again, its sections as the version in force has them (what the amendment changed, attachments included, is taken back); `declaration.amendment-discarded.v1` is recorded. No version changes. A submitted declaration with no amendment in progress is answered as it is.
+      operationId: discardAmendment
+      parameters:
+        - name: declarationId
+          required: true
+          in: path
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Submitted again
+          headers:
+            ETag:
+              schema:
+                type: string
+              description: The draft version; send it as If-Match on section saves
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Declaration'
+        '404':
+          description: Not found, or not visible to the caller
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '409':
+          description: 'Problem code `not-submitted`: a draft, discarded with discardDeclaration'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/SubmitProblem'
+        '503':
+          description: An attachment the amendment unlinked could not be checked with documents (`documents-unavailable`); retry
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+  /v1/declarations/{declarationId}/versions:
+    get:
+      tags:
+        - submission
+      summary: Submitted versions, newest first
+      description: Every version with its reference, submission time, lateness, hash, supersession and acknowledgement slip; empty before the first submission.
+      operationId: listDeclarationVersions
+      parameters:
+        - name: declarationId
+          required: true
+          in: path
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Versions, newest first
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/DeclarationVersion'
+        '404':
+          description: Not found, or not visible to the caller
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+  /v1/declarations/{declarationId}/versions/{version}:
+    get:
+      tags:
+        - submission
+      summary: One immutable version with its document (decrypted for the declarant)
+      description: The version as listed, with the `declaration.v1` document exactly as submitted (the canonical JSON `canonicalSha256` is the hash of), decrypted for the declarant; audited.
+      operationId: getDeclarationVersion
+      parameters:
+        - name: declarationId
+          required: true
+          in: path
+          schema:
+            type: string
+            format: uuid
+        - name: version
+          required: true
+          in: path
+          schema:
+            type: integer
+            minimum: 1
+      responses:
+        '200':
+          description: The version
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeclarationVersionDetail'
+        '400':
+          description: version is not a positive integer
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: Not found, or not visible to the caller
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+      x-audited-read:
+        action: declaration.version.read
+        resource: declaration-version
   /v1/declarations/{declarationId}/versions/{version}/acknowledgement:
     get:
       tags:
@@ -862,93 +1015,6 @@ paths:
       x-audited-read:
         action: declaration.acknowledgement-payload.pulled
         resource: declaration-version
-  /v1/declarations/{declarationId}/amend:
-    parameters:
-      - $ref: '#/components/parameters/DeclarationId'
-    post:
-      tags:
-        - submission
-      summary: Reopen a submitted declaration for amendment (before the due date)
-      operationId: amendDeclaration
-      x-draft: true
-      responses:
-        '200':
-          description: Declaration in state amending with sections copied from the current version
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Declaration'
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '409':
-          description: Problem code `amendment-window-closed` or `not-submitted`
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/SubmitProblem'
-  /v1/declarations/{declarationId}/amend/discard:
-    parameters:
-      - $ref: '#/components/parameters/DeclarationId'
-    post:
-      tags:
-        - submission
-      summary: Discard an amendment in progress; the submitted version stays in force
-      operationId: discardAmendment
-      x-draft: true
-      responses:
-        '200':
-          description: Declaration back to submitted
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Declaration'
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '409':
-          description: Not amending
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ProblemDetails'
-  /v1/declarations/{declarationId}/versions:
-    parameters:
-      - $ref: '#/components/parameters/DeclarationId'
-    get:
-      tags:
-        - submission
-      summary: Submitted versions, newest first
-      operationId: listDeclarationVersions
-      x-draft: true
-      responses:
-        '200':
-          description: Versions
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/DeclarationVersion'
-        '404':
-          $ref: '#/components/responses/NotFound'
-  /v1/declarations/{declarationId}/versions/{version}:
-    parameters:
-      - $ref: '#/components/parameters/DeclarationId'
-      - $ref: '#/components/parameters/VersionNumber'
-    get:
-      tags:
-        - submission
-      summary: One immutable version with its document (decrypted for the owner)
-      operationId: getDeclarationVersion
-      x-draft: true
-      responses:
-        '200':
-          description: Version
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/DeclarationVersionDetail'
-        '404':
-          $ref: '#/components/responses/NotFound'
   /internal/v1/declarations/{declarationId}/versions/{version}/document:
     parameters:
       - $ref: '#/components/parameters/DeclarationId'
@@ -2664,6 +2730,62 @@ components:
           minimum: 0
           maximum: 100
           description: Complete sections out of the live ones (archived statements left out), rounded down
+        dueDate:
+          type: string
+          format: date
+          description: "The obligation's due date: filed after it is late, and amendments close on it"
+        reference:
+          anyOf:
+            - $ref: '#/components/schemas/DeclarationReference'
+            - type: 'null'
+          description: Allocated at the first submission; null before
+        currentVersion:
+          anyOf:
+            - type: integer
+              minimum: 1
+            - type: 'null'
+          description: The submitted version in force; null before the first submission
+        amendingFromVersion:
+          anyOf:
+            - type: integer
+              minimum: 1
+            - type: 'null'
+          description: The version an amendment in progress started from; null unless amending
+        submittedAt:
+          anyOf:
+            - type: string
+              format: date-time
+            - type: 'null'
+          description: When the version in force was submitted; null before
+        late:
+          description: The version in force was filed after the due date; null before
+          type:
+            - boolean
+            - 'null'
+        amendable:
+          type: boolean
+          description: 'Amend is open now: submitted (no amendment in progress) and today, Africa/Nairobi by the service clock, is on or before the due date. False otherwise; when submitted and false, amendments are closed'
+        acknowledgement:
+          anyOf:
+            - type: object
+              properties:
+                status:
+                  $ref: '#/components/schemas/AcknowledgementStatus'
+                documentId:
+                  anyOf:
+                    - type: string
+                      format: uuid
+                    - type: 'null'
+                  description: The issued slip, for its download; null until issued
+                verifiedCount:
+                  type: integer
+                  description: Lookups of the slip on the verify app
+              required:
+                - status
+                - documentId
+                - verifiedCount
+            - type: 'null'
+          description: The version in force's acknowledgement slip (as getAcknowledgement answers it); null before the first submission
         updatedAt:
           type: string
           format: date-time
@@ -2675,6 +2797,14 @@ components:
         - statementDate
         - status
         - completenessPercent
+        - dueDate
+        - reference
+        - currentVersion
+        - amendingFromVersion
+        - submittedAt
+        - late
+        - amendable
+        - acknowledgement
         - updatedAt
     AcknowledgementStatus:
       type: string
@@ -2761,6 +2891,47 @@ components:
         - canonicalSha256
         - supersededAt
         - acknowledgement
+    DeclarationVersionDetail:
+      type: object
+      properties:
+        version:
+          type: integer
+          minimum: 1
+        reference:
+          $ref: '#/components/schemas/DeclarationReference'
+        submittedAt:
+          type: string
+          format: date-time
+        late:
+          type: boolean
+          description: Submitted after the obligation's due date
+        canonicalSha256:
+          type: string
+          pattern: ^[0-9a-f]{64}$
+          description: Hex SHA-256 of the document's RFC 8785 canonical JSON
+        supersededAt:
+          anyOf:
+            - type: string
+              format: date-time
+            - type: 'null'
+          description: When a later version replaced it; null while in force
+        acknowledgement:
+          $ref: '#/components/schemas/Acknowledgement'
+        document:
+          type: object
+          propertyNames:
+            type: string
+          additionalProperties: {}
+          description: The immutable declaration.v1 document as submitted (decrypted for the declarant), its attestation carrying the reference and the time it was declared
+      required:
+        - version
+        - reference
+        - submittedAt
+        - late
+        - canonicalSha256
+        - supersededAt
+        - acknowledgement
+        - document
     SubmissionResult:
       type: object
       properties:
@@ -3345,17 +3516,6 @@ components:
             updatedAt:
               type: string
               format: date-time
-    DeclarationVersionDetail:
-      allOf:
-        - $ref: '#/components/schemas/DeclarationVersion'
-        - type: object
-          required:
-            - document
-          properties:
-            document:
-              type: object
-              description: The immutable declaration.v1 document (decrypted for the owner)
-              additionalProperties: true
     InternalVersionDocument:
       type: object
       required:

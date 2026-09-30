@@ -15,7 +15,9 @@ import { isRecord, isUuid, UUID } from '../guards.js';
 import { commissionRef } from '../obligations/access.js';
 import { nairobiDate } from '../obligations/dates.js';
 import { commissionRefs, filingObligations } from '../obligations/schema.js';
-import { isLate, submitRefusal } from '../submission/window.js';
+import { acknowledgementOf } from '../acknowledgement/status.js';
+import { declarationVersions } from '../submission/schema.js';
+import { amendRefusal, isLate, submitRefusal } from '../submission/window.js';
 import { personOf } from './access.js';
 import { itemIds, keepAttachments } from './attachments.js';
 import { assessSections, type DraftSections, type SectionAssessment } from './completeness.js';
@@ -78,6 +80,7 @@ import {
   declarationAttachments,
   declarationSections,
   declarations,
+  isEditable,
   obligationDrafts,
   type SectionMetadata,
 } from './schema.js';
@@ -343,12 +346,14 @@ export class DraftsService {
   }
 
   /**
-   * The declarant's live declarations (S16), last updated first, each with how much is complete:
-   * complete sections out of the live ones (archived statements left out).
+   * The declarant's live declarations (S16), last updated first, each with how much is complete
+   * (complete sections out of the live ones, archived statements left out) and, once submitted,
+   * what "My declarations" shows of it (spec 06): the reference, the version in force with its
+   * submission time, lateness and acknowledgement slip, and whether Amend is open today.
    */
   async mine(principal: Principal): Promise<DeclarationListItem[]> {
     const person = personOf(principal);
-    const { rows, completeness, commissions } = await withPerson(this.db, person, async (tx) => {
+    const found = await withPerson(this.db, person, async (tx) => {
       const rows = await tx
         .select()
         .from(declarations)
@@ -356,7 +361,8 @@ export class DraftsService {
           and(eq(declarations.personId, person.personId), ne(declarations.status, 'discarded')),
         )
         .orderBy(desc(declarations.updatedAt), desc(declarations.id));
-      if (rows.length === 0) return { rows, completeness: [], commissions: [] };
+      if (rows.length === 0) return null;
+      const ids = rows.map((row) => row.id);
       const completeness = await tx
         .select({
           declarationId: declarationSections.declarationId,
@@ -366,10 +372,7 @@ export class DraftsService {
         .from(declarationSections)
         .where(
           and(
-            inArray(
-              declarationSections.declarationId,
-              rows.map((row) => row.id),
-            ),
+            inArray(declarationSections.declarationId, ids),
             ne(declarationSections.completeness, 'archived'),
           ),
         )
@@ -387,15 +390,56 @@ export class DraftsService {
             rows.map((row) => row.tenant),
           ),
         );
-      return { rows, completeness, commissions };
+      const obligations = await tx
+        .select({
+          id: filingObligations.id,
+          status: filingObligations.status,
+          dueDate: filingObligations.dueDate,
+        })
+        .from(filingObligations)
+        .where(
+          inArray(
+            filingObligations.id,
+            rows.map((row) => row.obligationId),
+          ),
+        );
+      // The versions in force, one per submitted declaration.
+      const inForce = await tx
+        .select()
+        .from(declarationVersions)
+        .innerJoin(
+          declarations,
+          and(
+            eq(declarations.id, declarationVersions.declarationId),
+            eq(declarations.currentVersion, declarationVersions.version),
+          ),
+        )
+        .where(inArray(declarationVersions.declarationId, ids));
+      return {
+        rows,
+        completeness,
+        commissions,
+        obligations: new Map(obligations.map((obligation) => [obligation.id, obligation])),
+        versions: new Map(
+          inForce.map(({ declaration_versions: version }) => [version.declarationId, version]),
+        ),
+      };
     });
+    if (!found) return [];
+    const { rows, completeness, commissions, obligations, versions } = found;
     const bySlug = new Map(commissions.map((commission) => [commission.slug, commission]));
+    const now = this.clock.now();
+    const today = nairobiDate(now);
     return rows.map((row) => {
       const counted = completeness.filter((group) => group.declarationId === row.id);
       const live = counted.reduce((sum, group) => sum + group.sections, 0);
       const complete = counted
         .filter((group) => group.completeness === 'complete')
         .reduce((sum, group) => sum + group.sections, 0);
+      const obligation = obligations.get(row.obligationId);
+      if (!obligation) throw new Error(`Declaration ${row.id} has no obligation`);
+      const version = versions.get(row.id);
+      const acknowledgement = version ? acknowledgementOf(version, now) : null;
       return {
         id: row.id,
         obligationId: row.obligationId,
@@ -404,6 +448,18 @@ export class DraftsService {
         statementDate: row.statementDate,
         status: row.status,
         completenessPercent: live === 0 ? 0 : Math.floor((complete * 100) / live),
+        dueDate: obligation.dueDate,
+        reference: row.reference,
+        currentVersion: row.currentVersion,
+        amendingFromVersion: row.amendingFromVersion,
+        submittedAt: version?.submittedAt.toISOString() ?? null,
+        late: version?.late ?? null,
+        amendable: amendRefusal(row.status, obligation, today) === null,
+        acknowledgement: acknowledgement && {
+          status: acknowledgement.status,
+          documentId: acknowledgement.documentId,
+          verifiedCount: acknowledgement.verifiedCount,
+        },
         updatedAt: row.updatedAt.toISOString(),
       };
     });
@@ -461,7 +517,7 @@ export class DraftsService {
       await withPerson(this.db, person, (tx) => readSection(tx, declarationId, key)),
     );
     const { declaration, section } = state;
-    if (declaration.status !== 'draft') throw declarationNotDraft('edited');
+    if (!isEditable(declaration.status)) throw declarationNotDraft('edited');
     if (declaration.draftVersion !== expected) throw versionMismatch();
     if (section.metadata.archived === true) throw sectionArchived();
     if (!isRecord(body)) throw validationProblem([{ path: '', message: 'Expected an object' }]);

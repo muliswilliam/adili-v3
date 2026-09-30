@@ -45,6 +45,7 @@ import { declarationReferenceSchema } from './submission/reference.js';
 import {
   acknowledgementSchema,
   acknowledgementStatusSchema,
+  declarationVersionDetailSchema,
   declarationVersionSchema,
   submissionResultSchema,
   submitProblemSchema,
@@ -92,6 +93,7 @@ export const OPENAPI_SCHEMAS: Record<string, z.ZodType> = {
   AcknowledgementStatus: acknowledgementStatusSchema,
   Acknowledgement: acknowledgementSchema,
   DeclarationVersion: declarationVersionSchema,
+  DeclarationVersionDetail: declarationVersionDetailSchema,
   SubmissionResult: submissionResultSchema,
   SubmitProblem: submitProblemSchema,
   AcknowledgementSlip: acknowledgementSlipSchema,

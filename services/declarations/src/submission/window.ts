@@ -1,5 +1,5 @@
 import type { ObligationStatus } from '../obligations/engine.js';
-import type { DeclarationStatus } from '../drafts/schema.js';
+import { type DeclarationStatus, isEditable } from '../drafts/schema.js';
 
 /**
  * When a declaration can be submitted (spec 06), pure: the rules the submit transaction enforces
@@ -9,7 +9,7 @@ import type { DeclarationStatus } from '../drafts/schema.js';
 
 /** Only a draft or an amendment in progress is submitted; anything else is `not-a-draft`. */
 export function isSubmittable(status: DeclarationStatus): boolean {
-  return status === 'draft' || status === 'amending';
+  return isEditable(status);
 }
 
 export interface ObligationWindow {
@@ -59,4 +59,23 @@ export function submitRefusal(
 /** Submitted after the due date: the version and the obligation record it as late. */
 export function isLate(dueDate: string, today: string): boolean {
   return today > dueDate;
+}
+
+export type AmendRefusal = 'not-submitted' | 'obligation-cancelled' | 'amendment-window-closed';
+
+/**
+ * Why the declaration cannot be reopened for amendment today, or null when it can: only a
+ * submitted declaration is amended (`not-submitted`), and only until its obligation's due date,
+ * the due date itself included (after it, changes go through the Commission's clarifications).
+ * The same rule decides whether "My declarations" offers Amend.
+ */
+export function amendRefusal(
+  status: DeclarationStatus,
+  obligation: Pick<ObligationWindow, 'status' | 'dueDate'>,
+  today: string,
+): AmendRefusal | null {
+  if (status !== 'submitted') return 'not-submitted';
+  if (obligation.status === 'cancelled') return 'obligation-cancelled';
+  if (today > obligation.dueDate) return 'amendment-window-closed';
+  return null;
 }

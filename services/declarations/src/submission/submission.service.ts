@@ -41,6 +41,7 @@ import { type DerivedItem, deriveItems } from './items.js';
 import { incomplete, refused, stepUpRequired } from './problems.js';
 import type { DeclarationVersion, SubmissionResult } from './representation.js';
 import { declarationItems, declarationVersions } from './schema.js';
+import { versionRecordId } from './versions.js';
 import { isLate, isSubmittable, obligationRefusal } from './window.js';
 
 /** The ACR of a token issued right after a fresh one-time code (the realm's LoA 2, spec 06). */
@@ -426,11 +427,6 @@ export function versionOf(row: VersionRow, now: Date): DeclarationVersion {
     supersededAt: row.supersededAt?.toISOString() ?? null,
     acknowledgement: acknowledgementOf(row, now),
   };
-}
-
-/** The AAD record id of a version's snapshot: a snapshot cannot move to another version. */
-export function versionRecordId(versionId: string): string {
-  return `declaration-version:${versionId}`;
 }
 
 /** The AAD record id of an item's encrypted field. */
