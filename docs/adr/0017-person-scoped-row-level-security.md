@@ -3,7 +3,7 @@
 - **Status:** Accepted
 - **Date:** 2026-09-29
 - **Deciders:** Adili V3 DIALs team
-- **Amends:** [ADR-006](0006-multi-tenancy-and-hierarchy.md) decision 5 (isolation): row-level security gains a second, read-only axis, the person, next to the tenant. The rest of ADR-006 still stands.
+- **Supersedes:** [ADR-006](0006-multi-tenancy-and-hierarchy.md) decision 5 (isolation) in part: row-level security gains a second, read-only axis, the person, next to the tenant. The rest of ADR-006 still stands.
 - **Related:** [ADR-004](0004-identity-keycloak-self-registration.md), [ADR-014](0014-roster-gated-declarant-onboarding.md), [ADR-016](0016-obligation-reminder-delivery.md)
 
 ## Context

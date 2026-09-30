@@ -1,6 +1,6 @@
 # ADR-013: Service-to-service communication
 
-- **Status:** Accepted; amended 2026-09-28 with the recorded exceptions in §8 (spec #27, spec 03); for the declarations service's calls (spec 04) the depth limit and default timeout in §2 and the acting-tenant uses in §8.1 are amended by [ADR-016](0016-obligation-reminder-delivery.md)
+- **Status:** Accepted; amended 2026-09-28 with the recorded exceptions in §8 (spec #27, spec 03); the depth limit and default timeout in §2 and the acting-tenant uses in §8.1 partly superseded by [ADR-016](0016-obligation-reminder-delivery.md) for the declarations service's calls (spec 04)
 - **Date:** 2026-09-24
 - **Deciders:** Adili V3 DIALs team
 - **Related:** [ADR-003](0003-temporal-as-workflow-engine.md), [ADR-004](0004-identity-keycloak-self-registration.md), [ADR-005](0005-message-queue-rabbitmq.md), [ADR-006](0006-multi-tenancy-and-hierarchy.md), [ADR-009](0009-api-first-interoperability.md), [ADR-012](0012-single-polyglot-monorepo.md)

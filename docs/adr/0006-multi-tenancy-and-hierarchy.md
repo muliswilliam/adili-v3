@@ -1,6 +1,6 @@
 # ADR-006: Multi-tenancy and hierarchy
 
-- **Status:** Accepted; decision 5 amended by [ADR-017](0017-person-scoped-row-level-security.md) (person-scoped row-level security for a declarant's own records)
+- **Status:** Accepted; decision 5 (isolation) partly superseded by [ADR-017](0017-person-scoped-row-level-security.md) (person-scoped row-level security for a declarant's own records)
 - **Date:** 2026-09-24
 - **Deciders:** Adili V3 DIALs team
 - **Related:** [ADR-001](0001-postgresql-as-sole-structured-data-store.md), [ADR-004](0004-identity-keycloak-self-registration.md), [ADR-009](0009-api-first-interoperability.md), [research/dials-scope-and-scale.md](../research/dials-scope-and-scale.md)

@@ -3,7 +3,7 @@
 - **Status:** Accepted
 - **Date:** 2026-09-29
 - **Deciders:** Adili V3 DIALs team
-- **Amends:** [ADR-013](0013-service-communication.md) for the declarations service's calls (spec 04): the depth limit and the 2 s default timeout in §2, and the uses of the acting tenant header in §8.1. The rest of ADR-013 still stands.
+- **Supersedes:** [ADR-013](0013-service-communication.md) in part, for the declarations service's calls (spec 04): the depth limit and the 2 s default timeout in §2, and the uses of the acting tenant header in §8.1. The rest of ADR-013 still stands.
 - **Related:** [ADR-003](0003-temporal-as-workflow-engine.md), [ADR-005](0005-message-queue-rabbitmq.md), [ADR-006](0006-multi-tenancy-and-hierarchy.md), [ADR-017](0017-person-scoped-row-level-security.md)
 
 ## Context
