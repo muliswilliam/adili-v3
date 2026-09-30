@@ -1,5 +1,10 @@
 import { VERIFICATION_ID_PATTERN } from '@adili/events/contracts';
-import { declarationSchemes, InvalidReferenceError, parse } from '@adili/numbering/references';
+import {
+  DECLARATION_TYPES,
+  declarationSchemes,
+  InvalidReferenceError,
+  parse,
+} from '@adili/numbering/references';
 import { z } from 'zod';
 
 export const CHANNELS = ['email', 'sms'] as const;
@@ -83,12 +88,9 @@ function otpEmail(
 const forCommission = (params: OtpParams) =>
   params.commissionName ? ` with ${params.commissionName}` : '';
 
-/** Filing obligation types (declarations.yaml `ObligationType`), as written in a sentence. */
-const OBLIGATION_TYPES = ['initial', 'biennial', 'final'] as const;
-
 const reminderParams = z
   .strictObject({
-    type: z.enum(OBLIGATION_TYPES),
+    type: z.enum(DECLARATION_TYPES),
     commissionName: z.string().trim().min(1).max(120),
     /** Civil dates `YYYY-MM-DD`, as the declarations service stores them. */
     statementDate: z.iso.date(),
@@ -177,7 +179,7 @@ const acknowledgementParams = z
         });
       }
     }),
-    type: z.enum(OBLIGATION_TYPES),
+    type: z.enum(DECLARATION_TYPES),
     /** The submitted version the slip is for; above 1 is an amendment, same reference. */
     version: z.number().int().min(1).max(99),
     commissionName: z.string().trim().min(1).max(120),
