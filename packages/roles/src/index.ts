@@ -33,5 +33,8 @@ export const DIRECTORY_INTERNAL_SCOPE = 'directory:internal';
  */
 export const DIRECTORY_PERSON_CONTACTS_SCOPE = 'directory:person-contacts';
 
+/** The documents service's internal API (roster upload downloads, acting for a tenant). */
+export const DOCUMENTS_INTERNAL_SCOPE = 'documents:internal';
+
 /** The notifications messages API (`POST /internal/v1/messages`). */
 export const MESSAGES_SCOPE = 'messages';

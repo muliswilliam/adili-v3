@@ -18,9 +18,9 @@ import {
   schemaRef,
   ZodValidationPipe,
 } from '@adili/api-kit';
+import { DOCUMENTS_INTERNAL_SCOPE } from '@adili/roles';
 import { z } from 'zod';
 
-import { DOCUMENTS_INTERNAL_SCOPE } from '../internal/acting-tenant.js';
 import {
   type CreateUploadBody,
   createUploadBody,
