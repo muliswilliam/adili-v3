@@ -88,7 +88,8 @@ export interface ReferenceChipProps {
   parts?: readonly ReferencePart[];
   /** Adds a button to copy the reference. Needs a ToastProvider. */
   copyable?: boolean;
-  size?: 'sm' | 'default';
+  /** `lg` for the one reference a page is about, e.g. the submission success page. */
+  size?: 'sm' | 'default' | 'lg';
   messages?: Partial<ReferenceChipMessages>;
   className?: string;
 }
@@ -110,20 +111,21 @@ export function ReferenceChip({
   const segments = reference.split('-');
   const breakdown = parts?.length === segments.length ? parts : undefined;
   const small = size === 'sm';
+  const large = size === 'lg';
 
   const chip = (
     <span
       className={cn(
         'inline-flex max-w-full items-center gap-0.5 rounded-[10px] bg-card shadow-control',
-        small ? 'rounded-lg py-0.5 pr-0.5 pl-2' : 'py-1 pr-1 pl-3',
-        !copyable && !breakdown && (small ? 'pr-2' : 'pr-3'),
+        small ? 'rounded-lg py-0.5 pr-0.5 pl-2' : large ? 'py-1.5 pr-1.5 pl-3.5' : 'py-1 pr-1 pl-3',
+        !copyable && !breakdown && (small ? 'pr-2' : large ? 'pr-3.5' : 'pr-3'),
         className,
       )}
     >
       <span
         className={cn(
           'min-w-0 truncate font-mono font-semibold tracking-[0.02em]',
-          small ? 'text-[13px]' : 'text-[15px]',
+          small ? 'text-[13px]' : large ? 'text-[17px]' : 'text-[15px]',
         )}
       >
         {reference}

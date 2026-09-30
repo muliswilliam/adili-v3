@@ -33,6 +33,7 @@ import { Route as DeclarationsIdBioRouteImport } from './routes/declarations/$id
 import { Route as DeclarationsIdHouseholdRouteImport } from './routes/declarations/$id/household'
 import { Route as DeclarationsIdOtherRouteImport } from './routes/declarations/$id/other'
 import { Route as DeclarationsIdSummaryRouteImport } from './routes/declarations/$id/summary'
+import { Route as DeclarationsIdSubmittedRouteImport } from './routes/declarations/$id_.submitted'
 import { Route as DeclarationsIdStatementsPersonKeyRouteImport } from './routes/declarations/$id/statements/$personKey'
 
 const IndexRoute = IndexRouteImport.update({
@@ -155,6 +156,11 @@ const DeclarationsIdSummaryRoute = DeclarationsIdSummaryRouteImport.update({
   path: '/summary',
   getParentRoute: () => DeclarationsIdRouteRoute,
 } as any)
+const DeclarationsIdSubmittedRoute = DeclarationsIdSubmittedRouteImport.update({
+  id: '/declarations/$id_/submitted',
+  path: '/declarations/$id/submitted',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const DeclarationsIdStatementsPersonKeyRoute =
   DeclarationsIdStatementsPersonKeyRouteImport.update({
     id: '/statements/$personKey',
@@ -186,6 +192,7 @@ export interface FileRoutesByFullPath {
   '/declarations/$id/household': typeof DeclarationsIdHouseholdRoute
   '/declarations/$id/other': typeof DeclarationsIdOtherRoute
   '/declarations/$id/summary': typeof DeclarationsIdSummaryRoute
+  '/declarations/$id/submitted': typeof DeclarationsIdSubmittedRoute
   '/declarations/$id/': typeof DeclarationsIdIndexRoute
   '/declarations/$id/statements/$personKey': typeof DeclarationsIdStatementsPersonKeyRoute
 }
@@ -211,6 +218,7 @@ export interface FileRoutesByTo {
   '/declarations/$id/household': typeof DeclarationsIdHouseholdRoute
   '/declarations/$id/other': typeof DeclarationsIdOtherRoute
   '/declarations/$id/summary': typeof DeclarationsIdSummaryRoute
+  '/declarations/$id/submitted': typeof DeclarationsIdSubmittedRoute
   '/declarations/$id': typeof DeclarationsIdIndexRoute
   '/declarations/$id/statements/$personKey': typeof DeclarationsIdStatementsPersonKeyRoute
 }
@@ -239,6 +247,7 @@ export interface FileRoutesById {
   '/declarations/$id/household': typeof DeclarationsIdHouseholdRoute
   '/declarations/$id/other': typeof DeclarationsIdOtherRoute
   '/declarations/$id/summary': typeof DeclarationsIdSummaryRoute
+  '/declarations/$id_/submitted': typeof DeclarationsIdSubmittedRoute
   '/declarations/$id/': typeof DeclarationsIdIndexRoute
   '/declarations/$id/statements/$personKey': typeof DeclarationsIdStatementsPersonKeyRoute
 }
@@ -268,6 +277,7 @@ export interface FileRouteTypes {
     | '/declarations/$id/household'
     | '/declarations/$id/other'
     | '/declarations/$id/summary'
+    | '/declarations/$id/submitted'
     | '/declarations/$id/'
     | '/declarations/$id/statements/$personKey'
   fileRoutesByTo: FileRoutesByTo
@@ -293,6 +303,7 @@ export interface FileRouteTypes {
     | '/declarations/$id/household'
     | '/declarations/$id/other'
     | '/declarations/$id/summary'
+    | '/declarations/$id/submitted'
     | '/declarations/$id'
     | '/declarations/$id/statements/$personKey'
   id:
@@ -320,6 +331,7 @@ export interface FileRouteTypes {
     | '/declarations/$id/household'
     | '/declarations/$id/other'
     | '/declarations/$id/summary'
+    | '/declarations/$id_/submitted'
     | '/declarations/$id/'
     | '/declarations/$id/statements/$personKey'
   fileRoutesById: FileRoutesById
@@ -336,6 +348,7 @@ export interface RootRouteChildren {
   ClarificationsIdRoute: typeof ClarificationsIdRoute
   ApiMockLettersIdRoute: typeof ApiMockLettersIdRoute
   ApiMockUploadsIdRoute: typeof ApiMockUploadsIdRoute
+  DeclarationsIdSubmittedRoute: typeof DeclarationsIdSubmittedRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -508,6 +521,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DeclarationsIdSummaryRouteImport
       parentRoute: typeof DeclarationsIdRouteRoute
     }
+    '/declarations/$id_/submitted': {
+      id: '/declarations/$id_/submitted'
+      path: '/declarations/$id/submitted'
+      fullPath: '/declarations/$id/submitted'
+      preLoaderRoute: typeof DeclarationsIdSubmittedRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/declarations/$id/statements/$personKey': {
       id: '/declarations/$id/statements/$personKey'
       path: '/statements/$personKey'
@@ -578,6 +598,7 @@ const rootRouteChildren: RootRouteChildren = {
   ClarificationsIdRoute: ClarificationsIdRoute,
   ApiMockLettersIdRoute: ApiMockLettersIdRoute,
   ApiMockUploadsIdRoute: ApiMockUploadsIdRoute,
+  DeclarationsIdSubmittedRoute: DeclarationsIdSubmittedRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

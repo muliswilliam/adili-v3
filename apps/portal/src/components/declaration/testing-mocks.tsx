@@ -9,6 +9,9 @@ import { vi } from 'vitest';
  *   vi.mock('../../server/declarations', async () =>
  *     (await import('./testing-mocks')).serverMock(),
  *   );
+ *
+ * Screens with the submit flow also mock `../../server/submission` (`submissionMock`) and
+ * `../../server/step-up` (`stepUpMock`).
  */
 
 export const navigate = vi.fn();
@@ -58,4 +61,12 @@ export function serverMock() {
     dismissDeclarationSuggestion: vi.fn(),
     extractDeclarationAttachment: vi.fn(),
   };
+}
+
+export function submissionMock() {
+  return { submitMyDeclaration: vi.fn(), getMySubmission: vi.fn() };
+}
+
+export function stepUpMock() {
+  return { getStepUpStatus: vi.fn() };
 }

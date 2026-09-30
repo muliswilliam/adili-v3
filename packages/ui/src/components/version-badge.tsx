@@ -29,13 +29,13 @@ export type VersionBadgeProps = Omit<BadgeProps, 'children' | 'variant'> & {
 };
 
 /**
- * A declaration or document version: "Version 2", "Version 2 · current" (`success`) or
+ * A declaration or document version: "Version 2" (`info`), "Version 2 · current" (`success`) or
  * "Version 1 · superseded" (`warning`). The state is in the text, never colour alone.
  */
 export function VersionBadge({ version, state, messages, ...props }: VersionBadgeProps) {
   const copy = { ...VERSION_BADGE_MESSAGES, ...messages };
   return (
-    <Badge variant={state ? VARIANT[state] : 'default'} data-state={state} {...props}>
+    <Badge variant={state ? VARIANT[state] : 'info'} data-state={state} {...props}>
       <Icon icon={File01Icon} />
       {copy.version(version)}
       {state ? ` · ${copy[state]}` : null}

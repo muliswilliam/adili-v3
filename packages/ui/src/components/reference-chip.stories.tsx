@@ -48,6 +48,9 @@ export const Small: Story = {
   },
 };
 
+/** The one reference a page is about, as on the submission success page. */
+export const Large: Story = { args: { size: 'lg' } };
+
 /** Without registry names the chip is the reference and its copy button. */
 export const WithoutBreakdown: Story = { args: { parts: undefined } };
 

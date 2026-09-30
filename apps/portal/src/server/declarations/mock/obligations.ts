@@ -152,13 +152,17 @@ function twoCommissions(): Fixture[] {
   ];
 }
 
-interface TokenClaims {
+export interface TokenClaims {
   preferred_username?: string;
   person_id?: string;
+  /** Authentication context class: `step-up` after a fresh one-time code (spec 06). */
+  acr?: string;
+  /** When the user last authenticated, in seconds since the epoch. */
+  auth_time?: number;
 }
 
 /** The claims of a bearer token, unverified; the mock trusts whatever the BFF sends. */
-function bearerClaims(request: Request): TokenClaims | null {
+export function bearerClaims(request: Request): TokenClaims | null {
   const token = /^Bearer (.+)$/.exec(request.headers.get('authorization') ?? '')?.[1];
   const payload = token?.split('.')[1];
   if (!payload) return null;

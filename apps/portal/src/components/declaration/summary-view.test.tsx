@@ -6,7 +6,6 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { discardMyDeclaration } from '../../server/declarations';
 import type { LoadedSummary } from '../../server/declarations.server';
 import type { CompletenessIssue } from '../../server/declarations/types';
-import { SUBMIT_NEXT_RELEASE } from './summary';
 import { SummaryView } from './summary-view';
 import {
   DECLARATION_ID,
@@ -35,6 +34,8 @@ vi.mock('@tanstack/react-router', async () => {
   };
 });
 vi.mock('../../server/declarations', async () => (await import('./testing-mocks')).serverMock());
+vi.mock('../../server/submission', async () => (await import('./testing-mocks')).submissionMock());
+vi.mock('../../server/step-up', async () => (await import('./testing-mocks')).stepUpMock());
 
 const discardMock = vi.mocked(discardMyDeclaration);
 
@@ -427,7 +428,7 @@ describe('SummaryView', () => {
     expect(screen.queryByText('Everything is complete.')).toBeNull();
     expect(within(card('Name')).getByText('Incomplete')).toBeTruthy();
     expect(within(card('Spouses')).getByText('Not started')).toBeTruthy();
-    expect(screen.getByText(SUBMIT_NEXT_RELEASE)).toBeTruthy();
+    expect(screen.getByText('Complete the 3 items listed above to submit.')).toBeTruthy();
   });
 
   it('shows at most twelve blocking issues and says how many more', () => {
