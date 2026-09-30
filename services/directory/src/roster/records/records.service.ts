@@ -1,14 +1,14 @@
 import { HttpStatus, Injectable } from '@nestjs/common';
 import { notFoundIfInvisible, type Principal, ProblemException } from '@adili/api-kit';
 import { type Database, InjectDatabase, withTenant } from '@adili/data-access';
-import { and, asc, desc, eq, ilike, isNotNull, like, or, type SQL, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, ilike, isNotNull, isNull, like, or, type SQL, sql } from 'drizzle-orm';
 
 import { canSeeCommission, tenantContextOf } from '../../commissions/access.js';
 import type { Transaction } from '../../commissions/commissions.service.js';
 import { requireCommission } from '../../commissions/require-commission.js';
 import { decodeCursor, encodeCursor } from '../../commissions/list-query.js';
 import type { RosterSummary } from '../../commissions/representation.js';
-import { commissions, type DirectorySchema } from '../../db/schema.js';
+import { commissions, type DirectorySchema, persons } from '../../db/schema.js';
 import {
   reportingEntities,
   rosterImportRows,
@@ -49,6 +49,9 @@ const listItemColumns = {
   absentFromLatestImport: rosterRecords.absentFromLatestImport,
   flaggedByImportId: rosterRecords.flaggedByImportId,
   flaggedAt: rosterRecords.flaggedAt,
+  ofr: persons.ofr,
+  onboardedAt: rosterRecords.onboardedAt,
+  identityMismatchAt: rosterRecords.identityMismatchAt,
 };
 
 const recordColumns = {
@@ -100,6 +103,7 @@ export class RosterRecordsService {
         .select(listItemColumns)
         .from(rosterRecords)
         .leftJoin(reportingEntities, eq(reportingEntities.id, rosterRecords.reportingEntityId))
+        .leftJoin(persons, eq(persons.id, rosterRecords.personId))
         .where(
           and(
             eq(rosterRecords.tenant, slug),
@@ -160,6 +164,7 @@ export async function readRosterRecord(
     .select(recordColumns)
     .from(rosterRecords)
     .leftJoin(reportingEntities, eq(reportingEntities.id, rosterRecords.reportingEntityId))
+    .leftJoin(persons, eq(persons.id, rosterRecords.personId))
     .where(and(eq(rosterRecords.id, recordId), eq(rosterRecords.tenant, slug)));
   if (!record) return undefined;
   const imports = await tx
@@ -200,7 +205,10 @@ export async function readRosterRecord(
   };
 }
 
-/** Search (file number prefix, name fragment or full national ID), state and flag filters. */
+/**
+ * Search (file number prefix, name fragment or full national ID), state, flag and identity
+ * mismatch filters.
+ */
 function filtersFor(query: ListRosterRecordsQuery): (SQL | undefined)[] {
   const filters: (SQL | undefined)[] = [];
   if (query.search) {
@@ -218,6 +226,13 @@ function filtersFor(query: ListRosterRecordsQuery): (SQL | undefined)[] {
   if (query.flagged !== undefined) {
     filters.push(eq(rosterRecords.absentFromLatestImport, query.flagged));
   }
+  if (query.identityMismatch !== undefined) {
+    filters.push(
+      query.identityMismatch
+        ? isNotNull(rosterRecords.identityMismatchAt)
+        : isNull(rosterRecords.identityMismatchAt),
+    );
+  }
   return filters;
 }
 
@@ -234,6 +249,9 @@ interface ListItemRow {
   absentFromLatestImport: boolean;
   flaggedByImportId: string | null;
   flaggedAt: Date | null;
+  ofr: string | null;
+  onboardedAt: Date | null;
+  identityMismatchAt: Date | null;
 }
 
 function toListItem(row: ListItemRow): RosterRecordListItem {
@@ -252,5 +270,8 @@ function toListItem(row: ListItemRow): RosterRecordListItem {
     absentFromLatestImport: row.absentFromLatestImport,
     flaggedByImportId: row.flaggedByImportId,
     flaggedAt: row.flaggedAt?.toISOString() ?? null,
+    ofr: row.ofr,
+    onboardedAt: row.onboardedAt?.toISOString() ?? null,
+    identityMismatchAt: row.identityMismatchAt?.toISOString() ?? null,
   };
 }

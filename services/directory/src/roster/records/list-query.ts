@@ -23,6 +23,14 @@ export const listRosterRecordsQuery = z.object({
       description:
         'Only records flagged as absent from the latest complete import, or only those not flagged',
     }),
+  identityMismatch: z
+    .enum(['true', 'false'])
+    .optional()
+    .transform((value) => (value === undefined ? undefined : value === 'true'))
+    .meta({
+      description:
+        'Only records on which an onboarding attempt found an identity mismatch, or only those without one',
+    }),
   cursor: z
     .string()
     .max(500)

@@ -22,7 +22,7 @@ export const idempotencyKeys = pgTable(
   'idempotency_keys',
   {
     key: text().notNull(),
-    /** Keys are scoped per caller: the `sub` of the verified token. */
+    /** Keys are scoped per caller: the `sub` of the verified token, or a public route's owner. */
     principalSubject: text().notNull(),
     /** SHA-256 of method, URL and canonical JSON body. */
     requestHash: text().notNull(),

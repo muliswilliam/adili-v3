@@ -1,118 +1,54 @@
-import {
-  applyDecorators,
-  type CanActivate,
-  type ExecutionContext,
-  HttpStatus,
-  Inject,
-  Injectable,
-  Logger,
-  SetMetadata,
-  UseGuards,
-} from '@nestjs/common';
+import { type CanActivate, type ExecutionContext, Injectable } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
-import { ApiResponse, type HeadersObject } from '@nestjs/swagger';
 import type { FastifyReply } from 'fastify';
 
 import type { AuthenticatedRequest } from '../auth/jwt-auth.guard.js';
-import { schemaRef } from '../openapi.js';
-import { PROBLEM_CONTENT_TYPE, ProblemException } from '../problem-details.filter.js';
-import { type RateLimitPolicy, RateLimitStore } from './rate-limit.store.js';
+import type { ProblemCode } from '../problem-codes.js';
+import { ProblemException } from '../problem-details.filter.js';
+import { setRateLimitHeaders, tightest } from './rate-limit.headers.js';
+import { byCaller } from './rate-limit.keys.js';
+import { RATE_LIMIT_RULES, type RateLimitRule } from './rate-limit.rules.js';
+import { type RateLimitCharge, RateLimiter } from './rate-limiter.js';
 
-export const RATE_LIMIT_GROUP = Symbol('RATE_LIMIT_GROUP');
-/** Injection token of the configured policies, by route group. */
-export const RATE_LIMIT_POLICIES = Symbol('RATE_LIMIT_POLICIES');
+/** A request counted against one budget, and the problem codes that would give it back. */
+export interface RefundableCharge extends RateLimitCharge {
+  refundOn: readonly ProblemCode[];
+}
 
-export const RATE_LIMIT_LIMIT_HEADER = 'ratelimit-limit';
-export const RATE_LIMIT_REMAINING_HEADER = 'ratelimit-remaining';
-export const RATE_LIMIT_RESET_HEADER = 'ratelimit-reset';
-
-/**
- * The headers every response of a `@RateLimit` route carries, for its documented responses:
- * `@ApiOkResponse({ ..., headers: RATE_LIMIT_HEADERS })`. The 429 documents them itself.
- */
-export const RATE_LIMIT_HEADERS: HeadersObject = {
-  'RateLimit-Limit': {
-    description: "Requests the caller's budget holds when full",
-    schema: { type: 'integer' },
-  },
-  'RateLimit-Remaining': {
-    description: 'Requests left in the budget after this one',
-    schema: { type: 'integer' },
-  },
-  'RateLimit-Reset': {
-    description: 'Seconds until the budget is full again',
-    schema: { type: 'integer' },
-  },
-};
+/** Counted requests that may be given back (see `RateLimitRefundInterceptor`). */
+const refundable = new WeakMap<object, RefundableCharge[]>();
 
 /**
- * Limits how often each caller may use a controller or route (ADR-009 per-client rate limits).
- * The policy for `group` comes from configuration (`RateLimitModule`), not code: routes that
- * share a group share each caller's budget. A route-level `@RateLimit` replaces a
- * controller-level one.
- *
- * Every response of the route carries `RateLimit-Limit`, `RateLimit-Remaining` and
- * `RateLimit-Reset` (seconds until the budget is full again). Past the limit the caller gets
- * 429 `rate-limit-exceeded` problem details with `Retry-After`, and the handler does not run.
- *
- * Callers are counted per OAuth client and subject: a machine client (client credentials, one
- * service account) has one budget; people signed in through the same app each have their own.
- * Unauthenticated calls on `@Public()` routes are counted per IP address. If the store is down,
- * requests pass unlimited rather than fail.
- *
- * Needs `RateLimitModule` in the application; the app fails to start without it, or when
- * `group` has no configured policy.
- *
- * @example
- * @Post('batches')
- * @RateLimit('roster-api')
- * upsertBatch() {}
+ * The request's charges that may be given back, once: a second call (a second registration of
+ * the refund interceptor) gets none.
  */
-export const RateLimit = (group: string) =>
-  applyDecorators(
-    SetMetadata(RATE_LIMIT_GROUP, group),
-    UseGuards(RateLimitGuard),
-    ApiResponse({
-      status: HttpStatus.TOO_MANY_REQUESTS,
-      description:
-        'Problem type `rate-limit-exceeded`: rate limit exceeded; retry after the seconds in Retry-After',
-      content: { [PROBLEM_CONTENT_TYPE]: { schema: schemaRef('ProblemDetails') } },
-      headers: {
-        ...RATE_LIMIT_HEADERS,
-        'Retry-After': {
-          description: 'Seconds until the next request would be allowed',
-          schema: { type: 'integer' },
-        },
-      },
-    }),
-  );
+export function takeRefundableCharges(request: object): RefundableCharge[] | undefined {
+  const charges = refundable.get(request);
+  refundable.delete(request);
+  return charges;
+}
 
+/** Counts each request of a `@RateLimit` route against its budgets (`rate-limit.decorator.ts`). */
 @Injectable()
 export class RateLimitGuard implements CanActivate {
-  private readonly logger = new Logger(RateLimitGuard.name);
   /**
-   * Requests already counted. A route-level `@RateLimit` under a controller-level one registers
-   * this guard twice; the request still takes a single token.
+   * Requests already counted. A route-level `@RateLimit` under a controller-level one, or
+   * several on one route, register this guard more than once; the request is counted once.
    */
   private readonly counted = new WeakSet<object>();
 
   constructor(
     private readonly reflector: Reflector,
-    private readonly store: RateLimitStore,
-    @Inject(RATE_LIMIT_POLICIES) private readonly policies: Record<string, RateLimitPolicy>,
+    private readonly limiter: RateLimiter,
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
-    const group = this.reflector.getAllAndOverride<string | undefined>(RATE_LIMIT_GROUP, [
+    const rules = this.reflector.getAllAndOverride<RateLimitRule[] | undefined>(RATE_LIMIT_RULES, [
       context.getHandler(),
       context.getClass(),
     ]);
-    if (group === undefined) {
+    if (!rules?.length) {
       return true;
-    }
-    const policy = this.policies[group];
-    if (!policy) {
-      throw new Error(`No rate limit configured for group "${group}"`);
     }
     const http = context.switchToHttp();
     const request = http.getRequest<AuthenticatedRequest>();
@@ -122,36 +58,27 @@ export class RateLimitGuard implements CanActivate {
     }
     this.counted.add(request);
 
-    let decision;
-    try {
-      decision = await this.store.consume(`rate-limit:${group}:${callerKey(request)}`, policy);
-    } catch (error) {
-      this.logger.warn({ err: error, group }, 'Rate limit store unavailable; request not limited');
-      return true;
+    const taken: RefundableCharge[] = [];
+    for (const rule of rules) {
+      const caller = (rule.key ?? byCaller)(request);
+      if (caller === undefined) continue;
+      const charge = await this.limiter.consume(rule.group, caller);
+      if (!charge) continue;
+      const { decision, policy } = charge;
+      if (!decision.allowed) {
+        setRateLimitHeaders(reply, decision);
+        void reply.header('retry-after', decision.retryAfterSeconds);
+        throw ProblemException.fromCode('rate-limit-exceeded', {
+          detail: `Rate limit of ${policy.limit} requests per ${policy.windowSeconds} seconds exceeded. Retry after ${decision.retryAfterSeconds} seconds.`,
+          extensions: { retryAfterSeconds: decision.retryAfterSeconds },
+        });
+      }
+      taken.push({ ...charge, refundOn: rule.refundOn ?? [] });
     }
 
-    void reply.headers({
-      [RATE_LIMIT_LIMIT_HEADER]: decision.limit,
-      [RATE_LIMIT_REMAINING_HEADER]: decision.remaining,
-      [RATE_LIMIT_RESET_HEADER]: decision.resetSeconds,
-    });
-    if (!decision.allowed) {
-      void reply.header('retry-after', decision.retryAfterSeconds);
-      throw new ProblemException({
-        type: 'rate-limit-exceeded',
-        title: 'Too Many Requests',
-        status: HttpStatus.TOO_MANY_REQUESTS,
-        detail: `Rate limit of ${policy.limit} requests per ${policy.windowSeconds} seconds exceeded. Retry after ${decision.retryAfterSeconds} seconds.`,
-      });
-    }
+    const shown = tightest(taken.map((charge) => charge.decision));
+    if (shown) setRateLimitHeaders(reply, shown);
+    if (taken.some((charge) => charge.refundOn.length > 0)) refundable.set(request, taken);
     return true;
   }
-}
-
-function callerKey(request: AuthenticatedRequest): string {
-  const { principal } = request;
-  if (!principal) {
-    return `ip:${request.ip}`;
-  }
-  return `client:${principal.clientId ?? '-'}:${principal.subject}`;
 }

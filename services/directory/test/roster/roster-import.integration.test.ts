@@ -384,6 +384,43 @@ describe('S10 identity lock', () => {
     expect(updated).toMatchObject({ designation: 'Chief Officer', state: 'onboarded' });
   });
 
+  it('keeps contacts the declarant supplied at onboarding, and applies roster-sourced ones', async () => {
+    await importFile(csv(ROWS));
+    // Kiprono had no contacts on the roster and supplied both at onboarding (spec 03).
+    await asPlatform((tx) =>
+      tx
+        .update(rosterRecords)
+        .set({
+          state: 'onboarded',
+          email: 'kiprono@example.com',
+          emailSource: 'declarant',
+          phone: '+254700111222',
+          phoneSource: 'declarant',
+        })
+        .where(eq(rosterRecords.personnelFileNumber, 'PSC/2019/0002')),
+    );
+
+    const unchanged = await importFile(csv(ROWS));
+    const done = await importFile(
+      csv([
+        (ROWS[0] ?? '').replace('0712 345 678', '0722 000 111'),
+        (ROWS[1] ?? '').replace(/,,$/, ',kiprono@psc.go.ke,0733 000 222'),
+        ROWS[2] ?? '',
+      ]),
+    );
+
+    expect(unchanged.counts).toMatchObject({ updated: 0, unchanged: 3 });
+    expect(done.counts).toMatchObject({ updated: 1, unchanged: 2, rejected: 0 });
+    const [mary, kiprono] = await records();
+    expect(mary).toMatchObject({ phone: '+254722000111', phoneSource: 'roster' });
+    expect(kiprono).toMatchObject({
+      email: 'kiprono@example.com',
+      emailSource: 'declarant',
+      phone: '+254700111222',
+      phoneSource: 'declarant',
+    });
+  });
+
   it('lets a record that is not onboarded change its national ID', async () => {
     await importFile(csv(ROWS));
 

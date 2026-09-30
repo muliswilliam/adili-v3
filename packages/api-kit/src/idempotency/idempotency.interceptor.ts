@@ -6,8 +6,10 @@ import {
   Injectable,
   Logger,
   type NestInterceptor,
+  SetMetadata,
   UseInterceptors,
 } from '@nestjs/common';
+import { Reflector } from '@nestjs/core';
 import { ApiHeader } from '@nestjs/swagger';
 import type { FastifyReply } from 'fastify';
 import { catchError, from, mergeMap, type Observable, of } from 'rxjs';
@@ -32,6 +34,16 @@ export const IDEMPOTENT_REPLAYED_HEADER = 'idempotent-replayed';
 const MAX_KEY_LENGTH = 255;
 /** Pauses between attempts to record an outcome; one attempt more than there are pauses. */
 const RECORD_RETRY_DELAYS_MS = [50, 250];
+const IDEMPOTENCY_OWNER = 'adili:idempotency-owner';
+
+export interface RequireIdempotencyKeyOptions {
+  /**
+   * Whom keys belong to on a public route, which has no token `sub`: typically the resource and a
+   * digest of the secret the caller proves it holds, so a caller without the secret never reaches
+   * another's stored response. Authenticated routes leave it out: keys belong to the token's `sub`.
+   */
+  owner?: (request: AuthenticatedRequest) => string;
+}
 
 /**
  * Makes a write safe to retry (ADR-009). The request must carry an `Idempotency-Key` header.
@@ -47,16 +59,18 @@ const RECORD_RETRY_DELAYS_MS = [50, 250];
  *   outcome anyway: turning a write that happened into an error would invite the very retry
  *   that runs it twice once the unfinished claim is taken for abandoned.
  *
- * Keys are scoped per caller (token `sub`): two callers may use the same key independently.
- * Needs `IdempotencyModule` in the application; the app fails to start without it.
+ * Keys are scoped per caller (token `sub`, or `options.owner` on a public route): two callers
+ * may use the same key independently. Needs `IdempotencyModule` in the application; the app
+ * fails to start without it.
  *
  * @example
  * @Post()
  * @RequireIdempotencyKey()
  * create(@Body(new ZodValidationPipe(createCommission)) body: CreateCommission) {}
  */
-export const RequireIdempotencyKey = () =>
+export const RequireIdempotencyKey = (options: RequireIdempotencyKeyOptions = {}) =>
   applyDecorators(
+    SetMetadata(IDEMPOTENCY_OWNER, options.owner),
     UseInterceptors(IdempotencyInterceptor),
     ApiHeader({
       name: 'Idempotency-Key',
@@ -71,19 +85,27 @@ export const RequireIdempotencyKey = () =>
 export class IdempotencyInterceptor implements NestInterceptor {
   private readonly logger = new Logger(IdempotencyInterceptor.name);
 
-  constructor(private readonly store: IdempotencyStore) {}
+  constructor(
+    private readonly store: IdempotencyStore,
+    private readonly reflector: Reflector,
+  ) {}
 
   async intercept(context: ExecutionContext, next: CallHandler): Promise<Observable<unknown>> {
     const http = context.switchToHttp();
     const request = http.getRequest<AuthenticatedRequest>();
     const reply = http.getResponse<FastifyReply>();
-    if (!request.principal) {
-      throw new Error('@RequireIdempotencyKey() needs an authenticated route');
+    const owner = this.reflector.get<RequireIdempotencyKeyOptions['owner']>(
+      IDEMPOTENCY_OWNER,
+      context.getHandler(),
+    );
+    const subject = owner ? owner(request) : request.principal?.subject;
+    if (subject === undefined) {
+      throw new Error('@RequireIdempotencyKey() needs an authenticated route or an owner');
     }
 
     const scope: IdempotencyScope = {
       key: readKey(request.headers[IDEMPOTENCY_KEY_HEADER]),
-      subject: request.principal.subject,
+      subject,
     };
     const requestHash = hashRequest(request);
     const claim = await this.store.claim(scope, requestHash);

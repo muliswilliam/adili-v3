@@ -80,7 +80,7 @@ export const templates = {
     params: otpParams,
     copy: {
       en: (params) => ({
-        text: `Adili: your verification code is ${params.code}. It expires in ${minutes(params.expiresInMinutes)}. Do not share it.`,
+        text: `Adili: your code to set up your account${forCommission(params)} is ${params.code}. It expires in ${minutes(params.expiresInMinutes)}. Did not ask for it? Ignore this SMS. Do not share it.`,
       }),
     },
   }),
@@ -107,6 +107,9 @@ export const templates = {
 } as const;
 
 export type TemplateId = keyof typeof templates;
+
+/** Every template id, in registration order (the contract's `TemplateId` enum). */
+export const TEMPLATE_IDS = Object.keys(templates) as TemplateId[];
 
 export function isTemplateId(id: string): id is TemplateId {
   return Object.hasOwn(templates, id);

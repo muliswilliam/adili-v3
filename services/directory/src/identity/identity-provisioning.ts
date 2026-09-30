@@ -1,6 +1,7 @@
 /**
  * Identity provisioning: the directory's only seam onto the identity provider (Keycloak).
- * Staff accounts are created, activated and retired through this interface, and so are the API
+ * Staff accounts are created, activated and retired through this interface, declarant accounts
+ * are created or linked to further Commissions when onboarding confirms, and so are the API
  * clients Commissions' HR systems authenticate with; the Keycloak adapter is used in every
  * environment and the in-memory adapter in API tests.
  */
@@ -14,6 +15,12 @@ export const STAFF_REQUIRED_ACTIONS: readonly RequiredAction[] = [
   'UPDATE_PASSWORD',
   'CONFIGURE_TOTP',
 ];
+
+/** Realm role of declarants: officers who onboarded from a Commission's roster (spec 03). */
+export const DECLARANT_ROLE = 'declarant';
+
+/** What a new declarant account must do before first sign-in: set a password. */
+export const DECLARANT_REQUIRED_ACTIONS: readonly RequiredAction[] = ['UPDATE_PASSWORD'];
 
 /** An existing account, as far as provisioning decisions need to know. */
 export interface IdentityUser {
@@ -39,6 +46,25 @@ export interface CreateStaffUserInput {
   /** Realm role granted on creation, e.g. `reporting-officer`. */
   role: string;
   requiredActions: readonly RequiredAction[];
+}
+
+/**
+ * A declarant's account (spec 03), created when onboarding confirms a roster record for a person
+ * who has none yet. Their email and phone were verified during onboarding.
+ */
+export interface CreateDeclarantUserInput {
+  /** Officer reference (ADR-011); the account's username and `ofr` attribute. */
+  ofr: string;
+  /** Verified during onboarding: the account is created with its email verified. */
+  email: string;
+  /** Full name from the roster record; adapters split it into given and family names. */
+  name: string;
+  /** E.164, verified during onboarding. */
+  phone: string;
+  /** Tenant key of the Commission onboarded with: the `tenant` attribute and the first `tenants`. */
+  tenant: string;
+  /** The directory's person id: the `person_id` attribute. */
+  personId: string;
 }
 
 /** How a staff member is named and reached, as entered by the admin who assigned them. */
@@ -72,7 +98,8 @@ export interface ApiClientSecret {
 /** Puts back what a change replaced. */
 export type Restore = () => Promise<void>;
 
-export interface ActivationEmailOptions {
+/** Keycloak's execute-actions email: a link that walks the user through `actions`. */
+export interface ExecuteActionsEmailOptions {
   /** Actions the emailed link walks the user through. */
   actions: readonly RequiredAction[];
   /** How long the link stays valid. */
@@ -81,6 +108,9 @@ export interface ActivationEmailOptions {
   redirectUri: string;
   /** OAuth client the redirect belongs to, e.g. `console`. */
   clientId: string;
+}
+
+export interface ActivationEmailOptions extends ExecuteActionsEmailOptions {
   /** Display name of the account's Commission, which the email names ("Teachers Service Commission"). */
   commissionName: string;
   /** Realm role the account is invited to, e.g. `reporting-officer`; the email names it and its duties. */
@@ -93,6 +123,19 @@ export class EmailTaken extends Error {
 
   constructor(readonly email: string) {
     super(`An account with email ${email} already exists`);
+  }
+}
+
+/**
+ * The username belongs to an account that may not be replaced, e.g. an OFR held by an account
+ * that is not a declarant account left behind for that OFR. Needs an operator: retrying fails
+ * the same way.
+ */
+export class UsernameTaken extends Error {
+  override readonly name = 'UsernameTaken';
+
+  constructor(readonly username: string) {
+    super(`An account with username ${username} already exists`);
   }
 }
 
@@ -147,6 +190,30 @@ export abstract class IdentityProvisioning {
    */
   abstract createStaffUser(input: CreateStaffUserInput): Promise<string>;
 
+  /**
+   * Creates an enabled declarant account: the OFR as username, the verified email, the `tenant`,
+   * `tenants`, `ofr`, `person_id` and `phone` attributes, the `declarant` role and the
+   * `UPDATE_PASSWORD` required action. Returns the new user id.
+   *
+   * The caller has just allocated the OFR in its transaction, so no committed person has it: an
+   * account already holding it is one an earlier attempt created before its transaction rolled
+   * back (and whose undo failed). Such a leftover, a declarant account whose `ofr` attribute is
+   * this OFR, is deleted and the account created, so the reference can be used again.
+   * @throws EmailTaken when another account has the email.
+   * @throws UsernameTaken when an account that is not such a leftover has the OFR as username.
+   */
+  abstract createDeclarantUser(input: CreateDeclarantUserInput): Promise<string>;
+
+  /**
+   * Adds `tenant` to the account's multi-valued `tenants` attribute (a person onboarded with
+   * another Commission), keeping the single `tenant` attribute as it is, or setting it when the
+   * account has none. Returns the call that undoes exactly this change: it takes `tenant` out of
+   * `tenants` again (and out of `tenant` if this call set it), leaving any tenant added since in
+   * place; or null when the account already had `tenant`.
+   * @throws IdentityUserNotFound
+   */
+  abstract addTenantToUser(userId: string, tenant: string): Promise<Restore | null>;
+
   /** Adds a realm role. Idempotent. @throws IdentityUserNotFound */
   abstract grantRole(userId: string, role: string): Promise<void>;
 
@@ -173,6 +240,16 @@ export abstract class IdentityProvisioning {
    * @throws IdentityUserNotFound
    */
   abstract sendActivationEmail(userId: string, options: ActivationEmailOptions): Promise<void>;
+
+  /**
+   * Emails the user a link that performs `options.actions`, without recording anything on the
+   * account (e.g. a declarant's set-password email). Each call sends a new email.
+   * @throws IdentityUserNotFound
+   */
+  abstract sendExecuteActionsEmail(
+    userId: string,
+    options: ExecuteActionsEmailOptions,
+  ): Promise<void>;
 
   /**
    * Creates an enabled API client of `tenant` with a generated secret (see CreateApiClientInput)

@@ -28,6 +28,12 @@ ACR mapping: `step-up` → 2. Portal and console default ACR is `step-up`, so lo
 - The login theme reads `ADILI_CONSOLE_URL` (default `http://localhost:3020`) and `ADILI_PORTAL_URL` (default `http://localhost:3010`) from Keycloak's environment. Keycloak renders an expired or already used emailed link without a client, so its page offers sign-in (or a new link) there. Set both to the apps' public origins in every deployment.
 - New staff get the required actions `VERIFY_EMAIL`, `UPDATE_PASSWORD` and `CONFIGURE_TOTP`; the activation link completes them in that realm's priority order (TOTP, then password). Their later sign-ins go through `adili staff totp`.
 
+## Declarant accounts (spec 03)
+
+- Onboarding's confirm step creates declarants through the same `directory` client: username = OFR (Keycloak keeps it lower-case; sign-in is case-insensitive), verified email, realm role `declarant`, required action `UPDATE_PASSWORD`, and the admin-only attributes `tenant`, `tenants`, `ofr`, `person_id` and `phone`.
+- `tenants` is `multivalued`: a person onboarded with a second Commission gets it added there, while `tenant` (the token claim) stays the first Commission.
+- The set-password email is the execute-actions email (24 hours) with `client_id=portal` and `redirect_uri=<portal>/auth/login`, admitted by the portal client's `http://localhost:3010/*` redirect URIs. Without invitation attributes the email theme renders its generic account-setup copy.
+
 ## HR-system API clients (spec 27)
 
 - The directory creates one confidential client per Commission's credential (`roster-<slug>-<hex>`) with only a service account, the default client scopes `basic` and `roster:write`, a hard-coded `tenant` claim and the `adili-api` audience. Rotating regenerates the secret; revoking disables the client. For that the `directory` service account also has realm-management `manage-clients`, `view-clients` and `query-clients`.

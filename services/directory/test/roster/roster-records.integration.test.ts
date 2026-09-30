@@ -271,6 +271,9 @@ describe('S21 search and filters', () => {
       absentFromLatestImport: true,
       flaggedByImportId: pscImport.id,
       flaggedAt: '2026-09-25T08:00:00.000Z',
+      ofr: null,
+      onboardedAt: null,
+      identityMismatchAt: null,
     });
   });
 
@@ -358,6 +361,9 @@ describe('S21 search and filters', () => {
       absentFromLatestImport: true,
       flaggedByImportId: pscImport.id,
       flaggedAt: '2026-09-25T08:00:00.000Z',
+      ofr: null,
+      onboardedAt: null,
+      identityMismatchAt: null,
       source: 'file',
       firstSeenImportId: pscImport.id,
       lastSeenImportId: pscImport.id,

@@ -15,12 +15,15 @@
  *   another Commission, so confirming links this record to it
  * - PSC/500600 / 56789012 at the Public Service Commission: the first confirm finds the national
  *   register down (503), the second fails to create the account (502), the third succeeds
+ * - PSC/600700 / 67890123 at the Public Service Commission: the account is created but the
+ *   set-password email cannot be sent (`setPasswordEmail: failed`); resending it works
  * Anything else is `no-match`; five misses from one address in a row are rate-limited.
  * The Judicial Service Commission has no roster yet.
  *
  * `GET /v1/me/declarant` reads the bearer token's claims without checking its signature. A user
  * with the `declarant` realm role gets the profile listed under their username in
- * DECLARANT_PROFILES, or the Teachers Service Commission demo profile; anyone else gets 404.
+ * DECLARANT_PROFILES, or the Teachers Service Commission demo profile; anyone else gets 403, as
+ * the directory answers callers without the role.
  *
  * Every code is 123456; 000000 is treated as expired. Codes follow the spec's rules otherwise:
  * five wrong codes or a fourth resend end the session, and resends wait 60 seconds. The
@@ -63,6 +66,8 @@ interface RosterRecord {
   existingOfr?: string;
   /** Failures the next confirms of a session run into, in order, before one succeeds. */
   confirmFailures?: ConfirmFailure[];
+  /** Set when the set-password email cannot be sent after the account is created. */
+  setPasswordEmailFails?: boolean;
 }
 
 type ConfirmFailure = 'iprs-unavailable' | 'identity-unavailable';
@@ -142,6 +147,19 @@ const ROSTER: RosterRecord[] = [
     iprs: 'match',
     confirmFailures: ['iprs-unavailable', 'identity-unavailable'],
   },
+  {
+    commission: 'psc',
+    fullName: 'Otieno Juma Were',
+    designation: 'Economist',
+    reportingEntity: 'The National Treasury',
+    personnelFileNumber: 'PSC/600700',
+    nationalId: '67890123',
+    email: 'o***@psc.go.ke',
+    phone: '07** *** 123',
+    onboarded: false,
+    iprs: 'match',
+    setPasswordEmailFails: true,
+  },
 ];
 
 const DEMO_DECLARANT: DeclarantProfile = {
@@ -209,18 +227,15 @@ function bearerClaims(request: Request): TokenClaims | null {
 function myDeclarantProfile(request: Request) {
   const claims = bearerClaims(request);
   if (!claims) return json(401, { type: 'about:blank', title: 'Unauthorized', status: 401 });
-  const username = claims.preferred_username ?? '';
-  const profile =
-    DECLARANT_PROFILES[username] ??
-    (claims.realm_access?.roles?.includes('declarant') ? DEMO_DECLARANT : undefined);
-  if (!profile) {
-    return json(404, {
+  if (!claims.realm_access?.roles?.includes('declarant')) {
+    return json(403, {
       type: 'about:blank',
-      title: 'The caller is not an onboarded declarant',
-      status: 404,
+      title: 'Forbidden',
+      status: 403,
+      detail: 'Requires one of the roles: declarant',
     });
   }
-  return json(200, profile);
+  return json(200, DECLARANT_PROFILES[claims.preferred_username ?? ''] ?? DEMO_DECLARANT);
 }
 
 const SESSION_TTL_MS = 30 * 60 * 1000;
@@ -245,6 +260,8 @@ interface MockSession {
 }
 
 const sessions = new Map<string, MockSession>();
+/** Answers of confirm and resend-password-email by session and Idempotency-Key, for replays. */
+const idempotentAnswers = new Map<string, { status: number; body: string | null }>();
 const misses = new Map<string, { count: number; blockedUntil: number }>();
 /** Records onboarded through the mock, so identifying again reports already-onboarded. */
 const onboarded = new Set<RosterRecord>();
@@ -254,6 +271,7 @@ let nextOfr = FIRST_OFR;
 /** Clears sessions, rate-limit counters and onboarded records; for tests. */
 export function resetOnboardingMock() {
   sessions.clear();
+  idempotentAnswers.clear();
   misses.clear();
   onboarded.clear();
   nextOfr = FIRST_OFR;
@@ -295,6 +313,7 @@ function createSession(record: RosterRecord, commission: OnboardingCommission) {
     otp: hasEmail ? freshOtp('email') : idleOtp(),
     outcome: null,
     ofr: null,
+    setPasswordEmail: null,
     expiresAt: new Date(now + SESSION_TTL_MS).toISOString(),
   };
   sessions.set(id, {
@@ -310,8 +329,7 @@ function createSession(record: RosterRecord, commission: OnboardingCommission) {
 
 function identify(body: IdentifyDeclarant, clientIp: string) {
   const commission = ONBOARDING_COMMISSIONS.find((entry) => entry.slug === body.commission);
-  if (!commission) return problem(404, 'no-match', 'No matching roster record');
-  if (!commission.hasRoster) {
+  if (!commission?.hasRoster) {
     return problem(409, 'no-roster', 'This Commission has not imported its roster');
   }
 
@@ -370,8 +388,7 @@ function idleOtp(): OnboardingSession['otp'] {
 
 const notFound = () => json(404, { type: 'about:blank', title: 'Not found', status: 404 });
 const sessionEnded = () => problem(410, 'session-expired', 'Session ended');
-// The contract names no problem code for a 409; the portal goes by the status.
-const wrongStep = () => problem(409, 'session-expired', 'Session is not waiting for this');
+const wrongStep = () => problem(409, 'wrong-step', 'Session is not waiting for this');
 
 /** The live session for an id and secret, or the response that refuses it. */
 function liveSession(sessionId: string, secret: string | null): MockSession | Response {
@@ -502,6 +519,7 @@ function allocateOfr(): string {
 function passwordEmailSent(entry: MockSession, { reportWait }: { reportWait: boolean }) {
   const now = Date.now();
   entry.passwordEmailAt = now;
+  entry.session.setPasswordEmail = 'sent';
   entry.session.otp = {
     ...idleOtp(),
     resendAvailableAt: reportWait ? new Date(now + RESEND_COOLDOWN_MS).toISOString() : null,
@@ -526,7 +544,13 @@ function confirm(entry: MockSession) {
     session.outcome = record.existingOfr ? 'linked-existing-account' : 'account-created';
     session.ofr = record.existingOfr ?? allocateOfr();
     onboarded.add(record);
-    if (!record.existingOfr) passwordEmailSent(entry, { reportWait: false });
+    if (!record.existingOfr && record.setPasswordEmailFails) {
+      // The account stands; with no email gone there is no wait before resending it.
+      session.setPasswordEmail = 'failed';
+      session.otp = idleOtp();
+    } else if (!record.existingOfr) {
+      passwordEmailSent(entry, { reportWait: false });
+    }
   }
   return json(200, { outcome: session.outcome, session });
 }
@@ -552,6 +576,44 @@ function secondsUntilPasswordEmail({ passwordEmailAt }: MockSession): number {
   const wait =
     passwordEmailAt === undefined ? 0 : passwordEmailAt + RESEND_COOLDOWN_MS - Date.now();
   return wait > 0 ? Math.ceil(wait / 1000) : 0;
+}
+
+/**
+ * The directory's Idempotency-Key handling on confirm and resend-password-email: the header is
+ * required, a 2xx or 4xx answer is kept, and a retry with the same key gets it back.
+ */
+async function idempotent(
+  request: Request,
+  sessionId: string,
+  run: () => Response,
+): Promise<Response> {
+  const key = request.headers.get('idempotency-key');
+  if (!key) {
+    return json(400, {
+      type: 'idempotency-key-missing',
+      title: 'Idempotency-Key required',
+      status: 400,
+    });
+  }
+  const scope = `${sessionId}:${key}`;
+  const stored = idempotentAnswers.get(scope);
+  if (stored) {
+    return new Response(stored.body, {
+      status: stored.status,
+      headers: {
+        'content-type': stored.status >= 400 ? 'application/problem+json' : 'application/json',
+        'idempotent-replayed': 'true',
+      },
+    });
+  }
+  const response = run();
+  if (response.status < 500) {
+    idempotentAnswers.set(scope, {
+      status: response.status,
+      body: response.body ? await response.clone().text() : null,
+    });
+  }
+  return response;
 }
 
 export async function mockDirectoryFetch(request: Request): Promise<Response> {
@@ -590,8 +652,12 @@ export async function mockDirectoryFetch(request: Request): Promise<Response> {
     const entry = liveSession(sessionId, secret);
     if (entry instanceof Response) return entry;
     const channel = stepMatch[3] as OtpChannel | undefined;
-    if (stepMatch[2] === 'confirm') return confirm(entry);
-    if (stepMatch[2] === 'resend-password-email') return resendPasswordEmail(entry);
+    if (stepMatch[2] === 'confirm') {
+      return idempotent(request, sessionId, () => confirm(entry));
+    }
+    if (stepMatch[2] === 'resend-password-email') {
+      return idempotent(request, sessionId, () => resendPasswordEmail(entry));
+    }
     if (stepMatch[2] === 'contacts') {
       const body = (await request.json()) as { channel: OtpChannel; value: string };
       return provide(entry, body.channel, body.value);

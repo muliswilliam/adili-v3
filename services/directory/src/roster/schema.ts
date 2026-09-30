@@ -16,6 +16,7 @@ import {
 } from 'drizzle-orm/pg-core';
 
 import { commissions } from '../commissions/schema.js';
+import { persons } from '../persons/schema.js';
 import type { ColumnMapping } from './header-mapping.js';
 import type { ImportCounts, ImportFailureCode } from './import/representation.js';
 import type { NormalisedRosterRow, RawRosterRow, RowError, RowNote } from './row-validation.js';
@@ -36,6 +37,10 @@ const timestamps = {
 
 export const ROSTER_RECORD_STATES = ['not_onboarded', 'onboarded', 'exited'] as const;
 export type RosterRecordState = (typeof ROSTER_RECORD_STATES)[number];
+
+/** Who supplied a record's email or phone: its Commission's roster, or the declarant at onboarding. */
+export const CONTACT_SOURCES = ['roster', 'declarant'] as const;
+export type ContactSource = (typeof CONTACT_SOURCES)[number];
 
 export const IMPORT_CHANNELS = ['file', 'api'] as const;
 export type ImportChannel = (typeof IMPORT_CHANNELS)[number];
@@ -108,7 +113,19 @@ export const rosterRecords = pgTable(
     email: text(),
     /** E.164. */
     phone: text(),
+    /** Who supplied `email`: the roster, or the declarant who verified it at onboarding. */
+    emailSource: text({ enum: CONTACT_SOURCES }).notNull().default('roster'),
+    /** Who supplied `phone`: the roster, or the declarant who verified it at onboarding. */
+    phoneSource: text({ enum: CONTACT_SOURCES }).notNull().default('roster'),
     state: text({ enum: ROSTER_RECORD_STATES }).notNull().default('not_onboarded'),
+    /** The declarant the record is onboarded as (slice 03); kept when the record exits. */
+    personId: uuid().references(() => persons.id),
+    onboardedAt: timestamp({ withTimezone: true }),
+    /**
+     * When onboarding last found the record's name or national ID at odds with IPRS; the
+     * reporting officer corrects the record. Null when no check failed.
+     */
+    identityMismatchAt: timestamp({ withTimezone: true }),
     exitDate: date({ mode: 'string' }),
     /**
      * The state an exited record had before its exit, which re-activation restores: an officer
@@ -160,6 +177,21 @@ export const rosterRecords = pgTable(
       .on(table.tenant)
       .where(sql`${table.absentFromLatestImport}`),
     index('roster_records_last_seen_import_id_idx').on(table.lastSeenImportId),
+    /** The records list's identity-mismatch filter. */
+    index('roster_records_tenant_identity_mismatch_at_idx')
+      .on(table.tenant, table.identityMismatchAt)
+      .where(sql`${table.identityMismatchAt} is not null`),
+    index('roster_records_person_id_idx')
+      .on(table.personId)
+      .where(sql`${table.personId} is not null`),
+    check(
+      'roster_records_email_source_check',
+      sql`${table.emailSource} in ('roster', 'declarant')`,
+    ),
+    check(
+      'roster_records_phone_source_check',
+      sql`${table.phoneSource} in ('roster', 'declarant')`,
+    ),
     check(
       'roster_records_state_check',
       sql`${table.state} in ('not_onboarded', 'onboarded', 'exited')`,

@@ -16,6 +16,23 @@ import {
   reportingOfficerStateSchema,
   rosterSummarySchema,
 } from './commissions/representation.js';
+import { onboardingFailuresSchema } from './onboarding/failures/representation.js';
+import {
+  identifyDeclarantBody,
+  maskedContactSchema,
+  ofrSchema,
+  onboardingCommissionSchema,
+  onboardingConfirmResultSchema,
+  onboardingOutcomeSchema,
+  onboardingProblemSchema,
+  onboardingSessionCreatedSchema,
+  onboardingSessionSchema,
+  onboardingStateSchema,
+  otpChannelSchema,
+  provideOnboardingContactBody,
+  verifyOnboardingOtpBody,
+} from './onboarding/representation.js';
+import { declarantProfileSchema, personSummarySchema } from './persons/representation.js';
 import {
   confirmExitsBody,
   exitsResultSchema,
@@ -104,4 +121,20 @@ export const OPENAPI_SCHEMAS: Record<string, z.ZodType> = {
   KeepRosterRecords: keepRosterRecordsBody,
   KeepResult: keepResultSchema,
   RecordRosterExit: recordRosterExitBody,
+  Ofr: ofrSchema,
+  OtpChannel: otpChannelSchema,
+  OnboardingCommission: onboardingCommissionSchema,
+  IdentifyDeclarant: identifyDeclarantBody,
+  OnboardingState: onboardingStateSchema,
+  MaskedContact: maskedContactSchema,
+  OnboardingOutcome: onboardingOutcomeSchema,
+  OnboardingSession: onboardingSessionSchema,
+  OnboardingSessionCreated: onboardingSessionCreatedSchema,
+  OnboardingConfirmResult: onboardingConfirmResultSchema,
+  OnboardingProblem: onboardingProblemSchema,
+  OnboardingFailures: onboardingFailuresSchema,
+  DeclarantProfile: declarantProfileSchema,
+  PersonSummary: personSummarySchema,
+  VerifyOnboardingOtp: verifyOnboardingOtpBody,
+  ProvideOnboardingContact: provideOnboardingContactBody,
 };

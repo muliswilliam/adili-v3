@@ -40,13 +40,13 @@ export function hasRecordFilters(search: RecordsSearch): boolean {
 export function rosterRecordsQuery(
   filters: RecordsSearch,
   page: { cursor?: string | null; limit?: number } = {},
-): ListRosterRecordsQuery & { identityMismatch?: true } {
-  const query: ListRosterRecordsQuery & { identityMismatch?: true } = {};
+): ListRosterRecordsQuery {
+  const query: ListRosterRecordsQuery = {};
   const search = filters.search?.trim();
   if (search) query.search = search;
   if (filters.state) query.state = filters.state;
   if (filters.flagged) query.flagged = 'true';
-  if (filters.identityMismatch) query.identityMismatch = true;
+  if (filters.identityMismatch) query.identityMismatch = 'true';
   if (page.cursor) query.cursor = page.cursor;
   if (page.limit !== undefined) query.limit = page.limit;
   return query;

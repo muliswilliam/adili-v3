@@ -7,7 +7,7 @@ const ENTRY = /^(?<group>[a-z0-9][a-z0-9-]*)=(?<limit>\d+)\/(?<window>\d+)s$/;
 /**
  * Rate limits per route group as one environment variable: comma-separated
  * `<group>=<limit>/<window seconds>s` entries, e.g. `roster-api=120/60s,roster-batch=10/60s`
- * (120 requests per minute with bursts of up to 120). Parses to `RateLimitModule`'s `policies`.
+ * (at most 120 requests in any minute). Parses to `RateLimitModule`'s `policies`.
  *
  * @example
  * RATE_LIMITS: rateLimitsSchema.prefault('roster-api=120/60s'),

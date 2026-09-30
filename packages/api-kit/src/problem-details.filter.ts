@@ -10,10 +10,14 @@ import type { FastifyReply, FastifyRequest } from 'fastify';
 import { type Observable, throwError } from 'rxjs';
 import { ZodError } from 'zod';
 
+import { PROBLEM_CODES, type ProblemCode } from './problem-codes.js';
+
 export interface ProblemDetails {
   type: string;
   title: string;
   status: number;
+  /** Machine-readable cause from `PROBLEM_CODES`, when the throwing site supplies one. */
+  code?: ProblemCode;
   detail?: string;
   instance?: string;
   errors?: { path: string; message: string }[];
@@ -28,6 +32,13 @@ export const PROBLEM_CONTENT_TYPE = 'application/problem+json';
  */
 export type ProblemExtensions = Record<string, unknown>;
 
+export interface CodedProblemOptions {
+  /** For developers and logs; clients show copy for the code instead. */
+  detail?: string;
+  /** Extension members, e.g. `attemptsLeft` for `otp-invalid`. */
+  extensions?: ProblemExtensions;
+}
+
 /**
  * An HTTP error with a specific problem type, e.g. `idempotency-key-reused`.
  * Rendered as-is by ProblemDetailsFilter; `instance` is filled in from the request.
@@ -38,6 +49,33 @@ export class ProblemException extends HttpException {
     readonly extensions: ProblemExtensions = {},
   ) {
     super(problem, problem.status);
+  }
+
+  /**
+   * The problem registered for `code` in `PROBLEM_CODES`: its status and title, with the code
+   * as both `type` and `code`.
+   *
+   * @example
+   * throw ProblemException.fromCode('otp-invalid', { extensions: { attemptsLeft: 2 } });
+   */
+  static fromCode(code: ProblemCode, options: CodedProblemOptions = {}): ProblemException {
+    const { status, title } = PROBLEM_CODES[code];
+    return new ProblemException(
+      {
+        type: code,
+        title,
+        status,
+        code,
+        ...(options.detail === undefined ? {} : { detail: options.detail }),
+      },
+      options.extensions,
+    );
+  }
+
+  /** Whether `error` is a problem with one of `codes`. */
+  static hasCode(error: unknown, codes: readonly ProblemCode[]): error is ProblemException {
+    const code = error instanceof ProblemException ? error.problem.code : undefined;
+    return code !== undefined && codes.includes(code);
   }
 }
 

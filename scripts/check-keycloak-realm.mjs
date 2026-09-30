@@ -1,10 +1,10 @@
 #!/usr/bin/env node
 // Checks that the Adili realm file still has the roles, BFF clients, authentication flows (with
 // the adili-otp authenticator), staff provisioning setup (directory service client, SMTP, email
-// theme, user profile attributes), service clients and scopes (messages and iprs; the
-// keycloak-extension client) and API client setup (roster:write client scope; documents:internal
-// and the adili-api audience for the directory) specs 03, 04, 06 and 27 require. Demo users are
-// optional (#371 seeds them).
+// theme, user profile attributes), declarant accounts (multi-valued tenants), service clients and
+// scopes (messages and iprs; the keycloak-extension client) and API client setup (roster:write
+// client scope; documents:internal and the adili-api audience for the directory) specs 03, 04, 06
+// and 27 require. Demo users are optional (#371 seeds them).
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -257,13 +257,26 @@ const profile = JSON.parse(profileProvider?.config?.['kc.user.profile.config']?.
 const attributes = new Map(
   (profile.attributes ?? []).map((attribute) => [attribute.name, attribute]),
 );
-for (const name of ['tenant', 'phone', 'commissionName', 'invitedRole']) {
+// Staff provisioning (spec 01) and declarant accounts (spec 03).
+for (const name of [
+  'tenant',
+  'phone',
+  'commissionName',
+  'invitedRole',
+  'tenants',
+  'ofr',
+  'person_id',
+]) {
   const attribute = attributes.get(name);
   if (!attribute) {
     fail(`user profile must declare ${name} (unmanaged attributes are read-only)`);
   } else if (attribute.permissions?.edit?.join() !== 'admin') {
     fail(`user profile attribute ${name} must be editable by admins only`);
   }
+}
+// A declarant onboarded with several Commissions has one `tenants` value each (spec 03).
+if (attributes.get('tenants') && attributes.get('tenants').multivalued !== true) {
+  fail('user profile attribute tenants must be multivalued');
 }
 
 if (errors.length > 0) {

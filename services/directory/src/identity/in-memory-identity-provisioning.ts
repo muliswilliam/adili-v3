@@ -6,14 +6,19 @@ import {
   ApiClientNotFound,
   type ApiClientSecret,
   type CreateApiClientInput,
+  type CreateDeclarantUserInput,
   type CreateStaffUserInput,
+  DECLARANT_REQUIRED_ACTIONS,
+  DECLARANT_ROLE,
   EmailTaken,
+  type ExecuteActionsEmailOptions,
   IdentityProvisioning,
   type IdentityUser,
   IdentityUserNotFound,
   type RequiredAction,
   type Restore,
   type StaffProfile,
+  UsernameTaken,
 } from './identity-provisioning.js';
 
 /** Every call made to the fake, in order, with its arguments. */
@@ -21,12 +26,15 @@ export type IdentityCall =
   | { operation: 'findByEmail'; email: string }
   | { operation: 'findById'; userId: string }
   | { operation: 'createStaffUser'; input: CreateStaffUserInput }
+  | { operation: 'createDeclarantUser'; input: CreateDeclarantUserInput }
+  | { operation: 'addTenantToUser'; userId: string; tenant: string }
   | { operation: 'grantRole'; userId: string; role: string }
   | { operation: 'revokeRole'; userId: string; role: string }
   | { operation: 'setEnabled'; userId: string; enabled: boolean }
   | { operation: 'updateProfile'; userId: string; profile: StaffProfile }
   | { operation: 'deleteUser'; userId: string }
   | { operation: 'sendActivationEmail'; userId: string; options: ActivationEmailOptions }
+  | { operation: 'sendExecuteActionsEmail'; userId: string; options: ExecuteActionsEmailOptions }
   | { operation: 'createApiClient'; input: CreateApiClientInput }
   | { operation: 'rotateApiClientSecret'; clientId: string }
   | { operation: 'disableApiClient'; clientId: string };
@@ -36,10 +44,18 @@ export type IdentityOperation = IdentityCall['operation'];
 /** An account held by the fake. */
 export interface InMemoryUser {
   userId: string;
+  /** The email for staff accounts, the OFR for declarants. */
+  username: string;
   email: string;
+  emailVerified: boolean;
   name: string | null;
   phone: string | null;
   tenant: string | null;
+  /** The multi-valued `tenants` attribute: every Commission a declarant onboarded with. */
+  tenants: string[];
+  /** Declarants' officer reference and directory person id attributes. */
+  ofr: string | null;
+  personId: string | null;
   roles: string[];
   requiredActions: RequiredAction[];
   enabled: boolean;
@@ -65,6 +81,12 @@ export interface InMemoryApiClient {
 export interface SeedUser {
   email: string;
   tenant: string | null;
+  /** `[tenant]` (or none) by default. */
+  tenants?: string[];
+  /** The email by default. */
+  username?: string;
+  ofr?: string;
+  personId?: string;
   userId?: string;
   name?: string;
   phone?: string;
@@ -92,10 +114,15 @@ export class InMemoryIdentityProvisioning extends IdentityProvisioning {
     const userId = seed.userId ?? randomUUID();
     this.users.set(userId, {
       userId,
+      username: seed.username ?? normalise(seed.email),
       email: normalise(seed.email),
+      emailVerified: false,
       name: seed.name ?? null,
       phone: seed.phone ?? null,
       tenant: seed.tenant,
+      tenants: seed.tenants ?? (seed.tenant === null ? [] : [seed.tenant]),
+      ofr: seed.ofr ?? null,
+      personId: seed.personId ?? null,
       roles: [...(seed.roles ?? [])],
       requiredActions: [],
       enabled: seed.enabled ?? true,
@@ -172,10 +199,15 @@ export class InMemoryIdentityProvisioning extends IdentityProvisioning {
     const userId = randomUUID();
     this.users.set(userId, {
       userId,
+      username: normalise(input.email),
       email: normalise(input.email),
+      emailVerified: false,
       name: input.name,
       phone: input.phone,
       tenant: input.tenant,
+      tenants: [input.tenant],
+      ofr: null,
+      personId: null,
       roles: [input.role],
       requiredActions: [...input.requiredActions],
       enabled: true,
@@ -183,6 +215,59 @@ export class InMemoryIdentityProvisioning extends IdentityProvisioning {
       invitedRole: null,
     });
     return Promise.resolve(userId);
+  }
+
+  createDeclarantUser(input: CreateDeclarantUserInput): Promise<string> {
+    this.log.push({ operation: 'createDeclarantUser', input: structuredClone(input) });
+    const failure = this.takeFailure('createDeclarantUser');
+    if (failure) return Promise.reject(failure);
+    const username = normalise(input.ofr);
+    const holder = [...this.users.values()].find((user) => user.username === username);
+    if (holder) {
+      // A leftover of an attempt that rolled back is replaced; any other holder is not.
+      if (holder.ofr !== input.ofr) return Promise.reject(new UsernameTaken(username));
+      this.users.delete(holder.userId);
+    }
+    if (this.byEmail(input.email)) return Promise.reject(new EmailTaken(input.email));
+    const userId = randomUUID();
+    this.users.set(userId, {
+      userId,
+      username,
+      email: normalise(input.email),
+      emailVerified: true,
+      name: input.name,
+      phone: input.phone,
+      tenant: input.tenant,
+      tenants: [input.tenant],
+      ofr: input.ofr,
+      personId: input.personId,
+      roles: [DECLARANT_ROLE],
+      requiredActions: [...DECLARANT_REQUIRED_ACTIONS],
+      enabled: true,
+      commissionName: null,
+      invitedRole: null,
+    });
+    return Promise.resolve(userId);
+  }
+
+  addTenantToUser(userId: string, tenant: string): Promise<Restore | null> {
+    this.log.push({ operation: 'addTenantToUser', userId, tenant });
+    const failure = this.takeFailure('addTenantToUser');
+    if (failure) return Promise.reject(failure);
+    const user = this.users.get(userId);
+    if (!user) return Promise.reject(new IdentityUserNotFound(userId));
+    if (user.tenants.includes(tenant)) return Promise.resolve(null);
+    const setsTenant = user.tenant === null;
+    user.tenants.push(tenant);
+    user.tenant ??= tenant;
+    // Not recorded: an undo is not a call the code under test makes. It takes out this tenant
+    // only, as the account is then.
+    return Promise.resolve(() =>
+      this.update(userId, (restored) => {
+        restored.tenants = restored.tenants.filter((held) => held !== tenant);
+        if (setsTenant && restored.tenant === tenant) restored.tenant = null;
+      }),
+    );
   }
 
   grantRole(userId: string, role: string): Promise<void> {
@@ -247,6 +332,19 @@ export class InMemoryIdentityProvisioning extends IdentityProvisioning {
       user.commissionName = options.commissionName;
       user.invitedRole = options.role;
     });
+  }
+
+  sendExecuteActionsEmail(userId: string, options: ExecuteActionsEmailOptions): Promise<void> {
+    this.log.push({
+      operation: 'sendExecuteActionsEmail',
+      userId,
+      options: structuredClone(options),
+    });
+    const failure = this.takeFailure('sendExecuteActionsEmail');
+    if (failure) return Promise.reject(failure);
+    return this.users.has(userId)
+      ? Promise.resolve()
+      : Promise.reject(new IdentityUserNotFound(userId));
   }
 
   createApiClient(input: CreateApiClientInput): Promise<ApiClientSecret> {
