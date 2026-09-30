@@ -335,6 +335,7 @@ export interface components {
             /** Format: date */
             statementDate: string;
             dueDate: string | null;
+            /** @description Declaration reference number (ADR-011), e.g. DCB-PSC-2027-0000001-1 */
             reference: string;
             version: number;
             /** Format: date-time */

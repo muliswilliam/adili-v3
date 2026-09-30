@@ -1,3 +1,9 @@
+import {
+  type DeclarationType,
+  declarationSchemes,
+  InvalidReferenceError,
+  parse,
+} from '@adili/numbering/references';
 import { z } from 'zod';
 
 import {
@@ -15,14 +21,22 @@ import {
 } from './page.js';
 import type { DocumentTemplate } from './template.js';
 
-const DECLARATION_TYPES = {
-  initial: { label: 'Initial declaration', code: 'DCI' },
-  biennial: { label: 'Biennial declaration', code: 'DCB' },
-  final: { label: 'Final declaration', code: 'DCF' },
-} as const;
+const DECLARATION_TYPES = Object.keys(declarationSchemes) as [
+  DeclarationType,
+  ...DeclarationType[],
+];
+const DECLARATION_SCHEMES = Object.values(declarationSchemes);
 
-/** ADR-011 reference: `DC{I|B|F}-<ISSUER>-<YEAR>-<7 digits>-<check>`. */
-const REFERENCE = /^(DC[IBF])-([A-Z0-9]{2,20})-(\d{4})-(\d{7})-([0-9A-Z])$/;
+/** A valid ADR-011 declaration reference number, e.g. `DCB-PSC-2027-0000001-1`. */
+function isDeclarationReference(reference: string): boolean {
+  try {
+    parse(reference, DECLARATION_SCHEMES);
+    return true;
+  } catch (error) {
+    if (error instanceof InvalidReferenceError) return false;
+    throw error;
+  }
+}
 
 /**
  * What the declarations service's acknowledgement payload endpoint returns for a submitted
@@ -34,17 +48,29 @@ export const acknowledgementSlipPayload = z
     commissionName: z.string().trim().min(1).max(200),
     /** The Commission's issuer code, as in the reference number (`PSC`). */
     issuerCode: z.string().regex(/^[A-Z0-9]{2,20}$/),
-    declarationType: z.enum(['initial', 'biennial', 'final']),
+    declarationType: z.enum(DECLARATION_TYPES),
     statementDate: z.iso.date(),
     /** The filing obligation's due date; null when the declaration has none. */
     dueDate: z.iso.date().nullable(),
-    reference: z.string().regex(REFERENCE),
+    reference: z
+      .string()
+      .refine(isDeclarationReference, {
+        message: 'Must be a declaration reference number with a valid check character',
+      })
+      .meta({ description: 'Declaration reference number (ADR-011), e.g. DCB-PSC-2027-0000001-1' }),
     version: z.int().min(1),
     submittedAt: z.iso.datetime({ offset: true }),
     late: z.boolean(),
     statementCount: z.int().min(0),
     itemCount: z.int().min(0),
   })
+  .refine(
+    // Only for a valid reference number: an invalid one is reported on its own.
+    (payload) =>
+      !isDeclarationReference(payload.reference) ||
+      payload.reference.startsWith(`${declarationSchemes[payload.declarationType].code}-`),
+    { message: "The reference number is not of the declaration's type", path: ['reference'] },
+  )
   .meta({
     description:
       "Payload of acknowledgement-slip v1: what the declarations service's acknowledgement payload endpoint returns for a submitted version",
@@ -79,11 +105,10 @@ function plural(count: number, one: string, many: string): string {
 }
 
 /** `DCB biennial declaration · PSC issuer · 2027 declaration year · 0000001 sequence · K check`. */
-function breakdown(reference: string): string {
-  const [, code, issuer, year, sequence, check] = REFERENCE.exec(reference) ?? [];
-  const type = Object.values(DECLARATION_TYPES).find((entry) => entry.code === code);
-  if (!type) return '';
-  return `${code} ${type.label.toLowerCase()} · ${issuer} issuer · ${year} declaration year · ${sequence} sequence · ${check} check`;
+function breakdown(type: DeclarationType, reference: string): string {
+  const scheme = declarationSchemes[type];
+  const [code, issuer, year, sequence, check] = reference.split('-');
+  return `${code} ${scheme.name.toLowerCase()} · ${issuer} issuer · ${year} ${scheme.periodName?.toLowerCase()} · ${sequence} sequence · ${check} check`;
 }
 
 /**
@@ -117,24 +142,25 @@ export const acknowledgementSlipV1: DocumentTemplate<AcknowledgementSlipPayload>
   },
 
   render(payload, { verificationId, issuedAt, signerName }) {
-    const type = DECLARATION_TYPES[payload.declarationType];
-    const filing = payload.late
-      ? `<span class="late">LATE</span>Submitted after the due date${payload.dueDate ? ` of ${esc(formatDate(payload.dueDate))}` : ''}`
-      : `On time${payload.dueDate ? `. Due ${esc(formatDate(payload.dueDate))}` : ''}`;
+    const scheme = declarationSchemes[payload.declarationType];
+    const due = payload.dueDate ? `${esc(formatDate(payload.dueDate))}. ` : '';
+    const dueDate = payload.late
+      ? `<span class="late">LATE</span>${due}Submitted after the due date`
+      : `${due}Submitted on time`;
     const replaces =
       payload.version > 1
         ? `<dt>Replaces</dt><dd>Version ${payload.version - 1} (superseded)</dd>`
         : '';
     const body = `${letterhead({ name: payload.commissionName, code: payload.issuerCode })}
 <div class="doc-h"><div class="t1" role="heading" aria-level="1">Acknowledgement slip</div><div class="doc-sub">Declaration of income, assets and liabilities</div></div>
-<div class="slip-ref"><div><div class="lbl">Reference number</div><div class="big mono nw">${esc(payload.reference)}</div><div class="brk">${esc(breakdown(payload.reference))}</div></div><div class="vpill">Version ${payload.version}</div></div>
+<div class="slip-ref"><div><div class="lbl">Reference number</div><div class="big mono nw">${esc(payload.reference)}</div><div class="brk">${esc(breakdown(payload.declarationType, payload.reference))}</div></div><div class="vpill">Version ${payload.version}</div></div>
 <dl class="skv">
 <dt>Declarant</dt><dd>${esc(payload.declarantName)}</dd>
 <dt>Responsible Commission</dt><dd>${esc(payload.commissionName)} (${esc(payload.issuerCode)})</dd>
-<dt>Declaration</dt><dd>${type.label}</dd>
+<dt>Declaration</dt><dd>${scheme.name}</dd>
 <dt>Statement date</dt><dd>${esc(formatDate(payload.statementDate))}</dd>
 <dt>Submitted</dt><dd>${esc(formatDateTime(payload.submittedAt))}</dd>
-<dt>Filing</dt><dd>${filing}</dd>
+<dt>Due date</dt><dd>${dueDate}</dd>
 <dt>Contents</dt><dd>${plural(payload.statementCount, 'statement', 'statements')}, ${plural(payload.itemCount, 'item', 'items')}</dd>
 ${replaces}
 </dl>

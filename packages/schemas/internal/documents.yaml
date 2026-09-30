@@ -734,7 +734,7 @@ components:
             - type: 'null'
         reference:
           type: string
-          pattern: ^(DC[IBF])-([A-Z0-9]{2,20})-(\d{4})-(\d{7})-([0-9A-Z])$
+          description: Declaration reference number (ADR-011), e.g. DCB-PSC-2027-0000001-1
         version:
           type: integer
           minimum: 1

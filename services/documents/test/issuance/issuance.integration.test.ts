@@ -86,7 +86,7 @@ function slipPayload(
     declarationType: 'biennial',
     statementDate: '2027-11-01',
     dueDate: '2027-12-31',
-    reference: 'DCB-PSC-2027-0000001-K',
+    reference: 'DCB-PSC-2027-0000001-1',
     version: 1,
     submittedAt: '2027-11-15T07:42:00.000Z',
     late: false,
@@ -233,7 +233,7 @@ describe('S9 issuing an acknowledgement slip', () => {
     const texts = await pageTexts(pdf);
     expect(texts.length).toBeGreaterThan(0);
     for (const text of texts) {
-      expect(text).toContain('DCB-PSC-2027-0000001-K');
+      expect(text).toContain('DCB-PSC-2027-0000001-1');
       expect(text).toContain('Version 1');
       expect(text).toContain(document.verificationId);
       expect(text).toContain('Issued by Public Service Commission through Adili Online');
@@ -284,7 +284,7 @@ describe('S9 issuing an acknowledgement slip', () => {
     const [signature] = await pdfSignatures(pdf);
     if (!signature) throw new Error('no signature');
     const tampered = Buffer.from(pdf);
-    const at = tampered.indexOf('DCB-PSC-2027-0000001-K');
+    const at = tampered.indexOf('DCB-PSC-2027-0000001-1');
     // Any byte inside the signed ranges: flip one in the first range.
     const flip = at > 0 && at < signature.byteRange[1] ? at : 200;
     tampered[flip] = (tampered[flip] ?? 0) ^ 0x01;
@@ -332,7 +332,7 @@ describe('S9 issuing an acknowledgement slip', () => {
         issuerName: 'Public Service Commission',
         issuerCode: 'PSC',
         issuedAt: document.issuedAt,
-        reference: 'DCB-PSC-2027-0000001-K',
+        reference: 'DCB-PSC-2027-0000001-1',
         version: 1,
       },
       sha256: document.sha256,
@@ -363,13 +363,24 @@ describe('S9 a slip of an amended version, filed late', () => {
     );
     const texts = await pageTexts(await storedPdf(`acknowledgement-slip/${document.id}.pdf`));
     expect(texts[0]).toContain('Version 2');
-    expect(texts[0]).toContain('LATE Submitted after the due date of 31 Dec 2027');
+    expect(texts[0]).toContain('LATE 31 Dec 2027. Submitted after the due date');
     expect(texts[0]).toContain('Version 1 (superseded)');
     expect(texts[0]).toContain('1 statement, 1 item');
   });
 });
 
 describe('issuing: validation and callers', () => {
+  it.each([
+    ['a wrong check character', { reference: 'DCB-PSC-2027-0000001-K' }],
+    ['a reference of another declaration type', { declarationType: 'initial' as const }],
+  ])('refuses a reference number with %s', async (_, overrides) => {
+    const response = await issue(issueBody({ payload: slipPayload(overrides) }));
+    expect(response.statusCode).toBe(400);
+    expect(response.json<Problem>().errors).toEqual([
+      expect.objectContaining({ path: 'payload.reference' }),
+    ]);
+  });
+
   it('refuses a payload the template does not accept with 400 and registers nothing', async () => {
     const body = issueBody({ payload: { ...slipPayload(), reference: 'not-a-reference' } });
     const response = await issue(body);
