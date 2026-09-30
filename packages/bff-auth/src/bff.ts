@@ -54,18 +54,34 @@ interface LoginTransaction {
 /**
  * The ACR a step-up asks Keycloak for (realm `acr.loa.map`: `step-up` is level 2, the one-time
  * code). Keycloak re-runs only the steps whose level has lapsed, so a step-up asks for the code
- * again once its max age (300 s) is over and is silent before that.
+ * again once its max age ({@link STEP_UP_CODE_MAX_AGE_SECONDS}) is over and is silent before that.
  */
 export const STEP_UP_ACR = 'step-up';
 
 /** Query parameter on a step-up's `returnTo` that says how it ended. */
 export const STEP_UP_PARAM = 'stepUp';
 
-/** How long a step-up counts as fresh: the realm's max age for the one-time code (LoA 2). */
-export const STEP_UP_MAX_AGE_SECONDS = 300;
+/**
+ * How long after the code a service accepts a step-up for a legal act such as submission
+ * (`auth_time` at most this old; spec 06: five minutes).
+ */
+export const STEP_UP_WINDOW_SECONDS = 300;
 
 /**
- * Whether the session holds a step-up recent enough for a legal act such as submission. A hint
+ * The least time a step-up leaves to affirm and submit: Keycloak's silent answer carries the old
+ * `auth_time`, so the code must lapse this long before the window closes.
+ */
+export const STEP_UP_SUBMIT_MARGIN_SECONDS = 120;
+
+/**
+ * The realm's max age for the one-time code (LoA 2, `adili-loa-2` in adili-realm.json): the window
+ * less the margin. Within it a step-up is silent; after it Keycloak asks for a new code.
+ */
+export const STEP_UP_CODE_MAX_AGE_SECONDS = STEP_UP_WINDOW_SECONDS - STEP_UP_SUBMIT_MARGIN_SECONDS;
+
+/**
+ * Whether the session holds a step-up recent enough to open the affirmation for a legal act such
+ * as submission: within the code's max age, so at least the margin of the window is left. A hint
  * for the UI only: the service that performs the act checks the access token itself.
  */
 export function hasFreshStepUp(
@@ -75,7 +91,7 @@ export function hasFreshStepUp(
   return (
     session.acr === STEP_UP_ACR &&
     session.authTime !== null &&
-    now / 1000 - session.authTime <= STEP_UP_MAX_AGE_SECONDS
+    now / 1000 - session.authTime <= STEP_UP_CODE_MAX_AGE_SECONDS
   );
 }
 

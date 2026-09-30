@@ -3,7 +3,7 @@
  * draft store: the step-up check on the bearer token, the obligation's window, reference
  * allocation and the idempotent replay. `mock.server.ts` wires them to its drafts.
  */
-import { STEP_UP_ACR, STEP_UP_MAX_AGE_SECONDS } from '@adili/bff-auth';
+import { STEP_UP_ACR, STEP_UP_WINDOW_SECONDS } from '@adili/bff-auth';
 import { declarationSchemes, format } from '@adili/numbering/references';
 import { formatCalendarDate } from '@adili/ui';
 
@@ -19,7 +19,7 @@ export function hasStepUp(request: Request, now: number = Date.now()): boolean {
   return (
     claims?.acr === STEP_UP_ACR &&
     typeof claims.auth_time === 'number' &&
-    now / 1000 - claims.auth_time <= STEP_UP_MAX_AGE_SECONDS
+    now / 1000 - claims.auth_time <= STEP_UP_WINDOW_SECONDS
   );
 }
 

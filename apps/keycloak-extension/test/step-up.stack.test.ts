@@ -4,6 +4,7 @@ import {
   MemorySessionStore,
   type Session,
   STEP_UP_ACR,
+  STEP_UP_CODE_MAX_AGE_SECONDS,
 } from '@adili/bff-auth';
 import { afterEach, describe, expect, it } from 'vitest';
 
@@ -18,7 +19,7 @@ import { latestSmsCode, waitForNew } from './support/inboxes.js';
  */
 const KEYCLOAK = requireEnv('TEST_KEYCLOAK_URL');
 const MOCKS = requireEnv('TEST_MOCKS_URL');
-const { adminToken, changeConfig } = keycloakAdmin(KEYCLOAK);
+const { adminToken, changeConfig, readConfig } = keycloakAdmin(KEYCLOAK);
 const PORTAL = 'http://localhost:3010';
 const COOKIE = 'adili_portal';
 const SUMMARY = '/declarations/0b8e7c1a-3f2d-4e5a-9b6c-7d8e9f0a1b2c/summary';
@@ -119,13 +120,22 @@ describe('S16: step-up re-runs only the one-time code', () => {
     restore = undefined;
   });
 
+  it('lapses the code before the submit window, so a silent step-up leaves time to submit', async () => {
+    const loa = await readConfig(await adminToken(), 'conditional-level-of-authentication');
+
+    expect(loa.config).toMatchObject({
+      'loa-condition-level': '2',
+      'loa-max-age': String(STEP_UP_CODE_MAX_AGE_SECONDS),
+    });
+  });
+
   it('asks a signed-in declarant for a new code only, then carries acr and a fresh auth_time', async () => {
     const app = portal();
     const signedIn = await signIn(app);
     expect(signedIn.acr).toBe(STEP_UP_ACR);
     expect(signedIn.authTime).toBeGreaterThan(0);
 
-    // Let the code (LoA 2) lapse while the password (LoA 1) holds, rather than wait 300 s.
+    // Let the code (LoA 2) lapse while the password (LoA 1) holds, rather than wait out its max age.
     restore = await changeConfig(await adminToken(), 'conditional-level-of-authentication', {
       'loa-max-age': '1',
     });
