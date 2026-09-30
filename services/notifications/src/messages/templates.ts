@@ -43,22 +43,41 @@ type OtpParams = z.infer<typeof otpParams>;
 
 const minutes = (n: number) => (n === 1 ? '1 minute' : `${n} minutes`);
 
+/** One paragraph of an email, as plain text and as HTML. */
+interface Paragraph {
+  text: string;
+  html: string;
+}
+
+/** A paragraph of plain words, escaped for the HTML body. */
+const paragraph = (text: string): Paragraph => ({ text, html: escapeHtml(text) });
+
+/** "Sign in to Adili Online at <portal> <rest>", the portal linked in the HTML body. */
+const signInParagraph = (portalUrl: string, rest: string): Paragraph => ({
+  text: `Sign in to Adili Online at ${portalUrl} ${rest}`,
+  html: `Sign in to Adili Online at <a href="${escapeHtml(portalUrl)}">${escapeHtml(portalUrl)}</a> ${escapeHtml(rest)}`,
+});
+
+/** An email of `paragraphs`: blank-line separated in the text body, one `<p>` each in HTML. */
+const email = (subject: string, paragraphs: readonly Paragraph[]): RenderedEmail => ({
+  subject,
+  text: paragraphs.map((p) => p.text).join('\n\n'),
+  html: paragraphs.map((p) => `<p>${p.html}</p>`).join('\n'),
+});
+
 function otpEmail(
   subject: string,
   purpose: (params: OtpParams) => string,
 ): (params: OtpParams) => RenderedEmail {
-  return (params) => {
-    const lines = [
-      `Your Adili Online code is ${params.code}.`,
-      `${purpose(params)} It expires in ${minutes(params.expiresInMinutes)}.`,
-      'If you did not ask for this code, ignore this email. Nobody from Adili Online or your Commission will ever ask you for it.',
-    ];
-    return {
+  return (params) =>
+    email(
       subject,
-      text: lines.join('\n\n'),
-      html: lines.map((line) => `<p>${escapeHtml(line)}</p>`).join('\n'),
-    };
-  };
+      [
+        `Your Adili Online code is ${params.code}.`,
+        `${purpose(params)} It expires in ${minutes(params.expiresInMinutes)}.`,
+        'If you did not ask for this code, ignore this email. Nobody from Adili Online or your Commission will ever ask you for it.',
+      ].map(paragraph),
+    );
 }
 
 const forCommission = (params: OtpParams) =>
@@ -112,28 +131,31 @@ function longDate(isoDate: string): string {
 
 const days = (n: number) => (n === 1 ? '1 day' : `${String(n)} days`);
 
+const statementDateParagraph = (statementDate: string) =>
+  paragraph(
+    `It declares your income, assets and liabilities as at the statement date, ${longDate(statementDate)}.`,
+  );
+
+const NEVER_ASKS = 'Adili Online will never ask you for your password or sign-in code.';
+
 function reminderEmail(params: ReminderParams): RenderedEmail {
   const due = longDate(params.dueDate);
   const when = params.daysLeft === 0 ? 'today' : `in ${days(params.daysLeft)}`;
-  const paragraphs: { text: string; html: string }[] = [
-    `Your ${params.type} declaration for ${params.commissionName} is due on ${due}, ${when}.`,
-    `It declares your income, assets and liabilities as at the statement date, ${longDate(params.statementDate)}.`,
-  ].map((text) => ({ text, html: escapeHtml(text) }));
-  paragraphs.push({
-    text: `Sign in to Adili Online at ${params.portalUrl} to see your declarations and their due dates.`,
-    html: `Sign in to Adili Online at <a href="${escapeHtml(params.portalUrl)}">${escapeHtml(params.portalUrl)}</a> to see your declarations and their due dates.`,
-  });
-  const closing =
-    'If you have already declared by other means, contact your Commission. Adili Online will never ask you for your password or sign-in code.';
-  paragraphs.push({ text: closing, html: escapeHtml(closing) });
-  return {
-    subject:
-      params.daysLeft === 0
-        ? `Reminder: your ${params.type} declaration is due today`
-        : `Reminder: your ${params.type} declaration is due on ${due}`,
-    text: paragraphs.map((p) => p.text).join('\n\n'),
-    html: paragraphs.map((p) => `<p>${p.html}</p>`).join('\n'),
-  };
+  return email(
+    params.daysLeft === 0
+      ? `Reminder: your ${params.type} declaration is due today`
+      : `Reminder: your ${params.type} declaration is due on ${due}`,
+    [
+      paragraph(
+        `Your ${params.type} declaration for ${params.commissionName} is due on ${due}, ${when}.`,
+      ),
+      statementDateParagraph(params.statementDate),
+      signInParagraph(params.portalUrl, 'to see your declarations and their due dates.'),
+      paragraph(
+        `If you have already declared by other means, contact your Commission. ${NEVER_ASKS}`,
+      ),
+    ],
+  );
 }
 
 /** Declaration reference schemes (ADR-011): `DCB-TSC-2027-0012345-K`. */
@@ -188,28 +210,25 @@ const referenceAndVersion = (params: AcknowledgementParams) =>
 
 function acknowledgementEmail(params: AcknowledgementParams): RenderedEmail {
   const amended = params.version > 1;
-  const paragraphs: { text: string; html: string }[] = [
-    amended
-      ? `Version ${String(params.version)} of your ${params.type} declaration for ${params.commissionName}, your amendment, has been received. Its reference number stays ${params.reference}.`
-      : `Your ${params.type} declaration for ${params.commissionName} has been received. Its reference number is ${params.reference}.`,
-    `It declares your income, assets and liabilities as at the statement date, ${longDate(params.statementDate)}.`,
-    `${amended ? `Your acknowledgement slip for version ${String(params.version)} is ready and replaces the slip for the previous version, which now shows as superseded.` : 'Your acknowledgement slip is ready.'} Its verification code is ${params.verificationCode}: anyone you show the slip to can use it, or the QR code on the slip, to check that it is genuine.`,
-  ].map((text) => ({ text, html: escapeHtml(text) }));
-  // The slip names the declarant and the Commission, so it stays behind sign-in, never attached.
-  const download =
-    'to download the slip. It is not attached to this email, so that only you can open it.';
-  paragraphs.push({
-    text: `Sign in to Adili Online at ${params.portalUrl} ${download}`,
-    html: `Sign in to Adili Online at <a href="${escapeHtml(params.portalUrl)}">${escapeHtml(params.portalUrl)}</a> ${escapeHtml(download)}`,
-  });
-  const closing =
-    'If you did not submit this declaration, contact your Commission at once. Adili Online will never ask you for your password or sign-in code.';
-  paragraphs.push({ text: closing, html: escapeHtml(closing) });
-  return {
-    subject: `Declaration ${referenceAndVersion(params)} received`,
-    text: paragraphs.map((p) => p.text).join('\n\n'),
-    html: paragraphs.map((p) => `<p>${p.html}</p>`).join('\n'),
-  };
+  return email(`Declaration ${referenceAndVersion(params)} received`, [
+    paragraph(
+      amended
+        ? `Version ${String(params.version)} of your ${params.type} declaration for ${params.commissionName}, your amendment, has been received. Its reference number stays ${params.reference}.`
+        : `Your ${params.type} declaration for ${params.commissionName} has been received. Its reference number is ${params.reference}.`,
+    ),
+    statementDateParagraph(params.statementDate),
+    paragraph(
+      `${amended ? `Your acknowledgement slip for version ${String(params.version)} is ready and replaces the slip for the previous version, which now shows as superseded.` : 'Your acknowledgement slip is ready.'} Its verification code is ${params.verificationCode}: anyone you show the slip to can use it, or the QR code on the slip, to check that it is genuine.`,
+    ),
+    // The slip names the declarant and the Commission, so it stays behind sign-in, never attached.
+    signInParagraph(
+      params.portalUrl,
+      'to download the slip. It is not attached to this email, so that only you can open it.',
+    ),
+    paragraph(
+      `If you did not submit this declaration, contact your Commission at once. ${NEVER_ASKS}`,
+    ),
+  ]);
 }
 
 /**
