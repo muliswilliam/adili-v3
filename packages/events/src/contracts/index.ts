@@ -39,8 +39,10 @@ export {
   type ReminderOutcome,
 } from './obligations.js';
 export {
+  VERIFICATION_AUDITED,
   VERIFICATION_CHECKED,
   VERIFICATION_OUTCOMES,
+  type VerificationAuditedData,
   type VerificationCheckedData,
   type VerificationOutcome,
 } from './verification.js';
