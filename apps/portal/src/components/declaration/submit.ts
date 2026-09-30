@@ -123,7 +123,9 @@ export function stepUpConfirmed(marker: StepUpMarker, fresh: boolean): boolean {
 export const SUBMIT_COPY = {
   stepUpFailed: 'We could not confirm your identity. Try again.',
   confirmIdentity: 'Confirm identity',
-  dialogTitle: 'Submit your declaration',
+  /** The summary's submit card and the affirmation dialog; `version` when amending. */
+  title: (version: number | null) =>
+    version === null ? 'Submit your declaration' : `Submit version ${String(version)}`,
   identityConfirmed: (time: string) => `Identity confirmed at ${time}`,
   late: (dueDate: string) =>
     `This declaration is being submitted after its due date (${formatDate(dueDate)}). It will be recorded as filed late.`,

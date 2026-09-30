@@ -1,8 +1,9 @@
-import { cn, focusRing, formatDate, Icon, Tooltip } from '@adili/ui';
+import { Badge, cn, focusRing, formatDate, Icon, Tooltip } from '@adili/ui';
 import { InformationCircleIcon } from '@hugeicons/core-free-icons';
 
 import type { Declaration } from '../../server/declarations/types';
 import { OBLIGATION_TYPE_LABELS } from '../../declaration/labels';
+import { AMENDMENT_BANNER_COPY, amendingFrom } from './amendment-banner';
 
 export const HEADER_COPY = {
   statementDate: 'The date your financial position is declared as at.',
@@ -49,6 +50,7 @@ export function WorkspaceHeader({
   title: string;
 }) {
   const { incomePeriod } = declaration;
+  const fromVersion = amendingFrom(declaration);
   return (
     <header className="grid gap-1.5">
       <p className="text-sm font-medium text-muted-foreground">{declarationName(declaration)}</p>
@@ -61,6 +63,11 @@ export function WorkspaceHeader({
         <span className="font-medium text-foreground">
           {formatDate(incomePeriod.from)} to {formatDate(incomePeriod.to)}
         </span>
+        {fromVersion !== null ? (
+          <Badge variant="info" className="ml-1.5">
+            {AMENDMENT_BANNER_COPY.badge(fromVersion)}
+          </Badge>
+        ) : null}
       </p>
       {incomePeriod.fromSource === 'assumed' ? (
         <p className="max-w-prose text-[13px] text-muted-foreground">{HEADER_COPY.assumed}</p>

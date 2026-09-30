@@ -1,0 +1,144 @@
+import {
+  Alert,
+  AlertDescription,
+  Button,
+  type ButtonProps,
+  Dialog,
+  DialogBody,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  Icon,
+} from '@adili/ui';
+import { AlertCircleIcon, Delete02Icon, Undo02Icon } from '@hugeicons/core-free-icons';
+import { useState } from 'react';
+
+import { discardMyAmendment } from '../../server/declarations';
+import { signInAgain } from '../sign-in';
+
+export const DISCARD_AMENDMENT_COPY = {
+  trigger: 'Discard amendment',
+  title: 'Discard this amendment?',
+  body: (version: number) =>
+    `Your changes will be deleted. Version ${String(version)} stays in force, unchanged.`,
+  keep: 'Keep amending',
+  confirm: 'Discard amendment',
+  discarded: (version: number) => `Amendment discarded. Version ${String(version)} is unchanged.`,
+  notAmending: 'This declaration is no longer being amended. Reload to see where it stands.',
+  unavailable: 'We could not discard the amendment. Try again in a few minutes.',
+} as const;
+
+export interface DiscardAmendmentButtonProps {
+  declarationId: string;
+  /** The version the amendment started from, which stays in force. */
+  fromVersion: number;
+  variant?: ButtonProps['variant'];
+  /** Adds the bin icon, as next to Continue; the workspace banner's button has none. */
+  withIcon?: boolean;
+  /** Names what is discarded for screen readers, e.g. "Initial declaration". */
+  srContext?: string;
+  /** Called once the amendment is gone (a declaration already gone counts). */
+  onDiscarded: () => void | Promise<void>;
+}
+
+/**
+ * "Discard amendment" and its confirmation (spec 06 FE-4, S8): deletes the changes; the
+ * submitted version stays in force as it was filed.
+ */
+export function DiscardAmendmentButton({
+  declarationId,
+  fromVersion,
+  variant = 'destructive-ghost',
+  withIcon = false,
+  srContext,
+  onDiscarded,
+}: DiscardAmendmentButtonProps) {
+  const [open, setOpen] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const copy = DISCARD_AMENDMENT_COPY;
+
+  async function discard() {
+    setBusy(true);
+    setError(null);
+    const result = await discardMyAmendment({ data: { declarationId } }).catch(
+      () => ({ status: 'unavailable' }) as const,
+    );
+    if (result.status === 'discarded' || result.status === 'not-found') {
+      await onDiscarded();
+      setBusy(false);
+      setOpen(false);
+      return;
+    }
+    if (result.status === 'unauthenticated') {
+      signInAgain();
+      return;
+    }
+    setBusy(false);
+    setError(result.status === 'not-amending' ? copy.notAmending : copy.unavailable);
+  }
+
+  return (
+    <Dialog
+      open={open}
+      onOpenChange={(next) => {
+        setOpen(next);
+        if (!next) setError(null);
+      }}
+    >
+      <DialogTrigger asChild>
+        <Button
+          type="button"
+          variant={variant}
+          size="sm"
+          aria-label={srContext ? `${copy.trigger}: ${srContext}` : undefined}
+        >
+          {withIcon ? <Icon icon={Delete02Icon} /> : null}
+          {copy.trigger}
+        </Button>
+      </DialogTrigger>
+      <DialogContent busy={busy}>
+        <DialogHeader className="flex-row items-center gap-3">
+          <span className="flex size-[34px] shrink-0 items-center justify-center rounded-[10px] bg-muted text-secondary-foreground">
+            <Icon icon={Undo02Icon} className="size-[18px]" />
+          </span>
+          <DialogTitle>{copy.title}</DialogTitle>
+        </DialogHeader>
+        <DialogBody>
+          <DialogDescription className="text-[15px] text-foreground">
+            {copy.body(fromVersion)}
+          </DialogDescription>
+          {error ? (
+            <Alert variant="destructive">
+              <Icon icon={AlertCircleIcon} />
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          ) : null}
+        </DialogBody>
+        <DialogFooter>
+          <Button
+            type="button"
+            variant="secondary"
+            disabled={busy}
+            onClick={() => {
+              setOpen(false);
+            }}
+          >
+            {copy.keep}
+          </Button>
+          <Button
+            type="button"
+            variant="destructive"
+            disabled={busy}
+            onClick={() => void discard()}
+          >
+            {copy.confirm}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}

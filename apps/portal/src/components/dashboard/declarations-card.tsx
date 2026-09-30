@@ -6,6 +6,7 @@ import {
   Card,
   CardContent,
   CardDescription,
+  CardFooter,
   CardHeader,
   CardTitle,
   EmptyState,
@@ -22,6 +23,7 @@ import { type ReactNode, Suspense, use } from 'react';
 
 import { DISCARDED_TOAST, DiscardDraftButton } from '../declaration/discard-dialog';
 import { OBLIGATION_TYPE_LABELS } from '../../declaration/labels';
+import { orderDeclarations } from '../../declaration/my-declarations';
 import type { DeclarationListResult } from '../../server/declarations.server';
 import type { DeclarationListItem, DeclarationStatus } from '../../server/declarations/types';
 
@@ -36,16 +38,6 @@ const STATUS_BADGES: Record<
 };
 
 const isOpen = (item: DeclarationListItem) => item.status === 'draft' || item.status === 'amending';
-
-/** Drafts first, then by statement date, newest first. */
-export function sortDeclarations(items: DeclarationListItem[]): DeclarationListItem[] {
-  return items
-    .filter((item) => item.status !== 'discarded')
-    .sort(
-      (a, b) =>
-        Number(isOpen(b)) - Number(isOpen(a)) || b.statementDate.localeCompare(a.statementDate),
-    );
-}
 
 function DeclarationRow({ item }: { item: DeclarationListItem }) {
   const router = useRouter();
@@ -128,7 +120,7 @@ function ResolvedDeclarationsCard({ promise }: { promise: Promise<DeclarationLis
   return <DeclarationsCard declarations={use(promise)} />;
 }
 
-function DeclarationsCardFrame({ children }: { children: ReactNode }) {
+function DeclarationsCardFrame({ children, footer }: { children: ReactNode; footer?: ReactNode }) {
   return (
     <Card>
       <CardHeader>
@@ -136,6 +128,7 @@ function DeclarationsCardFrame({ children }: { children: ReactNode }) {
         <CardDescription>Drafts save as you type. Continue where you left off.</CardDescription>
       </CardHeader>
       <CardContent>{children}</CardContent>
+      {footer ? <CardFooter>{footer}</CardFooter> : null}
     </Card>
   );
 }
@@ -160,12 +153,24 @@ export function DeclarationsCardSkeleton() {
 
 /**
  * "Your declarations" on the dashboard (FE-9, S16): each draft with its completeness,
- * Continue and Discard; other declarations are listed read-only.
+ * Continue and Discard; other declarations are listed read-only, with their versions, slips
+ * and amending on My declarations (spec 06 FE-4).
  */
 export function DeclarationsCard({ declarations }: { declarations: DeclarationListResult }) {
-  const items = declarations.status === 'ok' ? sortDeclarations(declarations.declarations) : [];
+  const items = declarations.status === 'ok' ? orderDeclarations(declarations.declarations) : [];
   return (
-    <DeclarationsCardFrame>
+    <DeclarationsCardFrame
+      footer={
+        items.length > 0 ? (
+          <Button asChild variant="secondary" size="sm">
+            <Link to="/declarations">
+              My declarations
+              <Icon icon={ArrowRight01Icon} />
+            </Link>
+          </Button>
+        ) : null
+      }
+    >
       {declarations.status === 'unavailable' ? (
         <Alert variant="destructive">
           <Icon icon={AlertCircleIcon} />

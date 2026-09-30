@@ -33,6 +33,7 @@ export const SUBMITTED_COPY = {
   submittedAt: (at: string) => `Submitted ${formatDateTime(at)}`,
   late: 'Filed late',
   home: 'Home',
+  myDeclarations: 'My declarations',
   nextTitle: 'What happens next',
   nextReview: 'Your Commission reviews your declaration within the statutory windows.',
   nextClarification:
@@ -139,9 +140,12 @@ export function SubmittedView({ declaration, version, slip, now }: SubmittedView
           </ul>
         </section>
       </Card>
-      <div className="mt-6 flex justify-center">
+      <div className="mt-6 flex flex-wrap justify-center gap-2.5">
         <Button asChild variant="secondary">
           <Link to="/">{SUBMITTED_COPY.home}</Link>
+        </Button>
+        <Button asChild variant="ghost">
+          <Link to="/declarations">{SUBMITTED_COPY.myDeclarations}</Link>
         </Button>
       </div>
     </div>

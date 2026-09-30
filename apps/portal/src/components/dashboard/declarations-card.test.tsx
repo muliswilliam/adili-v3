@@ -8,7 +8,8 @@ import type { DeclarationListResult } from '../../server/declarations.server';
 import type { DeclarationListItem } from '../../server/declarations/types';
 import { DISCARD_TITLE } from '../declaration/discard-dialog';
 import { invalidate } from '../declaration/testing-mocks';
-import { DeclarationsCard, sortDeclarations } from './declarations-card';
+import { orderDeclarations } from '../../declaration/my-declarations';
+import { DeclarationsCard } from './declarations-card';
 
 vi.mock('@tanstack/react-router', async () =>
   (await import('../declaration/testing-mocks')).routerMock(),
@@ -90,7 +91,7 @@ describe('DeclarationsCard', () => {
       statementDate: '2028-01-01',
     });
     const older = item({ id: 'c', statementDate: '2025-11-01' });
-    expect(sortDeclarations([submitted, older, item()]).map((entry) => entry.id)).toEqual([
+    expect(orderDeclarations([submitted, older, item()]).map((entry) => entry.id)).toEqual([
       DRAFT,
       'c',
       'b',
@@ -103,8 +104,17 @@ describe('DeclarationsCard', () => {
     expect(within(row).queryByRole('button')).toBeNull();
   });
 
+  it('links to My declarations, where filed ones have their versions and amending', () => {
+    renderCard({ status: 'ok', declarations: [item()] });
+
+    expect(screen.getByRole('link', { name: 'My declarations' }).getAttribute('href')).toBe(
+      '/declarations',
+    );
+  });
+
   it('says when there are no declarations yet', () => {
     renderCard({ status: 'ok', declarations: [] });
+    expect(screen.queryByRole('link', { name: 'My declarations' })).toBeNull();
 
     expect(screen.getByRole('heading', { name: 'No declarations yet' })).toBeTruthy();
   });

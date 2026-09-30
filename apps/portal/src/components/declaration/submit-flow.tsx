@@ -142,6 +142,8 @@ export interface AffirmationDialogProps {
   dueDate: string;
   /** Past the due date: submitting now files late. */
   late: boolean;
+  /** The version an amendment files; null for a first submission. */
+  nextVersion?: number | null;
 }
 
 /**
@@ -155,6 +157,7 @@ export function AffirmationDialog({
   statementDate,
   dueDate,
   late,
+  nextVersion = null,
 }: AffirmationDialogProps) {
   const { state, dispatch, confirmedAt } = flow;
   const open = dialogOpen(state);
@@ -176,7 +179,7 @@ export function AffirmationDialog({
           <span className="flex size-[34px] shrink-0 items-center justify-center rounded-[10px] bg-brand-subtle text-brand-subtle-foreground">
             <Icon icon={SentIcon} className="size-[18px]" />
           </span>
-          <DialogTitle>{SUBMIT_COPY.dialogTitle}</DialogTitle>
+          <DialogTitle>{SUBMIT_COPY.title(nextVersion)}</DialogTitle>
         </DialogHeader>
         <DialogBody>
           {confirmedAt !== null ? (
