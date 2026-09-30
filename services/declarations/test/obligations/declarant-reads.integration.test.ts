@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 
 import { withTenant } from '@adili/data-access';
-import { and, eq } from 'drizzle-orm';
+import { and, asc, eq, isNull } from 'drizzle-orm';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
 import { filingObligations, obligationReminders, outbox } from '../../src/db/schema.js';
@@ -254,27 +254,62 @@ describe('S17 GET /v1/obligations/{id}', () => {
     expect(eacc.statusCode).toBe(404);
   });
 
-  it('records each read of an obligation in the audit trail (ADR-008)', async () => {
+  it("records staff and platform admin reads under the obligation's Commission (ADR-008)", async () => {
     const id = await obligationIdOf('psc', WANJIRU, 'initial');
+    const [unlinked] = await withTenant(api.db, { tenant: 'psc', subject: 'test' }, (tx) =>
+      tx
+        .select({ id: filingObligations.id })
+        .from(filingObligations)
+        .where(and(eq(filingObligations.tenant, 'psc'), isNull(filingObligations.personId))),
+    );
+    if (!unlinked) throw new Error('no obligation for the declarant who has not onboarded');
 
-    expect(
-      (await api.get(`/v1/obligations/${id}`, { tenant: 'psc', roles: ['reviewer'] })).statusCode,
-    ).toBe(200);
+    const reads = [
+      await api.get(`/v1/obligations/${id}`, { tenant: 'psc', roles: ['reviewer'] }),
+      await api.get(`/v1/obligations/${id}`, { tenant: 'platform', roles: ['platform-admin'] }),
+      await api.get(`/v1/obligations/${unlinked.id}`, { tenant: 'psc', roles: ['supervisor'] }),
+    ];
 
-    const audited = (
-      await api.db.select().from(outbox).where(eq(outbox.eventType, 'audit.read.v1'))
-    ).map((row) => row.envelope);
-    expect(audited.at(-1)).toMatchObject({
-      source: 'adili/declarations',
-      tenant: 'psc',
-      data: {
-        action: 'obligation.viewed',
-        resource: { type: 'filing-obligation', params: { id } },
-        actor: { tenant: 'psc', roles: ['reviewer'] },
-        outcome: 'success',
-        request: { method: 'GET', route: '/v1/obligations/:id' },
+    expect(reads.map((read) => read.statusCode)).toEqual([200, 200, 200]);
+    expect(await auditedReads()).toMatchObject([
+      {
+        source: 'adili/declarations',
+        tenant: 'psc',
+        data: {
+          action: 'obligation.viewed',
+          resource: {
+            type: 'filing-obligation',
+            params: { id },
+            tenant: 'psc',
+            subjectPersonId: WANJIRU,
+          },
+          actor: { tenant: 'psc', roles: ['reviewer'] },
+          outcome: 'success',
+          request: { method: 'GET', route: '/v1/obligations/:id' },
+        },
       },
-    });
+      {
+        // Filed under the Commission whose data it is, not the platform tenant.
+        tenant: 'psc',
+        data: {
+          resource: { params: { id }, tenant: 'psc', subjectPersonId: WANJIRU },
+          actor: { tenant: 'platform', roles: ['platform-admin'] },
+        },
+      },
+      {
+        tenant: 'psc',
+        data: { resource: { params: { id: unlinked.id }, tenant: 'psc', subjectPersonId: null } },
+      },
+    ]);
+  });
+
+  it('does not audit a declarant reading their own obligations', async () => {
+    const id = await obligationIdOf('tsc', WANJIRU, 'initial');
+
+    expect((await api.get(`/v1/obligations/${id}`, declarant(WANJIRU))).statusCode).toBe(200);
+    expect((await api.get('/v1/me/obligations', declarant(WANJIRU))).statusCode).toBe(200);
+
+    expect(await auditedReads()).toEqual([]);
   });
 
   it('answers 404 for an unknown id and for one that is not a UUID', async () => {
@@ -285,3 +320,13 @@ describe('S17 GET /v1/obligations/{id}', () => {
     expect(malformed.statusCode).toBe(404);
   });
 });
+
+/** The audit.read.v1 events in the outbox, oldest first. */
+async function auditedReads() {
+  const rows = await api.db
+    .select()
+    .from(outbox)
+    .where(eq(outbox.eventType, 'audit.read.v1'))
+    .orderBy(asc(outbox.createdAt), asc(outbox.id));
+  return rows.map((row) => row.envelope);
+}

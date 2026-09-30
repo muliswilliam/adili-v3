@@ -5,7 +5,9 @@ import {
   ApiQueryParameters,
   AuditedRead,
   CurrentPrincipal,
+  CurrentReadAudit,
   type Principal,
+  type ReadAudit,
   Roles,
   schemaRef,
   ZodValidationPipe,
@@ -88,15 +90,21 @@ export class ObligationsController {
     operationId: 'getObligation',
     summary: 'One obligation with its reminder history',
     description:
-      "The declarant's own (`declarant` null); staff of the obligation's Commission and platform admins (with `declarant`, whom it is for). Anyone else gets 404.",
+      "The declarant's own (`declarant` null); staff of the obligation's Commission and platform admins (with `declarant`, whom it is for). Anyone else gets 404. Staff and platform admin reads are audited under the obligation's Commission; a declarant reading their own is not.",
   })
   @ApiOkResponse({ description: 'The obligation', schema: schemaRef('ObligationDetail') })
   @ApiProblemResponse(404, NOT_VISIBLE)
-  one(
+  async one(
     @CurrentPrincipal() principal: Principal,
     @Param('id') id: string,
+    @CurrentReadAudit() audit: ReadAudit,
   ): Promise<ObligationDetail> {
-    return this.obligations.one(principal, id);
+    const read = await this.obligations.one(principal, id);
+    // ADR-008: someone else's read of the obligation is filed under its Commission and names
+    // the person it is for; the declarant reading their own is not audited.
+    if (read.own) audit.ownRecord();
+    else audit.resource({ tenant: read.tenant, subjectPersonId: read.personId });
+    return read.obligation;
   }
 
   @Get('commissions/:slug/obligations/summary')

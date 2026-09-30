@@ -51,6 +51,21 @@ function selectObligations(tx: Transaction) {
 }
 
 /**
+ * One obligation as read, with what the audit trail needs to know of the read (ADR-008): whether
+ * the declarant read their own, and else whose data it is.
+ */
+export type ObligationRead =
+  | { own: true; obligation: ObligationDetail }
+  | {
+      own: false;
+      obligation: ObligationDetail;
+      /** The obligation's Commission. */
+      tenant: string;
+      /** The person it is for, once linked; null before the declarant onboarded. */
+      personId: string | null;
+    };
+
+/**
  * Reads of filing obligations (spec 04). A declarant reads by the person in their token across
  * Commissions (person-scoped RLS); staff read their own Commission's (tenant-scoped RLS). Anything
  * outside the caller's view is 404, as if it did not exist.
@@ -92,24 +107,25 @@ export class ObligationsService {
    * One obligation with its reminder history: the declarant's own (without `declarant`), or for
    * staff of its Commission and platform admins (with `declarant`, whom it is for). 404 for anyone else.
    */
-  async one(principal: Principal, id: string): Promise<ObligationDetail> {
+  async one(principal: Principal, id: string): Promise<ObligationRead> {
     if (!UUID.test(id)) notFoundIfInvisible(null);
     if (principal.personId !== null) {
-      const detail = await withPerson(
+      const own = await withPerson(
         this.db,
         { personId: principal.personId, subject: principal.subject },
         (tx) => readDetail(tx, id, { declarant: false }),
       );
-      if (detail) return detail;
+      if (own) return { own: true, obligation: own.obligation };
     }
     const tenant = staffTenant(principal);
-    const detail =
+    const read =
       tenant === null
         ? null
         : await withTenant(this.db, { tenant, subject: principal.subject }, (tx) =>
             readDetail(tx, id, { declarant: true }),
           );
-    return notFoundIfInvisible(detail);
+    const { obligation, personId } = notFoundIfInvisible(read);
+    return { own: false, obligation, tenant: obligation.commission.slug, personId };
   }
 }
 
@@ -117,8 +133,13 @@ async function readDetail(
   tx: Transaction,
   id: string,
   { declarant }: { declarant: boolean },
-): Promise<ObligationDetail | null> {
-  const [row] = await selectObligations(tx).where(eq(filingObligations.id, id)).limit(1);
+): Promise<{ obligation: ObligationDetail; personId: string | null } | null> {
+  const [row] = await tx
+    .select({ ...obligationColumns, personId: filingObligations.personId })
+    .from(filingObligations)
+    .leftJoin(commissionRefs, eq(commissionRefs.slug, filingObligations.tenant))
+    .where(eq(filingObligations.id, id))
+    .limit(1);
   if (!row) return null;
   const reminders = await tx
     .select({
@@ -131,7 +152,7 @@ async function readDetail(
     .from(obligationReminders)
     .where(eq(obligationReminders.obligationId, id))
     .orderBy(asc(obligationReminders.scheduledAt), desc(obligationReminders.offsetDays));
-  return {
+  const obligation: ObligationDetail = {
     ...toObligation(row),
     reminders: reminders.map((reminder) => ({
       ...reminder,
@@ -140,6 +161,7 @@ async function readDetail(
     })),
     declarant: declarant ? await readDeclarant(tx, row.rosterRecordId) : null,
   };
+  return { obligation, personId: row.personId };
 }
 
 async function readDeclarant(

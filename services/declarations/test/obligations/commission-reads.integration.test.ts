@@ -515,7 +515,12 @@ describe('S16 visibility of Commission obligations', () => {
       tenant: 'psc',
       data: {
         action: 'obligations.listed',
-        resource: { type: 'filing-obligation', params: { slug: 'psc' } },
+        resource: {
+          type: 'filing-obligation',
+          params: { slug: 'psc' },
+          tenant: 'psc',
+          subjectPersonId: null,
+        },
         actor: { tenant: 'psc', roles: ['supervisor'] },
         request: { method: 'GET', route: '/v1/commissions/:slug/obligations' },
       },

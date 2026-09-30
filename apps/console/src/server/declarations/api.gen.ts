@@ -53,7 +53,7 @@ export interface paths {
         };
         /**
          * One obligation with its reminder history
-         * @description The declarant's own (`declarant` null); staff of the obligation's Commission and platform admins (with `declarant`, whom it is for). Anyone else gets 404.
+         * @description The declarant's own (`declarant` null); staff of the obligation's Commission and platform admins (with `declarant`, whom it is for). Anyone else gets 404. Staff and platform admin reads are audited under the obligation's Commission; a declarant reading their own is not.
          */
         get: operations["getObligation"];
         put?: never;
