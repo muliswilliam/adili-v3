@@ -10,11 +10,23 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AboutRouteImport } from './routes/about'
+import { Route as VIndexRouteImport } from './routes/v.index'
 import { Route as VVerificationIdRouteImport } from './routes/v.$verificationId'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AboutRoute = AboutRouteImport.update({
+  id: '/about',
+  path: '/about',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const VIndexRoute = VIndexRouteImport.update({
+  id: '/v/',
+  path: '/v/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const VVerificationIdRoute = VVerificationIdRouteImport.update({
@@ -25,28 +37,36 @@ const VVerificationIdRoute = VVerificationIdRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/about': typeof AboutRoute
   '/v/$verificationId': typeof VVerificationIdRoute
+  '/v/': typeof VIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/about': typeof AboutRoute
   '/v/$verificationId': typeof VVerificationIdRoute
+  '/v': typeof VIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/about': typeof AboutRoute
   '/v/$verificationId': typeof VVerificationIdRoute
+  '/v/': typeof VIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/v/$verificationId'
+  fullPaths: '/' | '/about' | '/v/$verificationId' | '/v/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/v/$verificationId'
-  id: '__root__' | '/' | '/v/$verificationId'
+  to: '/' | '/about' | '/v/$verificationId' | '/v'
+  id: '__root__' | '/' | '/about' | '/v/$verificationId' | '/v/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AboutRoute: typeof AboutRoute
   VVerificationIdRoute: typeof VVerificationIdRoute
+  VIndexRoute: typeof VIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -56,6 +76,20 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/about': {
+      id: '/about'
+      path: '/about'
+      fullPath: '/about'
+      preLoaderRoute: typeof AboutRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/v/': {
+      id: '/v/'
+      path: '/v'
+      fullPath: '/v/'
+      preLoaderRoute: typeof VIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/v/$verificationId': {
@@ -70,17 +104,20 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AboutRoute: AboutRoute,
   VVerificationIdRoute: VVerificationIdRoute,
+  VIndexRoute: VIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
 
 import type { getRouter } from './router.tsx'
-import type { createStart } from '@tanstack/react-start'
+import type { startInstance } from './start.ts'
 declare module '@tanstack/react-start' {
   interface Register {
     ssr: true
     router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
   }
 }
