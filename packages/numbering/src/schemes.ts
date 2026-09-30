@@ -56,7 +56,11 @@ export const OFR = defineScheme({
   sequenceDigits: 7,
 });
 
-const RECEIPT = 'The number is also the acknowledgement receipt number.';
+/**
+ * The sentence every declaration scheme's glossary entry ends with (docs/glossary.md, ADR-011):
+ * the acknowledgement slip carries the same number, so there is no separate receipt number.
+ */
+const SAME_NUMBER_ON_SLIP = 'The number is also the acknowledgement receipt number.';
 
 /**
  * Declarations: issuer is the responsible Commission's tenant key upper-cased (`issuerCode`),
@@ -65,7 +69,7 @@ const RECEIPT = 'The number is also the acknowledgement receipt number.';
 export const DCI = defineScheme({
   code: 'DCI',
   name: 'Initial declaration',
-  description: `Declaration made within 30 days of appointment, covering the year before appointment. ${RECEIPT}`,
+  description: `Declaration made within 30 days of appointment, covering the year before appointment. ${SAME_NUMBER_ON_SLIP}`,
   legalBasis: 'Act s.34(1)',
   issuer: true,
   period: true,
@@ -77,7 +81,7 @@ export const DCI = defineScheme({
 export const DCB = defineScheme({
   code: 'DCB',
   name: 'Biennial declaration',
-  description: `Declaration made every two years, with a statement date of 1 November and filed by 31 December. ${RECEIPT}`,
+  description: `Declaration made every two years, with a statement date of 1 November and filed by 31 December. ${SAME_NUMBER_ON_SLIP}`,
   legalBasis: 'Act s.34(2)',
   issuer: true,
   period: true,
@@ -89,7 +93,7 @@ export const DCB = defineScheme({
 export const DCF = defineScheme({
   code: 'DCF',
   name: 'Final declaration',
-  description: `Declaration made within 30 days of leaving public office. ${RECEIPT}`,
+  description: `Declaration made within 30 days of leaving public office. ${SAME_NUMBER_ON_SLIP}`,
   legalBasis: 'Act s.34(3)',
   issuer: true,
   period: true,
