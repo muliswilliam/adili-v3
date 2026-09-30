@@ -37,7 +37,7 @@ export const issuedDocuments = pgTable(
     /** The person who may download it (the declarant); null when no person may. */
     subjectPersonId: uuid(),
     verificationId: text().notNull().unique(),
-    /** Key in the issued bucket: `<type>/<id>.pdf`. */
+    /** Key in the issued bucket: `issued/<id>.pdf`. */
     objectKey: text().notNull().unique(),
     /** Hex SHA-256 of the signed PDF as stored. */
     sha256: text().notNull(),

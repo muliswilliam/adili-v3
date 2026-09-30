@@ -235,7 +235,7 @@ describe('S9 issuing an acknowledgement slip', () => {
 
   it('stores the PDF whose SHA-256 is the one registered', async () => {
     const { document: row, record } = await documentRow(document.id);
-    expect(row.objectKey).toBe(`acknowledgement-slip/${document.id}.pdf`);
+    expect(row.objectKey).toBe(`issued/${document.id}.pdf`);
     expect(sha256(pdf)).toBe(document.sha256);
     expect(row.sha256).toBe(document.sha256);
     expect(record.contentSha256).toBe(document.sha256);
@@ -374,7 +374,7 @@ describe('S9 a slip of an amended version, filed late', () => {
         payload: slipPayload({ version: 2, late: true, statementCount: 1, itemCount: 1 }),
       }),
     );
-    const texts = await pageTexts(await storedPdf(`acknowledgement-slip/${document.id}.pdf`));
+    const texts = await pageTexts(await storedPdf(`issued/${document.id}.pdf`));
     expect(texts[0]).toContain('Version 2');
     expect(texts[0]).toContain('LATE 31 Dec 2027. Submitted after the due date');
     expect(texts[0]).toContain('Version 1 (superseded)');
@@ -661,7 +661,7 @@ describe('a dependency down', () => {
       const stored = await listKeys(
         down.s3,
         requireEnv('S3_BUCKET_ISSUED'),
-        'acknowledgement-slip/',
+        'issued/',
       );
       const response = await down.post('/internal/v1/documents/issue', body, DECLARATIONS, {
         idempotencyKey: null,
@@ -671,7 +671,7 @@ describe('a dependency down', () => {
       expect(response.json<Problem>().type).toBe('signer-unavailable');
       await nothingRegistered(down, body.subjectRef);
       expect(
-        await listKeys(down.s3, requireEnv('S3_BUCKET_ISSUED'), 'acknowledgement-slip/'),
+        await listKeys(down.s3, requireEnv('S3_BUCKET_ISSUED'), 'issued/'),
       ).toEqual(stored);
     } finally {
       await down.close();

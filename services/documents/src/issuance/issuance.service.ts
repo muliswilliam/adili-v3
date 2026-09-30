@@ -128,7 +128,8 @@ export class IssuanceService {
     const documentId = uuidv7();
     const verificationId = newVerificationId();
     const issuedAt = new Date();
-    const objectKey = `${template.type}/${documentId}.pdf`;
+    // Spec 06: the issued bucket keeps every document at `issued/<documentId>.pdf`.
+    const objectKey = `issued/${documentId}.pdf`;
     const verifyUrl = this.verifyUrlOf(verificationId);
     const publicPayload = template.publicPayload(payload, { issuedAt });
 
