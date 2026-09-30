@@ -119,6 +119,16 @@ describe('S19: the submit state machine', () => {
     expect(run([{ type: 'submit-pressed' }], incomplete)).toEqual({ step: 'stepping-up' });
   });
 
+  it("drops a 400's list once the summary is read again, and nothing else", () => {
+    const blocking = [
+      { sectionKey: 'bio', path: '/officer/birth', code: 'required', message: 'x' },
+    ];
+    const incomplete = run([answered({ status: 'incomplete', blocking })], inFlight);
+
+    expect(run([{ type: 'summary-refreshed' }], incomplete)).toEqual({ step: 'idle' });
+    expect(run([{ type: 'summary-refreshed' }], inFlight)).toBe(inFlight);
+  });
+
   it('asks for the step-up again on 403 step-up-required', () => {
     expect(run([answered({ status: 'step-up-required' })], inFlight)).toEqual({
       step: 'step-up-failed',

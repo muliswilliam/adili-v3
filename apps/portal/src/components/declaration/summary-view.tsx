@@ -736,7 +736,14 @@ export function SummaryView({ summary: loaded, stepUpMarker = null }: SummaryVie
   const fromVersion = amendingFrom(declaration);
   const nextVersion = fromVersion === null ? null : fromVersion + 1;
   const amendmentDiscarded = useAmendmentDiscarded(fromVersion ?? 0);
-  // A 400 from submit is fresher than the summary: show what it says blocks.
+  // A summary read after a 400 is fresher than what the 400 said blocks.
+  const { dispatch } = flow;
+  const [shownSummary, setShownSummary] = useState(summary);
+  if (shownSummary !== summary) {
+    setShownSummary(summary);
+    dispatch({ type: 'summary-refreshed' });
+  }
+  // A 400 from submit is fresher than the summary it followed: show what it says blocks.
   const blocking = state.step === 'incomplete' ? state.blocking : summary.blocking;
   const cannotSubmitReason =
     state.step === 'incomplete' ? 'incomplete' : summary.cannotSubmitReason;

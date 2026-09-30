@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
-import { act, fireEvent, screen, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, within } from '@testing-library/react';
+import type { ReactNode } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { discardMyAmendment } from '../../server/declarations';
@@ -10,7 +11,13 @@ import { submitMyDeclaration } from '../../server/submission';
 import type { SubmitOutcome } from '../../server/submission.server';
 import { signInAgain, stepUp } from '../sign-in';
 import { SummaryView } from './summary-view';
-import { DECLARATION_ID, renderWorkspace, sampleDeclaration, sections } from './testing';
+import {
+  DECLARATION_ID,
+  renderWorkspace,
+  sampleDeclaration,
+  sections,
+  workspaceTree,
+} from './testing';
 import { invalidate, navigate } from './testing-mocks';
 
 vi.mock('@tanstack/react-router', async () => (await import('./testing-mocks')).routerMock());
@@ -352,6 +359,46 @@ describe('incomplete (400)', () => {
     expect(within(panel).getByRole('link', { name: 'Enter your date of birth.' })).toBeTruthy();
     expect(screen.queryByText('Everything is complete.')).toBeNull();
     expect(submitButton().disabled).toBe(true);
+  });
+
+  it('gives way to a summary read after it, which says what blocks now', async () => {
+    const blocking: CompletenessIssue[] = [
+      {
+        sectionKey: 'bio',
+        path: '/officer/birth/date',
+        code: 'required',
+        message: 'Enter your date of birth.',
+      },
+    ];
+    stepUpStatusMock.mockResolvedValue({
+      status: 'ok',
+      acr: 'step-up',
+      authTime: AUTH_TIME,
+      fresh: true,
+    });
+    const summary = summaryOf();
+    const view = (loaded: LoadedSummary) =>
+      workspaceTree(<SummaryView summary={loaded} stepUpMarker="done" />, {
+        step: 'summary',
+        declaration: loaded.declaration,
+      });
+    let rerender: (ui: ReactNode) => void = () => undefined;
+    await act(async () => {
+      rerender = render(view(summary)).rerender;
+      await Promise.resolve();
+    });
+    const dialog = screen.getByRole('dialog', { name: 'Submit your declaration' });
+    affirm(dialog);
+    await submitWith(dialog, { status: 'incomplete', blocking });
+    expect(submitButton().disabled).toBe(true);
+
+    // Completed elsewhere meanwhile: the summary read again can be submitted.
+    act(() => {
+      rerender(view(summaryOf()));
+    });
+
+    expect(screen.getByText('Everything is complete.')).toBeTruthy();
+    expect(submitButton().disabled).toBe(false);
   });
 });
 

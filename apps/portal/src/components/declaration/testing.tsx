@@ -81,18 +81,25 @@ export function sampleBio(contents: Record<string, unknown> = {}): LoadedSection
 }
 
 /** Renders a screen inside the workspace provider and layout, as the route does. */
-export function renderWorkspace(
+export function renderWorkspace(ui: ReactNode, options: WorkspaceOptions = {}) {
+  return render(workspaceTree(ui, options));
+}
+
+type WorkspaceOptions = Parameters<typeof workspaceTree>[1];
+
+/** What `renderWorkspace` renders, for a test that rerenders it with new props. */
+export function workspaceTree(
   ui: ReactNode,
   { declaration = sampleDeclaration(), step = 'overview', etag = '"1"' } = {},
 ) {
-  return render(
+  return (
     <ToastProvider>
       <TooltipProvider>
         <WorkspaceProvider declaration={declaration} etag={etag}>
           <WorkspaceLayout step={step}>{ui}</WorkspaceLayout>
         </WorkspaceProvider>
       </TooltipProvider>
-    </ToastProvider>,
+    </ToastProvider>
   );
 }
 

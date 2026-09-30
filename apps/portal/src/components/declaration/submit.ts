@@ -48,7 +48,9 @@ export type SubmitEvent =
   | { type: 'confirmed' }
   | { type: 'answered'; answer: SubmitAnswer }
   /** Cancel, Esc or the close button. */
-  | { type: 'dialog-closed' };
+  | { type: 'dialog-closed' }
+  /** The summary was read again: fresher than a 400's list of what blocked. */
+  | { type: 'summary-refreshed' };
 
 export const initialSubmitState: SubmitState = { step: 'idle' };
 
@@ -78,6 +80,8 @@ export function submitReducer(state: SubmitState, event: SubmitEvent): SubmitSta
       return state.step === 'submitting' ? answered(state.key, event.answer) : state;
     case 'dialog-closed':
       return state.step === 'affirm' ? initialSubmitState : state;
+    case 'summary-refreshed':
+      return state.step === 'incomplete' ? initialSubmitState : state;
   }
 }
 
