@@ -84,7 +84,7 @@ function RowFrame({
 
 function Mark({ tone, icon }: { tone: 'brand' | 'success'; icon: typeof Tick02Icon }) {
   return (
-    <IconTile tone={tone} className="[&_svg]:size-[17px]">
+    <IconTile tone={tone}>
       <Icon icon={icon} strokeWidth={tone === 'success' ? 2.4 : 2} />
     </IconTile>
   );

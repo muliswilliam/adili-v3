@@ -24,6 +24,16 @@ describe('IconTile', () => {
     expect(screen.getByTestId('tile').className).toContain('bg-brand-subtle');
   });
 
+  it('comes in a 32px size with a 17px icon, and white on the photo panel', () => {
+    render(<IconTile data-testid="tile" size="sm" tone="art" />);
+
+    const { className } = screen.getByTestId('tile');
+    expect(className).toContain('size-8');
+    expect(className).toContain('[&_svg]:size-[17px]');
+    expect(className).not.toContain('size-[34px]');
+    expect(className).toContain('bg-art-tile');
+  });
+
   it('lets the caller merge layout classes', () => {
     render(<IconTile data-testid="tile" className="mb-2" />);
 

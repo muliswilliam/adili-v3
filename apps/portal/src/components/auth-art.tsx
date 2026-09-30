@@ -1,4 +1,4 @@
-import { Icon } from '@adili/ui';
+import { Icon, IconTile } from '@adili/ui';
 import {
   Building03Icon,
   Clock01Icon,
@@ -74,9 +74,9 @@ export function AuthArt({ variant }: { variant: AuthArtVariant }) {
             key={text}
             className="flex max-w-[400px] items-center gap-3 rounded-item bg-art-item px-3.5 py-3 text-sm font-medium text-art-foreground shadow-art-item backdrop-blur-[10px]"
           >
-            <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-art-tile text-brand">
-              <Icon icon={icon} className="size-[17px]" />
-            </span>
+            <IconTile tone="art" size="sm">
+              <Icon icon={icon} />
+            </IconTile>
             {text}
           </li>
         ))}
