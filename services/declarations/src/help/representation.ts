@@ -1,36 +1,13 @@
 import { z } from 'zod';
 
 import { SECTION_KEY } from '../drafts/sections.js';
-import { CORPUS_TAGS, type CorpusTag } from './corpus.js';
+import { CORPUS_TAGS, ITEM_TYPE_TAGS } from './corpus.js';
 import { CORPUS_SOURCE_VALUES } from './schema.js';
 
 /**
  * Bodies of the help API (spec 11). They are the contract: the OpenAPI document,
  * packages/schemas/internal/declarations.yaml, is generated from them (`pnpm contracts`).
  */
-
-/** The statement item types a passage or article may be tagged with, for boosts. */
-export const ITEM_TYPE_TAGS = [
-  'land',
-  'building',
-  'vehicle',
-  'securities',
-  'shareholding',
-  'bank-account',
-  'cash',
-  'receivable',
-  'mortgage',
-  'loan',
-  'guarantee',
-  'salary-emoluments',
-  'allowances',
-  'business',
-  'rent',
-  'dividends-interest',
-  'pension',
-  'farming',
-  'consultancy',
-] as const satisfies readonly CorpusTag[];
 
 export const helpLanguageSchema = z.enum(['en', 'sw']);
 

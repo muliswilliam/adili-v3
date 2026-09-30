@@ -38,6 +38,13 @@ export function isStatementKey(key: string): key is StatementKey {
   return key.startsWith(STATEMENT_PREFIX);
 }
 
+/** What kind of section a section key names: `statement:<person>` is `statement`. */
+export type SectionKind = 'bio' | 'household' | 'statement' | 'other';
+
+export function sectionKind(key: DeclarationSectionKey): SectionKind {
+  return isStatementKey(key) ? 'statement' : key;
+}
+
 /** Whose statement the section is, or null for a section that is not a statement. */
 export function statementPersonKey(key: string): PersonKey | null {
   return isStatementKey(key) ? (key.slice(STATEMENT_PREFIX.length) as PersonKey) : null;
