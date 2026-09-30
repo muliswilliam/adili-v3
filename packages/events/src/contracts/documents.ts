@@ -62,6 +62,8 @@ export interface DocumentEventData extends Record<string, unknown> {
   /** The record the document is about, e.g. `declaration-version:<uuid>`. */
   subjectRef: string;
   publicPayload: PublicPayload | null;
+  /** Where the verify page answers for it: the QR code's payload (`<verify origin>/v/<id>`). */
+  verifyUrl: string;
   /** Hex SHA-256 of the issued PDF, for the verify page's file check. */
   sha256: string;
   issuedAt: string;

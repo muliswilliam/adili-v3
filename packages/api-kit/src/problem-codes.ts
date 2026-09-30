@@ -21,7 +21,10 @@ export const PROBLEM_CODES = {
   'otp-invalid': { status: HttpStatus.BAD_REQUEST, title: 'Invalid code' },
   /** Onboarding: the one-time code is past its expiry; a new one must be sent. */
   'otp-expired': { status: HttpStatus.BAD_REQUEST, title: 'Code expired' },
-  /** A new code or email was asked for too soon; `retryAfterSeconds` says when it may be. */
+  /**
+   * A new code, email or acknowledgement slip was asked for too soon; `retryAfterSeconds` says
+   * when it may be.
+   */
   'resend-cooldown': { status: HttpStatus.TOO_MANY_REQUESTS, title: 'Resend cooldown' },
   /** Onboarding: the one-time code could not be sent; nothing changed, try again. */
   'otp-send-failed': { status: HttpStatus.BAD_GATEWAY, title: 'Code not sent' },
@@ -61,6 +64,13 @@ export const PROBLEM_CODES = {
   'not-submitted': { status: HttpStatus.CONFLICT, title: 'Not submitted' },
   /** Submission: the filing obligation was cancelled, so there is nothing to file. */
   'obligation-cancelled': { status: HttpStatus.CONFLICT, title: 'Obligation cancelled' },
+  /** Acknowledgement: the version's slip is issued already; there is nothing to ask for again. */
+  'acknowledgement-issued': { status: HttpStatus.CONFLICT, title: 'Acknowledgement issued' },
+  /** Acknowledgement: the slip is still being prepared; ask again only once it has failed. */
+  'acknowledgement-in-progress': {
+    status: HttpStatus.CONFLICT,
+    title: 'Acknowledgement in progress',
+  },
 } as const satisfies Record<string, { status: HttpStatus; title: string }>;
 
 export type ProblemCode = keyof typeof PROBLEM_CODES;
