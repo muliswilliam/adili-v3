@@ -34,6 +34,7 @@ describe('a database that does not answer', () => {
       url: `postgres://nobody:nothing@127.0.0.1:${String(address.port)}/nothing`,
       schema: {},
       applicationName: 'data-access-pool-test',
+      connectTimeoutMillis: 500,
     });
   });
 

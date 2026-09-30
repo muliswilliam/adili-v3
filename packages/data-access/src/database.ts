@@ -14,7 +14,17 @@ export interface DatabaseOptions<TSchema extends Record<string, unknown>> {
   /** Shown in `pg_stat_activity`. */
   applicationName: string;
   maxConnections?: number;
+  /** How long to wait for a new connection before failing as unavailable. */
+  connectTimeoutMillis?: number;
 }
+
+/**
+ * Covers a new Postgres session (a backend fork and SCRAM exchange) on a loaded host, which takes
+ * seconds, plus the event-loop lag of a busy process, whose timers can fire before the socket that
+ * already answered is read. A refused or reset connection fails at once regardless; this bounds only
+ * a database that accepts and never answers.
+ */
+const DEFAULT_CONNECT_TIMEOUT_MILLIS = 10_000;
 
 export function createDatabase<TSchema extends Record<string, unknown>>(
   options: DatabaseOptions<TSchema>,
@@ -26,8 +36,8 @@ export function createDatabase<TSchema extends Record<string, unknown>>(
     // Keep one connection open through quiet spells, so the next request does not pay for a
     // new Postgres session (a backend fork and SCRAM exchange, seconds on a starved host).
     min: 1,
-    // Fail fast instead of queueing requests behind a dead database.
-    connectionTimeoutMillis: 2_000,
+    // Bounded, so requests fail as unavailable instead of queueing behind a black-holed database.
+    connectionTimeoutMillis: options.connectTimeoutMillis ?? DEFAULT_CONNECT_TIMEOUT_MILLIS,
   });
   // An idle connection the server drops (restart, failover, admin terminate) is emitted here;
   // unhandled, it would crash the process. The pool has already discarded the client.
