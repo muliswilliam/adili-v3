@@ -115,6 +115,13 @@ export const referrals = pgTable(
     packageDocumentId: uuid(),
     packageVerificationId: text(),
     sentAt: timestamp({ withTimezone: true }),
+    /**
+     * ICMS's case number once EACC registered the sent referral there (spec 09,
+     * `referral.icms-registered.v1`): the Commission follows up with it. Null until then.
+     */
+    icmsCaseNumber: text(),
+    /** When ICMS registered it. */
+    icmsRegisteredAt: timestamp({ withTimezone: true }),
     /** Read model for the Referrals view: confidential, tenant-scoped. */
     declarantName: text().notNull(),
     personnelFileNumber: text().notNull(),

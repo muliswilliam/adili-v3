@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 
+import type { EventEnvelope } from '@adili/events';
 import { eq } from 'drizzle-orm';
 import { vi } from 'vitest';
 import { v7 as uuidv7 } from 'uuid';
@@ -257,4 +258,80 @@ export function sentReferral(
     },
     { timeout: 45_000, interval: 250 },
   );
+}
+
+/**
+ * A referral already `sent` to EACC, arranged directly (the sending workflow is S13's): an assets
+ * referral from `caseId`, or a system `two-missed-cycles` one with no case when `caseId` is null.
+ */
+export async function givenSentReferral(
+  api: ReviewApi,
+  {
+    tenant,
+    personId,
+    caseId,
+    reference,
+    status = 'sent',
+  }: {
+    tenant: string;
+    personId: string;
+    caseId: string | null;
+    reference: string;
+    status?: 'approved' | 'sent';
+  },
+): Promise<string> {
+  const id = uuidv7();
+  const at = new Date('2027-12-20T06:00:00.000Z');
+  await api.asPlatform((tx) =>
+    tx.insert(referrals).values({
+      id,
+      tenant,
+      personId,
+      caseId,
+      cycleYear: 2027,
+      grounds: caseId === null ? 'two-missed-cycles' : 'undeclared-assets',
+      proposerKind: caseId === null ? 'system' : 'user',
+      proposer: caseId === null ? null : 'reviewer-a',
+      proposerName: caseId === null ? null : 'Amina Wafula',
+      proposedAt: new Date('2027-12-18T09:00:00.000Z'),
+      sources: {
+        caseIds: caseId === null ? [] : [caseId],
+        flagIds: [],
+        clarificationIds: [],
+        obligationIds: [],
+        actionIds: [],
+      },
+      narrative: 'NTSA records a vehicle registered to the officer that is not declared.',
+      status,
+      approver: 'supervisor-s',
+      approverName: 'Samuel Njoroge',
+      approvedAt: at,
+      reference,
+      packageManifest: [],
+      packageDocumentId: status === 'sent' ? randomUUID() : null,
+      packageVerificationId: status === 'sent' ? 'ADL-TEST' : null,
+      sentAt: status === 'sent' ? at : null,
+      declarantName: 'James Otieno',
+      personnelFileNumber: 'PSC/00042',
+    }),
+  );
+  return id;
+}
+
+/** `referral.icms-registered.v1` as reporting publishes it and the RabbitMQ transport delivers it. */
+export function icmsRegisteredEvent(
+  tenant: string,
+  data: { referralId: string; icmsCaseNumber: string; registeredAt: string },
+): EventEnvelope {
+  return {
+    specversion: '1.0',
+    id: uuidv7(),
+    source: 'adili/reporting',
+    type: 'referral.icms-registered.v1',
+    time: new Date().toISOString(),
+    subject: data.referralId,
+    datacontenttype: 'application/json',
+    tenant,
+    data: { tenant, ...data },
+  };
 }

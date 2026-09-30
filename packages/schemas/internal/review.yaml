@@ -704,6 +704,51 @@ paths:
                 $ref: '#/components/schemas/ProblemDetails'
         '503':
           $ref: '#/components/responses/DirectoryUnavailable'
+  /internal/v1/review/referrals/{referralId}/icms-payload:
+    parameters:
+      - $ref: '#/components/parameters/ReferralId'
+    get:
+      tags: [internal]
+      operationId: internalGetReferralIcmsPayload
+      summary: What ICMS needs of a sent referral, with the declarant's national ID (reporting service)
+      description: >-
+        Service tokens with `review:internal`; the Commission in `X-Acting-Tenant`. A sent referral
+        only. The cover sheet's fields of `ReferralPackagePayload` without the evidence, plus the
+        declarant's national ID, read from the directory's roster record of the referral's case at
+        each call and kept nowhere in the review service. Every read is audited (`audit.read.v1`,
+        action `review.referral.icms-payload.read`), naming the officer in `X-Acting-Subject` when
+        the caller gives one.
+      x-audited-read:
+        action: review.referral.icms-payload.read
+        resource: referral
+      parameters:
+        - name: X-Acting-Subject
+          in: header
+          required: false
+          description: The officer on whose behalf the service reads it; recorded in the audit event
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Payload
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReferralIcmsPayload'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: >-
+            Problem code `roster-record-unknown`: the referral names no roster record of the
+            declarant, or the Commission's roster has none, so the national ID cannot be read
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '503':
+          $ref: '#/components/responses/DirectoryUnavailable'
   /v1/review/cases/{caseId}/registry:
     parameters:
       - $ref: '#/components/parameters/CaseId'
@@ -3028,6 +3073,8 @@ components:
           narrative,
           package,
           sentAt,
+          icmsCaseNumber,
+          icmsRegisteredAt,
           declarantName,
           personnelFileNumber,
         ]
@@ -3123,6 +3170,15 @@ components:
         sentAt:
           type: [string, 'null']
           format: date-time
+        icmsCaseNumber:
+          type: [string, 'null']
+          description: >-
+            ICMS's case number once EACC registered the sent referral there
+            (`referral.icms-registered.v1`, spec 09); null until then
+        icmsRegisteredAt:
+          type: [string, 'null']
+          format: date-time
+          description: When ICMS registered it; null until then
         declarantName:
           type: string
         personnelFileNumber:
@@ -3171,6 +3227,70 @@ components:
           type: [string, 'null']
           format: uuid
           description: The upload (attachments) or issued document (letters); null for records
+    ReferralIcmsPayload:
+      type: object
+      description: >-
+        What ICMS needs of a sent referral (spec 09 BE-5): the package cover sheet's fields with the
+        declarant's national ID. Personal data: the caller passes it to ICMS and keeps it nowhere.
+      required:
+        [
+          reference,
+          grounds,
+          groundsLabel,
+          cycleYear,
+          commission,
+          declarant,
+          narrative,
+          proposedBy,
+          proposedAt,
+          approvedBy,
+          approvedAt,
+          sentAt,
+        ]
+      properties:
+        reference:
+          type: string
+          description: 'RFL-<ISSUER>-<YEAR>-<seq>-<check>'
+        grounds:
+          $ref: '#/components/schemas/ReferralGrounds'
+        groundsLabel:
+          type: string
+        cycleYear:
+          type: integer
+        commission:
+          type: object
+          required: [name, issuerCode]
+          properties:
+            name:
+              type: string
+            issuerCode:
+              type: string
+        declarant:
+          type: object
+          required: [name, personnelFileNumber, nationalId]
+          properties:
+            name:
+              type: string
+            personnelFileNumber:
+              type: string
+            nationalId:
+              type: string
+              description: From the directory's roster record of the referral's case
+        narrative:
+          type: string
+        proposedBy:
+          type: string
+        proposedAt:
+          type: string
+          format: date-time
+        approvedBy:
+          type: string
+        approvedAt:
+          type: string
+          format: date-time
+        sentAt:
+          type: string
+          format: date-time
     ReferralPackagePayload:
       type: object
       required:

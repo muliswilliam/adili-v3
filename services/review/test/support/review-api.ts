@@ -27,6 +27,7 @@ import { IntegrationGatewayClient } from '../../src/integration-gateway/integrat
 import { NotificationsClient } from '../../src/notifications/notifications-client.js';
 import { ProcessingActivities } from '../../src/processing/activities.js';
 import { DeclarationSubmittedConsumer } from '../../src/processing/declaration-submitted.consumer.js';
+import { ReferralIcmsRegisteredConsumer } from '../../src/referrals/icms-registered.consumer.js';
 import { FakeClock } from './fake-clock.js';
 import { FakeDeclarations } from './fake-declarations.js';
 import { FakeDirectory } from './fake-directory.js';
@@ -69,6 +70,8 @@ export interface ReviewApi {
   consumer: DeclarationSubmittedConsumer;
   /** The inbox consumers of the obligation and clarification events that drive the ladder. */
   enforcement: EnforcementConsumer;
+  /** The inbox consumer of `referral.icms-registered.v1` (spec 09's ICMS case number). */
+  icmsRegistered: ReferralIcmsRegisteredConsumer;
   /** The processing workflow's activities, for driving its steps directly. */
   activities: ProcessingActivities;
   get(
@@ -166,6 +169,7 @@ export async function startReviewApi(): Promise<ReviewApi> {
     clock,
     consumer: app.get(DeclarationSubmittedConsumer),
     enforcement: app.get(EnforcementConsumer),
+    icmsRegistered: app.get(ReferralIcmsRegisteredConsumer),
     activities: app.get(ProcessingActivities),
     async get(path, caller, headers = {}) {
       const token = await signer(caller);

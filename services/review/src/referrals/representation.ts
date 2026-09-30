@@ -32,6 +32,9 @@ export interface ReferralView {
   narrative: string;
   package: { documentId: string; verificationId: string; manifest: ManifestItem[] } | null;
   sentAt: string | null;
+  /** ICMS's case number once EACC registered the referral there (spec 09); null until then. */
+  icmsCaseNumber: string | null;
+  icmsRegisteredAt: string | null;
   declarantName: string;
   personnelFileNumber: string;
   /** `getReferral` only: what the package includes, by reference (the preview before approval). */
@@ -67,6 +70,8 @@ export function referralView(row: ReferralRow, evidence?: EvidencePreviewItem[])
           }
         : null,
     sentAt: row.sentAt?.toISOString() ?? null,
+    icmsCaseNumber: row.icmsCaseNumber,
+    icmsRegisteredAt: row.icmsRegisteredAt?.toISOString() ?? null,
     declarantName: row.declarantName,
     personnelFileNumber: row.personnelFileNumber,
     ...(evidence === undefined ? {} : { evidence }),
