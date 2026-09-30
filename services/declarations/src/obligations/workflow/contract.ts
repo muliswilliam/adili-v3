@@ -99,8 +99,6 @@ export interface CycleOpeningInput {
     cycleYears: number[];
     /** Where the cycle in progress stopped (the last roster record id of the page before). */
     cursor: string | null;
-    /** Obligations created for it so far. */
-    created: number;
   };
 }
 
@@ -122,9 +120,13 @@ export interface CycleOpeningPage {
   nextCursor: string | null;
 }
 
-/** A cycle opened for a Commission, and how many obligations the opening created. */
+/** A cycle opened for a Commission, and its biennial obligations once opened. */
 export interface CycleOpened {
   cycleYear: number;
+  /**
+   * The Commission's live (not cancelled) biennial obligations of the cycle, counted when the
+   * opening is recorded: the same whatever pages were retried.
+   */
   count: number;
 }
 

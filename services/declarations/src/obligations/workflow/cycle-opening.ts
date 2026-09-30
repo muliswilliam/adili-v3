@@ -1,7 +1,7 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { type Database, InjectDatabase, withTenant } from '@adili/data-access';
 import { EventPublisher } from '@adili/events';
-import { and, asc, eq, gt, ne } from 'drizzle-orm';
+import { and, asc, count, eq, gt, ne } from 'drizzle-orm';
 
 import { Clock } from '../../clock.js';
 import type { DeclarationsSchema } from '../../db/schema.js';
@@ -13,12 +13,23 @@ import { type CycleCalendar, type ObligationPolicy, openedCycles } from '../engi
 import { cycleOpened } from '../events.js';
 import { cachePolicy } from '../roster-ingest.js';
 import { systemContext } from '../system-context.js';
-import { cycleCalendar, cycleOpenings, rosterSnapshots, tenantPolicyCache } from '../schema.js';
+import {
+  cycleCalendar,
+  cycleOpenings,
+  filingObligations,
+  rosterSnapshots,
+  tenantPolicyCache,
+} from '../schema.js';
 import { noChanges, ObligationWorkflows, tellWorkflows } from '../workflows.js';
 import type { CycleOpened, CycleOpeningPage, CycleOpeningPageRequest } from './contract.js';
 
 /** Roster snapshots per page, as the directory pulls. */
 const PAGE_SIZE = 1_000;
+/**
+ * How often a page reports progress while it works (its transaction, then its workflow starts):
+ * well inside the activity's 2-minute heartbeat timeout.
+ */
+const HEARTBEAT_EVERY_MS = 15_000;
 
 /**
  * What `CycleOpeningWorkflow` does for a Commission (the activities delegate here): find the cycles
@@ -70,12 +81,27 @@ export class CycleOpening {
   /**
    * Creates the cycle's biennial obligations for one page of the tenant's active roster snapshots
    * (not exited), in one transaction, then starts their workflows (a failure is logged: the sweep
-   * starts them).
+   * starts them). Calls `progress` at the start and every 15 seconds until done, so a live page is
+   * never taken for a dead one.
    */
   async openPage(
-    { tenant, cycleYear, cursor }: CycleOpeningPageRequest,
+    request: CycleOpeningPageRequest,
     progress: () => void = () => undefined,
   ): Promise<CycleOpeningPage> {
+    progress();
+    const beat = setInterval(progress, HEARTBEAT_EVERY_MS);
+    try {
+      return await this.createPage(request);
+    } finally {
+      clearInterval(beat);
+    }
+  }
+
+  private async createPage({
+    tenant,
+    cycleYear,
+    cursor,
+  }: CycleOpeningPageRequest): Promise<CycleOpeningPage> {
     const cycleKey = biennialCycleKey(cycleYear);
     const today = nairobiDate(this.clock.now());
 
@@ -92,7 +118,6 @@ export class CycleOpening {
       );
       return { ids: page, changes: applied };
     });
-    progress();
     await tellWorkflows(this.workflows, this.logger, tenant, changes);
     return {
       created: changes.created.length,
@@ -100,19 +125,41 @@ export class CycleOpening {
     };
   }
 
-  /** Records the cycle opened for the tenant and announces it, once. */
-  async recordOpened(tenant: string, { cycleYear, count }: CycleOpened): Promise<void> {
-    await withTenant(this.db, systemContext(tenant), async (tx) => {
+  /**
+   * Records the cycle opened for the tenant and announces it, once, with the tenant's live
+   * biennial obligations of the cycle counted from the database: a retried page (which creates
+   * nothing the second time) cannot skew it. A repeat returns the count first recorded.
+   */
+  async recordOpened(tenant: string, cycleYear: number): Promise<CycleOpened> {
+    const opened = await withTenant(this.db, systemContext(tenant), async (tx) => {
+      const [live] = await tx
+        .select({ count: count() })
+        .from(filingObligations)
+        .where(
+          and(
+            eq(filingObligations.tenant, tenant),
+            eq(filingObligations.cycleKey, biennialCycleKey(cycleYear)),
+            ne(filingObligations.status, 'cancelled'),
+          ),
+        );
       const inserted = await tx
         .insert(cycleOpenings)
-        .values({ tenant, cycleYear, obligationsCreated: count })
+        .values({ tenant, cycleYear, obligationsCreated: live?.count ?? 0 })
         .onConflictDoNothing()
-        .returning({ cycleYear: cycleOpenings.cycleYear });
-      if (inserted.length > 0) {
-        await this.events.recordAll(tx, [cycleOpened(tenant, { cycleYear, count })]);
+        .returning({ count: cycleOpenings.obligationsCreated });
+      const [first] = inserted;
+      if (first) {
+        await this.events.recordAll(tx, [cycleOpened(tenant, { cycleYear, count: first.count })]);
+        return { cycleYear, count: first.count };
       }
+      const [recorded] = await tx
+        .select({ count: cycleOpenings.obligationsCreated })
+        .from(cycleOpenings)
+        .where(and(eq(cycleOpenings.tenant, tenant), eq(cycleOpenings.cycleYear, cycleYear)));
+      return { cycleYear, count: recorded?.count ?? 0 };
     });
-    this.logger.log({ tenant, cycleYear, count }, 'Cycle opened');
+    this.logger.log({ tenant, ...opened }, 'Cycle opened');
+    return opened;
   }
 
   private async cachedPolicy(

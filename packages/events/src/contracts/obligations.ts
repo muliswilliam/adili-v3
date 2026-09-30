@@ -38,6 +38,6 @@ export const OBLIGATION_CYCLE_OPENED = 'obligation.cycle.opened.v1';
 
 export interface ObligationCycleOpenedData extends Record<string, unknown> {
   cycleYear: number;
-  /** Biennial obligations the opening created. */
+  /** The Commission's live (not cancelled) biennial obligations of the cycle once opened. */
   count: number;
 }

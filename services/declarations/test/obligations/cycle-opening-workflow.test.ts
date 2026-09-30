@@ -16,7 +16,7 @@ import { cycleOpening } from '../../src/obligations/workflow/workflows.js';
 /**
  * S13 (workflow): `CycleOpeningWorkflow` against mocked activities in Temporal's time-skipping
  * test environment: it opens each cycle due for the tenant page by page, records each cycle
- * opened with the obligations its pages created, and continues as new every 100 pages.
+ * opened once its last page is done, and continues as new every 100 pages.
  */
 const workflowsPath = fileURLToPath(
   new URL('../../src/obligations/workflow/workflows.ts', import.meta.url),
@@ -50,9 +50,12 @@ class FakeTenant {
           nextCursor: next < this.pages ? String(next) : null,
         });
       },
-      recordCycleOpened: (tenant: string, cycle: CycleOpened) => {
+      recordCycleOpened: (tenant: string, cycleYear: number) => {
+        // As the database would count them: every page's creates for the cycle.
+        const created = this.pageCalls.filter((call) => call.cycleYear === cycleYear).length;
+        const cycle = { cycleYear, count: created * this.perPage };
         this.opened.push({ tenant, ...cycle });
-        return Promise.resolve();
+        return Promise.resolve(cycle);
       },
     };
   }
@@ -123,7 +126,7 @@ describe('S13 CycleOpeningWorkflow', () => {
     ]);
   });
 
-  it('continues as new every 100 pages, carrying the cursor and the count', async () => {
+  it('continues as new every 100 pages, carrying the cursor', async () => {
     const pages = CYCLE_OPENING_PAGES_PER_RUN * 2 + 50;
     const tenant = new FakeTenant([2027], pages, 1);
 

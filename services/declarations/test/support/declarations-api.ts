@@ -75,10 +75,32 @@ export class TestClock extends Clock {
 /** Records what the obligations' workflows were told, standing in for Temporal. */
 export class RecordingWorkflows extends ObligationWorkflows {
   readonly calls: { tenant: string; changes: ObligationChanges }[] = [];
+  private held: { reached: () => void; released: Promise<void> } | null = null;
 
   apply(tenant: string, changes: ObligationChanges): Promise<void> {
     this.calls.push({ tenant, changes });
-    return Promise.resolve();
+    const held = this.held;
+    this.held = null;
+    if (!held) return Promise.resolve();
+    held.reached();
+    return held.released;
+  }
+
+  /**
+   * Makes the next `apply` wait (like slow workflow starts): resolves `reached` once it has
+   * started waiting; call `release` to let it finish.
+   */
+  holdNext(): { reached: Promise<void>; release: () => void } {
+    let release: () => void = () => undefined;
+    let reached: () => void = () => undefined;
+    const released = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const reachedPromise = new Promise<void>((resolve) => {
+      reached = resolve;
+    });
+    this.held = { reached, released };
+    return { reached: reachedPromise, release };
   }
 
   created(): string[] {
@@ -95,6 +117,7 @@ export class RecordingWorkflows extends ObligationWorkflows {
 
   reset(): void {
     this.calls.length = 0;
+    this.held = null;
   }
 }
 

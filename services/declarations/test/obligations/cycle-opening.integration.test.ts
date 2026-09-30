@@ -4,11 +4,12 @@ import { fileURLToPath } from 'node:url';
 import { withTenant } from '@adili/data-access';
 import { WorkflowTestEnvironment } from '@adili/temporal/testing';
 import { and, asc, eq } from 'drizzle-orm';
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { cycleCalendar, cycleOpenings, filingObligations, outbox } from '../../src/db/schema.js';
 import type { Transaction } from '../../src/obligations/apply-page.js';
 import { ROSTER_IMPORT_COMPLETED } from '../../src/obligations/events.js';
+import { CycleOpening } from '../../src/obligations/workflow/cycle-opening.js';
 import { CycleOpeningActivities } from '../../src/obligations/workflow/cycle-opening-activities.js';
 import type { CycleOpeningPageRequest } from '../../src/obligations/workflow/contract.js';
 import { cycleOpening } from '../../src/obligations/workflow/workflows.js';
@@ -65,8 +66,8 @@ function open(tenant: string) {
         pageCalls.push(request);
         return activities.openCyclePage(request);
       },
-      recordCycleOpened: (slug: string, cycle: { cycleYear: number; count: number }) =>
-        activities.recordCycleOpened(slug, cycle),
+      recordCycleOpened: (slug: string, cycleYear: number) =>
+        activities.recordCycleOpened(slug, cycleYear),
     },
     args: [{ tenant }],
   });
@@ -150,6 +151,66 @@ describe('S13 cycle opening', () => {
     ]);
     const [record] = await api.asPlatform((tx) => tx.select().from(cycleOpenings));
     expect(record).toMatchObject({ tenant: 'psc', cycleYear: 2027, obligationsCreated: 3 });
+  });
+
+  it('counts the cycle’s biennials from the database when a page is retried after it committed', async () => {
+    const { active, exited } = pscRoster();
+    await importRecords('psc', [...active, exited]);
+    api.clock.setToday(OPENING_DAY);
+    const activities = api.app.get(CycleOpeningActivities);
+    let attempts = 0;
+
+    // The first attempt commits its page, then the worker dies (heartbeat timeout): Temporal
+    // retries the page, which creates nothing the second time.
+    const opened = await env.execute(cycleOpening, {
+      workflowsPath,
+      activities: {
+        cyclesToOpen: (slug: string) => activities.cyclesToOpen(slug),
+        openCyclePage: async (request: CycleOpeningPageRequest) => {
+          attempts += 1;
+          const page = await activities.openCyclePage(request);
+          if (attempts === 1) throw new Error('worker lost after commit');
+          expect(page.created).toBe(0);
+          return page;
+        },
+        recordCycleOpened: (slug: string, cycleYear: number) =>
+          activities.recordCycleOpened(slug, cycleYear),
+      },
+      args: [{ tenant: 'psc' }],
+    });
+
+    expect(attempts).toBe(2);
+    expect(opened).toEqual([{ cycleYear: 2027, count: 3 }]);
+    expect(await openedEvents()).toEqual([
+      expect.objectContaining({ data: { cycleYear: 2027, count: 3 } }),
+    ]);
+    const [record] = await api.asPlatform((tx) => tx.select().from(cycleOpenings));
+    expect(record).toMatchObject({ obligationsCreated: 3 });
+  });
+
+  it('keeps reporting progress while a page starts its workflows', async () => {
+    await importRecords('psc', pscRoster().active);
+    api.clock.setToday(OPENING_DAY);
+    const held = api.workflows.holdNext();
+    let beats = 0;
+    vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] });
+    try {
+      const page = api.app
+        .get(CycleOpening)
+        .openPage({ tenant: 'psc', cycleYear: 2027, cursor: null }, () => {
+          beats += 1;
+        });
+      await held.reached;
+      const before = beats;
+      vi.advanceTimersByTime(60_000);
+      expect(beats - before).toBe(4);
+      held.release();
+      expect(await page).toMatchObject({ created: 3 });
+      vi.advanceTimersByTime(60_000);
+      expect(beats - before).toBe(4);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('creates nothing new when it fires again', async () => {

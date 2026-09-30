@@ -55,9 +55,9 @@ const { sweepObligations } = proxyActivities<ObligationActivities>({
   retry: { maximumAttempts: 3 },
 });
 
-// A page is one transaction of up to 1,000 creates plus their workflow starts; retried until done
-// (a later firing of the schedule would resume it anyway, from the first page, creating nothing
-// twice).
+// A page is one transaction of up to 1,000 creates plus their workflow starts, heartbeating
+// throughout; retried until done (a later firing of the schedule would resume it anyway, from the
+// first page, creating nothing twice).
 const { cyclesToOpen, openCyclePage, recordCycleOpened } = proxyActivities<CycleOpeningActivities>({
   startToCloseTimeout: '10 minutes',
   heartbeatTimeout: '2 minutes',
@@ -204,7 +204,6 @@ export async function obligationsSweep(): Promise<SweepResult> {
 export async function cycleOpening({ tenant, resume }: CycleOpeningInput): Promise<CycleOpened[]> {
   const cycleYears = resume?.cycleYears ?? (await cyclesToOpen(tenant));
   let cursor = resume?.cursor ?? null;
-  let created = resume?.created ?? 0;
   let pages = 0;
   const opened: CycleOpened[] = [];
   for (const [index, cycleYear] of cycleYears.entries()) {
@@ -212,20 +211,16 @@ export async function cycleOpening({ tenant, resume }: CycleOpeningInput): Promi
       if (pages === CYCLE_OPENING_PAGES_PER_RUN) {
         return continueAsNew<typeof cycleOpening>({
           tenant,
-          resume: { cycleYears: cycleYears.slice(index), cursor, created },
+          resume: { cycleYears: cycleYears.slice(index), cursor },
         });
       }
       const page = await openCyclePage({ tenant, cycleYear, cursor });
       pages += 1;
-      created += page.created;
       cursor = page.nextCursor;
       if (cursor === null) break;
     }
-    const cycle = { cycleYear, count: created };
-    await recordCycleOpened(tenant, cycle);
-    opened.push(cycle);
+    opened.push(await recordCycleOpened(tenant, cycleYear));
     cursor = null;
-    created = 0;
   }
   return opened;
 }

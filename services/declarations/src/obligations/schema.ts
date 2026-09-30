@@ -249,7 +249,7 @@ export const cycleCalendar = pgTable('cycle_calendar', {
 
 /**
  * The cycles opened for each Commission: written when its `CycleOpeningWorkflow` has created the
- * cycle's biennial obligations for every active declarant, with how many it created. A cycle recorded
+ * cycle's biennial obligations for every active declarant, with how many it has. A cycle recorded
  * here is not opened again (a second firing of the schedule creates nothing). Platform-level.
  */
 export const cycleOpenings = pgTable(
@@ -257,7 +257,10 @@ export const cycleOpenings = pgTable(
   {
     tenant: text().notNull(),
     cycleYear: integer().notNull(),
-    /** Biennial obligations the opening created (declarants ingested earlier had theirs already). */
+    /**
+     * The Commission's live biennial obligations of the cycle when the opening was recorded (the
+     * opening created most; declarants ingested after the opening date got theirs on ingest).
+     */
     obligationsCreated: integer().notNull(),
     openedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
   },
