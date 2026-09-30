@@ -1,4 +1,5 @@
 import {
+  type BeforeApplicationShutdown,
   type DynamicModule,
   Inject,
   Injectable,
@@ -13,7 +14,7 @@ import { ReadinessCheck } from '@adili/api-kit';
 import { type Database, InjectDatabase } from '@adili/data-access';
 import amqp from 'amqplib';
 import { eq, isNull, sql } from 'drizzle-orm';
-import { lastValueFrom } from 'rxjs';
+import { lastValueFrom, timeout } from 'rxjs';
 
 import { AuditedReadInterceptor } from './audited-read.interceptor.js';
 import { EventPublisher, EVENTS_OPTIONS, type EventsModuleOptions } from './event-publisher.js';
@@ -23,6 +24,11 @@ import { DEAD_LETTER_EXCHANGE, deadLetterQueue, EVENTS_EXCHANGE, eventsQueue } f
 const EVENTS_CLIENT = Symbol('EVENTS_CLIENT');
 const RELAY_BATCH_SIZE = 100;
 const RELAY_IDLE_MS = 500;
+/**
+ * Longest a publish may take before the batch stops at it. A batch holds its rows locked in an
+ * open transaction, so a publish that never settles (a broker gone quiet) must not hold it forever.
+ */
+const PUBLISH_TIMEOUT_MS = 10_000;
 
 /**
  * Relays committed outbox rows to the events exchange in order. Rows are claimed with
@@ -30,10 +36,12 @@ const RELAY_IDLE_MS = 500;
  * Delivery is at-least-once; consumers deduplicate with `consumeOnce`.
  */
 @Injectable()
-export class OutboxRelay implements OnApplicationBootstrap, OnApplicationShutdown {
+export class OutboxRelay implements OnApplicationBootstrap, BeforeApplicationShutdown {
   private readonly logger = new Logger(OutboxRelay.name);
   private timer: NodeJS.Timeout | undefined;
   private stopped = false;
+  /** The batch being relayed, if any. */
+  private inFlight: Promise<unknown> | undefined;
 
   constructor(
     @InjectDatabase() private readonly db: Database,
@@ -44,15 +52,21 @@ export class OutboxRelay implements OnApplicationBootstrap, OnApplicationShutdow
     this.schedule(0);
   }
 
-  onApplicationShutdown(): void {
+  /**
+   * Stops relaying and waits for the batch in flight, before shutdown hooks close the broker
+   * client and the database pool: a publish cut off by the client closing never settles, and
+   * its open transaction would keep the pool from ending.
+   */
+  async beforeApplicationShutdown(): Promise<void> {
     this.stopped = true;
     clearTimeout(this.timer);
+    await this.inFlight;
   }
 
   private schedule(delayMs: number): void {
     if (this.stopped) return;
     this.timer = setTimeout(() => {
-      this.relayBatch()
+      this.inFlight = this.relayBatch()
         .then((full) => {
           this.schedule(full ? 0 : RELAY_IDLE_MS);
         })
@@ -75,10 +89,13 @@ export class OutboxRelay implements OnApplicationBootstrap, OnApplicationShutdow
         .for('update', { skipLocked: true });
 
       for (const row of rows) {
+        // Shutting down: the rest of the batch stays unpublished for the next relay.
+        if (this.stopped) return false;
         try {
-          await lastValueFrom(this.client.emit(row.eventType, row.envelope), {
-            defaultValue: undefined,
-          });
+          await lastValueFrom(
+            this.client.emit(row.eventType, row.envelope).pipe(timeout(PUBLISH_TIMEOUT_MS)),
+            { defaultValue: undefined },
+          );
         } catch (error) {
           // Stop at the first failure to keep per-service ordering.
           await tx
