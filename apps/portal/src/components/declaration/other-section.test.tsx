@@ -180,6 +180,33 @@ describe('OtherSection', () => {
     expect(screen.queryByRole('combobox', { name: 'Country' })).toBeNull();
   });
 
+  it('does not flag an answer just given while its save is on the way', () => {
+    renderOther();
+
+    const holds = screen.getByRole('group', {
+      name: 'Do you hold citizenship of another country?',
+    });
+    const no = within(holds).getByRole('radio', { name: 'No' });
+    fireEvent.click(no);
+    fireEvent.blur(no);
+
+    // The loaded issues still say it is unanswered; the answer given since outranks them.
+    expect(screen.queryByText('Say whether you hold another citizenship.')).toBeNull();
+  });
+
+  it('still flags a left field the declarant has not answered', () => {
+    renderOther();
+
+    const pending = screen.getByRole('group', {
+      name: 'Do you have a pending application for citizenship of another country?',
+    });
+    fireEvent.blur(within(pending).getByRole('radio', { name: 'No' }));
+
+    expect(
+      screen.getByText('Say whether you have a pending citizenship application.'),
+    ).toBeTruthy();
+  });
+
   it('shows every issue when arriving from the summary and focuses the first', () => {
     renderOther(
       otherSection({ registrableInterests: { directorships: [{ company: 'Kapsoya' }] } }, [
