@@ -16,12 +16,9 @@ import {
 import { AlertCircleIcon, Calendar03Icon, RefreshIcon } from '@hugeicons/core-free-icons';
 import { type MouseEvent, type ReactNode, Suspense, use, useId, useState } from 'react';
 
-import type {
-  DeclarationListItem,
-  Obligation,
-  ObligationGroup,
-} from '../../server/declarations/types';
+import type { Obligation, ObligationGroup } from '../../server/declarations/types';
 import type { MyObligationsResult } from '../../server/obligations.server';
+import { useDrafts } from './drafts';
 import { ObligationDrawer } from './obligation-drawer';
 import { messages as m } from './obligation-messages';
 import {
@@ -32,7 +29,7 @@ import {
   StartDeclarationButton,
   StatementDateTerm,
 } from './obligation-parts';
-import { dashboardGroups, startAvailability } from './obligations';
+import { dashboardGroups, type StartAvailability, startAvailability } from './obligations';
 
 interface SectionProps {
   /** `getMyObligations`, started by the route loader so the page does not wait for it. */
@@ -40,8 +37,6 @@ interface SectionProps {
   /** Asks again, for the retry after a failure. */
   reload: () => Promise<MyObligationsResult>;
   loadDetail: LoadObligationDetail;
-  /** The declarant's declarations, so a draft is continued rather than started again. */
-  declarations?: readonly DeclarationListItem[];
   /** Epoch milliseconds to count days from; defaults to now. */
   now?: number;
 }
@@ -49,15 +44,10 @@ interface SectionProps {
 /**
  * The dashboard's obligations: skeleton cards while `getMyObligations` is on its way, then the
  * obligations, the empty state or an error with a retry. Nothing at all for someone who is not
- * a declarant (404), so the dashboard shows the account card alone.
+ * a declarant (404), so the dashboard shows the account card alone. Drafts to continue come
+ * from the nearest `DraftsProvider`.
  */
-export function ObligationsSection({
-  obligations,
-  reload,
-  loadDetail,
-  declarations,
-  now,
-}: SectionProps) {
+export function ObligationsSection({ obligations, reload, loadDetail, now }: SectionProps) {
   const [pending, setPending] = useState({ from: obligations, promise: obligations });
   // A new loader run (after navigation or invalidation) replaces a retried request.
   const promise = pending.from === obligations ? pending.promise : obligations;
@@ -69,7 +59,6 @@ export function ObligationsSection({
           setPending({ from: obligations, promise: reload() });
         }}
         loadDetail={loadDetail}
-        declarations={declarations}
         now={now}
       />
     </Suspense>
@@ -87,19 +76,13 @@ interface ViewProps {
   result: MyObligationsResult;
   onRetry: () => void;
   loadDetail: LoadObligationDetail;
-  declarations?: readonly DeclarationListItem[];
   now?: number;
 }
 
 /** The loaded obligations, grouped by Commission when there is more than one; see `dashboardGroups`. */
-export function ObligationsView({
-  result,
-  onRetry,
-  loadDetail,
-  declarations = [],
-  now,
-}: ViewProps) {
+export function ObligationsView({ result, onRetry, loadDetail, now }: ViewProps) {
   const [openId, setOpenId] = useState<string | null>(null);
+  const drafts = useDrafts();
   const headingId = useId();
   if (result.status === 'not-declarant') return null;
 
@@ -165,7 +148,7 @@ export function ObligationsView({
           onOpen={() => {
             setOpenId(obligation.id);
           }}
-          declarations={declarations}
+          availability={startAvailability(obligation, drafts)}
           now={now}
         />
       ))}
@@ -196,7 +179,7 @@ export function ObligationsView({
             if (!next) setOpenId(null);
           }}
           loadDetail={loadDetail}
-          declarations={declarations}
+          availability={startAvailability(open, drafts)}
           now={now}
         />
       ) : null}
@@ -217,13 +200,13 @@ function ObligationCard({
   obligation,
   headingLevel,
   onOpen,
-  declarations,
+  availability,
   now,
 }: {
   obligation: Obligation;
   headingLevel: 3 | 4;
   onOpen: () => void;
-  declarations: readonly DeclarationListItem[];
+  availability: StartAvailability;
   now?: number;
 }) {
   const { status } = obligation;
@@ -255,7 +238,7 @@ function ObligationCard({
       >
         <div className="relative flex flex-wrap items-center gap-2">
           <ObligationStatus obligation={obligation} now={now} onCard />
-          {startAvailability(obligation, declarations).kind === 'continue' ? (
+          {availability.kind === 'continue' ? (
             <Badge variant="brand">{m.draftInProgress}</Badge>
           ) : null}
         </div>
@@ -278,7 +261,7 @@ function ObligationCard({
         </dl>
         {status === 'overdue' ? <OverdueNote className="relative -mt-1.5 mb-4" /> : null}
         <div className="relative flex flex-wrap items-center gap-2.5">
-          <StartDeclarationButton obligation={obligation} declarations={declarations} />
+          <StartDeclarationButton obligationId={obligation.id} availability={availability} />
           <Button variant="secondary" onClick={onOpen}>
             {m.details}
             <span className="sr-only">{m.detailsOf(title)}</span>

@@ -21,12 +21,12 @@ import { Link, useNavigate } from '@tanstack/react-router';
 import { useId, useState } from 'react';
 
 import { startMyDeclaration } from '../../server/declarations';
-import type { DeclarationListItem, Obligation } from '../../server/declarations/types';
+import type { Obligation } from '../../server/declarations/types';
 import type { ObligationDetailResult } from '../../server/obligations.server';
 import { SIGN_IN } from '../onboarding/links';
 import { signInAgain } from '../sign-in';
 import { messages as m } from './obligation-messages';
-import { startAvailability } from './obligations';
+import type { StartAvailability } from './obligations';
 
 export type LoadObligationDetail = (id: string) => Promise<ObligationDetailResult>;
 
@@ -130,19 +130,19 @@ const START_FAILED = {
  * Start declaration, or Continue declaration when a draft for the obligation exists (S20). A
  * filed or cancelled obligation keeps the button disabled with the reason: a disabled button
  * takes neither hover nor focus, so a focusable wrapper carries the tooltip and the button is
- * described by the same words for screen readers.
+ * described by the same words for screen readers. While the declarations load, Start waits
+ * (busy) so a draft is not started twice.
  */
 export function StartDeclarationButton({
-  obligation,
-  declarations,
+  obligationId,
+  availability,
   className,
 }: {
-  obligation: Obligation;
-  /** The declarant's declarations, to find a draft to continue. */
-  declarations: readonly DeclarationListItem[];
+  obligationId: string;
+  /** `startAvailability` of the obligation. */
+  availability: StartAvailability;
   className?: string;
 }) {
-  const availability = startAvailability(obligation, declarations);
   const hintId = useId();
   const navigate = useNavigate();
   const [busy, setBusy] = useState(false);
@@ -174,10 +174,19 @@ export function StartDeclarationButton({
     );
   }
 
+  if (availability.kind === 'pending') {
+    return (
+      <Button disabled aria-busy="true" className={className}>
+        {m.startDeclaration}
+        <Icon icon={ArrowRight01Icon} />
+      </Button>
+    );
+  }
+
   async function start() {
     setBusy(true);
     setError(null);
-    const result = await startMyDeclaration({ data: { obligationId: obligation.id } }).catch(
+    const result = await startMyDeclaration({ data: { obligationId } }).catch(
       () => ({ status: 'unavailable' }) as const,
     );
     if (result.status === 'started') {

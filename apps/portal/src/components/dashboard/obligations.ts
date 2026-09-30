@@ -1,8 +1,6 @@
-import type {
-  DeclarationListItem,
-  Obligation,
-  ObligationGroup,
-} from '../../server/declarations/types';
+import type { Obligation, ObligationGroup } from '../../server/declarations/types';
+import type { DraftsState } from './drafts';
+import { messages as m } from './obligation-messages';
 
 /** Most pressing first: overdue, due, upcoming, then filed. Cancelled obligations are not shown. */
 const RANK: Record<Obligation['status'], number> = {
@@ -40,26 +38,25 @@ export function dashboardGroups(groups: readonly ObligationGroup[]): ObligationG
 
 /**
  * Whether the declarant can start (or continue) a declaration for an obligation (S20): due,
- * overdue and upcoming ones yes; filed and cancelled ones no, with the reason shown.
+ * overdue and upcoming ones yes; filed and cancelled ones no, with the reason shown. While the
+ * declarations are still loading it is `pending`: a draft may exist to continue. When they could
+ * not be loaded the declarant may still start: the service answers with the existing draft.
  */
 export type StartAvailability =
   | { kind: 'start' }
+  | { kind: 'pending' }
   | { kind: 'continue'; declarationId: string }
   | { kind: 'closed'; reason: string };
 
-export const CLOSED_REASONS = {
-  filed: 'Already filed. There is nothing more to declare for this obligation.',
-  cancelled: 'Cancelled. You do not need to declare for this obligation.',
-} as const;
-
 export function startAvailability(
   obligation: Pick<Obligation, 'id' | 'status'>,
-  declarations: readonly Pick<DeclarationListItem, 'id' | 'obligationId' | 'status'>[],
+  drafts: DraftsState,
 ): StartAvailability {
-  if (obligation.status === 'filed' || obligation.status === 'cancelled') {
-    return { kind: 'closed', reason: CLOSED_REASONS[obligation.status] };
-  }
-  const draft = declarations.find(
+  if (obligation.status === 'filed') return { kind: 'closed', reason: m.closedFiled };
+  if (obligation.status === 'cancelled') return { kind: 'closed', reason: m.closedCancelled };
+  if (drafts.status === 'pending') return { kind: 'pending' };
+  if (drafts.status === 'unavailable') return { kind: 'start' };
+  const draft = drafts.declarations.find(
     (declaration) =>
       declaration.obligationId === obligation.id &&
       (declaration.status === 'draft' || declaration.status === 'amending'),

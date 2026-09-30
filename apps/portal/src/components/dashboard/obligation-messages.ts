@@ -27,6 +27,8 @@ export const en = {
   continueDeclaration: 'Continue declaration',
   draftInProgress: 'Draft in progress',
   submitFrom: (date: string) => `Submit from ${date}.`,
+  closedFiled: 'Already filed. There is nothing more to declare for this obligation.',
+  closedCancelled: 'Cancelled. You do not need to declare for this obligation.',
   startNotOpen: 'This obligation is no longer open, so a declaration cannot be started.',
   startNotFound: 'We could not find this obligation. Reload the page and try again.',
   startUnavailable: 'We could not start your declaration. Try again in a few minutes.',

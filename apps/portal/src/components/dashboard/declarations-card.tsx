@@ -13,10 +13,12 @@ import {
   formatDateTime,
   Icon,
   ProgressBar,
+  Skeleton,
   useToast,
 } from '@adili/ui';
 import { AlertCircleIcon, ArrowRight01Icon, File01Icon } from '@hugeicons/core-free-icons';
 import { Link, useRouter } from '@tanstack/react-router';
+import { type ReactNode, Suspense, use } from 'react';
 
 import { DISCARDED_TOAST, DiscardDraftButton } from '../declaration/discard-dialog';
 import { OBLIGATION_TYPE_LABELS } from '../../declaration/labels';
@@ -107,39 +109,78 @@ function DeclarationRow({ item }: { item: DeclarationListItem }) {
 }
 
 /**
- * "Your declarations" on the dashboard (FE-9, S16): each draft with its completeness,
- * Continue and Discard; other declarations are listed read-only.
+ * "Your declarations" while `declarations` is on its way (a placeholder row), then the card: the
+ * route loader does not wait for them, so the rest of the dashboard renders at once.
  */
-export function DeclarationsCard({ declarations }: { declarations: DeclarationListResult }) {
-  const items = declarations.status === 'ok' ? sortDeclarations(declarations.declarations) : [];
+export function DeclarationsSection({
+  declarations,
+}: {
+  declarations: Promise<DeclarationListResult>;
+}) {
+  return (
+    <Suspense fallback={<DeclarationsCardSkeleton />}>
+      <ResolvedDeclarationsCard promise={declarations} />
+    </Suspense>
+  );
+}
+
+function ResolvedDeclarationsCard({ promise }: { promise: Promise<DeclarationListResult> }) {
+  return <DeclarationsCard declarations={use(promise)} />;
+}
+
+function DeclarationsCardFrame({ children }: { children: ReactNode }) {
   return (
     <Card>
       <CardHeader>
         <CardTitle>Your declarations</CardTitle>
         <CardDescription>Drafts save as you type. Continue where you left off.</CardDescription>
       </CardHeader>
-      <CardContent>
-        {declarations.status === 'unavailable' ? (
-          <Alert variant="destructive">
-            <Icon icon={AlertCircleIcon} />
-            <AlertDescription>
-              We could not load your declarations. Try again in a few minutes.
-            </AlertDescription>
-          </Alert>
-        ) : items.length === 0 ? (
-          <EmptyState
-            icon={<Icon icon={File01Icon} />}
-            title="No declarations yet"
-            text="Start one from your filing obligations when it is due."
-          />
-        ) : (
-          <ul className="divide-y divide-border">
-            {items.map((item) => (
-              <DeclarationRow key={item.id} item={item} />
-            ))}
-          </ul>
-        )}
-      </CardContent>
+      <CardContent>{children}</CardContent>
     </Card>
+  );
+}
+
+/** The card with a placeholder row while the declarations load. */
+export function DeclarationsCardSkeleton() {
+  return (
+    <DeclarationsCardFrame>
+      <div aria-busy="true" aria-label="Loading your declarations" className="grid gap-3">
+        <Skeleton className="h-5 w-3/5" />
+        <Skeleton className="w-2/5" />
+        <Skeleton className="h-2 w-full rounded-full" />
+      </div>
+    </DeclarationsCardFrame>
+  );
+}
+
+/**
+ * "Your declarations" on the dashboard (FE-9, S16): each draft with its completeness,
+ * Continue and Discard; other declarations are listed read-only.
+ */
+export function DeclarationsCard({ declarations }: { declarations: DeclarationListResult }) {
+  const items = declarations.status === 'ok' ? sortDeclarations(declarations.declarations) : [];
+  return (
+    <DeclarationsCardFrame>
+      {declarations.status === 'unavailable' ? (
+        <Alert variant="destructive">
+          <Icon icon={AlertCircleIcon} />
+          <AlertDescription>
+            We could not load your declarations. Try again in a few minutes.
+          </AlertDescription>
+        </Alert>
+      ) : items.length === 0 ? (
+        <EmptyState
+          icon={<Icon icon={File01Icon} />}
+          title="No declarations yet"
+          text="Start one from your filing obligations when it is due."
+        />
+      ) : (
+        <ul className="divide-y divide-border">
+          {items.map((item) => (
+            <DeclarationRow key={item.id} item={item} />
+          ))}
+        </ul>
+      )}
+    </DeclarationsCardFrame>
   );
 }

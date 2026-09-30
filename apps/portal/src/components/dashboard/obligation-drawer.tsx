@@ -21,9 +21,10 @@ import {
 import { AlertCircleIcon } from '@hugeicons/core-free-icons';
 import type { ReactNode } from 'react';
 
-import type { DeclarationListItem, Obligation } from '../../server/declarations/types';
+import type { Obligation } from '../../server/declarations/types';
 import type { ObligationDetailResult } from '../../server/obligations.server';
 import { messages as m } from './obligation-messages';
+import type { StartAvailability } from './obligations';
 import {
   type LoadObligationDetail,
   ObligationStatus,
@@ -44,14 +45,15 @@ export function ObligationDrawer({
   open,
   onOpenChange,
   loadDetail,
-  declarations,
+  availability,
   now,
 }: {
   obligation: Obligation;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   loadDetail: LoadObligationDetail;
-  declarations: readonly DeclarationListItem[];
+  /** `startAvailability` of the obligation. */
+  availability: StartAvailability;
   now?: number;
 }) {
   const { id } = obligation;
@@ -117,8 +119,8 @@ export function ObligationDrawer({
             </Button>
           </DrawerClose>
           <StartDeclarationButton
-            obligation={obligation}
-            declarations={declarations}
+            obligationId={obligation.id}
+            availability={availability}
             className="max-sm:flex-1"
           />
         </DrawerFooter>

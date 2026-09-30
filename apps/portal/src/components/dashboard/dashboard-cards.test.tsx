@@ -5,6 +5,7 @@ import type { ReactNode } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 
 import type { DeclarantAccount, DeclarantAccountResult } from '../../server/declarant.server';
+import type { DeclarationListResult } from '../../server/declarations.server';
 import type { Viewer } from '../../server/viewer';
 import { DashboardCards } from './dashboard-cards';
 
@@ -30,7 +31,10 @@ const account: DeclarantAccount = {
   maskedPhone: '07** *** 789',
 };
 
-function renderCards(declarant: DeclarantAccountResult) {
+function renderCards(
+  declarant: DeclarantAccountResult,
+  declarations: Promise<DeclarationListResult> | null = null,
+) {
   const viewer: Viewer = {
     user: { name: 'Mwangi Kamau', username: 'OFR-0000312-7', email: 'mwangi.kamau@tsc.go.ke' },
     directory: {
@@ -41,7 +45,11 @@ function renderCards(declarant: DeclarantAccountResult) {
   } as Viewer;
   render(
     <ToastProvider>
-      <DashboardCards viewer={viewer} obligations={<section>Your obligations</section>} />
+      <DashboardCards
+        viewer={viewer}
+        declarations={declarations}
+        obligations={<section>Your obligations</section>}
+      />
     </ToastProvider>,
   );
 }
@@ -132,5 +140,31 @@ describe('DashboardCards', () => {
     expect(screen.getByText('Account details unavailable').closest('[role="alert"]')).toBeTruthy();
     expect(screen.getByText('Your obligations')).toBeTruthy();
     expect(screen.queryByText('Officer reference')).toBeNull();
+  });
+
+  // The loader does not wait for the declarations: the other cards render while they load.
+  it('shows the declarations card loading next to the obligations, then the declarations', async () => {
+    let arrive: (result: DeclarationListResult) => void = () => undefined;
+    const declarations = new Promise<DeclarationListResult>((done) => {
+      arrive = done;
+    });
+    await act(async () => {
+      renderCards({ status: 'onboarded', account }, declarations);
+      await Promise.resolve();
+    });
+
+    expect(screen.getByLabelText('Loading your declarations').getAttribute('aria-busy')).toBe(
+      'true',
+    );
+    expect(screen.getByText('Your obligations')).toBeTruthy();
+    expect(screen.getByRole('heading', { name: 'Your account' })).toBeTruthy();
+
+    await act(async () => {
+      arrive({ status: 'ok', declarations: [] });
+      await declarations;
+    });
+
+    expect(screen.queryByLabelText('Loading your declarations')).toBeNull();
+    expect(screen.getByText('No declarations yet')).toBeTruthy();
   });
 });

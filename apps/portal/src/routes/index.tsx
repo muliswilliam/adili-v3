@@ -32,9 +32,10 @@ export const Route = createFileRoute('/')({
   }),
   loader: async () => {
     const viewer = await getViewer();
-    // Not awaited: the dashboard renders with skeleton cards and the obligations stream in.
+    // Not awaited: the dashboard renders with skeleton cards, and the obligations and the
+    // declarations stream in, each on its own.
     const obligations = viewer ? getMyObligations() : null;
-    const declarations = viewer?.declarant.status === 'onboarded' ? await loadDeclarations() : null;
+    const declarations = viewer?.declarant.status === 'onboarded' ? loadDeclarations() : null;
     return { viewer, obligations, declarations };
   },
   component: Home,
@@ -43,9 +44,9 @@ export const Route = createFileRoute('/')({
 const reloadObligations = () => getMyObligations();
 const loadObligationDetail = (id: string) => getObligationDetail({ data: { id } });
 
-/** The declarant's declarations; an ended session reads as unavailable. */
+/** The declarant's declarations; an ended session or a failed call reads as unavailable. */
 async function loadDeclarations(): Promise<DeclarationListResult> {
-  const declarations = await getMyDeclarations();
+  const declarations = await getMyDeclarations().catch(() => ({ status: 'unavailable' }) as const);
   return declarations.status === 'unauthenticated' ? { status: 'unavailable' } : declarations;
 }
 
@@ -117,7 +118,7 @@ function Dashboard({
 }: {
   viewer: Viewer;
   obligations: Promise<MyObligationsResult>;
-  declarations: DeclarationListResult | null;
+  declarations: Promise<DeclarationListResult> | null;
   discarded: boolean;
 }) {
   const firstName = viewer.user.name.split(' ')[0];
@@ -145,7 +146,6 @@ function Dashboard({
                 obligations={obligations}
                 reload={reloadObligations}
                 loadDetail={loadObligationDetail}
-                declarations={declarations?.status === 'ok' ? declarations.declarations : []}
               />
             }
           />

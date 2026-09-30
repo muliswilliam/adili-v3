@@ -1,7 +1,13 @@
 import { describe, expect, it } from 'vitest';
 
-import type { CommissionRef, Obligation, ObligationGroup } from '../../server/declarations/types';
-import { CLOSED_REASONS, dashboardGroups, startAvailability } from './obligations';
+import type {
+  CommissionRef,
+  DeclarationListItem,
+  Obligation,
+  ObligationGroup,
+} from '../../server/declarations/types';
+import { messages } from './obligation-messages';
+import { dashboardGroups, startAvailability } from './obligations';
 
 const TSC: CommissionRef = { slug: 'tsc', issuerCode: 'TSC', name: 'Teachers Service Commission' };
 const PSC: CommissionRef = { slug: 'psc', issuerCode: 'PSC', name: 'Public Service Commission' };
@@ -81,29 +87,53 @@ describe('dashboardGroups', () => {
 });
 
 describe('startAvailability (S20)', () => {
+  const none = { status: 'ok', declarations: [] } as const;
+  const draft = (id: string, obligationId: string): DeclarationListItem => ({
+    id,
+    obligationId,
+    commission: TSC,
+    type: 'biennial',
+    statementDate: '2027-11-01',
+    status: 'draft',
+    completenessPercent: 10,
+    updatedAt: '2026-12-20T08:00:00Z',
+  });
+
   it('lets the declarant start due, overdue and upcoming obligations', () => {
     for (const status of ['due', 'overdue', 'upcoming'] as const) {
-      expect(startAvailability({ id: 'o-1', status }, [])).toEqual({ kind: 'start' });
+      expect(startAvailability({ id: 'o-1', status }, none)).toEqual({ kind: 'start' });
     }
   });
 
   it('continues an existing draft for the obligation', () => {
     expect(
-      startAvailability({ id: 'o-1', status: 'due' }, [
-        { id: 'd-0', obligationId: 'o-2', status: 'draft' },
-        { id: 'd-1', obligationId: 'o-1', status: 'draft' },
-      ]),
+      startAvailability(
+        { id: 'o-1', status: 'due' },
+        {
+          status: 'ok',
+          declarations: [draft('d-0', 'o-2'), draft('d-1', 'o-1')],
+        },
+      ),
     ).toEqual({ kind: 'continue', declarationId: 'd-1' });
   });
 
-  it('disables filed and cancelled obligations with a reason', () => {
-    expect(startAvailability({ id: 'o-1', status: 'filed' }, [])).toEqual({
-      kind: 'closed',
-      reason: CLOSED_REASONS.filed,
+  it('waits while the declarations load, and starts when they could not be', () => {
+    expect(startAvailability({ id: 'o-1', status: 'due' }, { status: 'pending' })).toEqual({
+      kind: 'pending',
     });
-    expect(startAvailability({ id: 'o-1', status: 'cancelled' }, [])).toEqual({
+    expect(startAvailability({ id: 'o-1', status: 'due' }, { status: 'unavailable' })).toEqual({
+      kind: 'start',
+    });
+  });
+
+  it('disables filed and cancelled obligations with a reason, whatever the declarations', () => {
+    expect(startAvailability({ id: 'o-1', status: 'filed' }, { status: 'pending' })).toEqual({
       kind: 'closed',
-      reason: CLOSED_REASONS.cancelled,
+      reason: messages.closedFiled,
+    });
+    expect(startAvailability({ id: 'o-1', status: 'cancelled' }, none)).toEqual({
+      kind: 'closed',
+      reason: messages.closedCancelled,
     });
   });
 });

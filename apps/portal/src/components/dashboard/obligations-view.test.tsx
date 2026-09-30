@@ -12,9 +12,11 @@ import type {
   Reminder,
   ReminderOutcome,
 } from '../../server/declarations/types';
+import type { DeclarationListResult } from '../../server/declarations.server';
 import type { MyObligationsResult, ObligationDetailResult } from '../../server/obligations.server';
 import { navigate } from '../declaration/testing-mocks';
-import { CLOSED_REASONS } from './obligations';
+import { DraftsProvider } from './drafts';
+import { messages } from './obligation-messages';
 import { ObligationsSection, ObligationsView } from './obligations-view';
 
 vi.mock('@tanstack/react-router', async () =>
@@ -80,22 +82,19 @@ function renderView(
   {
     onRetry = vi.fn(),
     loadDetail = vi.fn(() => new Promise<ObligationDetailResult>(() => undefined)),
-    declarations = [],
+    declarations = null,
   }: {
     onRetry?: () => void;
     loadDetail?: (id: string) => Promise<ObligationDetailResult>;
-    declarations?: DeclarationListItem[];
+    /** The dashboard's declarations, on their way; none by default. */
+    declarations?: Promise<DeclarationListResult> | null;
   } = {},
 ) {
   render(
     <TooltipProvider delayDuration={0}>
-      <ObligationsView
-        result={result}
-        onRetry={onRetry}
-        loadDetail={loadDetail}
-        declarations={declarations}
-        now={now}
-      />
+      <DraftsProvider declarations={declarations}>
+        <ObligationsView result={result} onRetry={onRetry} loadDetail={loadDetail} now={now} />
+      </DraftsProvider>
     </TooltipProvider>,
   );
   return { onRetry, loadDetail };
@@ -217,40 +216,71 @@ describe('ObligationsView', () => {
     });
     expect(start.hasAttribute('disabled')).toBe(true);
     const description = document.getElementById(start.getAttribute('aria-describedby') ?? '');
-    expect(description?.textContent).toBe(CLOSED_REASONS.filed);
+    expect(description?.textContent).toBe(messages.closedFiled);
 
     const trigger = start.parentElement;
     if (!trigger) throw new Error('Start declaration has no tooltip trigger');
     fireEvent.focus(trigger);
-    expect(screen.getByRole('tooltip').textContent).toBe(CLOSED_REASONS.filed);
+    expect(screen.getByRole('tooltip').textContent).toBe(messages.closedFiled);
   });
 
   // S20: an existing draft is continued, not started again.
-  it('continues an existing draft', () => {
+  it('continues an existing draft once the declarations arrive', async () => {
     const entry = obligation();
+    const draft: DeclarationListItem = {
+      id: 'd-1',
+      obligationId: entry.id,
+      commission: TSC,
+      type: 'initial',
+      statementDate: entry.statementDate,
+      status: 'draft',
+      completenessPercent: 25,
+      updatedAt: '2026-12-20T08:00:00Z',
+    };
+    let arrive: (result: DeclarationListResult) => void = () => undefined;
+    const declarations = new Promise<DeclarationListResult>((done) => {
+      arrive = done;
+    });
     renderView(
       { status: 'ok', groups: [{ commission: TSC, obligations: [entry] }] },
-      {
-        declarations: [
-          {
-            id: 'd-1',
-            obligationId: entry.id,
-            commission: TSC,
-            type: 'initial',
-            statementDate: entry.statementDate,
-            status: 'draft',
-            completenessPercent: 25,
-            updatedAt: '2026-12-20T08:00:00Z',
-          },
-        ],
-      },
+      { declarations },
     );
 
+    // The obligations do not wait for the declarations; Start waits for them, busy.
     const initial = within(card('Initial declaration'));
+    const waiting = initial.getByRole('button', { name: 'Start declaration' });
+    expect(waiting.hasAttribute('disabled')).toBe(true);
+    expect(waiting.getAttribute('aria-busy')).toBe('true');
+    expect(initial.queryByText('Draft in progress')).toBeNull();
+
+    await act(async () => {
+      arrive({ status: 'ok', declarations: [draft] });
+      await declarations;
+    });
+
     expect(initial.getByText('Draft in progress')).toBeTruthy();
     expect(initial.getByRole('link', { name: 'Continue declaration' }).getAttribute('href')).toBe(
       '/declarations/d-1',
     );
+  });
+
+  // The service answers Start with the existing draft, so a failed list still lets it start.
+  it('lets the declarant start when the declarations could not be loaded', async () => {
+    const declarations = Promise.resolve<DeclarationListResult>({ status: 'unavailable' });
+    renderView(
+      { status: 'ok', groups: [{ commission: TSC, obligations: [obligation()] }] },
+      { declarations },
+    );
+
+    await act(async () => {
+      await declarations;
+    });
+
+    const start = within(card('Initial declaration')).getByRole('button', {
+      name: 'Start declaration',
+    });
+    expect(start.hasAttribute('disabled')).toBe(false);
+    expect(start.hasAttribute('aria-busy')).toBe(false);
   });
 
   it('starts a declaration and opens its overview', async () => {
