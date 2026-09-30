@@ -9,6 +9,7 @@ import { InjectTemporalClient } from '@adili/temporal';
 import { type Client, ScheduleAlreadyRunning, ScheduleOverlapPolicy } from '@temporalio/client';
 
 import { config } from '../../config.js';
+import { StartupTask } from '../../startup-task.js';
 import type { DeclarationsSchema } from '../../db/schema.js';
 import { PLATFORM_CONTEXT } from '../system-context.js';
 import { tenantPolicyCache } from '../schema.js';
@@ -33,8 +34,6 @@ export abstract class CycleOpeningSchedules {
   abstract ensure(tenant: string): Promise<void>;
 }
 
-const SCHEDULE_RETRY_MS = 60_000;
-
 /**
  * The cycle-opening schedule of each Commission on Temporal. It fires daily just after midnight in
  * Nairobi, and at once when created; each firing runs `CycleOpeningWorkflow`, which opens the
@@ -55,8 +54,9 @@ export class TemporalCycleOpeningSchedules
   private readonly logger = new Logger(TemporalCycleOpeningSchedules.name);
   /** Tenants whose schedule is known to exist, so an ingest asks Temporal once per process. */
   private readonly ensured = new Set<string>();
-  private retry: NodeJS.Timeout | undefined;
-  private stopped = false;
+  private readonly task = new StartupTask(this.logger, 'Cycle-opening schedules not ensured', () =>
+    this.ensureAll(),
+  );
 
   constructor(
     @InjectTemporalClient() private readonly temporal: Client,
@@ -66,12 +66,11 @@ export class TemporalCycleOpeningSchedules
   }
 
   onApplicationBootstrap(): void {
-    void this.ensureAll();
+    this.task.start();
   }
 
   onApplicationShutdown(): void {
-    this.stopped = true;
-    clearTimeout(this.retry);
+    this.task.stop();
   }
 
   async ensure(tenant: string): Promise<void> {
@@ -99,15 +98,9 @@ export class TemporalCycleOpeningSchedules
 
   /** Every Commission with a roster ingested (a cached policy) has its schedule. */
   private async ensureAll(): Promise<void> {
-    try {
-      const tenants = await withTenant(this.db, PLATFORM_CONTEXT, (tx) =>
-        tx.select({ tenant: tenantPolicyCache.tenant }).from(tenantPolicyCache),
-      );
-      for (const { tenant } of tenants) await this.ensure(tenant);
-    } catch (error) {
-      if (this.stopped) return;
-      this.logger.warn({ err: error }, 'Cycle-opening schedules not ensured; retrying');
-      this.retry = setTimeout(() => void this.ensureAll(), SCHEDULE_RETRY_MS);
-    }
+    const tenants = await withTenant(this.db, PLATFORM_CONTEXT, (tx) =>
+      tx.select({ tenant: tenantPolicyCache.tenant }).from(tenantPolicyCache),
+    );
+    for (const { tenant } of tenants) await this.ensure(tenant);
   }
 }

@@ -13,6 +13,7 @@ import { and, asc, eq, gt, inArray, isNull, lt, sql } from 'drizzle-orm';
 
 import { Clock } from '../../clock.js';
 import { config } from '../../config.js';
+import { StartupTask } from '../../startup-task.js';
 import type { DeclarationsSchema } from '../../db/schema.js';
 import { OPEN_STATUSES } from '../engine.js';
 import { PLATFORM_CONTEXT, systemContext } from '../system-context.js';
@@ -38,7 +39,6 @@ const DEFAULT_GRACE_MS = 60_000;
 export function sweepScheduleId(taskQueue: string): string {
   return `${taskQueue}.obligations-sweep`;
 }
-const SCHEDULE_RETRY_MS = 60_000;
 
 /**
  * The reconciliation sweep (spec 04):
@@ -171,18 +171,20 @@ export class ObligationsSweep {
 @Injectable()
 export class SweepSchedule implements OnApplicationBootstrap, OnApplicationShutdown {
   private readonly logger = new Logger(SweepSchedule.name);
-  private retry: NodeJS.Timeout | undefined;
-  private stopped = false;
+  private readonly task = new StartupTask(
+    this.logger,
+    'Obligations sweep schedule not created',
+    () => this.ensure(),
+  );
 
   constructor(@InjectTemporalClient() private readonly temporal: Client) {}
 
   onApplicationBootstrap(): void {
-    void this.ensure();
+    this.task.start();
   }
 
   onApplicationShutdown(): void {
-    this.stopped = true;
-    clearTimeout(this.retry);
+    this.task.stop();
   }
 
   private async ensure(): Promise<void> {
@@ -200,10 +202,7 @@ export class SweepSchedule implements OnApplicationBootstrap, OnApplicationShutd
       });
       this.logger.log('Created the hourly obligations sweep schedule');
     } catch (error) {
-      if (error instanceof ScheduleAlreadyRunning) return;
-      if (this.stopped) return;
-      this.logger.warn({ err: error }, 'Obligations sweep schedule not created; retrying');
-      this.retry = setTimeout(() => void this.ensure(), SCHEDULE_RETRY_MS);
+      if (!(error instanceof ScheduleAlreadyRunning)) throw error;
     }
   }
 }
