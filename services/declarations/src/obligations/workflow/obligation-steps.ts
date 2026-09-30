@@ -5,7 +5,7 @@ import { and, eq } from 'drizzle-orm';
 import { v5 as uuidv5 } from 'uuid';
 
 import { Clock } from '../../clock.js';
-import { config } from '../../config.js';
+import { config, REMINDER_JITTER_WINDOW_MS } from '../../config.js';
 import type { DeclarationsSchema } from '../../db/schema.js';
 import {
   NotificationsClient,
@@ -36,7 +36,6 @@ import type {
 } from './contract.js';
 
 const CHANNELS: readonly ReminderChannel[] = ['sms', 'email'];
-const HOUR_MS = 60 * 60 * 1000;
 /** The template limits (notifications contract). */
 const COMMISSION_NAME_MAX = 120;
 const DAYS_LEFT_MAX = 366;
@@ -117,7 +116,7 @@ export class ObligationSteps {
         // The offsets of the policy version the obligation was created under (ADR-003 §4).
         reminderOffsetsDays: row.reminderOffsetsDays,
         recordedOffsets: recorded.map((r) => r.offsetDays),
-        jitterWindowMs: config.REMINDER_JITTER_HOURS * HOUR_MS,
+        jitterWindowMs: REMINDER_JITTER_WINDOW_MS,
       };
     });
   }

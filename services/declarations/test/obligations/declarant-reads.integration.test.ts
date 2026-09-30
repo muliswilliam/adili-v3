@@ -4,9 +4,11 @@ import { withTenant } from '@adili/data-access';
 import { and, asc, eq, isNull } from 'drizzle-orm';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
+import { REMINDER_JITTER_WINDOW_MS } from '../../src/config.js';
 import { filingObligations, obligationReminders, outbox } from '../../src/db/schema.js';
 import { ROSTER_IMPORT_COMPLETED } from '../../src/obligations/events.js';
 import type { MyObligations, ObligationDetail } from '../../src/obligations/representation.js';
+import { reminderSlot } from '../../src/obligations/workflow/timeline.js';
 import { contractErrors, okResponse } from '../support/contract.js';
 import {
   type Caller,
@@ -201,7 +203,8 @@ describe('S17 GET /v1/obligations/{id}', () => {
       status: 'overdue',
       declarant: null,
     });
-    // Due 2027-05-31 and created 2027-07-10: every reminder was already past.
+    // Due 2027-05-31 and created 2027-07-10: every reminder was already past, each recorded in
+    // the slot the workflow would have sent it in.
     expect(body.reminders).toEqual(
       [
         [30, '2027-05-01'],
@@ -209,7 +212,9 @@ describe('S17 GET /v1/obligations/{id}', () => {
         [7, '2027-05-24'],
       ].map(([offsetDays, date]) => ({
         offsetDays,
-        scheduledAt: new Date(`${String(date)}T00:00:00+03:00`).toISOString(),
+        scheduledAt: new Date(
+          reminderSlot(id, String(date), REMINDER_JITTER_WINDOW_MS),
+        ).toISOString(),
         sentAt: null,
         channels: [],
         outcome: 'skipped-past-due-at-creation',

@@ -31,3 +31,6 @@ export const envSchema = baseEnvSchema.extend({
 export type Env = z.infer<typeof envSchema>;
 
 export const config: Env = loadConfig(envSchema);
+
+/** How far a reminder is shifted either way from midday (`REMINDER_JITTER_HOURS`). */
+export const REMINDER_JITTER_WINDOW_MS = config.REMINDER_JITTER_HOURS * 60 * 60 * 1000;

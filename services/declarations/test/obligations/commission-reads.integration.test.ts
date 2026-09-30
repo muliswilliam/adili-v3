@@ -4,6 +4,7 @@ import { withTenant } from '@adili/data-access';
 import { and, eq } from 'drizzle-orm';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
+import { REMINDER_JITTER_WINDOW_MS } from '../../src/config.js';
 import {
   cycleCalendar,
   cycleOpenings,
@@ -18,6 +19,7 @@ import type {
   ObligationListItem,
   ObligationPage,
 } from '../../src/obligations/representation.js';
+import { reminderSlot } from '../../src/obligations/workflow/timeline.js';
 import { contractErrors, okResponse } from '../support/contract.js';
 import {
   type Caller,
@@ -313,7 +315,9 @@ describe('S15 GET /v1/commissions/{slug}/obligations', () => {
       // Its reminders were all past when it was created, on 2027-10-15.
       lastReminder: {
         offsetDays: 7,
-        scheduledAt: '2027-03-23T21:00:00.000Z',
+        scheduledAt: new Date(
+          reminderSlot(body.items[0]?.id ?? '', '2027-03-24', REMINDER_JITTER_WINDOW_MS),
+        ).toISOString(),
         sentAt: null,
         channels: [],
         outcome: 'skipped-past-due-at-creation',

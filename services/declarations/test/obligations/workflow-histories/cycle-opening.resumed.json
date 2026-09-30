@@ -68,11 +68,7 @@
           "identity": "87124@Williams-MacBook-Pro.local",
           "binaryChecksum": "@temporalio/worker@1.24.0+ea6d0ffbf0fad00153c39c725661e344f71f43891dba576c028909b566a17dba",
           "sdkMetadata": {
-            "coreUsedFlags": [
-              3,
-              2,
-              1
-            ],
+            "coreUsedFlags": [3, 2, 1],
             "sdkName": "temporal-typescript",
             "sdkVersion": "1.24.0"
           },

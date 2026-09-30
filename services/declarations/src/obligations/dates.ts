@@ -10,6 +10,8 @@ export type CivilDate = string;
 const CIVIL_DATE = /^(\d{4})-(\d{2})-(\d{2})$/;
 const MONTH_DAY = /^(\d{2})-(\d{2})$/;
 const DAY_MS = 24 * 60 * 60 * 1000;
+/** Kenya (Africa/Nairobi) is UTC+3 all year: no daylight saving. */
+const NAIROBI_OFFSET_MS = 3 * 60 * 60 * 1000;
 
 /** Splits a civil date, refusing ones the calendar lacks (2027-02-29, 2027-13-01). */
 export function parseCivilDate(date: CivilDate): { year: number; month: number; day: number } {
@@ -56,13 +58,15 @@ export function atMonthDay(year: number, monthDay: string): CivilDate {
   return date;
 }
 
-/** Today's date in Kenya (Africa/Nairobi), which the statutory periods are counted in. */
-export function nairobiDate(now: Date): CivilDate {
-  // en-CA formats as YYYY-MM-DD.
-  return new Intl.DateTimeFormat('en-CA', {
-    timeZone: 'Africa/Nairobi',
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  }).format(now);
+/**
+ * The date in Kenya (Africa/Nairobi) at an instant, which the statutory periods are counted in.
+ * A fixed offset, no `Intl`, so workflow code in Temporal's sandbox shares it.
+ */
+export function nairobiDate(instant: Date | number): CivilDate {
+  return fromUtc(new Date(instant).getTime() + NAIROBI_OFFSET_MS);
+}
+
+/** Midnight at the start of a civil date in Nairobi, as epoch milliseconds. */
+export function startOfNairobiDay(date: CivilDate): number {
+  return toUtc(date) - NAIROBI_OFFSET_MS;
 }

@@ -3,6 +3,7 @@ import { type EventPublisher, type NewEvent } from '@adili/events';
 import { and, asc, eq, gt, inArray, ne, sql } from 'drizzle-orm';
 import { v7 as uuidv7 } from 'uuid';
 
+import { REMINDER_JITTER_WINDOW_MS } from '../config.js';
 import type { DeclarationsSchema } from '../db/schema.js';
 import type { PulledRosterRecord } from '../directory/directory-client.js';
 import type { CivilDate } from './dates.js';
@@ -30,6 +31,7 @@ import {
   rosterSnapshots,
   tenantPolicyCache,
 } from './schema.js';
+import { reminderSlot } from './workflow/timeline.js';
 import { noChanges, type ObligationChanges } from './workflows.js';
 
 export type Transaction = Parameters<Parameters<Database<DeclarationsSchema>['transaction']>[0]>[0];
@@ -376,7 +378,9 @@ async function applyPlan(
       obligationId: rows[index]?.id ?? '',
       tenant: context.tenant,
       offsetDays: reminder.offsetDays,
-      scheduledAt: startOfNairobiDay(reminder.date),
+      scheduledAt: new Date(
+        reminderSlot(rows[index]?.id ?? '', reminder.date, REMINDER_JITTER_WINDOW_MS),
+      ),
       outcome: 'skipped-past-due-at-creation' as const,
     })),
   );
@@ -417,9 +421,4 @@ async function applyPlan(
 
   await events.recordAll(tx, newEvents);
   return changes;
-}
-
-/** Midnight of a civil date in Nairobi (UTC+3, no daylight saving). */
-function startOfNairobiDay(date: CivilDate): Date {
-  return new Date(`${date}T00:00:00+03:00`);
 }

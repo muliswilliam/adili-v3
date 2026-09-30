@@ -5,12 +5,10 @@
  * obligation turns overdue at the start of the day after its due date. Pure and deterministic:
  * the workflow computes it from its own clock, so replays agree.
  */
-import { addDays, type CivilDate } from '../dates.js';
+import { addDays, type CivilDate, nairobiDate, startOfNairobiDay } from '../dates.js';
 import { type ObligationType, type OpenStatus, statusOn } from '../engine.js';
 
 const HOUR_MS = 60 * 60 * 1000;
-/** Kenya is UTC+3 all year (no daylight saving). */
-const NAIROBI_OFFSET_MS = 3 * HOUR_MS;
 /** Reminders are centred on midday so the default ±6 hour jitter keeps them between 06:00 and 18:00. */
 const REMINDER_HOUR = 12;
 
@@ -56,8 +54,7 @@ export function timeline(
   done: ReadonlySet<number>,
 ): Timeline {
   const { type, statementDate, dueDate } = schedule;
-  const today = nairobiDateOf(now);
-  const jitter = jitterMs(schedule.obligationId, schedule.jitterWindowMs);
+  const today = nairobiDate(now);
   const missed: MissedReminder[] = [];
   const steps: TimelineStep[] = [];
 
@@ -67,7 +64,7 @@ export function timeline(
   for (const offsetDays of [...new Set(schedule.reminderOffsetsDays)].sort((a, b) => b - a)) {
     if (done.has(offsetDays)) continue;
     const day = addDays(dueDate, -offsetDays);
-    const at = startOfNairobiDay(day) + REMINDER_HOUR * HOUR_MS + jitter;
+    const at = reminderSlot(schedule.obligationId, day, schedule.jitterWindowMs);
     if (day < today) missed.push({ offsetDays, scheduledAt: at });
     else steps.push({ kind: 'reminder', offsetDays, at });
   }
@@ -93,12 +90,10 @@ export function jitterMs(obligationId: string, windowMs: number): number {
   return Math.round((2 * unit - 1) * windowMs);
 }
 
-/** Midnight at the start of a civil date in Nairobi, as epoch milliseconds. */
-export function startOfNairobiDay(date: CivilDate): number {
-  return Date.parse(`${date}T00:00:00+03:00`);
-}
-
-/** The civil date in Nairobi at an instant (no `Intl`: fixed offset, safe in the workflow sandbox). */
-export function nairobiDateOf(instant: number): CivilDate {
-  return new Date(instant + NAIROBI_OFFSET_MS).toISOString().slice(0, 10);
+/**
+ * The instant of an obligation's reminder on `day`: midday Nairobi shifted by the obligation's
+ * jitter. Also the `scheduled_at` of a reminder recorded as skipped, whoever records it.
+ */
+export function reminderSlot(obligationId: string, day: CivilDate, jitterWindowMs: number): number {
+  return startOfNairobiDay(day) + REMINDER_HOUR * HOUR_MS + jitterMs(obligationId, jitterWindowMs);
 }

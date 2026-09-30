@@ -5,6 +5,7 @@ import {
   atMonthDay,
   daysBetween,
   nairobiDate,
+  startOfNairobiDay,
   parseCivilDate,
 } from '../../src/obligations/dates.js';
 
@@ -42,5 +43,12 @@ describe('civil dates', () => {
     expect(nairobiDate(new Date('2027-10-31T20:59:59Z'))).toBe('2027-10-31');
     expect(nairobiDate(new Date('2027-10-31T21:00:00Z'))).toBe('2027-11-01');
     expect(nairobiDate(new Date('2027-12-31T21:30:00Z'))).toBe('2028-01-01');
+    expect(nairobiDate(Date.parse('2027-10-31T21:00:00Z'))).toBe('2027-11-01');
+  });
+
+  it('gives the instant a Nairobi day starts', () => {
+    expect(new Date(startOfNairobiDay('2027-11-01')).toISOString()).toBe(
+      '2027-10-31T21:00:00.000Z',
+    );
   });
 });

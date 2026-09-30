@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
+import { startOfNairobiDay } from '../../src/obligations/dates.js';
 import {
   jitterMs,
-  nairobiDateOf,
   type ObligationSchedule,
-  startOfNairobiDay,
+  reminderSlot,
   timeline,
 } from '../../src/obligations/workflow/timeline.js';
 
@@ -112,8 +112,16 @@ describe('obligation timeline', () => {
     });
   });
 
-  it('counts days in Nairobi', () => {
-    expect(nairobiDateOf(at('2027-10-31T21:00:00Z'))).toBe('2027-11-01');
-    expect(nairobiDateOf(at('2027-10-31T20:59:59Z'))).toBe('2027-10-31');
+  it('puts each reminder, sent or missed, in its slot: midday Nairobi plus the jitter', () => {
+    const jitter = jitterMs(biennial.obligationId, WINDOW);
+    const plan = timeline(biennial, at('2027-12-20T08:00:00Z'), new Set());
+
+    expect(plan.missed).toEqual([
+      { offsetDays: 30, scheduledAt: noon('2027-12-01') + jitter },
+      { offsetDays: 14, scheduledAt: noon('2027-12-17') + jitter },
+    ]);
+    expect(reminderSlot(biennial.obligationId, '2027-12-24', WINDOW)).toBe(
+      noon('2027-12-24') + jitter,
+    );
   });
 });
