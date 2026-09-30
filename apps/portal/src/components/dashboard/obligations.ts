@@ -61,15 +61,15 @@ export function startAvailability(
   drafts: DraftsState,
 ): StartAvailability {
   if (obligation.status === 'filed') {
-    const filing =
+    const filed =
       drafts.status === 'ok'
         ? drafts.declarations.find(
             (declaration) =>
               declaration.obligationId === obligation.id && declaration.currentVersion !== null,
           )
         : undefined;
-    return filing
-      ? { kind: 'filed', declaration: filing }
+    return filed
+      ? { kind: 'filed', declaration: filed }
       : { kind: 'closed', reason: m.closedFiled };
   }
   if (obligation.status === 'cancelled') return { kind: 'closed', reason: m.closedCancelled };

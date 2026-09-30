@@ -135,14 +135,14 @@ describe('startAvailability (S20)', () => {
   });
 
   it('offers the acknowledgement of the declaration that filed the obligation', () => {
-    const filing = { ...draft('d-1', 'o-1'), status: 'amending' as const, currentVersion: 1 };
+    const filed = { ...draft('d-1', 'o-1'), status: 'amending' as const, currentVersion: 1 };
 
     expect(
       startAvailability(
         { id: 'o-1', status: 'filed' },
-        { status: 'ok', declarations: [draft('d-0', 'o-2'), filing] },
+        { status: 'ok', declarations: [draft('d-0', 'o-2'), filed] },
       ),
-    ).toEqual({ kind: 'filed', declaration: filing });
+    ).toEqual({ kind: 'filed', declaration: filed });
   });
 
   it('disables filed obligations without their declaration, and cancelled ones, with a reason', () => {

@@ -275,7 +275,9 @@ function ObligationCard({
             {remindersSentLabel(obligation.remindersSent)}
           </CardFact>
         </dl>
-        {availability.kind === 'filed' ? <Filing declaration={availability.declaration} /> : null}
+        {availability.kind === 'filed' ? (
+          <FiledDeclarationFacts declaration={availability.declaration} />
+        ) : null}
         {status === 'overdue' ? <OverdueNote className="relative -mt-1.5 mb-4" /> : null}
         <div className="relative flex flex-wrap items-center gap-2.5">
           <StartDeclarationButton obligationId={obligation.id} availability={availability} />
@@ -290,7 +292,7 @@ function ObligationCard({
 }
 
 /** What filed the obligation: the reference, the version in force and whether it was late. */
-function Filing({ declaration }: { declaration: DeclarationListItem }) {
+function FiledDeclarationFacts({ declaration }: { declaration: DeclarationListItem }) {
   const { reference, currentVersion } = declaration;
   if (!reference || currentVersion === null) return null;
   return (

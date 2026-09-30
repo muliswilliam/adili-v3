@@ -232,7 +232,7 @@ describe('ObligationsView', () => {
   // was, and the acknowledgement in place of Start.
   it('shows what filed the obligation, and links to its acknowledgement', async () => {
     const entry = obligation({ status: 'filed' });
-    const filing = (overrides: Partial<DeclarationListItem>): DeclarationListItem => ({
+    const filedDeclaration = (overrides: Partial<DeclarationListItem>): DeclarationListItem => ({
       id: 'd-1',
       obligationId: entry.id,
       commission: TSC,
@@ -253,7 +253,7 @@ describe('ObligationsView', () => {
     });
     const declarations = Promise.resolve<DeclarationListResult>({
       status: 'ok',
-      declarations: [filing({})],
+      declarations: [filedDeclaration({})],
     });
     renderView(
       { status: 'ok', groups: [{ commission: TSC, obligations: [entry] }] },
@@ -275,7 +275,7 @@ describe('ObligationsView', () => {
     ).toBe('/declarations/d-1/submitted');
   });
 
-  it('says a filing was late, and that an amendment is in progress', async () => {
+  it('says a filed declaration was late, and that an amendment is in progress', async () => {
     const entry = obligation({ status: 'filed' });
     const declarations = Promise.resolve<DeclarationListResult>({
       status: 'ok',
