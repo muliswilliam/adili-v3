@@ -4,10 +4,14 @@ import { GetObjectCommand } from '@aws-sdk/client-s3';
 import { withTenant } from '@adili/data-access';
 import { VERIFICATION_ID_PATTERN } from '@adili/events/contracts';
 import { asc, eq } from 'drizzle-orm';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 
 import { issuedDocuments, outbox, verificationRecords } from '../../src/db/schema.js';
-import { canonicalRecord, type SignedRecord } from '../../src/issuance/record-signer.js';
+import {
+  canonicalRecord,
+  RecordSigner,
+  type SignedRecord,
+} from '../../src/issuance/record-signer.js';
 import type { AcknowledgementSlipPayload } from '../../src/issuance/templates/acknowledgement-slip.v1.js';
 import type { DocumentDownload, IssuedDocument } from '../../src/issuance/representation.js';
 import { componentSchema, contractErrors, okResponse } from '../support/contract.js';
@@ -485,6 +489,36 @@ describe('S10 superseding', () => {
     expect(retry.statusCode).toBe(200);
     expect(retry.headers['idempotent-replayed']).toBe('true');
     expect(retry.json()).toEqual(first.json());
+    expect(await eventsAbout(version1.id)).toHaveLength(2);
+  });
+
+  it('signs with no lock held, so a supersede that lands meanwhile wins and the other is refused', async () => {
+    const version1 = await issued();
+    const version2 = await issued();
+    const version3 = await issued();
+    const records = api.app.get(RecordSigner);
+    const sign = records.sign.bind(records);
+    let meanwhile: Promise<Awaited<ReturnType<typeof supersede>>> | undefined;
+    const spy = vi.spyOn(records, 'sign').mockImplementation(async (record) => {
+      // The first signature waits for another supersede of the same document to finish.
+      if (!meanwhile) {
+        meanwhile = supersede(version1.id, version3.id);
+        await meanwhile;
+      }
+      return sign(record);
+    });
+
+    let response: Awaited<ReturnType<typeof supersede>>;
+    try {
+      response = await supersede(version1.id, version2.id);
+    } finally {
+      spy.mockRestore();
+    }
+
+    expect((await meanwhile)?.statusCode).toBe(200);
+    expect(response.statusCode).toBe(409);
+    expect(response.json<Problem>().type).toBe('document-not-valid');
+    expect((await documentRow(version1.id)).record.supersededBy).toBe(version3.id);
     expect(await eventsAbout(version1.id)).toHaveLength(2);
   });
 

@@ -44,6 +44,12 @@ const DOWNLOAD_URL_TTL_SECONDS = 5 * 60;
 type DocumentRow = typeof issuedDocuments.$inferSelect;
 type RecordRow = typeof verificationRecords.$inferSelect;
 type Tx = Parameters<Parameters<Database<DocumentsSchema>['transaction']>[0]>[0];
+interface DocumentWithRecord {
+  document: DocumentRow;
+  record: RecordRow;
+}
+/** Tries at a supersede whose records keep changing between signing and writing. */
+const MAX_SUPERSEDE_ATTEMPTS = 3;
 
 /** A request to issue a document for a tenant (the issuing Commission). */
 export interface IssueRequest {
@@ -238,40 +244,34 @@ export class IssuanceService {
    * Marks a valid document superseded by a newer valid one of the same type and tenant, re-signs
    * its record and emits `document.superseded.v1`. 404 when the document is not the tenant's;
    * 409 when it is not valid (superseding twice) or the newer one is not a valid document of
-   * the type; 502 when the signer fails (nothing changes).
+   * the type; 502 when the signer fails (nothing changes). The record is signed with no lock
+   * held (the signer is OpenBao), then written only if neither record changed meanwhile; if one
+   * did (another supersede won), it is checked and signed again.
    */
   async supersede(request: SupersedeRequest): Promise<IssuedDocument> {
     if (request.documentId === request.supersededBy) {
       throw supersedingInvalid('A document cannot supersede itself.');
     }
+    const context = { tenant: request.tenant, subject: request.actor };
     try {
-      return await withTenant(
-        this.db,
-        { tenant: request.tenant, subject: request.actor },
-        async (tx) => {
-          const current = notFoundIfInvisible(await this.lockedRecord(tx, request.documentId));
-          if (current.record.status !== 'valid') {
-            throw new ProblemException({
-              type: 'document-not-valid',
-              title: 'Document is not valid',
-              status: HttpStatus.CONFLICT,
-              detail: `The document is ${current.record.status} already.`,
-            });
-          }
-          const newer = await this.lockedRecord(tx, request.supersededBy);
-          if (newer?.record.status !== 'valid' || newer.document.type !== current.document.type) {
-            throw supersedingInvalid(
-              'The newer document must be a valid document of the same type.',
-            );
-          }
+      for (let attempt = 1; ; attempt++) {
+        const read = await withTenant(this.db, context, async (tx) => ({
+          current: await findRecord(tx, request.documentId),
+          newer: await findRecord(tx, request.supersededBy),
+        }));
+        const { current, newer } = supersedable(notFoundIfInvisible(read.current), read.newer);
+        const statusChangedAt = new Date();
+        const signature = await this.records.sign({
+          ...signedRecordOf(current.record),
+          status: 'superseded',
+          supersededBy: newer.record.id,
+          statusChangedAt: statusChangedAt.toISOString(),
+        });
 
-          const statusChangedAt = new Date();
-          const signature = await this.records.sign({
-            ...signedRecordOf(current.record),
-            status: 'superseded',
-            supersededBy: newer.record.id,
-            statusChangedAt: statusChangedAt.toISOString(),
-          });
+        const superseded = await withTenant(this.db, context, async (tx) => {
+          const locked = await this.lockedRecord(tx, current.document.id);
+          const lockedNewer = await this.lockedRecord(tx, newer.document.id);
+          if (!unchanged(locked, current) || !unchanged(lockedNewer, newer)) return null;
           const [updated] = await tx
             .update(verificationRecords)
             .set({
@@ -296,8 +296,12 @@ export class IssuanceService {
             } satisfies DocumentSupersededData,
           });
           return this.toIssuedDocument(current.document, updated);
-        },
-      );
+        });
+        if (superseded) return superseded;
+        if (attempt === MAX_SUPERSEDE_ATTEMPTS) {
+          throw new Error(`Document ${request.documentId} kept changing while it was superseded`);
+        }
+      }
     } catch (error) {
       if (error instanceof IssuanceDependencyUnavailable) throw dependencyProblem(error);
       throw error;
@@ -401,10 +405,7 @@ export class IssuanceService {
   }
 
   /** A document with its record, the record locked for the rest of the transaction. */
-  private async lockedRecord(
-    tx: Tx,
-    id: string,
-  ): Promise<{ document: DocumentRow; record: RecordRow } | undefined> {
+  private async lockedRecord(tx: Tx, id: string): Promise<DocumentWithRecord | undefined> {
     const [found] = await withRecord(tx)
       .where(eq(issuedDocuments.id, id))
       .for('update', { of: verificationRecords });
@@ -484,6 +485,42 @@ function withRecord(tx: Tx) {
     .select({ document: issuedDocuments, record: verificationRecords })
     .from(issuedDocuments)
     .innerJoin(verificationRecords, eq(verificationRecords.documentId, issuedDocuments.id));
+}
+
+/** A document with its verification record, unlocked; undefined when not visible. */
+async function findRecord(tx: Tx, id: string): Promise<DocumentWithRecord | undefined> {
+  const [found] = await withRecord(tx).where(eq(issuedDocuments.id, id));
+  return found;
+}
+
+/**
+ * The pair, when `current` may be superseded by `newer`: 409 `document-not-valid` when it is not
+ * valid, `superseding-document-invalid` when the newer one is not a valid document of its type.
+ */
+function supersedable(
+  current: DocumentWithRecord,
+  newer: DocumentWithRecord | undefined,
+): { current: DocumentWithRecord; newer: DocumentWithRecord } {
+  if (current.record.status !== 'valid') {
+    throw new ProblemException({
+      type: 'document-not-valid',
+      title: 'Document is not valid',
+      status: HttpStatus.CONFLICT,
+      detail: `The document is ${current.record.status} already.`,
+    });
+  }
+  if (newer?.record.status !== 'valid' || newer.document.type !== current.document.type) {
+    throw supersedingInvalid('The newer document must be a valid document of the same type.');
+  }
+  return { current, newer };
+}
+
+/** Whether a record, locked now, is as it was read: a status change re-signs it. */
+function unchanged(locked: DocumentWithRecord | undefined, read: DocumentWithRecord): boolean {
+  return (
+    locked?.record.status === read.record.status &&
+    locked.record.recordSignature === read.record.recordSignature
+  );
 }
 
 /** The signed form of a stored record whose superseding document is not needed (valid). */
