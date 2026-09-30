@@ -135,6 +135,12 @@ export class FakeDirectory extends DirectoryClient {
       : Promise.reject(new DirectoryUnavailable('The directory answered 404'));
   }
 
+  listCommissions(): Promise<PulledCommission[]> {
+    return Promise.resolve(
+      [...this.commissions.values()].sort((a, b) => a.slug.localeCompare(b.slug)),
+    );
+  }
+
   getCommission(slug: string): Promise<PulledCommission> {
     const commission = this.commissions.get(slug);
     return commission

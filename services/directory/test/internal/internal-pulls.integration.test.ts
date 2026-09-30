@@ -367,6 +367,32 @@ describe('Commission reference', () => {
     expect(body).toEqual({ slug: 'psc', issuerCode: 'PSC', name: 'Public Service Commission' });
   });
 
+  it('lists every Commission by slug, with no tenant to act for', async () => {
+    const response = await api.get('/internal/v1/commissions', DECLARATIONS);
+
+    expect(response.statusCode, response.body).toBe(200);
+    const body = response.json<unknown>();
+    expect(contractErrors(okResponse('/internal/v1/commissions', 'get'), body)).toEqual([]);
+    expect(body).toEqual({
+      items: [
+        { slug: 'psc', issuerCode: 'PSC', name: 'Public Service Commission' },
+        { slug: 'tsc', issuerCode: 'TSC', name: 'Teachers Service Commission' },
+      ],
+    });
+  });
+
+  it('refuses the list to user tokens and to other scopes', async () => {
+    const user = await api.get('/internal/v1/commissions', {
+      sub: 'admin-1',
+      tenant: 'platform',
+      roles: ['platform-admin'],
+    });
+    const other = await api.get('/internal/v1/commissions', NOTIFICATIONS);
+
+    expect(user.statusCode).toBe(403);
+    expect(other.statusCode).toBe(403);
+  });
+
   it("answers 404 for another Commission's and for an unknown one", async () => {
     const other = await api.get('/internal/v1/commissions/tsc', DECLARATIONS, ACTING_PSC);
     const unknown = await api.get('/internal/v1/commissions/kra', DECLARATIONS, {

@@ -68,6 +68,12 @@ export const internalCommissionSchema = z.object({
 });
 export type InternalCommission = z.infer<typeof internalCommissionSchema>;
 
+/** Every Commission on the platform (internal), for services keeping a read model of them. */
+export const internalCommissionListSchema = z.object({
+  items: z.array(internalCommissionSchema),
+});
+export type InternalCommissionList = z.infer<typeof internalCommissionListSchema>;
+
 export const commissionSchema = z.object({
   id: z.uuid(),
   slug: slugSchema,

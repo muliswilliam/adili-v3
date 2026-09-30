@@ -21,6 +21,7 @@ import {
   storedReconcileContext,
   type Transaction,
 } from './apply-page.js';
+import { upsertCommissionRef } from './commission-refs.js';
 import { nairobiDate } from './dates.js';
 import type { CycleCalendar, ObligationPolicy } from './engine.js';
 import { commissionRefs, cycleCalendar, tenantPolicyCache } from './schema.js';
@@ -209,14 +210,7 @@ async function refreshReferenceData(
   commission: PulledCommission,
   policy: PulledPolicy,
 ): Promise<void> {
-  const fetchedAt = new Date();
-  await tx
-    .insert(commissionRefs)
-    .values({ ...commission, fetchedAt })
-    .onConflictDoUpdate({
-      target: commissionRefs.slug,
-      set: { issuerCode: commission.issuerCode, name: commission.name, fetchedAt },
-    });
+  await upsertCommissionRef(tx, commission, new Date());
   await cachePolicy(tx, commission.slug, policy);
 }
 

@@ -7,6 +7,7 @@ import { ClockModule } from '../clock.js';
 import { config } from '../config.js';
 import { DirectoryModule } from '../directory/directory.module.js';
 import { CommissionObligationsService } from './commission-obligations.service.js';
+import { CommissionRefs } from './commission-refs.js';
 import { ObligationsController } from './obligations.controller.js';
 import { ObligationsService } from './obligations.service.js';
 import { DirectoryEventsConsumer } from './directory-events.consumer.js';
@@ -56,6 +57,7 @@ const workflowsPath = fileURLToPath(
     ObligationsService,
     CommissionObligationsService,
     RosterIngest,
+    CommissionRefs,
     SweepSchedule,
     { provide: CycleOpeningSchedules, useClass: TemporalCycleOpeningSchedules },
   ],

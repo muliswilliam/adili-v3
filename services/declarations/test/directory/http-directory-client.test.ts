@@ -123,6 +123,20 @@ describe('HttpDirectoryClient', () => {
     await expect(client.getCommission('psc')).resolves.toEqual(commission);
   });
 
+  it('lists every Commission, acting for no tenant', async () => {
+    const list = conforming('InternalCommissionList', {
+      items: [
+        { slug: 'psc', issuerCode: 'PSC', name: 'Public Service Commission' },
+        { slug: 'tsc', issuerCode: 'TSC', name: 'Teachers Service Commission' },
+      ],
+    });
+    const { client, requests } = clientAnswering(() => json(list));
+
+    await expect(client.listCommissions()).resolves.toEqual((list as { items: unknown[] }).items);
+    expect(requests[0]?.url.pathname).toBe('/internal/v1/commissions');
+    expect(requests[0]?.actingTenant).toBeNull();
+  });
+
   it('gives null for a record the Commission does not have', async () => {
     const { client } = clientAnswering(() => json({ title: 'Not Found', status: 404 }, 404));
 

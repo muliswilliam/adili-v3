@@ -76,4 +76,7 @@ export abstract class DirectoryClient {
 
   /** The Commission's slug, issuer code and name. */
   abstract getCommission(slug: string): Promise<PulledCommission>;
+
+  /** Every Commission of the platform, by slug (no tenant to act for). */
+  abstract listCommissions(): Promise<PulledCommission[]>;
 }

@@ -71,6 +71,8 @@ const commissionSchema = z.object({
   name: z.string(),
 }) satisfies z.ZodType<PulledCommission>;
 
+const commissionListSchema = z.object({ items: z.array(commissionSchema) });
+
 /**
  * The directory's internal API through the client generated from its contract
  * (packages/schemas/internal/directory.yaml → directory-api.gen.ts via `pnpm generate:api`) on
@@ -139,5 +141,13 @@ export class HttpDirectoryClient extends DirectoryClient {
         }),
       { status: 200, schema: commissionSchema },
     );
+  }
+
+  async listCommissions(): Promise<PulledCommission[]> {
+    const list = await this.directory.call((api) => api.GET('/internal/v1/commissions'), {
+      status: 200,
+      schema: commissionListSchema,
+    });
+    return list.items;
   }
 }

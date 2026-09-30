@@ -203,6 +203,15 @@ export class CommissionsService {
   }
 
   /** Slug, issuer code and name, for a service acting for `tenant`; another Commission's is 404. */
+  /** Every Commission's reference, by slug: public facts, for services' read models. */
+  async internalRefs(): Promise<InternalCommission[]> {
+    const rows = await this.db
+      .select({ slug: commissions.slug, name: commissions.name })
+      .from(commissions)
+      .orderBy(asc(commissions.slug));
+    return rows.map(({ slug, name }) => ({ slug, issuerCode: slug.toUpperCase(), name }));
+  }
+
   async internalRef(
     principal: Principal,
     tenant: string,

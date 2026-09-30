@@ -16,6 +16,7 @@ import {
 import {
   commissionPageSchema,
   commissionSchema,
+  internalCommissionListSchema,
   internalCommissionSchema,
   officerCategorySchema,
   reportingOfficerSchema,
@@ -103,6 +104,7 @@ export const OPENAPI_SCHEMAS: Record<string, z.ZodType> = {
   Commission: commissionSchema,
   CommissionPage: commissionPageSchema,
   InternalCommission: internalCommissionSchema,
+  InternalCommissionList: internalCommissionListSchema,
   TenantPolicyVersion: tenantPolicyVersionSchema,
   TenantPolicyHistory: tenantPolicyHistorySchema,
   CreateTenantPolicyVersion: createTenantPolicyVersionBody,

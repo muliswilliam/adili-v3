@@ -6,7 +6,10 @@ import { ActivationLookups, ValkeyActivationLookups } from './activation-lookups
 import { ActivationObserver } from './activation-observer.js';
 import { CommissionsController, ReferenceController } from './commissions.controller.js';
 import { CommissionsService } from './commissions.service.js';
-import { InternalCommissionsController } from './internal-commissions.controller.js';
+import {
+  InternalCommissionListController,
+  InternalCommissionsController,
+} from './internal-commissions.controller.js';
 import { InternalPolicyController, PolicyController } from './policy.controller.js';
 import { PolicyService } from './policy.service.js';
 import { ReportingOfficersService } from './reporting-officers.service.js';
@@ -22,6 +25,7 @@ import { ReportingOfficersService } from './reporting-officers.service.js';
     PolicyController,
     InternalPolicyController,
     InternalCommissionsController,
+    InternalCommissionListController,
   ],
   providers: [
     CommissionsService,

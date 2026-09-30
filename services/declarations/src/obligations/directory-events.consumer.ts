@@ -4,7 +4,9 @@ import { type EventEnvelope, OnEvent } from '@adili/events';
 import { z } from 'zod';
 
 import { TENANT_SLUG } from './access.js';
+import { CommissionRefs } from './commission-refs.js';
 import {
+  COMMISSION_CREATED,
   DECLARANT_ONBOARDED,
   POLICY_CHANGED,
   ROSTER_EXITS_CONFIRMED,
@@ -18,16 +20,27 @@ const importCompletedData = z.object({ importId: z.uuid() });
 const exitsConfirmedData = z.object({ batchId: z.uuid() });
 const declarantOnboardedData = z.object({ rosterRecordId: z.uuid() });
 const policyChangedData = z.object({ policyVersionId: z.uuid(), version: z.int().positive() });
+const commissionCreatedData = z.object({ commissionId: z.uuid(), slug: z.string() });
 
 /**
  * The directory's events the obligations follow (spec 04): the roster events that change who owes
- * what, and policy changes. Events carry ids only; records and policies are pulled
- * (`RosterIngest`). Each consumer handles an event once (inbox); a handler that throws is retried
+ * what, policy changes, and new Commissions. Events carry ids only; records, policies and
+ * Commission names are pulled (`RosterIngest`, `CommissionRefs`). Each consumer handles an event once (inbox); a handler that throws is retried
  * once, then dead-lettered.
  */
 @Controller()
 export class DirectoryEventsConsumer {
-  constructor(private readonly ingest: RosterIngest) {}
+  constructor(
+    private readonly ingest: RosterIngest,
+    private readonly commissions: CommissionRefs,
+  ) {}
+
+  /** A new Commission: listed (with zero counts) in the national summary before any roster. */
+  @OnEvent(COMMISSION_CREATED)
+  async commissionCreated(@Payload() event: EventEnvelope): Promise<void> {
+    commissionCreatedData.parse(event.data);
+    await this.commissions.created('obligations.commission-created', ingested(event));
+  }
 
   /** The records the import had rows for: new officers, changed dates, reversed exits. */
   @OnEvent(ROSTER_IMPORT_COMPLETED)

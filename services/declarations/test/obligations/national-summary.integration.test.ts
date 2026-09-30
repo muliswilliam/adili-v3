@@ -5,7 +5,12 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
 import { cycleCalendar } from '../../src/db/schema.js';
 
-import { DECLARANT_ONBOARDED, ROSTER_IMPORT_COMPLETED } from '../../src/obligations/events.js';
+import { CommissionRefs } from '../../src/obligations/commission-refs.js';
+import {
+  COMMISSION_CREATED,
+  DECLARANT_ONBOARDED,
+  ROSTER_IMPORT_COMPLETED,
+} from '../../src/obligations/events.js';
 import type { NationalSummary } from '../../src/obligations/representation.js';
 import { contractErrors, okResponse } from '../support/contract.js';
 import {
@@ -182,6 +187,50 @@ describe('GET /v1/obligations/summary', () => {
       commissions: [],
       totals: counts(0, 0, 0),
     });
+  });
+
+  it('lists a Commission created without a roster yet, with zero counts', async () => {
+    api.directory.givenCommission('nlc', 'National Land Commission');
+
+    await api.consumers.commissionCreated(
+      directoryEvent(COMMISSION_CREATED, 'nlc', {
+        commissionId: randomUUID(),
+        slug: 'nlc',
+        type: 'commission',
+      }),
+    );
+
+    const body = await national(EACC);
+    expect(body.commissions.map((c) => c.commission.slug)).toEqual(['kra', 'nlc', 'psc', 'tsc']);
+    expect(body.commissions.find((c) => c.commission.slug === 'nlc')).toEqual({
+      commission: { slug: 'nlc', issuerCode: 'NLC', name: 'National Land Commission' },
+      total: counts(0, 0, 0),
+      notOnboarded: 0,
+      lastRosterImportAt: null,
+    });
+    expect(body.totals).toEqual(counts(3, 1, 1));
+  });
+
+  it('lists every Commission the directory has once it pulls them all (start-up)', async () => {
+    await api.reset();
+    api.clock.setToday('2027-06-01');
+    api.directory.givenCommission('psc', 'Public Service Commission');
+    api.directory.givenCommission('nlc', 'National Land Commission');
+
+    await api.app.get(CommissionRefs).pullAll();
+
+    const body = await national(EACC);
+    expect(body.commissions.map((c) => [c.commission.name, c.lastRosterImportAt])).toEqual([
+      ['National Land Commission', null],
+      ['Public Service Commission', null],
+    ]);
+  });
+
+  it('keeps the last roster import when the Commission is pulled again', async () => {
+    await api.app.get(CommissionRefs).pullAll();
+
+    const psc = (await national(EACC)).commissions.find((c) => c.commission.slug === 'psc');
+    expect(psc?.lastRosterImportAt).toBe('2027-10-01T07:00:00.000Z');
   });
 
   it('names the opening day of a cycle not open yet', async () => {

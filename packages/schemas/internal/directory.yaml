@@ -490,6 +490,26 @@ paths:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/ProblemDetails'
+  /internal/v1/commissions:
+    get:
+      tags:
+        - internal
+      summary: Slug, issuer code and name of every Commission (services)
+      description: Service tokens with scope directory:internal; no X-Acting-Tenant (platform reference data, no personal data). E.g. declarations lists Commissions without a roster yet in the national obligations summary.
+      operationId: internalListCommissions
+      responses:
+        '200':
+          description: Every Commission, by slug
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InternalCommissionList'
+        '403':
+          description: 'Requires one of the scopes: directory:internal'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
   /v1/roster/template:
     get:
       tags:
@@ -3225,6 +3245,15 @@ components:
         - slug
         - issuerCode
         - name
+    InternalCommissionList:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/InternalCommission'
+      required:
+        - items
     TenantPolicyVersion:
       type: object
       properties:
