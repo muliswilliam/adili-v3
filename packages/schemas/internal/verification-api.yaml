@@ -131,12 +131,15 @@ components:
               properties:
                 type:
                   type: string
+                  minLength: 1
                   examples:
                     - acknowledgement-slip
                 issuerName:
                   type: string
+                  minLength: 1
                 issuerCode:
                   type: string
+                  minLength: 1
                 issuedAt:
                   type: string
                   format: date-time
@@ -145,9 +148,10 @@ components:
                     - string
                     - 'null'
                 version:
-                  type:
-                    - integer
-                    - 'null'
+                  anyOf:
+                    - type: integer
+                      exclusiveMinimum: 0
+                    - type: 'null'
               required:
                 - type
                 - issuerName

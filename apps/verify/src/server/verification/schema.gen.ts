@@ -13,7 +13,7 @@ export interface paths {
         };
         /**
          * Status of a document issued through Adili Online
-         * @description Every lookup of a well-formed code is recorded (verification.checked.v1). Restricted and public documents show their public-safe fields and hash; confidential ones validity only.
+         * @description Every lookup of a well-formed code is recorded: verification.checked.v1 (id and outcome) and, for the audit trail, audit.verification.v1 (also the IPv4 /24 or IPv6 /48 network it came from, never the address). Restricted and public documents show their public-safe fields and hash; confidential ones validity only.
          */
         get: operations["verifyDocument"];
         put?: never;

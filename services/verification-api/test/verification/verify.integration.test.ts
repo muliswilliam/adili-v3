@@ -1,4 +1,4 @@
-import { eq } from 'drizzle-orm';
+import { eq, inArray } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import type { DocumentIssuedData, PublicPayload } from '@adili/events/contracts';
@@ -102,6 +102,40 @@ describe('S14 public verification of issued documents', () => {
       document: null,
       sha256: null,
       supersededBy: null,
+      revokedReason: null,
+    });
+  });
+
+  it('keeps nothing but the status of a confidential document', async () => {
+    const older = issuedData({ disclosureLevel: 'confidential', publicPayload: null });
+    const newer = issuedData({ disclosureLevel: 'confidential', publicPayload: null });
+    const pulled = issuedData({ disclosureLevel: 'confidential', publicPayload: null });
+    for (const data of [older, newer, pulled]) await api.consumers.issued(issued(data));
+    await api.consumers.superseded(superseded(older, newer));
+    await api.consumers.revoked(revoked(pulled, 'withdrawn'));
+
+    const rows = await api.db
+      .select()
+      .from(verificationProjection)
+      .where(
+        inArray(verificationProjection.verificationId, [
+          older.verificationId,
+          pulled.verificationId,
+        ]),
+      );
+
+    expect(rows).toHaveLength(2);
+    for (const row of rows) {
+      expect(row).toMatchObject({
+        disclosureLevel: 'confidential',
+        publicPayload: null,
+        sha256: null,
+        supersededBy: null,
+        revokedReason: null,
+      });
+    }
+    expect((await api.get(`/v1/verify/${pulled.verificationId}`)).json()).toMatchObject({
+      status: 'revoked',
       revokedReason: null,
     });
   });
