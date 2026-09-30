@@ -423,6 +423,14 @@ describe('clarifications: drafts, issue, letter payload, declarant reads', () =>
     // A draft has no letter.
     expect((await api.get(payloadUrl, documentsService, psc)).statusCode).toBe(404);
     const { reference } = (await issue(id)).json<ClarificationView>();
+    // ClarificationWorkflow's letter pulls this payload too, reading the declaration: let it finish
+    // first, or its read would land among this test's reads and take the failure armed below.
+    await vi.waitFor(
+      () => {
+        expect(api.documents.issued).toHaveLength(1);
+      },
+      { timeout: 45_000, interval: 250 },
+    );
     api.declarations.reads.length = 0;
 
     const response = await api.get(payloadUrl, documentsService, psc);
