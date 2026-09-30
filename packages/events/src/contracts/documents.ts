@@ -5,6 +5,13 @@
  * allows, never the content of the document or who it is about.
  */
 
+/**
+ * Document types the documents service issues, each with its templates (ADR-010 registry); later
+ * specs add theirs.
+ */
+export const DOCUMENT_TYPES = ['acknowledgement-slip'] as const;
+export type DocumentType = (typeof DOCUMENT_TYPES)[number];
+
 /** How much of a document the public verify page may show; fixed per document type. */
 export const DISCLOSURE_LEVELS = ['public', 'restricted', 'confidential'] as const;
 export type DisclosureLevel = (typeof DISCLOSURE_LEVELS)[number];
@@ -38,7 +45,7 @@ export function normalizeVerificationId(input: string): string | null {
  * documents, whose page shows validity only.
  */
 export interface PublicPayload extends Record<string, unknown> {
-  /** The document type, e.g. `acknowledgement-slip`. */
+  /** The document type (a `DocumentType`; consumers ignore types they do not know). */
   type: string;
   /** The issuing Commission's name. */
   issuerName: string;
@@ -55,6 +62,10 @@ export interface PublicPayload extends Record<string, unknown> {
 export interface DocumentEventData extends Record<string, unknown> {
   documentId: string;
   verificationId: string;
+  /**
+   * A `DocumentType`. Typed open: a later spec adds types without a new event version, and
+   * consumers ignore the types they do not handle.
+   */
   documentType: string;
   templateVersion: number;
   disclosureLevel: DisclosureLevel;

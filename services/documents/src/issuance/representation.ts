@@ -1,8 +1,7 @@
-import { DISCLOSURE_LEVELS, DOCUMENT_STATUSES } from '@adili/events/contracts';
+import { DISCLOSURE_LEVELS, DOCUMENT_STATUSES, DOCUMENT_TYPES } from '@adili/events/contracts';
 import { z } from 'zod';
 
 import { acknowledgementSlipPayload } from './templates/acknowledgement-slip.v1.js';
-import { DOCUMENT_TYPES } from './templates/registry.js';
 
 /**
  * Request and response shapes of the issuance API, mirroring
