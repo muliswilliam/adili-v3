@@ -1,5 +1,5 @@
 import { Controller, Get, HttpCode, HttpStatus, Param, Post, Res } from '@nestjs/common';
-import { ApiOkResponse, ApiOperation, ApiParam, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { ApiOkResponse, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import {
   ApiProblemResponse,
   AuditedRead,
@@ -13,6 +13,14 @@ import {
 } from '@adili/api-kit';
 
 import type { Declaration } from '../drafts/representation.js';
+import {
+  ApiDeclarationIdParam,
+  ApiVersionParams,
+  etag,
+  etagHeader,
+  NOT_VISIBLE,
+  type Reply,
+} from '../http.js';
 import { AmendmentService } from './amendment.service.js';
 import type {
   DeclarationVersion,
@@ -21,23 +29,6 @@ import type {
 } from './representation.js';
 import { SubmissionService } from './submission.service.js';
 import { versionNumber } from './versions.js';
-
-const NOT_VISIBLE = 'Not found, or not visible to the caller';
-
-const ApiDeclarationIdParam = () =>
-  ApiParam({ name: 'declarationId', schema: { type: 'string', format: 'uuid' } });
-
-const ETAG_HEADER = {
-  ETag: {
-    schema: { type: 'string' },
-    description: 'The draft version; send it as If-Match on section saves',
-  },
-};
-
-/** The part of Fastify's reply the routes use. */
-interface Reply {
-  header(name: string, value: string): unknown;
-}
 
 /**
  * Submission, amendments and versions (spec 06). Declarant only, by the `person_id` claim: any
@@ -54,7 +45,7 @@ export class SubmissionController {
   @Post('declarations/:declarationId/submit')
   @HttpCode(HttpStatus.CREATED)
   @RequireIdempotencyKey()
-  @ApiParam({ name: 'declarationId', schema: { type: 'string', format: 'uuid' } })
+  @ApiDeclarationIdParam()
   @ApiOperation({
     operationId: 'submitDeclaration',
     summary: 'Submit the declaration (the legal act)',
@@ -97,7 +88,7 @@ export class SubmissionController {
   })
   @ApiOkResponse({
     description: 'Amending, with sections copied from the version in force',
-    headers: ETAG_HEADER,
+    headers: etagHeader(),
     schema: schemaRef('Declaration'),
   })
   @ApiProblemResponse(404, NOT_VISIBLE)
@@ -127,7 +118,7 @@ export class SubmissionController {
   })
   @ApiOkResponse({
     description: 'Submitted again',
-    headers: ETAG_HEADER,
+    headers: etagHeader(),
     schema: schemaRef('Declaration'),
   })
   @ApiProblemResponse(404, NOT_VISIBLE)
@@ -171,8 +162,7 @@ export class SubmissionController {
   }
 
   @Get('declarations/:declarationId/versions/:version')
-  @ApiDeclarationIdParam()
-  @ApiParam({ name: 'version', schema: { type: 'integer', minimum: 1 } })
+  @ApiVersionParams()
   @AuditedRead({ action: 'declaration.version.read', resource: 'declaration-version' })
   @ApiOperation({
     operationId: 'getDeclarationVersion',
@@ -195,9 +185,4 @@ export class SubmissionController {
     audit.ownRecord();
     return detail;
   }
-}
-
-/** The draft version as an `ETag`. */
-function etag(draftVersion: number): string {
-  return `"${String(draftVersion)}"`;
 }

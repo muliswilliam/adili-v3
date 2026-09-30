@@ -16,6 +16,7 @@ import {
 
 import { COMMISSION_STAFF_ROLES, EACC_ROLES, PLATFORM_ADMIN } from '@adili/roles';
 
+import { NOT_VISIBLE } from '../http.js';
 import { CommissionObligationsService } from './commission-obligations.service.js';
 import {
   type ListCommissionObligationsQuery,
@@ -32,8 +33,6 @@ import type {
   ObligationDetail,
   ObligationPage,
 } from './representation.js';
-
-const NOT_VISIBLE = 'Not found, or not visible to the caller';
 
 /** The `slug` path parameter, as the contract's `Slug`. */
 const ApiSlugParam = () =>
