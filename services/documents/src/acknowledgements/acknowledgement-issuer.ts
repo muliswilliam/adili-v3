@@ -1,9 +1,9 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { errorType, ProblemException, TENANT_KEY } from '@adili/api-kit';
 import { type Database, InjectDatabase } from '@adili/data-access';
-import { type EventEnvelope, inbox } from '@adili/events';
-import { and, eq } from 'drizzle-orm';
+import { consumeIdempotent, type EventEnvelope } from '@adili/events';
 
+import { SYSTEM_SUBJECT } from '../config.js';
 import type { DocumentsSchema } from '../db/schema.js';
 import { DeclarationsClient } from '../declarations/declarations-client.js';
 import { IssuanceService } from '../issuance/issuance.service.js';
@@ -11,8 +11,6 @@ import { IssuanceService } from '../issuance/issuance.service.js';
 /** The slip's document type and template (ADR-010 registry). */
 const ACKNOWLEDGEMENT_SLIP = 'acknowledgement-slip';
 const TEMPLATE_VERSION = 1;
-/** `issuedBy` of the slips the service issues itself, on events. */
-export const SYSTEM_SUBJECT = 'system:documents';
 
 /** What an event asking for a version's slip says about it (identifiers only). */
 export interface SlipRequest {
@@ -27,7 +25,8 @@ export interface SlipRequest {
  * pulls the payload by version (ADR-013: the event carries identifiers), issues through
  * `IssuanceService` for the declarant, and supersedes the declaration's earlier slips by the
  * newest (an amendment's slip replaces the one before, whichever was issued first). An event is
- * handled once (inbox, recorded after the work, as issuing is idempotent per version); a slip
+ * handled once (`consumeIdempotent`: recorded after the work, as issuing is idempotent per
+ * version, so no transaction is held across rendering, signing and the calls out); a slip
  * issued already is announced again, for a declarations service that missed it. A dependency
  * down (Gotenberg, OpenBao, storage, declarations) throws: the transport retries once, then
  * dead-letters, and declarations' reissue asks again later.
@@ -43,7 +42,10 @@ export class AcknowledgementIssuer {
   ) {}
 
   async issue(consumer: string, event: EventEnvelope, request: SlipRequest): Promise<void> {
-    if (await this.handled(consumer, event)) return;
+    await consumeIdempotent(this.db, consumer, event, () => this.issueSlip(event, request));
+  }
+
+  private async issueSlip(event: EventEnvelope, request: SlipRequest): Promise<void> {
     const tenant = event.tenant;
     if (!tenant || !TENANT_KEY.test(tenant)) throw new Error(`Event ${event.id} has no tenant`);
 
@@ -63,8 +65,6 @@ export class AcknowledgementIssuer {
     });
     if (!created) await this.issuance.announce(tenant, SYSTEM_SUBJECT, document.id);
     await this.supersedeEarlier(tenant, request.reference);
-
-    await this.db.insert(inbox).values({ consumer, eventId: event.id }).onConflictDoNothing();
   }
 
   /**
@@ -95,14 +95,5 @@ export class AcknowledgementIssuer {
         );
       }
     }
-  }
-
-  private async handled(consumer: string, event: EventEnvelope): Promise<boolean> {
-    const [found] = await this.db
-      .select({ eventId: inbox.eventId })
-      .from(inbox)
-      .where(and(eq(inbox.consumer, consumer), eq(inbox.eventId, event.id)))
-      .limit(1);
-    return found !== undefined;
   }
 }

@@ -2,6 +2,8 @@ import { baseEnvSchema, loadConfig } from '@adili/api-kit';
 import { z } from 'zod';
 
 export const SERVICE_NAME = 'documents';
+/** The subject of the service's own work (events it handles, sweeps): `issuedBy` of its slips. */
+export const SYSTEM_SUBJECT = `system:${SERVICE_NAME}`;
 export const SERVICE_DESCRIPTION =
   'Uploads, malware scanning, PDF issuance, signing, QR codes and verification records.';
 

@@ -17,7 +17,7 @@ import { type Database, InjectDatabase, withTenant } from '@adili/data-access';
 import { and, eq, inArray, isNull, lt, or, sql } from 'drizzle-orm';
 import { v7 as uuidv7 } from 'uuid';
 
-import { config } from '../config.js';
+import { config, SYSTEM_SUBJECT } from '../config.js';
 import type { DocumentsSchema } from '../db/schema.js';
 import { MalwareScanner } from '../scanning/malware-scanner.js';
 import { S3, S3_PUBLIC } from '../storage/storage.module.js';
@@ -280,7 +280,7 @@ export class UploadsService {
   async expireStale(): Promise<number> {
     const expired = await withTenant(
       this.db,
-      { tenant: PLATFORM_TENANT, subject: 'system' },
+      { tenant: PLATFORM_TENANT, subject: SYSTEM_SUBJECT },
       (tx) =>
         tx
           .update(uploads)
