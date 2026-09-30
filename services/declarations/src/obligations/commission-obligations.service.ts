@@ -19,7 +19,7 @@ import {
 
 import { Clock } from '../clock.js';
 import type { DeclarationsSchema } from '../db/schema.js';
-import type { Transaction } from './apply-page.js';
+import { loadCalendar, type Transaction } from './apply-page.js';
 import { commissionReadTenant, fallbackIssuerCode, PLATFORM_TENANT } from './access.js';
 import {
   decodeListCursor,
@@ -41,7 +41,6 @@ import type {
 } from './representation.js';
 import {
   commissionRefs,
-  cycleCalendar,
   cycleOpenings,
   filingObligations,
   obligationReminders,
@@ -381,7 +380,7 @@ export class CommissionObligationsService {
       tenant,
     }: { asked: string | undefined; biennial: MonthDays; tenant?: string },
   ): Promise<{ counted: SummaryCycle; cycles: SummaryCycle[] }> {
-    const calendar = await tx.select().from(cycleCalendar).orderBy(asc(cycleCalendar.cycleYear));
+    const calendar = await loadCalendar(tx);
     const openings = await tx
       .selectDistinct({ cycleYear: cycleOpenings.cycleYear })
       .from(cycleOpenings)

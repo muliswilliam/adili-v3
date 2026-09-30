@@ -1,12 +1,13 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { type Database, InjectDatabase, withTenant } from '@adili/data-access';
 import { EventPublisher } from '@adili/events';
-import { and, asc, count, eq, ne } from 'drizzle-orm';
+import { and, count, eq, ne } from 'drizzle-orm';
 
 import { Clock } from '../../clock.js';
 import type { DeclarationsSchema } from '../../db/schema.js';
 import { DirectoryClient } from '../../directory/directory-client.js';
 import {
+  loadCalendar,
   reconcileSnapshots,
   SNAPSHOT_PAGE_SIZE,
   snapshotPage,
@@ -14,11 +15,11 @@ import {
 } from '../apply-page.js';
 import { biennialCycleKey } from '../cycle-key.js';
 import { nairobiDate } from '../dates.js';
-import { type CycleCalendar, type ObligationPolicy, openedCycles } from '../engine.js';
+import { type ObligationPolicy, openedCycles } from '../engine.js';
 import { cycleOpened } from '../events.js';
 import { cachePolicy } from '../roster-ingest.js';
 import { systemContext } from '../system-context.js';
-import { cycleCalendar, cycleOpenings, filingObligations, tenantPolicyCache } from '../schema.js';
+import { cycleOpenings, filingObligations, tenantPolicyCache } from '../schema.js';
 import { noChanges, ObligationWorkflows, tellWorkflows } from '../workflows.js';
 import type { CycleOpened, CycleOpeningPage, CycleOpeningPageRequest } from './contract.js';
 
@@ -61,7 +62,7 @@ export class CycleOpening {
     if (!cached) return [];
     const rules = (await this.refreshPolicy(tenant)) ?? cached.rules;
     const [calendar, opened] = await Promise.all([
-      this.calendar(),
+      loadCalendar(this.db),
       withTenant(this.db, systemContext(tenant), (tx) =>
         tx
           .select({ cycleYear: cycleOpenings.cycleYear })
@@ -186,9 +187,5 @@ export class CycleOpening {
     return withTenant(this.db, systemContext(tenant), (tx) =>
       cachePolicy(tx, tenant, pulled, this.clock.now()),
     );
-  }
-
-  private async calendar(): Promise<CycleCalendar> {
-    return this.db.select().from(cycleCalendar).orderBy(asc(cycleCalendar.cycleYear));
   }
 }

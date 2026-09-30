@@ -1,7 +1,7 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { type Database, InjectDatabase, withTenant } from '@adili/data-access';
 import { EventPublisher, inbox } from '@adili/events';
-import { and, asc, eq, sql } from 'drizzle-orm';
+import { and, eq, sql } from 'drizzle-orm';
 
 import { Clock } from '../clock.js';
 import type { DeclarationsSchema } from '../db/schema.js';
@@ -14,6 +14,7 @@ import {
 } from '../directory/directory-client.js';
 import {
   applyRosterPage,
+  loadCalendar,
   type PageContext,
   reconcileSnapshots,
   SNAPSHOT_PAGE_SIZE,
@@ -23,8 +24,8 @@ import {
 } from './apply-page.js';
 import { upsertCommissionRef } from './commission-refs.js';
 import { nairobiDate } from './dates.js';
-import type { CycleCalendar, ObligationPolicy } from './engine.js';
-import { commissionRefs, cycleCalendar, tenantPolicyCache } from './schema.js';
+import type { ObligationPolicy } from './engine.js';
+import { commissionRefs, tenantPolicyCache } from './schema.js';
 import { systemContext } from './system-context.js';
 import { CycleOpeningSchedules } from './workflow/cycle-opening-schedules.js';
 import { noChanges, ObligationWorkflows, tellWorkflows } from './workflows.js';
@@ -71,7 +72,7 @@ export class RosterIngest {
     const [commission, policy, calendar] = await Promise.all([
       this.directory.getCommission(tenant),
       this.directory.getPolicy(tenant),
-      this.calendar(),
+      loadCalendar(this.db),
     ]);
     const context: PageContext = {
       tenant,
@@ -155,10 +156,6 @@ export class RosterIngest {
       .where(and(eq(inbox.consumer, consumer), eq(inbox.eventId, eventId)))
       .limit(1);
     return row !== undefined;
-  }
-
-  private async calendar(): Promise<CycleCalendar> {
-    return this.db.select().from(cycleCalendar).orderBy(asc(cycleCalendar.cycleYear));
   }
 
   private async pull(

@@ -52,6 +52,13 @@ export interface PageContext extends ReconcileContext {
   syncedFrom: string | null;
 }
 
+/** The biennial cycle calendar (platform data), oldest cycle first. */
+export async function loadCalendar(
+  db: Transaction | Database<DeclarationsSchema>,
+): Promise<CycleCalendar> {
+  return db.select().from(cycleCalendar).orderBy(asc(cycleCalendar.cycleYear));
+}
+
 /**
  * What the tenant's stored snapshots are reconciled against when no directory event brings a
  * policy (the cycle opening, the sweep): its cached policy and the calendar. Null when the tenant
@@ -67,8 +74,7 @@ export async function storedReconcileContext(
     .from(tenantPolicyCache)
     .where(eq(tenantPolicyCache.tenant, tenant));
   if (!cached) return null;
-  const calendar = await tx.select().from(cycleCalendar).orderBy(asc(cycleCalendar.cycleYear));
-  return { tenant, policy: cached, calendar, today };
+  return { tenant, policy: cached, calendar: await loadCalendar(tx), today };
 }
 
 /** Rows per multi-row insert, well under Postgres' 65,535 parameters per statement. */
