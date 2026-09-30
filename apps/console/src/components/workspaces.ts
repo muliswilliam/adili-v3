@@ -46,6 +46,14 @@ export function opensOwnPolicy(roles: readonly string[]): boolean {
   return OWN_POLICY_ROLES.some((role) => roles.includes(role));
 }
 
+/** Roles that see (and change) a Commission's obligations policy on its page (spec 04 FE-4). */
+export const COMMISSION_POLICY_ROLES = [PLATFORM_ADMIN] as const;
+
+/** Whether the viewer gets the policy card on a Commission's page; EACC staff see counts only. */
+export function readsCommissionPolicy(roles: readonly string[]): boolean {
+  return COMMISSION_POLICY_ROLES.some((role) => roles.includes(role));
+}
+
 /** National roles, who see obligation counts per Commission but no declarant (spec 04). */
 export const NATIONAL_OBLIGATIONS_ROLES = [PLATFORM_ADMIN, ...EACC_ROLES] as const;
 

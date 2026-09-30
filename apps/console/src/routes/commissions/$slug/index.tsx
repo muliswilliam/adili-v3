@@ -59,6 +59,7 @@ import { messages as policyMessages } from '../../../components/policy/messages'
 import { PolicyCard } from '../../../components/policy/policy-card';
 import { messages as rosterMessages } from '../../../components/roster/messages';
 import { goToSignIn, signInRedirect } from '../../../components/sign-in-redirect';
+import { readsCommissionPolicy } from '../../../components/workspaces';
 import { resendInvitation } from '../../../server/commissions';
 import type {
   CommissionObligationsSummary,
@@ -103,7 +104,9 @@ export const Route = createFileRoute('/commissions/$slug/')({
       listRosterImports({ data: { slug: params.slug, cursor: deps.imports } }),
       getCommissionObligationsSummary({ data: { slug: params.slug } }),
       // The policy card is the platform admin's; EACC sees counts only.
-      context.workspace.readOnly ? null : getTenantPolicy({ data: { slug: params.slug } }),
+      readsCommissionPolicy(context.roles)
+        ? getTenantPolicy({ data: { slug: params.slug } })
+        : null,
     ]);
     if (
       [imports, obligations, policy].some(
