@@ -1,30 +1,27 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { type Database, InjectDatabase, withTenant } from '@adili/data-access';
 import { EventPublisher } from '@adili/events';
-import { and, asc, count, eq, gt, ne } from 'drizzle-orm';
+import { and, asc, count, eq, ne } from 'drizzle-orm';
 
 import { Clock } from '../../clock.js';
 import type { DeclarationsSchema } from '../../db/schema.js';
 import { DirectoryClient } from '../../directory/directory-client.js';
-import { reconcileSnapshots, storedReconcileContext, type Transaction } from '../apply-page.js';
+import {
+  reconcileSnapshots,
+  SNAPSHOT_PAGE_SIZE,
+  snapshotPage,
+  storedReconcileContext,
+} from '../apply-page.js';
 import { biennialCycleKey } from '../cycle-key.js';
 import { nairobiDate } from '../dates.js';
 import { type CycleCalendar, type ObligationPolicy, openedCycles } from '../engine.js';
 import { cycleOpened } from '../events.js';
 import { cachePolicy } from '../roster-ingest.js';
 import { systemContext } from '../system-context.js';
-import {
-  cycleCalendar,
-  cycleOpenings,
-  filingObligations,
-  rosterSnapshots,
-  tenantPolicyCache,
-} from '../schema.js';
+import { cycleCalendar, cycleOpenings, filingObligations, tenantPolicyCache } from '../schema.js';
 import { noChanges, ObligationWorkflows, tellWorkflows } from '../workflows.js';
 import type { CycleOpened, CycleOpeningPage, CycleOpeningPageRequest } from './contract.js';
 
-/** Roster snapshots per page, as the directory pulls. */
-const PAGE_SIZE = 1_000;
 /**
  * How often a page reports progress while it works (its transaction, then its workflow starts):
  * well inside the activity's 2-minute heartbeat timeout.
@@ -108,7 +105,7 @@ export class CycleOpening {
     const { ids, changes } = await withTenant(this.db, systemContext(tenant), async (tx) => {
       const context = await storedReconcileContext(tx, tenant, today);
       if (!context) return { ids: [], changes: noChanges() };
-      const page = await activeSnapshots(tx, tenant, cursor);
+      const page = await snapshotPage(tx, tenant, cursor, { inOffice: true });
       const applied = await reconcileSnapshots(
         tx,
         this.events,
@@ -121,7 +118,7 @@ export class CycleOpening {
     await tellWorkflows(this.workflows, this.logger, tenant, changes);
     return {
       created: changes.created.length,
-      nextCursor: ids.length === PAGE_SIZE ? (ids.at(-1) ?? null) : null,
+      nextCursor: ids.length === SNAPSHOT_PAGE_SIZE ? (ids.at(-1) ?? null) : null,
     };
   }
 
@@ -192,25 +189,4 @@ export class CycleOpening {
   private async calendar(): Promise<CycleCalendar> {
     return this.db.select().from(cycleCalendar).orderBy(asc(cycleCalendar.cycleYear));
   }
-}
-
-/** The ids of the next page of the tenant's roster snapshots still in office, by id. */
-async function activeSnapshots(
-  tx: Transaction,
-  tenant: string,
-  cursor: string | null,
-): Promise<string[]> {
-  const rows = await tx
-    .select({ id: rosterSnapshots.rosterRecordId })
-    .from(rosterSnapshots)
-    .where(
-      and(
-        eq(rosterSnapshots.tenant, tenant),
-        ne(rosterSnapshots.state, 'exited'),
-        cursor === null ? undefined : gt(rosterSnapshots.rosterRecordId, cursor),
-      ),
-    )
-    .orderBy(asc(rosterSnapshots.rosterRecordId))
-    .limit(PAGE_SIZE);
-  return rows.map((row) => row.id);
 }

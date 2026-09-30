@@ -508,17 +508,72 @@ describe('reconciliation is idempotent and keeps what exists', () => {
       'biennial:2027',
     ]);
   });
+});
 
-  it('keeps an existing initial when a later policy version moves the start date past it', () => {
+describe('story 22: a later policy version moves the obligations-start date', () => {
+  const later = (obligationsStartDate: CivilDate) => ({
+    ...policy,
+    version: 2,
+    obligationsStartDate,
+  });
+
+  it('cancels an open initial whose statement date is now before the start date', () => {
     const result = plan({
       record: record({ appointmentDate: '2027-03-10' }),
-      today: '2027-03-20',
-      policy: { ...policy, version: 2, obligationsStartDate: '2027-06-01' },
+      today: '2027-05-20',
+      policy: later('2027-06-01'),
       existing: [
-        existing('i-1', { type: 'initial', cycleKey: 'initial:2027-03-10', status: 'due' }),
+        existing('i-1', { type: 'initial', cycleKey: 'initial:2027-03-10', status: 'overdue' }),
+      ],
+    });
+    expect(result.operations).toEqual([
+      { kind: 'cancel', obligationId: 'i-1', reason: 'before-obligations-start-date' },
+    ]);
+  });
+
+  it('cancels an open biennial before it too, and keeps what is on or after it', () => {
+    const result = plan({
+      record: record({ appointmentDate: '2020-01-15', exitDate: '2030-01-10' }),
+      today: '2030-01-20',
+      policy: later('2029-11-01'),
+      existing: [
+        existing('b-2027', { type: 'biennial', cycleKey: 'biennial:2027', status: 'overdue' }),
+        existing('b-2029', { type: 'biennial', cycleKey: 'biennial:2029', status: 'overdue' }),
+        existing('f-1', { type: 'final', cycleKey: 'final:2030-01-10', status: 'due' }),
+      ],
+    });
+    expect(result.operations).toEqual([
+      { kind: 'cancel', obligationId: 'b-2027', reason: 'before-obligations-start-date' },
+    ]);
+  });
+
+  it('keeps a filed obligation before the new start date', () => {
+    const result = plan({
+      record: record({ appointmentDate: '2027-03-10' }),
+      today: '2027-05-20',
+      policy: later('2027-06-01'),
+      existing: [
+        existing('i-1', { type: 'initial', cycleKey: 'initial:2027-03-10', status: 'filed' }),
       ],
     });
     expect(result.operations).toEqual([]);
+    expect(result.obligations.map((o) => o.cycleKey)).toEqual(['initial:2027-03-10']);
+  });
+
+  it('creates the initial an earlier start date now reaches', () => {
+    const result = plan({
+      record: record({ appointmentDate: '2026-10-01' }),
+      today: '2027-05-20',
+      policy: later('2026-01-01'),
+    });
+    expect(summary(created(result))).toEqual([
+      {
+        cycleKey: 'initial:2026-10-01',
+        statementDate: '2026-10-01',
+        dueDate: '2026-10-31',
+        status: 'overdue',
+      },
+    ]);
   });
 });
 

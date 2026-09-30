@@ -1,6 +1,6 @@
 import type { Database } from '@adili/data-access';
 import { type EventPublisher, type NewEvent } from '@adili/events';
-import { and, asc, eq, inArray, ne, sql } from 'drizzle-orm';
+import { and, asc, eq, gt, inArray, ne, sql } from 'drizzle-orm';
 import { v7 as uuidv7 } from 'uuid';
 
 import type { DeclarationsSchema } from '../db/schema.js';
@@ -71,6 +71,34 @@ export async function storedReconcileContext(
 
 /** Rows per multi-row insert, well under Postgres' 65,535 parameters per statement. */
 const INSERT_CHUNK = 1_000;
+
+/** Roster snapshots per page when a tenant's stored roster is reconciled, as the directory pulls. */
+export const SNAPSHOT_PAGE_SIZE = 1_000;
+
+/**
+ * The ids of the next page (`SNAPSHOT_PAGE_SIZE`) of the tenant's roster snapshots after `cursor`,
+ * by id; `inOffice` leaves out the exited.
+ */
+export async function snapshotPage(
+  tx: Transaction,
+  tenant: string,
+  cursor: string | null,
+  { inOffice = false }: { inOffice?: boolean } = {},
+): Promise<string[]> {
+  const rows = await tx
+    .select({ id: rosterSnapshots.rosterRecordId })
+    .from(rosterSnapshots)
+    .where(
+      and(
+        eq(rosterSnapshots.tenant, tenant),
+        inOffice ? ne(rosterSnapshots.state, 'exited') : undefined,
+        cursor === null ? undefined : gt(rosterSnapshots.rosterRecordId, cursor),
+      ),
+    )
+    .orderBy(asc(rosterSnapshots.rosterRecordId))
+    .limit(SNAPSHOT_PAGE_SIZE);
+  return rows.map((row) => row.id);
+}
 
 /**
  * Applies one page of roster records pulled from the directory, in the caller's transaction

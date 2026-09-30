@@ -62,7 +62,10 @@ export class DirectoryEventsConsumer {
     });
   }
 
-  /** A new policy version is in force: the cached policy is pulled again (ADR-013 §2). */
+  /**
+   * A new policy version is in force: the cached policy is pulled again (ADR-013 §2) and the
+   * Commission's roster reconciled with it (a moved obligations-start date).
+   */
   @OnEvent(POLICY_CHANGED)
   async policyChanged(@Payload() event: EventEnvelope): Promise<void> {
     policyChangedData.parse(event.data);

@@ -1561,6 +1561,7 @@ components:
         - exited-before-statement-date
         - exit-reversed
         - superseded
+        - before-obligations-start-date
     ReminderOutcome:
       type: string
       enum:

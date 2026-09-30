@@ -12,13 +12,21 @@ import {
   type PulledRosterRecordPage,
   type RosterRecordSelector,
 } from '../directory/directory-client.js';
-import { applyRosterPage, type PageContext, type Transaction } from './apply-page.js';
+import {
+  applyRosterPage,
+  type PageContext,
+  reconcileSnapshots,
+  SNAPSHOT_PAGE_SIZE,
+  snapshotPage,
+  storedReconcileContext,
+  type Transaction,
+} from './apply-page.js';
 import { nairobiDate } from './dates.js';
 import type { CycleCalendar, ObligationPolicy } from './engine.js';
 import { commissionRefs, cycleCalendar, tenantPolicyCache } from './schema.js';
 import { systemContext } from './system-context.js';
 import { CycleOpeningSchedules } from './workflow/cycle-opening-schedules.js';
-import { ObligationWorkflows, tellWorkflows } from './workflows.js';
+import { noChanges, ObligationWorkflows, tellWorkflows } from './workflows.js';
 
 /** The records a roster event refers to: those of an import or exit batch, or one record. */
 export type RosterSource =
@@ -98,18 +106,45 @@ export class RosterIngest {
   }
 
   /**
-   * Pulls the Commission's policy in force into the cache after `directory.policy.changed.v1`,
-   * with the consumer's inbox entry in the same transaction. Returns false when the consumer had
-   * already handled the event; a failed pull throws and leaves the event for the retry.
+   * After `directory.policy.changed.v1`: pulls the Commission's policy in force into the cache,
+   * then reconciles every stored roster snapshot of the Commission with it, page by page (1,000
+   * each, one transaction per page), so a moved obligations-start date takes effect at once
+   * (story 22): open obligations now before it are cancelled, those an earlier date reaches are
+   * created. The consumer's inbox entry is written with the last page. Returns false when the
+   * consumer had already handled the event; a failed pull throws and leaves the event for the
+   * retry, which re-applies the pages already in as no-ops.
    */
   async refreshPolicy(consumer: string, event: IngestedEvent): Promise<boolean> {
     if (await this.handled(consumer, event.id)) return false;
-    const policy = await this.directory.getPolicy(event.tenant);
-    await withTenant(this.db, systemContext(event.tenant), async (tx) => {
-      await cachePolicy(tx, event.tenant, policy);
-      await tx.insert(inbox).values({ consumer, eventId: event.id }).onConflictDoNothing();
-    });
-    return true;
+    const { tenant } = event;
+    const policy = await this.directory.getPolicy(tenant);
+    const today = nairobiDate(this.clock.now());
+    let cursor: string | null = null;
+    let first = true;
+    for (;;) {
+      const { changes, last, next } = await withTenant(
+        this.db,
+        systemContext(tenant),
+        async (tx) => {
+          if (first) await cachePolicy(tx, tenant, policy);
+          // The cached policy: the version pulled, or a newer one a racing pull put there.
+          const context = await storedReconcileContext(tx, tenant, today);
+          const ids = await snapshotPage(tx, tenant, cursor);
+          const applied = context
+            ? await reconcileSnapshots(tx, this.events, context, ids)
+            : noChanges();
+          const done = ids.length < SNAPSHOT_PAGE_SIZE;
+          if (done) {
+            await tx.insert(inbox).values({ consumer, eventId: event.id }).onConflictDoNothing();
+          }
+          return { changes: applied, last: done, next: ids.at(-1) ?? null };
+        },
+      );
+      await tellWorkflows(this.workflows, this.logger, tenant, changes);
+      if (last) return true;
+      cursor = next;
+      first = false;
+    }
   }
 
   private async handled(consumer: string, eventId: string): Promise<boolean> {

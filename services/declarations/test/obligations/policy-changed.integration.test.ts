@@ -1,9 +1,9 @@
 import { randomUUID } from 'node:crypto';
 
-import { eq } from 'drizzle-orm';
+import { and, asc, eq } from 'drizzle-orm';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
-import { tenantPolicyCache } from '../../src/db/schema.js';
+import { filingObligations, outbox, tenantPolicyCache } from '../../src/db/schema.js';
 import { DirectoryUnavailable } from '../../src/directory/directory-client.js';
 import { POLICY_CHANGED, ROSTER_IMPORT_COMPLETED } from '../../src/obligations/events.js';
 import {
@@ -15,7 +15,9 @@ import { policyVersion, rosterRecord } from '../support/fake-directory.js';
 
 /**
  * `directory.policy.changed.v1` (spec 04 BE-2): the Commission's cached policy is pulled again, so
- * the next ingest, cycle opening and summary use the version in force. Idempotent (inbox).
+ * the next ingest, cycle opening and summary use the version in force, and the Commission's stored
+ * roster is reconciled with it at once (story 22: a moved obligations-start date). Idempotent
+ * (inbox).
  */
 let api: DeclarationsApi;
 
@@ -94,6 +96,101 @@ describe('directory.policy.changed.v1', () => {
     await api.consumers.policyChanged(policyChanged(v2));
 
     expect(await cached()).toMatchObject({ version: 3, policyVersionId: v3.id });
+  });
+
+  describe('story 22: the obligations-start date moves', () => {
+    async function importRecords(records: ReturnType<typeof rosterRecord>[]) {
+      const importId = randomUUID();
+      api.directory.givenImport(importId, records);
+      await api.consumers.importCompleted(
+        directoryEvent(ROSTER_IMPORT_COMPLETED, 'psc', { importId, channel: 'file' }),
+      );
+    }
+
+    async function initials() {
+      return api.asPlatform((tx) =>
+        tx
+          .select({
+            id: filingObligations.id,
+            rosterRecordId: filingObligations.rosterRecordId,
+            status: filingObligations.status,
+            cancelReason: filingObligations.cancelReason,
+          })
+          .from(filingObligations)
+          .where(and(eq(filingObligations.tenant, 'psc'), eq(filingObligations.type, 'initial')))
+          .orderBy(asc(filingObligations.statementDate), asc(filingObligations.id)),
+      );
+    }
+
+    async function moveStartDate(version: number, obligationsStartDate: string) {
+      const policy = policyVersion({ version, obligationsStartDate });
+      api.directory.givenCommission('psc', 'Public Service Commission', policy);
+      await api.consumers.policyChanged(policyChanged(policy));
+    }
+
+    it('cancels the open initials a later date leaves out, and tells their workflows', async () => {
+      // Appointed before the Commission fixed its date (overdue), and after it (due).
+      const early = rosterRecord('psc', { appointmentDate: '2027-02-01' });
+      const recent = rosterRecord('psc', { appointmentDate: '2027-06-20' });
+      await importRecords([early, recent]);
+      const [earlyInitial, recentInitial] = await initials();
+      expect(earlyInitial).toMatchObject({ rosterRecordId: early.id, status: 'overdue' });
+      api.workflows.reset();
+
+      await moveStartDate(2, '2027-06-01');
+
+      expect(await initials()).toEqual([
+        {
+          id: earlyInitial?.id,
+          rosterRecordId: early.id,
+          status: 'cancelled',
+          cancelReason: 'before-obligations-start-date',
+        },
+        { id: recentInitial?.id, rosterRecordId: recent.id, status: 'due', cancelReason: null },
+      ]);
+      expect(api.workflows.cancelled()).toEqual([
+        { obligationId: earlyInitial?.id, reason: 'before-obligations-start-date' },
+      ]);
+      const events = await api.db
+        .select({ envelope: outbox.envelope })
+        .from(outbox)
+        .where(eq(outbox.eventType, 'obligation.status-changed.v1'));
+      expect(events.map((e) => e.envelope)).toContainEqual(
+        expect.objectContaining({
+          subject: earlyInitial?.id,
+          data: {
+            obligationId: earlyInitial?.id,
+            from: 'overdue',
+            to: 'cancelled',
+            reason: 'before-obligations-start-date',
+          },
+        }),
+      );
+    });
+
+    it('creates the initials an earlier date reaches', async () => {
+      const before = rosterRecord('psc', { appointmentDate: '2026-05-04' });
+      await importRecords([before]);
+      expect(await initials()).toEqual([]);
+
+      await moveStartDate(2, '2026-01-01');
+
+      const [created] = await initials();
+      expect(created).toMatchObject({ rosterRecordId: before.id, status: 'overdue' });
+      expect(api.workflows.created()).toContain(created?.id);
+    });
+
+    it('reconciles every page of the roster', async () => {
+      await importRecords(
+        Array.from({ length: 1_001 }, () => rosterRecord('psc', { appointmentDate: '2027-02-01' })),
+      );
+      expect(await initials()).toHaveLength(1_001);
+
+      await moveStartDate(2, '2027-06-01');
+
+      const after = await initials();
+      expect(after.filter((o) => o.status === 'cancelled')).toHaveLength(1_001);
+    }, 60_000);
   });
 
   it('leaves the event for a retry when the directory cannot answer', async () => {

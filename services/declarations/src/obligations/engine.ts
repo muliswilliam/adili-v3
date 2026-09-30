@@ -11,9 +11,11 @@
  * - **Final** (Act s.34(3)): statement date = exit date, due `finalDueAfterExitDays` later. Due from
  *   creation, like the initial.
  *
- * The Commission's obligations-start date gates creation: an obligation whose statement date is
- * before it is assumed declared outside Adili and is not created. Existing obligations are kept
- * when a later policy version moves the date.
+ * The Commission's obligations-start date gates every type: an obligation whose statement date is
+ * before it is assumed declared outside Adili. It is not created, and an open one is cancelled
+ * (`before-obligations-start-date`) when a later policy version moves the date past it (story 22:
+ * the Commission fixes the date after its first import). Moving the date earlier creates what it
+ * now reaches. A filed obligation is kept whatever the date.
  *
  * Reconciliation creates what is missing, supersedes an initial or final whose date changed
  * (the date is part of its cycle key), cancels what the record no longer owes, and links the
@@ -45,6 +47,7 @@ export const CANCEL_REASONS = [
   'exited-before-statement-date',
   'exit-reversed',
   'superseded',
+  'before-obligations-start-date',
 ] as const;
 export type CancelReason = (typeof CANCEL_REASONS)[number];
 
@@ -167,15 +170,21 @@ export function planObligations(input: PlanInput): ObligationPlan {
   const live = existing.filter((o) => o.status !== 'cancelled');
   const open = live.filter((o) => o.status !== 'filed');
   const liveKeys = new Set(live.map((o) => o.cycleKey));
-  const filedTypes = new Set(live.filter((o) => o.status === 'filed').map((o) => o.type));
+  const filed = live.filter((o) => o.status === 'filed');
+  const filedKeys = new Set(filed.map((o) => o.cycleKey));
+  const filedTypes = new Set(filed.map((o) => o.type));
 
-  const obligations = owedObligations(input).filter(
+  const owed = owedObligations(input);
+  const obligations = owed.filter(
     (o) =>
-      liveKeys.has(o.cycleKey) ||
-      // Creation rules: the start date gates new obligations, and a filed initial or final
-      // discharges that duty for the record whatever its dates say now.
+      filedKeys.has(o.cycleKey) ||
+      // The start date gates open obligations too, and a filed initial or final discharges that
+      // duty for the record whatever its dates say now.
       (o.statementDate >= input.policy.obligationsStartDate &&
-        (o.type === 'biennial' || !filedTypes.has(o.type))),
+        (liveKeys.has(o.cycleKey) || o.type === 'biennial' || !filedTypes.has(o.type))),
+  );
+  const beforeStart = new Set<string>(
+    owed.filter((o) => o.statementDate < input.policy.obligationsStartDate).map((o) => o.cycleKey),
   );
   const owedKeys = new Set<string>(obligations.map((o) => o.cycleKey));
 
@@ -195,7 +204,9 @@ export function planObligations(input: PlanInput): ObligationPlan {
       cancels.push({
         kind: 'cancel',
         obligationId: old.id,
-        reason: cancelReason(old, record, input.policy),
+        reason: beforeStart.has(old.cycleKey)
+          ? 'before-obligations-start-date'
+          : cancelReason(old, record, input.policy),
       });
     }
   }

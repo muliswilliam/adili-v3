@@ -782,7 +782,7 @@ export interface components {
         /** @enum {string} */
         ObligationStatus: "upcoming" | "due" | "overdue" | "filed" | "cancelled";
         /** @enum {string} */
-        CancelReason: "exited-before-statement-date" | "exit-reversed" | "superseded";
+        CancelReason: "exited-before-statement-date" | "exit-reversed" | "superseded" | "before-obligations-start-date";
         /** @enum {string} */
         ReminderOutcome: "sent" | "skipped-not-onboarded" | "skipped-no-contact" | "skipped-past-due-at-creation" | "skipped-missed" | "failed";
         /** @enum {string} */
