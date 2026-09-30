@@ -1,3 +1,12 @@
+export {
+  AI_PROVIDER_NAMES,
+  AI_TASK_NAMES,
+  AiLabel,
+  type AiLabelDetails,
+  type AiLabelMessages,
+  type AiLabelProps,
+  describeAiOutput,
+} from './components/ai-label';
 export { Alert, AlertDescription, AlertTitle, type AlertProps } from './components/alert';
 export {
   type AttachmentListItem,
@@ -26,6 +35,29 @@ export {
   type ChartValue,
 } from './components/chart';
 export {
+  CHAT_QUESTION_MAX_LENGTH,
+  ChatComposer,
+  type ChatComposerMessages,
+  type ChatComposerProps,
+} from './components/chat-composer';
+export {
+  AssistantMessage,
+  type AssistantMessageProps,
+  type AssistantMessageStatus,
+  type ChatMessageMessages,
+  nextAnnouncement,
+  type ReportingOfficer,
+  UserMessage,
+  type UserMessageProps,
+} from './components/chat-message';
+export {
+  ChatLog,
+  type ChatLogProps,
+  ChatPanel,
+  type ChatPanelMessages,
+  type ChatPanelProps,
+} from './components/chat-panel';
+export {
   Checkbox,
   CheckboxGroup,
   type CheckboxGroupProps,
@@ -33,6 +65,15 @@ export {
   type CheckboxItemProps,
   type CheckboxProps,
 } from './components/checkbox';
+export {
+  type Citation,
+  CitationChip,
+  type CitationChipProps,
+  CitationList,
+  type CitationListProps,
+  type CitationMessages,
+  type CitationSource,
+} from './components/citation-chip';
 export {
   CodeBlock,
   type CodeBlockProps,
@@ -113,6 +154,16 @@ export {
   drawerVariants,
 } from './components/drawer';
 export { EmptyState, type EmptyStateProps } from './components/empty-state';
+export {
+  type Feedback,
+  FEEDBACK_NOTE_MAX_LENGTH,
+  FEEDBACK_REASONS,
+  FeedbackControl,
+  type FeedbackControlProps,
+  type FeedbackMessages,
+  type FeedbackRating,
+  type FeedbackReason,
+} from './components/feedback-control';
 export {
   FileDropZone,
   type FileDropZoneProps,
@@ -218,6 +269,14 @@ export {
   type SourceBadgeProps,
   type SourceKind,
 } from './components/source-badge';
+export {
+  type SourceRef,
+  SourceRefLink,
+  type SourceRefLinkMessages,
+  type SourceRefLinkProps,
+  type SourceRefTarget,
+  sourceRefTarget,
+} from './components/source-ref-link';
 export { Spinner } from './components/spinner';
 export {
   StatTile,
@@ -254,6 +313,7 @@ export {
   statusMarkVariants,
 } from './components/status-mark';
 export { Stepper, type StepperProps, type StepperStep } from './components/stepper';
+export { SuggestedQuestions, type SuggestedQuestionsProps } from './components/suggested-questions';
 export {
   emptyFieldDiff,
   SUGGESTION_MESSAGES,
@@ -280,6 +340,16 @@ export { Tabs, TabsContent, TabsCount, TabsList, TabsTrigger } from './component
 export { Textarea } from './components/textarea';
 export { type ToastOptions, ToastProvider, type ToastUrgency, useToast } from './components/toast';
 export { Tooltip, type TooltipProps, TooltipProvider } from './components/tooltip';
+export {
+  formatTokenCount,
+  USAGE_HIGH_PERCENT,
+  UsageMeter,
+  type UsageLevel,
+  usageLevel,
+  type UsageMeterMessages,
+  type UsageMeterProps,
+  usagePercent,
+} from './components/usage-meter';
 export { cn } from './lib/cn';
 export { type Tone, toneClassNames } from './lib/tone';
 export {
