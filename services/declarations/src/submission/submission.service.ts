@@ -119,8 +119,9 @@ export class SubmissionService {
       );
       if (!review.valid) throw incomplete(review.blocking);
 
-      // The obligation is the Commission's data, which the declarant only reads: the rest of the
-      // transaction also acts in its tenant's context (ADR-018), the person's still set.
+      // The obligation, the version and its items are the Commission's data, which the declarant
+      // only reads: the rest of the transaction writes them in its tenant's context (ADR-018),
+      // the person's still set for the declaration itself.
       await switchTenant(tx, { tenant: declaration.tenant, subject: person.subject });
       const [obligation] = await tx
         .select({

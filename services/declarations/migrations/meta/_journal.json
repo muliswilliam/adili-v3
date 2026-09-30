@@ -134,6 +134,13 @@
       "when": 1790789222951,
       "tag": "0018_acknowledgement_requests_mutable",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1790794809824,
+      "tag": "0019_versions_person_read_only",
+      "breakpoints": true
     }
   ]
 }

@@ -737,14 +737,35 @@ describe('versions and items are insert-only (S21)', () => {
     return version;
   }
 
-  /** The error Postgres raised for `work`, run as the declarant (whose rows RLS lets them touch). */
-  async function refusal(work: Parameters<DeclarationsApi['asPerson']>[1]): Promise<string> {
+  /** The error Postgres raised for `work`, run as the Commission (whose rows RLS lets it update). */
+  async function refusal(work: Parameters<DeclarationsApi['asTenant']>[1]): Promise<string> {
+    return refusalOf(() => api.asTenant('psc', work));
+  }
+
+  /**
+   * The error Postgres raised for `work` with row-level security lifted for the tables' owner,
+   * rolled back either way: no policy admits a delete, or an update of an item, so this is how
+   * the triggers underneath are reached.
+   */
+  async function refusalWithoutRls(work: Parameters<DeclarationsApi['asTenant']>[1]) {
+    return refusalOf(() =>
+      api.db.transaction(async (tx) => {
+        await tx.execute(sql`alter table declaration_versions no force row level security`);
+        await tx.execute(sql`alter table declaration_items no force row level security`);
+        await work(tx);
+        tx.rollback();
+      }),
+    );
+  }
+
+  async function refusalOf(run: () => Promise<unknown>): Promise<string> {
     try {
-      await api.asPerson(ACHIENG, work);
+      await run();
     } catch (error) {
       let cause: unknown = error;
       while (cause instanceof Error && cause.cause) cause = cause.cause;
-      return cause instanceof Error ? cause.message : String(cause);
+      const message = cause instanceof Error ? cause.message : String(cause);
+      if (message !== 'Rollback') return message;
     }
     throw new Error('expected the database to refuse');
   }
@@ -767,9 +788,15 @@ describe('versions and items are insert-only (S21)', () => {
         'declaration_versions is insert-only',
       );
     }
-    expect(await refusal((tx) => tx.delete(declarationVersions).where(at))).toContain(
+    expect(await refusalWithoutRls((tx) => tx.delete(declarationVersions).where(at))).toContain(
       'cannot be deleted',
     );
+    // Under row-level security no policy lets anyone delete one in the first place.
+    expect(
+      await api.asPlatform((tx) =>
+        tx.delete(declarationVersions).where(at).returning({ id: declarationVersions.id }),
+      ),
+    ).toEqual([]);
     const [unchanged] = await versionsOf(version.declarationId);
     expect(unchanged).toEqual(version);
   });
@@ -782,7 +809,7 @@ describe('versions and items are insert-only (S21)', () => {
     );
     const documentId = randomUUID();
 
-    await api.asPerson(ACHIENG, (tx) =>
+    await api.asTenant('psc', (tx) =>
       tx
         .update(declarationVersions)
         .set({
@@ -819,13 +846,74 @@ describe('versions and items are insert-only (S21)', () => {
     const at = eq(declarationItems.versionId, version.id);
 
     expect(
-      await refusal((tx) => tx.update(declarationItems).set({ type: 'other' }).where(at)),
+      await refusalWithoutRls((tx) => tx.update(declarationItems).set({ type: 'other' }).where(at)),
     ).toContain('declaration_items is insert-only');
-    expect(await refusal((tx) => tx.delete(declarationItems).where(at))).toContain(
+    expect(await refusalWithoutRls((tx) => tx.delete(declarationItems).where(at))).toContain(
       'declaration_items is insert-only',
     );
+    // Under row-level security no policy lets anyone change or delete one in the first place.
+    expect(
+      await api.asPlatform(async (tx) => [
+        ...(await tx
+          .update(declarationItems)
+          .set({ type: 'other' })
+          .where(at)
+          .returning({ id: declarationItems.id })),
+        ...(await tx.delete(declarationItems).where(at).returning({ id: declarationItems.id })),
+      ]),
+    ).toEqual([]);
     expect(await api.asPlatform((tx) => tx.select().from(declarationItems).where(at))).toHaveLength(
       3,
     );
+  });
+});
+
+describe('the declarant only reads their versions and items (ADR-018)', () => {
+  it('lets the person axis read them but not insert, change or delete one', async () => {
+    const draft = await completeDraft(ACHIENG);
+    expect((await submit(draft.id, steppedUp(ACHIENG))).statusCode).toBe(201);
+    const [version] = await versionsOf(draft.id);
+    if (!version) throw new Error('no version');
+    const at = and(
+      eq(declarationVersions.id, version.id),
+      eq(declarationVersions.cycleYear, version.cycleYear),
+    );
+    const items = eq(declarationItems.versionId, version.id);
+
+    const seen = await api.asPerson(ACHIENG, async (tx) => ({
+      versions: await tx.select().from(declarationVersions).where(at),
+      items: await tx.select().from(declarationItems).where(items),
+    }));
+    expect(seen.versions).toHaveLength(1);
+    expect(seen.items).toHaveLength(3);
+
+    const changed = await api.asPerson(ACHIENG, async (tx) => ({
+      versions: await tx
+        .update(declarationVersions)
+        .set({ verifiedCount: 7 })
+        .where(at)
+        .returning({ id: declarationVersions.id }),
+      deleted: await tx
+        .delete(declarationItems)
+        .where(items)
+        .returning({ id: declarationItems.id }),
+    }));
+    expect(changed).toEqual({ versions: [], deleted: [] });
+    const [unchanged] = await versionsOf(draft.id);
+    expect(unchanged?.verifiedCount).toBe(0);
+
+    const insert = api.asPerson(ACHIENG, (tx) =>
+      tx.insert(declarationVersions).values({
+        ...version,
+        id: randomUUID(),
+        version: version.version + 1,
+      }),
+    );
+    let cause: unknown = await insert.then(
+      () => null,
+      (error: unknown) => error,
+    );
+    while (cause instanceof Error && cause.cause) cause = cause.cause;
+    expect(cause instanceof Error ? cause.message : cause).toContain('row-level security');
   });
 });

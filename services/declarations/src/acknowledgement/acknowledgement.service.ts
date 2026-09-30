@@ -104,7 +104,12 @@ export class AcknowledgementService {
    */
   async reissue(principal: Principal, declarationId: string, version: number): Promise<void> {
     const now = this.clock.now();
-    await withPerson(this.db, personOf(principal), async (tx) => {
+    const person = personOf(principal);
+    await withPerson(this.db, person, async (tx) => {
+      // The declarant's own version, read through the person axis; the ask is then recorded in
+      // the Commission's context, the declarant never writing through it (ADR-018).
+      const own = notFoundIfInvisible(await versionRow(tx, declarationId, version));
+      await switchTenant(tx, { tenant: own.tenant, subject: person.subject });
       const row = notFoundIfInvisible(await versionRow(tx, declarationId, version, { lock: true }));
       const decision = reissueDecision(row, now);
       if (decision.kind === 'refused') {

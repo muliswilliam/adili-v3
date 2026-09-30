@@ -201,6 +201,8 @@ export interface DeclarationsApi {
   db: Database<DeclarationsSchema>;
   /** Runs `work` in a platform transaction (every tenant's rows). */
   asPlatform<T>(work: (tx: Transaction) => Promise<T>): Promise<T>;
+  /** Runs `work` in a transaction as the Commission (its rows, under tenant RLS). */
+  asTenant<T>(tenant: string, work: (tx: Transaction) => Promise<T>): Promise<T>;
   /** Runs `work` in a transaction as the person (their declarations, under person RLS). */
   asPerson<T>(personId: string, work: (tx: Transaction) => Promise<T>): Promise<T>;
   /** The field cipher, in memory: records calls without plaintext. */
@@ -345,6 +347,7 @@ export async function startDeclarationsApi({
     temporal,
     cipher,
     asPlatform: (work) => withTenant(db, { tenant: 'platform', subject: 'test' }, work),
+    asTenant: (tenant, work) => withTenant(db, { tenant, subject: 'test' }, work),
     asPerson: (personId, work) => withPerson(db, { personId, subject: 'test' }, work),
     steps: app.get(ObligationSteps),
     sweep: app.get(ObligationsSweep),
