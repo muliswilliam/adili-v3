@@ -66,10 +66,10 @@ beforeEach(() => {
   resetDeclarationsMock();
 });
 
-describe('declarationsMock (OBLIGATIONS_MOCK, DECLARATIONS_DRAFTS_MOCK)', () => {
+describe('declarationsMock (OBLIGATIONS_MOCK, DECLARATIONS_MOCK)', () => {
   it('starts a mocked draft for a real obligation, the obligations from the real service', async () => {
     const real = realService();
-    const api = client(declarationsMock({ obligations: false, drafts: true }, real.fetch));
+    const api = client(declarationsMock({ obligations: false, declarations: true }, real.fetch));
 
     const obligations = await loadMyObligations(api);
     const started = await startDeclaration(api, REAL.id);
@@ -93,14 +93,16 @@ describe('declarationsMock (OBLIGATIONS_MOCK, DECLARATIONS_DRAFTS_MOCK)', () => 
   });
 
   it('answers 404 to a start for an obligation the real service does not show', async () => {
-    const api = client(declarationsMock({ obligations: false, drafts: true }, realService().fetch));
+    const api = client(
+      declarationsMock({ obligations: false, declarations: true }, realService().fetch),
+    );
 
     expect(await startDeclaration(api, MOCK_OBLIGATIONS.biennial)).toEqual({ status: 'not-found' });
   });
 
   it('sends the drafts to the real service when only the obligations are mocked', async () => {
     const real = realService();
-    const api = client(declarationsMock({ obligations: true, drafts: false }, real.fetch));
+    const api = client(declarationsMock({ obligations: true, declarations: false }, real.fetch));
 
     const obligations = await loadMyObligations(api);
     await listDeclarations(api);

@@ -1,7 +1,7 @@
 /**
  * In-memory stand-in for the declarations service (declarations.yaml), in two parts with a flag
  * each: the declarant's obligations (OBLIGATIONS_MOCK, spec 04), and declaration drafts
- * (DECLARATIONS_DRAFTS_MOCK), to work on the portal without the service and for spec 05's
+ * (DECLARATIONS_MOCK), to work on the portal without the service and for spec 05's
  * endpoints until the service implements them (#115). Requests of a part that is off go to the
  * real service, so real obligations work with mocked drafts. Every signed-in caller shares one
  * draft store; the service scopes drafts to their owner.
@@ -302,8 +302,11 @@ export function editElsewhere(declarationId: string) {
 export interface DeclarationsMockParts {
   /** The declarant's obligations and one obligation's detail (OBLIGATIONS_MOCK). */
   obligations: boolean;
-  /** Declaration drafts: everything else (DECLARATIONS_DRAFTS_MOCK). */
-  drafts: boolean;
+  /**
+   * Everything else: drafts, submission, versions, amendments and acknowledgements
+   * (DECLARATIONS_MOCK).
+   */
+  declarations: boolean;
 }
 
 /** A client fetch answering `parts` in memory and passing the rest to the real service. */
@@ -316,7 +319,7 @@ export function declarationsMock(
 
 /** The whole service in memory (tests). */
 export function mockDeclarationsFetch(request: Request): Promise<Response> {
-  return route(request, { obligations: true, drafts: true }, () =>
+  return route(request, { obligations: true, declarations: true }, () =>
     Promise.reject(new Error('every part is mocked')),
   );
 }
@@ -336,7 +339,7 @@ async function route(
   if (isObligationRead(request, path)) {
     return parts.obligations ? (obligationReads(request, path) ?? real(request)) : real(request);
   }
-  if (!parts.drafts) return real(request);
+  if (!parts.declarations) return real(request);
   if (method === 'GET' && path === '/v1/me/declarations') return myDeclarations();
 
   const start = /^\/v1\/obligations\/([^/]+)\/declaration$/.exec(path);
