@@ -18,7 +18,7 @@ import {
   type DocumentIssuedData,
   type DocumentSupersededData,
 } from '@adili/events/contracts';
-import { and, eq } from 'drizzle-orm';
+import { and, eq, sql } from 'drizzle-orm';
 import { v7 as uuidv7 } from 'uuid';
 
 import { config } from '../config.js';
@@ -210,7 +210,7 @@ export class IssuanceService {
             type: DOCUMENT_ISSUED,
             subject: documentId,
             tenant: request.tenant,
-            data: eventData(document, inserted) satisfies DocumentIssuedData,
+            data: this.eventData(document, inserted) satisfies DocumentIssuedData,
           });
           return this.toIssuedDocument(document, inserted);
         },
@@ -289,7 +289,7 @@ export class IssuanceService {
             subject: current.document.id,
             tenant: request.tenant,
             data: {
-              ...eventData(current.document, updated),
+              ...this.eventData(current.document, updated),
               supersededBy: newer.document.id,
               supersededByVerificationId: newer.record.id,
               statusChangedAt: statusChangedAt.toISOString(),
@@ -302,6 +302,60 @@ export class IssuanceService {
       if (error instanceof IssuanceDependencyUnavailable) throw dependencyProblem(error);
       throw error;
     }
+  }
+
+  /**
+   * Records `document.issued.v1` again for a document issued earlier, with its record as it is
+   * now: for a consumer that missed the first announcement (a reissue of a slip that was issued).
+   * 404 when the document is not the tenant's.
+   */
+  async announce(tenant: string, actor: string, documentId: string): Promise<void> {
+    await withTenant(this.db, { tenant, subject: actor }, async (tx) => {
+      const [found] = await tx
+        .select({ document: issuedDocuments, record: verificationRecords })
+        .from(issuedDocuments)
+        .innerJoin(verificationRecords, eq(verificationRecords.documentId, issuedDocuments.id))
+        .where(eq(issuedDocuments.id, documentId));
+      if (!found) throw notFound();
+      await this.events.record(tx, {
+        type: DOCUMENT_ISSUED,
+        subject: found.document.id,
+        tenant,
+        data: this.eventData(found.document, found.record) satisfies DocumentIssuedData,
+      });
+    });
+  }
+
+  /**
+   * The tenant's valid documents of the type about the reference number (by their public
+   * payload), with the version of what each is about: e.g. the acknowledgement slips of a
+   * declaration's versions not yet superseded.
+   */
+  async validOfReference(
+    tenant: string,
+    type: string,
+    reference: string,
+  ): Promise<{ documentId: string; version: number | null }[]> {
+    const rows = await withTenant(this.db, { tenant, subject: 'documents' }, (tx) =>
+      tx
+        .select({
+          documentId: verificationRecords.documentId,
+          payload: verificationRecords.publicPayload,
+        })
+        .from(verificationRecords)
+        .where(
+          and(
+            eq(verificationRecords.tenant, tenant),
+            eq(verificationRecords.documentType, type),
+            sql`(${verificationRecords.publicPayload}->>'reference') = ${reference}`,
+            eq(verificationRecords.status, 'valid'),
+          ),
+        ),
+    );
+    return rows.map((row) => ({
+      documentId: row.documentId,
+      version: row.payload?.version ?? null,
+    }));
   }
 
   /** A document the caller is the subject person of; anyone else gets 404. */
@@ -406,6 +460,24 @@ export class IssuanceService {
     return new URL(`/v/${verificationId}`, this.verifyBaseUrl).toString();
   }
 
+  /** The fields of every document event: identifiers and the public payload, nothing else. */
+  private eventData(document: DocumentRow, record: RecordRow): DocumentEventData {
+    return {
+      documentId: document.id,
+      verificationId: record.id,
+      documentType: document.type,
+      templateVersion: document.templateVersion,
+      disclosureLevel: document.disclosureLevel,
+      issuerTenant: document.tenant,
+      subjectRef: document.subjectRef,
+      publicPayload: record.publicPayload,
+      verifyUrl: this.verifyUrlOf(record.id),
+      sha256: document.sha256,
+      issuedAt: document.issuedAt.toISOString(),
+      status: record.status,
+    };
+  }
+
   private toIssuedDocument(document: DocumentRow, record: RecordRow): IssuedDocument {
     return {
       id: document.id,
@@ -422,23 +494,6 @@ export class IssuanceService {
       issuedAt: document.issuedAt.toISOString(),
     };
   }
-}
-
-/** The fields of every document event: identifiers and the public payload, nothing else. */
-function eventData(document: DocumentRow, record: RecordRow): DocumentEventData {
-  return {
-    documentId: document.id,
-    verificationId: record.id,
-    documentType: document.type,
-    templateVersion: document.templateVersion,
-    disclosureLevel: document.disclosureLevel,
-    issuerTenant: document.tenant,
-    subjectRef: document.subjectRef,
-    publicPayload: record.publicPayload,
-    sha256: document.sha256,
-    issuedAt: document.issuedAt.toISOString(),
-    status: record.status,
-  };
 }
 
 /** The signed form of a stored record whose superseding document is not needed (valid). */

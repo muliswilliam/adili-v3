@@ -321,6 +321,7 @@ describe('S9 issuing an acknowledgement slip', () => {
     expect(event?.envelope.data).toEqual({
       documentId: document.id,
       verificationId: document.verificationId,
+      verifyUrl: document.verifyUrl,
       documentType: 'acknowledgement-slip',
       templateVersion: 1,
       disclosureLevel: 'restricted',

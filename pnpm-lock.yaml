@@ -1674,6 +1674,9 @@ importers:
       '@swc/core':
         specifier: ^1.16.2
         version: 1.16.2
+      '@types/amqplib':
+        specifier: ^0.10.8
+        version: 0.10.8
       '@types/node':
         specifier: ^24.0.0
         version: 24.13.6
@@ -1686,6 +1689,9 @@ importers:
       ajv-formats:
         specifier: ^3.0.1
         version: 3.0.1(ajv@8.20.0)
+      amqplib:
+        specifier: ^2.0.1
+        version: 2.0.1
       drizzle-kit:
         specifier: ^0.31.11
         version: 0.31.11
@@ -1698,6 +1704,9 @@ importers:
       jsqr:
         specifier: ^1.4.0
         version: 1.4.0
+      openapi-typescript:
+        specifier: ^7.13.0
+        version: 7.13.0(typescript@6.0.3)
       pdfjs-dist:
         specifier: ^6.3.289
         version: 6.3.289

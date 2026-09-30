@@ -32,6 +32,11 @@ export const envSchema = baseEnvSchema.extend({
    * (the demo's verify app on its own port, so a demo slip resolves on the demo machine).
    */
   VERIFY_BASE_URL: z.url(),
+  /** The declarations service, whose internal API an acknowledgement slip's payload comes from. */
+  DECLARATIONS_API_URL: z.url(),
+  /** The service's confidential Keycloak client (client credentials, `declarations:internal`). */
+  KEYCLOAK_CLIENT_ID: z.string().min(1).default('documents'),
+  KEYCLOAK_CLIENT_SECRET: z.string().min(1),
 });
 
 export type Env = z.infer<typeof envSchema>;
