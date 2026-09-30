@@ -37,7 +37,8 @@
  * the obligation is open: before its statement date 409 `before-statement-date`, cancelled 409
  * `obligation-cancelled`, an amendment after the due date 409 `amendment-window-closed`. Then
  * the declaration is `submitted` with a new version: the reference is allocated on version 1
- * (`DCB-TSC-2027-0000001-B`), `late` when after the due date, the acknowledgement `pending`.
+ * (`DCB-TSC-2027-0000001-B`), `late` when after the due date, the acknowledgement `pending`,
+ * and the obligations mock reads its obligation `filed` from then on.
  * Summaries answer `cannotSubmitReason` as the service does (the refusal first, then
  * `incomplete`), `canSubmit` when there is none, and `late` after the due date. The slip is
  * issued a few seconds later, or reads failed a minute on, when it can be asked for again
@@ -85,7 +86,13 @@ import {
   resetAcknowledgementMock,
   slipRequested,
 } from './mock/acknowledgement';
-import { anyMockObligation, isObligationRead, obligationReads } from './mock/obligations';
+import {
+  anyMockObligation,
+  fileMockObligation,
+  isObligationRead,
+  obligationReads,
+  resetObligationsMock,
+} from './mock/obligations';
 import { composeMaterialChanges, otherCompleteness } from './mock/other';
 import { nilConflictsWithItems, statementCompleteness } from './mock/statement';
 import {
@@ -272,6 +279,7 @@ export function resetDeclarationsMock() {
   resetSuggestionsMock();
   resetSubmissionMock();
   resetAcknowledgementMock();
+  resetObligationsMock();
 }
 
 /** The next `count` section saves answer 503 (tests). */
@@ -623,7 +631,7 @@ function startDeclaration(obligationId: string, obligation: Obligation | undefin
   if (obligation.status === 'filed' || obligation.status === 'cancelled') {
     return problem(409, `The obligation is ${obligation.status}`);
   }
-  // Filed here, though the obligation fixtures do not know it.
+  // Filed here, though a real obligation (the obligations mock off) does not know it.
   const filed = [...store.values()].some(
     (stored) =>
       stored.header.obligationId === obligationId &&
@@ -1047,6 +1055,7 @@ function submitDeclaration(request: Request, id: string) {
   stored.header.currentVersion = version.version;
   stored.header.amendingFromVersion = null;
   stored.updatedAt = now;
+  fileMockObligation(stored.header.obligationId);
   const result: SubmissionResult = {
     declaration: view(stored),
     version,

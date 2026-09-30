@@ -19,6 +19,7 @@ import {
   setSlipIssuance,
 } from './declarations/mock.server';
 import type { paths } from './declarations/schema.gen';
+import { loadMyObligations, loadObligation } from './obligations.server';
 import {
   loadSubmission,
   readAcknowledgement,
@@ -169,6 +170,78 @@ describe('submitting (S1, S2)', () => {
       await submitDeclaration(steppedUp, { declarationId: id, idempotencyKey: key() }),
     );
     expect(result.version.late).toBe(true);
+  });
+});
+
+describe('the obligations mock sees what the declarations mock filed, as the service does', () => {
+  /** Grace, whose PSC final declaration is overdue. */
+  const grace = () =>
+    client(
+      bearer({
+        person_id: '8d7f3a90-2b1c-4e5d-a6f7-9081a2b3c4d5',
+        acr: 'step-up',
+        auth_time: Date.now() / 1000 - 60,
+      }),
+    );
+
+  async function obligationsOf(declarant: ReturnType<typeof client>) {
+    const listed = await loadMyObligations(declarant);
+    if (listed.status !== 'ok') throw new Error(listed.status);
+    return listed.groups.flatMap((group) => group.obligations);
+  }
+
+  /** The obligation's status in the list and in its detail, which agree. */
+  async function statusOf(obligationId: string, declarant = client()) {
+    const loaded = await loadObligation(declarant, obligationId);
+    if (loaded.status !== 'ok') throw new Error(loaded.status);
+    const listed = (await obligationsOf(declarant)).find(({ id }) => id === obligationId);
+    expect(listed?.status).toBe(loaded.obligation.status);
+    return loaded.obligation.status;
+  }
+
+  async function submit(declarationId: string, declarant = client()) {
+    submittedOf(await submitDeclaration(declarant, { declarationId, idempotencyKey: key() }));
+  }
+
+  it('lists the obligation filed once submitted, and a second start is refused', async () => {
+    const initial = (await obligationsOf(client())).find(({ type }) => type === 'initial');
+    const obligationId = initial?.id ?? '';
+    expect(initial?.status).toBe('due');
+    const id = await completeDraft(obligationId);
+    expect(await statusOf(obligationId)).toBe('due');
+
+    await submit(id);
+
+    expect(await statusOf(obligationId)).toBe('filed');
+    expect(await startDeclaration(client(), obligationId)).toEqual({ status: 'not-open' });
+  });
+
+  it('keeps it filed through an amendment and its discard', async () => {
+    const initial = (await obligationsOf(client())).find(({ type }) => type === 'initial');
+    const obligationId = initial?.id ?? '';
+    const id = await completeDraft(obligationId);
+    await submit(id);
+    const path = { params: { path: { declarationId: id } } };
+
+    await client().POST('/v1/declarations/{declarationId}/amend', path);
+    expect(await statusOf(obligationId)).toBe('filed');
+    await client().POST('/v1/declarations/{declarationId}/amend/discard', path);
+    expect(await statusOf(obligationId)).toBe('filed');
+  });
+
+  it('files an overdue obligation too, late, and leaves the others as they were', async () => {
+    const before = await obligationsOf(grace());
+    const overdue = before.find(({ status }) => status === 'overdue');
+    const obligationId = overdue?.id ?? '';
+    const id = await completeDraft(obligationId);
+
+    await submit(id, grace());
+
+    expect(await statusOf(obligationId, grace())).toBe('filed');
+    const [declaration] = (await grace().GET('/v1/me/declarations')).data ?? [];
+    expect(declaration).toMatchObject({ obligationId, late: true, currentVersion: 1 });
+    const others = (await obligationsOf(grace())).filter(({ id: other }) => other !== obligationId);
+    expect(others).toEqual(before.filter(({ id: other }) => other !== obligationId));
   });
 });
 

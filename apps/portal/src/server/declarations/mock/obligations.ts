@@ -10,6 +10,9 @@
  *   Commission
  * - anyone else with a `person_id` (the realm's demo `declarant`): a due initial declaration
  *   and the upcoming biennial at the Teachers Service Commission
+ *
+ * A submission to the declarations mock files its obligation (`fileMockObligation`), as the
+ * service's submit transaction does: from then on it reads `filed`, through amendments too.
  */
 import { formatCalendarDate } from '@adili/ui';
 
@@ -49,6 +52,19 @@ function at(date: string, time: string): string {
   return new Date(`${date}T${time}:00+03:00`).toISOString();
 }
 
+/** The obligations a submission to the declarations mock has filed. */
+const filed = new Set<string>();
+
+/** Files an obligation, as the service does when a declaration for it is submitted. */
+export function fileMockObligation(id: string) {
+  filed.add(id);
+}
+
+/** Forgets every filing (tests). */
+export function resetObligationsMock() {
+  filed.clear();
+}
+
 function statusOn(statementDate: string, dueDate: string): Obligation['status'] {
   const today = day(0);
   if (today < statementDate) return 'upcoming';
@@ -79,7 +95,7 @@ function detail(fixture: Fixture): ObligationDetail {
       type === 'biennial' ? `biennial:${statementDate.slice(0, 4)}` : `${type}:${statementDate}`,
     statementDate,
     dueDate,
-    status: statusOn(statementDate, dueDate),
+    status: filed.has(id) ? 'filed' : statusOn(statementDate, dueDate),
     cancelReason: null,
     remindersSent: reminders.filter((reminder) => reminder.outcome === 'sent').length,
     policyVersion: 1,
