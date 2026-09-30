@@ -27,10 +27,13 @@ export function mockableClient<Paths extends object>({
   timeoutMs,
   mock,
 }: MockableClientOptions): Client<Paths> {
-  const send = mock && process.env.NODE_ENV !== 'production' ? mock : fetch;
+  const send: (request: Request, init: RequestInit) => Promise<Response> =
+    mock && process.env.NODE_ENV !== 'production' ? mock : fetch;
   return createClient<Paths>({
     baseUrl,
     headers: { accept: 'application/json', ...headers },
-    fetch: (request) => send(new Request(request, { signal: AbortSignal.timeout(timeoutMs) })),
+    // The deadline goes to fetch itself: held only by a Request, a timeout signal can be
+    // garbage collected before it fires.
+    fetch: (request) => send(request, { signal: AbortSignal.timeout(timeoutMs) }),
   });
 }
