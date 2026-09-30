@@ -196,9 +196,19 @@ export async function startReviewApi(): Promise<ReviewApi> {
       clock.reset();
     },
     async close() {
-      // Closing the app ends the pool (DatabaseModule lifecycle), so drop the schema first.
-      await db.execute(sql.raw(`drop schema if exists ${pgSchema} cascade`));
+      // Close the app first: its worker drains in-flight activities while the pool and the HTTP
+      // routes they call back into still work. Dropping the schema under a running activity can
+      // hang for good: the decision letter activity holds a row lock while the fake documents
+      // service pulls the payload over HTTP, and that read queues behind the drop, which waits
+      // for the lock (a wait Postgres cannot see as a deadlock). Closing the app ends the pool
+      // (DatabaseModule lifecycle), so the drop takes a connection of its own.
       await app.close();
+      const admin = createDatabase({ url: baseUrl, schema: {}, applicationName: 'review-test' });
+      try {
+        await admin.execute(sql.raw(`drop schema if exists ${pgSchema} cascade`));
+      } finally {
+        await admin.$client.end();
+      }
     },
   };
 }
