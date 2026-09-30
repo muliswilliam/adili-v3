@@ -5,10 +5,11 @@ This is **not** the production architecture. The platform design is:
 | Environment | Where | How |
 |---|---|---|
 | Local | laptop | `pnpm infra:up` (Compose) |
-| Hackathon demo | 3-node Dokploy / Swarm + Traefik | same container images |
+| Hackathon demo | 3-node Dokploy / Swarm + Traefik | per-app container images (ADR-012) |
+| Hackathon stand-in | Azure VM, South Africa North | Compose for infra; `pnpm dev` for apps (ADR-016) |
 | EACC production | Kenyan DCs (Konza / Nairobi), RKE2, Ceph | Helm, not Azure |
 
-Azure is a **credit-funded stand-in for the Dokploy demo host**. It runs the same Compose file and the same Keycloak image (`adili/keycloak:dev`, realm `adili`, OTP extension, theme). Do not replace Keycloak with Microsoft Entra ID.
+Azure is a **credit-funded stand-in for the Dokploy demo host** ([ADR-016](../../docs/adr/0016-azure-vm-demo-stand-in.md)). It runs the same Compose file and the same Keycloak image (`adili/keycloak:dev`, realm `adili`, OTP extension, theme). Apps on this VM are `pnpm dev`, not the CI-built images. Do not replace Keycloak with Microsoft Entra ID.
 
 ## What is Terraform vs what is not
 
@@ -21,7 +22,7 @@ Terraform in this directory creates the **Azure resources**. The demo **stack** 
 | Static public IP + DNS label | App `.env` files (`configure-app-env.sh`) |
 | Basic ACR + `AcrPull` (unused until we push images) | `pnpm bootstrap`, `db:migrate`, systemd `adili-apps` |
 
-State is **local** (`terraform.tfstate`, gitignored). CI does not `terraform apply`. Pushes to `main` rsync the repo onto the existing VM and run `deploy.sh`.
+State is **local** (`terraform.tfstate`, gitignored). CI does not `terraform apply`. After CI on `main`, the workflow rsyncs the repo onto the existing VM and runs `deploy.sh`.
 
 ## What Terraform creates
 
@@ -89,23 +90,23 @@ Caddy terminates TLS with Let's Encrypt. Set `letsencrypt_email` in `terraform.t
 - No custom domain: `https://<dns_label>.<region>.cloudapp.azure.com` (portal on 443), console `:3020`, verify `:3030`, Keycloak `:8080`. Run `sudo /opt/adili/infra/azure/enable-https.sh` on the VM, then `configure-app-env.sh` and restart `adili-apps`.
 - Custom domain: A records for `portal`, `console`, `verify` and `auth` at `terraform output -raw public_ip`. Set `custom_domain` and re-apply. NSG then only needs 22/80/443.
 
-## CI/CD (pushes to `main`)
+## CI/CD (after CI on `main`)
 
-`.github/workflows/azure-demo.yml` runs on every push to `main` (and on `workflow_dispatch`):
+`.github/workflows/azure-demo.yml` deploys when the CI workflow succeeds on `main` (`workflow_run`) and on `workflow_dispatch`:
 
 1. rsync the checkout to `/opt/adili` (keeps `.env`, `node_modules`, `.venv`)
-2. `sudo /opt/adili/infra/azure/deploy.sh` — Compose `up`, Caddy reload, `pnpm bootstrap`, migrate, restart `adili-apps`
+2. `/opt/adili/infra/azure/deploy.sh` as `adili` - Compose `up`, Caddy reload, `pnpm bootstrap`, migrate, restart `adili-apps`
 3. curl the HTTPS portal, console and Keycloak issuer until they return 200
 
-It does **not** re-seed, re-issue certificates, or `terraform apply`.
+It does **not** re-seed, re-issue certificates, or `terraform apply`. The SSH host key is pinned in `infra/azure/known_hosts`.
 
-Repo secret (Actions → Secrets):
+Repo secret (Actions -> Secrets):
 
 | Name | Value |
 |---|---|
 | `AZURE_DEMO_SSH_KEY` | Private ed25519 key whose public half is in `~adili/.ssh/authorized_keys` on the VM |
 
-The `adili` user may passwordless-sudo only `deploy.sh` (`infra/azure/sudoers`). PRs that touch `infra/azure` also `terraform fmt` / `validate` (no Azure credentials).
+`adili` may passwordless-sudo only `/usr/local/sbin/adili-demo-root` (root-owned, not in the rsync tree). PRs that touch `infra/azure` also `terraform fmt` / `validate` (no Azure credentials).
 
 ## Keycloak specifics that must stay
 

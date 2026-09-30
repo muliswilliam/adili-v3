@@ -660,6 +660,14 @@ flowchart TB
 - Demo accounts for every role, synthetic seed data, one-command reset.
 - Deploy instructions + a recorded demo backup (agenda requirement).
 
+### Hackathon stand-in (Azure VM)
+
+Until Dokploy is up, a **credit-funded Azure VM** in South Africa North is the public demo ([ADR-016](../adr/0016-azure-vm-demo-stand-in.md)). Same Compose stack and Keycloak image as local. Portal, console, verify and the NestJS services run with `pnpm dev` behind Caddy. This is not the production design and not Entra ID.
+
+- Host: `https://adili-demo.southafricanorth.cloudapp.azure.com` (console `:3020`, verify `:3030`, Keycloak `:8080`).
+- Terraform: `infra/azure` (Azure resources only). Pushes to `main` rsync and restart apps after CI; they do not `terraform apply`.
+- `TRUSTED_PROXY_HOPS=1` because Caddy is the only public proxy.
+
 ### Production target (EACC)
 
 ```mermaid
@@ -810,6 +818,7 @@ adili-v3/
 | [013](../adr/0013-service-communication.md) | Service-to-service communication (REST · events · Temporal) |
 | [014](../adr/0014-roster-gated-declarant-onboarding.md) | Roster-gated declarant onboarding (EACC-provisioned Commissions, file-number match, email + phone OTP) |
 | [015](../adr/0015-java-for-keycloak-providers.md) | Java (Maven) for Keycloak providers only, e.g. the `adili-otp` authenticator |
+| [016](../adr/0016-azure-vm-demo-stand-in.md) | Azure VM as a credit-funded stand-in for the Dokploy demo host |
 
 ---
 

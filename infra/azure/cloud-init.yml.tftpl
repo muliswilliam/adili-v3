@@ -21,7 +21,14 @@ write_files:
       ADILI_USE_CUSTOM_DOMAIN=${use_custom_domain}
       ADILI_CUSTOM_DOMAIN=${custom_domain}
       ADILI_LETSENCRYPT_EMAIL=${letsencrypt_email}
+      ADILI_TLS=1
       ADILI_ACR_NAME=${acr_name}
+  - path: /etc/sudoers.d/adili-demo
+    owner: root:root
+    permissions: "0440"
+    content: |
+      ${admin_username} ALL=(root) NOPASSWD: /usr/local/sbin/adili-demo-root
+%{ if use_custom_domain ~}
   - path: /etc/adili/Caddyfile
     owner: root:root
     permissions: "0644"
@@ -31,32 +38,29 @@ write_files:
       }
 
       portal.${custom_domain} {
-        reverse_proxy 127.0.0.1:3010
+        reverse_proxy 127.0.0.1:13010
       }
 
       console.${custom_domain} {
-        reverse_proxy 127.0.0.1:3020
+        reverse_proxy 127.0.0.1:13020
       }
 
       verify.${custom_domain} {
-        reverse_proxy 127.0.0.1:3030
+        reverse_proxy 127.0.0.1:13030
       }
 
       auth.${custom_domain} {
-        reverse_proxy 127.0.0.1:8080
+        reverse_proxy 127.0.0.1:18080
       }
-  - path: /etc/sudoers.d/adili-demo
-    owner: root:root
-    permissions: "0440"
-    content: |
-      ${admin_username} ALL=(root) NOPASSWD: /opt/adili/infra/azure/deploy.sh
+%{ endif ~}
 
 runcmd:
   - usermod -aG docker ${admin_username}
   - systemctl enable --now docker
   - mkdir -p /opt/adili
   - chown ${admin_username}:${admin_username} /opt/adili
-  - |
-    systemctl enable caddy
-    install -m 644 /etc/adili/Caddyfile /etc/caddy/Caddyfile
-    systemctl restart caddy
+  - systemctl enable caddy
+%{ if use_custom_domain ~}
+  - install -m 644 /etc/adili/Caddyfile /etc/caddy/Caddyfile
+  - systemctl restart caddy
+%{ endif ~}

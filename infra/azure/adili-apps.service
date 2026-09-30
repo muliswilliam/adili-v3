@@ -10,6 +10,7 @@ Group=adili
 WorkingDirectory=/opt/adili
 Environment=HOME=/home/adili
 Environment=PATH=/usr/bin:/usr/local/bin:/home/adili/.local/bin:/home/adili/.local/share/pnpm
+Environment=ADILI_DEMO_BIND=1
 EnvironmentFile=/etc/adili/public.env
 ExecStart=/usr/bin/pnpm dev
 Restart=on-failure

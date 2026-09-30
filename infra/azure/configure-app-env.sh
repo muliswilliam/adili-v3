@@ -10,13 +10,12 @@ PUBLIC_ENV="${ADILI_PUBLIC_ENV:-/etc/adili/public.env}"
 . "$PUBLIC_ENV"
 
 issuer="${KC_HOSTNAME%/}/realms/adili"
-s3_public="https://${ADILI_PUBLIC_BASE}:8333"
-scheme="$(printf '%s' "$ADILI_PORTAL_URL" | cut -c1-5)"
-if [ "$scheme" = "https" ]; then
+if [ "${ADILI_TLS:-}" = "1" ] || [ "${ADILI_TLS:-}" = "true" ]; then
   portal_port=13010
   console_port=13020
   verify_port=13030
   proxy_hops=1
+  s3_public="https://${ADILI_PUBLIC_BASE}:8333"
 else
   portal_port=3010
   console_port=3020
@@ -54,13 +53,16 @@ set_env "$ROOT/apps/portal/.env" APP_URL "${ADILI_PORTAL_URL}"
 set_env "$ROOT/apps/portal/.env" OIDC_ISSUER_URL "$issuer"
 set_env "$ROOT/apps/portal/.env" PORT "$portal_port"
 set_env "$ROOT/apps/portal/.env" TRUSTED_PROXY_HOPS "$proxy_hops"
+set_env "$ROOT/apps/portal/.env" ADILI_DEMO_BIND 1
 
 set_env "$ROOT/apps/console/.env" APP_URL "${ADILI_CONSOLE_URL}"
 set_env "$ROOT/apps/console/.env" OIDC_ISSUER_URL "$issuer"
 set_env "$ROOT/apps/console/.env" PORT "$console_port"
+set_env "$ROOT/apps/console/.env" ADILI_DEMO_BIND 1
 
 set_env "$ROOT/apps/verify/.env" APP_URL "${ADILI_VERIFY_URL}"
 set_env "$ROOT/apps/verify/.env" PORT "$verify_port"
+set_env "$ROOT/apps/verify/.env" ADILI_DEMO_BIND 1
 
 set_env "$ROOT/services/documents/.env" S3_PUBLIC_ENDPOINT "$s3_public"
 

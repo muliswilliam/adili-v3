@@ -12,6 +12,8 @@ if [ "$(id -u)" -ne 0 ]; then
   echo "Run as root: sudo $0" >&2
   exit 1
 fi
+install -o root -g root -m 755 "$ROOT/infra/azure/adili-demo-root.sh" /usr/local/sbin/adili-demo-root
+install -o root -g root -m 440 "$ROOT/infra/azure/sudoers" /etc/sudoers.d/adili-demo
 systemctl stop adili-apps 2>/dev/null || true
 if [ ! -f "$PUBLIC_ENV" ]; then
   echo "Missing $PUBLIC_ENV" >&2
@@ -43,6 +45,11 @@ sed \
 if ! grep -q '^ADILI_LETSENCRYPT_EMAIL=' "$tmp_env"; then
   echo "ADILI_LETSENCRYPT_EMAIL=${email}" >>"$tmp_env"
 fi
+if grep -q '^ADILI_TLS=' "$tmp_env"; then
+  sed -i 's|^ADILI_TLS=.*|ADILI_TLS=1|' "$tmp_env"
+else
+  echo "ADILI_TLS=1" >>"$tmp_env"
+fi
 install -m 644 "$tmp_env" "$PUBLIC_ENV"
 rm -f "$tmp_env"
 
@@ -55,29 +62,7 @@ sed \
   -e "s|__HOST__|${host}|g" \
   "$CADDYFILE_SRC" >"$CADDYFILE_DST"
 
-python3 - "$ROOT/infra/compose/keycloak/adili-realm.json" <<'PY'
-import json, os, sys
-path = sys.argv[1]
-portal = os.environ["ADILI_PORTAL_URL"].rstrip("/")
-console = os.environ["ADILI_CONSOLE_URL"].rstrip("/")
-with open(path, encoding="utf-8") as fh:
-    realm = json.load(fh)
-realm["sslRequired"] = "none"
-for client in realm.get("clients", []):
-    cid = client.get("clientId")
-    if cid == "portal":
-        client["redirectUris"] = [f"{portal}/*"]
-        client["webOrigins"] = [portal]
-        client.setdefault("attributes", {})["post.logout.redirect.uris"] = f"{portal}/*"
-    if cid == "console":
-        client["redirectUris"] = [f"{console}/*"]
-        client["webOrigins"] = [console]
-        client.setdefault("attributes", {})["post.logout.redirect.uris"] = f"{console}/*"
-with open(path, "w", encoding="utf-8") as fh:
-    json.dump(realm, fh, indent=2)
-    fh.write("\n")
-print(f"Realm redirects: portal={portal} console={console}")
-PY
+python3 "$ROOT/infra/azure/patch-realm.py" "$ROOT/infra/compose/keycloak/adili-realm.json"
 
 COMPOSE="$ROOT/infra/compose/docker-compose.yml"
 OVERLAY="$ROOT/infra/compose/docker-compose.azure.yml"
@@ -104,9 +89,6 @@ docker exec adili-keycloak-1 /opt/keycloak/bin/kcadm.sh update "clients/${consol
   -s "redirectUris=[\"${ADILI_CONSOLE_URL}/*\"]" \
   -s "webOrigins=[\"${ADILI_CONSOLE_URL}\"]" \
   -s "attributes.\"post.logout.redirect.uris\"=${ADILI_CONSOLE_URL}/*"
-
-systemctl enable caddy
-systemctl restart caddy
 
 systemctl enable caddy
 systemctl restart caddy

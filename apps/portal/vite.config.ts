@@ -13,10 +13,15 @@ function ignoreUseClientDirectives(
 }
 
 const port = Number(process.env.PORT) || 3010;
+const demoBind = process.env.ADILI_DEMO_BIND === '1';
 
 export default defineConfig({
-  server: { host: true, allowedHosts: true, port, strictPort: true },
-  preview: { host: true, port, strictPort: true },
+  server: {
+    ...(demoBind ? { host: true, allowedHosts: true as const } : {}),
+    port,
+    strictPort: true,
+  },
+  preview: { ...(demoBind ? { host: true } : {}), port, strictPort: true },
   resolve: { tsconfigPaths: true },
   build: { rolldownOptions: { onwarn: ignoreUseClientDirectives } },
   plugins: [

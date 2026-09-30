@@ -17,35 +17,16 @@ if [ ! -f "$COMPOSE" ]; then
   exit 1
 fi
 
+if [ "$(id -u)" -eq 0 ]; then
+  install -o root -g root -m 755 "$ROOT/infra/azure/adili-demo-root.sh" /usr/local/sbin/adili-demo-root
+  install -o root -g root -m 440 "$ROOT/infra/azure/sudoers" /etc/sudoers.d/adili-demo
+fi
+
 # shellcheck disable=SC1090
 . "$PUBLIC_ENV"
 
 export KC_HOSTNAME ADILI_CONSOLE_URL ADILI_PORTAL_URL
-
-python3 - "$ROOT/infra/compose/keycloak/adili-realm.json" <<'PY'
-import json, os, sys
-path = sys.argv[1]
-portal = os.environ["ADILI_PORTAL_URL"].rstrip("/")
-console = os.environ["ADILI_CONSOLE_URL"].rstrip("/")
-with open(path, encoding="utf-8") as fh:
-    realm = json.load(fh)
-# HTTP Azure hostname: Keycloak sslRequired=external 403s browsers on a public IP.
-realm["sslRequired"] = "none"
-for client in realm.get("clients", []):
-    cid = client.get("clientId")
-    if cid == "portal":
-        client["redirectUris"] = [f"{portal}/*"]
-        client["webOrigins"] = [portal]
-        client.setdefault("attributes", {})["post.logout.redirect.uris"] = f"{portal}/*"
-    if cid == "console":
-        client["redirectUris"] = [f"{console}/*"]
-        client["webOrigins"] = [console]
-        client.setdefault("attributes", {})["post.logout.redirect.uris"] = f"{console}/*"
-with open(path, "w", encoding="utf-8") as fh:
-    json.dump(realm, fh, indent=2)
-    fh.write("\n")
-print(f"Realm redirects: portal={portal} console={console}")
-PY
+python3 "$ROOT/infra/azure/patch-realm.py" "$ROOT/infra/compose/keycloak/adili-realm.json"
 
 echo "Starting compose (Keycloak image builds on first run; several minutes)."
 docker compose -f "$COMPOSE" -f "$OVERLAY" up -d --wait postgres valkey rabbitmq openbao mailpit otel-collector

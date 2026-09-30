@@ -1,16 +1,17 @@
 name: Azure demo
 
-# The demo VM is created by Terraform on a laptop (state is local, not applied here).
-# This workflow ships the repo onto that VM after a push to main.
+# Terraform creates the VM on a laptop (state is local). This workflow ships the
+# repo onto that VM after CI on main succeeds.
 
 on:
-  push:
-    branches: [main]
   pull_request:
     paths:
       - 'infra/azure/**'
       - 'infra/compose/docker-compose.azure.yml'
       - '.github/workflows/azure-demo.yml'
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
   workflow_dispatch:
 
 concurrency:
@@ -27,7 +28,7 @@ env:
 jobs:
   terraform:
     name: Terraform validate
-    if: github.event_name != 'workflow_dispatch'
+    if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -43,10 +44,16 @@ jobs:
 
   deploy:
     name: Deploy to Azure VM
-    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'workflow_run' &&
+       github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.head_branch == 'main')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
       - name: SSH key
         env:
           SSH_KEY: ${{ secrets.AZURE_DEMO_SSH_KEY }}
@@ -55,13 +62,13 @@ jobs:
           install -m 700 -d ~/.ssh
           printf '%s\n' "$SSH_KEY" > ~/.ssh/id_ed25519
           chmod 600 ~/.ssh/id_ed25519
-          ssh-keyscan -H "$AZURE_DEMO_HOST" >> ~/.ssh/known_hosts
+          install -m 644 infra/azure/known_hosts ~/.ssh/known_hosts
       - name: Sync repo to /opt/adili
         run: |
           rsync -az --delete --exclude-from=infra/azure/rsync-exclude \
             ./ "${AZURE_DEMO_USER}@${AZURE_DEMO_HOST}:/opt/adili/"
       - name: Run deploy.sh
-        run: ssh "${AZURE_DEMO_USER}@${AZURE_DEMO_HOST}" 'sudo /opt/adili/infra/azure/deploy.sh'
+        run: ssh "${AZURE_DEMO_USER}@${AZURE_DEMO_HOST}" '/opt/adili/infra/azure/deploy.sh'
       - name: Check HTTPS
         run: |
           fqdn="$AZURE_DEMO_HOST"
