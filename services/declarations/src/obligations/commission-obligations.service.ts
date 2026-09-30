@@ -144,6 +144,8 @@ export class CommissionObligationsService {
         .from(commissionRefs)
         .where(eq(commissionRefs.slug, slug));
       // Staff reading their own Commission know it exists, even before the read model has it.
+      // Readers across Commissions get 404 for a Commission the read model lacks: see
+      // `knownCommission` for when a real one can be missing.
       if (tenant === PLATFORM_TENANT) notFoundIfInvisible(reference);
       const [cached] = await tx
         .select({ policy: tenantPolicyCache.policy })
@@ -416,7 +418,13 @@ export class CommissionObligationsService {
   }
 }
 
-/** 404 unless the read model has the Commission `slug` (a read across Commissions of a slug). */
+/**
+ * 404 unless the read model has the Commission `slug` (a read across Commissions of a slug). A
+ * real Commission can be missing for a while: one created before the service consumed
+ * `commission.created.v1`, until the start-up pull of every Commission (`CommissionRefs`, retried
+ * every minute while the directory is down) succeeds. EACC and platform admins get 404 for it
+ * meanwhile; its own staff are not checked against the read model.
+ */
 async function knownCommission(tx: Transaction, slug: string): Promise<void> {
   const [reference] = await tx
     .select({ slug: commissionRefs.slug })
