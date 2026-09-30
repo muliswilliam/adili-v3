@@ -74,13 +74,13 @@ export async function completeDraft(obligationId: string = MOCK_OBLIGATIONS.init
   const id = started.declaration.id;
   const bio = await loadSection(client, id, 'bio');
   if (bio.status !== 'ok') throw new Error(bio.status);
-  const officer = bio.section.contents as Record<string, Record<string, unknown>>;
+  const bioContents = bio.section.contents as Record<string, Record<string, unknown>>;
   await save(id, 'bio', {
-    ...officer,
+    ...bioContents,
     birth: { date: '1980-04-02', place: 'Nyeri' },
     maritalStatus: 'single',
     address: { postal: 'P.O. Box 12-10100, Nyeri', physical: 'Ruringu estate, Nyeri' },
-    employment: { ...officer.employment, nature: 'permanent' },
+    employment: { ...bioContents.employment, nature: 'permanent' },
   });
   await save(id, 'household', {
     spouses: { none: true, items: [] },
