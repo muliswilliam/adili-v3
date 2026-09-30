@@ -3,6 +3,8 @@ import { and, eq, inArray, like, ne, sql } from 'drizzle-orm';
 
 import type { Transaction } from '../db/transaction.js';
 import { isUuid } from '../guards.js';
+import type { ObligationStatus } from '../obligations/engine.js';
+import { filingObligations } from '../obligations/schema.js';
 import {
   declarationSections,
   declarations,
@@ -57,6 +59,39 @@ export async function liveDeclarationOf(
     .where(and(eq(declarations.obligationId, obligationId), ne(declarations.status, 'discarded')))
     .limit(1);
   return row ?? null;
+}
+
+/** What of its filing obligation a declaration's submission and amendment rules read. */
+export interface DeclarationObligation {
+  id: string;
+  status: ObligationStatus;
+  statementDate: string;
+  dueDate: string;
+}
+
+/**
+ * The declaration's filing obligation, locked for a change when `lock` is set. Every declaration
+ * has one, visible wherever the declaration is (the declarant's own, or the Commission's), so a
+ * missing one is a bug, not a 404.
+ */
+export async function obligationOf(
+  tx: Transaction,
+  declaration: Pick<DeclarationRow, 'id' | 'obligationId'>,
+  { lock = false }: { lock?: boolean } = {},
+): Promise<DeclarationObligation> {
+  const query = tx
+    .select({
+      id: filingObligations.id,
+      status: filingObligations.status,
+      statementDate: filingObligations.statementDate,
+      dueDate: filingObligations.dueDate,
+    })
+    .from(filingObligations)
+    .where(eq(filingObligations.id, declaration.obligationId))
+    .limit(1);
+  const [row] = lock ? await query.for('update') : await query;
+  if (!row) throw new Error(`Declaration ${declaration.id} has no obligation`);
+  return row;
 }
 
 /** What the service fixed when the draft started: the header of its document. */

@@ -44,6 +44,7 @@ import {
   liveDeclaration,
   liveDeclarationOf,
   liveSections,
+  obligationOf,
   readSection,
   sectionIs,
   statementSections,
@@ -271,17 +272,11 @@ export class DraftsService {
     const found = await withPerson(this.db, person, async (tx) => {
       const declaration = await liveDeclaration(tx, declarationId);
       if (!declaration) return null;
-      const [obligation] = await tx
-        .select({
-          status: filingObligations.status,
-          statementDate: filingObligations.statementDate,
-          dueDate: filingObligations.dueDate,
-        })
-        .from(filingObligations)
-        .where(eq(filingObligations.id, declaration.obligationId))
-        .limit(1);
-      if (!obligation) return null;
-      return { declaration, obligation, sections: await liveSections(tx, declaration.id) };
+      return {
+        declaration,
+        obligation: await obligationOf(tx, declaration),
+        sections: await liveSections(tx, declaration.id),
+      };
     });
     const { declaration, obligation, sections } = notFoundIfInvisible(found);
     const review = reviewDraft(
@@ -748,12 +743,7 @@ export class DraftsService {
         .from(commissionRefs)
         .where(eq(commissionRefs.slug, declaration.tenant))
         .limit(1);
-      const [obligation] = await tx
-        .select({ dueDate: filingObligations.dueDate })
-        .from(filingObligations)
-        .where(eq(filingObligations.id, declaration.obligationId))
-        .limit(1);
-      if (!obligation) return null;
+      const obligation = await obligationOf(tx, declaration);
       const sections = await tx
         .select({
           declarationId: declarationSections.declarationId,

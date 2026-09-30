@@ -17,7 +17,12 @@ import {
 import { personOf } from '../drafts/access.js';
 import { DraftsService } from '../drafts/drafts.service.js';
 import { declarationAttachmentLinked, declarationAttachmentUnlinked } from '../drafts/events.js';
-import { type DeclarationRow, liveDeclaration, sectionIs } from '../drafts/repository.js';
+import {
+  type DeclarationRow,
+  liveDeclaration,
+  obligationOf,
+  sectionIs,
+} from '../drafts/repository.js';
 import type { Declaration } from '../drafts/representation.js';
 import {
   declarationAttachments,
@@ -28,7 +33,6 @@ import {
 import { SectionCipher } from '../drafts/section-cipher.js';
 import { isUuid } from '../guards.js';
 import { nairobiDate } from '../obligations/dates.js';
-import { filingObligations } from '../obligations/schema.js';
 import {
   attachmentsOfVersion,
   type SectionFromVersion,
@@ -88,12 +92,11 @@ export class AmendmentService {
         await liveDeclaration(tx, declarationId, { lock: true }),
       );
       if (declaration.status === 'amending') return null;
-      const [obligation] = await tx
-        .select({ status: filingObligations.status, dueDate: filingObligations.dueDate })
-        .from(filingObligations)
-        .where(eq(filingObligations.id, declaration.obligationId));
-      if (!obligation) throw new Error(`Declaration ${declaration.id} has no obligation`);
-      const refusal = amendRefusal(declaration.status, obligation, nairobiDate(now));
+      const refusal = amendRefusal(
+        declaration.status,
+        await obligationOf(tx, declaration),
+        nairobiDate(now),
+      );
       if (refusal) throw amendRefused(refusal);
       const fromVersion = inForce(declaration);
       const written = await this.resetToVersion(tx, declaration, now, {

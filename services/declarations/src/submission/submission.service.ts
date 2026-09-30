@@ -27,6 +27,7 @@ import {
   documentFrame,
   liveDeclaration,
   liveSections,
+  obligationOf,
 } from '../drafts/repository.js';
 import { declarations, obligationDrafts } from '../drafts/schema.js';
 import { SectionCipher } from '../drafts/section-cipher.js';
@@ -123,17 +124,7 @@ export class SubmissionService {
       // only reads: the rest of the transaction writes them in its tenant's context (ADR-018),
       // the person's still set for the declaration itself.
       await switchTenant(tx, { tenant: declaration.tenant, subject: person.subject });
-      const [obligation] = await tx
-        .select({
-          id: filingObligations.id,
-          status: filingObligations.status,
-          statementDate: filingObligations.statementDate,
-          dueDate: filingObligations.dueDate,
-        })
-        .from(filingObligations)
-        .where(eq(filingObligations.id, declaration.obligationId))
-        .for('update');
-      if (!obligation) throw new Error(`Declaration ${declaration.id} has no obligation`);
+      const obligation = await obligationOf(tx, declaration, { lock: true });
       const refusal = obligationRefusal(declaration.status, obligation, today);
       if (refusal) throw refused(refusal);
 
