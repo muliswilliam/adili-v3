@@ -6,9 +6,11 @@ export type RequestTimeout = number | ((request: Request) => number);
 
 /**
  * `send`, bounded by a deadline per request: the request is aborted when it has no answer within
- * `timeoutMs`. The timeout signal goes to fetch itself, in its init: a signal held only by a
- * Request (which follows it through a weak reference) can be garbage collected before it fires,
- * and the call then waits for the server whatever the timeout.
+ * `timeoutMs`, or when the caller aborts it through the request's own signal (a cancelled loader).
+ * The combined signal goes to fetch itself, in its init: a signal held only by a Request (which
+ * follows it through a weak reference) can be garbage collected before it fires, and the call
+ * then waits for the server whatever the timeout. The init's signal replaces the request's, so
+ * both are combined into it.
  *
  * @example
  * createClient<paths>({ baseUrl, fetch: withDeadline(fetch, 5_000) });
@@ -19,6 +21,9 @@ export function withDeadline(
 ): (request: Request) => Promise<Response> {
   return (request) =>
     send(request, {
-      signal: AbortSignal.timeout(typeof timeoutMs === 'number' ? timeoutMs : timeoutMs(request)),
+      signal: AbortSignal.any([
+        request.signal,
+        AbortSignal.timeout(typeof timeoutMs === 'number' ? timeoutMs : timeoutMs(request)),
+      ]),
     });
 }

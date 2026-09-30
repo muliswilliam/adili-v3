@@ -29,6 +29,22 @@ describe('withDeadline', () => {
     await new Promise((resolve) => setTimeout(resolve, 20));
     expect(inits[0]?.signal?.aborted).toBe(true);
   });
+
+  it("keeps the caller's abort: the request's own signal still cancels the call", async () => {
+    const inits: RequestInit[] = [];
+    const send = withDeadline((_request, init) => {
+      inits.push(init);
+      return answer();
+    }, 60_000);
+    const caller = new AbortController();
+
+    await send(new Request('http://service.test/things', { signal: caller.signal }));
+    const reason = new Error('loader cancelled');
+    caller.abort(reason);
+
+    expect(inits[0]?.signal?.aborted).toBe(true);
+    expect(inits[0]?.signal?.reason).toBe(reason);
+  });
 });
 
 describe('mockableClient', () => {
