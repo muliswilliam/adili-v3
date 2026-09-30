@@ -56,6 +56,12 @@ export function formatDateTime(iso: string): string {
   return `${part('day')} ${part('month')} ${part('year')}, ${part('hour')}:${part('minute')}`;
 }
 
+/** `2026-09-26T07:42:00Z` → `10:42`, the time of day in Kenyan time (24-hour). */
+export function formatTime(time: string | number): string {
+  const part = parts(time);
+  return `${part('hour')}:${part('minute')}`;
+}
+
 /** `2026-03-11T21:05:00Z` → `2026-03-12`, the calendar date in Kenyan time. */
 export function formatCalendarDate(time: string | number): string {
   const part = parts(time, NUMERIC_PARTS);

@@ -402,6 +402,7 @@ export {
   formatDateTime,
   formatLongDate,
   formatMonth,
+  formatTime,
   msUntilKenyanMidnight,
 } from './lib/format-date';
 export { useToday } from './lib/use-today';

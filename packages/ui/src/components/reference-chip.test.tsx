@@ -110,4 +110,10 @@ describe('ReferenceChip', () => {
     expect(within(breakdown).getByText('Mwaka')).toBeTruthy();
     expect(within(breakdown).getByText('Tume ya Huduma kwa Walimu')).toBeTruthy();
   });
+
+  it('comes large for the one reference a page is about', () => {
+    renderChip({ size: 'lg' });
+
+    expect(screen.getByText(REFERENCE).className).toContain('text-[17px]');
+  });
 });

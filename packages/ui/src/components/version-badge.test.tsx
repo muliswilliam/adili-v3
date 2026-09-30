@@ -4,11 +4,11 @@ import { describe, expect, it } from 'vitest';
 import { VersionBadge } from './version-badge';
 
 describe('VersionBadge', () => {
-  it('names the version', () => {
+  it('names the version, in blue', () => {
     render(<VersionBadge version={3} />);
 
     const badge = screen.getByText('Version 3');
-    expect(badge.className).toContain('bg-muted');
+    expect(badge.className).toContain('bg-info-subtle');
   });
 
   it('says the current version is current, in green', () => {
