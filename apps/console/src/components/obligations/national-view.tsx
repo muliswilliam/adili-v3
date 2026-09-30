@@ -17,6 +17,7 @@ import {
   TableHeader,
   TableRow,
   Tooltip,
+  focusRing,
 } from '@adili/ui';
 import {
   ArrowDown01Icon,
@@ -396,7 +397,10 @@ function SortHead({
             <button
               type="button"
               aria-label={m.columnNotOnboardedHintLabel}
-              className="inline-grid size-5 place-items-center rounded-full outline-none hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring"
+              className={cn(
+                'inline-grid size-5 place-items-center rounded-full hover:text-foreground',
+                focusRing,
+              )}
             >
               <Icon icon={InformationCircleIcon} className="size-3.5" />
             </button>
@@ -406,7 +410,8 @@ function SortHead({
           type="button"
           onClick={onSort}
           className={cn(
-            '-mx-1 inline-flex items-center gap-1 rounded-sm px-1 py-0.5 outline-none hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring',
+            '-mx-1 inline-flex items-center gap-1 rounded-sm px-1 py-0.5 hover:text-foreground',
+            focusRing,
             active && 'text-foreground',
           )}
         >

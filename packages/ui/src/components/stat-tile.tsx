@@ -95,7 +95,7 @@ export function StatTile({
           onClick={() => {
             onPressedChange(!pressed);
           }}
-          className="row-span-2 grid cursor-pointer grid-rows-subgrid gap-y-1 text-left outline-none after:absolute after:inset-0 after:rounded-2xl focus-visible:after:outline-2 focus-visible:after:outline-offset-2 focus-visible:after:outline-ring"
+          className="row-span-2 grid cursor-pointer grid-rows-subgrid gap-y-1 text-left outline-hidden after:absolute after:inset-0 after:rounded-2xl focus-visible:after:outline-2 focus-visible:after:outline-solid focus-visible:after:outline-offset-2 focus-visible:after:outline-ring"
         >
           {heading}
         </button>

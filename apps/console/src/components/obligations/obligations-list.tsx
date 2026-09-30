@@ -23,6 +23,7 @@ import {
   TableRow,
   TableRowLink,
   Tooltip,
+  focusRing,
 } from '@adili/ui';
 import {
   Calendar03Icon,
@@ -464,7 +465,10 @@ function Reminders({ obligation }: { obligation: ObligationListItem }) {
       <span
         tabIndex={0}
         aria-label={remindersSentLabel(obligation.remindersSent)}
-        className="relative z-10 inline-flex items-center gap-1.5 rounded-sm tabular-nums outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+        className={cn(
+          'relative z-10 inline-flex items-center gap-1.5 rounded-sm tabular-nums',
+          focusRing,
+        )}
       >
         <Icon icon={Notification01Icon} className="size-3.5 text-muted-foreground" />
         {obligation.remindersSent}

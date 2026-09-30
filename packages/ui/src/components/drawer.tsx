@@ -4,6 +4,7 @@ import { cva, type VariantProps } from 'class-variance-authority';
 import { type ComponentProps, useRef } from 'react';
 
 import { cn } from '../lib/cn';
+import { focusRing } from '../lib/focus';
 import { Icon } from './icon';
 import { isInToastViewport } from './toast';
 
@@ -76,7 +77,12 @@ export function DrawerContent({
         {...props}
       >
         {/* Before the content in the DOM: the first control, so it takes focus on open. */}
-        <DialogPrimitive.Close className="absolute top-4 right-4 flex size-9 items-center justify-center rounded-md text-secondary-foreground transition-colors outline-none hover:bg-muted hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring">
+        <DialogPrimitive.Close
+          className={cn(
+            'absolute top-4 right-4 flex size-9 items-center justify-center rounded-md text-secondary-foreground transition-colors hover:bg-muted hover:text-foreground',
+            focusRing,
+          )}
+        >
           <Icon icon={Cancel01Icon} className="size-[18px]" />
           <span className="sr-only">Close</span>
         </DialogPrimitive.Close>

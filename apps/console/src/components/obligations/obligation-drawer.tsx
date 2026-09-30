@@ -14,6 +14,8 @@ import {
   ReminderHistory,
   Tooltip,
   useObligationDetail,
+  cn,
+  focusRing,
 } from '@adili/ui';
 import { type ReactNode, useEffect, useEffectEvent } from 'react';
 
@@ -128,7 +130,10 @@ function Fields({ obligation }: { obligation: ObligationListItem }) {
             <Tooltip content={m.statementDateHint}>
               <span
                 tabIndex={0}
-                className="cursor-help rounded-sm border-b border-dashed border-input outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+                className={cn(
+                  'cursor-help rounded-sm border-b border-dashed border-input',
+                  focusRing,
+                )}
               >
                 {m.statementDate}
               </span>

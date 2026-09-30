@@ -9,6 +9,7 @@ import {
   Icon,
   Tooltip,
   useToast,
+  focusRing,
 } from '@adili/ui';
 import {
   InformationCircleIcon,
@@ -111,7 +112,10 @@ export function PolicyCard({ history, save, onUnauthenticated, className }: Poli
               <button
                 type="button"
                 aria-label={m.startDateTipLabel}
-                className="inline-grid size-5 place-items-center rounded-full text-muted-foreground outline-none hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring"
+                className={cn(
+                  'inline-grid size-5 place-items-center rounded-full text-muted-foreground hover:text-foreground',
+                  focusRing,
+                )}
               >
                 <Icon icon={InformationCircleIcon} className="size-3.5" />
               </button>
