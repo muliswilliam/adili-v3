@@ -60,7 +60,7 @@ function VerifyHome() {
             />
             <figcaption className="min-w-0 text-[13px] text-muted-foreground">
               <span className="block">{copy.whereVerifyAt(SAMPLE_HOST)}</span>
-              <span className="my-1 inline-block rounded-xs bg-highlight font-mono text-[11.5px] font-semibold tracking-[0.03em] text-foreground ring-3 ring-highlight sm:text-[13px]">
+              <span className="my-1 inline-block rounded-xs bg-highlight font-mono text-[11.5px] font-semibold tracking-[0.03em] text-balance text-foreground ring-3 ring-highlight sm:text-[13px]">
                 {SAMPLE_CODE}
               </span>
               <span className="block">{copy.whereSample}</span>
