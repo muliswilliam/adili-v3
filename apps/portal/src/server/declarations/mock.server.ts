@@ -377,10 +377,6 @@ function etag(stored: Stored) {
   return `"${String(stored.draftVersion)}"`;
 }
 
-function today() {
-  return new Date().toISOString().slice(0, 10);
-}
-
 function minusYears(iso: string, years: number) {
   return `${String(Number(iso.slice(0, 4)) - years)}${iso.slice(4)}`;
 }
@@ -586,12 +582,16 @@ function startDeclaration(obligationId: string, obligation: Obligation | undefin
     commission: obligation.commission,
     type: obligation.type,
     statementDate: obligation.statementDate,
+    dueDate: obligation.dueDate,
     incomePeriod: {
       from: minusYears(obligation.statementDate, years),
       to: obligation.statementDate,
       fromSource: 'assumed',
     },
     schemaVersion: 'declaration.v1',
+    reference: null,
+    currentVersion: null,
+    amendingFromVersion: null,
     createdAt: now,
   };
   const { maritalStatus, ...hr } = roster?.hr ?? {};
@@ -852,6 +852,20 @@ function getSummary(id: string) {
   const live = sectionKeys(stored).filter((key) => !stored.archived.has(key));
   const blocking = live.flatMap((key) => issuesFor(stored, key));
   const household = (stored.contents.get('household') ?? {}) as Draft<Household>;
+  const window = filingWindow(stored.filing);
+  // In the service's order: why the obligation refuses it, then whether anything blocks.
+  const cannotSubmitReason =
+    stored.status !== 'draft' && stored.status !== 'amending'
+      ? 'not-a-draft'
+      : window === 'cancelled'
+        ? 'obligation-cancelled'
+        : window === 'upcoming'
+          ? 'before-statement-date'
+          : stored.status === 'amending' && window === 'overdue'
+            ? 'amendment-window-closed'
+            : blocking.length > 0
+              ? 'incomplete'
+              : null;
   const summary: DeclarationSummary = {
     declaration: view(stored),
     document: {
@@ -868,14 +882,9 @@ function getSummary(id: string) {
     },
     valid: blocking.length === 0,
     blocking,
-    canSubmit:
-      blocking.length === 0 &&
-      (stored.status === 'draft' || stored.status === 'amending') &&
-      filingWindow(stored.filing) !== 'upcoming' &&
-      filingWindow(stored.filing) !== 'cancelled',
-    // The contract has no value for "nothing stops you" or "incomplete" yet (#140).
-    cannotSubmitReason:
-      today() < stored.header.statementDate ? 'before-statement-date' : 'submission-not-available',
+    canSubmit: cannotSubmitReason === null,
+    cannotSubmitReason,
+    late: window === 'overdue',
     attestationText: ATTESTATION_TEXT,
   };
   return json(200, summary);

@@ -169,6 +169,7 @@ function summaryOf(overrides: Partial<LoadedSummary> = {}, declaration = {}): Lo
     blocking: [],
     canSubmit: false,
     cannotSubmitReason: 'before-statement-date',
+    late: false,
     attestationText: ATTESTATION,
     ...overrides,
   };
@@ -403,7 +404,7 @@ describe('SummaryView', () => {
     ];
     renderSummary(
       summaryOf(
-        { blocking, valid: false, cannotSubmitReason: 'submission-not-available' },
+        { blocking, valid: false, cannotSubmitReason: 'incomplete' },
         {
           sections: sections({
             bio: 'incomplete',
@@ -435,7 +436,7 @@ describe('SummaryView', () => {
     const blocking = Array.from({ length: 14 }, (_, index) =>
       issue('bio', `Issue ${String(index + 1)}.`),
     );
-    renderSummary(summaryOf({ blocking, cannotSubmitReason: 'submission-not-available' }));
+    renderSummary(summaryOf({ blocking, cannotSubmitReason: 'incomplete' }));
 
     const panel = card('14 things to complete before you can submit');
     expect(within(panel).getAllByRole('link')).toHaveLength(12);
@@ -510,10 +511,7 @@ describe('S20: Submit stays disabled with the reason', () => {
 
   it('says submission opens in the next release for a due obligation', () => {
     renderSummary(
-      summaryOf(
-        { cannotSubmitReason: 'submission-not-available' },
-        { statementDate: '2026-09-10', type: 'initial' },
-      ),
+      summaryOf({ cannotSubmitReason: null }, { statementDate: '2026-09-10', type: 'initial' }),
     );
 
     expect(submit().disabled).toBe(true);

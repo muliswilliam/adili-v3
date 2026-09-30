@@ -18,5 +18,6 @@ import { SectionCipher } from './section-cipher.js';
   imports: [ClockModule, DirectoryModule, DocumentsModule],
   controllers: [DraftsController, AttachmentsController],
   providers: [DraftsService, AttachmentsService, SectionCipher],
+  exports: [DraftsService, SectionCipher],
 })
 export class DraftsModule {}

@@ -1,7 +1,8 @@
 import { Global, Module } from '@nestjs/common';
-import { CoreModule } from '@adili/api-kit';
+import { CoreModule, IdempotencyModule } from '@adili/api-kit';
 import { CacheModule, ValkeyReadinessCheck } from '@adili/cache';
 import {
+  DATABASE,
   DatabaseModule,
   DatabaseReadinessCheck,
   FieldCipher,
@@ -19,6 +20,7 @@ import { config, SERVICE_NAME } from './config.js';
 import { schema } from './db/schema.js';
 import { DraftsModule } from './drafts/drafts.module.js';
 import { ObligationsModule } from './obligations/obligations.module.js';
+import { SubmissionModule } from './submission/submission.module.js';
 
 const openbao = { url: config.OPENBAO_ADDR, token: config.OPENBAO_TOKEN };
 
@@ -49,6 +51,7 @@ class FieldCipherModule {}
       schema,
       applicationName: SERVICE_NAME,
     }),
+    IdempotencyModule.forRoot({ database: DATABASE }),
     EventsModule.forRoot({ service: SERVICE_NAME, rabbitmqUrl: config.RABBITMQ_URL }),
     TemporalModule.forRoot({
       address: config.TEMPORAL_ADDRESS,
@@ -58,6 +61,7 @@ class FieldCipherModule {}
     FieldCipherModule,
     ObligationsModule,
     DraftsModule,
+    SubmissionModule,
   ],
 })
 export class AppModule {}

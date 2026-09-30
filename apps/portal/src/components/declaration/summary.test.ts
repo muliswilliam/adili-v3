@@ -25,12 +25,12 @@ function issue(sectionKey: string, message: string): CompletenessIssue {
 
 describe('the note beside Submit (S20, spec 06 FE-2)', () => {
   const summary = (
-    cannotSubmitReason: 'submission-not-available' | 'before-statement-date',
+    cannotSubmitReason: 'before-statement-date' | 'incomplete' | null,
     { statementDate = '2027-11-01', canSubmit = false, blocking = [] as unknown[] } = {},
   ) => ({ canSubmit, cannotSubmitReason, blocking, declaration: { statementDate } });
 
   it('says the one-time code comes first when the declaration can be submitted', () => {
-    expect(submitNote(summary('submission-not-available', { canSubmit: true }))).toBe(SUBMIT_READY);
+    expect(submitNote(summary(null, { canSubmit: true }))).toBe(SUBMIT_READY);
     expect(SUBMIT_READY).toBe(
       'You will confirm your identity with a one-time code before submitting.',
     );
@@ -40,7 +40,7 @@ describe('the note beside Submit (S20, spec 06 FE-2)', () => {
     expect(submitNote(summary('before-statement-date', { blocking: [{}, {}, {}] }))).toBe(
       'Complete the 3 items listed above to submit.',
     );
-    expect(submitNote(summary('submission-not-available', { blocking: [{}] }))).toBe(
+    expect(submitNote(summary('incomplete', { blocking: [{}] }))).toBe(
       'Complete the 1 item listed above to submit.',
     );
   });
@@ -49,10 +49,8 @@ describe('the note beside Submit (S20, spec 06 FE-2)', () => {
     expect(submitNote(summary('before-statement-date'))).toBe('Available from 1 Nov 2027');
   });
 
-  it('says submission opens in the next release while the service has not opened it', () => {
-    expect(submitNote(summary('submission-not-available', { statementDate: '2026-09-10' }))).toBe(
-      SUBMIT_NEXT_RELEASE,
-    );
+  it('says submission opens in the next release for a due obligation', () => {
+    expect(submitNote(summary(null, { statementDate: '2026-09-10' }))).toBe(SUBMIT_NEXT_RELEASE);
   });
 });
 

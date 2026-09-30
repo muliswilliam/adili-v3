@@ -19,11 +19,12 @@ import {
 const roundTrip = (search: ObligationsSearch) =>
   obligationsSearchSchema.parse(defaultParseSearch(defaultStringifySearch(search)));
 
-const counts = (upcoming = 0, due = 0, overdue = 0, filed = 0) => ({
+const counts = (upcoming = 0, due = 0, overdue = 0, filed = 0, filedLate = 0) => ({
   upcoming,
   due,
   overdue,
   filed,
+  filedLate,
 });
 
 /** A biennial cycle under the statutory dates. */

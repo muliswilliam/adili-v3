@@ -21,7 +21,7 @@ import { rosterRecord } from '../support/fake-directory.js';
  * Spec 05 S11 and S12 over HTTP: the summary assembles the `declaration.v1` document from the
  * draft's live sections (archived statements left out), composes paragraph 9's material changes
  * ahead of the declarant's own registrable interests and free text, validates the document and
- * lists what blocks submission, which is not available in this slice (`canSubmit: false`).
+ * lists what blocks submission; whether it can be submitted now follows the submit rules (spec 06).
  */
 
 const ACHIENG = randomUUID();
@@ -233,7 +233,7 @@ async function completeDraft(): Promise<Declaration> {
 }
 
 describe('summary of a complete draft (S12)', () => {
-  it('finds every section complete and the document valid, with no way to submit yet', async () => {
+  it('finds every section complete and the document valid, not submittable before its statement date', async () => {
     const draft = await completeDraft();
     api.clock.setToday('2027-10-15');
 
@@ -272,15 +272,25 @@ describe('summary of a complete draft (S12)', () => {
     });
   });
 
-  it('says submission opens in the next release once the statement date has come', async () => {
+  it('can be submitted once the statement date has come', async () => {
     const draft = await completeDraft();
     api.clock.setToday(STATEMENT_DATE);
 
     const body = (await summary(draft.id)).json<DeclarationSummary>();
 
+    expect(body).toMatchObject({ valid: true, canSubmit: true, cannotSubmitReason: null });
+  });
+
+  it('says an incomplete draft is incomplete once the statement date has come', async () => {
+    const draft = await started();
+    api.clock.setToday(STATEMENT_DATE);
+
+    const body = (await summary(draft.id)).json<DeclarationSummary>();
+
     expect(body).toMatchObject({
+      valid: false,
       canSubmit: false,
-      cannotSubmitReason: 'submission-not-available',
+      cannotSubmitReason: 'incomplete',
     });
   });
 

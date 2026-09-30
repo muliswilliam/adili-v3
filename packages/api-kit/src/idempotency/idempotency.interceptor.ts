@@ -1,6 +1,7 @@
 import {
   applyDecorators,
   type CallHandler,
+  createParamDecorator,
   type ExecutionContext,
   HttpStatus,
   Injectable,
@@ -110,6 +111,21 @@ function idempotencyKey(
     ApiProblemResponse(422, 'Idempotency-Key reused with a different request body'),
   );
 }
+
+/**
+ * The request's `Idempotency-Key`, for a handler that keeps it with what it writes (e.g. to
+ * recognise its own retry after the stored answer was lost). Only on `@RequireIdempotencyKey()`
+ * routes, which refuse a request without one, so it is always a string there. Unlike
+ * `@Headers()`, it adds nothing to the contract: the decorator documents the header.
+ */
+export const IdempotencyKey = createParamDecorator(
+  (_: unknown, context: ExecutionContext): string => {
+    const header = context.switchToHttp().getRequest<AuthenticatedRequest>().headers[
+      IDEMPOTENCY_KEY_HEADER
+    ];
+    return readKey(header);
+  },
+);
 
 @Injectable()
 export class IdempotencyInterceptor implements NestInterceptor {

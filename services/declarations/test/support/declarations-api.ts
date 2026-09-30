@@ -66,6 +66,10 @@ export interface Caller {
   roles?: string[];
   /** The `person_id` claim of an onboarded declarant's token; absent by default. */
   personId?: string;
+  /** The `acr` claim: `step-up` right after a fresh one-time code (spec 06); absent by default. */
+  acr?: string;
+  /** The `auth_time` claim, in seconds since the epoch; absent by default. */
+  authTime?: number;
 }
 
 /** The clock the service computes "today" with; real time until a test sets it. */
@@ -90,9 +94,14 @@ export class TestClock extends Clock {
 export class RecordingWorkflows extends ObligationWorkflows {
   readonly calls: { tenant: string; changes: ObligationChanges }[] = [];
   private held: { reached: () => void; released: Promise<void> } | null = null;
+  private failing = false;
 
   apply(tenant: string, changes: ObligationChanges): Promise<void> {
     this.calls.push({ tenant, changes });
+    if (this.failing) {
+      this.failing = false;
+      return Promise.reject(new Error('Temporal unavailable'));
+    }
     const held = this.held;
     this.held = null;
     if (!held) return Promise.resolve();
@@ -117,6 +126,11 @@ export class RecordingWorkflows extends ObligationWorkflows {
     return { reached: reachedPromise, release };
   }
 
+  /** Makes the next `apply` fail after recording it, as an unreachable Temporal would. */
+  failNext(): void {
+    this.failing = true;
+  }
+
   /** None: recorded workflows never stop. */
   async *stopped(): AsyncIterable<StoppedWorkflow> {
     // Nothing to yield.
@@ -134,9 +148,14 @@ export class RecordingWorkflows extends ObligationWorkflows {
     return this.calls.flatMap((call) => call.changes.personLinked);
   }
 
+  filed(): string[] {
+    return this.calls.flatMap((call) => call.changes.filed);
+  }
+
   reset(): void {
     this.calls.length = 0;
     this.held = null;
+    this.failing = false;
   }
 }
 
@@ -346,7 +365,7 @@ export async function startDeclarationsApi({
     },
     async reset() {
       await db.execute(
-        sql`truncate obligation_drafts, declaration_attachments, declaration_sections, declarations, reminder_messages, obligation_reminders, filing_obligations, roster_snapshots, tenant_policy_cache, commission_refs, cycle_openings, outbox, inbox`,
+        sql`truncate declaration_items, declaration_versions, numbering_counters, idempotency_keys, obligation_drafts, declaration_attachments, declaration_sections, declarations, reminder_messages, obligation_reminders, filing_obligations, roster_snapshots, tenant_policy_cache, commission_refs, cycle_openings, outbox, inbox`,
       );
       await db.execute(sql`update cycle_calendar set opening_lead_days = 120`);
       cycleSchedules.reset();
@@ -436,8 +455,22 @@ async function applyMigrations(db: Database<DeclarationsSchema>): Promise<void> 
 async function tokenSigner(): Promise<{ signer: (caller: Caller) => Promise<string>; jwk: JWK }> {
   const { publicKey, privateKey } = await generateKeyPair('RS256');
   const jwk = { ...(await exportJWK(publicKey)), kid: 'test', alg: 'RS256' };
-  const signer = ({ sub = randomUUID(), tenant = null, roles = [], personId }: Caller) =>
-    new SignJWT({ azp: 'portal', tenant, realm_access: { roles }, person_id: personId })
+  const signer = ({
+    sub = randomUUID(),
+    tenant = null,
+    roles = [],
+    personId,
+    acr,
+    authTime,
+  }: Caller) =>
+    new SignJWT({
+      azp: 'portal',
+      tenant,
+      realm_access: { roles },
+      person_id: personId,
+      acr,
+      auth_time: authTime,
+    })
       .setProtectedHeader({ alg: 'RS256', kid: 'test' })
       .setIssuedAt()
       .setIssuer(ISSUER)

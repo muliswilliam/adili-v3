@@ -6,6 +6,7 @@ import {
 } from '@adili/events/contracts';
 import { sql } from 'drizzle-orm';
 import {
+  boolean,
   check,
   date,
   index,
@@ -138,6 +139,12 @@ export const filingObligations = pgTable(
     workflowStartedAt: timestamp({ withTimezone: true }),
     /** The declaration that filed it (slice 06); null before. */
     filedDeclarationId: uuid(),
+    /** When it was filed: the submission time of its first version; null before. */
+    filedAt: timestamp({ withTimezone: true }),
+    /** The declaration version in force for it (the latest submitted); null before filing. */
+    filedVersionId: uuid(),
+    /** Filed after its due date (Africa/Nairobi). */
+    late: boolean().notNull().default(false),
     ...timestamps,
   },
   (table) => [

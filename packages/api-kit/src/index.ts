@@ -43,6 +43,7 @@ export {
   IDEMPOTENT_REPLAYED_HEADER,
   AcceptIdempotencyKey,
   IdempotencyInterceptor,
+  IdempotencyKey,
   RequireIdempotencyKey,
   type RequireIdempotencyKeyOptions,
 } from './idempotency/idempotency.interceptor.js';

@@ -5,21 +5,26 @@ import type { CancelReason } from './engine.js';
 /**
  * What happened to obligations in a committed transaction, for their workflows: created ones get
  * a `FilingObligationWorkflow` started (workflow id = obligation id), cancelled ones a `cancel`
- * signal, and those linked to an onboarded person a `personLinked` signal so reminders start.
+ * signal, those linked to an onboarded person a `personLinked` signal so reminders start, and
+ * those a submission filed a `filed` signal so the workflow ends (slice 06).
  */
 export interface ObligationChanges {
   created: string[];
   cancelled: { obligationId: string; reason: CancelReason }[];
   personLinked: string[];
+  filed: string[];
 }
 
 export function noChanges(): ObligationChanges {
-  return { created: [], cancelled: [], personLinked: [] };
+  return { created: [], cancelled: [], personLinked: [], filed: [] };
 }
 
 export function hasChanges(changes: ObligationChanges): boolean {
   return (
-    changes.created.length > 0 || changes.cancelled.length > 0 || changes.personLinked.length > 0
+    changes.created.length > 0 ||
+    changes.cancelled.length > 0 ||
+    changes.personLinked.length > 0 ||
+    changes.filed.length > 0
   );
 }
 

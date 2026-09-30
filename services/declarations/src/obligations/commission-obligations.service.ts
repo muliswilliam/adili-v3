@@ -152,19 +152,22 @@ export class CommissionObligationsService {
         type: ObligationType | null;
         status: CountedStatus;
         n: number;
+        late: number;
       }>(sql`
         with scoped as (
           select ${filingObligations.rosterRecordId} as roster_record_id,
                  ${filingObligations.type} as type,
                  ${filingObligations.status} as status,
-                 ${filingObligations.personId} as person_id
+                 ${filingObligations.personId} as person_id,
+                 ${filingObligations.late} as late
           from ${filingObligations}
           where ${and(eq(filingObligations.tenant, slug), inCycle(year))}
         )
-        select 'count' as kind, type, status, count(*)::int as n
+        select 'count' as kind, type, status, count(*)::int as n,
+               count(*) filter (where late)::int as late
         from scoped group by type, status
         union all
-        select 'not-onboarded', null, worst, count(*)::int
+        select 'not-onboarded', null, worst, count(*)::int, 0
         from (
           select case when bool_or(status = 'overdue') then 'overdue' else 'due' end as worst
           from scoped
@@ -186,6 +189,10 @@ export class CommissionObligationsService {
         } else if (row.type !== null) {
           byType[row.type][row.status] = row.n;
           total[row.status] += row.n;
+          if (row.status === 'filed') {
+            byType[row.type].filedLate = row.late;
+            total.filedLate += row.late;
+          }
         }
       }
       return { commission, cycle: counted, cycles, total, byType, notOnboarded };
@@ -358,13 +365,15 @@ export class CommissionObligationsService {
           due: number;
           overdue: number;
           filed: number;
+          filed_late: number;
           not_onboarded: number;
         }>(sql`
         with scoped as (
           select ${filingObligations.tenant} as tenant,
                  ${filingObligations.rosterRecordId} as roster_record_id,
                  ${filingObligations.status} as status,
-                 ${filingObligations.personId} as person_id
+                 ${filingObligations.personId} as person_id,
+                 ${filingObligations.late} as late
           from ${filingObligations}
           where ${inCycle(year)}
         ),
@@ -374,6 +383,7 @@ export class CommissionObligationsService {
                  count(*) filter (where status = 'due')::int as due,
                  count(*) filter (where status = 'overdue')::int as overdue,
                  count(*) filter (where status = 'filed')::int as filed,
+                 count(*) filter (where status = 'filed' and late)::int as filed_late,
                  count(distinct roster_record_id)
                    filter (where person_id is null and status in ('due', 'overdue'))::int
                    as not_onboarded
@@ -388,6 +398,7 @@ export class CommissionObligationsService {
                coalesce(counts.due, 0)::int as due,
                coalesce(counts.overdue, 0)::int as overdue,
                coalesce(counts.filed, 0)::int as filed,
+               coalesce(counts.filed_late, 0)::int as filed_late,
                coalesce(counts.not_onboarded, 0)::int as not_onboarded
         from ${commissionRefs}
         left join counts on counts.tenant = ${commissionRefs.slug}
@@ -400,8 +411,10 @@ export class CommissionObligationsService {
             due: row.due,
             overdue: row.overdue,
             filed: row.filed,
+            filedLate: row.filed_late,
           };
           for (const status of COUNTED_STATUSES) totals[status] += total[status];
+          totals.filedLate += total.filedLate;
           return {
             commission: { slug: row.slug, issuerCode: row.issuer_code, name: row.name },
             total,
@@ -561,7 +574,7 @@ export function cycleOf(
 }
 
 export function zeroCounts(): StatusCounts {
-  return { upcoming: 0, due: 0, overdue: 0, filed: 0 };
+  return { upcoming: 0, due: 0, overdue: 0, filed: 0, filedLate: 0 };
 }
 
 const PROGRESS_KEYS = ['notStarted', 'inProgress', 'submitted', 'late'] as const;
