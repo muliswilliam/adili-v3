@@ -4,6 +4,8 @@ export {
   AuditedReadInterceptor,
 } from './audited-read.interceptor.js';
 export {
+  DECLARATION_SUBMITTED,
+  type DeclarationSubmittedData,
   OBLIGATION_CYCLE_OPENED,
   OBLIGATION_REMINDER_RECORDED,
   type ObligationCycleOpenedData,
