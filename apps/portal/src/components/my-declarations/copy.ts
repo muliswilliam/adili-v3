@@ -1,0 +1,62 @@
+import { formatDate, formatDateTime, plural } from '@adili/ui';
+
+/** Copy of "My declarations" (spec 06 FE comment "Portal: My declarations and amendments"). */
+export const MY_DECLARATIONS_COPY = {
+  title: 'My declarations',
+  unavailable: 'We could not load your declarations',
+  unavailableHint: 'Reload the page, or try again in a few minutes.',
+  emptyTitle: 'No declarations yet',
+  emptyText: 'Start one from Home when it is due.',
+  goHome: 'Go to Home',
+  // Rows
+  draft: 'Draft',
+  submitted: 'Submitted',
+  amending: 'Amendment in progress',
+  statementDate: (date: string) => `Statement date ${formatDate(date)}`,
+  saved: (at: string) => `Saved ${formatDateTime(at)}`,
+  submittedAt: (at: string) => `Submitted ${formatDateTime(at)}`,
+  late: 'Filed late',
+  verified: (count: number) => `Verified ${plural(count, 'time')}`,
+  percentComplete: (percent: number) => `${String(percent)}% complete`,
+  continue: 'Continue',
+  continueAmendment: 'Continue amendment',
+  discard: 'Discard',
+  slip: 'Slip',
+  slipOf: (version: number) => `Download the slip of version ${String(version)}`,
+  slipPreparing: 'Slip being prepared',
+  slipFailed: 'Get your slip',
+  slipDownloadFailed: 'We could not download your slip. Try again.',
+  amend: 'Amend',
+  amendmentsClosed: (dueDate: string) => `Amendments closed ${formatDate(dueDate)}`,
+  versions: (count: number) => plural(count, 'version'),
+  versionsOf: (title: string) => `Versions of ${title}`,
+  versionsLoading: 'Loading the versions',
+  versionsFailed: 'We could not load the versions.',
+  tryAgain: 'Try again',
+  superseded: 'Superseded',
+  inForce: 'In force',
+  lateVersion: 'late',
+  closedNote: (commission: string) => `Due date passed. To change it, contact ${commission}.`,
+  // Amend
+  amendTitle: (version: number) => `Amend version ${String(version)}?`,
+  amendBody: 'Your submitted version stays in force until you submit the amendment.',
+  amendNote: (dueDate: string) =>
+    `Submit again by ${formatDate(dueDate)}. The reference number stays the same.`,
+  amendConfirm: (version: number) => `Amend version ${String(version)}`,
+  amendCancel: 'Cancel',
+  amendClosed: (dueDate: string) =>
+    `Amendments closed on ${formatDate(dueDate)}. Contact your Commission.`,
+  amendNotSubmitted: 'Only a submitted declaration can be amended. Reload to see where it stands.',
+  amendFailed: 'We could not start the amendment. Try again in a few minutes.',
+  reload: 'Reload',
+  // Pager
+  pagination: 'Pages of your declarations',
+  range: (from: number, to: number, total: number) =>
+    `${String(from)}-${String(to)} of ${String(total)}`,
+  rows: 'Rows',
+  rowsPerPage: 'Rows per page',
+  previousPage: 'Previous page',
+  nextPage: 'Next page',
+  page: (page: number) => `Page ${String(page)}`,
+  pageOf: (page: number, pages: number) => `Page ${String(page)} of ${String(pages)}`,
+} as const;

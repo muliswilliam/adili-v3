@@ -17,6 +17,7 @@ import { Route as AuthLogoutRouteImport } from './routes/auth/logout'
 import { Route as AuthRecoverRouteImport } from './routes/auth/recover'
 import { Route as AuthStepUpRouteImport } from './routes/auth/step-up'
 import { Route as ClarificationsIdRouteImport } from './routes/clarifications/$id'
+import { Route as DeclarationsIndexRouteImport } from './routes/declarations/index'
 import { Route as DeclarationsIdRouteRouteImport } from './routes/declarations/$id/route'
 import { Route as GetStartedIndexRouteImport } from './routes/get-started/index'
 import { Route as GetStartedCheckEmailRouteImport } from './routes/get-started/check-email'
@@ -75,6 +76,11 @@ const AuthStepUpRoute = AuthStepUpRouteImport.update({
 const ClarificationsIdRoute = ClarificationsIdRouteImport.update({
   id: '/clarifications/$id',
   path: '/clarifications/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DeclarationsIndexRoute = DeclarationsIndexRouteImport.update({
+  id: '/declarations/',
+  path: '/declarations/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const DeclarationsIdRouteRoute = DeclarationsIdRouteRouteImport.update({
@@ -191,6 +197,7 @@ export interface FileRoutesByFullPath {
   '/get-started/not-verified': typeof GetStartedNotVerifiedRoute
   '/get-started/verify-email': typeof GetStartedVerifyEmailRoute
   '/get-started/verify-phone': typeof GetStartedVerifyPhoneRoute
+  '/declarations/': typeof DeclarationsIndexRoute
   '/get-started/': typeof GetStartedIndexRoute
   '/api/mock-letters/$id': typeof ApiMockLettersIdRoute
   '/api/mock-slips/$documentId': typeof ApiMockSlipsDocumentIdRoute
@@ -218,6 +225,7 @@ export interface FileRoutesByTo {
   '/get-started/not-verified': typeof GetStartedNotVerifiedRoute
   '/get-started/verify-email': typeof GetStartedVerifyEmailRoute
   '/get-started/verify-phone': typeof GetStartedVerifyPhoneRoute
+  '/declarations': typeof DeclarationsIndexRoute
   '/get-started': typeof GetStartedIndexRoute
   '/api/mock-letters/$id': typeof ApiMockLettersIdRoute
   '/api/mock-slips/$documentId': typeof ApiMockSlipsDocumentIdRoute
@@ -248,6 +256,7 @@ export interface FileRoutesById {
   '/get-started/not-verified': typeof GetStartedNotVerifiedRoute
   '/get-started/verify-email': typeof GetStartedVerifyEmailRoute
   '/get-started/verify-phone': typeof GetStartedVerifyPhoneRoute
+  '/declarations/': typeof DeclarationsIndexRoute
   '/get-started/': typeof GetStartedIndexRoute
   '/api/mock-letters/$id': typeof ApiMockLettersIdRoute
   '/api/mock-slips/$documentId': typeof ApiMockSlipsDocumentIdRoute
@@ -279,6 +288,7 @@ export interface FileRouteTypes {
     | '/get-started/not-verified'
     | '/get-started/verify-email'
     | '/get-started/verify-phone'
+    | '/declarations/'
     | '/get-started/'
     | '/api/mock-letters/$id'
     | '/api/mock-slips/$documentId'
@@ -306,6 +316,7 @@ export interface FileRouteTypes {
     | '/get-started/not-verified'
     | '/get-started/verify-email'
     | '/get-started/verify-phone'
+    | '/declarations'
     | '/get-started'
     | '/api/mock-letters/$id'
     | '/api/mock-slips/$documentId'
@@ -335,6 +346,7 @@ export interface FileRouteTypes {
     | '/get-started/not-verified'
     | '/get-started/verify-email'
     | '/get-started/verify-phone'
+    | '/declarations/'
     | '/get-started/'
     | '/api/mock-letters/$id'
     | '/api/mock-slips/$documentId'
@@ -358,6 +370,7 @@ export interface RootRouteChildren {
   AuthRecoverRoute: typeof AuthRecoverRoute
   AuthStepUpRoute: typeof AuthStepUpRoute
   ClarificationsIdRoute: typeof ClarificationsIdRoute
+  DeclarationsIndexRoute: typeof DeclarationsIndexRoute
   ApiMockLettersIdRoute: typeof ApiMockLettersIdRoute
   ApiMockSlipsDocumentIdRoute: typeof ApiMockSlipsDocumentIdRoute
   ApiMockUploadsIdRoute: typeof ApiMockUploadsIdRoute
@@ -420,6 +433,13 @@ declare module '@tanstack/react-router' {
       path: '/clarifications/$id'
       fullPath: '/clarifications/$id'
       preLoaderRoute: typeof ClarificationsIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/declarations/': {
+      id: '/declarations/'
+      path: '/declarations'
+      fullPath: '/declarations/'
+      preLoaderRoute: typeof DeclarationsIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/declarations/$id': {
@@ -616,6 +636,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthRecoverRoute: AuthRecoverRoute,
   AuthStepUpRoute: AuthStepUpRoute,
   ClarificationsIdRoute: ClarificationsIdRoute,
+  DeclarationsIndexRoute: DeclarationsIndexRoute,
   ApiMockLettersIdRoute: ApiMockLettersIdRoute,
   ApiMockSlipsDocumentIdRoute: ApiMockSlipsDocumentIdRoute,
   ApiMockUploadsIdRoute: ApiMockUploadsIdRoute,

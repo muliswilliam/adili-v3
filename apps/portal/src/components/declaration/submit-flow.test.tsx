@@ -2,6 +2,7 @@
 import { act, fireEvent, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { discardMyAmendment } from '../../server/declarations';
 import type { LoadedSummary } from '../../server/declarations.server';
 import type { CompletenessIssue, SubmissionResult } from '../../server/declarations/types';
 import { getStepUpStatus } from '../../server/step-up';
@@ -404,5 +405,66 @@ describe('signed out', () => {
     });
 
     expect(signInAgain).toHaveBeenCalledWith(SUMMARY_PATH);
+  });
+});
+
+describe('amending (spec 06 FE-4)', () => {
+  const amending = summaryOf(
+    {},
+    {
+      status: 'amending',
+      reference: 'DCI-PSC-2026-0000001-7',
+      currentVersion: 1,
+      amendingFromVersion: 1,
+    },
+  );
+
+  it('says the amendment files version 2, with the banner and Discard amendment', () => {
+    renderSummary({ summary: amending });
+
+    expect(screen.getByText('Submit version 2')).toBeTruthy();
+    expect(
+      screen.getByText(
+        'You are amending version 1. Submit again to file version 2, or discard the amendment to keep version 1.',
+      ),
+    ).toBeTruthy();
+    expect(screen.getByText('Amending version 1')).toBeTruthy();
+    expect(screen.getAllByRole('button', { name: 'Discard amendment' })).toHaveLength(2);
+    expect(screen.queryByRole('button', { name: 'Discard draft' })).toBeNull();
+  });
+
+  it('titles the affirmation "Submit version 2"', async () => {
+    stepUpStatusMock.mockResolvedValue({
+      status: 'ok',
+      acr: 'step-up',
+      authTime: AUTH_TIME,
+      fresh: true,
+    });
+    await act(async () => {
+      renderSummary({ summary: amending, marker: 'done' });
+      await Promise.resolve();
+    });
+
+    expect(screen.getByRole('dialog', { name: 'Submit version 2' })).toBeTruthy();
+  });
+
+  it('goes back to My declarations once the amendment is discarded', async () => {
+    vi.mocked(discardMyAmendment).mockResolvedValue({
+      status: 'discarded',
+      declaration: amending.declaration,
+    });
+    renderSummary({ summary: amending });
+    const [inBanner] = screen.getAllByRole('button', { name: 'Discard amendment' });
+    if (!inBanner) throw new Error('no Discard amendment');
+    fireEvent.click(inBanner);
+    const dialog = screen.getByRole('dialog', { name: 'Discard this amendment?' });
+
+    await act(async () => {
+      fireEvent.click(within(dialog).getByRole('button', { name: 'Discard amendment' }));
+      await Promise.resolve();
+    });
+
+    expect(discardMyAmendment).toHaveBeenCalledWith({ data: { declarationId: DECLARATION_ID } });
+    expect(navigate).toHaveBeenCalledWith({ to: '/declarations', search: { discarded: 1 } });
   });
 });

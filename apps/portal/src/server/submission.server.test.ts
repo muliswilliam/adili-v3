@@ -2,17 +2,23 @@ import { hasValidCheckCharacter, parse } from '@adili/numbering/references';
 import createClient from 'openapi-fetch';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { loadSection, loadSummary, saveSection, startDeclaration } from './declarations.server';
+import {
+  bearer,
+  completeDraft,
+  declarationsClient as client,
+  documentsClient as documents,
+  idempotencyKey as key,
+  PERSON,
+  save,
+} from '../test/declarant';
+import { loadSummary, startDeclaration } from './declarations.server';
 import {
   failNextSubmits,
   MOCK_OBLIGATIONS,
-  mockDeclarationsFetch,
   resetDeclarationsMock,
   setSlipIssuance,
 } from './declarations/mock.server';
 import type { paths } from './declarations/schema.gen';
-import { mockDocumentsFetch } from './documents/mock.server';
-import type { paths as documentsPaths } from './documents/schema.gen';
 import {
   loadSubmission,
   readAcknowledgement,
@@ -22,96 +28,7 @@ import {
   type SubmitOutcome,
 } from './submission.server';
 
-/** An unsigned JWT with these claims, as the mock reads them. */
-function bearer(claims: Record<string, unknown>) {
-  const part = (value: object) => Buffer.from(JSON.stringify(value)).toString('base64url');
-  return `Bearer ${part({ alg: 'none' })}.${part(claims)}.x`;
-}
-
 const NOW = Date.parse('2026-09-30T07:42:00Z');
-const PERSON = { person_id: '5b0f7c1e-2a3d-4e5f-8a9b-0c1d2e3f4a5b' };
-const STEPPED_UP = bearer({ ...PERSON, acr: 'step-up', auth_time: NOW / 1000 - 60 });
-
-function client(authorization = STEPPED_UP) {
-  return createClient<paths>({
-    baseUrl: 'http://declarations.test',
-    fetch: mockDeclarationsFetch,
-    headers: { authorization },
-  });
-}
-
-function documents() {
-  return createClient<documentsPaths>({
-    baseUrl: 'http://documents.test',
-    fetch: mockDocumentsFetch,
-    headers: { authorization: STEPPED_UP },
-  });
-}
-
-let keys = 0;
-function key() {
-  keys += 1;
-  return `00000000-0000-4000-8000-${String(keys).padStart(12, '0')}`;
-}
-
-async function save(
-  declarationId: string,
-  sectionKey: string,
-  contents: Parameters<typeof saveSection>[1]['contents'],
-) {
-  const loaded = await loadSummary(client(), declarationId);
-  if (loaded.status !== 'ok') throw new Error(loaded.status);
-  const ifMatch = `"${String(loaded.summary.declaration.draftVersion)}"`;
-  const outcome = await saveSection(client(), {
-    declarationId,
-    sectionKey,
-    ifMatch,
-    contents,
-  });
-  if (outcome.status !== 'saved') throw new Error(outcome.status);
-}
-
-/** A draft for the obligation with every section answered and nothing blocking. */
-async function completeDraft(obligationId: string = MOCK_OBLIGATIONS.initial) {
-  const started = await startDeclaration(client(), obligationId);
-  if (started.status !== 'started') throw new Error(started.status);
-  const id = started.declaration.id;
-  const bio = await loadSection(client(), id, 'bio');
-  if (bio.status !== 'ok') throw new Error(bio.status);
-  const officer = bio.section.contents as Record<string, Record<string, unknown>>;
-  await save(id, 'bio', {
-    ...officer,
-    birth: { date: '1980-04-02', place: 'Nyeri' },
-    maritalStatus: 'single',
-    address: { postal: 'P.O. Box 12-10100, Nyeri', physical: 'Ruringu estate, Nyeri' },
-    employment: { ...officer.employment, nature: 'permanent' },
-  });
-  await save(id, 'household', {
-    spouses: { none: true, items: [] },
-    children: { none: true, items: [] },
-  });
-  const statement = await loadSection(client(), id, 'statement:officer');
-  if (statement.status !== 'ok') throw new Error(statement.status);
-  await save(id, 'statement:officer', {
-    ...statement.section.contents,
-    incomeNil: true,
-    income: [],
-    assetsNil: true,
-    assets: [],
-    liabilitiesNil: true,
-    liabilities: [],
-  });
-  await save(id, 'other', {
-    registrableInterests: {
-      directorships: [],
-      memberships: [],
-      dualCitizenship: { holds: false, pendingApplication: false },
-      pendingCases: [],
-    },
-    freeText: '',
-  });
-  return id;
-}
 
 function submittedOf(outcome: SubmitOutcome) {
   if (outcome.status !== 'submitted') throw new Error(outcome.status);

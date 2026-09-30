@@ -33,6 +33,8 @@ import { isSaving } from './autosave';
 import { CompletenessBadge } from './completeness-badge';
 import type { Draft, Statement } from '../../declaration/contents';
 import { HR_LABELS, SUMMARY_COPY } from '../../declaration/copy';
+import { amendingFrom, useAmendmentDiscarded } from './amendment-banner';
+import { DiscardAmendmentButton } from './discard-amendment-dialog';
 import { DiscardDraftButton } from './discard-dialog';
 import { AffirmationDialog, StepUpFailedAlert, useSubmitFlow } from './submit-flow';
 import { type StepUpMarker, SUBMIT_COPY } from './submit';
@@ -731,6 +733,9 @@ export function SummaryView({ summary: loaded, stepUpMarker = null }: SummaryVie
   const noteId = useId();
   const solemnId = useId();
   const isDraft = declaration.status === 'draft';
+  const fromVersion = amendingFrom(declaration);
+  const nextVersion = fromVersion === null ? null : fromVersion + 1;
+  const amendmentDiscarded = useAmendmentDiscarded(fromVersion ?? 0);
   // A 400 from submit is fresher than the summary: show what it says blocks.
   const blocking = state.step === 'incomplete' ? state.blocking : summary.blocking;
   const cannotSubmitReason =
@@ -780,7 +785,7 @@ export function SummaryView({ summary: loaded, stepUpMarker = null }: SummaryVie
 
       <Card className="flex-row flex-wrap items-center gap-4 p-5">
         <div className="grid min-w-[220px] flex-1 gap-0.5">
-          <p className="font-semibold">Submit your declaration</p>
+          <p className="font-semibold">{SUBMIT_COPY.title(nextVersion)}</p>
           <p id={noteId} className="flex items-center gap-1.5 text-sm text-muted-foreground">
             {canSubmit ? <Icon icon={SecurityCheckIcon} className="size-4 shrink-0" /> : null}
             {note}
@@ -804,6 +809,7 @@ export function SummaryView({ summary: loaded, stepUpMarker = null }: SummaryVie
         statementDate={declaration.statementDate}
         dueDate={declaration.dueDate}
         late={summary.late}
+        nextVersion={nextVersion}
       />
 
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -811,6 +817,13 @@ export function SummaryView({ summary: loaded, stepUpMarker = null }: SummaryVie
           <DiscardDraftButton
             declarationId={declaration.id}
             onDiscarded={() => navigate({ to: '/', search: { discarded: true } })}
+          />
+        ) : fromVersion !== null ? (
+          <DiscardAmendmentButton
+            declarationId={declaration.id}
+            fromVersion={fromVersion}
+            withIcon
+            onDiscarded={amendmentDiscarded}
           />
         ) : (
           <span />

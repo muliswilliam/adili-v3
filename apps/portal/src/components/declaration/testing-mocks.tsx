@@ -12,7 +12,8 @@ import { vi } from 'vitest';
  *
  * Screens with the submit flow also mock `../../server/submission` (`submissionMock`) and
  * `../../server/step-up` (`stepUpMock`); the success page mocks `../../server/submission` and
- * `../download` (`downloadMock`).
+ * `../download` (`downloadMock`); My declarations mocks `../../server/my-declarations`
+ * (`myDeclarationsMock`).
  */
 
 export const navigate = vi.fn();
@@ -53,6 +54,8 @@ export function serverMock() {
     startMyDeclaration: vi.fn(),
     getMyDeclarations: vi.fn(),
     discardMyDeclaration: vi.fn(),
+    amendMyDeclaration: vi.fn(),
+    discardMyAmendment: vi.fn(),
     linkDeclarationAttachment: vi.fn(),
     unlinkDeclarationAttachment: vi.fn(),
     getDeclarationSummary: vi.fn(),
@@ -73,6 +76,10 @@ export function submissionMock() {
     getMySlipDownload: vi.fn(),
     getMySlipContext: vi.fn(),
   };
+}
+
+export function myDeclarationsMock() {
+  return { getMyDeclarationsPage: vi.fn(), getMyDeclarationVersions: vi.fn() };
 }
 
 export function downloadMock() {
