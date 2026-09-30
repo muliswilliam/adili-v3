@@ -18,16 +18,25 @@ export type SegmentedChoiceProps = Omit<ComponentProps<'fieldset'>, 'onChange' |
   onValueChange: (value: string) => void;
   /** Groups the radios; generated when omitted. */
   name?: string;
-  hint?: ReactNode;
-  /** When set, the group is marked invalid and the message is announced. */
-  error?: ReactNode;
-  /**
-   * `buttons` (default): a form question, the legend shown above 40px buttons. `track`: a
-   * compact filter in a toolbar (the kit's `.seg`), 30px options on a muted track, the chosen one
-   * raised; the legend is for screen readers only.
-   */
-  variant?: 'buttons' | 'track';
-};
+} & (
+    | {
+        /** `buttons` (default): a form question, the legend shown above 40px buttons. */
+        variant?: 'buttons';
+        hint?: ReactNode;
+        /** When set, the group is marked invalid and the message is announced. */
+        error?: ReactNode;
+      }
+    | {
+        /**
+         * `track`: a compact filter in a toolbar (the kit's `.seg`), 30px options on a muted
+         * track, the chosen one raised; the legend is for screen readers only. A filter has no
+         * hint or error.
+         */
+        variant: 'track';
+        hint?: never;
+        error?: never;
+      }
+  );
 
 /**
  * A short single choice shown as a row of buttons, e.g. marital status, or as a compact track
@@ -74,7 +83,6 @@ export function SegmentedChoice({
       <fieldset
         id={groupId}
         disabled={disabled}
-        aria-describedby={joinIds(hintId, errorId)}
         className={cn('flex shrink-0 gap-0.5 rounded-lg bg-muted p-0.75', className)}
         {...props}
       >
