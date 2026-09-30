@@ -424,7 +424,9 @@ describe('#91 statuses recomputed on ingest', () => {
     await ingest();
 
     expect(await statuses()).toEqual({ biennial: 'due', initial: 'overdue' });
-    expect(await statusEvents()).toEqual([
+    // One event per obligation; the two are written in no set order.
+    const events = await statusEvents();
+    expect(events.sort((a, b) => (a.from as string).localeCompare(b.from as string))).toEqual([
       expect.objectContaining({ from: 'due', to: 'overdue', reason: null }),
       expect.objectContaining({ from: 'upcoming', to: 'due', reason: null }),
     ]);
