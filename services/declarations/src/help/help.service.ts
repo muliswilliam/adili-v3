@@ -10,6 +10,7 @@ import type { DeclarationsSchema } from '../db/schema.js';
 import type { Transaction } from '../db/transaction.js';
 import { personOf } from '../drafts/access.js';
 import { validationProblem } from '../drafts/problems.js';
+import { isSectionKey, sectionKind } from '../drafts/sections.js';
 import { isUuid } from '../guards.js';
 import { nairobiDate } from '../obligations/dates.js';
 import { PLATFORM_TENANT } from '../obligations/access.js';
@@ -62,8 +63,11 @@ export class HelpService {
   async search(principal: Principal, query: HelpSearchQuery): Promise<HelpPassage[]> {
     const person = personOf(principal);
     const boost: CorpusTag[] = [];
-    // The section kind is a corpus tag: `statement:<person>` is `statement`.
-    if (query.sectionKey) boost.push(query.sectionKey.split(':')[0] as CorpusTag);
+    // The query schema checked the key already; every section kind is a corpus tag, so this
+    // compiles only while that holds.
+    if (query.sectionKey && isSectionKey(query.sectionKey)) {
+      boost.push(sectionKind(query.sectionKey) satisfies CorpusTag);
+    }
     if (query.itemType) boost.push(query.itemType);
     const passages = await withPerson(this.db, person, (tx) =>
       retrieve(tx, {

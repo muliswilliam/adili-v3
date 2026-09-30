@@ -2,9 +2,8 @@ import { describe, expect, it } from 'vitest';
 
 import { ASSET_TYPES, INCOME_TYPES, LIABILITY_TYPES } from '@adili/forms';
 
-import { CORPUS_TAGS } from '../../src/help/corpus.js';
+import { CORPUS_TAGS, ITEM_TYPE_TAGS } from '../../src/help/corpus.js';
 import { ENGLISH_SYNONYMS, expand, SWAHILI_GLOSSARY, words } from '../../src/help/glossary.js';
-import { ITEM_TYPE_TAGS } from '../../src/help/representation.js';
 import { searchTerms } from '../../src/help/retrieval.js';
 
 describe('the Swahili glossary', () => {

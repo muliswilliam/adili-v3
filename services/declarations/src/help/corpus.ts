@@ -13,6 +13,33 @@ import { z } from 'zod';
  */
 
 /**
+ * The statement item types a passage or article may be tagged with (declaration.v1 ASSET_TYPES,
+ * LIABILITY_TYPES and INCOME_TYPES without `other`), for boosts on the item a declarant is on
+ * and for help article tags.
+ */
+export const ITEM_TYPE_TAGS = [
+  'land',
+  'building',
+  'vehicle',
+  'securities',
+  'shareholding',
+  'bank-account',
+  'cash',
+  'receivable',
+  'mortgage',
+  'loan',
+  'guarantee',
+  'salary-emoluments',
+  'allowances',
+  'business',
+  'rent',
+  'dividends-interest',
+  'pension',
+  'farming',
+  'consultancy',
+] as const;
+
+/**
  * Tags a passage (or help article) may carry: the capture section kinds and statement item types
  * it helps with (for retrieval boosts) and the topics it covers. A tag outside this list is
  * refused, so search boosts stay predictable.
@@ -58,27 +85,7 @@ export const CORPUS_TAGS = [
   'responsible-commission',
   'spouse',
   'statement-date',
-  // Statement item types (declaration.v1 ASSET_TYPES, LIABILITY_TYPES and INCOME_TYPES without
-  // `other`), for boosts on the item a declarant is on and for help article tags.
-  'land',
-  'building',
-  'vehicle',
-  'securities',
-  'shareholding',
-  'bank-account',
-  'cash',
-  'receivable',
-  'mortgage',
-  'loan',
-  'guarantee',
-  'salary-emoluments',
-  'allowances',
-  'business',
-  'rent',
-  'dividends-interest',
-  'pension',
-  'farming',
-  'consultancy',
+  ...ITEM_TYPE_TAGS,
 ] as const;
 
 export type CorpusTag = (typeof CORPUS_TAGS)[number];

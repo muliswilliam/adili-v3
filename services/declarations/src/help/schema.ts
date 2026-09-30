@@ -22,7 +22,7 @@ import type { CorpusSource, CorpusTag } from './corpus.js';
  * for Postgres full-text search (ADR-001: no other search store): `search_en` in the `english`
  * configuration and `search_sw` in `simple`, weighted title A, tags B, text C.
  *
- * Row-level security (migration 0011): the corpus is public law and has no tenant, so it has no
+ * Row-level security (migration 0012): the corpus is public law and has no tenant, so it has no
  * policy; help articles are tenant data, with platform articles (no tenant) readable by all.
  */
 
@@ -36,7 +36,7 @@ export const CORPUS_SOURCE_VALUES = [
 
 /**
  * The weighted vector of a title, tags and a body in a text search configuration.
- * `help_tags_text` (migration 0010) is an immutable `array_to_string`, which a generated column
+ * `help_tags_text` (migration 0011) is an immutable `array_to_string`, which a generated column
  * needs.
  */
 function weighted(config: 'english' | 'simple', title: SQL, tags: SQL, body: SQL): SQL {
