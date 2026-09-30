@@ -74,6 +74,19 @@ export class SectionCipher {
     return contents;
   }
 
+  /** The sections' contents, in the order given, each keyed by its section. */
+  openAll<T extends StoredSection>(
+    tenant: string,
+    sections: readonly T[],
+  ): Promise<{ key: T['sectionKey']; contents: SectionContents }[]> {
+    return Promise.all(
+      sections.map(async (section) => ({
+        key: section.sectionKey,
+        contents: await this.open(tenant, section),
+      })),
+    );
+  }
+
   /** Caches a section just saved, so the next read needs no decrypt. */
   async cache(
     section: Pick<StoredSection, 'declarationId' | 'sectionKey' | 'savedVersion'>,

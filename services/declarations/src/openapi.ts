@@ -37,6 +37,14 @@ import {
   statusCountsSchema,
   summaryCycleSchema,
 } from './obligations/representation.js';
+import { declarationReferenceSchema } from './submission/reference.js';
+import {
+  acknowledgementSchema,
+  acknowledgementStatusSchema,
+  declarationVersionSchema,
+  submissionResultSchema,
+  submitProblemSchema,
+} from './submission/representation.js';
 
 /**
  * Named schemas of the declarations service's OpenAPI document (`#/components/schemas/<name>`),
@@ -63,6 +71,7 @@ export const OPENAPI_SCHEMAS: Record<string, z.ZodType> = {
   ProgressCounts: progressCountsSchema,
   ReportingEntityRef: reportingEntityRefSchema,
   DeclarationProgress: declarationProgressSchema,
+  DeclarationReference: declarationReferenceSchema,
   SectionKey: sectionKeySchema,
   Completeness: completenessSchema,
   DeclarationStatus: declarationStatusSchema,
@@ -76,4 +85,9 @@ export const OPENAPI_SCHEMAS: Record<string, z.ZodType> = {
   DeclarationAttachment: declarationAttachmentSchema,
   DeclarationSummary: declarationSummarySchema,
   DeclarationListItem: declarationListItemSchema,
+  AcknowledgementStatus: acknowledgementStatusSchema,
+  Acknowledgement: acknowledgementSchema,
+  DeclarationVersion: declarationVersionSchema,
+  SubmissionResult: submissionResultSchema,
+  SubmitProblem: submitProblemSchema,
 };

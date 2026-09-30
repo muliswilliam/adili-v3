@@ -270,19 +270,14 @@ export interface paths {
         parameters: {
             query?: never;
             header?: never;
-            path: {
-                declarationId: components["parameters"]["DeclarationId"];
-            };
+            path?: never;
             cookie?: never;
         };
         get?: never;
         put?: never;
         /**
          * Submit the declaration (the legal act)
-         * @description Requires a token with the step-up ACR and auth_time within 5 minutes, and an
-         *     Idempotency-Key. One transaction: validate, allocate the reference (first version),
-         *     write the immutable version and items, mark submitted, file the obligation, emit events.
-         *     The acknowledgement slip is issued asynchronously afterwards.
+         * @description Requires a token with the step-up ACR and auth_time within 5 minutes, and an Idempotency-Key (a retry with the same key gets the same answer). One transaction: validate, allocate the reference (first version), write the immutable version and items, mark submitted, file the obligation (late after its due date), record `declaration.submitted.v1` and `obligation.status-changed.v1`. The acknowledgement slip is issued asynchronously afterwards.
          */
         post: operations["submitDeclaration"];
         delete?: never;
@@ -947,6 +942,8 @@ export interface components {
             due: number;
             overdue: number;
             filed: number;
+            /** @description Of those filed, the ones filed after their due date */
+            filedLate: number;
         };
         SummaryCycle: {
             /** @example biennial:2027 */
@@ -1025,6 +1022,11 @@ export interface components {
             }[];
             total: components["schemas"]["ProgressCounts"];
         };
+        /**
+         * @description ADR-011: DC{I|B|F}-<ISSUER>-<YEAR>-<7 digits>-<check>, allocated at the first submission and kept by later versions
+         * @example DCB-TSC-2027-0012345-K
+         */
+        DeclarationReference: string;
         /** @description bio, household, other, or statement:<personKey> */
         SectionKey: string;
         /** @enum {string} */
@@ -1040,6 +1042,11 @@ export interface components {
             type: components["schemas"]["ObligationType"];
             /** Format: date */
             statementDate: string;
+            /**
+             * Format: date
+             * @description The obligation's due date: filed after it is late, and amendments close on it
+             */
+            dueDate: string;
             incomePeriod: {
                 /**
                  * Format: date
@@ -1073,6 +1080,12 @@ export interface components {
                 };
             }[];
             lastSection: components["schemas"]["SectionKey"] | null;
+            /** @description Allocated at the first submission; null before */
+            reference: components["schemas"]["DeclarationReference"] | null;
+            /** @description The submitted version in force; null before the first submission */
+            currentVersion: number | null;
+            /** @description The version an amendment in progress started from; null unless amending */
+            amendingFromVersion: number | null;
             /** Format: date-time */
             createdAt: string;
             /** Format: date-time */
@@ -1153,13 +1166,12 @@ export interface components {
             valid: boolean;
             /** @description What to complete before submitting, by section and field: the schema issues and the rules it cannot state, each once */
             blocking: components["schemas"]["CompletenessIssue"][];
-            /** @description Always false in slice 05 */
+            /** @description Whether submitting now would pass every check but the step-up: a valid document, a draft or amendment in progress, and an obligation open for it */
             canSubmit: boolean;
-            /**
-             * @description `before-statement-date`: the statement date (Nairobi) has not come; `submission-not-available`: submission opens in the next release
-             * @enum {string}
-             */
-            cannotSubmitReason: "submission-not-available" | "before-statement-date";
+            /** @description Null when canSubmit; else the first reason in this order: `not-a-draft` (already submitted), `obligation-cancelled`, `before-statement-date` (the statement date, Africa/Nairobi, has not come), `amendment-window-closed` (an amendment after the due date), `incomplete` (see blocking) */
+            cannotSubmitReason: ("not-a-draft" | "obligation-cancelled" | "before-statement-date" | "amendment-window-closed" | "incomplete") | null;
+            /** @description Submitting now would be recorded as filed late: today (Africa/Nairobi) is after the due date */
+            late: boolean;
             /** @description The solemn declaration the declarant makes */
             attestationText: string;
         };
@@ -1178,6 +1190,63 @@ export interface components {
             /** Format: date-time */
             updatedAt: string;
         };
+        /** @enum {string} */
+        AcknowledgementStatus: "pending" | "issued" | "failed";
+        Acknowledgement: {
+            /** @description `pending` until the documents service has issued the slip, `failed` when issuance gave up */
+            status: components["schemas"]["AcknowledgementStatus"];
+            /** @description The issued slip; null until issued */
+            documentId: string | null;
+            /** @description Verification code printed under the QR; null until issued */
+            verificationId: string | null;
+            issuedAt: string | null;
+            /** @description Lookups of the slip on the verify app */
+            verifiedCount: number;
+            /** @description Short-lived presigned URL; fetched fresh on each call; null until issued */
+            downloadUrl: string | null;
+        };
+        DeclarationVersion: {
+            version: number;
+            reference: components["schemas"]["DeclarationReference"];
+            /** Format: date-time */
+            submittedAt: string;
+            /** @description Submitted after the obligation's due date */
+            late: boolean;
+            /** @description Hex SHA-256 of the document's RFC 8785 canonical JSON */
+            canonicalSha256: string;
+            /** @description When a later version replaced it; null while in force */
+            supersededAt: string | null;
+            acknowledgement: components["schemas"]["Acknowledgement"];
+        };
+        SubmissionResult: {
+            declaration: components["schemas"]["Declaration"];
+            version: components["schemas"]["DeclarationVersion"];
+            obligationStatus: components["schemas"]["ObligationStatus"];
+        };
+        SubmitProblem: {
+            type: string;
+            title: string;
+            status: number;
+            /**
+             * @description Absent only for problems of the Idempotency-Key header
+             * @enum {string}
+             */
+            code?: "step-up-required" | "incomplete" | "before-statement-date" | "amendment-window-closed" | "not-a-draft" | "not-submitted" | "obligation-cancelled";
+            detail?: string;
+            instance?: string;
+            /** @description Field-level errors; `path` is the dotted request field */
+            errors?: {
+                path: string;
+                message: string;
+            }[];
+            /**
+             * Format: uri
+             * @description Present for step-up-required: starts a step-up returning to the summary
+             */
+            stepUpUrl?: string;
+            /** @description Present for incomplete: what to complete, as the summary lists it */
+            blocking?: components["schemas"]["CompletenessIssue"][];
+        };
         ProblemDetails: {
             type: string;
             title: string;
@@ -1186,7 +1255,7 @@ export interface components {
              * @description Machine-readable cause, from the platform registry; clients map it to copy and never show `title` or `detail`
              * @enum {string}
              */
-            code?: "rate-limit-exceeded" | "no-match" | "already-onboarded" | "no-roster" | "otp-invalid" | "otp-expired" | "resend-cooldown" | "otp-send-failed" | "wrong-step" | "session-expired" | "iprs-unavailable" | "identity-unavailable" | "email-in-use";
+            code?: "rate-limit-exceeded" | "no-match" | "already-onboarded" | "no-roster" | "otp-invalid" | "otp-expired" | "resend-cooldown" | "otp-send-failed" | "wrong-step" | "session-expired" | "iprs-unavailable" | "identity-unavailable" | "email-in-use" | "step-up-required" | "incomplete" | "before-statement-date" | "amendment-window-closed" | "not-a-draft" | "not-submitted" | "obligation-cancelled";
             detail?: string;
             instance?: string;
             /** @description Field-level errors; `path` is the dotted request field */
@@ -1338,59 +1407,11 @@ export interface components {
             /** Format: date-time */
             updatedAt: string;
         };
-        /**
-         * @description ADR-011: DC{I|B|F}-<ISSUER>-<YEAR>-<7 digits>-<check>
-         * @example DCB-TSC-2027-0012345-K
-         */
-        DeclarationReference: string;
-        /** @enum {string} */
-        AcknowledgementStatus: "pending" | "issued" | "failed";
-        SubmitProblem: components["schemas"]["ProblemDetails"] & {
-            /** @enum {string} */
-            code: "step-up-required" | "incomplete" | "before-statement-date" | "amendment-window-closed" | "not-a-draft" | "not-submitted" | "obligation-cancelled";
-            /**
-             * Format: uri
-             * @description Present for step-up-required
-             */
-            stepUpUrl?: string;
-            blocking?: components["schemas"]["CompletenessIssue"][];
-        };
-        DeclarationVersion: {
-            version: number;
-            reference: components["schemas"]["DeclarationReference"];
-            /** Format: date-time */
-            submittedAt: string;
-            late: boolean;
-            canonicalSha256: string;
-            /** Format: date-time */
-            supersededAt: string | null;
-            acknowledgement: components["schemas"]["Acknowledgement"];
-        };
         DeclarationVersionDetail: components["schemas"]["DeclarationVersion"] & {
             /** @description The immutable declaration.v1 document (decrypted for the owner) */
             document: {
                 [key: string]: unknown;
             };
-        };
-        Acknowledgement: {
-            status: components["schemas"]["AcknowledgementStatus"];
-            /** Format: uuid */
-            documentId: string | null;
-            /** @description Verification code printed under the QR */
-            verificationId: string | null;
-            /** Format: date-time */
-            issuedAt: string | null;
-            verifiedCount: number;
-            /**
-             * Format: uri
-             * @description Short-lived presigned URL; fetched fresh on each call
-             */
-            downloadUrl: string | null;
-        };
-        SubmissionResult: {
-            declaration: components["schemas"]["Declaration"];
-            version: components["schemas"]["DeclarationVersion"];
-            obligationStatus: components["schemas"]["ObligationStatus"];
         };
         AcknowledgementPayload: {
             declarantName: string;
@@ -2168,10 +2189,10 @@ export interface operations {
             query?: never;
             header: {
                 /** @description Client-generated UUID, unique per logical request; reuse on retry */
-                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                "Idempotency-Key": string;
             };
             path: {
-                declarationId: components["parameters"]["DeclarationId"];
+                declarationId: string;
             };
             cookie?: never;
         };
@@ -2186,7 +2207,7 @@ export interface operations {
                     "application/json": components["schemas"]["SubmissionResult"];
                 };
             };
-            /** @description Incomplete (blocking issues) or missing Idempotency-Key */
+            /** @description Problem code `incomplete` with `blocking`, or the Idempotency-Key header missing (`idempotency-key-missing`) */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -2204,8 +2225,16 @@ export interface operations {
                     "application/problem+json": components["schemas"]["SubmitProblem"];
                 };
             };
-            404: components["responses"]["NotFound"];
-            /** @description Problem code `before-statement-date`, `amendment-window-closed`, `not-a-draft` or `obligation-cancelled` */
+            /** @description Not found, or not visible to the caller */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Problem code `not-a-draft`, `before-statement-date`, `amendment-window-closed` or `obligation-cancelled`; or a request with the same Idempotency-Key still running (`idempotency-key-in-use`) */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -2214,7 +2243,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["SubmitProblem"];
                 };
             };
-            /** @description Idempotency-Key reused with a different request */
+            /** @description Idempotency-Key reused with a different request body */
             422: {
                 headers: {
                     [name: string]: unknown;

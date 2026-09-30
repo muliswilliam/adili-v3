@@ -24,7 +24,7 @@ function issue(sectionKey: string, message: string): CompletenessIssue {
 
 describe('S20: the disabled Submit button says why', () => {
   const summary = (
-    cannotSubmitReason: 'submission-not-available' | 'before-statement-date',
+    cannotSubmitReason: 'before-statement-date' | null,
     statementDate = '2027-11-01',
   ) => ({ cannotSubmitReason, declaration: { statementDate } });
 
@@ -33,7 +33,7 @@ describe('S20: the disabled Submit button says why', () => {
   });
 
   it('says submission opens in the next release for a due obligation', () => {
-    expect(submitNote(summary('submission-not-available', '2026-09-10'))).toBe(SUBMIT_NEXT_RELEASE);
+    expect(submitNote(summary(null, '2026-09-10'))).toBe(SUBMIT_NEXT_RELEASE);
   });
 });
 

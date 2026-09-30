@@ -36,7 +36,11 @@ const bytea = customType<{ data: Buffer; driverData: Buffer }>({
   dataType: () => 'bytea',
 });
 
-/** `amending` and `submitted` arrive with submission (slice 06). */
+/**
+ * `draft` → `submitted` at the first submission; `submitted` → `amending` (reopened) → `submitted`
+ * (a new version); `draft` or `amending` → `discarded` (discarding an amendment restores
+ * `submitted`). `filed` is the obligation's status, not the declaration's.
+ */
 export const DECLARATION_STATUS_VALUES = ['draft', 'amending', 'submitted', 'discarded'] as const;
 export type DeclarationStatus = (typeof DECLARATION_STATUS_VALUES)[number];
 
@@ -69,6 +73,12 @@ export const declarations = pgTable(
     draftVersion: integer().notNull().default(1),
     /** The section saved last, for "Continue"; null until the first save. */
     lastSection: text(),
+    /** Allocated at the first submission and kept by every later version (ADR-011). */
+    reference: text(),
+    /** The version in force: the latest submitted; null until the first submission. */
+    currentVersion: integer(),
+    /** The version an amendment in progress started from; null unless `amending`. */
+    amendingFromVersion: integer(),
     createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
     // The database's clock on insert and on every update alike, so "newest first" holds even when
     // the service's clock and the database's disagree.

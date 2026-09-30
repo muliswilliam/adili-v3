@@ -538,12 +538,16 @@ function startDeclaration(obligationId: string, obligation: Obligation | undefin
     commission: obligation.commission,
     type: obligation.type,
     statementDate: obligation.statementDate,
+    dueDate: obligation.dueDate,
     incomePeriod: {
       from: minusYears(obligation.statementDate, years),
       to: obligation.statementDate,
       fromSource: 'assumed',
     },
     schemaVersion: 'declaration.v1',
+    reference: null,
+    currentVersion: null,
+    amendingFromVersion: null,
     createdAt: now,
   };
   const { maritalStatus, ...hr } = roster?.hr ?? {};
@@ -798,6 +802,15 @@ function getSummary(id: string) {
   const live = sectionKeys(stored).filter((key) => !stored.archived.has(key));
   const blocking = live.flatMap((key) => issuesFor(stored, key));
   const household = (stored.contents.get('household') ?? {}) as Draft<Household>;
+  // As the service answers, but for the obligation: the mock's are never cancelled or filed.
+  const cannotSubmitReason =
+    stored.status !== 'draft' && stored.status !== 'amending'
+      ? 'not-a-draft'
+      : today() < stored.header.statementDate
+        ? 'before-statement-date'
+        : blocking.length > 0
+          ? 'incomplete'
+          : null;
   const summary: DeclarationSummary = {
     declaration: view(stored),
     document: {
@@ -814,9 +827,9 @@ function getSummary(id: string) {
     },
     valid: blocking.length === 0,
     blocking,
-    canSubmit: false,
-    cannotSubmitReason:
-      today() < stored.header.statementDate ? 'before-statement-date' : 'submission-not-available',
+    canSubmit: cannotSubmitReason === null,
+    cannotSubmitReason,
+    late: today() > stored.header.dueDate,
     attestationText: ATTESTATION_TEXT,
   };
   return json(200, summary);

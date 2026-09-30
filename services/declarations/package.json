@@ -29,6 +29,7 @@
     "@adili/data-access": "workspace:*",
     "@adili/events": "workspace:*",
     "@adili/forms": "workspace:*",
+    "@adili/numbering": "workspace:*",
     "@adili/roles": "workspace:*",
     "@adili/telemetry": "workspace:*",
     "@adili/temporal": "workspace:*",

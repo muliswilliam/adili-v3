@@ -1,12 +1,7 @@
 import { ATTESTATION_TEXT, declarationIssues } from '@adili/forms';
 import { describe, expect, it } from 'vitest';
 
-import {
-  assembleDocument,
-  blockingIssues,
-  cannotSubmitReason,
-  notStartedIssues,
-} from '../../src/drafts/summary.js';
+import { assembleDocument, blockingIssues, notStartedIssues } from '../../src/drafts/summary.js';
 import {
   bio,
   CHILD_ID,
@@ -144,15 +139,5 @@ describe('notStartedIssues', () => {
       ['other', '', 'section-not-started'],
     ]);
     expect(issues.every((issue) => issue.message.length > 0)).toBe(true);
-  });
-});
-
-describe('cannotSubmitReason', () => {
-  it.each([
-    ['2027-10-31', 'before-statement-date'],
-    ['2027-11-01', 'submission-not-available'],
-    ['2028-01-15', 'submission-not-available'],
-  ])('on %s gives %s', (today, reason) => {
-    expect(cannotSubmitReason(today, '2027-11-01')).toBe(reason);
   });
 });

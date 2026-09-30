@@ -559,6 +559,13 @@ components:
             - iprs-unavailable
             - identity-unavailable
             - email-in-use
+            - step-up-required
+            - incomplete
+            - before-statement-date
+            - amendment-window-closed
+            - not-a-draft
+            - not-submitted
+            - obligation-cancelled
           description: Machine-readable cause, from the platform registry; clients map it to copy and never show `title` or `detail`
         detail:
           type: string

@@ -1302,6 +1302,9 @@ importers:
       '@adili/forms':
         specifier: workspace:*
         version: link:../../packages/forms
+      '@adili/numbering':
+        specifier: workspace:*
+        version: link:../../packages/numbering
       '@adili/roles':
         specifier: workspace:*
         version: link:../../packages/roles

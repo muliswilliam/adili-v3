@@ -10,6 +10,7 @@ import {
   type SectionMetadata,
 } from './schema.js';
 import type { SectionCipher } from './section-cipher.js';
+import type { DocumentFrame } from './summary.js';
 import {
   type SectionContents,
   sectionRank,
@@ -55,6 +56,18 @@ export async function liveDeclarationOf(
     .where(and(eq(declarations.obligationId, obligationId), ne(declarations.status, 'discarded')))
     .limit(1);
   return row ?? null;
+}
+
+/** What the service fixed when the draft started: the header of its document. */
+export function documentFrame(declaration: DeclarationRow): DocumentFrame {
+  return {
+    type: declaration.type,
+    statementDate: declaration.statementDate,
+    incomePeriod: {
+      ...incomePeriodOf(declaration),
+      fromSource: declaration.previousStatementDateSource,
+    },
+  };
 }
 
 /** The declaration's income period, as its statements carry it. */

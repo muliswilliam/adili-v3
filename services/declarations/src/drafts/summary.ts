@@ -1,19 +1,20 @@
 import {
   ATTESTATION_TEXT,
   type DeclarationIssue,
+  declarationIssues,
   type DeclarationSectionKey,
   type PersonKey,
 } from '@adili/forms';
 
+import { assessSections } from './completeness.js';
 import { composeMaterialChanges } from './material-changes.js';
-import type { CannotSubmitReason } from './representation.js';
 import { type SectionContents, statementPersonKey } from './sections.js';
 
 /**
  * The summary of a draft (spec 05, S11 and S12), pure: the `declaration.v1` document assembled
- * from the live sections, what blocks submission, and why submission is not open. The caller
- * passes only live sections (`liveSections`), so an archived statement never reaches the
- * document or paragraph 9.
+ * from the live sections and what blocks submission, as the summary shows it and submission
+ * (spec 06) enforces it. The caller passes only live sections (`liveSections`), so an archived
+ * statement never reaches the document or paragraph 9.
  */
 
 /** What the service fixed when the draft started: the document's header fields. */
@@ -108,10 +109,50 @@ export function notStartedIssues(
     }));
 }
 
+/** A draft as it would be declared: its document, whether it validates, and what blocks it. */
+export interface DraftReview {
+  document: Record<string, unknown>;
+  /** The document validates against declaration.v1 and every live section has been saved. */
+  valid: boolean;
+  blocking: DeclarationIssue[];
+}
+
 /**
- * Why the draft cannot be submitted in this slice: before its statement date nothing can be
- * (compared as Nairobi civil dates), and from it submission opens in the next release.
+ * Reviews the live sections: assembles the document, assesses each section as its own view
+ * reports it (rules and schema, with paragraph 9 as composed), validates the whole document, and
+ * blocks on every section never saved (it has not been declared until the declarant saves it).
  */
-export function cannotSubmitReason(today: string, statementDate: string): CannotSubmitReason {
-  return today < statementDate ? 'before-statement-date' : 'submission-not-available';
+export function reviewDraft(
+  frame: DocumentFrame,
+  live: readonly LiveSection[],
+  completeness: readonly { key: DeclarationSectionKey; completeness: string }[],
+): DraftReview {
+  const document = assembleDocument(frame, live);
+  const statements = new Map<PersonKey, SectionContents>();
+  const byKey = new Map<string, SectionContents>();
+  for (const { key, contents } of live) {
+    const personKey = statementPersonKey(key);
+    if (personKey) statements.set(personKey, contents);
+    else byKey.set(key, contents);
+  }
+  const assessed = assessSections({
+    bio: byKey.get('bio'),
+    household: byKey.get('household'),
+    statements,
+    other: document.otherInformation,
+  });
+  const validated = declarationIssues(document);
+  const notStarted = notStartedIssues(completeness);
+  return {
+    document,
+    valid:
+      notStarted.length === 0 &&
+      validated.issues.length === 0 &&
+      validated.declaration.length === 0,
+    blocking: blockingIssues(
+      notStarted,
+      [...assessed.values()].flatMap((assessment) => assessment.issues),
+      validated.issues,
+    ),
+  };
 }
