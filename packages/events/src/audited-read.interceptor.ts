@@ -38,6 +38,8 @@ export interface AuditReadData extends Record<string, unknown> {
     tenant: string | null;
     /** The person the data is about, when the handler named one; null otherwise. */
     subjectPersonId: string | null;
+    /** The resources a batch read served, when the handler named them. */
+    ids?: string[];
   };
   actor: {
     /** Token `sub`: a user, or a service account. */
@@ -72,7 +74,8 @@ type AuditedRequest = AuthenticatedRequest & {
  * Records an `audit.read.v1` event in the outbox for each successful response of a route marked
  * `@AuditedRead` (api-kit), before the response is sent: a read the audit trail cannot record
  * fails instead of going unrecorded. The event carries the action, the resource's path
- * parameters, the actor from the verified token and the route, no response data; its `tenant`
+ * parameters (and the ids a batch read names), the actor from the verified token and the route,
+ * no response data; its `tenant`
  * is the tenant whose data was read: the one the handler named with `ReadAudit.resource` (with
  * the person the data is about), else the route's `slug`, else the tenant a service acts for,
  * else the caller's. A read the handler marked `ReadAudit.ownRecord` (the caller's own record)
@@ -135,6 +138,7 @@ function auditRead(
         params: { ...params },
         tenant: tenant ?? null,
         subjectPersonId: resource?.subjectPersonId ?? null,
+        ...(resource?.ids === undefined ? {} : { ids: [...resource.ids] }),
       },
       actor: {
         subject: principal?.subject ?? 'anonymous',

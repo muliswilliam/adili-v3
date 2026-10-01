@@ -11,6 +11,11 @@ export interface AuditedResource {
    * `review-case:<id>` for a declaration read for a review case.
    */
   legalBasis?: string;
+  /**
+   * The ids of the resources a batch read served (ADR-008 resource id), e.g. the obligations
+   * whose officers a details request returned. A read of one resource names it in its path.
+   */
+  ids?: readonly string[];
 }
 
 /**
