@@ -541,7 +541,10 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Re-run registry lookups and matching for the case (assignee or supervisor) */
+        /**
+         * Re-run registry lookups and matching for the case (assignee or supervisor)
+         * @description The case's assignee or a supervisor of its Commission; another reviewer gets 403 `not-the-assignee`, anyone else 404. Starts the registry check of the case's current version and records `review.case.rechecked.v1`; `review.registry.checked.v1` follows once the check is stored and the case detail's `registry` shows it. Registry flags the check no longer raises are closed with `closedReason: superseded-by-recheck` (reviewed ones keep their note); a registry still unavailable leaves its flags open. Once per case every 10 minutes.
+         */
         post: operations["recheckCaseRegistries"];
         delete?: never;
         options?: never;
@@ -1240,7 +1243,10 @@ export interface components {
                 itemId: string | null;
                 sectionKey?: string | null;
             }[];
-            /** @enum {string|null} */
+            /**
+             * @description Why the flag no longer counts toward the score and the open flags: a registry re-check no longer raised it. A reviewed flag keeps its note. Null while it counts.
+             * @enum {string|null}
+             */
             closedReason?: "superseded-by-recheck" | null;
             reviewed: {
                 /** Format: date-time */
@@ -2946,15 +2952,34 @@ export interface operations {
                 };
                 content?: never;
             };
-            403: components["responses"]["Forbidden"];
-            404: components["responses"]["NotFound"];
-            /** @description Re-checked within the last 10 minutes */
-            429: {
+            /** @description Problem type `not-the-assignee`, neither the case's assignee nor a supervisor */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            404: components["responses"]["NotFound"];
+            /** @description Problem type `case-closed`, the case is determined */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Problem type `recheck-cooldown`, re-checked within the last 10 minutes; `retryAfterSeconds` says when the next re-check is accepted */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"] & {
+                        retryAfterSeconds: number;
+                    };
                 };
             };
         };

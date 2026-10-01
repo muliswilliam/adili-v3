@@ -881,19 +881,46 @@ paths:
       tags: [cases]
       operationId: recheckCaseRegistries
       summary: Re-run registry lookups and matching for the case (assignee or supervisor)
+      description: >-
+        The case's assignee or a supervisor of its Commission; another reviewer gets 403
+        `not-the-assignee`, anyone else 404. Starts the registry check of the case's current
+        version and records `review.case.rechecked.v1`; `review.registry.checked.v1` follows once
+        the check is stored and the case detail's `registry` shows it. Registry flags the check no
+        longer raises are closed with `closedReason: superseded-by-recheck` (reviewed ones keep
+        their note); a registry still unavailable leaves its flags open. Once per case every 10
+        minutes.
       responses:
         '202':
           description: Re-check started
         '403':
-          $ref: '#/components/responses/Forbidden'
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '429':
-          description: Re-checked within the last 10 minutes
+          description: Problem type `not-the-assignee`, neither the case's assignee nor a supervisor
           content:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Problem type `case-closed`, the case is determined
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '429':
+          description: >-
+            Problem type `recheck-cooldown`, re-checked within the last 10 minutes;
+            `retryAfterSeconds` says when the next re-check is accepted
+          content:
+            application/problem+json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ProblemDetails'
+                  - type: object
+                    required: [retryAfterSeconds]
+                    properties:
+                      retryAfterSeconds:
+                        type: integer
+                        minimum: 1
   /v1/review/cases/{caseId}/determinations:
     parameters:
       - $ref: '#/components/parameters/CaseId'
@@ -2274,6 +2301,9 @@ components:
         closedReason:
           type: [string, 'null']
           enum: [superseded-by-recheck, null]
+          description: >-
+            Why the flag no longer counts toward the score and the open flags: a registry re-check
+            no longer raised it. A reviewed flag keeps its note. Null while it counts.
         reviewed:
           oneOf:
             - type: object

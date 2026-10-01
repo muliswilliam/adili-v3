@@ -1,9 +1,10 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { PLATFORM_TENANT } from '@adili/api-kit';
 import { type Database, InjectDatabase, withTenant } from '@adili/data-access';
 import { EventPublisher } from '@adili/events';
 import type { DeclarationV1 } from '@adili/forms';
 import { ApplicationFailure } from '@temporalio/common';
-import { eq } from 'drizzle-orm';
+import { and, asc, eq, max, ne } from 'drizzle-orm';
 
 import { reviewCases } from '../cases/schema.js';
 import type { ReviewSchema } from '../db/schema.js';
@@ -40,8 +41,10 @@ import {
   type RegistryLookups,
   RESULT_MISSING,
   type SupplierOutcome,
+  type SweepCandidatesRequest,
 } from './contract.js';
 import { storeRegistryCheck } from './registry-check-store.js';
+import { registryChecks } from './schema.js';
 
 const logger = new Logger('RegistryChecks');
 
@@ -171,6 +174,33 @@ export class RegistryCheckActivities {
       suppliers,
     });
     return storeRegistryCheck(this.db, this.events, check, match);
+  }
+
+  /**
+   * The sweep's cases, across Commissions: open (not determined) with a registry still
+   * unavailable at their latest check, the oldest check first, at most `limit`, each at its
+   * current version.
+   */
+  async registrySweepCandidates({
+    limit,
+  }: SweepCandidatesRequest): Promise<RegistryCheckRequest[]> {
+    const lastChecked = max(registryChecks.checkedAt);
+    return withTenant(this.db, systemContext(PLATFORM_TENANT), (tx) =>
+      tx
+        .select({
+          tenant: reviewCases.tenant,
+          caseId: reviewCases.id,
+          declarationId: reviewCases.declarationId,
+          versionId: reviewCases.currentVersionId,
+          version: reviewCases.currentVersion,
+        })
+        .from(reviewCases)
+        .innerJoin(registryChecks, eq(registryChecks.caseId, reviewCases.id))
+        .where(and(eq(reviewCases.registryUnavailable, true), ne(reviewCases.status, 'determined')))
+        .groupBy(reviewCases.id)
+        .orderBy(asc(lastChecked), asc(reviewCases.id))
+        .limit(limit),
+    );
   }
 }
 

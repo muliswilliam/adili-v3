@@ -28,6 +28,7 @@ export const en = {
   recovering: (system: string) => `${system} is recovering.`,
   recoveringDetail: 'Breaker half-open, testing with a few calls.',
   paused: (system: string) => `${system} is paused.`,
+  pausedSince: (by: string, time: string) => `Paused by ${by} since ${time}.`,
   pausedDetail: 'Lookups are marked unavailable until it is resumed. Cached answers still serve.',
   // Coverage
   coverageLabel: 'Integration coverage',
@@ -42,6 +43,34 @@ export const en = {
   breakerHalfOpenCallout:
     'Testing recovery: the next call is a probe. One success closes the breaker.',
   pausedCallout: 'Paused by a platform administrator. Nothing is sent until it is resumed.',
+  pausedByCallout: (by: string, at: string) =>
+    `Paused by ${by} on ${at}. Nothing is sent until it is resumed.`,
+  // Pause and resume
+  pause: 'Pause',
+  resume: 'Resume',
+  pauseLabel: (system: string) => `Pause ${system}`,
+  resumeLabel: (system: string) => `Resume ${system}`,
+  pauseTitle: (system: string) => `Pause ${system}?`,
+  pauseText: (system: string) =>
+    `Lookups to ${system} will be marked unavailable until it is resumed.`,
+  pauseNothingSent: (system: string) => `Nothing is sent to ${system} while it is paused.`,
+  pauseCasesFlow: (system: string) =>
+    `Cases keep flowing. Their Registry tab shows ${system} as unavailable.`,
+  pauseRechecked: 'Affected cases are re-checked every hour until it answers.',
+  pauseOnboarding: 'Declarants cannot confirm their identity at onboarding until it is resumed.',
+  pauseCached: 'Answers already in the cache are still served.',
+  auditNote: 'Recorded in the audit trail with your name.',
+  pausing: 'Pausing…',
+  pauseFailed: (system: string) => `Could not pause ${system}. Nothing changed. Try again.`,
+  pausedToast: (system: string) => `${system} paused`,
+  resumeTitle: (system: string) => `Resume ${system}?`,
+  resumeText: (system: string, perMinute: number) =>
+    `Lookups to ${system} start again, within its rate limit of ${formatNumber(perMinute)} calls a minute.`,
+  resuming: 'Resuming…',
+  resumeFailed: (system: string) => `Could not resume ${system}. It is still paused. Try again.`,
+  resumedToast: (system: string) => `${system} resumed`,
+  cancel: 'Cancel',
+  actionForbidden: 'You do not have access to pause or resume integrations.',
   operatedBy: 'Operated by',
   rateLimit: 'Rate limit',
   rateLimitValue: (perMinute: number) => `${formatNumber(perMinute)} calls a minute`,

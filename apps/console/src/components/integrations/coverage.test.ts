@@ -20,6 +20,8 @@ function coverage(overrides: Partial<SystemCoverage> = {}): SystemCoverage {
     breaker: 'closed',
     lastSuccessAt: null,
     paused: false,
+    pausedBy: null,
+    pausedAt: null,
     rateLimitPerMinute: 600,
     cacheTtlSeconds: 86_400,
     timeoutMs: 2_000,

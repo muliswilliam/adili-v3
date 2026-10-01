@@ -8,11 +8,11 @@ import type { ReviewSchema } from '../db/schema.js';
 import {
   band,
   type Flag,
-  REGISTRY_RULE_IDS,
   REGISTRY_SYSTEMS,
   type RegistryCheckStatus,
   type RegistryMatch,
   type RegistrySystem,
+  registrySystemOf,
   score,
 } from '../rules/index.js';
 import { SYSTEM_SUBJECT, systemContext } from '../system-context.js';
@@ -33,12 +33,15 @@ export const SYSTEM_LABELS: Record<RegistrySystem, string> = {
  * still at the checked version (`stale` otherwise):
  *
  * - the version's registry flags are reconciled with the match: a flag the match raises again is
- *   kept as it is (reviewed or not), a new one is added, and an unreviewed one the match no longer
- *   raises is removed. A reviewed one is kept with its note (#187 closes it as
- *   `superseded-by-recheck`). Storing the same match twice changes nothing.
+ *   kept as it is (reviewed or not, and open again if a check before had superseded it), a new
+ *   one is added, and one the match no longer raises is closed `superseded-by-recheck`, with its
+ *   note if reviewed, when its registry answered for its person this time. A registry still
+ *   unavailable leaves its flags open: no answer is no reason to drop them. Storing the same match
+ *   twice changes nothing.
  * - the statuses per person and registry replace the previous check's;
- * - the score and band are the version's deterministic flags and the registry flags together, the
- *   open-flag count is recounted and `registryUnavailable` set for the queue;
+ * - the score and band are the version's deterministic flags and its open registry flags
+ *   together, the open-flag count (unreviewed and not closed) is recounted and
+ *   `registryUnavailable` set for the queue;
  * - a timeline entry and `review.registry.checked.v1`.
  */
 export async function storeRegistryCheck(
@@ -59,23 +62,47 @@ export async function storeRegistryCheck(
       .select()
       .from(reviewFlags)
       .where(and(eq(reviewFlags.caseId, found.id), eq(reviewFlags.versionId, check.versionId)));
-    const isRegistry = (ruleId: string) =>
-      (REGISTRY_RULE_IDS as readonly string[]).includes(ruleId);
     const existing = new Map(
-      versionFlags.filter((flag) => isRegistry(flag.ruleId)).map((flag) => [identity(flag), flag]),
+      versionFlags
+        .filter((flag) => registrySystemOf(flag.ruleId) !== null)
+        .map((flag) => [identity(flag), flag]),
     );
     const raised = new Set(match.flags.map(identity));
     const added = match.flags.filter((flag) => !existing.has(identity(flag)));
-    const lapsed = [...existing.values()].filter(
-      (flag) => !raised.has(identity(flag)) && flag.reviewedAt === null,
+    // A registry that answered for a person settles that person's flags of it; one still
+    // unavailable leaves them as they are.
+    const answered = new Set(
+      match.checks
+        .filter((entry) => entry.status === 'matched' || entry.status === 'mismatched')
+        .map((entry) => `${entry.personKey} ${entry.system}`),
     );
-    if (lapsed.length > 0) {
-      await tx.delete(reviewFlags).where(
-        inArray(
-          reviewFlags.id,
-          lapsed.map((flag) => flag.id),
-        ),
+    const settled = (flag: (typeof versionFlags)[number]) =>
+      flag.itemRefs.some((ref) =>
+        answered.has(`${ref.personKey} ${String(registrySystemOf(flag.ruleId))}`),
       );
+    const reopened: string[] = [];
+    const superseded: string[] = [];
+    const stillOpen: Pick<Flag, 'severity'>[] = [];
+    for (const flag of existing.values()) {
+      if (raised.has(identity(flag))) {
+        if (flag.closedReason !== null) reopened.push(flag.id);
+      } else if (flag.closedReason === null) {
+        if (settled(flag)) superseded.push(flag.id);
+        else stillOpen.push(flag);
+      }
+    }
+    if (superseded.length > 0) {
+      // Reviewed or not, a superseded flag stays with its note; it no longer counts.
+      await tx
+        .update(reviewFlags)
+        .set({ closedReason: 'superseded-by-recheck' })
+        .where(inArray(reviewFlags.id, superseded));
+    }
+    if (reopened.length > 0) {
+      await tx
+        .update(reviewFlags)
+        .set({ closedReason: null })
+        .where(inArray(reviewFlags.id, reopened));
     }
     if (added.length > 0) {
       await tx.insert(reviewFlags).values(
@@ -112,13 +139,19 @@ export async function storeRegistryCheck(
       );
     }
 
-    const rules = versionFlags.filter((flag) => !isRegistry(flag.ruleId));
-    const caseScore = score([...rules, ...match.flags]);
+    const rules = versionFlags.filter((flag) => registrySystemOf(flag.ruleId) === null);
+    const caseScore = score([...rules, ...match.flags, ...stillOpen]);
     const caseBand = band(caseScore);
     const [open] = await tx
       .select({ count: count() })
       .from(reviewFlags)
-      .where(and(eq(reviewFlags.caseId, found.id), isNull(reviewFlags.reviewedAt)));
+      .where(
+        and(
+          eq(reviewFlags.caseId, found.id),
+          isNull(reviewFlags.reviewedAt),
+          isNull(reviewFlags.closedReason),
+        ),
+      );
     const statuses = match.checks.map(({ personKey, system, status, reason }): CheckStatus => ({
       personKey,
       system,
@@ -142,7 +175,7 @@ export async function storeRegistryCheck(
       kind: 'registry-checked',
       ref: check.versionId,
       actor: SYSTEM_SUBJECT,
-      summary: timelineSummary(match.flags.length, systems),
+      summary: timelineSummary(match.flags.length, superseded.length, systems),
     });
     await events.record<RegistryCheckedData>(tx, {
       type: REVIEW_REGISTRY_CHECKED,
@@ -153,6 +186,7 @@ export async function storeRegistryCheck(
         versionId: check.versionId,
         band: caseBand,
         flags: match.flags.length,
+        superseded: superseded.length,
         systems,
         checks: statuses,
       },
@@ -199,11 +233,16 @@ export function systemStatuses(
 
 function timelineSummary(
   flags: number,
+  superseded: number,
   systems: Record<RegistrySystem, RegistryCheckStatus>,
 ): string {
   const unavailable = REGISTRY_SYSTEMS.filter((system) => systems[system] === 'unavailable');
-  const raised = `${String(flags)} registry indicator${flags === 1 ? '' : 's'}`;
-  return unavailable.length === 0
-    ? `Registries checked: ${raised}`
-    : `Registries checked: ${raised}; not reached: ${unavailable.map((s) => SYSTEM_LABELS[s]).join(', ')}`;
+  const parts = [
+    `Registries checked: ${String(flags)} registry indicator${flags === 1 ? '' : 's'}`,
+  ];
+  if (superseded > 0) parts.push(`${String(superseded)} no longer raised`);
+  if (unavailable.length > 0) {
+    parts.push(`not reached: ${unavailable.map((s) => SYSTEM_LABELS[s]).join(', ')}`);
+  }
+  return parts.join('; ');
 }

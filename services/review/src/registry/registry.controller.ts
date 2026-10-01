@@ -1,5 +1,11 @@
-import { Controller, Get, Param } from '@nestjs/common';
-import { ApiOkResponse, ApiOperation, ApiParam, ApiTags } from '@nestjs/swagger';
+import { Controller, Get, HttpCode, HttpStatus, Param, Post } from '@nestjs/common';
+import {
+  ApiAcceptedResponse,
+  ApiOkResponse,
+  ApiOperation,
+  ApiParam,
+  ApiTags,
+} from '@nestjs/swagger';
 import {
   ApiProblemResponse,
   AuditedRead,
@@ -8,16 +14,20 @@ import {
   schemaRef,
 } from '@adili/api-kit';
 
+import { RecheckService } from './recheck.service.js';
 import type { RegistryView } from './representation.js';
 import { RegistryViewService } from './registry-view.service.js';
 
-/** The registry cross-checks of a case (spec 07b): the Registry tab. */
+/** The registry cross-checks of a case (spec 07b): the Registry tab, and a re-check. */
 @ApiTags('cases')
-@Controller('v1/review/cases/:caseId/registry')
+@Controller('v1/review/cases/:caseId')
 export class RegistryController {
-  constructor(private readonly registry: RegistryViewService) {}
+  constructor(
+    private readonly registry: RegistryViewService,
+    private readonly rechecks: RecheckService,
+  ) {}
 
-  @Get()
+  @Get('registry')
   @AuditedRead({ action: 'review.case.registry.viewed', resource: 'review-case' })
   @ApiParam({ name: 'caseId', schema: { type: 'string', format: 'uuid' } })
   @ApiOperation({
@@ -35,5 +45,26 @@ export class RegistryController {
     @Param('caseId') caseId: string,
   ): Promise<RegistryView> {
     return this.registry.view(principal, caseId);
+  }
+
+  @Post('recheck')
+  @HttpCode(HttpStatus.ACCEPTED)
+  @ApiParam({ name: 'caseId', schema: { type: 'string', format: 'uuid' } })
+  @ApiOperation({
+    operationId: 'recheckCaseRegistries',
+    summary: 'Re-run registry lookups and matching for the case (assignee or supervisor)',
+    description:
+      "The case's assignee or a supervisor of its Commission; another reviewer gets 403 `not-the-assignee`, anyone else 404. Starts the registry check of the case's current version and records review.case.rechecked.v1; review.registry.checked.v1 follows once the check is stored. Flags it no longer raises are closed `superseded-by-recheck` (reviewed ones keep their note). Once per case every 10 minutes: 429 `recheck-cooldown` with `retryAfterSeconds`.",
+  })
+  @ApiAcceptedResponse({ description: 'Re-check started' })
+  @ApiProblemResponse(403, 'Problem type `not-the-assignee`: neither the assignee nor a supervisor')
+  @ApiProblemResponse(404, 'Not found, or not visible to the caller')
+  @ApiProblemResponse(409, 'Problem type `case-closed`: the case is determined')
+  @ApiProblemResponse(429, 'Problem type `recheck-cooldown`: re-checked within the last 10 minutes')
+  recheck(
+    @CurrentPrincipal() principal: Principal,
+    @Param('caseId') caseId: string,
+  ): Promise<void> {
+    return this.rechecks.recheck(principal, caseId);
   }
 }

@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { ToastProvider } from '@adili/ui';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
 import type {
@@ -21,6 +22,8 @@ function coverage(overrides: Partial<SystemCoverage> = {}): SystemCoverage {
     breaker: 'closed',
     lastSuccessAt: null,
     paused: false,
+    pausedBy: null,
+    pausedAt: null,
     rateLimitPerMinute: 600,
     cacheTtlSeconds: 86_400,
     timeoutMs: 2_000,
@@ -70,15 +73,17 @@ const ok = (rows: SystemCoverage[]): IntegrationGatewayResult<SystemCoverage[]> 
 
 function renderView(overrides: Partial<IntegrationsViewProps> = {}) {
   const onRefresh = vi.fn();
-  render(
+  const view = (
     <IntegrationsView
       result={ok(HEALTHY)}
       loadedAt="2026-09-26T07:30:00Z"
       onRefresh={onRefresh}
       now={NOW}
       {...overrides}
-    />,
+    />
   );
+  // The toasts of pause and resume; their live regions would also match the page's alerts.
+  render(overrides.setPaused ? <ToastProvider>{view}</ToastProvider> : view);
   return { onRefresh };
 }
 
@@ -226,6 +231,138 @@ describe('S15 Integrations page', () => {
     screen.getByText('You do not have access to integrations.');
     screen.getByRole('link', { name: 'Back to overview' });
     expect(screen.queryByRole('list')).toBe(null);
+  });
+
+  describe('S13 pause and resume', () => {
+    const PAUSED_NTSA = coverage({
+      system: 'ntsa',
+      paused: true,
+      pausedBy: 'Amina Wanjiru',
+      pausedAt: '2026-09-26T06:00:00Z',
+      rateLimitPerMinute: 40,
+    });
+
+    function renderActions(
+      rows: SystemCoverage[],
+      answer: Awaited<ReturnType<NonNullable<IntegrationsViewProps['setPaused']>>> = {
+        ok: true,
+        data: coverage(),
+      },
+    ) {
+      const setPaused = vi.fn<NonNullable<IntegrationsViewProps['setPaused']>>(() =>
+        Promise.resolve(answer),
+      );
+      const onChanged = vi.fn();
+      renderView({ result: ok(rows), setPaused, onChanged });
+      return { setPaused, onChanged };
+    }
+
+    it('offers Pause on a running system and Resume on a paused one; none without the action', () => {
+      renderActions([coverage({ system: 'kra' }), PAUSED_NTSA]);
+
+      within(row('kra')).getByRole('button', { name: 'Pause KRA iTax' });
+      within(row('ntsa')).getByRole('button', { name: 'Resume NTSA TIMS' });
+    });
+
+    it('has no actions when the page cannot pause', () => {
+      renderView({ result: ok([coverage({ system: 'kra' })]) });
+
+      expect(within(row('kra')).queryByRole('button', { name: 'Pause KRA iTax' })).toBe(null);
+    });
+
+    it('pauses after the confirm dialog: the gateway is asked, a toast, the coverage read again', async () => {
+      const { setPaused, onChanged } = renderActions([coverage({ system: 'kra' })]);
+
+      fireEvent.click(within(row('kra')).getByRole('button', { name: 'Pause KRA iTax' }));
+      const dialog = within(screen.getByRole('dialog'));
+      dialog.getByRole('heading', { name: 'Pause KRA iTax?' });
+      dialog.getByText('Lookups to KRA iTax will be marked unavailable until it is resumed.');
+      dialog.getByText('Nothing is sent to KRA iTax while it is paused.');
+      dialog.getByText('Cases keep flowing. Their Registry tab shows KRA iTax as unavailable.');
+      dialog.getByText('Affected cases are re-checked every hour until it answers.');
+      dialog.getByText('Recorded in the audit trail with your name.');
+      fireEvent.click(dialog.getByRole('button', { name: 'Pause KRA iTax' }));
+
+      await waitFor(() => {
+        expect(screen.queryByRole('dialog')).toBe(null);
+      });
+      expect(setPaused).toHaveBeenCalledWith('kra', true);
+      expect(onChanged).toHaveBeenCalledOnce();
+      screen.getByText('KRA iTax paused');
+    });
+
+    it('says what pausing IPRS does to onboarding', () => {
+      renderActions([coverage({ system: 'iprs' })]);
+
+      fireEvent.click(within(row('iprs')).getByRole('button', { name: 'Pause IPRS' }));
+
+      const dialog = within(screen.getByRole('dialog'));
+      dialog.getByText(
+        'Declarants cannot confirm their identity at onboarding until it is resumed.',
+      );
+      expect(dialog.queryByText(/Registry tab/)).toBe(null);
+    });
+
+    it('keeps the dialog open when pausing fails, saying nothing changed', async () => {
+      const { onChanged } = renderActions([coverage({ system: 'kra' })], {
+        ok: false,
+        error: { kind: 'unavailable', detail: null },
+      });
+
+      fireEvent.click(within(row('kra')).getByRole('button', { name: 'Pause KRA iTax' }));
+      fireEvent.click(
+        within(screen.getByRole('dialog')).getByRole('button', { name: 'Pause KRA iTax' }),
+      );
+
+      await within(screen.getByRole('dialog')).findByText(
+        'Could not pause KRA iTax. Nothing changed. Try again.',
+      );
+      expect(onChanged).not.toHaveBeenCalled();
+    });
+
+    it('says when the caller may not pause (403)', async () => {
+      renderActions([coverage({ system: 'kra' })], {
+        ok: false,
+        error: {
+          kind: 'problem',
+          problem: { type: 'about:blank', title: 'Forbidden', status: 403 },
+        },
+      });
+
+      fireEvent.click(within(row('kra')).getByRole('button', { name: 'Pause KRA iTax' }));
+      fireEvent.click(
+        within(screen.getByRole('dialog')).getByRole('button', { name: 'Pause KRA iTax' }),
+      );
+
+      await within(screen.getByRole('dialog')).findByText(
+        'You do not have access to pause or resume integrations.',
+      );
+    });
+
+    it('resumes after the confirm dialog, which names the rate limit', async () => {
+      const { setPaused } = renderActions([PAUSED_NTSA]);
+
+      fireEvent.click(within(row('ntsa')).getByRole('button', { name: 'Resume NTSA TIMS' }));
+      const dialog = within(screen.getByRole('dialog'));
+      dialog.getByRole('heading', { name: 'Resume NTSA TIMS?' });
+      dialog.getByText(
+        'Lookups to NTSA TIMS start again, within its rate limit of 40 calls a minute.',
+      );
+      fireEvent.click(dialog.getByRole('button', { name: 'Resume NTSA TIMS' }));
+
+      await screen.findByText('NTSA TIMS resumed');
+      expect(setPaused).toHaveBeenCalledWith('ntsa', false);
+    });
+
+    it('says who paused a system and since when', () => {
+      renderActions([PAUSED_NTSA]);
+
+      screen.getByText(/Paused by Amina Wanjiru since 09:00\./);
+      fireEvent.click(screen.getByRole('button', { name: 'NTSA TIMS' }));
+      within(row('ntsa')).getByText(
+        'Paused by Amina Wanjiru on 26 Sep 2026, 09:00. Nothing is sent until it is resumed.',
+      );
+    });
   });
 
   it('says so when no system has an adapter', () => {

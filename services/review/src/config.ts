@@ -42,6 +42,11 @@ export const envSchema = baseEnvSchema.extend({
    * keeps; `off` keeps none.
    */
   REFERRAL_SWEEP_CRON: z.string().min(1).default('30 2 * * *'),
+  /**
+   * When the sweep of cases with a registry still unavailable runs (cron, Nairobi time; spec 07b):
+   * hourly by default. `off` keeps no schedule.
+   */
+  REGISTRY_SWEEP_CRON: z.string().min(1).default('0 * * * *'),
 });
 
 export type Env = z.infer<typeof envSchema>;

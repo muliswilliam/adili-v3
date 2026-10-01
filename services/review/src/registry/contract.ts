@@ -10,8 +10,49 @@
  */
 import type { RegistryCheckStatus, RegistrySystem } from '../rules/index.js';
 
-/** Workflow type name of the registry check, for starting it by name (#187: re-check, sweep). */
+/** Workflow type names, for starting by name (the worker bundles the code, not the caller). */
 export const REGISTRY_CHECK_WORKFLOW = 'registryCheck';
+export const REGISTRY_SWEEP_WORKFLOW = 'registrySweep';
+
+/** The Temporal schedule that starts `registrySweep` hourly, one per task queue. */
+export function registrySweepScheduleId(taskQueue: string): string {
+  return `registry-sweep-schedule:${taskQueue}`;
+}
+
+/** A re-check a reviewer or supervisor asked for: one registry check per request. */
+export function registryRecheckWorkflowId(caseId: string, recheckId: string): string {
+  return `registry-recheck:${caseId}:${recheckId}`;
+}
+
+/** The check of one case by one run of the sweep. */
+export function registrySweepCheckWorkflowId(caseId: string, sweepRunId: string): string {
+  return `registry-sweep-check:${caseId}:${sweepRunId}`;
+}
+
+/** How long after a re-check of a case the next one is refused (429), in minutes. */
+export const RECHECK_COOLDOWN_MINUTES = 10;
+
+/**
+ * Cases one sweep run checks at most, oldest check first. With `SWEEP_SPACING` between them a run
+ * fits in the hour even when every check waits out its retries, and the registries see a few
+ * cases a minute, under their rate limits (only what was unavailable reaches a registry: the
+ * other answers come from the gateway's cache).
+ */
+export const REGISTRY_SWEEP_BATCH = 50;
+export const SWEEP_SPACING = '10 seconds';
+
+export interface SweepCandidatesRequest {
+  limit: number;
+}
+
+/** What one sweep run did. */
+export interface RegistrySweepResult {
+  checked: number;
+  /** Cases that had moved on to another version by the time their check ran. */
+  stale: number;
+  /** Checks that failed for good; the next run tries them again. */
+  failed: number;
+}
 
 /** The case and the version whose declared items are checked against the registries. */
 export interface RegistryCheckRequest {

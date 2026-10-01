@@ -63,6 +63,14 @@ export const PRIORITY_BANDS = ['low', 'medium', 'high'] as const;
 /** review.yaml `Severity`. */
 export const FLAG_SEVERITIES = ['info', 'low', 'medium', 'high'] as const;
 
+/**
+ * review.yaml `Flag.closedReason`: why a flag no longer counts. A registry flag a later check of
+ * the same registry no longer raises is `superseded-by-recheck` (spec 07b); reviewed or not, it
+ * keeps its note.
+ */
+export const FLAG_CLOSED_REASONS = ['superseded-by-recheck'] as const;
+export type FlagClosedReason = (typeof FLAG_CLOSED_REASONS)[number];
+
 /** How a case's assignee changed: the reviewer-of-record history spec 08 reads. */
 export const ASSIGNMENT_KINDS = ['claimed', 'released', 'reassigned', 'unassigned'] as const;
 export type AssignmentKind = (typeof ASSIGNMENT_KINDS)[number];
@@ -104,7 +112,8 @@ export type TimelineKind =
   | 'determination-returned'
   | 'determination-withdrawn'
   | 'sampled-for-review'
-  | 'registry-checked';
+  | 'registry-checked'
+  | 'registry-rechecked';
 
 const inList = (values: readonly string[]) => sql.raw(values.map((v) => `'${v}'`).join(', '));
 
@@ -179,6 +188,10 @@ export const reviewCases = pgTable(
     index('review_cases_tenant_assignee_idx').on(table.tenant, table.assignee),
     // The closure sweep's eligibility: a cycle's low-band cases, by status.
     index('review_cases_closure_idx').on(table.tenant, table.cycleYear, table.band, table.status),
+    // The hourly sweep of cases with a registry still unavailable (spec 07b): few, across tenants.
+    index('review_cases_registry_unavailable_idx')
+      .on(table.id)
+      .where(sql`${table.registryUnavailable}`),
     check('review_cases_type_check', sql`${table.type} in (${inList(DECLARATION_TYPES)})`),
     check('review_cases_band_check', sql`${table.band} in (${inList(PRIORITY_BANDS)})`),
     check('review_cases_status_check', sql`${table.status} in (${inList(CASE_STATUSES)})`),
@@ -252,11 +265,17 @@ export const reviewFlags = pgTable(
     reviewNote: text(),
     /** A reviewed flag kept when a later version was processed; its evidence is of its version. */
     recomputed: boolean().notNull().default(false),
+    /** Why the flag no longer counts toward the score or the open flags; null while it does. */
+    closedReason: text({ enum: FLAG_CLOSED_REASONS }),
     createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [
     index('review_flags_case_id_idx').on(table.caseId),
     check('review_flags_severity_check', sql`${table.severity} in (${inList(FLAG_SEVERITIES)})`),
+    check(
+      'review_flags_closed_reason_check',
+      sql`${table.closedReason} in (${inList(FLAG_CLOSED_REASONS)})`,
+    ),
   ],
 );
 

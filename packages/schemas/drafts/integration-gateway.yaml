@@ -1,50 +1,10 @@
-# Drafted operations of the integration-gateway API for specs not implemented yet: 07b (pausing
-# and resuming a registry, #187), 08 (payroll instructions) and 09 (ICMS referrals).
+# Drafted operations of the integration-gateway API for specs not implemented yet: 08 (payroll
+# instructions) and 09 (ICMS referrals).
 # `pnpm --filter @adili/integration-gateway contracts` merges them into
 # packages/schemas/internal/integration-gateway.yaml, where they may reference the implemented
 # components (e.g. `#/components/schemas/ProblemDetails`). When an operation or component is
 # implemented, delete it here: the export fails while both define it.
 paths:
-  /v1/integrations/{system}/pause:
-    parameters:
-      - $ref: '#/components/parameters/System'
-    post:
-      tags: [integrations]
-      operationId: pauseIntegration
-      summary: Force lookups to unavailable during a known outage (platform-admin)
-      responses:
-        '200':
-          description: Paused
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/SystemCoverage'
-        '403':
-          description: Forbidden
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ProblemDetails'
-  /v1/integrations/{system}/resume:
-    parameters:
-      - $ref: '#/components/parameters/System'
-    post:
-      tags: [integrations]
-      operationId: resumeIntegration
-      summary: Resume lookups (platform-admin)
-      responses:
-        '200':
-          description: Resumed
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/SystemCoverage'
-        '403':
-          description: Forbidden
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ProblemDetails'
   /internal/v1/payroll/instructions:
     post:
       tags: [internal]
@@ -179,12 +139,6 @@ components:
       description: e.g. regs-r20-1-b, act-s35-5, adr-014-onboarding, declarant-request (lookups the declarant asked for while filing; DPA s.30(1)(a))
       schema:
         type: string
-    System:
-      name: system
-      in: path
-      required: true
-      schema:
-        $ref: '#/components/schemas/System'
   responses:
     MissingLegalBasis:
       description: X-Legal-Basis header missing or unknown
