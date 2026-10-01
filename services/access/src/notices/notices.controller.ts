@@ -30,7 +30,8 @@ export class NoticesController {
   @ApiOperation({
     operationId: 'listMyAccessNotices',
     summary: 'Requests the declarant has been notified about, with windows and outcomes',
-    description: 'Their own only, from notification on; latest notified first.',
+    description:
+      'Their own only, latest notified first: Form K requests from notification on; law enforcement requests (kind `lea`, with `agency` and `caseReference`, no representations) only once granted and the declarant told (r.23(2)).',
   })
   @ApiOkResponse({
     description: 'Notices',

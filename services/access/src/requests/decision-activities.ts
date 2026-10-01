@@ -1,5 +1,4 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
-import { errorType } from '@adili/api-kit';
 import { DATABASE, withTenant } from '@adili/data-access';
 import { and, eq, isNull } from 'drizzle-orm';
 
@@ -8,7 +7,6 @@ import { config } from '../config.js';
 import type { AccessDatabase } from '../db/database.js';
 import { DeclarationsClient } from '../declarations/declarations-client.js';
 import { type AccessPackagePayload, DocumentsClient } from '../documents/documents-client.js';
-import { InternalApiRejected } from '../internal-api/internal-api.js';
 import { NotificationsClient } from '../notifications/notifications-client.js';
 import { AccessRegister } from '../register/access-register.js';
 import { accessRegister } from '../register/schema.js';
@@ -22,7 +20,7 @@ import type {
 import { applicantRequestsUrl, declarantNoticesUrl } from './links.js';
 import type { AccessRequestRow } from './representation.js';
 import { accessRequests, DECIDED_STATUSES, type DecidedStatus } from './schema.js';
-import { CHANNELS, load, messageKey, send } from './workflow-support.js';
+import { CHANNELS, load, logRefusal, messageKey, send } from './workflow-support.js';
 
 /** The template version of the access package the service issues (documents' `access-package`). */
 const ACCESS_PACKAGE_TEMPLATE_VERSION = 1;
@@ -146,7 +144,7 @@ export class DecisionActivities {
         sections: scope.sections,
       });
     } catch (error) {
-      this.logRefusal(error, context, 'Disclosure refused by declarations');
+      logRefusal(this.logger, error, context, 'Disclosure refused by declarations');
       throw error;
     }
     if (disclosure === null) {
@@ -185,7 +183,7 @@ export class DecisionActivities {
         idempotencyKey: messageKey(requestId, 'access-package'),
       });
     } catch (error) {
-      this.logRefusal(error, context, 'Access package refused by documents');
+      logRefusal(this.logger, error, context, 'Access package refused by documents');
       throw error;
     }
     const { downloadExpiresAt } = issued;
@@ -291,12 +289,6 @@ export class DecisionActivities {
       });
       return 'expired';
     });
-  }
-
-  private logRefusal(error: unknown, context: Record<string, unknown>, message: string): void {
-    if (error instanceof InternalApiRejected) {
-      this.logger.error({ ...context, err: errorType(error) }, message);
-    }
   }
 }
 

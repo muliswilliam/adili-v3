@@ -14,6 +14,7 @@ import {
   UploadNotFound,
 } from '../documents/documents-client.js';
 import { badRequest, documentsUnavailable, problem, type ProblemError } from '../problems.js';
+import { leaRequests } from '../lea/schema.js';
 import { AccessRegister } from '../register/access-register.js';
 import { openFormK } from '../requests/form-k.js';
 import { AccessRequestWorkflows } from '../requests/request-workflows.js';
@@ -27,6 +28,7 @@ import {
   type DeclarantNotice,
   type RepresentationsInput,
   toDeclarantNotice,
+  toLeaDeclarantNotice,
   windowOpen,
 } from './representation.js';
 
@@ -49,10 +51,13 @@ export class NoticesService {
     private readonly clock: Clock,
   ) {}
 
-  /** The declarant's notices, latest notified first. */
+  /**
+   * The declarant's notices, latest notified first: Form K requests once notified, law
+   * enforcement requests once granted and told (r.23(2)).
+   */
   async list(principal: Principal): Promise<DeclarantNotice[]> {
     const personId = declarantPersonId(principal);
-    const { rows, byRequest } = await withPerson(
+    const { rows, byRequest, lea } = await withPerson(
       this.db,
       { personId, subject: principal.subject },
       async (tx) => {
@@ -78,11 +83,21 @@ export class NoticesService {
                     rows.map((row) => row.id),
                   ),
                 );
-        return { rows, byRequest: new Map(made.map((row) => [row.requestId, row])) };
+        const lea = await tx
+          .select()
+          .from(leaRequests)
+          .where(
+            and(
+              eq(leaRequests.resolvedPersonId, personId),
+              eq(leaRequests.status, 'granted'),
+              isNotNull(leaRequests.declarantNotifiedAt),
+            ),
+          );
+        return { rows, byRequest: new Map(made.map((row) => [row.requestId, row])), lea };
       },
     );
     const now = this.clock.now();
-    return Promise.all(
+    const formK = await Promise.all(
       rows.map(async (row) =>
         toDeclarantNotice(
           row,
@@ -91,6 +106,11 @@ export class NoticesService {
           now,
         ),
       ),
+    );
+    return [...formK, ...lea.map(toLeaDeclarantNotice)].sort(
+      (a, b) =>
+        new Date(b.notifiedAt).getTime() - new Date(a.notifiedAt).getTime() ||
+        (a.requestId < b.requestId ? 1 : a.requestId > b.requestId ? -1 : 0),
     );
   }
 

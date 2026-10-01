@@ -2,7 +2,6 @@ import { idempotencySchema } from '@adili/api-kit/schema';
 import { eventsSchema } from '@adili/events/schema';
 import { numberingSchema } from '@adili/numbering/schema';
 
-import { agenciesSchema } from '../agencies/schema.js';
 import { leaSchema } from '../lea/schema.js';
 import { registerSchema } from '../register/schema.js';
 import { requestsSchema } from '../requests/schema.js';
@@ -13,9 +12,8 @@ export const schema = {
   ...eventsSchema,
   // Form K access requests and the declarant's representations on them.
   ...requestsSchema,
-  // Law enforcement requests, and the agencies their officers file for.
+  // Law enforcement requests (their agencies are the directory's reference data).
   ...leaSchema,
-  ...agenciesSchema,
   // The append-only access register: every step of every request and self-access.
   ...registerSchema,
   // Certified copies and officer-recorded self-access applications.
@@ -29,7 +27,6 @@ export const schema = {
 
 export type AccessSchema = typeof schema;
 
-export * from '../agencies/schema.js';
 export * from '../lea/schema.js';
 export * from '../register/schema.js';
 export * from '../requests/schema.js';

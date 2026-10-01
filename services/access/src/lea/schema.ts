@@ -20,6 +20,7 @@ export const LEA_REQUEST_STATUSES = [
   'received',
   /** The access officer checked the account's provenance and the stated reason, and resolved the officer. */
   'verified',
+  /** Granted in full or in part (the decision's outcome tells which). */
   'granted',
   'denied',
   'withdrawn',
@@ -34,7 +35,25 @@ export interface LeaOfficerSought {
   personnelFileNumber?: string;
 }
 
-/** The access officer's check of the request (r.23(1)): provenance and reason. */
+/**
+ * Where a request came from (r.23(1)): the filing officer's account as the directory held it when
+ * checked, at receipt and again when the access officer verifies the request.
+ */
+export interface LeaProvenance {
+  /** `invited` or `activated`: requests from a revoked account are refused. */
+  accountState: 'invited' | 'activated';
+  /** ISO 8601: the account's first sign-in; null while invited. */
+  activatedAt: string | null;
+  /** The statute that empowers the agency, as the directory registers it. */
+  agencyLegalBasis: string;
+  /** ISO 8601. */
+  checkedAt: string;
+}
+
+/**
+ * The access officer's check of the request (r.23(1)): the account's provenance (confirmed
+ * against the directory), the stated reason, and what they noted.
+ */
 export interface LeaVerification {
   /** Token subject and name of the access officer. */
   by: string;
@@ -42,6 +61,7 @@ export interface LeaVerification {
   /** ISO 8601. */
   at: string;
   note: string;
+  provenance: LeaProvenance;
 }
 
 export const leaRequests = pgTable(
@@ -54,11 +74,17 @@ export const leaRequests = pgTable(
     commissionName: text().notNull(),
     /** `LEA-<ISSUER>-<YEAR>-<SEQ>-<CHECK>` (ADR-011), allocated at receipt. */
     reference: text().notNull().unique(),
-    /** The filing officer's account (token `sub`) and name, and their agency. */
+    /**
+     * The filing officer's account (token `sub`), their directory person (token `person_id`), to
+     * whom the package is issued and messages are sent, their name, and their agency (snapshots
+     * at receipt).
+     */
     officerSubject: text().notNull(),
+    officerPersonId: uuid().notNull(),
     officerName: text().notNull(),
     agencyCode: text().notNull(),
     agencyName: text().notNull(),
+    provenance: jsonb().$type<LeaProvenance>().notNull(),
     officerSought: jsonb().$type<LeaOfficerSought>().notNull(),
     reason: text().notNull(),
     caseReference: text().notNull(),
@@ -79,6 +105,8 @@ export const leaRequests = pgTable(
     packageVerificationId: text(),
     packageIssuedAt: timestamp({ withTimezone: true }),
     downloadExpiresAt: timestamp({ withTimezone: true }),
+    /** When the declarant was told of the grant (r.23(2): only after it). */
+    declarantNotifiedAt: timestamp({ withTimezone: true }),
     createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp({ withTimezone: true })
       .notNull()
@@ -91,5 +119,11 @@ export const leaRequests = pgTable(
     index('lea_requests_declarant_idx').on(table.resolvedPersonId),
   ],
 );
+
+/** Decided: a decision is final. */
+export const LEA_DECIDED_STATUSES = ['granted', 'denied'] as const satisfies LeaRequestStatus[];
+
+/** Open: waiting for the access officer (the fourteen-day clock runs). */
+export const LEA_OPEN_STATUSES = ['received', 'verified'] as const satisfies LeaRequestStatus[];
 
 export const leaSchema = { leaRequests };

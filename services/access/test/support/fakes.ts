@@ -16,6 +16,7 @@ import {
   type CommissionListing,
   DirectoryClient,
   DirectoryUnavailable,
+  type LeaOfficerFacts,
   type RosterCandidateFacts,
   type RosterRecordFacts,
   ROSTER_SEARCH_LIMIT,
@@ -72,6 +73,7 @@ export class FakeDirectory extends DirectoryClient {
   private readonly commissions = new Map<string, CommissionListing>();
   private readonly records = new Map<string, RosterCandidateFacts & { slug: string }>();
   private readonly staff = new Map<string, StaffMember[]>();
+  private readonly officers = new Map<string, LeaOfficerFacts>();
   private readonly failures = new Failures();
 
   /** An active Commission on Adili since 1 January 2025, unless `listing` says otherwise. */
@@ -117,6 +119,34 @@ export class FakeDirectory extends DirectoryClient {
     this.applicants.set(personId, identityStatus);
   }
 
+  /**
+   * A law enforcement officer of the DCI, activated, whose account is `keycloakUserId`, unless
+   * `officer` says otherwise.
+   */
+  givenLeaOfficer(
+    personId: string,
+    keycloakUserId: string,
+    officer: Partial<Omit<LeaOfficerFacts, 'personId' | 'keycloakUserId'>> = {},
+  ): LeaOfficerFacts {
+    const found: LeaOfficerFacts = {
+      personId,
+      keycloakUserId,
+      name: officer.name ?? 'Peter Mwangi',
+      agency: officer.agency ?? {
+        code: 'DCI',
+        name: 'Directorate of Criminal Investigations',
+        legalBasis: 'National Police Service Act, 2011, s.35',
+      },
+      state: officer.state ?? 'activated',
+      activatedAt:
+        officer.activatedAt === undefined
+          ? new Date('2027-01-04T07:00:00.000Z')
+          : officer.activatedAt,
+    };
+    this.officers.set(personId, found);
+    return found;
+  }
+
   /** The applicant's identity status as the directory now holds it. */
   identityStatusOf(personId: string): ApplicantIdentityStatus | undefined {
     return this.applicants.get(personId);
@@ -136,6 +166,7 @@ export class FakeDirectory extends DirectoryClient {
     this.commissions.clear();
     this.records.clear();
     this.staff.clear();
+    this.officers.clear();
     this.failures.reset();
   }
 
@@ -201,6 +232,13 @@ export class FakeDirectory extends DirectoryClient {
       if (!this.applicants.has(input.personId)) return null;
       this.applicants.set(input.personId, 'verified');
       return { personId: input.personId, identityStatus: 'verified' as const };
+    });
+  }
+
+  leaOfficer(personId: string, tenant: string): Promise<LeaOfficerFacts | null> {
+    return this.answer('leaOfficer', tenant, () => {
+      const found = this.officers.get(personId);
+      return found ? { ...found, agency: { ...found.agency } } : null;
     });
   }
 

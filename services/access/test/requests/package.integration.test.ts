@@ -149,12 +149,16 @@ describe("A grant's package: downloads and expiry (S7)", () => {
     it('downloads of other documents are not the register of Form K requests', async () => {
       const { row } = await packaged();
 
+      // A law enforcement package's subject: consumed, but no law enforcement request holds it.
       expect(
         await consumer.downloaded(downloaded(row, { subjectRef: `lea-request:${row.id}` })),
-      ).toBe(false);
+      ).toBe(true);
       expect(await consumer.downloaded(downloaded(row, { documentType: 'certified-copy' }))).toBe(
         false,
       );
+      expect(
+        await consumer.downloaded(downloaded(row, { subjectRef: `certified-copy:${row.id}` })),
+      ).toBe(false);
       // The request's id with another document: not its package.
       expect(
         await consumer.downloaded(

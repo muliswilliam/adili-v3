@@ -30,6 +30,7 @@ import { schema } from '../../src/db/schema.js';
 import { DeclarationsClient } from '../../src/declarations/declarations-client.js';
 import { DirectoryClient } from '../../src/directory/directory-client.js';
 import { DocumentsClient } from '../../src/documents/documents-client.js';
+import { leaRequestWorkflowId } from '../../src/lea/contract.js';
 import { accessRequestWorkflowId } from '../../src/requests/contract.js';
 import { NotificationsClient } from '../../src/notifications/notifications-client.js';
 import { FakeClock } from './fake-clock.js';
@@ -224,16 +225,23 @@ export async function startAccessApi(): Promise<AccessApi> {
       const requests = await withTenant(db, { tenant: PLATFORM_TENANT, subject: 'test' }, (tx) =>
         tx.select({ id: schema.accessRequests.id }).from(schema.accessRequests),
       );
-      for (const { id } of requests) {
+      const leaRows = await withTenant(db, { tenant: PLATFORM_TENANT, subject: 'test' }, (tx) =>
+        tx.select({ id: schema.leaRequests.id }).from(schema.leaRequests),
+      );
+      const workflowIds = [
+        ...requests.map(({ id }) => accessRequestWorkflowId(id)),
+        ...leaRows.map(({ id }) => leaRequestWorkflowId(id)),
+      ];
+      for (const id of workflowIds) {
         try {
-          await temporal.workflow.getHandle(accessRequestWorkflowId(id)).terminate();
+          await temporal.workflow.getHandle(id).terminate();
         } catch {
           // Never started (held), or ended already.
         }
       }
       // Children before parents; the register's insert-only trigger does not fire on truncate.
       await db.execute(
-        sql`truncate representations, access_requests, lea_requests, access_register, certified_copies, self_access_applications, agencies, numbering_counters, idempotency_keys, outbox, inbox`,
+        sql`truncate representations, access_requests, lea_requests, access_register, certified_copies, self_access_applications, numbering_counters, idempotency_keys, outbox, inbox`,
       );
       directory.reset();
       declarations.reset();

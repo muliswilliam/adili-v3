@@ -94,7 +94,7 @@ export interface paths {
         };
         /**
          * Queue of access requests with deadlines (access officer; supervisor reads)
-         * @description Earliest decision deadline first. `late`: past the deadline and neither decided nor closed. Law enforcement requests join the queue with their own workspace (`kind=lea` is empty until then).
+         * @description Form K requests (30-day deadline) and law enforcement requests (14-day deadline) together, or one `kind`; earliest decision deadline first. `late`: past the deadline and neither decided nor closed (for a law enforcement request, the breach flag).
          */
         get: operations["listCommissionAccessRequests"];
         put?: never;
@@ -202,6 +202,90 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/lea/requests": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The officer's requests, latest first
+         * @description Their own only, across Commissions. Each timeline names no actor but the officer.
+         */
+        get: operations["listMyLeaRequests"];
+        put?: never;
+        /**
+         * Law enforcement officer submits a written request (no Form K); allocates the LEA reference
+         * @description From a provisioned, active officer account (role `law-enforcement`, tenant `lea`, the token's `person_id` an officer of an agency in the directory). The request is `received` (`lea.request.received.v1`) with its fourteen-day deadline; the declarant is not told (only after a grant, r.23(2)).
+         */
+        post: operations["submitLeaRequest"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/lea/requests/{leaRequestId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * One request (the officer who filed it, or the Commission's access officer)
+         * @description The officer who filed it sees it with only their own name on the timeline; the Commission's access officer and supervisor see it whole. The package (`package.documentId`) is downloaded by the filing officer from documents until `package.downloadExpiresAt`.
+         */
+        get: operations["getLeaRequest"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/lea/requests/{leaRequestId}/verify": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Access officer records the provenance and reason check and identifies the officer
+         * @description r.23(1): the access officer confirms the request comes from the agency account it shows (checked again against the directory) and states its reason, and identifies the officer sought on the Commission's roster. The request becomes `verified` (`lea.request.verified.v1`).
+         */
+        post: operations["verifyLeaRequest"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/lea/requests/{leaRequestId}/decision": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Grant (package, declarant notified after) or deny with reasons (final)
+         * @description As for Form K: a grant is of the requested scope and cites no grounds; a partial grant narrows it and cites Regulation 24 grounds; a denial cites grounds. A grant or partial grant needs the request `verified`; a denial may be decided before. The request becomes `granted` (in full or in part: see `decision.outcome`) or `denied` (`lea.request.decided.v1`). The agency's officer is told next; after a grant the declarant is told (r.23(2)) and the officer's package (`act-s36-2`) follows.
+         */
+        post: operations["decideLeaRequest"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/me/access-notices": {
         parameters: {
             query?: never;
@@ -211,7 +295,7 @@ export interface paths {
         };
         /**
          * Requests the declarant has been notified about, with windows and outcomes
-         * @description Their own only, from notification on; latest notified first.
+         * @description Their own only, latest notified first: Form K requests from notification on; law enforcement requests (kind `lea`, with `agency` and `caseReference`, no representations) only once granted and the declarant told (r.23(2)).
          */
         get: operations["listMyAccessNotices"];
         put?: never;
@@ -271,100 +355,6 @@ export interface paths {
         put?: never;
         /** Certified copy of one of my submitted versions */
         post: operations["requestCertifiedCopy"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/lea/requests": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** The officer's requests */
-        get: operations["listMyLeaRequests"];
-        put?: never;
-        /** Law-enforcement officer submits a written request (no Form K); allocates the LEA reference */
-        post: operations["submitLeaRequest"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/lea/requests/{leaRequestId}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                leaRequestId: components["parameters"]["LeaRequestId"];
-            };
-            cookie?: never;
-        };
-        /** One request (officer who filed it, or the Commission's access officer) */
-        get: operations["getLeaRequest"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/lea/requests/{leaRequestId}/verify": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                leaRequestId: components["parameters"]["LeaRequestId"];
-            };
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Access officer records the provenance and reason check and resolves the officer */
-        post: operations["verifyLeaRequest"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/lea/requests/{leaRequestId}/decision": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                leaRequestId: components["parameters"]["LeaRequestId"];
-            };
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Grant (package, declarant notified after) or deny with reasons */
-        post: operations["decideLeaRequest"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/lea/requests/{leaRequestId}/package/download": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                leaRequestId: components["parameters"]["LeaRequestId"];
-            };
-            cookie?: never;
-        };
-        /** Short-lived link to the granted package (registered) */
-        get: operations["downloadLeaPackage"];
-        put?: never;
-        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -510,7 +500,11 @@ export interface components {
             applicantOrAgency: string;
             officerSought: string;
             resolvedName: string | null;
-            status: components["schemas"]["AccessRequestStatus"];
+            /**
+             * @description An `AccessRequestStatus` for Form K, a `LeaRequestStatus` for law enforcement requests
+             * @enum {string}
+             */
+            status: "submitted" | "pending-applicant-verification" | "officer-unresolved" | "awaiting-representations" | "under-decision" | "granted" | "partially-granted" | "denied" | "cannot-identify" | "withdrawn" | "received" | "verified";
             /** Format: date-time */
             submittedAt: string;
             /** Format: date-time */
@@ -567,6 +561,13 @@ export interface components {
             status: components["schemas"]["AccessRequestStatus"];
             applicantName: string;
             purposeInGeneralTerms: string;
+            /** @description The agency of a law enforcement request (from its grant); null for Form K */
+            agency: {
+                code: string;
+                name: string;
+            } | null;
+            /** @description The agency's case reference of a law enforcement request (from its grant); null for Form K */
+            caseReference: string | null;
             scope: components["schemas"]["Scope"];
             /** Format: date-time */
             notifiedAt: string;
@@ -581,6 +582,115 @@ export interface components {
             name: string;
             /** @description The declaration years (statement-date years) a request can ask of it, ascending: from the year it joined Adili (its earliest obligations-start date, not before 2025) to the current year in Nairobi. Empty while it holds none yet. */
             years: number[];
+        };
+        /**
+         * @description `received` with its LEA reference; `verified` once the access officer checked its provenance and reason and identified the officer sought; `granted` (in full or in part: see the decision) or `denied`, final; `withdrawn`
+         * @enum {string}
+         */
+        LeaRequestStatus: "received" | "verified" | "granted" | "denied" | "withdrawn";
+        LeaRequestInput: {
+            /** @description The Responsible Commission addressed (its slug) */
+            commission: string;
+            officerSought: {
+                name: string;
+                entity?: string;
+                workStation?: string;
+                personnelFileNumber?: string;
+            };
+            /** @description What is being investigated and why the declaration is needed */
+            reason: string;
+            /** @description The agency's case reference: one request per case */
+            caseReference: string;
+            scope: components["schemas"]["Scope"];
+        };
+        LeaProvenance: {
+            /** @enum {string} */
+            accountState: "invited" | "activated";
+            /** @description The account's first sign-in; null while invited */
+            activatedAt: string | null;
+            /** @description The statute that empowers the agency */
+            agencyLegalBasis: string;
+            /** Format: date-time */
+            checkedAt: string;
+        };
+        LeaVerification: {
+            by: {
+                subject: string;
+                name: string;
+            };
+            /** Format: date-time */
+            at: string;
+            note: string;
+            /** @description As confirmed when verified */
+            provenance: components["schemas"]["LeaProvenance"];
+        };
+        VerifyLeaRequest: {
+            /**
+             * @description The access officer confirms the request comes from the agency account it shows
+             * @constant
+             */
+            provenanceConfirmed: true;
+            /**
+             * @description The access officer confirms the request states its reason
+             * @constant
+             */
+            reasonConfirmed: true;
+            /**
+             * Format: uuid
+             * @description The onboarded roster record of the Commission the officer sought is: their declarant is told after a grant
+             */
+            rosterRecordId: string;
+            /** @description What the access officer checked */
+            note: string;
+        };
+        LeaRequest: {
+            /** Format: uuid */
+            id: string;
+            /** @description LEA-<ISSUER>-<YEAR>-<seq>-<check> */
+            reference: string;
+            commission: {
+                slug: string;
+                name: string;
+            };
+            agency: {
+                code: string;
+                name: string;
+            };
+            /** @description The law enforcement officer who filed it */
+            officer: {
+                subject: string;
+                name: string;
+            };
+            /** @description The officer's account at receipt */
+            provenance: components["schemas"]["LeaProvenance"];
+            officerSought: {
+                name: string;
+                entity?: string;
+                workStation?: string;
+                personnelFileNumber?: string;
+            };
+            reason: string;
+            caseReference: string;
+            scope: components["schemas"]["Scope"];
+            status: components["schemas"]["LeaRequestStatus"];
+            /** Format: date-time */
+            receivedAt: string;
+            /**
+             * Format: date-time
+             * @description Received + 14 days: the decision is due by then
+             */
+            deadlineAt: string;
+            /** @description Set when the fourteen-day deadline passed with the request undecided (the breach flag); null otherwise */
+            breachedAt: string | null;
+            resolvedRosterRecordId: string | null;
+            /** @description The roster record the officer sought was identified as */
+            resolvedName: string | null;
+            verification: components["schemas"]["LeaVerification"] | null;
+            decision: components["schemas"]["Decision"] | null;
+            /** @description When the declarant was told of the grant (only after a grant, r.23(2)) */
+            declarantNotifiedAt: string | null;
+            package: components["schemas"]["Package"] | null;
+            timeline: components["schemas"]["RegisterEntry"][];
         };
         ProblemDetails: {
             type: string;
@@ -599,8 +709,6 @@ export interface components {
                 message: string;
             }[];
         };
-        /** @enum {string} */
-        LeaRequestStatus: "received" | "verified" | "granted" | "denied" | "withdrawn";
         CertifiedCopy: {
             /** Format: uuid */
             id: string;
@@ -617,63 +725,6 @@ export interface components {
             /** Format: date-time */
             requestedAt: string;
         };
-        LeaRequestInput: {
-            commission: string;
-            officerSought: {
-                name: string;
-                entity?: string;
-                workStation?: string;
-                personnelFileNumber?: string;
-            };
-            reason: string;
-            caseReference: string;
-            scope: components["schemas"]["Scope"];
-        };
-        LeaRequest: {
-            /** Format: uuid */
-            id: string;
-            /** @description LEA-<ISSUER>-<YEAR>-<seq>-<check> */
-            reference: string;
-            commission: {
-                slug: string;
-                name: string;
-            };
-            agency: {
-                code: string;
-                name: string;
-            };
-            officer: {
-                subject: string;
-                name: string;
-            };
-            officerSought: {
-                [key: string]: unknown;
-            };
-            reason: string;
-            caseReference: string;
-            scope: components["schemas"]["Scope"];
-            status: components["schemas"]["LeaRequestStatus"];
-            /** Format: date-time */
-            receivedAt: string;
-            /** Format: date-time */
-            deadlineAt: string;
-            verification: {
-                by: string;
-                /** Format: date-time */
-                at: string;
-                note: string;
-            } | null;
-            decision: components["schemas"]["Decision"] | null;
-            package: components["schemas"]["Package"] | null;
-            timeline: components["schemas"]["RegisterEntry"][];
-        };
-        DownloadLink: {
-            /** Format: uri */
-            downloadUrl: string;
-            /** Format: date-time */
-            expiresAt: string;
-            sha256: string;
-        };
     };
     responses: {
         /** @description Not found, or not visible to the caller */
@@ -685,29 +736,8 @@ export interface components {
                 "application/problem+json": components["schemas"]["ProblemDetails"];
             };
         };
-        /** @description Caller lacks the required role */
-        Forbidden: {
-            headers: {
-                [name: string]: unknown;
-            };
-            content: {
-                "application/problem+json": components["schemas"]["ProblemDetails"];
-            };
-        };
-        /** @description Request failed validation */
-        ValidationProblem: {
-            headers: {
-                [name: string]: unknown;
-            };
-            content: {
-                "application/problem+json": components["schemas"]["ProblemDetails"];
-            };
-        };
     };
-    parameters: {
-        LeaRequestId: string;
-        IdempotencyKey: string;
-    };
+    parameters: never;
     requestBodies: never;
     headers: never;
     pathItems: never;
@@ -1004,7 +1034,7 @@ export interface operations {
     listCommissionAccessRequests: {
         parameters: {
             query?: {
-                /** @description Only requests in these statuses, comma-separated (e.g. the open ones: `submitted,pending-applicant-verification,officer-unresolved,awaiting-representations,under-decision`) */
+                /** @description Only requests in these statuses, comma-separated, of either kind (e.g. the open ones: `submitted,pending-applicant-verification,officer-unresolved,awaiting-representations,under-decision,received,verified`) */
                 status?: string;
                 /** @description Only Form K or only LEA requests */
                 kind?: "form-k" | "lea";
@@ -1433,6 +1463,324 @@ export interface operations {
             };
         };
     };
+    listMyLeaRequests: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Requests */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LeaRequest"][];
+                };
+            };
+            /**
+             * @description Not a law enforcement officer account
+             *
+             *     Requires one of the roles: law-enforcement
+             */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    submitLeaRequest: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Client-generated UUID, unique per logical request; reuse on retry */
+                "Idempotency-Key": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LeaRequestInput"];
+            };
+        };
+        responses: {
+            /** @description Received */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LeaRequest"];
+                };
+            };
+            /** @description The body failed validation (`errors` name the fields), or no such Responsible Commission (`commission`) */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /**
+             * @description Not a law enforcement officer account, or not an active one of an agency in the directory
+             *
+             *     Requires one of the roles: law-enforcement
+             */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Idempotency-Key reused with a different request body */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description The directory or Temporal cannot be reached; nothing was stored */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    getLeaRequest: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                leaRequestId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Request */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LeaRequest"];
+                };
+            };
+            /** @description leaRequestId is not a UUID */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /**
+             * @description A law enforcement account without an officer record
+             *
+             *     Requires one of the roles: law-enforcement, access-officer, supervisor, eacc-analyst, eacc-supervisor
+             */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description No such request of the caller's (another officer's, another Commission's, EACC's or anyone else's view) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    verifyLeaRequest: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Optional. Client-generated UUID, unique per logical request; reuse on retry and the stored answer is replayed instead of acting twice */
+                "Idempotency-Key"?: string;
+            };
+            path: {
+                leaRequestId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["VerifyLeaRequest"];
+            };
+        };
+        responses: {
+            /** @description Verified */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LeaRequest"];
+                };
+            };
+            /** @description leaRequestId is not a UUID, the body failed validation, or `rosterRecordId` is not an onboarded roster record of the Commission */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /**
+             * @description The Commission supervisor reads requests; only its access officer acts
+             *
+             *     Requires one of the roles: access-officer, supervisor, eacc-analyst, eacc-supervisor
+             */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description No such request of the caller's (another officer's, another Commission's, EACC's or anyone else's view) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Problem code `officer-resolved` (verified already), `request-decided` or `request-closed`; or the account the request came from is no longer an active officer account of its agency */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Idempotency-Key reused with a different request body */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description The directory cannot be reached; nothing was recorded */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    decideLeaRequest: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Client-generated UUID, unique per logical request; reuse on retry */
+                "Idempotency-Key": string;
+            };
+            path: {
+                leaRequestId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DecisionInput"];
+            };
+        };
+        responses: {
+            /** @description Decided; notices and package follow */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LeaRequest"];
+                };
+            };
+            /** @description leaRequestId is not a UUID or the body failed validation; problem code `grounds-required` or `scope-exceeds-request`; `errors` name the field */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /**
+             * @description The Commission supervisor reads requests; only its access officer acts
+             *
+             *     Requires one of the roles: access-officer, supervisor, eacc-analyst, eacc-supervisor
+             */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description No such request of the caller's (another officer's, another Commission's, EACC's or anyone else's view) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Problem code `request-decided` (a decision is final), `request-closed`, or `not-under-decision` (a grant before the request is verified) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Idempotency-Key reused with a different request body */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
     listMyAccessNotices: {
         parameters: {
             query?: never;
@@ -1631,180 +1979,6 @@ export interface operations {
                 };
             };
             404: components["responses"]["NotFound"];
-        };
-    };
-    listMyLeaRequests: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Requests */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["LeaRequest"][];
-                };
-            };
-        };
-    };
-    submitLeaRequest: {
-        parameters: {
-            query?: never;
-            header: {
-                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["LeaRequestInput"];
-            };
-        };
-        responses: {
-            /** @description Received */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["LeaRequest"];
-                };
-            };
-            400: components["responses"]["ValidationProblem"];
-            403: components["responses"]["Forbidden"];
-        };
-    };
-    getLeaRequest: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                leaRequestId: components["parameters"]["LeaRequestId"];
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Request */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["LeaRequest"];
-                };
-            };
-            404: components["responses"]["NotFound"];
-        };
-    };
-    verifyLeaRequest: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                leaRequestId: components["parameters"]["LeaRequestId"];
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": {
-                    /** Format: uuid */
-                    rosterRecordId: string | null;
-                    note: string;
-                };
-            };
-        };
-        responses: {
-            /** @description Verified */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["LeaRequest"];
-                };
-            };
-            403: components["responses"]["Forbidden"];
-            404: components["responses"]["NotFound"];
-        };
-    };
-    decideLeaRequest: {
-        parameters: {
-            query?: never;
-            header: {
-                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
-            };
-            path: {
-                leaRequestId: components["parameters"]["LeaRequestId"];
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["DecisionInput"];
-            };
-        };
-        responses: {
-            /** @description Decided */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["LeaRequest"];
-                };
-            };
-            403: components["responses"]["Forbidden"];
-            404: components["responses"]["NotFound"];
-            /** @description Already decided */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetails"];
-                };
-            };
-        };
-    };
-    downloadLeaPackage: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                leaRequestId: components["parameters"]["LeaRequestId"];
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Link */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["DownloadLink"];
-                };
-            };
-            404: components["responses"]["NotFound"];
-            /** @description Download window expired */
-            410: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetails"];
-                };
-            };
         };
     };
 }
