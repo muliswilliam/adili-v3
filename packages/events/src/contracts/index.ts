@@ -19,6 +19,7 @@ export {
   ACCESS_REQUEST_VERIFIED,
   ACCESS_REQUEST_WITHDRAWN,
   ACCESS_SUBJECT_KINDS,
+  type AccessCertifiedCopyIssuedData,
   type AccessGround,
   type AccessLegalBasis,
   type AccessOutcome,
