@@ -141,6 +141,8 @@ export const reviewCases = pgTable(
     /** Read model for queue search: confidential, tenant-scoped. */
     declarantName: text().notNull(),
     personnelFileNumber: text().notNull(),
+    /** As the declaration states it (`officer.employment.designation`); Form M names it. */
+    designation: text(),
     /**
      * The roster record of the obligation the declaration was filed for, from the version: a
      * clarification's ladder stops and resumes the salary on it. Null for cases processed before it

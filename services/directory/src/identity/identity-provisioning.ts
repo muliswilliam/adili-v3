@@ -32,6 +32,12 @@ export interface IdentityUser {
   roles: string[];
 }
 
+/** A staff account a service may email: its subject (token `sub`) and verified email. */
+export interface StaffContact {
+  subject: string;
+  email: string;
+}
+
 export interface CreateStaffUserInput {
   email: string;
   /** Full name as entered; adapters split it into given and family names. */
@@ -179,6 +185,12 @@ export abstract class IdentityProvisioning {
 
   /** The account with this id, or null (for example, it was deleted in Keycloak by hand). */
   abstract findById(userId: string): Promise<IdentityUser | null>;
+
+  /**
+   * The Commission's enabled staff accounts holding realm role `role`, with a verified email:
+   * those a service may send a reminder or a chase to (spec 09).
+   */
+  abstract listStaffWithRole(tenant: string, role: string): Promise<StaffContact[]>;
 
   /**
    * Creates an enabled staff account with the email as username, the tenant attribute,

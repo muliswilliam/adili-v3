@@ -443,6 +443,80 @@ describe("S6 a roster record's national ID (spec 08)", () => {
   });
 });
 
+describe('Commission staff by role (spec 09 reminders and chase)', () => {
+  const STAFF = '/internal/v1/commissions/psc/staff';
+  /** The reporting service's client credentials token. */
+  const REPORTING: Caller = {
+    sub: 'service-account-reporting',
+    azp: 'reporting',
+    scope: 'profile directory:internal',
+  };
+
+  function staff(role: string, caller: Caller = REPORTING, acting = ACTING_PSC) {
+    return api.get(`${STAFF}?role=${role}`, caller, acting);
+  }
+
+  it('lists the enabled accounts holding the role with a verified email, audited', async () => {
+    const supervisor = api.identity.seedUser({
+      email: 'supervisor@psc.go.ke',
+      tenant: 'psc',
+      roles: ['supervisor'],
+      emailVerified: true,
+    });
+    api.identity.seedUser({
+      email: 'never.activated@psc.go.ke',
+      tenant: 'psc',
+      roles: ['supervisor'],
+    });
+    api.identity.seedUser({
+      email: 'disabled@psc.go.ke',
+      tenant: 'psc',
+      roles: ['supervisor'],
+      emailVerified: true,
+      enabled: false,
+    });
+    api.identity.seedUser({
+      email: 'supervisor@tsc.go.ke',
+      tenant: 'tsc',
+      roles: ['supervisor'],
+      emailVerified: true,
+    });
+    const admin = api.identity.seedUser({
+      email: 'admin@psc.go.ke',
+      tenant: 'psc',
+      roles: ['commission-admin'],
+      emailVerified: true,
+    });
+
+    const response = await staff('supervisor');
+
+    expect(response.statusCode, response.body).toBe(200);
+    expect(
+      contractErrors(okResponse('/internal/v1/commissions/{slug}/staff', 'get'), response.json()),
+    ).toEqual([]);
+    expect(response.json()).toEqual({
+      items: [{ subject: supervisor, email: 'supervisor@psc.go.ke' }],
+    });
+    expect((await staff('commission-admin')).json()).toEqual({
+      items: [{ subject: admin, email: 'admin@psc.go.ke' }],
+    });
+    expect(await auditReads()).toContainEqual(
+      expect.objectContaining({
+        action: 'commission.staff.pulled',
+        resource: expect.objectContaining({ type: 'staff-account', ids: [supervisor] }) as unknown,
+      }),
+    );
+  });
+
+  it('takes the staff roles only; 404 for another Commission; refuses user tokens', async () => {
+    expect((await staff('declarant')).statusCode).toBe(400);
+    expect((await staff('supervisor', REPORTING, { 'x-acting-tenant': 'tsc' })).statusCode).toBe(
+      404,
+    );
+    expect((await staff('supervisor', OFFICER)).statusCode).toBe(403);
+  });
+});
+
 describe('Commission reference', () => {
   it('gives the slug, issuer code and name services show the Commission by', async () => {
     const response = await api.get('/internal/v1/commissions/psc', DECLARATIONS, ACTING_PSC);

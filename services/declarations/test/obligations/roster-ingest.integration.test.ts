@@ -99,6 +99,11 @@ describe('S7 roster.import.completed.v1', () => {
       `psc ${importId} 2000`,
     ]);
     expect(await tableCount(rosterSnapshots)).toBe(2500);
+    // The designation is kept for Form M's officer details (spec 09).
+    const designations = await asPlatform((tx) =>
+      tx.selectDistinct({ designation: rosterSnapshots.designation }).from(rosterSnapshots),
+    );
+    expect(designations).toEqual([{ designation: 'Senior Accountant' }]);
 
     const byTypeAndStatus = await asPlatform((tx) =>
       tx

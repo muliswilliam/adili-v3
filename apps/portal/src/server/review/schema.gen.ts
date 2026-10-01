@@ -474,7 +474,7 @@ export interface paths {
         put?: never;
         /**
          * Clarifications of a Commission in a batch, for Form M section 4 (reporting, spec 09)
-         * @description Service tokens with scope review:internal, acting for the Commission in X-Acting-Tenant (ADR-013 §8.7). The officer asked and the kinds of requirement asked for, never the request's content. At most 1,000 ids; a clarification the Commission does not hold is left out. A read: it changes nothing, so it takes no Idempotency-Key and is safe to retry.
+         * @description Service tokens with scope review:internal, acting for the Commission in X-Acting-Tenant (ADR-013 §8.7); audited, naming the clarifications read. The officer asked and the kinds of requirement asked for, never the request's content. At most 1,000 ids; a clarification the Commission does not hold is left out. A read: it changes nothing, so it takes no Idempotency-Key and is safe to retry.
          */
         post: operations["internalClarificationDetails"];
         delete?: never;

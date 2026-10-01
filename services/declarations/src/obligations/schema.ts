@@ -62,6 +62,8 @@ export const rosterSnapshots = pgTable(
     tenant: text().notNull(),
     personnelFileNumber: text().notNull(),
     fullName: text().notNull(),
+    /** As the roster gives it; null when it gives none (Form M names it, spec 09). */
+    designation: text(),
     state: text({ enum: ROSTER_RECORD_STATES }).notNull(),
     appointmentDate: date({ mode: 'string' }),
     exitDate: date({ mode: 'string' }),

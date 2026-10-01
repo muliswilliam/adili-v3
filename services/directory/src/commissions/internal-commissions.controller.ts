@@ -1,18 +1,30 @@
-import { Controller, Get, Param } from '@nestjs/common';
+import { Controller, Get, Param, Query } from '@nestjs/common';
 import { ApiOkResponse, ApiOperation, ApiParam, ApiTags } from '@nestjs/swagger';
 import {
   ActingTenant,
   ApiProblemResponse,
+  ApiQueryParameters,
+  AuditedRead,
   CurrentPrincipal,
+  CurrentReadAudit,
   type Principal,
+  type ReadAudit,
   schemaRef,
   Scopes,
+  ZodValidationPipe,
 } from '@adili/api-kit';
 import { DIRECTORY_INTERNAL_SCOPE } from '@adili/roles';
 
 import { DirectoryInternalApi } from '../internal-api.js';
+import { CommissionStaffService } from './commission-staff.service.js';
 import { CommissionsService } from './commissions.service.js';
-import type { InternalCommission, InternalCommissionList } from './representation.js';
+import {
+  type InternalCommission,
+  type InternalCommissionList,
+  type InternalCommissionStaff,
+  type StaffQuery,
+  staffQuery,
+} from './representation.js';
 
 /**
  * Internal: every Commission's reference. Platform-wide public facts (slug, issuer code, name), so
@@ -46,7 +58,10 @@ export class InternalCommissionListController {
 @ApiParam({ name: 'slug', schema: schemaRef('Slug') })
 @DirectoryInternalApi()
 export class InternalCommissionsController {
-  constructor(private readonly commissions: CommissionsService) {}
+  constructor(
+    private readonly commissions: CommissionsService,
+    private readonly staffService: CommissionStaffService,
+  ) {}
 
   @Get()
   @ApiOperation({
@@ -63,5 +78,32 @@ export class InternalCommissionsController {
     @Param('slug') slug: string,
   ): Promise<InternalCommission> {
     return this.commissions.internalRef(principal, tenant, slug);
+  }
+
+  @Get('staff')
+  @AuditedRead({ action: 'commission.staff.pulled', resource: 'staff-account' })
+  @ApiQueryParameters(staffQuery)
+  @ApiOperation({
+    operationId: 'internalListCommissionStaff',
+    summary: "A Commission's staff holding a role, with their emails (services)",
+    description:
+      'Service tokens with scope directory:internal, acting for the Commission in X-Acting-Tenant; audited, naming the accounts read (it gives staff and their emails). Only enabled accounts with a verified email. The reporting service reminds supervisors and commission admins of the Form M deadlines, and chases reporting officers about a late report (spec 09).',
+  })
+  @ApiOkResponse({
+    description: 'The staff holding the role',
+    schema: schemaRef('InternalStaffList'),
+  })
+  @ApiProblemResponse(400, 'role is not reporting-officer, supervisor or commission-admin')
+  @ApiProblemResponse(404, 'Not found, or not the acting tenant')
+  async staff(
+    @CurrentPrincipal() principal: Principal,
+    @ActingTenant() tenant: string,
+    @Param('slug') slug: string,
+    @Query(new ZodValidationPipe(staffQuery)) query: StaffQuery,
+    @CurrentReadAudit() audit: ReadAudit,
+  ): Promise<InternalCommissionStaff> {
+    const staff = await this.staffService.withRole(principal, tenant, slug, query.role);
+    audit.resource({ tenant: slug, ids: staff.items.map((member) => member.subject) });
+    return staff;
   }
 }
