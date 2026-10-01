@@ -339,7 +339,7 @@ describe('conflict (409)', () => {
 });
 
 describe('incomplete (400)', () => {
-  it('closes the dialog and shows what blocks', async () => {
+  it('closes the dialog, shows what blocks and reads the summary and section nav again', async () => {
     const blocking: CompletenessIssue[] = [
       {
         sectionKey: 'bio',
@@ -359,6 +359,7 @@ describe('incomplete (400)', () => {
     expect(within(panel).getByRole('link', { name: 'Enter your date of birth.' })).toBeTruthy();
     expect(screen.queryByText('Everything is complete.')).toBeNull();
     expect(submitButton().disabled).toBe(true);
+    expect(invalidate).toHaveBeenCalled();
   });
 
   it('gives way to a summary read after it, which says what blocks now', async () => {

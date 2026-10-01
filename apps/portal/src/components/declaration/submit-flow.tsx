@@ -89,10 +89,13 @@ export function useSubmitFlow(
   useEffect(() => {
     if (state.step === 'stepping-up') stepUp(summaryPath);
     if (state.step === 'signed-out') signInAgain(summaryPath);
+    // The 400 says the draft changed since the summary loaded: read the summary and the
+    // workspace header again, so the section nav and the blocking panel tell the same story.
+    if (state.step === 'incomplete') void router.invalidate();
     if (state.step === 'submitted') {
       void navigate({ to: '/declarations/$id/submitted', params: { id: declarationId } });
     }
-  }, [state.step, summaryPath, declarationId, navigate]);
+  }, [state.step, summaryPath, declarationId, navigate, router]);
 
   return {
     state,
