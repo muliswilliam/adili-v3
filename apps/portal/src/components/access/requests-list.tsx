@@ -123,23 +123,28 @@ function RequestRow({ request, now }: { request: RequestSummary; now: number }) 
   );
 }
 
-/** Pages of a list of requests, ten to a page: the range shown and a button per page. */
+/** Pages of a list, ten to a page unless told: the range shown and a button per page. */
 export function Pager({
   page,
   total,
   onPage,
+  pageSize = REQUESTS_PAGE_SIZE,
+  label = COPY.pagination,
 }: {
   page: number;
   total: number;
   onPage: (page: number) => void;
+  pageSize?: number;
+  /** Names the pager for screen readers. */
+  label?: string;
 }) {
-  const pages = Math.ceil(total / REQUESTS_PAGE_SIZE);
+  const pages = Math.ceil(total / pageSize);
   if (pages <= 1) return null;
-  const from = (page - 1) * REQUESTS_PAGE_SIZE + 1;
-  const to = Math.min(total, page * REQUESTS_PAGE_SIZE);
+  const from = (page - 1) * pageSize + 1;
+  const to = Math.min(total, page * pageSize);
   return (
     <nav
-      aria-label={COPY.pagination}
+      aria-label={label}
       className="flex items-center gap-1.5 border-t border-border px-5 py-2.5 text-[13.5px] text-muted-foreground sm:px-6"
     >
       <span aria-live="polite">{COPY.range(from, to, total)}</span>

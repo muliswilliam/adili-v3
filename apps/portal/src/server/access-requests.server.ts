@@ -8,7 +8,7 @@ import {
   type StepErrors,
   toFormK,
 } from '../access/form-k';
-import type { AccessClient, PackageDocumentsClient } from './access/client.server';
+import type { AccessClient, SubjectDocumentsClient } from './access/client.server';
 import {
   type AccessCommission,
   type AccessRequest,
@@ -289,7 +289,7 @@ export type PackageDownloadResult =
  * registers each link it hands out, and refuses one once the window has closed.
  */
 export function readPackageDownload(
-  documents: PackageDocumentsClient,
+  documents: SubjectDocumentsClient,
   documentId: string,
 ): Promise<PackageDownloadResult> {
   return attempt(async () => {

@@ -1,7 +1,8 @@
 /**
  * In-memory stand-in for the access service's applicant endpoints (access.yaml), used when
  * ACCESS_MOCK is set, to work on the portal without the service (the declarant's
- * `/v1/me/access-notices` go to `mock-notices.server.ts`). Every signed-in caller
+ * `/v1/me/access-notices` go to `mock-notices.server.ts`, their history and certified copies to
+ * `mock-history.server.ts`). Every signed-in caller
  * shares one store, seeded relative to when it was first used with one request in each status:
  *
  * - submitted today, awaiting identity verification (a passport), officer being identified,
@@ -47,6 +48,12 @@ import { ARQ, format } from '@adili/numbering/references';
 
 import { json, problem, readJson } from '../mock-http';
 import { placeholderPdf } from '../mock-pdf';
+import {
+  isHistoryPath,
+  mockCopyDownload,
+  mockCopyFile,
+  mockHistoryFetch,
+} from './mock-history.server';
 import { mockNoticesFetch } from './mock-notices.server';
 import type { AccessCommission, AccessRequest, RegisterEntry } from './types';
 
@@ -740,7 +747,7 @@ function packageRequest(documentId: string): AccessRequest | undefined {
 /** The placeholder PDF the mock's package link serves, or null for no such package. */
 export function mockPackageFile(documentId: string): { fileName: string; pdf: string } | null {
   const found = packageRequest(documentId);
-  if (!found?.package) return null;
+  if (!found?.package) return mockCopyFile(documentId);
   return {
     fileName: `access-package-${found.reference}.pdf`,
     pdf: placeholderPdf([
@@ -812,13 +819,20 @@ export async function mockAccessFetch(request: Request): Promise<Response> {
   const path = url.pathname;
   const download = /^\/v1\/documents\/([^/]+)\/download$/.exec(path);
   if (request.method === 'GET' && download?.[1]) {
-    // Documents answers anyone but the package's subject with 404.
+    // Documents answers anyone but the document's subject with 404: applicants get their
+    // packages, declarants their certified copies (`mock-history.server.ts`).
+    if (hasRole(request, 'declarant')) {
+      await settle();
+      return mockCopyDownload(download[1]) ?? problem(404, 'Not found');
+    }
     if (!hasRole(request, 'applicant')) return problem(404, 'Not found');
     await settle();
     return packageDownload(download[1]);
   }
-  // The declarant's side (`mock-notices.server.ts`): the requests about their declaration.
-  const role = path.startsWith('/v1/me/access-notices') ? 'declarant' : 'applicant';
+  // The declarant's side: the requests about their declaration (`mock-notices.server.ts`), who
+  // accessed it and their certified copies (`mock-history.server.ts`).
+  const history = isHistoryPath(path);
+  const role = path.startsWith('/v1/me/access-notices') || history ? 'declarant' : 'applicant';
   if (!hasRole(request, role)) {
     return json(403, {
       type: 'about:blank',
@@ -831,6 +845,7 @@ export async function mockAccessFetch(request: Request): Promise<Response> {
     failNext = false;
     return problem(503, 'The access service is unavailable');
   }
+  if (history) return mockHistoryFetch(request, path, settle);
   if (role === 'declarant') return mockNoticesFetch(request, path, settle);
 
   if (request.method === 'GET' && path === '/v1/access/commissions') {

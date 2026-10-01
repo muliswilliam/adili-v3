@@ -5,8 +5,9 @@ import { env } from '../env.server';
 import type { paths } from './schema.gen';
 
 /**
- * Typed client for the access service's applicant endpoints (Form K, My requests, withdraw),
- * generated from `packages/schemas/internal/access.yaml`, called as the signed-in applicant.
+ * Typed client for the access service (the applicant's Form K and requests, the declarant's
+ * notices, history and certified copies),
+ * generated from `packages/schemas/internal/access.yaml`, called as the signed-in user.
  * With ACCESS_MOCK set in development it talks to the in-memory mock instead
  * (`mock.server.ts`).
  */
@@ -27,12 +28,13 @@ export function accessClient(accessToken: string) {
 export type AccessClient = ReturnType<typeof accessClient>;
 
 /**
- * The documents service as the signed-in applicant, for their access packages: documents hands
- * a package's download link to its subject person only, so the portal asks with the
- * applicant's own token (access has no download route). Mocked by the access mock under
- * ACCESS_MOCK, since it holds the packages.
+ * The documents service as the signed-in person a document was issued to: documents hands a
+ * download link to the document's subject person only, so the portal asks with their own token
+ * (access has no download route). Applicants download their access packages and declarants
+ * their certified copies this way. Mocked by the access mock under ACCESS_MOCK, since it holds
+ * both.
  */
-export function packageDocumentsClient(accessToken: string) {
+export function subjectDocumentsClient(accessToken: string) {
   const config = env();
   return mockableClient<DocumentsPaths>({
     baseUrl: config.DOCUMENTS_API_URL,
@@ -46,4 +48,4 @@ export function packageDocumentsClient(accessToken: string) {
   });
 }
 
-export type PackageDocumentsClient = ReturnType<typeof packageDocumentsClient>;
+export type SubjectDocumentsClient = ReturnType<typeof subjectDocumentsClient>;

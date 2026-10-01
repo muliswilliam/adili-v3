@@ -28,6 +28,7 @@ export const MY_DECLARATIONS_COPY = {
   amendmentsClosed: (dueDate: string) => `Amendments closed ${formatDate(dueDate)}`,
   versions: (count: number) => plural(count, 'version'),
   versionsOf: (title: string) => `Versions of ${title}`,
+  versionOf: (title: string, version: number) => `${title}, version ${String(version)}`,
   versionsLoading: 'Loading the versions',
   versionsFailed: 'We could not load the versions.',
   tryAgain: 'Try again',
