@@ -54,6 +54,18 @@ export const documentRevokedDataSchema = documentEventDataSchema.extend({
   statusChangedAt: timestamp,
 });
 
+/** `document.downloaded.v1` data. */
+export const documentDownloadedDataSchema = z.object({
+  documentId: z.uuid(),
+  verificationId: verificationIdSchema,
+  documentType: z.string().min(1),
+  issuerTenant: z.string().min(1),
+  subjectRef: z.string().min(1),
+  downloadedBy: z.string().min(1),
+  downloadedAt: timestamp,
+  downloadExpiresAt: timestamp.nullable(),
+});
+
 /** `verification.checked.v1` data, as its consumers validate it. */
 export const verificationCheckedDataSchema = z.object({
   verificationId: verificationIdSchema,
