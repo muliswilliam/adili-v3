@@ -490,6 +490,63 @@ paths:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/ProblemDetails'
+  /internal/v1/commissions/{slug}/staff:
+    get:
+      tags:
+        - internal
+      summary: A Commission's staff holding a role, with their emails (services)
+      description: Service tokens with scope directory:internal, acting for the Commission in X-Acting-Tenant; audited (it names staff and their emails). Only enabled accounts with a verified email. The reporting service reminds supervisors and commission admins of the Form M deadlines, and chases reporting officers about a late report (spec 09).
+      operationId: internalListCommissionStaff
+      parameters:
+        - name: X-Acting-Tenant
+          in: header
+          description: Tenant the calling service acts for; the resource must belong to it
+          required: true
+          schema:
+            type: string
+            pattern: ^[a-z][a-z0-9]{1,19}$
+        - name: slug
+          required: true
+          in: path
+          schema:
+            $ref: '#/components/schemas/Slug'
+        - name: role
+          required: true
+          in: query
+          schema:
+            type: string
+            enum:
+              - reporting-officer
+              - supervisor
+              - commission-admin
+      responses:
+        '200':
+          description: The staff holding the role
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InternalStaffList'
+        '400':
+          description: role is not reporting-officer, supervisor or commission-admin
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '403':
+          description: Requires a service token with scope directory:internal
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: Not found, or not the acting tenant
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+      x-audited-read:
+        action: commission.staff.pulled
+        resource: commission
   /internal/v1/commissions:
     get:
       tags:
@@ -2972,48 +3029,6 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
-  /internal/v1/commissions/{slug}/staff:
-    get:
-      tags:
-        - internal
-      summary: A Commission's staff accounts holding a role, with the email they sign in with
-      description: Service tokens with scope directory:internal, acting for the Commission in X-Acting-Tenant (ADR-013 §8.7). E.g. reporting emails Form M reminders to the supervisors and EACC's chase to the reporting officer and commission-admin (spec 09). Empty when nobody holds the role.
-      operationId: internalListCommissionStaff
-      x-draft: true
-      parameters:
-        - name: X-Acting-Tenant
-          in: header
-          required: true
-          description: Tenant the calling service acts for; the resource must belong to it
-          schema:
-            type: string
-            pattern: ^[a-z][a-z0-9]{1,19}$
-        - name: slug
-          in: path
-          required: true
-          schema:
-            type: string
-            pattern: ^[a-z][a-z0-9]{1,19}$
-        - name: role
-          in: query
-          required: true
-          description: Realm role, e.g. `supervisor`, `commission-admin`, `reporting-officer`
-          schema:
-            type: string
-            pattern: ^[a-z][a-z-]{1,39}$
-      responses:
-        '200':
-          description: The accounts holding the role
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/InternalStaffList'
-        '400':
-          $ref: '#/components/responses/ValidationProblem'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '404':
-          $ref: '#/components/responses/NotFound'
 components:
   securitySchemes:
     bearer:
@@ -3367,6 +3382,25 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/InternalCommission'
+      required:
+        - items
+    InternalStaffList:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            type: object
+            properties:
+              subject:
+                type: string
+                description: The staff member's account (token `sub`)
+              email:
+                type: string
+                format: email
+            required:
+              - subject
+              - email
       required:
         - items
     TenantPolicyVersion:
@@ -5334,25 +5368,6 @@ components:
             - string
             - 'null'
           format: date-time
-    InternalStaffList:
-      type: object
-      required:
-        - items
-      properties:
-        items:
-          type: array
-          items:
-            type: object
-            required:
-              - subject
-              - email
-            properties:
-              subject:
-                type: string
-                description: Keycloak user id (`sub`)
-              email:
-                type: string
-                format: email
   parameters:
     IdempotencyKey:
       name: Idempotency-Key

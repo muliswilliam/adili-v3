@@ -10,14 +10,15 @@ import {
   type CreateStaffUserInput,
   DECLARANT_REQUIRED_ACTIONS,
   EmailTaken,
-  UsernameTaken,
   type ExecuteActionsEmailOptions,
   IdentityProvisioning,
   IdentityUnavailable,
   type IdentityUser,
   IdentityUserNotFound,
   type Restore,
+  type StaffContact,
   type StaffProfile,
+  UsernameTaken,
 } from './identity-provisioning.js';
 
 export interface KeycloakIdentityOptions {
@@ -44,6 +45,7 @@ interface UserRepresentation {
   firstName?: string;
   lastName?: string;
   enabled?: boolean;
+  emailVerified?: boolean;
   attributes?: Record<string, string[]>;
   [field: string]: unknown;
 }
@@ -97,6 +99,9 @@ const BASIC_CLIENT_SCOPE = 'basic';
  * service client; the realm import grants its service account `manage-users`,
  * `view-users`, `query-users`, `manage-clients`, `view-clients` and `query-clients`.
  */
+/** Accounts read per page when listing a Commission's staff. */
+const STAFF_PAGE = 100;
+
 export class KeycloakIdentityProvisioning extends IdentityProvisioning {
   private readonly adminUrl: string;
   /** The realm's composite default role, which every account holds (`default-roles-<realm>`). */
@@ -138,6 +143,38 @@ export class KeycloakIdentityProvisioning extends IdentityProvisioning {
       if (error instanceof IdentityUserNotFound) return null;
       throw error;
     }
+  }
+
+  async listStaffWithRole(tenant: string, role: string): Promise<StaffContact[]> {
+    // The role's own user list needs view-realm, which this account does not hold: search the
+    // tenant's accounts by attribute (view-users), then read each one's realm roles.
+    const accounts: UserRepresentation[] = [];
+    for (let first = 0; ; first += STAFF_PAGE) {
+      const response = await this.request('GET', '/users', {
+        query: {
+          q: `tenant:${tenant}`,
+          briefRepresentation: 'false',
+          first: String(first),
+          max: String(STAFF_PAGE),
+        },
+      });
+      const page = (await response.json()) as UserRepresentation[];
+      accounts.push(...page);
+      if (page.length < STAFF_PAGE) break;
+    }
+    const staff: StaffContact[] = [];
+    for (const user of accounts) {
+      const email = user.email;
+      const reachable =
+        user.enabled !== false &&
+        user.emailVerified === true &&
+        email !== undefined &&
+        user.attributes?.tenant?.[0] === tenant;
+      if (!reachable) continue;
+      const roles = await this.realmRoles(user.id, 'held');
+      if (roles.some((held) => held.name === role)) staff.push({ subject: user.id, email });
+    }
+    return staff;
   }
 
   async createStaffUser(input: CreateStaffUserInput): Promise<string> {
