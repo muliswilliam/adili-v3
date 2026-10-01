@@ -408,6 +408,8 @@ export interface paths {
         parameters: {
             query?: never;
             header: {
+                /** @description Commission the calling service acts for; the resource must belong to it (ADR-013 §8.1) */
+                "X-Acting-Tenant": components["parameters"]["ActingTenant"];
                 /** @description Staff subject on whose behalf the content is read; recorded in the audit event */
                 "X-Acting-Subject": string;
                 "X-Review-Case"?: string;
@@ -1398,6 +1400,8 @@ export interface components {
         VersionNumber: number;
         SuggestionId: string;
         ConversationId: string;
+        /** @description Commission the calling service acts for; the resource must belong to it (ADR-013 §8.1) */
+        ActingTenant: string;
         /** @description Client-generated UUID, unique per logical request; reuse on retry */
         IdempotencyKey: string;
     };
@@ -2186,6 +2190,8 @@ export interface operations {
         parameters: {
             query?: never;
             header: {
+                /** @description Commission the calling service acts for; the resource must belong to it (ADR-013 §8.1) */
+                "X-Acting-Tenant": components["parameters"]["ActingTenant"];
                 /** @description Staff subject on whose behalf the content is read; recorded in the audit event */
                 "X-Acting-Subject": string;
                 "X-Review-Case"?: string;
@@ -2217,7 +2223,10 @@ export interface operations {
                 tenant: string;
                 beforeVersionId: string;
             };
-            header?: never;
+            header: {
+                /** @description Commission the calling service acts for; the resource must belong to it (ADR-013 §8.1) */
+                "X-Acting-Tenant": components["parameters"]["ActingTenant"];
+            };
             path?: never;
             cookie?: never;
         };

@@ -200,6 +200,15 @@ paths:
         PAdES signature, SHA-256, Ed25519-signed verification record, object storage, event.
       operationId: issueDocument
       x-draft: true
+      parameters:
+        - $ref: '#/components/parameters/ActingTenant'
+        - name: Idempotency-Key
+          in: header
+          description: Optional. Client-generated UUID, unique per logical request; reuse on retry and the stored answer is replayed instead of acting twice
+          required: false
+          schema:
+            type: string
+            format: uuid
       requestBody:
         required: true
         content:
@@ -263,6 +272,7 @@ paths:
   /internal/v1/documents/{documentId}/revoke:
     parameters:
       - $ref: '#/components/parameters/DocumentId'
+      - $ref: '#/components/parameters/ActingTenant'
     post:
       tags:
         - internal
@@ -728,6 +738,14 @@ components:
             - 'null'
           format: date-time
   parameters:
+    ActingTenant:
+      name: X-Acting-Tenant
+      in: header
+      required: true
+      description: Tenant the calling service acts for; the resource must belong to it (ADR-013 §8.1)
+      schema:
+        type: string
+        pattern: ^[a-z][a-z0-9]{1,19}$
     DocumentId:
       name: documentId
       in: path

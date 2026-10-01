@@ -131,7 +131,10 @@ export interface paths {
     "/internal/v1/documents/{documentId}/revoke": {
         parameters: {
             query?: never;
-            header?: never;
+            header: {
+                /** @description Tenant the calling service acts for; the resource must belong to it (ADR-013 §8.1) */
+                "X-Acting-Tenant": components["parameters"]["ActingTenant"];
+            };
             path: {
                 documentId: components["parameters"]["DocumentId"];
             };
@@ -372,6 +375,8 @@ export interface components {
         };
     };
     parameters: {
+        /** @description Tenant the calling service acts for; the resource must belong to it (ADR-013 §8.1) */
+        ActingTenant: string;
         DocumentId: string;
     };
     requestBodies: never;
@@ -590,7 +595,12 @@ export interface operations {
     issueDocument: {
         parameters: {
             query?: never;
-            header?: never;
+            header: {
+                /** @description Tenant the calling service acts for; the resource must belong to it (ADR-013 §8.1) */
+                "X-Acting-Tenant": components["parameters"]["ActingTenant"];
+                /** @description Optional. Client-generated UUID, unique per logical request; reuse on retry and the stored answer is replayed instead of acting twice */
+                "Idempotency-Key"?: string;
+            };
             path?: never;
             cookie?: never;
         };
@@ -663,7 +673,10 @@ export interface operations {
     revokeDocument: {
         parameters: {
             query?: never;
-            header?: never;
+            header: {
+                /** @description Tenant the calling service acts for; the resource must belong to it (ADR-013 §8.1) */
+                "X-Acting-Tenant": components["parameters"]["ActingTenant"];
+            };
             path: {
                 documentId: components["parameters"]["DocumentId"];
             };
