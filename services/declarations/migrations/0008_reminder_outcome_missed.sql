@@ -1,0 +1,2 @@
+ALTER TABLE "obligation_reminders" DROP CONSTRAINT "obligation_reminders_outcome_check";--> statement-breakpoint
+ALTER TABLE "obligation_reminders" ADD CONSTRAINT "obligation_reminders_outcome_check" CHECK ("obligation_reminders"."outcome" in ('sent', 'skipped-not-onboarded', 'skipped-no-contact', 'skipped-past-due-at-creation', 'skipped-missed', 'failed'));

@@ -1,6 +1,6 @@
 # ADR-014: Roster-gated declarant onboarding
 
-- **Status:** Accepted
+- **Status:** Accepted; amended 2026-09-28 with point 5 and 2026-09-29 with points 6 to 8 (spec 03)
 - **Date:** 2026-09-25
 - **Deciders:** Adili V3 DIALs team, product team
 - **Supersedes:** [ADR-004](0004-identity-keycloak-self-registration.md) decision points 2 (verified self-registration) and 3 (optional rosters). The rest of ADR-004 still stands.
@@ -55,6 +55,15 @@ Confirmed on 2026-09-25. The flowchart's open-points note is superseded by this 
 | 2 | OTPs to roster contacts or to contacts the declarant enters? | **Roster contacts** where the record has them, shown masked (e.g. `07** *** 123`). If the record has no email or phone, the declarant enters their own; those are stored on the roster record after verification. |
 | 3 | Keep the IPRS identity check? | **Yes.** At profile completion the directory verifies the roster record's national ID and names against IPRS (mock in demo). A mismatch blocks completion and is flagged to the reporting officer. |
 | 4 | Commissions with no roster yet | **No fallback.** Their declarants cannot onboard. EACC sees roster coverage per Commission and chases. A "pending roster" path can be added later without changing the main flow. |
+
+Settled while building onboarding (spec 03), 2026-09-28 and 2026-09-29:
+
+| # | Question | Decision |
+|---|---|---|
+| 5 | The set-password email fails after the account is created | **The account stands and the declarant is told.** The directory creates the person, the OFR and the Keycloak user in one transaction and sends Keycloak's set-password email only after it commits: an email cannot be taken back, so it cannot join the rollback. Should it fail, confirm still answers `account-created`, and the session says `setPasswordEmail: failed` with resend open at once (no cooldown for an email that never went). The portal's check-email step then says the account is ready but the email could not be sent, and offers to send it; a successful resend turns it to `sent`. Rolling the account back instead would make the declarant repeat IPRS and both OTPs for a mail outage. |
+| 6 | How the portal holds the onboarding session secret | **Returned in the identify response body; the portal BFF sets the cookie.** The spec's backend detail had the directory set it through a response header the BFF translates. Instead `POST /v1/onboarding/sessions` returns the secret once, in the body (`OnboardingSessionCreated.secret`), and the portal BFF keeps it in its own httpOnly, SameSite=Lax cookie (Secure when the portal is served over https), sending it back in `X-Onboarding-Secret`. The browser never sees the secret either way; the directory stays free of cookies, which belong to the BFF that owns the portal's origin, and only the hash is stored. |
+| 7 | How long a confirmed session lives | **As long as the set-password link.** Sessions live 30 minutes, 10 more per successful step, capped at 60 minutes after identify: that bounds the code steps. A session confirmed with a new account then gets its own expiry, 24 hours after confirm (the link's lifespan), so the check-email step can resend the link however late the first one lapses. In `confirmed` only reading the session and resend-password-email run; every other step answers 409. The expiry sweep ends live sessions only, so it never ends a confirmed one early. |
+| 8 | What running out of codes or resends feeds | **Both counters.** The spec says the counter "feeds the rate limits". A session that ends rate-limited (5 wrong codes, or a 4th resend) counts as a failed attempt against its Commission (the per-Commission counter that raises `onboarding.abuse-threshold.v1`, as a no-match does), and, once the ending has committed, uses up an attempt of the client IP's identify budget (`onboarding-identify`, 5 per 15 minutes) through the api-kit `RateLimiter`. So exhausting codes and starting again cannot outpace identify's own limit per IP. |
 
 ## Alternatives considered
 

@@ -1,6 +1,6 @@
 {
-  "id": "e451f6c1-eb1e-4a3d-b5cf-c0d62ad3896a",
-  "prevId": "32240f28-5c5a-4077-8f0e-7c5cc6c4cff5",
+  "id": "32240f28-5c5a-4077-8f0e-7c5cc6c4cff5",
+  "prevId": "c1014e5b-a744-487e-83c1-68e7d6922ad4",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -485,6 +485,12 @@
         "resolution_note": {
           "name": "resolution_note",
           "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "letter": {
+          "name": "letter",
+          "type": "jsonb",
           "primaryKey": false,
           "notNull": false
         },
@@ -2141,24 +2147,6 @@
           "primaryKey": false,
           "notNull": false
         },
-        "salary_stop_effective_date": {
-          "name": "salary_stop_effective_date",
-          "type": "date",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "salary_stopped_at": {
-          "name": "salary_stopped_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "salary_reinstated_at": {
-          "name": "salary_reinstated_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
         "created_at": {
           "name": "created_at",
           "type": "timestamp with time zone",
@@ -2597,7 +2585,7 @@
       "checkConstraints": {
         "ladder_history_kind_check": {
           "name": "ladder_history_kind_check",
-          "value": "\"ladder_history\".\"kind\" in ('ladder-started', 'ladder-restarted', 'ladder-complied', 'ladder-ended', 'action-proposed', 'action-approved', 'action-declined', 'action-issued', 'action-responded', 'action-complied', 'action-cancelled', 'action-reinstated', 'payroll-instruction-sent', 'payroll-instruction-acknowledged')"
+          "value": "\"ladder_history\".\"kind\" in ('ladder-started', 'ladder-restarted', 'ladder-complied', 'ladder-ended', 'action-proposed', 'action-approved', 'action-declined', 'action-issued', 'action-responded', 'action-complied', 'action-cancelled')"
         }
       },
       "isRLSEnabled": false

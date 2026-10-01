@@ -82,14 +82,18 @@ export const provideOnboardingContact = createServerFn({ method: 'POST' })
   .validator(contactSchema)
   .handler(({ data }) => onSession((credentials) => provideContact(client(), credentials, data)));
 
-/** `POST …/confirm`: the IPRS check, then the account created or linked. */
+/**
+ * `POST …/confirm`: the IPRS check, then the account created or linked. Each call is one
+ * submission, with its own Idempotency-Key. Minted here and never reused, so replay protection
+ * is the directory's alone for now; a key owned by the browser across retries is a later option.
+ */
 export const confirmOnboarding = createServerFn({ method: 'POST' }).handler(() =>
-  onSession((credentials) => confirm(client(), credentials)),
+  onSession((credentials) => confirm(client(), credentials, crypto.randomUUID())),
 );
 
-/** `POST …/resend-password-email`. */
+/** `POST …/resend-password-email`, one Idempotency-Key per submission (as for confirm). */
 export const resendSetPasswordEmail = createServerFn({ method: 'POST' }).handler(() =>
-  onSession((credentials) => resendPasswordEmail(client(), credentials)),
+  onSession((credentials) => resendPasswordEmail(client(), credentials, crypto.randomUUID())),
 );
 
 /**

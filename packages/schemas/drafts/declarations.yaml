@@ -1,0 +1,2000 @@
+# Drafted operations of the declarations API for specs not implemented yet: 05 (declaration
+# drafts), 06 (submission, versions, acknowledgement), 07a (internal reads for review) and 08
+# (person obligation history), with suggestions, the assistant and help. `pnpm --filter
+# @adili/declarations contracts` merges them into packages/schemas/internal/declarations.yaml,
+# where they may reference the implemented components (e.g. `#/components/schemas/Obligation`,
+# `CommissionRef`, `ObligationType`, `ProblemDetails`). When an operation or component is
+# implemented, delete it here: the export fails while both define it.
+paths:
+  /v1/obligations/{id}/declaration:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    post:
+      tags: [declarations]
+      operationId: startDeclaration
+      summary: Start (or return the existing) draft declaration for the declarant's obligation
+      description: Type, statement date and income period are derived from the obligation. Declarant only.
+      responses:
+        '200':
+          description: Existing draft
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Declaration'
+        '201':
+          description: Draft created with pre-filled bio
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Declaration'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Obligation is filed or cancelled
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+  /v1/me/declarations:
+    get:
+      tags: [declarations]
+      operationId: getMyDeclarations
+      summary: The declarant's declarations (drafts now; submitted later)
+      responses:
+        '200':
+          description: List
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/DeclarationListItem'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /v1/declarations/{declarationId}:
+    parameters:
+      - $ref: '#/components/parameters/DeclarationId'
+    get:
+      tags: [declarations]
+      operationId: getDeclaration
+      summary: Draft header and section completeness (no contents)
+      responses:
+        '200':
+          description: The draft
+          headers:
+            ETag:
+              schema:
+                type: string
+              description: Draft version for If-Match on section saves
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Declaration'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      tags: [declarations]
+      operationId: discardDeclaration
+      summary: Discard the draft
+      responses:
+        '204':
+          description: Discarded
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Not a draft
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+  /v1/declarations/{declarationId}/sections/{sectionKey}:
+    parameters:
+      - $ref: '#/components/parameters/DeclarationId'
+      - $ref: '#/components/parameters/SectionKey'
+    get:
+      tags: [declarations]
+      operationId: getDeclarationSection
+      summary: One section's contents (decrypted for the owning declarant)
+      responses:
+        '200':
+          description: Section contents
+          headers:
+            ETag:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SectionEnvelope'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      tags: [declarations]
+      operationId: saveDeclarationSection
+      summary: Save a section (autosave); requires If-Match with the current draft version
+      parameters:
+        - name: If-Match
+          in: header
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SectionContents'
+      responses:
+        '200':
+          description: Saved; new version in ETag
+          headers:
+            ETag:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SectionSaveResult'
+        '400':
+          description: 'Validation failed, or a locked field was changed (code `identity-locked-field`), or nil flag conflicts with items (code `nil-conflicts-with-items`)'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '412':
+          description: If-Match does not match the current draft version; reload
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '428':
+          description: If-Match header missing
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+  /v1/declarations/{declarationId}/attachments:
+    parameters:
+      - $ref: '#/components/parameters/DeclarationId'
+    post:
+      tags: [declarations]
+      operationId: linkDeclarationAttachment
+      summary: Link a clean upload (purpose declaration-attachment) to an item
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [sectionKey, itemId, uploadId]
+              properties:
+                sectionKey:
+                  $ref: '#/components/schemas/SectionKey'
+                itemId:
+                  type: string
+                  format: uuid
+                uploadId:
+                  type: string
+                  format: uuid
+      responses:
+        '201':
+          description: Linked
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeclarationAttachment'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Upload is not clean, has the wrong purpose, or belongs to another tenant
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+  /v1/declarations/{declarationId}/attachments/{attachmentId}:
+    parameters:
+      - $ref: '#/components/parameters/DeclarationId'
+      - name: attachmentId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    delete:
+      tags: [declarations]
+      operationId: unlinkDeclarationAttachment
+      summary: Remove an attachment from its item
+      responses:
+        '204':
+          description: Unlinked
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /v1/declarations/{declarationId}/summary:
+    parameters:
+      - $ref: '#/components/parameters/DeclarationId'
+    get:
+      tags: [declarations]
+      operationId: getDeclarationSummary
+      summary: The assembled declaration validated against declaration.v1, with completeness
+      responses:
+        '200':
+          description: Summary
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeclarationSummary'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /v1/declarations/{declarationId}/submit:
+    parameters:
+      - $ref: '#/components/parameters/DeclarationId'
+    post:
+      tags: [submission]
+      operationId: submitDeclaration
+      summary: Submit the declaration (the legal act)
+      description: |
+        Requires a token with the step-up ACR and auth_time within 5 minutes, and an
+        Idempotency-Key. One transaction: validate, allocate the reference (first version),
+        write the immutable version and items, mark submitted, file the obligation, emit events.
+        The acknowledgement slip is issued asynchronously afterwards.
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '201':
+          description: Submitted; acknowledgement pending
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SubmissionResult'
+        '400':
+          description: 'Incomplete (blocking issues) or missing Idempotency-Key'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/SubmitProblem'
+        '403':
+          description: 'Problem code `step-up-required` with `stepUpUrl`'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/SubmitProblem'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: 'Problem code `before-statement-date`, `amendment-window-closed`, `not-a-draft` or `obligation-cancelled`'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/SubmitProblem'
+        '422':
+          description: Idempotency-Key reused with a different request
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+  /v1/declarations/{declarationId}/amend:
+    parameters:
+      - $ref: '#/components/parameters/DeclarationId'
+    post:
+      tags: [submission]
+      operationId: amendDeclaration
+      summary: Reopen a submitted declaration for amendment (before the due date)
+      responses:
+        '200':
+          description: Declaration in state amending with sections copied from the current version
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Declaration'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: 'Problem code `amendment-window-closed` or `not-submitted`'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/SubmitProblem'
+  /v1/declarations/{declarationId}/amend/discard:
+    parameters:
+      - $ref: '#/components/parameters/DeclarationId'
+    post:
+      tags: [submission]
+      operationId: discardAmendment
+      summary: Discard an amendment in progress; the submitted version stays in force
+      responses:
+        '200':
+          description: Declaration back to submitted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Declaration'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Not amending
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+  /v1/declarations/{declarationId}/versions:
+    parameters:
+      - $ref: '#/components/parameters/DeclarationId'
+    get:
+      tags: [submission]
+      operationId: listDeclarationVersions
+      summary: Submitted versions, newest first
+      responses:
+        '200':
+          description: Versions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/DeclarationVersion'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /v1/declarations/{declarationId}/versions/{version}:
+    parameters:
+      - $ref: '#/components/parameters/DeclarationId'
+      - $ref: '#/components/parameters/VersionNumber'
+    get:
+      tags: [submission]
+      operationId: getDeclarationVersion
+      summary: One immutable version with its document (decrypted for the owner)
+      responses:
+        '200':
+          description: Version
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeclarationVersionDetail'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /v1/declarations/{declarationId}/versions/{version}/acknowledgement:
+    parameters:
+      - $ref: '#/components/parameters/DeclarationId'
+      - $ref: '#/components/parameters/VersionNumber'
+    get:
+      tags: [submission]
+      operationId: getAcknowledgement
+      summary: Acknowledgement slip status and download link for a version
+      responses:
+        '200':
+          description: Status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Acknowledgement'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /v1/declarations/{declarationId}/versions/{version}/acknowledgement/reissue:
+    parameters:
+      - $ref: '#/components/parameters/DeclarationId'
+      - $ref: '#/components/parameters/VersionNumber'
+    post:
+      tags: [submission]
+      operationId: reissueAcknowledgement
+      summary: Ask for the slip again when issuance failed
+      responses:
+        '202':
+          description: Reissue requested
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Slip already issued or issuance in progress
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '429':
+          description: Cooldown
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+  /internal/v1/declarations/{declarationId}/versions/{version}/acknowledgement-payload:
+    parameters:
+      - $ref: '#/components/parameters/DeclarationId'
+      - $ref: '#/components/parameters/VersionNumber'
+    get:
+      tags: [internal]
+      operationId: internalGetAcknowledgementPayload
+      summary: Fields the acknowledgement slip needs (documents service)
+      responses:
+        '200':
+          description: Payload
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AcknowledgementPayload'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /internal/v1/declarations/{declarationId}/versions/{version}/document:
+    parameters:
+      - $ref: '#/components/parameters/DeclarationId'
+      - $ref: '#/components/parameters/VersionNumber'
+      - $ref: '#/components/parameters/ActingTenant'
+      - name: X-Acting-Subject
+        in: header
+        required: true
+        description: Staff subject on whose behalf the content is read; recorded in the audit event
+        schema:
+          type: string
+      - name: X-Review-Case
+        in: header
+        required: false
+        schema:
+          type: string
+          format: uuid
+    get:
+      tags: [internal]
+      operationId: internalGetVersionDocument
+      summary: Decrypted declaration.v1 document of a submitted version, for the review service (audited read)
+      responses:
+        '200':
+          description: Document and metadata
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InternalVersionDocument'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /internal/v1/declarations/previous-version:
+    get:
+      tags: [internal]
+      operationId: internalFindPreviousVersion
+      summary: Latest earlier submitted version of the same person at the same Commission
+      parameters:
+        - $ref: '#/components/parameters/ActingTenant'
+        - name: personId
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: beforeVersionId
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Previous version reference
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [declarationId, versionId, version, statementDate, submittedAt]
+                properties:
+                  declarationId:
+                    type: string
+                    format: uuid
+                  versionId:
+                    type: string
+                    format: uuid
+                  version:
+                    type: integer
+                  statementDate:
+                    type: string
+                    format: date
+                  submittedAt:
+                    type: string
+                    format: date-time
+        '404':
+          description: No earlier submitted version
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+  /internal/v1/declarations/disclosures:
+    post:
+      tags: [internal]
+      operationId: internalRenderDisclosure
+      summary: Render the scoped disclosure of a person's submitted declarations for a grant (audited)
+      description: |
+        Only the versions, household members and sections in the granted scope are decrypted and
+        returned. The read is audited with the grant reference as legal basis and the recipient.
+      parameters:
+        - name: X-Acting-Subject
+          in: header
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DisclosureRequest'
+      responses:
+        '200':
+          description: Disclosure document
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DisclosureDocument'
+        '400':
+          $ref: '#/components/responses/ValidationProblem'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /internal/v1/declarations/{declarationId}/versions/{version}/full-document:
+    parameters:
+      - $ref: '#/components/parameters/DeclarationId'
+      - $ref: '#/components/parameters/VersionNumber'
+      - name: X-Acting-Subject
+        in: header
+        required: true
+        schema:
+          type: string
+    get:
+      tags: [internal]
+      operationId: internalGetFullDocumentForCertifiedCopy
+      summary: The full immutable document of a version for the declarant's certified copy (audited as self-access)
+      responses:
+        '200':
+          description: Document
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InternalVersionDocument'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /internal/v1/obligations/{obligationId}:
+    parameters:
+      - name: obligationId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/ActingTenant'
+    get:
+      tags: [internal]
+      operationId: internalGetObligation
+      summary: One filing obligation of the acting Commission (for the enforcement ladder)
+      description: >-
+        Service tokens with `declarations:internal`; the Commission in `X-Acting-Tenant`. The review
+        service reads it when an obligation goes overdue (spec 08): whom the ladder addresses and
+        what they failed to file. `personId` is null until the officer onboards.
+      responses:
+        '200':
+          description: The obligation
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  [
+                    obligationId,
+                    rosterRecordId,
+                    personId,
+                    type,
+                    cycleKey,
+                    dueDate,
+                    status,
+                    declarantName,
+                    personnelFileNumber,
+                  ]
+                properties:
+                  obligationId:
+                    type: string
+                    format: uuid
+                  rosterRecordId:
+                    type: string
+                    format: uuid
+                  personId:
+                    type: [string, 'null']
+                    format: uuid
+                  type:
+                    $ref: '#/components/schemas/ObligationType'
+                  cycleKey:
+                    type: string
+                  dueDate:
+                    type: string
+                    format: date
+                  status:
+                    $ref: '#/components/schemas/ObligationStatus'
+                  declarantName:
+                    type: string
+                  personnelFileNumber:
+                    type: string
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /internal/v1/persons/{personId}/obligations:
+    parameters:
+      - name: personId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    get:
+      tags: [internal]
+      operationId: internalListPersonObligations
+      summary: A person's filing obligations across cycles (for the referral sweep)
+      parameters:
+        - $ref: '#/components/parameters/ActingTenant'
+      responses:
+        '200':
+          description: Obligations
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  required: [obligationId, type, cycleKey, status, dueDate, filedAt, late]
+                  properties:
+                    obligationId:
+                      type: string
+                      format: uuid
+                    type:
+                      $ref: '#/components/schemas/ObligationType'
+                    cycleKey:
+                      type: string
+                    status:
+                      $ref: '#/components/schemas/ObligationStatus'
+                    dueDate:
+                      type: string
+                      format: date
+                    filedAt:
+                      type: [string, 'null']
+                      format: date-time
+                    late:
+                      type: boolean
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /v1/declarations/{declarationId}/suggestions/lookups:
+    parameters:
+      - $ref: '#/components/parameters/DeclarationId'
+    post:
+      tags: [suggestions]
+      operationId: requestRegistryLookups
+      summary: Check registries for a household person with recorded consent (declarant); results arrive as suggestions
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [personKey, systems, consent]
+              properties:
+                personKey:
+                  type: string
+                systems:
+                  type: array
+                  minItems: 1
+                  items:
+                    type: string
+                    enum: [kra, ntsa, brs, ardhisasa]
+                consent:
+                  type: object
+                  required: [requested, textVersion]
+                  properties:
+                    requested:
+                      const: true
+                    textVersion:
+                      type: string
+      responses:
+        '202':
+          description: Lookups started; one set per system
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/SuggestionSet'
+        '400':
+          description: 'Consent missing or person has no national ID (`no-id`)'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /v1/declarations/{declarationId}/suggestions:
+    parameters:
+      - $ref: '#/components/parameters/DeclarationId'
+    get:
+      tags: [suggestions]
+      operationId: listSuggestions
+      summary: Suggestion sets and suggestions for the draft (declarant)
+      parameters:
+        - name: personKey
+          in: query
+          schema:
+            type: string
+        - name: sectionKey
+          in: query
+          schema:
+            $ref: '#/components/schemas/SectionKey'
+      responses:
+        '200':
+          description: Sets with suggestions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/SuggestionSet'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /v1/declarations/{declarationId}/suggestions/{suggestionId}/accept:
+    parameters:
+      - $ref: '#/components/parameters/DeclarationId'
+      - $ref: '#/components/parameters/SuggestionId'
+    post:
+      tags: [suggestions]
+      operationId: acceptSuggestion
+      summary: Create an item from the suggestion, or apply it to an existing item (declarant); uses the section save path
+      parameters:
+        - name: If-Match
+          in: header
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [fields, applyToItemId]
+              properties:
+                fields:
+                  type: object
+                  description: Final fields after the declarant's edits
+                  additionalProperties: true
+                applyToItemId:
+                  type: [string, 'null']
+                  format: uuid
+                overwrite:
+                  type: boolean
+                  default: false
+                  description: When applying to an existing item, overwrite non-empty fields
+      responses:
+        '200':
+          description: Item created or updated
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [suggestion, itemId, etag]
+                properties:
+                  suggestion:
+                    $ref: '#/components/schemas/Suggestion'
+                  itemId:
+                    type: string
+                    format: uuid
+                  etag:
+                    type: string
+        '400':
+          $ref: '#/components/responses/ValidationProblem'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Suggestion not `new`, or section ETag mismatch
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '412':
+          description: If-Match failed
+  /v1/declarations/{declarationId}/suggestions/{suggestionId}/dismiss:
+    parameters:
+      - $ref: '#/components/parameters/DeclarationId'
+      - $ref: '#/components/parameters/SuggestionId'
+    post:
+      tags: [suggestions]
+      operationId: dismissSuggestion
+      summary: Dismiss a suggestion for this draft (declarant)
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reason:
+                  type: string
+                  maxLength: 200
+      responses:
+        '200':
+          description: Dismissed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Suggestion'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Suggestion already accepted
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+  /v1/declarations/{declarationId}/attachments/{attachmentId}/extract:
+    parameters:
+      - $ref: '#/components/parameters/DeclarationId'
+      - name: attachmentId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    post:
+      tags: [suggestions]
+      operationId: extractAttachment
+      summary: Read a clean attachment into suggested fields through the ai-gateway (declarant); policy-gated
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [documentKindHint, targetItemType]
+              properties:
+                documentKindHint:
+                  type: string
+                  enum: [title-deed, logbook, payslip, bank-letter, share-certificate, other]
+                targetItemType:
+                  type: string
+                language:
+                  type: string
+                  enum: [en, sw]
+                  default: en
+      responses:
+        '202':
+          description: Extraction requested; a suggestion set of source `document`
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuggestionSet'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: 'Attachment not clean, or AI reading not enabled for this Commission (`not-enabled`)'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+  /v1/me/assistant/conversations:
+    post:
+      tags: [assistant]
+      operationId: openAssistantConversation
+      summary: Open or resume the conversation for a draft (or for the declarant without a draft)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [declarationId, language]
+              properties:
+                declarationId:
+                  type: [string, 'null']
+                  format: uuid
+                language:
+                  type: string
+                  enum: [en, sw]
+      responses:
+        '200':
+          description: Conversation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AssistantConversation'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /v1/me/assistant/conversations/{conversationId}/messages:
+    parameters:
+      - $ref: '#/components/parameters/ConversationId'
+    post:
+      tags: [assistant]
+      operationId: askAssistant
+      summary: 'Ask a question; the answer streams back as server-sent events (`delta`, `final`, `error`) and is stored on completion'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [text, sectionKey]
+              properties:
+                text:
+                  type: string
+                  minLength: 1
+                  maxLength: 2000
+                sectionKey:
+                  type: [string, 'null']
+      responses:
+        '200':
+          description: SSE stream ending with the stored message
+          content:
+            text/event-stream:
+              schema:
+                type: string
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          description: Per-person rate limit
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '503':
+          description: Assistant unavailable; use help search
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+  /v1/me/assistant/conversations/{conversationId}/messages/{messageId}/feedback:
+    parameters:
+      - $ref: '#/components/parameters/ConversationId'
+      - name: messageId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    put:
+      tags: [assistant]
+      operationId: rateAssistantMessage
+      summary: Rate an answer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [rating, reason]
+              properties:
+                rating:
+                  type: string
+                  enum: [helpful, not-helpful]
+                reason:
+                  type: [string, 'null']
+                  enum: [inaccurate, missed-something, unclear, too-long, other, null]
+                note:
+                  type: [string, 'null']
+                  maxLength: 500
+      responses:
+        '200':
+          description: Recorded
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /v1/me/assistant/suggested-questions:
+    get:
+      tags: [assistant]
+      operationId: getSuggestedQuestions
+      summary: Curated and popular questions for a section in a language
+      parameters:
+        - name: sectionKey
+          in: query
+          schema:
+            type: string
+        - name: language
+          in: query
+          required: true
+          schema:
+            type: string
+            enum: [en, sw]
+      responses:
+        '200':
+          description: Questions
+          content:
+            application/json:
+              schema:
+                type: array
+                maxItems: 8
+                items:
+                  type: string
+  /v1/declarations/{declarationId}/hints:
+    parameters:
+      - $ref: '#/components/parameters/DeclarationId'
+    get:
+      tags: [assistant]
+      operationId: getCompletenessHints
+      summary: Plain-language hints for the completeness residuals (AI-labelled; deterministic text always present)
+      parameters:
+        - name: language
+          in: query
+          required: true
+          schema:
+            type: string
+            enum: [en, sw]
+      responses:
+        '200':
+          description: Hints
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  required: [ruleId, fieldPath, text, hint]
+                  properties:
+                    ruleId:
+                      type: string
+                    fieldPath:
+                      type: string
+                    text:
+                      type: string
+                      description: Deterministic residual text
+                    hint:
+                      type: [string, 'null']
+                      description: AI-assisted hint when available
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /v1/help/search:
+    get:
+      tags: [help]
+      operationId: searchHelp
+      summary: Full-text search over the legal corpus and help articles in force (signed-in users)
+      parameters:
+        - name: q
+          in: query
+          required: true
+          schema:
+            type: string
+            minLength: 2
+            maxLength: 200
+        - name: language
+          in: query
+          required: true
+          schema:
+            type: string
+            enum: [en, sw]
+        - name: sectionKey
+          in: query
+          schema:
+            type: string
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 20
+            default: 8
+      responses:
+        '200':
+          description: Passages
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/HelpPassage'
+  /v1/commissions/{slug}/help/articles:
+    parameters:
+      - $ref: '#/components/parameters/Slug'
+    get:
+      tags: [help]
+      operationId: listHelpArticles
+      summary: Commission help articles (commission-admin edit, reporting-officer read)
+      responses:
+        '200':
+          description: Articles
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/HelpArticle'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    post:
+      tags: [help]
+      operationId: createHelpArticle
+      summary: Create a Commission help article (commission-admin)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/HelpArticleInput'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HelpArticle'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /v1/commissions/{slug}/help/articles/{articleId}:
+    parameters:
+      - $ref: '#/components/parameters/Slug'
+      - name: articleId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    put:
+      tags: [help]
+      operationId: updateHelpArticle
+      summary: Update or publish a Commission help article (commission-admin)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/HelpArticleInput'
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HelpArticle'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /v1/commissions/{slug}/help/themes:
+    parameters:
+      - $ref: '#/components/parameters/Slug'
+    get:
+      tags: [help]
+      operationId: getQuestionThemes
+      summary: Anonymised question theme counts and unanswered counts per month (commission-admin, reporting-officer)
+      parameters:
+        - name: month
+          in: query
+          schema:
+            type: string
+            pattern: '^[0-9]{4}-[0-9]{2}$'
+      responses:
+        '200':
+          description: Counts
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  required: [month, theme, count, unanswered]
+                  properties:
+                    month:
+                      type: string
+                    theme:
+                      type: string
+                    count:
+                      type: integer
+                    unanswered:
+                      type: integer
+        '404':
+          $ref: '#/components/responses/NotFound'
+components:
+  parameters:
+    Slug:
+      name: slug
+      in: path
+      required: true
+      schema:
+        type: string
+        pattern: '^[a-z][a-z0-9]{1,19}$'
+    DeclarationId:
+      name: declarationId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    SectionKey:
+      name: sectionKey
+      in: path
+      required: true
+      schema:
+        $ref: '#/components/schemas/SectionKey'
+    VersionNumber:
+      name: version
+      in: path
+      required: true
+      schema:
+        type: integer
+        minimum: 1
+    SuggestionId:
+      name: suggestionId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    ConversationId:
+      name: conversationId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    ActingTenant:
+      name: X-Acting-Tenant
+      in: header
+      required: true
+      description: Tenant the calling service acts for; the resource must belong to it
+      schema:
+        type: string
+        pattern: '^[a-z][a-z0-9]{1,19}$'
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      description: Client-generated UUID, unique per logical request; reuse on retry
+      schema:
+        type: string
+        format: uuid
+  responses:
+    NotFound:
+      description: Not found, or not visible to the caller
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+    Forbidden:
+      description: Caller lacks the required role
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+    ValidationProblem:
+      description: Request failed validation
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+  schemas:
+    DisclosureRequest:
+      type: object
+      required:
+        [
+          personId,
+          tenant,
+          grantReference,
+          legalBasis,
+          recipientSubject,
+          years,
+          includeSpouses,
+          includeChildren,
+          sections,
+        ]
+      properties:
+        personId:
+          type: string
+          format: uuid
+        tenant:
+          type: string
+        grantReference:
+          type: string
+          description: ARQ or LEA reference
+        legalBasis:
+          type: string
+          enum: [act-s36-1, act-s36-2]
+        recipientSubject:
+          type: string
+        years:
+          type: array
+          minItems: 1
+          items:
+            type: integer
+        includeSpouses:
+          type: boolean
+        includeChildren:
+          type: boolean
+        sections:
+          type: array
+          minItems: 1
+          items:
+            type: string
+            enum: [bio, income, assets, liabilities, other]
+    DisclosureDocument:
+      type: object
+      required: [schemaVersion, grantReference, personName, commission, versions]
+      properties:
+        schemaVersion:
+          const: disclosure.v1
+        grantReference:
+          type: string
+        personName:
+          type: string
+        commission:
+          $ref: '#/components/schemas/CommissionRef'
+        versions:
+          type: array
+          items:
+            type: object
+            required: [reference, version, type, statementDate, submittedAt, content]
+            properties:
+              reference:
+                $ref: '#/components/schemas/DeclarationReference'
+              version:
+                type: integer
+              type:
+                $ref: '#/components/schemas/ObligationType'
+              statementDate:
+                type: string
+                format: date
+              submittedAt:
+                type: string
+                format: date-time
+              content:
+                type: object
+                description: Subset of the declaration.v1 document limited to the granted persons and sections
+                additionalProperties: true
+    SectionKey:
+      type: string
+      description: bio, household, other, or statement:<personKey>
+      pattern: '^(bio|household|other|statement:(officer|spouse:[0-9a-f-]{36}|child:[0-9a-f-]{36}))$'
+    Completeness:
+      type: string
+      enum: [not-started, incomplete, complete, archived]
+    DeclarationStatus:
+      type: string
+      enum: [draft, amending, submitted, discarded]
+    Declaration:
+      type: object
+      required:
+        - id
+        - obligationId
+        - commission
+        - type
+        - statementDate
+        - incomePeriod
+        - status
+        - schemaVersion
+        - draftVersion
+        - sections
+        - createdAt
+        - updatedAt
+      properties:
+        id:
+          type: string
+          format: uuid
+        obligationId:
+          type: string
+          format: uuid
+        commission:
+          $ref: '#/components/schemas/CommissionRef'
+        type:
+          $ref: '#/components/schemas/ObligationType'
+        statementDate:
+          type: string
+          format: date
+        incomePeriod:
+          type: object
+          required: [from, to, fromSource]
+          properties:
+            from:
+              type: string
+              format: date
+            to:
+              type: string
+              format: date
+            fromSource:
+              type: string
+              enum: [declared, assumed]
+        status:
+          $ref: '#/components/schemas/DeclarationStatus'
+        schemaVersion:
+          const: declaration.v1
+        draftVersion:
+          type: integer
+        sections:
+          type: array
+          description: Live sections in First Schedule order; archived statements listed with completeness archived
+          items:
+            type: object
+            required: [key, completeness, updatedAt, personName]
+            properties:
+              key:
+                $ref: '#/components/schemas/SectionKey'
+              completeness:
+                $ref: '#/components/schemas/Completeness'
+              updatedAt:
+                type: [string, 'null']
+                format: date-time
+              personName:
+                type: [string, 'null']
+                description: For statement sections
+              counts:
+                type: object
+                additionalProperties:
+                  type: integer
+        lastSection:
+          oneOf:
+            - $ref: '#/components/schemas/SectionKey'
+            - type: 'null'
+        reference:
+          oneOf:
+            - $ref: '#/components/schemas/DeclarationReference'
+            - type: 'null'
+        currentVersion:
+          type: [integer, 'null']
+        amendingFromVersion:
+          type: [integer, 'null']
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    DeclarationListItem:
+      type: object
+      required:
+        [id, obligationId, commission, type, statementDate, status, completenessPercent, updatedAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        obligationId:
+          type: string
+          format: uuid
+        commission:
+          $ref: '#/components/schemas/CommissionRef'
+        type:
+          $ref: '#/components/schemas/ObligationType'
+        statementDate:
+          type: string
+          format: date
+        status:
+          $ref: '#/components/schemas/DeclarationStatus'
+        completenessPercent:
+          type: integer
+          minimum: 0
+          maximum: 100
+        updatedAt:
+          type: string
+          format: date-time
+    SectionContents:
+      type: object
+      description: 'The section body; shape per key follows forms/declaration.v1.json: bio → officer, household → { spouses, children }, statement:* → Statement, other → otherInformation'
+      additionalProperties: true
+    SectionEnvelope:
+      type: object
+      required: [key, completeness, contents, draftVersion]
+      properties:
+        key:
+          $ref: '#/components/schemas/SectionKey'
+        completeness:
+          $ref: '#/components/schemas/Completeness'
+        contents:
+          $ref: '#/components/schemas/SectionContents'
+        issues:
+          type: array
+          items:
+            $ref: '#/components/schemas/CompletenessIssue'
+        draftVersion:
+          type: integer
+    SectionSaveResult:
+      type: object
+      required: [key, completeness, draftVersion, issues, sectionsChanged]
+      properties:
+        key:
+          $ref: '#/components/schemas/SectionKey'
+        completeness:
+          $ref: '#/components/schemas/Completeness'
+        draftVersion:
+          type: integer
+        issues:
+          type: array
+          items:
+            $ref: '#/components/schemas/CompletenessIssue'
+        sectionsChanged:
+          type: array
+          description: Statement sections created or archived by a household save
+          items:
+            type: object
+            required: [key, action]
+            properties:
+              key:
+                $ref: '#/components/schemas/SectionKey'
+              action:
+                type: string
+                enum: [created, archived, restored]
+    CompletenessIssue:
+      type: object
+      required: [sectionKey, path, code, message]
+      properties:
+        sectionKey:
+          $ref: '#/components/schemas/SectionKey'
+        path:
+          type: string
+          description: JSON pointer within the section contents
+        code:
+          type: string
+        message:
+          type: string
+    SuggestionSource:
+      type: string
+      enum: [kra, ntsa, brs, ardhisasa, document]
+    SuggestionSet:
+      type: object
+      required:
+        [
+          id,
+          personKey,
+          source,
+          status,
+          requestedAt,
+          readyAt,
+          verificationResultId,
+          aiJobId,
+          suggestions,
+        ]
+      properties:
+        id:
+          type: string
+          format: uuid
+        personKey:
+          type: string
+        source:
+          $ref: '#/components/schemas/SuggestionSource'
+        status:
+          type: string
+          enum: [pending, ready, unavailable, no-id, not-enabled, failed]
+        requestedAt:
+          type: string
+          format: date-time
+        readyAt:
+          type: [string, 'null']
+          format: date-time
+        verificationResultId:
+          type: [string, 'null']
+          format: uuid
+        aiJobId:
+          type: [string, 'null']
+          format: uuid
+        suggestions:
+          type: array
+          items:
+            $ref: '#/components/schemas/Suggestion'
+    Suggestion:
+      type: object
+      required:
+        [
+          id,
+          setId,
+          personKey,
+          sectionKey,
+          itemType,
+          fields,
+          sourceRef,
+          confidence,
+          matchItemId,
+          status,
+          acceptedItemId,
+        ]
+      properties:
+        id:
+          type: string
+          format: uuid
+        setId:
+          type: string
+          format: uuid
+        personKey:
+          type: string
+        sectionKey:
+          $ref: '#/components/schemas/SectionKey'
+        itemType:
+          type: string
+          description: Second Schedule item type from declaration.v1, or `bio-tax` for KRA PIN and compliance
+        fields:
+          type: object
+          additionalProperties: true
+        sourceRef:
+          type: object
+          description: Registration, title or company number, or document page and field
+          additionalProperties: true
+        confidence:
+          type: [number, 'null']
+          minimum: 0
+          maximum: 1
+        matchItemId:
+          type: [string, 'null']
+          format: uuid
+        status:
+          type: string
+          enum: [new, accepted, dismissed, superseded]
+        acceptedItemId:
+          type: [string, 'null']
+          format: uuid
+    AssistantConversation:
+      type: object
+      required: [id, declarationId, language, messages, expiresAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        declarationId:
+          type: [string, 'null']
+          format: uuid
+        language:
+          type: string
+          enum: [en, sw]
+        messages:
+          type: array
+          items:
+            $ref: '#/components/schemas/AssistantMessage'
+        expiresAt:
+          type: [string, 'null']
+          format: date-time
+    AssistantMessage:
+      type: object
+      required: [id, role, text, citations, sectionLink, declined, label, rating, at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        role:
+          type: string
+          enum: [user, assistant]
+        text:
+          type: string
+        citations:
+          type: array
+          items:
+            $ref: '#/components/schemas/HelpPassage'
+        sectionLink:
+          oneOf:
+            - type: object
+              required: [sectionKey, fieldPath]
+              properties:
+                sectionKey:
+                  type: string
+                fieldPath:
+                  type: [string, 'null']
+            - type: 'null'
+        declined:
+          type: boolean
+        label:
+          type: [object, 'null']
+          description: ai-gateway AiLabel for assistant turns
+          additionalProperties: true
+        rating:
+          type: [string, 'null']
+          enum: [helpful, not-helpful, null]
+        at:
+          type: string
+          format: date-time
+    HelpPassage:
+      type: object
+      required: [id, source, citation, title, snippet, language]
+      properties:
+        id:
+          type: string
+        source:
+          type: string
+          enum: [act, regs, am, help]
+        citation:
+          type: string
+          examples: ['Act s.31(4)', 'Regs r.21', 'AM 24']
+        title:
+          type: string
+        snippet:
+          type: string
+        language:
+          type: string
+          enum: [en, sw]
+    HelpArticleInput:
+      type: object
+      required: [title, bodyEn, bodySw, tags, effectiveFrom, effectiveTo, published]
+      properties:
+        title:
+          type: string
+          maxLength: 200
+        bodyEn:
+          type: string
+          maxLength: 20000
+        bodySw:
+          type: [string, 'null']
+          maxLength: 20000
+        tags:
+          type: array
+          items:
+            type: string
+        effectiveFrom:
+          type: string
+          format: date
+        effectiveTo:
+          type: [string, 'null']
+          format: date
+        published:
+          type: boolean
+    HelpArticle:
+      allOf:
+        - $ref: '#/components/schemas/HelpArticleInput'
+        - type: object
+          required: [id, tenant, version, updatedAt]
+          properties:
+            id:
+              type: string
+              format: uuid
+            tenant:
+              type: [string, 'null']
+            version:
+              type: integer
+            updatedAt:
+              type: string
+              format: date-time
+    DeclarationAttachment:
+      type: object
+      required: [id, sectionKey, itemId, uploadId, fileName, sha256, size, linkedAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        sectionKey:
+          $ref: '#/components/schemas/SectionKey'
+        itemId:
+          type: string
+          format: uuid
+        uploadId:
+          type: string
+          format: uuid
+        fileName:
+          type: string
+        sha256:
+          type: string
+        size:
+          type: integer
+        linkedAt:
+          type: string
+          format: date-time
+    DeclarationSummary:
+      type: object
+      required:
+        [declaration, document, valid, blocking, canSubmit, cannotSubmitReason, attestationText]
+      properties:
+        declaration:
+          $ref: '#/components/schemas/Declaration'
+        document:
+          type: object
+          description: The assembled declaration.v1 document (decrypted for the owner)
+          additionalProperties: true
+        valid:
+          type: boolean
+          description: Validates against declaration.v1
+        blocking:
+          type: array
+          items:
+            $ref: '#/components/schemas/CompletenessIssue'
+        canSubmit:
+          type: boolean
+          description: Always false in slice 05
+        cannotSubmitReason:
+          type: [string, 'null']
+          enum: [submission-not-available, before-statement-date, incomplete, null]
+        attestationText:
+          type: string
+    DeclarationReference:
+      type: string
+      description: 'ADR-011: DC{I|B|F}-<ISSUER>-<YEAR>-<7 digits>-<check>'
+      pattern: '^DC[IBF]-[A-Z0-9]{2,20}-[0-9]{4}-[0-9]{7}-[0-9A-Z]$'
+      examples: [DCB-TSC-2027-0012345-K]
+    AcknowledgementStatus:
+      type: string
+      enum: [pending, issued, failed]
+    SubmitProblem:
+      allOf:
+        - $ref: '#/components/schemas/ProblemDetails'
+        - type: object
+          required: [code]
+          properties:
+            code:
+              type: string
+              enum:
+                - step-up-required
+                - incomplete
+                - before-statement-date
+                - amendment-window-closed
+                - not-a-draft
+                - not-submitted
+                - obligation-cancelled
+            stepUpUrl:
+              type: string
+              format: uri
+              description: Present for step-up-required
+            blocking:
+              type: array
+              items:
+                $ref: '#/components/schemas/CompletenessIssue'
+    DeclarationVersion:
+      type: object
+      required:
+        - version
+        - reference
+        - submittedAt
+        - late
+        - canonicalSha256
+        - supersededAt
+        - acknowledgement
+      properties:
+        version:
+          type: integer
+          minimum: 1
+        reference:
+          $ref: '#/components/schemas/DeclarationReference'
+        submittedAt:
+          type: string
+          format: date-time
+        late:
+          type: boolean
+        canonicalSha256:
+          type: string
+          pattern: '^[0-9a-f]{64}$'
+        supersededAt:
+          type: [string, 'null']
+          format: date-time
+        acknowledgement:
+          $ref: '#/components/schemas/Acknowledgement'
+    DeclarationVersionDetail:
+      allOf:
+        - $ref: '#/components/schemas/DeclarationVersion'
+        - type: object
+          required: [document]
+          properties:
+            document:
+              type: object
+              description: The immutable declaration.v1 document (decrypted for the owner)
+              additionalProperties: true
+    Acknowledgement:
+      type: object
+      required: [status, documentId, verificationId, issuedAt, verifiedCount, downloadUrl]
+      properties:
+        status:
+          $ref: '#/components/schemas/AcknowledgementStatus'
+        documentId:
+          type: [string, 'null']
+          format: uuid
+        verificationId:
+          type: [string, 'null']
+          description: Verification code printed under the QR
+        issuedAt:
+          type: [string, 'null']
+          format: date-time
+        verifiedCount:
+          type: integer
+        downloadUrl:
+          type: [string, 'null']
+          format: uri
+          description: Short-lived presigned URL; fetched fresh on each call
+    SubmissionResult:
+      type: object
+      required: [declaration, version, obligationStatus]
+      properties:
+        declaration:
+          $ref: '#/components/schemas/Declaration'
+        version:
+          $ref: '#/components/schemas/DeclarationVersion'
+        obligationStatus:
+          $ref: '#/components/schemas/ObligationStatus'
+    AcknowledgementPayload:
+      type: object
+      required:
+        - declarantName
+        - commission
+        - type
+        - statementDate
+        - reference
+        - version
+        - submittedAt
+        - late
+        - counts
+      properties:
+        declarantName:
+          type: string
+        commission:
+          $ref: '#/components/schemas/CommissionRef'
+        type:
+          $ref: '#/components/schemas/ObligationType'
+        statementDate:
+          type: string
+          format: date
+        reference:
+          $ref: '#/components/schemas/DeclarationReference'
+        version:
+          type: integer
+        submittedAt:
+          type: string
+          format: date-time
+        late:
+          type: boolean
+        counts:
+          type: object
+          required: [statements, income, assets, liabilities, attachments]
+          properties:
+            statements:
+              type: integer
+            income:
+              type: integer
+            assets:
+              type: integer
+            liabilities:
+              type: integer
+            attachments:
+              type: integer
+    InternalVersionDocument:
+      type: object
+      required:
+        - declarationId
+        - versionId
+        - version
+        - personId
+        - reference
+        - type
+        - statementDate
+        - submittedAt
+        - late
+        - dueDate
+        - declarantName
+        - personnelFileNumber
+        - document
+        - attachments
+      properties:
+        declarationId:
+          type: string
+          format: uuid
+        versionId:
+          type: string
+          format: uuid
+        version:
+          type: integer
+        personId:
+          type: string
+          format: uuid
+          description: The declarant; the review service looks up their previous version with it
+        reference:
+          $ref: '#/components/schemas/DeclarationReference'
+        type:
+          $ref: '#/components/schemas/ObligationType'
+        statementDate:
+          type: string
+          format: date
+        submittedAt:
+          type: string
+          format: date-time
+        late:
+          type: boolean
+        dueDate:
+          type: string
+          format: date
+        declarantName:
+          type: string
+        personnelFileNumber:
+          type: string
+        document:
+          type: object
+          description: The immutable declaration.v1 document, decrypted
+          additionalProperties: true
+        attachments:
+          type: array
+          items:
+            type: object
+            required: [uploadId, itemId, personKey, fileName, sha256]
+            properties:
+              uploadId:
+                type: string
+                format: uuid
+              itemId:
+                type: string
+                format: uuid
+              personKey:
+                type: string
+              fileName:
+                type: string
+              sha256:
+                type: string

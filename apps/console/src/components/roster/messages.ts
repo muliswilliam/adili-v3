@@ -1,4 +1,5 @@
-import { formatDate, formatNumber } from '../format';
+import { formatDate } from '@adili/ui';
+import { formatNumber } from '../format';
 
 /**
  * Copy of the Roster workspace (spec 02 frontend). One English string per key; the Swahili slot

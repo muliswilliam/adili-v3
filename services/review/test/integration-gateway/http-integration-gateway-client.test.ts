@@ -8,7 +8,7 @@ import {
   IntegrationGatewayUnavailable,
   type PayrollInstructionRequest,
 } from '../../src/integration-gateway/integration-gateway-client.js';
-import { InternalApiRejected } from '../../src/internal-api/internal-api.js';
+import { InternalApiRejected } from '../../src/internal-api/rejected.js';
 
 /** S15 at the client seam: the payroll instruction as integration-gateway.yaml has it. */
 describe('HttpIntegrationGatewayClient', () => {
@@ -37,7 +37,7 @@ describe('HttpIntegrationGatewayClient', () => {
       fetch,
     });
 
-  it('posts the instruction with the legal basis, the acting Commission and the case, and answers the acknowledgement', async () => {
+  it('posts the instruction with the legal basis and the case, and answers the acknowledgement', async () => {
     const fetch = vi.fn<typeof globalThis.fetch>(() =>
       Promise.resolve(Response.json(acknowledged, { status: 201 })),
     );
@@ -48,16 +48,18 @@ describe('HttpIntegrationGatewayClient', () => {
     });
 
     expect(answer).toEqual(acknowledged);
-    const [url, init] = fetch.mock.calls[0] ?? [];
-    expect((url as URL).href).toBe('http://gateway.test/internal/v1/payroll/instructions');
-    expect(init?.method).toBe('POST');
-    expect(JSON.parse(init?.body as string)).toEqual(instruction);
-    expect(init?.headers).toMatchObject({
+    const request = fetch.mock.calls[0]?.[0] as Request;
+    expect(request.url).toBe('http://gateway.test/internal/v1/payroll/instructions');
+    expect(request.method).toBe('POST');
+    expect(await request.json()).toEqual(instruction);
+    const headers = Object.fromEntries(request.headers);
+    expect(headers).toMatchObject({
       authorization: 'Bearer token',
-      'x-acting-tenant': 'psc',
       'x-legal-basis': PAYROLL_LEGAL_BASIS,
       'x-case-ref': '0199b000-0000-7000-8000-0000000000e1',
     });
+    // The gateway's payroll API acts for no tenant; the instruction names the employer.
+    expect(headers).not.toHaveProperty('x-acting-tenant');
     expect(PAYROLL_LEGAL_BASIS).toBe('am-sanctions');
   });
 
@@ -69,7 +71,7 @@ describe('HttpIntegrationGatewayClient', () => {
     expect(await client(fetch).submitPayrollInstruction(instruction, { tenant: 'psc' })).toEqual(
       acknowledged,
     );
-    expect(fetch.mock.calls[0]?.[1]?.headers).not.toHaveProperty('x-case-ref');
+    expect((fetch.mock.calls[0]?.[0] as Request).headers.has('x-case-ref')).toBe(false);
   });
 
   it('payroll unavailable (503), unreachable or answering outside the contract: unavailable, so the activity retries', async () => {

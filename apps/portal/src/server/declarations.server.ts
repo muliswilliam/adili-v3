@@ -6,7 +6,6 @@ import type {
   DeclarationListItem,
   DeclarationSummary,
   DocumentKind,
-  MyObligations,
   RegistrySystem,
   SectionEnvelope,
   SectionKey,
@@ -34,17 +33,6 @@ export type LoadedSummary = Omit<DeclarationSummary, 'document'> & { document: J
 /** The service's ETag, or the draft version quoted the same way when a proxy dropped it. */
 function etagOf(response: Response, draftVersion: number) {
   return response.headers.get('ETag') ?? `"${String(draftVersion)}"`;
-}
-
-export type ObligationsResult = { status: 'ok'; obligations: MyObligations } | Unavailable;
-
-/** `GET /v1/me/obligations` (spec 04); a caller who is not a declarant has none. */
-export function listObligations(client: DeclarationsClient): Promise<ObligationsResult> {
-  return attempt(async () => {
-    const { data, response } = await client.GET('/v1/me/obligations');
-    if (data) return { status: 'ok', obligations: data };
-    return response.status === 404 ? { status: 'ok', obligations: { groups: [] } } : unavailable;
-  });
 }
 
 export type StartResult =

@@ -240,13 +240,14 @@ describe('HttpRosterUploads', () => {
     }
 
     it('takes as long as the file needs while chunks keep coming', async () => {
-      slowStorage(8, 25);
-      const { uploads } = adapter(undefined, { headersTimeoutMs: 100, idleTimeoutMs: 100 });
+      slowStorage(16, 25);
+      // Each gap a tenth of the idle timeout, so a busy machine cannot stretch one past it.
+      const { uploads } = adapter(undefined, { headersTimeoutMs: 250, idleTimeoutMs: 250 });
 
       const upload = await uploads.open(REF);
 
-      // 8 chunks x 25 ms is well past both timeouts in total.
-      expect(await text(upload.body)).toContain('row 7');
+      // 16 chunks x 25 ms is well past both timeouts in total.
+      expect(await text(upload.body)).toContain('row 15');
     });
 
     it('does not count time the reader spends on a chunk', async () => {

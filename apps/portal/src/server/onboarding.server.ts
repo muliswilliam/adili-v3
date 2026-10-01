@@ -200,11 +200,13 @@ export type StepProblem =
   | { code: 'iprs-unavailable' }
   /** The account could not be created; nothing changed and the session can retry. */
   | { code: 'identity-unavailable' }
+  /** The verified email belongs to another account; nothing changed, retrying will not help. */
+  | { code: 'email-in-use' }
   | { code: 'invalid' }
   | { code: 'ended' }
   | { code: 'too-many' }
   | { code: 'moved' }
-  /** The directory could not send a code (502, which the contract gives no problem code). */
+  /** The directory could not send a code (502 `otp-send-failed`); nothing changed. */
   | { code: 'send-failed' }
   | { code: 'unavailable' };
 
@@ -213,9 +215,10 @@ export type StepResult = { ok: true; session: OnboardingSession } | ({ ok: false
 
 function stepProblem(response: Response, error: unknown): StepProblem {
   if (response.status === 404 || response.status === 410) return { code: 'ended' };
-  if (response.status === 409) return { code: 'moved' };
   const problem = problemSchema.safeParse(error);
   const code = problem.success ? problem.data.code : undefined;
+  if (response.status === 409 && code === 'email-in-use') return { code };
+  if (response.status === 409) return { code: 'moved' };
   if (response.status === 400 && code === 'otp-invalid') {
     // The last wrong code ends the session.
     if (problem.data?.attemptsLeft === 0) return { code: 'too-many' };
@@ -237,6 +240,11 @@ function stepProblem(response: Response, error: unknown): StepProblem {
 
 function sessionParams({ sessionId, secret }: OnboardingCredentials) {
   return { path: { sessionId }, header: { 'X-Onboarding-Secret': secret } };
+}
+
+function idempotentSessionParams(credentials: OnboardingCredentials, idempotencyKey: string) {
+  const { path, header } = sessionParams(credentials);
+  return { path, header: { ...header, 'Idempotency-Key': idempotencyKey } };
 }
 
 function channelParams({ sessionId, secret }: OnboardingCredentials, channel: OtpChannel) {
@@ -332,28 +340,34 @@ export async function provideContact(
 /**
  * Confirms the roster details. The directory checks them against the national register, then
  * creates the account or links the record to the declarant's existing one; the session's state
- * and outcome say which.
+ * and outcome say which. `idempotencyKey` is the submission's: a retry with it gets the first
+ * answer back instead of confirming again.
  */
 export function confirm(
   client: OnboardingClient,
   credentials: OnboardingCredentials,
+  idempotencyKey: string,
 ): Promise<StepResult> {
   return sessionCall(client, credentials, async () => {
     const result = await client.POST('/v1/onboarding/sessions/{sessionId}/confirm', {
-      params: sessionParams(credentials),
+      params: idempotentSessionParams(credentials, idempotencyKey),
     });
     return { ...result, data: result.data?.session };
   });
 }
 
-/** Sends the set-password email again, then reads the session back for the new wait. */
+/**
+ * Sends the set-password email again, then reads the session back for the new wait. A retry with
+ * the submission's `idempotencyKey` sends no second email.
+ */
 export function resendPasswordEmail(
   client: OnboardingClient,
   credentials: OnboardingCredentials,
+  idempotencyKey: string,
 ): Promise<StepResult> {
   return sessionCall(client, credentials, () =>
     client.POST('/v1/onboarding/sessions/{sessionId}/resend-password-email', {
-      params: sessionParams(credentials),
+      params: idempotentSessionParams(credentials, idempotencyKey),
     }),
   );
 }

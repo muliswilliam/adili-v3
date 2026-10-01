@@ -1,9 +1,10 @@
 import { Module } from '@nestjs/common';
 import { ServiceTokenClient } from '@adili/api-kit';
+import { DECLARATIONS_INTERNAL_SCOPE } from '@adili/roles';
 
 import { config } from '../config.js';
 import { DeclarationsClient } from './declarations-client.js';
-import { DECLARATIONS_INTERNAL_SCOPE, HttpDeclarationsClient } from './http-declarations-client.js';
+import { HttpDeclarationsClient } from './http-declarations-client.js';
 
 /** The declarations internal API, called with the service's own token (ADR-013 §8.1). */
 @Module({

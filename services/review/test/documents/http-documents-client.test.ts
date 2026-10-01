@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { DocumentsUnavailable } from '../../src/documents/documents-client.js';
 import { HttpDocumentsClient } from '../../src/documents/http-documents-client.js';
-import { InternalApiRejected } from '../../src/internal-api/internal-api.js';
+import { InternalApiRejected } from '../../src/internal-api/rejected.js';
 
 const UPLOAD = '0199b000-0000-7000-8000-000000000001';
 
@@ -17,6 +17,10 @@ function client(...responses: Response[]) {
 }
 
 const json = (body: unknown, status = 200) => Response.json(body, { status });
+
+/** What the service client sent: one `Request` per attempt. */
+const sent = (fetch: { mock: { calls: unknown[][] } }, call = 0) =>
+  fetch.mock.calls[call]?.[0] as Request;
 
 describe('HttpDocumentsClient', () => {
   it("asks for an upload's download link acting for the Commission; 404 is none", async () => {
@@ -41,9 +45,9 @@ describe('HttpDocumentsClient', () => {
       sha256: link.sha256,
     });
     expect(await documents.getUploadDownload(UPLOAD, 'psc')).toBeNull();
-    const [url, init] = fetch.mock.calls[0] ?? [];
-    expect((url as URL).href).toBe(`http://documents.test/internal/v1/uploads/${UPLOAD}/download`);
-    expect(init?.headers).toMatchObject({
+    const request = sent(fetch);
+    expect(request.url).toBe(`http://documents.test/internal/v1/uploads/${UPLOAD}/download`);
+    expect(Object.fromEntries(request.headers)).toMatchObject({
       authorization: 'Bearer service-token',
       'x-acting-tenant': 'psc',
     });
@@ -71,9 +75,8 @@ describe('HttpDocumentsClient', () => {
       type: 'notice-to-comply',
       sha256: 'c'.repeat(64),
     });
-    const [url, init] = fetch.mock.calls[0] ?? [];
-    expect((url as URL).href).toBe(`http://documents.test/internal/v1/documents/${UPLOAD}`);
-    expect(init?.headers).toMatchObject({ 'x-acting-tenant': 'psc' });
+    expect(sent(fetch).url).toBe(`http://documents.test/internal/v1/documents/${UPLOAD}`);
+    expect(sent(fetch).headers.get('x-acting-tenant')).toBe('psc');
     expect(await documents.getIssuedDocument(UPLOAD, 'psc')).toBeNull();
   });
 
@@ -95,13 +98,36 @@ describe('HttpDocumentsClient', () => {
     await documents.revoke(DOCUMENT, 'psc', 'issued-in-error');
     await documents.revoke(DOCUMENT, 'psc', 'issued-in-error');
 
-    const [url, init] = fetch.mock.calls[0] ?? [];
-    expect((url as URL).href).toBe(
-      `http://documents.test/internal/v1/documents/${DOCUMENT}/revoke`,
-    );
-    expect(init?.method).toBe('POST');
-    expect(JSON.parse(init?.body as string)).toEqual({ reason: 'issued-in-error' });
-    expect(init?.headers).toMatchObject({ 'x-acting-tenant': 'psc' });
+    const request = sent(fetch);
+    expect(request.url).toBe(`http://documents.test/internal/v1/documents/${DOCUMENT}/revoke`);
+    expect(request.method).toBe('POST');
+    expect(await request.json()).toEqual({ reason: 'issued-in-error' });
+    expect(request.headers.get('x-acting-tenant')).toBe('psc');
+  });
+
+  it('issues acting for the issuing Commission; one issued before (200) is the same document', async () => {
+    const issued = { id: '0199b000-0000-7000-8000-0000000000d2', verificationId: 'ADL-TEST' };
+    const { documents, fetch } = client(json(issued, 201), json(issued, 200));
+    const request = {
+      type: 'clarification-letter',
+      templateVersion: 1,
+      disclosureLevel: 'restricted',
+      issuerTenant: 'psc',
+      subjectRef: 'clarification:0199b000-0000-7000-8000-0000000000c1',
+      subjectPersonId: '0199b000-0000-7000-8000-0000000000a1',
+      payload: { clarificationId: '0199b000-0000-7000-8000-0000000000c1' },
+      publicPayload: {
+        reference: 'CLR-PSC-2027-0000001-4',
+        type: 'clarification-letter',
+        issuer: 'PSC',
+        issuedAt: '2027-12-10T09:00:00.000Z',
+      },
+    } as const;
+
+    expect(await documents.issue(request)).toEqual(issued);
+    expect(await documents.issue(request)).toEqual(issued);
+    expect(sent(fetch).url).toBe('http://documents.test/internal/v1/documents/issue');
+    expect(sent(fetch).headers.get('x-acting-tenant')).toBe('psc');
   });
 
   it('a revocation documents cannot take is unavailable', async () => {

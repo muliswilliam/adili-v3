@@ -1,7 +1,7 @@
-import type { ServiceTokenClient } from '@adili/api-kit';
+import { createServiceClient, type ServiceClient, type ServiceTokenClient } from '@adili/api-kit';
 import { z } from 'zod';
 
-import { InternalApi } from '../internal-api/internal-api.js';
+import type { paths } from './directory-api.gen.js';
 import {
   type ClarificationPolicy,
   type CommissionFacts,
@@ -11,9 +11,6 @@ import {
   type LadderPolicy,
   type PayrollRosterFacts,
 } from './directory-client.js';
-
-/** The scope the review service's token needs for the directory's internal API. */
-export const DIRECTORY_INTERNAL_SCOPE = 'directory:internal';
 
 /** How long a Commission's policy is reused before it is pulled again. */
 export const POLICY_CACHE_TTL_MS = 5 * 60 * 1000;
@@ -71,13 +68,16 @@ const rosterRecordSchema = z.object({
 });
 
 /**
- * The directory's `internalGetTenantPolicy` (clarification periods, ladder windows) and
- * `internalGetCommission` with the review service's own token, cached per Commission for a few
- * minutes: a policy or a name changes rarely, and a case's window is fixed when the case is
- * created. `internalGetRosterRecord` (payroll's facts) is read uncached, each time.
+ * The directory's `internalGetTenantPolicy` (clarification periods, ladder windows),
+ * `internalGetCommission` and `internalGetRosterRecord` through the client generated from its
+ * contract (directory-api.gen.ts) on api-kit's service client, with the review service's own token
+ * (`directory:internal`) and the Commission in `X-Acting-Tenant`. A policy and a Commission are
+ * cached per Commission for a few minutes: they change rarely, and a case's window is fixed when
+ * the case is created. A roster record (payroll's facts) is read uncached, each time. Anything
+ * unexpected is `DirectoryUnavailable`.
  */
 export class HttpDirectoryClient extends DirectoryClient {
-  private readonly api: InternalApi;
+  private readonly directory: ServiceClient<paths>;
   private readonly policies = new Map<string, { policy: ReviewPolicy; until: number }>();
   private readonly commissions = new Map<string, { commission: CommissionFacts; until: number }>();
   private readonly ttlMs: number;
@@ -85,12 +85,12 @@ export class HttpDirectoryClient extends DirectoryClient {
 
   constructor(options: HttpDirectoryClientOptions) {
     super();
-    this.api = new InternalApi({
+    this.directory = createServiceClient<paths>({
       baseUrl: options.directoryUrl,
       service: 'directory',
       tokens: options.tokens,
       unavailable: (message, cause) => new DirectoryUnavailable(message, cause),
-      timeoutMs: options.timeoutMs ?? 2_000,
+      timeoutMs: options.timeoutMs,
       fetch: options.fetch,
     });
     this.ttlMs = options.cacheTtlMs ?? POLICY_CACHE_TTL_MS;
@@ -108,12 +108,13 @@ export class HttpDirectoryClient extends DirectoryClient {
   private async policy(slug: string): Promise<ReviewPolicy> {
     const cached = this.policies.get(slug);
     if (cached && cached.until > this.now()) return cached.policy;
-    const found = await this.api.get({
-      path: `internal/v1/commissions/${encodeURIComponent(slug)}/policy`,
-      tenant: slug,
-      schema: policySchema,
-    });
-    if (!found) throw new DirectoryUnavailable(`The directory has no policy for ${slug}`);
+    const found = await this.directory.call(
+      (api) =>
+        api.GET('/internal/v1/commissions/{slug}/policy', {
+          params: { path: { slug }, header: { 'X-Acting-Tenant': slug } },
+        }),
+      { status: 200, schema: policySchema },
+    );
     const policy: ReviewPolicy = {
       clarification: found.clarification,
       ladder: {
@@ -131,23 +132,26 @@ export class HttpDirectoryClient extends DirectoryClient {
   async getCommission(slug: string): Promise<CommissionFacts> {
     const cached = this.commissions.get(slug);
     if (cached && cached.until > this.now()) return cached.commission;
-    const found = await this.api.get({
-      path: `internal/v1/commissions/${encodeURIComponent(slug)}`,
-      tenant: slug,
-      schema: commissionSchema,
-    });
-    if (!found) throw new DirectoryUnavailable(`The directory has no Commission ${slug}`);
+    const found = await this.directory.call(
+      (api) =>
+        api.GET('/internal/v1/commissions/{slug}', {
+          params: { path: { slug }, header: { 'X-Acting-Tenant': slug } },
+        }),
+      { status: 200, schema: commissionSchema },
+    );
     const commission = { slug: found.slug, issuerCode: found.issuerCode, name: found.name };
     this.commissions.set(slug, { commission, until: this.now() + this.ttlMs });
     return commission;
   }
 
   async getRosterRecord(slug: string, recordId: string): Promise<PayrollRosterFacts | null> {
-    const found = await this.api.get({
-      path: `internal/v1/commissions/${encodeURIComponent(slug)}/roster/records/${encodeURIComponent(recordId)}`,
-      tenant: slug,
-      schema: rosterRecordSchema,
-    });
+    const found = await this.directory.call(
+      (api) =>
+        api.GET('/internal/v1/commissions/{slug}/roster/records/{recordId}', {
+          params: { path: { slug, recordId }, header: { 'X-Acting-Tenant': slug } },
+        }),
+      { status: 200, schema: rosterRecordSchema, otherwise: { 404: () => null } },
+    );
     if (!found) return null;
     return {
       personalNumber: found.personnelFileNumber,

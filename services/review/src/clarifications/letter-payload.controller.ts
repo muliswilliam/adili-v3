@@ -1,8 +1,14 @@
 import { Controller, Get, Param } from '@nestjs/common';
 import { ApiOkResponse, ApiOperation, ApiParam, ApiTags } from '@nestjs/swagger';
-import { ApiProblemResponse, schemaRef, ZodValidationPipe } from '@adili/api-kit';
+import {
+  ActingTenant,
+  ApiProblemResponse,
+  InternalApi,
+  schemaRef,
+  ZodValidationPipe,
+} from '@adili/api-kit';
+import { REVIEW_INTERNAL_SCOPE } from '@adili/roles';
 
-import { ActingTenant, InternalRoute } from '../internal-api/acting-tenant.js';
 import { uuidParam } from './clarification-input.js';
 import { type ClarificationLetterPayload, LetterPayloadService } from './letter-payload.service.js';
 
@@ -17,7 +23,7 @@ export class LetterPayloadController {
   constructor(private readonly letters: LetterPayloadService) {}
 
   @Get(':clarificationId/letter-payload')
-  @InternalRoute()
+  @InternalApi(REVIEW_INTERNAL_SCOPE)
   @ApiParam({ name: 'clarificationId', schema: { type: 'string', format: 'uuid' } })
   @ApiOperation({
     operationId: 'internalGetClarificationLetterPayload',
@@ -25,8 +31,6 @@ export class LetterPayloadController {
   })
   @ApiOkResponse({ description: 'Payload', schema: schemaRef('ClarificationLetterPayload') })
   @ApiProblemResponse(404, 'No issued clarification with this id at the acting Commission')
-  @ApiProblemResponse(502, 'The declaration could not be read')
-  @ApiProblemResponse(503, 'The Commission directory could not be reached')
   payload(
     @ActingTenant() tenant: string,
     @Param('clarificationId', new ZodValidationPipe(uuidParam)) clarificationId: string,

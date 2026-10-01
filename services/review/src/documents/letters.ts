@@ -1,7 +1,7 @@
 import { ApplicationFailure } from '@temporalio/common';
 
 import type { DirectoryClient } from '../directory/directory-client.js';
-import { InternalApiRejected } from '../internal-api/internal-api.js';
+import { InternalApiRejected } from '../internal-api/rejected.js';
 import type { DocumentsClient, IssuedDocument, ReviewLetter } from './documents-client.js';
 
 /** The services issuing a letter reads and calls. */

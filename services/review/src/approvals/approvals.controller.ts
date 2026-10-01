@@ -6,11 +6,11 @@ import {
   CurrentPrincipal,
   type Principal,
   schemaRef,
+  TENANT_KEY,
   ZodValidationPipe,
 } from '@adili/api-kit';
 import { z } from 'zod';
 
-import { TENANT_SLUG } from '../cases/access.js';
 import {
   type ApprovalPage,
   type ApprovalsQuery,
@@ -35,7 +35,7 @@ export class ApprovalsController {
   constructor(private readonly approvals: ApprovalsService) {}
 
   @Get('commissions/:slug/approvals')
-  @ApiParam({ name: 'slug', schema: { type: 'string', pattern: TENANT_SLUG.source } })
+  @ApiParam({ name: 'slug', schema: { type: 'string', pattern: TENANT_KEY.source } })
   @ApiOperation({
     operationId: 'listApprovals',
     summary: 'Proposed determinations, actions and referrals awaiting approval (supervisor)',

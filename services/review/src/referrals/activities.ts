@@ -13,7 +13,7 @@ import { DeclarationsClient } from '../declarations/declarations-client.js';
 import { DirectoryClient } from '../directory/directory-client.js';
 import { DocumentsClient } from '../documents/documents-client.js';
 import { enforcementLadders } from '../enforcement/schema.js';
-import { InternalApiRejected } from '../internal-api/internal-api.js';
+import { InternalApiRejected } from '../internal-api/rejected.js';
 import { SYSTEM_SUBJECT, systemContext } from '../system-context.js';
 import {
   type ClarificationSweepChunk,

@@ -1,6 +1,6 @@
 {
-  "id": "76cbfa12-8064-4129-b948-14c6c443e6ef",
-  "prevId": "f7975120-30a2-478c-8b8f-36e894e13f68",
+  "id": "f7975120-30a2-478c-8b8f-36e894e13f68",
+  "prevId": "e451f6c1-eb1e-4a3d-b5cf-c0d62ad3896a",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -488,6 +488,12 @@
           "primaryKey": false,
           "notNull": false
         },
+        "letter": {
+          "name": "letter",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
         "letter_document_id": {
           "name": "letter_document_id",
           "type": "uuid",
@@ -963,18 +969,6 @@
           "type": "text",
           "primaryKey": false,
           "notNull": true
-        },
-        "roster_record_id": {
-          "name": "roster_record_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "reporting_entity_id": {
-          "name": "reporting_entity_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
         },
         "open_flags": {
           "name": "open_flags",

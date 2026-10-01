@@ -31,7 +31,7 @@ export const en = {
   columnCommission: 'Commission',
   columnType: 'Type',
   columnCategories: 'Categories',
-  columnOfficer: 'Reporting officer',
+  columnReportingOfficer: 'Reporting officer',
   columnRoster: 'Roster',
   columnCreated: 'Created',
   moreCategories: (count: number, citations: string) => `${count} more: ${citations}`,
@@ -67,7 +67,9 @@ export const en = {
   categories: 'Categories',
   policyVersion: 'Policy version',
   policyVersionValue: (version: number) =>
-    version === 1 ? 'Version 1, platform defaults' : `Version ${version}`,
+    version === 1
+      ? 'Version 1, platform defaults'
+      : `Version ${version}, obligations start date changed`,
   created: 'Created',
   officerCardTitle: 'Reporting officer',
   officerNoneTitle: 'No reporting officer',

@@ -1,3 +1,4 @@
+import { TENANT_KEY } from '@adili/api-kit';
 import { z } from 'zod';
 
 import type { TaskDefinition } from '../tasks/task.js';
@@ -11,7 +12,7 @@ export type DataClass = (typeof DATA_CLASSES)[number];
 /** Contract `TaskRequest`, with `input` narrowed to the task's own input schema. */
 export function taskRequestSchema(task: TaskDefinition) {
   return z.object({
-    tenant: z.string().regex(/^[a-z][a-z0-9]{1,19}$/),
+    tenant: z.string().regex(TENANT_KEY),
     dataClass: z.enum(DATA_CLASSES),
     subjectRef: z.string().min(1).max(200).meta({
       description: 'Owning record, e.g. review-case:<uuid>; appears in audit and events',

@@ -2,6 +2,7 @@ import { sql } from 'drizzle-orm';
 import {
   type AnyPgColumn,
   check,
+  date,
   index,
   integer,
   jsonb,
@@ -75,7 +76,11 @@ export const commissionCategories = pgTable(
   (table) => [primaryKey({ columns: [table.commissionId, table.categoryCode] })],
 );
 
-/** Versioned tenant policy; version 1 is provisioned from platform defaults with the Commission. */
+/**
+ * Versioned tenant policy; version 1 is provisioned from platform defaults with the Commission.
+ * Versions are never changed: a change is a new version copying the rest (spec 04), and the one
+ * with the highest number is in force.
+ */
 export const tenantPolicyVersions = pgTable(
   'tenant_policy_versions',
   {
@@ -88,7 +93,16 @@ export const tenantPolicyVersions = pgTable(
     version: integer().notNull(),
     effectiveFrom: timestamp({ withTimezone: true }).notNull().defaultNow(),
     policy: jsonb().$type<TenantPolicy>().notNull(),
+    /**
+     * Obligations are created only for statement dates on or after it, so officers appointed
+     * before the Commission joined Adili owe no initial declaration here (spec 04). Version 1's
+     * is the date the Commission was created, in Africa/Nairobi.
+     */
+    obligationsStartDate: date({ mode: 'string' }).notNull(),
+    /** `sub` of the caller who created the version (`system` for seeds). */
     createdBy: text().notNull(),
+    /** Their display name at the time (token `name`); null when the token had none. */
+    createdByName: text(),
     ...timestamps,
   },
   (table) => [unique().on(table.tenant, table.version)],

@@ -108,7 +108,10 @@ export interface paths {
     "/internal/v1/documents/{documentId}": {
         parameters: {
             query?: never;
-            header?: never;
+            header: {
+                /** @description Tenant the calling service acts for; the resource must belong to it */
+                "X-Acting-Tenant": components["parameters"]["ActingTenant"];
+            };
             path: {
                 documentId: components["parameters"]["DocumentId"];
             };
@@ -156,7 +159,10 @@ export interface paths {
     "/internal/v1/documents/{documentId}/revoke": {
         parameters: {
             query?: never;
-            header?: never;
+            header: {
+                /** @description Tenant the calling service acts for; the resource must belong to it */
+                "X-Acting-Tenant": components["parameters"]["ActingTenant"];
+            };
             path: {
                 documentId: components["parameters"]["DocumentId"];
             };
@@ -303,6 +309,11 @@ export interface components {
             type: string;
             title: string;
             status: number;
+            /**
+             * @description Machine-readable cause, from the platform registry; clients map it to copy and never show `title` or `detail`
+             * @enum {string}
+             */
+            code?: "rate-limit-exceeded" | "no-match" | "already-onboarded" | "no-roster" | "otp-invalid" | "otp-expired" | "resend-cooldown" | "otp-send-failed" | "wrong-step" | "session-expired" | "iprs-unavailable" | "identity-unavailable" | "email-in-use";
             detail?: string;
             instance?: string;
             /** @description Field-level errors; `path` is the dotted request field */
@@ -392,6 +403,8 @@ export interface components {
         };
     };
     parameters: {
+        /** @description Tenant the calling service acts for; the resource must belong to it */
+        ActingTenant: string;
         DocumentId: string;
     };
     requestBodies: never;
@@ -610,7 +623,12 @@ export interface operations {
     issueDocument: {
         parameters: {
             query?: never;
-            header?: never;
+            header: {
+                /** @description Tenant the calling service acts for; the resource must belong to it */
+                "X-Acting-Tenant": components["parameters"]["ActingTenant"];
+                /** @description Optional. Client-generated UUID, unique per logical request; reuse on retry and the stored answer is replayed instead of acting twice */
+                "Idempotency-Key"?: string;
+            };
             path?: never;
             cookie?: never;
         };
@@ -644,7 +662,10 @@ export interface operations {
     internalGetDocument: {
         parameters: {
             query?: never;
-            header?: never;
+            header: {
+                /** @description Tenant the calling service acts for; the resource must belong to it */
+                "X-Acting-Tenant": components["parameters"]["ActingTenant"];
+            };
             path: {
                 documentId: components["parameters"]["DocumentId"];
             };
@@ -706,7 +727,10 @@ export interface operations {
     revokeDocument: {
         parameters: {
             query?: never;
-            header?: never;
+            header: {
+                /** @description Tenant the calling service acts for; the resource must belong to it */
+                "X-Acting-Tenant": components["parameters"]["ActingTenant"];
+            };
             path: {
                 documentId: components["parameters"]["DocumentId"];
             };

@@ -28,6 +28,7 @@ import {
   schemaRef,
   ZodValidationPipe,
 } from '@adili/api-kit';
+import { PLATFORM_ADMIN } from '@adili/roles';
 
 import { STAFF_ROLES } from './access.js';
 import {
@@ -73,7 +74,7 @@ export class CommissionsController {
   }
 
   @Post()
-  @Roles('platform-admin')
+  @Roles(PLATFORM_ADMIN)
   @RequireIdempotencyKey()
   @ApiOperation({
     operationId: 'createCommission',
@@ -113,7 +114,7 @@ export class CommissionsController {
 
   @Put(':slug/reporting-officer')
   @ApiSlugParam()
-  @Roles('platform-admin')
+  @Roles(PLATFORM_ADMIN)
   @RequireIdempotencyKey()
   @ApiOperation({
     operationId: 'assignReportingOfficer',
@@ -147,7 +148,7 @@ export class CommissionsController {
 
   @Post(':slug/reporting-officer/resend-invitation')
   @ApiSlugParam()
-  @Roles('platform-admin')
+  @Roles(PLATFORM_ADMIN)
   @HttpCode(HttpStatus.ACCEPTED)
   @ApiOperation({
     operationId: 'resendReportingOfficerInvitation',

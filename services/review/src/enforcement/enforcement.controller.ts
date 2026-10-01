@@ -7,11 +7,11 @@ import {
   type Principal,
   RequireIdempotencyKey,
   schemaRef,
+  TENANT_KEY,
   ZodValidationPipe,
 } from '@adili/api-kit';
 import { z } from 'zod';
 
-import { TENANT_SLUG } from '../cases/access.js';
 import { type ReasonInput, reasonInput } from '../determinations/determination-input.js';
 import {
   type LadderPage,
@@ -41,7 +41,7 @@ export class EnforcementController {
   constructor(private readonly enforcement: EnforcementService) {}
 
   @Get('commissions/:slug/actions')
-  @ApiParam({ name: 'slug', schema: { type: 'string', pattern: TENANT_SLUG.source } })
+  @ApiParam({ name: 'slug', schema: { type: 'string', pattern: TENANT_KEY.source } })
   @ApiOperation({
     operationId: 'listEnforcementLadders',
     summary:

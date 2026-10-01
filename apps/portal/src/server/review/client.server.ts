@@ -1,5 +1,6 @@
+import { mockableClient } from '@adili/api-kit/client';
+
 import { env } from '../env.server';
-import { mockableClient } from '../mockable-client.server';
 import type { paths } from './schema.gen';
 
 /**

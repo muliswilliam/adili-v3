@@ -189,6 +189,7 @@ describe('bulk approval of closures and on-demand letters (S4)', () => {
       clientId: 'console',
       name: 'Samuel Njoroge',
       issuedAt: null,
+      personId: null,
     };
     const resumed = await api.app
       .get(BulkClosuresService)

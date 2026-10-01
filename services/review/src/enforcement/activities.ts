@@ -20,7 +20,7 @@ import {
   type PayrollInstruction,
   type PayrollInstructionRequest,
 } from '../integration-gateway/integration-gateway-client.js';
-import { InternalApiRejected } from '../internal-api/internal-api.js';
+import { InternalApiRejected } from '../internal-api/rejected.js';
 import { NotificationsClient, type ReviewTemplate } from '../notifications/notifications-client.js';
 import { SYSTEM_SUBJECT, systemContext } from '../system-context.js';
 import {

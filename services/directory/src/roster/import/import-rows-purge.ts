@@ -1,3 +1,4 @@
+import { PLATFORM_TENANT } from '@adili/api-kit';
 import {
   Injectable,
   Logger,
@@ -7,7 +8,6 @@ import {
 import { type Database, InjectDatabase, withTenant } from '@adili/data-access';
 import { sql } from 'drizzle-orm';
 
-import { PLATFORM_TENANT } from '../../commissions/access.js';
 import type { DirectorySchema } from '../../db/schema.js';
 import { rosterImportBatches, rosterImportRows, rosterImports } from '../schema.js';
 

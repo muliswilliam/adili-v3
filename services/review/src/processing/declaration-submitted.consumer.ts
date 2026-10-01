@@ -1,10 +1,10 @@
 import { Controller } from '@nestjs/common';
 import { Payload } from '@nestjs/microservices';
+import { TENANT_KEY } from '@adili/api-kit';
 import { type Database, InjectDatabase } from '@adili/data-access';
 import { consumeOnce, type EventEnvelope, OnEvent } from '@adili/events';
 import { z } from 'zod';
 
-import { TENANT_SLUG } from '../cases/access.js';
 import { DECLARATION_SUBMITTED } from '../cases/events.js';
 import { ProcessingWorkflows } from './processing-workflows.js';
 
@@ -18,7 +18,7 @@ const submittedData = z.object({
   version: z.int().positive(),
 });
 
-const tenantSchema = z.string().regex(TENANT_SLUG);
+const tenantSchema = z.string().regex(TENANT_KEY);
 
 /**
  * Starts `DeclarationProcessingWorkflow` for every submitted version (spec 07a). The event carries

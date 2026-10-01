@@ -1,4 +1,5 @@
 import { createRemoteJWKSet, type JWTPayload, jwtVerify, type JWTVerifyGetKey } from 'jose';
+import { z } from 'zod';
 
 import type { Principal } from './principal.js';
 
@@ -10,7 +11,11 @@ interface KeycloakClaims extends JWTPayload {
   scope?: string;
   name?: string;
   preferred_username?: string;
+  /** The account's person, from the `person_id` user attribute (declarants once onboarded). */
+  person_id?: string;
 }
+
+const personIdSchema = z.uuid();
 
 /** Verifies Keycloak access tokens against the realm's published signing keys. */
 export class TokenVerifier {
@@ -40,6 +45,8 @@ export class TokenVerifier {
       clientId: payload.azp ?? null,
       name: payload.name ?? payload.preferred_username ?? null,
       issuedAt: payload.iat ?? null,
+      // Person ids are UUIDs (RLS casts them); anything else links the account to no person.
+      personId: personIdSchema.safeParse(payload.person_id).data ?? null,
     };
   }
 }

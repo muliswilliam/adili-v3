@@ -1,0 +1,31 @@
+{
+  "name": "@adili/contacts",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Contact channels (email, phone) and how a contact is masked for display, shared by the services and the apps so a contact looks the same whichever side masked it.",
+  "type": "module",
+  "files": [
+    "dist"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "dev": "tsc -p tsconfig.build.json --watch --preserveWatchOutput",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "@adili/eslint-config": "workspace:*",
+    "@adili/tsconfig": "workspace:*",
+    "@types/node": "^24.0.0",
+    "eslint": "^10.11.0",
+    "typescript": "~6.0.3",
+    "vitest": "^5.0.1"
+  }
+}

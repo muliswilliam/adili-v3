@@ -584,7 +584,7 @@ describe('clarifications: responses, clock, resolve, follow-up, withdraw', () =>
       // In the same transaction as the draft: the timeline says who raised it, of which.
       expect((await timeline(caseId)).at(-1)).toEqual([
         'clarification-follow-up',
-        `Follow-up of clarification ${String(clarification.reference)} drafted`,
+        `Further clarification on ${String(clarification.reference)} drafted`,
       ]);
       const [entry] = await api.asPlatform((tx) =>
         tx.select().from(reviewTimeline).where(eq(reviewTimeline.kind, 'clarification-follow-up')),

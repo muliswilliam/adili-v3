@@ -5,7 +5,7 @@ import { consumeOnce, type EventEnvelope, EventPublisher, OnEvent } from '@adili
 import { and, eq, sql } from 'drizzle-orm';
 import { z } from 'zod';
 
-import { TENANT_SLUG } from '../cases/access.js';
+import { TENANT_KEY } from '@adili/api-kit';
 import type { ReviewTransaction } from '../cases/case-lookup.js';
 import {
   CLARIFICATION_OVERDUE,
@@ -35,7 +35,7 @@ export const ENFORCEMENT_CONSUMERS = {
   clarificationWithdrawn: 'review.enforcement.clarification-withdrawn',
 } as const;
 
-const tenantSchema = z.string().regex(TENANT_SLUG);
+const tenantSchema = z.string().regex(TENANT_KEY);
 
 const obligationStatuses = z.enum(['upcoming', 'due', 'overdue', 'filed', 'cancelled']);
 

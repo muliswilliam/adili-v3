@@ -1,16 +1,12 @@
 import { HttpStatus } from '@nestjs/common';
-import { notFoundIfInvisible, type Principal, ProblemException } from '@adili/api-kit';
+import { notFoundIfInvisible, type Principal, ProblemException, TENANT_KEY } from '@adili/api-kit';
+import { REVIEWER, SUPERVISOR } from '@adili/roles';
 
 /**
  * The roles that work a Commission's review queue. Everyone else (declarants, helpdesk,
  * commission and platform admins, EACC) never reaches case content: 404, as if nothing existed.
  */
-export const REVIEW_STAFF_ROLES = ['reviewer', 'supervisor'] as const;
-
-export const SUPERVISOR = 'supervisor';
-
-/** A tenant key (Commission slug), as the directory issues them. */
-export const TENANT_SLUG = /^[a-z][a-z0-9]{1,19}$/;
+export const REVIEW_STAFF_ROLES = [REVIEWER, SUPERVISOR] as const;
 
 /**
  * The tenant whose cases the caller works: their own Commission when they hold a review role
@@ -21,7 +17,7 @@ export function reviewTenant(principal: Principal): string | null {
   const reviews = principal.roles.some((role) =>
     (REVIEW_STAFF_ROLES as readonly string[]).includes(role),
   );
-  return reviews && own !== null && TENANT_SLUG.test(own) ? own : null;
+  return reviews && own !== null && TENANT_KEY.test(own) ? own : null;
 }
 
 /**

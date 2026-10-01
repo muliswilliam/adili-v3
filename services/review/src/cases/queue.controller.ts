@@ -6,10 +6,10 @@ import {
   CurrentPrincipal,
   type Principal,
   schemaRef,
+  TENANT_KEY,
   ZodValidationPipe,
 } from '@adili/api-kit';
 
-import { TENANT_SLUG } from './access.js';
 import { type QueueQuery, queueQuery } from './queue-query.js';
 import { QueueService } from './queue.service.js';
 import type { CasePage, QueueSummary } from './representation.js';
@@ -18,7 +18,7 @@ const NOT_VISIBLE = 'Not found, or not visible to the caller';
 
 /** The `slug` path parameter, as the contract's `Slug`. */
 const ApiSlugParam = () =>
-  ApiParam({ name: 'slug', schema: { type: 'string', pattern: TENANT_SLUG.source } });
+  ApiParam({ name: 'slug', schema: { type: 'string', pattern: TENANT_KEY.source } });
 
 @ApiTags('queue')
 @Controller('v1/commissions/:slug/review/queue')

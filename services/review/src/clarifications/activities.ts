@@ -11,7 +11,7 @@ import type { ReviewSchema } from '../db/schema.js';
 import { DirectoryClient } from '../directory/directory-client.js';
 import { DocumentsClient } from '../documents/documents-client.js';
 import { issueLetter } from '../documents/letters.js';
-import { InternalApiRejected } from '../internal-api/internal-api.js';
+import { InternalApiRejected } from '../internal-api/rejected.js';
 import { NotificationsClient } from '../notifications/notifications-client.js';
 import { SYSTEM_SUBJECT, systemContext } from '../system-context.js';
 import {

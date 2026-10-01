@@ -5,7 +5,6 @@ import {
   type Principal,
   ProblemException,
 } from '@adili/api-kit';
-import { z } from 'zod';
 
 /** Only the case's assignee composes and issues its clarifications (spec 07a authorisation). */
 export function requireAssignee(principal: Principal, assignee: string | null): void {
@@ -19,28 +18,12 @@ export function requireAssignee(principal: Principal, assignee: string | null): 
   }
 }
 
-const personId = z.uuid();
-
 /**
- * The declarant's person id: the `person_id` claim of the token the global guard has verified in
- * this request (onboarded declarants carry it; staff tokens do not). Absent or malformed: null.
+ * The declarant's person id (`person_id` on the verified principal; staff have none); a caller
+ * without one gets 404, as if nothing existed.
  */
-export function declarantPersonOf(request: AuthenticatedRequest): string | null {
-  const [, token] = request.headers.authorization?.split(' ') ?? [];
-  const payload = token?.split('.')[1];
-  if (!request.principal || !payload) return null;
-  try {
-    const claims = JSON.parse(Buffer.from(payload, 'base64url').toString('utf8')) as {
-      person_id?: unknown;
-    };
-    const parsed = personId.safeParse(claims.person_id);
-    return parsed.success ? parsed.data : null;
-  } catch {
-    return null;
-  }
-}
-
-/** The declarant's person id; a caller without one gets 404, as if nothing existed. */
 export const DeclarantPerson = createParamDecorator((_: unknown, context: ExecutionContext) =>
-  notFoundIfInvisible(declarantPersonOf(context.switchToHttp().getRequest<AuthenticatedRequest>())),
+  notFoundIfInvisible(
+    context.switchToHttp().getRequest<AuthenticatedRequest>().principal?.personId ?? null,
+  ),
 );

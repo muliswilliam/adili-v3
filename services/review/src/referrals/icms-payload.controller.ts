@@ -1,9 +1,16 @@
 import { Controller, Get, Param } from '@nestjs/common';
 import { ApiHeader, ApiOkResponse, ApiOperation, ApiParam, ApiTags } from '@nestjs/swagger';
-import { ApiProblemResponse, AuditedRead, schemaRef, ZodValidationPipe } from '@adili/api-kit';
+import {
+  ActingTenant,
+  ApiProblemResponse,
+  AuditedRead,
+  InternalApi,
+  schemaRef,
+  ZodValidationPipe,
+} from '@adili/api-kit';
+import { REVIEW_INTERNAL_SCOPE } from '@adili/roles';
 import { z } from 'zod';
 
-import { ActingTenant, InternalRoute } from '../internal-api/acting-tenant.js';
 import { type ReferralIcmsPayload, ReferralIcmsPayloadService } from './icms-payload.service.js';
 
 /**
@@ -18,7 +25,7 @@ export class ReferralIcmsPayloadController {
   constructor(private readonly payloads: ReferralIcmsPayloadService) {}
 
   @Get(':referralId/icms-payload')
-  @InternalRoute()
+  @InternalApi(REVIEW_INTERNAL_SCOPE)
   @AuditedRead({ action: 'review.referral.icms-payload.read', resource: 'referral' })
   @ApiParam({ name: 'referralId', schema: { type: 'string', format: 'uuid' } })
   @ApiHeader({

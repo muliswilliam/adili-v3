@@ -1,6 +1,6 @@
 {
-  "id": "c1014e5b-a744-487e-83c1-68e7d6922ad4",
-  "prevId": "b6e8ca5e-c919-420e-a6c0-d8d29508bedd",
+  "id": "b6e8ca5e-c919-420e-a6c0-d8d29508bedd",
+  "prevId": "679e1379-600f-4814-8f41-b05e1e2f13ef",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -485,6 +485,12 @@
         "resolution_note": {
           "name": "resolution_note",
           "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "letter": {
+          "name": "letter",
+          "type": "jsonb",
           "primaryKey": false,
           "notNull": false
         },
@@ -978,12 +984,6 @@
           "notNull": true,
           "default": 0
         },
-        "sampled_at": {
-          "name": "sampled_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
         "created_at": {
           "name": "created_at",
           "type": "timestamp with time zone",
@@ -1092,39 +1092,6 @@
             },
             {
               "expression": "assignee",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "review_cases_closure_idx": {
-          "name": "review_cases_closure_idx",
-          "columns": [
-            {
-              "expression": "tenant",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "cycle_year",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "band",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "status",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -1480,151 +1447,6 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "public.bulk_approvals": {
-      "name": "bulk_approvals",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "tenant": {
-          "name": "tenant",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "approver": {
-          "name": "approver",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "cycle_year": {
-          "name": "cycle_year",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "type": {
-          "name": "type",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "chunks": {
-          "name": "chunks",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 0
-        },
-        "started_at": {
-          "name": "started_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "completed_at": {
-          "name": "completed_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {},
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.closure_sweeps": {
-      "name": "closure_sweeps",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "tenant": {
-          "name": "tenant",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "cycle_year": {
-          "name": "cycle_year",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "ran_at": {
-          "name": "ran_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "sample_rate": {
-          "name": "sample_rate",
-          "type": "real",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "proposed": {
-          "name": "proposed",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "sampled": {
-          "name": "sampled",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        }
-      },
-      "indexes": {
-        "closure_sweeps_tenant_cycle_idx": {
-          "name": "closure_sweeps_tenant_cycle_idx",
-          "columns": [
-            {
-              "expression": "tenant",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "cycle_year",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "ran_at",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {},
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
     "public.determinations": {
       "name": "determinations",
       "schema": "",
@@ -1767,12 +1589,6 @@
           "primaryKey": false,
           "notNull": false
         },
-        "bulk_approval_id": {
-          "name": "bulk_approval_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
         "created_at": {
           "name": "created_at",
           "type": "timestamp with time zone",
@@ -1873,21 +1689,6 @@
             },
             {
               "expression": "status",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "determinations_bulk_approval_idx": {
-          "name": "determinations_bulk_approval_idx",
-          "columns": [
-            {
-              "expression": "bulk_approval_id",
               "isExpression": false,
               "asc": true,
               "nulls": "last"

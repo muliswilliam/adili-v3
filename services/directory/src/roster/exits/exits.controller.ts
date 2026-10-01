@@ -10,8 +10,8 @@ import {
   schemaRef,
   ZodValidationPipe,
 } from '@adili/api-kit';
+import { REPORTING_OFFICER } from '@adili/roles';
 
-import { REPORTING_OFFICER_ROLE } from '../../commissions/access.js';
 import { HrSystemAccess } from '../api-credential/hr-system-access.js';
 import type { RosterRecord } from '../records/representation.js';
 import { RosterExitsService } from './exits.service.js';
@@ -38,7 +38,7 @@ export class RosterExitsController {
   constructor(private readonly exits: RosterExitsService) {}
 
   @Post('exits')
-  @Roles(REPORTING_OFFICER_ROLE)
+  @Roles(REPORTING_OFFICER)
   @RequireIdempotencyKey()
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
@@ -67,7 +67,7 @@ export class RosterExitsController {
   }
 
   @Post('records/:fileNumber/exit')
-  @Roles(REPORTING_OFFICER_ROLE)
+  @Roles(REPORTING_OFFICER)
   @HrSystemAccess('roster-write')
   @RequireIdempotencyKey()
   @HttpCode(HttpStatus.OK)
@@ -108,7 +108,7 @@ export class RosterExitsController {
   }
 
   @Post('keep')
-  @Roles(REPORTING_OFFICER_ROLE)
+  @Roles(REPORTING_OFFICER)
   @RequireIdempotencyKey()
   @HttpCode(HttpStatus.OK)
   @ApiOperation({

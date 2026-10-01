@@ -17,7 +17,6 @@ import {
 } from '@adili/api-kit';
 import { z } from 'zod';
 
-import { declarantPersonOf } from '../clarifications/access.js';
 import {
   DeterminationLetterService,
   type LetterDownloadView,
@@ -105,7 +104,7 @@ export class DeterminationsController {
     @Req() request: AuthenticatedRequest,
     @Param('determinationId', new ZodValidationPipe(uuidParam)) determinationId: string,
   ): Promise<LetterDownloadView> {
-    return this.letters.letter(principal, declarantPersonOf(request), determinationId);
+    return this.letters.letter(principal, request.principal?.personId ?? null, determinationId);
   }
 
   @Post('determinations/:determinationId/approve')

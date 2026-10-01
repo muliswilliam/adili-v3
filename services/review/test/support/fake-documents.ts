@@ -9,7 +9,7 @@ import {
   type RevocationReason,
   type UploadDownload,
 } from '../../src/documents/documents-client.js';
-import { InternalApiRejected } from '../../src/internal-api/internal-api.js';
+import { InternalApiRejected } from '../../src/internal-api/rejected.js';
 
 /**
  * How the fake documents service pulls a document's fields (a letter's, a referral package's), as

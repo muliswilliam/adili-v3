@@ -5,7 +5,7 @@ import { consumeOnce, type EventEnvelope, OnEvent } from '@adili/events';
 import { and, eq, isNull, sql } from 'drizzle-orm';
 import { z } from 'zod';
 
-import { TENANT_SLUG } from '../cases/access.js';
+import { TENANT_KEY } from '@adili/api-kit';
 import type { ReviewTransaction } from '../cases/case-lookup.js';
 import { SYSTEM_SUBJECT } from '../system-context.js';
 import { referrals } from './schema.js';
@@ -26,7 +26,7 @@ const icmsRegistered = z.object({
   registeredAt: z.iso.datetime({ offset: true }),
 });
 
-const tenantSchema = z.string().regex(TENANT_SLUG);
+const tenantSchema = z.string().regex(TENANT_KEY);
 
 /**
  * Records ICMS's case number on the Commission's referral (spec 09 BE-11), so its reviewers and

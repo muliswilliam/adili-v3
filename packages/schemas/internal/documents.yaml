@@ -200,6 +200,15 @@ paths:
         PAdES signature, SHA-256, Ed25519-signed verification record, object storage, event.
       operationId: issueDocument
       x-draft: true
+      parameters:
+        - $ref: '#/components/parameters/ActingTenant'
+        - name: Idempotency-Key
+          in: header
+          description: Optional. Client-generated UUID, unique per logical request; reuse on retry and the stored answer is replayed instead of acting twice
+          required: false
+          schema:
+            type: string
+            format: uuid
       requestBody:
         required: true
         content:
@@ -224,6 +233,7 @@ paths:
   /internal/v1/documents/{documentId}:
     parameters:
       - $ref: '#/components/parameters/DocumentId'
+      - $ref: '#/components/parameters/ActingTenant'
     get:
       tags:
         - internal
@@ -286,6 +296,7 @@ paths:
   /internal/v1/documents/{documentId}/revoke:
     parameters:
       - $ref: '#/components/parameters/DocumentId'
+      - $ref: '#/components/parameters/ActingTenant'
     post:
       tags:
         - internal
@@ -563,6 +574,23 @@ components:
           type: string
         status:
           type: integer
+        code:
+          type: string
+          enum:
+            - rate-limit-exceeded
+            - no-match
+            - already-onboarded
+            - no-roster
+            - otp-invalid
+            - otp-expired
+            - resend-cooldown
+            - otp-send-failed
+            - wrong-step
+            - session-expired
+            - iprs-unavailable
+            - identity-unavailable
+            - email-in-use
+          description: Machine-readable cause, from the platform registry; clients map it to copy and never show `title` or `detail`
         detail:
           type: string
         instance:
@@ -734,6 +762,14 @@ components:
             - 'null'
           format: date-time
   parameters:
+    ActingTenant:
+      name: X-Acting-Tenant
+      in: header
+      required: true
+      description: Tenant the calling service acts for; the resource must belong to it
+      schema:
+        type: string
+        pattern: ^[a-z][a-z0-9]{1,19}$
     DocumentId:
       name: documentId
       in: path

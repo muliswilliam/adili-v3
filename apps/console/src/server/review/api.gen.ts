@@ -372,13 +372,19 @@ export interface paths {
     "/internal/v1/review/clarifications/{clarificationId}/letter-payload": {
         parameters: {
             query?: never;
-            header?: never;
+            header: {
+                /** @description Tenant the calling service acts for; the resource must belong to it */
+                "X-Acting-Tenant": components["parameters"]["ActingTenant"];
+            };
             path: {
                 clarificationId: components["parameters"]["ClarificationId"];
             };
             cookie?: never;
         };
-        /** Fields the clarification letter template needs (documents service) */
+        /**
+         * Fields the clarification letter template needs (documents service)
+         * @description Service tokens with scope review:internal, acting for the Commission in X-Acting-Tenant (ADR-013 §8.1). Served from the letter fixed when the clarification was issued.
+         */
         get: operations["internalGetClarificationLetterPayload"];
         put?: never;
         post?: never;
@@ -1902,6 +1908,10 @@ export interface components {
         CaseId: string;
         ClarificationId: string;
         IdempotencyKey: string;
+        /** @description Tenant the calling service acts for; the resource must belong to it */
+        ActingTenant: string;
+        /** @description Client-generated UUID, unique per logical request (ADR-013 §7.5). With it, a retry gets the stored answer back instead of acting twice; without it the request runs unguarded. */
+        OptionalIdempotencyKey: string;
         DeterminationId: string;
         LadderId: string;
         ActionId: string;
@@ -1996,7 +2006,7 @@ export interface operations {
                 };
             };
             404: components["responses"]["NotFound"];
-            /** @description Problem type `declarations-unavailable`: the declaration could not be read. The problem carries the rest of the case detail (document null, versions empty) so the client can still show the case; no view is recorded. */
+            /** @description Problem type `declarations-unavailable`: the declaration could not be read. The problem carries the rest of the case detail (document null) so the client can still show the case; no view is recorded. */
             502: {
                 headers: {
                     [name: string]: unknown;
@@ -2081,7 +2091,10 @@ export interface operations {
     claimCase: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Client-generated UUID, unique per logical request (ADR-013 §7.5). With it, a retry gets the stored answer back instead of acting twice; without it the request runs unguarded. */
+                "Idempotency-Key"?: components["parameters"]["OptionalIdempotencyKey"];
+            };
             path: {
                 caseId: components["parameters"]["CaseId"];
             };
@@ -2113,7 +2126,10 @@ export interface operations {
     releaseCase: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Client-generated UUID, unique per logical request (ADR-013 §7.5). With it, a retry gets the stored answer back instead of acting twice; without it the request runs unguarded. */
+                "Idempotency-Key"?: components["parameters"]["OptionalIdempotencyKey"];
+            };
             path: {
                 caseId: components["parameters"]["CaseId"];
             };
@@ -2137,7 +2153,10 @@ export interface operations {
     reassignCase: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Client-generated UUID, unique per logical request (ADR-013 §7.5). With it, a retry gets the stored answer back instead of acting twice; without it the request runs unguarded. */
+                "Idempotency-Key"?: components["parameters"]["OptionalIdempotencyKey"];
+            };
             path: {
                 caseId: components["parameters"]["CaseId"];
             };
@@ -2169,7 +2188,10 @@ export interface operations {
     addCaseNote: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Client-generated UUID, unique per logical request (ADR-013 §7.5). With it, a retry gets the stored answer back instead of acting twice; without it the request runs unguarded. */
+                "Idempotency-Key"?: components["parameters"]["OptionalIdempotencyKey"];
+            };
             path: {
                 caseId: components["parameters"]["CaseId"];
             };
@@ -2199,7 +2221,10 @@ export interface operations {
     markFlagReviewed: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Client-generated UUID, unique per logical request (ADR-013 §7.5). With it, a retry gets the stored answer back instead of acting twice; without it the request runs unguarded. */
+                "Idempotency-Key"?: components["parameters"]["OptionalIdempotencyKey"];
+            };
             path: {
                 caseId: components["parameters"]["CaseId"];
                 flagId: string;
@@ -2239,7 +2264,10 @@ export interface operations {
     createClarificationDraft: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Client-generated UUID, unique per logical request (ADR-013 §7.5). With it, a retry gets the stored answer back instead of acting twice; without it the request runs unguarded. */
+                "Idempotency-Key"?: components["parameters"]["OptionalIdempotencyKey"];
+            };
             path: {
                 caseId: components["parameters"]["CaseId"];
             };
@@ -2290,7 +2318,10 @@ export interface operations {
     updateClarificationDraft: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Client-generated UUID, unique per logical request (ADR-013 §7.5). With it, a retry gets the stored answer back instead of acting twice; without it the request runs unguarded. */
+                "Idempotency-Key"?: components["parameters"]["OptionalIdempotencyKey"];
+            };
             path: {
                 clarificationId: components["parameters"]["ClarificationId"];
             };
@@ -2365,13 +2396,17 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
+            502: components["responses"]["DeclarationsUnavailable"];
             503: components["responses"]["DirectoryUnavailable"];
         };
     };
     resolveClarification: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Client-generated UUID, unique per logical request (ADR-013 §7.5). With it, a retry gets the stored answer back instead of acting twice; without it the request runs unguarded. */
+                "Idempotency-Key"?: components["parameters"]["OptionalIdempotencyKey"];
+            };
             path: {
                 clarificationId: components["parameters"]["ClarificationId"];
             };
@@ -2410,7 +2445,10 @@ export interface operations {
     createFollowUpClarification: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Client-generated UUID, unique per logical request (ADR-013 §7.5). With it, a retry gets the stored answer back instead of acting twice; without it the request runs unguarded. */
+                "Idempotency-Key"?: components["parameters"]["OptionalIdempotencyKey"];
+            };
             path: {
                 clarificationId: components["parameters"]["ClarificationId"];
             };
@@ -2443,7 +2481,10 @@ export interface operations {
     withdrawClarification: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Client-generated UUID, unique per logical request (ADR-013 §7.5). With it, a retry gets the stored answer back instead of acting twice; without it the request runs unguarded. */
+                "Idempotency-Key"?: components["parameters"]["OptionalIdempotencyKey"];
+            };
             path: {
                 clarificationId: components["parameters"]["ClarificationId"];
             };
@@ -2587,7 +2628,10 @@ export interface operations {
     internalGetClarificationLetterPayload: {
         parameters: {
             query?: never;
-            header?: never;
+            header: {
+                /** @description Tenant the calling service acts for; the resource must belong to it */
+                "X-Acting-Tenant": components["parameters"]["ActingTenant"];
+            };
             path: {
                 clarificationId: components["parameters"]["ClarificationId"];
             };
@@ -2604,9 +2648,9 @@ export interface operations {
                     "application/json": components["schemas"]["ClarificationLetterPayload"];
                 };
             };
+            400: components["responses"]["ValidationProblem"];
+            403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
-            502: components["responses"]["DeclarationsUnavailable"];
-            503: components["responses"]["DirectoryUnavailable"];
         };
     };
     internalGetDeterminationLetterPayload: {

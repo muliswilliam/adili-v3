@@ -1,9 +1,15 @@
 import { Controller, Get, Param } from '@nestjs/common';
 import { ApiOkResponse, ApiOperation, ApiParam, ApiTags } from '@nestjs/swagger';
-import { ApiProblemResponse, schemaRef, ZodValidationPipe } from '@adili/api-kit';
+import {
+  ActingTenant,
+  ApiProblemResponse,
+  InternalApi,
+  schemaRef,
+  ZodValidationPipe,
+} from '@adili/api-kit';
+import { REVIEW_INTERNAL_SCOPE } from '@adili/roles';
 import { z } from 'zod';
 
-import { ActingTenant, InternalRoute } from '../internal-api/acting-tenant.js';
 import {
   type DeterminationLetterPayload,
   DeterminationLetterPayloadService,
@@ -20,7 +26,7 @@ export class DeterminationLetterPayloadController {
   constructor(private readonly letters: DeterminationLetterPayloadService) {}
 
   @Get(':determinationId/letter-payload')
-  @InternalRoute()
+  @InternalApi(REVIEW_INTERNAL_SCOPE)
   @ApiParam({ name: 'determinationId', schema: { type: 'string', format: 'uuid' } })
   @ApiOperation({
     operationId: 'internalGetDeterminationLetterPayload',

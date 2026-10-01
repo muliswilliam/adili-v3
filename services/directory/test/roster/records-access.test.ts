@@ -8,7 +8,16 @@ import { recordsReadContext } from '../../src/roster/records/access.js';
  * national readers would let EACC through, so the policy itself must refuse them.
  */
 function principal(tenant: string, roles: string[], scopes: string[] = []): Principal {
-  return { subject: 'sub-1', tenant, roles, scopes, clientId: null, name: null, issuedAt: null };
+  return {
+    subject: 'sub-1',
+    tenant,
+    roles,
+    scopes,
+    clientId: null,
+    name: null,
+    issuedAt: null,
+    personId: null,
+  };
 }
 
 function refusal(caller: Principal, slug: string): number | undefined {

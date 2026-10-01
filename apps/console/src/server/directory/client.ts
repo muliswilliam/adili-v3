@@ -1,4 +1,5 @@
-import createClient, { type Client } from 'openapi-fetch';
+import { mockableClient } from '@adili/api-kit/client';
+import type { Client } from 'openapi-fetch';
 
 import { callService, type ServiceError, type ServiceResult } from '../service-call';
 import type { components, paths } from './api.gen';
@@ -19,6 +20,8 @@ export type CreateCommission = Schemas['CreateCommission'];
 export type ReportingOfficer = Schemas['ReportingOfficer'];
 export type AssignReportingOfficer = Schemas['AssignReportingOfficer'];
 export type ProblemDetails = Schemas['ProblemDetails'];
+export type TenantPolicyVersion = Schemas['TenantPolicyVersion'];
+export type TenantPolicyHistory = Schemas['TenantPolicyHistory'];
 export type RosterApiCredential = Schemas['RosterApiCredential'];
 export type RosterApiCredentialWithSecret = Schemas['RosterApiCredentialWithSecret'];
 export type RosterSummary = Schemas['RosterSummary'];
@@ -86,14 +89,11 @@ export function createDirectoryClient(options: {
   accessToken: string;
   fetch?: typeof fetch;
 }): DirectoryClient {
-  const fetchImpl = options.fetch ?? fetch;
-  return createClient<paths>({
+  return mockableClient<paths>({
     baseUrl: options.baseUrl,
-    headers: { authorization: `Bearer ${options.accessToken}`, accept: 'application/json' },
-    fetch: (request) => {
-      const timeoutMs = directoryTimeoutMs(request.method, new URL(request.url).pathname);
-      return fetchImpl(new Request(request, { signal: AbortSignal.timeout(timeoutMs) }));
-    },
+    headers: { authorization: `Bearer ${options.accessToken}` },
+    timeoutMs: (request) => directoryTimeoutMs(request.method, new URL(request.url).pathname),
+    fetch: options.fetch,
   });
 }
 

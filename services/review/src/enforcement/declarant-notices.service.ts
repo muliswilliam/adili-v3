@@ -11,7 +11,7 @@ import { Clock } from '../clock.js';
 import type { ReviewSchema } from '../db/schema.js';
 import { DirectoryClient } from '../directory/directory-client.js';
 import { DocumentsClient } from '../documents/documents-client.js';
-import { InternalApiRejected } from '../internal-api/internal-api.js';
+import { InternalApiRejected } from '../internal-api/rejected.js';
 import { withUpstream } from '../internal-api/upstream.js';
 import { ACTION_RESPONDED } from './events.js';
 import { type ActionRow, recordAction, REVIEW_STAFF_STEPS, whatToDo } from './ladder-records.js';

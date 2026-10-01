@@ -23,8 +23,33 @@ export class EventPublisher {
     tx: Executor,
     event: NewEvent<TData>,
   ): Promise<EventEnvelope<TData>> {
-    const envelope = createEnvelope(`adili/${this.options.service}`, event);
-    await tx.insert(outbox).values({ id: envelope.id, eventType: envelope.type, envelope });
+    const [envelope] = await this.recordAll(tx, [event]);
+    if (!envelope) throw new Error('recordAll returned no envelope');
     return envelope;
   }
+
+  /**
+   * Records `events` in the outbox in order, in multi-row inserts: for work that emits many
+   * events at once (one per obligation of a roster page).
+   */
+  async recordAll<TData extends Record<string, unknown>>(
+    tx: Executor,
+    events: readonly NewEvent<TData>[],
+  ): Promise<EventEnvelope<TData>[]> {
+    const envelopes = events.map((event) => createEnvelope(`adili/${this.options.service}`, event));
+    for (let start = 0; start < envelopes.length; start += RECORD_ALL_CHUNK) {
+      await tx
+        .insert(outbox)
+        .values(envelopes.slice(start, start + RECORD_ALL_CHUNK).map(outboxRow));
+    }
+    return envelopes;
+  }
 }
+
+/** The outbox row of an envelope. */
+function outboxRow(envelope: EventEnvelope): typeof outbox.$inferInsert {
+  return { id: envelope.id, eventType: envelope.type, envelope };
+}
+
+/** Rows per insert: three parameters each, well under Postgres' 65,535 per statement. */
+const RECORD_ALL_CHUNK = 1_000;

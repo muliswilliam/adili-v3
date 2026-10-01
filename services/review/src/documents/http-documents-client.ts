@@ -1,7 +1,8 @@
-import type { ServiceTokenClient } from '@adili/api-kit';
+import { createServiceClient, type ServiceClient, type ServiceTokenClient } from '@adili/api-kit';
 import { z } from 'zod';
 
-import { InternalApi, InternalApiRejected } from '../internal-api/internal-api.js';
+import { rejectedBy } from '../internal-api/rejected.js';
+import type { paths } from './documents-api.gen.js';
 import {
   DocumentsClient,
   DocumentsUnavailable,
@@ -11,9 +12,6 @@ import {
   type RevocationReason,
   type UploadDownload,
 } from './documents-client.js';
-
-/** The scope the review service's token needs for the documents internal API. */
-export const DOCUMENTS_INTERNAL_SCOPE = 'documents:internal';
 
 export interface HttpDocumentsClientOptions {
   documentsUrl: string;
@@ -39,84 +37,93 @@ const documentFactsSchema = z.object({
   sha256: z.string().regex(/^[0-9a-f]{64}$/),
 });
 
-const CONFLICT = 409;
-
-/** Rendering and signing a document takes seconds. */
-const ISSUE_TIMEOUT_MS = 30_000;
+/**
+ * Rendering and signing a document takes seconds. Issuing runs in a workflow activity, which
+ * retries. Recorded in ADR-013 §2 (synchronous budgets).
+ */
+export const ISSUE_TIMEOUT_MS = 30_000;
 
 /**
- * The documents service's internal API with the review service's own token
- * (`documents:internal`) and the Commission in `X-Acting-Tenant`.
+ * The documents service's internal API through the client generated from its contract
+ * (documents-api.gen.ts) on api-kit's service client, with the review service's own token
+ * (`documents:internal`) and the Commission in `X-Acting-Tenant` (ADR-013 §8.1). A request the
+ * documents service refuses (an upload that is not clean, an invalid issue request) is
+ * `InternalApiRejected`; anything else unexpected is `DocumentsUnavailable`.
  */
 export class HttpDocumentsClient extends DocumentsClient {
-  private readonly api: InternalApi;
-  private readonly issuance: InternalApi;
+  private readonly documents: ServiceClient<paths>;
+  private readonly issuance: ServiceClient<paths>;
 
   constructor(options: HttpDocumentsClientOptions) {
     super();
-    this.api = new InternalApi({
-      baseUrl: options.documentsUrl,
-      service: 'documents',
-      tokens: options.tokens,
-      unavailable: (message, cause) => new DocumentsUnavailable(message, cause),
-      timeoutMs: options.timeoutMs ?? 2_000,
-      fetch: options.fetch,
-    });
-    this.issuance = new InternalApi({
-      baseUrl: options.documentsUrl,
-      service: 'documents',
-      tokens: options.tokens,
-      unavailable: (message, cause) => new DocumentsUnavailable(message, cause),
-      timeoutMs: ISSUE_TIMEOUT_MS,
-      fetch: options.fetch,
-    });
+    const client = (timeoutMs: number | undefined) =>
+      createServiceClient<paths>({
+        baseUrl: options.documentsUrl,
+        service: 'documents',
+        tokens: options.tokens,
+        unavailable: (message, cause) => new DocumentsUnavailable(message, cause),
+        timeoutMs,
+        fetch: options.fetch,
+      });
+    this.documents = client(options.timeoutMs);
+    this.issuance = client(ISSUE_TIMEOUT_MS);
   }
 
   async getUploadDownload(uploadId: string, tenant: string): Promise<UploadDownload | null> {
-    const found = await this.api.get({
-      path: `internal/v1/uploads/${encodeURIComponent(uploadId)}/download`,
-      tenant,
-      schema: downloadSchema,
-    });
+    const found = await this.documents.call(
+      (api) =>
+        api.GET('/internal/v1/uploads/{id}/download', {
+          params: { path: { id: uploadId }, header: { 'X-Acting-Tenant': tenant } },
+        }),
+      {
+        status: 200,
+        schema: downloadSchema,
+        otherwise: { 404: () => null, 409: rejectedBy('documents') },
+      },
+    );
     if (found === null) return null;
     const { downloadUrl, expiresAt, purpose, fileName, sha256 } = found;
     return { downloadUrl, expiresAt, purpose, fileName, sha256 };
   }
 
   async issue(request: IssueDocumentRequest): Promise<IssuedDocument> {
-    const issued = await this.issuance.post({
-      path: 'internal/v1/documents/issue',
-      tenant: request.issuerTenant,
-      body: request,
-      schema: issuedSchema,
-    });
-    if (!issued) throw new DocumentsUnavailable('The documents service answered 404');
+    const issued = await this.issuance.call(
+      (api) =>
+        api.POST('/internal/v1/documents/issue', {
+          params: { header: { 'X-Acting-Tenant': request.issuerTenant } },
+          body: request,
+        }),
+      // 200: issued before (one document per type and subject), answered again.
+      { status: [200, 201], schema: issuedSchema, otherwise: { 400: rejectedBy('documents') } },
+    );
     return { id: issued.id, verificationId: issued.verificationId };
   }
 
   async getIssuedDocument(documentId: string, tenant: string): Promise<IssuedDocumentFacts | null> {
-    const found = await this.api.get({
-      path: `internal/v1/documents/${encodeURIComponent(documentId)}`,
-      tenant,
-      schema: documentFactsSchema,
-    });
+    const found = await this.documents.call(
+      (api) =>
+        api.GET('/internal/v1/documents/{documentId}', {
+          params: { path: { documentId }, header: { 'X-Acting-Tenant': tenant } },
+        }),
+      { status: 200, schema: documentFactsSchema, otherwise: { 404: () => null } },
+    );
     if (found === null) return null;
     return { id: found.id, type: found.type, sha256: found.sha256 };
   }
 
   async revoke(documentId: string, tenant: string, reason: RevocationReason): Promise<void> {
-    try {
-      const revoked = await this.api.post({
-        path: `internal/v1/documents/${encodeURIComponent(documentId)}/revoke`,
-        tenant,
-        body: { reason },
+    await this.documents.call(
+      (api) =>
+        api.POST('/internal/v1/documents/{documentId}/revoke', {
+          params: { path: { documentId }, header: { 'X-Acting-Tenant': tenant } },
+          body: { reason },
+        }),
+      {
+        status: 200,
         schema: issuedSchema,
-      });
-      if (!revoked) throw new DocumentsUnavailable(`Documents has no document ${documentId}`);
-    } catch (error) {
-      // Already revoked: what was asked for is done.
-      if (error instanceof InternalApiRejected && error.status === CONFLICT) return;
-      throw error;
-    }
+        // Already revoked: what was asked for is done.
+        otherwise: { 409: () => null, 400: rejectedBy('documents') },
+      },
+    );
   }
 }

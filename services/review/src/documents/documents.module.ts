@@ -1,9 +1,10 @@
 import { Module } from '@nestjs/common';
 import { ServiceTokenClient } from '@adili/api-kit';
+import { DOCUMENTS_INTERNAL_SCOPE } from '@adili/roles';
 
 import { config } from '../config.js';
 import { DocumentsClient } from './documents-client.js';
-import { DOCUMENTS_INTERNAL_SCOPE, HttpDocumentsClient } from './http-documents-client.js';
+import { HttpDocumentsClient } from './http-documents-client.js';
 
 /** The documents internal API, called with the service's own token (ADR-013 §8.1). */
 @Module({

@@ -11,6 +11,7 @@ const principal = (subject: string, role: string): Principal => ({
   clientId: 'console',
   name: null,
   issuedAt: null,
+  personId: null,
 });
 
 describe('separation of duties', () => {

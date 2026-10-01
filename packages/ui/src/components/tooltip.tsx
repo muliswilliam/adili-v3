@@ -43,6 +43,8 @@ export function Tooltip({ content, children, side = 'top', className, ...props }
         <TooltipPrimitive.Content
           side={side}
           sideOffset={8}
+          // Keeps a tooltip near the viewport's edge off it (e.g. on a table's last column).
+          collisionPadding={8}
           className={cn(
             'z-50 max-w-[280px] rounded-md bg-primary px-2.5 py-2 text-[12.5px] leading-[1.45] font-medium text-primary-foreground shadow-pop',
             className,
