@@ -3,6 +3,9 @@ import type { LadderPolicy } from '../directory/directory-client.js';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
+/** Biennial cycles fall two years apart. */
+const BIENNIAL_YEARS = 2;
+
 /** Two consecutive missed biennial cycles: the later one's year and both obligations. */
 export interface MissedCycles {
   cycleYear: number;
@@ -22,9 +25,9 @@ export function ladderWindowDays(policy: LadderPolicy): number {
 /**
  * Whether a person's obligation history shows two consecutive biennial cycles overdue and unfiled
  * after the ladder window (spec 08 S12, Regs r.20(2)): of the person's biennial obligations that
- * were not cancelled, in cycle order, the latest adjacent pair both `overdue` with nothing filed,
- * the later one's due date more than `windowDays` before `today` (a Nairobi date, `YYYY-MM-DD`).
- * Null when there is none.
+ * were not cancelled, in cycle order, the latest pair of consecutive cycles (two years apart) both
+ * `overdue` with nothing filed, the later one's due date more than `windowDays` before `today` (a
+ * Nairobi date, `YYYY-MM-DD`). Null when there is none.
  */
 export function twoMissedCycles(
   history: readonly PersonObligation[],
@@ -40,6 +43,7 @@ export function twoMissedCycles(
     const later = cycles[index];
     const earlier = cycles[index - 1];
     if (!later || !earlier) continue;
+    if (later.year - earlier.year !== BIENNIAL_YEARS) continue;
     if (!missed(earlier.entry) || !missed(later.entry)) continue;
     if (!pastWindow(later.entry.dueDate, today, windowDays)) continue;
     return {

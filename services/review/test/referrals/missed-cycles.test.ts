@@ -61,6 +61,18 @@ describe('twoMissedCycles (S12)', () => {
     expect(twoMissedCycles([biennial(2027)], '2029-01-01', WINDOW)).toBeNull();
   });
 
+  it('does not take two missed cycles with a cycle between them as consecutive', () => {
+    // No 2025 obligation (not in post then), or a cancelled one: 2023 and 2027 are two cycles apart.
+    expect(twoMissedCycles([biennial(2023), biennial(2027)], '2028-03-01', WINDOW)).toBeNull();
+    expect(
+      twoMissedCycles(
+        [biennial(2023), biennial(2025, 'cancelled'), biennial(2027)],
+        '2028-03-01',
+        WINDOW,
+      ),
+    ).toBeNull();
+  });
+
   it('counts biennial obligations only, in cycle order, ignoring cancelled ones', () => {
     const initial: PersonObligation = {
       ...biennial(2026),
