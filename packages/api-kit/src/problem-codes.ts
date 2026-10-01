@@ -9,6 +9,14 @@ import { z } from 'zod';
  * Add a code here before a service throws it, and give it the copy in the front ends' table.
  */
 export const PROBLEM_CODES = {
+  /**
+   * The service's database could not be reached (no connection in time, refused, or the session
+   * turned away); transient, so callers try again later.
+   */
+  'database-unavailable': {
+    status: HttpStatus.SERVICE_UNAVAILABLE,
+    title: 'Service unavailable',
+  },
   /** Too many requests for the caller's budget; `retryAfterSeconds` says when to try again. */
   'rate-limit-exceeded': { status: HttpStatus.TOO_MANY_REQUESTS, title: 'Too Many Requests' },
   /** Onboarding: nothing on the Commission's roster matches, whatever the cause. */
@@ -21,7 +29,10 @@ export const PROBLEM_CODES = {
   'otp-invalid': { status: HttpStatus.BAD_REQUEST, title: 'Invalid code' },
   /** Onboarding: the one-time code is past its expiry; a new one must be sent. */
   'otp-expired': { status: HttpStatus.BAD_REQUEST, title: 'Code expired' },
-  /** A new code or email was asked for too soon; `retryAfterSeconds` says when it may be. */
+  /**
+   * A new code, email or acknowledgement slip was asked for too soon; `retryAfterSeconds` says
+   * when it may be.
+   */
   'resend-cooldown': { status: HttpStatus.TOO_MANY_REQUESTS, title: 'Resend cooldown' },
   /** Onboarding: the one-time code could not be sent; nothing changed, try again. */
   'otp-send-failed': { status: HttpStatus.BAD_GATEWAY, title: 'Code not sent' },
@@ -44,6 +55,30 @@ export const PROBLEM_CODES = {
    * no declarant account can be created with it; nothing changed.
    */
   'email-in-use': { status: HttpStatus.CONFLICT, title: 'Email belongs to another account' },
+  /**
+   * Submission: the token lacks the step-up ACR, or its one-time code is more than five minutes
+   * old; `stepUpUrl` starts a fresh step-up and returns to the declaration.
+   */
+  'step-up-required': { status: HttpStatus.FORBIDDEN, title: 'Step-up required' },
+  /** Submission: the declaration does not validate; `blocking` lists what to complete. */
+  incomplete: { status: HttpStatus.BAD_REQUEST, title: 'Declaration incomplete' },
+  /** Submission: the statement date (Africa/Nairobi) has not come yet. */
+  'before-statement-date': { status: HttpStatus.CONFLICT, title: 'Before the statement date' },
+  /** Submission of an amendment after the obligation's due date; changes go to the Commission. */
+  'amendment-window-closed': { status: HttpStatus.CONFLICT, title: 'Amendment window closed' },
+  /** Submission: the declaration is neither a draft nor an amendment in progress; reload it. */
+  'not-a-draft': { status: HttpStatus.CONFLICT, title: 'Not a draft' },
+  /** Amendment: only a submitted declaration can be reopened for amendment. */
+  'not-submitted': { status: HttpStatus.CONFLICT, title: 'Not submitted' },
+  /** Submission: the filing obligation was cancelled, so there is nothing to file. */
+  'obligation-cancelled': { status: HttpStatus.CONFLICT, title: 'Obligation cancelled' },
+  /** Acknowledgement: the version's slip is issued already; there is nothing to ask for again. */
+  'acknowledgement-issued': { status: HttpStatus.CONFLICT, title: 'Acknowledgement issued' },
+  /** Acknowledgement: the slip is still being prepared; ask again only once it has failed. */
+  'acknowledgement-in-progress': {
+    status: HttpStatus.CONFLICT,
+    title: 'Acknowledgement in progress',
+  },
 } as const satisfies Record<string, { status: HttpStatus; title: string }>;
 
 export type ProblemCode = keyof typeof PROBLEM_CODES;

@@ -90,6 +90,36 @@ describe('WorkspaceLayout', () => {
     expect(screen.getByText(HEADER_COPY.assumed)).toBeTruthy();
   });
 
+  it('goes back to My declarations, and has no amendment banner on a draft', () => {
+    renderWorkspace(<Editor />, { step: 'bio' });
+
+    expect(screen.getByRole('link', { name: 'My declarations' }).getAttribute('href')).toBe(
+      '/declarations',
+    );
+    expect(screen.queryByRole('note')).toBeNull();
+    expect(screen.queryByText(/Amending version/)).toBeNull();
+  });
+
+  it('says on every screen which version is being amended (spec 06 FE-4)', () => {
+    renderWorkspace(<Editor />, {
+      step: 'bio',
+      declaration: sampleDeclaration({
+        status: 'amending',
+        reference: 'DCB-TSC-2027-0000001-B',
+        currentVersion: 2,
+        amendingFromVersion: 2,
+      }),
+    });
+
+    expect(screen.getByRole('note').textContent).toContain(
+      'You are amending version 2. Submit again to file version 3, or discard the amendment to keep version 2.',
+    );
+    expect(
+      within(screen.getByRole('note')).getByRole('button', { name: 'Discard amendment' }),
+    ).toBeTruthy();
+    expect(screen.getByText('Amending version 2')).toBeTruthy();
+  });
+
   it('leaves out the assumed-period note when the start was declared', () => {
     renderWorkspace(<Editor />, {
       declaration: sampleDeclaration({

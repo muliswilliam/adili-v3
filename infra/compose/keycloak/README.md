@@ -12,12 +12,14 @@ Demo users in the file are a local convenience. #371 can replace them with seed 
 | --- | --- |
 | `adili browser` | Cookie, broker, then forms |
 | `adili password` | Username/password at LoA 1 (stays valid for the SSO session) |
-| `adili otp` | LoA 2, max age 300 seconds. A step-up request with `acr_values=step-up` re-runs only this |
+| `adili otp` | LoA 2, max age 180 seconds (the 300 s submit window less a 120 s margin, so a silent step-up still leaves time to submit). A step-up request with `acr_values=step-up` re-runs only this |
 | `adili declarant otp` | Role `declarant`. `adili-otp`: a code by SMS, email as fallback |
 | `adili applicant otp` | Role `applicant`. `adili-otp`, as for declarants |
 | `adili staff totp` | Everyone else (staff and law-enforcement). Built-in TOTP form |
 
 ACR mapping: `step-up` → 2. Portal and console default ACR is `step-up`, so login is MFA.
+
+Step-up before submission (spec 06): the portal's `/auth/step-up` (`Bff.stepUp` in `packages/bff-auth`) sends `acr_values=step-up`. Once the code's 180 s have lapsed Keycloak asks for a new code only (the password holds for the session) and issues tokens with `acr` `step-up` and a new `auth_time`; within the 180 s it answers without a page and keeps the old `auth_time`, which the declarations service accepts for 300 s, so every step-up leaves at least 120 s to affirm and submit. The `acr` scope and the `basic` scope's `auth_time` mapper put both claims in ID and access tokens, which services read as `Principal.acr` and `Principal.authTime` (`packages/api-kit`). S16 in `apps/keycloak-extension/test/step-up.stack.test.ts` drives it.
 
 ## Person claim (spec 04)
 
@@ -42,7 +44,7 @@ Declarant data is keyed by person, not tenant. The `portal` and `console` client
 
 - The directory creates one confidential client per Commission's credential (`roster-<slug>-<hex>`) with only a service account, the default client scopes `basic` and `roster:write`, a hard-coded `tenant` claim and the `adili-api` audience. Rotating regenerates the secret; revoking disables the client. For that the `directory` service account also has realm-management `manage-clients`, `view-clients` and `query-clients`.
 - `roster:write` is a realm client scope, included in the token's `scope` claim and in no client's defaults except those API clients.
-- Listing `clientScopes` in the file replaces Keycloak's built-in scopes, so the file lists them all (as Keycloak 26.7 creates them) plus Adili's own (`roster:write`, `documents:internal`, `messages`, `iprs`, `directory:internal`, `directory:person-contacts`), and the realm defaults. `pnpm keycloak:check` fails when a client names a scope the file does not list. Keycloak's own clients (`account`, `account-console`, `admin-cli`, `broker`, `realm-management`, `security-admin-console`) are created before the scopes on import and so get no default scopes; Adili uses none of them (the account console is off, `accountThemeImplementation: 'none'`, and admins use the master realm).
+- Listing `clientScopes` in the file replaces Keycloak's built-in scopes, so the file lists them all (as Keycloak 26.7 creates them) plus Adili's own (`roster:write`, `documents:internal`, `messages`, `iprs`, `directory:internal`, `directory:person-contacts`, `declarations:internal`), and the realm defaults. `pnpm keycloak:check` fails when a client names a scope the file does not list. Keycloak's own clients (`account`, `account-console`, `admin-cli`, `broker`, `realm-management`, `security-admin-console`) are created before the scopes on import and so get no default scopes; Adili uses none of them (the account console is off, `accountThemeImplementation: 'none'`, and admins use the master realm).
 
 ## Service-to-service calls (spec 27)
 
@@ -64,7 +66,12 @@ Declarant data is keyed by person, not tenant. The `portal` and `console` client
 
 - `directory:internal` is a realm client scope (in the token's `scope` claim, adds the `adili-api` audience) for the directory's `/internal/v1` routes: the Commission reference, roster records by import or exit batch, one record and the current policy (with `X-Acting-Tenant`, as in "Service-to-service calls"), and the list of every Commission (no `X-Acting-Tenant`: public reference data).
 - `directory:person-contacts` is a realm client scope of its own (same shape) for a person's verified contacts (`/internal/v1/persons/{personId}/contacts`, with `X-Acting-Tenant`: the person must be onboarded at that tenant). Contacts are personal data, so only the `notifications` client gets it; `pnpm keycloak:check` fails if another client does.
-- The confidential clients `declarations` (default scopes `directory:internal` and `messages`) and `notifications` (`directory:person-contacts`) have only a service account and development secrets `declarations-dev-secret` and `notifications-dev-secret`. A local Keycloak imported before `directory:person-contacts` existed must recreate the realm (or add the scope and swap the `notifications` client's default scope by hand) before notifications can read contacts.
+- The confidential clients `declarations` (default scopes `directory:internal` and `messages`) and `notifications` (`directory:person-contacts`) have only a service account and development secrets `declarations-dev-secret` and `notifications-dev-secret`.
+
+## Declarations internal API (spec 06)
+
+- `declarations:internal` is a realm client scope (in the token's `scope` claim, adds the `adili-api` audience) for the declarations service's `/internal/v1` routes, with `X-Acting-Tenant` as in "Service-to-service calls": a submitted version's acknowledgement slip payload.
+- The confidential client `documents` (default scope `declarations:internal`) has only a service account and the development secret `documents-dev-secret`: the documents service pulls the payload with it when it issues a slip. A local Keycloak imported before it existed must recreate the realm, or add the scope and the client by hand (as they are in `adili-realm.json`). A local Keycloak imported before `directory:person-contacts` existed must recreate the realm (or add the scope and swap the `notifications` client's default scope by hand) before notifications can read contacts.
 
 After pulling a change to the extension or the theme, rebuild the image (`docker compose -f infra/compose/docker-compose.yml build keycloak`) and recreate the realm.
 

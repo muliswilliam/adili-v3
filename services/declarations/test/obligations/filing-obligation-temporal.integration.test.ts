@@ -204,6 +204,7 @@ describe('S24 FilingObligationWorkflow on Temporal', () => {
       created: [id],
       cancelled: [],
       personLinked: [],
+      filed: [],
     });
     await api.sweep.run({ graceMs: 0 });
     const after = await handle.describe();

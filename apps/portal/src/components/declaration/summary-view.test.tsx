@@ -6,7 +6,6 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { discardMyDeclaration } from '../../server/declarations';
 import type { LoadedSummary } from '../../server/declarations.server';
 import type { CompletenessIssue } from '../../server/declarations/types';
-import { SUBMIT_NEXT_RELEASE } from './summary';
 import { SummaryView } from './summary-view';
 import {
   DECLARATION_ID,
@@ -35,6 +34,8 @@ vi.mock('@tanstack/react-router', async () => {
   };
 });
 vi.mock('../../server/declarations', async () => (await import('./testing-mocks')).serverMock());
+vi.mock('../../server/submission', async () => (await import('./testing-mocks')).submissionMock());
+vi.mock('../../server/step-up', async () => (await import('./testing-mocks')).stepUpMock());
 
 const discardMock = vi.mocked(discardMyDeclaration);
 
@@ -168,6 +169,7 @@ function summaryOf(overrides: Partial<LoadedSummary> = {}, declaration = {}): Lo
     blocking: [],
     canSubmit: false,
     cannotSubmitReason: 'before-statement-date',
+    late: false,
     attestationText: ATTESTATION,
     ...overrides,
   };
@@ -402,7 +404,7 @@ describe('SummaryView', () => {
     ];
     renderSummary(
       summaryOf(
-        { blocking, valid: false, cannotSubmitReason: 'submission-not-available' },
+        { blocking, valid: false, cannotSubmitReason: 'incomplete' },
         {
           sections: sections({
             bio: 'incomplete',
@@ -427,14 +429,14 @@ describe('SummaryView', () => {
     expect(screen.queryByText('Everything is complete.')).toBeNull();
     expect(within(card('Name')).getByText('Incomplete')).toBeTruthy();
     expect(within(card('Spouses')).getByText('Not started')).toBeTruthy();
-    expect(screen.getByText(SUBMIT_NEXT_RELEASE)).toBeTruthy();
+    expect(screen.getByText('Complete the 3 items listed above to submit.')).toBeTruthy();
   });
 
   it('shows at most twelve blocking issues and says how many more', () => {
     const blocking = Array.from({ length: 14 }, (_, index) =>
       issue('bio', `Issue ${String(index + 1)}.`),
     );
-    renderSummary(summaryOf({ blocking, cannotSubmitReason: 'submission-not-available' }));
+    renderSummary(summaryOf({ blocking, cannotSubmitReason: 'incomplete' }));
 
     const panel = card('14 things to complete before you can submit');
     expect(within(panel).getAllByRole('link')).toHaveLength(12);
@@ -507,17 +509,17 @@ describe('S20: Submit stays disabled with the reason', () => {
     expect(note?.textContent).toBe('Available from 1 Nov 2027');
   });
 
-  it('says submission opens in the next release for a due obligation', () => {
+  it('says amendments closed on the due date', () => {
     renderSummary(
       summaryOf(
-        { cannotSubmitReason: 'submission-not-available' },
-        { statementDate: '2026-09-10', type: 'initial' },
+        { cannotSubmitReason: 'amendment-window-closed' },
+        { status: 'amending', dueDate: '2027-12-31' },
       ),
     );
 
     expect(submit().disabled).toBe(true);
     const note = document.getElementById(submit().getAttribute('aria-describedby') ?? '');
-    expect(note?.textContent).toBe('Submission opens in the next release.');
+    expect(note?.textContent).toBe('Amendments closed on 31 Dec 2027. Contact your Commission.');
   });
 });
 

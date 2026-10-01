@@ -7,6 +7,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { filingObligations, rosterSnapshots } from '../../src/db/schema.js';
 import type { Transaction } from '../../src/db/transaction.js';
 import { DECLARANT_ONBOARDED, ROSTER_IMPORT_COMPLETED } from '../../src/obligations/events.js';
+import { noChanges, ObligationWorkflows } from '../../src/obligations/workflows.js';
 import {
   type DeclarationsApi,
   directoryEvent,
@@ -294,5 +295,23 @@ describe('workflow starts after commit', () => {
       restarted: 0,
       cancelled: 0,
     });
+  });
+});
+
+describe('the filed signal (spec 06)', () => {
+  it('signals filed to the workflow of an obligation a submission filed, and drops it for one never started', async () => {
+    await importRecords([rosterRecord('psc')]);
+    const [obligation] = await obligations();
+    if (!obligation) throw new Error('no obligation');
+    const signalled = api.temporal.signals.length;
+
+    await api.app.get(ObligationWorkflows).apply('psc', {
+      ...noChanges(),
+      filed: [obligation.id, randomUUID()],
+    });
+
+    expect(api.temporal.signals.slice(signalled)).toEqual([
+      { workflowId: obligation.id, signal: 'filed', args: [] },
+    ]);
   });
 });

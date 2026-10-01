@@ -13,7 +13,7 @@ import {
   NotificationsKeyReused,
   NotificationsRejected,
   NotificationsUnavailable,
-  type ReminderChannel,
+  type MessageChannel,
   type ReminderParams,
 } from '../../notifications/notifications-client.js';
 import { fallbackIssuerCode } from '../access.js';
@@ -35,7 +35,7 @@ import type {
   SendReminderResult,
 } from './contract.js';
 
-const CHANNELS: readonly ReminderChannel[] = ['sms', 'email'];
+const CHANNELS: readonly MessageChannel[] = ['sms', 'email'];
 /** The template limits (notifications contract). */
 const COMMISSION_NAME_MAX = 120;
 const DAYS_LEFT_MAX = 366;
@@ -43,7 +43,7 @@ const DAYS_LEFT_MAX = 366;
 /** What each channel of a reminder came to so far, kept across attempts (activity heartbeats). */
 export type ChannelProgress = Partial<
   Record<
-    ReminderChannel,
+    MessageChannel,
     | { status: 'sent'; messageId: string }
     | { status: 'no-contact' }
     | { status: 'failed'; error: string }
@@ -373,7 +373,7 @@ export class ObligationSteps {
     tenant: string,
     request: ReminderRequest,
     outcome: ReminderOutcome,
-    sent: { channels?: ReminderChannel[]; messageIds?: string[]; sentAt?: Date },
+    sent: { channels?: MessageChannel[]; messageIds?: string[]; sentAt?: Date },
   ): Promise<ReminderOutcome> {
     const { obligationId, offsetDays } = request;
     const channels = sent.channels ?? [];
@@ -423,7 +423,7 @@ async function reminderOutcome(
 const REMINDER_KEY_NAMESPACE = '5b8f2c1e-3d4a-4e6f-9a7b-0c1d2e3f4a5b';
 
 /** The `Idempotency-Key` of one channel of one reminder: a UUID derived from both. */
-export function reminderMessageKey(request: ReminderRequest, channel: ReminderChannel): string {
+export function reminderMessageKey(request: ReminderRequest, channel: MessageChannel): string {
   return uuidv5(
     `${request.obligationId}:${String(request.offsetDays)}:${channel}`,
     REMINDER_KEY_NAMESPACE,

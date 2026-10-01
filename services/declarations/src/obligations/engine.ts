@@ -23,6 +23,8 @@
  * discharges that duty for the record: no replacement is created. `cancelled` rows are history
  * and play no part; a recreated obligation is a new row with the same cycle key.
  */
+import { DECLARATION_TYPES, type DeclarationType } from '@adili/numbering/references';
+
 import {
   biennialCycleKey,
   biennialYear,
@@ -32,8 +34,8 @@ import {
 } from './cycle-key.js';
 import { addDays, atMonthDay, type CivilDate } from './dates.js';
 
-export const OBLIGATION_TYPES = ['initial', 'biennial', 'final'] as const;
-export type ObligationType = (typeof OBLIGATION_TYPES)[number];
+export const OBLIGATION_TYPES = DECLARATION_TYPES;
+export type ObligationType = DeclarationType;
 
 /** The statuses of an obligation still owed: it is created in one, and moves between them by date. */
 export const OPEN_STATUSES = ['upcoming', 'due', 'overdue'] as const;

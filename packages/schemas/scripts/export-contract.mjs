@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Writes a service's internal contract, packages/schemas/internal/<service>.yaml: the service's
 // OpenAPI document plus the drafted operations of later specs from
-// packages/schemas/drafts/<service>.yaml (see `exportContract` in @adili/api-kit). `--out <file>`
+// packages/schemas/drafts/<service>.yaml when there is one (see `exportContract` in @adili/api-kit). `--out <file>`
 // writes it elsewhere, for the drift check (check-drift.mjs).
 //
 // One script for every service with an internal API. It runs in the service's directory through
@@ -12,6 +12,7 @@
 // and reads the layout every service shares: `AppModule` from src/app.module.ts,
 // `SERVICE_NAME` and `SERVICE_DESCRIPTION` from src/config.ts, `OPENAPI_SCHEMAS` from
 // src/openapi.ts.
+import { existsSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -30,12 +31,14 @@ const { OPENAPI_SCHEMAS } = await fromService('src/openapi.ts');
 
 const { values: args } = parseArgs({ options: { out: { type: 'string' } } });
 const outputFile = args.out ?? join(schemasPackage, 'internal', `${SERVICE_NAME}.yaml`);
+// A service whose every operation is implemented has no draft.
+const draftFile = join(schemasPackage, 'drafts', `${SERVICE_NAME}.yaml`);
 
 await exportContract(AppModule, {
   name: SERVICE_NAME,
   description: SERVICE_DESCRIPTION,
   schemas: OPENAPI_SCHEMAS,
-  draftFile: join(schemasPackage, 'drafts', `${SERVICE_NAME}.yaml`),
+  draftFile: existsSync(draftFile) ? draftFile : undefined,
   outputFile,
 });
 console.log(`wrote ${outputFile}`);

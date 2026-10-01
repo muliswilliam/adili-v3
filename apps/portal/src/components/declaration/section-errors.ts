@@ -46,3 +46,19 @@ export function useFocusFirstError(showErrors: boolean, firstId: () => string | 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [showErrors]);
 }
+
+/** Reads a JSON pointer (`/registrableInterests/dualCitizenship/holds`) in `value`. */
+function at(value: unknown, pointer: string): unknown {
+  let node = value;
+  for (const raw of pointer.split('/').slice(1)) {
+    if (node === null || typeof node !== 'object') return undefined;
+    const segment = raw.replaceAll('~1', '/').replaceAll('~0', '~');
+    node = (node as Record<string, unknown>)[segment];
+  }
+  return node;
+}
+
+/** Whether `a` and `b` hold the same value at `pointer` (compared as JSON). */
+export function sameAt(a: unknown, b: unknown, pointer: string): boolean {
+  return JSON.stringify(at(a, pointer)) === JSON.stringify(at(b, pointer));
+}

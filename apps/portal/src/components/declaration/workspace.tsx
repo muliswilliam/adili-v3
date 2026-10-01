@@ -28,6 +28,7 @@ import {
 import type { Draft, Household } from '../../declaration/contents';
 import { renamesPerson } from '../../declaration/household';
 import { signInAgain } from '../sign-in';
+import { sameAt } from './section-errors';
 
 /**
  * The declaration workspace's shared state: the draft's header and section completeness, the
@@ -42,6 +43,8 @@ export interface WorkspaceValue {
   conflict: boolean;
   /** Latest issues per section, from a save or a fresh load. */
   issues: Partial<Record<SectionKey, CompletenessIssue[]>>;
+  /** The contents each section's `issues` were found in: the saved or loaded contents. */
+  issueBasis: Partial<Record<SectionKey, unknown>>;
   edit: (key: SectionKey, contents: unknown) => void;
   flush: (key?: SectionKey) => void;
   /** Takes a freshly read ETag when it is newer than the queue's (e.g. after an attachment). */
@@ -52,7 +55,7 @@ export interface WorkspaceValue {
    * is used for the next save. See `AutosaveQueue.whileHeld`.
    */
   whileHeld: <T>(write: HeldWrite<T>) => Promise<HeldResult<T>>;
-  setIssues: (key: SectionKey, issues: CompletenessIssue[]) => void;
+  setIssues: (key: SectionKey, issues: CompletenessIssue[], basis: unknown) => void;
   /** Re-reads the header and section list, e.g. after a household save changed statements. */
   refresh: () => Promise<void>;
   /** After a conflict: reloads the draft and every loader, then lets editing resume. */
@@ -113,6 +116,7 @@ export function WorkspaceProvider({ declaration: loaded, etag, children }: Works
   const router = useRouter();
   const [declaration, setDeclaration] = useState(loaded);
   const [issues, setIssueMap] = useState<WorkspaceValue['issues']>({});
+  const [issueBasis, setIssueBasis] = useState<WorkspaceValue['issueBasis']>({});
   const [generation, setGeneration] = useState(0);
   const declarationId = loaded.id;
 
@@ -151,6 +155,7 @@ export function WorkspaceProvider({ declaration: loaded, etag, children }: Works
     queue.setOnSaved((key, result, contents) => {
       setDeclaration((current) => withSaveResult(current, result));
       setIssueMap((current) => ({ ...current, [key]: result.issues }));
+      setIssueBasis((current) => ({ ...current, [key]: contents }));
       const renamed =
         key === 'household' &&
         renamesPerson(
@@ -194,6 +199,7 @@ export function WorkspaceProvider({ declaration: loaded, etag, children }: Works
     queue.reset(result.etag, result.declaration.draftVersion);
     setDeclaration(result.declaration);
     setIssueMap({});
+    setIssueBasis({});
     await router.invalidate();
     setGeneration((current) => current + 1);
   }, [declarationId, queue, router]);
@@ -217,8 +223,9 @@ export function WorkspaceProvider({ declaration: loaded, etag, children }: Works
     [queue],
   );
   const whileHeld = useCallback(<T,>(write: HeldWrite<T>) => queue.whileHeld(write), [queue]);
-  const setIssues = useCallback((key: SectionKey, next: CompletenessIssue[]) => {
+  const setIssues = useCallback((key: SectionKey, next: CompletenessIssue[], basis: unknown) => {
     setIssueMap((current) => ({ ...current, [key]: next }));
+    setIssueBasis((current) => ({ ...current, [key]: basis }));
   }, []);
 
   const value: WorkspaceValue = {
@@ -226,6 +233,7 @@ export function WorkspaceProvider({ declaration: loaded, etag, children }: Works
     autosave,
     conflict: autosave.status === 'conflict',
     issues,
+    issueBasis,
     edit,
     flush,
     adoptEtag,
@@ -246,7 +254,11 @@ export interface SectionAutosave<T> {
   update: (next: T | ((current: T) => T)) => void;
   /** True while editing is off (after a conflict, until reload). */
   disabled: boolean;
-  /** The service's issues for this section, from the load or the latest save. */
+  /**
+   * The service's issues for this section, from the load or the latest save, less those on an
+   * answer changed since: the next save says whether it still has one. So answering a question
+   * never flashes the old "unanswered" error on leaving it.
+   */
   issues: CompletenessIssue[];
 }
 
@@ -264,7 +276,7 @@ export function useSectionAutosave<T>(section: LoadedSection, etag: string): Sec
   // On load only; later issues come from saves.
   useEffect(() => {
     adoptEtag(etag, section.draftVersion);
-    setIssues(key, section.issues);
+    setIssues(key, section.issues, section.contents);
   }, [adoptEtag, setIssues, etag, key, section]);
 
   // Leaving the screen sends its waiting edits at once.
@@ -290,6 +302,16 @@ export function useSectionAutosave<T>(section: LoadedSection, etag: string): Sec
     value,
     update,
     disabled: workspace.conflict,
-    issues: workspace.issues[key] ?? section.issues,
+    issues: current(
+      workspace.issues[key] ?? section.issues,
+      key in workspace.issueBasis ? workspace.issueBasis[key] : section.contents,
+      value,
+    ),
   };
+}
+
+/** The issues whose answer is as it was in `basis`, the contents they were found in. */
+function current(issues: CompletenessIssue[], basis: unknown, value: unknown) {
+  if (basis === value) return issues;
+  return issues.filter((issue) => issue.path === '' || sameAt(basis, value, issue.path));
 }

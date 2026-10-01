@@ -33,7 +33,7 @@ export const RELAY_PUBLISH_TIMEOUT_MS = 10_000;
 /**
  * Relays committed outbox rows to the events exchange in order. Rows are claimed with
  * `FOR UPDATE SKIP LOCKED`, so several replicas can relay without double-publishing a batch.
- * Delivery is at-least-once; consumers deduplicate with `consumeOnce`. On shutdown it stops
+ * Delivery is at-least-once; consumers deduplicate with `consumeOnce` (or `consumeIdempotent` for work that calls other services). On shutdown it stops
  * before the next row and waits for the batch in flight, so its transaction ends before the
  * database pool closes.
  */

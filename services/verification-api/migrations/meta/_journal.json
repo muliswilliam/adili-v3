@@ -8,6 +8,27 @@
       "when": 1790325261749,
       "tag": "0000_init",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1790785087697,
+      "tag": "0001_projection",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1790794888892,
+      "tag": "0002_confidential_keeps_status_only",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1790794896794,
+      "tag": "0003_confidential_check",
+      "breakpoints": true
     }
   ]
 }

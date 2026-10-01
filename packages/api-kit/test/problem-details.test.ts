@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs';
 
+import { DrizzleQueryError } from 'drizzle-orm';
 import { describe, expect, it } from 'vitest';
 import { parse } from 'yaml';
 
@@ -35,6 +36,29 @@ describe('toProblemDetails', () => {
     );
 
     expect(toProblemDetails(exception, '/x')).toMatchObject({ type: 'conflict', status: 409 });
+  });
+
+  it('renders the problem a failed query wraps, such as the database being unavailable', () => {
+    const unavailable = new ProblemException({
+      type: 'database-unavailable',
+      title: 'Service unavailable',
+      status: 503,
+    });
+
+    expect(
+      toProblemDetails(new DrizzleQueryError('select 1', [], unavailable), '/v1/verify/x'),
+    ).toEqual({
+      type: 'database-unavailable',
+      title: 'Service unavailable',
+      status: 503,
+      instance: '/v1/verify/x',
+    });
+  });
+
+  it('keeps a failed query that wraps an ordinary error a 500', () => {
+    const failed = new DrizzleQueryError('select 1', [], new Error('relation does not exist'));
+
+    expect(toProblemDetails(failed, '/x')).toMatchObject({ status: 500 });
   });
 });
 

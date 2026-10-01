@@ -3,8 +3,6 @@ import { sql } from 'drizzle-orm';
 import {
   bigint,
   check,
-  customType,
-  date,
   index,
   integer,
   jsonb,
@@ -13,11 +11,10 @@ import {
   text,
   timestamp,
   unique,
-  uniqueIndex,
   uuid,
 } from 'drizzle-orm/pg-core';
 
-import { OBLIGATION_TYPES } from '../obligations/engine.js';
+import { bytea, declarations } from '../declaration/schema.js';
 import type { StatementKey } from './sections.js';
 
 /**
@@ -27,72 +24,12 @@ import type { StatementKey } from './sections.js';
  * indexes (section key, completeness, counts, nil flags, dates) is copied to clear columns on
  * save, never taken from the client.
  *
+ * The declaration itself, the aggregate the drafts edit, is in `declaration/schema.ts`.
+ *
  * Row-level security (migration 0012): a declarant reads and writes their own declarations
  * through `app.person` (`withPerson`); sections and attachments follow their declaration. A
  * tenant policy exists for later staff reads, which no route of this slice uses.
  */
-
-const bytea = customType<{ data: Buffer; driverData: Buffer }>({
-  dataType: () => 'bytea',
-});
-
-/** `amending` and `submitted` arrive with submission (slice 06). */
-export const DECLARATION_STATUS_VALUES = ['draft', 'amending', 'submitted', 'discarded'] as const;
-export type DeclarationStatus = (typeof DECLARATION_STATUS_VALUES)[number];
-
-export const INCOME_PERIOD_SOURCE_VALUES = ['declared', 'assumed'] as const;
-
-export const SCHEMA_VERSION = 'declaration.v1';
-
-/**
- * One declaration: the aggregate. Type, statement date and income period are derived from the
- * obligation when the draft starts, never chosen. `draft_version` is the optimistic concurrency
- * token (the `ETag`), bumped by every section save in the save's transaction.
- */
-export const declarations = pgTable(
-  'declarations',
-  {
-    id: uuid().primaryKey(),
-    tenant: text().notNull(),
-    personId: uuid().notNull(),
-    obligationId: uuid().notNull(),
-    rosterRecordId: uuid().notNull(),
-    type: text({ enum: OBLIGATION_TYPES }).notNull(),
-    statementDate: date({ mode: 'string' }).notNull(),
-    /** Exclusive: the income period is (from, to]. */
-    incomePeriodFrom: date({ mode: 'string' }).notNull(),
-    incomePeriodTo: date({ mode: 'string' }).notNull(),
-    /** `assumed` when no declaration on Adili gave the start, so reviewers can see it. */
-    previousStatementDateSource: text({ enum: INCOME_PERIOD_SOURCE_VALUES }).notNull(),
-    status: text({ enum: DECLARATION_STATUS_VALUES }).notNull().default('draft'),
-    schemaVersion: text().notNull().default(SCHEMA_VERSION),
-    draftVersion: integer().notNull().default(1),
-    /** The section saved last, for "Continue"; null until the first save. */
-    lastSection: text(),
-    createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
-    // The database's clock on insert and on every update alike, so "newest first" holds even when
-    // the service's clock and the database's disagree.
-    updatedAt: timestamp({ withTimezone: true })
-      .notNull()
-      .defaultNow()
-      .$onUpdate(() => sql`now()`),
-  },
-  (table) => [
-    uniqueIndex('declarations_live_obligation_key')
-      .on(table.obligationId)
-      .where(sql`${table.status} <> 'discarded'`),
-    index('declarations_person_id_idx').on(table.personId),
-    check('declarations_type_check', sql`${table.type} in ('initial', 'biennial', 'final')`),
-    check(
-      'declarations_status_check',
-      sql`${table.status} in ('draft', 'amending', 'submitted', 'discarded')`,
-    ),
-    check(
-      'declarations_previous_statement_date_source_check',
-      sql`${table.previousStatementDateSource} in ('declared', 'assumed')`,
-    ),
-  ],
-);
 
 export const SECTION_COMPLETENESS_VALUES = [
   'not-started',
@@ -202,7 +139,6 @@ export const obligationDrafts = pgTable(
 );
 
 export const draftsSchema = {
-  declarations,
   declarationSections,
   declarationAttachments,
   obligationDrafts,

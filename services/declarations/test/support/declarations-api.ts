@@ -33,6 +33,7 @@ import { sql } from 'drizzle-orm';
 import { createLocalJWKSet, exportJWK, generateKeyPair, type JWK, SignJWT } from 'jose';
 import { v7 as uuidv7 } from 'uuid';
 
+import { AcknowledgementConsumer } from '../../src/acknowledgement/acknowledgement.consumer.js';
 import { AppModule } from '../../src/app.module.js';
 import { Clock } from '../../src/clock.js';
 import type { Transaction } from '../../src/db/transaction.js';
@@ -67,6 +68,16 @@ export interface Caller {
   roles?: string[];
   /** The `person_id` claim of an onboarded declarant's token; absent by default. */
   personId?: string;
+  /** The `acr` claim: `step-up` right after a fresh one-time code (spec 06); absent by default. */
+  acr?: string;
+  /** The `auth_time` claim, in seconds since the epoch; absent by default. */
+  authTime?: number;
+  /** The token id (`jti`); a fresh one by default. */
+  jti?: string;
+  /** Space-separated OAuth scopes, as service tokens carry them; absent by default. */
+  scope?: string;
+  /** The OAuth client; `portal` by default. */
+  azp?: string;
 }
 
 /** The clock the service computes "today" with; real time until a test sets it. */
@@ -82,6 +93,11 @@ export class TestClock extends Clock {
     this.fixed = new Date(`${date}T12:00:00+03:00`);
   }
 
+  /** Moves the time on by `ms` (from the pinned time, or from now). */
+  advance(ms: number): void {
+    this.fixed = new Date(this.now().getTime() + ms);
+  }
+
   reset(): void {
     this.fixed = undefined;
   }
@@ -91,9 +107,14 @@ export class TestClock extends Clock {
 export class RecordingWorkflows extends ObligationWorkflows {
   readonly calls: { tenant: string; changes: ObligationChanges }[] = [];
   private held: { reached: () => void; released: Promise<void> } | null = null;
+  private failing = false;
 
   apply(tenant: string, changes: ObligationChanges): Promise<void> {
     this.calls.push({ tenant, changes });
+    if (this.failing) {
+      this.failing = false;
+      return Promise.reject(new Error('Temporal unavailable'));
+    }
     const held = this.held;
     this.held = null;
     if (!held) return Promise.resolve();
@@ -118,6 +139,11 @@ export class RecordingWorkflows extends ObligationWorkflows {
     return { reached: reachedPromise, release };
   }
 
+  /** Makes the next `apply` fail after recording it, as an unreachable Temporal would. */
+  failNext(): void {
+    this.failing = true;
+  }
+
   /** None: recorded workflows never stop. */
   async *stopped(): AsyncIterable<StoppedWorkflow> {
     // Nothing to yield.
@@ -135,9 +161,14 @@ export class RecordingWorkflows extends ObligationWorkflows {
     return this.calls.flatMap((call) => call.changes.personLinked);
   }
 
+  filed(): string[] {
+    return this.calls.flatMap((call) => call.changes.filed);
+  }
+
   reset(): void {
     this.calls.length = 0;
     this.held = null;
+    this.failing = false;
   }
 }
 
@@ -173,6 +204,8 @@ export interface DeclarationsApi {
   db: Database<DeclarationsSchema>;
   /** Runs `work` in a platform transaction (every tenant's rows). */
   asPlatform<T>(work: (tx: Transaction) => Promise<T>): Promise<T>;
+  /** Runs `work` in a transaction as the Commission (its rows, under tenant RLS). */
+  asTenant<T>(tenant: string, work: (tx: Transaction) => Promise<T>): Promise<T>;
   /** Runs `work` in a transaction as the person (their declarations, under person RLS). */
   asPerson<T>(personId: string, work: (tx: Transaction) => Promise<T>): Promise<T>;
   /** The field cipher, in memory: records calls without plaintext. */
@@ -193,6 +226,8 @@ export interface DeclarationsApi {
   clock: TestClock;
   /** The directory event consumers, called as the RabbitMQ transport would. */
   consumers: DirectoryEventsConsumer;
+  /** The acknowledgement slip's event consumers (documents, verification-api), likewise. */
+  acknowledgementConsumers: AcknowledgementConsumer;
   /**
    * Publishes a directory event to the RabbitMQ events exchange, as the directory's outbox relay
    * would (`events` option only): the service's consumers receive it on the suite's own queue.
@@ -317,12 +352,14 @@ export async function startDeclarationsApi({
     temporal,
     cipher,
     asPlatform: (work) => withTenant(db, { tenant: 'platform', subject: 'test' }, work),
+    asTenant: (tenant, work) => withTenant(db, { tenant, subject: 'test' }, work),
     asPerson: (personId, work) => withPerson(db, { personId, subject: 'test' }, work),
     steps: app.get(ObligationSteps),
     sweep: app.get(ObligationsSweep),
     cycleSchedules,
     clock,
     consumers: app.get(DirectoryEventsConsumer),
+    acknowledgementConsumers: app.get(AcknowledgementConsumer),
     async get(path, caller) {
       const token = await signer(caller);
       return app.inject({
@@ -349,7 +386,7 @@ export async function startDeclarationsApi({
     },
     async reset() {
       await db.execute(
-        sql`truncate obligation_drafts, declaration_attachments, declaration_sections, declarations, reminder_messages, obligation_reminders, filing_obligations, roster_snapshots, tenant_policy_cache, commission_refs, cycle_openings, outbox, inbox`,
+        sql`truncate declaration_items, declaration_versions, numbering_counters, idempotency_keys, obligation_drafts, declaration_attachments, declaration_sections, declarations, reminder_messages, obligation_reminders, filing_obligations, roster_snapshots, tenant_policy_cache, commission_refs, cycle_openings, outbox, inbox`,
       );
       await db.execute(sql`update cycle_calendar set opening_lead_days = 120`);
       cycleSchedules.reset();
@@ -439,10 +476,29 @@ async function applyMigrations(db: Database<DeclarationsSchema>): Promise<void> 
 async function tokenSigner(): Promise<{ signer: (caller: Caller) => Promise<string>; jwk: JWK }> {
   const { publicKey, privateKey } = await generateKeyPair('RS256');
   const jwk = { ...(await exportJWK(publicKey)), kid: 'test', alg: 'RS256' };
-  const signer = ({ sub = randomUUID(), tenant = null, roles = [], personId }: Caller) =>
-    new SignJWT({ azp: 'portal', tenant, realm_access: { roles }, person_id: personId })
+  const signer = ({
+    sub = randomUUID(),
+    tenant = null,
+    roles = [],
+    personId,
+    acr,
+    authTime,
+    jti = randomUUID(),
+    scope,
+    azp = 'portal',
+  }: Caller) =>
+    new SignJWT({
+      azp,
+      ...(scope ? { scope } : {}),
+      tenant,
+      realm_access: { roles },
+      person_id: personId,
+      acr,
+      auth_time: authTime,
+    })
       .setProtectedHeader({ alg: 'RS256', kid: 'test' })
       .setIssuedAt()
+      .setJti(jti)
       .setIssuer(ISSUER)
       .setAudience(AUDIENCE)
       .setSubject(sub)

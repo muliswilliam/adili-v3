@@ -153,11 +153,12 @@ async function updateObligation(
   });
 }
 
-const counts = (upcoming: number, due: number, overdue: number, filed = 0) => ({
+const counts = (upcoming: number, due: number, overdue: number, filed = 0, filedLate = 0) => ({
   upcoming,
   due,
   overdue,
   filed,
+  filedLate,
 });
 
 /** A biennial cycle under the statutory dates, opening 120 days before its statement date. */

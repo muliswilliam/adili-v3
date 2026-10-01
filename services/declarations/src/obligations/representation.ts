@@ -108,6 +108,7 @@ export const statusCountsSchema = z.object({
   due: z.int(),
   overdue: z.int(),
   filed: z.int(),
+  filedLate: z.int().meta({ description: 'Of those filed, the ones filed after their due date' }),
 });
 export type StatusCounts = z.infer<typeof statusCountsSchema>;
 

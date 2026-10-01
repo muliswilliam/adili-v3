@@ -10,6 +10,9 @@
  *   Commission
  * - anyone else with a `person_id` (the realm's demo `declarant`): a due initial declaration
  *   and the upcoming biennial at the Teachers Service Commission
+ *
+ * A submission to the declarations mock files its obligation (`fileMockObligation`), as the
+ * service's submit transaction does: from then on it reads `filed`, through amendments too.
  */
 import { formatCalendarDate } from '@adili/ui';
 
@@ -49,6 +52,19 @@ function at(date: string, time: string): string {
   return new Date(`${date}T${time}:00+03:00`).toISOString();
 }
 
+/** The obligations a submission to the declarations mock has filed. */
+const filed = new Set<string>();
+
+/** Files an obligation, as the service does when a declaration for it is submitted. */
+export function fileMockObligation(id: string) {
+  filed.add(id);
+}
+
+/** Forgets every filing (tests). */
+export function resetObligationsMock() {
+  filed.clear();
+}
+
 function statusOn(statementDate: string, dueDate: string): Obligation['status'] {
   const today = day(0);
   if (today < statementDate) return 'upcoming';
@@ -79,7 +95,7 @@ function detail(fixture: Fixture): ObligationDetail {
       type === 'biennial' ? `biennial:${statementDate.slice(0, 4)}` : `${type}:${statementDate}`,
     statementDate,
     dueDate,
-    status: statusOn(statementDate, dueDate),
+    status: filed.has(id) ? 'filed' : statusOn(statementDate, dueDate),
     cancelReason: null,
     remindersSent: reminders.filter((reminder) => reminder.outcome === 'sent').length,
     policyVersion: 1,
@@ -152,13 +168,17 @@ function twoCommissions(): Fixture[] {
   ];
 }
 
-interface TokenClaims {
+export interface TokenClaims {
   preferred_username?: string;
   person_id?: string;
+  /** Authentication context class: `step-up` after a fresh one-time code (spec 06). */
+  acr?: string;
+  /** When the user last authenticated, in seconds since the epoch. */
+  auth_time?: number;
 }
 
 /** The claims of a bearer token, unverified; the mock trusts whatever the BFF sends. */
-function bearerClaims(request: Request): TokenClaims | null {
+export function bearerClaims(request: Request): TokenClaims | null {
   const token = /^Bearer (.+)$/.exec(request.headers.get('authorization') ?? '')?.[1];
   const payload = token?.split('.')[1];
   if (!payload) return null;
@@ -171,13 +191,18 @@ function bearerClaims(request: Request): TokenClaims | null {
 
 const TWO_COMMISSIONS_PERSON = '8d7f3a90-2b1c-4e5d-a6f7-9081a2b3c4d5';
 
+/** Which mock declarant the token is: Grace (two Commissions) or the demo declarant. */
+export function mockPerson(claims: TokenClaims | null): 'grace' | 'demo' {
+  return claims?.person_id === TWO_COMMISSIONS_PERSON ||
+    claims?.preferred_username === 'OFR-0000417-4'
+    ? 'grace'
+    : 'demo';
+}
+
 /** The caller's obligations, or null when the token carries no person. */
 function obligationsOf(claims: TokenClaims): ObligationDetail[] | null {
   if (!claims.person_id) return null;
-  const fixtures =
-    claims.person_id === TWO_COMMISSIONS_PERSON || claims.preferred_username === 'OFR-0000417-4'
-      ? twoCommissions()
-      : demoDeclarant();
+  const fixtures = mockPerson(claims) === 'grace' ? twoCommissions() : demoDeclarant();
   return fixtures.map(detail);
 }
 

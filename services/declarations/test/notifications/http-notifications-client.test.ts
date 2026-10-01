@@ -8,6 +8,7 @@ import { parse } from 'yaml';
 
 import { HttpNotificationsClient } from '../../src/notifications/http-notifications-client.js';
 import {
+  type AcknowledgementMessage,
   NotificationsKeyReused,
   NotificationsRejected,
   NotificationsUnavailable,
@@ -110,6 +111,39 @@ describe('HttpNotificationsClient', () => {
     expectConforming('SendMessage', request?.body);
     expect(request?.authorization).toBe('Bearer token-1');
     expect(request?.idempotencyKey).toBe(MESSAGE.idempotencyKey);
+  });
+
+  it('sends the acknowledgement templates, email and SMS, conforming to the contract', async () => {
+    const { client, requests } = clientAnswering(
+      json(message('sent'), 201),
+      json(message('sent'), 201),
+    );
+    const acknowledgement: AcknowledgementMessage = {
+      channel: 'email',
+      personId: MESSAGE.personId,
+      tenant: 'psc',
+      params: {
+        reference: 'DCB-PSC-2027-0000001-1',
+        type: 'biennial',
+        version: 1,
+        commissionName: 'Public Service Commission',
+        statementDate: '2027-11-01',
+        verificationCode: 'ADL-7Q4K-M2XR-9HTC-2B7F-Q3ZD-8WNA-9K',
+        portalUrl:
+          'http://localhost:3010/declarations/0192f1a0-5a11-7000-8000-000000000001/submitted',
+      },
+      idempotencyKey: '9a1c7e52-3b0d-5f4e-8a61-2d9c0b7e4f13',
+    };
+
+    await client.sendAcknowledgement(acknowledgement);
+    await client.sendAcknowledgement({ ...acknowledgement, channel: 'sms' });
+
+    expect(requests.map((request) => request.body)).toMatchObject([
+      { channel: 'email', template: 'acknowledgement-email', params: acknowledgement.params },
+      { channel: 'sms', template: 'acknowledgement-sms', params: acknowledgement.params },
+    ]);
+    for (const request of requests) expectConforming('SendMessage', request.body);
+    expect(requests[0]?.idempotencyKey).toBe(acknowledgement.idempotencyKey);
   });
 
   it('uses the email template for email', async () => {

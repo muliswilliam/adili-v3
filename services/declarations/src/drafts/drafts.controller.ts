@@ -28,8 +28,8 @@ import {
   schemaRef,
 } from '@adili/api-kit';
 
+import { ApiDeclarationIdParam, etag, etagHeader, NOT_VISIBLE, type Reply } from '../http.js';
 import { DraftsService } from './drafts.service.js';
-import { ApiDeclarationIdParam, etag, ETAG_HEADER, NOT_VISIBLE, type Reply } from './http.js';
 import type {
   Declaration,
   DeclarationListItem,
@@ -85,7 +85,7 @@ export class DraftsController {
   })
   @ApiOkResponse({
     description: 'The draft',
-    headers: ETAG_HEADER,
+    headers: etagHeader(),
     schema: schemaRef('Declaration'),
   })
   @ApiProblemResponse(404, NOT_VISIBLE)
@@ -102,9 +102,9 @@ export class DraftsController {
   @Get('me/declarations')
   @ApiOperation({
     operationId: 'getMyDeclarations',
-    summary: "The signed-in declarant's declarations (drafts now; submitted later)",
+    summary: "The signed-in declarant's declarations: drafts, submitted and being amended",
     description:
-      'Live declarations across Commissions, last updated first, with the share of live sections complete. Authorised by the person_id claim; staff tokens without it get 404.',
+      'Live declarations across Commissions, last updated first, with the share of live sections complete and, once submitted, the reference, the version in force (submitted at, late, acknowledgement slip) and whether Amend is open today (until the due date, Africa/Nairobi), so the list renders without a call per row. Authorised by the person_id claim; staff tokens without it get 404.',
   })
   @ApiOkResponse({
     description: 'Declarations, last updated first',
@@ -163,7 +163,7 @@ export class DraftsController {
   })
   @ApiOkResponse({
     description: 'Section contents',
-    headers: ETAG_HEADER,
+    headers: etagHeader(),
     schema: schemaRef('SectionEnvelope'),
   })
   @ApiProblemResponse(404, NOT_VISIBLE)
@@ -196,7 +196,7 @@ export class DraftsController {
   @ApiBody({ required: true, schema: schemaRef('SectionContents') })
   @ApiOkResponse({
     description: 'Saved; new version in ETag',
-    headers: ETAG_HEADER,
+    headers: etagHeader(),
     schema: schemaRef('SectionSaveResult'),
   })
   @ApiProblemResponse(

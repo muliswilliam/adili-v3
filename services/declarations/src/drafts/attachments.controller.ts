@@ -2,9 +2,13 @@ import { Body, Controller, Delete, HttpCode, HttpStatus, Param, Post, Res } from
 import { ApiBody, ApiOperation, ApiParam, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { ApiProblemResponse, CurrentPrincipal, type Principal, schemaRef } from '@adili/api-kit';
 
+import { ApiDeclarationIdParam, etag, etagHeader, NOT_VISIBLE, type Reply } from '../http.js';
 import { AttachmentsService } from './attachments.service.js';
-import { ApiDeclarationIdParam, etag, ETAG_HEADER, NOT_VISIBLE, type Reply } from './http.js';
 import type { DeclarationAttachment } from './representation.js';
+
+const ETAG_HEADER = etagHeader(
+  'The new draft version; send it as If-Match on the next section save',
+);
 
 /**
  * Attachments on a draft's statement items (spec 05). Declarant only, by the `person_id` claim;

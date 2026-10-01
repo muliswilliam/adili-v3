@@ -365,7 +365,7 @@ paths:
             ETag:
               schema:
                 type: string
-              description: The draft version; send it as If-Match on the next section save
+              description: The draft version; send it as If-Match on section saves
           content:
             application/json:
               schema:
@@ -408,8 +408,8 @@ paths:
     get:
       tags:
         - declarations
-      summary: The signed-in declarant's declarations (drafts now; submitted later)
-      description: Live declarations across Commissions, last updated first, with the share of live sections complete. Authorised by the person_id claim; staff tokens without it get 404.
+      summary: "The signed-in declarant's declarations: drafts, submitted and being amended"
+      description: Live declarations across Commissions, last updated first, with the share of live sections complete and, once submitted, the reference, the version in force (submitted at, late, acknowledgement slip) and whether Amend is open today (until the due date, Africa/Nairobi), so the list renders without a call per row. Authorised by the person_id claim; staff tokens without it get 404.
       operationId: getMyDeclarations
       responses:
         '200':
@@ -481,7 +481,7 @@ paths:
             ETag:
               schema:
                 type: string
-              description: The draft version; send it as If-Match on the next section save
+              description: The draft version; send it as If-Match on section saves
           content:
             application/json:
               schema:
@@ -532,7 +532,7 @@ paths:
             ETag:
               schema:
                 type: string
-              description: The draft version; send it as If-Match on the next section save
+              description: The draft version; send it as If-Match on section saves
           content:
             application/json:
               schema:
@@ -594,7 +594,7 @@ paths:
             ETag:
               schema:
                 type: string
-              description: The draft version; send it as If-Match on the next section save
+              description: The new draft version; send it as If-Match on the next section save
           content:
             application/json:
               schema:
@@ -650,7 +650,7 @@ paths:
             ETag:
               schema:
                 type: string
-              description: The draft version; send it as If-Match on the next section save
+              description: The new draft version; send it as If-Match on the next section save
         '404':
           description: Not found, or not visible to the caller
           content:
@@ -664,21 +664,26 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetails'
   /v1/declarations/{declarationId}/submit:
-    parameters:
-      - $ref: '#/components/parameters/DeclarationId'
     post:
       tags:
         - submission
       summary: Submit the declaration (the legal act)
-      description: |
-        Requires a token with the step-up ACR and auth_time within 5 minutes, and an
-        Idempotency-Key. One transaction: validate, allocate the reference (first version),
-        write the immutable version and items, mark submitted, file the obligation, emit events.
-        The acknowledgement slip is issued asynchronously afterwards.
+      description: 'Requires a token with the step-up ACR and auth_time within 5 minutes, and an Idempotency-Key (a retry with the same key gets the same answer). One transaction: validate, allocate the reference (first version), write the immutable version and items, mark submitted, file the obligation (late after its due date), record `declaration.submitted.v1` and `obligation.status-changed.v1`. The acknowledgement slip is issued asynchronously afterwards.'
       operationId: submitDeclaration
-      x-draft: true
       parameters:
-        - $ref: '#/components/parameters/IdempotencyKey'
+        - name: declarationId
+          required: true
+          in: path
+          schema:
+            type: string
+            format: uuid
+        - name: Idempotency-Key
+          in: header
+          description: Client-generated UUID, unique per logical request; reuse on retry
+          required: true
+          schema:
+            type: string
+            format: uuid
       responses:
         '201':
           description: Submitted; acknowledgement pending
@@ -687,7 +692,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/SubmissionResult'
         '400':
-          description: Incomplete (blocking issues) or missing Idempotency-Key
+          description: Problem code `incomplete` with `blocking`, or the Idempotency-Key header missing (`idempotency-key-missing`)
           content:
             application/problem+json:
               schema:
@@ -699,79 +704,122 @@ paths:
               schema:
                 $ref: '#/components/schemas/SubmitProblem'
         '404':
-          $ref: '#/components/responses/NotFound'
+          description: Not found, or not visible to the caller
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
         '409':
-          description: Problem code `before-statement-date`, `amendment-window-closed`, `not-a-draft` or `obligation-cancelled`
+          description: Problem code `not-a-draft`, `before-statement-date`, `amendment-window-closed` or `obligation-cancelled`; or a request with the same Idempotency-Key still running (`idempotency-key-in-use`)
           content:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/SubmitProblem'
         '422':
-          description: Idempotency-Key reused with a different request
+          description: Idempotency-Key reused with a different request body
           content:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/ProblemDetails'
   /v1/declarations/{declarationId}/amend:
-    parameters:
-      - $ref: '#/components/parameters/DeclarationId'
     post:
       tags:
         - submission
-      summary: Reopen a submitted declaration for amendment (before the due date)
+      summary: Reopen a submitted declaration for amendment (until the due date)
+      description: Until the obligation's due date (the due date itself included; Africa/Nairobi by the service's clock). The version in force is copied into editable sections, the declaration is `amending` with `amendingFromVersion`, and `declaration.amendment-started.v1` is recorded. The version stays in force until the amendment is submitted as the next version. An amendment already in progress is answered as it is.
       operationId: amendDeclaration
-      x-draft: true
+      parameters:
+        - name: declarationId
+          required: true
+          in: path
+          schema:
+            type: string
+            format: uuid
       responses:
         '200':
-          description: Declaration in state amending with sections copied from the current version
+          description: Amending, with sections copied from the version in force
+          headers:
+            ETag:
+              schema:
+                type: string
+              description: The draft version; send it as If-Match on section saves
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Declaration'
         '404':
-          $ref: '#/components/responses/NotFound'
+          description: Not found, or not visible to the caller
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
         '409':
-          description: Problem code `amendment-window-closed` or `not-submitted`
+          description: Problem code `not-submitted` (never submitted), `amendment-window-closed` (after the due date) or `obligation-cancelled`
           content:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/SubmitProblem'
   /v1/declarations/{declarationId}/amend/discard:
-    parameters:
-      - $ref: '#/components/parameters/DeclarationId'
     post:
       tags:
         - submission
-      summary: Discard an amendment in progress; the submitted version stays in force
+      summary: Discard the amendment in progress; the version in force stays
+      description: The declaration is `submitted` again, its sections as the version in force has them (what the amendment changed, attachments included, is taken back); `declaration.amendment-discarded.v1` is recorded. No version changes. A submitted declaration with no amendment in progress is answered as it is.
       operationId: discardAmendment
-      x-draft: true
+      parameters:
+        - name: declarationId
+          required: true
+          in: path
+          schema:
+            type: string
+            format: uuid
       responses:
         '200':
-          description: Declaration back to submitted
+          description: Submitted again
+          headers:
+            ETag:
+              schema:
+                type: string
+              description: The draft version; send it as If-Match on section saves
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Declaration'
         '404':
-          $ref: '#/components/responses/NotFound'
+          description: Not found, or not visible to the caller
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
         '409':
-          description: Not amending
+          description: 'Problem code `not-submitted`: a draft, discarded with discardDeclaration'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/SubmitProblem'
+        '503':
+          description: An attachment the amendment unlinked could not be checked with documents (`documents-unavailable`); retry
           content:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/ProblemDetails'
   /v1/declarations/{declarationId}/versions:
-    parameters:
-      - $ref: '#/components/parameters/DeclarationId'
     get:
       tags:
         - submission
       summary: Submitted versions, newest first
+      description: Every version with its reference, submission time, lateness, hash, supersession and acknowledgement slip; empty before the first submission.
       operationId: listDeclarationVersions
-      x-draft: true
+      parameters:
+        - name: declarationId
+          required: true
+          in: path
+          schema:
+            type: string
+            format: uuid
       responses:
         '200':
-          description: Versions
+          description: Versions, newest first
           content:
             application/json:
               schema:
@@ -779,36 +827,73 @@ paths:
                 items:
                   $ref: '#/components/schemas/DeclarationVersion'
         '404':
-          $ref: '#/components/responses/NotFound'
+          description: Not found, or not visible to the caller
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
   /v1/declarations/{declarationId}/versions/{version}:
-    parameters:
-      - $ref: '#/components/parameters/DeclarationId'
-      - $ref: '#/components/parameters/VersionNumber'
     get:
       tags:
         - submission
-      summary: One immutable version with its document (decrypted for the owner)
+      summary: One immutable version with its document (decrypted for the declarant)
+      description: The version as listed, with the `declaration.v1` document exactly as submitted (the canonical JSON `canonicalSha256` is the hash of), decrypted for the declarant. Only the declarant reads it, their own record, which is not audited (ADR-008).
       operationId: getDeclarationVersion
-      x-draft: true
+      parameters:
+        - name: declarationId
+          required: true
+          in: path
+          schema:
+            type: string
+            format: uuid
+        - name: version
+          required: true
+          in: path
+          schema:
+            type: integer
+            minimum: 1
       responses:
         '200':
-          description: Version
+          description: The version
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/DeclarationVersionDetail'
+        '400':
+          description: version is not a positive integer
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
         '404':
-          $ref: '#/components/responses/NotFound'
+          description: Not found, or not visible to the caller
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+      x-audited-read:
+        action: declaration.version.read
+        resource: declaration-version
   /v1/declarations/{declarationId}/versions/{version}/acknowledgement:
-    parameters:
-      - $ref: '#/components/parameters/DeclarationId'
-      - $ref: '#/components/parameters/VersionNumber'
     get:
       tags:
         - submission
       summary: Acknowledgement slip status and download link for a version
+      description: 'The declarant only. `pending` while the documents service prepares the slip (seconds after submission), `issued` with the document and its verification code once set on the version, `failed` when it has not come within a minute of the submission or of the last reissue (the stored acknowledgement stays pending): it may be asked for again. The slip downloads from the documents service (`getDocumentDownload` with `documentId`).'
       operationId: getAcknowledgement
-      x-draft: true
+      parameters:
+        - name: declarationId
+          required: true
+          in: path
+          schema:
+            type: string
+            format: uuid
+        - name: version
+          required: true
+          in: path
+          schema:
+            type: integer
+            minimum: 1
       responses:
         '200':
           description: Status
@@ -816,45 +901,105 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Acknowledgement'
+        '400':
+          description: version is not a positive integer
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
         '404':
-          $ref: '#/components/responses/NotFound'
+          description: Not found, or not visible to the caller
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
   /v1/declarations/{declarationId}/versions/{version}/acknowledgement/reissue:
-    parameters:
-      - $ref: '#/components/parameters/DeclarationId'
-      - $ref: '#/components/parameters/VersionNumber'
     post:
       tags:
         - submission
       summary: Ask for the slip again when issuance failed
+      description: 'The declarant only. Accepted (202) once the slip has not come within a minute of the submission, or of the last reissue: the acknowledgement is `failed` (still `pending` as stored); records `declaration.acknowledgement-requested.v1`, the documents service issues the slip (or announces the one it issued), and the acknowledgement is `pending` again for a minute. 409 `acknowledgement-issued` once issued; 409 `acknowledgement-in-progress` within a minute of the submission; 429 `resend-cooldown` with `retryAfterSeconds` within a minute of the last reissue.'
       operationId: reissueAcknowledgement
-      x-draft: true
+      parameters:
+        - name: declarationId
+          required: true
+          in: path
+          schema:
+            type: string
+            format: uuid
+        - name: version
+          required: true
+          in: path
+          schema:
+            type: integer
+            minimum: 1
+        - name: Idempotency-Key
+          in: header
+          description: Optional. Client-generated UUID, unique per logical request; reuse on retry and the stored answer is replayed instead of acting twice
+          required: false
+          schema:
+            type: string
+            format: uuid
       responses:
         '202':
           description: Reissue requested
+        '400':
+          description: version is not a positive integer
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
         '404':
-          $ref: '#/components/responses/NotFound'
+          description: Not found, or not visible to the caller
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
         '409':
-          description: Slip already issued or issuance in progress
+          description: Problem code `acknowledgement-issued` (the slip is issued) or `acknowledgement-in-progress` (within a minute of the submission)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '422':
+          description: Idempotency-Key reused with a different request body
           content:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/ProblemDetails'
         '429':
-          description: Cooldown
+          description: 'Problem code `resend-cooldown` with `retryAfterSeconds`: within a minute of the last reissue'
           content:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/ProblemDetails'
   /internal/v1/declarations/{declarationId}/versions/{version}/acknowledgement-payload:
-    parameters:
-      - $ref: '#/components/parameters/DeclarationId'
-      - $ref: '#/components/parameters/VersionNumber'
     get:
       tags:
         - internal
       summary: Fields the acknowledgement slip needs (documents service)
+      description: Service tokens with scope declarations:internal, acting for the Commission in X-Acting-Tenant; audited. What the slip prints of the version (its `acknowledgement-slip` v1 payload) and the declarant it is issued for, nothing more. Pulled after `declaration.submitted.v1` or `declaration.acknowledgement-requested.v1`.
       operationId: internalGetAcknowledgementPayload
-      x-draft: true
+      parameters:
+        - name: X-Acting-Tenant
+          in: header
+          description: Tenant the calling service acts for; the resource must belong to it
+          required: true
+          schema:
+            type: string
+            pattern: ^[a-z][a-z0-9]{1,19}$
+        - name: declarationId
+          required: true
+          in: path
+          schema:
+            type: string
+            format: uuid
+        - name: version
+          required: true
+          in: path
+          schema:
+            type: integer
+            minimum: 1
       responses:
         '200':
           description: Payload
@@ -862,8 +1007,27 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/AcknowledgementPayload'
+        '400':
+          description: X-Acting-Tenant is missing or not a tenant key
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '403':
+          description: Requires a service token with scope declarations:internal
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
         '404':
-          $ref: '#/components/responses/NotFound'
+          description: No such version of the acting tenant's declarations
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+      x-audited-read:
+        action: declaration.acknowledgement-payload.pulled
+        resource: declaration-version
   /internal/v1/declarations/{declarationId}/versions/{version}/document:
     parameters:
       - $ref: '#/components/parameters/DeclarationId'
@@ -2021,11 +2185,15 @@ components:
           type: integer
         filed:
           type: integer
+        filedLate:
+          type: integer
+          description: Of those filed, the ones filed after their due date
       required:
         - upcoming
         - due
         - overdue
         - filed
+        - filedLate
     SummaryCycle:
       type: object
       properties:
@@ -2203,6 +2371,12 @@ components:
         - cycles
         - reportingEntities
         - total
+    DeclarationReference:
+      type: string
+      pattern: ^DC[IBF]-[A-Z][A-Z0-9]{1,19}-[0-9]{4}-[0-9]{7}-[0-9A-Z]$
+      description: 'ADR-011: DC{I|B|F}-<ISSUER>-<YEAR>-<7 digits>-<check>, allocated at the first submission and kept by later versions'
+      examples:
+        - DCB-TSC-2027-0012345-K
     SectionKey:
       type: string
       pattern: ^(bio|household|other|statement:(officer|spouse:[0-9a-f-]{36}|child:[0-9a-f-]{36}))$
@@ -2237,6 +2411,10 @@ components:
         statementDate:
           type: string
           format: date
+        dueDate:
+          type: string
+          format: date
+          description: "The obligation's due date: filed after it is late, and amendments close on it"
         incomePeriod:
           type: object
           properties:
@@ -2302,6 +2480,23 @@ components:
           anyOf:
             - $ref: '#/components/schemas/SectionKey'
             - type: 'null'
+        reference:
+          anyOf:
+            - $ref: '#/components/schemas/DeclarationReference'
+            - type: 'null'
+          description: Allocated at the first submission; null before
+        currentVersion:
+          anyOf:
+            - type: integer
+              minimum: 1
+            - type: 'null'
+          description: The submitted version in force; null before the first submission
+        amendingFromVersion:
+          anyOf:
+            - type: integer
+              minimum: 1
+            - type: 'null'
+          description: The version an amendment in progress started from; null unless amending
         createdAt:
           type: string
           format: date-time
@@ -2314,12 +2509,16 @@ components:
         - commission
         - type
         - statementDate
+        - dueDate
         - incomePeriod
         - status
         - schemaVersion
         - draftVersion
         - sections
         - lastSection
+        - reference
+        - currentVersion
+        - amendingFromVersion
         - createdAt
         - updatedAt
     SectionContents:
@@ -2494,13 +2693,21 @@ components:
           description: 'What to complete before submitting, by section and field: the schema issues and the rules it cannot state, each once'
         canSubmit:
           type: boolean
-          description: Always false in slice 05
+          description: 'Whether submitting now would pass every check but the step-up: a valid document, a draft or amendment in progress, and an obligation open for it'
         cannotSubmitReason:
-          type: string
-          enum:
-            - submission-not-available
-            - before-statement-date
-          description: '`before-statement-date`: the statement date (Nairobi) has not come; `submission-not-available`: submission opens in the next release'
+          anyOf:
+            - type: string
+              enum:
+                - not-a-draft
+                - obligation-cancelled
+                - before-statement-date
+                - amendment-window-closed
+                - incomplete
+            - type: 'null'
+          description: 'Null when canSubmit; else the first reason in this order: `not-a-draft` (already submitted), `obligation-cancelled`, `before-statement-date` (the statement date, Africa/Nairobi, has not come), `amendment-window-closed` (an amendment after the due date), `incomplete` (see blocking)'
+        late:
+          type: boolean
+          description: 'Submitting now would be recorded as filed late: today (Africa/Nairobi) is after the due date'
         attestationText:
           type: string
           description: The solemn declaration the declarant makes
@@ -2511,6 +2718,7 @@ components:
         - blocking
         - canSubmit
         - cannotSubmitReason
+        - late
         - attestationText
     DeclarationListItem:
       type: object
@@ -2535,6 +2743,62 @@ components:
           minimum: 0
           maximum: 100
           description: Complete sections out of the live ones (archived statements left out), rounded down
+        dueDate:
+          type: string
+          format: date
+          description: "The obligation's due date: filed after it is late, and amendments close on it"
+        reference:
+          anyOf:
+            - $ref: '#/components/schemas/DeclarationReference'
+            - type: 'null'
+          description: Allocated at the first submission; null before
+        currentVersion:
+          anyOf:
+            - type: integer
+              minimum: 1
+            - type: 'null'
+          description: The submitted version in force; null before the first submission
+        amendingFromVersion:
+          anyOf:
+            - type: integer
+              minimum: 1
+            - type: 'null'
+          description: The version an amendment in progress started from; null unless amending
+        submittedAt:
+          anyOf:
+            - type: string
+              format: date-time
+            - type: 'null'
+          description: When the version in force was submitted; null before
+        late:
+          description: The version in force was filed after the due date; null before
+          type:
+            - boolean
+            - 'null'
+        amendable:
+          type: boolean
+          description: 'Amend is open now: submitted (no amendment in progress) and today, Africa/Nairobi by the service clock, is on or before the due date. False otherwise; when submitted and false, amendments are closed'
+        acknowledgement:
+          anyOf:
+            - type: object
+              properties:
+                status:
+                  $ref: '#/components/schemas/AcknowledgementStatus'
+                documentId:
+                  anyOf:
+                    - type: string
+                      format: uuid
+                    - type: 'null'
+                  description: The issued slip, for its download; null until issued
+                verifiedCount:
+                  type: integer
+                  description: Lookups of the slip on the verify app
+              required:
+                - status
+                - documentId
+                - verifiedCount
+            - type: 'null'
+          description: The version in force's acknowledgement slip (as getAcknowledgement answers it); null before the first submission
         updatedAt:
           type: string
           format: date-time
@@ -2546,7 +2810,276 @@ components:
         - statementDate
         - status
         - completenessPercent
+        - dueDate
+        - reference
+        - currentVersion
+        - amendingFromVersion
+        - submittedAt
+        - late
+        - amendable
+        - acknowledgement
         - updatedAt
+    AcknowledgementStatus:
+      type: string
+      enum:
+        - pending
+        - issued
+        - failed
+    Acknowledgement:
+      type: object
+      properties:
+        status:
+          description: '`pending` until the documents service has issued the slip, `failed` when issuance gave up'
+          $ref: '#/components/schemas/AcknowledgementStatus'
+        documentId:
+          anyOf:
+            - type: string
+              format: uuid
+            - type: 'null'
+          description: The issued slip; null until issued
+        verificationId:
+          description: Verification code printed under the QR; null until issued
+          type:
+            - string
+            - 'null'
+        verifyUrl:
+          anyOf:
+            - type: string
+              format: uri
+            - type: 'null'
+          description: Where the verify page answers for the slip, the QR code's payload (`<verify origin>/v/<code>`); null until issued
+        issuedAt:
+          anyOf:
+            - type: string
+              format: date-time
+            - type: 'null'
+        verifiedCount:
+          type: integer
+          description: Lookups of the slip on the verify app
+        downloadUrl:
+          anyOf:
+            - type: string
+              format: uri
+            - type: 'null'
+          description: "Null: the slip downloads from the documents service (`getDocumentDownload` with `documentId`), the owner's short-lived link, audited there"
+      required:
+        - status
+        - documentId
+        - verificationId
+        - verifyUrl
+        - issuedAt
+        - verifiedCount
+        - downloadUrl
+    DeclarationVersion:
+      type: object
+      properties:
+        version:
+          type: integer
+          minimum: 1
+        reference:
+          $ref: '#/components/schemas/DeclarationReference'
+        submittedAt:
+          type: string
+          format: date-time
+        late:
+          type: boolean
+          description: Submitted after the obligation's due date
+        canonicalSha256:
+          type: string
+          pattern: ^[0-9a-f]{64}$
+          description: Hex SHA-256 of the document's RFC 8785 canonical JSON
+        supersededAt:
+          anyOf:
+            - type: string
+              format: date-time
+            - type: 'null'
+          description: When a later version replaced it; null while in force
+        acknowledgement:
+          $ref: '#/components/schemas/Acknowledgement'
+      required:
+        - version
+        - reference
+        - submittedAt
+        - late
+        - canonicalSha256
+        - supersededAt
+        - acknowledgement
+    DeclarationVersionDetail:
+      type: object
+      properties:
+        version:
+          type: integer
+          minimum: 1
+        reference:
+          $ref: '#/components/schemas/DeclarationReference'
+        submittedAt:
+          type: string
+          format: date-time
+        late:
+          type: boolean
+          description: Submitted after the obligation's due date
+        canonicalSha256:
+          type: string
+          pattern: ^[0-9a-f]{64}$
+          description: Hex SHA-256 of the document's RFC 8785 canonical JSON
+        supersededAt:
+          anyOf:
+            - type: string
+              format: date-time
+            - type: 'null'
+          description: When a later version replaced it; null while in force
+        acknowledgement:
+          $ref: '#/components/schemas/Acknowledgement'
+        document:
+          type: object
+          propertyNames:
+            type: string
+          additionalProperties: {}
+          description: The immutable declaration.v1 document as submitted (decrypted for the declarant), its attestation carrying the reference and the time it was declared
+      required:
+        - version
+        - reference
+        - submittedAt
+        - late
+        - canonicalSha256
+        - supersededAt
+        - acknowledgement
+        - document
+    SubmissionResult:
+      type: object
+      properties:
+        declaration:
+          $ref: '#/components/schemas/Declaration'
+        version:
+          $ref: '#/components/schemas/DeclarationVersion'
+        obligationStatus:
+          $ref: '#/components/schemas/ObligationStatus'
+      required:
+        - declaration
+        - version
+        - obligationStatus
+    SubmitProblem:
+      type: object
+      properties:
+        type:
+          type: string
+        title:
+          type: string
+        status:
+          type: integer
+        code:
+          description: Absent only for problems of the Idempotency-Key header
+          type: string
+          enum:
+            - step-up-required
+            - incomplete
+            - before-statement-date
+            - amendment-window-closed
+            - not-a-draft
+            - not-submitted
+            - obligation-cancelled
+        detail:
+          type: string
+        instance:
+          type: string
+        errors:
+          description: Field-level errors; `path` is the dotted request field
+          type: array
+          items:
+            type: object
+            properties:
+              path:
+                type: string
+              message:
+                type: string
+            required:
+              - path
+              - message
+        stepUpUrl:
+          description: 'Present for step-up-required: starts a step-up returning to the summary'
+          type: string
+          format: uri
+        blocking:
+          description: 'Present for incomplete: what to complete, as the summary lists it'
+          type: array
+          items:
+            $ref: '#/components/schemas/CompletenessIssue'
+      required:
+        - type
+        - title
+        - status
+    AcknowledgementSlip:
+      type: object
+      properties:
+        declarantName:
+          type: string
+          minLength: 1
+          maxLength: 200
+          description: As declared in the version (first, other and surname)
+        commissionName:
+          type: string
+          minLength: 1
+          maxLength: 200
+        issuerCode:
+          type: string
+          pattern: ^[A-Z0-9]{2,20}$
+          description: The Commission's issuer code, as in the reference number
+        declarationType:
+          $ref: '#/components/schemas/ObligationType'
+        statementDate:
+          type: string
+          format: date
+        dueDate:
+          anyOf:
+            - type: string
+              format: date
+            - type: 'null'
+          description: The filing obligation's due date; null when it has none
+        reference:
+          $ref: '#/components/schemas/DeclarationReference'
+        version:
+          type: integer
+          minimum: 1
+        submittedAt:
+          type: string
+          format: date-time
+        late:
+          type: boolean
+          description: Submitted after the obligation's due date
+        statementCount:
+          type: integer
+          minimum: 0
+          description: 'Statements in the version: the declarant, spouses and children'
+        itemCount:
+          type: integer
+          minimum: 0
+          description: Income, assets and liabilities across its statements
+      required:
+        - declarantName
+        - commissionName
+        - issuerCode
+        - declarationType
+        - statementDate
+        - dueDate
+        - reference
+        - version
+        - submittedAt
+        - late
+        - statementCount
+        - itemCount
+      description: The fields the acknowledgement slip prints, and nothing more
+    AcknowledgementPayload:
+      type: object
+      properties:
+        declarantPersonId:
+          type: string
+          format: uuid
+          description: 'The declarant: the documents service issues the slip for them, the only person who may download it'
+        slip:
+          $ref: '#/components/schemas/AcknowledgementSlip'
+      required:
+        - declarantPersonId
+        - slip
     ProblemDetails:
       type: object
       properties:
@@ -2559,6 +3092,7 @@ components:
         code:
           type: string
           enum:
+            - database-unavailable
             - rate-limit-exceeded
             - no-match
             - already-onboarded
@@ -2572,6 +3106,15 @@ components:
             - iprs-unavailable
             - identity-unavailable
             - email-in-use
+            - step-up-required
+            - incomplete
+            - before-statement-date
+            - amendment-window-closed
+            - not-a-draft
+            - not-submitted
+            - obligation-cancelled
+            - acknowledgement-issued
+            - acknowledgement-in-progress
           description: Machine-readable cause, from the platform registry; clients map it to copy and never show `title` or `detail`
         detail:
           type: string
@@ -2987,183 +3530,6 @@ components:
             updatedAt:
               type: string
               format: date-time
-    DeclarationReference:
-      type: string
-      description: 'ADR-011: DC{I|B|F}-<ISSUER>-<YEAR>-<7 digits>-<check>'
-      pattern: ^DC[IBF]-[A-Z0-9]{2,20}-[0-9]{4}-[0-9]{7}-[0-9A-Z]$
-      examples:
-        - DCB-TSC-2027-0012345-K
-    AcknowledgementStatus:
-      type: string
-      enum:
-        - pending
-        - issued
-        - failed
-    SubmitProblem:
-      allOf:
-        - $ref: '#/components/schemas/ProblemDetails'
-        - type: object
-          required:
-            - code
-          properties:
-            code:
-              type: string
-              enum:
-                - step-up-required
-                - incomplete
-                - before-statement-date
-                - amendment-window-closed
-                - not-a-draft
-                - not-submitted
-                - obligation-cancelled
-            stepUpUrl:
-              type: string
-              format: uri
-              description: Present for step-up-required
-            blocking:
-              type: array
-              items:
-                $ref: '#/components/schemas/CompletenessIssue'
-    DeclarationVersion:
-      type: object
-      required:
-        - version
-        - reference
-        - submittedAt
-        - late
-        - canonicalSha256
-        - supersededAt
-        - acknowledgement
-      properties:
-        version:
-          type: integer
-          minimum: 1
-        reference:
-          $ref: '#/components/schemas/DeclarationReference'
-        submittedAt:
-          type: string
-          format: date-time
-        late:
-          type: boolean
-        canonicalSha256:
-          type: string
-          pattern: ^[0-9a-f]{64}$
-        supersededAt:
-          type:
-            - string
-            - 'null'
-          format: date-time
-        acknowledgement:
-          $ref: '#/components/schemas/Acknowledgement'
-    DeclarationVersionDetail:
-      allOf:
-        - $ref: '#/components/schemas/DeclarationVersion'
-        - type: object
-          required:
-            - document
-          properties:
-            document:
-              type: object
-              description: The immutable declaration.v1 document (decrypted for the owner)
-              additionalProperties: true
-    Acknowledgement:
-      type: object
-      required:
-        - status
-        - documentId
-        - verificationId
-        - issuedAt
-        - verifiedCount
-        - downloadUrl
-      properties:
-        status:
-          $ref: '#/components/schemas/AcknowledgementStatus'
-        documentId:
-          type:
-            - string
-            - 'null'
-          format: uuid
-        verificationId:
-          type:
-            - string
-            - 'null'
-          description: Verification code printed under the QR
-        issuedAt:
-          type:
-            - string
-            - 'null'
-          format: date-time
-        verifiedCount:
-          type: integer
-        downloadUrl:
-          type:
-            - string
-            - 'null'
-          format: uri
-          description: Short-lived presigned URL; fetched fresh on each call
-    SubmissionResult:
-      type: object
-      required:
-        - declaration
-        - version
-        - obligationStatus
-      properties:
-        declaration:
-          $ref: '#/components/schemas/Declaration'
-        version:
-          $ref: '#/components/schemas/DeclarationVersion'
-        obligationStatus:
-          $ref: '#/components/schemas/ObligationStatus'
-    AcknowledgementPayload:
-      type: object
-      required:
-        - declarantName
-        - commission
-        - type
-        - statementDate
-        - reference
-        - version
-        - submittedAt
-        - late
-        - counts
-      properties:
-        declarantName:
-          type: string
-        commission:
-          $ref: '#/components/schemas/CommissionRef'
-        type:
-          $ref: '#/components/schemas/ObligationType'
-        statementDate:
-          type: string
-          format: date
-        reference:
-          $ref: '#/components/schemas/DeclarationReference'
-        version:
-          type: integer
-        submittedAt:
-          type: string
-          format: date-time
-        late:
-          type: boolean
-        counts:
-          type: object
-          required:
-            - statements
-            - income
-            - assets
-            - liabilities
-            - attachments
-          properties:
-            statements:
-              type: integer
-            income:
-              type: integer
-            assets:
-              type: integer
-            liabilities:
-              type: integer
-            attachments:
-              type: integer
     InternalVersionDocument:
       type: object
       required:
@@ -3250,12 +3616,6 @@ components:
       schema:
         type: string
         format: uuid
-    SectionKey:
-      name: sectionKey
-      in: path
-      required: true
-      schema:
-        $ref: '#/components/schemas/SectionKey'
     VersionNumber:
       name: version
       in: path

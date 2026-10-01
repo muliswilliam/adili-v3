@@ -2,12 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { notFoundIfInvisible, type Principal } from '@adili/api-kit';
 import { type Database, InjectDatabase, type PersonContext, withPerson } from '@adili/data-access';
 import { EventPublisher } from '@adili/events';
-import {
-  ATTESTATION_TEXT,
-  type DeclarationSectionKey,
-  declarationIssues,
-  type PersonKey,
-} from '@adili/forms';
+import { ATTESTATION_TEXT, type DeclarationSectionKey, type PersonKey } from '@adili/forms';
 
 import { and, count, desc, eq, inArray, max, ne, notInArray, sql } from 'drizzle-orm';
 import { v7 as uuidv7 } from 'uuid';
@@ -21,6 +16,9 @@ import { isRecord, isUuid } from '../guards.js';
 import { commissionRef } from '../obligations/access.js';
 import { nairobiDate } from '../obligations/dates.js';
 import { commissionRefs, filingObligations } from '../obligations/schema.js';
+import { acknowledgementOf } from '../declaration/acknowledgement.js';
+import { declarations, declarationVersions, isEditable } from '../declaration/schema.js';
+import { amendRefusal, isLate, submitRefusal } from '../declaration/window.js';
 import { personOf } from './access.js';
 import { itemIds, keepAttachments } from './attachments.js';
 import { assessSections, type DraftSections, type SectionAssessment } from './completeness.js';
@@ -47,11 +45,13 @@ import {
 import {
   type DeclarationRow,
   deleteAttachments,
+  documentFrame,
   incomePeriodOf,
   inScheduleOrder,
   liveDeclaration,
   liveDeclarationOf,
   liveSections,
+  obligationOf,
   readSection,
   sectionIs,
   statementSections,
@@ -83,16 +83,10 @@ import {
   statementPersonKey,
 } from './sections.js';
 import { personNames, statementChanges, writeStatementChanges } from './statements.js';
-import {
-  assembleDocument,
-  blockingIssues,
-  cannotSubmitReason,
-  notStartedIssues,
-} from './summary.js';
+import { reviewDraft } from './summary.js';
 import {
   declarationAttachments,
   declarationSections,
-  declarations,
   obligationDrafts,
   type SectionMetadata,
 } from './schema.js';
@@ -156,7 +150,11 @@ export class DraftsService {
         .select({ statementDate: max(declarations.statementDate) })
         .from(declarations)
         .where(
-          and(eq(declarations.personId, person.personId), eq(declarations.status, 'submitted')),
+          and(
+            eq(declarations.personId, person.personId),
+            // A declaration being amended was submitted all the same.
+            inArray(declarations.status, ['submitted', 'amending']),
+          ),
         );
       return { obligation, existing, previousStatementDate: previous?.statementDate ?? null };
     });
@@ -268,72 +266,38 @@ export class DraftsService {
   /**
    * The draft as it would be declared (S11, S12): the `declaration.v1` document assembled from the
    * live sections only (an archived statement never reaches it or paragraph 9), whether it
-   * validates, what blocks submission by section and field, and the solemn declaration. Nothing
-   * can be submitted in this slice; the reason says whether the statement date has come.
+   * validates, what blocks submission by section and field, and the solemn declaration. Whether
+   * it can be submitted now follows the submit transaction's own rules (spec 06), all but the
+   * step-up, which the portal asks for when the declarant presses Submit.
    */
   async summary(principal: Principal, declarationId: string): Promise<DeclarationSummary> {
     const person = personOf(principal);
     const found = await withPerson(this.db, person, async (tx) => {
       const declaration = await liveDeclaration(tx, declarationId);
       if (!declaration) return null;
-      return { declaration, sections: await liveSections(tx, declaration.id) };
+      return {
+        declaration,
+        obligation: await obligationOf(tx, declaration),
+        sections: await liveSections(tx, declaration.id),
+      };
     });
-    const { declaration, sections } = notFoundIfInvisible(found);
-    const live = await Promise.all(
-      sections.map(async (section) => ({
-        key: section.sectionKey,
-        contents: await this.sections.open(declaration.tenant, section),
-      })),
-    );
-    const document = assembleDocument(
-      {
-        type: declaration.type,
-        statementDate: declaration.statementDate,
-        incomePeriod: {
-          ...incomePeriodOf(declaration),
-          fromSource: declaration.previousStatementDateSource,
-        },
-      },
-      live,
-    );
-
-    // Each section as its own view reports it (rules and schema), with paragraph 9 as composed.
-    const statements = new Map<PersonKey, SectionContents>();
-    const byKey = new Map<string, SectionContents>();
-    for (const { key, contents } of live) {
-      const personKey = statementPersonKey(key);
-      if (personKey) statements.set(personKey, contents);
-      else byKey.set(key, contents);
-    }
-    const assessed = assessSections({
-      bio: byKey.get('bio'),
-      household: byKey.get('household'),
-      statements,
-      other: document.otherInformation,
-    });
-    const validated = declarationIssues(document);
-    // A section never saved blocks, and the document is not valid, until the declarant saves it.
-    const notStarted = notStartedIssues(
+    const { declaration, obligation, sections } = notFoundIfInvisible(found);
+    const review = reviewDraft(
+      documentFrame(declaration),
+      await this.sections.openAll(declaration.tenant, sections),
       sections.map((section) => ({ key: section.sectionKey, completeness: section.completeness })),
     );
-
+    const today = nairobiDate(this.clock.now());
+    const refusal = submitRefusal(declaration.status, obligation, today);
+    const cannotSubmitReason = refusal ?? (review.valid ? null : 'incomplete');
     return {
       declaration: await this.read(person, declaration.id),
-      document,
-      valid:
-        notStarted.length === 0 &&
-        validated.issues.length === 0 &&
-        validated.declaration.length === 0,
-      blocking: blockingIssues(
-        notStarted,
-        [...assessed.values()].flatMap((assessment) => assessment.issues),
-        validated.issues,
-      ),
-      canSubmit: false,
-      cannotSubmitReason: cannotSubmitReason(
-        nairobiDate(this.clock.now()),
-        declaration.statementDate,
-      ),
+      document: review.document,
+      valid: review.valid,
+      blocking: review.blocking,
+      canSubmit: cannotSubmitReason === null,
+      cannotSubmitReason,
+      late: isLate(obligation.dueDate, today),
       attestationText: ATTESTATION_TEXT,
     };
   }
@@ -370,12 +334,14 @@ export class DraftsService {
   }
 
   /**
-   * The declarant's live declarations (S16), last updated first, each with how much is complete:
-   * complete sections out of the live ones (archived statements left out).
+   * The declarant's live declarations (S16), last updated first, each with how much is complete
+   * (complete sections out of the live ones, archived statements left out) and, once submitted,
+   * what "My declarations" shows of it (spec 06): the reference, the version in force with its
+   * submission time, lateness and acknowledgement slip, and whether Amend is open today.
    */
   async mine(principal: Principal): Promise<DeclarationListItem[]> {
     const person = personOf(principal);
-    const { rows, completeness, commissions } = await withPerson(this.db, person, async (tx) => {
+    const found = await withPerson(this.db, person, async (tx) => {
       const rows = await tx
         .select()
         .from(declarations)
@@ -383,7 +349,8 @@ export class DraftsService {
           and(eq(declarations.personId, person.personId), ne(declarations.status, 'discarded')),
         )
         .orderBy(desc(declarations.updatedAt), desc(declarations.id));
-      if (rows.length === 0) return { rows, completeness: [], commissions: [] };
+      if (rows.length === 0) return null;
+      const ids = rows.map((row) => row.id);
       const completeness = await tx
         .select({
           declarationId: declarationSections.declarationId,
@@ -393,10 +360,7 @@ export class DraftsService {
         .from(declarationSections)
         .where(
           and(
-            inArray(
-              declarationSections.declarationId,
-              rows.map((row) => row.id),
-            ),
+            inArray(declarationSections.declarationId, ids),
             ne(declarationSections.completeness, 'archived'),
           ),
         )
@@ -414,15 +378,56 @@ export class DraftsService {
             rows.map((row) => row.tenant),
           ),
         );
-      return { rows, completeness, commissions };
+      const obligations = await tx
+        .select({
+          id: filingObligations.id,
+          status: filingObligations.status,
+          dueDate: filingObligations.dueDate,
+        })
+        .from(filingObligations)
+        .where(
+          inArray(
+            filingObligations.id,
+            rows.map((row) => row.obligationId),
+          ),
+        );
+      // The versions in force, one per submitted declaration.
+      const inForce = await tx
+        .select()
+        .from(declarationVersions)
+        .innerJoin(
+          declarations,
+          and(
+            eq(declarations.id, declarationVersions.declarationId),
+            eq(declarations.currentVersion, declarationVersions.version),
+          ),
+        )
+        .where(inArray(declarationVersions.declarationId, ids));
+      return {
+        rows,
+        completeness,
+        commissions,
+        obligations: new Map(obligations.map((obligation) => [obligation.id, obligation])),
+        versions: new Map(
+          inForce.map(({ declaration_versions: version }) => [version.declarationId, version]),
+        ),
+      };
     });
+    if (!found) return [];
+    const { rows, completeness, commissions, obligations, versions } = found;
     const bySlug = new Map(commissions.map((commission) => [commission.slug, commission]));
+    const now = this.clock.now();
+    const today = nairobiDate(now);
     return rows.map((row) => {
       const counted = completeness.filter((group) => group.declarationId === row.id);
       const live = counted.reduce((sum, group) => sum + group.sections, 0);
       const complete = counted
         .filter((group) => group.completeness === 'complete')
         .reduce((sum, group) => sum + group.sections, 0);
+      const obligation = obligations.get(row.obligationId);
+      if (!obligation) throw new Error(`Declaration ${row.id} has no obligation`);
+      const version = versions.get(row.id);
+      const acknowledgement = version ? acknowledgementOf(version, now) : null;
       return {
         id: row.id,
         obligationId: row.obligationId,
@@ -431,6 +436,18 @@ export class DraftsService {
         statementDate: row.statementDate,
         status: row.status,
         completenessPercent: live === 0 ? 0 : Math.floor((complete * 100) / live),
+        dueDate: obligation.dueDate,
+        reference: row.reference,
+        currentVersion: row.currentVersion,
+        amendingFromVersion: row.amendingFromVersion,
+        submittedAt: version?.submittedAt.toISOString() ?? null,
+        late: version?.late ?? null,
+        amendable: amendRefusal(row.status, obligation, today) === null,
+        acknowledgement: acknowledgement && {
+          status: acknowledgement.status,
+          documentId: acknowledgement.documentId,
+          verifiedCount: acknowledgement.verifiedCount,
+        },
         updatedAt: row.updatedAt.toISOString(),
       };
     });
@@ -496,7 +513,7 @@ export class DraftsService {
       await withPerson(this.db, person, (tx) => readSection(tx, declarationId, key)),
     );
     const { declaration, section } = state;
-    if (declaration.status !== 'draft') throw declarationNotDraft('edited');
+    if (!isEditable(declaration.status)) throw declarationNotDraft('edited');
     if (declaration.draftVersion !== expected) throw versionMismatch();
     if (section.metadata.archived === true) throw sectionArchived();
     if (!isRecord(body)) throw validationProblem([{ path: '', message: 'Expected an object' }]);
@@ -723,6 +740,7 @@ export class DraftsService {
         .from(commissionRefs)
         .where(eq(commissionRefs.slug, declaration.tenant))
         .limit(1);
+      const obligation = await obligationOf(tx, declaration);
       const sections = await tx
         .select({
           declarationId: declarationSections.declarationId,
@@ -746,9 +764,9 @@ export class DraftsService {
             sql`(${declarationSections.sectionKey} in ('bio', 'household') or ${declarationSections.completeness} = 'archived')`,
           ),
         );
-      return { declaration, commission, sections, named };
+      return { declaration, commission, dueDate: obligation.dueDate, sections, named };
     });
-    const { declaration, commission, sections, named } = notFoundIfInvisible(found);
+    const { declaration, commission, dueDate, sections, named } = notFoundIfInvisible(found);
     const names = await personNames(this.sections, declaration, named);
     return {
       id: declaration.id,
@@ -756,6 +774,7 @@ export class DraftsService {
       commission: commissionRef(declaration.tenant, commission),
       type: declaration.type,
       statementDate: declaration.statementDate,
+      dueDate,
       incomePeriod: {
         ...incomePeriodOf(declaration),
         fromSource: declaration.previousStatementDateSource,
@@ -774,6 +793,9 @@ export class DraftsService {
         };
       }),
       lastSection: declaration.lastSection,
+      reference: declaration.reference,
+      currentVersion: declaration.currentVersion,
+      amendingFromVersion: declaration.amendingFromVersion,
       createdAt: declaration.createdAt.toISOString(),
       updatedAt: declaration.updatedAt.toISOString(),
     };

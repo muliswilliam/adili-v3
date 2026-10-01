@@ -207,8 +207,14 @@ describe('linking an attachment (S10)', () => {
     ]);
     const section = await statement(draft.id);
     expect(section.draftVersion).toBe(3);
+    // declaration.v1's Attachment: the link's id, which unlinking takes.
     expect(itemOf(section, 'assets', ASSET_ID).attachments).toEqual([
-      { uploadId: deed.id, fileName: 'title-deed-kisumu.pdf', sha256: deed.sha256 },
+      {
+        attachmentId: attachment.id,
+        uploadId: deed.id,
+        fileName: 'title-deed-kisumu.pdf',
+        sha256: deed.sha256,
+      },
     ]);
     expect(itemOf(section, 'income', incomeItem().id)).not.toHaveProperty('attachments');
     expect(section.completeness).toBe('complete');
@@ -395,7 +401,9 @@ describe('linking an attachment (S10)', () => {
     const draft = await draftWithItems();
     const deed = upload('psc', ACHIENG, { fileName: 'logbook.jpg' });
     api.documents.givenUploads(deed);
-    await link(draft.id, { sectionKey: STATEMENT, itemId: ASSET_ID, uploadId: deed.id });
+    const linked = (
+      await link(draft.id, { sectionKey: STATEMENT, itemId: ASSET_ID, uploadId: deed.id })
+    ).json<DeclarationAttachment>();
     const forged = { uploadId: randomUUID(), fileName: 'forged.pdf', sha256: 'a'.repeat(64) };
 
     const saved = await saveStatement(
@@ -411,7 +419,14 @@ describe('linking an attachment (S10)', () => {
     const section = await statement(draft.id);
     expect(itemOf(section, 'assets', ASSET_ID)).toMatchObject({
       description: 'Toyota Prado TX',
-      attachments: [{ uploadId: deed.id, fileName: 'logbook.jpg', sha256: deed.sha256 }],
+      attachments: [
+        {
+          attachmentId: linked.id,
+          uploadId: deed.id,
+          fileName: 'logbook.jpg',
+          sha256: deed.sha256,
+        },
+      ],
     });
     expect(itemOf(section, 'income', incomeItem().id).attachments).toEqual([]);
   });
@@ -422,7 +437,9 @@ describe('linking an attachment (S10)', () => {
     const payslip = upload('psc', ACHIENG);
     api.documents.givenUploads(deed, payslip);
     await link(draft.id, { sectionKey: STATEMENT, itemId: ASSET_ID, uploadId: deed.id });
-    await link(draft.id, { sectionKey: STATEMENT, itemId: incomeItem().id, uploadId: payslip.id });
+    const kept = (
+      await link(draft.id, { sectionKey: STATEMENT, itemId: incomeItem().id, uploadId: payslip.id })
+    ).json<DeclarationAttachment>();
 
     const saved = await saveStatement(
       draft.id,
@@ -441,7 +458,12 @@ describe('linking an attachment (S10)', () => {
       }),
     ]);
     expect(itemOf(await statement(draft.id), 'income', incomeItem().id).attachments).toEqual([
-      { uploadId: payslip.id, fileName: payslip.fileName, sha256: payslip.sha256 },
+      {
+        attachmentId: kept.id,
+        uploadId: payslip.id,
+        fileName: payslip.fileName,
+        sha256: payslip.sha256,
+      },
     ]);
     expect(api.documents.unlinked).toEqual([`psc ${deed.id}`]);
   });
@@ -465,10 +487,12 @@ describe('ciphertext opacity for attachments (S13, ADR-006)', () => {
     const draft = await draftWithItems();
     const deed = upload('psc', ACHIENG, { fileName: 'title-deed-kisumu.pdf' });
     api.documents.givenUploads(deed);
-    expect(
-      (await link(draft.id, { sectionKey: STATEMENT, itemId: ASSET_ID, uploadId: deed.id }))
-        .statusCode,
-    ).toBe(201);
+    const linked = await link(draft.id, {
+      sectionKey: STATEMENT,
+      itemId: ASSET_ID,
+      uploadId: deed.id,
+    });
+    expect(linked.statusCode).toBe(201);
 
     const { rows: attachments } = await api.asPerson(ACHIENG, (tx) =>
       tx.execute(sql`select * from declaration_attachments where declaration_id = ${draft.id}`),
@@ -485,7 +509,12 @@ describe('ciphertext opacity for attachments (S13, ADR-006)', () => {
     );
     expect(JSON.stringify(sections)).not.toContain('title-deed');
     expect(itemOf(await statement(draft.id), 'assets', ASSET_ID).attachments).toEqual([
-      { uploadId: deed.id, fileName: 'title-deed-kisumu.pdf', sha256: deed.sha256 },
+      {
+        attachmentId: linked.json<DeclarationAttachment>().id,
+        uploadId: deed.id,
+        fileName: 'title-deed-kisumu.pdf',
+        sha256: deed.sha256,
+      },
     ]);
   });
 });

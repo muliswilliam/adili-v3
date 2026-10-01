@@ -18,7 +18,7 @@ import { EventPublisher } from '@adili/events';
 import { and, eq, inArray, isNull, lt, or, sql } from 'drizzle-orm';
 import { v7 as uuidv7 } from 'uuid';
 
-import { config } from '../config.js';
+import { config, SYSTEM_SUBJECT } from '../config.js';
 import type { DocumentsSchema } from '../db/schema.js';
 import { MalwareScanner } from '../scanning/malware-scanner.js';
 import { S3, S3_PUBLIC } from '../storage/storage.module.js';
@@ -348,7 +348,7 @@ export class UploadsService {
   async expireStale(): Promise<number> {
     const expired = await withTenant(
       this.db,
-      { tenant: PLATFORM_TENANT, subject: 'system' },
+      { tenant: PLATFORM_TENANT, subject: SYSTEM_SUBJECT },
       (tx) =>
         tx
           .update(uploads)
@@ -381,7 +381,7 @@ export class UploadsService {
     if (LINKED_PURPOSES.length === 0) return 0;
     const orphans = await withTenant(
       this.db,
-      { tenant: PLATFORM_TENANT, subject: 'system' },
+      { tenant: PLATFORM_TENANT, subject: SYSTEM_SUBJECT },
       async (tx) => {
         const deleted = await tx
           .update(uploads)

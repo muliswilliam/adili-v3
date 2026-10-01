@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import type { CompletenessIssue } from '../../server/declarations/types';
+import type { CompletenessIssue, DeclarationSummary } from '../../server/declarations/types';
 import {
   blockingGroups,
   blockingTitle,
@@ -11,10 +11,12 @@ import {
   spouseDetails,
   spousesEmptyText,
   statementTotals,
-  SUBMIT_NEXT_RELEASE,
+  SUBMIT_READY,
   submitNote,
 } from './summary';
 import { sections } from './testing';
+
+type CannotSubmitReason = NonNullable<DeclarationSummary['cannotSubmitReason']>;
 
 const SPOUSE = 'statement:spouse:5f0c2b8e-1d2a-4c3b-9e4f-5a6b7c8d9e0f';
 
@@ -22,18 +24,41 @@ function issue(sectionKey: string, message: string): CompletenessIssue {
   return { sectionKey, path: '/x', code: 'required', message };
 }
 
-describe('S20: the disabled Submit button says why', () => {
-  const summary = (
-    cannotSubmitReason: 'submission-not-available' | 'before-statement-date',
-    statementDate = '2027-11-01',
-  ) => ({ cannotSubmitReason, declaration: { statementDate } });
+describe('the note beside Submit (S20, spec 06 FE-2)', () => {
+  const summary = (cannotSubmitReason: CannotSubmitReason | null, blocking: unknown[] = []) => ({
+    cannotSubmitReason,
+    blocking,
+    declaration: { statementDate: '2027-11-01', dueDate: '2027-12-31' },
+  });
+
+  it('says the one-time code comes first when the declaration can be submitted', () => {
+    expect(submitNote(summary(null))).toBe(SUBMIT_READY);
+    expect(SUBMIT_READY).toBe(
+      'You will confirm your identity with a one-time code before submitting.',
+    );
+  });
+
+  it('says how much is left to complete', () => {
+    expect(submitNote(summary('incomplete', [{}, {}, {}]))).toBe(
+      'Complete the 3 items listed above to submit.',
+    );
+    expect(submitNote(summary('incomplete', [{}]))).toBe(
+      'Complete the 1 item listed above to submit.',
+    );
+  });
 
   it('says when an upcoming obligation can be submitted', () => {
     expect(submitNote(summary('before-statement-date'))).toBe('Available from 1 Nov 2027');
   });
 
-  it('says submission opens in the next release for a due obligation', () => {
-    expect(submitNote(summary('submission-not-available', '2026-09-10'))).toBe(SUBMIT_NEXT_RELEASE);
+  it('says why a declaration or obligation that takes no submission does not', () => {
+    expect(submitNote(summary('not-a-draft'))).toBe('This declaration has already been submitted.');
+    expect(submitNote(summary('amendment-window-closed'))).toBe(
+      'Amendments closed on 31 Dec 2027. Contact your Commission.',
+    );
+    expect(submitNote(summary('obligation-cancelled'))).toBe(
+      'This declaration is no longer required, so it cannot be submitted. Contact your Commission if you think this is wrong.',
+    );
   });
 });
 

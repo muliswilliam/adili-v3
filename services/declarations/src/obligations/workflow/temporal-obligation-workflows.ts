@@ -15,6 +15,7 @@ import { filingObligations } from '../schema.js';
 import { type ObligationChanges, ObligationWorkflows, type StoppedWorkflow } from '../workflows.js';
 import {
   cancelSignal,
+  filedSignal,
   FILING_OBLIGATION_WORKFLOW,
   type FilingObligationInput,
   personLinkedSignal,
@@ -56,6 +57,9 @@ export class TemporalObligationWorkflows extends ObligationWorkflows {
     );
     await eachSettled(changes.personLinked, failures, (obligationId) =>
       this.signal(obligationId, (handle) => handle.signal(personLinkedSignal)),
+    );
+    await eachSettled(changes.filed, failures, (obligationId) =>
+      this.signal(obligationId, (handle) => handle.signal(filedSignal)),
     );
     if (failures.length > 0) {
       throw new AggregateError(

@@ -9,8 +9,10 @@ import { DATABASE, DatabaseModule, DatabaseReadinessCheck } from '@adili/data-ac
 import { EventsModule, RabbitMqReadinessCheck } from '@adili/events';
 import { TemporalModule, TemporalReadinessCheck } from '@adili/temporal';
 
+import { AcknowledgementsModule } from './acknowledgements/acknowledgements.module.js';
 import { config, SERVICE_NAME } from './config.js';
 import { schema } from './db/schema.js';
+import { IssuanceModule } from './issuance/issuance.module.js';
 import { S3ReadinessCheck, StorageModule } from './storage/storage.module.js';
 import { UploadsModule } from './uploads/uploads.module.js';
 
@@ -51,6 +53,8 @@ import { UploadsModule } from './uploads/uploads.module.js';
     }),
     StorageModule,
     UploadsModule,
+    IssuanceModule,
+    AcknowledgementsModule,
   ],
 })
 export class AppModule {}

@@ -3,7 +3,7 @@ import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import { beforeEach, describe, expect, it } from 'vitest';
 
 import { keycloakAdmin } from './support/admin.js';
-import { Browser, type KcContext, type Page } from './support/browser.js';
+import { Browser, context, type Page } from './support/browser.js';
 import { latestEmail, latestSmsCode, waitForNew } from './support/inboxes.js';
 
 /**
@@ -14,7 +14,7 @@ const KEYCLOAK = requireEnv('TEST_KEYCLOAK_URL');
 const MAILPIT = requireEnv('TEST_MAILPIT_URL');
 const MOCKS = requireEnv('TEST_MOCKS_URL');
 const REALM = `${KEYCLOAK}/realms/adili`;
-const { adminToken, adminFetch } = keycloakAdmin(KEYCLOAK);
+const { adminToken, adminFetch, changeConfig } = keycloakAdmin(KEYCLOAK);
 const PORTAL = 'http://localhost:3010';
 const REDIRECT_URI = `${PORTAL}/auth/callback`;
 
@@ -53,15 +53,6 @@ async function signInWithPassword(user: { username: string; password: string }) 
   // A locked account, for one, comes back to the login page with only a message to say why.
   expect(context(page).pageId, context(page).message?.summary).not.toBe('login.ftl');
   return { browser, page };
-}
-
-function context(page: Page): KcContext {
-  if (!page.kcContext) {
-    throw new Error(
-      `no Keycloak page at ${page.url} (status ${page.status}, location ${page.location})`,
-    );
-  }
-  return page.kcContext;
 }
 
 const post = (browser: Browser, page: Page, fields: Record<string, string>) =>
@@ -357,38 +348,6 @@ async function createDeclarant(
     body: JSON.stringify([role]),
   });
   return userId;
-}
-
-/**
- * Changes the config of an execution in the `adili otp` flow (by provider id) and returns how to
- * put it back, so a case can shorten a lifetime or cooldown without waiting it out.
- */
-async function changeConfig(
-  token: string,
-  providerId: string,
-  changes: Record<string, string>,
-): Promise<() => Promise<void>> {
-  const executions = (await (
-    await adminFetch(token, `/authentication/flows/${encodeURIComponent('adili otp')}/executions`)
-  ).json()) as { authenticationConfig?: string; providerId?: string }[];
-  const configId = executions.find(
-    (execution) => execution.providerId === providerId,
-  )?.authenticationConfig;
-  if (!configId) throw new Error(`adili otp has no configured ${providerId}`);
-  const original = (await (
-    await adminFetch(token, `/authentication/config/${configId}`)
-  ).json()) as {
-    config: Record<string, string>;
-  };
-  const put = (config: Record<string, string>) =>
-    adminFetch(token, `/authentication/config/${configId}`, {
-      method: 'PUT',
-      body: JSON.stringify({ ...original, config }),
-    });
-  await put({ ...original.config, ...changes });
-  return async () => {
-    await put(original.config);
-  };
 }
 
 function requireEnv(name: string): string {

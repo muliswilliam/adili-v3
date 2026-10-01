@@ -144,62 +144,16 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/internal/v1/documents/issue": {
+    "/v1/documents/{documentId}": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        get?: never;
-        put?: never;
-        /**
-         * Render, sign and register a document (services)
-         * @description Gotenberg PDF from a versioned template with the verification code and QR in the footer,
-         *     PAdES signature, SHA-256, Ed25519-signed verification record, object storage, event.
-         */
-        post: operations["issueDocument"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/internal/v1/documents/{documentId}/supersede": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                documentId: components["parameters"]["DocumentId"];
-            };
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Mark a document superseded by a newer one
-         * @description Sets `status` to superseded and `supersededBy` to the newer document. A document
-         *     already superseded or revoked is refused with 409.
-         */
-        post: operations["supersedeDocument"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/documents/{documentId}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                documentId: components["parameters"]["DocumentId"];
-            };
-            cookie?: never;
-        };
         /**
          * Metadata of an issued document (owner)
-         * @description The subject person (`subjectPersonId`) only; anyone else gets 404.
+         * @description The person the document is about only; anyone else gets 404.
          */
         get: operations["getDocument"];
         put?: never;
@@ -214,19 +168,56 @@ export interface paths {
         parameters: {
             query?: never;
             header?: never;
-            path: {
-                documentId: components["parameters"]["DocumentId"];
-            };
+            path?: never;
             cookie?: never;
         };
         /**
          * Short-lived presigned download of an issued PDF (owner)
-         * @description The subject person only; audited, and emits `document.downloaded.v1`. Refused with 410
-         *     once the document's download window has ended.
+         * @description The person the document is about only; anyone else gets 404. Every download link handed out is audited under the issuing Commission.
          */
         get: operations["getDocumentDownload"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/internal/v1/documents/issue": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Render, sign and register a document (services)
+         * @description Service tokens with scope documents:internal, issuing for the tenant in X-Acting-Tenant. Renders the type's versioned template to PDF through Gotenberg with the verification code and QR in the footer of every page, PAdES-signs it with the documents signing certificate, stores its SHA-256 in an Ed25519-signed verification record, stores the PDF and emits `document.issued.v1`. The disclosure level and public payload are the template's. One document per type and subject: issuing again returns it with 200.
+         */
+        post: operations["issueDocument"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/internal/v1/documents/{documentId}/supersede": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Mark a document superseded by a newer one (services)
+         * @description Service tokens with scope documents:internal, acting for the tenant in X-Acting-Tenant. Sets the status to superseded and supersededBy to the newer document, re-signs the verification record and emits `document.superseded.v1`.
+         */
+        post: operations["supersedeDocument"];
         delete?: never;
         options?: never;
         head?: never;
@@ -309,6 +300,90 @@ export interface components {
             /** @description Sniffed content type, e.g. text/csv or the XLSX type */
             detectedType: string;
         };
+        /**
+         * @description Document types with a template; later specs add theirs
+         * @enum {string}
+         */
+        DocumentType: "acknowledgement-slip";
+        /**
+         * @description What the public verify page shows: public (content), restricted (reference, type, Commission, date), confidential (validity only). Fixed by the document type's template
+         * @enum {string}
+         */
+        DisclosureLevel: "public" | "restricted" | "confidential";
+        /** @enum {string} */
+        DocumentStatus: "valid" | "superseded" | "revoked" | "expired";
+        IssueDocument: {
+            type: components["schemas"]["DocumentType"];
+            templateVersion: number;
+            /**
+             * @description The record the document is about; one document per type and subject. Issuing again returns it
+             * @example declaration-version:0192f0c4-8a51-7cc2-9d1e-3b3f2a7e4c10
+             */
+            subjectRef: string;
+            /** @description The person who may download the document (the declarant); null for none */
+            subjectPersonId: string | null;
+            payload: components["schemas"]["AcknowledgementSlipPayload"];
+        };
+        SupersedeDocument: {
+            /**
+             * Format: uuid
+             * @description The newer document of the same type and tenant
+             */
+            supersededBy: string;
+        };
+        IssuedDocument: {
+            /** Format: uuid */
+            id: string;
+            type: components["schemas"]["DocumentType"];
+            templateVersion: number;
+            disclosureLevel: components["schemas"]["DisclosureLevel"];
+            issuerTenant: string;
+            subjectRef: string;
+            /**
+             * @description Printed under the QR code
+             * @example ADL-7Q4K-M2XR-9HTC-2B7F-Q3ZD-9KMV-8P
+             */
+            verificationId: string;
+            /**
+             * Format: uri
+             * @description The QR code's payload: the document's verify page
+             */
+            verifyUrl: string;
+            sha256: string;
+            status: components["schemas"]["DocumentStatus"];
+            supersededBy: string | null;
+            /** Format: date-time */
+            issuedAt: string;
+        };
+        DocumentDownload: {
+            /**
+             * Format: uri
+             * @description Presigned GET of the signed PDF
+             */
+            downloadUrl: string;
+            /** Format: date-time */
+            expiresAt: string;
+            sha256: string;
+        };
+        /** @description Payload of acknowledgement-slip v1: what the declarations service's acknowledgement payload endpoint returns for a submitted version */
+        AcknowledgementSlipPayload: {
+            declarantName: string;
+            commissionName: string;
+            issuerCode: string;
+            /** @enum {string} */
+            declarationType: "initial" | "biennial" | "final";
+            /** Format: date */
+            statementDate: string;
+            dueDate: string | null;
+            /** @description Declaration reference number (ADR-011), e.g. DCB-PSC-2027-0000001-1 */
+            reference: string;
+            version: number;
+            /** Format: date-time */
+            submittedAt: string;
+            late: boolean;
+            statementCount: number;
+            itemCount: number;
+        };
         InternalUpload: {
             /** Format: uuid */
             id: string;
@@ -339,7 +414,7 @@ export interface components {
              * @description Machine-readable cause, from the platform registry; clients map it to copy and never show `title` or `detail`
              * @enum {string}
              */
-            code?: "rate-limit-exceeded" | "no-match" | "already-onboarded" | "no-roster" | "otp-invalid" | "otp-expired" | "resend-cooldown" | "otp-send-failed" | "wrong-step" | "session-expired" | "iprs-unavailable" | "identity-unavailable" | "email-in-use";
+            code?: "database-unavailable" | "rate-limit-exceeded" | "no-match" | "already-onboarded" | "no-roster" | "otp-invalid" | "otp-expired" | "resend-cooldown" | "otp-send-failed" | "wrong-step" | "session-expired" | "iprs-unavailable" | "identity-unavailable" | "email-in-use" | "step-up-required" | "incomplete" | "before-statement-date" | "amendment-window-closed" | "not-a-draft" | "not-submitted" | "obligation-cancelled" | "acknowledgement-issued" | "acknowledgement-in-progress";
             detail?: string;
             instance?: string;
             /** @description Field-level errors; `path` is the dotted request field */
@@ -348,87 +423,9 @@ export interface components {
                 message: string;
             }[];
         };
-        /** @enum {string} */
-        DocumentType: "acknowledgement-slip" | "clarification-letter" | "decision-letter" | "notice-to-comply" | "warning" | "salary-stoppage" | "disciplinary-referral" | "referral-package" | "form-m" | "compliance-report-receipt" | "ncr" | "access-package" | "certified-copy" | "open-data-manifest";
-        /** @enum {string} */
-        DisclosureLevel: "public" | "restricted" | "confidential";
-        /** @enum {string} */
-        DocumentStatus: "valid" | "superseded" | "revoked" | "expired";
-        IssueDocument: {
-            type: components["schemas"]["DocumentType"];
-            templateVersion: number;
-            disclosureLevel: components["schemas"]["DisclosureLevel"];
-            issuerTenant: string;
-            /** @description Owning record, e.g. declaration-version:<uuid> */
-            subjectRef: string;
-            /**
-             * Format: uuid
-             * @description Person allowed to download the document
-             */
-            subjectPersonId: string | null;
-            /** @description Fields the template renders; never stored beyond the PDF */
-            payload: {
-                [key: string]: unknown;
-            };
-            /** @description Fields shown on the verify page for public and restricted levels */
-            publicPayload: {
-                [key: string]: unknown;
-            };
-            /** @description Rendered on every page (access packages) */
-            watermark?: components["schemas"]["Watermark"] | null;
-            /** @description Downloads refused after issuedAt + window (410); null means no window */
-            downloadWindowDays?: number | null;
-        };
-        Watermark: {
-            recipientName: string;
-            /** @description ARQ or LEA reference */
-            reference: string;
-            /** Format: date */
-            date: string;
-        };
-        IssuedDocument: {
-            /** Format: uuid */
-            id: string;
-            type: components["schemas"]["DocumentType"];
-            templateVersion: number;
-            disclosureLevel: components["schemas"]["DisclosureLevel"];
-            issuerTenant: string;
-            subjectRef: string;
-            /** @description e.g. ADL-7Q4K-M2XR-9HTC-2B7F-Q3ZD-9K */
-            verificationId: string;
-            sha256: string;
-            status: components["schemas"]["DocumentStatus"];
-            /** Format: uuid */
-            supersededBy: string | null;
-            /** Format: date-time */
-            issuedAt: string;
-            /** Format: date-time */
-            downloadExpiresAt: string | null;
-        };
     };
-    responses: {
-        /** @description Request failed validation */
-        ValidationProblem: {
-            headers: {
-                [name: string]: unknown;
-            };
-            content: {
-                "application/problem+json": components["schemas"]["ProblemDetails"];
-            };
-        };
-        /** @description Not found, or not visible to the caller */
-        NotFound: {
-            headers: {
-                [name: string]: unknown;
-            };
-            content: {
-                "application/problem+json": components["schemas"]["ProblemDetails"];
-            };
-        };
-    };
-    parameters: {
-        DocumentId: string;
-    };
+    responses: never;
+    parameters: never;
     requestBodies: never;
     headers: never;
     pathItems: never;
@@ -700,6 +697,8 @@ export interface operations {
             header: {
                 /** @description Tenant the calling service acts for; the resource must belong to it */
                 "X-Acting-Tenant": string;
+                /** @description Optional. Client-generated UUID, unique per logical request; reuse on retry and the stored answer is replayed instead of acting twice */
+                "Idempotency-Key"?: string;
             };
             path: {
                 id: string;
@@ -744,6 +743,15 @@ export interface operations {
             };
             /** @description Problem type `upload-not-clean`: the upload is not clean */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Idempotency-Key reused with a different request body */
+            422: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -803,85 +811,12 @@ export interface operations {
             };
         };
     };
-    issueDocument: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["IssueDocument"];
-            };
-        };
-        responses: {
-            /** @description Issued */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["IssuedDocument"];
-                };
-            };
-            400: components["responses"]["ValidationProblem"];
-            /** @description Renderer or signer unavailable; nothing registered */
-            502: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetails"];
-                };
-            };
-        };
-    };
-    supersedeDocument: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                documentId: components["parameters"]["DocumentId"];
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": {
-                    /** Format: uuid */
-                    supersededBy: string;
-                };
-            };
-        };
-        responses: {
-            /** @description Superseded */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["IssuedDocument"];
-                };
-            };
-            404: components["responses"]["NotFound"];
-            /** @description Already superseded or revoked */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetails"];
-                };
-            };
-        };
-    };
     getDocument: {
         parameters: {
             query?: never;
             header?: never;
             path: {
-                documentId: components["parameters"]["DocumentId"];
+                documentId: string;
             };
             cookie?: never;
         };
@@ -896,7 +831,15 @@ export interface operations {
                     "application/json": components["schemas"]["IssuedDocument"];
                 };
             };
-            404: components["responses"]["NotFound"];
+            /** @description Not found, or not visible to the caller */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
         };
     };
     getDocumentDownload: {
@@ -904,7 +847,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                documentId: components["parameters"]["DocumentId"];
+                documentId: string;
             };
             cookie?: never;
         };
@@ -916,18 +859,170 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        /** Format: uri */
-                        downloadUrl: string;
-                        /** Format: date-time */
-                        expiresAt: string;
-                        sha256: string;
-                    };
+                    "application/json": components["schemas"]["DocumentDownload"];
                 };
             };
-            404: components["responses"]["NotFound"];
-            /** @description Download window has ended */
-            410: {
+            /** @description Not found, or not visible to the caller */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    issueDocument: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Tenant the calling service acts for; the resource must belong to it */
+                "X-Acting-Tenant": string;
+                /** @description Optional. Client-generated UUID, unique per logical request; reuse on retry and the stored answer is replayed instead of acting twice */
+                "Idempotency-Key"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["IssueDocument"];
+            };
+        };
+        responses: {
+            /** @description Issued for this subject already; the document issued */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IssuedDocument"];
+                };
+            };
+            /** @description Issued */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IssuedDocument"];
+                };
+            };
+            /** @description Request failed validation, or the payload is not the template's */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Requires a service token with scope documents:internal */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Idempotency-Key reused with a different request body */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Problem type `renderer-unavailable`, `signer-unavailable` or `storage-unavailable`: nothing was issued; retry */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    supersedeDocument: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Tenant the calling service acts for; the resource must belong to it */
+                "X-Acting-Tenant": string;
+                /** @description Optional. Client-generated UUID, unique per logical request; reuse on retry and the stored answer is replayed instead of acting twice */
+                "Idempotency-Key"?: string;
+            };
+            path: {
+                documentId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SupersedeDocument"];
+            };
+        };
+        responses: {
+            /** @description Superseded */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IssuedDocument"];
+                };
+            };
+            /** @description X-Acting-Tenant is missing or not a tenant key */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Requires a service token with scope documents:internal */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not found, or not the acting tenant's document */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Problem type `document-not-valid` (superseded or revoked already) or `superseding-document-invalid` (the newer document is not a valid document of the same type) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Idempotency-Key reused with a different request body */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Problem type `signer-unavailable`: nothing changed; retry */
+            502: {
                 headers: {
                     [name: string]: unknown;
                 };

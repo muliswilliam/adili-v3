@@ -1,6 +1,10 @@
 import type { z } from 'zod';
 
 import {
+  acknowledgementPayloadSchema,
+  acknowledgementSlipSchema,
+} from './acknowledgement/representation.js';
+import {
   attachmentLinkSchema,
   completenessIssueSchema,
   declarationAttachmentSchema,
@@ -37,6 +41,14 @@ import {
   statusCountsSchema,
   summaryCycleSchema,
 } from './obligations/representation.js';
+import { declarationReferenceSchema } from './declaration/reference.js';
+import {
+  acknowledgementSchema,
+  acknowledgementStatusSchema,
+  declarationVersionDetailSchema,
+  declarationVersionSchema,
+} from './declaration/representation.js';
+import { submissionResultSchema, submitProblemSchema } from './submission/representation.js';
 
 /**
  * Named schemas of the declarations service's OpenAPI document (`#/components/schemas/<name>`),
@@ -63,6 +75,7 @@ export const OPENAPI_SCHEMAS: Record<string, z.ZodType> = {
   ProgressCounts: progressCountsSchema,
   ReportingEntityRef: reportingEntityRefSchema,
   DeclarationProgress: declarationProgressSchema,
+  DeclarationReference: declarationReferenceSchema,
   SectionKey: sectionKeySchema,
   Completeness: completenessSchema,
   DeclarationStatus: declarationStatusSchema,
@@ -76,4 +89,12 @@ export const OPENAPI_SCHEMAS: Record<string, z.ZodType> = {
   DeclarationAttachment: declarationAttachmentSchema,
   DeclarationSummary: declarationSummarySchema,
   DeclarationListItem: declarationListItemSchema,
+  AcknowledgementStatus: acknowledgementStatusSchema,
+  Acknowledgement: acknowledgementSchema,
+  DeclarationVersion: declarationVersionSchema,
+  DeclarationVersionDetail: declarationVersionDetailSchema,
+  SubmissionResult: submissionResultSchema,
+  SubmitProblem: submitProblemSchema,
+  AcknowledgementSlip: acknowledgementSlipSchema,
+  AcknowledgementPayload: acknowledgementPayloadSchema,
 };

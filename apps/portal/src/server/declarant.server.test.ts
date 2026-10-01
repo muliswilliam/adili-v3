@@ -35,17 +35,17 @@ describe('loadDeclarantAccount', () => {
     expect(result).toEqual({
       status: 'onboarded',
       account: {
-        fullName: 'Mwangi Njoroge Kamau',
+        fullName: 'Wanjiku Njoki Kamau',
         ofr: 'OFR-0000312-7',
         commissions: [
           { slug: 'tsc', name: 'Teachers Service Commission', onboardedAt: '2026-09-26T07:42:00Z' },
         ],
-        maskedEmail: 'm***@tsc.go.ke',
+        maskedEmail: 'w***@tsc.go.ke',
         maskedPhone: '07** *** 789',
       },
     });
     // The full contacts stay on the server.
-    expect(JSON.stringify(result)).not.toContain('mwangi.kamau');
+    expect(JSON.stringify(result)).not.toContain('wanjiku.kamau');
     expect(JSON.stringify(result)).not.toContain('712345789');
   });
 
@@ -70,7 +70,7 @@ describe('loadDeclarantAccount', () => {
     const profile: DeclarantProfile = {
       personId: '5b0c8f7e-3f5d-4d59-9a53-0d6c1f0b2a11',
       ofr: 'OFR-0000312-7',
-      fullName: 'Mwangi Njoroge Kamau',
+      fullName: 'Wanjiku Njoki Kamau',
       contacts: { email: null, phone: null },
       commissions: [
         {

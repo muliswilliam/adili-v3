@@ -6,6 +6,7 @@ import { and, eq } from 'drizzle-orm';
 import { v7 as uuidv7 } from 'uuid';
 
 import { Clock } from '../clock.js';
+import { isEditable } from '../declaration/schema.js';
 import type { DeclarationsSchema } from '../db/schema.js';
 import type { Transaction } from '../db/transaction.js';
 import {
@@ -127,6 +128,7 @@ export class AttachmentsService {
         // Null when a save removed the item since it was checked.
         const changed = notFoundIfInvisible(
           withAttachment(stored, itemId, {
+            attachmentId: attachment.id,
             uploadId,
             fileName,
             sha256: attachment.sha256,
@@ -334,7 +336,7 @@ async function draftOf(
 ): Promise<DeclarationRow | null> {
   const declaration = await liveDeclaration(tx, declarationId, { lock });
   if (!declaration) return null;
-  if (declaration.status !== 'draft') throw declarationNotDraft('edited');
+  if (!isEditable(declaration.status)) throw declarationNotDraft('edited');
   return declaration;
 }
 

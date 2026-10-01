@@ -1,12 +1,15 @@
+import type { ProblemCode } from '@adili/api-kit';
 import { z } from 'zod';
 
 import { commissionRefSchema, obligationTypeSchema } from '../obligations/representation.js';
+import { acknowledgementStatusSchema } from '../declaration/representation.js';
+import { declarationReferenceSchema } from '../declaration/reference.js';
 import {
   DECLARATION_STATUS_VALUES,
   INCOME_PERIOD_SOURCE_VALUES,
   SCHEMA_VERSION,
-  SECTION_COMPLETENESS_VALUES,
-} from './schema.js';
+} from '../declaration/schema.js';
+import { SECTION_COMPLETENESS_VALUES } from './schema.js';
 import { SECTION_KEY } from './sections.js';
 
 /**
@@ -29,6 +32,9 @@ export const declarationSchema = z.object({
   commission: commissionRefSchema,
   type: obligationTypeSchema,
   statementDate: z.iso.date(),
+  dueDate: z.iso.date().meta({
+    description: "The obligation's due date: filed after it is late, and amendments close on it",
+  }),
   incomePeriod: z.object({
     from: z.iso.date().meta({ description: 'Exclusive: the income period is (from, to]' }),
     to: z.iso.date(),
@@ -66,6 +72,17 @@ export const declarationSchema = z.object({
         'Sections in First Schedule order; archived statements listed with completeness archived',
     }),
   lastSection: sectionKeySchema.nullable(),
+  reference: declarationReferenceSchema
+    .nullable()
+    .meta({ description: 'Allocated at the first submission; null before' }),
+  currentVersion: z
+    .int()
+    .min(1)
+    .nullable()
+    .meta({ description: 'The submitted version in force; null before the first submission' }),
+  amendingFromVersion: z.int().min(1).nullable().meta({
+    description: 'The version an amendment in progress started from; null unless amending',
+  }),
   createdAt: z.iso.datetime(),
   updatedAt: z.iso.datetime(),
 });
@@ -147,11 +164,17 @@ export const declarationAttachmentSchema = z.object({
 });
 export type DeclarationAttachment = z.infer<typeof declarationAttachmentSchema>;
 
-/** Why a draft cannot be submitted: never before its statement date, and not until slice 06. */
+/**
+ * Why the declaration cannot be submitted now, as submitting would answer: the problem code of
+ * the refusal (`incomplete` when the document does not validate).
+ */
 export const CANNOT_SUBMIT_REASON_VALUES = [
-  'submission-not-available',
+  'not-a-draft',
+  'obligation-cancelled',
   'before-statement-date',
-] as const;
+  'amendment-window-closed',
+  'incomplete',
+] as const satisfies readonly ProblemCode[];
 export type CannotSubmitReason = (typeof CANNOT_SUBMIT_REASON_VALUES)[number];
 
 export const declarationSummarySchema = z.object({
@@ -168,10 +191,17 @@ export const declarationSummarySchema = z.object({
     description:
       'What to complete before submitting, by section and field: the schema issues and the rules it cannot state, each once',
   }),
-  canSubmit: z.boolean().meta({ description: 'Always false in slice 05' }),
-  cannotSubmitReason: z.enum(CANNOT_SUBMIT_REASON_VALUES).meta({
+  canSubmit: z.boolean().meta({
     description:
-      '`before-statement-date`: the statement date (Nairobi) has not come; `submission-not-available`: submission opens in the next release',
+      'Whether submitting now would pass every check but the step-up: a valid document, a draft or amendment in progress, and an obligation open for it',
+  }),
+  cannotSubmitReason: z.enum(CANNOT_SUBMIT_REASON_VALUES).nullable().meta({
+    description:
+      'Null when canSubmit; else the first reason in this order: `not-a-draft` (already submitted), `obligation-cancelled`, `before-statement-date` (the statement date, Africa/Nairobi, has not come), `amendment-window-closed` (an amendment after the due date), `incomplete` (see blocking)',
+  }),
+  late: z.boolean().meta({
+    description:
+      'Submitting now would be recorded as filed late: today (Africa/Nairobi) is after the due date',
   }),
   attestationText: z.string().meta({ description: 'The solemn declaration the declarant makes' }),
 });
@@ -188,6 +218,46 @@ export const declarationListItemSchema = z.object({
     description:
       'Complete sections out of the live ones (archived statements left out), rounded down',
   }),
+  dueDate: z.iso.date().meta({
+    description: "The obligation's due date: filed after it is late, and amendments close on it",
+  }),
+  reference: declarationReferenceSchema
+    .nullable()
+    .meta({ description: 'Allocated at the first submission; null before' }),
+  currentVersion: z
+    .int()
+    .min(1)
+    .nullable()
+    .meta({ description: 'The submitted version in force; null before the first submission' }),
+  amendingFromVersion: z.int().min(1).nullable().meta({
+    description: 'The version an amendment in progress started from; null unless amending',
+  }),
+  submittedAt: z.iso
+    .datetime()
+    .nullable()
+    .meta({ description: 'When the version in force was submitted; null before' }),
+  late: z
+    .boolean()
+    .nullable()
+    .meta({ description: 'The version in force was filed after the due date; null before' }),
+  amendable: z.boolean().meta({
+    description:
+      'Amend is open now: submitted (no amendment in progress) and today, Africa/Nairobi by the service clock, is on or before the due date. False otherwise; when submitted and false, amendments are closed',
+  }),
+  acknowledgement: z
+    .object({
+      status: acknowledgementStatusSchema,
+      documentId: z
+        .uuid()
+        .nullable()
+        .meta({ description: 'The issued slip, for its download; null until issued' }),
+      verifiedCount: z.int().meta({ description: 'Lookups of the slip on the verify app' }),
+    })
+    .nullable()
+    .meta({
+      description:
+        "The version in force's acknowledgement slip (as getAcknowledgement answers it); null before the first submission",
+    }),
   updatedAt: z.iso.datetime(),
 });
 export type DeclarationListItem = z.infer<typeof declarationListItemSchema>;

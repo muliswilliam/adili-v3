@@ -1,4 +1,8 @@
-import type { Obligation, ObligationGroup } from '../../server/declarations/types';
+import type {
+  DeclarationListItem,
+  Obligation,
+  ObligationGroup,
+} from '../../server/declarations/types';
 import type { MyObligationsResult } from '../../server/obligations.server';
 import type { DraftsState } from './drafts';
 import { messages as m } from './obligation-messages';
@@ -39,7 +43,9 @@ export function dashboardGroups(groups: readonly ObligationGroup[]): ObligationG
 
 /**
  * Whether the declarant can start (or continue) a declaration for an obligation (S20): due,
- * overdue and upcoming ones yes; filed and cancelled ones no, with the reason shown. While the
+ * overdue and upcoming ones yes; cancelled ones no, with the reason shown. A filed one offers its
+ * acknowledgement instead, with the declaration that filed it (spec 06); when that declaration is
+ * not among the declarant's, or they are not loaded yet, it is closed with the reason. While the
  * declarations are still loading it is `pending`: a draft may exist to continue. When they could
  * not be loaded the declarant may still start: the service answers with the existing draft.
  */
@@ -47,13 +53,25 @@ export type StartAvailability =
   | { kind: 'start' }
   | { kind: 'pending' }
   | { kind: 'continue'; declarationId: string }
+  | { kind: 'filed'; declaration: DeclarationListItem }
   | { kind: 'closed'; reason: string };
 
 export function startAvailability(
   obligation: Pick<Obligation, 'id' | 'status'>,
   drafts: DraftsState,
 ): StartAvailability {
-  if (obligation.status === 'filed') return { kind: 'closed', reason: m.closedFiled };
+  if (obligation.status === 'filed') {
+    const filed =
+      drafts.status === 'ok'
+        ? drafts.declarations.find(
+            (declaration) =>
+              declaration.obligationId === obligation.id && declaration.currentVersion !== null,
+          )
+        : undefined;
+    return filed
+      ? { kind: 'filed', declaration: filed }
+      : { kind: 'closed', reason: m.closedFiled };
+  }
   if (obligation.status === 'cancelled') return { kind: 'closed', reason: m.closedCancelled };
   if (drafts.status === 'pending') return { kind: 'pending' };
   if (drafts.status === 'unavailable') return { kind: 'start' };

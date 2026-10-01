@@ -51,7 +51,7 @@ export class WorkflowTestEnvironment {
 
   static async create(): Promise<WorkflowTestEnvironment> {
     installQuietRuntime();
-    return new WorkflowTestEnvironment(await TestWorkflowEnvironment.createTimeSkipping());
+    return new WorkflowTestEnvironment(await startTimeSkippingServer());
   }
 
   /** Runs `workflow` to completion on a fresh task queue and returns its result, skipping timers. */
@@ -200,6 +200,27 @@ const quietLogger = {
   warn: noop,
   error: noop,
 };
+
+/** Starts of the test server tried before giving up. */
+const SERVER_START_ATTEMPTS = 3;
+
+/**
+ * Temporal's core gives the test server five seconds to start (a fixed timeout). A machine
+ * starting a server per test file in parallel can take longer, so a start that timed out is tried
+ * again; any other failure is thrown at once.
+ */
+async function startTimeSkippingServer(): Promise<TestWorkflowEnvironment> {
+  for (let attempt = 1; ; attempt++) {
+    try {
+      return await TestWorkflowEnvironment.createTimeSkipping();
+    } catch (error) {
+      // The native bridge turns sdk-core's `EphemeralServerError::StartupTimeout` into a plain
+      // Error (no name or code), so its message is the only thing that tells a timeout apart.
+      const timedOut = error instanceof Error && error.message.includes('did not start within');
+      if (!timedOut || attempt >= SERVER_START_ATTEMPTS) throw error;
+    }
+  }
+}
 
 /**
  * Resolves once an app's `TemporalWorkerModule` worker polls its task queue, as a deployment

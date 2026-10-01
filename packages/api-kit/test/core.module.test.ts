@@ -167,6 +167,9 @@ describe('CoreModule', () => {
       name: null,
       issuedAt: null,
       personId: null,
+      acr: null,
+      authTime: null,
+      tokenId: null,
     });
   });
 

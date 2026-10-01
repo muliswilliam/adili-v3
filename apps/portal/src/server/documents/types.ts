@@ -3,7 +3,7 @@ import type { components } from './schema.gen';
 type Schemas = components['schemas'];
 
 /**
- * The service widens `UploadPurpose` in code as specs add theirs (drafts/documents.yaml), so the
+ * The service widens `UploadPurpose` in code as specs add theirs (internal/documents.yaml), so the
  * contract lacks `clarification-attachment` until spec 07a adds it.
  */
 export type UploadPurpose = Schemas['UploadPurpose'] | 'clarification-attachment';

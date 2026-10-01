@@ -1,5 +1,5 @@
 import { checkCharacter, hasValidCheckCharacter } from './check-character.js';
-import { type NumberingScheme, numberingSchemes } from './schemes.js';
+import { findScheme, type NumberingScheme, numberingSchemes } from './schemes.js';
 
 export interface ReferenceParts {
   issuer?: string;
@@ -27,8 +27,21 @@ export class InvalidReferenceError extends Error {
   }
 }
 
-const ISSUER = /^[A-Z0-9]{2,8}$/;
+/** A tenant key upper-cased: the issuer is always the issuing tenant (ADR-011 §2). */
+const ISSUER = /^[A-Z][A-Z0-9]{1,19}$/;
+/**
+ * A tenant key, as `TENANT_KEY` in `@adili/api-kit` defines it. Repeated, not imported: this
+ * package is a leaf that the browser bundles (packages/ui, the portal, the verify app) import,
+ * and api-kit's entry point pulls in Nest. `reference.test.ts` keeps the two in step.
+ */
+export const TENANT_KEY = /^[a-z][a-z0-9]{1,19}$/;
 const PERIOD = /^\d{4}$/;
+
+/** The issuer code of a tenant: its key upper-cased (`tsc` to `TSC`, `cpsb047` to `CPSB047`). */
+export function issuerCode(tenantKey: string): string {
+  if (!TENANT_KEY.test(tenantKey)) throw new RangeError(`invalid tenant key: ${tenantKey}`);
+  return tenantKey.toUpperCase();
+}
 
 /** Formats a reference number and appends its check character. */
 export function format(scheme: NumberingScheme, parts: ReferenceParts): string {
@@ -77,7 +90,7 @@ export function parse(
   const segments = reference.split('-');
   const code = segments[0] ?? '';
   if (!/^[A-Z]{3}$/.test(code)) throw new InvalidReferenceError('malformed', reference);
-  const scheme = schemes.find((candidate) => candidate.code === code);
+  const scheme = findScheme(code, schemes);
   if (!scheme) throw new InvalidReferenceError('unknown-scheme', reference);
 
   const expected = 3 + Number(scheme.issuer) + Number(scheme.period);

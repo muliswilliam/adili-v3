@@ -40,12 +40,15 @@ export function upload(
  * (404 otherwise, as documents does) and only for clean ones (409). `linked` and `unlinked` list
  * the uploads whose link was recorded or taken back, as `<tenant> <uploadId>`; `unavailable`
  * makes every call fail, and `markLinkedUnavailable` only the call that records a link.
+ * `whileAnswering` runs before each answer, to look at what the caller holds while it waits on
+ * documents.
  */
 export class FakeDocuments extends DocumentsClient {
   readonly linked: string[] = [];
   readonly unlinked: string[] = [];
   unavailable = false;
   markLinkedUnavailable = false;
+  whileAnswering: (() => Promise<void>) | null = null;
   private readonly uploads = new Map<string, FakeUpload>();
 
   givenUploads(...uploads: FakeUpload[]): void {
@@ -57,6 +60,7 @@ export class FakeDocuments extends DocumentsClient {
     this.unlinked.length = 0;
     this.unavailable = false;
     this.markLinkedUnavailable = false;
+    this.whileAnswering = null;
     this.uploads.clear();
   }
 
@@ -91,11 +95,12 @@ export class FakeDocuments extends DocumentsClient {
     return Promise.resolve();
   }
 
-  private answer<T>(
+  private async answer<T>(
     tenant: string,
     uploadId: string,
     clean: (upload: FakeUpload) => T,
   ): Promise<T> {
+    await this.whileAnswering?.();
     if (this.unavailable) {
       return Promise.reject(new DocumentsUnavailable('The documents service did not answer'));
     }
