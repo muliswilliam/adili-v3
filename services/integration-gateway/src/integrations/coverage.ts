@@ -13,6 +13,7 @@ import { PauseFlags } from '../adapter-kit/pause-flags.js';
 import { SYSTEM_POLICIES, type SystemPolicies } from '../adapter-kit/system-policies.js';
 import { type schema, type System, SYSTEMS, verificationResults } from '../db/schema.js';
 import { systemSchema } from '../registries/registry-records.js';
+import { IntegrationSettings } from './integration-settings.js';
 
 export const systemCoverageSchema = z
   .object({
@@ -32,6 +33,13 @@ export const systemCoverageSchema = z
     /** When the registry itself last answered (found or not found); null if it never has. */
     lastSuccessAt: z.iso.datetime({ offset: true }).nullable(),
     paused: z.boolean(),
+    pausedBy: z.string().nullable().meta({
+      description: 'Display name of the platform administrator who paused it; null unless paused',
+    }),
+    pausedAt: z.iso
+      .datetime({ offset: true })
+      .nullable()
+      .meta({ description: 'When it was paused; null unless paused' }),
     rateLimitPerMinute: z.int().positive(),
     cacheTtlSeconds: z.int().positive(),
     timeoutMs: z.int().positive(),
@@ -66,12 +74,25 @@ export class Coverage {
     @InjectDatabase() private readonly db: Database<typeof schema>,
     private readonly breakers: CircuitBreakers,
     private readonly pauses: PauseFlags,
+    private readonly settings: IntegrationSettings,
     @Inject(SYSTEM_POLICIES) private readonly policies: SystemPolicies,
     @Inject(BREAKER_OPTIONS) private readonly breakerOptions: BreakerOptions,
   ) {}
 
+  /** Whether `system` has an adapter: the systems coverage lists, and the ones a pause applies to. */
+  covers(system: System): boolean {
+    return this.policies[system] !== undefined;
+  }
+
+  /** One system's coverage. */
+  async readOne(system: System): Promise<SystemCoverage> {
+    const row = (await this.read()).find((entry) => entry.system === system);
+    if (!row) throw new Error(`No coverage for ${system}`);
+    return row;
+  }
+
   async read(): Promise<SystemCoverage[]> {
-    const systems = SYSTEMS.filter((system) => this.policies[system] !== undefined);
+    const systems = SYSTEMS.filter((system) => this.covers(system));
     const v = verificationResults;
     const counts = await this.db.execute<Counts>(sql`
       select ${v.system} as system,
@@ -83,12 +104,14 @@ export class Coverage {
       where ${v.checkedAt} > now() - interval '24 hours'
       group by ${v.system}`);
     const bySystem = new Map(counts.rows.map((row) => [row.system, row]));
+    const pauseRecords = await this.settings.pauseRecords();
 
     return Promise.all(
       systems.map(async (system): Promise<SystemCoverage> => {
         const policy = this.policies[system];
         if (!policy) throw new Error(`No policy configured for ${system}`);
         const count = bySystem.get(system);
+        const record = pauseRecords.get(system);
         const [lastSuccessAt, paused] = await Promise.all([
           this.lastSuccess(system),
           this.pauses.isPaused(system),
@@ -101,6 +124,9 @@ export class Coverage {
           breaker: this.breakers.stateOf(system),
           lastSuccessAt,
           paused,
+          // The lookups read the flag; who paused it is the record's (none for a stray flag).
+          pausedBy: paused ? (record?.pausedBy ?? null) : null,
+          pausedAt: paused ? (record?.pausedAt ?? null) : null,
           rateLimitPerMinute: policy.ratePerMinute,
           cacheTtlSeconds: policy.cacheTtlSeconds,
           timeoutMs: policy.timeoutMs,

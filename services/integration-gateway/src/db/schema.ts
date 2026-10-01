@@ -80,10 +80,27 @@ export const verificationResults = pgTable(
   ],
 );
 
+/**
+ * What platform administrators set per system (spec 07b): whether it is paused, by whom and
+ * since when. The record of a pause; lookups read the pause flag in Valkey, which the service
+ * restores from here on start. A system without a row was never paused.
+ */
+export const integrationSettings = pgTable('integration_settings', {
+  system: text({ enum: SYSTEMS }).primaryKey(),
+  paused: boolean().notNull().default(false),
+  /** Subject of the platform administrator who paused it; null while not paused. */
+  pausedBy: text(),
+  /** Their display name at the time, for the Integrations page. */
+  pausedByName: text(),
+  pausedAt: timestamp({ withTimezone: true }),
+  updatedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+});
+
 /** Drizzle schema of the integration-gateway database. Only this service reads or writes it (ADR-013). */
 export const schema = {
   ...eventsSchema,
   verificationResults,
+  integrationSettings,
 };
 
 export * from '@adili/events/schema';

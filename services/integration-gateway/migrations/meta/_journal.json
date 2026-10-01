@@ -22,6 +22,13 @@
       "when": 1790885084891,
       "tag": "0002_lookup_purpose_and_payload",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1790892404794,
+      "tag": "0003_integration_settings",
+      "breakpoints": true
     }
   ]
 }

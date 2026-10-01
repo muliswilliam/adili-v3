@@ -71,6 +71,8 @@ describe('GET /v1/integrations/coverage', () => {
       breaker: 'closed',
       lastSuccessAt: null,
       paused: false,
+      pausedBy: null,
+      pausedAt: null,
       rateLimitPerMinute: 60_000,
       cacheTtlSeconds: 86_400,
       timeoutMs: 2_000,

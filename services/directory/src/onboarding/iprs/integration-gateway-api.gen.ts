@@ -153,7 +153,7 @@ export interface paths {
         };
         /**
          * Per-system call volume, cache hit rate, breaker state and last success
-         * @description Every system with an adapter (IPRS, KRA, NTSA, BRS, ArdhiSasa): lookups and failed calls in the last 24 hours, cache hit rate, breaker state, last success, paused, and the configured rate limit, cache lifetime, timeout and breaker rule. Platform administrators only.
+         * @description Every system with an adapter (IPRS, KRA, NTSA, BRS, ArdhiSasa): lookups and failed calls in the last 24 hours, cache hit rate, breaker state, last success, paused (by whom and since when), and the configured rate limit, cache lifetime, timeout and breaker rule. Platform administrators only.
          */
         get: operations["getIntegrationsCoverage"];
         put?: never;
@@ -168,14 +168,15 @@ export interface paths {
         parameters: {
             query?: never;
             header?: never;
-            path: {
-                system: components["parameters"]["System"];
-            };
+            path?: never;
             cookie?: never;
         };
         get?: never;
         put?: never;
-        /** Force lookups to unavailable during a known outage (platform-admin) */
+        /**
+         * Force lookups to unavailable during a known outage (platform-admin)
+         * @description From now on the system's lookups answer `unavailable` with reason `paused` without calling it; answers still in the cache are served. Records who paused it and when, and `integrations.system.paused.v1`. Pausing a paused system changes nothing. Platform administrators only.
+         */
         post: operations["pauseIntegration"];
         delete?: never;
         options?: never;
@@ -187,14 +188,15 @@ export interface paths {
         parameters: {
             query?: never;
             header?: never;
-            path: {
-                system: components["parameters"]["System"];
-            };
+            path?: never;
             cookie?: never;
         };
         get?: never;
         put?: never;
-        /** Resume lookups (platform-admin) */
+        /**
+         * Resume lookups (platform-admin)
+         * @description Lookups call the system again, within its rate limit and behind its breaker. Records `integrations.system.resumed.v1`. Resuming a system that is not paused changes nothing. Platform administrators only.
+         */
         post: operations["resumeIntegration"];
         delete?: never;
         options?: never;
@@ -437,6 +439,10 @@ export interface components {
             breaker: "closed" | "open" | "half-open";
             lastSuccessAt: string | null;
             paused: boolean;
+            /** @description Display name of the platform administrator who paused it; null unless paused */
+            pausedBy: string | null;
+            /** @description When it was paused; null unless paused */
+            pausedAt: string | null;
             rateLimitPerMinute: number;
             cacheTtlSeconds: number;
             timeoutMs: number;
@@ -523,7 +529,6 @@ export interface components {
         CaseRef: string;
         /** @description e.g. regs-r20-1-b, act-s35-5, adr-014-onboarding, declarant-request (lookups the declarant asked for while filing; DPA s.30(1)(a)) */
         LegalBasis: string;
-        System: components["schemas"]["System"];
     };
     requestBodies: never;
     headers: never;
@@ -980,7 +985,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                system: components["parameters"]["System"];
+                system: components["schemas"]["System"];
             };
             cookie?: never;
         };
@@ -995,8 +1000,26 @@ export interface operations {
                     "application/json": components["schemas"]["SystemCoverage"];
                 };
             };
-            /** @description Forbidden */
+            /** @description Requires one of the roles: platform-admin */
             403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description No adapter for the system (payroll and ICMS have no coverage to pause) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Problem type `pause-flag-unavailable`: the pause flag could not be written; nothing changed */
+            503: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -1011,7 +1034,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                system: components["parameters"]["System"];
+                system: components["schemas"]["System"];
             };
             cookie?: never;
         };
@@ -1026,8 +1049,26 @@ export interface operations {
                     "application/json": components["schemas"]["SystemCoverage"];
                 };
             };
-            /** @description Forbidden */
+            /** @description Requires one of the roles: platform-admin */
             403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description No adapter for the system (payroll and ICMS have no coverage to pause) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Problem type `pause-flag-unavailable`: the pause flag could not be written; nothing changed */
+            503: {
                 headers: {
                     [name: string]: unknown;
                 };
