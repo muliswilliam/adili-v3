@@ -1,3 +1,4 @@
+import { ARQ, LEA, parse } from '@adili/numbering/references';
 import { z } from 'zod';
 
 import { declarationReferenceSchema } from '../declaration/reference.js';
@@ -11,8 +12,23 @@ import { DISCLOSURE_SECTIONS } from './scope.js';
  * packages/schemas/internal/declarations.yaml, is generated from them (`pnpm contracts`).
  */
 
-/** ADR-011: a Form K (`ARQ`) or law-enforcement (`LEA`) access request's reference. */
+/**
+ * ADR-011: the shape of a Form K (`ARQ`) or law-enforcement (`LEA`) access request's reference,
+ * published as the contract's pattern. `grantReferenceSchema` also verifies it against the
+ * numbering schemes, check character included.
+ */
 export const GRANT_REFERENCE = /^(ARQ|LEA)-[A-Z][A-Z0-9]{1,19}-[0-9]{4}-[0-9]{7}-[0-9A-Z]$/;
+
+const GRANT_SCHEMES = [ARQ, LEA];
+
+/** The grant's scheme code (`ARQ`, `LEA`), or undefined when it is not a valid reference. */
+function grantScheme(reference: string): string | undefined {
+  try {
+    return parse(reference, GRANT_SCHEMES).scheme;
+  } catch {
+    return undefined;
+  }
+}
 
 /**
  * The provision a grant rests on: Act s.36(1) for a Form K request (`ARQ`), s.36(2) for a
@@ -21,7 +37,10 @@ export const GRANT_REFERENCE = /^(ARQ|LEA)-[A-Z][A-Z0-9]{1,19}-[0-9]{4}-[0-9]{7}
 export const LEGAL_BASES = ['act-s36-1', 'act-s36-2'] as const;
 export type LegalBasis = (typeof LEGAL_BASES)[number];
 
-const BASIS_OF_REFERENCE: Record<string, LegalBasis> = { ARQ: 'act-s36-1', LEA: 'act-s36-2' };
+const BASIS_OF_SCHEME: Record<string, LegalBasis> = {
+  [ARQ.code]: 'act-s36-1',
+  [LEA.code]: 'act-s36-2',
+};
 
 /** The legal basis of a certified copy, the declarant's access to their own record (AM 32). */
 export const SELF_ACCESS = 'self-access';
@@ -38,9 +57,12 @@ export const legalBasisSchema = z.enum(LEGAL_BASES).meta({
 export const grantReferenceSchema = z
   .string()
   .regex(GRANT_REFERENCE)
+  .refine((reference) => grantScheme(reference) !== undefined, {
+    message: 'not a valid ARQ or LEA reference (check character)',
+  })
   .meta({
     description: "ADR-011: the access request's ARQ (Form K) or LEA (law enforcement) reference",
-    examples: ['ARQ-PSC-2028-0000012-5'],
+    examples: ['ARQ-PSC-2028-0000012-N'],
   });
 
 export const disclosureRequestSchema = z
@@ -62,7 +84,7 @@ export const disclosureRequestSchema = z
     sections: z.array(disclosureSectionSchema).min(1).max(DISCLOSURE_SECTIONS.length),
   })
   .refine(
-    (request) => BASIS_OF_REFERENCE[request.grantReference.slice(0, 3)] === request.legalBasis,
+    (request) => BASIS_OF_SCHEME[grantScheme(request.grantReference) ?? ''] === request.legalBasis,
     {
       path: ['legalBasis'],
       message: 'act-s36-1 goes with an ARQ reference, act-s36-2 with an LEA reference',

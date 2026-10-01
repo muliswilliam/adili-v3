@@ -3662,7 +3662,7 @@ components:
       pattern: ^(ARQ|LEA)-[A-Z][A-Z0-9]{1,19}-[0-9]{4}-[0-9]{7}-[0-9A-Z]$
       description: "ADR-011: the access request's ARQ (Form K) or LEA (law enforcement) reference"
       examples:
-        - ARQ-PSC-2028-0000012-5
+        - ARQ-PSC-2028-0000012-N
     DisclosureRequest:
       type: object
       properties:

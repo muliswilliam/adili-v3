@@ -35,7 +35,7 @@ const OTHER = randomUUID();
 const SPOUSE = randomUUID();
 const CHILD = randomUUID();
 
-const GRANT = 'ARQ-PSC-2028-0000012-5';
+const GRANT = 'ARQ-PSC-2028-0000012-N';
 const APPLICANT = 'applicant-account-7';
 const ACCESS_OFFICER = 'access-officer-3';
 
@@ -505,7 +505,7 @@ describe('the scoped disclosure of a grant (S9)', () => {
     expect(await audited()).toEqual([]);
   });
 
-  it('is 400 for an invalid scope, a mismatched legal basis or no acting subject', async () => {
+  it('is 400 for an invalid scope or reference, a mismatched legal basis or no acting subject', async () => {
     await seeded(WANJIKU, [householdDeclaration(2027)]);
 
     const invalid = [
@@ -514,12 +514,13 @@ describe('the scoped disclosure of a grant (S9)', () => {
       await disclosure({ sections: ['household'] }),
       await disclosure({}, { body: { legalBasis: 'act-s36-2' } }),
       await disclosure({}, { body: { grantReference: 'DCB-PSC-2027-0000001-K' } }),
+      await disclosure({}, { body: { grantReference: 'ARQ-PSC-2028-0000012-5' } }),
       await disclosure({}, { body: { tenant: 'psc' } }),
       await disclosure({}, { actingSubject: null }),
     ];
 
     expect(invalid.map((response) => response.statusCode)).toEqual([
-      400, 400, 400, 400, 400, 400, 400,
+      400, 400, 400, 400, 400, 400, 400, 400,
     ]);
     expect(await audited()).toEqual([]);
   });
@@ -529,7 +530,7 @@ describe('the scoped disclosure of a grant (S9)', () => {
 
     const response = await disclosure(
       {},
-      { body: { grantReference: 'LEA-PSC-2028-0000004-M', legalBasis: 'act-s36-2' } },
+      { body: { grantReference: 'LEA-PSC-2028-0000004-9', legalBasis: 'act-s36-2' } },
     );
 
     expect(response.statusCode, response.body).toBe(200);
@@ -537,7 +538,7 @@ describe('the scoped disclosure of a grant (S9)', () => {
     expect(event?.data).toMatchObject({
       disclosure: {
         legalBasis: 'act-s36-2',
-        reference: 'LEA-PSC-2028-0000004-M',
+        reference: 'LEA-PSC-2028-0000004-9',
         recipient: APPLICANT,
       },
     });

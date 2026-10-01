@@ -1480,7 +1480,7 @@ export interface components {
         LegalBasis: "act-s36-1" | "act-s36-2";
         /**
          * @description ADR-011: the access request's ARQ (Form K) or LEA (law enforcement) reference
-         * @example ARQ-PSC-2028-0000012-5
+         * @example ARQ-PSC-2028-0000012-N
          */
         GrantReference: string;
         /** @description The granted scope of an access request, and whom it is disclosed to */
