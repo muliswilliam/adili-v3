@@ -62,6 +62,57 @@ export const RULES = {
     indicator:
       'The shares declared for a jointly held asset across the household do not add up to 100%. A co-owner outside the household can explain this.',
   },
+  // Registry cross-checks (spec 07b): what KRA, NTSA, BRS and ArdhiSasa hold against the form.
+  'registry-parcel-undeclared': {
+    title: 'Registered parcel not declared',
+    indicator:
+      "ArdhiSasa lists a parcel in this person's name that no declared land or building carries. A recent sale not yet registered, or a parcel held in trust, can explain this.",
+  },
+  'declared-parcel-not-found': {
+    title: 'Declared parcel not in ArdhiSasa',
+    indicator:
+      'A declared parcel number is not among the parcels ArdhiSasa lists for this person. A typing difference or a transfer still in progress can explain this.',
+  },
+  'registry-vehicle-undeclared': {
+    title: 'Registered vehicle not declared',
+    indicator:
+      "NTSA lists a vehicle in this person's name that no declared vehicle carries. A sale whose transfer was not yet registered can explain this.",
+  },
+  'declared-vehicle-not-found': {
+    title: 'Declared vehicle not in NTSA',
+    indicator:
+      'A declared vehicle registration is not among the vehicles NTSA lists for this person. A typing difference or a vehicle registered in another name can explain this.',
+  },
+  'registry-directorship-undeclared': {
+    title: 'Directorship or shareholding not declared',
+    indicator:
+      'BRS lists this person as a director or shareholder of a company the declaration does not mention. A role that ended but was not yet updated at BRS can explain this.',
+  },
+  'declared-company-not-found': {
+    title: 'Declared company not in BRS',
+    indicator:
+      'A declared company registration number is not among the companies BRS lists for this person. A typing difference or a holding through a nominee can explain this.',
+  },
+  'directorship-employer-supplier': {
+    title: "Company supplies the officer's employer",
+    indicator:
+      "BRS lists this person as a director or shareholder of a company on the supplier list of the officer's own employer. It may be a conflict of interest to look into, or one already managed.",
+  },
+  'kra-pin-missing': {
+    title: 'No KRA PIN found',
+    indicator:
+      "KRA holds no PIN for this person's national ID. The PIN may be registered under another document.",
+  },
+  'kra-non-compliant': {
+    title: 'Not tax compliant at KRA',
+    indicator:
+      'KRA reports this person as not tax compliant. Compliance may since have been restored.',
+  },
+  'kra-income-mismatch': {
+    title: 'Income declared to KRA differs by 25% or more',
+    indicator:
+      'The annual income declared to KRA differs by at least a quarter from the income declared here for the same period. Exempt income or different periods can explain this.',
+  },
 } as const satisfies Record<string, { title: string; indicator: string }>;
 
 export type RuleId = keyof typeof RULES;

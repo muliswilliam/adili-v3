@@ -494,7 +494,7 @@ describe('score and band', () => {
 });
 
 describe('RULES registry', () => {
-  it('gives every deterministic rule in review.yaml a title and an indicator, worded as an indicator', () => {
+  it('gives every rule in review.yaml a title and an indicator, worded as an indicator', () => {
     const require = createRequire(import.meta.url);
     const contract = parse(
       readFileSync(
@@ -506,27 +506,10 @@ describe('RULES registry', () => {
         schemas: Record<'RuleId' | 'Severity' | 'PriorityBand', { enum: string[] }>;
       };
     };
-    // The epic's deterministic rules; the contract also lists 07b's registry checks.
-    const deterministic = [
-      'completeness-residual',
-      'no-previous-version',
-      'value-change-25',
-      'acquisition-unflagged',
-      'disposal-unflagged',
-      'change-flag-mismatch',
-      'income-vs-asset-growth',
-      'nil-after-populated',
-      'late-filing',
-      'foreign-holdings',
-      'joint-share-inconsistent',
-    ];
-
-    expect(Object.keys(RULES)).toEqual(deterministic);
+    // The deterministic rules (07a) and the registry cross-checks (07b), in the contract's order.
+    expect(Object.keys(RULES)).toEqual(contract.components.schemas.RuleId.enum);
     expect([...SEVERITIES]).toEqual(contract.components.schemas.Severity.enum);
     expect([...BANDS]).toEqual(contract.components.schemas.PriorityBand.enum);
-    expect(
-      deterministic.filter((id) => !contract.components.schemas.RuleId.enum.includes(id)),
-    ).toEqual([]);
     for (const rule of Object.values(RULES)) {
       expect(rule.title.length).toBeGreaterThan(5);
       expect(rule.indicator).not.toMatch(/\b(fraud|corrupt|guilty|wrongdoing|violat)/iu);
