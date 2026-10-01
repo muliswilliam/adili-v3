@@ -315,7 +315,7 @@
     {
       "clientId": "declarations",
       "name": "Declarations service",
-      "description": "Service account the declarations service uses to pull roster records and policy from the directory and to send reminders through notifications",
+      "description": "Service account the declarations service uses to pull roster records and policy from the directory, to send reminders through notifications and to link declaration attachments in documents",
       "enabled": true,
       "protocol": "openid-connect",
       "publicClient": false,
@@ -325,7 +325,7 @@
       "implicitFlowEnabled": false,
       "directAccessGrantsEnabled": false,
       "serviceAccountsEnabled": true,
-      "defaultClientScopes": ["basic", "directory:internal", "messages"],
+      "defaultClientScopes": ["basic", "directory:internal", "messages", "documents:internal"],
       "optionalClientScopes": []
     },
     {

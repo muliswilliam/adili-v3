@@ -173,8 +173,8 @@ function summaryOf(overrides: Partial<LoadedSummary> = {}, declaration = {}): Lo
   };
 }
 
-function renderSummary(summary = summaryOf(), today = '2026-09-27') {
-  return renderWorkspace(<SummaryView summary={summary} today={today} />, {
+function renderSummary(summary = summaryOf()) {
+  return renderWorkspace(<SummaryView summary={summary} />, {
     step: 'summary',
     declaration: summary.declaration,
   });
@@ -402,7 +402,7 @@ describe('SummaryView', () => {
     ];
     renderSummary(
       summaryOf(
-        { blocking, valid: false, cannotSubmitReason: 'incomplete' },
+        { blocking, valid: false, cannotSubmitReason: 'submission-not-available' },
         {
           sections: sections({
             bio: 'incomplete',
@@ -412,7 +412,6 @@ describe('SummaryView', () => {
           }),
         },
       ),
-      '2027-11-05',
     );
 
     const panel = card('3 things to complete before you can submit');
@@ -435,7 +434,7 @@ describe('SummaryView', () => {
     const blocking = Array.from({ length: 14 }, (_, index) =>
       issue('bio', `Issue ${String(index + 1)}.`),
     );
-    renderSummary(summaryOf({ blocking, cannotSubmitReason: 'incomplete' }));
+    renderSummary(summaryOf({ blocking, cannotSubmitReason: 'submission-not-available' }));
 
     const panel = card('14 things to complete before you can submit');
     expect(within(panel).getAllByRole('link')).toHaveLength(12);

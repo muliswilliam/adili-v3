@@ -5,6 +5,9 @@ import {
   sectionIssues,
 } from '@adili/forms';
 
+import { recordOf } from '../guards.js';
+import { statementKey } from './sections.js';
+
 /**
  * Pure completeness of a draft's capture sections (spec 05, BE-3): the `declaration.v1` schema's
  * issues plus the rules it cannot state (a nil flag against items, marital status against
@@ -63,10 +66,10 @@ export function assessSections(
     ],
   ];
   for (const [personKey, contents] of draft.statements ?? []) {
-    const key = `statement:${personKey}` as const;
+    const key = statementKey(personKey);
     sections.push([key, contents, statementRules(key, contents)]);
   }
-  if (draft.other !== undefined) sections.push(['other', draft.other, []]);
+  if (draft.other !== undefined) sections.push(['other', draft.other, interestRules(draft.other)]);
 
   return new Map(
     sections.map(([key, contents, rules]) => {
@@ -115,10 +118,13 @@ const CATEGORIES = [
   { list: 'liabilities', nil: 'liabilitiesNil' },
 ] as const;
 
-/** Each category is either declared nil or lists items, never both (S8). */
+/**
+ * Each category is either declared nil or lists items, never both (S8); an item flagged as
+ * changed since the last declaration says what kind of change and explains it (S9).
+ */
 function statementRules(key: DeclarationSectionKey, contents: unknown): DeclarationIssue[] {
-  const statement = record(contents);
-  return CATEGORIES.flatMap(({ list, nil }) =>
+  const statement = recordOf(contents);
+  const nilRules = CATEGORIES.flatMap(({ list, nil }) =>
     presenceRule(key, {
       flagged: statement[nil] === true,
       items: listOf(statement[list]).length,
@@ -134,6 +140,52 @@ function statementRules(key: DeclarationSectionKey, contents: unknown): Declarat
       },
     }),
   );
+  const changes = CATEGORIES.flatMap(({ list }) =>
+    listOf(statement[list]).flatMap((item, index) =>
+      changeRules(key, `/${list}/${String(index)}/change`, recordOf(item).change),
+    ),
+  );
+  return [...nilRules, ...changes];
+}
+
+/** A directorship or membership flagged as changed since the last declaration, as an item (S9). */
+function interestRules(contents: unknown): DeclarationIssue[] {
+  const interests = recordOf(recordOf(contents).registrableInterests);
+  return (['directorships', 'memberships'] as const).flatMap((list) =>
+    listOf(interests[list]).flatMap((interest, index) =>
+      changeRules(
+        'other',
+        `/registrableInterests/${list}/${String(index)}/change`,
+        recordOf(interest).change,
+      ),
+    ),
+  );
+}
+
+/** A change flag that is set says what kind of change it was and explains it. */
+function changeRules(key: DeclarationSectionKey, at: string, value: unknown): DeclarationIssue[] {
+  const change = recordOf(value);
+  if (change.changed !== true) return [];
+  return [
+    ...(filled(change.kind)
+      ? []
+      : [issue(key, `${at}/kind`, 'required', 'Choose what changed since your last declaration.')]),
+    ...(filled(change.explanation)
+      ? []
+      : [
+          issue(
+            key,
+            `${at}/explanation`,
+            'required',
+            'Explain what changed since your last declaration.',
+          ),
+        ]),
+  ];
+}
+
+/** A string with something in it besides spaces. */
+function filled(value: unknown): boolean {
+  return typeof value === 'string' && value.trim().length > 0;
 }
 
 /** Statuses with no current spouse; the others (married, separated) need one or "none". */
@@ -141,7 +193,7 @@ const WITHOUT_SPOUSE = new Set(['single', 'divorced', 'widowed']);
 
 /** The marital status bio holds, if it holds one. */
 function maritalStatus(bio: unknown): string | undefined {
-  const status = record(bio).maritalStatus;
+  const status = recordOf(bio).maritalStatus;
   return typeof status === 'string' ? status : undefined;
 }
 
@@ -150,9 +202,9 @@ function maritalStatus(bio: unknown): string | undefined {
  * when marital status says there is one (S5, S6). A separated spouse needs the date.
  */
 function householdRules(contents: unknown, status: string | undefined): DeclarationIssue[] {
-  const household = record(contents);
-  const spouses = record(household.spouses);
-  const children = record(household.children);
+  const household = recordOf(contents);
+  const spouses = recordOf(household.spouses);
+  const children = recordOf(household.children);
   const needsSpouse = status !== undefined && !WITHOUT_SPOUSE.has(status);
   return [
     ...presenceRule('household', {
@@ -187,7 +239,7 @@ function householdRules(contents: unknown, status: string | undefined): Declarat
       },
     }),
     ...listOf(spouses.items).flatMap((item, index) => {
-      const spouse = record(item);
+      const spouse = recordOf(item);
       return spouse.separated === true && spouse.separationDate === undefined
         ? [
             issue(
@@ -204,7 +256,7 @@ function householdRules(contents: unknown, status: string | undefined): Declarat
 
 /** A status with no current spouse blocks a listed spouse, with a message on each side (S6). */
 function spouseConflict(status: string | undefined, household: unknown): DeclarationIssue[] {
-  const listed = listOf(record(record(household).spouses).items).length;
+  const listed = listOf(recordOf(recordOf(household).spouses).items).length;
   if (status === undefined || !WITHOUT_SPOUSE.has(status) || listed === 0) return [];
   const code = 'spouse-conflicts-with-marital-status';
   return [
@@ -230,12 +282,6 @@ function issue(
   message: string,
 ): DeclarationIssue {
   return { sectionKey, path, code, message };
-}
-
-function record(value: unknown): Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value)
-    ? (value as Record<string, unknown>)
-    : {};
 }
 
 function listOf(value: unknown): unknown[] {

@@ -3,6 +3,7 @@ import type { z } from 'zod';
 import { uploadPurposeSchema } from './uploads/purposes.js';
 import {
   createUploadBody,
+  internalUploadSchema,
   uploadDownloadSchema,
   uploadRejectionSchema,
   uploadReservationSchema,
@@ -19,4 +20,5 @@ export const OPENAPI_SCHEMAS: Record<string, z.ZodType> = {
   UploadReservation: uploadReservationSchema,
   Upload: uploadSchema,
   UploadDownload: uploadDownloadSchema,
+  InternalUpload: internalUploadSchema,
 };

@@ -246,10 +246,10 @@ if (directory) {
   if (!audience) fail('directory tokens need the adili-api audience mapper');
 }
 // Services pull from the directory's internal API (spec 04): declarations (roster records and
-// policy after roster events, and reminders through notifications) and notifications (a person's
-// verified contacts).
+// policy after roster events, reminders through notifications, and declaration attachments in
+// documents, spec 05) and notifications (a person's verified contacts).
 for (const [id, needed] of [
-  ['declarations', ['directory:internal', 'messages']],
+  ['declarations', ['directory:internal', 'messages', 'documents:internal']],
   ['notifications', ['directory:person-contacts']],
 ]) {
   const client = clients.get(id);

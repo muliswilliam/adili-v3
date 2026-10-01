@@ -69,6 +69,12 @@ export const rosterSnapshots = pgTable(
     ofr: text(),
     onboardedAt: timestamp({ withTimezone: true }),
     /**
+     * The declarant's reporting entity as the roster names it (categorisation only: it never
+     * reads declarations); null when the roster gives none.
+     */
+    reportingEntityId: uuid(),
+    reportingEntityName: text(),
+    /**
      * The record's `updatedAt` in the directory when pulled. A pull older than the stored one
      * (events handled out of order) does not overwrite it.
      */

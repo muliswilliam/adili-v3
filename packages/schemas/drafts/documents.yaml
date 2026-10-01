@@ -1,11 +1,12 @@
 # Drafted operations of the documents API for specs not implemented yet: 06 (document issuance)
-# and the specs that issue documents through it (07a, 08, 09). `pnpm --filter @adili/documents contracts`
-# merges them into packages/schemas/internal/documents.yaml, where they may reference the
-# implemented components (e.g. `#/components/schemas/ProblemDetails`). When an operation or
-# component is implemented, delete it here: the export fails while both define it.
+# and the specs that issue documents through it (07a, 08, 09).
+# `pnpm --filter @adili/documents contracts` merges them into
+# packages/schemas/internal/documents.yaml, where they may reference the implemented components
+# (e.g. `#/components/schemas/ProblemDetails`). When an operation or component is implemented,
+# delete it here: the export fails while both define it.
 #
-# Upload purposes are code, not drafts: later specs add theirs (declaration-attachment,
-# clarification-attachment, action-response, access-representation) to UPLOAD_PURPOSES in
+# Upload purposes are code, not drafts: later specs add theirs (clarification-attachment,
+# action-response, access-representation) to UPLOAD_PURPOSES in
 # services/documents/src/uploads/purposes.ts, which widens the UploadPurpose enum.
 paths:
   /internal/v1/documents/issue:

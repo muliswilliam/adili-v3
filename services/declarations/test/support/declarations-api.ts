@@ -6,7 +6,15 @@ import { readFileSync } from 'node:fs';
 import { FastifyAdapter, type NestFastifyApplication } from '@nestjs/platform-fastify';
 import { Test } from '@nestjs/testing';
 import { TokenVerifier } from '@adili/api-kit';
-import { createDatabase, DATABASE, type Database, withTenant } from '@adili/data-access';
+import {
+  createDatabase,
+  DATABASE,
+  type Database,
+  FieldCipher,
+  withPerson,
+  withTenant,
+} from '@adili/data-access';
+import { FakeCipher } from '@adili/data-access/testing';
 import {
   deadLetterQueue,
   EVENTS_EXCHANGE,
@@ -26,9 +34,10 @@ import { v7 as uuidv7 } from 'uuid';
 
 import { AppModule } from '../../src/app.module.js';
 import { Clock } from '../../src/clock.js';
-import type { Transaction } from '../../src/obligations/apply-page.js';
+import type { Transaction } from '../../src/db/transaction.js';
 import { type DeclarationsSchema, schema, tenantPolicyCache } from '../../src/db/schema.js';
 import { DirectoryClient } from '../../src/directory/directory-client.js';
+import { DocumentsClient } from '../../src/documents/documents-client.js';
 import { NotificationsClient } from '../../src/notifications/notifications-client.js';
 import { DirectoryEventsConsumer } from '../../src/obligations/directory-events.consumer.js';
 import {
@@ -43,6 +52,7 @@ import {
   type StoppedWorkflow,
 } from '../../src/obligations/workflows.js';
 import { FakeDirectory } from './fake-directory.js';
+import { FakeDocuments } from './fake-documents.js';
 import { FakeNotifications } from './fake-notifications.js';
 import { FakeTemporal } from './fake-temporal.js';
 
@@ -162,7 +172,13 @@ export interface DeclarationsApi {
   db: Database<DeclarationsSchema>;
   /** Runs `work` in a platform transaction (every tenant's rows). */
   asPlatform<T>(work: (tx: Transaction) => Promise<T>): Promise<T>;
+  /** Runs `work` in a transaction as the person (their declarations, under person RLS). */
+  asPerson<T>(personId: string, work: (tx: Transaction) => Promise<T>): Promise<T>;
+  /** The field cipher, in memory: records calls without plaintext. */
+  cipher: FakeCipher;
   directory: FakeDirectory;
+  /** The documents internal uploads API: attachments are verified and marked linked there. */
+  documents: FakeDocuments;
   notifications: FakeNotifications;
   /** What `ObligationWorkflows` was told (`recording` mode only). */
   workflows: RecordingWorkflows;
@@ -183,6 +199,13 @@ export interface DeclarationsApi {
   publish(event: EventEnvelope): Promise<void>;
   /** `GET` as the given caller; returns Fastify's injected response. */
   get(url: string, caller: Caller): ReturnType<NestFastifyApplication['inject']>;
+  /** Any request as the given caller, with optional headers and JSON body. */
+  request(
+    method: 'GET' | 'POST' | 'PUT' | 'DELETE',
+    url: string,
+    caller: Caller,
+    options?: { headers?: Record<string, string>; body?: unknown },
+  ): ReturnType<NestFastifyApplication['inject']>;
   /** `GET` without a bearer token. */
   anonymous(url: string): ReturnType<NestFastifyApplication['inject']>;
   /** Empties every table except seeded reference data. */
@@ -193,7 +216,7 @@ export interface DeclarationsApi {
 /**
  * The declarations service over HTTP and at its event inbox, against a real Postgres
  * (`TEST_DATABASE_URL`) with a private schema per suite and the committed migrations applied. The
- * directory is `FakeDirectory`, notifications `FakeNotifications`, workflows are recorded (see
+ * directory is `FakeDirectory`, documents `FakeDocuments`, notifications `FakeNotifications`, the field cipher `FakeCipher`, workflows are recorded (see
  * `WorkflowMode`), tokens are signed locally and the outbox relay is off (events stay in the outbox
  * for assertions). The service's Temporal worker polls the suite's own task queue. The test role owns the tables, so
  * FORCE row-level security applies to it as to the service's role.
@@ -223,11 +246,13 @@ export async function startDeclarationsApi({
 
   const { signer, jwk } = await tokenSigner();
   const directory = new FakeDirectory();
+  const documents = new FakeDocuments();
   const workflows = new RecordingWorkflows();
   const temporal = new FakeTemporal();
   const notifications = new FakeNotifications();
   const clock = new TestClock();
   const cycleSchedules = new RecordingCycleOpeningSchedules();
+  const cipher = new FakeCipher();
   let builder = Test.createTestingModule({ imports: [AppModule] })
     .overrideProvider(DATABASE)
     .useValue(db)
@@ -235,10 +260,14 @@ export async function startDeclarationsApi({
     .useValue(new TokenVerifier(ISSUER, AUDIENCE, createLocalJWKSet({ keys: [jwk] })))
     .overrideProvider(DirectoryClient)
     .useValue(directory)
+    .overrideProvider(DocumentsClient)
+    .useValue(documents)
     .overrideProvider(NotificationsClient)
     .useValue(notifications)
     .overrideProvider(Clock)
     .useValue(clock)
+    .overrideProvider(FieldCipher)
+    .useValue(cipher)
     .overrideProvider(OutboxRelay)
     .useValue({})
     // The hourly schedule lives on the shared Temporal; suites run the sweep themselves.
@@ -279,10 +308,13 @@ export async function startDeclarationsApi({
     app,
     db,
     directory,
+    documents,
     notifications,
     workflows,
     temporal,
+    cipher,
     asPlatform: (work) => withTenant(db, { tenant: 'platform', subject: 'test' }, work),
+    asPerson: (personId, work) => withPerson(db, { personId, subject: 'test' }, work),
     steps: app.get(ObligationSteps),
     sweep: app.get(ObligationsSweep),
     cycleSchedules,
@@ -296,6 +328,15 @@ export async function startDeclarationsApi({
         headers: { authorization: `Bearer ${token}` },
       });
     },
+    async request(method, path, caller, { headers = {}, body } = {}) {
+      const token = await signer(caller);
+      return app.inject({
+        method,
+        url: path,
+        headers: { authorization: `Bearer ${token}`, ...headers },
+        ...(body === undefined ? {} : { payload: body as object }),
+      });
+    },
     async publish(event) {
       if (!publisher) throw new Error('start the harness with { events: true } to publish');
       await lastValueFrom(publisher.emit(event.type, event), { defaultValue: undefined });
@@ -305,15 +346,17 @@ export async function startDeclarationsApi({
     },
     async reset() {
       await db.execute(
-        sql`truncate reminder_messages, obligation_reminders, filing_obligations, roster_snapshots, tenant_policy_cache, commission_refs, cycle_openings, outbox, inbox`,
+        sql`truncate obligation_drafts, declaration_attachments, declaration_sections, declarations, reminder_messages, obligation_reminders, filing_obligations, roster_snapshots, tenant_policy_cache, commission_refs, cycle_openings, outbox, inbox`,
       );
       await db.execute(sql`update cycle_calendar set opening_lead_days = 120`);
       cycleSchedules.reset();
       directory.reset();
+      documents.reset();
       notifications.reset();
       workflows.reset();
       temporal.reset();
       clock.reset();
+      cipher.calls.length = 0;
     },
     async close() {
       if (mode === 'real') await deleteCycleOpeningSchedules(app.get<Client>(TEMPORAL_CLIENT), db);

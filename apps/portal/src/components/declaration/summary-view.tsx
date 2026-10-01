@@ -75,7 +75,6 @@ import {
   spousesEmptyText,
   statementTotals,
   submitNote,
-  todayInKenya,
 } from './summary';
 import { useWorkspace } from './workspace';
 
@@ -700,8 +699,6 @@ function useFreshSummary(loaded: LoadedSummary): LoadedSummary {
 
 export interface SummaryViewProps {
   summary: LoadedSummary;
-  /** Today as an ISO date; defaults to today in Kenya. */
-  today?: string;
 }
 
 /**
@@ -709,7 +706,7 @@ export interface SummaryViewProps {
  * the First Schedule with its completeness and an Edit link, the solemn declaration, and
  * Submit, which stays disabled in spec 05 with the reason (S20).
  */
-export function SummaryView({ summary: loaded, today }: SummaryViewProps) {
+export function SummaryView({ summary: loaded }: SummaryViewProps) {
   const summary = useFreshSummary(loaded);
   const navigate = useNavigate();
   const { declaration } = summary;
@@ -750,7 +747,7 @@ export function SummaryView({ summary: loaded, today }: SummaryViewProps) {
         <div className="grid flex-1 gap-0.5">
           <p className="font-semibold">Submit your declaration</p>
           <p id={noteId} className="text-sm text-muted-foreground">
-            {submitNote(summary, today ?? todayInKenya())}
+            {submitNote(summary)}
           </p>
         </div>
         <Button type="button" disabled aria-describedby={noteId}>

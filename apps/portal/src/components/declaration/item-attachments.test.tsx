@@ -148,6 +148,7 @@ beforeEach(() => {
       key: KEY,
       completeness: 'incomplete',
       draftVersion: 5,
+      issues: [],
       contents: { assets: [{ id: ITEM_ID, attachments: [{ ...deed }] }] },
     },
   });
@@ -285,6 +286,7 @@ describe('ItemAttachments (S10)', () => {
         key: KEY,
         completeness: 'incomplete',
         draftVersion: 6,
+        issues: [],
         contents: { assets: [{ id: ITEM_ID, attachments: [] }] },
       },
     });
@@ -314,6 +316,7 @@ describe('ItemAttachments (S10)', () => {
         key: KEY,
         completeness: 'incomplete',
         draftVersion: 6,
+        issues: [],
         contents: { assets: [{ id: ITEM_ID, attachments: [] }] },
       },
     });

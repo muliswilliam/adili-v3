@@ -55,7 +55,7 @@ export interface DocumentsApi {
     url: string,
     body: unknown,
     caller: Caller,
-    options?: { idempotencyKey?: string | null },
+    options?: { idempotencyKey?: string | null; headers?: Record<string, string> },
   ): Promise<InjectResponse>;
   close(): Promise<void>;
 }
@@ -117,7 +117,7 @@ export async function startDocumentsApi(options: DocumentsApiOptions = {}): Prom
         headers: { authorization: `Bearer ${token}`, ...headers },
       });
     },
-    async post(path, body, caller, { idempotencyKey = randomUUID() } = {}) {
+    async post(path, body, caller, { idempotencyKey = randomUUID(), headers = {} } = {}) {
       const token = await signer(caller);
       return app.inject({
         method: 'POST',
@@ -125,6 +125,7 @@ export async function startDocumentsApi(options: DocumentsApiOptions = {}): Prom
         headers: {
           authorization: `Bearer ${token}`,
           ...(idempotencyKey === null ? {} : { 'idempotency-key': idempotencyKey }),
+          ...headers,
         },
         ...(body === undefined ? {} : { payload: body as Record<string, unknown> }),
       });

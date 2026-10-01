@@ -24,30 +24,16 @@ function issue(sectionKey: string, message: string): CompletenessIssue {
 
 describe('S20: the disabled Submit button says why', () => {
   const summary = (
-    cannotSubmitReason: 'submission-not-available' | 'before-statement-date' | 'incomplete' | null,
+    cannotSubmitReason: 'submission-not-available' | 'before-statement-date',
     statementDate = '2027-11-01',
   ) => ({ cannotSubmitReason, declaration: { statementDate } });
 
   it('says when an upcoming obligation can be submitted', () => {
-    expect(submitNote(summary('before-statement-date'), '2026-09-27')).toBe(
-      'Available from 1 Nov 2027',
-    );
-  });
-
-  it('says the same for an incomplete draft before its statement date', () => {
-    expect(submitNote(summary('incomplete'), '2026-09-27')).toBe('Available from 1 Nov 2027');
+    expect(submitNote(summary('before-statement-date'))).toBe('Available from 1 Nov 2027');
   });
 
   it('says submission opens in the next release for a due obligation', () => {
-    expect(submitNote(summary('submission-not-available', '2026-09-10'), '2026-09-27')).toBe(
-      'Submission opens in the next release.',
-    );
-    expect(submitNote(summary('incomplete', '2026-09-10'), '2026-09-27')).toBe(SUBMIT_NEXT_RELEASE);
-    expect(submitNote(summary(null, '2026-09-27'), '2026-09-27')).toBe(SUBMIT_NEXT_RELEASE);
-  });
-
-  it('takes the service at its word when it says submission is not available', () => {
-    expect(submitNote(summary('submission-not-available'), '2026-09-27')).toBe(SUBMIT_NEXT_RELEASE);
+    expect(submitNote(summary('submission-not-available', '2026-09-10'))).toBe(SUBMIT_NEXT_RELEASE);
   });
 });
 
