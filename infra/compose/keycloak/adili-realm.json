@@ -379,7 +379,8 @@
         "directory:internal",
         "directory:roster-national-id",
         "documents:internal",
-        "messages"
+        "messages",
+        "ai"
       ],
       "optionalClientScopes": []
     },
@@ -1215,6 +1216,28 @@
     {
       "name": "review:internal",
       "description": "Service tokens for the review service's internal API: letter payloads the documents service renders, acting for a tenant (spec 07a)",
+      "protocol": "openid-connect",
+      "attributes": {
+        "include.in.token.scope": "true",
+        "display.on.consent.screen": "false"
+      },
+      "protocolMappers": [
+        {
+          "name": "adili-api audience",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "config": {
+            "included.custom.audience": "adili-api",
+            "access.token.claim": "true",
+            "id.token.claim": "false",
+            "introspection.token.claim": "true"
+          }
+        }
+      ]
+    },
+    {
+      "name": "ai",
+      "description": "Run AI tasks and read their jobs through the ai-gateway (/internal/v1/tasks, /internal/v1/jobs, spec 07c)",
       "protocol": "openid-connect",
       "attributes": {
         "include.in.token.scope": "true",
