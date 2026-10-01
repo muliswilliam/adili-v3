@@ -531,6 +531,19 @@ describe('S10 superseding', () => {
     expect(await eventsAbout(version1.id)).toHaveLength(2);
   });
 
+  it("keeps one tenant's Idempotency-Key apart from another's on the same service token", async () => {
+    const version1 = await issued();
+    const version2 = await issued();
+    const key = randomUUID();
+    expect((await supersede(version1.id, version2.id, 'psc', key)).statusCode).toBe(200);
+
+    // The same key and body, acting for another Commission: its own request, not psc's answer.
+    const other = await supersede(version1.id, version2.id, 'tsc', key);
+
+    expect(other.statusCode).toBe(404);
+    expect(other.headers['idempotent-replayed']).toBeUndefined();
+  });
+
   it('refuses a newer document that is not a valid one with 409', async () => {
     const version1 = await issued();
     const unknown = await supersede(version1.id, randomUUID());
