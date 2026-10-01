@@ -2,8 +2,9 @@
  * Workflows hosted by the review worker (ADR-003). This module is bundled into Temporal's
  * deterministic sandbox: import only `@temporalio/workflow` and types.
  */
-import { proxyActivities } from '@temporalio/workflow';
+import { isCancellation, log, proxyActivities } from '@temporalio/workflow';
 
+import { registryCheck } from '../registry/workflows.js';
 import type { ProcessingActivities } from './activities.js';
 import type { ProcessingInput, ProcessingResult } from './contract.js';
 
@@ -13,6 +14,7 @@ export { closureNotices, closureSweep, closureSweeps } from '../closures/workflo
 export { determinationIssuance } from '../determinations/workflows.js';
 export { enforcement } from '../enforcement/workflows.js';
 export { referralSending, referralSweep, referralSweeps } from '../referrals/workflows.js';
+export { registryCheck } from '../registry/workflows.js';
 
 /**
  * Pulls from declarations and the directory, and database work: retried with backoff until they
@@ -40,7 +42,10 @@ const { pullVersion, pullPreviousVersion, runRules, upsertCase } =
  * reviewed flags kept and marked, assignee kept). The case, its flags, the timeline entry and the
  * event are written in one transaction, so a retried or repeated run changes nothing twice.
  *
- * 07b and 07c add registry and AI activities after the rules; no AI runs here.
+ * Then the registry check (spec 07b, `registryCheck`): the registries are looked up for the case
+ * and their flags merged into it. The case is in the queue before, with its registries not checked
+ * yet, so a registry, or the gateway, never holds up a case; a check that fails for good leaves
+ * the case as it is. 07c adds AI activities; no AI runs here.
  */
 export async function declarationProcessing(input: ProcessingInput): Promise<ProcessingResult> {
   const facts = await pullVersion(input);
@@ -51,5 +56,16 @@ export async function declarationProcessing(input: ProcessingInput): Promise<Pro
     versionId: input.versionId,
   });
   const flags = await runRules({ input, facts, previous });
-  return upsertCase({ input, facts, flags });
+  const processed = await upsertCase({ input, facts, flags });
+  try {
+    // A version the case is already past is `stale` and looks nothing up.
+    await registryCheck({ ...input, caseId: processed.caseId });
+  } catch (error) {
+    if (isCancellation(error)) throw error;
+    log.warn('The registry check of the case failed; its registries stay unchecked', {
+      caseId: processed.caseId,
+      versionId: input.versionId,
+    });
+  }
+  return processed;
 }

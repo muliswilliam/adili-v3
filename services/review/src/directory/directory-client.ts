@@ -41,7 +41,8 @@ export interface CommissionFacts {
 /**
  * What payroll needs of a roster record (directory.yaml `InternalRosterRecord`, and
  * `RosterNationalId` for the national ID), read at send time
- * (spec 08). Personal data: used where it is read, never stored, logged or put in workflow history.
+ * (spec 08); the registry check reads the national ID and employer code from it too (spec 07b).
+ * Personal data: used where it is read, never stored, logged or put in workflow history.
  */
 export interface PayrollRosterFacts {
   /** The personal number payroll knows the officer by: the roster's personnel file number. */

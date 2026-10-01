@@ -3,7 +3,6 @@ import type {
   BrsResult,
   KraResult,
   NtsaResult,
-  PersonRegistryResults,
   SupplierCheckResult,
 } from '../../src/rules/index.js';
 
@@ -117,7 +116,7 @@ const RIFT_VALLEY_AGROVET = 'Rift Valley Agrovet Limited';
 /** A seeded person: their national ID and every registry's answer for it. */
 export interface SeededPerson {
   nationalId: string;
-  results: () => Required<PersonRegistryResults>;
+  results: () => { kra: KraResult; ntsa: NtsaResult; brs: BrsResult; ardhisasa: ArdhisasaResult };
 }
 
 const nothingButIprs = (nationalId: string): SeededPerson => ({

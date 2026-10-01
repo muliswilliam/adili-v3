@@ -30,6 +30,9 @@ export const queueQuery = z.object({
     .meta({ description: '`mine`, `unassigned`, `any` (the default), or a subject id' }),
   late: flag('Only cases filed late, or only those filed on time'),
   openClarification: flag('Only cases with an open clarification, or only those without'),
+  registryUnavailable: flag(
+    'Only cases where a registry could not be checked at the latest registry check, or only the others',
+  ),
   search: z
     .string()
     .trim()

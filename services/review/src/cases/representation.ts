@@ -1,5 +1,11 @@
 import type { DeterminationView } from '../determinations/representation.js';
-import type { Evidence, ItemRef, Severity } from '../rules/index.js';
+import type {
+  Evidence,
+  ItemRef,
+  RegistryCheckStatus,
+  RegistrySystem,
+  Severity,
+} from '../rules/index.js';
 import type {
   CaseStatus,
   ClarificationItem,
@@ -35,6 +41,8 @@ export interface CaseListItem {
   status: CaseStatus;
   assignee: Assignee | null;
   openFlags: number;
+  /** A registry could not be checked for someone on the case at its latest check (spec 07b). */
+  registryUnavailable: boolean;
   clarification: {
     /** Clarifications the declarant still has to answer. */
     open: number;
@@ -84,6 +92,7 @@ export function caseListItem(row: CaseRow, latest: LatestClarification | undefin
         ? null
         : { subject: row.assignee, name: row.assigneeName ?? row.assignee },
     openFlags: row.openFlags,
+    registryUnavailable: row.registryUnavailable,
     clarification: {
       open: row.openClarifications,
       status: latest?.status ?? null,
@@ -175,6 +184,27 @@ export interface CaseDetail {
   reviewerHistory: Assignee[];
   /** Every determination of the case, oldest first: the current one last (spec 08). */
   determinations: DeterminationView[];
+  /** The latest registry check of the case (spec 07b). */
+  registry: RegistrySummary;
+}
+
+/** review.yaml `RegistryCheck`: one person's status in one registry at the latest check. */
+export interface RegistryCheckView {
+  personKey: string;
+  system: RegistrySystem;
+  status: RegistryCheckStatus;
+  reason: string | null;
+  checkedAt: string;
+  resultId: string | null;
+}
+
+/**
+ * review.yaml `RegistrySummary`: the statuses of the latest registry check, per person and
+ * registry; none before the first check (every registry `not-checked`).
+ */
+export interface RegistrySummary {
+  checkedAt: string | null;
+  checks: RegistryCheckView[];
 }
 
 /** A short-lived link to an attachment of the declaration under review. */

@@ -1,7 +1,7 @@
-import { eq } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 import { vi } from 'vitest';
 
-import { reviewCases } from '../../src/db/schema.js';
+import { reviewCases, reviewTimeline } from '../../src/db/schema.js';
 import type { ProcessingInput } from '../../src/processing/contract.js';
 import { type StoredVersion, submittedVersion, type VersionFixture } from './fake-declarations.js';
 import { type ReviewApi, submittedEvent } from './review-api.js';
@@ -60,17 +60,43 @@ export async function processed(api: ReviewApi, version: StoredVersion): Promise
 
 /**
  * Delivers `declaration.submitted.v1` for a version to the inbox and waits until the workflow on
- * Temporal has brought its case to that version; returns the case row.
+ * Temporal has brought its case to that version and checked its registries; returns the case row.
  */
 export async function processedFromInbox(api: ReviewApi, version: StoredVersion) {
   await api.consumer.submitted(submittedEvent(version.tenant, version));
+  return untilRegistryChecked(api, version);
+}
+
+/**
+ * Waits until the processing workflow has brought the version's case to it and stored its
+ * registry check (the workflow's last step); returns the case row.
+ */
+export async function untilRegistryChecked(api: ReviewApi, version: StoredVersion) {
   return vi.waitFor(
     async () => {
       const [found] = await api.asPlatform((tx) =>
         tx.select().from(reviewCases).where(eq(reviewCases.declarationId, version.declarationId)),
       );
       if (found?.currentVersion !== version.version) throw new Error('not processed yet');
-      return found;
+      const [checked] = await api.asPlatform((tx) =>
+        tx
+          .select({ id: reviewTimeline.id })
+          .from(reviewTimeline)
+          .where(
+            and(
+              eq(reviewTimeline.caseId, found.id),
+              eq(reviewTimeline.kind, 'registry-checked'),
+              eq(reviewTimeline.ref, version.versionId),
+            ),
+          ),
+      );
+      if (!checked) throw new Error('registries not checked yet');
+      // The row as the check left it (score, band and open flags with the registry flags).
+      const [row] = await api.asPlatform((tx) =>
+        tx.select().from(reviewCases).where(eq(reviewCases.id, found.id)),
+      );
+      if (!row) throw new Error('case gone');
+      return row;
     },
     { timeout: 45_000, interval: 250 },
   );

@@ -309,12 +309,6 @@ function companies(
   const registry = uniqueBy(result.directorships, (d) =>
     identifierKey(d.companyRegistrationNumber),
   );
-  const refersTo = (company: DeclaredCompany, record: (typeof registry)[number]) =>
-    company.texts.some(
-      (text) =>
-        mentionsIdentifier(text, record.companyRegistrationNumber) ||
-        sameCompanyName(text, record.companyName),
-    );
   const declaring = (record: (typeof registry)[number]) =>
     declared.filter((company) => refersTo(company, record));
 
@@ -390,6 +384,17 @@ function companies(
   return { flags, notes, ...(unavailable ? { unavailable } : {}) };
 }
 
+type Directorship = BrsResult['directorships'][number];
+
+/** A declared company is the registry's when it carries its registration number or exact name. */
+function refersTo(company: DeclaredCompany, record: Directorship): boolean {
+  return company.texts.some(
+    (text) =>
+      mentionsIdentifier(text, record.companyRegistrationNumber) ||
+      sameCompanyName(text, record.companyName),
+  );
+}
+
 /**
  * Company registration numbers in a declared text, in the BRS formats: `PVT-…`, `PUB-…`,
  * `CLG-…`, `LLP-…`, `BN-…`, `CPR/2015/123456` and `C.123456`.
@@ -455,7 +460,15 @@ function periodYears({ from, to }: Statement['incomePeriod']): number {
   return months / 12;
 }
 
-function incomeMismatch(statement: Statement, taxpayers: KraResult['taxpayers']): Flag | null {
+/**
+ * Annual income declared to KRA against the income declared here, annualised over the
+ * statement's income period; null when there is nothing to compare. `ratio` is the difference
+ * over the declared income, infinite when there is income to KRA and none declared here.
+ */
+function incomeDifference(
+  statement: Statement,
+  taxpayers: KraResult['taxpayers'],
+): { ratio: number; direction: 'above' | 'below' } | null {
   const incomes = taxpayers.flatMap((t) => t.compliance.annualIncomeDeclaredCents ?? []);
   const years = periodYears(statement.incomePeriod);
   if (incomes.length === 0 || !(years > 0)) return null;
@@ -464,20 +477,187 @@ function incomeMismatch(statement: Statement, taxpayers: KraResult['taxpayers'])
   if (toKra === 0 && declared === 0) return null;
   // Income to KRA with none declared here is more than any percentage, and there is none to give.
   const ratio = declared === 0 ? Infinity : Math.abs(toKra - declared) / declared;
-  if (ratio < 0.25) return null;
+  return { ratio, direction: toKra > declared ? 'above' : 'below' };
+}
+
+const percent = (ratio: number) => (Number.isFinite(ratio) ? Math.round(ratio * 100) : null);
+
+function incomeMismatch(statement: Statement, taxpayers: KraResult['taxpayers']): Flag | null {
+  const difference = incomeDifference(statement, taxpayers);
+  if (!difference || difference.ratio < 0.25) return null;
   const refs =
     statement.income.length > 0
       ? statement.income.map((item) => ref({ personKey: statement.personKey, item }))
       : [statementRef(statement.personKey)];
   return flag(
     'kra-income-mismatch',
-    ratio > 1 ? 'high' : 'medium',
-    {
-      differencePercent: Number.isFinite(ratio) ? Math.round(ratio * 100) : null,
-      direction: toKra > declared ? 'above' : 'below',
-    },
+    difference.ratio > 1 ? 'high' : 'medium',
+    { differencePercent: percent(difference.ratio), direction: difference.direction },
     refs,
   );
+}
+
+/** The registry each registry rule compares with: which flags belong to a system's check. */
+export const REGISTRY_RULE_SYSTEMS = {
+  'registry-parcel-undeclared': 'ardhisasa',
+  'declared-parcel-not-found': 'ardhisasa',
+  'registry-vehicle-undeclared': 'ntsa',
+  'declared-vehicle-not-found': 'ntsa',
+  'registry-directorship-undeclared': 'brs',
+  'declared-company-not-found': 'brs',
+  'directorship-employer-supplier': 'brs',
+  'kra-pin-missing': 'kra',
+  'kra-non-compliant': 'kra',
+  'kra-income-mismatch': 'kra',
+} as const satisfies Partial<Record<RuleId, RegistrySystem>>;
+
+export type RegistryRuleId = keyof typeof REGISTRY_RULE_SYSTEMS;
+export const REGISTRY_RULE_IDS = Object.keys(REGISTRY_RULE_SYSTEMS) as RegistryRuleId[];
+
+/** The registry a flag's rule compares with; null for a deterministic rule's flag. */
+export function registrySystemOf(ruleId: string): RegistrySystem | null {
+  return Object.hasOwn(REGISTRY_RULE_SYSTEMS, ruleId)
+    ? REGISTRY_RULE_SYSTEMS[ruleId as RegistryRuleId]
+    : null;
+}
+
+/** The records of a found lookup, as the gateway stores them (`StoredResult.payload`). */
+export interface RegistryRecords {
+  kra: Pick<KraResult, 'taxpayers'>;
+  ntsa: Pick<NtsaResult, 'vehicles'>;
+  brs: Pick<BrsResult, 'directorships'>;
+  ardhisasa: Pick<ArdhisasaResult, 'parcels'>;
+}
+
+/** review.yaml `RegistryView` row relation. */
+export type RegistryRelation = 'matched' | 'not-declared' | 'not-in-registry';
+
+/**
+ * A registry record beside the declared item it matched (`matched`), a record no item declares
+ * (`not-declared`), or a declared identifier the registry does not hold (`not-in-registry`, the
+ * record is then that identifier alone).
+ */
+export interface RegistryRow {
+  registryRecord: Record<string, unknown>;
+  declaredItemId: string | null;
+  relation: RegistryRelation;
+}
+
+/**
+ * The Registry tab's rows of one person and registry: the records pulled from the gateway paired
+ * with the declared items as `matchRegistries` pairs them. KRA records show PIN presence,
+ * compliance and its validity, and the income difference as a percentage, never an amount.
+ */
+export function registryRows<S extends RegistrySystem>(
+  document: DeclarationV1,
+  personKey: string,
+  system: S,
+  records: RegistryRecords[S],
+): RegistryRow[] {
+  const statement = document.statements.find((s) => s.personKey === personKey);
+  if (!statement) return [];
+  switch (system) {
+    case 'ardhisasa':
+      return identifierRows(statement, {
+        types: ['land', 'building'],
+        identifier: (item) => item.details?.parcelNumber,
+        registry: (records as RegistryRecords['ardhisasa']).parcels,
+        idOf: (parcel) => parcel.parcelNumber,
+        key: 'parcelNumber',
+      });
+    case 'ntsa':
+      return identifierRows(statement, {
+        types: ['vehicle'],
+        identifier: (item) => item.details?.registration,
+        registry: (records as RegistryRecords['ntsa']).vehicles,
+        idOf: (vehicle) => vehicle.registrationNumber,
+        key: 'registrationNumber',
+      });
+    case 'brs':
+      return companyRows(
+        { statement, document },
+        (records as RegistryRecords['brs']).directorships,
+      );
+    default:
+      return kraRows(statement, (records as RegistryRecords['kra']).taxpayers);
+  }
+}
+
+function identifierRows<R extends Record<string, unknown>>(
+  statement: Statement,
+  rule: {
+    types: AssetItem['type'][];
+    identifier: (item: AssetItem) => string | undefined;
+    registry: R[];
+    idOf: (record: R) => string;
+    key: string;
+  },
+): RegistryRow[] {
+  const declared = statement.assets
+    .filter((item) => rule.types.includes(item.type))
+    .flatMap((item) => {
+      const identifier = rule.identifier(item)?.trim();
+      return identifier ? [{ item, identifier }] : [];
+    });
+  const registry = uniqueBy(rule.registry, (record) => identifierKey(rule.idOf(record)));
+  return [
+    ...registry.map((record): RegistryRow => {
+      const match = declared.find((d) => sameIdentifier(d.identifier, rule.idOf(record)));
+      return {
+        registryRecord: { ...record },
+        declaredItemId: match?.item.id ?? null,
+        relation: match ? 'matched' : 'not-declared',
+      };
+    }),
+    ...declared
+      .filter(({ identifier }) => !registry.some((r) => sameIdentifier(rule.idOf(r), identifier)))
+      .map(({ item, identifier }): RegistryRow => ({
+        registryRecord: { [rule.key]: identifier },
+        declaredItemId: item.id,
+        relation: 'not-in-registry',
+      })),
+  ];
+}
+
+function companyRows(person: Person, directorships: Directorship[]): RegistryRow[] {
+  const declared = declaredCompanies(person);
+  const registry = uniqueBy(directorships, (d) => identifierKey(d.companyRegistrationNumber));
+  return [
+    ...registry.map((record): RegistryRow => {
+      const declaring = declared.filter((company) => refersTo(company, record));
+      return {
+        registryRecord: { ...record },
+        declaredItemId: declaring.find((c) => c.itemRef.itemId !== null)?.itemRef.itemId ?? null,
+        relation: declaring.length > 0 ? 'matched' : 'not-declared',
+      };
+    }),
+    ...declared
+      .filter((company) => company.checkable)
+      .flatMap((company) =>
+        unique(company.texts.flatMap(registrationNumbers))
+          .filter((n) => !registry.some((r) => sameIdentifier(r.companyRegistrationNumber, n)))
+          .map((number): RegistryRow => ({
+            registryRecord: { companyRegistrationNumber: number },
+            declaredItemId: company.itemRef.itemId,
+            relation: 'not-in-registry',
+          })),
+      ),
+  ];
+}
+
+function kraRows(statement: Statement, taxpayers: KraResult['taxpayers']): RegistryRow[] {
+  const difference = incomeDifference(statement, taxpayers);
+  return taxpayers.map((taxpayer) => ({
+    registryRecord: {
+      pinPresent: true,
+      complianceStatus: taxpayer.compliance.status,
+      validUntil: taxpayer.compliance.validUntil,
+      incomeDifferencePercent: difference ? percent(difference.ratio) : null,
+      incomeDirection: difference?.direction ?? null,
+    },
+    declaredItemId: null,
+    relation: 'matched',
+  }));
 }
 
 function statementRef(personKey: string): ItemRef {

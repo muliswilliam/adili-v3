@@ -15,6 +15,8 @@ import {
 import { DocumentsClient, DocumentsUnavailable } from '../documents/documents-client.js';
 import { InternalApiRejected } from '../internal-api/rejected.js';
 import { declarationsUnavailable, upstreamUnavailable } from '../internal-api/upstream.js';
+import { registrySummary } from '../registry/representation.js';
+import { registryChecks } from '../registry/schema.js';
 import { SYSTEM_SUBJECT } from '../system-context.js';
 import { caseTenant } from './access.js';
 import {
@@ -188,6 +190,11 @@ async function caseData(
     .from(determinations)
     .where(eq(determinations.caseId, row.id))
     .orderBy(asc(determinations.proposedAt), asc(determinations.id));
+  const checks = await tx
+    .select()
+    .from(registryChecks)
+    .where(eq(registryChecks.caseId, row.id))
+    .orderBy(asc(registryChecks.personKey), asc(registryChecks.system));
   const assignments = await tx
     .select()
     .from(reviewAssignments)
@@ -242,6 +249,7 @@ async function caseData(
     })),
     reviewerHistory,
     determinations: determinationRows.map(determinationView),
+    registry: registrySummary(checks),
   };
 }
 

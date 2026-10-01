@@ -8,6 +8,7 @@ import { closuresSchema } from '../closures/schema.js';
 import { determinationsSchema } from '../determinations/schema.js';
 import { enforcementSchema } from '../enforcement/schema.js';
 import { referralsSchema } from '../referrals/schema.js';
+import { registrySchema } from '../registry/schema.js';
 
 /** Drizzle schema of the review database. Only this service reads or writes it (ADR-013). */
 export const schema = {
@@ -18,6 +19,7 @@ export const schema = {
   ...closuresSchema,
   ...enforcementSchema,
   ...referralsSchema,
+  ...registrySchema,
   // `CLR`, `CMP`, `ADM` and `RFL` reference counters (ADR-011), allocated in the transaction of the legal act.
   ...numberingSchema,
   // Stored outcomes of `Idempotency-Key` writes (issuing a clarification, approving a determination).
@@ -35,3 +37,4 @@ export * from '../closures/schema.js';
 export * from '../determinations/schema.js';
 export * from '../enforcement/schema.js';
 export * from '../referrals/schema.js';
+export * from '../registry/schema.js';

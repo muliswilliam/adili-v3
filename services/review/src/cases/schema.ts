@@ -103,7 +103,8 @@ export type TimelineKind =
   | 'determination-approved'
   | 'determination-returned'
   | 'determination-withdrawn'
-  | 'sampled-for-review';
+  | 'sampled-for-review'
+  | 'registry-checked';
 
 const inList = (values: readonly string[]) => sql.raw(values.map((v) => `'${v}'`).join(', '));
 
@@ -150,6 +151,11 @@ export const reviewCases = pgTable(
     /** That roster record's reporting entity: the bulk closure filter. */
     reportingEntityId: uuid(),
     openFlags: integer().notNull().default(0),
+    /**
+     * Whether a registry could not be checked for someone on the case at its latest registry check
+     * (spec 07b): the queue's filter and icon. Kept with `registry_checks` in one transaction.
+     */
+    registryUnavailable: boolean().notNull().default(false),
     openClarifications: integer().notNull().default(0),
     /** When the closure sweep diverted the case to review instead of proposing its closure. */
     sampledAt: timestamp({ withTimezone: true }),

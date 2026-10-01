@@ -1,3 +1,7 @@
+import type { components } from './integration-gateway-api.gen.js';
+
+type Schemas = components['schemas'];
+
 /** integration-gateway.yaml `PayrollAction`. */
 export type PayrollAction = 'stop_salary' | 'resume_salary';
 
@@ -33,9 +37,44 @@ export interface PayrollContext {
   caseRef?: string;
 }
 
+/** integration-gateway.yaml lookup results, as the gateway answers them. */
+export type KraResult = Schemas['KraResult'];
+export type NtsaResult = Schemas['NtsaResult'];
+export type BrsResult = Schemas['BrsResult'];
+export type ArdhisasaResult = Schemas['ArdhisasaResult'];
+export type SupplierCheckResult = Schemas['SupplierCheckResult'];
+/** integration-gateway.yaml `StoredResult`: a lookup's records read back by its result id. */
+export type StoredResult = Schemas['StoredResult'];
+
+/** The registries the review service cross-checks declarations against (spec 07b). */
+export interface RegistryResults {
+  kra: KraResult;
+  ntsa: NtsaResult;
+  brs: BrsResult;
+  ardhisasa: ArdhisasaResult;
+}
+export type LookupSystem = keyof RegistryResults;
+
+/**
+ * Why a registry is consulted (integration-gateway.yaml `LegalBasis`): comparing a declaration
+ * with other sources (Regs r.20(1)(b)) or verifying it (Act s.35(5)).
+ */
+export type RegistryLegalBasis = 'regs-r20-1-b' | 'act-s35-5';
+
+/** On whose behalf, why and for which case a registry is consulted; recorded by the gateway. */
+export interface RegistryContext {
+  /** The Commission: the gateway stores the answer encrypted under its key. */
+  tenant: string;
+  legalBasis: RegistryLegalBasis;
+  /** The review case the lookup is for. */
+  caseRef: string;
+}
+
 /**
  * The integration-gateway (or payroll behind it) is unreachable, answered 503 or outside its
- * contract: nothing is recorded as sent, and activities retry with backoff.
+ * contract: nothing is recorded as sent, and activities retry with backoff. For a registry
+ * lookup, also a lookup the gateway could not record (503 `lookup-not-recorded`): retried, as the
+ * answer is cached.
  */
 export class IntegrationGatewayUnavailable extends Error {
   constructor(message: string, options?: ErrorOptions) {
@@ -59,4 +98,34 @@ export abstract class IntegrationGatewayClient {
     instruction: PayrollInstructionRequest,
     context: PayrollContext,
   ): Promise<PayrollInstruction>;
+
+  /**
+   * `lookupKraTaxpayer`, `lookupNtsaVehicles`, `lookupBrsDirectorships` or
+   * `lookupArdhisasaParcels`: the registry's records of a national ID. A registry that gives no
+   * answer is outcome `unavailable` with a reason, not an error. Throws
+   * `IntegrationGatewayUnavailable` when the gateway cannot be reached or did not record the
+   * lookup, and `InternalApiRejected` when it refuses the request.
+   */
+  abstract lookupRegistry<S extends LookupSystem>(
+    system: S,
+    nationalId: string,
+    context: RegistryContext,
+  ): Promise<RegistryResults[S]>;
+
+  /**
+   * `checkCompanySuppliesEmployer`: whether the company is on the employer's supplier list.
+   * Errors as `lookupRegistry`.
+   */
+  abstract checkSupplier(
+    registrationNumber: string,
+    employerCode: string,
+    context: RegistryContext,
+  ): Promise<SupplierCheckResult>;
+
+  /**
+   * `getVerificationResult`: a stored lookup with its records, decrypted for the Commission; null
+   * when the gateway has no such result for it. Throws `IntegrationGatewayUnavailable` when the
+   * gateway cannot be reached or cannot decrypt now.
+   */
+  abstract getStoredResult(resultId: string, tenant: string): Promise<StoredResult | null>;
 }

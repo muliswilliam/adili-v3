@@ -1,12 +1,4 @@
-import type {
-  AssetItem,
-  Child,
-  DeclarationV1,
-  IncomeItem,
-  PersonName,
-  Spouse,
-  Statement,
-} from '@adili/forms';
+import type { AssetItem, IncomeItem, PersonName, Statement } from '@adili/forms';
 import { describe, expect, it } from 'vitest';
 
 import {
@@ -17,10 +9,23 @@ import {
   type PersonRegistryResults,
   type RegistryMatch,
   type RegistryMatchInput,
+  registryRows,
   runRules,
   score,
 } from '../../src/rules/index.js';
-import { asset, declaration, income, statement } from '../fixtures/declarations.js';
+import { declaration, income, statement } from '../fixtures/declarations.js';
+import {
+  BARAKA_KEY,
+  type Household,
+  IMANI_KEY,
+  land,
+  shares,
+  SPOUSE,
+  twoYears,
+  vehicle,
+  wanjikuDocument,
+  wanjikuHousehold,
+} from '../fixtures/households.js';
 import {
   AMINA,
   BARAKA,
@@ -35,122 +40,6 @@ import {
   supplierCheck,
   WANJIKU,
 } from '../fixtures/registries.js';
-
-const PETER_ID = '0192f1a0-5a11-7000-8000-00000000a001';
-const IMANI_ID = '0192f1a0-5a11-7000-8000-00000000a002';
-const BARAKA_ID = '0192f1a0-5a11-7000-8000-00000000a003';
-const SPOUSE = `spouse:${PETER_ID}`;
-const IMANI_KEY = `child:${IMANI_ID}`;
-const BARAKA_KEY = `child:${BARAKA_ID}`;
-
-/** Two years' salary in KES cents, so the annual figure is the seed's KRA income. */
-const twoYears = (annualKes: number): IncomeItem =>
-  income({ amount: { kesCents: annualKes * 2 * 100 } });
-
-const vehicle = (registration: string | undefined, description = 'Toyota Fielder'): AssetItem =>
-  asset({
-    type: 'vehicle',
-    description,
-    details: registration === undefined ? {} : { registration },
-    value: { kesCents: 120_000_000 },
-  });
-
-const land = (parcelNumber: string | undefined, type: AssetItem['type'] = 'land'): AssetItem =>
-  asset({
-    type,
-    description: 'Plot in Ruiru',
-    details: parcelNumber === undefined ? {} : { parcelNumber },
-    value: { kesCents: 850_000_000 },
-  });
-
-const shares = (issuer: string, type: AssetItem['type'] = 'shareholding'): AssetItem =>
-  asset({
-    type,
-    description: 'Shares in a family company',
-    details: { issuer, quantityOrPercent: '400 shares' },
-    value: { kesCents: 40_000_000 },
-  });
-
-interface Household {
-  officer: Statement;
-  spouse: Statement;
-  imani: Statement;
-  baraka: Statement;
-  directorships: { company: string; role: string; remunerated: boolean }[];
-}
-
-/**
- * Wanjiku Kamau's demo declaration as the demo files it: the Fielder, the Kiambu parcel and her
- * Afya Bora directorship (paragraph 9); her spouse's Mazda and Afya Bora shares, as a BRS
- * pre-fill writes them (by company name); the children with nothing to declare.
- */
-function wanjikuHousehold(): Household {
-  return {
-    officer: statement('officer', {
-      income: [twoYears(3_120_000)],
-      assets: [land('KIAMBU/RUIRU EAST BLOCK 2/4417'), vehicle('KCX 214J')],
-    }),
-    spouse: statement(SPOUSE, {
-      income: [
-        income({ type: 'business', description: 'Pharmacy', amount: { kesCents: 372_000_000 } }),
-      ],
-      assets: [vehicle('KCB 903T', 'Mazda CX-5'), shares('Afya Bora Medical Supplies Ltd')],
-    }),
-    imani: statement(IMANI_KEY),
-    baraka: statement(BARAKA_KEY),
-    directorships: [
-      {
-        company: 'Afya Bora Medical Supplies Limited (PVT-9XYZ2L4Q)',
-        role: 'Director',
-        remunerated: false,
-      },
-    ],
-  };
-}
-
-function wanjikuDocument(household: Household, ids: { baraka?: string } = {}): DeclarationV1 {
-  const base = declaration([
-    household.officer,
-    household.spouse,
-    household.imani,
-    household.baraka,
-  ]);
-  const spouse: Spouse = {
-    id: PETER_ID,
-    name: { surname: 'Kamau', firstName: 'Peter', otherNames: 'Mwangi' },
-    nationalId: PETER.nationalId,
-    separated: false,
-  };
-  const child = (id: string, firstName: string, nationalId?: string): Child => ({
-    id,
-    name: { surname: 'Kamau', firstName },
-    dateOfBirth: '2012-06-21',
-    ...(nationalId ? { nationalId } : {}),
-    includedAtStatementDate: true,
-  });
-  return {
-    ...base,
-    officer: {
-      ...base.officer,
-      name: { surname: 'Kamau', firstName: 'Wanjiku', otherNames: 'Njoki' },
-    },
-    spouses: { none: false, items: [spouse] },
-    children: {
-      none: false,
-      items: [
-        child(IMANI_ID, 'Imani', IMANI.nationalId),
-        child(BARAKA_ID, 'Baraka', 'baraka' in ids ? ids.baraka : BARAKA.nationalId),
-      ],
-    },
-    otherInformation: {
-      ...base.otherInformation,
-      registrableInterests: {
-        ...base.otherInformation.registrableInterests,
-        directorships: household.directorships,
-      },
-    },
-  };
-}
 
 /** The matching input for Wanjiku's household, every lookup answered as the seed has it. */
 function wanjiku(
@@ -838,5 +727,103 @@ describe('matchRegistries: household and statuses', () => {
       [BARAKA_KEY]: null,
     });
     expect(householdIds(document, null).officer).toBeNull();
+  });
+});
+
+describe('registryRows: the Registry tab pairs records with declared items (S12)', () => {
+  const input = () =>
+    wanjiku((h) => {
+      h.officer.assets.push(land('NAKURU/NJORO/1187'));
+    });
+
+  it('land: a registry parcel beside the declared item, undeclared, or a declared number not found', () => {
+    const { document } = input();
+    const officer = document.statements[0];
+    const kiambu = officer?.assets.find((a) => a.details?.parcelNumber?.startsWith('KIAMBU'));
+    const nakuru = officer?.assets.find((a) => a.details?.parcelNumber?.startsWith('NAKURU'));
+
+    const rows = registryRows(document, 'officer', 'ardhisasa', WANJIKU.results().ardhisasa);
+
+    expect(
+      rows.map((row) => [row.registryRecord.parcelNumber, row.relation, row.declaredItemId]),
+    ).toEqual([
+      ['KIAMBU/RUIRU EAST BLOCK 2/4417', 'matched', kiambu?.id],
+      ['KAJIADO/KITENGELA/59821', 'not-declared', null],
+      ['NAKURU/NJORO/1187', 'not-in-registry', nakuru?.id],
+    ]);
+    // The registry's record as the gateway holds it; a declared number alone when not found.
+    expect(rows[1]?.registryRecord).toEqual({
+      parcelNumber: 'KAJIADO/KITENGELA/59821',
+      county: 'Kajiado',
+      areaHectares: 2.0235,
+      tenure: 'freehold',
+      registeredOn: '2025-01-17',
+    });
+    expect(rows[2]?.registryRecord).toEqual({ parcelNumber: 'NAKURU/NJORO/1187' });
+  });
+
+  it('vehicles by registration: the Fielder declared, the Prado not', () => {
+    const { document } = input();
+    const fielder = document.statements[0]?.assets.find((a) => a.type === 'vehicle');
+
+    const rows = registryRows(document, 'officer', 'ntsa', WANJIKU.results().ntsa);
+
+    expect(
+      rows.map((row) => [row.registryRecord.registrationNumber, row.relation, row.declaredItemId]),
+    ).toEqual([
+      ['KCX 214J', 'matched', fielder?.id],
+      ['KDK 482M', 'not-declared', null],
+    ]);
+  });
+
+  it("companies: the officer's paragraph 9 directorship and the spouse's shares, by name", () => {
+    const { document } = input();
+    const spouseShares = document.statements[1]?.assets.find((a) => a.type === 'shareholding');
+
+    expect(
+      registryRows(document, 'officer', 'brs', WANJIKU.results().brs).map((row) => [
+        row.registryRecord.companyRegistrationNumber,
+        row.relation,
+        row.declaredItemId,
+      ]),
+    ).toEqual([['PVT-9XYZ2L4Q', 'matched', null]]);
+    expect(
+      registryRows(document, SPOUSE, 'brs', PETER.results().brs).map((row) => [
+        row.relation,
+        row.declaredItemId,
+      ]),
+    ).toEqual([['matched', spouseShares?.id]]);
+  });
+
+  it('KRA: PIN presence, compliance and the income difference as a percentage, never an amount', () => {
+    const { document } = input();
+    const kiprono = declaration([officerStatement()]);
+
+    expect(registryRows(document, 'officer', 'kra', WANJIKU.results().kra)).toEqual([
+      {
+        registryRecord: {
+          pinPresent: true,
+          complianceStatus: 'compliant',
+          validUntil: '2027-06-30',
+          incomeDifferencePercent: 0,
+          incomeDirection: 'below',
+        },
+        declaredItemId: null,
+        relation: 'matched',
+      },
+    ]);
+    const [row] = registryRows(kiprono, 'officer', 'kra', KIPRONO.results().kra);
+    expect(row?.registryRecord).toMatchObject({
+      complianceStatus: 'non-compliant',
+      validUntil: null,
+    });
+    expect(JSON.stringify(row)).not.toContain('2640000');
+    expect(registryRows(document, 'officer', 'kra', kraResult([]))).toEqual([]);
+  });
+
+  it('no rows for a person the declaration does not have', () => {
+    expect(registryRows(input().document, 'spouse:unknown', 'ntsa', PETER.results().ntsa)).toEqual(
+      [],
+    );
   });
 });

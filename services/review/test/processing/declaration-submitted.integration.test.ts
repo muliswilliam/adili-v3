@@ -1,8 +1,9 @@
 import { asc, eq } from 'drizzle-orm';
-import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
 import { inbox, outbox, reviewCases, reviewFlags, reviewTimeline } from '../../src/db/schema.js';
 import { asset, declaration, income, statement } from '../fixtures/declarations.js';
+import { untilRegistryChecked } from '../support/cases.js';
 import { submittedVersion } from '../support/fake-declarations.js';
 import { type ReviewApi, startReviewApi, submittedEvent } from '../support/review-api.js';
 
@@ -49,14 +50,7 @@ describe('declaration.submitted.v1 consumer and processing', () => {
 
     await api.consumer.submitted(submittedEvent('psc', version));
 
-    const [created] = await vi.waitFor(
-      async () => {
-        const rows = await casesOf(version.declarationId);
-        expect(rows).toHaveLength(1);
-        return rows;
-      },
-      { timeout: 45_000, interval: 250 },
-    );
+    const created = await untilRegistryChecked(api, version);
     expect(created).toMatchObject({
       tenant: 'psc',
       declarationId: version.declarationId,
@@ -80,10 +74,10 @@ describe('declaration.submitted.v1 consumer and processing', () => {
       openFlags: 2,
       openClarifications: 0,
     });
-    expect(created?.receivedAt.toISOString()).toBe('2027-12-15T09:30:00.000Z');
-    expect(created?.windowEndsAt.toISOString()).toBe('2028-06-15T09:30:00.000Z');
+    expect(created.receivedAt.toISOString()).toBe('2027-12-15T09:30:00.000Z');
+    expect(created.windowEndsAt.toISOString()).toBe('2028-06-15T09:30:00.000Z');
 
-    const caseId = created?.id ?? '';
+    const caseId = created.id;
     const flags = await api.asPlatform((tx) =>
       tx.select().from(reviewFlags).where(eq(reviewFlags.caseId, caseId)),
     );
@@ -97,8 +91,10 @@ describe('declaration.submitted.v1 consumer and processing', () => {
     const timeline = await api.asPlatform((tx) =>
       tx.select().from(reviewTimeline).where(eq(reviewTimeline.caseId, caseId)),
     );
+    // Then its registries are checked (spec 07b): no roster record here, so no national ID.
     expect(timeline).toMatchObject([
       { kind: 'case-created', ref: version.versionId, actor: 'system:review' },
+      { kind: 'registry-checked', ref: version.versionId, actor: 'system:review' },
     ]);
 
     // The previous-version lookup found none; the content was read as the system, per version.
@@ -112,7 +108,10 @@ describe('declaration.submitted.v1 consumer and processing', () => {
 
     // S21: identifiers and states only.
     const events = await api.db.select().from(outbox).orderBy(asc(outbox.createdAt));
-    expect(events.map((event) => event.eventType)).toEqual(['review.case.created.v1']);
+    expect(events.map((event) => event.eventType)).toEqual([
+      'review.case.created.v1',
+      'review.registry.checked.v1',
+    ]);
     expect(events[0]?.envelope).toMatchObject({
       type: 'review.case.created.v1',
       source: 'adili/review',
@@ -139,12 +138,7 @@ describe('declaration.submitted.v1 consumer and processing', () => {
     const event = submittedEvent('psc', version);
 
     await api.consumer.submitted(event);
-    await vi.waitFor(
-      async () => {
-        expect(await casesOf(version.declarationId)).toHaveLength(1);
-      },
-      { timeout: 45_000, interval: 250 },
-    );
+    await untilRegistryChecked(api, version);
     const readsAfterFirst = api.declarations.reads.length;
 
     // The same event again (RabbitMQ redelivery): the inbox skips it.
@@ -157,7 +151,8 @@ describe('declaration.submitted.v1 consumer and processing', () => {
     expect(await casesOf(version.declarationId)).toHaveLength(1);
     expect(api.declarations.reads).toHaveLength(readsAfterFirst);
     const events = await api.db.select().from(outbox);
-    expect(events).toHaveLength(1);
+    // The case and its registry check, once.
+    expect(events).toHaveLength(2);
     const handled = await api.db.select().from(inbox);
     expect(handled.map((row) => row.eventId).sort()).toHaveLength(2);
   });
@@ -206,12 +201,8 @@ describe('declaration.submitted.v1 consumer and processing', () => {
 
     await api.consumer.submitted(submittedEvent('psc', version));
 
-    await vi.waitFor(
-      async () => {
-        expect(await casesOf(version.declarationId)).toHaveLength(1);
-      },
-      { timeout: 45_000, interval: 250 },
-    );
+    await untilRegistryChecked(api, version);
+    expect(await casesOf(version.declarationId)).toHaveLength(1);
   });
 
   it('rejects an event without a tenant, and one for a version it cannot name', async () => {

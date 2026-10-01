@@ -18,6 +18,7 @@ import { DeterminationsModule } from './determinations/determinations.module.js'
 import { EnforcementModule } from './enforcement/enforcement.module.js';
 import { ProcessingModule } from './processing/processing.module.js';
 import { ReferralsModule } from './referrals/referrals.module.js';
+import { RegistryModule } from './registry/registry.module.js';
 
 @Module({
   imports: [
@@ -49,6 +50,7 @@ import { ReferralsModule } from './referrals/referrals.module.js';
     ClosuresModule,
     EnforcementModule,
     ReferralsModule,
+    RegistryModule,
     ProcessingModule,
   ],
 })
