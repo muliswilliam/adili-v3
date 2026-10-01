@@ -98,9 +98,61 @@ describe('composeMaterialChanges (S9)', () => {
     ).toEqual([]);
   });
 
+  it("lists flagged directorships and memberships after the statements, as the officer's", () => {
+    expect(
+      composeMaterialChanges({
+        bio: bio(),
+        statements: [
+          ['officer', { ...statement(), income: [{ ...incomeItem(), change: promoted }] }],
+        ],
+        interests: {
+          directorships: [
+            {
+              company: 'Lake Basin Holdings Ltd',
+              role: 'Director',
+              remunerated: true,
+              change: { changed: true, kind: 'acquisition', explanation: 'Appointed in 2026.' },
+            },
+            { company: 'Old Co Ltd', role: 'Director', remunerated: false },
+          ],
+          memberships: [
+            {
+              entity: 'Kisumu Golf Club',
+              kind: 'club',
+              change: { changed: true, kind: 'acquisition', explanation: 'Joined in 2027.' },
+            },
+            {
+              entity: 'Unexplained Sacco',
+              kind: 'society',
+              change: { changed: true, explanation: 'x' },
+            },
+          ],
+        },
+      }),
+    ).toEqual([
+      expect.objectContaining({ kind: 'value-change' }),
+      {
+        personKey: 'officer',
+        itemDescription: 'Lake Basin Holdings Ltd',
+        kind: 'directorship',
+        explanation: 'Appointed in 2026.',
+      },
+      {
+        personKey: 'officer',
+        itemDescription: 'Kisumu Golf Club',
+        kind: 'membership',
+        explanation: 'Joined in 2027.',
+      },
+    ]);
+  });
+
   it('tolerates partial drafts', () => {
     expect(
-      composeMaterialChanges({ bio: undefined, statements: [['officer', { income: 'x' }]] }),
+      composeMaterialChanges({
+        bio: undefined,
+        statements: [['officer', { income: 'x' }]],
+        interests: { directorships: 'x', memberships: [null] },
+      }),
     ).toEqual([]);
   });
 });

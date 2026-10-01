@@ -4,10 +4,11 @@ import { recordOf } from '../guards.js';
 
 /**
  * Paragraph 9's material changes (Act s.31(3)-(4), Regs r.21), composed by the service rather
- * than typed twice: the officer's marital-status change from bio, then every item flagged as
+ * than typed twice: the declarant's marital-status change from bio, then every item flagged as
  * changed since the last declaration, person by person in First Schedule order, each with a
- * reference to its item. A flag still missing its kind or explanation is left out; its statement
- * reports it as incomplete. Pure: the caller passes the live (not archived) statements.
+ * reference to its item, then the declarant's directorships and memberships flagged as changed.
+ * A flag still missing its kind or explanation is left out; its section reports it as
+ * incomplete. Pure: the caller passes the live (not archived) statements.
  */
 
 /** `declaration.v1` `MaterialChangeEntry`. */
@@ -23,11 +24,23 @@ export interface ComposedFrom {
   bio: unknown;
   /** Live statements by person key, in First Schedule order. */
   statements: readonly (readonly [PersonKey, unknown])[];
+  /** Paragraph 9's `registrableInterests`, as saved; absent before `other` is. */
+  interests?: unknown;
 }
+
+/** The registrable interests that carry a change flag, and what names each entry. */
+const INTERESTS = [
+  { list: 'directorships', kind: 'directorship', name: 'company' },
+  { list: 'memberships', kind: 'membership', name: 'entity' },
+] as const;
 
 const CATEGORIES = ['income', 'assets', 'liabilities'] as const;
 
-export function composeMaterialChanges({ bio, statements }: ComposedFrom): MaterialChangeEntry[] {
+export function composeMaterialChanges({
+  bio,
+  statements,
+  interests,
+}: ComposedFrom): MaterialChangeEntry[] {
   const entries: MaterialChangeEntry[] = [];
   const marital = recordOf(recordOf(bio).maritalStatusChange);
   const maritalExplanation = text(marital.explanation);
@@ -52,6 +65,22 @@ export function composeMaterialChanges({ bio, statements }: ComposedFrom): Mater
           explanation,
         });
       }
+    }
+  }
+  const registrable = recordOf(interests);
+  for (const { list, kind, name } of INTERESTS) {
+    const items = Array.isArray(registrable[list]) ? (registrable[list] as unknown[]) : [];
+    for (const value of items) {
+      const interest = recordOf(value);
+      const change = recordOf(interest.change);
+      const explanation = text(change.explanation);
+      if (change.changed !== true || !text(change.kind) || !explanation) continue;
+      entries.push({
+        personKey: 'officer',
+        ...(typeof interest[name] === 'string' && { itemDescription: interest[name] }),
+        kind,
+        explanation,
+      });
     }
   }
   return entries;

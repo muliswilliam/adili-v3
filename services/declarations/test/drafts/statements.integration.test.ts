@@ -474,6 +474,55 @@ describe('changed-since-last flags (S9)', () => {
   });
 });
 
+describe('paragraph 9 registrable interests (S9)', () => {
+  it('lists a directorship flagged as changed, and holds paragraph 9 incomplete until it is explained', async () => {
+    const draft = await started();
+    const other = (await getSection(draft.id, 'other')).json<SectionEnvelope>();
+    const interests = other.contents.registrableInterests as Record<string, unknown>;
+    const directorship = {
+      company: 'Lake Basin Holdings Ltd',
+      role: 'Director',
+      remunerated: true,
+      change: { changed: true, kind: 'acquisition' },
+    };
+
+    const unexplained = await save(
+      draft.id,
+      'other',
+      { ...other.contents, registrableInterests: { ...interests, directorships: [directorship] } },
+      1,
+    );
+
+    expect(unexplained.json<SectionSaveResult>()).toMatchObject({ completeness: 'incomplete' });
+    expect(unexplained.json<SectionSaveResult>().issues.map((found) => found.path)).toEqual([
+      '/registrableInterests/directorships/0/change/explanation',
+    ]);
+
+    const explained = {
+      ...directorship,
+      change: { ...directorship.change, explanation: 'Appointed in 2026.' },
+    };
+    const saved = await save(
+      draft.id,
+      'other',
+      { ...other.contents, registrableInterests: { ...interests, directorships: [explained] } },
+      2,
+    );
+
+    expect(saved.json<SectionSaveResult>()).toMatchObject({ completeness: 'complete' });
+    expect(
+      (await getSection(draft.id, 'other')).json<SectionEnvelope>().contents.materialChanges,
+    ).toEqual([
+      {
+        personKey: 'officer',
+        itemDescription: 'Lake Basin Holdings Ltd',
+        kind: 'directorship',
+        explanation: 'Appointed in 2026.',
+      },
+    ]);
+  });
+});
+
 describe('ciphertext opacity for statement items (S13)', () => {
   const SECRETS = [
     'Salary from the Ministry',

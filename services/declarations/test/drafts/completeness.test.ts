@@ -196,6 +196,52 @@ describe('changed-since-last flags (S9)', () => {
   });
 });
 
+describe('changed-since-last flags on registrable interests (S9)', () => {
+  it('needs a kind and an explanation for a directorship or membership flagged as changed', () => {
+    const sections = draft(({ other: o }) => {
+      o.registrableInterests.directorships = [
+        {
+          company: 'Lake Basin Holdings Ltd',
+          role: 'Director',
+          remunerated: true,
+          change: { changed: true },
+        },
+      ];
+      o.registrableInterests.memberships = [
+        {
+          entity: 'Kisumu Golf Club',
+          kind: 'club',
+          change: { changed: true, kind: 'acquisition', explanation: ' ' },
+        },
+      ];
+    });
+
+    expect(issues(sections)).toEqual([
+      'other /registrableInterests/directorships/0/change/kind required',
+      'other /registrableInterests/directorships/0/change/explanation required',
+      'other /registrableInterests/memberships/0/change/explanation required',
+    ]);
+  });
+
+  it('takes an explained or unflagged interest as complete', () => {
+    const sections = draft(({ other: o }) => {
+      o.registrableInterests.directorships = [
+        {
+          company: 'Lake Basin Holdings Ltd',
+          role: 'Director',
+          remunerated: true,
+          change: { changed: true, kind: 'acquisition', explanation: 'Appointed in 2026.' },
+        },
+      ];
+      o.registrableInterests.memberships = [
+        { entity: 'Kisumu Golf Club', kind: 'club', change: { changed: false } },
+      ];
+    });
+
+    expect(issues(sections)).toEqual([]);
+  });
+});
+
 function promoted() {
   return { changed: true, kind: 'value-change', explanation: 'Promoted in 2026.' } as const;
 }

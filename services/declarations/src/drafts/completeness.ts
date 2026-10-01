@@ -69,7 +69,7 @@ export function assessSections(
     const key = statementKey(personKey);
     sections.push([key, contents, statementRules(key, contents)]);
   }
-  if (draft.other !== undefined) sections.push(['other', draft.other, []]);
+  if (draft.other !== undefined) sections.push(['other', draft.other, interestRules(draft.other)]);
 
   return new Map(
     sections.map(([key, contents, rules]) => {
@@ -140,36 +140,47 @@ function statementRules(key: DeclarationSectionKey, contents: unknown): Declarat
       },
     }),
   );
-  const changeRules = CATEGORIES.flatMap(({ list }) =>
-    listOf(statement[list]).flatMap((item, index) => {
-      const change = recordOf(recordOf(item).change);
-      if (change.changed !== true) return [];
-      const at = `/${list}/${String(index)}/change`;
-      return [
-        ...(filled(change.kind)
-          ? []
-          : [
-              issue(
-                key,
-                `${at}/kind`,
-                'required',
-                'Choose what changed since your last declaration.',
-              ),
-            ]),
-        ...(filled(change.explanation)
-          ? []
-          : [
-              issue(
-                key,
-                `${at}/explanation`,
-                'required',
-                'Explain what changed since your last declaration.',
-              ),
-            ]),
-      ];
-    }),
+  const changes = CATEGORIES.flatMap(({ list }) =>
+    listOf(statement[list]).flatMap((item, index) =>
+      changeRules(key, `/${list}/${String(index)}/change`, recordOf(item).change),
+    ),
   );
-  return [...nilRules, ...changeRules];
+  return [...nilRules, ...changes];
+}
+
+/** A directorship or membership flagged as changed since the last declaration, as an item (S9). */
+function interestRules(contents: unknown): DeclarationIssue[] {
+  const interests = recordOf(recordOf(contents).registrableInterests);
+  return (['directorships', 'memberships'] as const).flatMap((list) =>
+    listOf(interests[list]).flatMap((interest, index) =>
+      changeRules(
+        'other',
+        `/registrableInterests/${list}/${String(index)}/change`,
+        recordOf(interest).change,
+      ),
+    ),
+  );
+}
+
+/** A change flag that is set says what kind of change it was and explains it. */
+function changeRules(key: DeclarationSectionKey, at: string, value: unknown): DeclarationIssue[] {
+  const change = recordOf(value);
+  if (change.changed !== true) return [];
+  return [
+    ...(filled(change.kind)
+      ? []
+      : [issue(key, `${at}/kind`, 'required', 'Choose what changed since your last declaration.')]),
+    ...(filled(change.explanation)
+      ? []
+      : [
+          issue(
+            key,
+            `${at}/explanation`,
+            'required',
+            'Explain what changed since your last declaration.',
+          ),
+        ]),
+  ];
 }
 
 /** A string with something in it besides spaces. */

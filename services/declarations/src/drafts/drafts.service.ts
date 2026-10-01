@@ -451,7 +451,14 @@ export class DraftsService {
     // Paragraph 9's material changes follow the items as they are now, not as `other` was saved.
     const contents =
       key === 'other'
-        ? { ...opened, materialChanges: await this.materialChanges(person, state.declaration) }
+        ? {
+            ...opened,
+            materialChanges: await this.materialChanges(
+              person,
+              state.declaration,
+              opened.registrableInterests,
+            ),
+          }
         : opened;
     const issues =
       state.section.completeness === 'not-started' || state.section.completeness === 'archived'
@@ -613,7 +620,10 @@ export class DraftsService {
     metadata: SectionMetadata,
   ): Promise<SectionContents> {
     if (key === 'other') {
-      return { ...body, materialChanges: await this.materialChanges(person, declaration) };
+      return {
+        ...body,
+        materialChanges: await this.materialChanges(person, declaration, body.registrableInterests),
+      };
     }
     if (key === 'bio') {
       const { contents, changed } = applyLockedFields(body, stored, metadata.lockedFields ?? []);
@@ -698,10 +708,15 @@ export class DraftsService {
   }
 
   /**
-   * Paragraph 9's material changes as the draft stands: the marital-status change from bio and
-   * every flagged item of the live (not archived) statements, in First Schedule order.
+   * Paragraph 9's material changes as the draft stands: the marital-status change from bio,
+   * every flagged item of the live (not archived) statements in First Schedule order, and the
+   * flagged registrable interests of paragraph 9 as given.
    */
-  private async materialChanges(person: PersonContext, declaration: DeclarationRow) {
+  private async materialChanges(
+    person: PersonContext,
+    declaration: DeclarationRow,
+    interests: unknown,
+  ) {
     const rows = await withPerson(this.db, person, (tx) => liveSections(tx, declaration.id));
     let bio: SectionContents | undefined;
     const statements: [PersonKey, SectionContents][] = [];
@@ -712,7 +727,7 @@ export class DraftsService {
       if (personKey) statements.push([personKey, contents]);
       else bio = contents;
     }
-    return composeMaterialChanges({ bio, statements });
+    return composeMaterialChanges({ bio, statements, interests });
   }
 
   private async read(person: PersonContext, declarationId: string): Promise<Declaration> {
