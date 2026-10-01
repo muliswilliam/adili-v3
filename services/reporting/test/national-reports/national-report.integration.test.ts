@@ -25,7 +25,7 @@ import { historyPayloads } from '../support/workflow-history.js';
  * time and `tsc` late; `jsc` has not reported. An EACC analyst builds the national consolidated
  * report from the submitted reports (national totals, a row per Commission, rates) and types its
  * narrative; a rebuild keeps the narrative. The author cannot approve; another EACC supervisor
- * does: `NCR-EACC-2027-0000001-<check>`, the Restricted PDF through documents, `ncr.approved.v1`,
+ * does: `NCR-EACC-2028-0000001-<check>` (the year's end, ADR-011 §2), the Restricted PDF through documents, `ncr.approved.v1`,
  * and the year's chase ends. The authorisation rows of the matrix. Ids only in Temporal history
  * and events.
  */
@@ -360,7 +360,7 @@ describe('National consolidated report (S11)', () => {
     expect((await api.events()).some((event) => event.type === 'ncr.approved.v1')).toBe(false);
   });
 
-  it('S11: an eacc-supervisor approves: NCR-EACC-2027-0000001-<check>, the PDF, ncr.approved.v1, and the chase ends', async () => {
+  it('S11: an eacc-supervisor approves: NCR-EACC-2028-0000001-<check>, the PDF, ncr.approved.v1, and the chase ends', async () => {
     await givenPscAndTscReported();
     await built();
     await saved(NARRATIVE);
@@ -386,7 +386,7 @@ describe('National consolidated report (S11)', () => {
       author: { subject: ANALYST.sub },
       narrative: NARRATIVE,
     });
-    expect(approved.reference).toMatch(/^NCR-EACC-2027-0000001-[0-9A-Z]$/);
+    expect(approved.reference).toMatch(/^NCR-EACC-2028-0000001-[0-9A-Z]$/);
 
     // The workflow issues the Restricted PDF through documents and keeps its id.
     const withPdf = await vi.waitFor(

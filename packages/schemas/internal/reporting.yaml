@@ -245,7 +245,7 @@ paths:
         Needs a token from the step-up re-authentication (`acr` `step-up`, `auth_time` at most
         5 minutes old) and an Idempotency-Key. Part III "Confirmed by" names the commission-admin;
         the document must then be complete against form-m.v1. Allocates
-        `RPT-<ISSUER>-<FY>-<seq>-<check>`, freezes the document with its canonical SHA-256, marks
+        `RPT-<ISSUER>-<FY end>-<seq>-<check>`, freezes the document with its canonical SHA-256, marks
         the report `submitted` (`late` after 31 July) and records EACC's receipt. The Restricted
         Form M PDF and the signed receipt are issued through documents right after, and both
         officers are told: `formMDocumentId` and `receiptDocumentId` are null until then. The
@@ -320,7 +320,7 @@ paths:
         is expected and the non-filers listed are as many as not declared; access requests granted
         plus declined are at most received and the decline reasons add up to declined; Part III
         names who compiled and who confirmed, with dates. The report is then submitted as a hosted
-        confirm submits it, with `source` `federated`: `RPT-<ISSUER>-<FY>-<seq>-<check>`, the
+        confirm submits it, with `source` `federated`: `RPT-<ISSUER>-<FY end>-<seq>-<check>`, the
         document frozen with its canonical SHA-256 (`meta.reference` and `meta.source` set by the
         platform), `late` after 31 July, EACC's receipt, and right after the Restricted Form M
         PDF, the signed receipt and the officers' emails (`formMDocumentId` and
@@ -581,7 +581,7 @@ paths:
       description: |
         eacc-supervisor only; eacc-analyst and anyone else 403. The author, or anyone who built
         the report or saved its narrative, gets 403 `separation-of-duties`. Allocates
-        `NCR-EACC-<FY>-<seq>-<check>`, freezes the report and emits `ncr.approved.v1` (ids, year,
+        `NCR-EACC-<FY end>-<seq>-<check>`, freezes the report and emits `ncr.approved.v1` (ids, year,
         version, reference). The Restricted PDF follows (`documentId`, polled on the report), and
         the year's chase of non-reporting Commissions ends. Approving is safe to retry without an
         Idempotency-Key: once approved, a retry is 409 `ncr-approved` and allocates nothing.
@@ -1199,7 +1199,7 @@ components:
           type: [boolean, 'null']
         reference:
           type: [string, 'null']
-          description: 'RPT-<ISSUER>-<FY>-<seq>-<check>'
+          description: 'RPT-<ISSUER>-<FY end>-<seq>-<check>'
         dueDate:
           type: string
           format: date
@@ -1505,7 +1505,7 @@ components:
           format: date-time
         reference:
           type: [string, 'null']
-          description: 'NCR-EACC-<FY>-<seq>-<check>'
+          description: 'NCR-EACC-<FY end>-<seq>-<check>'
         documentId:
           type: [string, 'null']
           format: uuid

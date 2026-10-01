@@ -18,7 +18,7 @@ import {
 import { Clock, nairobiDate } from '../clock.js';
 import type { ReportingSchema } from '../db/schema.js';
 import { type CommissionFacts, DirectoryClient } from '../directory/directory-client.js';
-import { dueDateOf } from '../financial-year.js';
+import { dueDateOf, referencePeriodOf } from '../financial-year.js';
 import { officerOf } from '../officer.js';
 import {
   badRequest,
@@ -340,7 +340,7 @@ export class ReportSignOffService {
     const { tenant, fy } = report;
     const reference = await allocateReference(tx, RPT, {
       issuer: commission.issuerCode,
-      period: fy,
+      period: referencePeriodOf(fy),
     });
     document.meta = { ...document.meta, reference, source };
     const sha256 = createHash('sha256').update(canonicalJson(document)).digest('hex');

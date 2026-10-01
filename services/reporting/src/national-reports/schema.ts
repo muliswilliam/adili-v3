@@ -60,7 +60,7 @@ export const nationalReports = pgTable(
     contributors: jsonb().$type<string[]>().notNull(),
     approverSubject: text(),
     approverName: text(),
-    /** `NCR-EACC-<FY>-<seq>-<check>`, allocated at approval. */
+    /** `NCR-EACC-<FY end>-<seq>-<check>`, allocated at approval. */
     reference: text(),
     /** The Restricted NCR PDF, once the approval workflow issued it. */
     documentId: uuid(),

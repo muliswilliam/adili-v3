@@ -13,6 +13,7 @@ import { reportReceipts } from '../compliance-reports/schema.js';
 import type { ReportingSchema } from '../db/schema.js';
 import { activeCommissions } from '../compliance-reports/commission.js';
 import { DirectoryClient } from '../directory/directory-client.js';
+import { referencePeriodOf } from '../financial-year.js';
 import { officerOf } from '../officer.js';
 import { conflict, forbidden, notFound, workflowUnavailable } from '../problems.js';
 import { buildAggregates } from './aggregates.js';
@@ -159,7 +160,7 @@ export class NationalReportsService {
   /**
    * An EACC supervisor approves the year's report (once: a retry is 409 `ncr-approved`). The
    * author and anyone who built it or wrote its narrative cannot (403 `separation-of-duties`).
-   * Allocates `NCR-EACC-<FY>-<seq>-<check>`, records the approver, publishes `ncr.approved.v1`
+   * Allocates `NCR-EACC-<FY end>-<seq>-<check>`, records the approver, publishes `ncr.approved.v1`
    * and starts the approval workflow before the commit, so a Temporal outage approves nothing;
    * the workflow issues the PDF and ends the chase once the commit is visible. 404 before the
    * first build; 409 `ncr-approved` once approved.
@@ -178,7 +179,10 @@ export class NationalReportsService {
           'separation-of-duties',
         );
       }
-      const reference = await allocateReference(tx, NCR, { issuer: NCR_ISSUER, period: fy });
+      const reference = await allocateReference(tx, NCR, {
+        issuer: NCR_ISSUER,
+        period: referencePeriodOf(fy),
+      });
       const [approved] = await tx
         .update(nationalReports)
         .set({

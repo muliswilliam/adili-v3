@@ -28,6 +28,14 @@ export function periodOf(fy: number): { from: string; to: string; financialYearS
   return { from: `${String(fy)}-07-01`, to: `${String(fy + 1)}-06-30`, financialYearStart: fy };
 }
 
+/**
+ * The period a report reference carries for the year (ADR-011 §2): the financial year's end, so
+ * FY 2027/2028 numbers `RPT-PSC-2028-...`.
+ */
+export function referencePeriodOf(fy: number): number {
+  return fy + 1;
+}
+
 /** The date Form M for the year is due at EACC (Regs r.25(2)). */
 export function dueDateOf(fy: number): string {
   return `${String(fy + 1)}-07-31`;

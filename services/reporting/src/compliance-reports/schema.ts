@@ -61,7 +61,7 @@ export const complianceReports = pgTable(
     fy: integer().notNull(),
     status: text().$type<ReportStatus>().notNull(),
     source: text().$type<ReportSource>().notNull().default('hosted'),
-    /** `RPT-<ISSUER>-<FY>-<seq>-<check>`, allocated at confirmation. */
+    /** `RPT-<ISSUER>-<FY end>-<seq>-<check>`, allocated at confirmation. */
     reference: text(),
     /** When the latest compile was asked for; the draft is current once `compiledAt` passes it. */
     compileRequestedAt: timestamp({ withTimezone: true }),

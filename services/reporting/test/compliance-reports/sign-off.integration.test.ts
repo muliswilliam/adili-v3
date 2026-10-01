@@ -324,8 +324,9 @@ describe('Form M review, confirm and submit (S3, S5, S6, S7)', () => {
 
       expect(response.statusCode, response.body).toBe(200);
       expect(contractErrors(contract('/confirm', 'post'), response.json())).toEqual([]);
-      const reference = format(RPT, { issuer: 'PSC', period: 2027, sequence: 1 });
-      expect(reference).toMatch(/^RPT-PSC-2027-0000001-[0-9A-Z]$/);
+      // FY 2027/2028 numbers under its end year (ADR-011 §2).
+      const reference = format(RPT, { issuer: 'PSC', period: 2028, sequence: 1 });
+      expect(reference).toMatch(/^RPT-PSC-2028-0000001-[0-9A-Z]$/);
       const submitted = response.json<ReportBody>();
       expect(submitted).toMatchObject({
         id: report.id,
