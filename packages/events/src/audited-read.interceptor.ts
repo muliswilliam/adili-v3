@@ -49,6 +49,8 @@ export interface AuditReadData extends Record<string, unknown> {
     /** The subject the caller says it acts for (`X-Acting-Subject`); absent when it names none. */
     onBehalfOf?: string;
   };
+  /** Why the data was read, when the handler named it (ADR-008 `legal_basis`). */
+  legalBasis?: string;
   outcome: 'success';
   request: {
     method: string;
@@ -143,6 +145,7 @@ function auditRead(
           ? { onBehalfOf: actingSubject }
           : {}),
       },
+      ...(resource?.legalBasis === undefined ? {} : { legalBasis: resource.legalBasis }),
       outcome: 'success',
       request: { method: request.method, route },
     },

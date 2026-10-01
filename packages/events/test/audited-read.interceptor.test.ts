@@ -49,7 +49,13 @@ class ThingsController {
   @AuditedRead({ action: 'thing.viewed', resource: 'thing' })
   get(@Param('id') id: string, @CurrentReadAudit() audit: ReadAudit) {
     if (id === 'mine') audit.ownRecord();
-    else audit.resource({ tenant: 'tsc', subjectPersonId: 'person-1' });
+    else if (id === 'for-a-case') {
+      audit.resource({
+        tenant: 'tsc',
+        subjectPersonId: 'person-1',
+        legalBasis: 'review-case:case-1',
+      });
+    } else audit.resource({ tenant: 'tsc', subjectPersonId: 'person-1' });
     return { id };
   }
 }
@@ -266,6 +272,16 @@ describe('AuditedReadInterceptor', () => {
           },
         },
       },
+    ]);
+  });
+
+  it('records the legal basis the handler names, and none when it names none', async () => {
+    await app.inject({ method: 'GET', url: '/v1/things/for-a-case' });
+    await app.inject({ method: 'GET', url: '/v1/things/thing-1' });
+
+    expect(recorded.map((event) => (event.data as { legalBasis?: string }).legalBasis)).toEqual([
+      'review-case:case-1',
+      undefined,
     ]);
   });
 

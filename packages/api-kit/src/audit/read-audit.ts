@@ -6,6 +6,11 @@ export interface AuditedResource {
   tenant: string;
   /** The person the data is about, when known (ADR-008 "subject person id"). */
   subjectPersonId?: string | null;
+  /**
+   * Why the data is read, when the caller names it (ADR-008 `legal_basis`), e.g.
+   * `review-case:<id>` for a declaration read for a review case.
+   */
+  legalBasis?: string;
 }
 
 /**
