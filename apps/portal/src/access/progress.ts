@@ -1,7 +1,8 @@
 import { formatDate, formatDateTime } from '@adili/ui';
 
 import type { AccessRequest, RegisterEntry } from '../server/access/types';
-import { REQUEST_COPY as COPY } from './copy';
+import { REQUEST_COPY as COPY, PACKAGE_COPY as PACKAGE } from './copy';
+import { packageView } from './package';
 
 /**
  * The stages of a Form K request as the applicant follows them, from its status and its
@@ -54,7 +55,12 @@ function stateOf(order: number, reached: number): StageState {
   return order === reached ? 'current' : 'upcoming';
 }
 
-export function requestStages(request: AccessRequest): Stage[] {
+/**
+ * A granted request's package follows the decision: being prepared, ready until its window
+ * ends at `now` (epoch milliseconds), or its window closed (also once `windowClosed`, the
+ * documents service having said so).
+ */
+export function requestStages(request: AccessRequest, now: number, windowClosed = false): Stage[] {
   const { status, timeline, commission } = request;
   const received = at(timeline, 'received') ?? request.submittedAt;
   const passport = status === 'pending-applicant-verification' || at(timeline, 'verified') !== null;
@@ -120,6 +126,29 @@ export function requestStages(request: AccessRequest): Stage[] {
         : COPY.decisionDueOn(formatDate(request.decisionDeadlineAt)),
     state: DECIDED.has(status) ? 'done' : stateOf(4, reached),
   });
+  const pkg = packageView(request, now, windowClosed);
+  if (pkg?.state === 'preparing') {
+    stages.push({
+      id: 'package',
+      title: PACKAGE.stagePreparing,
+      detail: PACKAGE.stagePreparingDetail,
+      state: 'current',
+    });
+  } else if (pkg?.state === 'ready') {
+    stages.push({
+      id: 'package',
+      title: PACKAGE.stageReady,
+      detail: PACKAGE.stageReadyDetail(formatDateTime(pkg.package.downloadExpiresAt)),
+      state: 'current',
+    });
+  } else if (pkg?.state === 'expired') {
+    stages.push({
+      id: 'package',
+      title: PACKAGE.stageClosed,
+      detail: formatDate(pkg.package.downloadExpiresAt),
+      state: 'done',
+    });
+  }
   return stages;
 }
 

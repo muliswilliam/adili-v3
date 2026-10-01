@@ -15,10 +15,12 @@ import {
   ArrowRight01Icon,
   Calendar03Icon,
   File01Icon,
+  SquareLock02Icon,
 } from '@hugeicons/core-free-icons';
 import { Link } from '@tanstack/react-router';
 
 import { day, REQUESTS_COPY as COPY } from '../../access/copy';
+import { GRANTED_STATUSES } from '../../access/package';
 import type { RequestSummary } from '../../server/access-requests.server';
 import { RequestStatusBadge, RequestStatusTile } from './request-status';
 
@@ -67,6 +69,28 @@ function DecisionDue({ request, now }: { request: RequestSummary; now: number })
   );
 }
 
+/** A granted package's download window: days left, due soon from 3 days, or expired. */
+function DownloadBy({ request, now }: { request: RequestSummary; now: number }) {
+  if (!GRANTED_STATUSES.has(request.status) || !request.downloadExpiresAt) return null;
+  if (Date.parse(request.downloadExpiresAt) <= now) {
+    return (
+      <Badge variant="default">
+        <Icon icon={SquareLock02Icon} strokeWidth={2.2} />
+        {COPY.downloadExpired}
+      </Badge>
+    );
+  }
+  return (
+    <DeadlineChip
+      due={request.downloadExpiresAt}
+      soonDays={deadlineSoonDays.download}
+      label={COPY.downloadBy}
+      todayText={COPY.expiresToday}
+      now={now}
+    />
+  );
+}
+
 function RequestRow({ request, now }: { request: RequestSummary; now: number }) {
   return (
     <li className="border-b border-border last:border-b-0">
@@ -86,6 +110,7 @@ function RequestRow({ request, now }: { request: RequestSummary; now: number }) 
           <span className="mt-1.5 flex flex-wrap items-center gap-1.5">
             <RequestStatusBadge status={request.status} />
             <DecisionDue request={request} now={now} />
+            <DownloadBy request={request} now={now} />
           </span>
         </span>
         <Icon
@@ -177,7 +202,8 @@ export function NewRequestButton() {
 
 /**
  * My requests (spec 10 FE-3): the applicant's Form K requests, latest first, ten to a page,
- * each with its officer, reference, Commission, status and, while open, the decision clock.
+ * each with its officer, reference, Commission, status and, while open, the decision clock;
+ * once granted, the package's download window.
  */
 export function RequestsList({
   requests,

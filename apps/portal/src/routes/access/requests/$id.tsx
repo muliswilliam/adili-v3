@@ -101,6 +101,9 @@ function Request() {
         onWithdraw={() => {
           setWithdrawing(true);
         }}
+        onDownloaded={() => {
+          void router.invalidate();
+        }}
       />
       <WithdrawDialog
         open={withdrawing}

@@ -13,6 +13,7 @@ export type AccessRequestStatus = Schemas['AccessRequestStatus'];
 export type Decision = Schemas['Decision'];
 export type Ground = Schemas['Ground'];
 export type Outcome = Schemas['Outcome'];
+export type Package = Schemas['Package'];
 export type ProblemDetails = Schemas['ProblemDetails'];
 export type RegisterEntry = Schemas['RegisterEntry'];
 
