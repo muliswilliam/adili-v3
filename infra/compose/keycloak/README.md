@@ -40,6 +40,12 @@ Declarant data is keyed by person, not tenant. The `portal` and `console` client
 - `tenants` is `multivalued`: a person onboarded with a second Commission gets it added there, while `tenant` (the token claim) stays the first Commission.
 - The set-password email is the execute-actions email (24 hours) with `client_id=portal` and `redirect_uri=<portal>/auth/login`, admitted by the portal client's `http://localhost:3010/*` redirect URIs. Without invitation attributes the email theme renders its generic account-setup copy.
 
+## Law-enforcement accounts (spec 10)
+
+- A platform admin provisions an officer for an agency (`POST /v1/law-enforcement/agencies/{code}/officers` on the directory), through the same `directory` client: username = official email, realm role `law-enforcement`, the staff required actions, and the admin-only attributes `tenant` (always `lea`), `agency` (the agency code, e.g. `DCI`), `person_id` (the officer's directory person) and `phone`. The activation email is the staff one (72 hours, `client_id=console`). Revoking disables the account.
+- Officers are neither declarants nor applicants, so sign-in goes through `adili staff totp`.
+- The `console` client maps `agency` to the `agency` claim, next to `tenant` and `person_id`, so the access service reads the requesting agency from the token. The demo `law-enforcement` user has agency `DCI` and no person.
+
 ## HR-system API clients (spec 27)
 
 - The directory creates one confidential client per Commission's credential (`roster-<slug>-<hex>`) with only a service account, the default client scopes `basic` and `roster:write`, a hard-coded `tenant` claim and the `adili-api` audience. Rotating regenerates the secret; revoking disables the client. For that the `directory` service account also has realm-management `manage-clients`, `view-clients` and `query-clients`.

@@ -83,6 +83,15 @@ for (const id of ['portal', 'console']) {
     fail(`${id}: the person_id claim must be on the access token`);
   }
 }
+// Law-enforcement officers (spec 10) sign in to the console; their agency is a token claim.
+const agency = (clients.get('console')?.protocolMappers ?? []).find(
+  (mapper) =>
+    mapper.protocolMapper === 'oidc-usermodel-attribute-mapper' &&
+    mapper.config?.['user.attribute'] === 'agency',
+);
+if (agency?.config?.['claim.name'] !== 'agency' || agency.config['access.token.claim'] !== 'true') {
+  fail('console needs an agency user attribute mapper to the agency access token claim (spec 10)');
+}
 
 const flows = new Map((realm.authenticationFlows ?? []).map((flow) => [flow.alias, flow]));
 for (const alias of [
@@ -315,8 +324,9 @@ const profile = JSON.parse(profileProvider?.config?.['kc.user.profile.config']?.
 const attributes = new Map(
   (profile.attributes ?? []).map((attribute) => [attribute.name, attribute]),
 );
-// Staff provisioning (spec 01) and declarant accounts (spec 03). person_id is an access claim
-// (spec 04): a user who could edit it could read another person's data.
+// Staff provisioning (spec 01), declarant accounts (spec 03) and law-enforcement accounts (spec
+// 10). person_id is an access claim (spec 04): a user who could edit it could read another
+// person's data; so is agency, which names the agency an officer requests for.
 for (const name of [
   'tenant',
   'phone',
@@ -325,6 +335,7 @@ for (const name of [
   'tenants',
   'ofr',
   'person_id',
+  'agency',
 ]) {
   const attribute = attributes.get(name);
   if (!attribute) {
