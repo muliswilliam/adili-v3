@@ -6,15 +6,23 @@
  *
  * The Swahili list is a draft for a Swahili speaker to review.
  */
+/**
+ * A positive determination, which a check instruction also names: "check whether the declarant
+ * complied with the deadline" asks, "the declarant complied with the deadline" decides.
+ */
+const POSITIVE: readonly RegExp[] = [
+  /\b(?:is|was|are|were|been) (?:fully )?compliant\b/,
+  /\b(?:(?:has|have|had) )?(?:fully )?complied with\b/,
+];
+
 const TERMS: readonly RegExp[] = [
   // Compliance determination.
   /\bnon[- ]?compliant\b/,
   /\bnot compliant\b/,
-  /\b(?:is|was|are|were|been) (?:fully )?compliant\b/,
-  /\b(?:(?:has|have|had) )?(?:fully )?complied with\b/,
+  ...POSITIVE,
   /\b(?:did not|didn't|failed to|has not|have not|hasn't) compl(?:y|ied)\b/,
-  /\bin breach of\b/,
-  /\b(?:breached|violated|violation of)\b/,
+  /\b(?:in |a |an )?breach(?:es)? of\b/,
+  /\b(?:breached|violated|violates|violation of)\b/,
   /\bfalse(?:ly)? declar(?:ation|ed)\b/,
   // Wrongdoing.
   /\bcorrupt(?:ion|ly)?\b/,
@@ -56,7 +64,7 @@ const HEDGE = String.raw`(?:(?:by itself|on its own|alone|necessarily|in itself)
 const DENIED_NOUN = String.raw`(?:(?:a|an|the|any)\s+)?(?:(?:finding|determination|sign|indication|indicator|evidence|proof|suggestion|allegation|case|ishara|dalili|ushahidi|uthibitisho)\s+(?:of|ya|za|wa)\s+(?:(?:any|the)\s+)?)?`;
 
 /** A denied inference: "does not mean", "not by itself suggest", "haimaanishi". */
-const DENIED_INFERENCE = String.raw`(?:${NEGATION}\s+${HEDGE}(?:mean|imply|suggest|indicate|show|prove|establish)|haimaanishi)`;
+const DENIED_INFERENCE = String.raw`(?:${NEGATION}\s+${HEDGE}(?:mean|imply|suggest|indicate|show|prove|establish|constitute|amount to)|haimaanishi)`;
 
 /**
  * A word a denied inference may reach over to its term: a subject ("the declarant", "any"), not a
@@ -68,8 +76,9 @@ const INFERRED_WORD = String.raw`(?!(?:and|but|or|nor|yet|so|then|while|because|
  * The end of a term's clause when a negation governs the term: right before it ("not corrupt",
  * "should not be sanctioned"), through a denied noun ("not a finding of any wrongdoing"), or as a
  * denied inference over a subject and a copula ("does not mean the declarant is non-compliant",
- * "does not mean there was any wrongdoing", "haimaanishi kuna rushwa"). A negation elsewhere in
- * the clause does not count: "did not disclose the illicit income", "there is no doubt the
+ * "does not mean there was any wrongdoing", "haimaanishi kuna rushwa"). A term joined by "or",
+ * "nor" or "and" to a denied one is denied too ("not dishonest or corrupt"). A negation elsewhere
+ * in the clause does not count: "did not disclose the illicit income", "there is no doubt the
  * declarant is corrupt" and "did not show the loan and is non-compliant" state the term.
  */
 const GOVERNED = [
@@ -86,18 +95,40 @@ const GOVERNED = [
 /** Ends a clause: a negation before one does not reach a term after it. */
 const CLAUSE_END = /[.;:!?,]/g;
 
+/** A hedge set off by commas, which does not end the clause: "not, by itself, evidence of". */
+const COMMA_HEDGE = /,(\s*(?:by itself|on its own|in itself|alone)\s*),/g;
+
+/** What may join a term to a denied one, which the denial covers: "not fraud or corruption". */
+const COORDINATED = /^\s+(?:or|nor|and)\s+(?:any\s+)?$/;
+
+/** A check instruction rather than a statement: "check whether", "confirm if". */
+const CHECK = /\b(?:whether|if)\b/;
+
 /** Verdict terms in `text` that are not negated, lower-cased as found. */
 export function verdictTerms(text: string): string[] {
-  const lower = text.toLowerCase();
-  const found: { index: number; term: string }[] = [];
-  for (const term of TERMS) {
-    for (const match of lower.matchAll(new RegExp(term.source, 'gu'))) {
-      const preceding = lower.slice(0, match.index);
-      const clauseStart = Math.max(-1, ...[...preceding.matchAll(CLAUSE_END)].map((m) => m.index));
-      const clause = ` ${preceding.slice(clauseStart + 1).replaceAll(/\s+/g, ' ')}`;
-      const negated = GOVERNED.some((pattern) => pattern.test(clause));
-      if (!negated) found.push({ index: match.index, term: match[0] });
-    }
+  // Same length, so match indices stay valid.
+  const lower = text.toLowerCase().replaceAll(COMMA_HEDGE, ' $1 ');
+  const matches = TERMS.flatMap((term) =>
+    [...lower.matchAll(new RegExp(term.source, 'gu'))].map((match) => ({
+      index: match.index,
+      end: match.index + match[0].length,
+      term: match[0],
+      positive: POSITIVE.includes(term),
+    })),
+  ).sort((a, b) => a.index - b.index);
+  const found: string[] = [];
+  const deniedEnds: number[] = [];
+  for (const match of matches) {
+    const preceding = lower.slice(0, match.index);
+    const clauseStart = Math.max(-1, ...[...preceding.matchAll(CLAUSE_END)].map((m) => m.index));
+    const clause = ` ${preceding.slice(clauseStart + 1).replaceAll(/\s+/g, ' ')}`;
+    const negated =
+      GOVERNED.some((pattern) => pattern.test(clause)) ||
+      deniedEnds.some(
+        (end) => end <= match.index && COORDINATED.test(lower.slice(end, match.index)),
+      );
+    if (negated) deniedEnds.push(match.end);
+    else if (!(match.positive && CHECK.test(clause))) found.push(match.term);
   }
-  return found.sort((a, b) => a.index - b.index).map((each) => each.term);
+  return found;
 }
