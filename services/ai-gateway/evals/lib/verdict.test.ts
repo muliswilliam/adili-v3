@@ -53,6 +53,29 @@ describe('verdictTerms', () => {
     expect(verdictTerms('Recommend referral to the EACC.')).toEqual(['referral to the eacc']);
   });
 
+  it('finds non-compliance, contravention and administrative action under the Act', () => {
+    expect(verdictTerms('This amounts to non-compliance with section 31 of the Act.')).toEqual([
+      'non-compliance',
+    ]);
+    expect(verdictTerms('The declarant contravened section 26.')).toEqual(['contravened']);
+    expect(verdictTerms('Omitting the vehicle is a contravention of the Act.')).toEqual([
+      'contravention',
+    ]);
+    expect(verdictTerms('This is a failure to comply with the filing deadline.')).toEqual([
+      'failure to comply',
+    ]);
+    expect(
+      verdictTerms('The reviewer should recommend administrative action against the officer.'),
+    ).toEqual(['administrative action']);
+    expect(verdictTerms('Issue a notice to comply.')).toEqual(['notice to comply']);
+  });
+
+  it('allows these terms when denied', () => {
+    expect(verdictTerms('This is an indicator, not a finding of non-compliance.')).toEqual([]);
+    expect(verdictTerms('It does not mean the declarant contravened section 26.')).toEqual([]);
+    expect(verdictTerms('A late filing is not by itself a failure to comply.')).toEqual([]);
+  });
+
   it('finds the Swahili terms', () => {
     expect(verdictTerms('Mtangazaji hakutii sheria na kuna rushwa.')).toEqual([
       'hakutii sheria',
@@ -76,6 +99,17 @@ describe('verdictTerms', () => {
     expect(verdictTerms('This does not constitute a breach of the Act.')).toEqual([]);
   });
 
+  it('lets a denied noun or inference reach over "that" to the term', () => {
+    expect(
+      verdictTerms('This flag alone is not evidence that the declarant is dishonest.'),
+    ).toEqual([]);
+    expect(
+      verdictTerms('Do not conclude from this flag alone that the declarant is non-compliant.'),
+    ).toEqual([]);
+    expect(verdictTerms('Do not assume the declarant is corrupt.')).toEqual([]);
+    expect(verdictTerms('There is no indication that any funds were illicit.')).toEqual([]);
+  });
+
   it('lets a denial cover a term coordinated with the denied one', () => {
     expect(verdictTerms('This does not mean the declarant was dishonest or corrupt.')).toEqual([]);
     expect(
@@ -91,6 +125,12 @@ describe('verdictTerms', () => {
 
   it('flags a term when a negation in its clause does not govern it', () => {
     expect(verdictTerms('There is no doubt the declarant is corrupt.')).toEqual(['corrupt']);
+    expect(verdictTerms('There is no doubt that the declarant is corrupt.')).toEqual(['corrupt']);
+    expect(
+      verdictTerms(
+        'The declarant did not show the loan, and there is evidence that he is dishonest.',
+      ),
+    ).toEqual(['dishonest']);
     expect(verdictTerms('The officer did not disclose the illicit income.')).toEqual(['illicit']);
     expect(
       verdictTerms('The declarant did not indicate the source and is in breach of s.31.'),

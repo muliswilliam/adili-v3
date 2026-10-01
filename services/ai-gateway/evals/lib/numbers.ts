@@ -81,11 +81,15 @@ export function numbersIn(text: string): number[] {
   return mentions(text).map((mention) => mention.value);
 }
 
-/** Every number the input states, in the units a reader would see. */
+/**
+ * Every number the input states, in the units a reader would see. A signed number reads unsigned
+ * too: the comparison signs a decrease (`percent: -40`), the text says "fell by 40%".
+ */
 function inputNumbers(value: unknown, key?: string): number[] {
   if (key && REF_KEYS.has(key)) return [];
   if (typeof value === 'number') {
-    return key && MINOR_UNIT_KEYS.has(key) ? [value, value / 100] : [value];
+    const units = key && MINOR_UNIT_KEYS.has(key) ? [value, value / 100] : [value];
+    return [...units, ...units.filter((each) => each < 0).map((each) => -each)];
   }
   if (typeof value === 'string') return numbersIn(value.replaceAll(UUID, ' '));
   if (Array.isArray(value)) return value.flatMap((item) => inputNumbers(item));

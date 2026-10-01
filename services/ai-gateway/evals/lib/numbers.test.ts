@@ -57,6 +57,13 @@ describe('foreignNumbers', () => {
     expect(foreignNumbers('Ongezeko la asilimia 25.', input)).toEqual(['25']);
   });
 
+  it('accepts a signed change written without its sign', () => {
+    expect(foreignNumbers('The loan fell by 15%.', { changes: [{ percent: -15 }] })).toEqual([]);
+    expect(foreignNumbers('A repayment of KES 5,000.', { change: { kesCents: -500_000 } })).toEqual(
+      [],
+    );
+  });
+
   it('accepts a threshold the input states', () => {
     const flagged = { ...input, title: 'Value changed by 25% or more' };
     expect(foreignNumbers('A change of 25% or more.', flagged)).toEqual([]);

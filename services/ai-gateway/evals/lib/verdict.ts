@@ -23,6 +23,9 @@ const TERMS: readonly RegExp[] = [
   /\b(?:did not|didn't|failed to|has not|have not|hasn't) compl(?:y|ied)\b/,
   /\b(?:in |a |an )?breach(?:es)? of\b/,
   /\b(?:breached|violated|violates|violation of)\b/,
+  /\bnon[- ]?compliance\b/,
+  /\bcontraven(?:e|es|ed|ing|tion|tions)\b/,
+  /\bfailure to comply\b/,
   /\bfalse(?:ly)? declar(?:ation|ed)\b/,
   // Wrongdoing.
   /\bcorrupt(?:ion|ly)?\b/,
@@ -36,6 +39,8 @@ const TERMS: readonly RegExp[] = [
   /\bsanction(?:s|ed)?\b/,
   /\bpenal(?:ty|ties|ise|ised|ize|ized)\b/,
   /\bdisciplinary\b/,
+  /\badministrative action\b/,
+  /\bnotice to comply\b/,
   /\brefer(?:ral|red|ring|s)? (?:(?:of )?the (?:matter|declarant|officer|case) )?to (?:the )?(?:eacc|dci|dpp|police)\b/,
   /\bprosecut(?:e|ed|ion)\b/,
   /\bcriminal\b/,
@@ -60,11 +65,14 @@ const NEGATION = String.raw`(?:not|no|never|without|isn't|aren't|wasn't|doesn't|
 /** A hedge a denial may carry: "not by itself", "not necessarily". */
 const HEDGE = String.raw`(?:(?:by itself|on its own|alone|necessarily|in itself)\s+)?`;
 
-/** What a denial may put between itself and the term: "not a finding of any", "si ishara ya". */
-const DENIED_NOUN = String.raw`(?:(?:a|an|the|any)\s+)?(?:(?:finding|determination|sign|indication|indicator|evidence|proof|suggestion|allegation|case|ishara|dalili|ushahidi|uthibitisho)\s+(?:of|ya|za|wa)\s+(?:(?:any|the)\s+)?)?`;
+/** A noun a denial may put before the term: "not a finding of", "not evidence that". */
+const DENIED_NOUNS = String.raw`(?:finding|determination|sign|indication|indicator|evidence|proof|suggestion|allegation|case|ishara|dalili|ushahidi|uthibitisho)`;
 
-/** A denied inference: "does not mean", "not by itself suggest", "haimaanishi". */
-const DENIED_INFERENCE = String.raw`(?:${NEGATION}\s+${HEDGE}(?:mean|imply|suggest|indicate|show|prove|establish|constitute|amount to)|haimaanishi)`;
+/** What a denial may put between itself and the term: "not a finding of any", "si ishara ya". */
+const DENIED_NOUN = String.raw`(?:(?:a|an|the|any)\s+)?(?:${DENIED_NOUNS}\s+(?:of|ya|za|wa)\s+(?:(?:any|the)\s+)?)?`;
+
+/** A denied inference: "does not mean", "not by itself suggest", "do not conclude", "haimaanishi". */
+const DENIED_INFERENCE = String.raw`(?:${NEGATION}\s+${HEDGE}(?:mean|imply|suggest|indicate|show|prove|establish|constitute|amount to|conclude|assume|infer)|haimaanishi)`;
 
 /**
  * A word a denied inference may reach over to its term: a subject ("the declarant", "any"), not a
@@ -72,11 +80,19 @@ const DENIED_INFERENCE = String.raw`(?:${NEGATION}\s+${HEDGE}(?:mean|imply|sugge
  */
 const INFERRED_WORD = String.raw`(?!(?:and|but|or|nor|yet|so|then|while|because|which|who|na|lakini|bali|ila|is|was|are|were|be|been|being|has|have|had|do|does|did|will|would|shall|should|may|might|must|can|could)\b)[\p{L}']+`;
 
+/** A subject and a copula a denial reaches over to the term: "the declarant is", "there was any". */
+const SUBJECT = String.raw`(?:\s+${INFERRED_WORD}){0,4}(?:\s+(?:is|was|are|were|be|(?:has|have|had) been)(?:\s+(?:a|an|any))?)?\s+$`;
+
+/** Where an inference is drawn from, before "that": "do not conclude from this flag alone that". */
+const SOURCE = String.raw`(?:\s+from(?:\s+${INFERRED_WORD}){1,3})?`;
+
 /**
  * The end of a term's clause when a negation governs the term: right before it ("not corrupt",
  * "should not be sanctioned"), through a denied noun ("not a finding of any wrongdoing"), or as a
- * denied inference over a subject and a copula ("does not mean the declarant is non-compliant",
- * "does not mean there was any wrongdoing", "haimaanishi kuna rushwa"). A term joined by "or",
+ * denied inference or a denied noun with "that" over a subject and a copula ("does not mean the
+ * declarant is non-compliant", "does not mean there was any wrongdoing", "haimaanishi kuna
+ * rushwa", "do not conclude from this flag alone that the declarant is non-compliant", "not
+ * evidence that the declarant is dishonest"). A term joined by "or",
  * "nor" or "and" to a denied one is denied too ("not dishonest or corrupt"). A negation elsewhere
  * in the clause does not count: "did not disclose the illicit income", "there is no doubt the
  * declarant is corrupt" and "did not show the loan and is non-compliant" state the term.
@@ -86,8 +102,9 @@ const GOVERNED = [
     String.raw`(?:^|[^\p{L}'])${NEGATION}\s+${HEDGE}(?:(?:be|being|been)\s+)?${DENIED_NOUN}$`,
     'u',
   ),
+  new RegExp(String.raw`(?:^|[^\p{L}'])${DENIED_INFERENCE}(?:${SOURCE}\s+that)?${SUBJECT}`, 'u'),
   new RegExp(
-    String.raw`(?:^|[^\p{L}'])${DENIED_INFERENCE}(?:\s+that)?(?:\s+${INFERRED_WORD}){0,4}(?:\s+(?:is|was|are|were|be|(?:has|have|had) been)(?:\s+(?:a|an|any))?)?\s+$`,
+    String.raw`(?:^|[^\p{L}'])${NEGATION}\s+${HEDGE}(?:(?:a|an|the|any)\s+)?${DENIED_NOUNS}\s+that${SUBJECT}`,
     'u',
   ),
 ];
