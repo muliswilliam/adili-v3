@@ -752,6 +752,9 @@ paths:
     post:
       tags: [internal]
       operationId: internalClarificationDetails
+      x-audited-read:
+        action: review.clarifications.details.read
+        resource: clarification
       summary: Clarifications of a Commission in a batch, for Form M section 4 (reporting, spec 09)
       description: >-
         Service tokens with scope review:internal, acting for the Commission in X-Acting-Tenant
