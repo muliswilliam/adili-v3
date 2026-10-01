@@ -121,6 +121,24 @@ describe('createServiceClient', () => {
     ]);
   });
 
+  it('takes any of several statuses that carry the answer', async () => {
+    const both = { status: [200, 201], schema: thingSchema };
+    const body = () => ({ id: 'thing-1' });
+
+    for (const status of [200, 201]) {
+      const client = things({ fetch: recordingFetch([status], body).fetch });
+      const thing = await client.call(
+        (api) => api.POST('/internal/v1/things', { body: { name: 'a' } }),
+        both,
+      );
+      expect(thing).toEqual({ id: 'thing-1' });
+    }
+    const other = things({ fetch: recordingFetch([202], body).fetch });
+    await expect(
+      other.call((api) => api.POST('/internal/v1/things', { body: { name: 'a' } }), both),
+    ).rejects.toThrow(ThingsUnavailable);
+  });
+
   it('answers a status the caller gave a meaning with its handler', async () => {
     const client = things({ fetch: recordingFetch([404]).fetch });
 
