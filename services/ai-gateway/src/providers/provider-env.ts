@@ -19,6 +19,11 @@ export const providerEnvShape = {
   AI_FIXTURES_DIR: z.string().min(1).default('fixtures/ai'),
   ANTHROPIC_API_KEY: z.string().min(1).optional(),
   ANTHROPIC_BASE_URL: z.url().optional(),
+  /**
+   * `prompted` for an Anthropic-compatible gateway that drops `output_config`: the schema goes
+   * into the system prompt instead (see AnthropicAdapter). `native` for the Anthropic API.
+   */
+  ANTHROPIC_STRUCTURED_OUTPUT: z.enum(['native', 'prompted']).default('native'),
   AI_PROVIDER_TIMEOUT_MS: z.coerce.number().int().positive().default(60_000),
   /** Model for every task until the routing table (spec 07c BE-3) lands. */
   AI_MODEL: z.string().min(1).default('claude-opus-5-5'),
