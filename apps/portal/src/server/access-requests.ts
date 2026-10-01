@@ -6,8 +6,8 @@ import { formKDraftSchema } from '../access/form-k';
 import {
   accessClient,
   type AccessClient,
-  packageDocumentsClient,
-  type PackageDocumentsClient,
+  subjectDocumentsClient,
+  type SubjectDocumentsClient,
 } from './access/client.server';
 import {
   listRequests,
@@ -33,7 +33,7 @@ import type { Unauthenticated } from './results';
 interface ApplicantClients {
   access: AccessClient;
   directory: DirectoryClient;
-  documents: PackageDocumentsClient;
+  documents: SubjectDocumentsClient;
 }
 
 /** Runs `call` with the access, directory and documents clients for the signed-in applicant. */
@@ -45,7 +45,7 @@ async function asApplicant<T>(
   return call({
     access: accessClient(session.accessToken),
     directory: directoryClient(session.accessToken),
-    documents: packageDocumentsClient(session.accessToken),
+    documents: subjectDocumentsClient(session.accessToken),
   });
 }
 

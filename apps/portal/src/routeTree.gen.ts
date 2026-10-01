@@ -12,7 +12,9 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as GetStartedRouteRouteImport } from './routes/get-started/route'
 import { Route as AccessIndexRouteImport } from './routes/access/index'
+import { Route as AccessCertifiedCopiesRouteImport } from './routes/access/certified-copies'
 import { Route as AccessGetStartedRouteRouteImport } from './routes/access/get-started/route'
+import { Route as AccessHistoryRouteImport } from './routes/access/history'
 import { Route as AuthCallbackRouteImport } from './routes/auth/callback'
 import { Route as AuthLoginRouteImport } from './routes/auth/login'
 import { Route as AuthLogoutRouteImport } from './routes/auth/logout'
@@ -67,9 +69,19 @@ const AccessIndexRoute = AccessIndexRouteImport.update({
   path: '/access/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AccessCertifiedCopiesRoute = AccessCertifiedCopiesRouteImport.update({
+  id: '/access/certified-copies',
+  path: '/access/certified-copies',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AccessGetStartedRouteRoute = AccessGetStartedRouteRouteImport.update({
   id: '/access/get-started',
   path: '/access/get-started',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AccessHistoryRoute = AccessHistoryRouteImport.update({
+  id: '/access/history',
+  path: '/access/history',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthCallbackRoute = AuthCallbackRouteImport.update({
@@ -273,6 +285,8 @@ export interface FileRoutesByFullPath {
   '/get-started': typeof GetStartedRouteRouteWithChildren
   '/access/get-started': typeof AccessGetStartedRouteRouteWithChildren
   '/declarations/$id': typeof DeclarationsIdRouteRouteWithChildren
+  '/access/certified-copies': typeof AccessCertifiedCopiesRoute
+  '/access/history': typeof AccessHistoryRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/auth/login': typeof AuthLoginRoute
   '/auth/logout': typeof AuthLogoutRoute
@@ -314,6 +328,8 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/access/certified-copies': typeof AccessCertifiedCopiesRoute
+  '/access/history': typeof AccessHistoryRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/auth/login': typeof AuthLoginRoute
   '/auth/logout': typeof AuthLogoutRoute
@@ -359,6 +375,8 @@ export interface FileRoutesById {
   '/get-started': typeof GetStartedRouteRouteWithChildren
   '/access/get-started': typeof AccessGetStartedRouteRouteWithChildren
   '/declarations/$id': typeof DeclarationsIdRouteRouteWithChildren
+  '/access/certified-copies': typeof AccessCertifiedCopiesRoute
+  '/access/history': typeof AccessHistoryRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/auth/login': typeof AuthLoginRoute
   '/auth/logout': typeof AuthLogoutRoute
@@ -405,6 +423,8 @@ export interface FileRouteTypes {
     | '/get-started'
     | '/access/get-started'
     | '/declarations/$id'
+    | '/access/certified-copies'
+    | '/access/history'
     | '/auth/callback'
     | '/auth/login'
     | '/auth/logout'
@@ -446,6 +466,8 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/access/certified-copies'
+    | '/access/history'
     | '/auth/callback'
     | '/auth/login'
     | '/auth/logout'
@@ -490,6 +512,8 @@ export interface FileRouteTypes {
     | '/get-started'
     | '/access/get-started'
     | '/declarations/$id'
+    | '/access/certified-copies'
+    | '/access/history'
     | '/auth/callback'
     | '/auth/login'
     | '/auth/logout'
@@ -535,6 +559,8 @@ export interface RootRouteChildren {
   GetStartedRouteRoute: typeof GetStartedRouteRouteWithChildren
   AccessGetStartedRouteRoute: typeof AccessGetStartedRouteRouteWithChildren
   DeclarationsIdRouteRoute: typeof DeclarationsIdRouteRouteWithChildren
+  AccessCertifiedCopiesRoute: typeof AccessCertifiedCopiesRoute
+  AccessHistoryRoute: typeof AccessHistoryRoute
   AuthCallbackRoute: typeof AuthCallbackRoute
   AuthLoginRoute: typeof AuthLoginRoute
   AuthLogoutRoute: typeof AuthLogoutRoute
@@ -579,11 +605,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AccessIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/access/certified-copies': {
+      id: '/access/certified-copies'
+      path: '/access/certified-copies'
+      fullPath: '/access/certified-copies'
+      preLoaderRoute: typeof AccessCertifiedCopiesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/access/get-started': {
       id: '/access/get-started'
       path: '/access/get-started'
       fullPath: '/access/get-started'
       preLoaderRoute: typeof AccessGetStartedRouteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/access/history': {
+      id: '/access/history'
+      path: '/access/history'
+      fullPath: '/access/history'
+      preLoaderRoute: typeof AccessHistoryRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/auth/callback': {
@@ -929,6 +969,8 @@ const rootRouteChildren: RootRouteChildren = {
   GetStartedRouteRoute: GetStartedRouteRouteWithChildren,
   AccessGetStartedRouteRoute: AccessGetStartedRouteRouteWithChildren,
   DeclarationsIdRouteRoute: DeclarationsIdRouteRouteWithChildren,
+  AccessCertifiedCopiesRoute: AccessCertifiedCopiesRoute,
+  AccessHistoryRoute: AccessHistoryRoute,
   AuthCallbackRoute: AuthCallbackRoute,
   AuthLoginRoute: AuthLoginRoute,
   AuthLogoutRoute: AuthLogoutRoute,

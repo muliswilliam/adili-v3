@@ -31,3 +31,8 @@ export type Representations = Schemas['Representations'];
 export type RepresentationsInput = Schemas['RepresentationsInput'];
 export type RepresentationStance = Representations['stance'];
 export type Scope = Schemas['Scope'];
+
+/** One step of "who accessed my declaration", as the declarant may see it (S12). */
+export type AccessHistoryEntry = Schemas['AccessHistoryEntry'];
+/** A certified copy of one of the declarant's submitted versions (S13). */
+export type CertifiedCopy = Schemas['CertifiedCopy'];

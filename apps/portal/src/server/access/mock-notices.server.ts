@@ -246,6 +246,7 @@ export function resetNoticesMock(now = Date.now()) {
 
 /** Every notice, latest notified first, as the service lists them. */
 function list(): DeclarantNotice[] {
+  if (!seeded) seed(Date.now());
   return [...notices.values()].sort((a, b) => b.notifiedAt.localeCompare(a.notifiedAt));
 }
 
@@ -303,6 +304,11 @@ function save(id: string, body: unknown, key: string | null): Response {
   }
   if (key) answered.set(key, { status: 200, body: found });
   return json(200, found);
+}
+
+/** The notices as they stand, for the history mock to build the register from. */
+export function mockNotices(): DeclarantNotice[] {
+  return list();
 }
 
 export async function mockNoticesFetch(
