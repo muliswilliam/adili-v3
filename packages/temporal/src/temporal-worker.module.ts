@@ -20,7 +20,7 @@ import {
   NativeConnection,
   Runtime,
   Worker,
-  type WorkflowBundleWithSourceMap,
+  type WorkflowBundleOption,
 } from '@temporalio/worker';
 
 export interface TemporalWorkerModuleOptions {
@@ -28,7 +28,7 @@ export interface TemporalWorkerModuleOptions {
   namespace: string;
   /** The queue this service polls; workflows and activities are started on it by name. */
   taskQueue: string;
-  /** Module exporting the workflow functions. The worker bundles it on start. */
+  /** Module exporting the workflow functions. The worker bundles it on start (`WorkflowBundler`). */
   workflowsPath: string;
   /**
    * Nest providers whose public methods are the activities, registered by method name.
@@ -50,6 +50,18 @@ const RESTART_DELAY_MS = 5_000;
 
 type Activities = Record<string, (...args: unknown[]) => Promise<unknown>>;
 
+/**
+ * Builds the bundle a worker runs from its `workflowsPath`. Bundling takes seconds of CPU, so
+ * integration test harnesses, which boot the app once per test file, replace this with bundles
+ * built once per test run (`prebuiltWorkflowBundler` in `@adili/temporal/testing`).
+ */
+@Injectable()
+export class WorkflowBundler {
+  bundle(workflowsPath: string): Promise<WorkflowBundleOption> {
+    return bundleWorkflowCode({ workflowsPath, logger: nestLogger({ infoAsDebug: true }) });
+  }
+}
+
 /** Runs the worker for the life of the application, reconnecting until Temporal answers. */
 @Injectable()
 class TemporalWorkerHost implements OnApplicationBootstrap, BeforeApplicationShutdown {
@@ -57,12 +69,15 @@ class TemporalWorkerHost implements OnApplicationBootstrap, BeforeApplicationShu
   private worker: Worker | undefined;
   private running: Promise<void> | undefined;
   /** Bundled once and reused across restarts: bundling takes seconds of CPU. */
-  private bundle: Promise<WorkflowBundleWithSourceMap> | undefined;
+  private bundle: Promise<WorkflowBundleOption> | undefined;
   private readonly shutdown = new AbortController();
+  /** Why the last attempt to run the worker failed, until one runs. */
+  private failure: unknown;
 
   constructor(
     @Inject(WORKER_OPTIONS) private readonly options: TemporalWorkerModuleOptions,
     @Inject(WORKER_ACTIVITIES) private readonly activities: Activities,
+    private readonly bundler: WorkflowBundler,
   ) {}
 
   /** True while the worker is polling its task queue. */
@@ -73,6 +88,11 @@ class TemporalWorkerHost implements OnApplicationBootstrap, BeforeApplicationShu
   /** Activities the worker is running now; 0 when no worker is up. */
   get activitiesInFlight(): number {
     return this.worker?.getStatus().numInFlightActivities ?? 0;
+  }
+
+  /** Why the worker is not running, if an attempt to run it failed. */
+  get lastFailure(): unknown {
+    return this.failure;
   }
 
   onApplicationBootstrap(): void {
@@ -112,12 +132,14 @@ class TemporalWorkerHost implements OnApplicationBootstrap, BeforeApplicationShu
         const bundle = await this.untilStopped(this.bundleWorkflows());
         if (!bundle) break;
         this.worker = await this.createWorker(connection, bundle);
+        this.failure = undefined;
         const running = this.worker.run();
         // Shutdown began while the worker was being created; a created worker only releases the
         // connection and its workflow threads once it has run, so run it straight into shutdown.
         if (this.stopping()) this.worker.shutdown();
         await running;
       } catch (error) {
+        this.failure = error;
         if (this.stopping()) {
           this.logger.warn({ err: error }, 'Temporal worker gave up on in-flight activities');
         } else {
@@ -161,11 +183,8 @@ class TemporalWorkerHost implements OnApplicationBootstrap, BeforeApplicationShu
     return result;
   }
 
-  private bundleWorkflows(): Promise<WorkflowBundleWithSourceMap> {
-    this.bundle ??= bundleWorkflowCode({
-      workflowsPath: this.options.workflowsPath,
-      logger: nestLogger({ infoAsDebug: true }),
-    }).catch((error: unknown) => {
+  private bundleWorkflows(): Promise<WorkflowBundleOption> {
+    this.bundle ??= this.bundler.bundle(this.options.workflowsPath).catch((error: unknown) => {
       this.bundle = undefined;
       throw error;
     });
@@ -178,7 +197,7 @@ class TemporalWorkerHost implements OnApplicationBootstrap, BeforeApplicationShu
 
   private createWorker(
     connection: NativeConnection,
-    bundle: WorkflowBundleWithSourceMap,
+    bundle: WorkflowBundleOption,
   ): Promise<Worker> {
     const drainTimeoutMs = this.drainTimeoutMs();
     return Worker.create({
@@ -204,7 +223,9 @@ export class TemporalWorkerReadinessCheck extends ReadinessCheck {
   check(): Promise<void> {
     return this.host.polling
       ? Promise.resolve()
-      : Promise.reject(new Error('worker is not polling its task queue'));
+      : Promise.reject(
+          new Error('worker is not polling its task queue', { cause: this.host.lastFailure }),
+        );
   }
 
   /**
@@ -235,6 +256,7 @@ export class TemporalWorkerModule {
           useFactory: (...instances: object[]) => collectActivities(instances),
           inject: options.activities,
         },
+        WorkflowBundler,
         TemporalWorkerHost,
         TemporalWorkerReadinessCheck,
       ],

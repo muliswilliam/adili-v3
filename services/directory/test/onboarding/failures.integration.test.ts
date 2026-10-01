@@ -1,5 +1,5 @@
 import { withTenant } from '@adili/data-access';
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
 import { onboardingFailures } from '../../src/db/schema.js';
 import type { OnboardingFailuresView } from '../../src/onboarding/failures/representation.js';
@@ -37,6 +37,7 @@ const failuresOf = (slug: string, caller: Caller) =>
 
 beforeAll(async () => {
   api = await startDirectoryApi();
+  return () => api.close();
 });
 
 beforeEach(async () => {
@@ -47,10 +48,6 @@ beforeEach(async () => {
     { slug: 'psc', name: 'Public Service Commission' },
   ]);
   recordId = (await givenRoster(api, 'tsc', [WANJIRU])).get(WANJIRU.personnelFileNumber) ?? '';
-});
-
-afterAll(async () => {
-  await api.close();
 });
 
 describe('GET /v1/commissions/{slug}/roster/onboarding-failures (story 30)', () => {

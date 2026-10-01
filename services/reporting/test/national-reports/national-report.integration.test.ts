@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 
 import { eq } from 'drizzle-orm';
 import { v7 as uuidv7 } from 'uuid';
-import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
   NATIONAL_CONSOLIDATION_WORKFLOW,
@@ -82,11 +82,10 @@ describe('National consolidated report (S11)', () => {
 
   beforeAll(async () => {
     api = await startReportingApi();
-  });
-
-  afterAll(async () => {
-    await endChase();
-    await api.close();
+    return async () => {
+      await endChase();
+      await api.close();
+    };
   });
 
   beforeEach(async () => {

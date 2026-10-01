@@ -3,7 +3,7 @@ import { ProblemException, PLATFORM_TENANT } from '@adili/api-kit';
 import { withTenant } from '@adili/data-access';
 import type { Client, WorkflowStartOptions } from '@temporalio/client';
 import { eq } from 'drizzle-orm';
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
 import { rosterImportBatches, rosterImports } from '../../src/db/schema.js';
 import { RosterImportsService } from '../../src/roster/import/imports.service.js';
@@ -34,10 +34,7 @@ let api: DirectoryApi;
 
 beforeAll(async () => {
   api = await startDirectoryApi();
-});
-
-afterAll(async () => {
-  await api.close();
+  return () => api.close();
 });
 
 beforeEach(async () => {

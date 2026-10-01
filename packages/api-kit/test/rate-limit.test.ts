@@ -4,7 +4,7 @@ import { Controller, Get, NotFoundException } from '@nestjs/common';
 import { FastifyAdapter, type NestFastifyApplication } from '@nestjs/platform-fastify';
 import { Test } from '@nestjs/testing';
 import { createLocalJWKSet, exportJWK, generateKeyPair, SignJWT } from 'jose';
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
 import {
   type BaseEnv,
@@ -125,15 +125,12 @@ describe('RateLimit', () => {
       otherOfficer: await sign({ sub: 'officer-2', azp: 'console' }),
     };
     app = await createApp(new InMemoryRateLimitStore({ now: () => now }), verifier);
+    return () => app.close();
   });
 
   beforeEach(() => {
     // Each test starts at a point far from the others, so every window is empty again.
     now += 24 * 60 * 60 * 1000;
-  });
-
-  afterAll(async () => {
-    await app.close();
   });
 
   function get(url: string, token?: string) {

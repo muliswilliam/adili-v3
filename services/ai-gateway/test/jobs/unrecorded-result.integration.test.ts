@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 
 import { eq, sql } from 'drizzle-orm';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it } from 'vitest';
 
 import { jobs } from '../../src/db/schema.js';
 import { JobExecutor, ResultNotRecordedError } from '../../src/jobs/job-executor.js';
@@ -38,10 +38,7 @@ describe('a result that cannot be recorded', () => {
     await t.db.execute(sql`
       create trigger refuse_success before update on jobs
       for each row execute function refuse_success()`);
-  });
-
-  afterAll(async () => {
-    await t.close();
+    return () => t.close();
   });
 
   async function queuedJob(subjectRef: string) {

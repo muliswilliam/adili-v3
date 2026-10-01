@@ -1,6 +1,6 @@
 import type { LoggerService } from '@nestjs/common';
 import { asc, sql } from 'drizzle-orm';
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
 import { verificationResults } from '../src/db/schema.js';
 
@@ -44,11 +44,10 @@ describe('POST /internal/v1/iprs/person-lookups', () => {
     // outlast the 300ms IPRS timeout. Pay it here, without a timeout, so no test's first
     // lookup times out and its late request lands in the next test's call count.
     await (await fetch(`${iprs.baseUrl}/v1/persons/warm-up`)).body?.cancel();
-  });
-
-  afterAll(async () => {
-    await t.close();
-    await iprs.close();
+    return async () => {
+      await t.close();
+      await iprs.close();
+    };
   });
 
   beforeEach(async () => {

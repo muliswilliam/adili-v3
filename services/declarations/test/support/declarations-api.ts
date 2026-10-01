@@ -26,12 +26,13 @@ import {
 import { ClientRMQ, type MicroserviceOptions } from '@nestjs/microservices';
 import amqp from 'amqplib';
 import { lastValueFrom } from 'rxjs';
-import { TEMPORAL_CLIENT, TemporalWorkerReadinessCheck } from '@adili/temporal';
-import { untilWorkerPolling } from '@adili/temporal/testing';
+import { TEMPORAL_CLIENT, TemporalWorkerReadinessCheck, WorkflowBundler } from '@adili/temporal';
+import { prebuiltWorkflowBundler, untilWorkerPolling } from '@adili/temporal/testing';
 import type { Client } from '@temporalio/client';
 import { sql } from 'drizzle-orm';
 import { createLocalJWKSet, exportJWK, generateKeyPair, type JWK, SignJWT } from 'jose';
 import { v7 as uuidv7 } from 'uuid';
+import { inject } from 'vitest';
 
 import { AcknowledgementConsumer } from '../../src/acknowledgement/acknowledgement.consumer.js';
 import { AppModule } from '../../src/app.module.js';
@@ -335,7 +336,9 @@ export async function startDeclarationsApi({
     .useValue({})
     // The hourly schedule lives on the shared Temporal; suites run the sweep themselves.
     .overrideProvider(SweepSchedule)
-    .useValue({});
+    .useValue({})
+    .overrideProvider(WorkflowBundler)
+    .useValue(prebuiltWorkflowBundler(inject('workflowBundles')));
   if (mode === 'recording') {
     builder = builder.overrideProvider(ObligationWorkflows).useValue(workflows);
   } else if (mode === 'fake') {

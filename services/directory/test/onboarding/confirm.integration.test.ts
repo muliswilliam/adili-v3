@@ -4,7 +4,7 @@ import { randomUUID } from 'node:crypto';
 import { withTenant } from '@adili/data-access';
 import { hasValidCheckCharacter } from '@adili/numbering';
 import { asc, eq } from 'drizzle-orm';
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
 import { onboardingSessions, outbox, persons, rosterRecords } from '../../src/db/schema.js';
 import { IdentityUnavailable } from '../../src/identity/identity-provisioning.js';
@@ -48,6 +48,7 @@ let pscRecord: string;
 
 beforeAll(async () => {
   api = await startDirectoryApi();
+  return () => api.close();
 });
 
 beforeEach(async () => {
@@ -71,10 +72,6 @@ beforeEach(async () => {
       ])
     ).get('PSC/2019/0001') ?? '';
   api.iprs.givenPerson(WANJIRU.nationalId, WANJIRU_IPRS);
-});
-
-afterAll(async () => {
-  await api.close();
 });
 
 /** A session at the confirm step for `recordId`, both contacts verified. */

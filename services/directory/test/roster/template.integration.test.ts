@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it } from 'vitest';
 
 import { ROSTER_COLUMNS } from '../../src/roster/columns.js';
 import { type Caller, type DirectoryApi, startDirectoryApi } from '../support/directory-api.js';
@@ -19,10 +19,7 @@ let api: DirectoryApi;
 
 beforeAll(async () => {
   api = await startDirectoryApi();
-});
-
-afterAll(async () => {
-  await api.close();
+  return () => api.close();
 });
 
 describe('GET /v1/roster/template', () => {

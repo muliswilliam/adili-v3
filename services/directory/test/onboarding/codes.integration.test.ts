@@ -1,7 +1,7 @@
 import { PLATFORM_TENANT } from '@adili/api-kit';
 import { withTenant } from '@adili/data-access';
 import { asc, eq } from 'drizzle-orm';
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
 import {
   onboardingFailures,
@@ -184,6 +184,7 @@ function expectProblem(
 
 beforeAll(async () => {
   api = await startDirectoryApi();
+  return () => api.close();
 });
 
 beforeEach(async () => {
@@ -192,10 +193,6 @@ beforeEach(async () => {
   ip = `198.51.100.${nextIp++}`;
   await givenCommissions(api.db, [{ slug: 'tsc', name: COMMISSION }]);
   ids = await givenRoster(api, 'tsc', [WANJIRU, KIPRONO, ATIENO]);
-});
-
-afterAll(async () => {
-  await api.close();
 });
 
 describe('S7 email code', () => {

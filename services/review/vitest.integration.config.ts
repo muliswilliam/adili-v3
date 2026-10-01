@@ -15,6 +15,7 @@ export default defineConfig({
     // One file at a time: each file starts an app with its own pool and Temporal worker, and
     // sixteen of them at once exhaust CI's Postgres connections (the reporting service does the same).
     fileParallelism: false,
+    globalSetup: ['test/support/workflow-bundles.ts'],
     setupFiles: ['test/support/temporal-task-queue.ts'],
     env: {
       ...parseEnv(readFileSync('.env.example', 'utf8')),

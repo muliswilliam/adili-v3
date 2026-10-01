@@ -1,7 +1,7 @@
 import { PLATFORM_TENANT } from '@adili/api-kit';
 import { withTenant } from '@adili/data-access';
 import { asc, eq } from 'drizzle-orm';
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
 import { config } from '../../src/config.js';
 import { onboardingFailures, onboardingSessions, outbox } from '../../src/db/schema.js';
@@ -87,6 +87,7 @@ async function failuresOf(tenant: string) {
 
 beforeAll(async () => {
   api = await startDirectoryApi();
+  return () => api.close();
 });
 
 beforeEach(async () => {
@@ -99,10 +100,6 @@ beforeEach(async () => {
   ]);
   await givenRoster(api, 'tsc', [WANJIRU, KIPRONO, MWANGI, OUMA]);
   await givenRoster(api, 'psc', [AMINA]);
-});
-
-afterAll(async () => {
-  await api.close();
 });
 
 describe('S1 public Commission list', () => {
@@ -535,10 +532,7 @@ describe('S6 rate limits', () => {
       wide = await startDirectoryApi({
         rateLimits: { 'onboarding-identify': { limit: 1000, windowSeconds: 900 } },
       });
-    });
-
-    afterAll(async () => {
-      await wide.close();
+      return () => wide.close();
     });
 
     it('refuses the 21st attempt for one Commission within an hour, not other Commissions', async () => {

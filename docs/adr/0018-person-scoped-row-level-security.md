@@ -3,7 +3,7 @@
 - **Status:** Accepted; amended 2026-10-01: declarants write their own drafts through the person axis (decision 5, spec #108)
 - **Date:** 2026-09-29
 - **Deciders:** Adili V3 DIALs team
-- **Supersedes:** [ADR-006](0006-multi-tenancy-and-hierarchy.md) decision 5 (isolation) in part: row-level security gains a second, read-only axis, the person, next to the tenant. The rest of ADR-006 still stands.
+- **Supersedes:** [ADR-006](0006-multi-tenancy-and-hierarchy.md) decision 5 (isolation) in part: row-level security gains a second axis, the person, next to the tenant: read-only, except for a declarant's own drafts (decision 5). The rest of ADR-006 still stands.
 - **Related:** [ADR-004](0004-identity-keycloak-self-registration.md), [ADR-014](0014-roster-gated-declarant-onboarding.md), [ADR-017](0017-obligation-reminder-delivery.md)
 
 ## Context
@@ -38,7 +38,7 @@ A declarant is not a tenant member in that sense. The person is global (ADR-006 
 
 **Positive**
 - The database, not the query, keeps a declarant to their own rows, across Commissions.
-- One pattern (`withPerson` plus a `*_person_read` policy) for every declarant-facing read to come.
+- One pattern (`withPerson` plus a `*_person_read` policy) for every declarant-facing read to come, and one (a person policy for every command) for the drafts a declarant writes.
 
 **Negative / risks**
 - Two policies per declarant table to keep right; a table missing its person policy shows the declarant nothing (safe), a wrong one could show too much, so each gets a cross-person test. The draft tables' write policies (decision 5) get a cross-person write test as well.

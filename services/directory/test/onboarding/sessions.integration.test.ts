@@ -1,7 +1,7 @@
 import { PLATFORM_TENANT } from '@adili/api-kit';
 import { withTenant } from '@adili/data-access';
 import { asc, eq } from 'drizzle-orm';
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
 import { onboardingOtps, onboardingSessions, outbox } from '../../src/db/schema.js';
 import type { OnboardingSession } from '../../src/onboarding/representation.js';
@@ -58,6 +58,7 @@ async function endedEvents() {
 
 beforeAll(async () => {
   api = await startDirectoryApi();
+  return () => api.close();
 });
 
 beforeEach(async () => {
@@ -76,10 +77,6 @@ beforeEach(async () => {
     },
   ]);
   recordId = ids.get('TSC/100200') ?? '';
-});
-
-afterAll(async () => {
-  await api.close();
 });
 
 describe('S10 session secret', () => {

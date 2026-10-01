@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 
 import { ATTESTATION_TEXT, type AssetItem, type IncomeItem } from '@adili/forms';
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
 import { commissionRefs, filingObligations, rosterSnapshots } from '../../src/db/schema.js';
 import type {
@@ -37,10 +37,7 @@ let api: DeclarationsApi;
 
 beforeAll(async () => {
   api = await startDeclarationsApi();
-});
-
-afterAll(async () => {
-  await api.close();
+  return () => api.close();
 });
 
 beforeEach(async () => {

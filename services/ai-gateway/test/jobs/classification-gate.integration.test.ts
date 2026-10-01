@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 
 import { outbox } from '@adili/events';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it } from 'vitest';
 
 import { jobs } from '../../src/db/schema.js';
 import { JobsJanitor } from '../../src/jobs/jobs-janitor.js';
@@ -34,10 +34,7 @@ describe('classification gate', () => {
   beforeAll(async () => {
     t = await createTestApp({ provider: external });
     auth = { authorization: `Bearer ${await t.token()}` };
-  });
-
-  afterAll(async () => {
-    await t.close();
+    return () => t.close();
   });
 
   const runTask = (payload: object) =>

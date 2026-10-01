@@ -1,5 +1,5 @@
 import { sql } from 'drizzle-orm';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it } from 'vitest';
 
 import { type DirectoryApi, startDirectoryApi } from '../support/directory-api.js';
 
@@ -20,10 +20,7 @@ let api: DirectoryApi;
 
 beforeAll(async () => {
   api = await startDirectoryApi();
-});
-
-afterAll(async () => {
-  await api.close();
+  return () => api.close();
 });
 
 describe('directory schema', () => {

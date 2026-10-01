@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 
 import { withPerson, withTenant } from '@adili/data-access';
 import { eq, sql } from 'drizzle-orm';
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
 import { rosterSnapshots } from '../../src/db/schema.js';
 import { type DeclarationsApi, startDeclarationsApi } from '../support/declarations-api.js';
@@ -16,10 +16,7 @@ let api: DeclarationsApi;
 
 beforeAll(async () => {
   api = await startDeclarationsApi();
-});
-
-afterAll(async () => {
-  await api.close();
+  return () => api.close();
 });
 
 const WANJIRU = randomUUID();

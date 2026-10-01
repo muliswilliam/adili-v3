@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
 import { AnnualCompileSchedule } from '../../src/compliance-reports/annual-compile-schedule.js';
 import {
@@ -23,11 +23,10 @@ describe('Form M yearly compile', () => {
 
   beforeAll(async () => {
     api = await startReportingApi();
-  });
-
-  afterAll(async () => {
-    await endWorkflows();
-    await api.close();
+    return async () => {
+      await endWorkflows();
+      await api.close();
+    };
   });
 
   beforeEach(async () => {

@@ -15,11 +15,16 @@ import {
 } from '@adili/data-access';
 import { FakeCipher } from '@adili/data-access/testing';
 import { type EventEnvelope, OutboxRelay } from '@adili/events';
-import { TEMPORAL_CLIENT, TemporalWorkerReadinessCheck } from '@adili/temporal';
+import { TEMPORAL_CLIENT, TemporalWorkerReadinessCheck, WorkflowBundler } from '@adili/temporal';
+import {
+  prebuiltWorkflowBundler,
+  untilActivitiesDrained,
+  untilWorkerPolling,
+} from '@adili/temporal/testing';
 import type { Client } from '@temporalio/client';
 import { sql } from 'drizzle-orm';
 import { createLocalJWKSet, exportJWK, generateKeyPair, type JWK, SignJWT } from 'jose';
-import { vi } from 'vitest';
+import { inject } from 'vitest';
 
 import { AppModule } from '../../src/app.module.js';
 import { Clock } from '../../src/clock.js';
@@ -84,7 +89,7 @@ export interface ReportingApi {
   activities: ComplianceReportActivities;
   /** The events recorded in the outbox, of `type` when given, oldest first. */
   events(type?: string): Promise<RecordedEvent[]>;
-  /** Terminates the workflows with these ids (one not running is fine) and waits out their activities. */
+  /** Terminates the workflows with these ids (one not running is fine), then waits out their activities. */
   endWorkflows(ids: readonly string[]): Promise<void>;
   /** Delivers an event to its consumer as the RabbitMQ transport would; false for a redelivery. */
   deliver(event: EventEnvelope): Promise<boolean>;
@@ -186,16 +191,16 @@ export async function startReportingApi(): Promise<ReportingApi> {
     .useValue(clock)
     .overrideProvider(OutboxRelay)
     .useValue({})
+    .overrideProvider(WorkflowBundler)
+    .useValue(prebuiltWorkflowBundler(inject('workflowBundles')))
     .compile();
   const app = moduleRef.createNestApplication<NestFastifyApplication>(new FastifyAdapter(), {
     logger: ['fatal'],
   });
   await app.init();
   await app.getHttpAdapter().getInstance().ready();
-  // The worker bundles the workflow code before it polls: seconds of CPU, longer when suites
-  // start together. Tests begin once it polls, so their waits measure the workflow alone.
-  const worker = app.get(TemporalWorkerReadinessCheck);
-  await vi.waitFor(() => worker.check(), { timeout: 120_000, interval: 250 });
+  // Tests start once the worker polls, as traffic waits for readiness (see untilWorkerPolling).
+  await untilWorkerPolling(app.get(TemporalWorkerReadinessCheck));
 
   const consumer = app.get(ProjectionsConsumer);
   return {
@@ -228,14 +233,7 @@ export async function startReportingApi(): Promise<ReportingApi> {
           // Not running.
         }
       }
-      // Terminating leaves the workflows' in-flight activities running; let them finish so their
-      // writes land before the next reset, not in the next test.
-      await vi.waitFor(
-        () => {
-          if (worker.activitiesInFlight > 0) throw new Error('activities still in flight');
-        },
-        { timeout: 30_000, interval: 50 },
-      );
+      await untilActivitiesDrained(app.get(TemporalWorkerReadinessCheck));
     },
     deliver(event) {
       const handler = HANDLERS[event.type];
