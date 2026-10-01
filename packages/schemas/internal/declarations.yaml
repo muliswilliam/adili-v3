@@ -4102,6 +4102,7 @@ components:
             - iprs-unavailable
             - identity-unavailable
             - email-in-use
+            - identity-mismatch
             - step-up-required
             - incomplete
             - before-statement-date

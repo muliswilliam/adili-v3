@@ -47,6 +47,9 @@ export const LAW_ENFORCEMENT = 'law-enforcement';
  */
 export const LAW_ENFORCEMENT_TENANT = 'lea';
 
+/** A member of the public who requests access to declarations with Form K (spec 10). No tenant. */
+export const APPLICANT = 'applicant';
+
 /** A Responsible Commission's own staff, who work on its declarants (spec 04: its obligations). */
 export const COMMISSION_STAFF_ROLES = [
   REPORTING_OFFICER,
@@ -77,6 +80,13 @@ export const DIRECTORY_INTERNAL_SCOPE = 'directory:internal';
  * the notifications client alone (spec 04).
  */
 export const DIRECTORY_PERSON_CONTACTS_SCOPE = 'directory:person-contacts';
+
+/**
+ * Applicants' particulars in the directory (identity document, identity status, contacts):
+ * personal data, so a scope of its own, held by the access client alone, which reads them for
+ * Form K and records an access officer's manual verification of a passport applicant (spec 10).
+ */
+export const DIRECTORY_APPLICANTS_SCOPE = 'directory:applicants';
 
 /**
  * A roster record's national ID in the directory: personal data, so a scope of its own, held by

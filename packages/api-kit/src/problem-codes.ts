@@ -56,6 +56,11 @@ export const PROBLEM_CODES = {
    */
   'email-in-use': { status: HttpStatus.CONFLICT, title: 'Email belongs to another account' },
   /**
+   * Applicant onboarding: IPRS has no person with this national ID under these names, so no
+   * session starts; nothing changed.
+   */
+  'identity-mismatch': { status: HttpStatus.CONFLICT, title: 'Identity does not match IPRS' },
+  /**
    * Submission: the token lacks the step-up ACR, or its one-time code is more than five minutes
    * old; `stepUpUrl` starts a fresh step-up and returns to the declaration.
    */
