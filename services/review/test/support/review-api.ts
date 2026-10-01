@@ -8,7 +8,8 @@ import { Test } from '@nestjs/testing';
 import { TokenVerifier } from '@adili/api-kit';
 import { createDatabase, DATABASE, type Database, withTenant } from '@adili/data-access';
 import { type EventEnvelope, OutboxRelay } from '@adili/events';
-import { sql } from 'drizzle-orm';
+import { getTableName, is, sql } from 'drizzle-orm';
+import { PgTable } from 'drizzle-orm/pg-core';
 import { createLocalJWKSet, exportJWK, generateKeyPair, type JWK, SignJWT } from 'jose';
 import { v7 as uuidv7 } from 'uuid';
 
@@ -92,14 +93,6 @@ export interface ReviewApi {
   close(): Promise<void>;
 }
 
-/**
- * The review service over HTTP and at its event inbox, against a real Postgres
- * (`TEST_DATABASE_URL`) with a private schema per suite and the committed migrations applied.
- * Declarations and the directory are fakes, tokens are signed locally and the outbox relay is off
- * (events stay in the outbox for assertions). Workflows run on the compose Temporal through the
- * service's own worker, polling the suite's own task queue (test/support/temporal-task-queue.ts).
- * The test role owns the tables, so FORCE row-level security applies to it as to the service's.
- */
 /** How often `reset` tries to truncate before a lock held for good fails the suite. */
 const RESET_ATTEMPTS = 20;
 
@@ -112,6 +105,19 @@ function isLockTimeout(error: unknown): boolean {
   return codeOf(error) === '55P03' || codeOf(cause) === '55P03';
 }
 
+/** Every table of the service, which `reset` empties. */
+const TABLES = Object.values(schema)
+  .filter((value) => is(value, PgTable))
+  .map((table) => sql.identifier(getTableName(table)));
+
+/**
+ * The review service over HTTP and at its event inbox, against a real Postgres
+ * (`TEST_DATABASE_URL`) with a private schema per suite and the committed migrations applied.
+ * Declarations and the directory are fakes, tokens are signed locally and the outbox relay is off
+ * (events stay in the outbox for assertions). Workflows run on the compose Temporal through the
+ * service's own worker, polling the suite's own task queue (test/support/temporal-task-queue.ts).
+ * The test role owns the tables, so FORCE row-level security applies to it as to the service's.
+ */
 export async function startReviewApi(): Promise<ReviewApi> {
   const baseUrl = requireEnv('TEST_DATABASE_URL');
   const pgSchema = `review_test_${String(process.pid)}_${randomUUID().slice(0, 8)}`;
@@ -209,9 +215,7 @@ export async function startReviewApi(): Promise<ReviewApi> {
         try {
           await db.transaction(async (tx) => {
             await tx.execute(sql`set local lock_timeout = '2s'`);
-            await tx.execute(
-              sql`truncate referrals, ladder_history, administrative_actions, enforcement_ladders, closure_sweeps, bulk_approvals, approval_reassignments, determinations, clarification_responses, clarifications, review_assignments, review_flags, review_notes, review_timeline, review_case_versions, review_cases, outbox, inbox, numbering_counters, idempotency_keys`,
-            );
+            await tx.execute(sql`truncate ${sql.join(TABLES, sql`, `)}`);
           });
           break;
         } catch (error) {

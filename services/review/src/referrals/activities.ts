@@ -2,7 +2,19 @@ import { Injectable } from '@nestjs/common';
 import { type Database, InjectDatabase, withTenant } from '@adili/data-access';
 import { EventPublisher } from '@adili/events';
 import { ApplicationFailure } from '@temporalio/common';
-import { and, asc, desc, eq, exists, gt, inArray, isNotNull, lte, sql } from 'drizzle-orm';
+import {
+  and,
+  asc,
+  desc,
+  eq,
+  exists,
+  gt,
+  inArray,
+  isNotNull,
+  lte,
+  notExists,
+  sql,
+} from 'drizzle-orm';
 import { v7 as uuidv7 } from 'uuid';
 
 import type { ReviewTransaction } from '../cases/case-lookup.js';
@@ -209,7 +221,20 @@ export class ReferralActivities {
                 ),
             ),
             inArray(clarifications.status, OPEN_CLARIFICATION_STATUSES),
-            sql`not exists (select 1 from ${referrals} where ${referrals.tenant} = ${enforcementLadders.tenant} and ${referrals.personId} = ${clarifications.personId} and ${referrals.grounds} = 'unanswered-clarification' and ${referrals.proposerKind} = 'system' and ${referrals.cycleYear} = ${reviewCases.cycleYear})`,
+            notExists(
+              tx
+                .select({ one: sql`1` })
+                .from(referrals)
+                .where(
+                  and(
+                    eq(referrals.tenant, enforcementLadders.tenant),
+                    eq(referrals.personId, clarifications.personId),
+                    eq(referrals.grounds, 'unanswered-clarification'),
+                    eq(referrals.proposerKind, 'system'),
+                    eq(referrals.cycleYear, reviewCases.cycleYear),
+                  ),
+                ),
+            ),
           ),
         )
         .orderBy(asc(enforcementLadders.startedAt), asc(enforcementLadders.id))

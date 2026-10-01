@@ -2,11 +2,10 @@ import { Controller } from '@nestjs/common';
 import { Payload } from '@nestjs/microservices';
 import { type Database, InjectDatabase } from '@adili/data-access';
 import { consumeOnce, type EventEnvelope, EventPublisher, OnEvent } from '@adili/events';
-import { and, eq, sql } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 import { z } from 'zod';
 
 import { TENANT_KEY } from '@adili/api-kit';
-import type { ReviewTransaction } from '../cases/case-lookup.js';
 import {
   CLARIFICATION_OVERDUE,
   CLARIFICATION_RESOLVED,
@@ -15,7 +14,7 @@ import {
 } from '../clarifications/events.js';
 import { Clock } from '../clock.js';
 import type { ReviewSchema } from '../db/schema.js';
-import { SYSTEM_SUBJECT } from '../system-context.js';
+import { withInboxTenant } from '../system-context.js';
 import { EnforcementWorkflows, type LadderSubject } from './enforcement-workflows.js';
 import { closeLadderRecords } from './ladder-records.js';
 import { type ClosingCause, enforcementLadders } from './schema.js';
@@ -132,17 +131,13 @@ export class EnforcementConsumer {
     { start, closing }: { start: boolean; closing: ClosingCause | null },
   ): Promise<void> {
     if (!start && closing === null) return;
-    // The inbox's transaction is the review database's: typed with its schema for the ladder.
     await consumeOnce(this.db as unknown as Database, consumer, event, async (inboxTx) => {
-      const tx = inboxTx as unknown as ReviewTransaction;
       if (start) {
         await this.workflows.start({ tenant, ...subject });
         return;
       }
       if (closing === null) return;
-      await tx.execute(
-        sql`select set_config('app.tenant', ${tenant}, true), set_config('app.subject', ${SYSTEM_SUBJECT}, true)`,
-      );
+      const tx = await withInboxTenant(inboxTx, tenant);
       const [ladder] = await tx
         .select({ id: enforcementLadders.id, status: enforcementLadders.status })
         .from(enforcementLadders)

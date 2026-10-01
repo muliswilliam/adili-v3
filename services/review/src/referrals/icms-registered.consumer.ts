@@ -2,12 +2,11 @@ import { Controller } from '@nestjs/common';
 import { Payload } from '@nestjs/microservices';
 import { type Database, InjectDatabase } from '@adili/data-access';
 import { consumeOnce, type EventEnvelope, OnEvent } from '@adili/events';
-import { and, eq, isNull, sql } from 'drizzle-orm';
+import { and, eq, isNull } from 'drizzle-orm';
 import { z } from 'zod';
 
 import { TENANT_KEY } from '@adili/api-kit';
-import type { ReviewTransaction } from '../cases/case-lookup.js';
-import { SYSTEM_SUBJECT } from '../system-context.js';
+import { withInboxTenant } from '../system-context.js';
 import { referrals } from './schema.js';
 
 /**
@@ -45,11 +44,7 @@ export class ReferralIcmsRegisteredConsumer {
     const { referralId, icmsCaseNumber, registeredAt } = icmsRegistered.parse(event.data);
     const tenant = tenantSchema.parse(event.tenant);
     await consumeOnce(this.db, REFERRAL_ICMS_REGISTERED_CONSUMER, event, async (inboxTx) => {
-      // The inbox's transaction is the review database's: typed with its schema for the referral.
-      const tx = inboxTx as unknown as ReviewTransaction;
-      await tx.execute(
-        sql`select set_config('app.tenant', ${tenant}, true), set_config('app.subject', ${SYSTEM_SUBJECT}, true)`,
-      );
+      const tx = await withInboxTenant(inboxTx, tenant);
       await tx
         .update(referrals)
         .set({ icmsCaseNumber, icmsRegisteredAt: new Date(registeredAt) })
