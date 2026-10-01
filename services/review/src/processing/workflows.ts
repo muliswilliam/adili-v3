@@ -4,12 +4,14 @@
  */
 import { proxyActivities } from '@temporalio/workflow';
 
+import { requestCaseCopilot } from '../copilot/workflows.js';
 import type { ProcessingActivities } from './activities.js';
 import type { ProcessingInput, ProcessingResult } from './contract.js';
 
 // The worker bundles this module: every workflow of the review service is exported from it.
 export { clarification } from '../clarifications/workflows.js';
 export { closureNotices, closureSweep, closureSweeps } from '../closures/workflows.js';
+export { copilotJobFinished } from '../copilot/workflows.js';
 export { determinationIssuance } from '../determinations/workflows.js';
 export { enforcement } from '../enforcement/workflows.js';
 export { referralSending, referralSweep, referralSweeps } from '../referrals/workflows.js';
@@ -40,7 +42,10 @@ const { pullVersion, pullPreviousVersion, runRules, upsertCase } =
  * reviewed flags kept and marked, assignee kept). The case, its flags, the timeline entry and the
  * event are written in one transaction, so a retried or repeated run changes nothing twice.
  *
- * 07b and 07c add registry and AI activities after the rules; no AI runs here.
+ * A case created or amended then gets its copilot (spec 07c): `requestCopilot` asks the
+ * ai-gateway for the summary and flag explanations, and the case shows them `pending` (or, after
+ * an amendment, the earlier ones `stale`) until they arrive. The copilot never holds a case up: a
+ * gateway that cannot be reached leaves it `failed`, for the assignee to try again.
  */
 export async function declarationProcessing(input: ProcessingInput): Promise<ProcessingResult> {
   const facts = await pullVersion(input);
@@ -51,5 +56,23 @@ export async function declarationProcessing(input: ProcessingInput): Promise<Pro
     versionId: input.versionId,
   });
   const flags = await runRules({ input, facts, previous });
-  return upsertCase({ input, facts, flags });
+  const outcome = await upsertCase({ input, facts, flags });
+  if (outcome.outcome === 'unchanged') return outcome;
+  await afterRegistryMatching(input, outcome);
+  return outcome;
+}
+
+/**
+ * The steps after registry matching. Spec 07b's `matchRegistries` is not built yet: when it is,
+ * it runs before this and passes its `registryCheckedAt` to the copilot request.
+ */
+async function afterRegistryMatching(
+  input: ProcessingInput,
+  { outcome, caseId }: { outcome: 'created' | 'updated'; caseId: string },
+): Promise<void> {
+  await requestCaseCopilot({
+    tenant: input.tenant,
+    caseId,
+    trigger: outcome === 'created' ? 'case-created' : 'amendment',
+  });
 }

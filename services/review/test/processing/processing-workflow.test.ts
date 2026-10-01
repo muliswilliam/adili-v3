@@ -5,6 +5,7 @@ import { Context } from '@temporalio/activity';
 import { ApplicationFailure } from '@temporalio/common';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 
+import type { CopilotActivities } from '../../src/copilot/activities.js';
 import { ProcessingActivities } from '../../src/processing/activities.js';
 import {
   type PreviousVersion,
@@ -26,7 +27,9 @@ import { historyPayloads } from '../support/workflow-history.js';
  */
 const workflowsPath = fileURLToPath(new URL('../../src/processing/workflows.ts', import.meta.url));
 
-type Activities = { [K in keyof ProcessingActivities]: ProcessingActivities[K] };
+type Activities = { [K in keyof ProcessingActivities]: ProcessingActivities[K] } & {
+  [K in keyof CopilotActivities]: CopilotActivities[K];
+};
 
 const input: ProcessingInput = {
   tenant: 'psc',
@@ -60,6 +63,9 @@ function activities(overrides: Partial<Activities> = {}): Activities {
     pullPreviousVersion: vi.fn(() => Promise.resolve<PreviousVersion | null>(null)),
     runRules: vi.fn(() => Promise.resolve([noPrevious])),
     upsertCase: vi.fn(() => Promise.resolve({ outcome: 'created' as const, caseId: 'case-1' })),
+    requestCopilot: vi.fn(() => Promise.resolve()),
+    recordCopilotJob: vi.fn(() => Promise.resolve()),
+    copilotUnavailable: vi.fn(() => Promise.resolve()),
     ...overrides,
   };
 }
@@ -101,6 +107,52 @@ describe('DeclarationProcessingWorkflow', () => {
       facts,
       flags: [noPrevious],
     } satisfies UpsertCaseRequest);
+    // S10: the copilot is requested after the case is written (and after registry matching, once
+    // spec 07b adds it).
+    expect(mocks.requestCopilot).toHaveBeenCalledWith({
+      tenant: 'psc',
+      caseId: 'case-1',
+      trigger: 'case-created',
+    });
+    expect(mocks.copilotUnavailable).not.toHaveBeenCalled();
+  }, 60_000);
+
+  it('S11: requests the copilot again for an amendment, and not for a version already processed', async () => {
+    const amended = activities({
+      upsertCase: vi.fn(() => Promise.resolve({ outcome: 'updated' as const, caseId: 'case-1' })),
+    });
+    await env.execute(declarationProcessing, { workflowsPath, activities: amended, args: [input] });
+    expect(amended.requestCopilot).toHaveBeenCalledWith({
+      tenant: 'psc',
+      caseId: 'case-1',
+      trigger: 'amendment',
+    });
+
+    const repeated = activities({
+      upsertCase: vi.fn(() => Promise.resolve({ outcome: 'unchanged' as const, caseId: 'case-1' })),
+    });
+    await env.execute(declarationProcessing, {
+      workflowsPath,
+      activities: repeated,
+      args: [input],
+    });
+    expect(repeated.requestCopilot).not.toHaveBeenCalled();
+  }, 60_000);
+
+  it('records the copilot as failed, and still ends with the case, when the gateway stays unreachable', async () => {
+    const mocks = activities({
+      requestCopilot: vi.fn(() => Promise.reject(new Error('ai-gateway unreachable'))),
+    });
+
+    const result = await env.execute(declarationProcessing, {
+      workflowsPath,
+      activities: mocks,
+      args: [input],
+    });
+
+    expect(result).toEqual({ outcome: 'created', caseId: 'case-1' });
+    expect(mocks.requestCopilot).toHaveBeenCalledTimes(10);
+    expect(mocks.copilotUnavailable).toHaveBeenCalledWith({ tenant: 'psc', caseId: 'case-1' });
   }, 60_000);
 
   it('hands the previous version to the rules', async () => {

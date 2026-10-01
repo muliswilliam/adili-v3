@@ -1,7 +1,7 @@
 import { eq } from 'drizzle-orm';
 import { vi } from 'vitest';
 
-import { reviewCases } from '../../src/db/schema.js';
+import { reviewCases, reviewCopilots } from '../../src/db/schema.js';
 import type { ProcessingInput } from '../../src/processing/contract.js';
 import { type StoredVersion, submittedVersion, type VersionFixture } from './fake-declarations.js';
 import { type ReviewApi, submittedEvent } from './review-api.js';
@@ -60,7 +60,8 @@ export async function processed(api: ReviewApi, version: StoredVersion): Promise
 
 /**
  * Delivers `declaration.submitted.v1` for a version to the inbox and waits until the workflow on
- * Temporal has brought its case to that version; returns the case row.
+ * Temporal has brought its case to that version and requested its copilot, its last step; returns
+ * the case row.
  */
 export async function processedFromInbox(api: ReviewApi, version: StoredVersion) {
   await api.consumer.submitted(submittedEvent(version.tenant, version));
@@ -70,6 +71,10 @@ export async function processedFromInbox(api: ReviewApi, version: StoredVersion)
         tx.select().from(reviewCases).where(eq(reviewCases.declarationId, version.declarationId)),
       );
       if (found?.currentVersion !== version.version) throw new Error('not processed yet');
+      const [copilot] = await api.asPlatform((tx) =>
+        tx.select().from(reviewCopilots).where(eq(reviewCopilots.caseId, found.id)),
+      );
+      if (copilot?.forVersionId !== version.versionId) throw new Error('copilot not requested');
       return found;
     },
     { timeout: 45_000, interval: 250 },
