@@ -96,8 +96,11 @@ export type RadioGroupProps = ComponentProps<'fieldset'> & {
   error?: ReactNode;
   /** Keeps the legend for screen readers only, when a heading above already asks the question. */
   legendHidden?: boolean;
-  /** `2` lays the choices out side by side, e.g. two `tile` cards. */
-  columns?: 1 | 2;
+  /**
+   * `2` lays the choices out side by side, e.g. two `tile` cards; `3` puts three side by side
+   * from `sm` and stacks them on a phone.
+   */
+  columns?: 1 | 2 | 3;
 };
 
 /**
@@ -136,7 +139,15 @@ export function RadioGroup({
         {legend}
       </legend>
       {hint ? <FieldHint id={fieldIds.hintId}>{hint}</FieldHint> : null}
-      <div className={cn('grid gap-2', columns === 2 && 'grid-cols-2')}>{children}</div>
+      <div
+        className={cn(
+          'grid gap-2',
+          columns === 2 && 'grid-cols-2',
+          columns === 3 && 'sm:grid-cols-3',
+        )}
+      >
+        {children}
+      </div>
       {error ? <FieldError id={fieldIds.errorId}>{error}</FieldError> : null}
     </fieldset>
   );

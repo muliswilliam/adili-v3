@@ -24,3 +24,10 @@ export type RegisterEntry = Schemas['RegisterEntry'];
 export function readAccessRequest(request: Schemas['AccessRequest']): AccessRequest {
   return request as unknown as AccessRequest;
 }
+
+/** A request the declarant was notified about, with their representations and the outcome. */
+export type DeclarantNotice = Schemas['DeclarantNotice'];
+export type Representations = Schemas['Representations'];
+export type RepresentationsInput = Schemas['RepresentationsInput'];
+export type RepresentationStance = Representations['stance'];
+export type Scope = Schemas['Scope'];

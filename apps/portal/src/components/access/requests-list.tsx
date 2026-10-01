@@ -123,7 +123,8 @@ function RequestRow({ request, now }: { request: RequestSummary; now: number }) 
   );
 }
 
-function Pager({
+/** Pages of a list of requests, ten to a page: the range shown and a button per page. */
+export function Pager({
   page,
   total,
   onPage,

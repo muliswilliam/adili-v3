@@ -76,4 +76,18 @@ describe('RadioGroup', () => {
       screen.getByRole<HTMLInputElement>('radio', { name: 'Kenyan national ID' }).checked,
     ).toBe(true);
   });
+
+  it('puts three tiles side by side from sm', () => {
+    render(
+      <RadioGroup legend="Your position" columns={3}>
+        <RadioCard layout="tile" name="stance" value="object" label="Object" />
+        <RadioCard layout="tile" name="stance" value="consent" label="Consent" />
+        <RadioCard layout="tile" name="stance" value="context" label="Add context" />
+      </RadioGroup>,
+    );
+
+    const group = screen.getByRole('radiogroup', { name: 'Your position' });
+    expect(group.querySelector('.sm\\:grid-cols-3')).not.toBeNull();
+    expect(group.querySelector('.grid-cols-2')).toBeNull();
+  });
 });
