@@ -520,10 +520,12 @@ components:
         - unavailable
     UnavailableReason:
       type: string
+      description: rate-limited when no slot of the system's rate limit freed up within the max queue wait
       enum:
         - timeout
         - breaker-open
         - paused
+        - rate-limited
         - upstream-error
     ResultEnvelope:
       type: object

@@ -324,8 +324,11 @@ export interface components {
         System: "iprs" | "kra" | "ntsa" | "brs" | "ardhisasa" | "payroll" | "icms";
         /** @enum {string} */
         LookupOutcome: "found" | "not-found" | "unavailable";
-        /** @enum {string} */
-        UnavailableReason: "timeout" | "breaker-open" | "paused" | "upstream-error";
+        /**
+         * @description rate-limited when no slot of the system's rate limit freed up within the max queue wait
+         * @enum {string}
+         */
+        UnavailableReason: "timeout" | "breaker-open" | "paused" | "rate-limited" | "upstream-error";
         ResultEnvelope: {
             /** Format: uuid */
             resultId: string;
