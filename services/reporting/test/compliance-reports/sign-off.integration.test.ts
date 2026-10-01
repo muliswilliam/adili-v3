@@ -551,7 +551,7 @@ describe('Form M review, confirm and submit (S3, S5, S6, S7)', () => {
       await api.send('PATCH', `${path()}/manual`, COMMISSION_ADMIN, CONTACTS);
       const done = await confirm(admin);
       expect(done.json()).toMatchObject({
-        reference: format(RPT, { issuer: 'PSC', period: 2027, sequence: 1 }),
+        reference: format(RPT, { issuer: 'PSC', period: 2028, sequence: 1 }),
       });
     });
 

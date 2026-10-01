@@ -87,7 +87,7 @@ describe('Federated Form M submission (S8)', () => {
 
     expect(response.statusCode, response.body).toBe(201);
     expect(contractErrors(CONTRACT, response.json())).toEqual([]);
-    const reference = format(RPT, { issuer: 'TSC', period: 2027, sequence: 1 });
+    const reference = format(RPT, { issuer: 'TSC', period: 2028, sequence: 1 });
     const body = response.json<ReportBody>();
     expect(body).toMatchObject({
       commission: { slug: 'tsc', issuerCode: 'TSC', name: 'Teachers Service Commission' },
@@ -279,7 +279,7 @@ describe('Federated Form M submission (S8)', () => {
     // The first accepted submission still gets the first reference.
     const accepted = await submit(tscFormM());
     expect(accepted.json()).toMatchObject({
-      reference: format(RPT, { issuer: 'TSC', period: 2027, sequence: 1 }),
+      reference: format(RPT, { issuer: 'TSC', period: 2028, sequence: 1 }),
     });
   });
 

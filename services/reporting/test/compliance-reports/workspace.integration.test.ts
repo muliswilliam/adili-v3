@@ -189,7 +189,12 @@ describe('Form M workspace: periods and access', () => {
           tenant: 'psc',
           data: expect.objectContaining({
             action: 'compliance-report.viewed',
-            resource: { type: 'compliance-report', params: { slug: 'psc', fy: '2027' } },
+            resource: {
+              type: 'compliance-report',
+              params: { slug: 'psc', fy: '2027' },
+              tenant: 'psc',
+              subjectPersonId: null,
+            },
             actor: expect.objectContaining({
               tenant: 'psc',
               roles: ['reporting-officer'],
