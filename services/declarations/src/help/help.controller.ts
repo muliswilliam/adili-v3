@@ -26,6 +26,7 @@ import {
   CurrentPrincipal,
   type Principal,
   Roles,
+  RequireIdempotencyKey,
   schemaRef,
   TENANT_KEY,
   ZodValidationPipe,
@@ -99,18 +100,20 @@ export class HelpController {
   }
 
   @Post('commissions/:slug/help/articles')
+  @RequireIdempotencyKey()
   @ApiSlugParam()
   @ApiOperation({
     operationId: 'createHelpArticle',
     summary: 'Create a Commission help article',
     description:
-      "The Commission's administrators. Its reporting officers get 403; anyone else 404. A published article reaches the Commission's declarants' help search and records `help.article.published.v1`.",
+      "The Commission's administrators. Its reporting officers get 403; anyone else 404. Needs an Idempotency-Key: a retry with the same key gets the same article. Records `help.article.created.v1`; a published article reaches the Commission's declarants' help search and also records `help.article.published.v1`.",
   })
   @ApiBody({ required: true, schema: schemaRef('HelpArticleInput') })
   @ApiCreatedResponse({ description: 'Created', schema: schemaRef('HelpArticle') })
-  @ApiProblemResponse(400, 'Request failed validation')
+  @ApiProblemResponse(400, 'Request failed validation, or the Idempotency-Key header missing')
   @ApiProblemResponse(403, 'A reporting officer, who reads articles but does not edit them')
   @ApiProblemResponse(404, NOT_VISIBLE)
+  @ApiProblemResponse(409, 'A request with the same Idempotency-Key still running')
   createCommissionArticle(
     @CurrentPrincipal() principal: Principal,
     @Param('slug') slug: string,
@@ -126,7 +129,7 @@ export class HelpController {
     operationId: 'updateHelpArticle',
     summary: 'Update, publish or unpublish a Commission help article',
     description:
-      "The Commission's administrators; as create. Publishing an unpublished article records `help.article.published.v1`.",
+      "The Commission's administrators; as create. Records `help.article.updated.v1`; publishing an unpublished article also records `help.article.published.v1`.",
   })
   @ApiBody({ required: true, schema: schemaRef('HelpArticleInput') })
   @ApiOkResponse({ description: 'Updated', schema: schemaRef('HelpArticle') })
@@ -149,7 +152,7 @@ export class HelpController {
   @ApiOperation({
     operationId: 'deleteHelpArticle',
     summary: 'Delete a Commission help article',
-    description: "The Commission's administrators; as create.",
+    description: "The Commission's administrators; as create. Records `help.article.deleted.v1`.",
   })
   @ApiNoContentResponse({ description: 'Deleted' })
   @ApiProblemResponse(403, 'A reporting officer, who reads articles but does not edit them')
@@ -177,16 +180,18 @@ export class HelpController {
 
   @Post('help/articles')
   @Roles(PLATFORM_ADMIN)
+  @RequireIdempotencyKey()
   @ApiOperation({
     operationId: 'createPlatformHelpArticle',
     summary: 'Create a platform help article',
     description:
-      "platform-admin only. A published article reaches every declarant's help search and records `help.article.published.v1`.",
+      "platform-admin only. Needs an Idempotency-Key, as for a Commission article. Records `help.article.created.v1`; a published article reaches every declarant's help search and also records `help.article.published.v1`.",
   })
   @ApiBody({ required: true, schema: schemaRef('HelpArticleInput') })
   @ApiCreatedResponse({ description: 'Created', schema: schemaRef('HelpArticle') })
-  @ApiProblemResponse(400, 'Request failed validation')
+  @ApiProblemResponse(400, 'Request failed validation, or the Idempotency-Key header missing')
   @ApiProblemResponse(403, 'Not a platform admin')
+  @ApiProblemResponse(409, 'A request with the same Idempotency-Key still running')
   createPlatformArticle(
     @CurrentPrincipal() principal: Principal,
     @Body() body: unknown,
@@ -200,7 +205,8 @@ export class HelpController {
   @ApiOperation({
     operationId: 'updatePlatformHelpArticle',
     summary: 'Update, publish or unpublish a platform help article',
-    description: 'platform-admin only.',
+    description:
+      'platform-admin only. Records `help.article.updated.v1`; publishing an unpublished article also records `help.article.published.v1`.',
   })
   @ApiBody({ required: true, schema: schemaRef('HelpArticleInput') })
   @ApiOkResponse({ description: 'Updated', schema: schemaRef('HelpArticle') })
@@ -222,7 +228,7 @@ export class HelpController {
   @ApiOperation({
     operationId: 'deletePlatformHelpArticle',
     summary: 'Delete a platform help article',
-    description: 'platform-admin only.',
+    description: 'platform-admin only. Records `help.article.deleted.v1`.',
   })
   @ApiNoContentResponse({ description: 'Deleted' })
   @ApiProblemResponse(403, 'Not a platform admin')
@@ -257,7 +263,7 @@ export class HelpController {
     operationId: 'importCorpus',
     summary: 'Re-import the statutory corpus files deployed with the service',
     description:
-      'platform-admin only. Idempotent: the same files import as a no-op (`skipped`). An amended wording supersedes the earlier one from its effective date.',
+      'platform-admin only. Idempotent: the same files import as a no-op (`skipped`) and record nothing; an import that changes the corpus records `help.corpus.imported.v1`. An amended wording supersedes the earlier one from its effective date.',
   })
   @ApiOkResponse({
     description: 'What the import changed',

@@ -1155,7 +1155,7 @@ paths:
       tags:
         - help
       summary: Create a Commission help article
-      description: The Commission's administrators. Its reporting officers get 403; anyone else 404. A published article reaches the Commission's declarants' help search and records `help.article.published.v1`.
+      description: "The Commission's administrators. Its reporting officers get 403; anyone else 404. Needs an Idempotency-Key: a retry with the same key gets the same article. Records `help.article.created.v1`; a published article reaches the Commission's declarants' help search and also records `help.article.published.v1`."
       operationId: createHelpArticle
       parameters:
         - name: slug
@@ -1164,6 +1164,13 @@ paths:
           schema:
             type: string
             pattern: ^[a-z][a-z0-9]{1,19}$
+        - name: Idempotency-Key
+          in: header
+          description: Client-generated UUID, unique per logical request; reuse on retry
+          required: true
+          schema:
+            type: string
+            format: uuid
       requestBody:
         required: true
         content:
@@ -1178,7 +1185,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/HelpArticle'
         '400':
-          description: Request failed validation
+          description: Request failed validation, or the Idempotency-Key header missing
           content:
             application/problem+json:
               schema:
@@ -1195,12 +1202,24 @@ paths:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/ProblemDetails'
+        '409':
+          description: A request with the same Idempotency-Key still running
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '422':
+          description: Idempotency-Key reused with a different request body
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
   /v1/commissions/{slug}/help/articles/{articleId}:
     put:
       tags:
         - help
       summary: Update, publish or unpublish a Commission help article
-      description: The Commission's administrators; as create. Publishing an unpublished article records `help.article.published.v1`.
+      description: The Commission's administrators; as create. Records `help.article.updated.v1`; publishing an unpublished article also records `help.article.published.v1`.
       operationId: updateHelpArticle
       parameters:
         - name: slug
@@ -1250,7 +1269,7 @@ paths:
       tags:
         - help
       summary: Delete a Commission help article
-      description: The Commission's administrators; as create.
+      description: The Commission's administrators; as create. Records `help.article.deleted.v1`.
       operationId: deleteHelpArticle
       parameters:
         - name: slug
@@ -1309,8 +1328,16 @@ paths:
       tags:
         - help
       summary: Create a platform help article
-      description: platform-admin only. A published article reaches every declarant's help search and records `help.article.published.v1`.
+      description: platform-admin only. Needs an Idempotency-Key, as for a Commission article. Records `help.article.created.v1`; a published article reaches every declarant's help search and also records `help.article.published.v1`.
       operationId: createPlatformHelpArticle
+      parameters:
+        - name: Idempotency-Key
+          in: header
+          description: Client-generated UUID, unique per logical request; reuse on retry
+          required: true
+          schema:
+            type: string
+            format: uuid
       requestBody:
         required: true
         content:
@@ -1325,7 +1352,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/HelpArticle'
         '400':
-          description: Request failed validation
+          description: Request failed validation, or the Idempotency-Key header missing
           content:
             application/problem+json:
               schema:
@@ -1339,12 +1366,24 @@ paths:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/ProblemDetails'
+        '409':
+          description: A request with the same Idempotency-Key still running
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '422':
+          description: Idempotency-Key reused with a different request body
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
   /v1/help/articles/{articleId}:
     put:
       tags:
         - help
       summary: Update, publish or unpublish a platform help article
-      description: platform-admin only.
+      description: platform-admin only. Records `help.article.updated.v1`; publishing an unpublished article also records `help.article.published.v1`.
       operationId: updatePlatformHelpArticle
       parameters:
         - name: articleId
@@ -1391,7 +1430,7 @@ paths:
       tags:
         - help
       summary: Delete a platform help article
-      description: platform-admin only.
+      description: platform-admin only. Records `help.article.deleted.v1`.
       operationId: deletePlatformHelpArticle
       parameters:
         - name: articleId
@@ -1448,7 +1487,7 @@ paths:
       tags:
         - help
       summary: Re-import the statutory corpus files deployed with the service
-      description: 'platform-admin only. Idempotent: the same files import as a no-op (`skipped`). An amended wording supersedes the earlier one from its effective date.'
+      description: 'platform-admin only. Idempotent: the same files import as a no-op (`skipped`) and record nothing; an import that changes the corpus records `help.corpus.imported.v1`. An amended wording supersedes the earlier one from its effective date.'
       operationId: importCorpus
       responses:
         '200':

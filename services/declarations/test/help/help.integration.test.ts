@@ -47,6 +47,9 @@ afterAll(async () => {
   await api.close();
 });
 
+/** A new Idempotency-Key header, which every article create needs. */
+const freshKey = () => ({ 'idempotency-key': randomUUID() });
+
 beforeEach(async () => {
   await api.reset();
   await givenObligation(ACHIENG, 'psc');
@@ -327,7 +330,10 @@ describe('S6 / S9 effective dates and the corpus import', () => {
 
 describe('S6 / S9 Commission and platform articles', () => {
   async function publish(slug: string, input: HelpArticleInput, caller: Caller) {
-    const response = await api.request('POST', articles(slug), caller, { body: input });
+    const response = await api.request('POST', articles(slug), caller, {
+      headers: freshKey(),
+      body: input,
+    });
     expect(response.statusCode).toBe(201);
     return response.json<HelpArticle>();
   }
@@ -379,6 +385,32 @@ describe('S6 / S9 Commission and platform articles', () => {
     expect(await citations('personnel file number')).toContain('Help: File numbers');
   });
 
+  it('creates an article once per Idempotency-Key: a retry replays it, a request without one is 400', async () => {
+    const admin: Caller = { ...pscAdmin, sub: 'psc-admin-1' };
+    const headers = freshKey();
+    const first = await api.request('POST', articles('psc'), admin, {
+      headers,
+      body: article(),
+    });
+    const retry = await api.request('POST', articles('psc'), admin, {
+      headers,
+      body: article(),
+    });
+    expect(first.statusCode).toBe(201);
+    expect(retry.statusCode).toBe(201);
+    expect(retry.headers['idempotent-replayed']).toBe('true');
+    expect(retry.json<HelpArticle>().id).toBe(first.json<HelpArticle>().id);
+    expect((await api.get(articles('psc'), pscAdmin)).json<HelpArticle[]>()).toHaveLength(1);
+
+    for (const [path, caller] of [
+      [articles('psc'), pscAdmin],
+      ['/v1/help/articles', platformAdmin],
+    ] as const) {
+      const unkeyed = await api.request('POST', path, caller, { body: article() });
+      expect(unkeyed.statusCode).toBe(400);
+    }
+  });
+
   it('records the audit trail of every write to an article, identifiers only', async () => {
     const admin: Caller = { ...pscAdmin, sub: 'psc-admin-1' };
     const created = await publish('psc', article({ published: false }), admin);
@@ -415,6 +447,7 @@ describe('S6 / S9 Commission and platform articles', () => {
 
   it('a platform article reaches every declarant', async () => {
     const response = await api.request('POST', '/v1/help/articles', platformAdmin, {
+      headers: freshKey(),
       body: article({
         title: 'Signing in',
         bodyEn: 'Sign in with the one-time code we email you.',
@@ -468,6 +501,7 @@ describe('S6 / S9 Commission and platform articles', () => {
     const created = await publish('psc', article({ published: false }), pscAdmin);
     await publish('tsc', article({ title: 'TSC numbers' }), tscAdmin);
     await api.request('POST', '/v1/help/articles', platformAdmin, {
+      headers: freshKey(),
       body: article({ title: 'Platform' }),
     });
 
@@ -500,7 +534,7 @@ describe('S10 authorisation', () => {
 
   it('Commission articles: its administrators edit, its reporting officers read, anyone else 404', async () => {
     const created = (
-      await api.request('POST', articles('psc'), pscAdmin, { body: article() })
+      await api.request('POST', articles('psc'), pscAdmin, { headers: freshKey(), body: article() })
     ).json<HelpArticle>();
     const one = `${articles('psc')}/${created.id}`;
 
@@ -508,21 +542,31 @@ describe('S10 authorisation', () => {
     for (const caller of [pscReviewer, tscAdmin, pscDeclarant, platformAdmin]) {
       expect((await api.get(articles('psc'), caller)).statusCode).toBe(404);
       expect(
-        (await api.request('POST', articles('psc'), caller, { body: article() })).statusCode,
+        (
+          await api.request('POST', articles('psc'), caller, {
+            headers: freshKey(),
+            body: article(),
+          })
+        ).statusCode,
       ).toBe(404);
       expect((await api.request('PUT', one, caller, { body: article() })).statusCode).toBe(404);
       expect((await api.request('DELETE', one, caller)).statusCode).toBe(404);
     }
 
     expect(
-      (await api.request('POST', articles('psc'), pscOfficer, { body: article() })).statusCode,
+      (
+        await api.request('POST', articles('psc'), pscOfficer, {
+          headers: freshKey(),
+          body: article(),
+        })
+      ).statusCode,
     ).toBe(403);
     expect((await api.request('PUT', one, pscOfficer, { body: article() })).statusCode).toBe(403);
     expect((await api.request('DELETE', one, pscOfficer)).statusCode).toBe(403);
 
     // Another Commission's article is not found through this Commission's routes.
     const tscArticle = (
-      await api.request('POST', articles('tsc'), tscAdmin, { body: article() })
+      await api.request('POST', articles('tsc'), tscAdmin, { headers: freshKey(), body: article() })
     ).json<HelpArticle>();
     expect(
       (
@@ -538,6 +582,7 @@ describe('S10 authorisation', () => {
 
   it('platform articles and the corpus are platform-admin only: anyone else 403', async () => {
     const created = await api.request('POST', '/v1/help/articles', platformAdmin, {
+      headers: freshKey(),
       body: article(),
     });
     expect(created.statusCode).toBe(201);
@@ -550,7 +595,12 @@ describe('S10 authorisation', () => {
     for (const caller of [pscAdmin, pscOfficer, pscDeclarant]) {
       expect((await api.get('/v1/help/articles', caller)).statusCode).toBe(403);
       expect(
-        (await api.request('POST', '/v1/help/articles', caller, { body: article() })).statusCode,
+        (
+          await api.request('POST', '/v1/help/articles', caller, {
+            headers: freshKey(),
+            body: article(),
+          })
+        ).statusCode,
       ).toBe(403);
       expect((await api.request('PUT', one, caller, { body: article() })).statusCode).toBe(403);
       expect((await api.request('DELETE', one, caller)).statusCode).toBe(403);

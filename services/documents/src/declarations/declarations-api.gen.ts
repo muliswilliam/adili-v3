@@ -461,7 +461,7 @@ export interface paths {
         put?: never;
         /**
          * Create a Commission help article
-         * @description The Commission's administrators. Its reporting officers get 403; anyone else 404. A published article reaches the Commission's declarants' help search and records `help.article.published.v1`.
+         * @description The Commission's administrators. Its reporting officers get 403; anyone else 404. Needs an Idempotency-Key: a retry with the same key gets the same article. Records `help.article.created.v1`; a published article reaches the Commission's declarants' help search and also records `help.article.published.v1`.
          */
         post: operations["createHelpArticle"];
         delete?: never;
@@ -480,13 +480,13 @@ export interface paths {
         get?: never;
         /**
          * Update, publish or unpublish a Commission help article
-         * @description The Commission's administrators; as create. Publishing an unpublished article records `help.article.published.v1`.
+         * @description The Commission's administrators; as create. Records `help.article.updated.v1`; publishing an unpublished article also records `help.article.published.v1`.
          */
         put: operations["updateHelpArticle"];
         post?: never;
         /**
          * Delete a Commission help article
-         * @description The Commission's administrators; as create.
+         * @description The Commission's administrators; as create. Records `help.article.deleted.v1`.
          */
         delete: operations["deleteHelpArticle"];
         options?: never;
@@ -509,7 +509,7 @@ export interface paths {
         put?: never;
         /**
          * Create a platform help article
-         * @description platform-admin only. A published article reaches every declarant's help search and records `help.article.published.v1`.
+         * @description platform-admin only. Needs an Idempotency-Key, as for a Commission article. Records `help.article.created.v1`; a published article reaches every declarant's help search and also records `help.article.published.v1`.
          */
         post: operations["createPlatformHelpArticle"];
         delete?: never;
@@ -528,13 +528,13 @@ export interface paths {
         get?: never;
         /**
          * Update, publish or unpublish a platform help article
-         * @description platform-admin only.
+         * @description platform-admin only. Records `help.article.updated.v1`; publishing an unpublished article also records `help.article.published.v1`.
          */
         put: operations["updatePlatformHelpArticle"];
         post?: never;
         /**
          * Delete a platform help article
-         * @description platform-admin only.
+         * @description platform-admin only. Records `help.article.deleted.v1`.
          */
         delete: operations["deletePlatformHelpArticle"];
         options?: never;
@@ -573,7 +573,7 @@ export interface paths {
         put?: never;
         /**
          * Re-import the statutory corpus files deployed with the service
-         * @description platform-admin only. Idempotent: the same files import as a no-op (`skipped`). An amended wording supersedes the earlier one from its effective date.
+         * @description platform-admin only. Idempotent: the same files import as a no-op (`skipped`) and record nothing; an import that changes the corpus records `help.corpus.imported.v1`. An amended wording supersedes the earlier one from its effective date.
          */
         post: operations["importCorpus"];
         delete?: never;
@@ -2870,7 +2870,10 @@ export interface operations {
     createHelpArticle: {
         parameters: {
             query?: never;
-            header?: never;
+            header: {
+                /** @description Client-generated UUID, unique per logical request; reuse on retry */
+                "Idempotency-Key": string;
+            };
             path: {
                 slug: string;
             };
@@ -2891,7 +2894,7 @@ export interface operations {
                     "application/json": components["schemas"]["HelpArticle"];
                 };
             };
-            /** @description Request failed validation */
+            /** @description Request failed validation, or the Idempotency-Key header missing */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -2911,6 +2914,24 @@ export interface operations {
             };
             /** @description Not found, or not visible to the caller */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description A request with the same Idempotency-Key still running */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Idempotency-Key reused with a different request body */
+            422: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -3049,7 +3070,10 @@ export interface operations {
     createPlatformHelpArticle: {
         parameters: {
             query?: never;
-            header?: never;
+            header: {
+                /** @description Client-generated UUID, unique per logical request; reuse on retry */
+                "Idempotency-Key": string;
+            };
             path?: never;
             cookie?: never;
         };
@@ -3068,7 +3092,7 @@ export interface operations {
                     "application/json": components["schemas"]["HelpArticle"];
                 };
             };
-            /** @description Request failed validation */
+            /** @description Request failed validation, or the Idempotency-Key header missing */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -3083,6 +3107,24 @@ export interface operations {
              *     Requires one of the roles: platform-admin
              */
             403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description A request with the same Idempotency-Key still running */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Idempotency-Key reused with a different request body */
+            422: {
                 headers: {
                     [name: string]: unknown;
                 };
