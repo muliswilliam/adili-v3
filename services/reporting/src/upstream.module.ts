@@ -41,7 +41,7 @@ const tokens = (scope: string) =>
 
 /**
  * The other services' internal APIs Form M reads from, called with the reporting service's own
- * token through clients generated from their contracts (ADR-013 §2, §8.6): officer details
+ * token through clients generated from their contracts (ADR-013 §2, §8.7): officer details
  * (declarations), clarification details (review), the Commission and its staff (directory),
  * emails (notifications), the submitted report's PDF and receipt (documents), a referral's ICMS
  * payload (review) and its registration with ICMS (integration-gateway).

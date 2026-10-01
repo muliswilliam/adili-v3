@@ -1,0 +1,34 @@
+import { Module } from '@nestjs/common';
+
+import { ClockModule } from '../clock.module.js';
+import { DeclarationsModule } from '../declarations/declarations.module.js';
+import { DirectoryModule } from '../directory/directory.module.js';
+import { DocumentsModule } from '../documents/documents.module.js';
+import { ClarificationWorkflows } from './clarification-workflows.js';
+import { ClarificationsController } from './clarifications.controller.js';
+import { ClarificationsService } from './clarifications.service.js';
+import { DeclarantClarificationsController } from './declarant-clarifications.controller.js';
+import { DeclarantClarificationsService } from './declarant-clarifications.service.js';
+import { LetterPayloadController } from './letter-payload.controller.js';
+import { LetterPayloadService } from './letter-payload.service.js';
+
+/**
+ * Clarifications (spec 07a): drafts, issue, resolve, follow-up and withdraw for the case's
+ * assignee, the declarant's reads and response, and the letter payload the documents service
+ * pulls. `ClarificationWorkflow` and its activities run on the review worker (ProcessingModule).
+ */
+@Module({
+  imports: [ClockModule, DeclarationsModule, DirectoryModule, DocumentsModule],
+  controllers: [
+    ClarificationsController,
+    DeclarantClarificationsController,
+    LetterPayloadController,
+  ],
+  providers: [
+    ClarificationsService,
+    ClarificationWorkflows,
+    DeclarantClarificationsService,
+    LetterPayloadService,
+  ],
+})
+export class ClarificationsModule {}

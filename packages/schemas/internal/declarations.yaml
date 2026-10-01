@@ -1032,6 +1032,7 @@ paths:
     parameters:
       - $ref: '#/components/parameters/DeclarationId'
       - $ref: '#/components/parameters/VersionNumber'
+      - $ref: '#/components/parameters/ActingTenant'
       - name: X-Acting-Subject
         in: header
         required: true
@@ -1067,17 +1068,13 @@ paths:
       operationId: internalFindPreviousVersion
       x-draft: true
       parameters:
+        - $ref: '#/components/parameters/ActingTenant'
         - name: personId
           in: query
           required: true
           schema:
             type: string
             format: uuid
-        - name: tenant
-          in: query
-          required: true
-          schema:
-            type: string
         - name: beforeVersionId
           in: query
           required: true
@@ -1861,7 +1858,7 @@ paths:
       tags:
         - internal
       summary: The officers behind a Commission's obligations, in a batch (spec 09 Form M non-filers)
-      description: 'Service tokens with scope declarations:internal, acting for the Commission in X-Acting-Tenant (ADR-013 §8.6). At most 1,000 obligation ids; an obligation the Commission does not hold is left out. A read: it changes nothing, so it takes no Idempotency-Key and is safe to retry.'
+      description: 'Service tokens with scope declarations:internal, acting for the Commission in X-Acting-Tenant (ADR-013 §8.7). At most 1,000 obligation ids; an obligation the Commission does not hold is left out. A read: it changes nothing, so it takes no Idempotency-Key and is safe to retry.'
       operationId: internalObligationDetails
       x-draft: true
       parameters:
@@ -3614,6 +3611,7 @@ components:
         - declarationId
         - versionId
         - version
+        - personId
         - reference
         - type
         - statementDate
@@ -3633,6 +3631,10 @@ components:
           format: uuid
         version:
           type: integer
+        personId:
+          type: string
+          format: uuid
+          description: The declarant; the review service looks up their previous version with it
         reference:
           $ref: '#/components/schemas/DeclarationReference'
         type:
@@ -3715,6 +3717,14 @@ components:
       schema:
         type: string
         format: uuid
+    ActingTenant:
+      name: X-Acting-Tenant
+      in: header
+      required: true
+      description: Tenant the calling service acts for; the resource must belong to it
+      schema:
+        type: string
+        pattern: ^[a-z][a-z0-9]{1,19}$
     IdempotencyKey:
       name: Idempotency-Key
       in: header

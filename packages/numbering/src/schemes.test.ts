@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  CLR,
   DCB,
   DCF,
   DCI,
@@ -14,12 +15,13 @@ import {
 } from './schemes.js';
 
 describe('numbering scheme registry', () => {
-  it('registers OFR, the three declaration schemes and the two report schemes', () => {
+  it('registers OFR, the three declaration schemes, CLR and the two report schemes', () => {
     expect(numberingSchemes.map((scheme) => scheme.code)).toEqual([
       'OFR',
       'DCI',
       'DCB',
       'DCF',
+      'CLR',
       'RPT',
       'NCR',
     ]);
@@ -54,6 +56,7 @@ describe('numbering scheme registry', () => {
     { code: 'DCB', scheme: DCB, name: 'Biennial declaration', legalBasis: 'Act s.34(2)' },
     { code: 'DCF', scheme: DCF, name: 'Final declaration', legalBasis: 'Act s.34(3)' },
     { code: 'OFR', scheme: OFR, name: 'Officer reference', legalBasis: 'Adili Online' },
+    { code: 'CLR', scheme: CLR, name: 'Clarification request', legalBasis: 'Act s.35' },
     { code: 'RPT', scheme: RPT, name: 'Compliance report', legalBasis: 'Regs r.25(2)' },
     {
       code: 'NCR',

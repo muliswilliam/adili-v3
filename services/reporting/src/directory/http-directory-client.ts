@@ -47,7 +47,7 @@ const noCommission = (slug: string) => (): never => {
  * (packages/schemas/internal/directory.yaml → directory-api.gen.ts via `pnpm generate:api`) on
  * api-kit's service client, with the reporting service's own token (`directory:internal`): a
  * Commission (cached per Commission for a few minutes: a name changes rarely) and its staff by
- * role, acting for the Commission in `X-Acting-Tenant` (ADR-013 §8.6), and the list of every
+ * role, acting for the Commission in `X-Acting-Tenant` (ADR-013 §8.7), and the list of every
  * Commission, platform reference data that names no tenant.
  */
 export class HttpDirectoryClient extends DirectoryClient {

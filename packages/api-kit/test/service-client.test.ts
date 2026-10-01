@@ -121,22 +121,19 @@ describe('createServiceClient', () => {
     ]);
   });
 
-  it('takes any of several statuses that carry the answer', async () => {
-    const both = { status: [200, 201], schema: thingSchema };
-    const body = () => ({ id: 'thing-1' });
+  it('takes any of several statuses as the answer, validated alike', async () => {
+    // e.g. 201 issued, 200 already issued: the same body either way.
+    const { fetch } = recordingFetch([200, 201, 202], () => ({ id: 'thing-1' }));
+    const client = things({ fetch });
+    const issue = () =>
+      client.call((api) => api.POST('/internal/v1/things', { body: { name: 'a' } }), {
+        status: [200, 201],
+        schema: thingSchema,
+      });
 
-    for (const status of [200, 201]) {
-      const client = things({ fetch: recordingFetch([status], body).fetch });
-      const thing = await client.call(
-        (api) => api.POST('/internal/v1/things', { body: { name: 'a' } }),
-        both,
-      );
-      expect(thing).toEqual({ id: 'thing-1' });
-    }
-    const other = things({ fetch: recordingFetch([202], body).fetch });
-    await expect(
-      other.call((api) => api.POST('/internal/v1/things', { body: { name: 'a' } }), both),
-    ).rejects.toThrow(ThingsUnavailable);
+    await expect(issue()).resolves.toEqual({ id: 'thing-1' });
+    await expect(issue()).resolves.toEqual({ id: 'thing-1' });
+    await expect(issue()).rejects.toThrow(new ThingsUnavailable('The things service answered 202'));
   });
 
   it('answers a status the caller gave a meaning with its handler', async () => {

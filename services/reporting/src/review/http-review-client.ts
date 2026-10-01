@@ -57,7 +57,7 @@ const icmsPayloadSchema = z.object({
  * Review's `internalClarificationDetails` and `internalGetReferralIcmsPayload` through the client
  * generated from its contract (packages/schemas/internal/review.yaml → review-api.gen.ts via
  * `pnpm generate:api`), with the reporting service's own token, acting for the Commission in
- * `X-Acting-Tenant` (ADR-013 §8.6).
+ * `X-Acting-Tenant` (ADR-013 §8.7).
  */
 export class HttpReviewClient extends ReviewClient {
   private readonly review: ServiceClient<paths>;

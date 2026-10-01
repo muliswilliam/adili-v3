@@ -36,8 +36,8 @@ export interface ServiceAnswer {
 
 export interface ExpectedAnswer<T, R> {
   /**
-   * The status that carries the answer asked for, or the statuses when the callee answers it
-   * with more than one (e.g. 201 issued now, 200 issued before)...
+   * The status that carries the answer asked for, or several that carry the same body (e.g. 201
+   * issued and 200 already issued)...
    */
   status: number | readonly number[];
   /** ...and its body, validated before use: the generated types describe the contract, not what arrived. */
@@ -116,9 +116,9 @@ export function createServiceClient<Paths extends object>(
       const { data, response } = answer;
       const handler = expected.otherwise?.[response.status];
       if (handler) return handler(response);
-      const statuses: readonly number[] =
+      const answers: readonly number[] =
         typeof expected.status === 'number' ? [expected.status] : expected.status;
-      if (!statuses.includes(response.status)) {
+      if (!answers.includes(response.status)) {
         throw unavailable(`${service} answered ${String(response.status)}`);
       }
       const parsed = expected.schema.safeParse(data);

@@ -130,11 +130,16 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
         '502':
-          description: Declarations service unavailable; case metadata may still be shown by the client
+          description: >-
+            Problem type `declarations-unavailable`: the declaration could not be read. The problem
+            carries the rest of the case detail (document null) so the client can still show the
+            case; no view is recorded.
           content:
             application/problem+json:
               schema:
-                $ref: '#/components/schemas/ProblemDetails'
+                allOf:
+                  - $ref: '#/components/schemas/ProblemDetails'
+                  - $ref: '#/components/schemas/CaseDetail'
   /v1/review/cases/{caseId}/compare:
     parameters:
       - $ref: '#/components/parameters/CaseId'
@@ -157,6 +162,8 @@ paths:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/ProblemDetails'
+        '502':
+          $ref: '#/components/responses/DeclarationsUnavailable'
   /v1/review/cases/{caseId}/attachments/{uploadId}/download:
     parameters:
       - $ref: '#/components/parameters/CaseId'
@@ -187,12 +194,20 @@ paths:
                     format: date-time
         '404':
           $ref: '#/components/responses/NotFound'
+        '502':
+          description: 'Problem type `declarations-unavailable` or `documents-unavailable`'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
   /v1/review/cases/{caseId}/claim:
     parameters:
       - $ref: '#/components/parameters/CaseId'
     post:
       tags: [cases]
       operationId: claimCase
+      parameters:
+        - $ref: '#/components/parameters/OptionalIdempotencyKey'
       summary: Assign an unassigned case to the caller
       responses:
         '200':
@@ -204,7 +219,7 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
         '409':
-          description: Already assigned
+          description: 'Problem type `case-already-assigned`: another officer holds the case'
           content:
             application/problem+json:
               schema:
@@ -215,6 +230,8 @@ paths:
     post:
       tags: [cases]
       operationId: releaseCase
+      parameters:
+        - $ref: '#/components/parameters/OptionalIdempotencyKey'
       summary: Return the caller's case to the queue
       responses:
         '200':
@@ -233,6 +250,8 @@ paths:
     put:
       tags: [cases]
       operationId: reassignCase
+      parameters:
+        - $ref: '#/components/parameters/OptionalIdempotencyKey'
       summary: Supervisor reassigns or unassigns a case
       requestBody:
         required: true
@@ -252,6 +271,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/CaseListItem'
+        '400':
+          $ref: '#/components/responses/ValidationProblem'
         '403':
           $ref: '#/components/responses/Forbidden'
         '404':
@@ -262,6 +283,8 @@ paths:
     post:
       tags: [cases]
       operationId: addCaseNote
+      parameters:
+        - $ref: '#/components/parameters/OptionalIdempotencyKey'
       summary: Add an internal note
       requestBody:
         required: true
@@ -282,6 +305,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Note'
+        '400':
+          $ref: '#/components/responses/ValidationProblem'
         '404':
           $ref: '#/components/responses/NotFound'
   /v1/review/cases/{caseId}/flags/{flagId}/reviewed:
@@ -296,6 +321,8 @@ paths:
     post:
       tags: [cases]
       operationId: markFlagReviewed
+      parameters:
+        - $ref: '#/components/parameters/OptionalIdempotencyKey'
       summary: Record that a flag was considered, with a note
       requestBody:
         required: true
@@ -316,14 +343,24 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Flag'
+        '400':
+          $ref: '#/components/responses/ValidationProblem'
         '404':
           $ref: '#/components/responses/NotFound'
+        '409':
+          description: 'Problem type `flag-already-reviewed`: the flag was marked reviewed before'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
   /v1/review/cases/{caseId}/clarifications:
     parameters:
       - $ref: '#/components/parameters/CaseId'
     post:
       tags: [clarifications]
       operationId: createClarificationDraft
+      parameters:
+        - $ref: '#/components/parameters/OptionalIdempotencyKey'
       summary: Create a clarification draft (assignee only)
       requestBody:
         required: true
@@ -361,6 +398,8 @@ paths:
     put:
       tags: [clarifications]
       operationId: updateClarificationDraft
+      parameters:
+        - $ref: '#/components/parameters/OptionalIdempotencyKey'
       summary: Update a draft's items
       requestBody:
         required: true
@@ -415,12 +454,18 @@ paths:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/ProblemDetails'
+        '502':
+          $ref: '#/components/responses/DeclarationsUnavailable'
+        '503':
+          $ref: '#/components/responses/DirectoryUnavailable'
   /v1/review/clarifications/{clarificationId}/resolve:
     parameters:
       - $ref: '#/components/parameters/ClarificationId'
     post:
       tags: [clarifications]
       operationId: resolveClarification
+      parameters:
+        - $ref: '#/components/parameters/OptionalIdempotencyKey'
       summary: Mark the clarification resolved with a note
       requestBody:
         required: true
@@ -446,7 +491,9 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
         '409':
-          description: Not issued or responded
+          description: >-
+            Problem code `clarification-not-responded`: only a responded clarification is resolved.
+            One still issued or overdue is withdrawn if issued in error; overdue escalates (spec 08)
           content:
             application/problem+json:
               schema:
@@ -457,6 +504,8 @@ paths:
     post:
       tags: [clarifications]
       operationId: createFollowUpClarification
+      parameters:
+        - $ref: '#/components/parameters/OptionalIdempotencyKey'
       summary: Create a new draft pre-filled with the unresolved items
       responses:
         '201':
@@ -469,12 +518,20 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '409':
+          description: 'Problem code `not-followable`: a draft or a withdrawn clarification'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
   /v1/review/clarifications/{clarificationId}/withdraw:
     parameters:
       - $ref: '#/components/parameters/ClarificationId'
     post:
       tags: [clarifications]
       operationId: withdrawClarification
+      parameters:
+        - $ref: '#/components/parameters/OptionalIdempotencyKey'
       summary: Withdraw an issued clarification (letter revoked as issued in error)
       requestBody:
         required: true
@@ -500,7 +557,13 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
         '409':
-          description: Not issued
+          description: 'Problem code `clarification-not-open`: not issued, overdue or responded'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '503':
+          description: The documents service could not revoke the letter; nothing changed
           content:
             application/problem+json:
               schema:
@@ -564,7 +627,16 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
         '409':
-          description: Already responded, withdrawn or resolved; or an attachment is not clean
+          description: |
+            Problem code `already-responded`, `clarification-closed` (withdrawn or resolved),
+            `attachment-not-clean` or `attachment-not-accepted` (not an upload of the Commission
+            with purpose clarification-attachment)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '503':
+          description: The documents service could not check the attachments; nothing changed
           content:
             application/problem+json:
               schema:
@@ -572,11 +644,19 @@ paths:
   /internal/v1/review/clarifications/{clarificationId}/letter-payload:
     parameters:
       - $ref: '#/components/parameters/ClarificationId'
+      - $ref: '#/components/parameters/ActingTenant'
     get:
       tags: [internal]
       operationId: internalGetClarificationLetterPayload
       summary: Fields the clarification letter template needs (documents service)
+      description: >-
+        Service tokens with scope review:internal, acting for the Commission in X-Acting-Tenant
+        (ADR-013 §8.1). Served from the letter fixed when the clarification was issued.
       responses:
+        '400':
+          $ref: '#/components/responses/ValidationProblem'
+        '403':
+          $ref: '#/components/responses/Forbidden'
         '200':
           description: Payload
           content:
@@ -592,7 +672,7 @@ paths:
       summary: Clarifications of a Commission in a batch, for Form M section 4 (reporting, spec 09)
       description: >-
         Service tokens with scope review:internal, acting for the Commission in X-Acting-Tenant
-        (ADR-013 §8.6). The officer asked and the kinds of requirement asked for, never the
+        (ADR-013 §8.7). The officer asked and the kinds of requirement asked for, never the
         request's content. At most 1,000 ids; a clarification the Commission does not hold is left
         out. A read: it changes nothing, so it takes no Idempotency-Key and is safe to retry.
       parameters:
@@ -639,7 +719,7 @@ paths:
       description: >-
         Service tokens with scope review:internal, acting for the referring Commission in
         X-Acting-Tenant and for the EACC analyst pushing it in X-Acting-Subject, whom review's
-        audit of the read names (ADR-013 §8.6). Personal data (the declarant's national ID): the
+        audit of the read names (ADR-013 §8.7). Personal data (the declarant's national ID): the
         caller passes it to the integration-gateway only.
       parameters:
         - $ref: '#/components/parameters/ActingTenant'
@@ -1503,6 +1583,24 @@ components:
       schema:
         type: string
         format: uuid
+    ActingTenant:
+      name: X-Acting-Tenant
+      in: header
+      required: true
+      description: Tenant the calling service acts for; the resource must belong to it
+      schema:
+        type: string
+        pattern: '^[a-z][a-z0-9]{1,19}$'
+    OptionalIdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: false
+      description: >-
+        Client-generated UUID, unique per logical request (ADR-013 §7.5). With it, a retry gets the
+        stored answer back instead of acting twice; without it the request runs unguarded.
+      schema:
+        type: string
+        format: uuid
     DeterminationId:
       name: determinationId
       in: path
@@ -1531,14 +1629,6 @@ components:
       schema:
         type: string
         format: uuid
-    ActingTenant:
-      name: X-Acting-Tenant
-      in: header
-      required: true
-      description: Tenant the calling service acts for; the resource must belong to it
-      schema:
-        type: string
-        pattern: '^[a-z][a-z0-9]{1,19}$'
     ActingSubject:
       name: X-Acting-Subject
       in: header
@@ -1561,6 +1651,22 @@ components:
             $ref: '#/components/schemas/ProblemDetails'
     ValidationProblem:
       description: Request failed validation
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+    DeclarationsUnavailable:
+      description: >-
+        Problem type `declarations-unavailable` (title "Upstream service unavailable"): the
+        declaration could not be read from the declarations service
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+    DirectoryUnavailable:
+      description: >-
+        Problem type `directory-unavailable` (title "Upstream service unavailable"): the Commission
+        directory could not be reached; nothing changed, try again
       content:
         application/problem+json:
           schema:
@@ -1952,10 +2058,17 @@ components:
             - type: 'null'
         versions:
           type: array
+          description: Every version the case has processed, from the review service's own records; only the current one's document is pulled
           items:
             type: object
-            required: [version, submittedAt, late]
+            required: [versionId, version, submittedAt, late, amendment]
             properties:
+              versionId:
+                type: string
+                format: uuid
+              amendment:
+                type: boolean
+                description: The version amended an earlier one of the same declaration
               version:
                 type: integer
               submittedAt:
@@ -2067,7 +2180,8 @@ components:
             properties:
               index:
                 type: integer
-                description: Position of the clarification item being answered
+                minimum: 0
+                description: Position of the clarification item being answered, once each
               text:
                 type: string
                 minLength: 1

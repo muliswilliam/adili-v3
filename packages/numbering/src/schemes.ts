@@ -102,6 +102,22 @@ export const DCF = defineScheme({
 });
 
 /**
+ * Clarification request (Act s.35): issued by the Responsible Commission, numbered per Commission
+ * and calendar year of issue. `CLR-PSC-2028-0000451-3`.
+ */
+export const CLR = defineScheme({
+  code: 'CLR',
+  name: 'Clarification request',
+  description:
+    "A Commission's written request for missing information or an explanation of an inconsistency. The declarant must reply within 30 days.",
+  legalBasis: 'Act s.35',
+  issuer: true,
+  period: true,
+  periodName: 'Year of issue',
+  sequenceDigits: 7,
+});
+
+/**
  * The kinds of declaration the Act requires (s.34): the one vocabulary for declaration and
  * obligation types across services, events, templates and front ends.
  */
@@ -145,12 +161,13 @@ export const NCR = defineScheme({
   sequenceDigits: 7,
 });
 
-/** Schemes this package knows; later slices add theirs (CLR, CMP...) the same way. */
+/** Schemes this package knows; later slices add theirs (CMP...) the same way. */
 export const numberingSchemes: readonly NumberingScheme[] = Object.freeze([
   OFR,
   DCI,
   DCB,
   DCF,
+  CLR,
   RPT,
   NCR,
 ]);

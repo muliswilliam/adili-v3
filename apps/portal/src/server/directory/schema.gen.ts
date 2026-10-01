@@ -882,7 +882,7 @@ export interface paths {
         };
         /**
          * A Commission's staff accounts holding a role, with the email they sign in with
-         * @description Service tokens with scope directory:internal, acting for the Commission in X-Acting-Tenant (ADR-013 §8.6). E.g. reporting emails Form M reminders to the supervisors and EACC's chase to the reporting officer and commission-admin (spec 09). Empty when nobody holds the role.
+         * @description Service tokens with scope directory:internal, acting for the Commission in X-Acting-Tenant (ADR-013 §8.7). E.g. reporting emails Form M reminders to the supervisors and EACC's chase to the reporting officer and commission-admin (spec 09). Empty when nobody holds the role.
          */
         get: operations["internalListCommissionStaff"];
         put?: never;

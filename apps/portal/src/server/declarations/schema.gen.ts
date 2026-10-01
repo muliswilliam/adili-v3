@@ -430,6 +430,8 @@ export interface paths {
         parameters: {
             query?: never;
             header: {
+                /** @description Tenant the calling service acts for; the resource must belong to it */
+                "X-Acting-Tenant": components["parameters"]["ActingTenant"];
                 /** @description Staff subject on whose behalf the content is read; recorded in the audit event */
                 "X-Acting-Subject": string;
                 "X-Review-Case"?: string;
@@ -806,7 +808,7 @@ export interface paths {
         put?: never;
         /**
          * The officers behind a Commission's obligations, in a batch (spec 09 Form M non-filers)
-         * @description Service tokens with scope declarations:internal, acting for the Commission in X-Acting-Tenant (ADR-013 §8.6). At most 1,000 obligation ids; an obligation the Commission does not hold is left out. A read: it changes nothing, so it takes no Idempotency-Key and is safe to retry.
+         * @description Service tokens with scope declarations:internal, acting for the Commission in X-Acting-Tenant (ADR-013 §8.7). At most 1,000 obligation ids; an obligation the Commission does not hold is left out. A read: it changes nothing, so it takes no Idempotency-Key and is safe to retry.
          */
         post: operations["internalObligationDetails"];
         delete?: never;
@@ -1511,6 +1513,11 @@ export interface components {
             /** Format: uuid */
             versionId: string;
             version: number;
+            /**
+             * Format: uuid
+             * @description The declarant; the review service looks up their previous version with it
+             */
+            personId: string;
             reference: components["schemas"]["DeclarationReference"];
             type: components["schemas"]["ObligationType"];
             /** Format: date */
@@ -1572,6 +1579,8 @@ export interface components {
         VersionNumber: number;
         SuggestionId: string;
         ConversationId: string;
+        /** @description Tenant the calling service acts for; the resource must belong to it */
+        ActingTenant: string;
         /** @description Client-generated UUID, unique per logical request; reuse on retry */
         IdempotencyKey: string;
     };
@@ -2658,6 +2667,8 @@ export interface operations {
         parameters: {
             query?: never;
             header: {
+                /** @description Tenant the calling service acts for; the resource must belong to it */
+                "X-Acting-Tenant": components["parameters"]["ActingTenant"];
                 /** @description Staff subject on whose behalf the content is read; recorded in the audit event */
                 "X-Acting-Subject": string;
                 "X-Review-Case"?: string;
@@ -2686,10 +2697,12 @@ export interface operations {
         parameters: {
             query: {
                 personId: string;
-                tenant: string;
                 beforeVersionId: string;
             };
-            header?: never;
+            header: {
+                /** @description Tenant the calling service acts for; the resource must belong to it */
+                "X-Acting-Tenant": components["parameters"]["ActingTenant"];
+            };
             path?: never;
             cookie?: never;
         };

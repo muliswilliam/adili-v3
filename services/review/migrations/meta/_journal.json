@@ -8,6 +8,41 @@
       "when": 1790325261264,
       "tag": "0000_init",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1790660519274,
+      "tag": "0001_review_cases",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1790660522625,
+      "tag": "0002_review_rls",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1790672416903,
+      "tag": "0003_case_versions",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1790673023636,
+      "tag": "0004_clarification_numbering",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1790851270523,
+      "tag": "0005_clarification_letter",
+      "breakpoints": true
     }
   ]
 }

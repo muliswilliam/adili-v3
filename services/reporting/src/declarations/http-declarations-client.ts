@@ -45,7 +45,7 @@ const detailsSchema = z.object({
  * Declarations' `internalObligationDetails` through the client generated from its contract
  * (packages/schemas/internal/declarations.yaml → declarations-api.gen.ts via
  * `pnpm generate:api`), with the reporting service's own token, acting for the Commission in
- * `X-Acting-Tenant` (ADR-013 §8.6).
+ * `X-Acting-Tenant` (ADR-013 §8.7).
  */
 export class HttpDeclarationsClient extends DeclarationsClient {
   private readonly declarations: ServiceClient<paths>;
