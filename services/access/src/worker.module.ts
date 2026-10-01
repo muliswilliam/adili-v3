@@ -8,6 +8,7 @@ import { ClockModule } from './clock.module.js';
 import { config } from './config.js';
 import { RegisterModule } from './register/access-register.js';
 import { AccessRequestActivities } from './requests/activities.js';
+import { DecisionActivities } from './requests/decision-activities.js';
 import { UpstreamModule } from './upstream.module.js';
 
 /**
@@ -31,7 +32,7 @@ const workflowsPath = fileURLToPath(
       namespace: config.TEMPORAL_NAMESPACE,
       taskQueue: config.TEMPORAL_TASK_QUEUE,
       workflowsPath,
-      activities: [AccessRequestActivities],
+      activities: [AccessRequestActivities, DecisionActivities],
       imports: [ClockModule, CipherModule, UpstreamModule, RegisterModule],
     }),
   ],

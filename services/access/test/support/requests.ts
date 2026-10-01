@@ -98,6 +98,33 @@ export function untilNotified(api: AccessApi, id: string): Promise<AccessRequest
   });
 }
 
+/** The access officer's decision on a request, with a fresh Idempotency-Key. */
+export const decide = (
+  api: AccessApi,
+  requestId: string,
+  body: unknown,
+  caller: Caller = callers.officer,
+) =>
+  api.send('POST', `/v1/access/requests/${requestId}/decision`, caller, body, {
+    'idempotency-key': randomUUID(),
+  });
+
+/** Mercy's request about Anne, notified to her and under decision: Anne consented. */
+export async function underDecisionRequest(
+  api: AccessApi,
+  anne: RosterCandidateFacts,
+): Promise<AccessRequestRow> {
+  const notified = await notifiedRequest(api, anne);
+  const consented = await api.send(
+    'PUT',
+    `/v1/me/access-notices/${notified.id}/representations`,
+    declarantOf(anne),
+    { stance: 'consent', text: '', attachments: [] },
+  );
+  expect(consented.statusCode, consented.body).toBe(200);
+  return rowOf(api, notified.id);
+}
+
 /** Mercy's request, resolved to Anne and notified to her by the workflow. */
 export async function notifiedRequest(
   api: AccessApi,

@@ -1,6 +1,12 @@
 import type { z } from 'zod';
 
-import { decisionSchema, groundSchema, outcomeSchema, packageSchema } from './decision.js';
+import {
+  decisionInputSchema,
+  decisionSchema,
+  groundSchema,
+  outcomeSchema,
+  packageSchema,
+} from './decision.js';
 import { declarantNoticeSchema, representationsInputSchema } from './notices/representation.js';
 import { registerEntrySchema } from './register/representation.js';
 import { verifyApplicantBody } from './requests/applicant-verification.service.js';
@@ -31,6 +37,7 @@ export const OPENAPI_SCHEMAS: Record<string, z.ZodType> = {
   Section: sectionSchema,
   Scope: scopeSchema,
   Decision: decisionSchema,
+  DecisionInput: decisionInputSchema,
   Package: packageSchema,
   FormK: formKSchema,
   AccessRequest: accessRequestSchema,

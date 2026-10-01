@@ -30,15 +30,13 @@ export interface HttpDocumentsClientOptions {
   fetch?: typeof fetch;
 }
 
-/**
- * The issue request as documents' contract declares it. It declares only the acknowledgement slip
- * so far; the access package and certified copy types, the watermark and the download window
- * join it with their templates (#258), until then the body is sent as access builds it.
- */
-type IssueDocumentBody =
-  paths['/internal/v1/documents/issue']['post']['requestBody']['content']['application/json'];
-
-const issuedSchema = z.object({ id: z.uuid(), verificationId: z.string().min(1) });
+/** The fields of `IssuedDocument` the access service keeps. */
+const issuedSchema = z.object({
+  id: z.uuid(),
+  verificationId: z.string().min(1),
+  issuedAt: z.iso.datetime({ offset: true }),
+  downloadExpiresAt: z.iso.datetime({ offset: true }).nullable(),
+});
 
 /** The fields of `InternalUpload` an attachment needs. */
 const internalUploadSchema = z.object({
@@ -75,14 +73,12 @@ export class HttpDocumentsClient extends DocumentsClient {
   }
 
   async issue(request: IssueDocumentRequest): Promise<IssuedDocument> {
-    const { idempotencyKey, ...body } = request;
+    const { tenant, idempotencyKey, ...body } = request;
     const issued = await this.issuing.call(
       (api) =>
         api.POST('/internal/v1/documents/issue', {
-          params: {
-            header: { 'X-Acting-Tenant': request.issuerTenant, 'Idempotency-Key': idempotencyKey },
-          },
-          body: body as unknown as IssueDocumentBody,
+          params: { header: { 'X-Acting-Tenant': tenant, 'Idempotency-Key': idempotencyKey } },
+          body,
         }),
       {
         status: [200, 201],
@@ -90,7 +86,13 @@ export class HttpDocumentsClient extends DocumentsClient {
         otherwise: refusedWith('documents', [400, 403, 422]),
       },
     );
-    return { id: issued.id, verificationId: issued.verificationId };
+    return {
+      id: issued.id,
+      verificationId: issued.verificationId,
+      issuedAt: new Date(issued.issuedAt),
+      downloadExpiresAt:
+        issued.downloadExpiresAt === null ? null : new Date(issued.downloadExpiresAt),
+    };
   }
 
   async getCleanUpload(tenant: string, uploadId: string): Promise<CleanUpload> {

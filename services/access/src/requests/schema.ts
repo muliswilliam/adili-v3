@@ -39,6 +39,14 @@ export const ACCESS_REQUEST_STATUSES = [
 ] as const;
 export type AccessRequestStatus = (typeof ACCESS_REQUEST_STATUSES)[number];
 
+/** The statuses of a decided request: the access officer's outcome, final (spec 10). */
+export const DECIDED_STATUSES = [
+  'granted',
+  'partially-granted',
+  'denied',
+] as const satisfies readonly AccessRequestStatus[];
+export type DecidedStatus = (typeof DECIDED_STATUSES)[number];
+
 /** Statuses after which nothing changes the request but its package's downloads and expiry. */
 export const CLOSED_STATUSES = [
   'granted',

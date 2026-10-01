@@ -6,6 +6,7 @@ import {
   ApiQueryParameters,
   CurrentPrincipal,
   type Principal,
+  RequireIdempotencyKey,
   Roles,
   schemaRef,
   TENANT_KEY,
@@ -14,6 +15,7 @@ import {
 import { ACCESS_OFFICER, EACC_ROLES, SUPERVISOR } from '@adili/roles';
 import { z } from 'zod';
 
+import { type DecisionInput, decisionInputSchema } from '../decision.js';
 import {
   type QueuePage,
   type QueueQuery,
@@ -139,5 +141,40 @@ export class OfficerController {
     @Body(new ZodValidationPipe(resolveOfficerBody)) body: ResolveOfficerBody,
   ): Promise<OfficerRequestView> {
     return this.officer.resolve(principal, requestId, body);
+  }
+
+  @Post('v1/access/requests/:requestId/decision')
+  @HttpCode(HttpStatus.OK)
+  @Roles(...OFFICER_ROUTE_ROLES)
+  @RequireIdempotencyKey()
+  @ApiParam(REQUEST_ID)
+  @ApiOperation({
+    operationId: 'decideAccessRequest',
+    summary:
+      'Grant, partially grant or deny (final; Regulation 24 grounds required for partial and deny)',
+    description:
+      "Only once the request is `under-decision`. A grant is of the requested scope and cites no grounds; a partial grant narrows the scope and cites grounds; a denial cites grounds. The request becomes `granted`, `partially-granted` or `denied` (`access.request.decided.v1` with outcome and grounds). The applicant and the declarant are told next; for a grant the applicant's package (`package.documentId`, downloadable by the applicant from documents until `package.downloadExpiresAt`) follows.",
+  })
+  @ApiBody({ required: true, schema: schemaRef('DecisionInput') })
+  @ApiOkResponse({
+    description: 'Decided; notifications and package follow',
+    schema: schemaRef('OfficerRequestView'),
+  })
+  @ApiProblemResponse(
+    400,
+    'requestId is not a UUID or the body failed validation; problem code `grounds-required` (partial grant or denial without grounds) or `scope-exceeds-request` (`grantedScope` wider than the request); `errors` name the field',
+  )
+  @ApiProblemResponse(403, 'The Commission supervisor reads requests; only its access officer acts')
+  @ApiProblemResponse(404, NOT_THE_COMMISSIONS)
+  @ApiProblemResponse(
+    409,
+    'Problem code `request-decided` (a decision is final), `request-closed`, or `not-under-decision` (the window for representations is still open, or the officer is unresolved)',
+  )
+  decide(
+    @CurrentPrincipal() principal: Principal,
+    @Param('requestId', new ZodValidationPipe(z.uuid())) requestId: string,
+    @Body(new ZodValidationPipe(decisionInputSchema)) body: DecisionInput,
+  ): Promise<OfficerRequestView> {
+    return this.officer.decide(principal, requestId, body);
   }
 }

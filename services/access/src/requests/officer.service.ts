@@ -8,6 +8,12 @@ import { commissionTenant, ownCommissionTenant, requireAccessOfficer } from '../
 import { Clock } from '../clock.js';
 import type { AccessDatabase, AccessTransaction } from '../db/database.js';
 import {
+  DECIDED_STATUS,
+  type DecisionInput,
+  decisionOf,
+  isDecisionRejection,
+} from '../decision.js';
+import {
   DirectoryClient,
   DirectoryUnavailable,
   type RosterRecordFacts,
@@ -44,7 +50,7 @@ const RESOLVABLE: readonly AccessRequestStatus[] = ['submitted', 'officer-unreso
 /**
  * The Commission's access work on Form K requests (spec 10): the queue with its deadlines, a
  * request as the access officer reads it, and resolving the officer it names to a roster record
- * (or recording that they cannot be identified). The access officer acts; the Commission's
+ * (or recording that they cannot be identified), and deciding it. The access officer acts; the Commission's
  * supervisor reads (403 on acting); anyone else, another Commission or EACC, gets 404.
  */
 @Injectable()
@@ -208,6 +214,68 @@ export class OfficerService {
     return this.view(resolved);
   }
 
+  /**
+   * The access officer decides a request under decision (S6): grant, partial grant (a narrower
+   * scope) or denial, with Regulation 24 grounds for what is refused and reasons always. The
+   * decision is final: the request becomes `granted`, `partially-granted` or `denied` with the
+   * `decided` register entry and its event (outcome and grounds, for Form M section 5); then the
+   * workflow tells both parties and, for a grant, has the package issued. A second decision is
+   * 409 `request-decided`; a closed request 409 `request-closed`; one not yet under decision
+   * (the declarant's window still open, or the officer named still to be resolved) 409
+   * `not-under-decision`.
+   */
+  async decide(
+    principal: Principal,
+    requestId: string,
+    input: DecisionInput,
+  ): Promise<OfficerRequestView> {
+    const tenant = ownCommissionTenant(principal);
+    requireAccessOfficer(principal, 'decide a request');
+    const now = this.clock.now();
+    const decided = await withTenant(
+      this.db,
+      { tenant, subject: principal.subject },
+      async (tx) => {
+        const current = notFoundIfInvisible(await requestRow(tx, requestId, { lock: true }));
+        requireUnderDecision(current);
+        const decision = decisionOf(
+          input,
+          current.scope,
+          { subject: principal.subject, name: principal.name ?? principal.subject },
+          now,
+        );
+        if (isDecisionRejection(decision)) {
+          const errors = [{ path: decision.path, message: decision.message }];
+          const detail = `${decision.path} ${decision.message}.`;
+          throw decision.code === null
+            ? badRequest(detail, errors)
+            : problem(decision.code, detail, errors);
+        }
+        const [updated] = await tx
+          .update(accessRequests)
+          .set({ status: DECIDED_STATUS[decision.outcome], decision })
+          .where(eq(accessRequests.id, current.id))
+          .returning();
+        if (!updated) throw new Error('The access request was not decided');
+        await this.register.record(tx, {
+          tenant,
+          subjectKind: 'access-request',
+          subjectId: updated.id,
+          reference: updated.reference,
+          personId: updated.resolvedPersonId,
+          kind: 'decided',
+          actor: { subject: principal.subject, name: principal.name },
+          at: now,
+          details: { outcome: decision.outcome, grantedScope: decision.grantedScope },
+          eventData: { outcome: decision.outcome, grounds: decision.grounds },
+        });
+        return notFoundIfInvisible(await officerRecord(tx, updated.id));
+      },
+    );
+    await this.workflows.signal(requestId, 'decided');
+    return this.view(decided);
+  }
+
   /** The roster record `recordId` of the Commission, onboarded; 400 otherwise. */
   private async onboardedRecord(
     tenant: string,
@@ -294,6 +362,20 @@ function requireResolvable(row: AccessRequestRow): void {
     throw conflict("The applicant's identity must be verified before the officer is identified.");
   }
   throw problem('officer-resolved', 'The officer this request names is resolved already.');
+}
+
+function requireUnderDecision(row: AccessRequestRow): void {
+  if (row.status === 'under-decision') return;
+  if (row.status === 'granted' || row.status === 'partially-granted' || row.status === 'denied') {
+    throw problem('request-decided', 'The request is decided, and a decision is final.');
+  }
+  if (row.status === 'withdrawn' || row.status === 'cannot-identify') {
+    throw problem('request-closed', 'The request is closed.');
+  }
+  throw problem(
+    'not-under-decision',
+    "The request is not under decision yet: the declarant's window for representations has not closed.",
+  );
 }
 
 function toQueueItem(row: AccessRequestRow, now: Date): QueueItem {

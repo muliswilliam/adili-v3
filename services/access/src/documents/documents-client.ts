@@ -1,3 +1,5 @@
+import type { components } from './documents-api.gen.js';
+
 /** The upload purpose of representations' attachments and representatives' proofs (spec 10). */
 export const ACCESS_REPRESENTATION_PURPOSE = 'access-representation';
 
@@ -5,32 +7,40 @@ export const ACCESS_REPRESENTATION_PURPOSE = 'access-representation';
  * The documents the access service issues (documents.yaml `DocumentType`): a grant's
  * Confidential package (per-recipient watermark) and a declarant's Restricted certified copy.
  */
-export type AccessDocumentType = 'access-package' | 'certified-copy';
+export type AccessDocumentType = Extract<
+  components['schemas']['DocumentType'],
+  'access-package' | 'certified-copy'
+>;
 
-/** Printed on every page of an access package, so a leaked copy traces to its recipient. */
-export interface Watermark {
-  recipientName: string;
-  /** The `ARQ` or `LEA` reference of the grant. */
-  reference: string;
-  /** `YYYY-MM-DD` (Nairobi). */
-  date: string;
-}
+/**
+ * Printed on every page of an access package (documents.yaml `Watermark`): the recipient, the
+ * `ARQ` or `LEA` reference of the grant and the date (`YYYY-MM-DD`), so a leaked copy traces to
+ * its recipient.
+ */
+export type Watermark = components['schemas']['Watermark'];
+
+/** documents.yaml `AccessPackagePayload` (access-package v1): the disclosure and the grant. */
+export type AccessPackagePayload = components['schemas']['AccessPackagePayload'];
+
+/** documents.yaml `CertifiedCopyPayload` (certified-copy v1). */
+export type CertifiedCopyPayload = components['schemas']['CertifiedCopyPayload'];
 
 /**
  * A request to render, sign and register a verifiable document (documents.yaml `IssueDocument`,
- * ADR-010). Ids and the watermark only: the disclosure travels in the request body, never in
- * logs, events or workflow history.
+ * ADR-010) for the Commission `tenant` (`X-Acting-Tenant`); the disclosure level is the
+ * template's. The payload travels in the request body only, never in logs, events or workflow
+ * history.
  */
 export interface IssueDocumentRequest {
+  /** The Commission issuing it. */
+  tenant: string;
   type: AccessDocumentType;
   templateVersion: number;
-  disclosureLevel: 'confidential' | 'restricted';
-  issuerTenant: string;
   /** The owning record: `access-request:<uuid>`, `lea-request:<uuid>` or `certified-copy:<uuid>`. */
   subjectRef: string;
   /** Who may download it: the applicant, the law enforcement officer's person, or the declarant. */
-  subjectPersonId: string | null;
-  payload: Record<string, unknown>;
+  subjectPersonId: string;
+  payload: AccessPackagePayload | CertifiedCopyPayload;
   watermark?: Watermark;
   /** How long the subject may download it (access packages). */
   downloadWindowDays?: number;
@@ -42,6 +52,9 @@ export interface IssueDocumentRequest {
 export interface IssuedDocument {
   id: string;
   verificationId: string;
+  issuedAt: Date;
+  /** End of the subject's download window; null when the document has none. */
+  downloadExpiresAt: Date | null;
 }
 
 /** A clean upload as the documents service describes it: what an attachment keeps of it. */
