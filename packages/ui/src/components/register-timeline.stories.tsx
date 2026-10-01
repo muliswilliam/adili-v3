@@ -113,6 +113,16 @@ export const WhoAccessed: Story = {
   ),
 };
 
+/** RegisterList whose rows open the entry (Who accessed opens a drawer). */
+export const WhoAccessedSelectable: Story = {
+  args: { entries: declarantCopy, label: 'Who accessed my declaration' },
+  render: (args) => (
+    <Card className="max-w-2xl overflow-hidden p-0 sm:p-0">
+      <RegisterList {...args} onSelect={() => undefined} />
+    </Card>
+  ),
+};
+
 /** RegisterList with every kind. */
 export const EveryKindAsList: Story = {
   render: (args) => (
