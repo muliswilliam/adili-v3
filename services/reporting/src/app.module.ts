@@ -40,7 +40,8 @@ import { ReportingWorkerModule } from './worker.module.js';
       schema,
       applicationName: SERVICE_NAME,
     }),
-    // Confirming and submitting a report are safe to retry with the same `Idempotency-Key` (ADR-009).
+    // Confirming and submitting a report, approving the national consolidated report and pushing
+    // a referral to ICMS are safe to retry with the same `Idempotency-Key` (ADR-009).
     IdempotencyModule.forRoot({ database: DATABASE }),
     EventsModule.forRoot({ service: SERVICE_NAME, rabbitmqUrl: config.RABBITMQ_URL }),
     TemporalModule.forRoot({

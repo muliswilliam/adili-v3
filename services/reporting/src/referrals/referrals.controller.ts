@@ -4,6 +4,7 @@ import {
   ApiProblemResponse,
   CurrentPrincipal,
   type Principal,
+  RequireIdempotencyKey,
   ZodValidationPipe,
 } from '@adili/api-kit';
 import { z } from 'zod';
@@ -53,12 +54,14 @@ export class ReferralsController {
 
   @Post(':referralId/push')
   @HttpCode(HttpStatus.OK)
+  @RequireIdempotencyKey()
   @ApiParam({ name: 'referralId', schema: { type: 'string', format: 'uuid' } })
   @ApiOperation({
     operationId: 'pushReferralToIcms',
     summary: 'Push a referral to ICMS and store the case number (analyst)',
   })
   @ApiOkResponse({ description: 'Registered (or already registered), or pushed' })
+  @ApiProblemResponse(400, 'Idempotency-Key missing, or referralId is not a UUID')
   @ApiProblemResponse(403, EACC_ONLY)
   @ApiProblemResponse(404, 'Not in the intake')
   @ApiProblemResponse(502, 'Problem code `icms-push-failed`: left push-failed, push again')

@@ -1,3 +1,5 @@
+import { randomUUID } from 'node:crypto';
+
 import { eq } from 'drizzle-orm';
 import { v7 as uuidv7 } from 'uuid';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -25,9 +27,9 @@ import { historyPayloads } from '../support/workflow-history.js';
  * time and `tsc` late; `jsc` has not reported. An EACC analyst builds the national consolidated
  * report from the submitted reports (national totals, a row per Commission, rates) and types its
  * narrative; a rebuild keeps the narrative. The author cannot approve; another EACC supervisor
- * does: `NCR-EACC-2028-0000001-<check>` (the year's end, ADR-011 §2), the Restricted PDF through documents, `ncr.approved.v1`,
- * and the year's chase ends. The authorisation rows of the matrix. Ids only in Temporal history
- * and events.
+ * does: `NCR-EACC-2028-0000001-<check>` (the year's end, ADR-011 §2), the Restricted PDF through
+ * documents, `ncr.approved.v1`, and the year's chase ends. The authorisation rows of the matrix.
+ * Ids only in Temporal history and events.
  */
 describe('National consolidated report (S11)', () => {
   let api: ReportingApi;
@@ -150,8 +152,8 @@ describe('National consolidated report (S11)', () => {
     return response.json<NationalReportBody>();
   }
 
-  function approve(caller: Caller) {
-    return api.send('POST', `${NCR}/approve`, caller);
+  function approve(caller: Caller, key: string = randomUUID()) {
+    return api.send('POST', `${NCR}/approve`, caller, undefined, { 'idempotency-key': key });
   }
 
   it('S11: an eacc-analyst builds the NCR from the submitted reports: national totals, a row per Commission, rates', async () => {
@@ -372,7 +374,8 @@ describe('National consolidated report (S11)', () => {
     });
 
     api.clock.set('2028-08-25T08:00:00.000Z');
-    const response = await approve(SUPERVISOR_A);
+    const key = randomUUID();
+    const response = await approve(SUPERVISOR_A, key);
     expect(response.statusCode, response.body).toBe(200);
     const approved = response.json<NationalReportBody>();
     expect(
@@ -463,10 +466,13 @@ describe('National consolidated report (S11)', () => {
       expect(published).not.toContain(text);
     }
 
-    // A retried approval is refused by the report's state: it no longer changes, and no second
-    // reference is allocated.
+    // An approval needs an Idempotency-Key; a retried approval replays and the report no longer
+    // changes.
+    expect((await api.send('POST', `${NCR}/approve`, SUPERVISOR_B)).statusCode).toBe(400);
+    const replay = await approve(SUPERVISOR_A, key);
+    expect(replay.statusCode).toBe(200);
+    expect(replay.json<NationalReportBody>().reference).toBe(approved.reference);
     for (const refused of [
-      await approve(SUPERVISOR_A),
       await approve(SUPERVISOR_B),
       await api.send('POST', `${NCR}/build`, ANALYST),
       await api.send('PATCH', `${NCR}/narrative`, ANALYST, NARRATIVE),

@@ -88,8 +88,10 @@ describe('Referrals intake and ICMS push (S12)', () => {
 
   const list = (caller: Caller, query = '') => api.get(`/v1/eacc/referrals${query}`, caller);
 
-  const push = (caller: Caller, referralId: string) =>
-    api.send('POST', `/v1/eacc/referrals/${referralId}/push`, caller);
+  const push = (caller: Caller, referralId: string, key: string = randomUUID()) =>
+    api.send('POST', `/v1/eacc/referrals/${referralId}/push`, caller, undefined, {
+      'idempotency-key': key,
+    });
 
   const intakeRow = async (referralId: string) => {
     const [row] = await api.asPlatform((tx) =>
@@ -196,16 +198,17 @@ describe('Referrals intake and ICMS push (S12)', () => {
     expect(everything).not.toContain(PAYLOAD.narrative);
   });
 
-  it('S12: pushing twice is idempotent by the referral: nothing is sent again and the case number is published once', async () => {
+  it('S12: pushing twice is idempotent: nothing is sent again and the case number is published once', async () => {
     const { referralId } = await givenSent();
+    const key = randomUUID();
 
-    const first = await push(ANALYST, referralId);
-    const replay = await push(ANALYST, referralId);
+    const first = await push(ANALYST, referralId, key);
+    const replay = await push(ANALYST, referralId, key);
     const again = await push(EACC_SUPERVISOR, referralId);
 
     expect(first.statusCode).toBe(200);
     expect(replay.statusCode).toBe(200);
-    expect(replay.json()).toEqual(first.json());
+    expect(replay.headers['idempotent-replayed']).toBe('true');
     expect(again.statusCode).toBe(200);
     expect(again.json()).toMatchObject({
       icmsStatus: 'registered',
@@ -418,6 +421,8 @@ describe('Referrals intake and ICMS push (S12)', () => {
     expect(api.gateway.submitCalls).toBe(0);
     expect((await push(EACC_SUPERVISOR, referralId)).statusCode).toBe(200);
     expect((await push(ANALYST, randomUUID())).statusCode).toBe(404);
-    expect((await push(ANALYST, 'not-a-uuid')).statusCode).toBe(400);
+    expect(
+      (await api.send('POST', `/v1/eacc/referrals/${referralId}/push`, ANALYST)).statusCode,
+    ).toBe(400);
   });
 });

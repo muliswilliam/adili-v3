@@ -4,6 +4,7 @@ import {
   ApiProblemResponse,
   CurrentPrincipal,
   type Principal,
+  RequireIdempotencyKey,
   ZodValidationPipe,
 } from '@adili/api-kit';
 import { z } from 'zod';
@@ -98,12 +99,14 @@ export class NationalReportsController {
 
   @Post(':fy/approve')
   @HttpCode(HttpStatus.OK)
+  @RequireIdempotencyKey()
   @ApiFinancialYearParam()
   @ApiOperation({
     operationId: 'approveNationalReport',
     summary: 'EACC supervisor (not the author) approves; allocates NCR and issues the PDF',
   })
   @ApiOkResponse({ description: 'Approved with its reference; the PDF follows' })
+  @ApiProblemResponse(400, 'Idempotency-Key missing')
   @ApiProblemResponse(403, 'Role, or problem code `separation-of-duties`')
   @ApiProblemResponse(404, 'Not built yet')
   @ApiProblemResponse(409, APPROVED)

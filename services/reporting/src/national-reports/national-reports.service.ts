@@ -158,7 +158,7 @@ export class NationalReportsService {
   }
 
   /**
-   * An EACC supervisor approves the year's report (once: a retry is 409 `ncr-approved`). The
+   * An EACC supervisor approves the year's report (an `Idempotency-Key` at the controller). The
    * author and anyone who built it or wrote its narrative cannot (403 `separation-of-duties`).
    * Allocates `NCR-EACC-<FY end>-<seq>-<check>`, records the approver, publishes `ncr.approved.v1`
    * and starts the approval workflow before the commit, so a Temporal outage approves nothing;
