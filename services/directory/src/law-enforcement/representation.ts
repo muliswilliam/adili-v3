@@ -50,6 +50,24 @@ export const leaOfficerAccountSchema = z.object({
 export type LeaOfficerAccount = z.infer<typeof leaOfficerAccountSchema>;
 
 /**
+ * `GET /internal/v1/law-enforcement/officers/{personId}`: an officer's account as the access
+ * service checks a law enforcement request's provenance (r.23(1)): which agency it is of, the
+ * Keycloak account the request was sent from, and whether it is still active.
+ */
+export const internalLeaOfficerSchema = z.object({
+  personId: z.uuid().meta({ description: "The officer's directory person id (token `person_id`)" }),
+  keycloakUserId: z.string().meta({
+    description: "The officer's Keycloak account: the `sub` of the tokens they request with",
+  }),
+  name: z.string(),
+  agency: agencySchema,
+  state: leaOfficerStateSchema,
+  activatedAt: z.iso.datetime().nullable(),
+  revokedAt: z.iso.datetime().nullable(),
+});
+export type InternalLeaOfficer = z.infer<typeof internalLeaOfficerSchema>;
+
+/**
  * Body of `POST /v1/law-enforcement/agencies/{code}/officers`: the officer's name, official email
  * and phone, validated as a reporting officer's are. The email is stored in lower case.
  */

@@ -3704,6 +3704,55 @@ paths:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/ProblemDetails'
+  /internal/v1/law-enforcement/officers/{personId}:
+    get:
+      tags:
+        - internal
+      summary: A law-enforcement officer's account and agency (access)
+      description: "Service tokens with scope directory:internal, acting for any tenant; audited. The officer's agency, the Keycloak account their tokens are issued to, and its state: the access service records a request's provenance from it and refuses requests from accounts that are not, or no longer, active."
+      operationId: internalGetLeaOfficer
+      parameters:
+        - name: X-Acting-Tenant
+          in: header
+          description: Tenant the calling service acts for; the resource must belong to it
+          required: true
+          schema:
+            type: string
+            pattern: ^[a-z][a-z0-9]{1,19}$
+        - name: personId
+          required: true
+          in: path
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: The officer
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InternalLeaOfficer'
+        '400':
+          description: personId is not a UUID
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '403':
+          description: Requires a service token with scope directory:internal
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: No law-enforcement officer has this id
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+      x-audited-read:
+        action: lea-officer.read
+        resource: person
 components:
   securitySchemes:
     bearer:
@@ -6055,6 +6104,40 @@ components:
         - phone
         - state
         - invitedAt
+        - activatedAt
+        - revokedAt
+    InternalLeaOfficer:
+      type: object
+      properties:
+        personId:
+          type: string
+          format: uuid
+          description: The officer's directory person id (token `person_id`)
+        keycloakUserId:
+          type: string
+          description: "The officer's Keycloak account: the `sub` of the tokens they request with"
+        name:
+          type: string
+        agency:
+          $ref: '#/components/schemas/Agency'
+        state:
+          $ref: '#/components/schemas/LeaOfficerState'
+        activatedAt:
+          anyOf:
+            - type: string
+              format: date-time
+            - type: 'null'
+        revokedAt:
+          anyOf:
+            - type: string
+              format: date-time
+            - type: 'null'
+      required:
+        - personId
+        - keycloakUserId
+        - name
+        - agency
+        - state
         - activatedAt
         - revokedAt
     ProvisionAgencyOfficer:

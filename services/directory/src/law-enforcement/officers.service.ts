@@ -28,7 +28,12 @@ import {
 import { newPersonId } from '../persons/person-id.js';
 import { persons } from '../persons/schema.js';
 import { leaAccountProvisioned, leaAccountRevoked } from './events.js';
-import type { Agency, LeaOfficerAccount, ProvisionAgencyOfficerBody } from './representation.js';
+import type {
+  Agency,
+  InternalLeaOfficer,
+  LeaOfficerAccount,
+  ProvisionAgencyOfficerBody,
+} from './representation.js';
 import { agencies, lawEnforcementOfficers, type LeaOfficerState } from './schema.js';
 
 /**
@@ -126,6 +131,40 @@ export class LawEnforcementOfficersService {
         .orderBy(asc(persons.fullName), asc(lawEnforcementOfficers.personId));
       return rows.map(account);
     });
+  }
+
+  /**
+   * Officer `personId` with their agency, for the access service's provenance check of a law
+   * enforcement request (r.23(1)); 404 when no officer has this id. Revoked officers are
+   * returned too: the request they filed stays theirs.
+   */
+  async internalOfficer(subject: string, personId: string): Promise<InternalLeaOfficer> {
+    const [found] = await withTenant(this.db, { tenant: PLATFORM_TENANT, subject }, (tx) =>
+      tx
+        .select({
+          ...ACCOUNT_COLUMNS,
+          agencyName: agencies.name,
+          agencyLegalBasis: agencies.legalBasis,
+        })
+        .from(lawEnforcementOfficers)
+        .innerJoin(persons, eq(persons.id, lawEnforcementOfficers.personId))
+        .innerJoin(agencies, eq(agencies.code, lawEnforcementOfficers.agencyCode))
+        .where(eq(lawEnforcementOfficers.personId, personId)),
+    );
+    const officer = notFoundIfInvisible(found);
+    return {
+      personId: officer.personId,
+      keycloakUserId: officer.keycloakUserId,
+      name: officer.name,
+      agency: {
+        code: officer.agencyCode,
+        name: officer.agencyName,
+        legalBasis: officer.agencyLegalBasis,
+      },
+      state: officer.state,
+      activatedAt: officer.activatedAt?.toISOString() ?? null,
+      revokedAt: officer.revokedAt?.toISOString() ?? null,
+    };
   }
 
   /**
