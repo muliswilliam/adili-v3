@@ -62,6 +62,11 @@ paths:
           in: query
           schema:
             type: boolean
+        - name: registryUnavailable
+          in: query
+          description: Only cases where a registry could not be checked at the latest registry check, or only the others
+          schema:
+            type: boolean
         - name: search
           in: query
           description: Reference prefix, personnel file number prefix or name fragment
@@ -846,6 +851,11 @@ paths:
       tags: [cases]
       operationId: getCaseRegistryChecks
       summary: Per-person, per-system registry status with records pulled from the gateway and paired with declared items
+      description: >-
+        Reviewers and supervisors of the case's Commission. The records are read from the
+        integration-gateway by result id on every call and never stored by review; the declaration
+        is read from declarations, audited there as the caller's read for the case. Persons in the
+        declaration's statement order; a registry without a check yet is not-checked.
       responses:
         '200':
           description: Registry view
@@ -855,6 +865,15 @@ paths:
                 $ref: '#/components/schemas/RegistryView'
         '404':
           $ref: '#/components/responses/NotFound'
+        '502':
+          description: >-
+            Problem type `declarations-unavailable` or `integration-gateway-unavailable`: the
+            declaration or the registry records could not be read. The case detail's registry
+            still has the statuses of the latest check.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
   /v1/review/cases/{caseId}/recheck:
     parameters:
       - $ref: '#/components/parameters/CaseId'
@@ -2056,6 +2075,9 @@ components:
             - type: 'null'
         openFlags:
           type: integer
+        registryUnavailable:
+          type: boolean
+          description: A registry could not be checked for someone on the case at its latest registry check (the queue's icon)
         clarification:
           type: object
           required: [open, status, dueAt]
@@ -2358,6 +2380,8 @@ components:
           description: Every determination of the case, oldest first; the current one is last
           items:
             $ref: '#/components/schemas/Determination'
+        registry:
+          $ref: '#/components/schemas/RegistrySummary'
     VersionComparison:
       type: object
       required: [previousVersion, currentVersion, statements]
@@ -2687,6 +2711,45 @@ components:
     RegistryCheckStatus:
       type: string
       enum: [matched, mismatched, unavailable, not-checked, no-id]
+    RegistryCheck:
+      type: object
+      description: One person's status in one registry at the case's latest registry check
+      required: [personKey, system, status, reason, checkedAt, resultId]
+      properties:
+        personKey:
+          type: string
+        system:
+          $ref: '#/components/schemas/RegistrySystem'
+        status:
+          $ref: '#/components/schemas/RegistryCheckStatus'
+        reason:
+          type: [string, 'null']
+          description: >-
+            Why the registry is unavailable: the gateway's reason (timeout, breaker-open, paused,
+            rate-limited, upstream-error), gateway-unavailable or gateway-rejected when the gateway
+            gave no answer, supplier-check-unavailable when BRS answered but the employer supplier
+            check did not, result-missing when the stored result could not be read back
+        checkedAt:
+          type: string
+          format: date-time
+        resultId:
+          type: [string, 'null']
+          format: uuid
+          description: The integration-gateway's stored result, from which the Registry tab pulls the records
+    RegistrySummary:
+      type: object
+      description: >-
+        The case's latest registry check, per person with an entry per registry; empty with
+        checkedAt null before the first check (every registry not checked)
+      required: [checkedAt, checks]
+      properties:
+        checkedAt:
+          type: [string, 'null']
+          format: date-time
+        checks:
+          type: array
+          items:
+            $ref: '#/components/schemas/RegistryCheck'
     RegistryView:
       type: object
       required: [checkedAt, persons]
@@ -2734,6 +2797,11 @@ components:
                           registryRecord:
                             type: object
                             additionalProperties: true
+                            description: >-
+                              The registry's record as the gateway holds it (parcel, vehicle or
+                              directorship; for KRA pinPresent, complianceStatus, validUntil and
+                              the income difference as a percentage, never an amount). For
+                              not-in-registry, the declared identifier alone.
                           declaredItemId:
                             type: [string, 'null']
                             format: uuid

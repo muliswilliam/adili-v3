@@ -517,7 +517,10 @@ export interface paths {
             };
             cookie?: never;
         };
-        /** Per-person, per-system registry status with records pulled from the gateway and paired with declared items */
+        /**
+         * Per-person, per-system registry status with records pulled from the gateway and paired with declared items
+         * @description Reviewers and supervisors of the case's Commission. The records are read from the integration-gateway by result id on every call and never stored by review; the declaration is read from declarations, audited there as the caller's read for the case. Persons in the declaration's statement order; a registry without a check yet is not-checked.
+         */
         get: operations["getCaseRegistryChecks"];
         put?: never;
         post?: never;
@@ -1133,6 +1136,8 @@ export interface components {
             status: components["schemas"]["CaseStatus"];
             assignee: components["schemas"]["Assignee"] | null;
             openFlags: number;
+            /** @description A registry could not be checked for someone on the case at its latest registry check (the queue's icon) */
+            registryUnavailable?: boolean;
             clarification: {
                 open: number;
                 status: components["schemas"]["ClarificationStatus"] | null;
@@ -1287,6 +1292,7 @@ export interface components {
             reviewerHistory: components["schemas"]["Assignee"][];
             /** @description Every determination of the case, oldest first; the current one is last */
             determinations?: components["schemas"]["Determination"][];
+            registry?: components["schemas"]["RegistrySummary"];
         };
         VersionComparison: {
             previousVersion: number;
@@ -1430,6 +1436,27 @@ export interface components {
         RegistrySystem: "kra" | "ntsa" | "brs" | "ardhisasa";
         /** @enum {string} */
         RegistryCheckStatus: "matched" | "mismatched" | "unavailable" | "not-checked" | "no-id";
+        /** @description One person's status in one registry at the case's latest registry check */
+        RegistryCheck: {
+            personKey: string;
+            system: components["schemas"]["RegistrySystem"];
+            status: components["schemas"]["RegistryCheckStatus"];
+            /** @description Why the registry is unavailable: the gateway's reason (timeout, breaker-open, paused, rate-limited, upstream-error), gateway-unavailable or gateway-rejected when the gateway gave no answer, supplier-check-unavailable when BRS answered but the employer supplier check did not, result-missing when the stored result could not be read back */
+            reason: string | null;
+            /** Format: date-time */
+            checkedAt: string;
+            /**
+             * Format: uuid
+             * @description The integration-gateway's stored result, from which the Registry tab pulls the records
+             */
+            resultId: string | null;
+        };
+        /** @description The case's latest registry check, per person with an entry per registry; empty with checkedAt null before the first check (every registry not checked) */
+        RegistrySummary: {
+            /** Format: date-time */
+            checkedAt: string | null;
+            checks: components["schemas"]["RegistryCheck"][];
+        };
         RegistryView: {
             /** Format: date-time */
             checkedAt: string | null;
@@ -1447,6 +1474,7 @@ export interface components {
                     resultId: string | null;
                     /** @description Registry record paired with the declared item it matched, if any */
                     rows: {
+                        /** @description The registry's record as the gateway holds it (parcel, vehicle or directorship; for KRA pinPresent, complianceStatus, validUntil and the income difference as a percentage, never an amount). For not-in-registry, the declared identifier alone. */
                         registryRecord: {
                             [key: string]: unknown;
                         };
@@ -1978,6 +2006,8 @@ export interface operations {
                 assignee?: string;
                 late?: boolean;
                 openClarification?: boolean;
+                /** @description Only cases where a registry could not be checked at the latest registry check, or only the others */
+                registryUnavailable?: boolean;
                 /** @description Reference prefix, personnel file number prefix or name fragment */
                 search?: string;
                 cursor?: string;
@@ -2887,6 +2917,15 @@ export interface operations {
                 };
             };
             404: components["responses"]["NotFound"];
+            /** @description Problem type `declarations-unavailable` or `integration-gateway-unavailable`: the declaration or the registry records could not be read. The case detail's registry still has the statuses of the latest check. */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
         };
     };
     recheckCaseRegistries: {
