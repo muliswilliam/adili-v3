@@ -166,10 +166,8 @@ export class ClarificationsService {
         withUpstream(() => this.directory.getClarificationPolicy(tenant)),
         withUpstream(() => this.directory.getCommission(tenant)),
       ]);
-      const reference = await allocateReference(tx, CLR, {
-        issuer: commission.issuerCode,
-        period: nairobiYear(now),
-      });
+      // The declarations read comes before the number: allocating locks the Commission's CLR
+      // counter until commit, and every issue at the Commission waits on it.
       const letter = await composeLetter(
         this.declarations,
         { tenant, actingSubject: principal.subject },
@@ -177,6 +175,10 @@ export class ClarificationsService {
         commission,
         clarification.items,
       );
+      const reference = await allocateReference(tx, CLR, {
+        issuer: commission.issuerCode,
+        period: nairobiYear(now),
+      });
       const dueAt = clarificationDueAt(now, policy.replyWindowDays);
       const [issued] = await tx
         .update(clarifications)
