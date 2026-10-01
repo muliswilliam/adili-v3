@@ -7,6 +7,7 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import {
+  AcceptIdempotencyKey,
   ApiProblemResponse,
   ApiQueryParameters,
   CurrentPrincipal,
@@ -50,6 +51,7 @@ export class ReferralsController {
 
   @Post('review/cases/:caseId/referrals')
   @ApiUuidParam('caseId')
+  @AcceptIdempotencyKey()
   @ApiOperation({
     operationId: 'proposeReferral',
     summary: 'Propose a referral to EACC from a case (assignee)',
@@ -137,6 +139,7 @@ export class ReferralsController {
   @Post('review/referrals/:referralId/decline')
   @HttpCode(200)
   @ApiUuidParam('referralId')
+  @AcceptIdempotencyKey()
   @ApiOperation({ operationId: 'declineReferral', summary: 'Decline with a note' })
   @ApiOkResponse({ description: 'Declined', schema: schemaRef('Referral') })
   @ApiProblemResponse(400, 'Body failed validation')

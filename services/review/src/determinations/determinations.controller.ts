@@ -7,10 +7,14 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import {
+  AcceptIdempotencyKey,
   ApiProblemResponse,
+  AuditedRead,
   type AuthenticatedRequest,
   CurrentPrincipal,
+  CurrentReadAudit,
   type Principal,
+  type ReadAudit,
   RequireIdempotencyKey,
   schemaRef,
   ZodValidationPipe,
@@ -54,6 +58,7 @@ export class DeterminationsController {
 
   @Post('cases/:caseId/determinations')
   @ApiUuidParam('caseId')
+  @AcceptIdempotencyKey()
   @ApiOperation({
     operationId: 'proposeDetermination',
     summary: 'Propose a compliance determination (assignee)',
@@ -87,6 +92,7 @@ export class DeterminationsController {
   }
 
   @Get('determinations/:determinationId/letter')
+  @AuditedRead({ action: 'review.determination.letter.downloaded', resource: 'determination' })
   @ApiUuidParam('determinationId')
   @ApiOperation({
     operationId: 'getDeterminationLetter',
@@ -103,8 +109,12 @@ export class DeterminationsController {
     @CurrentPrincipal() principal: Principal,
     @Req() request: AuthenticatedRequest,
     @Param('determinationId', new ZodValidationPipe(uuidParam)) determinationId: string,
+    @CurrentReadAudit() audit: ReadAudit,
   ): Promise<LetterDownloadView> {
-    return this.letters.letter(principal, request.principal?.personId ?? null, determinationId);
+    const declarant = request.principal?.personId ?? null;
+    // A declarant reads only their own letter (anyone else's is 404): not an audited access.
+    if (declarant !== null) audit.ownRecord();
+    return this.letters.letter(principal, declarant, determinationId);
   }
 
   @Post('determinations/:determinationId/approve')
@@ -131,6 +141,7 @@ export class DeterminationsController {
   @Post('determinations/:determinationId/return')
   @HttpCode(200)
   @ApiUuidParam('determinationId')
+  @AcceptIdempotencyKey()
   @ApiOperation({
     operationId: 'returnDetermination',
     summary: 'Return to the proposer with a reason',
@@ -151,6 +162,7 @@ export class DeterminationsController {
   @Post('determinations/:determinationId/withdraw')
   @HttpCode(200)
   @ApiUuidParam('determinationId')
+  @AcceptIdempotencyKey()
   @ApiOperation({
     operationId: 'withdrawDetermination',
     summary: 'Proposer withdraws while proposed',

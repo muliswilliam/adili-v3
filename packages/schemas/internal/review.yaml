@@ -668,11 +668,16 @@ paths:
   /internal/v1/review/determinations/{determinationId}/letter-payload:
     parameters:
       - $ref: '#/components/parameters/DeterminationId'
+      - $ref: '#/components/parameters/ActingTenant'
     get:
       tags: [internal]
       operationId: internalGetDeterminationLetterPayload
       summary: Fields the decision letter template needs (documents service)
       responses:
+        '400':
+          $ref: '#/components/responses/ValidationProblem'
+        '403':
+          $ref: '#/components/responses/Forbidden'
         '200':
           description: Payload
           content:
@@ -686,11 +691,16 @@ paths:
   /internal/v1/review/actions/{actionId}/letter-payload:
     parameters:
       - $ref: '#/components/parameters/ActionId'
+      - $ref: '#/components/parameters/ActingTenant'
     get:
       tags: [internal]
       operationId: internalGetActionLetterPayload
       summary: Fields the step letter templates need (notice to comply, warning, salary stoppage, disciplinary referral; documents service)
       responses:
+        '400':
+          $ref: '#/components/responses/ValidationProblem'
+        '403':
+          $ref: '#/components/responses/Forbidden'
         '200':
           description: Payload
           content:
@@ -704,9 +714,13 @@ paths:
   /internal/v1/review/referrals/{referralId}/package-payload:
     parameters:
       - $ref: '#/components/parameters/ReferralId'
+      - $ref: '#/components/parameters/ActingTenant'
     get:
       tags: [internal]
       operationId: internalGetReferralPackagePayload
+      x-audited-read:
+        action: review.referral.package-payload.read
+        resource: referral
       summary: Cover sheet, manifest and evidence the referral package template needs (documents service)
       description: >-
         Service tokens with `review:internal`; the Commission in `X-Acting-Tenant`. An approved or
@@ -714,6 +728,10 @@ paths:
         (versions are immutable, so their hashes match the manifest); letters are named by document
         id for documents to append.
       responses:
+        '400':
+          $ref: '#/components/responses/ValidationProblem'
+        '403':
+          $ref: '#/components/responses/Forbidden'
         '200':
           description: Payload
           content:
@@ -733,6 +751,7 @@ paths:
   /internal/v1/review/referrals/{referralId}/icms-payload:
     parameters:
       - $ref: '#/components/parameters/ReferralId'
+      - $ref: '#/components/parameters/ActingTenant'
     get:
       tags: [internal]
       operationId: internalGetReferralIcmsPayload
@@ -740,9 +759,9 @@ paths:
       description: >-
         Service tokens with `review:internal`; the Commission in `X-Acting-Tenant`. A sent referral
         only. What ICMS needs and no more: the declarant's national ID is read from the directory's
-        roster record of the referral's case at each call and kept nowhere in the review service. Every read is audited (`audit.read.v1`,
-        action `review.referral.icms-payload.read`), naming the officer in `X-Acting-Subject` when
-        the caller gives one.
+        roster record of the referral's case at each call and kept nowhere in the review service.
+        Every read is audited (`audit.read.v1`, action `review.referral.icms-payload.read`), naming
+        the officer in `X-Acting-Subject` when the caller gives one.
       x-audited-read:
         action: review.referral.icms-payload.read
         resource: referral
@@ -754,6 +773,8 @@ paths:
           schema:
             type: string
       responses:
+        '400':
+          $ref: '#/components/responses/ValidationProblem'
         '200':
           description: Payload
           content:
@@ -816,6 +837,8 @@ paths:
     post:
       tags: [determinations]
       operationId: proposeDetermination
+      parameters:
+        - $ref: '#/components/parameters/OptionalIdempotencyKey'
       summary: Propose a compliance determination (assignee)
       requestBody:
         required: true
@@ -896,6 +919,8 @@ paths:
     post:
       tags: [determinations]
       operationId: returnDetermination
+      parameters:
+        - $ref: '#/components/parameters/OptionalIdempotencyKey'
       summary: Return to the proposer with a reason
       requestBody:
         required: true
@@ -930,6 +955,8 @@ paths:
     post:
       tags: [determinations]
       operationId: withdrawDetermination
+      parameters:
+        - $ref: '#/components/parameters/OptionalIdempotencyKey'
       summary: Proposer withdraws while proposed
       responses:
         '200':
@@ -954,6 +981,9 @@ paths:
     get:
       tags: [determinations]
       operationId: getDeterminationLetter
+      x-audited-read:
+        action: review.determination.letter.downloaded
+        resource: determination
       summary: Decision letter download; issued on first request for bulk closures
       description: >-
         The Commission's reviewers and supervisors, and the declarant for their own approved
@@ -1059,6 +1089,8 @@ paths:
     post:
       tags: [approvals]
       operationId: reassignApproval
+      parameters:
+        - $ref: '#/components/parameters/OptionalIdempotencyKey'
       summary: Point an approval at another supervisor (informational; the separation rule still applies)
       requestBody:
         required: true
@@ -1275,6 +1307,8 @@ paths:
     post:
       tags: [actions]
       operationId: declineAction
+      parameters:
+        - $ref: '#/components/parameters/OptionalIdempotencyKey'
       summary: Decline a proposed step with a note (ends the ladder; a declined disciplinary referral leaves it waiting for compliance)
       requestBody:
         required: true
@@ -1311,6 +1345,8 @@ paths:
     post:
       tags: [actions]
       operationId: restartLadder
+      parameters:
+        - $ref: '#/components/parameters/OptionalIdempotencyKey'
       summary: Supervisor restarts a declined ladder
       responses:
         '200':
@@ -1335,6 +1371,8 @@ paths:
     post:
       tags: [referrals]
       operationId: proposeReferral
+      parameters:
+        - $ref: '#/components/parameters/OptionalIdempotencyKey'
       summary: Propose a referral to EACC from a case (assignee)
       description: >-
         The case's assignee (reviewer or supervisor), on grounds of undeclared or unexplained assets
@@ -1481,6 +1519,8 @@ paths:
     post:
       tags: [referrals]
       operationId: declineReferral
+      parameters:
+        - $ref: '#/components/parameters/OptionalIdempotencyKey'
       summary: Decline with a note
       requestBody:
         required: true

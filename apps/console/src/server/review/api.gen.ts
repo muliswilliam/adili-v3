@@ -397,7 +397,10 @@ export interface paths {
     "/internal/v1/review/determinations/{determinationId}/letter-payload": {
         parameters: {
             query?: never;
-            header?: never;
+            header: {
+                /** @description Tenant the calling service acts for; the resource must belong to it */
+                "X-Acting-Tenant": components["parameters"]["ActingTenant"];
+            };
             path: {
                 determinationId: components["parameters"]["DeterminationId"];
             };
@@ -416,7 +419,10 @@ export interface paths {
     "/internal/v1/review/actions/{actionId}/letter-payload": {
         parameters: {
             query?: never;
-            header?: never;
+            header: {
+                /** @description Tenant the calling service acts for; the resource must belong to it */
+                "X-Acting-Tenant": components["parameters"]["ActingTenant"];
+            };
             path: {
                 actionId: components["parameters"]["ActionId"];
             };
@@ -435,7 +441,10 @@ export interface paths {
     "/internal/v1/review/referrals/{referralId}/package-payload": {
         parameters: {
             query?: never;
-            header?: never;
+            header: {
+                /** @description Tenant the calling service acts for; the resource must belong to it */
+                "X-Acting-Tenant": components["parameters"]["ActingTenant"];
+            };
             path: {
                 referralId: components["parameters"]["ReferralId"];
             };
@@ -457,7 +466,10 @@ export interface paths {
     "/internal/v1/review/referrals/{referralId}/icms-payload": {
         parameters: {
             query?: never;
-            header?: never;
+            header: {
+                /** @description Tenant the calling service acts for; the resource must belong to it */
+                "X-Acting-Tenant": components["parameters"]["ActingTenant"];
+            };
             path: {
                 referralId: components["parameters"]["ReferralId"];
             };
@@ -2656,7 +2668,10 @@ export interface operations {
     internalGetDeterminationLetterPayload: {
         parameters: {
             query?: never;
-            header?: never;
+            header: {
+                /** @description Tenant the calling service acts for; the resource must belong to it */
+                "X-Acting-Tenant": components["parameters"]["ActingTenant"];
+            };
             path: {
                 determinationId: components["parameters"]["DeterminationId"];
             };
@@ -2673,6 +2688,8 @@ export interface operations {
                     "application/json": components["schemas"]["DeterminationLetterPayload"];
                 };
             };
+            400: components["responses"]["ValidationProblem"];
+            403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             503: components["responses"]["DirectoryUnavailable"];
         };
@@ -2680,7 +2697,10 @@ export interface operations {
     internalGetActionLetterPayload: {
         parameters: {
             query?: never;
-            header?: never;
+            header: {
+                /** @description Tenant the calling service acts for; the resource must belong to it */
+                "X-Acting-Tenant": components["parameters"]["ActingTenant"];
+            };
             path: {
                 actionId: components["parameters"]["ActionId"];
             };
@@ -2697,6 +2717,8 @@ export interface operations {
                     "application/json": components["schemas"]["ActionLetterPayload"];
                 };
             };
+            400: components["responses"]["ValidationProblem"];
+            403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             503: components["responses"]["DirectoryUnavailable"];
         };
@@ -2704,7 +2726,10 @@ export interface operations {
     internalGetReferralPackagePayload: {
         parameters: {
             query?: never;
-            header?: never;
+            header: {
+                /** @description Tenant the calling service acts for; the resource must belong to it */
+                "X-Acting-Tenant": components["parameters"]["ActingTenant"];
+            };
             path: {
                 referralId: components["parameters"]["ReferralId"];
             };
@@ -2721,6 +2746,8 @@ export interface operations {
                     "application/json": components["schemas"]["ReferralPackagePayload"];
                 };
             };
+            400: components["responses"]["ValidationProblem"];
+            403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             /** @description The evidence could not be read from declarations or documents */
             502: {
@@ -2737,7 +2764,9 @@ export interface operations {
     internalGetReferralIcmsPayload: {
         parameters: {
             query?: never;
-            header?: {
+            header: {
+                /** @description Tenant the calling service acts for; the resource must belong to it */
+                "X-Acting-Tenant": components["parameters"]["ActingTenant"];
                 /** @description The officer on whose behalf the service reads it; recorded in the audit event */
                 "X-Acting-Subject"?: string;
             };
@@ -2757,6 +2786,7 @@ export interface operations {
                     "application/json": components["schemas"]["ReferralIcmsPayload"];
                 };
             };
+            400: components["responses"]["ValidationProblem"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             /** @description Problem code `roster-record-unknown`: no roster record of the declarant is known, so the national ID cannot be read */
@@ -2828,7 +2858,10 @@ export interface operations {
     proposeDetermination: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Client-generated UUID, unique per logical request (ADR-013 §7.5). With it, a retry gets the stored answer back instead of acting twice; without it the request runs unguarded. */
+                "Idempotency-Key"?: components["parameters"]["OptionalIdempotencyKey"];
+            };
             path: {
                 caseId: components["parameters"]["CaseId"];
             };
@@ -2932,7 +2965,10 @@ export interface operations {
     returnDetermination: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Client-generated UUID, unique per logical request (ADR-013 §7.5). With it, a retry gets the stored answer back instead of acting twice; without it the request runs unguarded. */
+                "Idempotency-Key"?: components["parameters"]["OptionalIdempotencyKey"];
+            };
             path: {
                 determinationId: components["parameters"]["DeterminationId"];
             };
@@ -2977,7 +3013,10 @@ export interface operations {
     withdrawDetermination: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Client-generated UUID, unique per logical request (ADR-013 §7.5). With it, a retry gets the stored answer back instead of acting twice; without it the request runs unguarded. */
+                "Idempotency-Key"?: components["parameters"]["OptionalIdempotencyKey"];
+            };
             path: {
                 determinationId: components["parameters"]["DeterminationId"];
             };
@@ -3112,7 +3151,10 @@ export interface operations {
     reassignApproval: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Client-generated UUID, unique per logical request (ADR-013 §7.5). With it, a retry gets the stored answer back instead of acting twice; without it the request runs unguarded. */
+                "Idempotency-Key"?: components["parameters"]["OptionalIdempotencyKey"];
+            };
             path: {
                 kind: components["schemas"]["ApprovalKind"];
                 subjectId: string;
@@ -3335,7 +3377,10 @@ export interface operations {
     declineAction: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Client-generated UUID, unique per logical request (ADR-013 §7.5). With it, a retry gets the stored answer back instead of acting twice; without it the request runs unguarded. */
+                "Idempotency-Key"?: components["parameters"]["OptionalIdempotencyKey"];
+            };
             path: {
                 actionId: components["parameters"]["ActionId"];
             };
@@ -3381,7 +3426,10 @@ export interface operations {
     restartLadder: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Client-generated UUID, unique per logical request (ADR-013 §7.5). With it, a retry gets the stored answer back instead of acting twice; without it the request runs unguarded. */
+                "Idempotency-Key"?: components["parameters"]["OptionalIdempotencyKey"];
+            };
             path: {
                 ladderId: components["parameters"]["LadderId"];
             };
@@ -3414,7 +3462,10 @@ export interface operations {
     proposeReferral: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Client-generated UUID, unique per logical request (ADR-013 §7.5). With it, a retry gets the stored answer back instead of acting twice; without it the request runs unguarded. */
+                "Idempotency-Key"?: components["parameters"]["OptionalIdempotencyKey"];
+            };
             path: {
                 caseId: components["parameters"]["CaseId"];
             };
@@ -3566,7 +3617,10 @@ export interface operations {
     declineReferral: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Client-generated UUID, unique per logical request (ADR-013 §7.5). With it, a retry gets the stored answer back instead of acting twice; without it the request runs unguarded. */
+                "Idempotency-Key"?: components["parameters"]["OptionalIdempotencyKey"];
+            };
             path: {
                 referralId: components["parameters"]["ReferralId"];
             };

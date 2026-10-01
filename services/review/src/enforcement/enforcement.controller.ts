@@ -1,6 +1,7 @@
 import { Body, Controller, Get, HttpCode, Param, Post, Query } from '@nestjs/common';
 import { ApiOkResponse, ApiOperation, ApiParam, ApiTags } from '@nestjs/swagger';
 import {
+  AcceptIdempotencyKey,
   ApiProblemResponse,
   ApiQueryParameters,
   CurrentPrincipal,
@@ -111,6 +112,7 @@ export class EnforcementController {
   @Post('review/actions/:actionId/decline')
   @HttpCode(200)
   @ApiUuidParam('actionId')
+  @AcceptIdempotencyKey()
   @ApiOperation({
     operationId: 'declineAction',
     summary: 'Decline a proposed step with a note (ends the ladder)',
@@ -131,6 +133,7 @@ export class EnforcementController {
   @Post('review/ladders/:ladderId/restart')
   @HttpCode(200)
   @ApiUuidParam('ladderId')
+  @AcceptIdempotencyKey()
   @ApiOperation({ operationId: 'restartLadder', summary: 'Supervisor restarts a declined ladder' })
   @ApiOkResponse({ description: 'Restarted', schema: schemaRef('Ladder') })
   @ApiProblemResponse(403, 'Problem code `supervisor-required`')

@@ -3,6 +3,7 @@ import { ApiOkResponse, ApiOperation, ApiParam, ApiTags } from '@nestjs/swagger'
 import {
   ActingTenant,
   ApiProblemResponse,
+  AuditedRead,
   InternalApi,
   schemaRef,
   ZodValidationPipe,
@@ -27,6 +28,7 @@ export class ReferralPackagePayloadController {
 
   @Get(':referralId/package-payload')
   @InternalApi(REVIEW_INTERNAL_SCOPE)
+  @AuditedRead({ action: 'review.referral.package-payload.read', resource: 'referral' })
   @ApiParam({ name: 'referralId', schema: { type: 'string', format: 'uuid' } })
   @ApiOperation({
     operationId: 'internalGetReferralPackagePayload',
