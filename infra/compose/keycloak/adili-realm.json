@@ -343,6 +343,28 @@
       "serviceAccountsEnabled": true,
       "defaultClientScopes": ["basic", "directory:person-contacts"],
       "optionalClientScopes": []
+    },
+    {
+      "clientId": "review",
+      "name": "Review service",
+      "description": "Service account the review service uses to read submitted versions from declarations, policy and Commission references from the directory, attachments and letters from documents, and to send messages through notifications",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "clientAuthenticatorType": "client-secret",
+      "secret": "review-dev-secret",
+      "standardFlowEnabled": false,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": true,
+      "defaultClientScopes": [
+        "basic",
+        "declarations:internal",
+        "directory:internal",
+        "documents:internal",
+        "messages"
+      ],
+      "optionalClientScopes": []
     }
   ],
   "clientScopes": [
@@ -1078,6 +1100,50 @@
     {
       "name": "directory:person-contacts",
       "description": "Read a person's verified contacts from the directory (notifications only)",
+      "protocol": "openid-connect",
+      "attributes": {
+        "include.in.token.scope": "true",
+        "display.on.consent.screen": "false"
+      },
+      "protocolMappers": [
+        {
+          "name": "adili-api audience",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "config": {
+            "included.custom.audience": "adili-api",
+            "access.token.claim": "true",
+            "id.token.claim": "false",
+            "introspection.token.claim": "true"
+          }
+        }
+      ]
+    },
+    {
+      "name": "declarations:internal",
+      "description": "Service tokens for the declarations service's internal API: a submitted version's acknowledgement slip payload, acting for a tenant (spec 06)",
+      "protocol": "openid-connect",
+      "attributes": {
+        "include.in.token.scope": "true",
+        "display.on.consent.screen": "false"
+      },
+      "protocolMappers": [
+        {
+          "name": "adili-api audience",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "config": {
+            "included.custom.audience": "adili-api",
+            "access.token.claim": "true",
+            "id.token.claim": "false",
+            "introspection.token.claim": "true"
+          }
+        }
+      ]
+    },
+    {
+      "name": "review:internal",
+      "description": "Service tokens for the review service's internal API: letter payloads the documents service renders, acting for a tenant (spec 07a)",
       "protocol": "openid-connect",
       "attributes": {
         "include.in.token.scope": "true",

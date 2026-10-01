@@ -72,8 +72,17 @@ export const DIRECTORY_INTERNAL_SCOPE = 'directory:internal';
  */
 export const DIRECTORY_PERSON_CONTACTS_SCOPE = 'directory:person-contacts';
 
+/**
+ * The declarations service's internal API: the fields of a submitted version's acknowledgement
+ * slip, pulled by the documents service acting for the Commission (spec 06).
+ */
+export const DECLARATIONS_INTERNAL_SCOPE = 'declarations:internal';
+
 /** The documents service's internal API (roster upload downloads, acting for a tenant). */
 export const DOCUMENTS_INTERNAL_SCOPE = 'documents:internal';
 
 /** The notifications messages API (`POST /internal/v1/messages`). */
 export const MESSAGES_SCOPE = 'messages';
+
+/** The review service's internal API: letter payloads the documents service renders (spec 07a). */
+export const REVIEW_INTERNAL_SCOPE = 'review:internal';
