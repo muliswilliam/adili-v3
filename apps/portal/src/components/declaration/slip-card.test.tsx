@@ -213,6 +213,25 @@ describe('a slip being prepared (S19)', () => {
     expect(read).toHaveBeenCalledTimes(1);
   });
 
+  it('shows the slip when a read out at the minute answers issued after it', async () => {
+    let answerRead: ((value: ReturnType<typeof answer>) => void) | undefined;
+    read.mockReturnValue(
+      new Promise((resolve) => {
+        answerRead = resolve;
+      }),
+    );
+    renderSlip(pending);
+    await wait(60_000);
+    expect(screen.getByText('Still preparing your slip')).toBeTruthy();
+
+    await act(async () => {
+      answerRead?.(answer(issued));
+      await Promise.resolve();
+    });
+
+    expect(screen.getByRole('heading', { name: 'Acknowledgement slip' })).toBeTruthy();
+  });
+
   it('keeps polling through a read that failed', async () => {
     read.mockRejectedValueOnce(new Error('down')).mockResolvedValueOnce({ status: 'unavailable' });
     renderSlip(pending);

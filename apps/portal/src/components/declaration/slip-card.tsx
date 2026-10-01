@@ -72,7 +72,6 @@ export function SlipCard({ declaration, version, context }: SlipCardProps) {
   useEffect(() => {
     // Each read makes a new state, which schedules the next one.
     if (state.step !== 'preparing') return;
-    let stopped = false;
     const { since } = state;
     const timer = setTimeout(() => {
       // No read starts once the minute is up; the window's own timer ends it.
@@ -80,7 +79,8 @@ export function SlipCard({ declaration, version, context }: SlipCardProps) {
       void getMyAcknowledgement({ data: { declarationId, version: number } })
         .catch(() => null)
         .then((answer) => {
-          if (stopped) return;
+          // Dispatched whatever the state is by then: an answer after the minute ended may
+          // still bring the slip, and the reducer ignores what no longer applies.
           dispatch({
             type: 'read',
             acknowledgement: answer?.status === 'ok' ? answer.acknowledgement : null,
@@ -89,7 +89,6 @@ export function SlipCard({ declaration, version, context }: SlipCardProps) {
         });
     }, SLIP_POLL_INTERVAL_MS);
     return () => {
-      stopped = true;
       clearTimeout(timer);
     };
   }, [state, declarationId, number]);

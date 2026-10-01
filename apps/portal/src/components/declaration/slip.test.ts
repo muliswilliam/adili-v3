@@ -128,10 +128,21 @@ describe('polling while the slip is prepared (S19)', () => {
     );
   });
 
-  it('ignores reads once it stopped', () => {
+  it('still takes a read out when the minute ended that says issued or failed', () => {
     const slow: SlipState = { step: 'slow', cooldownUntil: null };
 
-    expect(slipReducer(slow, read(issued))).toBe(slow);
+    expect(slipReducer(slow, read(issued, 61_000))).toEqual({
+      step: 'issued',
+      acknowledgement: issued,
+    });
+    expect(slipReducer(slow, read(failed, 61_000))).toEqual({
+      step: 'failed',
+      cooldownUntil: null,
+      requesting: false,
+      problem: null,
+    });
+    expect(slipReducer(slow, read(pending, 61_000))).toBe(slow);
+    expect(slipReducer(slow, read(null, 61_000))).toBe(slow);
   });
 
   it('shows the slip as soon as it is issued', () => {

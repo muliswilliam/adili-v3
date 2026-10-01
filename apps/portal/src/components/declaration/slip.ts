@@ -83,7 +83,8 @@ function read(state: SlipState, acknowledgement: Acknowledgement | null, now: nu
     // A later read (e.g. for a download) brings a fresh verified count.
     return acknowledgement?.status === 'issued' ? { step: 'issued', acknowledgement } : state;
   }
-  if (state.step !== 'preparing') return state;
+  // Stopped (slow), a read that was out when the minute ended may still say issued or failed.
+  if (state.step !== 'preparing' && state.step !== 'slow') return state;
   if (acknowledgement?.status === 'issued') return { step: 'issued', acknowledgement };
   if (acknowledgement?.status === 'failed') {
     return {
@@ -93,6 +94,7 @@ function read(state: SlipState, acknowledgement: Acknowledgement | null, now: nu
       problem: null,
     };
   }
+  if (state.step === 'slow') return state;
   return now >= windowEnd(state.since)
     ? { step: 'slow', cooldownUntil: state.cooldownUntil }
     : { ...state, reads: state.reads + 1 };
