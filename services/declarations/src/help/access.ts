@@ -1,5 +1,6 @@
 import { HttpStatus } from '@nestjs/common';
 import { notFoundIfInvisible, type Principal, ProblemException, TENANT_KEY } from '@adili/api-kit';
+import { COMMISSION_ADMIN, REPORTING_OFFICER } from '@adili/roles';
 
 /**
  * Who may do what with help articles (spec 11 authorisation): a Commission's administrators edit
@@ -7,9 +8,6 @@ import { notFoundIfInvisible, type Principal, ProblemException, TENANT_KEY } fro
  * had none. Platform articles and the corpus import are platform-admin's (403 for others, by
  * `@Roles`); help search is the declarant's (404 for callers without a person).
  */
-
-export const COMMISSION_ADMIN = 'commission-admin';
-export const REPORTING_OFFICER = 'reporting-officer';
 
 /** Whether the caller is staff of Commission `slug` in one of `roles`. */
 function staffOf(principal: Principal, slug: string, roles: readonly string[]): boolean {
