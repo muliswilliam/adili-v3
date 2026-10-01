@@ -10,7 +10,9 @@ import {
   type AuditedResource,
   type AuthenticatedRequest,
   auditedReadOf,
+  type ReadAudit,
   readAuditOf,
+  type ReadDisclosure,
 } from '@adili/api-kit';
 import { type Database, InjectDatabase } from '@adili/data-access';
 import { mergeMap, type Observable } from 'rxjs';
@@ -49,6 +51,12 @@ export interface AuditReadData extends Record<string, unknown> {
     /** The subject the caller says it acts for (`X-Acting-Subject`); absent when it names none. */
     onBehalfOf?: string;
   };
+  /**
+   * The legal basis of a read that hands the data to someone (ADR-008 `legal_basis`): the
+   * provision, the reference that authorises it (a grant's `ARQ` or `LEA` reference) and the
+   * recipient. Absent for reads that disclose to no one but the reader.
+   */
+  disclosure?: ReadDisclosure;
   outcome: 'success';
   request: {
     method: string;
@@ -74,7 +82,8 @@ type AuditedRequest = AuthenticatedRequest & {
  * is the tenant whose data was read: the one the handler named with `ReadAudit.resource` (with
  * the person the data is about), else the route's `slug`, else the tenant a service acts for,
  * else the caller's. A read the handler marked `ReadAudit.ownRecord` (the caller's own record)
- * is not recorded. The acting headers (`X-Acting-Tenant`, and `X-Acting-Subject` as the actor's
+ * is not recorded; one it marked `ReadAudit.disclosure` names the legal basis, the reference
+ * that authorises it and the recipient. The acting headers (`X-Acting-Tenant`, and `X-Acting-Subject` as the actor's
  * `onBehalfOf`) count only when api-kit's `InternalApi()` guard admitted the call, which takes
  * service tokens with the route's internal scope alone (ADR-013 §8.1); anywhere else a caller
  * could name whomever it liked. Registered for every route by
@@ -101,7 +110,7 @@ export class AuditedReadInterceptor implements NestInterceptor {
       mergeMap(async (body: unknown) => {
         const audit = readAuditOf(request);
         if (!audit.isOwnRecord) {
-          await this.events.record(this.db, auditRead(mark, request, audit.describedResource));
+          await this.events.record(this.db, auditRead(mark, request, audit));
         }
         return body;
       }),
@@ -112,8 +121,10 @@ export class AuditedReadInterceptor implements NestInterceptor {
 function auditRead(
   mark: AuditedReadOptions,
   request: AuditedRequest,
-  resource: AuditedResource | undefined,
+  audit: ReadAudit,
 ): NewEvent<AuditReadData> {
+  const resource: AuditedResource | undefined = audit.describedResource;
+  const disclosure = audit.describedDisclosure;
   const principal = request.principal;
   const params = request.params ?? {};
   const route = request.routeOptions.url ?? request.url;
@@ -143,6 +154,15 @@ function auditRead(
           ? { onBehalfOf: actingSubject }
           : {}),
       },
+      ...(disclosure === undefined
+        ? {}
+        : {
+            disclosure: {
+              legalBasis: disclosure.legalBasis,
+              reference: disclosure.reference,
+              recipient: disclosure.recipient,
+            },
+          }),
       outcome: 'success',
       request: { method: request.method, route },
     },

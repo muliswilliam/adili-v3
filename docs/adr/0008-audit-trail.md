@@ -1,6 +1,6 @@
 # ADR-008: Tamper-evident audit trail
 
-- **Status:** Accepted; amended 2026-09-28: reads are recorded through the outbox (Pipeline step 2, spec #27)
+- **Status:** Accepted; amended 2026-09-28: reads are recorded through the outbox (Pipeline step 2, spec #27); amended 2026-10-01: disclosing reads name their legal basis and recipient (spec #239)
 - **Date:** 2026-09-24
 - **Deciders:** Adili V3 DIALs team
 - **Related:** [ADR-001](0001-postgresql-as-sole-structured-data-store.md), [ADR-002](0002-object-storage-seaweedfs-demo-ceph-rgw-production.md), [ADR-005](0005-message-queue-rabbitmq.md), [research/database-sizing.md](../research/database-sizing.md)
@@ -45,7 +45,7 @@
 ### Pipeline
 
 1. **Writes:** the service writes the audit event into its **outbox in the same transaction** as the business change (ADR-005). There's no change without its audit record.
-2. **Reads:** a request interceptor writes the audit event (`audit.read.v1`) into the service's **outbox** before the response is sent, and the relay publishes it like any other event (ADR-005). A read the audit trail cannot record fails instead of going unrecorded. Routes opt in with `@AuditedRead` (`packages/api-kit`); the interceptor is `AuditedReadInterceptor` (`packages/events`). The event is filed under the tenant whose data was read: the route's Commission slug, or, for a resource loaded by id, the tenant (and subject person) the handler names once it has loaded it (`@CurrentReadAudit()`, `ReadAudit`). A caller reading their own record (a declarant their own profile or obligations) is not audited. **Denials:** published by request interceptors directly to RabbitMQ.
+2. **Reads:** a request interceptor writes the audit event (`audit.read.v1`) into the service's **outbox** before the response is sent, and the relay publishes it like any other event (ADR-005). A read the audit trail cannot record fails instead of going unrecorded. Routes opt in with `@AuditedRead` (`packages/api-kit`); the interceptor is `AuditedReadInterceptor` (`packages/events`). The event is filed under the tenant whose data was read: the route's Commission slug, or, for a resource loaded by id, the tenant (and subject person) the handler names once it has loaded it (`@CurrentReadAudit()`, `ReadAudit`). A caller reading their own record (a declarant their own profile or obligations) is not audited. A read that hands the data to someone on a legal basis (a scoped disclosure for a Form K or law-enforcement grant, a declarant's certified copy) says so (`ReadAudit.disclosure`): the event's `disclosure` carries the `legal_basis` as the provision (`act-s36-1`, `act-s36-2`, `self-access`), the reference that authorises it (`ARQ-...`, `LEA-...`) and the recipient subject. **Denials:** published by request interceptors directly to RabbitMQ.
 3. The **audit service** consumes, checks for duplicates, and **inserts in batches** (COPY) into the audit database.
 4. **Hash chain per tenant per day:** `hash = SHA-256(prev_hash || canonical(event))`. Chains per tenant/day allow parallel writes.
 5. **Daily anchor:** a Merkle root per tenant/day, **signed** with a key held in OpenBao, written to the `audit-archive` bucket with object lock. It can also be shared with EACC or an external custodian.

@@ -63,6 +63,18 @@ class InternalRecordsController {
   get(@Param('recordId') recordId: string) {
     return { id: recordId };
   }
+
+  @Get(':recordId/disclosure')
+  @AuditedRead({ action: 'roster.record.disclosed', resource: 'roster-record' })
+  disclose(@Param('recordId') recordId: string, @CurrentReadAudit() audit: ReadAudit) {
+    audit.resource({ tenant: 'psc', subjectPersonId: 'person-1' });
+    audit.disclosure({
+      legalBasis: 'act-s36-1',
+      reference: 'ARQ-PSC-2028-0000012-5',
+      recipient: 'applicant-7',
+    });
+    return { id: recordId };
+  }
 }
 
 /** Under `/internal/` but without InternalApi(): nothing admitted the acting headers. */
@@ -195,6 +207,36 @@ describe('AuditedReadInterceptor', () => {
             tenant: null,
             roles: [],
             onBehalfOf: 'analyst-e',
+          },
+        },
+      },
+    ]);
+  });
+
+  it('names the legal basis, the reference and the recipient of a disclosure', async () => {
+    const response = await app.inject({
+      method: 'GET',
+      url: '/internal/v1/records/rec-1/disclosure',
+      headers: {
+        authorization: 'service',
+        'x-acting-subject': 'access-officer-3',
+        'x-acting-tenant': 'psc',
+      },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(recorded).toMatchObject([
+      {
+        type: AUDIT_READ,
+        tenant: 'psc',
+        data: {
+          action: 'roster.record.disclosed',
+          resource: { subjectPersonId: 'person-1' },
+          actor: { subject: 'service-account-records', onBehalfOf: 'access-officer-3' },
+          disclosure: {
+            legalBasis: 'act-s36-1',
+            reference: 'ARQ-PSC-2028-0000012-5',
+            recipient: 'applicant-7',
           },
         },
       },
