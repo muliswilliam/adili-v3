@@ -128,9 +128,31 @@ describe('verdictTerms', () => {
     expect(verdictTerms('An indicator for review, not evidence of any wrongdoing.')).toEqual([]);
     expect(verdictTerms('It does not by itself suggest any wrongdoing.')).toEqual([]);
     expect(verdictTerms('This does not mean that there was any wrongdoing.')).toEqual([]);
-    expect(verdictTerms('The declarant is not in breach of the Act.')).toEqual([]);
-    expect(verdictTerms('Omitting the vehicle is not a breach of section 31.')).toEqual([]);
-    expect(verdictTerms('This does not constitute a breach of the Act.')).toEqual([]);
+    expect(verdictTerms('This flag does not constitute a breach of the Act.')).toEqual([]);
+  });
+
+  it('finds a breach of the Act denied only by a bare negation, which decides compliance', () => {
+    expect(verdictTerms('The declarant is not in breach of the Act.')).toEqual(['in breach of']);
+    expect(verdictTerms('Omitting the vehicle is not a breach of section 31.')).toEqual([
+      'a breach of',
+    ]);
+    expect(verdictTerms('The declarant has not contravened the Act.')).toEqual(['contravened']);
+    expect(verdictTerms('There is no breach of the Act.')).toEqual(['breach of']);
+    expect(verdictTerms('The declarant has not violated section 26.')).toEqual(['violated']);
+    expect(verdictTerms('There was no non-compliance with the Act.')).toEqual(['non-compliance']);
+    expect(verdictTerms('The declarant is not corrupt or in breach of the Act.')).toEqual([
+      'in breach of',
+    ]);
+    expect(verdictTerms('Hakuna ukiukaji wa sheria.')).toEqual(['ukiukaji']);
+  });
+
+  it('allows a breach of the Act denied by a denied noun, hedge or inference', () => {
+    expect(verdictTerms('This is not a finding of a breach of the Act.')).toEqual([]);
+    expect(verdictTerms('This is not evidence of non-compliance.')).toEqual([]);
+    expect(verdictTerms('It does not mean the declarant is in breach of the Act.')).toEqual([]);
+    expect(verdictTerms('This should not be read as a breach of the Act.')).toEqual([]);
+    expect(verdictTerms('This is not evidence of fraud or a breach of the Act.')).toEqual([]);
+    expect(verdictTerms('Hii si ishara ya ukiukaji.')).toEqual([]);
   });
 
   it('lets a denied noun or inference reach over "that" to the term', () => {

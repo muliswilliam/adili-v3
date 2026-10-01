@@ -18,15 +18,26 @@ const DETERMINATION: readonly RegExp[] = [
   /\b(?:does not|do not|doesn't|don't|did not|didn't|had not|hadn't|has not|hasn't|have not|haven't|never|fails? to|failed to) (?:fully )?compl(?:y|ies|ied)\b/,
 ];
 
-const TERMS: readonly RegExp[] = [
-  // Compliance determination.
-  /\bnon[- ]?compliant\b/,
-  ...DETERMINATION,
+/**
+ * A breach of the Act, which a bare negation turns into the opposite determination: "the declarant
+ * is not in breach of the Act", "has not contravened", "there is no breach of" decide as much as
+ * "has complied with" does. Only a denied noun, hedge, reading or inference denies one.
+ */
+const BREACH: readonly RegExp[] = [
   /\b(?:in |a |an )?breach(?:es)? of\b/,
   /\b(?:breached|violated|violates|violation of)\b/,
   /\bnon[- ]?compliance\b/,
   /\bcontraven(?:e|es|ed|ing|tion|tions)\b/,
   /\bfailure to comply\b/,
+  /\bamekiuka\b/,
+  /\bukiukaji\b/,
+];
+
+const TERMS: readonly RegExp[] = [
+  // Compliance determination.
+  /\bnon[- ]?compliant\b/,
+  ...DETERMINATION,
+  ...BREACH,
   /\bfalse(?:ly)? declar(?:ation|ed)\b/,
   // Wrongdoing.
   /\bcorrupt(?:ion|ly)?\b/,
@@ -47,8 +58,6 @@ const TERMS: readonly RegExp[] = [
   /\bcriminal\b/,
   // Swahili (draft).
   /\bhaku(?:tii|zingatia) sheria\b/,
-  /\bamekiuka\b/,
-  /\bukiukaji\b/,
   /\brushwa\b/,
   /\bufisadi\b/,
   /\b(?:ana|kuwa na) hatia\b/,
@@ -118,13 +127,20 @@ const SOURCE = String.raw`(?:\s+from(?:\s+${INFERRED_WORD}){1,3})?`;
  * "and" to a denied one is denied too ("not dishonest or corrupt"). A negation elsewhere in the
  * clause does not count: "did not disclose the illicit income", "there is no doubt the declarant
  * is corrupt", "does not show the source of the illicit income", "does not mean anything other
- * than fraud" and "did not show the loan and is non-compliant" state the term.
+ * than fraud" and "did not show the loan and is non-compliant" state the term. A bare negation
+ * right before a breach of the Act states the opposite determination rather than denying one, so
+ * it does not count for those terms (see `BREACH`): "the declarant is not in breach of the Act",
+ * "has not contravened section 26" and "there is no breach of the Act" decide, while "not a
+ * finding of a breach of", "not by itself a failure to comply" and "does not mean the declarant is
+ * in breach of" deny.
  */
-const GOVERNED = [
-  new RegExp(
-    String.raw`(?:^|[^\p{L}'])${NEGATION}\s+${HEDGE}(?:(?:be|being|been)\s+)?${READ_AS}${DENIED_NOUN}$`,
-    'u',
-  ),
+const DENIAL = new RegExp(
+  String.raw`(?:^|[^\p{L}'])${NEGATION}\s+${HEDGE}(?:(?:be|being|been)\s+)?${READ_AS}${DENIED_NOUN}$`,
+  'u',
+);
+
+/** The rest of the cases above: a denied inference, a denied finding or a denied noun with "that". */
+const DENIED_REACH = [
   new RegExp(
     String.raw`(?:^|[^\p{L}'])(?:${DENIED_INFERENCE}(?:${SOURCE}\s+that)?${SUBJECT}|${DENIED_FINDING}(?:${SOURCE}\s+that${SUBJECT}|(?:\s+(?:a|an|any))?\s+$|(?:\s+(?:a|an|any))?\s+${DENIED_NOUNS}\s+(?:of|ya|za|wa)\s+(?:(?:any|the)\s+)?$))`,
     'u',
@@ -134,6 +150,18 @@ const GOVERNED = [
     'u',
   ),
 ];
+
+/** A negation right before a term, with no denied noun, hedge or reading: "is not a", "has not". */
+const BARE_NEGATION = new RegExp(
+  String.raw`(?:^|[^\p{L}'])${NEGATION}\s+(?:(?:be|being|been)\s+)?(?:(?:a|an|the|any)\s+)?$`,
+  'u',
+);
+
+/** Whether a negation in `clause` governs the term after it; `breach` for a `BREACH` term. */
+function governs(clause: string, breach: boolean): boolean {
+  if (DENIED_REACH.some((pattern) => pattern.test(clause))) return true;
+  return DENIAL.test(clause) && !(breach && BARE_NEGATION.test(clause));
+}
 
 /** Ends a clause: a negation before one does not reach a term after it. */
 const CLAUSE_END = /[.;:!?,]/g;
@@ -157,21 +185,28 @@ export function verdictTerms(text: string): string[] {
       end: match.index + match[0].length,
       term: match[0],
       checkable: DETERMINATION.includes(term),
+      breach: BREACH.includes(term),
     })),
   ).sort((a, b) => a.index - b.index);
   const found: string[] = [];
-  const deniedEnds: number[] = [];
+  // Where each denied term ends, and whether a breach joined to it is denied too: not when only a
+  // bare negation denied it ("not corrupt or in breach of the Act" decides the breach).
+  const denied: { end: number; coversBreach: boolean }[] = [];
   for (const match of matches) {
     const preceding = lower.slice(0, match.index);
     const clauseStart = Math.max(-1, ...[...preceding.matchAll(CLAUSE_END)].map((m) => m.index));
     const clause = ` ${preceding.slice(clauseStart + 1).replaceAll(/\s+/g, ' ')}`;
-    const negated =
-      GOVERNED.some((pattern) => pattern.test(clause)) ||
-      deniedEnds.some(
-        (end) => end <= match.index && COORDINATED.test(lower.slice(end, match.index)),
-      );
-    if (negated) deniedEnds.push(match.end);
-    else if (!(match.checkable && CHECK.test(clause))) found.push(match.term);
+    const coordinated = denied.find(
+      (each) =>
+        each.end <= match.index &&
+        (each.coversBreach || !match.breach) &&
+        COORDINATED.test(lower.slice(each.end, match.index)),
+    );
+    if (governs(clause, match.breach)) {
+      denied.push({ end: match.end, coversBreach: governs(clause, true) });
+    } else if (coordinated !== undefined) {
+      denied.push({ end: match.end, coversBreach: coordinated.coversBreach });
+    } else if (!(match.checkable && CHECK.test(clause))) found.push(match.term);
   }
   return found;
 }
