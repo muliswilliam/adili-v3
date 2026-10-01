@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 
 import { eq } from 'drizzle-orm';
 import { v7 as uuidv7 } from 'uuid';
-import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
   complianceReportWorkflowId,
@@ -57,11 +57,10 @@ describe('EACC intake, report viewer and chase (S9, S10)', () => {
 
   beforeAll(async () => {
     api = await startReportingApi();
-  });
-
-  afterAll(async () => {
-    await endWorkflows();
-    await api.close();
+    return async () => {
+      await endWorkflows();
+      await api.close();
+    };
   });
 
   /** Ends the workflows a test left waiting. */
