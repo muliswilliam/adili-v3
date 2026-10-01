@@ -1,3 +1,4 @@
+import { PLATFORM_ADMIN } from '@adili/roles';
 import {
   Body,
   Controller,
@@ -26,10 +27,10 @@ import {
   type Principal,
   Roles,
   schemaRef,
+  TENANT_KEY,
   ZodValidationPipe,
 } from '@adili/api-kit';
 
-import { PLATFORM_ADMIN, TENANT_SLUG } from '../obligations/access.js';
 import { HelpService } from './help.service.js';
 import {
   type CorpusImportResult,
@@ -43,7 +44,7 @@ import {
 const NOT_VISIBLE = 'Not found, or not visible to the caller';
 
 const ApiSlugParam = () =>
-  ApiParam({ name: 'slug', schema: { type: 'string', pattern: TENANT_SLUG.source } });
+  ApiParam({ name: 'slug', schema: { type: 'string', pattern: TENANT_KEY.source } });
 
 const ApiArticleIdParam = () =>
   ApiParam({ name: 'articleId', schema: { type: 'string', format: 'uuid' } });

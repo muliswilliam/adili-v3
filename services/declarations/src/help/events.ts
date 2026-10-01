@@ -1,6 +1,5 @@
+import { PLATFORM_TENANT } from '@adili/api-kit';
 import type { NewEvent } from '@adili/events';
-
-import { PLATFORM_TENANT } from '../obligations/access.js';
 
 /**
  * Events of the help module (spec 11). Identifiers only: no title or body. The `tenant`
