@@ -123,6 +123,39 @@ export function htmlDocument(title: string, styles: string, body: string): strin
   return `<!doctype html><html lang="en"><head><meta charset="utf-8" /><title>${esc(title)}</title><style>${BASE}${styles}</style></head><body>${body}</body></html>`;
 }
 
+/** Who a watermarked document was issued to, for what and when (ADR-010 §6). */
+export interface Watermark {
+  recipientName: string;
+  /** The request reference the document answers, e.g. `ARQ-PSC-2026-0000012-5`. */
+  reference: string;
+  /** Calendar date `YYYY-MM-DD`. */
+  date: string;
+}
+
+/** `Issued to Amina Otieno · ARQ-PSC-2026-0000012-5 · 1 Oct 2026`: the watermark's line. */
+export function watermarkText(watermark: Watermark): string {
+  return `Issued to ${watermark.recipientName} · ${watermark.reference} · ${formatDate(watermark.date)}`;
+}
+
+/** Lines of the watermark down each page; each fits the page's width whole. */
+const WATERMARK_LINES = 5;
+
+const WATERMARK_STYLES = `.wm{position:fixed;inset:0;overflow:hidden;pointer-events:none;z-index:2147483647;display:flex;flex-direction:column;justify-content:space-between;align-items:center;padding:40mm 0}
+.wm div{transform:rotate(-30deg);white-space:nowrap;font-size:11pt;font-weight:600;letter-spacing:0.03em;color:rgba(26,26,26,0.11)}`;
+
+/**
+ * `html` with the watermark across every page: a fixed layer above the content, which Chromium
+ * prints on each page, so no page of a leaked copy lacks its recipient. Issuance applies it to
+ * any template's document, so no template can forget it.
+ */
+export function watermarked(html: string, watermark: Watermark): string {
+  const at = html.lastIndexOf('</body>');
+  if (at < 0) throw new Error('a watermarked document needs a body');
+  const line = `<div>${esc(watermarkText(watermark))}</div>`;
+  const layer = `<style>${WATERMARK_STYLES}</style><div class="wm" aria-hidden="true">${line.repeat(WATERMARK_LINES)}</div>`;
+  return `${html.slice(0, at)}${layer}${html.slice(at)}`;
+}
+
 /** What the verification footer shows on every page. */
 export interface FooterFields {
   verificationId: string;

@@ -22,6 +22,11 @@ export interface DocumentTemplate<TPayload = unknown> {
   disclosureLevel: DisclosureLevel;
   /** Human title, e.g. `Acknowledgement slip`. */
   title: string;
+  /**
+   * What an issue request of the type must carry besides the payload: a watermark, a download
+   * window, a subject person (someone must be able to download it). Absent means optional.
+   */
+  requires?: { watermark?: boolean; downloadWindow?: boolean; subjectPerson?: boolean };
   /** The fields the template renders; validated before anything is rendered. */
   payload: z.ZodType<TPayload>;
   /** The reference number the document is about (a declaration's), or null when none. */

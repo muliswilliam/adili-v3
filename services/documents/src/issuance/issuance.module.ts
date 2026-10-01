@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 
+import { Clock, SystemClock } from '../clock.js';
 import { config } from '../config.js';
 import { DocumentsController, InternalDocumentsController } from './issuance.controller.js';
 import { IssuanceService, VERIFY_BASE_URL } from './issuance.service.js';
@@ -17,6 +18,7 @@ import { GotenbergRenderer, PdfRenderer } from './renderer.js';
   controllers: [DocumentsController, InternalDocumentsController],
   providers: [
     IssuanceService,
+    { provide: Clock, useClass: SystemClock },
     { provide: PdfRenderer, useFactory: () => new GotenbergRenderer(config.GOTENBERG_URL) },
     {
       provide: OpenBao,

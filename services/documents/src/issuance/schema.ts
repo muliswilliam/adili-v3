@@ -54,6 +54,11 @@ export const issuedDocuments = pgTable(
     issuedAt: timestamp({ withTimezone: true }).notNull(),
     /** `sub` of the service or user that asked for the document. */
     issuedBy: text().notNull(),
+    /**
+     * End of the download window (an access package's fourteen days): the subject person gets
+     * no download link from then on. Null when the document has none.
+     */
+    downloadExpiresAt: timestamp({ withTimezone: true }),
   },
   (table) => [
     unique('issued_documents_type_subject_key').on(table.type, table.subjectRef),

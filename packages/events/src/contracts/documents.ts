@@ -9,11 +9,20 @@
  * Document types the documents service issues, each with its templates (ADR-010 registry); later
  * specs add theirs.
  */
-export const DOCUMENT_TYPES = ['acknowledgement-slip'] as const;
+export const DOCUMENT_TYPES = ['acknowledgement-slip', 'access-package', 'certified-copy'] as const;
 export type DocumentType = (typeof DOCUMENT_TYPES)[number];
 
 /** A declaration version's acknowledgement slip (spec 06). */
 export const ACKNOWLEDGEMENT_SLIP = 'acknowledgement-slip' satisfies DocumentType;
+
+/**
+ * The scoped disclosure granted on an access request or a law-enforcement request (spec 10):
+ * confidential, watermarked with its recipient, downloadable by them for a window.
+ */
+export const ACCESS_PACKAGE = 'access-package' satisfies DocumentType;
+
+/** A declarant's certified copy of one of their submitted versions (spec 10): restricted. */
+export const CERTIFIED_COPY = 'certified-copy' satisfies DocumentType;
 
 /** How much of a document the public verify page may show; fixed per document type. */
 export const DISCLOSURE_LEVELS = ['public', 'restricted', 'confidential'] as const;
@@ -131,4 +140,26 @@ export const DOCUMENT_REVOKED = 'document.revoked.v1';
 export interface DocumentRevokedData extends DocumentEventData {
   reasonCategory: RevocationReason;
   statusChangedAt: string;
+}
+
+/**
+ * A download link to a document was handed to the person it is for, within its download window
+ * when it has one. The access register records it as a download of a package or a certified
+ * copy (by `subjectRef`). Subject: the document id; tenant: the issuer.
+ */
+export const DOCUMENT_DOWNLOADED = 'document.downloaded.v1';
+
+export interface DocumentDownloadedData extends Record<string, unknown> {
+  documentId: string;
+  verificationId: string;
+  /** A `DocumentType`, typed open as on every document event. */
+  documentType: string;
+  issuerTenant: string;
+  /** The record the document is about, e.g. `access-request:<uuid>`. */
+  subjectRef: string;
+  /** `sub` of the person's token the link was handed to. */
+  downloadedBy: string;
+  downloadedAt: string;
+  /** End of the download window; null when the document has none. */
+  downloadExpiresAt: string | null;
 }

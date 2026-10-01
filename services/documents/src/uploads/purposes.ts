@@ -56,6 +56,17 @@ export const UPLOAD_PURPOSES = {
     uploaderOnly: true,
     linked: true,
   },
+  /**
+   * Evidence with a declarant's representations on an access request: a letter, a court order
+   * (spec 10). The access service links it to the representations.
+   */
+  'access-representation': {
+    roles: [DECLARANT],
+    contentTypes: [PDF, JPEG, PNG, HEIC],
+    maxSize: 20 * MB,
+    uploaderOnly: true,
+    linked: true,
+  },
 } as const satisfies Record<string, UploadPurposePolicy>;
 
 export type UploadPurpose = keyof typeof UPLOAD_PURPOSES;

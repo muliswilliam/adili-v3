@@ -371,7 +371,7 @@ paths:
       tags:
         - documents
       summary: Short-lived presigned download of an issued PDF (owner)
-      description: The person the document is about only; anyone else gets 404. Every download link handed out is audited under the issuing Commission.
+      description: The document's subject person only (the `person_id` of their token); anyone else gets 404. A document with a download window (an access package) is refused with 410 once it ends. Every download link handed out is audited under the issuing Commission and recorded as `document.downloaded.v1`, which the access register reads.
       operationId: getDocumentDownload
       parameters:
         - name: documentId
@@ -393,6 +393,12 @@ paths:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/ProblemDetails'
+        '410':
+          description: 'Problem type `download-window-closed`: the download window has ended'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
       x-audited-read:
         action: document.downloaded
         resource: issued-document
@@ -401,7 +407,7 @@ paths:
       tags:
         - internal
       summary: Render, sign and register a document (services)
-      description: "Service tokens with scope documents:internal, issuing for the tenant in X-Acting-Tenant. Renders the type's versioned template to PDF through Gotenberg with the verification code and QR in the footer of every page, PAdES-signs it with the documents signing certificate, stores its SHA-256 in an Ed25519-signed verification record, stores the PDF and emits `document.issued.v1`. The disclosure level and public payload are the template's. One document per type and subject: issuing again returns it with 200."
+      description: "Service tokens with scope documents:internal, issuing for the tenant in X-Acting-Tenant. Renders the type's versioned template to PDF through Gotenberg with the verification code and QR in the footer of every page and the watermark, when given, across every page, PAdES-signs it with the documents signing certificate, stores its SHA-256 in an Ed25519-signed verification record, stores the PDF and emits `document.issued.v1`. The disclosure level and public payload are the template's. `downloadWindowDays` limits the subject person's downloads to that many days from issue. An access-package requires a watermark, a download window and a subject person; a certified-copy a subject person. One document per type and subject: issuing again returns it with 200."
       operationId: issueDocument
       parameters:
         - name: X-Acting-Tenant
@@ -438,7 +444,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/IssuedDocument'
         '400':
-          description: Request failed validation, or the payload is not the template's
+          description: Request failed validation, the payload is not the template's, or the request lacks what the type requires
           content:
             application/problem+json:
               schema:
@@ -623,6 +629,7 @@ components:
       enum:
         - roster-import
         - declaration-attachment
+        - access-representation
       description: Sets allowed content types and the size limit
     UploadState:
       type: string
@@ -788,6 +795,8 @@ components:
       type: string
       enum:
         - acknowledgement-slip
+        - access-package
+        - certified-copy
       description: Document types with a template; later specs add theirs
     DisclosureLevel:
       type: string
@@ -822,9 +831,20 @@ components:
             - type: string
               format: uuid
             - type: 'null'
-          description: The person who may download the document (the declarant); null for none
+          description: 'The only person who may download the document: the declarant, the applicant or the law-enforcement officer (their token carries it as `person_id`); null for none. Required for access-package and certified-copy'
+        watermark:
+          $ref: '#/components/schemas/Watermark'
+        downloadWindowDays:
+          description: 'Days from issue during which the subject person may download the document; afterwards a download is refused with 410 `download-window-closed`. None: no window. Required for access-package'
+          type: integer
+          minimum: 1
+          maximum: 90
         payload:
-          $ref: '#/components/schemas/AcknowledgementSlipPayload'
+          anyOf:
+            - $ref: '#/components/schemas/AcknowledgementSlipPayload'
+            - $ref: '#/components/schemas/AccessPackagePayload'
+            - $ref: '#/components/schemas/CertifiedCopyPayload'
+          description: "The template's payload: the schema named after `type`"
       required:
         - type
         - templateVersion
@@ -878,6 +898,12 @@ components:
         issuedAt:
           type: string
           format: date-time
+        downloadExpiresAt:
+          anyOf:
+            - type: string
+              format: date-time
+            - type: 'null'
+          description: End of the download window; null when the document has none
       required:
         - id
         - type
@@ -891,6 +917,7 @@ components:
         - status
         - supersededBy
         - issuedAt
+        - downloadExpiresAt
     DocumentDownload:
       type: object
       properties:
@@ -908,6 +935,47 @@ components:
         - downloadUrl
         - expiresAt
         - sha256
+    Watermark:
+      type: object
+      properties:
+        recipientName:
+          type: string
+          minLength: 1
+          maxLength: 200
+        reference:
+          type: string
+          minLength: 1
+          maxLength: 60
+          examples:
+            - ARQ-PSC-2026-0000012-5
+        date:
+          type: string
+          format: date
+      required:
+        - recipientName
+        - reference
+        - date
+      additionalProperties: false
+      description: Printed across every page as `Issued to <recipientName> · <reference> · <date>` (ADR-010 §6), so a leaked copy traces to its recipient. Required for access-package
+    CommissionRef:
+      type: object
+      properties:
+        slug:
+          type: string
+          minLength: 1
+          maxLength: 20
+        issuerCode:
+          type: string
+          pattern: ^[A-Z0-9]{2,20}$
+        name:
+          type: string
+          minLength: 1
+          maxLength: 200
+      required:
+        - slug
+        - issuerCode
+        - name
+      additionalProperties: false
     AcknowledgementSlipPayload:
       type: object
       properties:
@@ -967,6 +1035,1246 @@ components:
         - statementCount
         - itemCount
       description: "Payload of acknowledgement-slip v1: what the declarations service's acknowledgement payload endpoint returns for a submitted version"
+    AccessPackagePayload:
+      type: object
+      properties:
+        disclosure:
+          type: object
+          properties:
+            schemaVersion:
+              type: string
+              const: disclosure.v1
+            grantReference:
+              type: string
+              pattern: ^(ARQ|LEA)-[A-Z0-9]{2,20}-\d{4}-\d{7}-[0-9A-Z]$
+              description: The access request (ARQ) or law-enforcement request (LEA) reference
+              examples:
+                - ARQ-PSC-2026-0000012-5
+            personName:
+              type: string
+              minLength: 1
+              maxLength: 200
+            commission:
+              $ref: '#/components/schemas/CommissionRef'
+            versions:
+              minItems: 1
+              type: array
+              items:
+                type: object
+                properties:
+                  reference:
+                    type: string
+                  version:
+                    type: integer
+                    minimum: 1
+                  type:
+                    type: string
+                    enum:
+                      - initial
+                      - biennial
+                      - final
+                  statementDate:
+                    type: string
+                    format: date
+                  submittedAt:
+                    type: string
+                    format: date-time
+                  content:
+                    $ref: '#/components/schemas/DisclosedDeclaration'
+                required:
+                  - reference
+                  - version
+                  - type
+                  - statementDate
+                  - submittedAt
+                  - content
+                additionalProperties: false
+          required:
+            - schemaVersion
+            - grantReference
+            - personName
+            - commission
+            - versions
+          additionalProperties: false
+        legalBasis:
+          type: string
+          enum:
+            - act-s36-1
+            - act-s36-2
+          description: 'act-s36-1: an access request (Form K); act-s36-2: a law-enforcement request'
+        recipient:
+          type: object
+          properties:
+            name:
+              type: string
+              minLength: 1
+              maxLength: 200
+            organisation:
+              anyOf:
+                - type: string
+                  minLength: 1
+                  maxLength: 200
+                - type: 'null'
+          required:
+            - name
+            - organisation
+          additionalProperties: false
+        grantedAt:
+          type: string
+          format: date-time
+        scope:
+          type: object
+          properties:
+            years:
+              minItems: 1
+              type: array
+              items:
+                type: integer
+                minimum: 2000
+                maximum: 2100
+            includeSpouses:
+              type: boolean
+            includeChildren:
+              type: boolean
+            sections:
+              minItems: 1
+              type: array
+              items:
+                type: string
+                enum:
+                  - bio
+                  - income
+                  - assets
+                  - liabilities
+                  - other
+          required:
+            - years
+            - includeSpouses
+            - includeChildren
+            - sections
+          additionalProperties: false
+      required:
+        - disclosure
+        - legalBasis
+        - recipient
+        - grantedAt
+        - scope
+      description: "Payload of access-package v1: the declarations service's scoped disclosure for the grant and what the grant decided"
+    CertifiedCopyPayload:
+      type: object
+      properties:
+        commission:
+          $ref: '#/components/schemas/CommissionRef'
+        declarantName:
+          type: string
+          minLength: 1
+          maxLength: 200
+        reference:
+          type: string
+          description: Declaration reference number (ADR-011), e.g. DCB-PSC-2027-0000001-1
+        version:
+          type: integer
+          minimum: 1
+        type:
+          type: string
+          enum:
+            - initial
+            - biennial
+            - final
+        statementDate:
+          type: string
+          format: date
+        submittedAt:
+          type: string
+          format: date-time
+        document:
+          $ref: '#/components/schemas/DeclarationV1'
+      required:
+        - commission
+        - declarantName
+        - reference
+        - version
+        - type
+        - statementDate
+        - submittedAt
+        - document
+      description: "Payload of certified-copy v1: the declarations service's full document of a submitted version (FullVersionDocument without its identifiers and hash)"
+    DisclosedDeclaration:
+      type: object
+      properties:
+        schemaVersion:
+          type: string
+          const: declaration.v1
+        type:
+          type: string
+          enum:
+            - initial
+            - biennial
+            - final
+        statementDate:
+          type: string
+          format: date
+        incomePeriod:
+          type: object
+          properties:
+            from:
+              type: string
+              format: date
+            to:
+              type: string
+              format: date
+            fromSource:
+              type: string
+              enum:
+                - declared
+                - assumed
+          required:
+            - from
+            - to
+            - fromSource
+          additionalProperties: false
+        officer:
+          $ref: '#/components/schemas/DeclarationOfficer'
+        spouses:
+          $ref: '#/components/schemas/DeclarationSpouses'
+        children:
+          $ref: '#/components/schemas/DeclarationChildren'
+        statements:
+          type: array
+          items:
+            type: object
+            properties:
+              personKey:
+                type: string
+                pattern: ^(officer|spouse:[0-9a-f-]{36}|child:[0-9a-f-]{36})$
+              personName:
+                $ref: '#/components/schemas/PersonName'
+              statementDate:
+                type: string
+                format: date
+              incomePeriod:
+                type: object
+                properties:
+                  from:
+                    type: string
+                    format: date
+                  to:
+                    type: string
+                    format: date
+                required:
+                  - from
+                  - to
+                additionalProperties: false
+              incomeNil:
+                type: boolean
+              income:
+                type: array
+                items:
+                  $ref: '#/components/schemas/DeclarationIncomeItem'
+              assetsNil:
+                type: boolean
+              assets:
+                type: array
+                items:
+                  $ref: '#/components/schemas/DeclarationAssetItem'
+              liabilitiesNil:
+                type: boolean
+              liabilities:
+                type: array
+                items:
+                  $ref: '#/components/schemas/DeclarationLiabilityItem'
+              knowledgeLimitation:
+                type: string
+                maxLength: 1000
+            required:
+              - personKey
+              - personName
+              - statementDate
+              - incomePeriod
+            additionalProperties: false
+        otherInformation:
+          $ref: '#/components/schemas/DeclarationOtherInformation'
+        attestation:
+          type: object
+          properties:
+            text:
+              type: string
+              const: I solemnly declare that the information I have given in this declaration is, to the best of my knowledge, true and complete.
+            declaredAt:
+              type: string
+              format: date-time
+            reference:
+              type: string
+          required:
+            - text
+          additionalProperties: false
+      required:
+        - schemaVersion
+        - type
+        - statementDate
+        - attestation
+      additionalProperties: false
+      description: 'The declaration.v1 document cut to the granted scope: always schemaVersion, type, statementDate and attestation; with bio, officer (and spouses, children when included); with income, assets or liabilities, statements of the included persons holding only those parts (incomePeriod too with income); with other, otherInformation. An absent key was not granted'
+    DeclarationV1:
+      type: object
+      properties:
+        schemaVersion:
+          type: string
+          const: declaration.v1
+        type:
+          type: string
+          enum:
+            - initial
+            - biennial
+            - final
+        statementDate:
+          type: string
+          format: date
+        incomePeriod:
+          type: object
+          properties:
+            from:
+              type: string
+              format: date
+            to:
+              type: string
+              format: date
+            fromSource:
+              type: string
+              enum:
+                - declared
+                - assumed
+          required:
+            - from
+            - to
+            - fromSource
+          additionalProperties: false
+        officer:
+          $ref: '#/components/schemas/DeclarationOfficer'
+        spouses:
+          $ref: '#/components/schemas/DeclarationSpouses'
+        children:
+          $ref: '#/components/schemas/DeclarationChildren'
+        statements:
+          minItems: 1
+          type: array
+          items:
+            type: object
+            properties:
+              personKey:
+                type: string
+                pattern: ^(officer|spouse:[0-9a-f-]{36}|child:[0-9a-f-]{36})$
+              personName:
+                $ref: '#/components/schemas/PersonName'
+              statementDate:
+                type: string
+                format: date
+              incomePeriod:
+                type: object
+                properties:
+                  from:
+                    type: string
+                    format: date
+                  to:
+                    type: string
+                    format: date
+                required:
+                  - from
+                  - to
+                additionalProperties: false
+              incomeNil:
+                type: boolean
+              income:
+                type: array
+                items:
+                  $ref: '#/components/schemas/DeclarationIncomeItem'
+              assetsNil:
+                type: boolean
+              assets:
+                type: array
+                items:
+                  $ref: '#/components/schemas/DeclarationAssetItem'
+              liabilitiesNil:
+                type: boolean
+              liabilities:
+                type: array
+                items:
+                  $ref: '#/components/schemas/DeclarationLiabilityItem'
+              knowledgeLimitation:
+                type: string
+                maxLength: 1000
+            required:
+              - personKey
+              - personName
+              - statementDate
+              - incomePeriod
+              - incomeNil
+              - income
+              - assetsNil
+              - assets
+              - liabilitiesNil
+              - liabilities
+            additionalProperties: false
+        otherInformation:
+          $ref: '#/components/schemas/DeclarationOtherInformation'
+        attestation:
+          type: object
+          properties:
+            text:
+              type: string
+              const: I solemnly declare that the information I have given in this declaration is, to the best of my knowledge, true and complete.
+            declaredAt:
+              type: string
+              format: date-time
+            reference:
+              type: string
+          required:
+            - text
+          additionalProperties: false
+      required:
+        - schemaVersion
+        - type
+        - statementDate
+        - incomePeriod
+        - officer
+        - spouses
+        - children
+        - statements
+        - otherInformation
+        - attestation
+      additionalProperties: false
+    DeclarationOfficer:
+      type: object
+      properties:
+        name:
+          $ref: '#/components/schemas/PersonName'
+        birth:
+          type: object
+          properties:
+            date:
+              type: string
+              format: date
+            place:
+              type: string
+              minLength: 2
+              maxLength: 100
+          required:
+            - date
+            - place
+          additionalProperties: false
+        maritalStatus:
+          type: string
+          enum:
+            - single
+            - married
+            - separated
+            - divorced
+            - widowed
+        maritalStatusChange:
+          type: object
+          properties:
+            changed:
+              type: boolean
+            explanation:
+              type: string
+              minLength: 1
+              maxLength: 1000
+          required:
+            - changed
+          additionalProperties: false
+        address:
+          type: object
+          properties:
+            postal:
+              type: string
+              minLength: 3
+              maxLength: 200
+            physical:
+              type: string
+              minLength: 3
+              maxLength: 200
+          required:
+            - postal
+            - physical
+          additionalProperties: false
+        employment:
+          type: object
+          properties:
+            designation:
+              type: string
+              maxLength: 100
+            employer:
+              type: string
+              maxLength: 200
+            nature:
+              type: string
+              enum:
+                - permanent
+                - temporary
+                - contract
+                - other
+            natureOther:
+              type: string
+              maxLength: 100
+            responsibleCommission:
+              type: string
+              pattern: ^[a-z][a-z0-9]{1,19}$
+            personnelFileNumber:
+              type: string
+              maxLength: 30
+            jobGroup:
+              type: string
+              maxLength: 40
+            appointmentDate:
+              type: string
+              format: date
+            workStation:
+              type: string
+              maxLength: 100
+          required:
+            - designation
+            - employer
+            - nature
+            - responsibleCommission
+          additionalProperties: false
+      required:
+        - name
+        - birth
+        - maritalStatus
+        - address
+        - employment
+      additionalProperties: false
+    DeclarationSpouses:
+      type: object
+      properties:
+        none:
+          type: boolean
+        items:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+                format: uuid
+              name:
+                $ref: '#/components/schemas/PersonName'
+              nationalId:
+                type: string
+                pattern: ^[0-9]{5,10}$
+              kraPin:
+                type: string
+                pattern: ^[AP][0-9]{9}[A-Z]$
+              occupationSector:
+                type: string
+                enum:
+                  - public
+                  - private
+                  - not-employed
+                  - unknown
+              separated:
+                type: boolean
+              separationDate:
+                type: string
+                format: date
+            required:
+              - id
+              - name
+              - separated
+            additionalProperties: false
+      required:
+        - none
+        - items
+      additionalProperties: false
+    DeclarationChildren:
+      type: object
+      properties:
+        none:
+          type: boolean
+        items:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+                format: uuid
+              name:
+                $ref: '#/components/schemas/PersonName'
+              dateOfBirth:
+                type: string
+                format: date
+              nationalId:
+                type: string
+                pattern: ^[0-9]{5,10}$
+              includedAtStatementDate:
+                type: boolean
+            required:
+              - id
+              - name
+              - dateOfBirth
+              - includedAtStatementDate
+            additionalProperties: false
+      required:
+        - none
+        - items
+      additionalProperties: false
+    DeclarationOtherInformation:
+      type: object
+      properties:
+        materialChanges:
+          type: array
+          items:
+            type: object
+            properties:
+              personKey:
+                type: string
+                pattern: ^(officer|spouse:[0-9a-f-]{36}|child:[0-9a-f-]{36})$
+              itemId:
+                type: string
+                format: uuid
+              itemDescription:
+                type: string
+                maxLength: 200
+              kind:
+                type: string
+                enum:
+                  - value-change
+                  - acquisition
+                  - disposal
+                  - new-source
+                  - source-ended
+                  - settled
+                  - marital-status
+                  - directorship
+                  - membership
+              explanation:
+                type: string
+                maxLength: 1000
+            required:
+              - kind
+              - explanation
+            additionalProperties: false
+        registrableInterests:
+          type: object
+          properties:
+            directorships:
+              type: array
+              items:
+                type: object
+                properties:
+                  company:
+                    type: string
+                    maxLength: 200
+                  role:
+                    type: string
+                    maxLength: 100
+                  remunerated:
+                    type: boolean
+                  change:
+                    type: object
+                    properties:
+                      changed:
+                        type: boolean
+                      kind:
+                        type: string
+                        enum:
+                          - value-change
+                          - acquisition
+                          - disposal
+                          - new-source
+                          - source-ended
+                          - settled
+                      explanation:
+                        type: string
+                        minLength: 1
+                        maxLength: 1000
+                    required:
+                      - changed
+                    additionalProperties: false
+                required:
+                  - company
+                  - role
+                  - remunerated
+                additionalProperties: false
+            memberships:
+              type: array
+              items:
+                type: object
+                properties:
+                  entity:
+                    type: string
+                    maxLength: 200
+                  kind:
+                    type: string
+                    enum:
+                      - company
+                      - partnership
+                      - society
+                      - club
+                      - foundation
+                      - trust
+                      - other
+                  change:
+                    type: object
+                    properties:
+                      changed:
+                        type: boolean
+                      kind:
+                        type: string
+                        enum:
+                          - value-change
+                          - acquisition
+                          - disposal
+                          - new-source
+                          - source-ended
+                          - settled
+                      explanation:
+                        type: string
+                        minLength: 1
+                        maxLength: 1000
+                    required:
+                      - changed
+                    additionalProperties: false
+                required:
+                  - entity
+                  - kind
+                additionalProperties: false
+            dualCitizenship:
+              type: object
+              properties:
+                holds:
+                  type: boolean
+                country:
+                  type: string
+                  pattern: ^[A-Z]{2}$
+                pendingApplication:
+                  type: boolean
+              required:
+                - holds
+                - pendingApplication
+              additionalProperties: false
+            pendingCases:
+              type: array
+              items:
+                type: object
+                properties:
+                  forum:
+                    type: string
+                    maxLength: 200
+                  reference:
+                    type: string
+                    maxLength: 100
+                  nature:
+                    type: string
+                    maxLength: 500
+                required:
+                  - forum
+                  - reference
+                  - nature
+                additionalProperties: false
+          required:
+            - directorships
+            - memberships
+            - dualCitizenship
+            - pendingCases
+          additionalProperties: false
+        freeText:
+          type: string
+          maxLength: 4000
+      required:
+        - materialChanges
+        - registrableInterests
+        - freeText
+      additionalProperties: false
+    DeclarationIncomeItem:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        type:
+          type: string
+          enum:
+            - salary-emoluments
+            - allowances
+            - business
+            - rent
+            - dividends-interest
+            - pension
+            - farming
+            - consultancy
+            - other
+        description:
+          type: string
+          minLength: 1
+          maxLength: 200
+        amount:
+          type: object
+          properties:
+            kesCents:
+              type: integer
+              minimum: 0
+            original:
+              type: object
+              properties:
+                currency:
+                  type: string
+                  pattern: ^[A-Z]{3}$
+                minorUnits:
+                  type: integer
+                  minimum: 0
+              required:
+                - currency
+                - minorUnits
+              additionalProperties: false
+          required:
+            - kesCents
+          additionalProperties: false
+        location:
+          type: object
+          properties:
+            inKenya:
+              type: boolean
+            county:
+              type: string
+              pattern: ^0(0[1-9]|[1-3][0-9]|4[0-7])$
+            country:
+              type: string
+              pattern: ^[A-Z]{2}$
+            detail:
+              type: string
+              maxLength: 200
+          required:
+            - inKenya
+          additionalProperties: false
+        change:
+          type: object
+          properties:
+            changed:
+              type: boolean
+            kind:
+              type: string
+              enum:
+                - value-change
+                - acquisition
+                - disposal
+                - new-source
+                - source-ended
+                - settled
+            explanation:
+              type: string
+              minLength: 1
+              maxLength: 1000
+          required:
+            - changed
+          additionalProperties: false
+        source:
+          type: object
+          properties:
+            kind:
+              type: string
+              enum:
+                - kra
+                - ntsa
+                - brs
+                - ardhisasa
+                - document
+            suggestionId:
+              type: string
+              format: uuid
+            verificationResultId:
+              type: string
+              format: uuid
+            aiJobId:
+              type: string
+              format: uuid
+            at:
+              type: string
+              format: date-time
+          required:
+            - kind
+            - suggestionId
+            - at
+          additionalProperties: false
+        attachments:
+          type: array
+          items:
+            type: object
+            properties:
+              attachmentId:
+                type: string
+                format: uuid
+              uploadId:
+                type: string
+                format: uuid
+              fileName:
+                type: string
+                maxLength: 255
+              sha256:
+                type: string
+                pattern: ^[0-9a-f]{64}$
+            required:
+              - attachmentId
+              - uploadId
+              - fileName
+              - sha256
+            additionalProperties: false
+      required:
+        - id
+        - type
+        - description
+        - amount
+        - location
+        - change
+      additionalProperties: false
+    DeclarationAssetItem:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        type:
+          type: string
+          enum:
+            - land
+            - building
+            - vehicle
+            - securities
+            - shareholding
+            - bank-account
+            - cash
+            - receivable
+            - other
+        description:
+          type: string
+          minLength: 1
+          maxLength: 200
+        details:
+          type: object
+          properties:
+            parcelNumber:
+              type: string
+              maxLength: 100
+            size:
+              type: string
+              maxLength: 50
+            registration:
+              type: string
+              maxLength: 20
+            makeModel:
+              type: string
+              maxLength: 100
+            issuer:
+              type: string
+              maxLength: 200
+            quantityOrPercent:
+              type: string
+              maxLength: 50
+            institution:
+              type: string
+              maxLength: 200
+            accountType:
+              type: string
+              maxLength: 50
+            debtor:
+              type: string
+              maxLength: 200
+          additionalProperties: false
+        value:
+          type: object
+          properties:
+            kesCents:
+              type: integer
+              minimum: 0
+            original:
+              type: object
+              properties:
+                currency:
+                  type: string
+                  pattern: ^[A-Z]{3}$
+                minorUnits:
+                  type: integer
+                  minimum: 0
+              required:
+                - currency
+                - minorUnits
+              additionalProperties: false
+          required:
+            - kesCents
+          additionalProperties: false
+        location:
+          type: object
+          properties:
+            inKenya:
+              type: boolean
+            county:
+              type: string
+              pattern: ^0(0[1-9]|[1-3][0-9]|4[0-7])$
+            country:
+              type: string
+              pattern: ^[A-Z]{2}$
+            detail:
+              type: string
+              maxLength: 200
+          required:
+            - inKenya
+          additionalProperties: false
+        joint:
+          type: object
+          properties:
+            isJoint:
+              type: boolean
+            sharePercent:
+              type: number
+              exclusiveMinimum: 0
+              maximum: 100
+            coOwner:
+              type: string
+              maxLength: 200
+          required:
+            - isJoint
+          additionalProperties: false
+        change:
+          type: object
+          properties:
+            changed:
+              type: boolean
+            kind:
+              type: string
+              enum:
+                - value-change
+                - acquisition
+                - disposal
+                - new-source
+                - source-ended
+                - settled
+            explanation:
+              type: string
+              minLength: 1
+              maxLength: 1000
+          required:
+            - changed
+          additionalProperties: false
+        source:
+          type: object
+          properties:
+            kind:
+              type: string
+              enum:
+                - kra
+                - ntsa
+                - brs
+                - ardhisasa
+                - document
+            suggestionId:
+              type: string
+              format: uuid
+            verificationResultId:
+              type: string
+              format: uuid
+            aiJobId:
+              type: string
+              format: uuid
+            at:
+              type: string
+              format: date-time
+          required:
+            - kind
+            - suggestionId
+            - at
+          additionalProperties: false
+        attachments:
+          type: array
+          items:
+            type: object
+            properties:
+              attachmentId:
+                type: string
+                format: uuid
+              uploadId:
+                type: string
+                format: uuid
+              fileName:
+                type: string
+                maxLength: 255
+              sha256:
+                type: string
+                pattern: ^[0-9a-f]{64}$
+            required:
+              - attachmentId
+              - uploadId
+              - fileName
+              - sha256
+            additionalProperties: false
+      required:
+        - id
+        - type
+        - description
+        - value
+        - location
+        - joint
+        - change
+      additionalProperties: false
+    DeclarationLiabilityItem:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        type:
+          type: string
+          enum:
+            - mortgage
+            - loan
+            - guarantee
+            - other
+        description:
+          type: string
+          minLength: 1
+          maxLength: 200
+        creditor:
+          type: string
+          minLength: 1
+          maxLength: 200
+        outstanding:
+          type: object
+          properties:
+            kesCents:
+              type: integer
+              minimum: 0
+            original:
+              type: object
+              properties:
+                currency:
+                  type: string
+                  pattern: ^[A-Z]{3}$
+                minorUnits:
+                  type: integer
+                  minimum: 0
+              required:
+                - currency
+                - minorUnits
+              additionalProperties: false
+          required:
+            - kesCents
+          additionalProperties: false
+        location:
+          type: object
+          properties:
+            inKenya:
+              type: boolean
+            county:
+              type: string
+              pattern: ^0(0[1-9]|[1-3][0-9]|4[0-7])$
+            country:
+              type: string
+              pattern: ^[A-Z]{2}$
+            detail:
+              type: string
+              maxLength: 200
+          required:
+            - inKenya
+          additionalProperties: false
+        change:
+          type: object
+          properties:
+            changed:
+              type: boolean
+            kind:
+              type: string
+              enum:
+                - value-change
+                - acquisition
+                - disposal
+                - new-source
+                - source-ended
+                - settled
+            explanation:
+              type: string
+              minLength: 1
+              maxLength: 1000
+          required:
+            - changed
+          additionalProperties: false
+        source:
+          type: object
+          properties:
+            kind:
+              type: string
+              enum:
+                - kra
+                - ntsa
+                - brs
+                - ardhisasa
+                - document
+            suggestionId:
+              type: string
+              format: uuid
+            verificationResultId:
+              type: string
+              format: uuid
+            aiJobId:
+              type: string
+              format: uuid
+            at:
+              type: string
+              format: date-time
+          required:
+            - kind
+            - suggestionId
+            - at
+          additionalProperties: false
+        attachments:
+          type: array
+          items:
+            type: object
+            properties:
+              attachmentId:
+                type: string
+                format: uuid
+              uploadId:
+                type: string
+                format: uuid
+              fileName:
+                type: string
+                maxLength: 255
+              sha256:
+                type: string
+                pattern: ^[0-9a-f]{64}$
+            required:
+              - attachmentId
+              - uploadId
+              - fileName
+              - sha256
+            additionalProperties: false
+      required:
+        - id
+        - type
+        - description
+        - creditor
+        - outstanding
+        - location
+        - change
+      additionalProperties: false
+    PersonName:
+      type: object
+      properties:
+        surname:
+          type: string
+          minLength: 1
+          maxLength: 100
+        firstName:
+          type: string
+          minLength: 1
+          maxLength: 100
+        otherNames:
+          type: string
+          maxLength: 200
+      required:
+        - surname
+        - firstName
+      additionalProperties: false
     InternalUpload:
       type: object
       properties:
