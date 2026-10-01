@@ -37,8 +37,6 @@ export const LEGAL_BASES = [
   'act-s35-5',
   /** ADR-014: confirm a declarant's identity against the roster at onboarding. */
   'adr-014-onboarding',
-  /** Lookups the declarant asked for while filing (DPA s.30(1)(a)). */
-  'declarant-request',
 ] as const;
 export type LegalBasis = (typeof LEGAL_BASES)[number];
 

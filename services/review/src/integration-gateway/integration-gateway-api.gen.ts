@@ -527,7 +527,7 @@ export interface components {
     parameters: {
         /** @description Review case the lookup is for; recorded on the result and the audit event */
         CaseRef: string;
-        /** @description e.g. regs-r20-1-b, act-s35-5, adr-014-onboarding, declarant-request (lookups the declarant asked for while filing; DPA s.30(1)(a)) */
+        /** @description e.g. regs-r20-1-b, act-s35-5, adr-014-onboarding */
         LegalBasis: string;
     };
     requestBodies: never;
@@ -606,8 +606,8 @@ export interface operations {
             header: {
                 /** @description Tenant the calling service acts for; the resource must belong to it */
                 "X-Acting-Tenant": string;
-                /** @description Why the registry is consulted, recorded on the result and the audit event. regs-r20-1-b, act-s35-5, adr-014-onboarding or declarant-request (lookups the declarant asked for while filing; DPA s.30(1)(a)) */
-                "X-Legal-Basis": "regs-r20-1-b" | "act-s35-5" | "adr-014-onboarding" | "declarant-request";
+                /** @description Why the registry is consulted, recorded on the result and the audit event. regs-r20-1-b, act-s35-5 or adr-014-onboarding */
+                "X-Legal-Basis": "regs-r20-1-b" | "act-s35-5" | "adr-014-onboarding";
                 /** @description Review case the lookup is for; recorded on the result and the audit event */
                 "X-Case-Ref"?: string;
             };
@@ -664,8 +664,8 @@ export interface operations {
             header: {
                 /** @description Tenant the calling service acts for; the resource must belong to it */
                 "X-Acting-Tenant": string;
-                /** @description Why the registry is consulted, recorded on the result and the audit event. regs-r20-1-b, act-s35-5, adr-014-onboarding or declarant-request (lookups the declarant asked for while filing; DPA s.30(1)(a)) */
-                "X-Legal-Basis": "regs-r20-1-b" | "act-s35-5" | "adr-014-onboarding" | "declarant-request";
+                /** @description Why the registry is consulted, recorded on the result and the audit event. regs-r20-1-b, act-s35-5 or adr-014-onboarding */
+                "X-Legal-Basis": "regs-r20-1-b" | "act-s35-5" | "adr-014-onboarding";
                 /** @description Review case the lookup is for; recorded on the result and the audit event */
                 "X-Case-Ref"?: string;
             };
@@ -722,8 +722,8 @@ export interface operations {
             header: {
                 /** @description Tenant the calling service acts for; the resource must belong to it */
                 "X-Acting-Tenant": string;
-                /** @description Why the registry is consulted, recorded on the result and the audit event. regs-r20-1-b, act-s35-5, adr-014-onboarding or declarant-request (lookups the declarant asked for while filing; DPA s.30(1)(a)) */
-                "X-Legal-Basis": "regs-r20-1-b" | "act-s35-5" | "adr-014-onboarding" | "declarant-request";
+                /** @description Why the registry is consulted, recorded on the result and the audit event. regs-r20-1-b, act-s35-5 or adr-014-onboarding */
+                "X-Legal-Basis": "regs-r20-1-b" | "act-s35-5" | "adr-014-onboarding";
                 /** @description Review case the lookup is for; recorded on the result and the audit event */
                 "X-Case-Ref"?: string;
             };
@@ -780,8 +780,8 @@ export interface operations {
             header: {
                 /** @description Tenant the calling service acts for; the resource must belong to it */
                 "X-Acting-Tenant": string;
-                /** @description Why the registry is consulted, recorded on the result and the audit event. regs-r20-1-b, act-s35-5, adr-014-onboarding or declarant-request (lookups the declarant asked for while filing; DPA s.30(1)(a)) */
-                "X-Legal-Basis": "regs-r20-1-b" | "act-s35-5" | "adr-014-onboarding" | "declarant-request";
+                /** @description Why the registry is consulted, recorded on the result and the audit event. regs-r20-1-b, act-s35-5 or adr-014-onboarding */
+                "X-Legal-Basis": "regs-r20-1-b" | "act-s35-5" | "adr-014-onboarding";
                 /** @description Review case the lookup is for; recorded on the result and the audit event */
                 "X-Case-Ref"?: string;
             };
@@ -840,8 +840,8 @@ export interface operations {
             header: {
                 /** @description Tenant the calling service acts for; the resource must belong to it */
                 "X-Acting-Tenant": string;
-                /** @description Why the registry is consulted, recorded on the result and the audit event. regs-r20-1-b, act-s35-5, adr-014-onboarding or declarant-request (lookups the declarant asked for while filing; DPA s.30(1)(a)) */
-                "X-Legal-Basis": "regs-r20-1-b" | "act-s35-5" | "adr-014-onboarding" | "declarant-request";
+                /** @description Why the registry is consulted, recorded on the result and the audit event. regs-r20-1-b, act-s35-5 or adr-014-onboarding */
+                "X-Legal-Basis": "regs-r20-1-b" | "act-s35-5" | "adr-014-onboarding";
                 /** @description Review case the lookup is for; recorded on the result and the audit event */
                 "X-Case-Ref"?: string;
             };
@@ -1084,7 +1084,7 @@ export interface operations {
             header: {
                 /** @description Review case the lookup is for; recorded on the result and the audit event */
                 "X-Case-Ref"?: components["parameters"]["CaseRef"];
-                /** @description e.g. regs-r20-1-b, act-s35-5, adr-014-onboarding, declarant-request (lookups the declarant asked for while filing; DPA s.30(1)(a)) */
+                /** @description e.g. regs-r20-1-b, act-s35-5, adr-014-onboarding */
                 "X-Legal-Basis": components["parameters"]["LegalBasis"];
             };
             path?: never;
@@ -1163,7 +1163,7 @@ export interface operations {
             header: {
                 /** @description Review case the lookup is for; recorded on the result and the audit event */
                 "X-Case-Ref"?: components["parameters"]["CaseRef"];
-                /** @description e.g. regs-r20-1-b, act-s35-5, adr-014-onboarding, declarant-request (lookups the declarant asked for while filing; DPA s.30(1)(a)) */
+                /** @description e.g. regs-r20-1-b, act-s35-5, adr-014-onboarding */
                 "X-Legal-Basis": components["parameters"]["LegalBasis"];
             };
             path?: never;

@@ -422,6 +422,8 @@ describe('adapter kit', () => {
     it.each([
       ['missing', {}],
       ['unknown', { 'x-legal-basis': 'curiosity' }],
+      // Spec 05b adds the declarant's own lookups; until then nothing may claim them.
+      ['declarant-request', { 'x-legal-basis': 'declarant-request' }],
     ])('answers 400 when the legal basis is %s', async (_, headers) => {
       const response = await echo(headers);
 

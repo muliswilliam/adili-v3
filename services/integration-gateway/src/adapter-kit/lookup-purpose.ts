@@ -62,7 +62,7 @@ export const LookupPurposeHeaders = () =>
       name: 'X-Legal-Basis',
       required: true,
       description:
-        'Why the registry is consulted, recorded on the result and the audit event. regs-r20-1-b, act-s35-5, adr-014-onboarding or declarant-request (lookups the declarant asked for while filing; DPA s.30(1)(a))',
+        'Why the registry is consulted, recorded on the result and the audit event. regs-r20-1-b, act-s35-5 or adr-014-onboarding',
       schema: { type: 'string', enum: [...LEGAL_BASES] },
     }),
     ApiHeader({
