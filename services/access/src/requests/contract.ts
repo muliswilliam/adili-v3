@@ -72,8 +72,37 @@ export type ResolutionOutcome =
 export type WindowOutcome = 'under-decision' | 'unchanged' | 'missing';
 
 /**
- * How a run ended: the applicant withdrew, the access officer decided, the officer named could
- * not be identified, or the request was not there (its receipt rolled back).
+ * Where the request stands while the workflow waits for the decision, read from the request
+ * itself when no signal came: still `undecided`, `decided` (granted, partially granted or
+ * denied), `withdrawn`, or `missing`. A signal lost after its transaction committed is made up
+ * for this way.
+ */
+export type DecisionState = 'undecided' | 'decided' | 'withdrawn' | 'missing';
+
+/**
+ * How often the workflow reads the request while it waits for the decision, in case the
+ * `decided` or `withdrawn` signal was lost: the package of a grant is late by at most this.
+ */
+export const DECISION_CHECK_INTERVAL = '6 hours';
+
+/**
+ * What the decision's notices found: a grant (full or partial), whose package follows, a
+ * denial, or the request `missing`.
+ */
+export type DecisionNoticesOutcome = 'granted' | 'denied' | 'missing';
+
+/**
+ * What became of a grant's package: `issued`, downloadable by the applicant until
+ * `downloadExpiresAt`; `nothing-to-disclose` (the declarant has no declaration in the granted
+ * scope, so declarations has nothing to render); or the request is `missing`.
+ */
+export type PackageOutcome =
+  { outcome: 'issued'; downloadExpiresAt: string } | { outcome: 'nothing-to-disclose' | 'missing' };
+
+/**
+ * How a run ended: the applicant withdrew, the access officer decided (a grant's package issued
+ * and its download window over), the officer named could not be identified, or the request was
+ * not there (its receipt rolled back).
  */
 export interface AccessRequestResult {
   outcome: 'withdrawn' | 'decided' | 'cannot-identify' | 'missing';

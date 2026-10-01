@@ -476,6 +476,73 @@ paths:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/ProblemDetails'
+  /v1/access/requests/{requestId}/decision:
+    post:
+      tags:
+        - officer
+      summary: Grant, partially grant or deny (final; Regulation 24 grounds required for partial and deny)
+      description: Only once the request is `under-decision`. A grant is of the requested scope and cites no grounds; a partial grant narrows the scope and cites grounds; a denial cites grounds. The request becomes `granted`, `partially-granted` or `denied` (`access.request.decided.v1` with outcome and grounds). The applicant and the declarant are told next; for a grant the applicant's package (`package.documentId`, downloadable by the applicant from documents until `package.downloadExpiresAt`) follows.
+      operationId: decideAccessRequest
+      parameters:
+        - name: requestId
+          required: true
+          in: path
+          schema:
+            type: string
+            format: uuid
+        - name: Idempotency-Key
+          in: header
+          description: Client-generated UUID, unique per logical request; reuse on retry
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DecisionInput'
+      responses:
+        '200':
+          description: Decided; notifications and package follow
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OfficerRequestView'
+        '400':
+          description: requestId is not a UUID or the body failed validation; problem code `grounds-required` (partial grant or denial without grounds) or `scope-exceeds-request` (`grantedScope` wider than the request); `errors` name the field
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '403':
+          description: |-
+            The Commission supervisor reads requests; only its access officer acts
+
+            Requires one of the roles: access-officer, supervisor, eacc-analyst, eacc-supervisor
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: No such request at the caller's Commission (another Commission's, EACC's or anyone else's view)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '409':
+          description: Problem code `request-decided` (a decision is final), `request-closed`, or `not-under-decision` (the window for representations is still open, or the officer is unresolved)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '422':
+          description: Idempotency-Key reused with a different request body
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
   /v1/access/requests/{requestId}/verify-applicant:
     post:
       tags:
@@ -653,30 +720,6 @@ paths:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/ProblemDetails'
-  /v1/access/requests/{requestId}/package/download:
-    parameters:
-      - $ref: '#/components/parameters/RequestId'
-    get:
-      tags:
-        - applicant
-      summary: Short-lived link to the granted package (registered as a download)
-      operationId: downloadAccessPackage
-      x-draft: true
-      responses:
-        '200':
-          description: Link
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/DownloadLink'
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '410':
-          description: Download window expired
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ProblemDetails'
   /v1/me/access-history:
     get:
       tags:
@@ -742,42 +785,6 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/CertifiedCopy'
-  /v1/access/requests/{requestId}/decision:
-    parameters:
-      - $ref: '#/components/parameters/RequestId'
-    post:
-      tags:
-        - officer
-      summary: Grant, partially grant or deny (final; Regulation 24 grounds required for partial and deny)
-      operationId: decideAccessRequest
-      x-draft: true
-      parameters:
-        - $ref: '#/components/parameters/IdempotencyKey'
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/DecisionInput'
-      responses:
-        '200':
-          description: Decided; notifications and package follow
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/OfficerRequestView'
-        '400':
-          $ref: '#/components/responses/ValidationProblem'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '409':
-          description: Already decided or not yet under decision
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ProblemDetails'
   /v1/lea/requests:
     post:
       tags:
@@ -1037,6 +1044,30 @@ components:
         - reasons
         - decidedBy
         - decidedAt
+    DecisionInput:
+      type: object
+      properties:
+        outcome:
+          $ref: '#/components/schemas/Outcome'
+        grantedScope:
+          description: 'Required for partial-grant: narrower than the requested scope, never wider. A grant is of the requested scope (omit it, or send the requested scope); a denial has none'
+          anyOf:
+            - $ref: '#/components/schemas/Scope'
+            - type: 'null'
+        grounds:
+          description: 'Regulation 24 grounds: required for partial-grant and deny, none for grant'
+          maxItems: 4
+          type: array
+          items:
+            $ref: '#/components/schemas/Ground'
+        reasons:
+          type: string
+          minLength: 1
+          maxLength: 4000
+      required:
+        - outcome
+        - reasons
+      additionalProperties: false
     Package:
       type: object
       properties:
@@ -1581,28 +1612,6 @@ components:
         - granted
         - denied
         - withdrawn
-    DecisionInput:
-      type: object
-      required:
-        - outcome
-        - reasons
-      properties:
-        outcome:
-          $ref: '#/components/schemas/Outcome'
-        grantedScope:
-          oneOf:
-            - $ref: '#/components/schemas/Scope'
-            - type: 'null'
-          description: Required for partial-grant; must be a subset of the requested scope
-        grounds:
-          type: array
-          items:
-            $ref: '#/components/schemas/Ground'
-          description: Required for partial-grant and deny
-        reasons:
-          type: string
-          minLength: 1
-          maxLength: 4000
     CertifiedCopy:
       type: object
       required:
@@ -1796,13 +1805,6 @@ components:
         sha256:
           type: string
   parameters:
-    RequestId:
-      name: requestId
-      in: path
-      required: true
-      schema:
-        type: string
-        format: uuid
     LeaRequestId:
       name: leaRequestId
       in: path

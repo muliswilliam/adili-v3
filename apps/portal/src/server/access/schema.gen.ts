@@ -162,6 +162,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/access/requests/{requestId}/decision": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Grant, partially grant or deny (final; Regulation 24 grounds required for partial and deny)
+         * @description Only once the request is `under-decision`. A grant is of the requested scope and cites no grounds; a partial grant narrows the scope and cites grounds; a denial cites grounds. The request becomes `granted`, `partially-granted` or `denied` (`access.request.decided.v1` with outcome and grounds). The applicant and the declarant are told next; for a grant the applicant's package (`package.documentId`, downloadable by the applicant from documents until `package.downloadExpiresAt`) follows.
+         */
+        post: operations["decideAccessRequest"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/access/requests/{requestId}/verify-applicant": {
         parameters: {
             query?: never;
@@ -222,25 +242,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/access/requests/{requestId}/package/download": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                requestId: components["parameters"]["RequestId"];
-            };
-            cookie?: never;
-        };
-        /** Short-lived link to the granted package (registered as a download) */
-        get: operations["downloadAccessPackage"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/v1/me/access-history": {
         parameters: {
             query?: never;
@@ -270,25 +271,6 @@ export interface paths {
         put?: never;
         /** Certified copy of one of my submitted versions */
         post: operations["requestCertifiedCopy"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/access/requests/{requestId}/decision": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                requestId: components["parameters"]["RequestId"];
-            };
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Grant, partially grant or deny (final; Regulation 24 grounds required for partial and deny) */
-        post: operations["decideAccessRequest"];
         delete?: never;
         options?: never;
         head?: never;
@@ -422,6 +404,14 @@ export interface components {
             };
             /** Format: date-time */
             decidedAt: string;
+        };
+        DecisionInput: {
+            outcome: components["schemas"]["Outcome"];
+            /** @description Required for partial-grant: narrower than the requested scope, never wider. A grant is of the requested scope (omit it, or send the requested scope); a denial has none */
+            grantedScope?: components["schemas"]["Scope"] | null;
+            /** @description Regulation 24 grounds: required for partial-grant and deny, none for grant */
+            grounds?: components["schemas"]["Ground"][];
+            reasons: string;
         };
         Package: {
             /** Format: uuid */
@@ -611,14 +601,6 @@ export interface components {
         };
         /** @enum {string} */
         LeaRequestStatus: "received" | "verified" | "granted" | "denied" | "withdrawn";
-        DecisionInput: {
-            outcome: components["schemas"]["Outcome"];
-            /** @description Required for partial-grant; must be a subset of the requested scope */
-            grantedScope?: components["schemas"]["Scope"] | null;
-            /** @description Required for partial-grant and deny */
-            grounds?: components["schemas"]["Ground"][];
-            reasons: string;
-        };
         CertifiedCopy: {
             /** Format: uuid */
             id: string;
@@ -723,7 +705,6 @@ export interface components {
         };
     };
     parameters: {
-        RequestId: string;
         LeaRequestId: string;
         IdempotencyKey: string;
     };
@@ -1287,6 +1268,84 @@ export interface operations {
             };
         };
     };
+    decideAccessRequest: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Client-generated UUID, unique per logical request; reuse on retry */
+                "Idempotency-Key": string;
+            };
+            path: {
+                requestId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DecisionInput"];
+            };
+        };
+        responses: {
+            /** @description Decided; notifications and package follow */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OfficerRequestView"];
+                };
+            };
+            /** @description requestId is not a UUID or the body failed validation; problem code `grounds-required` (partial grant or denial without grounds) or `scope-exceeds-request` (`grantedScope` wider than the request); `errors` name the field */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /**
+             * @description The Commission supervisor reads requests; only its access officer acts
+             *
+             *     Requires one of the roles: access-officer, supervisor, eacc-analyst, eacc-supervisor
+             */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description No such request at the caller's Commission (another Commission's, EACC's or anyone else's view) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Problem code `request-decided` (a decision is final), `request-closed`, or `not-under-decision` (the window for representations is still open, or the officer is unresolved) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Idempotency-Key reused with a different request body */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
     verifyApplicantIdentity: {
         parameters: {
             query?: never;
@@ -1504,38 +1563,6 @@ export interface operations {
             };
         };
     };
-    downloadAccessPackage: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                requestId: components["parameters"]["RequestId"];
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Link */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["DownloadLink"];
-                };
-            };
-            404: components["responses"]["NotFound"];
-            /** @description Download window expired */
-            410: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetails"];
-                };
-            };
-        };
-    };
     getMyAccessHistory: {
         parameters: {
             query?: never;
@@ -1604,46 +1631,6 @@ export interface operations {
                 };
             };
             404: components["responses"]["NotFound"];
-        };
-    };
-    decideAccessRequest: {
-        parameters: {
-            query?: never;
-            header: {
-                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
-            };
-            path: {
-                requestId: components["parameters"]["RequestId"];
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["DecisionInput"];
-            };
-        };
-        responses: {
-            /** @description Decided; notifications and package follow */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["OfficerRequestView"];
-                };
-            };
-            400: components["responses"]["ValidationProblem"];
-            403: components["responses"]["Forbidden"];
-            404: components["responses"]["NotFound"];
-            /** @description Already decided or not yet under decision */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetails"];
-                };
-            };
         };
     };
     listMyLeaRequests: {

@@ -129,10 +129,10 @@ export async function startAccessApi(): Promise<AccessApi> {
   const { signer, jwk } = await tokenSigner();
   const directory = new FakeDirectory();
   const declarations = new FakeDeclarations();
-  const documents = new FakeDocuments();
+  const clock = new FakeClock();
+  const documents = new FakeDocuments(() => clock.now());
   const notifications = new FakeNotifications();
   const cipher = new FakeCipher();
-  const clock = new FakeClock();
   const moduleRef = await Test.createTestingModule({ imports: [AppModule] })
     .overrideProvider(DATABASE)
     .useValue(db)

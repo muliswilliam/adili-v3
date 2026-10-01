@@ -4,28 +4,6 @@
 # `Decision`, `RegisterEntry`, `ProblemDetails`). When an operation or component is implemented,
 # delete it here: the export fails while both define it.
 paths:
-  /v1/access/requests/{requestId}/package/download:
-    parameters:
-      - $ref: '#/components/parameters/RequestId'
-    get:
-      tags: [applicant]
-      operationId: downloadAccessPackage
-      summary: Short-lived link to the granted package (registered as a download)
-      responses:
-        '200':
-          description: Link
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/DownloadLink'
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '410':
-          description: Download window expired
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ProblemDetails'
   /v1/me/access-history:
     get:
       tags: [declarant]
@@ -83,40 +61,6 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/CertifiedCopy'
-  /v1/access/requests/{requestId}/decision:
-    parameters:
-      - $ref: '#/components/parameters/RequestId'
-    post:
-      tags: [officer]
-      operationId: decideAccessRequest
-      summary: 'Grant, partially grant or deny (final; Regulation 24 grounds required for partial and deny)'
-      parameters:
-        - $ref: '#/components/parameters/IdempotencyKey'
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/DecisionInput'
-      responses:
-        '200':
-          description: Decided; notifications and package follow
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/OfficerRequestView'
-        '400':
-          $ref: '#/components/responses/ValidationProblem'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '409':
-          description: Already decided or not yet under decision
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ProblemDetails'
   /v1/lea/requests:
     post:
       tags: [lea]
@@ -258,13 +202,6 @@ paths:
                 $ref: '#/components/schemas/ProblemDetails'
 components:
   parameters:
-    RequestId:
-      name: requestId
-      in: path
-      required: true
-      schema:
-        type: string
-        format: uuid
     LeaRequestId:
       name: leaRequestId
       in: path
@@ -302,26 +239,6 @@ components:
     LeaRequestStatus:
       type: string
       enum: [received, verified, granted, denied, withdrawn]
-    DecisionInput:
-      type: object
-      required: [outcome, reasons]
-      properties:
-        outcome:
-          $ref: '#/components/schemas/Outcome'
-        grantedScope:
-          oneOf:
-            - $ref: '#/components/schemas/Scope'
-            - type: 'null'
-          description: Required for partial-grant; must be a subset of the requested scope
-        grounds:
-          type: array
-          items:
-            $ref: '#/components/schemas/Ground'
-          description: Required for partial-grant and deny
-        reasons:
-          type: string
-          minLength: 1
-          maxLength: 4000
     CertifiedCopy:
       type: object
       required:

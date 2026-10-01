@@ -273,6 +273,11 @@ export class FakeDocuments extends DocumentsClient {
   private readonly uploads = new Map<string, CleanUpload & { tenant: string; clean: boolean }>();
   private readonly failures = new Failures();
 
+  /** `now` dates what it issues (the service's clock in the harness). */
+  constructor(private readonly now: () => Date = () => new Date()) {
+    super();
+  }
+
   givenUpload(
     tenant: string,
     upload: Partial<CleanUpload> & { clean?: boolean } = {},
@@ -307,7 +312,16 @@ export class FakeDocuments extends DocumentsClient {
     const existing = this.byKey.get(request.idempotencyKey);
     if (existing) return Promise.resolve(existing);
     this.issued.push(structuredClone(request));
-    const issued = { id: randomUUID(), verificationId: `ADL-TEST-${String(this.issued.length)}` };
+    const issuedAt = this.now();
+    const issued: IssuedDocument = {
+      id: randomUUID(),
+      verificationId: `ADL-TEST-${String(this.issued.length)}`,
+      issuedAt,
+      downloadExpiresAt:
+        request.downloadWindowDays === undefined
+          ? null
+          : new Date(issuedAt.getTime() + request.downloadWindowDays * 24 * 60 * 60 * 1000),
+    };
     this.byKey.set(request.idempotencyKey, issued);
     return Promise.resolve(issued);
   }

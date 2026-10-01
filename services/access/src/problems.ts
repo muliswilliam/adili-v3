@@ -13,9 +13,19 @@ export interface ProblemError {
   message: string;
 }
 
-/** A problem registered in `PROBLEM_CODES`: its status and title, with `detail` for developers. */
-export function problem(code: ProblemCode, detail: string): ProblemException {
-  return ProblemException.fromCode(code, { detail });
+/**
+ * A problem registered in `PROBLEM_CODES`: its status and title, with `detail` for developers
+ * and, when given, the fields at fault.
+ */
+export function problem(
+  code: ProblemCode,
+  detail: string,
+  errors?: readonly ProblemError[],
+): ProblemException {
+  return ProblemException.fromCode(code, {
+    detail,
+    ...(errors ? { extensions: { errors: [...errors] } } : {}),
+  });
 }
 
 /** 400: the request cannot be taken as it is; `errors` say which fields. */
