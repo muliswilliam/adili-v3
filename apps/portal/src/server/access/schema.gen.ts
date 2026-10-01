@@ -4,6 +4,26 @@
  */
 
 export interface paths {
+    "/v1/access/commissions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Commissions an applicant can address, with the declaration years available
+         * @description Every active Responsible Commission in the directory, by name. `years` are the statement-date years a Form K's scope can ask of it: from the year it joined Adili (its earliest obligations-start date, not before 2025) to the current year in Nairobi; empty while it holds no declarations yet. Platform reference data: no personal data.
+         */
+        get: operations["listAccessCommissions"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/access/requests": {
         parameters: {
             query?: never;
@@ -195,23 +215,6 @@ export interface paths {
          * @description One submission per request, changed as often as needed until the window closes (`access.request.representations.v1` each time). `consent` puts the request under decision at once and closes the window.
          */
         put: operations["submitRepresentations"];
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/access/commissions": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Commissions an applicant can address, with the declaration years available */
-        get: operations["listAccessCommissions"];
-        put?: never;
         post?: never;
         delete?: never;
         options?: never;
@@ -582,6 +585,13 @@ export interface components {
             representations: components["schemas"]["Representations"] | null;
             decision: components["schemas"]["Decision"] | null;
         };
+        AccessCommission: {
+            /** @description The form-k.v1 `responsibleCommission` */
+            slug: string;
+            name: string;
+            /** @description The declaration years (statement-date years) a request can ask of it, ascending: from the year it joined Adili (its earliest obligations-start date, not before 2025) to the current year in Nairobi. Empty while it holds none yet. */
+            years: number[];
+        };
         ProblemDetails: {
             type: string;
             title: string;
@@ -723,6 +733,48 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    listAccessCommissions: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Commissions */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AccessCommission"][];
+                };
+            };
+            /**
+             * @description Not an applicant
+             *
+             *     Requires one of the roles: applicant
+             */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Problem type `directory-unavailable`: the directory cannot be reached */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
     listMyAccessRequests: {
         parameters: {
             query?: never;
@@ -1448,30 +1500,6 @@ export interface operations {
                 };
                 content: {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
-                };
-            };
-        };
-    };
-    listAccessCommissions: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Commissions */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        slug: string;
-                        name: string;
-                        years: number[];
-                    }[];
                 };
             };
         };

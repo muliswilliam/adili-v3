@@ -1,8 +1,7 @@
 /**
  * In-memory stand-in for the access service's applicant endpoints (access.yaml), used when
- * ACCESS_MOCK is set, to work on the portal without the service and before
- * `GET /v1/access/commissions` is implemented (#253). Every signed-in caller shares one store,
- * seeded relative to when it was first used with one request in each status:
+ * ACCESS_MOCK is set, to work on the portal without the service. Every signed-in caller
+ * shares one store, seeded relative to when it was first used with one request in each status:
  *
  * - submitted today, awaiting identity verification (a passport), officer being identified,
  *   declarant notified, under decision (due in 3 days), under decision and late, granted,
