@@ -1,6 +1,6 @@
 /**
  * What passes between the registry check workflow, its activities and the workflows that run it
- * (spec 07b). Bundled into the workflow sandbox: types and constants only.
+ * (spec 07b). Bundled into the workflow sandbox: types, constants and pure helpers only.
  *
  * No national ID and no registry record passes through a workflow: they would sit in Temporal's
  * history, a second store. `lookupRegistries` reads the IDs where it uses them and hands on, per
@@ -119,12 +119,19 @@ export type RegistryCheckResult =
 export const PROCESSING_LEGAL_BASIS = 'regs-r20-1-b';
 
 /**
- * Why the gateway gave no answer of its own: it could not be reached (or could not record the
- * lookup), or it refused the request (a missing scope, say). Both are retried like a registry's
- * `unavailable`.
+ * Why the gateway gave no answer of its own. `gateway-unavailable`: it could not be reached (or
+ * could not record the lookup), looked up again like a registry's `unavailable`.
+ * `gateway-rejected`: it refused the request (a missing scope, say), which needs fixing, not
+ * waiting: that lookup (or stored-result read) is not tried again in the check, its system is
+ * `unavailable` with this reason, and the rest of the check goes on.
  */
 export const GATEWAY_UNAVAILABLE = 'gateway-unavailable';
 export const GATEWAY_REJECTED = 'gateway-rejected';
+
+/** Whether a lookup without an answer is worth looking up again: not one the gateway refused. */
+export function lookUpAgain(lookup: Pick<LookupOutcome, 'outcome' | 'reason'>): boolean {
+  return lookup.outcome === 'unavailable' && lookup.reason !== GATEWAY_REJECTED;
+}
 
 /** A pulled document that is not a declaration.v1 document: the check fails for good. */
 export const DECLARATION_INVALID = 'declaration-invalid';

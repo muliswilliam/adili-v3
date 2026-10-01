@@ -147,6 +147,28 @@ describe('RegistryCheckWorkflow', () => {
     });
   }, 60_000);
 
+  it('does not look up again what the gateway refused: it needs fixing, not waiting', async () => {
+    const refused: LookupOutcome = {
+      outcome: 'unavailable',
+      reason: 'gateway-rejected',
+      resultId: null,
+      checkedAt: null,
+    };
+    const { lookupRegistries } = lookupsAnswering(officer(refused));
+    const mocks: Activities = {
+      lookupRegistries,
+      matchRegistries: vi.fn(() => Promise.resolve(checked)),
+    };
+
+    await env.execute(registryCheck, { workflowsPath, activities: mocks, args: [request] });
+
+    expect(lookupRegistries).toHaveBeenCalledTimes(1);
+    expect(mocks.matchRegistries).toHaveBeenCalledWith({
+      check: request,
+      lookups: officer(refused),
+    });
+  }, 60_000);
+
   it('matches at once when every registry answered the first time', async () => {
     const { lookupRegistries } = lookupsAnswering(officer(found('r-1')));
     const mocks: Activities = {

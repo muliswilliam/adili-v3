@@ -12,6 +12,7 @@ import {
   type StoredResult,
   type SupplierCheckResult,
 } from '../../src/integration-gateway/integration-gateway-client.js';
+import { InternalApiRejected } from '../../src/internal-api/rejected.js';
 import type { RegistryRecords } from '../../src/rules/index.js';
 
 /** An instruction as the fake payroll holds it: what was sent, for whom, and its acknowledgement. */
@@ -40,13 +41,17 @@ export interface RecordedLookup {
   checkedAt: string;
 }
 
-/** How a registry fails: answered `unavailable` with a reason, or the gateway not answering. */
+/**
+ * How a registry fails: answered `unavailable` with a reason, the gateway not answering, or the
+ * gateway refusing the request (403: the token lacks the scope, say).
+ */
 export type RegistryFailure =
   | {
       kind: 'unavailable';
       reason: 'timeout' | 'breaker-open' | 'paused' | 'rate-limited' | 'upstream-error';
     }
-  | { kind: 'gateway-down' };
+  | { kind: 'gateway-down' }
+  | { kind: 'refused' };
 
 /**
  * The integration-gateway's payroll instructions for tests, behaving as the payroll mock does:
@@ -71,6 +76,7 @@ export class FakeIntegrationGateway extends IntegrationGatewayClient {
   private readonly supplierLists = new Map<string, Set<string>>();
   private readonly failing = new Map<FakeSystem, { failure: RegistryFailure; times: number }>();
   private storedResultsDown = false;
+  private storedResultsRefused = false;
 
   /** The instructions payroll holds, in the order it received them. */
   get instructions(): StoredInstruction[] {
@@ -115,6 +121,11 @@ export class FakeIntegrationGateway extends IntegrationGatewayClient {
     this.storedResultsDown = down;
   }
 
+  /** Stored result reads are refused with 403 (the token lacks the scope) until said again. */
+  refuseStoredResults(refused = true): void {
+    this.storedResultsRefused = refused;
+  }
+
   reset(): void {
     this.calls.length = 0;
     this.stored.clear();
@@ -127,6 +138,7 @@ export class FakeIntegrationGateway extends IntegrationGatewayClient {
     this.supplierLists.clear();
     this.failing.clear();
     this.storedResultsDown = false;
+    this.storedResultsRefused = false;
   }
 
   lookupRegistry<S extends LookupSystem>(
@@ -169,6 +181,9 @@ export class FakeIntegrationGateway extends IntegrationGatewayClient {
     if (this.storedResultsDown) {
       return Promise.reject(new IntegrationGatewayUnavailable('The key service is unavailable'));
     }
+    if (this.storedResultsRefused) {
+      return Promise.reject(new InternalApiRejected('integration-gateway', 403));
+    }
     const lookup = this.lookups.find((entry) => entry.resultId === resultId);
     // Another Commission's result is as good as none.
     if (lookup?.context.tenant !== tenant) return Promise.resolve(null);
@@ -198,6 +213,9 @@ export class FakeIntegrationGateway extends IntegrationGatewayClient {
     if (failure?.kind === 'gateway-down') {
       return Promise.reject(new IntegrationGatewayUnavailable('The gateway is unreachable'));
     }
+    if (failure?.kind === 'refused') {
+      return Promise.reject(new InternalApiRejected('integration-gateway', 403));
+    }
     const outcome = failure ? 'unavailable' : payload ? 'found' : 'not-found';
     const recorded: RecordedLookup = {
       resultId: randomUUID(),
@@ -214,7 +232,7 @@ export class FakeIntegrationGateway extends IntegrationGatewayClient {
       resultId: recorded.resultId,
       system,
       outcome,
-      reason: failure?.reason ?? null,
+      reason: failure?.kind === 'unavailable' ? failure.reason : null,
       cached: false,
       checkedAt: recorded.checkedAt,
       ...(outcome === 'found' ? payload : empty),

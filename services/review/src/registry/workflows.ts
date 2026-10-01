@@ -18,6 +18,7 @@ import {
   type RegistryCheckResult,
   type RegistryLookups,
   type RegistrySweepResult,
+  lookUpAgain,
   registrySweepCheckWorkflowId,
   SWEEP_SPACING,
 } from './contract.js';
@@ -43,7 +44,8 @@ const { lookupRegistries, matchRegistries, registrySweepCandidates } =
 /**
  * `RegistryCheckWorkflow`: looks up everyone on the case's version with a national ID in KRA,
  * NTSA, BRS and ArdhiSasa (and the officer's companies against the employer's supplier list),
- * looks up again what a registry or the gateway gave no answer to, three times with backoff, then
+ * looks up again what a registry or the gateway gave no answer to (not what the gateway refused),
+ * three times with backoff, then
  * matches the records against the declared items and stores the flags and statuses on the case.
  * A registry still without an answer is `unavailable` on the case; it never stops the check.
  *
@@ -54,7 +56,7 @@ const { lookupRegistries, matchRegistries, registrySweepCandidates } =
 export async function registryCheck(request: RegistryCheckRequest): Promise<RegistryCheckResult> {
   let lookups = await lookupRegistries({ check: request, previous: null });
   for (const delay of LOOKUP_RETRY_DELAYS) {
-    if (lookups === null || !anyUnavailable(lookups)) break;
+    if (lookups === null || !anyToLookUpAgain(lookups)) break;
     await sleep(delay);
     lookups = await lookupRegistries({ check: request, previous: lookups });
   }
@@ -62,12 +64,15 @@ export async function registryCheck(request: RegistryCheckRequest): Promise<Regi
   return matchRegistries({ check: request, lookups });
 }
 
-/** Whether a lookup or supplier check is still without an answer. */
-export function anyUnavailable(lookups: RegistryLookups): boolean {
+/**
+ * Whether a lookup or supplier check is still without an answer worth waiting for (one the
+ * gateway refused is not: it needs fixing).
+ */
+export function anyToLookUpAgain(lookups: RegistryLookups): boolean {
   return [
     ...Object.values(lookups.persons).flatMap((systems) => Object.values(systems)),
     ...Object.values(lookups.suppliers),
-  ].some((lookup) => lookup.outcome === 'unavailable');
+  ].some(lookUpAgain);
 }
 
 /**

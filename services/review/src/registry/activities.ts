@@ -40,6 +40,7 @@ import {
   GATEWAY_UNAVAILABLE,
   type LookupOutcome,
   type LookupRequest,
+  lookUpAgain,
   type MatchRequest,
   PROCESSING_LEGAL_BASIS,
   type RegistryCheckRequest,
@@ -80,7 +81,8 @@ export class RegistryCheckActivities {
    * Looks up every person of the version with a national ID in every registry, and the officer's
    * BRS companies against the officer's employer's supplier list, with the case as reference and
    * the legal basis of processing. Given the previous attempt, looks up again only what was
-   * unavailable. Null when the case is no longer at the version (nothing is looked up).
+   * unavailable and not refused. Null when the case is no longer at the version (nothing is looked
+   * up).
    */
   async lookupRegistries({ check, previous }: LookupRequest): Promise<RegistryLookups | null> {
     const found = await caseAt(this.db, check);
@@ -104,7 +106,7 @@ export class RegistryCheckActivities {
       const answers = await Promise.all(
         REGISTRY_SYSTEMS.map(async (system) => {
           const known = before[system];
-          if (known && known.outcome !== 'unavailable') return { system, outcome: known };
+          if (known && !lookUpAgain(known)) return { system, outcome: known };
           return { system, ...(await lookUp(this.gateway, system, nationalId, context)) };
         }),
       );
@@ -122,7 +124,7 @@ export class RegistryCheckActivities {
       const companies = officerCompanies ?? Object.keys(lookups.suppliers);
       for (const registrationNumber of companies) {
         const known = lookups.suppliers[registrationNumber];
-        if (known && known.outcome !== 'unavailable') continue;
+        if (known && !lookUpAgain(known)) continue;
         lookups.suppliers[registrationNumber] = await checkSupplier(
           this.gateway,
           registrationNumber,
@@ -223,7 +225,8 @@ function unavailable(reason: string | null, resultId: string | null): Unavailabl
 /**
  * A lookup as the matching module takes it: a found one with its records read back from the
  * gateway, a not-found one with none, or `unavailable`. A result the gateway no longer has is
- * unavailable (`result-missing`); the gateway not answering propagates, so the activity retries.
+ * unavailable (`result-missing`), one it refuses to give `gateway-rejected`, as a refused lookup
+ * is; the gateway not answering propagates, so the activity retries.
  */
 async function recordsOf(
   gateway: IntegrationGatewayClient,
@@ -249,7 +252,10 @@ async function recordsOf(
     stored = await gateway.getStoredResult(lookup.resultId, tenant);
   } catch (error) {
     if (error instanceof InternalApiRejected) {
-      throw ApplicationFailure.nonRetryable(error.message, GATEWAY_REJECTED);
+      logger.error(
+        `The integration-gateway refused a ${system} result with ${String(error.status)}`,
+      );
+      return unavailable(GATEWAY_REJECTED, lookup.resultId);
     }
     throw error;
   }
@@ -303,9 +309,10 @@ async function pullVersion(
 }
 
 /**
- * One lookup; the gateway not answering (unreachable, or the lookup not recorded) or refusing
- * the request is `unavailable` with no result id, looked up again like a registry outage. For a
- * found BRS lookup, the companies' registration numbers, for the supplier check.
+ * One lookup; the gateway not answering (unreachable, or the lookup not recorded) is
+ * `unavailable` with no result id, looked up again like a registry outage, and the gateway
+ * refusing the request is `unavailable` (`gateway-rejected`), not looked up again. For a found
+ * BRS lookup, the companies' registration numbers, for the supplier check.
  */
 async function lookUp(
   gateway: IntegrationGatewayClient,

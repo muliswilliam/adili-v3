@@ -320,6 +320,37 @@ describe('registry checks', () => {
     expect(again?.suppliers).toEqual(first?.suppliers);
   });
 
+  it('a lookup the gateway refuses is unavailable (gateway-rejected) and not looked up again', async () => {
+    const request = await caseOf(wanjikuVersion());
+    api.gateway.failRegistry('ntsa', { kind: 'refused' }, 1);
+
+    const first = await registry.lookupRegistries({ check: request, previous: null });
+    expect(first?.persons.officer?.ntsa).toEqual({
+      outcome: 'unavailable',
+      reason: 'gateway-rejected',
+      resultId: null,
+      checkedAt: null,
+    });
+    const before = api.gateway.lookups.length;
+
+    const again = await registry.lookupRegistries({ check: request, previous: first });
+
+    expect(api.gateway.lookups.slice(before)).toEqual([]);
+    expect(again?.persons.officer?.ntsa?.reason).toBe('gateway-rejected');
+  });
+
+  it('a stored result the gateway refuses to give leaves its registry unavailable (gateway-rejected); the check goes on', async () => {
+    const request = await caseOf(wanjikuVersion());
+    const lookups = await registry.lookupRegistries({ check: request, previous: null });
+    if (!lookups) throw new Error('stale');
+    api.gateway.refuseStoredResults();
+
+    const result = await registry.matchRegistries({ check: request, lookups });
+
+    expect(result.outcome).toBe('checked');
+    expect(await checksOf(request.caseId)).toContain('officer ntsa unavailable gateway-rejected');
+  });
+
   it('storing the same check twice changes nothing; a reviewed registry flag keeps its note', async () => {
     const request = await caseOf(wanjikuVersion());
     const { lookups } = await check(request);
