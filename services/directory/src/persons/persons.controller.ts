@@ -82,7 +82,8 @@ export class DeclarantProfileController {
 /**
  * Internal: not routed by the public entrypoint. Contacts are personal data: only the
  * notifications service's token carries `directory:person-contacts`, and it names the tenant it
- * sends for in X-Acting-Tenant (ADR-013 §8.1, ADR-017); a person not onboarded there is 404.
+ * sends for in X-Acting-Tenant (ADR-013 §8.1, ADR-017); a declarant not onboarded there is 404.
+ * Law-enforcement officers are reached for any tenant.
  */
 @ApiTags('internal')
 @Controller('internal/v1/persons')
@@ -97,14 +98,17 @@ export class InternalPersonsController {
     operationId: 'internalGetPersonContacts',
     summary: 'Verified contacts of a person (notifications)',
     description:
-      'Service tokens with scope directory:person-contacts (the notifications service only), acting for the tenant a message is sent for; audited. The email and phone verified at the latest onboarding, null where none. 404 when the person is unknown or not onboarded at that tenant.',
+      "Service tokens with scope directory:person-contacts (the notifications service only), acting for the tenant a message is sent for; audited. A declarant's email and phone verified at the latest onboarding, null where none; a law-enforcement officer's official email and phone as provisioned, whatever the acting tenant (officers request from any Commission). 404 when the person is unknown, or a declarant not onboarded at that tenant.",
   })
   @ApiOkResponse({
     description: 'Contacts, null where none is verified',
     schema: schemaRef('PersonContacts'),
   })
   @ApiProblemResponse(400, 'personId is not a UUID')
-  @ApiProblemResponse(404, 'No person has this id, or not one onboarded at the acting tenant')
+  @ApiProblemResponse(
+    404,
+    'No person has this id, or a declarant not onboarded at the acting tenant',
+  )
   contacts(
     @CurrentPrincipal() principal: Principal,
     @ActingTenant() tenant: string,

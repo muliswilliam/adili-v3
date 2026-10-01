@@ -14,6 +14,7 @@ import {
   type Restore,
   UsernameTaken,
 } from '../../identity/identity-provisioning.js';
+import { newPersonId } from '../../persons/person-id.js';
 import { persons } from '../../persons/schema.js';
 import { recomputeRosterSummary } from '../../roster/summary.js';
 import { rosterRecords } from '../../roster/schema.js';
@@ -230,11 +231,13 @@ export class ConfirmService {
     let person: { id: string; ofr: string; keycloakUserId: string };
     let outcome: OnboardingOutcome;
     if (existing) {
+      // Only declarants have a national ID, and every declarant has an OFR (by constraint).
+      if (existing.ofr === null) throw new Error(`Person ${existing.id} has no OFR`);
       // Linking adds the Commission and nothing else: the person's contacts (and the account's)
       // stay as their first onboarding verified them.
       const restore = await this.identity.addTenantToUser(existing.keycloakUserId, session.tenant);
       if (restore) undo.push(restore);
-      person = existing;
+      person = { ...existing, ofr: existing.ofr };
       outcome = 'linked-existing-account';
     } else {
       const ofr = await allocateReference(tx, OFR);
@@ -375,11 +378,3 @@ const RECORD_COLUMNS = {
   fullName: rosterRecords.fullName,
   nationalId: rosterRecords.nationalId,
 };
-
-/** A person id before the row exists: the account carries it as `person_id`. */
-async function newPersonId(tx: Transaction): Promise<string> {
-  const result = await tx.execute<{ id: string }>(sql`select uuidv7() as id`);
-  const id = result.rows[0]?.id;
-  if (!id) throw new Error('uuidv7() returned no id');
-  return id;
-}

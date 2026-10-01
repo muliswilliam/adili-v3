@@ -8,6 +8,7 @@ import {
   ApiClientNotFound,
   type CreateApiClientInput,
   type CreateDeclarantUserInput,
+  type CreateLawEnforcementUserInput,
   type CreateStaffUserInput,
   EmailTaken,
   type ExecuteActionsEmailOptions,
@@ -28,6 +29,8 @@ export interface InspectedUser {
   tenants: string[];
   ofr: string | null;
   personId: string | null;
+  /** A law-enforcement officer's agency code attribute. */
+  agency: string | null;
   phone: string | null;
   realmRoles: string[];
   requiredActions: string[];
@@ -118,6 +121,16 @@ export function declarant(email: string, ofr = uniqueOfr()): CreateDeclarantUser
     name: 'Wanjiru Achieng Otieno',
     phone: '+254712345123',
     tenant: 'tsc',
+    personId: randomUUID(),
+  };
+}
+
+export function lawEnforcementOfficer(email: string): CreateLawEnforcementUserInput {
+  return {
+    email,
+    name: 'Achieng Wafula Njoroge',
+    phone: '+254712345987',
+    agency: 'DCI',
     personId: randomUUID(),
   };
 }
@@ -383,6 +396,46 @@ export function identityProvisioningContract(name: string, harness: () => Contra
         tenant: 'tsc',
         roles: ['declarant'],
       });
+    });
+
+    it('S11: creates a law-enforcement officer with tenant lea, agency, person id, role and the staff required actions', async () => {
+      const email = uniqueEmail('S11-lea');
+      const input = lawEnforcementOfficer(email.toUpperCase());
+
+      const userId = await harness().adapter.createLawEnforcementUser(input);
+      created.push(userId);
+
+      const user = await harness().inspect(userId);
+      expect(user).toMatchObject({
+        username: email,
+        email,
+        emailVerified: false,
+        name: 'Achieng Wafula Njoroge',
+        tenant: 'lea',
+        agency: 'DCI',
+        personId: input.personId,
+        ofr: null,
+        phone: '+254712345987',
+        enabled: true,
+      });
+      expect(user.realmRoles).toContain('law-enforcement');
+      expect([...user.requiredActions].sort()).toEqual(
+        ['CONFIGURE_TOTP', 'UPDATE_PASSWORD', 'VERIFY_EMAIL'].sort(),
+      );
+      await expect(harness().adapter.findByEmail(email)).resolves.toMatchObject({
+        userId,
+        tenant: 'lea',
+        roles: ['law-enforcement'],
+      });
+    });
+
+    it('reports a law-enforcement officer whose email has an account as EmailTaken', async () => {
+      const email = uniqueEmail('lea-taken');
+      await create(reportingOfficer(email));
+
+      await expect(
+        harness().adapter.createLawEnforcementUser(lawEnforcementOfficer(email)),
+      ).rejects.toBeInstanceOf(EmailTaken);
     });
 
     it('reports a declarant whose email has an account as EmailTaken', async () => {

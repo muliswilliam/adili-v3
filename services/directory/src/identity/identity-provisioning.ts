@@ -64,6 +64,25 @@ export interface CreateDeclarantUserInput {
   personId: string;
 }
 
+/**
+ * A law-enforcement officer's account (spec 10), provisioned by a platform admin for an agency.
+ * A staff account in all but its attributes: the email as username, tenant `lea`, the
+ * `law-enforcement` role and the staff required actions, so the officer verifies the email, sets
+ * a password and enrols TOTP, which the staff flow then asks for at every sign-in.
+ */
+export interface CreateLawEnforcementUserInput {
+  /** Official email; the username. */
+  email: string;
+  /** Full name as entered; adapters split it into given and family names. */
+  name: string;
+  /** E.164. */
+  phone: string;
+  /** Agency code, e.g. `DCI`: the `agency` attribute. */
+  agency: string;
+  /** The directory's person id: the `person_id` attribute (and token claim). */
+  personId: string;
+}
+
 /** How a staff member is named and reached, as entered by the admin who assigned them. */
 export interface StaffProfile {
   /** Full name as entered; adapters split it into given and family names. */
@@ -186,6 +205,14 @@ export abstract class IdentityProvisioning {
    * @throws EmailTaken when an account with that email (or username) exists.
    */
   abstract createStaffUser(input: CreateStaffUserInput): Promise<string>;
+
+  /**
+   * Creates an enabled law-enforcement account (see CreateLawEnforcementUserInput): the email as
+   * username, the `tenant` (`lea`), `agency`, `person_id` and `phone` attributes, the
+   * `law-enforcement` role and the staff required actions. Returns the new user id.
+   * @throws EmailTaken when an account with that email (or username) exists.
+   */
+  abstract createLawEnforcementUser(input: CreateLawEnforcementUserInput): Promise<string>;
 
   /**
    * Creates an enabled declarant account: the OFR as username, the verified email, the `tenant`,

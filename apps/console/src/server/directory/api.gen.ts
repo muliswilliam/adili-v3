@@ -809,11 +809,75 @@ export interface paths {
         };
         /**
          * Verified contacts of a person (notifications)
-         * @description Service tokens with scope directory:person-contacts (the notifications service only), acting for the tenant a message is sent for; audited. The email and phone verified at the latest onboarding, null where none. 404 when the person is unknown or not onboarded at that tenant.
+         * @description Service tokens with scope directory:person-contacts (the notifications service only), acting for the tenant a message is sent for; audited. A declarant's email and phone verified at the latest onboarding, null where none; a law-enforcement officer's official email and phone as provisioned, whatever the acting tenant (officers request from any Commission). 404 when the person is unknown, or a declarant not onboarded at that tenant.
          */
         get: operations["internalGetPersonContacts"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/law-enforcement/agencies": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Registered law-enforcement agencies (reference data)
+         * @description Any staff role and law-enforcement officers. Seeded reference data in display order.
+         */
+        get: operations["listAgencies"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/law-enforcement/agencies/{code}/officers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Provisioned officer accounts for an agency (platform-admin)
+         * @description platform-admin only. Every officer ever provisioned for the agency, by name.
+         */
+        get: operations["listAgencyOfficers"];
+        put?: never;
+        /**
+         * Provision a law-enforcement officer account (platform-admin); one activation email
+         * @description platform-admin only. Creates the officer's directory person (kind `law-enforcement`) and Keycloak account: the email as username, role `law-enforcement`, tenant `lea`, the `agency` and `person_id` attributes, and the staff required actions (verify email, set a password, enrol TOTP); then, once recorded, sends exactly one activation email. Provisioning an officer of this agency again updates their name and phone (and resends the email while they are `invited`); a revoked officer is enabled and invited again. Idempotent per Idempotency-Key.
+         */
+        post: operations["provisionAgencyOfficer"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/law-enforcement/officers/{officerId}/revoke": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Disable a law-enforcement officer account (platform-admin)
+         * @description platform-admin only. Disables the Keycloak account, so the officer signs in no more, and records the officer as `revoked`. Revoking a revoked officer changes nothing, so no Idempotency-Key is needed.
+         */
+        post: operations["revokeAgencyOfficer"];
         delete?: never;
         options?: never;
         head?: never;
@@ -831,62 +895,6 @@ export interface paths {
         put?: never;
         /** Start onboarding as a public applicant (national ID with IPRS check, or passport pending manual verification) */
         post: operations["startApplicantOnboarding"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/law-enforcement/agencies": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Registered law-enforcement agencies (reference data) */
-        get: operations["listAgencies"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/law-enforcement/agencies/{code}/officers": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                code: string;
-            };
-            cookie?: never;
-        };
-        /** Provisioned officer accounts for an agency (platform-admin) */
-        get: operations["listAgencyOfficers"];
-        put?: never;
-        /** Provision a law-enforcement officer account (platform-admin); one activation email */
-        post: operations["provisionAgencyOfficer"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/law-enforcement/officers/{officerId}/revoke": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                officerId: string;
-            };
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Disable a law-enforcement officer account (platform-admin) */
-        post: operations["revokeAgencyOfficer"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1836,6 +1844,67 @@ export interface components {
             /** @description An email address, or a phone number (E.164, or a Kenyan number such as 0712345678) */
             value: string;
         };
+        /**
+         * @description Upper-case agency code
+         * @example DCI
+         * @example ODPP
+         * @example ARA
+         * @example FRC
+         */
+        AgencyCode: string;
+        Agency: {
+            code: components["schemas"]["AgencyCode"];
+            /** @example Directorate of Criminal Investigations */
+            name: string;
+            /**
+             * @description The statute that gives the agency its mandate
+             * @example National Police Service Act, 2011, s.35
+             */
+            legalBasis: string;
+        };
+        /**
+         * @description `invited` once provisioned; `activated` when the officer's account first makes an authenticated request to the directory (in practice the console's `/v1/me` after their first sign-in); `revoked` once disabled.
+         * @enum {string}
+         */
+        LeaOfficerState: "invited" | "activated" | "revoked";
+        LeaOfficerAccount: {
+            /**
+             * Format: uuid
+             * @description The officer's directory person id, which services address notifications and packages to
+             */
+            id: string;
+            agencyCode: components["schemas"]["AgencyCode"];
+            name: string;
+            /**
+             * Format: email
+             * @description Official email; the username they sign in with
+             */
+            email: string;
+            /**
+             * @description E.164
+             * @example +254712345678
+             */
+            phone: string;
+            state: components["schemas"]["LeaOfficerState"];
+            /**
+             * Format: date-time
+             * @description When the account was provisioned (or provisioned again)
+             */
+            invitedAt: string;
+            /** @description First authenticated request of the officer's account; null until then */
+            activatedAt: string | null;
+            revokedAt: string | null;
+        };
+        ProvisionAgencyOfficer: {
+            name: string;
+            /** Format: email */
+            email: string;
+            /**
+             * @description E.164
+             * @example +254712345678
+             */
+            phone: string;
+        };
         ProblemDetails: {
             type: string;
             title: string;
@@ -1852,33 +1921,6 @@ export interface components {
                 path: string;
                 message: string;
             }[];
-        };
-        Agency: {
-            /**
-             * @example DCI
-             * @example ODPP
-             * @example ARA
-             * @example FRC
-             */
-            code: string;
-            name: string;
-            legalBasis: string;
-        };
-        LeaOfficerAccount: {
-            /** Format: uuid */
-            id: string;
-            agencyCode: string;
-            name: string;
-            /** Format: email */
-            email: string;
-            /** @enum {string} */
-            state: "invited" | "activated" | "revoked";
-            /** Format: date-time */
-            invitedAt: string;
-            /** Format: date-time */
-            activatedAt: string | null;
-            /** Format: date-time */
-            revokedAt: string | null;
         };
         InternalStaffList: {
             items: {
@@ -4785,8 +4827,243 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
-            /** @description No person has this id, or not one onboarded at the acting tenant */
+            /** @description No person has this id, or a declarant not onboarded at the acting tenant */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    listAgencies: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Agencies */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Agency"][];
+                };
+            };
+            /**
+             * @description Declarants and applicants have no access
+             *
+             *     Requires one of the roles: platform-admin, eacc-analyst, eacc-supervisor, reporting-officer, reviewer, supervisor, commission-admin, access-officer, auditor, helpdesk, law-enforcement
+             */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    listAgencyOfficers: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                code: components["schemas"]["AgencyCode"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Officers */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LeaOfficerAccount"][];
+                };
+            };
+            /**
+             * @description Only platform admins manage officer accounts
+             *
+             *     Requires one of the roles: platform-admin
+             */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description No agency has this code */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    provisionAgencyOfficer: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Client-generated UUID, unique per logical request; reuse on retry */
+                "Idempotency-Key": string;
+            };
+            path: {
+                code: components["schemas"]["AgencyCode"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProvisionAgencyOfficer"];
+            };
+        };
+        responses: {
+            /** @description The officer account, `invited` when new or provisioned again */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LeaOfficerAccount"];
+                };
+            };
+            /** @description Request failed validation */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /**
+             * @description Only platform admins manage officer accounts
+             *
+             *     Requires one of the roles: platform-admin
+             */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description No agency has this code */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Problem type `email-belongs-to-other-tenant` with `errors[0].path = email`: the email belongs to an account that is not a law-enforcement officer. Problem type `lea-officer-of-other-agency`: it belongs to an officer of another agency. Problem type `lea-officer-busy`: another change to this officer is still in progress; try again shortly. Nothing changed. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Idempotency-Key reused with a different request body */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Problem type `identity-unavailable`: the identity provider failed and nothing was provisioned. Problem type `invitation-not-sent`: the officer was provisioned but the activation email was not sent; provision them again to resend it. Both are safe to retry. */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    revokeAgencyOfficer: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                officerId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Revoked */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LeaOfficerAccount"];
+                };
+            };
+            /** @description officerId is not a UUID */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /**
+             * @description Only platform admins manage officer accounts
+             *
+             *     Requires one of the roles: platform-admin
+             */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description No officer has this id */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Problem type `lea-officer-busy`: another change to this officer is still in progress; try again shortly. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Problem type `identity-unavailable`: the identity provider failed and the officer was not revoked. Safe to retry. */
+            502: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -4844,118 +5121,6 @@ export interface operations {
                 };
             };
             429: components["responses"]["RateLimited"];
-        };
-    };
-    listAgencies: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Agencies */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Agency"][];
-                };
-            };
-            403: components["responses"]["Forbidden"];
-        };
-    };
-    listAgencyOfficers: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                code: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Officers */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["LeaOfficerAccount"][];
-                };
-            };
-            403: components["responses"]["Forbidden"];
-        };
-    };
-    provisionAgencyOfficer: {
-        parameters: {
-            query?: never;
-            header: {
-                /** @description Client-generated UUID, unique per logical request; reuse on retry */
-                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
-            };
-            path: {
-                code: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": {
-                    name: string;
-                    /** Format: email */
-                    email: string;
-                    phone: string;
-                };
-            };
-        };
-        responses: {
-            /** @description Provisioned */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["LeaOfficerAccount"];
-                };
-            };
-            403: components["responses"]["Forbidden"];
-            /** @description Email belongs to an account in another tenant */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetails"];
-                };
-            };
-        };
-    };
-    revokeAgencyOfficer: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                officerId: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Revoked */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["LeaOfficerAccount"];
-                };
-            };
-            403: components["responses"]["Forbidden"];
-            404: components["responses"]["NotFound"];
         };
     };
     internalListCommissionStaff: {

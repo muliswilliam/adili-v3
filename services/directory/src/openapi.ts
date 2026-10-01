@@ -23,6 +23,13 @@ import {
   reportingOfficerStateSchema,
   rosterSummarySchema,
 } from './commissions/representation.js';
+import {
+  agencyCodeSchema,
+  agencySchema,
+  leaOfficerAccountSchema,
+  leaOfficerStateSchema,
+  provisionAgencyOfficerBody,
+} from './law-enforcement/representation.js';
 import { onboardingFailuresSchema } from './onboarding/failures/representation.js';
 import {
   identifyDeclarantBody,
@@ -160,4 +167,9 @@ export const OPENAPI_SCHEMAS: Record<string, z.ZodType> = {
   PersonContacts: personContactsSchema,
   VerifyOnboardingOtp: verifyOnboardingOtpBody,
   ProvideOnboardingContact: provideOnboardingContactBody,
+  AgencyCode: agencyCodeSchema,
+  Agency: agencySchema,
+  LeaOfficerState: leaOfficerStateSchema,
+  LeaOfficerAccount: leaOfficerAccountSchema,
+  ProvisionAgencyOfficer: provisionAgencyOfficerBody,
 };

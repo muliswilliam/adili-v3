@@ -1,5 +1,5 @@
-# Drafted operations of the directory API not implemented yet: public applicant onboarding,
-# law-enforcement agencies and a Commission's staff by role (spec 09). `pnpm --filter @adili/directory contracts`
+# Drafted operations of the directory API not implemented yet: public applicant onboarding and
+# a Commission's staff by role (spec 09). `pnpm --filter @adili/directory contracts`
 # merges them into packages/schemas/internal/directory.yaml, where they may reference the
 # implemented components (e.g. `#/components/schemas/Commission`). When an operation or component
 # is implemented, delete it here: the export fails while both define it.
@@ -61,103 +61,6 @@ paths:
                 $ref: '#/components/schemas/OnboardingProblem'
         '429':
           $ref: '#/components/responses/RateLimited'
-  /v1/law-enforcement/agencies:
-    get:
-      tags: [law-enforcement]
-      operationId: listAgencies
-      summary: Registered law-enforcement agencies (reference data)
-      responses:
-        '200':
-          description: Agencies
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/Agency'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-  /v1/law-enforcement/agencies/{code}/officers:
-    parameters:
-      - name: code
-        in: path
-        required: true
-        schema:
-          type: string
-    get:
-      tags: [law-enforcement]
-      operationId: listAgencyOfficers
-      summary: Provisioned officer accounts for an agency (platform-admin)
-      responses:
-        '200':
-          description: Officers
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/LeaOfficerAccount'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-    post:
-      tags: [law-enforcement]
-      operationId: provisionAgencyOfficer
-      summary: Provision a law-enforcement officer account (platform-admin); one activation email
-      parameters:
-        - $ref: '#/components/parameters/IdempotencyKey'
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [name, email, phone]
-              properties:
-                name:
-                  type: string
-                email:
-                  type: string
-                  format: email
-                phone:
-                  type: string
-      responses:
-        '201':
-          description: Provisioned
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/LeaOfficerAccount'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '409':
-          description: Email belongs to an account in another tenant
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ProblemDetails'
-  /v1/law-enforcement/officers/{officerId}/revoke:
-    parameters:
-      - name: officerId
-        in: path
-        required: true
-        schema:
-          type: string
-          format: uuid
-    post:
-      tags: [law-enforcement]
-      operationId: revokeAgencyOfficer
-      summary: Disable a law-enforcement officer account (platform-admin)
-      responses:
-        '200':
-          description: Revoked
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/LeaOfficerAccount'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '404':
-          $ref: '#/components/responses/NotFound'
   /internal/v1/commissions/{slug}/staff:
     get:
       tags: [internal]
@@ -257,43 +160,6 @@ components:
           schema:
             $ref: '#/components/schemas/ProblemDetails'
   schemas:
-    Agency:
-      type: object
-      required: [code, name, legalBasis]
-      properties:
-        code:
-          type: string
-          examples: [DCI, ODPP, ARA, FRC]
-        name:
-          type: string
-        legalBasis:
-          type: string
-    LeaOfficerAccount:
-      type: object
-      required: [id, agencyCode, name, email, state, invitedAt, activatedAt, revokedAt]
-      properties:
-        id:
-          type: string
-          format: uuid
-        agencyCode:
-          type: string
-        name:
-          type: string
-        email:
-          type: string
-          format: email
-        state:
-          type: string
-          enum: [invited, activated, revoked]
-        invitedAt:
-          type: string
-          format: date-time
-        activatedAt:
-          type: [string, 'null']
-          format: date-time
-        revokedAt:
-          type: [string, 'null']
-          format: date-time
     InternalStaffList:
       type: object
       required: [items]

@@ -1,4 +1,4 @@
-import { DECLARANT } from '@adili/roles';
+import { DECLARANT, LAW_ENFORCEMENT, LAW_ENFORCEMENT_TENANT } from '@adili/roles';
 
 import {
   type ActivationEmailOptions,
@@ -7,6 +7,7 @@ import {
   type ApiClientSecret,
   type CreateApiClientInput,
   type CreateDeclarantUserInput,
+  type CreateLawEnforcementUserInput,
   type CreateStaffUserInput,
   DECLARANT_REQUIRED_ACTIONS,
   EmailTaken,
@@ -17,6 +18,7 @@ import {
   type IdentityUser,
   IdentityUserNotFound,
   type Restore,
+  STAFF_REQUIRED_ACTIONS,
   type StaffProfile,
 } from './identity-provisioning.js';
 
@@ -153,6 +155,27 @@ export class KeycloakIdentityProvisioning extends IdentityProvisioning {
         requiredActions: input.requiredActions,
       },
       input.role,
+    );
+  }
+
+  async createLawEnforcementUser(input: CreateLawEnforcementUserInput): Promise<string> {
+    const email = keycloakEmail(input.email);
+    return this.createUser(
+      {
+        username: email,
+        email,
+        ...splitName(input.name),
+        enabled: true,
+        emailVerified: false,
+        attributes: {
+          tenant: [LAW_ENFORCEMENT_TENANT],
+          agency: [input.agency],
+          person_id: [input.personId],
+          phone: [input.phone],
+        },
+        requiredActions: STAFF_REQUIRED_ACTIONS,
+      },
+      LAW_ENFORCEMENT,
     );
   }
 

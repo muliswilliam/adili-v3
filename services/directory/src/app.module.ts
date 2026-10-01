@@ -13,6 +13,7 @@ import { config, SERVICE_NAME } from './config.js';
 import { schema } from './db/schema.js';
 import { CommissionsModule } from './commissions/commissions.module.js';
 import { IdentityModule } from './identity/identity.module.js';
+import { LawEnforcementModule } from './law-enforcement/law-enforcement.module.js';
 import { MeController } from './me/me.controller.js';
 import { OnboardingModule } from './onboarding/onboarding.module.js';
 import { PersonsModule } from './persons/persons.module.js';
@@ -64,6 +65,7 @@ import { DirectoryWorkerModule } from './worker.module.js';
     RosterExitsModule,
     OnboardingModule,
     PersonsModule,
+    LawEnforcementModule,
     DirectoryWorkerModule,
   ],
   controllers: [MeController],
