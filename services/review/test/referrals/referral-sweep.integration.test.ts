@@ -112,10 +112,14 @@ describe('referral sweep (S12, S16 faked)', () => {
     return { latest, ladder };
   }
 
-  /** An unanswered clarification of a case, its ladder running since `startedAt`. */
+  /**
+   * An unanswered clarification of a case, its ladder running since `startedAt`; with
+   * `stoppageWindowEndedAt`, the ladder reached salary stoppage and that window ended then.
+   */
   async function givenUnansweredClarification(
     startedAt: string,
     status: 'overdue' | 'responded' = 'overdue',
+    stoppageWindowEndedAt?: string,
   ) {
     const version = submittedVersion({
       tenant: 'psc',
@@ -145,6 +149,7 @@ describe('referral sweep (S12, S16 faked)', () => {
       declarantName: 'Peter Mwangi',
       personnelFileNumber: 'PSC/00555',
       actionReference: `ADM-PSC-2027-${next()}-4`,
+      ...(stoppageWindowEndedAt ? { stoppageWindowEndedAt: new Date(stoppageWindowEndedAt) } : {}),
     });
     return { version, caseId, clarification, ladder };
   }
@@ -178,11 +183,28 @@ describe('referral sweep (S12, S16 faked)', () => {
         personnelFileNumber: 'TSC/00001',
       },
     );
-    const unanswered = await givenUnansweredClarification('2027-12-27T06:00:00.000Z');
-    // Overdue since 20 January: the ladder window has not passed.
+    const unanswered = await givenUnansweredClarification(
+      '2027-12-27T06:00:00.000Z',
+      'overdue',
+      '2028-02-20T06:00:00.000Z',
+    );
+    // Overdue since 20 January: the ladder has not reached salary stoppage yet.
     await givenUnansweredClarification('2028-01-20T06:00:00.000Z');
+    // Started as long ago, but stuck on its notice (never approved further): never reached salary
+    // stoppage, so it is not past those windows.
+    await givenUnansweredClarification('2027-12-27T06:00:00.000Z');
+    // Salary stoppage issued, but its window has not ended.
+    await givenUnansweredClarification(
+      '2027-12-27T06:00:00.000Z',
+      'overdue',
+      '2028-03-20T06:00:00.000Z',
+    );
     // Answered: its ladder complied.
-    await givenUnansweredClarification('2027-12-27T06:00:00.000Z', 'responded');
+    await givenUnansweredClarification(
+      '2027-12-27T06:00:00.000Z',
+      'responded',
+      '2028-02-20T06:00:00.000Z',
+    );
 
     expect(await runSweeps()).toEqual({ swept: 2 });
 
@@ -225,7 +247,7 @@ describe('referral sweep (S12, S16 faked)', () => {
         flagIds: [],
         clarificationIds: [unanswered.clarification.clarificationId],
         obligationIds: [],
-        actionIds: [unanswered.ladder.actionId],
+        actionIds: [unanswered.ladder.actionId, unanswered.ladder.stoppageActionId],
       },
     });
 

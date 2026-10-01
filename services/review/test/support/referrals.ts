@@ -129,13 +129,16 @@ export interface GivenLadder {
   ladderId: string;
   /** Its issued notice to comply. */
   actionId: string;
+  /** Its issued salary stoppage, when it reached one. */
+  stoppageActionId: string | null;
   actionReference: string;
   letterSha256: string;
 }
 
 /**
  * The enforcement ladder of a subject, arranged directly, with its notice to comply issued (letter
- * known to the fake documents service): running since `startedAt` unless said otherwise.
+ * known to the fake documents service): running since `startedAt` unless said otherwise. With
+ * `stoppageWindowEndedAt`, it has also reached salary stoppage, issued with that window.
  */
 export async function givenLadder(
   api: ReviewApi,
@@ -151,6 +154,7 @@ export async function givenLadder(
     declarantName = 'Grace Wanjiru',
     personnelFileNumber = 'PSC/00417',
     actionReference,
+    stoppageWindowEndedAt,
   }: {
     tenant: string;
     subjectKind: SubjectKind;
@@ -163,10 +167,12 @@ export async function givenLadder(
     declarantName?: string;
     personnelFileNumber?: string;
     actionReference: string;
+    stoppageWindowEndedAt?: Date;
   },
 ): Promise<GivenLadder> {
   const ladderId = uuidv7();
   const actionId = uuidv7();
+  const stoppageActionId = stoppageWindowEndedAt ? uuidv7() : null;
   const letterDocumentId = randomUUID();
   const letterSha256 = api.documents.givenIssuedDocument(
     tenant,
@@ -208,12 +214,37 @@ export async function givenLadder(
       letterDocumentId,
       letterVerificationId: 'ADL-TEST',
     });
+    if (stoppageActionId !== null && stoppageWindowEndedAt) {
+      const stoppageLetter = randomUUID();
+      api.documents.givenIssuedDocument(tenant, stoppageLetter, 'salary-stoppage');
+      const issuedAt = new Date(stoppageWindowEndedAt.getTime() - 30 * 24 * 60 * 60 * 1000);
+      await tx.insert(administrativeActions).values({
+        id: stoppageActionId,
+        tenant,
+        ladderId,
+        run: 1,
+        subjectKind,
+        subjectId,
+        personId,
+        step: 'salary-stoppage',
+        status: 'issued',
+        proposerKind: 'system',
+        proposedAt: issuedAt,
+        approver: 'supervisor-s',
+        approvedAt: issuedAt,
+        issuedAt,
+        windowEndsAt: stoppageWindowEndedAt,
+        reference: `${actionReference}-S`,
+        letterDocumentId: stoppageLetter,
+        letterVerificationId: 'ADL-TEST',
+      });
+    }
     await tx
       .update(enforcementLadders)
-      .set({ currentActionId: actionId })
+      .set({ currentActionId: stoppageActionId ?? actionId })
       .where(eq(enforcementLadders.id, ladderId));
   });
-  return { ladderId, actionId, actionReference, letterSha256 };
+  return { ladderId, actionId, stoppageActionId, actionReference, letterSha256 };
 }
 
 /** A reviewer's referral from a case, as `caller`. */

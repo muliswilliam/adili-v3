@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { type Database, InjectDatabase, withTenant } from '@adili/data-access';
 import { EventPublisher } from '@adili/events';
 import { ApplicationFailure } from '@temporalio/common';
-import { and, asc, desc, eq, gt, inArray, isNotNull, lt, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, exists, gt, inArray, isNotNull, lte, sql } from 'drizzle-orm';
 import { v7 as uuidv7 } from 'uuid';
 
 import type { ReviewTransaction } from '../cases/case-lookup.js';
@@ -12,7 +12,11 @@ import type { ReviewSchema } from '../db/schema.js';
 import { DeclarationsClient } from '../declarations/declarations-client.js';
 import { DirectoryClient } from '../directory/directory-client.js';
 import { DocumentsClient } from '../documents/documents-client.js';
-import { enforcementLadders } from '../enforcement/schema.js';
+import {
+  administrativeActions,
+  enforcementLadders,
+  ISSUED_ACTION_STATUSES,
+} from '../enforcement/schema.js';
 import { InternalApiRejected } from '../internal-api/rejected.js';
 import { SYSTEM_SUBJECT, systemContext } from '../system-context.js';
 import {
@@ -36,8 +40,6 @@ import { REFERRAL_SENT, type ReferralSentData } from './events.js';
 import { ladderWindowDays, twoMissedCycles } from './missed-cycles.js';
 import { eventBase, issuedActionsOf, recordProposed } from './referrals.service.js';
 import { referrals } from './schema.js';
-
-const DAY_MS = 24 * 60 * 60 * 1000;
 
 /** The template version of `referral-package` this service's payload fills. */
 export const REFERRAL_PACKAGE_TEMPLATE_VERSION = 1;
@@ -165,17 +167,17 @@ export class ReferralActivities {
 
   /**
    * Proposes `unanswered-clarification` for up to `limit` clarifications of the Commission whose
-   * ladder is still running (so the declarant never answered) and started longer ago than the
-   * ladder window (notice, warning and salary stoppage together), once per person and cycle: the
-   * case, the clarification and the ladder's issued steps are its sources.
+   * ladder is still running (so the declarant never answered) and reached salary stoppage: its
+   * stoppage was issued and that window has ended (spec 08: "clarifications whose ladder reached
+   * the stoppage window without response"). A ladder held on an earlier step is not proposed,
+   * however long it has run. Once per person and cycle: the case, the clarification and the
+   * ladder's issued steps are its sources.
    */
   async proposeUnansweredClarifications({
     tenant,
     limit,
   }: ClarificationSweepChunk): Promise<ClarificationSweepResult> {
     const now = this.clock.now();
-    const windowDays = ladderWindowDays(await this.directory.getLadderPolicy(tenant));
-    const startedBefore = new Date(now.getTime() - windowDays * DAY_MS);
     return withTenant(this.db, systemContext(tenant), async (tx) => {
       const rows = await tx
         .select({
@@ -193,7 +195,19 @@ export class ReferralActivities {
             eq(enforcementLadders.tenant, tenant),
             eq(enforcementLadders.subjectKind, 'clarification'),
             eq(enforcementLadders.status, 'active'),
-            lt(enforcementLadders.startedAt, startedBefore),
+            exists(
+              tx
+                .select({ one: sql`1` })
+                .from(administrativeActions)
+                .where(
+                  and(
+                    eq(administrativeActions.ladderId, enforcementLadders.id),
+                    eq(administrativeActions.step, 'salary-stoppage'),
+                    inArray(administrativeActions.status, ISSUED_ACTION_STATUSES),
+                    lte(administrativeActions.windowEndsAt, now),
+                  ),
+                ),
+            ),
             inArray(clarifications.status, OPEN_CLARIFICATION_STATUSES),
             sql`not exists (select 1 from ${referrals} where ${referrals.tenant} = ${enforcementLadders.tenant} and ${referrals.personId} = ${clarifications.personId} and ${referrals.grounds} = 'unanswered-clarification' and ${referrals.proposerKind} = 'system' and ${referrals.cycleYear} = ${reviewCases.cycleYear})`,
           ),
@@ -221,7 +235,7 @@ export class ReferralActivities {
               obligationIds: [],
               actionIds: await issuedActionsOf(tx, [row.clarificationId]),
             },
-            narrative: `Proposed by the system: clarification ${row.ladder.subjectReference} is not answered, more than ${String(windowDays)} days after it fell overdue: past the notice, warning and salary stoppage windows (Regs r.20(2)).`,
+            narrative: `Proposed by the system: clarification ${row.ladder.subjectReference} is not answered, and the ladder is past the notice, warning and salary stoppage windows (Regs r.20(2)).`,
             status: 'proposed',
             declarantName: row.ladder.declarantName,
             personnelFileNumber: row.ladder.personnelFileNumber,
