@@ -70,6 +70,11 @@ class TemporalWorkerHost implements OnApplicationBootstrap, BeforeApplicationShu
     return this.worker?.getState() === 'RUNNING';
   }
 
+  /** Activities the worker is running now; 0 when no worker is up. */
+  get activitiesInFlight(): number {
+    return this.worker?.getStatus().numInFlightActivities ?? 0;
+  }
+
   onApplicationBootstrap(): void {
     installRuntimeLogger();
     // Not awaited: the service starts (not ready) even if Temporal is down.
@@ -200,6 +205,14 @@ export class TemporalWorkerReadinessCheck extends ReadinessCheck {
     return this.host.polling
       ? Promise.resolve()
       : Promise.reject(new Error('worker is not polling its task queue'));
+  }
+
+  /**
+   * Activities the worker is running now. Terminating a workflow does not stop its in-flight
+   * activities, so tests that end workflows wait for this to reach 0 before resetting state.
+   */
+  get activitiesInFlight(): number {
+    return this.host.activitiesInFlight;
   }
 }
 

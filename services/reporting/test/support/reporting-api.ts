@@ -84,7 +84,7 @@ export interface ReportingApi {
   activities: ComplianceReportActivities;
   /** The events recorded in the outbox, of `type` when given, oldest first. */
   events(type?: string): Promise<RecordedEvent[]>;
-  /** Terminates the workflows with these ids; one not running is fine. */
+  /** Terminates the workflows with these ids (one not running is fine) and waits out their activities. */
   endWorkflows(ids: readonly string[]): Promise<void>;
   /** Delivers an event to its consumer as the RabbitMQ transport would; false for a redelivery. */
   deliver(event: EventEnvelope): Promise<boolean>;
@@ -228,6 +228,14 @@ export async function startReportingApi(): Promise<ReportingApi> {
           // Not running.
         }
       }
+      // Terminating leaves the workflows' in-flight activities running; let them finish so their
+      // writes land before the next reset, not in the next test.
+      await vi.waitFor(
+        () => {
+          if (worker.activitiesInFlight > 0) throw new Error('activities still in flight');
+        },
+        { timeout: 30_000, interval: 50 },
+      );
     },
     deliver(event) {
       const handler = HANDLERS[event.type];
