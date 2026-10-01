@@ -25,7 +25,7 @@ import {
   UploadNotClean,
   UploadNotFound,
 } from '../documents/documents-client.js';
-import { decodeCursor, encodeCursor } from '../paging.js';
+import { decodeCursor, encodeCursor, type Position } from '../paging.js';
 import {
   badRequest,
   conflict,
@@ -80,7 +80,8 @@ export class OfficerService {
   ) {}
 
   /**
-   * One page of the Commission's queue, earliest decision deadline first (then by id), each with
+   * One page of the Commission's queue: open requests first, earliest decision deadline first;
+   * then decided and closed ones, latest deadline first (each then by id). Each says
    * whether it is late: past its deadline and neither decided nor closed. Law enforcement
    * requests join it with #264; until then `kind=lea` is an empty page.
    */
@@ -99,12 +100,15 @@ export class OfficerService {
             query.status === undefined ? undefined : inArray(accessRequests.status, query.status),
             query.late === undefined ? undefined : lateCondition(query.late, now),
             query.search === undefined ? undefined : searchCondition(query.search),
-            after === undefined
-              ? undefined
-              : sql`(${accessRequests.decisionDeadlineAt}, ${accessRequests.id}) > (${after.at.toISOString()}::timestamptz, ${after.id}::uuid)`,
+            after === undefined ? undefined : afterPosition(after),
           ),
         )
-        .orderBy(asc(accessRequests.decisionDeadlineAt), asc(accessRequests.id))
+        .orderBy(
+          asc(CLOSED),
+          sql`case when ${CLOSED} then null else ${accessRequests.decisionDeadlineAt} end asc`,
+          sql`case when ${CLOSED} then ${accessRequests.decisionDeadlineAt} end desc`,
+          asc(accessRequests.id),
+        )
         .limit(query.limit + 1),
     );
     const page = rows.slice(0, query.limit);
@@ -113,7 +117,11 @@ export class OfficerService {
       items: page.map((row) => toQueueItem(row, now)),
       nextCursor:
         rows.length > query.limit && last
-          ? encodeCursor({ at: last.decisionDeadlineAt, id: last.id })
+          ? encodeCursor({
+              closed: isClosed(last.status),
+              at: last.decisionDeadlineAt,
+              id: last.id,
+            })
           : null,
     };
   }
@@ -427,6 +435,38 @@ function requireUnderDecision(row: AccessRequestRow): void {
   );
 }
 
+/** Whether a request is decided or closed: nothing changes it but its package. */
+function isClosed(status: AccessRequestStatus): boolean {
+  return (CLOSED_STATUSES as readonly AccessRequestStatus[]).includes(status);
+}
+
+/** True for decided and closed requests, which the queue lists after the open ones. */
+const CLOSED = sql<boolean>`(${accessRequests.status} in (${sql.join(
+  CLOSED_STATUSES.map((status) => sql`${status}`),
+  sql`, `,
+)}))`;
+
+/**
+ * The requests after `position` in the queue's order: open ones by earliest deadline, then
+ * closed ones by latest deadline, each then by id.
+ */
+function afterPosition(position: Position): SQL | undefined {
+  const at = sql`${position.at.toISOString()}::timestamptz`;
+  const id = sql`${position.id}::uuid`;
+  const deadline = accessRequests.decisionDeadlineAt;
+  if (position.closed) {
+    return and(
+      CLOSED,
+      or(
+        sql`${deadline} < ${at}`,
+        and(sql`${deadline} = ${at}`, sql`${accessRequests.id} > ${id}`),
+      ),
+    );
+  }
+  // After an open request: the open ones after it, then every closed one.
+  return or(CLOSED, sql`(${deadline}, ${accessRequests.id}) > (${at}, ${id})`);
+}
+
 /**
  * Requests past their decision deadline and neither decided nor closed (`late`), or the others.
  * The same rule as `QueueItem.late`.
@@ -472,9 +512,7 @@ function toQueueItem(row: AccessRequestRow, now: Date): QueueItem {
     submittedAt: row.submittedAt.toISOString(),
     deadlineAt: row.decisionDeadlineAt.toISOString(),
     windowEndsAt: row.windowEndsAt?.toISOString() ?? null,
-    late:
-      !(CLOSED_STATUSES as readonly AccessRequestStatus[]).includes(row.status) &&
-      now.getTime() > row.decisionDeadlineAt.getTime(),
+    late: !isClosed(row.status) && now.getTime() > row.decisionDeadlineAt.getTime(),
     closedAt: row.decision?.decidedAt ?? row.closedAt?.toISOString() ?? null,
   };
 }

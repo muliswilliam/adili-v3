@@ -57,7 +57,7 @@ export class OfficerController {
     operationId: 'listCommissionAccessRequests',
     summary: 'Queue of access requests with deadlines (access officer; supervisor reads)',
     description:
-      'Earliest decision deadline first. `late`: past the deadline and neither decided nor closed. Filters combine (`status`, `late`, `search`). Law enforcement requests join the queue with their own workspace (`kind=lea` is empty until then).',
+      'Open requests first, earliest decision deadline first; then decided and closed ones, latest deadline first. `late`: past the deadline and neither decided nor closed. Filters combine (`status`, `late`, `search`). Law enforcement requests join the queue with their own workspace (`kind=lea` is empty until then).',
   })
   @ApiQueryParameters(queueQuery)
   @ApiOkResponse({ description: 'Page', schema: schemaRef('QueuePage') })

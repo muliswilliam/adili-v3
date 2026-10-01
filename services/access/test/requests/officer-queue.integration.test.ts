@@ -94,6 +94,24 @@ describe("The Commission's queue and a request as its access officer reads it (S
     expect(second.nextCursor).toBeNull();
   });
 
+  it('lists open requests first by earliest deadline, then closed ones by latest, across pages', async () => {
+    givenCommissions(api, NOW);
+    const [closedEarly, open, closedLate, openLater] = await received(4);
+    await setStatus(closedEarly ?? '', 'withdrawn');
+    await setStatus(closedLate ?? '', 'denied');
+
+    const ids: (string | undefined)[] = [];
+    let cursor: string | null = null;
+    do {
+      const query = `?limit=1${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ''}`;
+      const page: QueuePage = (await queue(query)).json<QueuePage>();
+      ids.push(...page.items.map((item) => item.id));
+      cursor = page.nextCursor;
+    } while (cursor !== null);
+
+    expect(ids).toEqual([open, openLater, closedLate, closedEarly]);
+  });
+
   it('flags a request late once its deadline passed undecided, but not a closed one', async () => {
     givenCommissions(api, NOW);
     const [open, withdrawn] = await received(2);
@@ -135,7 +153,7 @@ describe("The Commission's queue and a request as its access officer reads it (S
     const lateAndOpen = (await queue('?late=true&status=submitted')).json<QueuePage>();
 
     expect(lateOnly.items.map((item) => [item.id, item.late])).toEqual([[late, true]]);
-    expect(others.items.map((item) => item.id)).toEqual([withdrawn, onTime]);
+    expect(others.items.map((item) => item.id)).toEqual([onTime, withdrawn]);
     expect(lateAndOpen.items.map((item) => item.id)).toEqual([late]);
     expect((await queue('?late=yes')).statusCode).toBe(400);
   });
@@ -188,9 +206,10 @@ describe("The Commission's queue and a request as its access officer reads it (S
 
     const page = (await queue()).json<QueuePage>();
 
+    // Closed requests list latest deadline first.
     expect(page.items.map((item) => [item.id, item.status, item.closedAt])).toEqual([
-      [cannot, 'cannot-identify', '2027-03-08T10:00:00.000Z'],
       [withdrawn, 'withdrawn', '2027-03-09T11:00:00.000Z'],
+      [cannot, 'cannot-identify', '2027-03-08T10:00:00.000Z'],
     ]);
   });
 
