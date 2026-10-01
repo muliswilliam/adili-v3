@@ -47,7 +47,7 @@ function item(overrides: Partial<DeclarationListItem> = {}): DeclarationListItem
 }
 
 function renderCard(declarations: DeclarationListResult) {
-  render(
+  return render(
     <ToastProvider>
       <DeclarationsCard declarations={declarations} />
     </ToastProvider>,
@@ -122,8 +122,28 @@ describe('DeclarationsCard', () => {
     expect(
       within(row).getByText('Statement date 1 Nov 2027 · Version 2 · Submitted 30 Sep 2026, 12:00'),
     ).toBeTruthy();
+    // Wraps between the facts only, never inside the date.
+    expect(row.textContent).toContain('Submitted\u00A030\u00A0Sep\u00A02026,\u00A012:00');
     expect(within(row).queryByText(/Saved/)).toBeNull();
     expect(within(row).queryByText('Filed late')).toBeNull();
+  });
+
+  it('says drafts save as you type only while there is one to continue', () => {
+    const filed = item({
+      id: 'b',
+      status: 'submitted',
+      currentVersion: 1,
+      submittedAt: '2026-09-30T09:00:00Z',
+    });
+    const { unmount } = renderCard({ status: 'ok', declarations: [item(), filed] });
+    expect(screen.getByText('Drafts save as you type. Continue where you left off.')).toBeTruthy();
+    unmount();
+
+    renderCard({ status: 'ok', declarations: [filed] });
+    expect(screen.queryByText(/Drafts save as you type/)).toBeNull();
+    expect(
+      screen.getByText('Your filed declarations. Slips and amendments are on My declarations.'),
+    ).toBeTruthy();
   });
 
   it('marks a submitted declaration filed after its due date', () => {

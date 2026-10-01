@@ -40,14 +40,24 @@ const STATUS_BADGES: Record<
 
 /**
  * A filed declaration says which version is in force and when it was submitted; a draft or an
- * amendment says when it was last saved.
+ * amendment says when it was last saved. The line wraps only between facts, never inside a date.
  */
 function facts(item: DeclarationListItem): string {
+  return factsOf(item)
+    .map((fact) => fact.replaceAll(' ', '\u00A0'))
+    .join(' · ');
+}
+
+function factsOf(item: DeclarationListItem): string[] {
   const statementDate = `Statement date ${formatDate(item.statementDate)}`;
   if (item.status === 'submitted' && item.currentVersion !== null && item.submittedAt !== null) {
-    return `${statementDate} · Version ${String(item.currentVersion)} · Submitted ${formatDateTime(item.submittedAt)}`;
+    return [
+      statementDate,
+      `Version ${String(item.currentVersion)}`,
+      `Submitted ${formatDateTime(item.submittedAt)}`,
+    ];
   }
-  return `${statementDate} · Saved ${formatDateTime(item.updatedAt)}`;
+  return [statementDate, `Saved ${formatDateTime(item.updatedAt)}`];
 }
 
 const isOpen = (item: DeclarationListItem) => item.status === 'draft' || item.status === 'amending';
@@ -134,12 +144,26 @@ function ResolvedDeclarationsCard({ promise }: { promise: Promise<DeclarationLis
   return <DeclarationsCard declarations={use(promise)} />;
 }
 
-function DeclarationsCardFrame({ children, footer }: { children: ReactNode; footer?: ReactNode }) {
+const DESCRIPTIONS = {
+  drafts: 'Drafts save as you type. Continue where you left off.',
+  filed: 'Your filed declarations. Slips and amendments are on My declarations.',
+} as const;
+
+function DeclarationsCardFrame({
+  children,
+  footer,
+  description = 'drafts',
+}: {
+  children: ReactNode;
+  footer?: ReactNode;
+  /** `filed` when every declaration listed is filed, with nothing left to continue. */
+  description?: keyof typeof DESCRIPTIONS;
+}) {
   return (
     <Card>
       <CardHeader>
         <CardTitle>Your declarations</CardTitle>
-        <CardDescription>Drafts save as you type. Continue where you left off.</CardDescription>
+        <CardDescription>{DESCRIPTIONS[description]}</CardDescription>
       </CardHeader>
       <CardContent>{children}</CardContent>
       {footer ? <CardFooter>{footer}</CardFooter> : null}
@@ -172,8 +196,10 @@ export function DeclarationsCardSkeleton() {
  */
 export function DeclarationsCard({ declarations }: { declarations: DeclarationListResult }) {
   const items = declarations.status === 'ok' ? orderDeclarations(declarations.declarations) : [];
+  const allFiled = items.length > 0 && !items.some(isOpen);
   return (
     <DeclarationsCardFrame
+      description={allFiled ? 'filed' : 'drafts'}
       footer={
         items.length > 0 ? (
           <Button asChild variant="secondary" size="sm">
