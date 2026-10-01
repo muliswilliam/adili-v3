@@ -96,13 +96,16 @@ export interface ReviewApi {
 /** How often `reset` tries to truncate before a lock held for good fails the suite. */
 const RESET_ATTEMPTS = 20;
 
-/** Postgres `lock_not_available` (55P03), as the driver or drizzle's wrapper reports it. */
-function isLockTimeout(error: unknown): boolean {
+/**
+ * Postgres `lock_not_available` (55P03) or `deadlock_detected` (40P01), as the driver or drizzle's
+ * wrapper reports it.
+ */
+function isLockConflict(error: unknown): boolean {
   const codeOf = (value: unknown) =>
     typeof value === 'object' && value !== null && 'code' in value ? value.code : undefined;
   const cause =
     typeof error === 'object' && error !== null && 'cause' in error ? error.cause : undefined;
-  return codeOf(error) === '55P03' || codeOf(cause) === '55P03';
+  return [codeOf(error), codeOf(cause)].some((code) => code === '55P03' || code === '40P01');
 }
 
 /** Every table of the service, which `reset` empties. */
@@ -210,7 +213,10 @@ export async function startReviewApi(): Promise<ReviewApi> {
       // A letter activity of the previous test may still hold a row lock while the fake documents
       // service pulls its payload over HTTP. That read would queue behind a waiting truncate, which
       // waits for the lock: a wait Postgres cannot see as a deadlock (see `close`). So the truncate
-      // gives up after a moment, letting the read and the activity finish, and tries again.
+      // gives up after a moment, letting the read and the activity finish, and tries again. An
+      // activity that locked a later table and then reads one the truncate already holds is a
+      // deadlock Postgres does see; when it breaks one by aborting the truncate, that too is tried
+      // again.
       for (let attempt = 1; ; attempt += 1) {
         try {
           await db.transaction(async (tx) => {
@@ -219,7 +225,7 @@ export async function startReviewApi(): Promise<ReviewApi> {
           });
           break;
         } catch (error) {
-          if (attempt >= RESET_ATTEMPTS || !isLockTimeout(error)) throw error;
+          if (attempt >= RESET_ATTEMPTS || !isLockConflict(error)) throw error;
         }
       }
       declarations.reset();
