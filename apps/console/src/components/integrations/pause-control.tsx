@@ -25,7 +25,7 @@ import type {
   SystemCoverage,
 } from '../../server/integration-gateway/client';
 import { goToSignIn } from '../sign-in-redirect';
-import { SYSTEMS } from './coverage';
+import { systemInfo } from './coverage';
 import { messages as m } from './messages';
 
 /** Pauses (`paused: true`) or resumes a system; the gateway's answer. */
@@ -38,7 +38,7 @@ const unavailable = { ok: false, error: { kind: 'unavailable', detail: null } } 
 
 /** What the pause dialog lists for a system: registries feed review cases, IPRS onboarding. */
 function pauseEffects(row: SystemCoverage): string[] {
-  const name = SYSTEMS[row.system].name;
+  const name = systemInfo(row.system).name;
   const effects =
     row.system === 'iprs' ? [m.pauseOnboarding] : [m.pauseCasesFlow(name), m.pauseRechecked];
   return [m.pauseNothingSent(name), ...effects, m.pauseCached, m.auditNote];
@@ -63,7 +63,7 @@ export function PauseControl({
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const name = SYSTEMS[row.system].name;
+  const name = systemInfo(row.system).name;
   const pausing = !row.paused;
 
   const confirm = async () => {

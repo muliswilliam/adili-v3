@@ -1,8 +1,19 @@
 import type { IntegrationSystem, SystemCoverage } from '../../server/integration-gateway/client';
 import { formatRelativeTime } from '../format';
 
-/** Who runs each system and what Adili asks it, as the prototype words them. */
-export const SYSTEMS: Record<IntegrationSystem, { name: string; owner: string; use: string }> = {
+/** Who runs a system and what Adili asks it, as the Integrations page describes it. */
+export interface SystemInfo {
+  name: string;
+  /** Null for a system the page has no description of. */
+  owner: string | null;
+  use: string | null;
+}
+
+/**
+ * The systems the coverage response lists today, as the prototype words them. The page shows
+ * whatever coverage returns; a system it does not know here shows its id.
+ */
+const SYSTEM_INFO: Partial<Record<IntegrationSystem, SystemInfo>> = {
   iprs: {
     name: 'IPRS',
     owner: 'National Registration Bureau',
@@ -28,17 +39,12 @@ export const SYSTEMS: Record<IntegrationSystem, { name: string; owner: string; u
     owner: 'Ministry of Lands and Physical Planning',
     use: 'Land parcels by owner',
   },
-  payroll: {
-    name: 'Payroll (IPPD)',
-    owner: 'State Department for Public Service',
-    use: 'Stop and resume salary instructions',
-  },
-  icms: {
-    name: 'EACC ICMS',
-    owner: 'Ethics and Anti-Corruption Commission',
-    use: 'Registering approved referrals as cases',
-  },
 };
+
+/** How the page names and describes a system of the coverage response. */
+export function systemInfo(system: IntegrationSystem): SystemInfo {
+  return SYSTEM_INFO[system] ?? { name: system.toUpperCase(), owner: null, use: null };
+}
 
 export interface CoverageSummary {
   calls24h: number;
