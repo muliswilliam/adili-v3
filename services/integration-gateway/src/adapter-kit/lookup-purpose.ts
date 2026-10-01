@@ -11,7 +11,7 @@ import { ApiHeader } from '@nestjs/swagger';
 import { ApiProblemResponse, type AuthenticatedRequest, ProblemException } from '@adili/api-kit';
 
 import { LEGAL_BASES, type LegalBasis } from '../db/schema.js';
-import type { LookupPurpose } from './registry-adapter.js';
+import type { LookupContext, LookupPurpose } from './registry-adapter.js';
 
 export const LEGAL_BASIS_HEADER = 'x-legal-basis';
 export const CASE_REF_HEADER = 'x-case-ref';
@@ -101,6 +101,21 @@ export const Purpose = createParamDecorator((_: unknown, context: ExecutionConte
   if (!purpose) throw new Error('Purpose used on a route without LookupPurposeHeaders()');
   return purpose;
 });
+
+/**
+ * Who looks, why and for which tenant, on an internal lookup route (`InternalApi(scope)` and
+ * `@LookupPurposeHeaders()`): the context `RegistryLookups.lookup` takes.
+ */
+export const CurrentLookupContext = createParamDecorator(
+  (_: unknown, context: ExecutionContext): LookupContext => {
+    const request = context.switchToHttp().getRequest<PurposeRequest & { actingTenant?: string }>();
+    const { principal: caller, actingTenant: tenant, lookupPurpose: purpose } = request;
+    if (!caller || !tenant || !purpose) {
+      throw new Error('CurrentLookupContext used on a route without InternalApi() and purpose');
+    }
+    return { caller, purpose, tenant };
+  },
+);
 
 function single(header: string | string[] | undefined): string | undefined {
   return Array.isArray(header) ? undefined : header;
