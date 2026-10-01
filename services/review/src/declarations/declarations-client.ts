@@ -9,6 +9,10 @@ export interface PulledVersion {
   version: number;
   /** The declarant: the person whose earlier versions the rules compare against. */
   personId: string;
+  /** The roster record of the obligation the version was filed for. */
+  rosterRecordId: string;
+  /** That roster record's reporting entity; null when it has none. */
+  reportingEntityId: string | null;
   reference: string;
   type: 'initial' | 'biennial' | 'final';
   /** `YYYY-MM-DD`. */
@@ -37,6 +41,44 @@ export interface PreviousVersionRef {
   version: number;
   statementDate: string;
   submittedAt: string;
+}
+
+/**
+ * A filing obligation as the declarations service's internal obligation endpoint gives it
+ * (declarations.yaml `internalGetObligation`, spec 04): what the enforcement ladder is about and
+ * whom it addresses. The name and file number are the roster's, for the Actions view and letters.
+ */
+export interface ObligationFacts {
+  obligationId: string;
+  rosterRecordId: string;
+  /** Null until the officer onboards. */
+  personId: string | null;
+  type: 'initial' | 'biennial' | 'final';
+  /** `initial:<appointment date>`, `biennial:<year>` or `final:<exit date>`. */
+  cycleKey: string;
+  /** `YYYY-MM-DD`. */
+  dueDate: string;
+  status: 'upcoming' | 'due' | 'overdue' | 'filed' | 'cancelled';
+  declarantName: string;
+  personnelFileNumber: string;
+}
+
+/**
+ * One filing obligation of a person's history at a Commission, as the declarations service's
+ * internal person obligation endpoint gives it (declarations.yaml `internalListPersonObligations`,
+ * spec 08 BE-4): per cycle, its status and when it was filed. Facts only, no names.
+ */
+export interface PersonObligation {
+  obligationId: string;
+  type: 'initial' | 'biennial' | 'final';
+  /** `initial:<appointment date>`, `biennial:<year>` or `final:<exit date>`. */
+  cycleKey: string;
+  status: 'upcoming' | 'due' | 'overdue' | 'filed' | 'cancelled';
+  /** `YYYY-MM-DD`. */
+  dueDate: string;
+  /** ISO 8601; null while unfiled. */
+  filedAt: string | null;
+  late: boolean;
 }
 
 /**
@@ -84,4 +126,13 @@ export abstract class DeclarationsClient {
     tenant: string,
     beforeVersionId: string,
   ): Promise<PreviousVersionRef | null>;
+
+  /** A filing obligation of the Commission (spec 04); null when it has no such obligation. */
+  abstract getObligation(obligationId: string, tenant: string): Promise<ObligationFacts | null>;
+
+  /**
+   * The person's filing obligations at the Commission across cycles (spec 08 BE-4, the referral
+   * sweep); empty when the Commission has none of theirs.
+   */
+  abstract listPersonObligations(personId: string, tenant: string): Promise<PersonObligation[]>;
 }

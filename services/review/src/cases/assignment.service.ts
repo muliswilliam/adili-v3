@@ -164,7 +164,7 @@ function summaryOf(change: AssignmentChange): string {
 }
 
 /** The display name an officer had when they last held a case of the Commission, if ever. */
-async function knownName(
+export async function knownName(
   tx: ReviewTransaction,
   tenant: string,
   subject: string,

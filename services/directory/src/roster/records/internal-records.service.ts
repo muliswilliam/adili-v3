@@ -19,7 +19,11 @@ import {
   type InternalListRosterRecordsQuery,
   type PullCursor,
 } from './internal-query.js';
-import type { InternalRosterRecord, InternalRosterRecordPage } from './representation.js';
+import type {
+  InternalRosterRecord,
+  InternalRosterRecordPage,
+  RosterNationalId,
+} from './representation.js';
 
 const internalRecordColumns = {
   id: rosterRecords.id,
@@ -94,6 +98,23 @@ export class InternalRosterRecordsService {
       selectRecords(tx).where(and(eq(rosterRecords.id, recordId), eq(rosterRecords.tenant, slug))),
     );
     return toInternalRecord(notFoundIfInvisible(record));
+  }
+
+  /** The national ID of one record of the tenant; 404 when it has none with this id. */
+  async nationalId(
+    principal: Principal,
+    tenant: string,
+    slug: string,
+    recordId: string,
+  ): Promise<RosterNationalId> {
+    const context = actingTenantContext(principal, tenant, slug);
+    const [record] = await withTenant(this.db, context, (tx) =>
+      tx
+        .select({ nationalId: rosterRecords.nationalId })
+        .from(rosterRecords)
+        .where(and(eq(rosterRecords.id, recordId), eq(rosterRecords.tenant, slug))),
+    );
+    return { nationalId: notFoundIfInvisible(record).nationalId };
   }
 }
 

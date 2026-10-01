@@ -1,0 +1,5 @@
+ALTER TABLE "ladder_history" DROP CONSTRAINT "ladder_history_kind_check";--> statement-breakpoint
+ALTER TABLE "administrative_actions" ADD COLUMN "salary_stop_effective_date" date;--> statement-breakpoint
+ALTER TABLE "administrative_actions" ADD COLUMN "salary_stopped_at" timestamp with time zone;--> statement-breakpoint
+ALTER TABLE "administrative_actions" ADD COLUMN "salary_reinstated_at" timestamp with time zone;--> statement-breakpoint
+ALTER TABLE "ladder_history" ADD CONSTRAINT "ladder_history_kind_check" CHECK ("ladder_history"."kind" in ('ladder-started', 'ladder-restarted', 'ladder-complied', 'ladder-ended', 'action-proposed', 'action-approved', 'action-declined', 'action-issued', 'action-responded', 'action-complied', 'action-cancelled', 'action-reinstated', 'payroll-instruction-sent', 'payroll-instruction-acknowledged'));

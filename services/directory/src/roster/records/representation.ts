@@ -96,8 +96,9 @@ export type RosterRecordPage = z.infer<typeof rosterRecordPageSchema>;
 
 /**
  * A roster record as services pull it after a directory event (spec 04): what their read models
- * keep, with the Commission it belongs to. No national ID and no contacts (a person's verified
- * contacts come from `GET /internal/v1/persons/{personId}/contacts`).
+ * keep, with the Commission it belongs to. No national ID (the review service alone reads it, from
+ * `GET .../roster/records/{recordId}/national-id`) and no contacts (a person's verified contacts
+ * come from `GET /internal/v1/persons/{personId}/contacts`).
  */
 export const internalRosterRecordSchema = z.object({
   id: z.uuid(),
@@ -119,6 +120,15 @@ export const internalRosterRecordSchema = z.object({
   updatedAt: z.iso.datetime().meta({ description: 'Last change to the record' }),
 });
 export type InternalRosterRecord = z.infer<typeof internalRosterRecordSchema>;
+
+/**
+ * A roster record's national ID, kept off `InternalRosterRecord`: read on its own route with a
+ * scope of its own (spec 08: payroll's salary stoppage and the ICMS referral).
+ */
+export const rosterNationalIdSchema = z.object({
+  nationalId: z.string().meta({ description: 'As the roster gives it', examples: ['27451863'] }),
+});
+export type RosterNationalId = z.infer<typeof rosterNationalIdSchema>;
 
 export const internalRosterRecordPageSchema = z.object({
   items: z.array(internalRosterRecordSchema),

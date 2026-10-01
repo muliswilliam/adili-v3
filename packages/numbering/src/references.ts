@@ -13,7 +13,9 @@ export {
   type ReferenceParts,
 } from './reference.js';
 export {
+  ADM,
   CLR,
+  CMP,
   DCB,
   DCF,
   DCI,
@@ -26,5 +28,6 @@ export {
   type NumberingScheme,
   numberingSchemes,
   OFR,
+  RFL,
   RPT,
 } from './schemes.js';

@@ -1,4 +1,5 @@
-import { notFoundIfInvisible, type Principal, TENANT_KEY } from '@adili/api-kit';
+import { HttpStatus } from '@nestjs/common';
+import { notFoundIfInvisible, type Principal, ProblemException, TENANT_KEY } from '@adili/api-kit';
 import { REVIEWER, SUPERVISOR } from '@adili/roles';
 
 /**
@@ -38,4 +39,21 @@ export function caseTenant(principal: Principal): string {
 
 export function isSupervisor(principal: Principal): boolean {
   return principal.roles.includes(SUPERVISOR);
+}
+
+/**
+ * Approvals (the inbox, bulk closures) are the supervisors': a reviewer gets 403
+ * `supervisor-required`.
+ */
+export function requireSupervisor(principal: Principal): void {
+  if (isSupervisor(principal)) return;
+  throw new ProblemException(
+    {
+      type: 'supervisor-required',
+      title: 'Forbidden',
+      status: HttpStatus.FORBIDDEN,
+      detail: 'Approvals are for supervisors.',
+    },
+    { code: 'supervisor-required' },
+  );
 }

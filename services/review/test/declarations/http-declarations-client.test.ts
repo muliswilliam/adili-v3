@@ -7,12 +7,16 @@ const DECLARATION = '0199b000-0000-7000-8000-000000000001';
 const VERSION = '0199b000-0000-7000-8000-000000000002';
 const PERSON = '0199b000-0000-7000-8000-000000000003';
 const CASE = '0199b000-0000-7000-8000-000000000004';
+const ROSTER_RECORD = '0199b000-0000-7000-8000-000000000005';
+const REPORTING_ENTITY = '0199b000-0000-7000-8000-000000000006';
 
 const document = {
   declarationId: DECLARATION,
   versionId: VERSION,
   version: 1,
   personId: PERSON,
+  rosterRecordId: ROSTER_RECORD,
+  reportingEntityId: REPORTING_ENTITY,
   reference: 'DEC-PSC-2027-0000001-7',
   type: 'biennial',
   statementDate: '2027-11-01',
@@ -88,6 +92,67 @@ describe('HttpDeclarationsClient', () => {
       personId: PERSON,
       beforeVersionId: VERSION,
     });
+  });
+
+  it('reads a filing obligation with the Commission as acting tenant; 404 is none', async () => {
+    const obligation = {
+      obligationId: VERSION,
+      rosterRecordId: CASE,
+      personId: PERSON,
+      type: 'biennial',
+      cycleKey: 'biennial:2027',
+      dueDate: '2027-12-31',
+      status: 'overdue',
+      declarantName: 'James Otieno',
+      personnelFileNumber: 'PSC/0001',
+    };
+    const { declarations, fetch } = client(json(obligation), new Response(null, { status: 404 }));
+
+    expect(await declarations.getObligation(VERSION, 'psc')).toEqual(obligation);
+    expect(sent(fetch).url).toBe(`http://declarations.test/internal/v1/obligations/${VERSION}`);
+    expect(sent(fetch).headers.get('x-acting-tenant')).toBe('psc');
+    expect(await declarations.getObligation(VERSION, 'psc')).toBeNull();
+  });
+
+  it("S16: reads a person's obligation history at the Commission; 404 is none", async () => {
+    const history = [
+      {
+        obligationId: VERSION,
+        type: 'biennial',
+        cycleKey: 'biennial:2025',
+        status: 'overdue',
+        dueDate: '2025-12-31',
+        filedAt: null,
+        late: false,
+      },
+      {
+        obligationId: CASE,
+        type: 'biennial',
+        cycleKey: 'biennial:2027',
+        status: 'filed',
+        dueDate: '2027-12-31',
+        filedAt: '2027-12-20T09:00:00.000Z',
+        late: false,
+      },
+    ];
+    const { declarations, fetch } = client(json(history), new Response(null, { status: 404 }));
+
+    expect(await declarations.listPersonObligations(PERSON, 'psc')).toEqual(history);
+    const request = sent(fetch);
+    expect(request.url).toBe(`http://declarations.test/internal/v1/persons/${PERSON}/obligations`);
+    expect(Object.fromEntries(request.headers)).toMatchObject({
+      authorization: 'Bearer service-token',
+      'x-acting-tenant': 'psc',
+    });
+    expect(await declarations.listPersonObligations(PERSON, 'psc')).toEqual([]);
+  });
+
+  it('a person obligation history outside the contract is unavailable', async () => {
+    const { declarations } = client(json([{ obligationId: VERSION, status: 'late' }]));
+
+    await expect(declarations.listPersonObligations(PERSON, 'psc')).rejects.toThrow(
+      DeclarationsUnavailable,
+    );
   });
 
   it('retries once with a fresh token after a 401', async () => {

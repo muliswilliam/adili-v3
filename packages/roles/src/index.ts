@@ -73,6 +73,12 @@ export const DIRECTORY_INTERNAL_SCOPE = 'directory:internal';
 export const DIRECTORY_PERSON_CONTACTS_SCOPE = 'directory:person-contacts';
 
 /**
+ * A roster record's national ID in the directory: personal data, so a scope of its own, held by
+ * the review client alone for payroll's salary stoppage and the ICMS referral (spec 08).
+ */
+export const DIRECTORY_ROSTER_NATIONAL_ID_SCOPE = 'directory:roster-national-id';
+
+/**
  * The declarations service's internal API, acting for the Commission: the fields of a submitted
  * version's acknowledgement slip, pulled by the documents service (spec 06), and a submitted
  * version's document and the version before it, read by the review service (spec 07a).

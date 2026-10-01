@@ -500,6 +500,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/internal/v1/commissions/{slug}/roster/records/{recordId}/national-id": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * A roster record's national ID (review)
+         * @description Service tokens with scope directory:roster-national-id (the review service only), acting for the Commission in X-Acting-Tenant; audited. What payroll and the ICMS referral identify the officer by.
+         */
+        get: operations["internalGetRosterNationalId"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/commissions/{slug}/roster/exits": {
         parameters: {
             query?: never;
@@ -1566,6 +1586,13 @@ export interface components {
             items: components["schemas"]["InternalRosterRecord"][];
             /** @description Pass as `cursor` for the next page; null on the last page */
             nextCursor: string | null;
+        };
+        RosterNationalId: {
+            /**
+             * @description As the roster gives it
+             * @example 27451863
+             */
+            nationalId: string;
         };
         ConfirmExits: {
             /** @description Records to exit; each at most once, none already exited */
@@ -3592,6 +3619,59 @@ export interface operations {
                 };
             };
             /** @description Requires a service token with scope directory:internal */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description No such record in the acting tenant's Commission */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    internalGetRosterNationalId: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Tenant the calling service acts for; the resource must belong to it */
+                "X-Acting-Tenant": string;
+            };
+            path: {
+                slug: components["schemas"]["Slug"];
+                recordId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The national ID */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RosterNationalId"];
+                };
+            };
+            /** @description recordId is not a UUID */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Requires a service token with scope directory:roster-national-id */
             403: {
                 headers: {
                     [name: string]: unknown;

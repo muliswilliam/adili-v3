@@ -1,9 +1,36 @@
 # Drafted operations of the documents API for specs not implemented yet: 07a (revoking a
-# clarification letter withdrawn as issued in error). `pnpm --filter @adili/documents contracts`
+# clarification letter withdrawn as issued in error) and 08 (a letter's metadata for a referral
+# package's manifest). `pnpm --filter @adili/documents contracts`
 # merges them into packages/schemas/internal/documents.yaml, where they may reference the
 # implemented components (e.g. `#/components/schemas/IssuedDocument`, `ProblemDetails`). When an
 # operation or component is implemented, delete it here: the export fails while both define it.
 paths:
+  /internal/v1/documents/{documentId}:
+    parameters:
+      - $ref: '#/components/parameters/DocumentId'
+      - $ref: '#/components/parameters/ActingTenant'
+    get:
+      tags: [internal]
+      operationId: internalGetDocument
+      summary: Metadata of an issued document of the acting tenant (services)
+      description: |
+        Service tokens with scope documents:internal, acting in X-Acting-Tenant for the issuing
+        tenant; a document another tenant issued is 404. The review service reads the SHA-256 of
+        the letters it lists in a referral package's manifest (spec 08). Metadata only, no content
+        or download link.
+      responses:
+        '200':
+          description: Metadata
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InternalIssuedDocument'
+        '404':
+          description: Not found, or not the acting tenant's document
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
   /internal/v1/documents/{documentId}/revoke:
     parameters:
       - $ref: '#/components/parameters/DocumentId'
@@ -67,3 +94,14 @@ components:
     RevocationReason:
       type: string
       enum: [issued-in-error]
+    InternalIssuedDocument:
+      description: An issued document as its issuer reads it, with the SHA-256 of the signed PDF
+      allOf:
+        - $ref: '#/components/schemas/IssuedDocument'
+        - type: object
+          required: [sha256]
+          properties:
+            sha256:
+              type: string
+              pattern: '^[0-9a-f]{64}$'
+              description: SHA-256 of the signed PDF, lowercase hex

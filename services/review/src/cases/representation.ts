@@ -1,3 +1,4 @@
+import type { DeterminationView } from '../determinations/representation.js';
 import type { Evidence, ItemRef, Severity } from '../rules/index.js';
 import type {
   CaseStatus,
@@ -12,6 +13,11 @@ import type {
 export interface Assignee {
   subject: string;
   name: string;
+}
+
+/** An officer as a view names them: the name their token gave, else their subject. */
+export function officer(subject: string | null, name: string | null): Assignee | null {
+  return subject === null ? null : { subject, name: name ?? subject };
 }
 
 /** review.yaml `CaseListItem`: a row of the queue. */
@@ -167,6 +173,8 @@ export interface CaseDetail {
   document: Record<string, unknown> | null;
   versions: CaseVersionView[];
   reviewerHistory: Assignee[];
+  /** Every determination of the case, oldest first: the current one last (spec 08). */
+  determinations: DeterminationView[];
 }
 
 /** A short-lived link to an attachment of the declaration under review. */

@@ -428,6 +428,14 @@ describe('clarifications: drafts, issue, letter payload, declarant reads', () =>
         caseId,
       },
     ]);
+    // ClarificationWorkflow's letter activity holds a row lock while it issues: let it finish
+    // before the reads below and the next reset.
+    await vi.waitFor(
+      () => {
+        expect(api.documents.issued).toHaveLength(1);
+      },
+      { timeout: 45_000, interval: 250 },
+    );
     api.declarations.reads.length = 0;
 
     const response = await api.get(payloadUrl, documentsService, psc);

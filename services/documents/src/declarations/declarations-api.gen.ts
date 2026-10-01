@@ -512,6 +512,31 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/internal/v1/obligations/{obligationId}": {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Tenant the calling service acts for; the resource must belong to it */
+                "X-Acting-Tenant": components["parameters"]["ActingTenant"];
+            };
+            path: {
+                obligationId: string;
+            };
+            cookie?: never;
+        };
+        /**
+         * One filing obligation of the acting Commission (for the enforcement ladder)
+         * @description Service tokens with `declarations:internal`; the Commission in `X-Acting-Tenant`. The review service reads it when an obligation goes overdue (spec 08): whom the ladder addresses and what they failed to file. `personId` is null until the officer onboards.
+         */
+        get: operations["internalGetObligation"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/internal/v1/persons/{personId}/obligations": {
         parameters: {
             query?: never;
@@ -2792,12 +2817,53 @@ export interface operations {
             404: components["responses"]["NotFound"];
         };
     };
+    internalGetObligation: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Tenant the calling service acts for; the resource must belong to it */
+                "X-Acting-Tenant": components["parameters"]["ActingTenant"];
+            };
+            path: {
+                obligationId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The obligation */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** Format: uuid */
+                        obligationId: string;
+                        /** Format: uuid */
+                        rosterRecordId: string;
+                        /** Format: uuid */
+                        personId: string | null;
+                        type: components["schemas"]["ObligationType"];
+                        cycleKey: string;
+                        /** Format: date */
+                        dueDate: string;
+                        status: components["schemas"]["ObligationStatus"];
+                        declarantName: string;
+                        personnelFileNumber: string;
+                    };
+                };
+            };
+            404: components["responses"]["NotFound"];
+        };
+    };
     internalListPersonObligations: {
         parameters: {
-            query: {
-                tenant: string;
+            query?: never;
+            header: {
+                /** @description Tenant the calling service acts for; the resource must belong to it */
+                "X-Acting-Tenant": components["parameters"]["ActingTenant"];
             };
-            header?: never;
             path: {
                 personId: string;
             };
