@@ -9,6 +9,7 @@ import {
   loadApplicant,
   loadNewRequest,
   loadRequest,
+  readPackageDownload,
   submitRequest,
   withdrawRequest,
 } from './access-requests.server';
@@ -20,6 +21,7 @@ import {
   setAccessMockLatency,
 } from './access/mock.server';
 import type { paths as AccessPaths } from './access/schema.gen';
+import type { paths as DocumentsPaths } from './documents/schema.gen';
 import { mockDirectoryFetch } from './directory/mock.server';
 import type { paths as DirectoryPaths } from './directory/schema.gen';
 
@@ -36,6 +38,11 @@ function clients(roles = ['applicant'], username?: string) {
   return {
     access: createClient<AccessPaths>({
       baseUrl: 'http://access.test',
+      fetch: mockAccessFetch,
+      headers,
+    }),
+    documents: createClient<DocumentsPaths>({
+      baseUrl: 'http://documents.test',
       fetch: mockAccessFetch,
       headers,
     }),
@@ -300,5 +307,68 @@ describe('withdrawRequest', () => {
     expect(await withdrawRequest(access, IDS.submitted, crypto.randomUUID())).toEqual({
       status: 'unavailable',
     });
+  });
+});
+
+describe('readPackageDownload (#261, S7)', () => {
+  async function packageOf(id: string) {
+    const loaded = await loadRequest(clients().access, id);
+    if (loaded.status !== 'ok' || !loaded.request.package) throw new Error('no package');
+    return loaded.request.package;
+  }
+
+  it('links to the package and registers the download', async () => {
+    const before = await packageOf(IDS.granted);
+    const result = await readPackageDownload(clients().documents, before.documentId);
+    expect(result).toEqual({
+      status: 'ok',
+      downloadUrl: `/api/mock-packages/${before.documentId}`,
+    });
+    const after = await loadRequest(clients().access, IDS.granted);
+    if (after.status !== 'ok') throw new Error(after.status);
+    expect(after.request.package?.downloads).toBe(1);
+    expect(after.request.timeline.at(-1)?.kind).toBe('downloaded');
+  });
+
+  it('is refused with 410 once the window has closed', async () => {
+    const { documentId } = await packageOf(IDS.expired);
+    expect(await readPackageDownload(clients().documents, documentId)).toEqual({
+      status: 'window-closed',
+    });
+  });
+
+  it('closes the window ending today at the first attempt, as if it ended meanwhile', async () => {
+    const { documentId } = await packageOf(IDS.expiring);
+    expect(await readPackageDownload(clients().documents, documentId)).toEqual({
+      status: 'window-closed',
+    });
+    const after = await loadRequest(clients().access, IDS.expiring);
+    if (after.status !== 'ok') throw new Error(after.status);
+    expect(after.request.timeline.at(-1)?.kind).toBe('expired');
+  });
+
+  it('is not found for a document that is not the applicant’s package', async () => {
+    expect(await readPackageDownload(clients().documents, crypto.randomUUID())).toEqual({
+      status: 'not-found',
+    });
+    const { documentId } = await packageOf(IDS.granted);
+    expect(await readPackageDownload(clients(['declarant']).documents, documentId)).toEqual({
+      status: 'not-found',
+    });
+  });
+
+  it('reads documents being down as unavailable', async () => {
+    const documents = createClient<DocumentsPaths>({
+      baseUrl: 'http://documents.test',
+      fetch: down,
+    });
+    expect(await readPackageDownload(documents, crypto.randomUUID())).toEqual({
+      status: 'unavailable',
+    });
+    const { documentId } = await packageOf(IDS.partial);
+    expect(await readPackageDownload(clients().documents, documentId)).toEqual({
+      status: 'unavailable',
+    });
+    expect((await readPackageDownload(clients().documents, documentId)).status).toBe('ok');
   });
 });

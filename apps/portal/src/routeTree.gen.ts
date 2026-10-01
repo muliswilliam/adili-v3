@@ -38,6 +38,7 @@ import { Route as AccessRequestsIndexRouteImport } from './routes/access/request
 import { Route as AccessRequestsIdRouteImport } from './routes/access/requests/$id'
 import { Route as AccessRequestsNewRouteImport } from './routes/access/requests/new'
 import { Route as ApiMockLettersIdRouteImport } from './routes/api/mock-letters.$id'
+import { Route as ApiMockPackagesDocumentIdRouteImport } from './routes/api/mock-packages.$documentId'
 import { Route as ApiMockSlipsDocumentIdRouteImport } from './routes/api/mock-slips.$documentId'
 import { Route as ApiMockUploadsIdRouteImport } from './routes/api/mock-uploads.$id'
 import { Route as DeclarationsIdIndexRouteImport } from './routes/declarations/$id/index'
@@ -196,6 +197,12 @@ const ApiMockLettersIdRoute = ApiMockLettersIdRouteImport.update({
   path: '/api/mock-letters/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiMockPackagesDocumentIdRoute =
+  ApiMockPackagesDocumentIdRouteImport.update({
+    id: '/api/mock-packages/$documentId',
+    path: '/api/mock-packages/$documentId',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiMockSlipsDocumentIdRoute = ApiMockSlipsDocumentIdRouteImport.update({
   id: '/api/mock-slips/$documentId',
   path: '/api/mock-slips/$documentId',
@@ -277,6 +284,7 @@ export interface FileRoutesByFullPath {
   '/access/requests/$id': typeof AccessRequestsIdRoute
   '/access/requests/new': typeof AccessRequestsNewRoute
   '/api/mock-letters/$id': typeof ApiMockLettersIdRoute
+  '/api/mock-packages/$documentId': typeof ApiMockPackagesDocumentIdRoute
   '/api/mock-slips/$documentId': typeof ApiMockSlipsDocumentIdRoute
   '/api/mock-uploads/$id': typeof ApiMockUploadsIdRoute
   '/declarations/$id/bio': typeof DeclarationsIdBioRoute
@@ -315,6 +323,7 @@ export interface FileRoutesByTo {
   '/access/requests/$id': typeof AccessRequestsIdRoute
   '/access/requests/new': typeof AccessRequestsNewRoute
   '/api/mock-letters/$id': typeof ApiMockLettersIdRoute
+  '/api/mock-packages/$documentId': typeof ApiMockPackagesDocumentIdRoute
   '/api/mock-slips/$documentId': typeof ApiMockSlipsDocumentIdRoute
   '/api/mock-uploads/$id': typeof ApiMockUploadsIdRoute
   '/declarations/$id/bio': typeof DeclarationsIdBioRoute
@@ -357,6 +366,7 @@ export interface FileRoutesById {
   '/access/requests/$id': typeof AccessRequestsIdRoute
   '/access/requests/new': typeof AccessRequestsNewRoute
   '/api/mock-letters/$id': typeof ApiMockLettersIdRoute
+  '/api/mock-packages/$documentId': typeof ApiMockPackagesDocumentIdRoute
   '/api/mock-slips/$documentId': typeof ApiMockSlipsDocumentIdRoute
   '/api/mock-uploads/$id': typeof ApiMockUploadsIdRoute
   '/declarations/$id/bio': typeof DeclarationsIdBioRoute
@@ -400,6 +410,7 @@ export interface FileRouteTypes {
     | '/access/requests/$id'
     | '/access/requests/new'
     | '/api/mock-letters/$id'
+    | '/api/mock-packages/$documentId'
     | '/api/mock-slips/$documentId'
     | '/api/mock-uploads/$id'
     | '/declarations/$id/bio'
@@ -438,6 +449,7 @@ export interface FileRouteTypes {
     | '/access/requests/$id'
     | '/access/requests/new'
     | '/api/mock-letters/$id'
+    | '/api/mock-packages/$documentId'
     | '/api/mock-slips/$documentId'
     | '/api/mock-uploads/$id'
     | '/declarations/$id/bio'
@@ -479,6 +491,7 @@ export interface FileRouteTypes {
     | '/access/requests/$id'
     | '/access/requests/new'
     | '/api/mock-letters/$id'
+    | '/api/mock-packages/$documentId'
     | '/api/mock-slips/$documentId'
     | '/api/mock-uploads/$id'
     | '/declarations/$id/bio'
@@ -509,6 +522,7 @@ export interface RootRouteChildren {
   AccessRequestsIdRoute: typeof AccessRequestsIdRoute
   AccessRequestsNewRoute: typeof AccessRequestsNewRoute
   ApiMockLettersIdRoute: typeof ApiMockLettersIdRoute
+  ApiMockPackagesDocumentIdRoute: typeof ApiMockPackagesDocumentIdRoute
   ApiMockSlipsDocumentIdRoute: typeof ApiMockSlipsDocumentIdRoute
   ApiMockUploadsIdRoute: typeof ApiMockUploadsIdRoute
   DeclarationsIdSubmittedRoute: typeof DeclarationsIdSubmittedRoute
@@ -721,6 +735,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiMockLettersIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/mock-packages/$documentId': {
+      id: '/api/mock-packages/$documentId'
+      path: '/api/mock-packages/$documentId'
+      fullPath: '/api/mock-packages/$documentId'
+      preLoaderRoute: typeof ApiMockPackagesDocumentIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/mock-slips/$documentId': {
       id: '/api/mock-slips/$documentId'
       path: '/api/mock-slips/$documentId'
@@ -879,6 +900,7 @@ const rootRouteChildren: RootRouteChildren = {
   AccessRequestsIdRoute: AccessRequestsIdRoute,
   AccessRequestsNewRoute: AccessRequestsNewRoute,
   ApiMockLettersIdRoute: ApiMockLettersIdRoute,
+  ApiMockPackagesDocumentIdRoute: ApiMockPackagesDocumentIdRoute,
   ApiMockSlipsDocumentIdRoute: ApiMockSlipsDocumentIdRoute,
   ApiMockUploadsIdRoute: ApiMockUploadsIdRoute,
   DeclarationsIdSubmittedRoute: DeclarationsIdSubmittedRoute,

@@ -8,7 +8,7 @@ import {
   type StepErrors,
   toFormK,
 } from '../access/form-k';
-import type { AccessClient } from './access/client.server';
+import type { AccessClient, PackageDocumentsClient } from './access/client.server';
 import {
   type AccessCommission,
   type AccessRequest,
@@ -180,6 +180,8 @@ export interface RequestSummary {
   decisionDeadlineAt: string;
   /** When it was decided, withdrawn or closed; null while open. */
   closedAt: string | null;
+  /** When the granted package's download window ends; null without a package. */
+  downloadExpiresAt: string | null;
 }
 
 const CLOSING_KINDS = new Set(['decided', 'withdrawn', 'cannot-identify']);
@@ -202,6 +204,7 @@ export function toSummary(request: AccessRequest): RequestSummary {
     submittedAt: request.submittedAt,
     decisionDeadlineAt: request.decisionDeadlineAt,
     closedAt: closedAt(request),
+    downloadExpiresAt: request.package?.downloadExpiresAt ?? null,
   };
 }
 
@@ -270,5 +273,31 @@ export function withdrawRequest(
       default:
         return unavailable;
     }
+  });
+}
+
+export type PackageDownloadResult =
+  | { status: 'ok'; downloadUrl: string }
+  /** 410: the package's download window has closed. */
+  | { status: 'window-closed' }
+  | NotFound
+  | Unavailable;
+
+/**
+ * `GET /v1/documents/{id}/download` on the documents service, as the applicant: a presigned
+ * link to their access package, valid for minutes, so fetch one for each download. Documents
+ * registers each link it hands out, and refuses one once the window has closed.
+ */
+export function readPackageDownload(
+  documents: PackageDocumentsClient,
+  documentId: string,
+): Promise<PackageDownloadResult> {
+  return attempt(async () => {
+    const { data, response } = await documents.GET('/v1/documents/{documentId}/download', {
+      params: { path: { documentId } },
+    });
+    if (data) return { status: 'ok', downloadUrl: data.downloadUrl };
+    if (response.status === 410) return { status: 'window-closed' };
+    return response.status === 404 ? notFound : unavailable;
   });
 }

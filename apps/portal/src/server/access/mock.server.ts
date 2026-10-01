@@ -4,8 +4,11 @@
  * shares one store, seeded relative to when it was first used with one request in each status:
  *
  * - submitted today, awaiting identity verification (a passport), officer being identified,
- *   declarant notified, under decision (due in 3 days), under decision and late, granted,
- *   partially granted, denied, cannot identify officer, withdrawn.
+ *   declarant notified, under decision (due in 3 days), under decision and late, granted
+ *   (package for 13 more days), partially granted (2 more days), denied, cannot identify
+ *   officer, withdrawn;
+ * - granted with the package's window ending in about five hours, granted with the window
+ *   closed (downloaded twice), and granted today with the package still being prepared.
  *
  * Commissions: the Public Service Commission (2025, 2026), the Teachers Service Commission,
  * the National Police Service Commission, the Judicial Service Commission (2026) and the Kiambu
@@ -22,6 +25,13 @@
  * withdrawn or closed request 409 `request-closed`. The late request under decision is decided
  * (denied) the moment someone tries to withdraw it, to show the race.
  *
+ * It also answers the documents service's `GET /v1/documents/{id}/download` for the packages
+ * (the portal downloads them from documents, as their subject): a link to
+ * `/api/mock-packages/{id}` (served in mock mode by `routes/api/mock-packages.$documentId.ts`),
+ * registered as a download; 410 once the window has closed. The window ending in five hours
+ * closes at the first download attempt (410, the window closing while the page is open), and
+ * the partial grant's first link fails (503, documents down; trying again works).
+ *
  * Callers without the `applicant` realm role get 403, as from the service (the mock reads the
  * bearer token's claims without checking its signature).
  *
@@ -35,6 +45,7 @@ import { addDays } from '@adili/ui';
 import { ARQ, format } from '@adili/numbering/references';
 
 import { json, problem, readJson } from '../mock-http';
+import { placeholderPdf } from '../mock-pdf';
 import type { AccessCommission, AccessRequest, RegisterEntry } from './types';
 
 interface MockCommission extends AccessCommission {
@@ -60,6 +71,8 @@ export const MOCK_ACCESS_COMMISSIONS: MockCommission[] = [
 ];
 
 const DECISION_DAYS = 30;
+/** The access service's default download window (PACKAGE_DOWNLOAD_DAYS). */
+const PACKAGE_DAYS = 14;
 const DAY = 86_400_000;
 
 const requests = new Map<string, AccessRequest>();
@@ -68,6 +81,10 @@ const sequences = new Map<string, number>();
 const answered = new Map<string, { status: number; body: unknown }>();
 /** Requests decided the moment someone tries to withdraw them. */
 const decideOnWithdraw = new Set<string>();
+/** Packages whose window closes the moment someone first tries to download them. */
+const closeOnDownload = new Set<string>();
+/** Packages whose first download link fails, as if the documents service were down. */
+const failFirstDownload = new Set<string>();
 let failNext = false;
 let seeded = false;
 let latencyMs = 600;
@@ -135,7 +152,10 @@ type SeedKey =
   | 'partial'
   | 'denied'
   | 'cannot'
-  | 'withdrawn';
+  | 'withdrawn'
+  | 'expiring'
+  | 'expired'
+  | 'preparing';
 
 interface Seed {
   key: SeedKey;
@@ -155,6 +175,15 @@ interface Seed {
   closed?: number;
   decision?: Pick<AccessRequest['decision'] & object, 'outcome' | 'grounds' | 'reasons'> & {
     grantedScope?: FormKV1['scope'];
+  };
+  /** A grant's package: absent, issued at the decision for 14 days. */
+  package?: {
+    /** Still being prepared: the request has no package yet. */
+    preparing?: boolean;
+    /** Milliseconds from now to the end of the window, instead of 14 days from the decision. */
+    expiresIn?: number;
+    /** Days ago it was downloaded, oldest first. */
+    downloaded?: number[];
   };
 }
 
@@ -302,9 +331,9 @@ const SEEDS: Seed[] = [
     key: 'partial',
     commission: 'psc',
     status: 'partially-granted',
-    submittedDaysAgo: 35,
-    notified: 33,
-    decided: 6,
+    submittedDaysAgo: 41,
+    notified: 39,
+    decided: 12,
     officer: {
       name: 'Anne Njeri Mutua',
       entity: 'Kenya Revenue Authority',
@@ -380,6 +409,78 @@ const SEEDS: Seed[] = [
       'Borehole contracts were awarded without tender. The declaration shows whether the officer declared any interest in the contractors.',
     scope: scope([2026], ['assets']),
   },
+  {
+    key: 'expiring',
+    commission: 'tsc',
+    status: 'granted',
+    submittedDaysAgo: 44,
+    notified: 42,
+    decided: 14,
+    officer: {
+      name: 'Grace Akinyi Odhiambo',
+      entity: 'Teachers Service Commission',
+      workStation: 'TSC House, Nairobi',
+    },
+    informationSought: 'Income and assets in the 2025 declaration.',
+    reason:
+      'Teacher promotion fees were collected in cash at the county office. The declaration shows whether the officer’s income changed with them.',
+    scope: scope([2025], ['income', 'assets']),
+    decision: {
+      outcome: 'grant',
+      grounds: [],
+      reasons:
+        'The applicant shows good cause tied to the officer’s duties, and access to the income and assets declared promotes the objectives of the Act.',
+    },
+    package: { expiresIn: 5 * 3_600_000 + 12 * 60_000, downloaded: [13] },
+  },
+  {
+    key: 'expired',
+    commission: 'tsc',
+    status: 'granted',
+    submittedDaysAgo: 50,
+    notified: 48,
+    decided: 20,
+    officer: {
+      name: 'Samuel Kiprono Langat',
+      entity: 'Teachers Service Commission',
+      workStation: 'Uasin Gishu County Office, Eldoret',
+    },
+    informationSought: 'Assets in the 2025 declaration.',
+    reason:
+      'School land in Eldoret was sold to a developer the officer is said to be related to. The declaration shows whether the officer declared an interest.',
+    scope: scope([2025], ['assets']),
+    decision: {
+      outcome: 'grant',
+      grounds: [],
+      reasons:
+        'The sale of public school land is a matter of legitimate public concern, and access to the assets declared promotes the objectives of the Act.',
+    },
+    package: { downloaded: [19, 15] },
+  },
+  {
+    key: 'preparing',
+    commission: 'jsc',
+    status: 'granted',
+    submittedDaysAgo: 28,
+    notified: 26,
+    decided: 0,
+    officer: {
+      name: 'Esther Wambui Njoroge',
+      entity: 'Judiciary',
+      workStation: 'Milimani Law Courts, Nairobi',
+    },
+    informationSought: 'Liabilities in the 2026 declaration.',
+    reason:
+      'Court fees collected at the registry went missing while the officer headed it. The declaration shows whether the officer’s debts changed at the time.',
+    scope: scope([2026], ['liabilities']),
+    decision: {
+      outcome: 'grant',
+      grounds: [],
+      reasons:
+        'The applicant shows a legitimate interest in the handling of court fees, and access to the liabilities declared promotes the objectives of the Act.',
+    },
+    package: { preparing: true },
+  },
 ];
 
 export const MOCK_ACCESS_REQUEST_IDS = Object.fromEntries(
@@ -419,7 +520,14 @@ function seedRequest(seed: Seed, id: string, now: number): AccessRequest {
   let decision: AccessRequest['decision'] = null;
   let pkg: AccessRequest['package'] = null;
   if (seed.decided !== undefined && seed.decision) {
-    const decidedAt = ago(seed.decided, 14);
+    // A window that ends a set time from now was opened by a decision 14 days before that; a
+    // decision today was made a little while ago.
+    const decidedAt =
+      seed.package?.expiresIn !== undefined
+        ? new Date(now + seed.package.expiresIn - PACKAGE_DAYS * DAY).toISOString()
+        : seed.decided === 0
+          ? new Date(now - 40 * 60_000).toISOString()
+          : ago(seed.decided, 14);
     decision = {
       outcome: seed.decision.outcome,
       grantedScope:
@@ -430,15 +538,24 @@ function seedRequest(seed: Seed, id: string, now: number): AccessRequest {
       decidedAt,
     };
     timeline.push(entry('decided', decidedAt, reference, 'Decision made'));
-    if (seed.decision.outcome !== 'deny') {
+    if (seed.decision.outcome !== 'deny' && !seed.package?.preparing) {
+      const issuedAt = decidedAt;
+      const downloadExpiresAt = new Date(Date.parse(issuedAt) + PACKAGE_DAYS * DAY).toISOString();
+      const downloaded = (seed.package?.downloaded ?? []).map((days) => ago(days, 19));
       pkg = {
         documentId: `d0c00000-0000-4000-8000-${id.slice(-12)}`,
         verificationId: 'ADL-9PLX-2MWE-C3KF-7VUA',
-        issuedAt: decidedAt,
-        downloadExpiresAt: addDays(decidedAt, 14),
-        downloads: 0,
+        issuedAt,
+        downloadExpiresAt,
+        downloads: downloaded.length,
       };
-      timeline.push(entry('package-issued', decidedAt, reference, 'Package issued'));
+      timeline.push(entry('package-issued', issuedAt, reference, 'Package issued'));
+      for (const at of downloaded) {
+        timeline.push(entry('downloaded', at, reference, 'Package downloaded', partI.name));
+      }
+      if (Date.parse(downloadExpiresAt) <= now) {
+        timeline.push(entry('expired', downloadExpiresAt, reference, 'Download window closed'));
+      }
     }
   }
   if (seed.closed !== undefined) {
@@ -500,6 +617,10 @@ export function resetAccessMock(now = Date.now()) {
       requests.set(id, seedRequest(seed, id, now));
     });
   decideOnWithdraw.add(MOCK_ACCESS_REQUEST_IDS.late);
+  closeOnDownload.clear();
+  closeOnDownload.add(MOCK_ACCESS_REQUEST_IDS.expiring);
+  failFirstDownload.clear();
+  failFirstDownload.add(MOCK_ACCESS_REQUEST_IDS.partial);
   seeded = true;
 }
 
@@ -609,6 +730,65 @@ function withdraw(id: string, key: string | null): Response {
   return json(200, found);
 }
 
+/** The request whose package is this document, if any. */
+function packageRequest(documentId: string): AccessRequest | undefined {
+  return [...requests.values()].find((each) => each.package?.documentId === documentId);
+}
+
+/** The placeholder PDF the mock's package link serves, or null for no such package. */
+export function mockPackageFile(documentId: string): { fileName: string; pdf: string } | null {
+  const found = packageRequest(documentId);
+  if (!found?.package) return null;
+  return {
+    fileName: `access-package-${found.reference}.pdf`,
+    pdf: placeholderPdf([
+      'CONFIDENTIAL (mock access package)',
+      `Issued to ${found.formK.partI.name} · ${found.reference}`,
+      `Officer: ${found.formK.partII.name}`,
+      found.commission.name,
+    ]),
+  };
+}
+
+/**
+ * The documents service's `GET /v1/documents/{id}/download` for an access package, as the
+ * applicant (its subject person): a link valid for five minutes, registered as a download;
+ * 410 `download-window-closed` once the window has ended; 404 for any other document.
+ */
+function packageDownload(documentId: string): Response {
+  const found = packageRequest(documentId);
+  const pkg = found?.package;
+  if (!found || !pkg) return problem(404, 'Not found');
+  const now = new Date();
+  if (closeOnDownload.delete(found.id)) {
+    pkg.downloadExpiresAt = now.toISOString();
+    found.timeline.push(
+      entry('expired', pkg.downloadExpiresAt, found.reference, 'Download window closed'),
+    );
+  }
+  if (Date.parse(pkg.downloadExpiresAt) <= now.getTime()) {
+    return problem(410, 'The download window has ended', 'download-window-closed');
+  }
+  if (failFirstDownload.delete(found.id)) {
+    return problem(503, 'The documents service is unavailable');
+  }
+  pkg.downloads += 1;
+  found.timeline.push(
+    entry(
+      'downloaded',
+      now.toISOString(),
+      found.reference,
+      'Package downloaded',
+      found.formK.partI.name,
+    ),
+  );
+  return json(200, {
+    downloadUrl: `/api/mock-packages/${documentId}`,
+    expiresAt: new Date(now.getTime() + 5 * 60_000).toISOString(),
+    sha256: '0'.repeat(64),
+  });
+}
+
 /** Whether the bearer token, unverified, carries the `applicant` realm role. */
 function isApplicant(request: Request): boolean {
   const token = /^Bearer (.+)$/.exec(request.headers.get('authorization') ?? '')?.[1];
@@ -626,6 +806,13 @@ function isApplicant(request: Request): boolean {
 
 export async function mockAccessFetch(request: Request): Promise<Response> {
   if (!seeded) resetAccessMock();
+  const download = /^\/v1\/documents\/([^/]+)\/download$/.exec(new URL(request.url).pathname);
+  if (request.method === 'GET' && download?.[1]) {
+    // Documents answers anyone but the package's subject with 404.
+    if (!isApplicant(request)) return problem(404, 'Not found');
+    await settle();
+    return packageDownload(download[1]);
+  }
   if (!isApplicant(request)) {
     return json(403, {
       type: 'about:blank',

@@ -3,13 +3,20 @@ import { getRequest } from '@tanstack/react-start/server';
 import { z } from 'zod';
 
 import { formKDraftSchema } from '../access/form-k';
-import { accessClient, type AccessClient } from './access/client.server';
+import {
+  accessClient,
+  type AccessClient,
+  packageDocumentsClient,
+  type PackageDocumentsClient,
+} from './access/client.server';
 import {
   listRequests,
   loadApplicant,
   loadNewRequest,
   loadRequest,
   type NewRequestResult,
+  type PackageDownloadResult,
+  readPackageDownload,
   type RequestListResult,
   type RequestResult,
   submitRequest,
@@ -26,9 +33,10 @@ import type { Unauthenticated } from './results';
 interface ApplicantClients {
   access: AccessClient;
   directory: DirectoryClient;
+  documents: PackageDocumentsClient;
 }
 
-/** Runs `call` with the access and directory clients for the signed-in applicant. */
+/** Runs `call` with the access, directory and documents clients for the signed-in applicant. */
 async function asApplicant<T>(
   call: (clients: ApplicantClients) => Promise<T>,
 ): Promise<T | Unauthenticated> {
@@ -37,6 +45,7 @@ async function asApplicant<T>(
   return call({
     access: accessClient(session.accessToken),
     directory: directoryClient(session.accessToken),
+    documents: packageDocumentsClient(session.accessToken),
   });
 }
 
@@ -94,4 +103,14 @@ export const withdrawMyAccessRequest = createServerFn({ method: 'POST' })
   .validator(z.object({ requestId: z.uuid(), idempotencyKey: z.uuid() }))
   .handler(({ data }): Promise<WithdrawResult | Unauthenticated> =>
     asApplicant(({ access }) => withdrawRequest(access, data.requestId, data.idempotencyKey)),
+  );
+
+/**
+ * A short-lived link to a granted request's package, from the documents service, fetched on
+ * each click: documents serves it to the applicant (its subject) until the window closes.
+ */
+export const getMyPackageDownload = createServerFn({ method: 'GET' })
+  .validator(z.object({ documentId: z.uuid() }))
+  .handler(({ data }): Promise<PackageDownloadResult | Unauthenticated> =>
+    asApplicant(({ documents }) => readPackageDownload(documents, data.documentId)),
   );

@@ -205,6 +205,9 @@ const REQUESTS = {
   decisionDue: en('Decision due'),
   dueOn: en((date: string) => `Decision due ${date}`),
   open: en((reference: string) => `Open request ${reference}`),
+  downloadBy: en('Download by'),
+  expiresToday: en('Expires today'),
+  downloadExpired: en('Download expired'),
 };
 
 export const REQUESTS_COPY = english(REQUESTS);
@@ -272,6 +275,54 @@ const REQUEST = {
 };
 
 export const REQUEST_COPY = english(REQUEST);
+
+const PACKAGE = {
+  title: en('Package'),
+  confidential: en('Confidential'),
+  issuedOn: en((date: string) => `Issued to you on ${date}.`),
+  watermarked: en('Your name and reference are on every page.'),
+  download: en('Download'),
+  expiresOn: en((at: string, days: number) => `Expires ${at} · ${plural(days, 'day')} left`),
+  expiresIn: en((left: string) => `Expires in ${left}`),
+  spokenHours: en((hours: number) => `Expires in ${plural(hours, 'hour')}`),
+  spokenMinutes: en((minutes: number) => `Expires in ${plural(minutes, 'minute')}`),
+  downloaded: en(
+    (times: number, last: string) => `Downloaded ${plural(times, 'time')} · last ${last}`,
+  ),
+  notDownloaded: en('Not downloaded yet'),
+  expiredOn: en((date: string) => `Expired ${date}`),
+  stillNeed: en((commission: string) => `Contact ${commission} if you still need it.`),
+  offence: en(
+    (commission: string) =>
+      `Publishing or sharing it without ${commission}’s permission is an offence (Act\u00a0s.36(4)).`,
+  ),
+  downloadFailed: en('We could not start the download. Try again.'),
+  downloadStarted: en('Download started. Each download is recorded.'),
+  preparingTitle: en('Preparing your package…'),
+  preparingText: en('Usually a few minutes. We will SMS and email you when it is ready.'),
+
+  readyNext: en((at: string) => `Download your package by ${at}.`),
+  readyTodayNext: en((time: string) => `Download your package today, by ${time}.`),
+  partialReadyNext: en(
+    (at: string) => `Some of what you asked for was not granted. Download your package by ${at}.`,
+  ),
+  partialReadyTodayNext: en(
+    (time: string) =>
+      `Some of what you asked for was not granted. Download your package today, by ${time}.`,
+  ),
+  preparingNext: en('Your package is being prepared.'),
+  closedNext: en((date: string) => `The download window closed on ${date}.`),
+  closedNowLead: en('The download window has closed.'),
+  closedNowNext: en('The package can no longer be downloaded.'),
+
+  stagePreparing: en('Package'),
+  stagePreparingDetail: en('Being prepared'),
+  stageReady: en('Package ready'),
+  stageReadyDetail: en((at: string) => `Until ${at}`),
+  stageClosed: en('Download window closed'),
+};
+
+export const PACKAGE_COPY = english(PACKAGE);
 
 type BannerPhrase = Phrase<[commission: string, date: string]>;
 

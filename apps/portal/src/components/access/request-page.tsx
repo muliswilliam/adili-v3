@@ -5,6 +5,8 @@ import {
   Card,
   CardTitle,
   cn,
+  formatDateTime,
+  formatTime,
   Icon,
   ProgressBar,
   ReferenceChip,
@@ -15,15 +17,26 @@ import {
   Building03Icon,
   Cancel01Icon,
   Copy01Icon,
+  SquareLock02Icon,
   Tick02Icon,
   Undo02Icon,
 } from '@hugeicons/core-free-icons';
 import { Link } from '@tanstack/react-router';
+import { useState } from 'react';
 
-import { day, GROUNDS, REQUEST_COPY as COPY, STATUS_BANNERS, STATUSES } from '../../access/copy';
+import {
+  day,
+  GROUNDS,
+  PACKAGE_COPY as PACKAGE,
+  REQUEST_COPY as COPY,
+  STATUS_BANNERS,
+  STATUSES,
+} from '../../access/copy';
+import { packageView, type PackageView } from '../../access/package';
 import { accessReferenceParts } from '../../access/reference';
 import { decisionClock, requestStages, type Stage, WITHDRAWABLE } from '../../access/progress';
 import type { AccessRequest } from '../../server/access/types';
+import { PackageCard, usePackageClock } from './package-card';
 import { PartRow, PartRows, ScopeRows } from './request-parts';
 import { RequestStatusBadge } from './request-status';
 
@@ -50,17 +63,55 @@ function bannerDate(request: AccessRequest): string {
   return day(request.submittedAt);
 }
 
-function StatusBanner({ request }: { request: AccessRequest }) {
+/** What comes after a grant's lead: download by when, being prepared, or the window closed. */
+function packageNext(request: AccessRequest, pkg: PackageView): string {
+  if (pkg.state === 'preparing') return PACKAGE.preparingNext;
+  if (pkg.state === 'expired') return PACKAGE.closedNext(day(pkg.package.downloadExpiresAt));
+  const at = pkg.package.downloadExpiresAt;
+  const partial = request.status === 'partially-granted';
+  if (pkg.daysLeft === 0) {
+    return (partial ? PACKAGE.partialReadyTodayNext : PACKAGE.readyTodayNext)(formatTime(at));
+  }
+  // The date and time wrap as one, never "14 / Oct 2026".
+  const unbroken = formatDateTime(at).replaceAll(' ', '\u00a0');
+  return (partial ? PACKAGE.partialReadyNext : PACKAGE.readyNext)(unbroken);
+}
+
+function StatusBanner({
+  request,
+  pkg,
+  windowClosed,
+}: {
+  request: AccessRequest;
+  pkg: PackageView | null;
+  /** The documents service has just said the window is closed. */
+  windowClosed: boolean;
+}) {
   const meta = STATUSES[request.status];
   const banner = STATUS_BANNERS[request.status];
   const date = bannerDate(request);
   const name = request.commission.name;
+  if (windowClosed) {
+    return (
+      <Alert variant="neutral" role="status" className="gap-2.5">
+        <Icon icon={SquareLock02Icon} />
+        <AlertDescription>
+          <strong className="font-semibold">{PACKAGE.closedNowLead}</strong> {PACKAGE.closedNowNext}
+        </AlertDescription>
+      </Alert>
+    );
+  }
+  const expired = pkg?.state === 'expired';
   return (
-    <Alert variant={ALERT_VARIANTS[meta.tone]} role="status" className="gap-2.5">
-      <Icon icon={meta.icon} />
+    <Alert
+      variant={expired ? 'neutral' : ALERT_VARIANTS[meta.tone]}
+      role="status"
+      className="gap-2.5"
+    >
+      <Icon icon={expired ? SquareLock02Icon : meta.icon} />
       <AlertDescription>
         <strong className="font-semibold">{banner.lead.en(name, date)}</strong>{' '}
-        {banner.next.en(name, date)}
+        {pkg ? packageNext(request, pkg) : banner.next.en(name, date)}
       </AlertDescription>
       {request.status === 'cannot-identify' ? (
         <div>
@@ -219,8 +270,16 @@ const STAGE_WORDS: Record<Stage['state'], string> = {
   ended: 'ended',
 };
 
-function Progress({ request }: { request: AccessRequest }) {
-  const stages = requestStages(request);
+function Progress({
+  request,
+  now,
+  windowClosed,
+}: {
+  request: AccessRequest;
+  now: number;
+  windowClosed: boolean;
+}) {
+  const stages = requestStages(request, now, windowClosed);
   return (
     <ol className="grid">
       {stages.map((stage, index) => (
@@ -254,20 +313,27 @@ function Progress({ request }: { request: AccessRequest }) {
 
 /**
  * One of the applicant's Form K requests (spec 10 FE-3): where it stands, the decision clock,
- * its progress, what was asked and, once decided, the decision with its reasons and grounds.
- * Withdrawing is offered until a decision.
+ * its progress, what was asked and, once decided, the decision with its reasons and grounds
+ * and, for a grant, the package to download until its window ends (#261). Withdrawing is
+ * offered until a decision.
  */
 export function RequestPage({
   request,
-  now,
+  now: serverNow,
   onWithdraw,
+  onDownloaded,
 }: {
   request: AccessRequest;
   /** Epoch milliseconds from the server. */
   now: number;
   onWithdraw: () => void;
+  /** A package download started: the request's downloads have changed. */
+  onDownloaded: () => void;
 }) {
   const withdrawable = WITHDRAWABLE.has(request.status);
+  const now = usePackageClock(serverNow, request.package?.downloadExpiresAt ?? null);
+  const [windowClosed, setWindowClosed] = useState(false);
+  const pkg = packageView(request, now, windowClosed);
   return (
     <main className="mx-auto grid w-full max-w-[1000px] flex-1 content-start gap-6 px-4 pt-5 pb-16 sm:px-7 sm:pt-8">
       <div className="grid gap-3">
@@ -296,7 +362,19 @@ export function RequestPage({
 
       <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_320px]">
         <div className="grid min-w-0 gap-5">
-          <StatusBanner request={request} />
+          <StatusBanner request={request} pkg={pkg} windowClosed={windowClosed} />
+          {pkg ? (
+            <PackageCard
+              view={pkg}
+              applicantName={request.formK.partI.name}
+              reference={request.reference}
+              commission={request.commission.name}
+              onWindowClosed={() => {
+                setWindowClosed(true);
+              }}
+              onDownloaded={onDownloaded}
+            />
+          ) : null}
           <DecisionCard request={request} />
           <YourRequest request={request} />
         </div>
@@ -305,7 +383,7 @@ export function RequestPage({
           <Card className="gap-4 p-0 sm:p-0">
             <div className="grid gap-4 px-5 pt-5 sm:px-6">
               <CardTitle>{COPY.progress}</CardTitle>
-              <Progress request={request} />
+              <Progress request={request} now={now} windowClosed={windowClosed} />
             </div>
             {withdrawable ? (
               <div className="border-t border-border px-3 py-2.5 sm:px-4">
