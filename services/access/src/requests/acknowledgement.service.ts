@@ -6,11 +6,11 @@ import { eq } from 'drizzle-orm';
 import { v5 as uuidv5 } from 'uuid';
 
 import { nairobiDate } from '../clock.js';
-import { config } from '../config.js';
 import type { AccessDatabase } from '../db/database.js';
 import { InternalApiRejected } from '../internal-api/internal-api.js';
 import { type AccessTemplate, NotificationsClient } from '../notifications/notifications-client.js';
 import { systemContext } from '../system-context.js';
+import { applicantRequestsUrl } from './links.js';
 import type { AccessRequestRow } from './representation.js';
 import { accessRequests } from './schema.js';
 
@@ -86,7 +86,7 @@ export class AcknowledgementService {
           commissionName: row.commissionName,
           decideBy: nairobiDate(row.decisionDeadlineAt),
           identityStatus: row.applicantIdentityStatus,
-          signInUrl: new URL('/access/requests', config.PORTAL_URL).toString(),
+          signInUrl: applicantRequestsUrl(),
         },
         tenant: row.tenant,
         idempotencyKey: uuidv5(

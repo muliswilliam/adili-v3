@@ -30,6 +30,7 @@ import { schema } from '../../src/db/schema.js';
 import { DeclarationsClient } from '../../src/declarations/declarations-client.js';
 import { DirectoryClient } from '../../src/directory/directory-client.js';
 import { DocumentsClient } from '../../src/documents/documents-client.js';
+import { accessRequestWorkflowId } from '../../src/requests/contract.js';
 import { NotificationsClient } from '../../src/notifications/notifications-client.js';
 import { FakeClock } from './fake-clock.js';
 import { FakeDeclarations, FakeDirectory, FakeDocuments, FakeNotifications } from './fakes.js';
@@ -81,6 +82,14 @@ export interface AccessApi {
   events(type?: string): Promise<RecordedEvent[]>;
   /** Terminates the workflows with these ids; one not running is fine. */
   endWorkflows(ids: readonly string[]): Promise<void>;
+  /**
+   * Waits until `check` holds (or returns a value other than undefined), as a workflow's
+   * activities make it so; fails after `timeoutMs`.
+   */
+  eventually<T>(
+    check: () => T | undefined | false | Promise<T | undefined | false>,
+    timeoutMs?: number,
+  ): Promise<T>;
   get(url: string, caller: Caller): ReturnType<NestFastifyApplication['inject']>;
   /** A request with a JSON body (when given) and extra headers as `caller`. */
   send(
@@ -184,6 +193,15 @@ export async function startAccessApi(): Promise<AccessApi> {
         }
       }
     },
+    async eventually(check, timeoutMs = 20_000) {
+      const deadline = Date.now() + timeoutMs;
+      for (;;) {
+        const value = await check();
+        if (value !== undefined && value !== false) return value;
+        if (Date.now() > deadline) throw new Error('Timed out waiting for the workflow');
+        await new Promise((resolve) => setTimeout(resolve, 100));
+      }
+    },
     async get(path, caller) {
       const token = await signer(caller);
       return app.inject({
@@ -202,6 +220,17 @@ export async function startAccessApi(): Promise<AccessApi> {
       });
     },
     async reset() {
+      // The suite's requests' workflows end first, so none acts on the next test's rows.
+      const requests = await withTenant(db, { tenant: PLATFORM_TENANT, subject: 'test' }, (tx) =>
+        tx.select({ id: schema.accessRequests.id }).from(schema.accessRequests),
+      );
+      for (const { id } of requests) {
+        try {
+          await temporal.workflow.getHandle(accessRequestWorkflowId(id)).terminate();
+        } catch {
+          // Never started (held), or ended already.
+        }
+      }
       // Children before parents; the register's insert-only trigger does not fire on truncate.
       await db.execute(
         sql`truncate representations, access_requests, lea_requests, access_register, certified_copies, self_access_applications, agencies, numbering_counters, idempotency_keys, outbox, inbox`,

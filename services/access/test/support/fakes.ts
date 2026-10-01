@@ -15,7 +15,9 @@ import {
   type CommissionFacts,
   DirectoryClient,
   DirectoryUnavailable,
+  type RosterCandidateFacts,
   type RosterRecordFacts,
+  ROSTER_SEARCH_LIMIT,
   type StaffMember,
 } from '../../src/directory/directory-client.js';
 import {
@@ -66,7 +68,7 @@ export class FakeDirectory extends DirectoryClient {
   private readonly applicants = new Map<string, ApplicantIdentityStatus>();
   private failingMethod: string | undefined;
   private readonly commissions = new Map<string, CommissionFacts>();
-  private readonly records = new Map<string, RosterRecordFacts & { slug: string }>();
+  private readonly records = new Map<string, RosterCandidateFacts & { slug: string }>();
   private readonly staff = new Map<string, StaffMember[]>();
   private readonly failures = new Failures();
 
@@ -76,12 +78,20 @@ export class FakeDirectory extends DirectoryClient {
     return commission;
   }
 
-  givenRosterRecord(slug: string, record: Partial<RosterRecordFacts> = {}): RosterRecordFacts {
-    const found: RosterRecordFacts = {
+  /** A roster record of the Commission, onboarded (with a person) unless `personId` is null. */
+  givenRosterRecord(
+    slug: string,
+    record: Partial<RosterCandidateFacts> = {},
+  ): RosterCandidateFacts {
+    const personId = record.personId === undefined ? randomUUID() : record.personId;
+    const found: RosterCandidateFacts = {
       id: record.id ?? randomUUID(),
       personnelFileNumber: record.personnelFileNumber ?? 'PF-0001',
       fullName: record.fullName ?? 'Anne Njeri Mutua',
-      personId: record.personId === undefined ? randomUUID() : record.personId,
+      personId,
+      designation: record.designation === undefined ? 'Senior Officer' : record.designation,
+      reportingEntityName: record.reportingEntityName ?? null,
+      state: record.state ?? (personId === null ? 'not_onboarded' : 'onboarded'),
     };
     this.records.set(found.id, { ...found, slug });
     return found;
@@ -132,6 +142,31 @@ export class FakeDirectory extends DirectoryClient {
       if (found?.slug !== slug) return null;
       const { id, personnelFileNumber, fullName, personId } = found;
       return { id, personnelFileNumber, fullName, personId };
+    });
+  }
+
+  /** As the directory searches: file number prefix or part of the name, by full name. */
+  searchRoster(slug: string, search: string): Promise<RosterCandidateFacts[]> {
+    return this.answer('searchRoster', slug, () => {
+      const term = search.toLowerCase();
+      return [...this.records.values()]
+        .filter(
+          (record) =>
+            record.slug === slug &&
+            (record.personnelFileNumber.toLowerCase().startsWith(term) ||
+              record.fullName.toLowerCase().includes(term)),
+        )
+        .sort((a, b) => a.fullName.localeCompare(b.fullName))
+        .slice(0, ROSTER_SEARCH_LIMIT)
+        .map((record) => ({
+          id: record.id,
+          personnelFileNumber: record.personnelFileNumber,
+          fullName: record.fullName,
+          personId: record.personId,
+          designation: record.designation,
+          reportingEntityName: record.reportingEntityName,
+          state: record.state,
+        }));
     });
   }
 

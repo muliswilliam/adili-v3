@@ -39,6 +39,16 @@ export function forbidden(detail: string): ProblemException {
   });
 }
 
+/** 409: the request is not in a state that allows this (for states no registered code names). */
+export function conflict(detail: string): ProblemException {
+  return new ProblemException({
+    type: 'about:blank',
+    title: 'Conflict',
+    status: HttpStatus.CONFLICT,
+    detail,
+  });
+}
+
 /** 404: the same whether the resource is missing or not the caller's to see. */
 export function notFound(
   detail = 'The resource does not exist or is not visible to you.',
@@ -58,6 +68,16 @@ export function directoryUnavailable(): ProblemException {
     title: 'Upstream service unavailable',
     status: HttpStatus.SERVICE_UNAVAILABLE,
     detail: 'The Commission directory cannot be reached. Try again shortly.',
+  });
+}
+
+/** 503 `documents-unavailable`: uploads cannot be checked or linked; nothing was saved. */
+export function documentsUnavailable(): ProblemException {
+  return new ProblemException({
+    type: 'documents-unavailable',
+    title: 'Upstream service unavailable',
+    status: HttpStatus.SERVICE_UNAVAILABLE,
+    detail: 'The attachments cannot be checked right now. Try again shortly.',
   });
 }
 

@@ -3,4 +3,4 @@
  * deterministic sandbox. Each module keeps its own `workflows.ts` next to its activities and is
  * re-exported here: `AccessRequestWorkflow` (requests, #253) and `LeaRequestWorkflow` (lea, #264).
  */
-export {};
+export { accessRequest } from './requests/workflows.js';

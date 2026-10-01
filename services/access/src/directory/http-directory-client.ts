@@ -8,7 +8,9 @@ import {
   type CommissionFacts,
   DirectoryClient,
   DirectoryUnavailable,
+  type RosterCandidateFacts,
   type RosterRecordFacts,
+  ROSTER_SEARCH_LIMIT,
   type StaffMember,
 } from './directory-client.js';
 
@@ -44,6 +46,16 @@ const rosterRecordSchema = z.object({
   personnelFileNumber: z.string(),
   fullName: z.string(),
   personId: z.uuid().nullish(),
+});
+
+const rosterPageSchema = z.object({
+  items: z.array(
+    rosterRecordSchema.extend({
+      designation: z.string().nullable(),
+      reportingEntity: z.object({ name: z.string() }).nullable(),
+      state: z.string(),
+    }),
+  ),
 });
 
 const staffSchema = z.object({
@@ -128,6 +140,29 @@ export class HttpDirectoryClient extends DirectoryClient {
     if (found === null) return null;
     const { id, personnelFileNumber, fullName, personId } = found;
     return { id, personnelFileNumber, fullName, personId: personId ?? null };
+  }
+
+  async searchRoster(slug: string, search: string): Promise<RosterCandidateFacts[]> {
+    const found = await this.directory.call(
+      (api) =>
+        api.GET('/internal/v1/commissions/{slug}/roster/records', {
+          params: {
+            path: { slug },
+            query: { search, limit: ROSTER_SEARCH_LIMIT },
+            header: { 'X-Acting-Tenant': slug },
+          },
+        }),
+      { status: 200, schema: rosterPageSchema },
+    );
+    return found.items.map((item) => ({
+      id: item.id,
+      personnelFileNumber: item.personnelFileNumber,
+      fullName: item.fullName,
+      personId: item.personId ?? null,
+      designation: item.designation,
+      reportingEntityName: item.reportingEntity?.name ?? null,
+      state: item.state,
+    }));
   }
 
   async staffWithRole(slug: string, role: string): Promise<StaffMember[]> {

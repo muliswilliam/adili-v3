@@ -122,3 +122,59 @@ describe('HttpDirectoryClient: applicants', () => {
     expect(sent[0]?.headers.get('authorization')).toBe('Bearer reference-token');
   });
 });
+
+describe('HttpDirectoryClient: roster search', () => {
+  const RECORD = {
+    id: '0199c000-0000-7000-8000-0000000000a1',
+    tenant: 'psc',
+    personnelFileNumber: 'PSC/0101',
+    fullName: 'Anne Njeri Mutua',
+    designation: 'Senior Officer',
+    jobGroup: 'L',
+    reportingEntity: { id: '0199c000-0000-7000-8000-0000000000e1', name: 'State Department' },
+    state: 'onboarded',
+    appointmentDate: null,
+    exitDate: null,
+    personId: PERSON,
+    ofr: null,
+    onboardedAt: '2027-01-04T09:00:00.000Z',
+    updatedAt: '2027-01-04T09:00:00.000Z',
+  };
+
+  it("searches the Commission's roster with the reference token, at most 20 records", async () => {
+    const { client, sent } = clientAnswering(() =>
+      json(
+        {
+          items: [RECORD, { ...RECORD, personId: null, reportingEntity: null }],
+          nextCursor: null,
+        },
+        200,
+      ),
+    );
+
+    await expect(client.searchRoster('psc', 'Anne Njeri')).resolves.toEqual([
+      {
+        id: RECORD.id,
+        personnelFileNumber: 'PSC/0101',
+        fullName: 'Anne Njeri Mutua',
+        personId: PERSON,
+        designation: 'Senior Officer',
+        reportingEntityName: 'State Department',
+        state: 'onboarded',
+      },
+      expect.objectContaining({ personId: null, reportingEntityName: null }),
+    ]);
+    const url = new URL(sent[0]?.url ?? '');
+    expect(url.pathname).toBe('/internal/v1/commissions/psc/roster/records');
+    expect(url.searchParams.get('search')).toBe('Anne Njeri');
+    expect(url.searchParams.get('limit')).toBe('20');
+    expect(sent[0]?.headers.get('x-acting-tenant')).toBe('psc');
+    expect(sent[0]?.headers.get('authorization')).toBe('Bearer reference-token');
+  });
+
+  it('is unavailable when the directory fails', async () => {
+    const { client } = clientAnswering(() => json({}, 503));
+
+    await expect(client.searchRoster('psc', 'Anne')).rejects.toBeInstanceOf(DirectoryUnavailable);
+  });
+});

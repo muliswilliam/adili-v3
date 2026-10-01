@@ -218,7 +218,7 @@ describe('S18 records touched by an import', () => {
   });
 
   it.each([
-    ['neither importId nor exitBatchId', ''],
+    ['none of importId, exitBatchId and search', ''],
     ['both importId and exitBatchId', `importId=${randomUUID()}&exitBatchId=${randomUUID()}`],
     ['an unknown cursor', `importId=${randomUUID()}&cursor=nonsense`],
     ['a limit above 1,000', `importId=${randomUUID()}&limit=1001`],
@@ -304,6 +304,108 @@ describe('S18 records of an exit batch', () => {
 
     expect(unknown.statusCode).toBe(404);
     expect(otherTenant.statusCode).toBe(404);
+  });
+});
+
+describe('Spec 10 roster search (officer resolution)', () => {
+  /** The access service's client credentials token. */
+  const ACCESS: Caller = {
+    sub: 'service-account-access',
+    azp: 'access',
+    scope: 'profile directory:internal',
+  };
+
+  const search = (query: string, headers: Record<string, string> = ACTING_PSC) =>
+    api.get(`${INTERNAL_RECORDS}?${query}`, ACCESS, headers);
+
+  async function givenPscRoster() {
+    const ids = await givenRoster(api, 'psc', [
+      { personnelFileNumber: 'PSC/0101', fullName: 'Anne Njeri Mutua', nationalId: '11223344' },
+      { personnelFileNumber: 'PSC/0102', fullName: 'Peter Njeru Kamande', nationalId: '22334455' },
+      { personnelFileNumber: 'HR/77', fullName: 'Grace Wanjiru', nationalId: '33445566' },
+    ]);
+    await givenRoster(api, 'tsc', [
+      { personnelFileNumber: 'TSC/0101', fullName: 'Anne Njeri Otieno', nationalId: '44556677' },
+    ]);
+    return ids;
+  }
+
+  it('finds records by part of the name, case-insensitive, ordered by full name, with their person', async () => {
+    const ids = await givenPscRoster();
+    const person = await givenOnboardedPerson(api, { recordIds: [idOf(ids, 'PSC/0101')] });
+
+    const response = await search('search=NJER');
+
+    expect(response.statusCode, response.body).toBe(200);
+    const page = response.json<InternalRosterRecordPage>();
+    expect(
+      contractErrors(okResponse('/internal/v1/commissions/{slug}/roster/records', 'get'), page),
+    ).toEqual([]);
+    expect(page.items.map((item) => [item.fullName, item.personId])).toEqual([
+      ['Anne Njeri Mutua', person.personId],
+      ['Peter Njeru Kamande', null],
+    ]);
+    expect(page.nextCursor).toBeNull();
+  });
+
+  it('finds records by the beginning of the personnel file number', async () => {
+    await givenPscRoster();
+
+    const page = (await search('search=psc%2F010')).json<InternalRosterRecordPage>();
+    const none = (await search('search=0101')).json<InternalRosterRecordPage>();
+
+    expect(page.items.map((item) => item.personnelFileNumber)).toEqual(['PSC/0101', 'PSC/0102']);
+    expect(none.items).toEqual([]);
+  });
+
+  it("does not search by national ID, and never shows another Commission's records", async () => {
+    await givenPscRoster();
+
+    const byNationalId = (await search('search=11223344')).json<InternalRosterRecordPage>();
+    const anne = (await search('search=Anne')).json<InternalRosterRecordPage>();
+
+    expect(byNationalId.items).toEqual([]);
+    expect(anne.items.map((item) => item.tenant)).toEqual(['psc']);
+  });
+
+  it('pages by full name with the cursor', async () => {
+    await givenPscRoster();
+
+    const first = (await search('search=an&limit=2')).json<InternalRosterRecordPage>();
+    const second = (
+      await search(`search=an&limit=2&cursor=${encodeURIComponent(first.nextCursor ?? '')}`)
+    ).json<InternalRosterRecordPage>();
+
+    expect(first.items.map((item) => item.fullName)).toEqual(['Anne Njeri Mutua', 'Grace Wanjiru']);
+    expect(second.items.map((item) => item.fullName)).toEqual(['Peter Njeru Kamande']);
+    expect(second.nextCursor).toBeNull();
+  });
+
+  it.each([
+    ['a search of one character', 'search=a%20'],
+    ['a search with an import', `search=anne&importId=${randomUUID()}`],
+    ['a limit above 50', 'search=anne&limit=51'],
+    [
+      'a cursor of an import pull',
+      `search=anne&cursor=${Buffer.from('["row",1]').toString('base64url')}`,
+    ],
+  ])('answers 400 for %s', async (_case, query) => {
+    const response = await search(query);
+
+    expect(response.statusCode, response.body).toBe(400);
+  });
+
+  it('records the search in the audit trail as the calling service', async () => {
+    await givenPscRoster();
+
+    await search('search=anne');
+
+    expect(await auditReads()).toContainEqual(
+      expect.objectContaining({
+        action: 'roster.records.pulled',
+        actor: expect.objectContaining({ clientId: 'access' }) as unknown,
+      }),
+    );
   });
 });
 

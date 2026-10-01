@@ -203,6 +203,248 @@ paths:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/ProblemDetails'
+  /v1/commissions/{slug}/access/requests:
+    get:
+      tags:
+        - officer
+      summary: Queue of access requests with deadlines (access officer; supervisor reads)
+      description: 'Earliest decision deadline first. `late`: past the deadline and neither decided nor closed. Law enforcement requests join the queue with their own workspace (`kind=lea` is empty until then).'
+      operationId: listCommissionAccessRequests
+      parameters:
+        - name: slug
+          required: true
+          in: path
+          schema:
+            type: string
+            pattern: ^[a-z][a-z0-9]{1,19}$
+        - name: status
+          required: false
+          in: query
+          description: 'Only requests in these statuses, comma-separated (e.g. the open ones: `submitted,pending-applicant-verification,officer-unresolved,awaiting-representations,under-decision`)'
+          schema:
+            type: string
+        - name: kind
+          required: false
+          in: query
+          description: Only Form K or only LEA requests
+          schema:
+            type: string
+            enum:
+              - form-k
+              - lea
+        - name: cursor
+          required: false
+          in: query
+          description: '`nextCursor` of the previous page; omit for the first page'
+          schema:
+            type: string
+            maxLength: 500
+        - name: limit
+          required: false
+          in: query
+          schema:
+            default: 50
+            type: integer
+            minimum: 1
+            maximum: 100
+      responses:
+        '200':
+          description: Page
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QueuePage'
+        '400':
+          description: Query failed validation, or an unknown cursor
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '403':
+          description: 'Requires one of the roles: access-officer, supervisor, eacc-analyst, eacc-supervisor'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: Not the caller's Commission
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+  /v1/access/requests/{requestId}/officer:
+    get:
+      tags:
+        - officer
+      summary: Full request for the access officer (Form K, representations, register)
+      operationId: getAccessRequestForOfficer
+      parameters:
+        - name: requestId
+          required: true
+          in: path
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OfficerRequestView'
+        '400':
+          description: requestId is not a UUID
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '403':
+          description: 'Requires one of the roles: access-officer, supervisor, eacc-analyst, eacc-supervisor'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: No such request at the caller's Commission (another Commission's, EACC's or anyone else's view)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '503':
+          description: The key service cannot be reached
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+  /v1/access/requests/{requestId}/roster-candidates:
+    get:
+      tags:
+        - officer
+      summary: Search the Commission's roster for the officer a request names (access officer)
+      description: 'By personnel file number (its beginning) or part of the name, at most 20 records by full name. Only an `onboarded` record can be chosen: its declarant is notified.'
+      operationId: listRosterCandidates
+      parameters:
+        - name: requestId
+          required: true
+          in: path
+          schema:
+            type: string
+            format: uuid
+        - name: q
+          required: true
+          in: query
+          description: A personnel file number or its beginning, or part of a name (both case-insensitive)
+          schema:
+            type: string
+            minLength: 2
+            maxLength: 200
+      responses:
+        '200':
+          description: Records
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RosterCandidates'
+        '400':
+          description: requestId is not a UUID, or no search of at least 2 characters
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '403':
+          description: |-
+            The Commission supervisor reads requests; only its access officer acts
+
+            Requires one of the roles: access-officer, supervisor, eacc-analyst, eacc-supervisor
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: No such request at the caller's Commission (another Commission's, EACC's or anyone else's view)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '503':
+          description: The directory cannot be reached
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+  /v1/access/requests/{requestId}/resolve:
+    post:
+      tags:
+        - officer
+      summary: Identify the officer on the roster, or record that they cannot be identified
+      description: 'A roster record: the declarant is notified next (`awaiting-representations`, with the window for representations). `rosterRecordId: null`: the request closes as `cannot-identify` (`access.request.cannot-identify.v1`, Form M decline reason `other`) and the applicant is told.'
+      operationId: resolveRequestedOfficer
+      parameters:
+        - name: requestId
+          required: true
+          in: path
+          schema:
+            type: string
+            format: uuid
+        - name: Idempotency-Key
+          in: header
+          description: Optional. Client-generated UUID, unique per logical request; reuse on retry and the stored answer is replayed instead of acting twice
+          required: false
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResolveOfficer'
+      responses:
+        '200':
+          description: Resolved; the declarant notification follows, or the request is closed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OfficerRequestView'
+        '400':
+          description: requestId is not a UUID, the body failed validation, or `rosterRecordId` is not an onboarded roster record of the Commission
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '403':
+          description: |-
+            The Commission supervisor reads requests; only its access officer acts
+
+            Requires one of the roles: access-officer, supervisor, eacc-analyst, eacc-supervisor
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: No such request at the caller's Commission (another Commission's, EACC's or anyone else's view)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '409':
+          description: Problem code `officer-resolved` (once only), `request-closed` or `request-decided`; or the applicant's identity is still to be verified
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '422':
+          description: Idempotency-Key reused with a different request body
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '503':
+          description: The directory cannot be reached; nothing was recorded
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
   /v1/access/requests/{requestId}/verify-applicant:
     post:
       tags:
@@ -276,6 +518,110 @@ paths:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/ProblemDetails'
+  /v1/me/access-notices:
+    get:
+      tags:
+        - declarant
+      summary: Requests the declarant has been notified about, with windows and outcomes
+      description: Their own only, from notification on; latest notified first.
+      operationId: listMyAccessNotices
+      responses:
+        '200':
+          description: Notices
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/DeclarantNotice'
+        '403':
+          description: 'Requires one of the roles: declarant'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: Not a declarant
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '503':
+          description: The key service cannot be reached
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+  /v1/me/access-notices/{requestId}/representations:
+    put:
+      tags:
+        - declarant
+      summary: Create or update representations within the window
+      description: One submission per request, changed as often as needed until the window closes (`access.request.representations.v1` each time). `consent` puts the request under decision at once and closes the window.
+      operationId: submitRepresentations
+      parameters:
+        - name: requestId
+          required: true
+          in: path
+          schema:
+            type: string
+            format: uuid
+        - name: Idempotency-Key
+          in: header
+          description: Optional. Client-generated UUID, unique per logical request; reuse on retry and the stored answer is replayed instead of acting twice
+          required: false
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RepresentationsInput'
+      responses:
+        '200':
+          description: Saved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeclarantNotice'
+        '400':
+          description: requestId is not a UUID, the body failed validation, or an attachment is not a clean `access-representation` upload of the declarant
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '403':
+          description: 'Requires one of the roles: declarant'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: No such request about the declarant that they were notified of
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '409':
+          description: 'Problem code `representations-closed`: the window has closed (or the declarant consented, or the request closed)'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '422':
+          description: Idempotency-Key reused with a different request body
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '503':
+          description: Documents or the key service cannot be reached; nothing was saved
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
   /v1/access/commissions:
     get:
       tags:
@@ -325,56 +671,6 @@ paths:
           $ref: '#/components/responses/NotFound'
         '410':
           description: Download window expired
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ProblemDetails'
-  /v1/me/access-notices:
-    get:
-      tags:
-        - declarant
-      summary: Requests the declarant has been notified about, with windows and outcomes
-      operationId: listMyAccessNotices
-      x-draft: true
-      responses:
-        '200':
-          description: Notices
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/DeclarantNotice'
-        '404':
-          $ref: '#/components/responses/NotFound'
-  /v1/me/access-notices/{requestId}/representations:
-    parameters:
-      - $ref: '#/components/parameters/RequestId'
-    put:
-      tags:
-        - declarant
-      summary: Create or update representations within the window
-      operationId: submitRepresentations
-      x-draft: true
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/RepresentationsInput'
-      responses:
-        '200':
-          description: Saved
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/DeclarantNotice'
-        '400':
-          $ref: '#/components/responses/ValidationProblem'
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '409':
-          description: Window closed
           content:
             application/problem+json:
               schema:
@@ -444,121 +740,6 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/CertifiedCopy'
-  /v1/commissions/{slug}/access/requests:
-    parameters:
-      - $ref: '#/components/parameters/Slug'
-    get:
-      tags:
-        - officer
-      summary: Queue of Form K and LEA requests with deadlines (access officer; supervisor read)
-      operationId: listCommissionAccessRequests
-      x-draft: true
-      parameters:
-        - name: status
-          in: query
-          schema:
-            type: string
-        - name: kind
-          in: query
-          schema:
-            type: string
-            enum:
-              - form-k
-              - lea
-        - name: cursor
-          in: query
-          schema:
-            type: string
-        - name: limit
-          in: query
-          schema:
-            type: integer
-            minimum: 1
-            maximum: 100
-            default: 50
-      responses:
-        '200':
-          description: Page
-          content:
-            application/json:
-              schema:
-                type: object
-                required:
-                  - items
-                  - nextCursor
-                properties:
-                  items:
-                    type: array
-                    items:
-                      $ref: '#/components/schemas/QueueItem'
-                  nextCursor:
-                    type:
-                      - string
-                      - 'null'
-        '404':
-          $ref: '#/components/responses/NotFound'
-  /v1/access/requests/{requestId}/officer:
-    parameters:
-      - $ref: '#/components/parameters/RequestId'
-    get:
-      tags:
-        - officer
-      summary: Full request for the access officer (Form K, representations, register)
-      operationId: getAccessRequestForOfficer
-      x-draft: true
-      responses:
-        '200':
-          description: Request
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/OfficerRequestView'
-        '404':
-          $ref: '#/components/responses/NotFound'
-  /v1/access/requests/{requestId}/resolve:
-    parameters:
-      - $ref: '#/components/parameters/RequestId'
-    post:
-      tags:
-        - officer
-      summary: Identify the officer on the roster, or record that they cannot be identified
-      operationId: resolveRequestedOfficer
-      x-draft: true
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required:
-                - rosterRecordId
-              properties:
-                rosterRecordId:
-                  type:
-                    - string
-                    - 'null'
-                  format: uuid
-                  description: null records cannot-identify
-                note:
-                  type: string
-                  maxLength: 1000
-      responses:
-        '200':
-          description: Resolved; declarant notification follows, or request closed
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/OfficerRequestView'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '409':
-          description: Already resolved
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ProblemDetails'
   /v1/access/requests/{requestId}/decision:
     parameters:
       - $ref: '#/components/parameters/RequestId'
@@ -1099,6 +1280,212 @@ components:
         - verified
         - note
       additionalProperties: false
+    QueueItem:
+      type: object
+      properties:
+        kind:
+          type: string
+          enum:
+            - form-k
+            - lea
+        id:
+          type: string
+          format: uuid
+        reference:
+          type: string
+        applicantOrAgency:
+          type: string
+        officerSought:
+          type: string
+        resolvedName:
+          type:
+            - string
+            - 'null'
+        status:
+          $ref: '#/components/schemas/AccessRequestStatus'
+        submittedAt:
+          type: string
+          format: date-time
+        deadlineAt:
+          type: string
+          format: date-time
+        windowEndsAt:
+          anyOf:
+            - type: string
+              format: date-time
+            - type: 'null'
+        late:
+          type: boolean
+      required:
+        - kind
+        - id
+        - reference
+        - applicantOrAgency
+        - officerSought
+        - resolvedName
+        - status
+        - submittedAt
+        - deadlineAt
+        - windowEndsAt
+        - late
+    QueuePage:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/QueueItem'
+        nextCursor:
+          description: Pass as `cursor` for the next page; null on the last page
+          type:
+            - string
+            - 'null'
+      required:
+        - items
+        - nextCursor
+    ResolveOfficer:
+      type: object
+      properties:
+        rosterRecordId:
+          anyOf:
+            - type: string
+              format: uuid
+            - type: 'null'
+          description: 'The roster record of the Commission the officer named in Part II is (an onboarded one: the declarant is notified); null records that they cannot be identified, which closes the request'
+      required:
+        - rosterRecordId
+      additionalProperties: false
+    RosterCandidate:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        personnelFileNumber:
+          type: string
+        fullName:
+          type: string
+        designation:
+          type:
+            - string
+            - 'null'
+        reportingEntity:
+          description: Its name
+          type:
+            - string
+            - 'null'
+        state:
+          type: string
+          description: 'The roster record state: not_onboarded, onboarded, exited'
+        onboarded:
+          type: boolean
+      required:
+        - id
+        - personnelFileNumber
+        - fullName
+        - designation
+        - reportingEntity
+        - state
+        - onboarded
+    RosterCandidates:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/RosterCandidate'
+          description: By full name, at most 20
+      required:
+        - items
+    RepresentationsInput:
+      type: object
+      properties:
+        stance:
+          type: string
+          enum:
+            - object
+            - consent
+            - context
+          description: '`object` to the disclosure, `consent` to it (the request goes under decision at once), or add `context`'
+        text:
+          type: string
+          maxLength: 8000
+          description: The declarant's representations; may be empty only with `consent`
+        attachments:
+          maxItems: 10
+          type: array
+          items:
+            type: string
+            format: uuid
+          description: Clean uploads of purpose `access-representation` by the declarant
+      required:
+        - stance
+        - text
+        - attachments
+      additionalProperties: false
+    DeclarantNotice:
+      type: object
+      properties:
+        requestId:
+          type: string
+          format: uuid
+        reference:
+          type: string
+        kind:
+          type: string
+          enum:
+            - form-k
+            - lea
+        commission:
+          type: object
+          properties:
+            slug:
+              type: string
+            name:
+              type: string
+          required:
+            - slug
+            - name
+        status:
+          $ref: '#/components/schemas/AccessRequestStatus'
+        applicantName:
+          type: string
+        purposeInGeneralTerms:
+          type: string
+        scope:
+          $ref: '#/components/schemas/Scope'
+        notifiedAt:
+          type: string
+          format: date-time
+        windowEndsAt:
+          anyOf:
+            - type: string
+              format: date-time
+            - type: 'null'
+        canRespond:
+          type: boolean
+        representations:
+          anyOf:
+            - $ref: '#/components/schemas/Representations'
+            - type: 'null'
+        decision:
+          anyOf:
+            - $ref: '#/components/schemas/Decision'
+            - type: 'null'
+      required:
+        - requestId
+        - reference
+        - kind
+        - commission
+        - status
+        - applicantName
+        - purposeInGeneralTerms
+        - scope
+        - notifiedAt
+        - windowEndsAt
+        - canRespond
+        - representations
+        - decision
     ProblemDetails:
       type: object
       properties:
@@ -1197,134 +1584,6 @@ components:
           type: string
           minLength: 1
           maxLength: 4000
-    QueueItem:
-      type: object
-      required:
-        - kind
-        - id
-        - reference
-        - applicantOrAgency
-        - officerSought
-        - resolvedName
-        - status
-        - submittedAt
-        - deadlineAt
-        - windowEndsAt
-        - late
-      properties:
-        kind:
-          type: string
-          enum:
-            - form-k
-            - lea
-        id:
-          type: string
-          format: uuid
-        reference:
-          type: string
-        applicantOrAgency:
-          type: string
-        officerSought:
-          type: string
-        resolvedName:
-          type:
-            - string
-            - 'null'
-        status:
-          type: string
-        submittedAt:
-          type: string
-          format: date-time
-        deadlineAt:
-          type: string
-          format: date-time
-        windowEndsAt:
-          type:
-            - string
-            - 'null'
-          format: date-time
-        late:
-          type: boolean
-    RepresentationsInput:
-      type: object
-      required:
-        - stance
-        - text
-        - attachments
-      properties:
-        stance:
-          type: string
-          enum:
-            - object
-            - consent
-            - context
-        text:
-          type: string
-          maxLength: 8000
-        attachments:
-          type: array
-          maxItems: 10
-          items:
-            type: string
-            format: uuid
-    DeclarantNotice:
-      type: object
-      required:
-        - requestId
-        - reference
-        - kind
-        - commission
-        - applicantName
-        - purposeInGeneralTerms
-        - scope
-        - notifiedAt
-        - windowEndsAt
-        - representations
-        - decision
-      properties:
-        requestId:
-          type: string
-          format: uuid
-        reference:
-          type: string
-        kind:
-          type: string
-          enum:
-            - form-k
-            - lea
-        commission:
-          type: object
-          required:
-            - slug
-            - name
-          properties:
-            slug:
-              type: string
-            name:
-              type: string
-        applicantName:
-          type: string
-          description: Applicant name, or agency name for LEA (shown after grant)
-        purposeInGeneralTerms:
-          type: string
-        scope:
-          $ref: '#/components/schemas/Scope'
-        notifiedAt:
-          type: string
-          format: date-time
-        windowEndsAt:
-          type:
-            - string
-            - 'null'
-          format: date-time
-        representations:
-          oneOf:
-            - $ref: '#/components/schemas/Representations'
-            - type: 'null'
-        decision:
-          oneOf:
-            - $ref: '#/components/schemas/Decision'
-            - type: 'null'
     CertifiedCopy:
       type: object
       required:
@@ -1518,13 +1777,6 @@ components:
         sha256:
           type: string
   parameters:
-    Slug:
-      name: slug
-      in: path
-      required: true
-      schema:
-        type: string
-        pattern: ^[a-z][a-z0-9]{1,19}$
     RequestId:
       name: requestId
       in: path

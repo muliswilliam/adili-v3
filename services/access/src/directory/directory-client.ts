@@ -19,6 +19,20 @@ export interface RosterRecordFacts {
 }
 
 /**
+ * A roster record matching an access officer's search for the officer a request names
+ * (directory.yaml `InternalRosterRecord`): what the officer tells records apart by.
+ */
+export interface RosterCandidateFacts extends RosterRecordFacts {
+  designation: string | null;
+  reportingEntityName: string | null;
+  /** `not_onboarded`, `onboarded` or `exited`. */
+  state: string;
+}
+
+/** How many roster records a search returns at most. */
+export const ROSTER_SEARCH_LIMIT = 20;
+
+/**
  * Whether an applicant's identity is established (directory.yaml `InternalApplicant`): a national
  * ID matched against IPRS at onboarding, or a passport an access officer verified.
  */
@@ -68,6 +82,12 @@ export abstract class DirectoryClient {
 
   /** One roster record of the Commission; null when it has none with this id. */
   abstract rosterRecord(slug: string, recordId: string): Promise<RosterRecordFacts | null>;
+
+  /**
+   * The Commission's roster records whose personnel file number begins with `search` or whose
+   * full name contains it, by full name, at most `ROSTER_SEARCH_LIMIT`.
+   */
+  abstract searchRoster(slug: string, search: string): Promise<RosterCandidateFacts[]>;
 
   /** The Commission's staff accounts holding `role`, with the email they sign in with. */
   abstract staffWithRole(slug: string, role: string): Promise<StaffMember[]>;

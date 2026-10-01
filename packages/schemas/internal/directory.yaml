@@ -1526,8 +1526,8 @@ paths:
     get:
       tags:
         - internal
-      summary: Roster records touched by an import or an exit batch (services)
-      description: Service tokens with scope directory:internal, acting for the Commission in X-Acting-Tenant; audited. Exactly one of importId and exitBatchId. Each record as it is now, up to 1,000 per page.
+      summary: Roster records touched by an import or an exit batch, or matching a search (services)
+      description: Service tokens with scope directory:internal, acting for the Commission in X-Acting-Tenant; audited. Exactly one of importId, exitBatchId and search. Each record as it is now, up to 1,000 per page (50 for a search).
       operationId: internalListRosterRecords
       parameters:
         - name: X-Acting-Tenant
@@ -1556,6 +1556,14 @@ paths:
           schema:
             type: string
             format: uuid
+        - name: search
+          required: false
+          in: query
+          description: 'A personnel file number or its beginning, or part of a name (both case-insensitive): the records that match, ordered by full name, up to 50 per page. E.g. the access service resolving the officer a Form K names (spec 10). No national ID search.'
+          schema:
+            type: string
+            minLength: 2
+            maxLength: 200
         - name: cursor
           required: false
           in: query
@@ -1566,8 +1574,8 @@ paths:
         - name: limit
           required: false
           in: query
+          description: 'Records per page: up to 1000 (default) for an import or exit batch, 50 (default) for a search'
           schema:
-            default: 1000
             type: integer
             minimum: 1
             maximum: 1000
@@ -1579,7 +1587,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/InternalRosterRecordPage'
         '400':
-          description: 'Query failed validation: not exactly one of importId and exitBatchId, or an unknown cursor'
+          description: 'Query failed validation: not exactly one of importId, exitBatchId and search, or an unknown cursor'
           content:
             application/problem+json:
               schema:

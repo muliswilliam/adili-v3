@@ -8,18 +8,37 @@ import { AcknowledgementConsumer } from './acknowledgement.consumer.js';
 import { AcknowledgementService } from './acknowledgement.service.js';
 import { ApplicantVerificationController } from './applicant-verification.controller.js';
 import { ApplicantVerificationService } from './applicant-verification.service.js';
+import { OfficerController } from './officer.controller.js';
+import { OfficerService } from './officer.service.js';
+import { AccessRequestWorkflowsModule } from './request-workflows.js';
 import { RequestsController } from './requests.controller.js';
 import { RequestsService } from './requests.service.js';
 
 /**
  * Form K access requests (spec 10): submission and its acknowledgement, the applicant's requests
- * and withdrawal, and the access officer's verification of passport applicants; the officer's
- * queue, resolution, representations and decisions join it, with `AccessRequestWorkflow` on the
- * access worker (`AccessWorkerModule`).
+ * and withdrawal; the officer's queue, verification of passport applicants and resolution of the
+ * officer a request names (decisions join it, #259), with `AccessRequestWorkflow` on the access
+ * worker (`AccessWorkerModule`).
  */
 @Module({
-  imports: [ClockModule, CipherModule, UpstreamModule, RegisterModule],
-  controllers: [RequestsController, ApplicantVerificationController, AcknowledgementConsumer],
-  providers: [RequestsService, ApplicantVerificationService, AcknowledgementService],
+  imports: [
+    ClockModule,
+    CipherModule,
+    UpstreamModule,
+    RegisterModule,
+    AccessRequestWorkflowsModule,
+  ],
+  controllers: [
+    RequestsController,
+    OfficerController,
+    ApplicantVerificationController,
+    AcknowledgementConsumer,
+  ],
+  providers: [
+    RequestsService,
+    OfficerService,
+    ApplicantVerificationService,
+    AcknowledgementService,
+  ],
 })
 export class RequestsModule {}
