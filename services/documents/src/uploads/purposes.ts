@@ -1,4 +1,4 @@
-import { DECLARANT, REPORTING_OFFICER } from '@adili/roles';
+import { ACCESS_OFFICER, DECLARANT, REPORTING_OFFICER } from '@adili/roles';
 import { z } from 'zod';
 
 /** CSV as declared by clients and as detected by the sniffer. */
@@ -57,11 +57,13 @@ export const UPLOAD_PURPOSES = {
     linked: true,
   },
   /**
-   * Evidence with a declarant's representations on an access request: a letter, a court order
-   * (spec 10). The access service links it to the representations.
+   * Evidence with a declarant's representations on an access request: a letter, a court order;
+   * or, uploaded by the access officer recording a written self-access application, a
+   * representative's written authority and ID (spec 10). The access service links it to the
+   * representations or the application, and takes only the caller's own uploads.
    */
   'access-representation': {
-    roles: [DECLARANT],
+    roles: [DECLARANT, ACCESS_OFFICER],
     contentTypes: [PDF, JPEG, PNG, HEIC],
     maxSize: 20 * MB,
     uploaderOnly: true,

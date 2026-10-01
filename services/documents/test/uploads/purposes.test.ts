@@ -12,6 +12,10 @@ describe('upload purposes', () => {
       linked: true,
     });
     expect(LINKED_PURPOSES).toContain('access-representation');
-    expect(purposesFor(['applicant', 'access-officer'])).not.toContain('access-representation');
+    expect(purposesFor(['applicant', 'supervisor'])).not.toContain('access-representation');
+  });
+
+  it("lets the access officer upload a representative's authority and ID for a written self-access application (#303)", () => {
+    expect(purposesFor(['access-officer'])).toContain('access-representation');
   });
 });
