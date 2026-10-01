@@ -47,6 +47,12 @@ export const LAW_ENFORCEMENT = 'law-enforcement';
  */
 export const LAW_ENFORCEMENT_TENANT = 'lea';
 
+/**
+ * A member of the public who applies to see a declaration (Form K, Act s.36(1)); holds no
+ * Commission tenant.
+ */
+export const APPLICANT = 'applicant';
+
 /** A Responsible Commission's own staff, who work on its declarants (spec 04: its obligations). */
 export const COMMISSION_STAFF_ROLES = [
   REPORTING_OFFICER,

@@ -8,6 +8,20 @@
       "when": 1790325257089,
       "tag": "0000_init",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1790886490936,
+      "tag": "0001_access_schema",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1790886493417,
+      "tag": "0002_access_rls",
+      "breakpoints": true
     }
   ]
 }

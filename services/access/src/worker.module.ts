@@ -1,0 +1,36 @@
+import { fileURLToPath } from 'node:url';
+
+import { Module } from '@nestjs/common';
+import { TemporalWorkerModule } from '@adili/temporal';
+
+import { CipherModule } from './cipher.module.js';
+import { ClockModule } from './clock.module.js';
+import { config } from './config.js';
+import { UpstreamModule } from './upstream.module.js';
+
+/**
+ * The workflows entry next to this file: `workflows.ts` when running from source (dev server,
+ * tests), `workflows.js` in the build.
+ */
+const workflowsPath = fileURLToPath(
+  new URL(`./workflows${import.meta.url.endsWith('.ts') ? '.ts' : '.js'}`, import.meta.url),
+);
+
+/**
+ * The access worker (ADR-003), one per service: every workflow of the access service runs on its
+ * queue, with its activities listed here as their modules add them (`AccessRequestWorkflow`,
+ * `LeaRequestWorkflow`). Activities get the clock, the cipher and the upstream clients.
+ */
+@Module({
+  imports: [
+    TemporalWorkerModule.forRoot({
+      address: config.TEMPORAL_ADDRESS,
+      namespace: config.TEMPORAL_NAMESPACE,
+      taskQueue: config.TEMPORAL_TASK_QUEUE,
+      workflowsPath,
+      activities: [],
+      imports: [ClockModule, CipherModule, UpstreamModule],
+    }),
+  ],
+})
+export class AccessWorkerModule {}
