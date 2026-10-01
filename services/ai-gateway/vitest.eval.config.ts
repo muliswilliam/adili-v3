@@ -6,11 +6,12 @@ import { defineConfig } from 'vitest/config';
 
 const recording = process.env.AI_REPLAY_MODE === 'record';
 
-/** In record mode the Anthropic key may come from the local, uncommitted .env. */
-function localKey(): Record<string, string> {
+/** In record mode the provider key and endpoint may come from the local, uncommitted .env. */
+function localProvider(): Record<string, string> {
   if (!recording || process.env.ANTHROPIC_API_KEY || !existsSync('.env')) return {};
-  const { ANTHROPIC_API_KEY } = parseEnv(readFileSync('.env', 'utf8'));
-  return ANTHROPIC_API_KEY ? { ANTHROPIC_API_KEY } : {};
+  const local = parseEnv(readFileSync('.env', 'utf8'));
+  const keys = ['ANTHROPIC_API_KEY', 'ANTHROPIC_BASE_URL', 'ANTHROPIC_STRUCTURED_OUTPUT'] as const;
+  return Object.fromEntries(keys.flatMap((key) => (local[key] ? [[key, local[key]]] : [])));
 }
 
 // Task evals (spec 07c S9): golden inputs against recorded outputs in evals/fixtures. Replay needs
@@ -25,7 +26,9 @@ export default defineConfig({
       AI_PROVIDER: 'replay',
       AI_FIXTURES_DIR: 'evals/fixtures',
       LOG_LEVEL: 'fatal',
-      ...localKey(),
+      // Long answers (a household summary in Swahili) outlast the service's 60 s provider timeout.
+      ...(recording && { AI_PROVIDER_TIMEOUT_MS: '170000' }),
+      ...localProvider(),
     },
   },
 });

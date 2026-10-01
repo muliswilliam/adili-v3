@@ -37,10 +37,22 @@ export async function runTask(
   return task.output.parse(result.output);
 }
 
+/**
+ * The model the fixtures are recorded with. Fixtures are keyed by model, so evals pin it rather
+ * than follow the service default; `AI_MODEL` overrides it to record and compare another model.
+ */
+export const EVAL_MODEL = 'claude-sonnet-5';
+
+export function evalModel(): string {
+  return process.env.AI_MODEL ?? EVAL_MODEL;
+}
+
 /** The provider and model the eval run uses, from the environment the eval config sets. */
 export function evalProvider(): { provider: ModelProvider; model: string } {
-  const env = providerEnvSchema.parse(process.env);
-  return { provider: createModelProvider(env), model: env.AI_MODEL };
+  return {
+    provider: createModelProvider(providerEnvSchema.parse(process.env)),
+    model: evalModel(),
+  };
 }
 
 /** A markdown table of a task's results, for the CI job summary and the terminal. */

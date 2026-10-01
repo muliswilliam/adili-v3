@@ -54,6 +54,8 @@ const NEGATIONS = new Set([
   "isn't",
   "doesn't",
   'nor',
+  'rather',
+  'instead',
   'si',
   'sio',
   'siyo',

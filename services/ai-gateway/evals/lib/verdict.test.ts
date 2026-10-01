@@ -36,6 +36,7 @@ describe('verdictTerms', () => {
     expect(verdictTerms('This is an indicator to check, not a finding of wrongdoing.')).toEqual([]);
     expect(verdictTerms('It does not mean the declarant is non-compliant.')).toEqual([]);
     expect(verdictTerms('Hii si ishara ya rushwa.')).toEqual([]);
+    expect(verdictTerms('An indicator to check rather than a finding of wrongdoing.')).toEqual([]);
   });
 
   it('does not let a negation reach across a clause or sentence', () => {

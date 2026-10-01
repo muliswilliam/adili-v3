@@ -1,10 +1,9 @@
 import { readdir, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 
-import { providerEnvSchema } from '../src/providers/provider-env.js';
 import { fixtureKey } from '../src/providers/replay.adapter.js';
 import { SUITES } from './golden/suites.js';
-import { evalRequest } from './lib/run.js';
+import { evalModel, evalRequest } from './lib/run.js';
 
 /**
  * Deletes eval fixtures no golden case requests any more. Record mode only adds files, so a prompt
@@ -12,7 +11,7 @@ import { evalRequest } from './lib/run.js';
  */
 
 const FIXTURES_DIR = 'evals/fixtures';
-const { AI_MODEL } = providerEnvSchema.parse(process.env);
+const AI_MODEL = evalModel();
 
 const wanted = new Set(
   SUITES.flatMap((suite) =>
