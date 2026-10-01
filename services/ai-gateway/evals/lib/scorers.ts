@@ -1,4 +1,4 @@
-import type { Language } from '../../src/tasks/common.js';
+import { type Language, inputLanguage } from '../../src/tasks/common.js';
 import { detectLanguage } from './language.js';
 import { foreignNumbers } from './numbers.js';
 import { type Score, fromChecks } from './score.js';
@@ -74,4 +74,14 @@ export function withinBudget(output: unknown, budgets: readonly Budget[]): Score
       ];
     }),
   );
+}
+
+/** The scorers every task runs on top of its own: numbers, verdicts, language, brevity. */
+export function sharedScores(input: unknown, output: unknown, budgets: readonly Budget[]): Score[] {
+  return [
+    noForeignNumbers(output, input),
+    noVerdict(output),
+    languageMatches(output, inputLanguage(input)),
+    withinBudget(output, budgets),
+  ];
 }

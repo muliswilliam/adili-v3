@@ -106,7 +106,3 @@ export function refsAmong(ref: SourceRef, allowed: readonly SourceRef[]): boolea
       (ref.fieldPath === null || ref.fieldPath === each.fieldPath),
   );
 }
-
-export function describeRef(ref: SourceRef): string {
-  return JSON.stringify(ref);
-}

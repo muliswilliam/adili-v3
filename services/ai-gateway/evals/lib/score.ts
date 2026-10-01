@@ -23,6 +23,17 @@ export function fromChecks(
   return { scorer, hard, score, failures };
 }
 
+/** A case's hard-scorer failures, each naming its scorer: any one fails the case. */
+export function hardFailures(scores: readonly Score[]): string[] {
+  return scores
+    .filter((score) => score.hard && score.score < 1)
+    .flatMap((score) =>
+      score.failures.length > 0
+        ? score.failures.map((failure) => `${score.scorer}: ${failure}`)
+        : [`${score.scorer}: scored ${score.score}`],
+    );
+}
+
 export interface CaseResult {
   caseName: string;
   scores: Score[];

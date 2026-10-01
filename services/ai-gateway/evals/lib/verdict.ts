@@ -62,8 +62,11 @@ const NEGATIONS = new Set([
   'haimaanishi',
 ]);
 
-/** How many words before a term a negation still applies. */
+/** How many words before a term a negation still applies, within the term's own clause. */
 const NEGATION_REACH = 5;
+
+/** Ends a clause: a negation before one does not reach a term after it. */
+const CLAUSE_END = /[.;:!?,]/g;
 
 /** Verdict terms in `text` that are not negated, lower-cased as found. */
 export function verdictTerms(text: string): string[] {
@@ -71,7 +74,9 @@ export function verdictTerms(text: string): string[] {
   const found: { index: number; term: string }[] = [];
   for (const term of TERMS) {
     for (const match of lower.matchAll(new RegExp(term.source, 'gu'))) {
-      const before = lower.slice(0, match.index).match(/[\p{L}']+/gu) ?? [];
+      const preceding = lower.slice(0, match.index);
+      const clauseStart = Math.max(-1, ...[...preceding.matchAll(CLAUSE_END)].map((m) => m.index));
+      const before = preceding.slice(clauseStart + 1).match(/[\p{L}']+/gu) ?? [];
       const negated = before.slice(-NEGATION_REACH).some((word) => NEGATIONS.has(word));
       if (!negated) found.push({ index: match.index, term: match[0] });
     }

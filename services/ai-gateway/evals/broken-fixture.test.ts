@@ -4,18 +4,19 @@ import { join } from 'node:path';
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
-import { ReplayAdapter } from '../src/providers/replay.adapter.js';
+import { ReplayAdapter, ReplayFixtureMissingError } from '../src/providers/replay.adapter.js';
 import { ScriptedProvider } from '../test/support/scripted-provider.js';
 import { IDS, PEOPLE } from './golden/declarations.js';
 import { itemRef } from './golden/flags.js';
 import { SUITES } from './golden/suites.js';
 import { runTask } from './lib/run.js';
-import type { Score } from './lib/score.js';
+import { type Score, hardFailures } from './lib/score.js';
 
 /**
  * The test of the test (spec 07c S9): a fixture whose recorded output invents a number, points at
- * an item the input does not have and states a finding fails the hard scorers, while a sound
- * output for the same case passes them. Both go through record and replay as CI's fixtures do.
+ * an item the input does not have and uses verdict language fails the check `evalSuite` fails a
+ * case on, while a sound output for the same case passes it. Both go through record and replay as
+ * CI's fixtures do. A changed prompt, schema or model misses the recorded fixture altogether.
  */
 
 const MODEL = 'eval-test-model';
@@ -32,11 +33,16 @@ afterAll(async () => {
   await rm(fixturesDir, { recursive: true, force: true });
 });
 
-/** Records `output` as the provider's answer for a golden case, replays it and scores it. */
-async function scoreRecorded(task: string, caseName: string, output: unknown): Promise<Score[]> {
+function goldenCase(task: string, caseName: string) {
   const suite = SUITES.find((each) => each.task.name === task);
   const golden = suite?.cases.find((each) => each.name === caseName);
   if (!suite || !golden) throw new Error(`No golden case ${task} / ${caseName}`);
+  return { suite, golden };
+}
+
+/** Records `output` as the provider's answer for a golden case into a fresh fixtures directory. */
+async function record(task: string, caseName: string, output: unknown): Promise<string> {
+  const { suite, golden } = goldenCase(task, caseName);
   const dir = await mkdtemp(join(fixturesDir, 'case-'));
   const recorder = new ReplayAdapter({
     fixturesDir: dir,
@@ -46,6 +52,13 @@ async function scoreRecorded(task: string, caseName: string, output: unknown): P
     ),
   });
   await runTask(suite.task, golden.input, recorder, MODEL);
+  return dir;
+}
+
+/** Records `output` for a golden case, replays it and scores it. */
+async function scoreRecorded(task: string, caseName: string, output: unknown): Promise<Score[]> {
+  const { suite, golden } = goldenCase(task, caseName);
+  const dir = await record(task, caseName, output);
   const replayed = await runTask(
     suite.task,
     golden.input,
@@ -55,8 +68,10 @@ async function scoreRecorded(task: string, caseName: string, output: unknown): P
   return suite.score(golden.input, replayed, golden.expected);
 }
 
-const failingHard = (scores: Score[]) =>
-  scores.filter((score) => score.hard && score.score < 1).map((score) => score.scorer);
+/** The scorers behind a case's hard failures, as `evalSuite` reports them. */
+const failingHard = (scores: Score[]) => [
+  ...new Set(hardFailures(scores).map((failure) => failure.slice(0, failure.indexOf(':')))),
+];
 
 const savings = itemRef(PEOPLE.officer, IDS.savings);
 const unknown = { ...savings, itemId: UNKNOWN_ITEM };
@@ -132,7 +147,7 @@ describe('hard scorers on recorded fixtures', () => {
     ).toEqual([]);
   });
 
-  it('fail a summary that invents a number, an item and a finding', async () => {
+  it('fail a summary that invents a number and an item and uses verdict language', async () => {
     const broken = structuredClone(summary);
     broken.overview += ' The declarant is non-compliant.';
     broken.changesSincePrevious[2] = {
@@ -171,5 +186,29 @@ describe('hard scorers on recorded fixtures', () => {
     expect(
       failingHard(await scoreRecorded('draft-clarification', 'savings rise to explain', broken)),
     ).toEqual(['refs-resolve', 'follows-selections', 'no-foreign-numbers', 'no-verdict']);
+  });
+});
+
+describe('recorded fixtures', () => {
+  it('miss when the output schema, the prompt or the model changes', async () => {
+    const { suite, golden } = goldenCase('summarize-declaration', 'household amendment');
+    const replay = new ReplayAdapter({
+      fixturesDir: await record('summarize-declaration', 'household amendment', summary),
+      mode: 'replay',
+    });
+    const schema = { ...suite.task.outputJsonSchema, description: 'changed' };
+    const changes = [
+      { ...suite.task, outputJsonSchema: schema },
+      { ...suite.task, prompt: () => `${suite.task.prompt(1)}\nOne more rule.` },
+    ];
+    for (const task of changes) {
+      await expect(runTask(task, golden.input, replay, MODEL)).rejects.toThrow(
+        ReplayFixtureMissingError,
+      );
+    }
+    await expect(runTask(suite.task, golden.input, replay, 'another-model')).rejects.toThrow(
+      ReplayFixtureMissingError,
+    );
+    await expect(runTask(suite.task, golden.input, replay, MODEL)).resolves.toBeDefined();
   });
 });

@@ -1,12 +1,12 @@
+import type { Language } from '../../src/tasks/common.js';
 import { draftClarification } from '../../src/tasks/draft-clarification.js';
-import { describeRef, refsAmong, type SourceRef } from '../lib/refs.js';
+import { refsAmong, type SourceRef } from '../lib/refs.js';
 import { type Score, fromChecks } from '../lib/score.js';
-import { languageMatches, noForeignNumbers, noVerdict, withinBudget } from '../lib/scorers.js';
+import { sharedScores } from '../lib/scorers.js';
 import type { EvalSuite, GoldenCase } from '../lib/suite.js';
 import { IDS, PEOPLE } from './declarations.js';
 import { type FlagInput, flag, itemRef } from './flags.js';
 
-type Language = 'en' | 'sw';
 type Requirement = 'provide-omitted' | 'explain-discrepancy' | 'correct';
 
 interface Selection {
@@ -217,7 +217,7 @@ function refsResolve(input: Record<string, unknown>, output: Output): Score {
     true,
     output.items.map((item) => ({
       ok: refsAmong(item.ref, allowed),
-      failure: `not a selection ref: ${describeRef(item.ref)}`,
+      failure: `not a selection ref: ${JSON.stringify(item.ref)}`,
     })),
   );
 }
@@ -304,11 +304,8 @@ export const draftSuite: EvalSuite<Expected> = {
     return [
       refsResolve(input, typed),
       followsSelections(input, typed),
-      noForeignNumbers(output, input),
-      noVerdict(output),
       proposedRequirement(typed, expected),
-      languageMatches(output, input.language as Language),
-      withinBudget(output, BUDGETS),
+      ...sharedScores(input, output, BUDGETS),
     ];
   },
   thresholds: { 'proposed-requirement': 0.8, language: 0.9, brevity: 0.9 },

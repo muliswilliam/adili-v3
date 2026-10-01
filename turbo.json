@@ -21,7 +21,8 @@
       "dependsOn": ["^build"]
     },
     "eval": {
-      "dependsOn": ["^build"]
+      "dependsOn": ["^build"],
+      "passThroughEnv": ["GITHUB_STEP_SUMMARY"]
     },
     "test:integration": {
       "dependsOn": ["^build"],

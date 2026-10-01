@@ -1,12 +1,11 @@
+import type { Language } from '../../src/tasks/common.js';
 import { explainFlags } from '../../src/tasks/explain-flags.js';
-import { describeRef, refsAmong, type SourceRef } from '../lib/refs.js';
+import { refsAmong, type SourceRef } from '../lib/refs.js';
 import { type Score, fromChecks } from '../lib/score.js';
-import { languageMatches, noForeignNumbers, noVerdict, withinBudget } from '../lib/scorers.js';
+import { sharedScores } from '../lib/scorers.js';
 import type { EvalSuite, GoldenCase } from '../lib/suite.js';
 import { IDS, PEOPLE } from './declarations.js';
 import { type FlagInput, flag, itemRef } from './flags.js';
-
-type Language = 'en' | 'sw';
 
 interface ItemContext {
   ref: SourceRef;
@@ -183,7 +182,7 @@ function refsResolve(input: Record<string, unknown>, output: Output): Score {
     output.explanations.flatMap((each) =>
       each.refs.map((ref) => ({
         ok: refsAmong(ref, allowed),
-        failure: `not an input ref: ${describeRef(ref)}`,
+        failure: `not an input ref: ${JSON.stringify(ref)}`,
       })),
     ),
   );
@@ -230,10 +229,7 @@ export const explainSuite: EvalSuite<null> = {
     return [
       refsResolve(input, typed),
       onePerFlag(input, typed),
-      noForeignNumbers(output, input),
-      noVerdict(output),
-      languageMatches(output, input.language as Language),
-      withinBudget(output, BUDGETS),
+      ...sharedScores(input, output, BUDGETS),
     ];
   },
   thresholds: { language: 0.9, brevity: 0.9 },

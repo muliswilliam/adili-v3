@@ -1,7 +1,8 @@
+import type { Language } from '../../src/tasks/common.js';
 import { summarizeDeclaration } from '../../src/tasks/summarize-declaration.js';
-import { describeRef, refProblem, type SourceRef } from '../lib/refs.js';
+import { refProblem, type SourceRef } from '../lib/refs.js';
 import { type Score, fromChecks } from '../lib/score.js';
-import { languageMatches, noForeignNumbers, noVerdict, withinBudget } from '../lib/scorers.js';
+import { sharedScores } from '../lib/scorers.js';
 import type { EvalSuite, GoldenCase } from '../lib/suite.js';
 import {
   type Declaration,
@@ -23,8 +24,6 @@ interface Expected {
   /** Flags (high severity) the summary must raise in `worthAttention`. */
   mustAttend: string[];
 }
-
-type Language = 'en' | 'sw';
 
 interface Change {
   kind: 'acquired' | 'disposed' | 'value-changed' | 'unchanged';
@@ -325,7 +324,7 @@ function refsResolve(input: Record<string, unknown>, output: Output): Score {
   return fromChecks('refs-resolve', true, [
     ...refs.map((ref) => {
       const problem = refProblem(ref, documents);
-      return { ok: problem === null, failure: `${problem}: ${describeRef(ref)}` };
+      return { ok: problem === null, failure: `${problem}: ${JSON.stringify(ref)}` };
     }),
     ...output.worthAttention.flatMap((each) =>
       each.flagIds.map((id) => ({ ok: flagIds.has(id), failure: `flagId ${id} not in input` })),
@@ -370,11 +369,8 @@ export const summarizeSuite: EvalSuite<Expected> = {
     const typed = output as Output;
     return [
       refsResolve(input, typed),
-      noForeignNumbers(output, input),
-      noVerdict(output),
       coverage(typed, expected),
-      languageMatches(output, input.language as Language),
-      withinBudget(output, BUDGETS),
+      ...sharedScores(input, output, BUDGETS),
     ];
   },
   thresholds: { coverage: 0.9, language: 0.9, brevity: 0.9 },

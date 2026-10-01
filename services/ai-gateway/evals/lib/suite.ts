@@ -2,7 +2,7 @@ import { afterAll, describe, expect, it } from 'vitest';
 
 import type { TaskDefinition } from '../../src/tasks/task.js';
 import { evalProvider, publish, report, runTask } from './run.js';
-import { type CaseResult, type Score, softResults } from './score.js';
+import { type CaseResult, type Score, hardFailures, softResults } from './score.js';
 
 export interface GoldenCase<TExpected> {
   /** Unique within the task; names the test. */
@@ -36,10 +36,7 @@ export function evalSuite<TExpected>(suite: EvalSuite<TExpected>): void {
         const output = await runTask(suite.task, golden.input, provider, model);
         const scores = suite.score(golden.input, output, golden.expected);
         results.push({ caseName: golden.name, scores });
-        const hardFailures = scores
-          .filter((score) => score.hard && score.score < 1)
-          .flatMap((score) => score.failures.map((failure) => `${score.scorer}: ${failure}`));
-        expect(hardFailures).toEqual([]);
+        expect(hardFailures(scores)).toEqual([]);
       });
     }
 
@@ -50,7 +47,8 @@ export function evalSuite<TExpected>(suite: EvalSuite<TExpected>): void {
     });
 
     afterAll(async () => {
-      await publish(report(suite.task.name, results, softResults(results, suite.thresholds)));
+      const soft = softResults(results, suite.thresholds);
+      await publish(report(suite.task.name, suite.cases.length, results, soft));
     });
   });
 }

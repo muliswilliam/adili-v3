@@ -3,8 +3,8 @@ import { join } from 'node:path';
 
 import { providerEnvSchema } from '../src/providers/provider-env.js';
 import { fixtureKey } from '../src/providers/replay.adapter.js';
-import { buildProviderRequest } from '../src/tasks/provider-request.js';
 import { SUITES } from './golden/suites.js';
+import { evalRequest } from './lib/run.js';
 
 /**
  * Deletes eval fixtures no golden case requests any more. Record mode only adds files, so a prompt
@@ -17,13 +17,7 @@ const { AI_MODEL } = providerEnvSchema.parse(process.env);
 const wanted = new Set(
   SUITES.flatMap((suite) =>
     suite.cases.map((golden) => {
-      const input = suite.task.input.parse(golden.input);
-      const request = buildProviderRequest(
-        suite.task,
-        suite.task.currentPromptVersion,
-        input,
-        AI_MODEL,
-      );
+      const request = evalRequest(suite.task, golden.input, AI_MODEL);
       return `${fixtureKey('generateStructured', request)}.json`;
     }),
   ),

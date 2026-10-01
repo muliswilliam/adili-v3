@@ -38,6 +38,14 @@ describe('verdictTerms', () => {
     expect(verdictTerms('Hii si ishara ya rushwa.')).toEqual([]);
   });
 
+  it('does not let a negation reach across a clause or sentence', () => {
+    expect(verdictTerms('He has not declared the vehicle; non-compliant.')).toEqual([
+      'non-compliant',
+    ]);
+    expect(verdictTerms('Do not ignore: the declarant is corrupt.')).toEqual(['corrupt']);
+    expect(verdictTerms('Nothing was missing. Corruption is likely.')).toEqual(['corruption']);
+  });
+
   it('allows neutral review words', () => {
     expect(
       verdictTerms(
