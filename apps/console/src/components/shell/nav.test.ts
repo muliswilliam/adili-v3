@@ -7,12 +7,16 @@ const labels = (roles: string[]) =>
 
 describe('navFor', () => {
   it('shows Commissions and National obligations under Platform to platform admins and EACC staff', () => {
-    for (const role of ['platform-admin', 'eacc-analyst', 'eacc-supervisor']) {
+    for (const role of ['eacc-analyst', 'eacc-supervisor']) {
       expect(labels([role])).toEqual([['Platform', ['Commissions', 'National obligations']]]);
     }
+    expect(labels(['platform-admin'])).toEqual([
+      ['Platform', ['Commissions', 'National obligations', 'Integrations']],
+    ]);
     expect(navFor(['platform-admin'])[0]?.items.map((item) => item.to)).toEqual([
       '/commissions',
       '/obligations/national',
+      '/platform/integrations',
     ]);
   });
 
@@ -53,6 +57,7 @@ describe('activeNavHref', () => {
     ['/obligations/policy', '/obligations'],
     ['/obligations/national', '/obligations/national'],
     ['/commissions/psc', '/commissions'],
+    ['/platform/integrations', '/platform/integrations'],
     ['/rosters', null],
     ['/', null],
   ])('marks %s under %s', (pathname, expected) => {

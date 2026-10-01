@@ -87,6 +87,18 @@ export const WithAction: Story = {
     status: undefined,
     description: 'Vehicles by owner',
     badge: <BreakerBadge state="open" />,
+    metrics: (
+      <dl className="grid grid-cols-2 gap-x-5">
+        <div>
+          <dt className="text-xs text-muted-foreground">Calls (24 h)</dt>
+          <dd className="text-sm tabular-nums">29,870</dd>
+        </div>
+        <div>
+          <dt className="text-xs text-muted-foreground">Last success</dt>
+          <dd className="text-sm">4 hours ago</dd>
+        </div>
+      </dl>
+    ),
     action: (
       <Button variant="secondary" size="sm">
         <Icon icon={PauseIcon} />

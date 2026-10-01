@@ -24,6 +24,7 @@ import { AppModule } from '../../src/app.module.js';
 import { config } from '../../src/config.js';
 import { schema } from '../../src/db/schema.js';
 import { IPRS_CLIENT_OPTIONS, type IprsClientOptions } from '../../src/iprs/iprs-client.js';
+import { REGISTRY_URLS, type RegistryUrls } from '../../src/registries/registry-urls.js';
 
 const MIGRATIONS = new URL('../../migrations', import.meta.url).pathname;
 
@@ -47,8 +48,13 @@ export class Clock {
 export interface TestAppOptions extends Partial<IprsClientOptions> {
   /** IPRS's timeout. */
   timeoutMs?: number;
-  /** Policies of systems besides IPRS, e.g. for a stub adapter. */
+  /**
+   * Policies of systems besides IPRS, e.g. for a stub adapter. KRA, NTSA, BRS and ArdhiSasa
+   * default to the spec's timeout and cache with a rate the tests never reach.
+   */
   policies?: SystemPolicies;
+  /** Where the KRA, NTSA, BRS, ArdhiSasa and HR adapters call, e.g. `StubRegistries.urls`. */
+  registryUrls?: RegistryUrls;
   /** Extra controllers, e.g. one exercising a kit decorator. */
   controllers?: Type[];
 }
@@ -64,8 +70,16 @@ export interface TestApp {
   cacheKeys: () => Promise<string[]>;
   /** Empties this app's cache, leaving other suites' keys on the shared Valkey alone. */
   clearCache: () => Promise<void>;
-  /** Signs an access token as the given OAuth client with the given scopes. */
-  token: (options?: { clientId?: string; scope?: string }) => Promise<string>;
+  /**
+   * Signs an access token as the given OAuth client with the given scopes, or, given realm roles,
+   * as a user of `tenant` signed in through it.
+   */
+  token: (options?: {
+    clientId?: string;
+    scope?: string;
+    roles?: string[];
+    tenant?: string;
+  }) => Promise<string>;
   close: () => Promise<void>;
 }
 
@@ -77,6 +91,7 @@ export async function createTestApp({
   baseUrl: iprsBaseUrl = config.IPRS_BASE_URL,
   timeoutMs = config.IPRS_TIMEOUT_MS,
   policies = {},
+  registryUrls,
   controllers = [],
 }: TestAppOptions = {}): Promise<TestApp> {
   const baseUrl = requireEnv('TEST_DATABASE_URL');
@@ -108,11 +123,17 @@ export async function createTestApp({
     ratePerMinute: config.IPRS_RATE_LIMIT_PER_MINUTE,
     maxQueueMs: config.RATE_LIMIT_MAX_WAIT_MS,
   };
+  const registryPolicy: SystemPolicy = {
+    timeoutMs: 2_000,
+    cacheTtlSeconds: 86_400,
+    ratePerMinute: 60_000,
+    maxQueueMs: config.RATE_LIMIT_MAX_WAIT_MS,
+  };
   const prefix = valkey.options.keyPrefix ?? '';
   // KEYS takes its pattern as given (the key prefix is not applied), so match the prefix here.
   const cacheKeys = async () =>
     (await valkey.keys(`${prefix}*`)).map((key) => key.slice(prefix.length));
-  const moduleRef = await Test.createTestingModule({ imports: [AppModule], controllers })
+  let builder = Test.createTestingModule({ imports: [AppModule], controllers })
     .overrideProvider(DATABASE)
     .useValue(db)
     .overrideProvider(VALKEY)
@@ -122,7 +143,14 @@ export async function createTestApp({
     .overrideProvider(IPRS_CLIENT_OPTIONS)
     .useValue({ baseUrl: iprsBaseUrl } satisfies IprsClientOptions)
     .overrideProvider(SYSTEM_POLICIES)
-    .useValue({ iprs: iprsPolicy, ...policies } satisfies SystemPolicies)
+    .useValue({
+      iprs: iprsPolicy,
+      kra: registryPolicy,
+      ntsa: registryPolicy,
+      brs: registryPolicy,
+      ardhisasa: registryPolicy,
+      ...policies,
+    } satisfies SystemPolicies)
     .overrideProvider(TokenVerifier)
     .useValue(
       new TokenVerifier(
@@ -130,8 +158,9 @@ export async function createTestApp({
         config.OIDC_AUDIENCE,
         createLocalJWKSet({ keys: [jwk] }),
       ),
-    )
-    .compile();
+    );
+  if (registryUrls) builder = builder.overrideProvider(REGISTRY_URLS).useValue(registryUrls);
+  const moduleRef = await builder.compile();
 
   const app = moduleRef.createNestApplication<NestFastifyApplication>(new FastifyAdapter());
   await app.init();
@@ -148,12 +177,17 @@ export async function createTestApp({
       const keys = await cacheKeys();
       if (keys.length > 0) await valkey.del(...keys);
     },
-    token: ({ clientId = 'directory', scope = 'profile iprs' } = {}) =>
-      new SignJWT({ azp: clientId, scope })
+    token: ({ clientId = 'directory', scope = 'profile iprs', roles, tenant } = {}) =>
+      new SignJWT({
+        azp: clientId,
+        scope,
+        ...(roles ? { realm_access: { roles } } : {}),
+        ...(tenant ? { tenant } : {}),
+      })
         .setProtectedHeader({ alg: 'RS256', kid: 'test' })
         .setIssuer(config.OIDC_ISSUER_URL)
         .setAudience(config.OIDC_AUDIENCE)
-        .setSubject(`service-account-${clientId}`)
+        .setSubject(roles ? `user-${roles.join('-')}` : `service-account-${clientId}`)
         // Outlives the clock moves of a whole run.
         .setExpirationTime('1h')
         .sign(privateKey),

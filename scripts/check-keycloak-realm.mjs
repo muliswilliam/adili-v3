@@ -212,6 +212,7 @@ for (const name of [
   'declarations:internal',
   'directory:roster-national-id',
   'reports:submit',
+  'registry',
 ]) {
   const scope = scopes.get(name);
   if (!scope) {
@@ -290,6 +291,13 @@ for (const client of realm.clients ?? []) {
   if (client.clientId !== 'review' && scopesOf.includes('directory:roster-national-id')) {
     fail(`${client.clientId} must not get directory:roster-national-id (review only)`);
   }
+  // Registry records on officers and their households: only review looks them up (spec 07b).
+  if (client.clientId !== 'review' && scopesOf.includes('registry')) {
+    fail(`${client.clientId} must not get registry (review only)`);
+  }
+}
+if (!clients.get('review')?.defaultClientScopes?.includes('registry')) {
+  fail('review needs the registry scope (registry cross-checks, spec 07b)');
 }
 // API clients the directory creates get `basic` (the `sub` claim) with their own scope.
 if (!scopes.has('basic')) fail('missing client scope basic (API client tokens need sub)');

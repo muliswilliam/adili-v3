@@ -11,6 +11,10 @@ import type { System } from '../db/schema.js';
 
 export const BREAKER_OPTIONS = Symbol('BREAKER_OPTIONS');
 
+export const BREAKER_STATES = ['closed', 'open', 'half-open'] as const;
+/** `closed`: calls go through. `open`: calls fail fast. `half-open`: the next call is a probe. */
+export type BreakerState = (typeof BREAKER_STATES)[number];
+
 export interface BreakerOptions {
   /** Consecutive failures that open a system's circuit. */
   failureThreshold: number;
@@ -45,6 +49,24 @@ export class CircuitBreakers {
   failsFast(system: System): boolean {
     const { policy, openedAt } = this.breaker(system);
     return policy.state === CircuitState.Open && Date.now() - openedAt < this.options.cooldownMs;
+  }
+
+  /**
+   * The circuit as this instance sees it, for coverage. An open circuit past its cool-down reads
+   * half-open: the next call probes the registry.
+   */
+  stateOf(system: System): BreakerState {
+    const { policy } = this.breaker(system);
+    switch (policy.state) {
+      case CircuitState.Closed:
+        return 'closed';
+      case CircuitState.HalfOpen:
+        return 'half-open';
+      case CircuitState.Open:
+        return this.failsFast(system) ? 'open' : 'half-open';
+      case CircuitState.Isolated:
+        return 'open';
+    }
   }
 
   private breaker(system: System): Breaker {

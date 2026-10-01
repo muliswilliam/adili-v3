@@ -23,6 +23,7 @@ import { Route as CommissionsNewRouteImport } from './routes/commissions/new'
 import { Route as ObligationsIndexRouteImport } from './routes/obligations/index'
 import { Route as ObligationsPolicyRouteImport } from './routes/obligations/policy'
 import { Route as ObligationsNationalRouteRouteImport } from './routes/obligations_/national/route'
+import { Route as PlatformIntegrationsRouteImport } from './routes/platform/integrations'
 import { Route as RosterIndexRouteImport } from './routes/roster/index'
 import { Route as RosterApiAccessRouteRouteImport } from './routes/roster/api-access/route'
 import { Route as RosterFlaggedRouteImport } from './routes/roster/flagged'
@@ -120,6 +121,11 @@ const ObligationsNationalRouteRoute =
     path: '/obligations/national',
     getParentRoute: () => rootRouteImport,
   } as any)
+const PlatformIntegrationsRoute = PlatformIntegrationsRouteImport.update({
+  id: '/platform/integrations',
+  path: '/platform/integrations',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const RosterIndexRoute = RosterIndexRouteImport.update({
   id: '/',
   path: '/',
@@ -273,6 +279,7 @@ export interface FileRoutesByFullPath {
   '/auth/logout': typeof AuthLogoutRoute
   '/commissions/new': typeof CommissionsNewRoute
   '/obligations/policy': typeof ObligationsPolicyRoute
+  '/platform/integrations': typeof PlatformIntegrationsRoute
   '/roster/flagged': typeof RosterFlaggedRoute
   '/roster/import': typeof RosterImportRoute
   '/roster/template': typeof RosterTemplateRoute
@@ -306,6 +313,7 @@ export interface FileRoutesByTo {
   '/auth/logout': typeof AuthLogoutRoute
   '/commissions/new': typeof CommissionsNewRoute
   '/obligations/policy': typeof ObligationsPolicyRoute
+  '/platform/integrations': typeof PlatformIntegrationsRoute
   '/roster/flagged': typeof RosterFlaggedRoute
   '/roster/import': typeof RosterImportRoute
   '/roster/template': typeof RosterTemplateRoute
@@ -346,6 +354,7 @@ export interface FileRoutesById {
   '/auth/logout': typeof AuthLogoutRoute
   '/commissions/new': typeof CommissionsNewRoute
   '/obligations/policy': typeof ObligationsPolicyRoute
+  '/platform/integrations': typeof PlatformIntegrationsRoute
   '/roster/flagged': typeof RosterFlaggedRoute
   '/roster/import': typeof RosterImportRoute
   '/roster/template': typeof RosterTemplateRoute
@@ -389,6 +398,7 @@ export interface FileRouteTypes {
     | '/auth/logout'
     | '/commissions/new'
     | '/obligations/policy'
+    | '/platform/integrations'
     | '/roster/flagged'
     | '/roster/import'
     | '/roster/template'
@@ -422,6 +432,7 @@ export interface FileRouteTypes {
     | '/auth/logout'
     | '/commissions/new'
     | '/obligations/policy'
+    | '/platform/integrations'
     | '/roster/flagged'
     | '/roster/import'
     | '/roster/template'
@@ -461,6 +472,7 @@ export interface FileRouteTypes {
     | '/auth/logout'
     | '/commissions/new'
     | '/obligations/policy'
+    | '/platform/integrations'
     | '/roster/flagged'
     | '/roster/import'
     | '/roster/template'
@@ -497,6 +509,7 @@ export interface RootRouteChildren {
   AuthCallbackRoute: typeof AuthCallbackRoute
   AuthLoginRoute: typeof AuthLoginRoute
   AuthLogoutRoute: typeof AuthLogoutRoute
+  PlatformIntegrationsRoute: typeof PlatformIntegrationsRoute
   ApiMockFilesIdRoute: typeof ApiMockFilesIdRoute
 }
 
@@ -598,6 +611,13 @@ declare module '@tanstack/react-router' {
       path: '/obligations/national'
       fullPath: '/obligations/national'
       preLoaderRoute: typeof ObligationsNationalRouteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/platform/integrations': {
+      id: '/platform/integrations'
+      path: '/platform/integrations'
+      fullPath: '/platform/integrations'
+      preLoaderRoute: typeof PlatformIntegrationsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/roster/': {
@@ -962,6 +982,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthCallbackRoute: AuthCallbackRoute,
   AuthLoginRoute: AuthLoginRoute,
   AuthLogoutRoute: AuthLogoutRoute,
+  PlatformIntegrationsRoute: PlatformIntegrationsRoute,
   ApiMockFilesIdRoute: ApiMockFilesIdRoute,
 }
 export const routeTree = rootRouteImport

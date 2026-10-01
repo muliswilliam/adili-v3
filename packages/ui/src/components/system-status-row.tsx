@@ -102,6 +102,11 @@ export type SystemStatusRowProps = Omit<ComponentProps<'li'>, 'children'> & {
   checkedAt?: string;
   /** A check is running: a spinner and "Checking…" stand in for the copy and badge. */
   checking?: boolean;
+  /**
+   * Figures between the row copy and the badge, e.g. call volume and cache hit rate on the
+   * Integrations page. Under the name on narrow screens.
+   */
+  metrics?: ReactNode;
   /** An action at the end of the row, e.g. a Pause button. Stays outside the expand button. */
   action?: ReactNode;
   /**
@@ -135,6 +140,7 @@ export function SystemStatusRow({
   personName = '',
   checkedAt,
   checking = false,
+  metrics,
   action,
   children,
   expanded: controlled,
@@ -240,6 +246,7 @@ export function SystemStatusRow({
               </>
             )}
           </div>
+          {metrics ? <div className="min-w-0 shrink-0">{metrics}</div> : null}
           {(!checking && shownBadge) || action ? (
             <div className="flex shrink-0 flex-wrap items-center gap-2.5">
               {!checking ? shownBadge : null}

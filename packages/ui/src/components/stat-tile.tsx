@@ -16,6 +16,8 @@ export type StatTileTone = 'default' | 'warning';
 export interface StatTileProps {
   label: string;
   value: number;
+  /** How the value is printed; defaults to `formatNumber` (`48,312`). E.g. a percentage. */
+  format?: (value: number) => string;
   /** Parts of the value, e.g. per declaration type. Listed on the tile and in its title. */
   breakdown?: readonly StatTileBreakdownItem[];
   /** Names the breakdown list for screen readers; defaults to "{label} by type". */
@@ -48,6 +50,7 @@ export function StatTile({
   breakdownLabel,
   description,
   tone = 'default',
+  format = formatNumber,
   marker,
   pressed = false,
   onPressedChange,
@@ -69,7 +72,7 @@ export function StatTile({
           tone === 'warning' && 'text-warning-subtle-foreground',
         )}
       >
-        {formatNumber(value)}
+        {format(value)}
       </span>
     </>
   );

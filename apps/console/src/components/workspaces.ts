@@ -24,7 +24,8 @@ export interface Workspace {
 }
 
 /** Routes of workspaces that exist so far. */
-export type WorkspaceHref = '/commissions' | '/roster' | '/obligations' | '/obligations/national';
+export type WorkspaceHref =
+  '/commissions' | '/roster' | '/obligations' | '/obligations/national' | '/platform/integrations';
 
 interface WorkspaceDefinition {
   id: string;
@@ -151,6 +152,8 @@ const WORKSPACES: WorkspaceDefinition[] = [
     id: 'platform',
     title: 'Platform settings',
     description: 'Operate the platform: tenants, integrations and configuration.',
+    // Integrations is the one Platform settings page so far (spec 07b).
+    href: '/platform/integrations',
     roles: [PLATFORM_ADMIN],
   },
 ];

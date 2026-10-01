@@ -1,6 +1,20 @@
 import type { z } from 'zod';
 
+import { coverageSchema, systemCoverageSchema } from './integrations/coverage.js';
 import { iprsPersonSchema, lookupIprsPersonSchema } from './iprs/iprs-person.js';
+import {
+  ardhisasaResultSchema,
+  brsResultSchema,
+  kraResultSchema,
+  lookupOutcomeSchema,
+  ntsaResultSchema,
+  registryLookupSchema,
+  resultEnvelopeSchema,
+  storedResultSchema,
+  supplierCheckResultSchema,
+  systemSchema,
+  unavailableReasonSchema,
+} from './registries/registry-records.js';
 
 /**
  * Named schemas of the integration-gateway's OpenAPI document (`#/components/schemas/<name>`).
@@ -8,4 +22,17 @@ import { iprsPersonSchema, lookupIprsPersonSchema } from './iprs/iprs-person.js'
 export const OPENAPI_SCHEMAS: Record<string, z.ZodType> = {
   LookupIprsPerson: lookupIprsPersonSchema,
   IprsPerson: iprsPersonSchema,
+  System: systemSchema,
+  LookupOutcome: lookupOutcomeSchema,
+  UnavailableReason: unavailableReasonSchema,
+  RegistryLookup: registryLookupSchema,
+  ResultEnvelope: resultEnvelopeSchema,
+  KraResult: kraResultSchema,
+  NtsaResult: ntsaResultSchema,
+  BrsResult: brsResultSchema,
+  ArdhisasaResult: ardhisasaResultSchema,
+  SupplierCheckResult: supplierCheckResultSchema,
+  StoredResult: storedResultSchema,
+  SystemCoverage: systemCoverageSchema,
+  Coverage: coverageSchema,
 };

@@ -1,0 +1,389 @@
+import {
+  Alert,
+  AlertDescription,
+  AlertTitle,
+  Badge,
+  BreakerBadge,
+  Button,
+  Card,
+  cn,
+  EmptyState,
+  formatTime,
+  Icon,
+  type IconProps,
+  Skeleton,
+  StatTile,
+  SystemStatusList,
+  SystemStatusRow,
+} from '@adili/ui';
+import {
+  Activity01Icon,
+  BankIcon,
+  BanIcon,
+  Briefcase01Icon,
+  Car01Icon,
+  CheckmarkCircle02Icon,
+  Clock01Icon,
+  Flag01Icon,
+  InformationCircleIcon,
+  Location01Icon,
+  Money03Icon,
+  PauseIcon,
+  PlugSocketIcon,
+  RefreshIcon,
+  UserIcon,
+} from '@hugeicons/core-free-icons';
+import type { ReactNode } from 'react';
+
+import type {
+  IntegrationGatewayResult,
+  IntegrationSystem,
+  SystemCoverage,
+} from '../../server/integration-gateway/client';
+import { formatNumber } from '../format';
+import { LoadError, NoAccess } from '../load-error';
+import { Page, PageHead } from '../page';
+import {
+  formatDuration,
+  formatLastSuccess,
+  formatPercent,
+  isLastSuccessStale,
+  summarise,
+  SYSTEMS,
+} from './coverage';
+import { messages as m } from './messages';
+
+const ICONS: Record<IntegrationSystem, IconProps['icon']> = {
+  iprs: UserIcon,
+  kra: BankIcon,
+  ntsa: Car01Icon,
+  brs: Briefcase01Icon,
+  ardhisasa: Location01Icon,
+  payroll: Money03Icon,
+  icms: Flag01Icon,
+};
+
+const TILES = 'grid grid-cols-2 gap-3 min-[980px]:grid-cols-4';
+
+export interface IntegrationsViewProps {
+  /** Coverage; null while it loads. */
+  result: IntegrationGatewayResult<SystemCoverage[]> | null;
+  /** When the coverage was read (ISO); null while it loads. */
+  loadedAt: string | null;
+  /** Reads the coverage again. */
+  onRefresh: () => void;
+  /** A refresh is running. */
+  refreshing?: boolean;
+  /** Offered to staff refused the page (403). */
+  forbiddenAction?: ReactNode;
+  /** For tests. */
+  now?: Date;
+}
+
+/**
+ * How each registry integration behaves (spec 07b FE-3, S13 read): calls in the last 24 hours,
+ * cache hit rate, breaker, last success and paused, with the configured limits on expanding a
+ * system. Platform administrators only. Pause and resume come with #187.
+ */
+export function IntegrationsView({
+  result,
+  loadedAt,
+  onRefresh,
+  refreshing = false,
+  forbiddenAction,
+  now = new Date(),
+}: IntegrationsViewProps) {
+  if (
+    result &&
+    !result.ok &&
+    result.error.kind === 'problem' &&
+    result.error.problem.status === 403
+  ) {
+    return (
+      <Page narrow>
+        <PageHead title={m.title} />
+        <NoAccess text={m.forbidden} action={forbiddenAction} />
+      </Page>
+    );
+  }
+  const busy = result === null || refreshing;
+  return (
+    <Page>
+      <PageHead
+        title={m.title}
+        actions={
+          <>
+            {loadedAt && result?.ok ? (
+              <span className="inline-flex items-center gap-1.5 text-[13px] text-muted-foreground">
+                <Icon icon={Clock01Icon} className="size-3.5" />
+                {m.updatedAt(formatTime(loadedAt))}
+              </span>
+            ) : null}
+            <Button variant="secondary" size="sm" onClick={onRefresh} disabled={busy}>
+              <Icon
+                icon={RefreshIcon}
+                className={cn(busy && 'animate-spin motion-reduce:animate-none')}
+              />
+              {m.refresh}
+            </Button>
+          </>
+        }
+      />
+      {result === null ? (
+        <CoverageSkeleton />
+      ) : !result.ok ? (
+        <LoadError title={m.errorTitle} detail={m.errorDetail} retryLabel={m.tryAgain} />
+      ) : result.data.length === 0 ? (
+        <Card className="p-0 sm:p-0">
+          <EmptyState
+            icon={<Icon icon={PlugSocketIcon} />}
+            title={m.emptyTitle}
+            description={m.emptyText}
+          />
+        </Card>
+      ) : (
+        <Coverage rows={result.data} now={now} />
+      )}
+    </Page>
+  );
+}
+
+function Coverage({ rows, now }: { rows: SystemCoverage[]; now: Date }) {
+  const summary = summarise(rows);
+  return (
+    <div className="flex flex-col gap-[18px]">
+      <div role="group" aria-label={m.summaryLabel} className={TILES}>
+        <StatTile
+          label={m.callsTile}
+          value={summary.calls24h}
+          description={m.callsAcross(rows.length)}
+        />
+        <StatTile
+          label={m.hitRateTile}
+          value={summary.cacheHitRate}
+          format={formatPercent}
+          description={m.hitRateHint}
+        />
+        <StatTile
+          label={m.openTile}
+          value={summary.open.length}
+          tone={summary.open.length > 0 ? 'warning' : 'default'}
+          marker={
+            summary.open.length > 0 ? (
+              <span aria-hidden="true" className="size-2 rounded-full bg-destructive" />
+            ) : undefined
+          }
+          description={m.halfOpenCount(summary.halfOpen.length)}
+        />
+        <StatTile
+          label={m.pausedTile}
+          value={summary.paused.length}
+          description={
+            summary.paused.length > 0
+              ? summary.paused.map((row) => SYSTEMS[row.system].name).join(', ')
+              : m.noneHint
+          }
+        />
+      </div>
+      <Alerts rows={rows} now={now} />
+      <div className="flex flex-col gap-3.5">
+        <SystemStatusList label={m.coverageLabel}>
+          {rows.map((row) => (
+            <SystemRow key={row.system} row={row} now={now} />
+          ))}
+        </SystemStatusList>
+        <p className="flex items-center gap-2 text-[13px] text-muted-foreground">
+          <Icon icon={InformationCircleIcon} className="size-3.5 shrink-0" />
+          {m.configNote}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+/** Breakers open first, then those recovering, then paused systems; or all clear. */
+function Alerts({ rows, now }: { rows: SystemCoverage[]; now: Date }) {
+  const { open, halfOpen, paused } = summarise(rows);
+  if (open.length + halfOpen.length + paused.length === 0) {
+    return (
+      <Alert variant="success" role="status">
+        <Icon icon={CheckmarkCircle02Icon} />
+        <AlertTitle>{m.allWorking}</AlertTitle>
+      </Alert>
+    );
+  }
+  return (
+    <div className="flex flex-col gap-2.5">
+      {open.map((row) => (
+        <Alert key={row.system} variant="destructive">
+          <Icon icon={BanIcon} />
+          <AlertDescription>
+            <b className="font-semibold">{m.notResponding(SYSTEMS[row.system].name)}</b>{' '}
+            {m.notRespondingDetail(
+              formatLastSuccess(row.lastSuccessAt, now, m.never).toLowerCase(),
+            )}
+          </AlertDescription>
+        </Alert>
+      ))}
+      {halfOpen.map((row) => (
+        <Alert key={row.system} variant="warning" role="status">
+          <Icon icon={Activity01Icon} />
+          <AlertDescription>
+            <b className="font-semibold">{m.recovering(SYSTEMS[row.system].name)}</b>{' '}
+            {m.recoveringDetail}
+          </AlertDescription>
+        </Alert>
+      ))}
+      {paused.map((row) => (
+        <Alert key={row.system} variant="info" role="status">
+          <Icon icon={PauseIcon} />
+          <AlertDescription>
+            <b className="font-semibold">{m.paused(SYSTEMS[row.system].name)}</b> {m.pausedDetail}
+          </AlertDescription>
+        </Alert>
+      ))}
+    </div>
+  );
+}
+
+function SystemRow({ row, now }: { row: SystemCoverage; now: Date }) {
+  const system = SYSTEMS[row.system];
+  return (
+    <SystemStatusRow
+      name={system.name}
+      icon={ICONS[row.system]}
+      description={system.use}
+      data-system={row.system}
+      metrics={<Metrics row={row} now={now} />}
+      badge={
+        <span className="flex w-[178px] items-center justify-end gap-2 max-sm:w-auto max-sm:justify-start">
+          {row.paused ? (
+            <Badge variant="warning">
+              <Icon icon={PauseIcon} strokeWidth={2.2} />
+              {m.pausedBadge}
+            </Badge>
+          ) : null}
+          <BreakerBadge state={row.breaker} />
+        </span>
+      }
+    >
+      <Details row={row} />
+    </SystemStatusRow>
+  );
+}
+
+/** Calls, cache hit rate and last success, in fixed columns so they line up down the list. */
+function Metrics({ row, now }: { row: SystemCoverage; now: Date }) {
+  const stale = isLastSuccessStale(row, now);
+  return (
+    <dl className="grid grid-cols-[minmax(0,92px)_minmax(0,128px)_minmax(0,124px)] gap-x-5">
+      <Metric term={m.calls}>{formatNumber(row.calls24h)}</Metric>
+      <Metric term={m.hitRate}>
+        <span className="flex items-center gap-2">
+          <span className="w-10">{formatPercent(row.cacheHitRate)}</span>
+          <span aria-hidden="true" className="h-1.5 w-[54px] overflow-hidden rounded-full bg-muted">
+            <span
+              className="block h-full rounded-full bg-secondary-foreground"
+              style={{ width: formatPercent(row.cacheHitRate) }}
+            />
+          </span>
+        </span>
+      </Metric>
+      <Metric term={m.lastSuccess}>
+        <span className={cn(stale && 'font-semibold text-destructive')}>
+          {row.lastSuccessAt ? (
+            <time dateTime={row.lastSuccessAt}>
+              {formatLastSuccess(row.lastSuccessAt, now, m.never)}
+            </time>
+          ) : (
+            m.never
+          )}
+        </span>
+      </Metric>
+    </dl>
+  );
+}
+
+function Metric({ term, children }: { term: string; children: ReactNode }) {
+  return (
+    <div className="min-w-0">
+      <dt className="text-xs whitespace-nowrap text-muted-foreground">{term}</dt>
+      <dd className="text-sm whitespace-nowrap tabular-nums">{children}</dd>
+    </div>
+  );
+}
+
+function Details({ row }: { row: SystemCoverage }) {
+  const callout = row.paused ? (
+    <Alert variant="warning" role="status">
+      <Icon icon={PauseIcon} />
+      <AlertDescription>{m.pausedCallout}</AlertDescription>
+    </Alert>
+  ) : row.breaker === 'open' ? (
+    <Alert variant="destructive" role="status">
+      <Icon icon={BanIcon} />
+      <AlertDescription>{m.breakerOpenCallout}</AlertDescription>
+    </Alert>
+  ) : row.breaker === 'half-open' ? (
+    <Alert variant="warning" role="status">
+      <Icon icon={Activity01Icon} />
+      <AlertDescription>{m.breakerHalfOpenCallout}</AlertDescription>
+    </Alert>
+  ) : null;
+  const items: [string, string][] = [
+    [m.operatedBy, SYSTEMS[row.system].owner],
+    [m.rateLimit, m.rateLimitValue(row.rateLimitPerMinute)],
+    [m.cacheLifetime, m.cacheLifetimeValue(formatDuration(row.cacheTtlSeconds))],
+    [m.failedCalls, formatNumber(row.failures24h)],
+    [
+      m.breakerRule,
+      m.breakerRuleValue(row.breakerFailureThreshold, formatDuration(row.breakerCooldownSeconds)),
+    ],
+    [m.timeout, m.timeoutValue(formatDuration(row.timeoutMs / 1000))],
+  ];
+  return (
+    <div className="grid gap-3.5 pl-10 max-sm:pl-0">
+      {callout}
+      <dl className="grid gap-x-6 gap-y-3 sm:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)_minmax(0,1fr)]">
+        {items.map(([term, value]) => (
+          <div key={term} className="min-w-0">
+            <dt className="text-xs text-muted-foreground">{term}</dt>
+            <dd className="text-sm">{value}</dd>
+          </div>
+        ))}
+      </dl>
+    </div>
+  );
+}
+
+function CoverageSkeleton() {
+  return (
+    <div aria-busy="true" aria-label={m.loadingLabel} className="flex flex-col gap-[18px]">
+      <div className={TILES}>
+        {Array.from({ length: 4 }, (_, index) => (
+          <div key={index} className="flex flex-col gap-2 rounded-2xl bg-card p-4 shadow-card">
+            <Skeleton className="w-1/2" />
+            <Skeleton className="my-1 h-6 w-1/3" />
+          </div>
+        ))}
+      </div>
+      <Skeleton className="h-12 w-full rounded-lg" />
+      <div className="overflow-hidden rounded-item bg-card shadow-card">
+        {Array.from({ length: 5 }, (_, index) => (
+          <div
+            key={index}
+            className="flex items-center gap-3 border-t border-border/60 px-3.5 py-3 first:border-t-0"
+          >
+            <Skeleton className="size-[30px] rounded-md" />
+            <div className="flex flex-1 flex-col gap-1.5">
+              <Skeleton className="w-32" />
+              <Skeleton className="w-56 max-w-full" />
+            </div>
+            <Skeleton className="hidden w-80 sm:block" />
+            <Skeleton className="h-6 w-20 rounded-full" />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
