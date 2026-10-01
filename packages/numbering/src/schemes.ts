@@ -167,6 +167,37 @@ export const RFL = defineScheme({
 });
 
 /**
+ * Access request (Form K, spec 10): numbered by the Responsible Commission when the applicant
+ * submits it, per Commission and calendar year of submission. `ARQ-JSC-2028-0000012-5`.
+ */
+export const ARQ = defineScheme({
+  code: 'ARQ',
+  name: 'Access request',
+  description: 'A request by any person to see a declaration or clarification (Form K).',
+  legalBasis: 'Act s.36(1); Regs r.22',
+  issuer: true,
+  period: true,
+  periodName: 'Year of submission',
+  sequenceDigits: 7,
+});
+
+/**
+ * Law enforcement request (spec 10): numbered by the Responsible Commission when a provisioned
+ * law enforcement officer submits it, per Commission and calendar year of submission.
+ * `LEA-PSC-2028-0000004-M`.
+ */
+export const LEA = defineScheme({
+  code: 'LEA',
+  name: 'Law enforcement request',
+  description: 'A written request by a law enforcement agency to access a declaration.',
+  legalBasis: 'Act s.36(2); Regs r.23',
+  issuer: true,
+  period: true,
+  periodName: 'Year of submission',
+  sequenceDigits: 7,
+});
+
+/**
  * The kinds of declaration the Act requires (s.34): the one vocabulary for declaration and
  * obligation types across services, events, templates and front ends.
  */
@@ -210,7 +241,7 @@ export const NCR = defineScheme({
   sequenceDigits: 7,
 });
 
-/** Schemes this package knows; later slices add theirs (ARQ...) the same way. */
+/** Schemes this package knows; later slices add theirs the same way. */
 export const numberingSchemes: readonly NumberingScheme[] = Object.freeze([
   OFR,
   DCI,
@@ -222,6 +253,8 @@ export const numberingSchemes: readonly NumberingScheme[] = Object.freeze([
   RFL,
   RPT,
   NCR,
+  ARQ,
+  LEA,
 ]);
 
 /** The registered scheme with `code`, if any. */
