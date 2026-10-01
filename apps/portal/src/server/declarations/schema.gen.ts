@@ -426,6 +426,162 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/help/search": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Full-text search over the legal corpus and help articles in force
+         * @description Declarants (by the person_id claim): the Act and Regulations, the platform's published articles and those of the declarant's own Commissions, in force on `date`. Passages tagged with the section or item type the declarant is on rank higher. Deterministic: no AI. Other callers get 404.
+         */
+        get: operations["searchHelp"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/commissions/{slug}/help/articles": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The Commission's help articles, published or not
+         * @description The Commission's administrators and reporting officers. Anyone else gets 404.
+         */
+        get: operations["listHelpArticles"];
+        put?: never;
+        /**
+         * Create a Commission help article
+         * @description The Commission's administrators. Its reporting officers get 403; anyone else 404. A published article reaches the Commission's declarants' help search and records `help.article.published.v1`.
+         */
+        post: operations["createHelpArticle"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/commissions/{slug}/help/articles/{articleId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Update, publish or unpublish a Commission help article
+         * @description The Commission's administrators; as create. Publishing an unpublished article records `help.article.published.v1`.
+         */
+        put: operations["updateHelpArticle"];
+        post?: never;
+        /**
+         * Delete a Commission help article
+         * @description The Commission's administrators; as create.
+         */
+        delete: operations["deleteHelpArticle"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/help/articles": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The platform's help articles, published or not, for every Commission's declarants
+         * @description platform-admin only.
+         */
+        get: operations["listPlatformHelpArticles"];
+        put?: never;
+        /**
+         * Create a platform help article
+         * @description platform-admin only. A published article reaches every declarant's help search and records `help.article.published.v1`.
+         */
+        post: operations["createPlatformHelpArticle"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/help/articles/{articleId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Update, publish or unpublish a platform help article
+         * @description platform-admin only.
+         */
+        put: operations["updatePlatformHelpArticle"];
+        post?: never;
+        /**
+         * Delete a platform help article
+         * @description platform-admin only.
+         */
+        delete: operations["deletePlatformHelpArticle"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/help/corpus": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The imported statutory corpus: every wording with its period and version
+         * @description platform-admin only. Read-only: statutory text changes only by import.
+         */
+        get: operations["listCorpusPassages"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/help/corpus/import": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Re-import the statutory corpus files deployed with the service
+         * @description platform-admin only. Idempotent: the same files import as a no-op (`skipped`). An amended wording supersedes the earlier one from its effective date.
+         */
+        post: operations["importCorpus"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/internal/v1/declarations/{declarationId}/versions/{version}/document": {
         parameters: {
             query?: never;
@@ -714,63 +870,6 @@ export interface paths {
         /** Plain-language hints for the completeness residuals (AI-labelled; deterministic text always present) */
         get: operations["getCompletenessHints"];
         put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/help/search": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Full-text search over the legal corpus and help articles in force (signed-in users) */
-        get: operations["searchHelp"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/commissions/{slug}/help/articles": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                slug: components["parameters"]["Slug"];
-            };
-            cookie?: never;
-        };
-        /** Commission help articles (commission-admin edit, reporting-officer read) */
-        get: operations["listHelpArticles"];
-        put?: never;
-        /** Create a Commission help article (commission-admin) */
-        post: operations["createHelpArticle"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/commissions/{slug}/help/articles/{articleId}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                slug: components["parameters"]["Slug"];
-                articleId: string;
-            };
-            cookie?: never;
-        };
-        get?: never;
-        /** Update or publish a Commission help article (commission-admin) */
-        put: operations["updateHelpArticle"];
         post?: never;
         delete?: never;
         options?: never;
@@ -1327,6 +1426,84 @@ export interface components {
             declarantPersonId: string;
             slip: components["schemas"]["AcknowledgementSlip"];
         };
+        /** @enum {string} */
+        HelpLanguage: "en" | "sw";
+        /**
+         * @description A section kind (bio, household, statement, other), a statement item type or a topic of the corpus
+         * @enum {string}
+         */
+        HelpTag: "bio" | "household" | "statement" | "other" | "access" | "administrative-action" | "assets" | "biennial" | "clarification" | "complaints" | "compliance-report" | "confidentiality" | "conflict-of-interest" | "declaration" | "definition" | "dependent-child" | "directorship" | "dual-citizenship" | "due-date" | "employment" | "filing" | "final" | "foreign" | "gifts" | "income" | "income-period" | "initial" | "joint" | "liabilities" | "material-change" | "membership" | "offence" | "pending-cases" | "recusal" | "registrable-interest" | "responsible-commission" | "spouse" | "statement-date" | "land" | "building" | "vehicle" | "securities" | "shareholding" | "bank-account" | "cash" | "receivable" | "mortgage" | "loan" | "guarantee" | "salary-emoluments" | "allowances" | "business" | "rent" | "dividends-interest" | "pension" | "farming" | "consultancy";
+        HelpPassage: {
+            /** @description The corpus passage or help article id */
+            id: string;
+            /** @enum {string} */
+            source: "act" | "regs" | "am" | "help";
+            /**
+             * @example Act s.31
+             * @example Regs r.21
+             * @example Help: File numbers
+             */
+            citation: string;
+            title: string;
+            /** @description The passage text around the matched words */
+            snippet: string;
+            /** @description The language of the snippet */
+            language: components["schemas"]["HelpLanguage"];
+        };
+        HelpArticleInput: {
+            title: string;
+            bodyEn: string;
+            bodySw: string | null;
+            tags: components["schemas"]["HelpTag"][];
+            /** Format: date */
+            effectiveFrom: string;
+            /** @description Exclusive; null while in force */
+            effectiveTo: string | null;
+            published: boolean;
+        };
+        HelpArticle: {
+            /** Format: uuid */
+            id: string;
+            /** @description The Commission's slug; null for the platform */
+            tenant: string | null;
+            title: string;
+            bodyEn: string;
+            bodySw: string | null;
+            tags: components["schemas"]["HelpTag"][];
+            /** Format: date */
+            effectiveFrom: string;
+            effectiveTo: string | null;
+            published: boolean;
+            /** @description Counts saves */
+            version: number;
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        CorpusPassage: {
+            /** Format: uuid */
+            id: string;
+            /** @enum {string} */
+            source: "act" | "regs" | "am";
+            citation: string;
+            title: string;
+            tags: components["schemas"]["HelpTag"][];
+            /** Format: date */
+            effectiveFrom: string;
+            /** @description Exclusive; null while current */
+            effectiveTo: string | null;
+            /** @description The corpus version that last wrote the passage */
+            version: string;
+        };
+        CorpusImportResult: {
+            /** @description A hash of the corpus files */
+            version: string;
+            /** @description The version was imported already; nothing changed */
+            skipped: boolean;
+            inserted: number;
+            updated: number;
+            removed: number;
+            unchanged: number;
+        };
         ProblemDetails: {
             type: string;
             title: string;
@@ -1452,40 +1629,6 @@ export interface components {
             rating: "helpful" | "not-helpful" | null;
             /** Format: date-time */
             at: string;
-        };
-        HelpPassage: {
-            id: string;
-            /** @enum {string} */
-            source: "act" | "regs" | "am" | "help";
-            /**
-             * @example Act s.31(4)
-             * @example Regs r.21
-             * @example AM 24
-             */
-            citation: string;
-            title: string;
-            snippet: string;
-            /** @enum {string} */
-            language: "en" | "sw";
-        };
-        HelpArticleInput: {
-            title: string;
-            bodyEn: string;
-            bodySw: string | null;
-            tags: string[];
-            /** Format: date */
-            effectiveFrom: string;
-            /** Format: date */
-            effectiveTo: string | null;
-            published: boolean;
-        };
-        HelpArticle: components["schemas"]["HelpArticleInput"] & {
-            /** Format: uuid */
-            id: string;
-            tenant: string | null;
-            version: number;
-            /** Format: date-time */
-            updatedAt: string;
         };
         InternalVersionDocument: {
             /** Format: uuid */
@@ -2643,6 +2786,477 @@ export interface operations {
             };
         };
     };
+    searchHelp: {
+        parameters: {
+            query: {
+                /** @description The question, in the declarant's words */
+                q: string;
+                /** @description The language of the question: `sw` also searches Swahili article bodies and expands Swahili words into the English of the law */
+                language: "en" | "sw";
+                /** @description The section the declarant is on; passages tagged with it rank higher */
+                sectionKey?: string;
+                /** @description The statement item type the declarant is on; boosted like the section */
+                itemType?: "land" | "building" | "vehicle" | "securities" | "shareholding" | "bank-account" | "cash" | "receivable" | "mortgage" | "loan" | "guarantee" | "salary-emoluments" | "allowances" | "business" | "rent" | "dividends-interest" | "pension" | "farming" | "consultancy";
+                /** @description Read the law in force on this day (`YYYY-MM-DD`); today by default */
+                date?: string;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Passages, best first */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HelpPassage"][];
+                };
+            };
+            /** @description Query failed validation */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not found, or not visible to the caller */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    listHelpArticles: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Articles, last updated first */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HelpArticle"][];
+                };
+            };
+            /** @description Not found, or not visible to the caller */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    createHelpArticle: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["HelpArticleInput"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HelpArticle"];
+                };
+            };
+            /** @description Request failed validation */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description A reporting officer, who reads articles but does not edit them */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not found, or not visible to the caller */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    updateHelpArticle: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slug: string;
+                articleId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["HelpArticleInput"];
+            };
+        };
+        responses: {
+            /** @description Updated */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HelpArticle"];
+                };
+            };
+            /** @description Request failed validation */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description A reporting officer, who reads articles but does not edit them */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not found, or not visible to the caller */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    deleteHelpArticle: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slug: string;
+                articleId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Deleted */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description A reporting officer, who reads articles but does not edit them */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not found, or not visible to the caller */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    listPlatformHelpArticles: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Articles, last updated first */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HelpArticle"][];
+                };
+            };
+            /**
+             * @description Not a platform admin
+             *
+             *     Requires one of the roles: platform-admin
+             */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    createPlatformHelpArticle: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["HelpArticleInput"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HelpArticle"];
+                };
+            };
+            /** @description Request failed validation */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /**
+             * @description Not a platform admin
+             *
+             *     Requires one of the roles: platform-admin
+             */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    updatePlatformHelpArticle: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                articleId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["HelpArticleInput"];
+            };
+        };
+        responses: {
+            /** @description Updated */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HelpArticle"];
+                };
+            };
+            /** @description Request failed validation */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /**
+             * @description Not a platform admin
+             *
+             *     Requires one of the roles: platform-admin
+             */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description No such platform article */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    deletePlatformHelpArticle: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                articleId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Deleted */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /**
+             * @description Not a platform admin
+             *
+             *     Requires one of the roles: platform-admin
+             */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description No such platform article */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    listCorpusPassages: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Wordings by source, citation and effective date */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CorpusPassage"][];
+                };
+            };
+            /**
+             * @description Not a platform admin
+             *
+             *     Requires one of the roles: platform-admin
+             */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    importCorpus: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description What the import changed */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CorpusImportResult"];
+                };
+            };
+            /**
+             * @description Not a platform admin
+             *
+             *     Requires one of the roles: platform-admin
+             */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
     internalGetVersionDocument: {
         parameters: {
             query?: never;
@@ -3195,110 +3809,6 @@ export interface operations {
                     }[];
                 };
             };
-            404: components["responses"]["NotFound"];
-        };
-    };
-    searchHelp: {
-        parameters: {
-            query: {
-                q: string;
-                language: "en" | "sw";
-                sectionKey?: string;
-                limit?: number;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Passages */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HelpPassage"][];
-                };
-            };
-        };
-    };
-    listHelpArticles: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                slug: components["parameters"]["Slug"];
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Articles */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HelpArticle"][];
-                };
-            };
-            404: components["responses"]["NotFound"];
-        };
-    };
-    createHelpArticle: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                slug: components["parameters"]["Slug"];
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["HelpArticleInput"];
-            };
-        };
-        responses: {
-            /** @description Created */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HelpArticle"];
-                };
-            };
-            403: components["responses"]["Forbidden"];
-        };
-    };
-    updateHelpArticle: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                slug: components["parameters"]["Slug"];
-                articleId: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["HelpArticleInput"];
-            };
-        };
-        responses: {
-            /** @description Updated */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HelpArticle"];
-                };
-            };
-            403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
         };
     };
