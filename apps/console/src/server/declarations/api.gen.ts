@@ -1830,7 +1830,7 @@ export interface operations {
             /** @description The draft */
             200: {
                 headers: {
-                    /** @description The draft version; send it as If-Match on section saves */
+                    /** @description The draft version; send it as If-Match on the next section save */
                     ETag?: string;
                     [name: string]: unknown;
                 };
@@ -1962,7 +1962,7 @@ export interface operations {
             /** @description Section contents */
             200: {
                 headers: {
-                    /** @description The draft version; send it as If-Match on section saves */
+                    /** @description The draft version; send it as If-Match on the next section save */
                     ETag?: string;
                     [name: string]: unknown;
                 };
@@ -2003,7 +2003,7 @@ export interface operations {
             /** @description Saved; new version in ETag */
             200: {
                 headers: {
-                    /** @description The draft version; send it as If-Match on section saves */
+                    /** @description The draft version; send it as If-Match on the next section save */
                     ETag?: string;
                     [name: string]: unknown;
                 };
@@ -2076,7 +2076,7 @@ export interface operations {
             /** @description Linked; new draft version in ETag */
             201: {
                 headers: {
-                    /** @description The new draft version; send it as If-Match on the next section save */
+                    /** @description The draft version; send it as If-Match on the next section save */
                     ETag?: string;
                     [name: string]: unknown;
                 };
@@ -2137,7 +2137,7 @@ export interface operations {
             /** @description Unlinked; new draft version in ETag */
             204: {
                 headers: {
-                    /** @description The new draft version; send it as If-Match on the next section save */
+                    /** @description The draft version; send it as If-Match on the next section save */
                     ETag?: string;
                     [name: string]: unknown;
                 };

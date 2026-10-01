@@ -29,6 +29,7 @@ import {
 } from '@adili/api-kit';
 
 import { DraftsService } from './drafts.service.js';
+import { ApiDeclarationIdParam, etag, ETAG_HEADER, NOT_VISIBLE, type Reply } from './http.js';
 import type {
   Declaration,
   DeclarationListItem,
@@ -37,30 +38,7 @@ import type {
   SectionSaveResult,
 } from './representation.js';
 
-const NOT_VISIBLE = 'Not found, or not visible to the caller';
-
-/** The part of Fastify's reply the routes use. */
-interface Reply {
-  status(code: number): unknown;
-  header(name: string, value: string): unknown;
-}
-
-const ETAG_HEADER = {
-  ETag: {
-    schema: { type: 'string' },
-    description: 'The draft version; send it as If-Match on section saves',
-  },
-};
-
-const ApiDeclarationIdParam = () =>
-  ApiParam({ name: 'declarationId', schema: { type: 'string', format: 'uuid' } });
-
 const ApiSectionKeyParam = () => ApiParam({ name: 'sectionKey', schema: schemaRef('SectionKey') });
-
-/** The draft version as an `ETag`. */
-function etag(draftVersion: number): string {
-  return `"${String(draftVersion)}"`;
-}
 
 /**
  * Declaration drafts (spec 05). Declarant only, by the `person_id` claim: any other caller gets

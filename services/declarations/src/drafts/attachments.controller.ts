@@ -3,28 +3,8 @@ import { ApiBody, ApiOperation, ApiParam, ApiResponse, ApiTags } from '@nestjs/s
 import { ApiProblemResponse, CurrentPrincipal, type Principal, schemaRef } from '@adili/api-kit';
 
 import { AttachmentsService } from './attachments.service.js';
+import { ApiDeclarationIdParam, etag, ETAG_HEADER, NOT_VISIBLE, type Reply } from './http.js';
 import type { DeclarationAttachment } from './representation.js';
-
-const NOT_VISIBLE = 'Not found, or not visible to the caller';
-
-/** The part of Fastify's reply the routes use. */
-interface Reply {
-  header(name: string, value: string): unknown;
-}
-
-const ETAG_HEADER = {
-  ETag: {
-    schema: { type: 'string' },
-    description: 'The new draft version; send it as If-Match on the next section save',
-  },
-};
-
-const ApiDeclarationIdParam = () =>
-  ApiParam({ name: 'declarationId', schema: { type: 'string', format: 'uuid' } });
-
-function etag(draftVersion: number): string {
-  return `"${String(draftVersion)}"`;
-}
 
 /**
  * Attachments on a draft's statement items (spec 05). Declarant only, by the `person_id` claim;

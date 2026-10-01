@@ -365,7 +365,7 @@ paths:
             ETag:
               schema:
                 type: string
-              description: The draft version; send it as If-Match on section saves
+              description: The draft version; send it as If-Match on the next section save
           content:
             application/json:
               schema:
@@ -481,7 +481,7 @@ paths:
             ETag:
               schema:
                 type: string
-              description: The draft version; send it as If-Match on section saves
+              description: The draft version; send it as If-Match on the next section save
           content:
             application/json:
               schema:
@@ -532,7 +532,7 @@ paths:
             ETag:
               schema:
                 type: string
-              description: The draft version; send it as If-Match on section saves
+              description: The draft version; send it as If-Match on the next section save
           content:
             application/json:
               schema:
@@ -594,7 +594,7 @@ paths:
             ETag:
               schema:
                 type: string
-              description: The new draft version; send it as If-Match on the next section save
+              description: The draft version; send it as If-Match on the next section save
           content:
             application/json:
               schema:
@@ -650,7 +650,7 @@ paths:
             ETag:
               schema:
                 type: string
-              description: The new draft version; send it as If-Match on the next section save
+              description: The draft version; send it as If-Match on the next section save
         '404':
           description: Not found, or not visible to the caller
           content:
