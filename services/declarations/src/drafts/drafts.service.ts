@@ -1,5 +1,5 @@
-import { HttpStatus, Injectable, Logger } from '@nestjs/common';
-import { notFoundIfInvisible, type Principal, ProblemException } from '@adili/api-kit';
+import { Injectable, Logger } from '@nestjs/common';
+import { notFoundIfInvisible, type Principal } from '@adili/api-kit';
 import { type Database, InjectDatabase, type PersonContext, withPerson } from '@adili/data-access';
 import { EventPublisher } from '@adili/events';
 import {
@@ -34,6 +34,11 @@ import { duplicatePeople, householdPeople, type NotIncluded } from './household.
 import { composeMaterialChanges } from './material-changes.js';
 import {
   declarationNotDraft,
+  directoryUnavailable,
+  identityLockedField,
+  ifMatchRequired,
+  nilConflictsWithItems,
+  obligationClosed,
   sectionArchived,
   validationProblem,
   versionMismatch,
@@ -158,12 +163,7 @@ export class DraftsService {
     const { obligation, existing, previousStatementDate } = notFoundIfInvisible(found);
     // A filed or cancelled obligation is closed, whatever draft of it is still live.
     if (CLOSED_OBLIGATION_STATUSES.has(obligation.status)) {
-      throw new ProblemException({
-        type: 'obligation-closed',
-        title: 'Obligation filed or cancelled',
-        status: HttpStatus.CONFLICT,
-        detail: `No declaration can be started for a ${obligation.status} obligation.`,
-      });
+      throw obligationClosed(obligation.status);
     }
     if (existing) return { created: false, declaration: await this.read(person, existing.id) };
 
@@ -505,13 +505,7 @@ export class DraftsService {
     if (isStatementKey(key)) {
       const conflicts = nilConflicts(body);
       if (conflicts.length > 0) {
-        throw new ProblemException({
-          type: 'nil-conflicts-with-items',
-          title: 'Nil conflicts with items',
-          status: HttpStatus.BAD_REQUEST,
-          detail: 'A category declared as having nothing to declare cannot list items.',
-          errors: conflicts,
-        });
+        throw nilConflictsWithItems(conflicts);
       }
     }
 
@@ -628,17 +622,7 @@ export class DraftsService {
     if (key === 'bio') {
       const { contents, changed } = applyLockedFields(body, stored, metadata.lockedFields ?? []);
       if (changed.length > 0) {
-        throw new ProblemException({
-          type: 'identity-locked-field',
-          title: 'Locked field changed',
-          status: HttpStatus.BAD_REQUEST,
-          detail:
-            "Names, reporting entity, designation, personnel file number and Commission come from the Commission's roster and cannot be changed here.",
-          errors: changed.map((pointer) => ({
-            path: pointer.slice(1).replaceAll('/', '.'),
-            message: 'Comes from the roster; ask your Commission to correct it',
-          })),
-        });
+        throw identityLockedField(changed);
       }
       return contents;
     }
@@ -802,12 +786,7 @@ export class DraftsService {
       return record;
     } catch (error) {
       if (!(error instanceof DirectoryUnavailable)) throw error;
-      throw new ProblemException({
-        type: 'directory-unavailable',
-        title: 'Roster unavailable',
-        status: HttpStatus.SERVICE_UNAVAILABLE,
-        detail: 'The roster record could not be read to pre-fill the declaration. Try again.',
-      });
+      throw directoryUnavailable();
     }
   }
 }
@@ -819,12 +798,7 @@ function sectionKeyOf(value: string): DeclarationSectionKey {
 /** The draft version in `If-Match` (`"3"`, `W/"3"` or `3`); 428 without one. */
 function expectedVersion(ifMatch: string | undefined): number {
   if (ifMatch === undefined || ifMatch.trim() === '') {
-    throw new ProblemException({
-      type: 'if-match-required',
-      title: 'If-Match required',
-      status: HttpStatus.PRECONDITION_REQUIRED,
-      detail: 'Send the draft version you read (its ETag) as If-Match.',
-    });
+    throw ifMatchRequired();
   }
   const match = /^\s*(?:W\/)?"?(\d{1,9})"?\s*$/.exec(ifMatch);
   if (!match?.[1]) throw versionMismatch();

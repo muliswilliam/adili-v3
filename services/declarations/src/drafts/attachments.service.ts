@@ -1,5 +1,5 @@
-import { HttpStatus, Injectable, Logger } from '@nestjs/common';
-import { notFoundIfInvisible, type Principal, ProblemException } from '@adili/api-kit';
+import { Injectable, Logger } from '@nestjs/common';
+import { notFoundIfInvisible, type Principal } from '@adili/api-kit';
 import { type Database, InjectDatabase, type PersonContext, withPerson } from '@adili/data-access';
 import { EventPublisher } from '@adili/events';
 import { and, eq } from 'drizzle-orm';
@@ -23,7 +23,12 @@ import { attachmentFileName, hasItem, withAttachment, withoutAttachment } from '
 import { declarationAttachmentLinked } from './events.js';
 import {
   declarationNotDraft,
+  documentsUnavailable,
   sectionArchived,
+  uploadAlreadyLinked,
+  uploadNotClean,
+  uploadNotFound,
+  uploadWrongPurpose,
   validationProblem,
   violatedUniqueConstraint,
 } from './problems.js';
@@ -137,12 +142,7 @@ export class AttachmentsService {
       });
     } catch (error) {
       if (violatedUniqueConstraint(error) !== 'declaration_attachments_upload_id_key') throw error;
-      throw new ProblemException({
-        type: 'upload-already-linked',
-        title: 'Upload already attached',
-        status: HttpStatus.CONFLICT,
-        detail: 'This file is already attached to an item. Upload it again to attach it here.',
-      });
+      throw uploadAlreadyLinked();
     }
     await this.sections.cache(
       { declarationId, sectionKey, savedVersion: saved.draftVersion },
@@ -154,12 +154,7 @@ export class AttachmentsService {
       await this.documents.markLinked(tenant, uploadId);
     } catch {
       await this.takeBack(person, attachment);
-      throw new ProblemException({
-        type: 'documents-unavailable',
-        title: 'Documents unavailable',
-        status: HttpStatus.SERVICE_UNAVAILABLE,
-        detail: 'The file could not be attached. Try again.',
-      });
+      throw documentsUnavailable('attached');
     }
     return {
       attachment: {
@@ -302,16 +297,9 @@ export class AttachmentsService {
       this.documents.getCleanUpload(tenant, uploadId),
     );
     // Another declarant's upload is as unknown to the caller as another Commission's.
-    if (upload.uploadedBy !== principal.subject) {
-      return this.documentsCall(uploadId, () => Promise.reject(new UploadNotFound(uploadId)));
-    }
+    if (upload.uploadedBy !== principal.subject) throw uploadNotFound(uploadId);
     if (upload.purpose !== DECLARATION_ATTACHMENT_PURPOSE) {
-      throw new ProblemException({
-        type: 'upload-wrong-purpose',
-        title: 'Not a declaration attachment',
-        status: HttpStatus.CONFLICT,
-        detail: 'This file was not uploaded as a declaration attachment.',
-      });
+      throw uploadWrongPurpose();
     }
     return upload;
   }
@@ -322,29 +310,13 @@ export class AttachmentsService {
       return await call();
     } catch (error) {
       if (error instanceof UploadNotFound) {
-        throw new ProblemException({
-          type: 'upload-not-found',
-          title: 'Upload not found',
-          status: HttpStatus.CONFLICT,
-          detail: `There is no upload ${uploadId} for this Commission.`,
-        });
+        throw uploadNotFound(uploadId);
       }
       if (error instanceof UploadNotClean) {
-        throw new ProblemException({
-          type: 'upload-not-clean',
-          title: 'Upload not clean',
-          status: HttpStatus.CONFLICT,
-          detail:
-            'This file has not passed the security scan (still scanning, infected or rejected) and was not attached.',
-        });
+        throw uploadNotClean();
       }
       if (error instanceof DocumentsUnavailable) {
-        throw new ProblemException({
-          type: 'documents-unavailable',
-          title: 'Documents unavailable',
-          status: HttpStatus.SERVICE_UNAVAILABLE,
-          detail: 'The file could not be checked. Try again.',
-        });
+        throw documentsUnavailable('checked');
       }
       throw error;
     }
