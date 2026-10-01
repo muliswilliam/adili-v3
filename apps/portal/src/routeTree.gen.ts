@@ -11,6 +11,8 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as GetStartedRouteRouteImport } from './routes/get-started/route'
+import { Route as AccessIndexRouteImport } from './routes/access/index'
+import { Route as AccessGetStartedRouteRouteImport } from './routes/access/get-started/route'
 import { Route as AuthCallbackRouteImport } from './routes/auth/callback'
 import { Route as AuthLoginRouteImport } from './routes/auth/login'
 import { Route as AuthLogoutRouteImport } from './routes/auth/logout'
@@ -27,6 +29,11 @@ import { Route as GetStartedIdentifyRouteImport } from './routes/get-started/ide
 import { Route as GetStartedNotVerifiedRouteImport } from './routes/get-started/not-verified'
 import { Route as GetStartedVerifyEmailRouteImport } from './routes/get-started/verify-email'
 import { Route as GetStartedVerifyPhoneRouteImport } from './routes/get-started/verify-phone'
+import { Route as AccessGetStartedIndexRouteImport } from './routes/access/get-started/index'
+import { Route as AccessGetStartedCheckEmailRouteImport } from './routes/access/get-started/check-email'
+import { Route as AccessGetStartedCreateRouteImport } from './routes/access/get-started/create'
+import { Route as AccessGetStartedDetailsRouteImport } from './routes/access/get-started/details'
+import { Route as AccessGetStartedVerifyPhoneRouteImport } from './routes/access/get-started/verify-phone'
 import { Route as ApiMockLettersIdRouteImport } from './routes/api/mock-letters.$id'
 import { Route as ApiMockSlipsDocumentIdRouteImport } from './routes/api/mock-slips.$documentId'
 import { Route as ApiMockUploadsIdRouteImport } from './routes/api/mock-uploads.$id'
@@ -46,6 +53,16 @@ const IndexRoute = IndexRouteImport.update({
 const GetStartedRouteRoute = GetStartedRouteRouteImport.update({
   id: '/get-started',
   path: '/get-started',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AccessIndexRoute = AccessIndexRouteImport.update({
+  id: '/access/',
+  path: '/access/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AccessGetStartedRouteRoute = AccessGetStartedRouteRouteImport.update({
+  id: '/access/get-started',
+  path: '/access/get-started',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthCallbackRoute = AuthCallbackRouteImport.update({
@@ -128,6 +145,33 @@ const GetStartedVerifyPhoneRoute = GetStartedVerifyPhoneRouteImport.update({
   path: '/verify-phone',
   getParentRoute: () => GetStartedRouteRoute,
 } as any)
+const AccessGetStartedIndexRoute = AccessGetStartedIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AccessGetStartedRouteRoute,
+} as any)
+const AccessGetStartedCheckEmailRoute =
+  AccessGetStartedCheckEmailRouteImport.update({
+    id: '/check-email',
+    path: '/check-email',
+    getParentRoute: () => AccessGetStartedRouteRoute,
+  } as any)
+const AccessGetStartedCreateRoute = AccessGetStartedCreateRouteImport.update({
+  id: '/create',
+  path: '/create',
+  getParentRoute: () => AccessGetStartedRouteRoute,
+} as any)
+const AccessGetStartedDetailsRoute = AccessGetStartedDetailsRouteImport.update({
+  id: '/details',
+  path: '/details',
+  getParentRoute: () => AccessGetStartedRouteRoute,
+} as any)
+const AccessGetStartedVerifyPhoneRoute =
+  AccessGetStartedVerifyPhoneRouteImport.update({
+    id: '/verify-phone',
+    path: '/verify-phone',
+    getParentRoute: () => AccessGetStartedRouteRoute,
+  } as any)
 const ApiMockLettersIdRoute = ApiMockLettersIdRouteImport.update({
   id: '/api/mock-letters/$id',
   path: '/api/mock-letters/$id',
@@ -183,6 +227,7 @@ const DeclarationsIdStatementsPersonKeyRoute =
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/get-started': typeof GetStartedRouteRouteWithChildren
+  '/access/get-started': typeof AccessGetStartedRouteRouteWithChildren
   '/declarations/$id': typeof DeclarationsIdRouteRouteWithChildren
   '/auth/callback': typeof AuthCallbackRoute
   '/auth/login': typeof AuthLoginRoute
@@ -197,8 +242,13 @@ export interface FileRoutesByFullPath {
   '/get-started/not-verified': typeof GetStartedNotVerifiedRoute
   '/get-started/verify-email': typeof GetStartedVerifyEmailRoute
   '/get-started/verify-phone': typeof GetStartedVerifyPhoneRoute
+  '/access/': typeof AccessIndexRoute
   '/declarations/': typeof DeclarationsIndexRoute
   '/get-started/': typeof GetStartedIndexRoute
+  '/access/get-started/check-email': typeof AccessGetStartedCheckEmailRoute
+  '/access/get-started/create': typeof AccessGetStartedCreateRoute
+  '/access/get-started/details': typeof AccessGetStartedDetailsRoute
+  '/access/get-started/verify-phone': typeof AccessGetStartedVerifyPhoneRoute
   '/api/mock-letters/$id': typeof ApiMockLettersIdRoute
   '/api/mock-slips/$documentId': typeof ApiMockSlipsDocumentIdRoute
   '/api/mock-uploads/$id': typeof ApiMockUploadsIdRoute
@@ -207,6 +257,7 @@ export interface FileRoutesByFullPath {
   '/declarations/$id/other': typeof DeclarationsIdOtherRoute
   '/declarations/$id/summary': typeof DeclarationsIdSummaryRoute
   '/declarations/$id/submitted': typeof DeclarationsIdSubmittedRoute
+  '/access/get-started/': typeof AccessGetStartedIndexRoute
   '/declarations/$id/': typeof DeclarationsIdIndexRoute
   '/declarations/$id/statements/$personKey': typeof DeclarationsIdStatementsPersonKeyRoute
 }
@@ -225,8 +276,13 @@ export interface FileRoutesByTo {
   '/get-started/not-verified': typeof GetStartedNotVerifiedRoute
   '/get-started/verify-email': typeof GetStartedVerifyEmailRoute
   '/get-started/verify-phone': typeof GetStartedVerifyPhoneRoute
+  '/access': typeof AccessIndexRoute
   '/declarations': typeof DeclarationsIndexRoute
   '/get-started': typeof GetStartedIndexRoute
+  '/access/get-started/check-email': typeof AccessGetStartedCheckEmailRoute
+  '/access/get-started/create': typeof AccessGetStartedCreateRoute
+  '/access/get-started/details': typeof AccessGetStartedDetailsRoute
+  '/access/get-started/verify-phone': typeof AccessGetStartedVerifyPhoneRoute
   '/api/mock-letters/$id': typeof ApiMockLettersIdRoute
   '/api/mock-slips/$documentId': typeof ApiMockSlipsDocumentIdRoute
   '/api/mock-uploads/$id': typeof ApiMockUploadsIdRoute
@@ -235,6 +291,7 @@ export interface FileRoutesByTo {
   '/declarations/$id/other': typeof DeclarationsIdOtherRoute
   '/declarations/$id/summary': typeof DeclarationsIdSummaryRoute
   '/declarations/$id/submitted': typeof DeclarationsIdSubmittedRoute
+  '/access/get-started': typeof AccessGetStartedIndexRoute
   '/declarations/$id': typeof DeclarationsIdIndexRoute
   '/declarations/$id/statements/$personKey': typeof DeclarationsIdStatementsPersonKeyRoute
 }
@@ -242,6 +299,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/get-started': typeof GetStartedRouteRouteWithChildren
+  '/access/get-started': typeof AccessGetStartedRouteRouteWithChildren
   '/declarations/$id': typeof DeclarationsIdRouteRouteWithChildren
   '/auth/callback': typeof AuthCallbackRoute
   '/auth/login': typeof AuthLoginRoute
@@ -256,8 +314,13 @@ export interface FileRoutesById {
   '/get-started/not-verified': typeof GetStartedNotVerifiedRoute
   '/get-started/verify-email': typeof GetStartedVerifyEmailRoute
   '/get-started/verify-phone': typeof GetStartedVerifyPhoneRoute
+  '/access/': typeof AccessIndexRoute
   '/declarations/': typeof DeclarationsIndexRoute
   '/get-started/': typeof GetStartedIndexRoute
+  '/access/get-started/check-email': typeof AccessGetStartedCheckEmailRoute
+  '/access/get-started/create': typeof AccessGetStartedCreateRoute
+  '/access/get-started/details': typeof AccessGetStartedDetailsRoute
+  '/access/get-started/verify-phone': typeof AccessGetStartedVerifyPhoneRoute
   '/api/mock-letters/$id': typeof ApiMockLettersIdRoute
   '/api/mock-slips/$documentId': typeof ApiMockSlipsDocumentIdRoute
   '/api/mock-uploads/$id': typeof ApiMockUploadsIdRoute
@@ -266,6 +329,7 @@ export interface FileRoutesById {
   '/declarations/$id/other': typeof DeclarationsIdOtherRoute
   '/declarations/$id/summary': typeof DeclarationsIdSummaryRoute
   '/declarations/$id_/submitted': typeof DeclarationsIdSubmittedRoute
+  '/access/get-started/': typeof AccessGetStartedIndexRoute
   '/declarations/$id/': typeof DeclarationsIdIndexRoute
   '/declarations/$id/statements/$personKey': typeof DeclarationsIdStatementsPersonKeyRoute
 }
@@ -274,6 +338,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/get-started'
+    | '/access/get-started'
     | '/declarations/$id'
     | '/auth/callback'
     | '/auth/login'
@@ -288,8 +353,13 @@ export interface FileRouteTypes {
     | '/get-started/not-verified'
     | '/get-started/verify-email'
     | '/get-started/verify-phone'
+    | '/access/'
     | '/declarations/'
     | '/get-started/'
+    | '/access/get-started/check-email'
+    | '/access/get-started/create'
+    | '/access/get-started/details'
+    | '/access/get-started/verify-phone'
     | '/api/mock-letters/$id'
     | '/api/mock-slips/$documentId'
     | '/api/mock-uploads/$id'
@@ -298,6 +368,7 @@ export interface FileRouteTypes {
     | '/declarations/$id/other'
     | '/declarations/$id/summary'
     | '/declarations/$id/submitted'
+    | '/access/get-started/'
     | '/declarations/$id/'
     | '/declarations/$id/statements/$personKey'
   fileRoutesByTo: FileRoutesByTo
@@ -316,8 +387,13 @@ export interface FileRouteTypes {
     | '/get-started/not-verified'
     | '/get-started/verify-email'
     | '/get-started/verify-phone'
+    | '/access'
     | '/declarations'
     | '/get-started'
+    | '/access/get-started/check-email'
+    | '/access/get-started/create'
+    | '/access/get-started/details'
+    | '/access/get-started/verify-phone'
     | '/api/mock-letters/$id'
     | '/api/mock-slips/$documentId'
     | '/api/mock-uploads/$id'
@@ -326,12 +402,14 @@ export interface FileRouteTypes {
     | '/declarations/$id/other'
     | '/declarations/$id/summary'
     | '/declarations/$id/submitted'
+    | '/access/get-started'
     | '/declarations/$id'
     | '/declarations/$id/statements/$personKey'
   id:
     | '__root__'
     | '/'
     | '/get-started'
+    | '/access/get-started'
     | '/declarations/$id'
     | '/auth/callback'
     | '/auth/login'
@@ -346,8 +424,13 @@ export interface FileRouteTypes {
     | '/get-started/not-verified'
     | '/get-started/verify-email'
     | '/get-started/verify-phone'
+    | '/access/'
     | '/declarations/'
     | '/get-started/'
+    | '/access/get-started/check-email'
+    | '/access/get-started/create'
+    | '/access/get-started/details'
+    | '/access/get-started/verify-phone'
     | '/api/mock-letters/$id'
     | '/api/mock-slips/$documentId'
     | '/api/mock-uploads/$id'
@@ -356,6 +439,7 @@ export interface FileRouteTypes {
     | '/declarations/$id/other'
     | '/declarations/$id/summary'
     | '/declarations/$id_/submitted'
+    | '/access/get-started/'
     | '/declarations/$id/'
     | '/declarations/$id/statements/$personKey'
   fileRoutesById: FileRoutesById
@@ -363,6 +447,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   GetStartedRouteRoute: typeof GetStartedRouteRouteWithChildren
+  AccessGetStartedRouteRoute: typeof AccessGetStartedRouteRouteWithChildren
   DeclarationsIdRouteRoute: typeof DeclarationsIdRouteRouteWithChildren
   AuthCallbackRoute: typeof AuthCallbackRoute
   AuthLoginRoute: typeof AuthLoginRoute
@@ -370,6 +455,7 @@ export interface RootRouteChildren {
   AuthRecoverRoute: typeof AuthRecoverRoute
   AuthStepUpRoute: typeof AuthStepUpRoute
   ClarificationsIdRoute: typeof ClarificationsIdRoute
+  AccessIndexRoute: typeof AccessIndexRoute
   DeclarationsIndexRoute: typeof DeclarationsIndexRoute
   ApiMockLettersIdRoute: typeof ApiMockLettersIdRoute
   ApiMockSlipsDocumentIdRoute: typeof ApiMockSlipsDocumentIdRoute
@@ -391,6 +477,20 @@ declare module '@tanstack/react-router' {
       path: '/get-started'
       fullPath: '/get-started'
       preLoaderRoute: typeof GetStartedRouteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/access/': {
+      id: '/access/'
+      path: '/access'
+      fullPath: '/access/'
+      preLoaderRoute: typeof AccessIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/access/get-started': {
+      id: '/access/get-started'
+      path: '/access/get-started'
+      fullPath: '/access/get-started'
+      preLoaderRoute: typeof AccessGetStartedRouteRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/auth/callback': {
@@ -505,6 +605,41 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof GetStartedVerifyPhoneRouteImport
       parentRoute: typeof GetStartedRouteRoute
     }
+    '/access/get-started/': {
+      id: '/access/get-started/'
+      path: '/'
+      fullPath: '/access/get-started/'
+      preLoaderRoute: typeof AccessGetStartedIndexRouteImport
+      parentRoute: typeof AccessGetStartedRouteRoute
+    }
+    '/access/get-started/check-email': {
+      id: '/access/get-started/check-email'
+      path: '/check-email'
+      fullPath: '/access/get-started/check-email'
+      preLoaderRoute: typeof AccessGetStartedCheckEmailRouteImport
+      parentRoute: typeof AccessGetStartedRouteRoute
+    }
+    '/access/get-started/create': {
+      id: '/access/get-started/create'
+      path: '/create'
+      fullPath: '/access/get-started/create'
+      preLoaderRoute: typeof AccessGetStartedCreateRouteImport
+      parentRoute: typeof AccessGetStartedRouteRoute
+    }
+    '/access/get-started/details': {
+      id: '/access/get-started/details'
+      path: '/details'
+      fullPath: '/access/get-started/details'
+      preLoaderRoute: typeof AccessGetStartedDetailsRouteImport
+      parentRoute: typeof AccessGetStartedRouteRoute
+    }
+    '/access/get-started/verify-phone': {
+      id: '/access/get-started/verify-phone'
+      path: '/verify-phone'
+      fullPath: '/access/get-started/verify-phone'
+      preLoaderRoute: typeof AccessGetStartedVerifyPhoneRouteImport
+      parentRoute: typeof AccessGetStartedRouteRoute
+    }
     '/api/mock-letters/$id': {
       id: '/api/mock-letters/$id'
       path: '/api/mock-letters/$id'
@@ -604,6 +739,27 @@ const GetStartedRouteRouteWithChildren = GetStartedRouteRoute._addFileChildren(
   GetStartedRouteRouteChildren,
 )
 
+interface AccessGetStartedRouteRouteChildren {
+  AccessGetStartedCheckEmailRoute: typeof AccessGetStartedCheckEmailRoute
+  AccessGetStartedCreateRoute: typeof AccessGetStartedCreateRoute
+  AccessGetStartedDetailsRoute: typeof AccessGetStartedDetailsRoute
+  AccessGetStartedVerifyPhoneRoute: typeof AccessGetStartedVerifyPhoneRoute
+  AccessGetStartedIndexRoute: typeof AccessGetStartedIndexRoute
+}
+
+const AccessGetStartedRouteRouteChildren: AccessGetStartedRouteRouteChildren = {
+  AccessGetStartedCheckEmailRoute: AccessGetStartedCheckEmailRoute,
+  AccessGetStartedCreateRoute: AccessGetStartedCreateRoute,
+  AccessGetStartedDetailsRoute: AccessGetStartedDetailsRoute,
+  AccessGetStartedVerifyPhoneRoute: AccessGetStartedVerifyPhoneRoute,
+  AccessGetStartedIndexRoute: AccessGetStartedIndexRoute,
+}
+
+const AccessGetStartedRouteRouteWithChildren =
+  AccessGetStartedRouteRoute._addFileChildren(
+    AccessGetStartedRouteRouteChildren,
+  )
+
 interface DeclarationsIdRouteRouteChildren {
   DeclarationsIdBioRoute: typeof DeclarationsIdBioRoute
   DeclarationsIdHouseholdRoute: typeof DeclarationsIdHouseholdRoute
@@ -629,6 +785,7 @@ const DeclarationsIdRouteRouteWithChildren =
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   GetStartedRouteRoute: GetStartedRouteRouteWithChildren,
+  AccessGetStartedRouteRoute: AccessGetStartedRouteRouteWithChildren,
   DeclarationsIdRouteRoute: DeclarationsIdRouteRouteWithChildren,
   AuthCallbackRoute: AuthCallbackRoute,
   AuthLoginRoute: AuthLoginRoute,
@@ -636,6 +793,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthRecoverRoute: AuthRecoverRoute,
   AuthStepUpRoute: AuthStepUpRoute,
   ClarificationsIdRoute: ClarificationsIdRoute,
+  AccessIndexRoute: AccessIndexRoute,
   DeclarationsIndexRoute: DeclarationsIndexRoute,
   ApiMockLettersIdRoute: ApiMockLettersIdRoute,
   ApiMockSlipsDocumentIdRoute: ApiMockSlipsDocumentIdRoute,

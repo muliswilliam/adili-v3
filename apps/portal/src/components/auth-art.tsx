@@ -8,7 +8,7 @@ import {
   SquareLock02Icon,
 } from '@hugeicons/core-free-icons';
 
-export type AuthArtVariant = 'landing' | 'onboarding';
+export type AuthArtVariant = 'landing' | 'onboarding' | 'access';
 
 const ART = {
   landing: {
@@ -25,6 +25,14 @@ const ART = {
       [Building03Icon, 'For officers on a Commission roster'],
       [SquareLock02Icon, 'Codes go to your contacts on file'],
       [Clock01Icon, 'Takes about 5 minutes'],
+    ],
+  },
+  access: {
+    title: "Ask to see a public officer's declaration.",
+    items: [
+      [SecurityCheckIcon, 'Identity checked once'],
+      [File02Icon, 'Form K online, no paperwork'],
+      [Clock01Icon, 'A decision within 30 days'],
     ],
   },
 } as const;
