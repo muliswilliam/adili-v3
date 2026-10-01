@@ -10,6 +10,8 @@ import { type Assignee, flagView } from '../cases/representation.js';
 import { reviewAssignments, reviewFlags } from '../cases/schema.js';
 import type { ReviewSchema } from '../db/schema.js';
 import {
+  declarationOf,
+  DeclarationOutsideContract,
   DeclarationsClient,
   DeclarationsUnavailable,
   type PulledVersion,
@@ -74,8 +76,7 @@ export class RegistryViewService {
       },
     );
 
-    const pulled = await this.pull(principal, row);
-    const document = pulled.document as unknown as DeclarationV1;
+    const document = await this.pull(principal, row);
     const records = await this.records(tenant, checks);
 
     const nameOf = new Map(
@@ -120,11 +121,11 @@ export class RegistryViewService {
     };
   }
 
-  /** The current version, read for the viewer and the case. */
+  /** The current version's document, read for the viewer and the case, checked at the boundary. */
   private async pull(
     principal: Principal,
     row: { tenant: string } & CaseKeys,
-  ): Promise<PulledVersion> {
+  ): Promise<DeclarationV1> {
     let pulled: PulledVersion | null;
     try {
       pulled = await this.declarations.getVersionDocument(row.declarationId, row.currentVersion, {
@@ -141,7 +142,16 @@ export class RegistryViewService {
         'The declarations service does not have the version under review.',
       );
     }
-    return pulled;
+    try {
+      return declarationOf(pulled);
+    } catch (error) {
+      if (error instanceof DeclarationOutsideContract) {
+        throw declarationsUnavailable(
+          'The declarations service answered with a document outside its contract.',
+        );
+      }
+      throw error;
+    }
   }
 
   /**

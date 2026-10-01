@@ -126,5 +126,8 @@ export const PROCESSING_LEGAL_BASIS = 'regs-r20-1-b';
 export const GATEWAY_UNAVAILABLE = 'gateway-unavailable';
 export const GATEWAY_REJECTED = 'gateway-rejected';
 
+/** A pulled document that is not a declaration.v1 document: the check fails for good. */
+export const DECLARATION_INVALID = 'declaration-invalid';
+
 /** Why a stored result could not be read back for matching: the gateway does not have it. */
 export const RESULT_MISSING = 'result-missing';

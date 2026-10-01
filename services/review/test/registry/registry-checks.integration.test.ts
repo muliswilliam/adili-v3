@@ -477,6 +477,21 @@ describe('registry checks', () => {
       }
     });
 
+    it('a document outside declaration.v1 fails the check for good and the tab with 502 (ADR-013 §2)', async () => {
+      const version = wanjikuVersion();
+      const request = await caseOf(version);
+      // Declarations answering outside its contract: statements is no list.
+      version.document.statements = 'not a list';
+
+      await expect(
+        registry.lookupRegistries({ check: request, previous: null }),
+      ).rejects.toMatchObject({ type: 'declaration-invalid', nonRetryable: true });
+      expect(api.gateway.lookups).toEqual([]);
+      const view = await api.get(registryPath(request.caseId), reviewer);
+      expect(view.statusCode).toBe(502);
+      expect(view.json()).toMatchObject({ type: 'declarations-unavailable' });
+    });
+
     it('the case detail carries the statuses of the latest check', async () => {
       const request = await caseOf(wanjikuVersion());
       await check(request);

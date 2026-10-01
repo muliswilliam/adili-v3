@@ -8,7 +8,12 @@ import { and, asc, eq, max, ne } from 'drizzle-orm';
 
 import { reviewCases } from '../cases/schema.js';
 import type { ReviewSchema } from '../db/schema.js';
-import { DeclarationsClient, type PulledVersion } from '../declarations/declarations-client.js';
+import {
+  declarationOf,
+  DeclarationOutsideContract,
+  DeclarationsClient,
+  type PulledVersion,
+} from '../declarations/declarations-client.js';
 import { DirectoryClient } from '../directory/directory-client.js';
 import {
   IntegrationGatewayClient,
@@ -30,6 +35,7 @@ import {
 } from '../rules/index.js';
 import { SYSTEM_SUBJECT, systemContext } from '../system-context.js';
 import {
+  DECLARATION_INVALID,
   GATEWAY_REJECTED,
   GATEWAY_UNAVAILABLE,
   type LookupOutcome,
@@ -79,12 +85,9 @@ export class RegistryCheckActivities {
   async lookupRegistries({ check, previous }: LookupRequest): Promise<RegistryLookups | null> {
     const found = await caseAt(this.db, check);
     if (found === null) return null;
-    const pulled = await pullVersion(this.declarations, check);
+    const { pulled, document } = await pullVersion(this.declarations, check);
     const roster = await this.directory.getRosterRecord(check.tenant, pulled.rosterRecordId);
-    const ids = householdIds(
-      pulled.document as unknown as DeclarationV1,
-      roster?.nationalId ?? null,
-    );
+    const ids = householdIds(document, roster?.nationalId ?? null);
     const context: RegistryContext = {
       tenant: check.tenant,
       legalBasis: PROCESSING_LEGAL_BASIS,
@@ -140,8 +143,7 @@ export class RegistryCheckActivities {
    */
   async matchRegistries({ check, lookups }: MatchRequest): Promise<RegistryCheckResult> {
     if ((await caseAt(this.db, check)) === null) return { outcome: 'stale' };
-    const pulled = await pullVersion(this.declarations, check);
-    const document = pulled.document as unknown as DeclarationV1;
+    const { pulled, document } = await pullVersion(this.declarations, check);
     const roster = await this.directory.getRosterRecord(check.tenant, pulled.rosterRecordId);
 
     const results: Record<string, PersonRegistryResults> = {};
@@ -270,11 +272,15 @@ async function caseAt(
   return found?.versionId === check.versionId ? { personId: found.personId } : null;
 }
 
-/** The version as declarations gives it, read as the service for the case. */
+/**
+ * The version as declarations gives it, read as the service for the case, with its document
+ * checked against declaration.v1. A version gone, or a document outside the contract, fails the
+ * check for good: reading the immutable version again changes nothing.
+ */
 async function pullVersion(
   declarations: DeclarationsClient,
   check: RegistryCheckRequest,
-): Promise<PulledVersion> {
+): Promise<{ pulled: PulledVersion; document: DeclarationV1 }> {
   const pulled = await declarations.getVersionDocument(check.declarationId, check.version, {
     tenant: check.tenant,
     actingSubject: SYSTEM_SUBJECT,
@@ -286,7 +292,14 @@ async function pullVersion(
       VERSION_MISSING,
     );
   }
-  return pulled;
+  try {
+    return { pulled, document: declarationOf(pulled) };
+  } catch (error) {
+    if (error instanceof DeclarationOutsideContract) {
+      throw ApplicationFailure.nonRetryable(error.message, DECLARATION_INVALID);
+    }
+    throw error;
+  }
 }
 
 /**
