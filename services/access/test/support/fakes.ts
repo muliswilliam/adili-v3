@@ -5,6 +5,7 @@ import {
   DeclarationsUnavailable,
   type DisclosureDocument,
   type DisclosureRequest,
+  type FullDocumentRequest,
   type VersionDocument,
 } from '../../src/declarations/declarations-client.js';
 import {
@@ -130,7 +131,7 @@ export class FakeDirectory extends DirectoryClient {
 export class FakeDeclarations extends DeclarationsClient {
   /** Each disclosure asked for, as asked. */
   readonly disclosureCalls: DisclosureRequest[] = [];
-  readonly fullDocumentCalls: { declarationId: string; version: number; subject: string }[] = [];
+  readonly fullDocumentCalls: FullDocumentRequest[] = [];
   private readonly disclosures = new Map<string, DisclosureDocument>();
   private readonly documents = new Map<string, VersionDocument>();
   private readonly failures = new Failures();
@@ -164,16 +165,14 @@ export class FakeDeclarations extends DeclarationsClient {
     return Promise.resolve(this.disclosures.get(request.personId) ?? null);
   }
 
-  fullDocument(
-    declarationId: string,
-    version: number,
-    declarantSubject: string,
-  ): Promise<VersionDocument | null> {
-    this.fullDocumentCalls.push({ declarationId, version, subject: declarantSubject });
+  fullDocument(request: FullDocumentRequest): Promise<VersionDocument | null> {
+    this.fullDocumentCalls.push(structuredClone(request));
     if (this.failures.take()) {
       return Promise.reject(new DeclarationsUnavailable('The declarations service is unreachable'));
     }
-    return Promise.resolve(this.documents.get(`${declarationId}:${String(version)}`) ?? null);
+    return Promise.resolve(
+      this.documents.get(`${request.declarationId}:${String(request.version)}`) ?? null,
+    );
   }
 }
 

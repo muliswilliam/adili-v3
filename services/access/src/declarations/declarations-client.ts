@@ -5,15 +5,18 @@ import type { components } from './declarations-api.gen.js';
 
 /**
  * A grant's scoped disclosure, as the access service asks declarations for it
- * (declarations.yaml `DisclosureRequest`): only the declarant's versions of these years, the
- * household members and the sections the grant allows. The read is audited there with the grant
- * reference as legal basis and the recipient.
+ * (declarations.yaml `DisclosureRequest`, with the Commission in `X-Acting-Tenant` and the deciding
+ * officer in `X-Acting-Subject`): only the declarant's versions of these years, the household
+ * members and the sections the grant allows. The read is audited there with the grant reference
+ * as legal basis, the officer and the recipient.
  */
 export interface DisclosureRequest {
   /** The declarant (the request's resolved person). */
   personId: string;
   /** The Commission the request was decided by. */
   tenant: string;
+  /** Token subject of the access officer who decided the grant. */
+  officerSubject: string;
   /** The `ARQ` or `LEA` reference of the grant. */
   grantReference: string;
   legalBasis: Extract<AccessLegalBasis, 'act-s36-1' | 'act-s36-2'>;
@@ -28,8 +31,20 @@ export interface DisclosureRequest {
 /** declarations.yaml `DisclosureDocument` (`disclosure.v1`): handed to documents, never stored. */
 export type DisclosureDocument = components['schemas']['DisclosureDocument'];
 
-/** declarations.yaml `InternalVersionDocument`: a submitted version in full, for a certified copy. */
-export type VersionDocument = components['schemas']['InternalVersionDocument'];
+/** declarations.yaml `FullVersionDocument`: a submitted version in full, for a certified copy. */
+export type VersionDocument = components['schemas']['FullVersionDocument'];
+
+/** A version of a declarant's declaration, asked for in full for their certified copy. */
+export interface FullDocumentRequest {
+  /** The Commission the certified copy request was made to. */
+  tenant: string;
+  declarationId: string;
+  version: number;
+  /** The declarant: the version must be theirs. */
+  personId: string;
+  /** Token subject of the declarant, who receives the copy. */
+  declarantSubject: string;
+}
 
 /** The declarations service is unreachable or answered outside its contract; activities retry. */
 export class DeclarationsUnavailable extends Error {
@@ -50,12 +65,8 @@ export abstract class DeclarationsClient {
   abstract renderDisclosure(request: DisclosureRequest): Promise<DisclosureDocument | null>;
 
   /**
-   * Version `version` of the declaration in full, read for `declarantSubject`; null when it is
-   * not theirs or does not exist.
+   * The version in full, read for the declarant; null when it is not theirs, not the Commission's
+   * or does not exist.
    */
-  abstract fullDocument(
-    declarationId: string,
-    version: number,
-    declarantSubject: string,
-  ): Promise<VersionDocument | null>;
+  abstract fullDocument(request: FullDocumentRequest): Promise<VersionDocument | null>;
 }

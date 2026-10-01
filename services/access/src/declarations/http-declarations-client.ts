@@ -8,6 +8,7 @@ import {
   DeclarationsUnavailable,
   type DisclosureDocument,
   type DisclosureRequest,
+  type FullDocumentRequest,
   type VersionDocument,
 } from './declarations-client.js';
 
@@ -27,7 +28,7 @@ const disclosureSchema = z.looseObject({
   versions: z.array(z.looseObject({ reference: z.string(), version: z.int() })),
 });
 
-/** The fields of `InternalVersionDocument` the access service relies on. */
+/** The fields of `FullVersionDocument` the access service relies on. */
 const versionDocumentSchema = z.looseObject({
   declarationId: z.uuid(),
   version: z.int(),
@@ -39,8 +40,9 @@ const none = (): null => null;
 /**
  * The declarations internal API through the client generated from its contract
  * (packages/schemas/internal/declarations.yaml → declarations-api.gen.ts via
- * `pnpm generate:api`), with the access service's own token (`declarations:internal`) and the
- * recipient (or the declarant) in `X-Acting-Subject`, whom declarations audits the read for.
+ * `pnpm generate:api`), with the access service's own token (`declarations:internal`), the
+ * Commission in `X-Acting-Tenant` and, in `X-Acting-Subject`, the deciding officer (disclosure)
+ * or the declarant (full document), whom declarations audits the read for.
  */
 export class HttpDeclarationsClient extends DeclarationsClient {
   private readonly declarations: ServiceClient<paths>;
@@ -58,11 +60,12 @@ export class HttpDeclarationsClient extends DeclarationsClient {
   }
 
   async renderDisclosure(request: DisclosureRequest): Promise<DisclosureDocument | null> {
+    const { tenant, officerSubject, ...body } = request;
     const disclosure = await this.declarations.call(
       (api) =>
         api.POST('/internal/v1/declarations/disclosures', {
-          params: { header: { 'X-Acting-Subject': request.recipientSubject } },
-          body: request,
+          params: { header: { 'X-Acting-Tenant': tenant, 'X-Acting-Subject': officerSubject } },
+          body,
         }),
       {
         status: 200,
@@ -73,17 +76,17 @@ export class HttpDeclarationsClient extends DeclarationsClient {
     return disclosure as DisclosureDocument | null;
   }
 
-  async fullDocument(
-    declarationId: string,
-    version: number,
-    declarantSubject: string,
-  ): Promise<VersionDocument | null> {
+  async fullDocument(request: FullDocumentRequest): Promise<VersionDocument | null> {
     const document = await this.declarations.call(
       (api) =>
         api.GET('/internal/v1/declarations/{declarationId}/versions/{version}/full-document', {
           params: {
-            path: { declarationId, version },
-            header: { 'X-Acting-Subject': declarantSubject },
+            path: { declarationId: request.declarationId, version: request.version },
+            query: { personId: request.personId },
+            header: {
+              'X-Acting-Tenant': request.tenant,
+              'X-Acting-Subject': request.declarantSubject,
+            },
           },
         }),
       {
