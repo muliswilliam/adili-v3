@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { notFoundIfInvisible, type Principal, ProblemException } from '@adili/api-kit';
 import { type Database, InjectDatabase, withTenant } from '@adili/data-access';
 import { EventPublisher } from '@adili/events';
-import { asc, eq, inArray } from 'drizzle-orm';
+import { and, asc, eq, inArray } from 'drizzle-orm';
 
 import type { ReviewSchema } from '../db/schema.js';
 import { determinationView } from '../determinations/representation.js';
@@ -193,7 +193,10 @@ async function caseData(
   const checks = await tx
     .select()
     .from(registryChecks)
-    .where(eq(registryChecks.caseId, row.id))
+    // The current version's: statuses of another version describe other declared items.
+    .where(
+      and(eq(registryChecks.caseId, row.id), eq(registryChecks.versionId, row.currentVersionId)),
+    )
     .orderBy(asc(registryChecks.personKey), asc(registryChecks.system));
   const assignments = await tx
     .select()

@@ -58,10 +58,17 @@ export class RegistryViewService {
       { tenant, subject: principal.subject },
       async (tx) => {
         const found = await findCase(tx, tenant, caseId);
+        // The current version's only: another version's result ids are records matched against
+        // other declared items, never to be paired with this document.
         const checkRows = await tx
           .select()
           .from(registryChecks)
-          .where(eq(registryChecks.caseId, found.id));
+          .where(
+            and(
+              eq(registryChecks.caseId, found.id),
+              eq(registryChecks.versionId, found.currentVersionId),
+            ),
+          );
         const flagRows = await tx
           .select()
           .from(reviewFlags)
