@@ -65,6 +65,8 @@ export interface ContractHarness {
    * audience; null when the identity provider refuses the client or secret.
    */
   clientCredentials(clientId: string, secret: string): Promise<ClientToken | null>;
+  /** Marks the account's email verified, as its owner does when they activate. */
+  verifyEmail(userId: string): Promise<void>;
   /** Removes accounts the suite created. */
   cleanup(userIds: string[]): Promise<void>;
   /** Removes API clients the suite created. */
@@ -291,6 +293,37 @@ export function identityProvisioningContract(name: string, harness: () => Contra
           phone: '+254712345678',
         }),
       ).resolves.toBeNull();
+    });
+
+    it("lists a Commission's enabled staff with a verified email holding a role", async () => {
+      // A tenant of its own, so accounts other runs left in the realm stay out of it.
+      const tenant = `c${String(randomInt(1_000_000_000))}`;
+      const staff = async (label: string, role: string, options: { tenant?: string } = {}) => {
+        const email = uniqueEmail(label);
+        const userId = await create({
+          ...reportingOfficer(email),
+          tenant: options.tenant ?? tenant,
+          role,
+        });
+        await harness().verifyEmail(userId);
+        return { subject: userId, email };
+      };
+      const supervisor = await staff('supervisor', 'supervisor');
+      const officer = await staff('officer', 'reporting-officer');
+      const disabled = await staff('disabled', 'supervisor');
+      await harness().adapter.setEnabled(disabled.subject, false);
+      await create({ ...reportingOfficer(uniqueEmail('unverified')), tenant, role: 'supervisor' });
+      await staff('elsewhere', 'supervisor', { tenant: `${tenant}x` });
+
+      await expect(harness().adapter.listStaffWithRole(tenant, 'supervisor')).resolves.toEqual([
+        supervisor,
+      ]);
+      await expect(
+        harness().adapter.listStaffWithRole(tenant, 'reporting-officer'),
+      ).resolves.toEqual([officer]);
+      await expect(
+        harness().adapter.listStaffWithRole(tenant, 'commission-admin'),
+      ).resolves.toEqual([]);
     });
 
     it('deletes an account idempotently', async () => {

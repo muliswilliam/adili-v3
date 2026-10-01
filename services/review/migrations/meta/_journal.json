@@ -103,22 +103,29 @@
     {
       "idx": 14,
       "version": "7",
-      "when": 1790891167098,
-      "tag": "0014_registry_checks",
+      "when": 1790872477746,
+      "tag": "0014_case_designation",
       "breakpoints": true
     },
     {
       "idx": 15,
       "version": "7",
-      "when": 1790892657585,
-      "tag": "0015_flag_closed_reason",
+      "when": 1790891167098,
+      "tag": "0015_registry_checks",
       "breakpoints": true
     },
     {
       "idx": 16,
       "version": "7",
+      "when": 1790892657585,
+      "tag": "0016_flag_closed_reason",
+      "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
       "when": 1790896440627,
-      "tag": "0016_registry_check_sequence",
+      "tag": "0017_registry_check_sequence",
       "breakpoints": true
     }
   ]

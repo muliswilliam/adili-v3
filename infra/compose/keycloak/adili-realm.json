@@ -1936,7 +1936,8 @@
           "query-users",
           "manage-clients",
           "view-clients",
-          "query-clients"
+          "query-clients",
+          "view-realm"
         ]
       }
     }

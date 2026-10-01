@@ -4,6 +4,8 @@ import { ClockModule } from '../clock.module.js';
 import { DeclarationsModule } from '../declarations/declarations.module.js';
 import { DirectoryModule } from '../directory/directory.module.js';
 import { DocumentsModule } from '../documents/documents.module.js';
+import { ClarificationDetailsController } from './clarification-details.controller.js';
+import { ClarificationDetailsService } from './clarification-details.service.js';
 import { ClarificationWorkflows } from './clarification-workflows.js';
 import { ClarificationsController } from './clarifications.controller.js';
 import { ClarificationsService } from './clarifications.service.js';
@@ -23,12 +25,14 @@ import { LetterPayloadService } from './letter-payload.service.js';
     ClarificationsController,
     DeclarantClarificationsController,
     LetterPayloadController,
+    ClarificationDetailsController,
   ],
   providers: [
     ClarificationsService,
     ClarificationWorkflows,
     DeclarantClarificationsService,
     LetterPayloadService,
+    ClarificationDetailsService,
   ],
 })
 export class ClarificationsModule {}

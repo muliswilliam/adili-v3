@@ -1,5 +1,5 @@
 {
-  "id": "4b4aee82-e09c-43f4-a19f-75e111900833",
+  "id": "54297218-a3b3-4d08-a5e2-5aa82205360b",
   "prevId": "5f279de2-779a-4090-9280-ee90f9904f01",
   "version": "7",
   "dialect": "postgresql",
@@ -970,6 +970,12 @@
           "primaryKey": false,
           "notNull": true
         },
+        "designation": {
+          "name": "designation",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
         "roster_record_id": {
           "name": "roster_record_id",
           "type": "uuid",
@@ -988,13 +994,6 @@
           "primaryKey": false,
           "notNull": true,
           "default": 0
-        },
-        "registry_unavailable": {
-          "name": "registry_unavailable",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": false
         },
         "open_clarifications": {
           "name": "open_clarifications",
@@ -2972,152 +2971,6 @@
         "referrals_proposer_kind_check": {
           "name": "referrals_proposer_kind_check",
           "value": "\"referrals\".\"proposer_kind\" in ('system', 'user')"
-        }
-      },
-      "isRLSEnabled": false
-    },
-    "public.registry_checks": {
-      "name": "registry_checks",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "tenant": {
-          "name": "tenant",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "case_id": {
-          "name": "case_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "version_id": {
-          "name": "version_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "person_key": {
-          "name": "person_key",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "system": {
-          "name": "system",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "status": {
-          "name": "status",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "reason": {
-          "name": "reason",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "checked_at": {
-          "name": "checked_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "result_id": {
-          "name": "result_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        }
-      },
-      "indexes": {
-        "registry_checks_case_person_system_key": {
-          "name": "registry_checks_case_person_system_key",
-          "columns": [
-            {
-              "expression": "case_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "person_key",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "system",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "registry_checks_tenant_status_idx": {
-          "name": "registry_checks_tenant_status_idx",
-          "columns": [
-            {
-              "expression": "tenant",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "status",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "registry_checks_case_id_review_cases_id_fk": {
-          "name": "registry_checks_case_id_review_cases_id_fk",
-          "tableFrom": "registry_checks",
-          "tableTo": "review_cases",
-          "columnsFrom": [
-            "case_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {
-        "registry_checks_system_check": {
-          "name": "registry_checks_system_check",
-          "value": "\"registry_checks\".\"system\" in ('kra', 'ntsa', 'brs', 'ardhisasa')"
-        },
-        "registry_checks_status_check": {
-          "name": "registry_checks_status_check",
-          "value": "\"registry_checks\".\"status\" in ('matched', 'mismatched', 'unavailable', 'not-checked', 'no-id')"
         }
       },
       "isRLSEnabled": false

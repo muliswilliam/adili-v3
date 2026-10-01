@@ -419,7 +419,7 @@ async function reportOfficers(
   tenant: string,
 ): Promise<Map<string, string>> {
   const staff = new Map<string, string>();
-  for (const role of [SUPERVISOR, COMMISSION_ADMIN]) {
+  for (const role of [SUPERVISOR, COMMISSION_ADMIN] as const) {
     for (const member of await directory.staffWithRole(tenant, role)) {
       staff.set(member.subject, member.email);
     }

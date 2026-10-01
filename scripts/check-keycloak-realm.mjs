@@ -184,7 +184,8 @@ if (!directory) {
   }
   const account = (realm.users ?? []).find((user) => user.serviceAccountClientId === 'directory');
   const granted = new Set(account?.clientRoles?.['realm-management'] ?? []);
-  // Users for staff provisioning (spec 06), clients for HR-system credentials (spec 27).
+  // Users for staff provisioning (spec 06), clients for HR-system credentials (spec 27), the
+  // realm for a role's holders (staff by role, #220).
   for (const role of [
     'manage-users',
     'view-users',
@@ -192,6 +193,7 @@ if (!directory) {
     'manage-clients',
     'view-clients',
     'query-clients',
+    'view-realm',
   ]) {
     if (!granted.has(role)) fail(`directory service account needs realm-management ${role}`);
   }

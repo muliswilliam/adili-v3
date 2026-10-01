@@ -16,7 +16,11 @@ import {
 import { FakeCipher } from '@adili/data-access/testing';
 import { type EventEnvelope, OutboxRelay } from '@adili/events';
 import { TEMPORAL_CLIENT, TemporalWorkerReadinessCheck, WorkflowBundler } from '@adili/temporal';
-import { prebuiltWorkflowBundler, untilWorkerPolling } from '@adili/temporal/testing';
+import {
+  prebuiltWorkflowBundler,
+  untilActivitiesDrained,
+  untilWorkerPolling,
+} from '@adili/temporal/testing';
 import type { Client } from '@temporalio/client';
 import { sql } from 'drizzle-orm';
 import { createLocalJWKSet, exportJWK, generateKeyPair, type JWK, SignJWT } from 'jose';
@@ -85,7 +89,7 @@ export interface ReportingApi {
   activities: ComplianceReportActivities;
   /** The events recorded in the outbox, of `type` when given, oldest first. */
   events(type?: string): Promise<RecordedEvent[]>;
-  /** Terminates the workflows with these ids; one not running is fine. */
+  /** Terminates the workflows with these ids (one not running is fine), then waits out their activities. */
   endWorkflows(ids: readonly string[]): Promise<void>;
   /** Delivers an event to its consumer as the RabbitMQ transport would; false for a redelivery. */
   deliver(event: EventEnvelope): Promise<boolean>;
@@ -229,6 +233,7 @@ export async function startReportingApi(): Promise<ReportingApi> {
           // Not running.
         }
       }
+      await untilActivitiesDrained(app.get(TemporalWorkerReadinessCheck));
     },
     deliver(event) {
       const handler = HANDLERS[event.type];

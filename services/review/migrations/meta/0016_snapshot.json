@@ -1,6 +1,6 @@
 {
-  "id": "593fdd3a-3606-4121-b9f0-de207366f3ba",
-  "prevId": "18c0c9c8-5f06-4fbb-bd89-37938b0a0ef3",
+  "id": "18c0c9c8-5f06-4fbb-bd89-37938b0a0ef3",
+  "prevId": "4b4aee82-e09c-43f4-a19f-75e111900833",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -996,20 +996,6 @@
           "notNull": true,
           "default": false
         },
-        "registry_check_sequence": {
-          "name": "registry_check_sequence",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 0
-        },
-        "stored_registry_check": {
-          "name": "stored_registry_check",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 0
-        },
         "open_clarifications": {
           "name": "open_clarifications",
           "type": "integer",
@@ -1036,6 +1022,12 @@
           "primaryKey": false,
           "notNull": true,
           "default": "now()"
+        },
+        "designation": {
+          "name": "designation",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
         }
       },
       "indexes": {

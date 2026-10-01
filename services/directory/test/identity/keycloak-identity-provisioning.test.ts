@@ -367,6 +367,36 @@ describe('KeycloakIdentityProvisioning', () => {
     },
   );
 
+  it("lists a Commission's staff with a role from the role's holders, a page at a time", async () => {
+    const holder = (n: number, tenant: string) => ({
+      id: `user-${String(n)}`,
+      email: `s${String(n)}@${tenant}.go.ke`,
+      enabled: true,
+      emailVerified: true,
+      attributes: { tenant: [tenant] },
+    });
+    const { adapter, requests } = keycloak({
+      [TOKEN]: tokenOk,
+      [`GET ${ADMIN}/roles/supervisor/users`]: (url) =>
+        Response.json(
+          url.searchParams.get('first') === '0'
+            ? Array.from({ length: 100 }, (_, n) => holder(n, n === 7 ? 'psc' : 'tsc'))
+            : [holder(100, 'psc')],
+        ),
+    });
+
+    await expect(adapter.listStaffWithRole('psc', 'supervisor')).resolves.toEqual([
+      { subject: 'user-7', email: 's7@psc.go.ke' },
+      { subject: 'user-100', email: 's100@psc.go.ke' },
+    ]);
+    // Two reads for 101 holders, none per account.
+    const reads = requests.filter((request) => request.url.pathname.startsWith(ADMIN));
+    expect(reads.map(({ method, url }) => `${method} ${url.pathname}${url.search}`)).toEqual([
+      `GET ${ADMIN}/roles/supervisor/users?briefRepresentation=false&first=0&max=100`,
+      `GET ${ADMIN}/roles/supervisor/users?briefRepresentation=false&first=100&max=100`,
+    ]);
+  });
+
   it('rejects an issuer URL that is not a Keycloak realm', () => {
     expect(
       () =>

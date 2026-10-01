@@ -1,0 +1,1 @@
+ALTER TABLE "roster_snapshots" ADD COLUMN "designation" text;

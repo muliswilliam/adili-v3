@@ -20,6 +20,8 @@ import { reviewCases, reviewCaseVersions, reviewFlags, reviewTimeline } from './
 export interface DeclarantReadModel {
   declarantName: string;
   personnelFileNumber: string;
+  /** As the filed declaration states it; null when it states none. */
+  designation: string | null;
   /** The roster record the declaration was filed for, and its reporting entity. */
   rosterRecordId: string;
   reportingEntityId: string | null;
@@ -74,6 +76,7 @@ export async function upsertCase(
         status: 'unassigned',
         declarantName: declarant.declarantName,
         personnelFileNumber: declarant.personnelFileNumber,
+        designation: declarant.designation,
         rosterRecordId: declarant.rosterRecordId,
         reportingEntityId: declarant.reportingEntityId,
         openFlags: flags.length,
@@ -163,6 +166,7 @@ async function amendCase(
       registryUnavailable: false,
       declarantName: declarant.declarantName,
       personnelFileNumber: declarant.personnelFileNumber,
+      designation: declarant.designation,
       rosterRecordId: declarant.rosterRecordId,
       reportingEntityId: declarant.reportingEntityId,
     })

@@ -1,6 +1,6 @@
 {
-  "id": "18c0c9c8-5f06-4fbb-bd89-37938b0a0ef3",
-  "prevId": "4b4aee82-e09c-43f4-a19f-75e111900833",
+  "id": "4b4aee82-e09c-43f4-a19f-75e111900833",
+  "prevId": "54297218-a3b3-4d08-a5e2-5aa82205360b",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -1022,6 +1022,12 @@
           "primaryKey": false,
           "notNull": true,
           "default": "now()"
+        },
+        "designation": {
+          "name": "designation",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
         }
       },
       "indexes": {
@@ -1159,22 +1165,6 @@
           "concurrently": false,
           "method": "btree",
           "with": {}
-        },
-        "review_cases_registry_unavailable_idx": {
-          "name": "review_cases_registry_unavailable_idx",
-          "columns": [
-            {
-              "expression": "id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "where": "\"review_cases\".\"registry_unavailable\"",
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
         }
       },
       "foreignKeys": {},
@@ -1286,12 +1276,6 @@
           "notNull": true,
           "default": false
         },
-        "closed_reason": {
-          "name": "closed_reason",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
         "created_at": {
           "name": "created_at",
           "type": "timestamp with time zone",
@@ -1339,10 +1323,6 @@
         "review_flags_severity_check": {
           "name": "review_flags_severity_check",
           "value": "\"review_flags\".\"severity\" in ('info', 'low', 'medium', 'high')"
-        },
-        "review_flags_closed_reason_check": {
-          "name": "review_flags_closed_reason_check",
-          "value": "\"review_flags\".\"closed_reason\" in ('superseded-by-recheck')"
         }
       },
       "isRLSEnabled": false
