@@ -1,7 +1,12 @@
-import { parsePhoneNumberFromString } from 'libphonenumber-js/max';
-import { z } from 'zod';
-
 import type { RosterField } from './columns.js';
+import {
+  EMAIL_MAX_LENGTH,
+  fileNumberKey as keyOf,
+  normaliseEmail,
+  normaliseNationalId,
+  normalisePhone,
+  PHONE_MAX_LENGTH,
+} from './normalise.js';
 
 /** `RowError.code` in the contract; `identity-locked` is raised later, when rows are applied. */
 export const ROW_ERROR_CODES = [
@@ -96,7 +101,7 @@ export function createRowValidator(
             ? fail('fullName', 'format', 'Enter 2 to 200 characters')
             : fullNameInput;
 
-    const nationalIdInput = (raw.nationalId ?? '').replace(/\s+/g, '');
+    const nationalIdInput = normaliseNationalId(raw.nationalId ?? '');
     const nationalId =
       nationalIdInput === ''
         ? fail('nationalId', 'required', 'Enter the national ID number')
@@ -117,25 +122,26 @@ export function createRowValidator(
     });
 
     const email = optional(raw.email, (value) => {
-      const lower = value.toLowerCase();
-      if (lower.length > 254) return fail('email', 'too-long', 'Enter up to 254 characters');
-      return EMAIL.safeParse(lower).success
-        ? lower
-        : fail('email', 'format', 'Enter a valid email address');
+      if (value.length > EMAIL_MAX_LENGTH) {
+        return fail('email', 'too-long', `Enter up to ${EMAIL_MAX_LENGTH} characters`);
+      }
+      return normaliseEmail(value) ?? fail('email', 'format', 'Enter a valid email address');
     });
 
     const phone = optional(raw.phone, (value) => {
-      if (value.length > 20) return fail('phone', 'too-long', 'Enter up to 20 characters');
-      const parsed = parsePhoneNumberFromString(value, 'KE');
-      return parsed?.isValid()
-        ? parsed.number
-        : fail('phone', 'format', 'Enter a valid phone number, e.g. 0712345678 or +254712345678');
+      if (value.length > PHONE_MAX_LENGTH) {
+        return fail('phone', 'too-long', `Enter up to ${PHONE_MAX_LENGTH} characters`);
+      }
+      return (
+        normalisePhone(value) ??
+        fail('phone', 'format', 'Enter a valid phone number, e.g. 0712345678 or +254712345678')
+      );
     });
 
     // Duplicates of rows accepted earlier. Only accepted rows claim their file number and national
     // ID: a row rejected for any reason is not imported, so a corrected copy of it later in the
     // file is not a duplicate.
-    const fileNumberKey = personnelFileNumber?.toLowerCase();
+    const fileNumberKey = personnelFileNumber === null ? undefined : keyOf(personnelFileNumber);
     const fileNumberRow = fileNumberKey === undefined ? undefined : fileNumbers.get(fileNumberKey);
     if (fileNumberRow !== undefined) {
       fail('personnelFileNumber', 'duplicate-in-file', `Same file number as row ${fileNumberRow}`);
@@ -175,7 +181,6 @@ export function createRowValidator(
 }
 
 const FILE_NUMBER = /^[A-Za-z0-9/.-]+$/;
-const EMAIL = z.email();
 
 /** Trims and collapses runs of whitespace (including non-breaking spaces) to one space. */
 function collapse(value: string | null | undefined): string {

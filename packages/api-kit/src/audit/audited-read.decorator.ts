@@ -16,7 +16,8 @@ export interface AuditedReadOptions {
  * (Pipeline step 2: an interceptor writes `audit.read.v1` to the service's outbox before the
  * response is sent). The interceptor (`AuditedReadInterceptor` in `@adili/events`) reads the
  * mark with `auditedReadOf`; the OpenAPI operation carries it as `x-audited-read`, so clients
- * see which reads leave a trace.
+ * see which reads leave a trace. A handler that loads the resource by id says whose it is, or
+ * that the caller read their own record, through `@CurrentReadAudit()` (`ReadAudit`).
  *
  * @example
  * @Get(':recordId')

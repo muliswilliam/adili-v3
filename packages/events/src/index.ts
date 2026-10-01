@@ -4,6 +4,16 @@ export {
   AuditedReadInterceptor,
 } from './audited-read.interceptor.js';
 export {
+  OBLIGATION_CYCLE_OPENED,
+  OBLIGATION_REMINDER_RECORDED,
+  type ObligationCycleOpenedData,
+  type ObligationReminderRecordedData,
+  REMINDER_CHANNELS,
+  REMINDER_OUTCOMES,
+  type ReminderChannel,
+  type ReminderOutcome,
+} from './contracts/index.js';
+export {
   createEnvelope,
   type EventEnvelope,
   eventEnvelopeSchema,

@@ -26,6 +26,7 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "deps:check": "depcruise services packages apps --config .dependency-cruiser.cjs",
+    "contracts": "turbo run build --filter='./services/*^...' --output-logs=errors-only && pnpm --filter './services/*' --if-present contracts",
     "contracts:lint": "pnpm --filter @adili/schemas lint:openapi && pnpm --filter @adili/schemas lint:forms",
     "contracts:drift": "turbo run build --filter='./services/*^...' --output-logs=errors-only && pnpm --filter @adili/schemas check:drift",
     "check": "pnpm format:check && pnpm contracts:lint && pnpm contracts:drift && turbo run lint typecheck test && pnpm deps:check",

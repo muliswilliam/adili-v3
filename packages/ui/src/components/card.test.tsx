@@ -48,3 +48,18 @@ describe('CardIcon', () => {
     expect(tile?.className).toContain('bg-muted');
   });
 });
+
+describe('Card asChild', () => {
+  it('puts its styles on the child with asChild', () => {
+    render(
+      <Card asChild className="bg-muted">
+        <article aria-label="Obligation">Initial declaration</article>
+      </Card>,
+    );
+
+    const article = screen.getByRole('article', { name: 'Obligation' });
+    expect(article.className).toContain('rounded-2xl');
+    expect(article.className).toContain('bg-muted');
+    expect(article.className).not.toContain('bg-card');
+  });
+});

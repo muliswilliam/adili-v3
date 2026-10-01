@@ -29,6 +29,9 @@ function record(overrides: Partial<RosterRecordListItem> = {}): RosterRecordList
     absentFromLatestImport: false,
     flaggedByImportId: null,
     flaggedAt: null,
+    ofr: null,
+    onboardedAt: null,
+    identityMismatchAt: null,
     ...overrides,
   };
 }
@@ -195,7 +198,7 @@ describe('RecordsList', () => {
   it('marks records whose identity check failed', () => {
     renderList({
       result: page([
-        { ...record(), identityMismatchAt: '2026-09-24T11:20:00Z' } as RosterRecordListItem,
+        { ...record(), identityMismatchAt: '2026-09-24T11:20:00Z' },
         record({ id: '0191f8d2-0000-7000-8000-000000000002', fullName: 'Brian Kiprono' }),
       ]),
     });

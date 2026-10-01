@@ -2,15 +2,20 @@ import 'reflect-metadata';
 
 import { randomUUID } from 'node:crypto';
 
-import { Controller, Post } from '@nestjs/common';
+import { Controller, Headers, Param, Post } from '@nestjs/common';
+import { FastifyAdapter, type NestFastifyApplication } from '@nestjs/platform-fastify';
 import { Test } from '@nestjs/testing';
-import { describe, expect, it } from 'vitest';
+import type { FastifyRequest } from 'fastify';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import {
+  AcceptIdempotencyKey,
   type BaseEnv,
   CoreModule,
+  IdempotencyModule,
   type IdempotencyScope,
   InMemoryIdempotencyStore,
+  Public,
   RequireIdempotencyKey,
   type StoredResponse,
 } from '../src/index.js';
@@ -143,5 +148,167 @@ describe('RequireIdempotencyKey without IdempotencyModule', () => {
     }).compile();
 
     await expect(compile).rejects.toThrow(/IdempotencyStore/);
+  });
+});
+
+describe('RequireIdempotencyKey on a public route, with an owner', () => {
+  const config: BaseEnv = {
+    NODE_ENV: 'test',
+    HOST: '127.0.0.1',
+    PORT: 0,
+    LOG_LEVEL: 'fatal',
+    OIDC_ISSUER_URL: 'http://keycloak.test/realms/adili',
+    OIDC_AUDIENCE: 'adili-api',
+  };
+  let confirms = 0;
+
+  /** Keys belong to the session and the secret presented, as onboarding's do. */
+  const sessionOwner = (request: FastifyRequest) => {
+    const { sessionId } = request.params as { sessionId: string };
+    return `session:${sessionId}:${String(request.headers['x-secret'])}`;
+  };
+
+  @Public()
+  @Controller('v1/sessions/:sessionId/confirm')
+  class ConfirmController {
+    @Post()
+    @RequireIdempotencyKey({ owner: sessionOwner })
+    confirm(@Param('sessionId') sessionId: string, @Headers('x-secret') secret: string) {
+      confirms++;
+      return { sessionId, secret, confirm: confirms };
+    }
+  }
+
+  let app: NestFastifyApplication;
+
+  beforeAll(async () => {
+    const moduleRef = await Test.createTestingModule({
+      imports: [
+        CoreModule.forRoot({ serviceName: 'test', config }),
+        IdempotencyModule.forRoot({ store: new InMemoryIdempotencyStore() }),
+      ],
+      controllers: [ConfirmController],
+    }).compile();
+    app = moduleRef.createNestApplication<NestFastifyApplication>(new FastifyAdapter());
+    app.useLogger(false);
+    await app.init();
+    await app.getHttpAdapter().getInstance().ready();
+  });
+
+  afterAll(async () => {
+    await app.close();
+  });
+
+  const confirm = (sessionId: string, secret: string, key: string) =>
+    app.inject({
+      method: 'POST',
+      url: `/v1/sessions/${sessionId}/confirm`,
+      headers: { 'x-secret': secret, 'idempotency-key': key },
+    });
+
+  it('replays the stored answer to the same owner without a token', async () => {
+    const key = randomUUID();
+    const first = await confirm('s1', 'secret-1', key);
+    const retry = await confirm('s1', 'secret-1', key);
+
+    expect(first.statusCode).toBe(201);
+    expect(retry.headers['idempotent-replayed']).toBe('true');
+    expect(retry.json()).toEqual(first.json());
+    expect(confirms).toBe(1);
+  });
+
+  it('keeps owners apart: another secret with the same key runs the handler', async () => {
+    const key = randomUUID();
+    await confirm('s2', 'secret-2', key);
+    const other = await confirm('s2', 'guessed', key);
+
+    expect(other.headers['idempotent-replayed']).toBeUndefined();
+    expect(other.json()).toMatchObject({ secret: 'guessed' });
+  });
+
+  it('still requires the key', async () => {
+    const response = await app.inject({
+      method: 'POST',
+      url: '/v1/sessions/s3/confirm',
+      headers: { 'x-secret': 'secret-3' },
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toMatchObject({ type: 'idempotency-key-missing' });
+  });
+});
+
+describe('AcceptIdempotencyKey: the key is optional', () => {
+  const config: BaseEnv = {
+    NODE_ENV: 'test',
+    HOST: '127.0.0.1',
+    PORT: 0,
+    LOG_LEVEL: 'fatal',
+    OIDC_ISSUER_URL: 'http://keycloak.test/realms/adili',
+    OIDC_AUDIENCE: 'adili-api',
+  };
+  let sends = 0;
+
+  @Public()
+  @Controller('v1/messages')
+  class MessagesController {
+    @Post()
+    @AcceptIdempotencyKey({ owner: () => 'caller-1' })
+    send() {
+      sends++;
+      return { send: sends };
+    }
+  }
+
+  let app: NestFastifyApplication;
+
+  beforeAll(async () => {
+    const moduleRef = await Test.createTestingModule({
+      imports: [
+        CoreModule.forRoot({ serviceName: 'test', config }),
+        IdempotencyModule.forRoot({ store: new InMemoryIdempotencyStore() }),
+      ],
+      controllers: [MessagesController],
+    }).compile();
+    app = moduleRef.createNestApplication<NestFastifyApplication>(new FastifyAdapter());
+    app.useLogger(false);
+    await app.init();
+    await app.getHttpAdapter().getInstance().ready();
+  });
+
+  afterAll(async () => {
+    await app.close();
+  });
+
+  const send = (key?: string) =>
+    app.inject({
+      method: 'POST',
+      url: '/v1/messages',
+      headers: key === undefined ? {} : { 'idempotency-key': key },
+    });
+
+  it('runs the handler every time for requests without a key', async () => {
+    const first = await send();
+    const second = await send();
+
+    expect(first.statusCode).toBe(201);
+    expect(second.headers['idempotent-replayed']).toBeUndefined();
+    expect(second.json<{ send: number }>().send).toBe(first.json<{ send: number }>().send + 1);
+  });
+
+  it('replays the stored answer for a retry with the same key', async () => {
+    const key = randomUUID();
+    const first = await send(key);
+    const retry = await send(key);
+
+    expect(retry.headers['idempotent-replayed']).toBe('true');
+    expect(retry.json()).toEqual(first.json());
+  });
+
+  it('still refuses a malformed key', async () => {
+    const response = await send('k'.repeat(256));
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toMatchObject({ type: 'idempotency-key-missing' });
   });
 });

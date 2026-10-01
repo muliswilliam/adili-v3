@@ -199,7 +199,7 @@ flowchart TB
 **Service runtime.** Every service is a NestJS **hybrid application** (NestJS microservices guideline): one process serves Fastify HTTP (`/v1`, `/internal/v1`, `/health/*`, `/docs`) and consumes its RabbitMQ queue through the Nest RMQ transport. Each service has one durable quorum queue, `<service>.events`, bound to the `adili.events` topic exchange once per `@OnEvent('<type>')` handler, with a per-service dead-letter queue. Publishing goes through the transactional outbox, relayed with the Nest RMQ `ClientProxy`.
 
 **Common shared libraries** (`packages/`, used by every service):
-- `api-kit`: service bootstrap (hybrid app), config validation, bearer-token auth with roles or scopes (`@Roles`, `@Scopes`), per-client rate limits (`@RateLimit`, token buckets in Valkey), RFC 9457 problem details, health endpoints, `Idempotency-Key` handling (`@RequireIdempotencyKey()`, `idempotency_keys` table per service)
+- `api-kit`: service bootstrap (hybrid app), config validation, bearer-token auth with roles or scopes (`@Roles`, `@Scopes`), per-client and per-IP rate limits (`@RateLimit`, sliding windows in Valkey: at most N requests in any window), RFC 9457 problem details with a typed `code` from one registry (`PROBLEM_CODES`), health endpoints, `Idempotency-Key` handling (`@RequireIdempotencyKey()`, `idempotency_keys` table per service)
 - `data-access`: Drizzle + `pg`, migrations, tenant context for row-level security, field cipher (AES-256-GCM envelope encryption with per-tenant OpenBao Transit keys, fake for tests)
 - `events`: CloudEvents envelope, outbox relay, inbox (idempotent consumers), RMQ topology, `@OnEvent`
 - `temporal`: Temporal client, worker module (workflows + Nest-provided activities on a task queue, readiness, drain on shutdown), time-skipping test helper
@@ -207,6 +207,7 @@ flowchart TB
 - `cache`: Valkey client and readiness
 - `telemetry`: OpenTelemetry preload
 - `bff-auth`: OIDC sign-in and server-side sessions for the portal and console BFFs
+- `roles`: realm role names and the role groups a service enforces and an app shows (e.g. a Commission's staff, EACC), defined once
 - `schemas`: external-system contracts (OpenAPI)
 - `ui`: design system shared by the apps and the Keycloak theme
 - Added with the features that need them: `authz` (CASL policies), `audit-client`, `numbering`, `clients` (generated internal API clients)
@@ -660,6 +661,14 @@ flowchart TB
 - Demo accounts for every role, synthetic seed data, one-command reset.
 - Deploy instructions + a recorded demo backup (agenda requirement).
 
+### Hackathon stand-in (Azure VM)
+
+Until Dokploy is up, a **credit-funded Azure VM** in South Africa North is the public demo ([ADR-016](../adr/0016-azure-vm-demo-stand-in.md)). Same Compose stack and Keycloak image as local. Portal, console, verify and the NestJS services run with `pnpm dev` behind Caddy. This is not the production design and not Entra ID.
+
+- Host: `https://adili-demo.southafricanorth.cloudapp.azure.com` (console `:3020`, verify `:3030`, Keycloak `:8080`).
+- Terraform: `infra/azure` (Azure resources only). Pushes to `main` rsync and restart apps after CI; they do not `terraform apply`.
+- `TRUSTED_PROXY_HOPS=1` because Caddy is the only public proxy.
+
 ### Production target (EACC)
 
 ```mermaid
@@ -770,6 +779,7 @@ adili-v3/
 │   ├── api-kit/  data-access/  events/  temporal/  numbering/  cache/  telemetry/  bff-auth/
 │   ├── schemas/             # JSON Schemas, OpenAPI, AsyncAPI (incl. external/ contracts)
 │   ├── forms/               # validators, generated types and Zod schemas for the form JSON Schemas (FE + BE)
+│   ├── roles/               # realm role groups checked by services and shown by apps (FE + BE)
 │   ├── tsconfig/  eslint-config/
 ├── mocks/                   # Django project (uv): iprs, kra, ntsa, brs, ardhisasa, hr, payroll, icms, sms
 ├── infra/                   # compose (local infra), docker (image builds), Dokploy config, seed data, runbooks
@@ -800,16 +810,19 @@ adili-v3/
 | [003](../adr/0003-temporal-as-workflow-engine.md) | Temporal as workflow engine |
 | [004](../adr/0004-identity-keycloak-self-registration.md) | Keycloak, Keycloakify UI (self-registration superseded by 014) |
 | [005](../adr/0005-message-queue-rabbitmq.md) | RabbitMQ with transactional outbox |
-| [006](../adr/0006-multi-tenancy-and-hierarchy.md) | Multi-tenancy and hierarchy (RLS, ltree, EACC not super-tenant) |
+| [006](../adr/0006-multi-tenancy-and-hierarchy.md) | Multi-tenancy and hierarchy (RLS, ltree, EACC not super-tenant; isolation partly superseded by 018) |
 | [007](../adr/0007-vendor-agnostic-ai-layer.md) | Vendor-agnostic AI layer (Anthropic now, self-hosted later) |
 | [008](../adr/0008-audit-trail.md) | Tamper-evident audit trail |
 | [009](../adr/0009-api-first-interoperability.md) | API-first for Commissions, employers and agencies |
 | [010](../adr/0010-verifiable-documents-qr.md) | Verifiable documents with QR codes |
 | [011](../adr/0011-human-readable-reference-numbers.md) | Human-readable reference numbers + glossary |
 | [012](../adr/0012-single-polyglot-monorepo.md) | One polyglot monorepo (TypeScript + Python) |
-| [013](../adr/0013-service-communication.md) | Service-to-service communication (REST · events · Temporal) |
+| [013](../adr/0013-service-communication.md) | Service-to-service communication (REST · events · Temporal; partly superseded for spec 04 by 017) |
 | [014](../adr/0014-roster-gated-declarant-onboarding.md) | Roster-gated declarant onboarding (EACC-provisioned Commissions, file-number match, email + phone OTP) |
 | [015](../adr/0015-java-for-keycloak-providers.md) | Java (Maven) for Keycloak providers only, e.g. the `adili-otp` authenticator |
+| [016](../adr/0016-azure-vm-demo-stand-in.md) | Azure VM as a credit-funded stand-in for the Dokploy demo host |
+| [017](../adr/0017-obligation-reminder-delivery.md) | Service calls for filing obligations: acting tenant on the directory's pulls, two hops for a reminder, longer timeouts |
+| [018](../adr/0018-person-scoped-row-level-security.md) | Person-scoped row-level security: a declarant reads their own rows across Commissions |
 
 ---
 

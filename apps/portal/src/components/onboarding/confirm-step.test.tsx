@@ -43,6 +43,7 @@ function session(overrides: Partial<OnboardingSession> = {}): OnboardingSession 
     otp: { channel: null, resendAvailableAt: null, resendsLeft: 3, attemptsLeft: 5 },
     outcome: null,
     ofr: null,
+    setPasswordEmail: null,
     expiresAt: '2099-01-01T00:00:00Z',
     ...overrides,
   };
@@ -178,6 +179,17 @@ describe('ConfirmStep', () => {
     await waitFor(() => {
       expect(document.activeElement).toBe(alert);
     });
+  });
+
+  it('says the email belongs to another account', async () => {
+    confirmMock.mockResolvedValue({ ok: false, code: 'email-in-use' });
+    renderStep();
+
+    tickAndConfirm();
+
+    expect((await screen.findByRole('alert')).textContent).toContain(
+      'This email address already belongs to another Adili account',
+    );
   });
 
   it('shows the generic error for anything else', async () => {

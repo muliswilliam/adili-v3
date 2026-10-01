@@ -1,0 +1,202 @@
+import { type ProblemCode, problemDetailsSchema } from '@adili/api-kit';
+import { CONTACT_CHANNELS } from '@adili/contacts';
+import { z } from 'zod';
+
+import { slugSchema } from '../commissions/create-commission.js';
+import { CONTACT_SOURCES } from '../roster/schema.js';
+import { EMAIL_MAX_LENGTH } from '../roster/normalise.js';
+import { CHANNELS } from './channels.js';
+import {
+  ONBOARDING_OUTCOMES,
+  ONBOARDING_STATES,
+  SET_PASSWORD_EMAIL_STATUSES,
+} from './session-state.js';
+
+/** Representations of the public onboarding API (contract components of the same names). */
+
+export const ofrSchema = z
+  .string()
+  .regex(/^OFR-[0-9]{7}-[0-9A-Z]$/)
+  .meta({
+    description: 'Officer reference (ADR-011), permanent and person-level',
+    examples: ['OFR-0482913-L'],
+  });
+
+export const otpChannelSchema = z.enum(CONTACT_CHANNELS);
+
+export const onboardingStateSchema = z.enum(ONBOARDING_STATES);
+
+export const onboardingOutcomeSchema = z.enum(ONBOARDING_OUTCOMES);
+
+export const onboardingCommissionSchema = z.object({
+  slug: slugSchema,
+  issuerCode: z.string().meta({ description: 'slug upper-cased', examples: ['TSC'] }),
+  name: z.string(),
+  hasRoster: z
+    .boolean()
+    .meta({ description: 'Whether the Commission has imported a roster; identify needs one' }),
+});
+
+export type OnboardingCommission = z.infer<typeof onboardingCommissionSchema>;
+
+/** Query of `GET /v1/onboarding/commissions`. */
+export const listOnboardingCommissionsQuery = z.object({
+  search: z
+    .string()
+    .trim()
+    .max(100)
+    .optional()
+    .transform((value) => (value === '' ? undefined : value))
+    .meta({
+      description:
+        'Part of the name, or the issuer code, case-insensitive; blank means every Commission',
+    }),
+});
+
+export type ListOnboardingCommissionsQuery = z.infer<typeof listOnboardingCommissionsQuery>;
+
+/** Body of `POST /v1/onboarding/sessions` (`IdentifyDeclarant`). */
+export const identifyDeclarantBody = z.object({
+  commission: slugSchema,
+  personnelFileNumber: z.string().min(1).max(30).meta({
+    description: 'As on the payslip; compared trimmed and case-insensitively',
+  }),
+  nationalId: z
+    .string()
+    .regex(/^[0-9 ]{5,12}$/)
+    .refine((value) => /^\d{5,10}$/.test(value.replace(/ /g, '')), 'Enter 5 to 10 digits')
+    .meta({ description: 'Digits after stripping spaces, 5 to 10' }),
+});
+
+export type IdentifyDeclarantBody = z.infer<typeof identifyDeclarantBody>;
+
+export const maskedContactSchema = z.object({
+  masked: z.string().meta({ description: 'e.g. j***@moe.go.ke or 07** *** 123' }),
+  source: z.enum(CONTACT_SOURCES),
+  verified: z.boolean(),
+});
+
+export type MaskedContact = z.infer<typeof maskedContactSchema>;
+
+export const onboardingSessionSchema = z.object({
+  id: z.uuid(),
+  state: onboardingStateSchema,
+  commission: onboardingCommissionSchema,
+  contacts: z.object({
+    email: maskedContactSchema.nullable(),
+    phone: maskedContactSchema.nullable(),
+  }),
+  details: z
+    .object({
+      fullName: z.string(),
+      personnelFileNumber: z.string(),
+      designation: z.string().nullable(),
+      reportingEntity: z.string().nullable(),
+    })
+    .nullable()
+    .meta({ description: 'Roster details shown at the confirm step; null before phone-verified' }),
+  otp: z
+    .object({
+      channel: otpChannelSchema.nullable(),
+      resendAvailableAt: z.iso.datetime().nullable(),
+      resendsLeft: z.number().int(),
+      attemptsLeft: z.number().int(),
+    })
+    .meta({
+      description:
+        'Resend availability for the channel currently pending; once confirmed with a new account, `resendAvailableAt` is when the set-password email may be sent again (null: now)',
+    }),
+  outcome: onboardingOutcomeSchema
+    .nullable()
+    .optional()
+    .meta({ description: 'Set when state is confirmed or identity-mismatch' }),
+  ofr: ofrSchema.nullable().optional(),
+  setPasswordEmail: z.enum(SET_PASSWORD_EMAIL_STATUSES).nullable().meta({
+    description:
+      'Once confirmed with a new account (`account-created`): `sent`, the set-password email went; `failed`, the account stands but the email could not be sent, so the portal offers resend-password-email at once. Null for every other session',
+  }),
+  expiresAt: z.iso.datetime().meta({
+    description:
+      'When the session ends: 30 minutes after identify, 10 more per successful step, at most 60 minutes after identify. Once confirmed with a new account, 24 hours after confirm (the set-password link lifespan), so resend-password-email works while the link could lapse',
+  }),
+});
+
+export type OnboardingSession = z.infer<typeof onboardingSessionSchema>;
+
+/** Response of `POST /v1/onboarding/sessions/{sessionId}/confirm`. */
+export const onboardingConfirmResultSchema = z.object({
+  outcome: onboardingOutcomeSchema,
+  session: onboardingSessionSchema,
+});
+
+export type OnboardingConfirmResult = z.infer<typeof onboardingConfirmResultSchema>;
+
+export const onboardingSessionCreatedSchema = onboardingSessionSchema.extend({
+  secret: z.string().meta({
+    description:
+      'Returned once; the BFF stores it in an httpOnly cookie and sends it back in X-Onboarding-Secret',
+  }),
+});
+
+export type OnboardingSessionCreated = z.infer<typeof onboardingSessionCreatedSchema>;
+
+/** Body of `POST .../otp/{channel}/verify` (`VerifyOnboardingOtp`). */
+export const verifyOnboardingOtpBody = z.object({
+  code: z
+    .string()
+    .regex(/^[0-9]{6}$/)
+    .meta({ description: 'The 6-digit code sent to the channel' }),
+});
+
+export type VerifyOnboardingOtpBody = z.infer<typeof verifyOnboardingOtpBody>;
+
+/**
+ * Body of `POST .../contacts` (`ProvideOnboardingContact`): the value normalised for its channel
+ * (email trimmed and lower-cased, phone to E.164 with Kenya as the default country), or 400.
+ */
+export const provideOnboardingContactBody = z
+  .object({
+    channel: otpChannelSchema,
+    value: z.string().max(EMAIL_MAX_LENGTH).meta({
+      description:
+        'An email address, or a phone number (E.164, or a Kenyan number such as 0712345678)',
+    }),
+  })
+  .transform((body, context) => {
+    const channel = CHANNELS[body.channel];
+    const value = channel.normalise(body.value);
+    if (value === null) {
+      context.addIssue({ code: 'custom', path: ['value'], message: channel.invalidMessage });
+      return z.NEVER;
+    }
+    return { channel: body.channel, value };
+  });
+
+export type ProvideOnboardingContactBody = z.output<typeof provideOnboardingContactBody>;
+
+/** The problem codes onboarding routes send. */
+export const ONBOARDING_PROBLEM_CODES = [
+  'no-match',
+  'already-onboarded',
+  'no-roster',
+  'otp-invalid',
+  'otp-expired',
+  'otp-send-failed',
+  'resend-cooldown',
+  'session-expired',
+  'iprs-unavailable',
+  'identity-unavailable',
+  'email-in-use',
+  'rate-limit-exceeded',
+  'wrong-step',
+] as const satisfies readonly ProblemCode[];
+
+export const onboardingProblemSchema = problemDetailsSchema.extend({
+  code: z.enum(ONBOARDING_PROBLEM_CODES),
+  attemptsLeft: z.number().int().optional(),
+  retryAfterSeconds: z.number().int().optional(),
+  links: z
+    .object({ signIn: z.url().optional(), recoverAccess: z.url().optional() })
+    .optional()
+    .meta({ description: 'Present for already-onboarded' }),
+});

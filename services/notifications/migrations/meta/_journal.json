@@ -15,6 +15,20 @@
       "when": 1790465904315,
       "tag": "0001_messages",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1790619717654,
+      "tag": "0002_person_recipients",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1790628487837,
+      "tag": "0003_idempotency_keys",
+      "breakpoints": true
     }
   ]
 }

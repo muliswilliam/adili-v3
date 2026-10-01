@@ -9,7 +9,7 @@ import { SwaggerModule } from '@nestjs/swagger';
 import { Logger } from 'nestjs-pino';
 import { v7 as uuidv7 } from 'uuid';
 
-import type { BaseEnv } from './config.js';
+import { type BaseEnv, TRUSTED_PROXIES_DEFAULT } from './config.js';
 import { createOpenApiDocument, type OpenApiOptions } from './openapi.js';
 
 export interface ServiceOptions {
@@ -32,7 +32,7 @@ export interface ServiceOptions {
  */
 export async function createService(options: ServiceOptions): Promise<NestFastifyApplication> {
   const adapter = new FastifyAdapter({
-    trustProxy: true,
+    trustProxy: options.config.TRUSTED_PROXIES ?? TRUSTED_PROXIES_DEFAULT,
     requestIdHeader: 'x-request-id',
     genReqId: () => uuidv7(),
   });

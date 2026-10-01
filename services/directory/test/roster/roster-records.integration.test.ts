@@ -1,8 +1,8 @@
+import { PLATFORM_TENANT } from '@adili/api-kit';
 import { withTenant } from '@adili/data-access';
-import { and, eq } from 'drizzle-orm';
+import { and, asc, eq } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
-import { PLATFORM_TENANT } from '../../src/commissions/access.js';
 import type { Commission, RosterSummary } from '../../src/commissions/representation.js';
 import { outbox, rosterRecords } from '../../src/db/schema.js';
 import type { RosterImport } from '../../src/roster/import/representation.js';
@@ -202,7 +202,12 @@ describe('S20 visibility', () => {
     );
 
     const audited = (
-      await api.db.select().from(outbox).where(eq(outbox.eventType, 'audit.read.v1'))
+      await api.db
+        .select()
+        .from(outbox)
+        .where(eq(outbox.eventType, 'audit.read.v1'))
+        // Latest last: a select without an order returns rows in any order.
+        .orderBy(asc(outbox.createdAt), asc(outbox.id))
     ).map((row) => row.envelope);
     expect(audited.at(-1)).toMatchObject({
       source: 'adili/directory',
@@ -271,6 +276,9 @@ describe('S21 search and filters', () => {
       absentFromLatestImport: true,
       flaggedByImportId: pscImport.id,
       flaggedAt: '2026-09-25T08:00:00.000Z',
+      ofr: null,
+      onboardedAt: null,
+      identityMismatchAt: null,
     });
   });
 
@@ -358,6 +366,9 @@ describe('S21 search and filters', () => {
       absentFromLatestImport: true,
       flaggedByImportId: pscImport.id,
       flaggedAt: '2026-09-25T08:00:00.000Z',
+      ofr: null,
+      onboardedAt: null,
+      identityMismatchAt: null,
       source: 'file',
       firstSeenImportId: pscImport.id,
       lastSeenImportId: pscImport.id,

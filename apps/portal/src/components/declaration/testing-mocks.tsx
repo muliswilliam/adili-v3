@@ -47,7 +47,6 @@ export function serverMock() {
     getDeclarationSection: vi.fn(),
     saveDeclarationSection: vi.fn(),
     startMyDeclaration: vi.fn(),
-    getMyObligations: vi.fn(),
     getMyDeclarations: vi.fn(),
     discardMyDeclaration: vi.fn(),
     linkDeclarationAttachment: vi.fn(),

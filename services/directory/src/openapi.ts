@@ -9,13 +9,41 @@ import {
   slugSchema,
 } from './commissions/create-commission.js';
 import {
+  createTenantPolicyVersionBody,
+  tenantPolicyHistorySchema,
+  tenantPolicyVersionSchema,
+} from './commissions/policy-representation.js';
+import {
   commissionPageSchema,
   commissionSchema,
+  internalCommissionListSchema,
+  internalCommissionSchema,
   officerCategorySchema,
   reportingOfficerSchema,
   reportingOfficerStateSchema,
   rosterSummarySchema,
 } from './commissions/representation.js';
+import { onboardingFailuresSchema } from './onboarding/failures/representation.js';
+import {
+  identifyDeclarantBody,
+  maskedContactSchema,
+  ofrSchema,
+  onboardingCommissionSchema,
+  onboardingConfirmResultSchema,
+  onboardingOutcomeSchema,
+  onboardingProblemSchema,
+  onboardingSessionCreatedSchema,
+  onboardingSessionSchema,
+  onboardingStateSchema,
+  otpChannelSchema,
+  provideOnboardingContactBody,
+  verifyOnboardingOtpBody,
+} from './onboarding/representation.js';
+import {
+  declarantProfileSchema,
+  personContactsSchema,
+  personSummarySchema,
+} from './persons/representation.js';
 import {
   confirmExitsBody,
   exitsResultSchema,
@@ -44,6 +72,8 @@ import {
   startRosterImportBody,
 } from './roster/import/representation.js';
 import {
+  internalRosterRecordPageSchema,
+  internalRosterRecordSchema,
   reportingEntityRefSchema,
   rosterRecordImportSchema,
   rosterRecordListItemSchema,
@@ -73,6 +103,11 @@ export const OPENAPI_SCHEMAS: Record<string, z.ZodType> = {
   RosterSummary: rosterSummarySchema,
   Commission: commissionSchema,
   CommissionPage: commissionPageSchema,
+  InternalCommission: internalCommissionSchema,
+  InternalCommissionList: internalCommissionListSchema,
+  TenantPolicyVersion: tenantPolicyVersionSchema,
+  TenantPolicyHistory: tenantPolicyHistorySchema,
+  CreateTenantPolicyVersion: createTenantPolicyVersionBody,
   RosterApiCredential: rosterApiCredentialSchema,
   RosterApiCredentialWithSecret: rosterApiCredentialWithSecretSchema,
   ImportChannel: importChannelSchema,
@@ -99,9 +134,28 @@ export const OPENAPI_SCHEMAS: Record<string, z.ZodType> = {
   RosterRecordImport: rosterRecordImportSchema,
   RosterRecord: rosterRecordSchema,
   RosterRecordPage: rosterRecordPageSchema,
+  InternalRosterRecord: internalRosterRecordSchema,
+  InternalRosterRecordPage: internalRosterRecordPageSchema,
   ConfirmExits: confirmExitsBody,
   ExitsResult: exitsResultSchema,
   KeepRosterRecords: keepRosterRecordsBody,
   KeepResult: keepResultSchema,
   RecordRosterExit: recordRosterExitBody,
+  Ofr: ofrSchema,
+  OtpChannel: otpChannelSchema,
+  OnboardingCommission: onboardingCommissionSchema,
+  IdentifyDeclarant: identifyDeclarantBody,
+  OnboardingState: onboardingStateSchema,
+  MaskedContact: maskedContactSchema,
+  OnboardingOutcome: onboardingOutcomeSchema,
+  OnboardingSession: onboardingSessionSchema,
+  OnboardingSessionCreated: onboardingSessionCreatedSchema,
+  OnboardingConfirmResult: onboardingConfirmResultSchema,
+  OnboardingProblem: onboardingProblemSchema,
+  OnboardingFailures: onboardingFailuresSchema,
+  DeclarantProfile: declarantProfileSchema,
+  PersonSummary: personSummarySchema,
+  PersonContacts: personContactsSchema,
+  VerifyOnboardingOtp: verifyOnboardingOtpBody,
+  ProvideOnboardingContact: provideOnboardingContactBody,
 };

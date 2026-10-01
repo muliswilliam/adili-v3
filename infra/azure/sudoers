@@ -1,0 +1,2 @@
+# GitHub Actions may sudo only this root-owned wrapper, not the rsynced tree.
+adili ALL=(root) NOPASSWD: /usr/local/sbin/adili-demo-root

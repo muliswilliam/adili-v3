@@ -7,6 +7,7 @@ import {
   type BadgeProps,
   Button,
   Card,
+  formatDate,
   Icon,
   plural,
   Tooltip,
@@ -41,7 +42,6 @@ import type { ServiceError } from '../../server/service-call';
 import { clarificationActions } from '../../clarification/actions';
 import { CLARIFICATION_STATUSES, REQUIREMENT_LABELS, type Tone } from '../../clarification/labels';
 import { historyOf, statusLine } from '../../clarification/view';
-import { formatDate } from '../format';
 import { Page, PageHead, SectionCard } from '../page';
 import { ResolveDialog, WithdrawDialog } from './clarification-dialogs';
 

@@ -1,14 +1,16 @@
 import { TokenVerifier } from '@adili/api-kit';
 import { describe, expect, it } from 'vitest';
 
-import { IdentityUnavailable } from '../../src/identity/identity-provisioning.js';
+import { IdentityUnavailable, UsernameTaken } from '../../src/identity/identity-provisioning.js';
 import { KeycloakIdentityProvisioning } from '../../src/identity/keycloak-identity-provisioning.js';
 import {
   ACTIVATION,
+  declarant,
   identityProvisioningContract,
   type InspectedUser,
   reportingOfficer,
   uniqueEmail,
+  uniqueOfr,
 } from './identity-provisioning.contract.js';
 
 /**
@@ -38,6 +40,7 @@ identityProvisioningContract('KeycloakIdentityProvisioning', () => ({
     const user = await admin<{
       username: string;
       email: string;
+      emailVerified: boolean;
       firstName?: string;
       lastName?: string;
       enabled: boolean;
@@ -48,8 +51,12 @@ identityProvisioningContract('KeycloakIdentityProvisioning', () => ({
     return {
       username: user.username,
       email: user.email,
+      emailVerified: user.emailVerified,
       name: [user.firstName, user.lastName].filter(Boolean).join(' '),
       tenant: user.attributes?.tenant?.[0] ?? null,
+      tenants: user.attributes?.tenants ?? [],
+      ofr: user.attributes?.ofr?.[0] ?? null,
+      personId: user.attributes?.person_id?.[0] ?? null,
       phone: user.attributes?.phone?.[0] ?? null,
       commissionName: user.attributes?.commissionName?.[0] ?? null,
       invitedRole: user.attributes?.invitedRole?.[0] ?? null,
@@ -71,7 +78,23 @@ identityProvisioningContract('KeycloakIdentityProvisioning', () => ({
     }
     // The link carries Keycloak's action token; its claims hold the lifespan and redirect.
     const claims = actionTokenClaims(message.text);
-    expect(claims.exp - claims.iat).toBe(options.lifespanSeconds);
+    // Keycloak reads the clock separately for iat and exp, so they can land a second apart.
+    expectLifespan(claims, options.lifespanSeconds);
+    expect(claims.reduri).toBe(options.redirectUri);
+    expect(claims.azp).toBe(options.clientId);
+    expect(claims.rqac).toEqual([...options.actions]);
+    await deleteMessages([message.id]);
+  },
+  expectExecuteActionsDelivered: async (email, _userId, options) => {
+    const message = await activationMessage(email);
+    expect(message.subject).toBe('Activate your Adili Online account');
+    // Without invitation attributes the theme renders its generic account-setup email.
+    for (const body of [message.text, message.html.replace(/<[^>]+>/g, '')]) {
+      expect(body).not.toContain('reporting officer');
+      expect(body).toContain('This link expires in 24 hours.');
+    }
+    const claims = actionTokenClaims(message.text);
+    expectLifespan(claims, options.lifespanSeconds);
     expect(claims.reduri).toBe(options.redirectUri);
     expect(claims.azp).toBe(options.clientId);
     expect(claims.rqac).toEqual([...options.actions]);
@@ -108,6 +131,29 @@ identityProvisioningContract('KeycloakIdentityProvisioning', () => ({
   },
 }));
 
+describe('KeycloakIdentityProvisioning with an OFR held by another account', () => {
+  it('reports UsernameTaken, not EmailTaken, and leaves that account alone', async () => {
+    const ofr = uniqueOfr();
+    await admin('POST', '/users', {
+      username: ofr,
+      email: uniqueEmail('holder'),
+      enabled: true,
+    });
+    const [holder] = await admin<{ id: string }[]>(
+      'GET',
+      `/users?username=${encodeURIComponent(ofr)}&exact=true`,
+    );
+    try {
+      await expect(
+        adapter.createDeclarantUser(declarant(uniqueEmail('blocked'), ofr)),
+      ).rejects.toBeInstanceOf(UsernameTaken);
+      await expect(adapter.findById(String(holder?.id))).resolves.not.toBeNull();
+    } finally {
+      if (holder) await admin('DELETE', `/users/${holder.id}`);
+    }
+  });
+});
+
 describe('KeycloakIdentityProvisioning against an unreachable Keycloak', () => {
   it('reports IdentityUnavailable', async () => {
     const unreachable = new KeycloakIdentityProvisioning({
@@ -138,17 +184,22 @@ describe('KeycloakIdentityProvisioning against an unreachable Keycloak', () => {
 // Independent admin access for inspection and cleanup, with the same service account.
 let adminToken: string | undefined;
 
-async function admin<T = unknown>(method: string, path: string): Promise<T> {
+async function admin<T = unknown>(method: string, path: string, body?: unknown): Promise<T> {
   adminToken ??= await clientCredentialsToken();
   const base = ISSUER_URL.replace('/realms/', '/admin/realms/');
   const response = await fetch(`${base}${path}`, {
     method,
-    headers: { authorization: `Bearer ${adminToken}` },
+    headers: {
+      authorization: `Bearer ${adminToken}`,
+      ...(body === undefined ? {} : { 'content-type': 'application/json' }),
+    },
+    body: body === undefined ? undefined : JSON.stringify(body),
   });
   if (!response.ok) {
     throw new Error(`${method} ${path} answered ${response.status}: ${await response.text()}`);
   }
-  return (response.status === 204 ? undefined : await response.json()) as T;
+  const text = await response.text();
+  return (text === '' ? undefined : JSON.parse(text)) as T;
 }
 
 async function clientCredentialsToken(): Promise<string> {
@@ -218,6 +269,11 @@ function actionTokenClaims(text: string): ActionTokenClaims {
     throw new Error(`No action token link in email:\n${text}`);
   }
   return JSON.parse(Buffer.from(token, 'base64url').toString('utf8')) as ActionTokenClaims;
+}
+
+function expectLifespan(claims: ActionTokenClaims, lifespanSeconds: number): void {
+  expect(claims.exp - claims.iat).toBeGreaterThanOrEqual(lifespanSeconds - 1);
+  expect(claims.exp - claims.iat).toBeLessThanOrEqual(lifespanSeconds);
 }
 
 function requireEnv(name: string): string {

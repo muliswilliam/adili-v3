@@ -1,20 +1,20 @@
 import { describe, expect, it } from 'vitest';
 
-import { workspaceFor, workspacesFor } from './workspaces';
+import { opensOwnPolicy, readsCommissionPolicy, workspaceFor, workspacesFor } from './workspaces';
 
 const ids = (roles: string[]) => workspacesFor(roles).map((workspace) => workspace.id);
 
 describe('workspacesFor', () => {
-  it('gives reviewers the review queue only', () => {
-    expect(ids(['reviewer', 'default-roles-adili'])).toEqual(['review']);
+  it('gives reviewers the review queue and obligations', () => {
+    expect(ids(['reviewer', 'default-roles-adili'])).toEqual(['review', 'obligations']);
   });
 
-  it('gives supervisors review and approvals, once each', () => {
-    expect(ids(['supervisor', 'reviewer'])).toEqual(['review', 'approvals']);
+  it('gives supervisors review, approvals and obligations, once each', () => {
+    expect(ids(['supervisor', 'reviewer'])).toEqual(['review', 'approvals', 'obligations']);
   });
 
-  it('gives EACC analysts Commissions and compliance reports but not the review queue', () => {
-    expect(ids(['eacc-analyst'])).toEqual(['commissions', 'compliance']);
+  it('gives EACC analysts Commissions, national obligations and compliance reports but not the review queue', () => {
+    expect(ids(['eacc-analyst'])).toEqual(['commissions', 'national-obligations', 'compliance']);
   });
 
   it('gives declarants nothing in the console', () => {
@@ -97,4 +97,72 @@ describe('Roster workspace', () => {
   ])('stays closed for %s', (role) => {
     expect(workspaceFor([role], 'roster')).toBeUndefined();
   });
+});
+
+describe('Obligations workspace', () => {
+  it.each(['reporting-officer', 'reviewer', 'supervisor', 'commission-admin'])(
+    'opens for %s',
+    (role) => {
+      expect(workspaceFor([role], 'obligations')).toEqual({
+        id: 'obligations',
+        title: 'Obligations',
+        description: 'Who must declare, by when, and who has been reminded.',
+        href: '/obligations',
+        readOnly: false,
+      });
+    },
+  );
+
+  it.each(['platform-admin', 'eacc-analyst', 'eacc-supervisor', 'access-officer', 'declarant'])(
+    'stays closed for %s, who reach counts through the Commission',
+    (role) => {
+      expect(workspaceFor([role], 'obligations')).toBeUndefined();
+    },
+  );
+});
+
+describe("the Obligations workspace's policy page (spec 04 access table)", () => {
+  it('opens for commission admins, who change the start date', () => {
+    expect(opensOwnPolicy(['commission-admin'])).toBe(true);
+    expect(opensOwnPolicy(['reviewer', 'commission-admin'])).toBe(true);
+  });
+
+  it.each(['reporting-officer', 'reviewer', 'supervisor', 'platform-admin', 'eacc-analyst'])(
+    'stays closed for %s',
+    (role) => {
+      expect(opensOwnPolicy([role])).toBe(false);
+    },
+  );
+});
+
+describe("the policy card on a Commission's page (spec 04 FE-4)", () => {
+  it("is the platform admin's", () => {
+    expect(readsCommissionPolicy(['platform-admin'])).toBe(true);
+  });
+
+  it.each(['eacc-analyst', 'eacc-supervisor', 'commission-admin', 'reporting-officer'])(
+    'is not for %s',
+    (role) => {
+      expect(readsCommissionPolicy([role])).toBe(false);
+    },
+  );
+});
+
+describe('S16 National obligations workspace', () => {
+  it.each(['platform-admin', 'eacc-analyst', 'eacc-supervisor'])('opens for %s', (role) => {
+    expect(workspaceFor([role], 'national-obligations')).toEqual({
+      id: 'national-obligations',
+      title: 'National obligations',
+      description: 'Due and overdue counts per Commission.',
+      href: '/obligations/national',
+      readOnly: false,
+    });
+  });
+
+  it.each(['reporting-officer', 'reviewer', 'supervisor', 'commission-admin', 'declarant'])(
+    'stays closed for %s',
+    (role) => {
+      expect(workspaceFor([role], 'national-obligations')).toBeUndefined();
+    },
+  );
 });

@@ -8,8 +8,10 @@ import { Reflector } from '@nestjs/core';
 import {
   ACTING_TENANT_HEADER,
   type AuditedReadOptions,
+  type AuditedResource,
   type AuthenticatedRequest,
   auditedReadOf,
+  readAuditOf,
 } from '@adili/api-kit';
 import { type Database, InjectDatabase } from '@adili/data-access';
 import { mergeMap, type Observable } from 'rxjs';
@@ -27,6 +29,10 @@ export interface AuditReadData extends Record<string, unknown> {
     type: AuditedReadOptions['resource'];
     /** The route's path parameters (ids and slugs; never the query, which may hold searches). */
     params: Record<string, string>;
+    /** The tenant whose data was read (the event's `tenant`); null when none is known. */
+    tenant: string | null;
+    /** The person the data is about, when the handler named one; null otherwise. */
+    subjectPersonId: string | null;
   };
   actor: {
     /** Token `sub`: a user, or a service account. */
@@ -51,9 +57,11 @@ type AuditedRequest = AuthenticatedRequest & { params?: Record<string, string> }
  * `@AuditedRead` (api-kit), before the response is sent: a read the audit trail cannot record
  * fails instead of going unrecorded. The event carries the action, the resource's path
  * parameters, the actor from the verified token and the route, no response data; its `tenant`
- * is the tenant whose data was read (the route's `slug`, else the tenant a service acts for,
- * else the caller's). Registered for every route by `EventsModule`; routes without the mark
- * pass through untouched. Refused requests never reach it (guards run first); they are the
+ * is the tenant whose data was read: the one the handler named with `ReadAudit.resource` (with
+ * the person the data is about), else the route's `slug`, else the tenant a service acts for,
+ * else the caller's. A read the handler marked `ReadAudit.ownRecord` (the caller's own record)
+ * is not recorded. Registered for every route by `EventsModule`; routes without the mark pass
+ * through untouched. Refused requests never reach it (guards run first); they are the
  * audit service's to record from denials.
  */
 @Injectable()
@@ -73,18 +81,26 @@ export class AuditedReadInterceptor implements NestInterceptor {
     const request = context.switchToHttp().getRequest<AuditedRequest>();
     return next.handle().pipe(
       mergeMap(async (body: unknown) => {
-        await this.events.record(this.db, auditRead(mark, request));
+        const audit = readAuditOf(request);
+        if (!audit.isOwnRecord) {
+          await this.events.record(this.db, auditRead(mark, request, audit.describedResource));
+        }
         return body;
       }),
     );
   }
 }
 
-function auditRead(mark: AuditedReadOptions, request: AuditedRequest): NewEvent<AuditReadData> {
+function auditRead(
+  mark: AuditedReadOptions,
+  request: AuditedRequest,
+  resource: AuditedResource | undefined,
+): NewEvent<AuditReadData> {
   const principal = request.principal;
   const params = request.params ?? {};
   const actingTenant = request.headers[ACTING_TENANT_HEADER];
   const tenant =
+    resource?.tenant ??
     params.slug ??
     (typeof actingTenant === 'string' ? actingTenant : undefined) ??
     principal?.tenant ??
@@ -94,7 +110,12 @@ function auditRead(mark: AuditedReadOptions, request: AuditedRequest): NewEvent<
     tenant,
     data: {
       action: mark.action,
-      resource: { type: mark.resource, params: { ...params } },
+      resource: {
+        type: mark.resource,
+        params: { ...params },
+        tenant: tenant ?? null,
+        subjectPersonId: resource?.subjectPersonId ?? null,
+      },
       actor: {
         subject: principal?.subject ?? 'anonymous',
         clientId: principal?.clientId ?? null,

@@ -29,6 +29,7 @@ function session(
     otp: { channel: null, resendAvailableAt: null, resendsLeft: 3, attemptsLeft: 5 },
     outcome,
     ofr: null,
+    setPasswordEmail: null,
     expiresAt: '2099-01-01T00:00:00Z',
   };
 }

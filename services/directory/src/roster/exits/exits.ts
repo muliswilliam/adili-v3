@@ -5,7 +5,7 @@ import { and, eq, inArray, ne, sql } from 'drizzle-orm';
 
 import type { Transaction } from '../../commissions/commissions.service.js';
 import { eventActorOf, type RosterActor } from '../actor.js';
-import { rosterRecords } from '../schema.js';
+import { rosterExits, rosterRecords } from '../schema.js';
 import { recomputeRosterSummary } from '../summary.js';
 import { type ExitSource, rosterExitsConfirmed, rosterRecordsKept } from './events.js';
 
@@ -63,10 +63,12 @@ export interface ConfirmExits {
 
 /**
  * Exits the records: `exited` with their exit date, the state they had kept for a re-activation
- * to restore, the absent flag cleared, and the actor stamped as who resolved them. An exited record stays on the roster (for the final declaration)
- * but no longer counts as expected. HR-system exits also make `api` the record's source.
- * All or nothing: throws `RosterRecordsNotFound` or `RosterRecordsExited` naming the offending
- * records, and changes nothing. Records `roster.exits.confirmed.v1`.
+ * to restore, the absent flag cleared, and the actor stamped as who resolved them. An exited
+ * record stays on the roster (for the final declaration) but no longer counts as expected.
+ * HR-system exits also make `api` the record's source. Each exit is kept under the batch id the
+ * event carries, for consumers to pull. All or nothing: throws `RosterRecordsNotFound` or
+ * `RosterRecordsExited` naming the offending records, and changes nothing. Records
+ * `roster.exits.confirmed.v1`.
  */
 export async function confirmExits(
   tx: Transaction,
@@ -94,9 +96,17 @@ export async function confirmExits(
     from jsonb_to_recordset(${JSON.stringify(source)}::jsonb) as source(id uuid, exit_date date)
     where target.id = source.id and target.tenant = ${command.tenant}
   `);
+  const batchId = randomUUID();
+  await tx.insert(rosterExits).values(
+    command.exits.map((exit) => ({
+      batchId,
+      recordId: exit.recordId,
+      tenant: command.tenant,
+      exitDate: exit.exitDate,
+    })),
+  );
   await recomputeRosterSummary(tx, command.tenant);
 
-  const batchId = randomUUID();
   await events.record(
     tx,
     rosterExitsConfirmed(command.tenant, {
