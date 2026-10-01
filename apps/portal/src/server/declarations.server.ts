@@ -188,7 +188,8 @@ export type LinkResult =
 
 /**
  * `POST /v1/declarations/{id}/attachments`. The service writes the reference into the item and
- * bumps the draft version without returning it, so reload the section's ETag afterwards.
+ * bumps the draft version; callers read the section back for its ETag and the item's
+ * attachments.
  */
 export function linkAttachment(
   client: DeclarationsClient,
