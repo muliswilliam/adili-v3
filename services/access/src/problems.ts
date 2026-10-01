@@ -91,6 +91,16 @@ export function documentsUnavailable(): ProblemException {
   });
 }
 
+/** 503 `declarations-unavailable`: the declarant's versions cannot be listed; nothing was done. */
+export function declarationsUnavailable(): ProblemException {
+  return new ProblemException({
+    type: 'declarations-unavailable',
+    title: 'Upstream service unavailable',
+    status: HttpStatus.SERVICE_UNAVAILABLE,
+    detail: "The declarant's declarations cannot be listed right now. Try again shortly.",
+  });
+}
+
 /** 503 `key-service-unavailable`: the Commission's key cannot be used; nothing was stored. */
 export function keyServiceUnavailable(): ProblemException {
   return new ProblemException({

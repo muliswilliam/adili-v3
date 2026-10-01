@@ -9,6 +9,7 @@ import {
   type DisclosureDocument,
   type DisclosureRequest,
   type FullDocumentRequest,
+  type PersonVersion,
   type VersionDocument,
 } from './declarations-client.js';
 
@@ -34,6 +35,18 @@ const versionDocumentSchema = z.looseObject({
   version: z.int(),
   personId: z.uuid(),
 });
+
+/** The fields of `InternalPersonVersion` the access service relies on. */
+const personVersionsSchema = z.array(
+  z.looseObject({
+    declarationId: z.uuid(),
+    version: z.int(),
+    reference: z.string(),
+    statementDate: z.iso.date(),
+    submittedAt: z.iso.datetime({ offset: true }),
+    superseded: z.boolean(),
+  }),
+);
 
 const none = (): null => null;
 
@@ -96,5 +109,20 @@ export class HttpDeclarationsClient extends DeclarationsClient {
       },
     );
     return document as VersionDocument | null;
+  }
+
+  async personVersions(tenant: string, personId: string): Promise<PersonVersion[]> {
+    const versions = await this.declarations.call(
+      (api) =>
+        api.GET('/internal/v1/persons/{personId}/declaration-versions', {
+          params: { path: { personId }, header: { 'X-Acting-Tenant': tenant } },
+        }),
+      {
+        status: 200,
+        schema: personVersionsSchema,
+        otherwise: refusedWith('declarations', [400, 403]),
+      },
+    );
+    return versions as PersonVersion[];
   }
 }

@@ -1133,6 +1133,357 @@ paths:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/ProblemDetails'
+  /v1/commissions/{slug}/access/self-access/declarants:
+    get:
+      tags:
+        - officer
+      summary: Search the Commission's roster for the declarant of a written self-access application
+      description: By personnel file number (its beginning) or part of the name, at most 20 records by full name. Only an `onboarded` record has declarations to copy.
+      operationId: searchSelfAccessDeclarants
+      parameters:
+        - name: slug
+          required: true
+          in: path
+          schema:
+            type: string
+            pattern: ^[a-z][a-z0-9]{1,19}$
+        - name: q
+          required: true
+          in: query
+          description: A personnel file number or its beginning, or part of a name (both case-insensitive)
+          schema:
+            type: string
+            minLength: 2
+            maxLength: 200
+      responses:
+        '200':
+          description: Records
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RosterCandidates'
+        '400':
+          description: No search of at least 2 characters
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '403':
+          description: |-
+            The Commission supervisor reads applications; only its access officer acts
+
+            Requires one of the roles: access-officer, supervisor, eacc-analyst, eacc-supervisor
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: Not the caller's Commission (another Commission's, EACC's or anyone else's)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '503':
+          description: The directory cannot be reached
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+  /v1/commissions/{slug}/access/self-access/declarants/{rosterRecordId}/versions:
+    get:
+      tags:
+        - officer
+      summary: The declarant's submitted versions a certified copy can be of
+      description: Latest submitted first, with the reference, type, statement date and whether a later version replaced it; no content. Empty for a record not onboarded.
+      operationId: listSelfAccessDeclarantVersions
+      parameters:
+        - name: slug
+          required: true
+          in: path
+          schema:
+            type: string
+            pattern: ^[a-z][a-z0-9]{1,19}$
+        - name: rosterRecordId
+          required: true
+          in: path
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Versions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeclarantVersions'
+        '400':
+          description: rosterRecordId is not a UUID
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '403':
+          description: |-
+            The Commission supervisor reads applications; only its access officer acts
+
+            Requires one of the roles: access-officer, supervisor, eacc-analyst, eacc-supervisor
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: Not the caller's Commission (another Commission's, EACC's or anyone else's), or no such roster record of the Commission
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '503':
+          description: The directory or declarations cannot be reached
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+  /v1/commissions/{slug}/access/self-access:
+    post:
+      tags:
+        - officer
+      summary: Record a written self-access application and issue its certified copy
+      description: The declarant's identity check, and for a representative their name, ID number (stored encrypted), written authority and ID as the officer's clean uploads of purpose `access-representation`. The certified copy (Restricted, the declarant its subject) is ordered at once and due 14 days from receipt; once issued it is registered `self-access` naming the representative (`access.certified-copy.issued.v1`) and shows in the declarant's access history. Follow `certifiedCopy.status` until `issued`, then mark it collected or dispatched.
+      operationId: recordSelfAccessApplication
+      parameters:
+        - name: slug
+          required: true
+          in: path
+          schema:
+            type: string
+            pattern: ^[a-z][a-z0-9]{1,19}$
+        - name: Idempotency-Key
+          in: header
+          description: Client-generated UUID, unique per logical request; reuse on retry
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SelfAccessApplicationInput'
+      responses:
+        '201':
+          description: Recorded; the certified copy is being issued
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SelfAccessApplicationDetail'
+        '400':
+          description: The body failed validation; `rosterRecordId` is not an onboarded roster record of the Commission, `version` not a submitted version of its declarant, or a representative upload not a clean `access-representation` upload of the caller; `errors` name the field
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '403':
+          description: |-
+            The Commission supervisor reads applications; only its access officer acts
+
+            Requires one of the roles: access-officer, supervisor, eacc-analyst, eacc-supervisor
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: Not the caller's Commission (another Commission's, EACC's or anyone else's)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '422':
+          description: Idempotency-Key reused with a different request body
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '503':
+          description: The directory, declarations, documents, the key service or the workflow engine cannot be reached; nothing was recorded
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+    get:
+      tags:
+        - officer
+      summary: The Commission's written self-access applications with their deadlines
+      description: 'Earliest deadline first. `late`: the certified copy was not issued by the deadline (14 days from receipt).'
+      operationId: listSelfAccessApplications
+      parameters:
+        - name: slug
+          required: true
+          in: path
+          schema:
+            type: string
+            pattern: ^[a-z][a-z0-9]{1,19}$
+        - name: status
+          required: false
+          in: query
+          description: Only applications in this status
+          schema:
+            type: string
+            enum:
+              - recorded
+              - issued
+              - delivered
+        - name: cursor
+          required: false
+          in: query
+          description: '`nextCursor` of the previous page; omit for the first page'
+          schema:
+            type: string
+            maxLength: 500
+        - name: limit
+          required: false
+          in: query
+          schema:
+            default: 50
+            type: integer
+            minimum: 1
+            maximum: 100
+      responses:
+        '200':
+          description: Page
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SelfAccessPage'
+        '400':
+          description: Query failed validation, or an unknown cursor
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '403':
+          description: 'Requires one of the roles: access-officer, supervisor, eacc-analyst, eacc-supervisor'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: Not the caller's Commission (another Commission's, EACC's or anyone else's)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+  /v1/access/self-access/{applicationId}:
+    get:
+      tags:
+        - officer
+      summary: A written self-access application, with the representative's ID number
+      operationId: getSelfAccessApplication
+      parameters:
+        - name: applicationId
+          required: true
+          in: path
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Application
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SelfAccessApplicationDetail'
+        '400':
+          description: applicationId is not a UUID
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '403':
+          description: 'Requires one of the roles: access-officer, supervisor, eacc-analyst, eacc-supervisor'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: No such application at the caller's Commission
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '503':
+          description: The key service cannot be reached
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+  /v1/access/self-access/{applicationId}/delivered:
+    post:
+      tags:
+        - officer
+      summary: Mark the issued certified copy collected or dispatched
+      description: As the application was marked (`deliveryMethod`); the application becomes `delivered`. Only once the certified copy is issued, and once.
+      operationId: markSelfAccessDelivered
+      parameters:
+        - name: applicationId
+          required: true
+          in: path
+          schema:
+            type: string
+            format: uuid
+        - name: Idempotency-Key
+          in: header
+          description: Optional. Client-generated UUID, unique per logical request; reuse on retry and the stored answer is replayed instead of acting twice
+          required: false
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Marked
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SelfAccessApplicationDetail'
+        '400':
+          description: applicationId is not a UUID
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '403':
+          description: |-
+            The Commission supervisor reads applications; only its access officer acts
+
+            Requires one of the roles: access-officer, supervisor, eacc-analyst, eacc-supervisor
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: No such application at the caller's Commission
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '409':
+          description: The certified copy is not issued yet, or is marked already
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '422':
+          description: Idempotency-Key reused with a different request body
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '503':
+          description: The key service cannot be reached
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
 components:
   securitySchemes:
     bearer:
@@ -2217,6 +2568,374 @@ components:
         - declarantNotifiedAt
         - package
         - timeline
+    DeclarantVersion:
+      type: object
+      properties:
+        declarationId:
+          type: string
+          format: uuid
+        version:
+          type: integer
+          minimum: 1
+        reference:
+          type: string
+          description: The declaration's reference (ADR-011)
+        type:
+          type: string
+          enum:
+            - initial
+            - biennial
+            - final
+        statementDate:
+          type: string
+          format: date
+        submittedAt:
+          type: string
+          format: date-time
+        superseded:
+          type: boolean
+          description: A later version of the declaration replaced it
+      required:
+        - declarationId
+        - version
+        - reference
+        - type
+        - statementDate
+        - submittedAt
+        - superseded
+    DeclarantVersions:
+      type: object
+      properties:
+        declarant:
+          type: object
+          properties:
+            rosterRecordId:
+              type: string
+              format: uuid
+            personnelFileNumber:
+              type: string
+            fullName:
+              type: string
+            onboarded:
+              type: boolean
+          required:
+            - rosterRecordId
+            - personnelFileNumber
+            - fullName
+            - onboarded
+        versions:
+          type: array
+          items:
+            $ref: '#/components/schemas/DeclarantVersion'
+          description: Latest submitted first; empty for a declarant with none here
+      required:
+        - declarant
+        - versions
+    SelfAccessApplicationInput:
+      type: object
+      properties:
+        rosterRecordId:
+          type: string
+          format: uuid
+          description: The declarant's roster record at the Commission (an onboarded one)
+        declarationId:
+          type: string
+          format: uuid
+        version:
+          type: integer
+          minimum: 1
+          description: The submitted version the copy is of
+        identityNote:
+          type: string
+          minLength: 1
+          maxLength: 1000
+          description: What the access officer checked of the applicant's identity (the declarant's, or the representative's and their authority); no document numbers
+        representative:
+          anyOf:
+            - type: object
+              properties:
+                name:
+                  type: string
+                  minLength: 1
+                  maxLength: 200
+                  description: As on their ID
+                idNumber:
+                  type: string
+                  minLength: 1
+                  maxLength: 50
+                  description: National ID or passport number; stored encrypted
+                authorityUploadId:
+                  type: string
+                  format: uuid
+                  description: "The written authority to act for the declarant: the caller's clean upload of purpose `access-representation`"
+                idUploadId:
+                  type: string
+                  format: uuid
+                  description: "A copy of the representative's ID: the caller's clean upload of purpose `access-representation`"
+              required:
+                - name
+                - idNumber
+                - authorityUploadId
+                - idUploadId
+              additionalProperties: false
+            - type: 'null'
+          description: Who applied on the declarant's behalf; null when the declarant applied
+        deliveryMethod:
+          type: string
+          enum:
+            - collection
+            - dispatch
+          description: Whether the copy is to be collected at the Commission or dispatched
+      required:
+        - rosterRecordId
+        - declarationId
+        - version
+        - identityNote
+        - representative
+        - deliveryMethod
+      additionalProperties: false
+    SelfAccessApplication:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum:
+            - recorded
+            - issued
+            - delivered
+        declarant:
+          type: object
+          properties:
+            rosterRecordId:
+              type: string
+              format: uuid
+            fullName:
+              type: string
+            personnelFileNumber:
+              type: string
+          required:
+            - rosterRecordId
+            - fullName
+            - personnelFileNumber
+        declarationId:
+          type: string
+          format: uuid
+        version:
+          type: integer
+          minimum: 1
+        declarationReference:
+          type: string
+        identityNote:
+          type: string
+        representative:
+          anyOf:
+            - type: object
+              properties:
+                name:
+                  type: string
+                authority:
+                  type: object
+                  properties:
+                    uploadId:
+                      type: string
+                      format: uuid
+                    fileName:
+                      type: string
+                  required:
+                    - uploadId
+                    - fileName
+                identification:
+                  type: object
+                  properties:
+                    uploadId:
+                      type: string
+                      format: uuid
+                    fileName:
+                      type: string
+                  required:
+                    - uploadId
+                    - fileName
+              required:
+                - name
+                - authority
+                - identification
+            - type: 'null'
+          description: Null when the declarant applied in person
+        deliveryMethod:
+          type: string
+          enum:
+            - collection
+            - dispatch
+        receivedAt:
+          type: string
+          format: date-time
+        deadlineAt:
+          type: string
+          format: date-time
+          description: 'Receipt + 14 days: when the certified copy is due'
+        late:
+          type: boolean
+          description: The certified copy was not issued by the deadline (now, or when it was issued)
+        deliveredAt:
+          anyOf:
+            - type: string
+              format: date-time
+            - type: 'null'
+          description: When it was marked collected or dispatched
+        recordedBy:
+          type: string
+          description: The access officer who recorded it
+        certifiedCopy:
+          $ref: '#/components/schemas/CertifiedCopy'
+      required:
+        - id
+        - status
+        - declarant
+        - declarationId
+        - version
+        - declarationReference
+        - identityNote
+        - representative
+        - deliveryMethod
+        - receivedAt
+        - deadlineAt
+        - late
+        - deliveredAt
+        - recordedBy
+        - certifiedCopy
+    SelfAccessApplicationDetail:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum:
+            - recorded
+            - issued
+            - delivered
+        declarant:
+          type: object
+          properties:
+            rosterRecordId:
+              type: string
+              format: uuid
+            fullName:
+              type: string
+            personnelFileNumber:
+              type: string
+          required:
+            - rosterRecordId
+            - fullName
+            - personnelFileNumber
+        declarationId:
+          type: string
+          format: uuid
+        version:
+          type: integer
+          minimum: 1
+        declarationReference:
+          type: string
+        identityNote:
+          type: string
+        representative:
+          anyOf:
+            - type: object
+              properties:
+                name:
+                  type: string
+                authority:
+                  type: object
+                  properties:
+                    uploadId:
+                      type: string
+                      format: uuid
+                    fileName:
+                      type: string
+                  required:
+                    - uploadId
+                    - fileName
+                identification:
+                  type: object
+                  properties:
+                    uploadId:
+                      type: string
+                      format: uuid
+                    fileName:
+                      type: string
+                  required:
+                    - uploadId
+                    - fileName
+                idNumber:
+                  type: string
+              required:
+                - name
+                - authority
+                - identification
+                - idNumber
+            - type: 'null'
+          description: Null when the declarant applied in person
+        deliveryMethod:
+          type: string
+          enum:
+            - collection
+            - dispatch
+        receivedAt:
+          type: string
+          format: date-time
+        deadlineAt:
+          type: string
+          format: date-time
+          description: 'Receipt + 14 days: when the certified copy is due'
+        late:
+          type: boolean
+          description: The certified copy was not issued by the deadline (now, or when it was issued)
+        deliveredAt:
+          anyOf:
+            - type: string
+              format: date-time
+            - type: 'null'
+          description: When it was marked collected or dispatched
+        recordedBy:
+          type: string
+          description: The access officer who recorded it
+        certifiedCopy:
+          $ref: '#/components/schemas/CertifiedCopy'
+      required:
+        - id
+        - status
+        - declarant
+        - declarationId
+        - version
+        - declarationReference
+        - identityNote
+        - representative
+        - deliveryMethod
+        - receivedAt
+        - deadlineAt
+        - late
+        - deliveredAt
+        - recordedBy
+        - certifiedCopy
+    SelfAccessPage:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/SelfAccessApplication'
+        nextCursor:
+          description: Pass as `cursor` for the next page; null on the last page
+          type:
+            - string
+            - 'null'
+      required:
+        - items
+        - nextCursor
     ProblemDetails:
       type: object
       properties:

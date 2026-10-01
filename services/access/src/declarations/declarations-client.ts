@@ -49,6 +49,12 @@ export interface FullDocumentRequest {
   actingSubject: string;
 }
 
+/**
+ * declarations.yaml `InternalPersonVersion`: one of a declarant's submitted versions at the
+ * Commission, as the access officer chooses what a certified copy is of. No content.
+ */
+export type PersonVersion = components['schemas']['InternalPersonVersion'];
+
 /** The declarations service is unreachable or answered outside its contract; activities retry. */
 export class DeclarationsUnavailable extends Error {
   constructor(message: string, options?: ErrorOptions) {
@@ -72,4 +78,10 @@ export abstract class DeclarationsClient {
    * or does not exist.
    */
   abstract fullDocument(request: FullDocumentRequest): Promise<VersionDocument | null>;
+
+  /**
+   * The declarant's submitted versions at the Commission `tenant`, latest submitted first (empty
+   * when it has none of theirs): what a certified copy can be of.
+   */
+  abstract personVersions(tenant: string, personId: string): Promise<PersonVersion[]>;
 }

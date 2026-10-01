@@ -390,6 +390,107 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/commissions/{slug}/access/self-access/declarants": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Search the Commission's roster for the declarant of a written self-access application
+         * @description By personnel file number (its beginning) or part of the name, at most 20 records by full name. Only an `onboarded` record has declarations to copy.
+         */
+        get: operations["searchSelfAccessDeclarants"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/commissions/{slug}/access/self-access/declarants/{rosterRecordId}/versions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The declarant's submitted versions a certified copy can be of
+         * @description Latest submitted first, with the reference, type, statement date and whether a later version replaced it; no content. Empty for a record not onboarded.
+         */
+        get: operations["listSelfAccessDeclarantVersions"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/commissions/{slug}/access/self-access": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The Commission's written self-access applications with their deadlines
+         * @description Earliest deadline first. `late`: the certified copy was not issued by the deadline (14 days from receipt).
+         */
+        get: operations["listSelfAccessApplications"];
+        put?: never;
+        /**
+         * Record a written self-access application and issue its certified copy
+         * @description The declarant's identity check, and for a representative their name, ID number (stored encrypted), written authority and ID as the officer's clean uploads of purpose `access-representation`. The certified copy (Restricted, the declarant its subject) is ordered at once and due 14 days from receipt; once issued it is registered `self-access` naming the representative (`access.certified-copy.issued.v1`) and shows in the declarant's access history. Follow `certifiedCopy.status` until `issued`, then mark it collected or dispatched.
+         */
+        post: operations["recordSelfAccessApplication"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/access/self-access/{applicationId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** A written self-access application, with the representative's ID number */
+        get: operations["getSelfAccessApplication"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/access/self-access/{applicationId}/delivered": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Mark the issued certified copy collected or dispatched
+         * @description As the application was marked (`deliveryMethod`); the application becomes `delivered`. Only once the certified copy is issued, and once.
+         */
+        post: operations["markSelfAccessDelivered"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -779,6 +880,167 @@ export interface components {
             declarantNotifiedAt: string | null;
             package: components["schemas"]["Package"] | null;
             timeline: components["schemas"]["RegisterEntry"][];
+        };
+        DeclarantVersion: {
+            /** Format: uuid */
+            declarationId: string;
+            version: number;
+            /** @description The declaration's reference (ADR-011) */
+            reference: string;
+            /** @enum {string} */
+            type: "initial" | "biennial" | "final";
+            /** Format: date */
+            statementDate: string;
+            /** Format: date-time */
+            submittedAt: string;
+            /** @description A later version of the declaration replaced it */
+            superseded: boolean;
+        };
+        DeclarantVersions: {
+            declarant: {
+                /** Format: uuid */
+                rosterRecordId: string;
+                personnelFileNumber: string;
+                fullName: string;
+                onboarded: boolean;
+            };
+            /** @description Latest submitted first; empty for a declarant with none here */
+            versions: components["schemas"]["DeclarantVersion"][];
+        };
+        SelfAccessApplicationInput: {
+            /**
+             * Format: uuid
+             * @description The declarant's roster record at the Commission (an onboarded one)
+             */
+            rosterRecordId: string;
+            /** Format: uuid */
+            declarationId: string;
+            /** @description The submitted version the copy is of */
+            version: number;
+            /** @description What the access officer checked of the applicant's identity (the declarant's, or the representative's and their authority); no document numbers */
+            identityNote: string;
+            /** @description Who applied on the declarant's behalf; null when the declarant applied */
+            representative: {
+                /** @description As on their ID */
+                name: string;
+                /** @description National ID or passport number; stored encrypted */
+                idNumber: string;
+                /**
+                 * Format: uuid
+                 * @description The written authority to act for the declarant: the caller's clean upload of purpose `access-representation`
+                 */
+                authorityUploadId: string;
+                /**
+                 * Format: uuid
+                 * @description A copy of the representative's ID: the caller's clean upload of purpose `access-representation`
+                 */
+                idUploadId: string;
+            } | null;
+            /**
+             * @description Whether the copy is to be collected at the Commission or dispatched
+             * @enum {string}
+             */
+            deliveryMethod: "collection" | "dispatch";
+        };
+        SelfAccessApplication: {
+            /** Format: uuid */
+            id: string;
+            /** @enum {string} */
+            status: "recorded" | "issued" | "delivered";
+            declarant: {
+                /** Format: uuid */
+                rosterRecordId: string;
+                fullName: string;
+                personnelFileNumber: string;
+            };
+            /** Format: uuid */
+            declarationId: string;
+            version: number;
+            declarationReference: string;
+            identityNote: string;
+            /** @description Null when the declarant applied in person */
+            representative: {
+                name: string;
+                authority: {
+                    /** Format: uuid */
+                    uploadId: string;
+                    fileName: string;
+                };
+                identification: {
+                    /** Format: uuid */
+                    uploadId: string;
+                    fileName: string;
+                };
+            } | null;
+            /** @enum {string} */
+            deliveryMethod: "collection" | "dispatch";
+            /** Format: date-time */
+            receivedAt: string;
+            /**
+             * Format: date-time
+             * @description Receipt + 14 days: when the certified copy is due
+             */
+            deadlineAt: string;
+            /** @description The certified copy was not issued by the deadline (now, or when it was issued) */
+            late: boolean;
+            /** @description When it was marked collected or dispatched */
+            deliveredAt: string | null;
+            /** @description The access officer who recorded it */
+            recordedBy: string;
+            certifiedCopy: components["schemas"]["CertifiedCopy"];
+        };
+        SelfAccessApplicationDetail: {
+            /** Format: uuid */
+            id: string;
+            /** @enum {string} */
+            status: "recorded" | "issued" | "delivered";
+            declarant: {
+                /** Format: uuid */
+                rosterRecordId: string;
+                fullName: string;
+                personnelFileNumber: string;
+            };
+            /** Format: uuid */
+            declarationId: string;
+            version: number;
+            declarationReference: string;
+            identityNote: string;
+            /** @description Null when the declarant applied in person */
+            representative: {
+                name: string;
+                authority: {
+                    /** Format: uuid */
+                    uploadId: string;
+                    fileName: string;
+                };
+                identification: {
+                    /** Format: uuid */
+                    uploadId: string;
+                    fileName: string;
+                };
+                idNumber: string;
+            } | null;
+            /** @enum {string} */
+            deliveryMethod: "collection" | "dispatch";
+            /** Format: date-time */
+            receivedAt: string;
+            /**
+             * Format: date-time
+             * @description Receipt + 14 days: when the certified copy is due
+             */
+            deadlineAt: string;
+            /** @description The certified copy was not issued by the deadline (now, or when it was issued) */
+            late: boolean;
+            /** @description When it was marked collected or dispatched */
+            deliveredAt: string | null;
+            /** @description The access officer who recorded it */
+            recordedBy: string;
+            certifiedCopy: components["schemas"]["CertifiedCopy"];
+        };
+        SelfAccessPage: {
+            items: components["schemas"]["SelfAccessApplication"][];
+            /** @description Pass as `cursor` for the next page; null on the last page */
+            nextCursor: string | null;
         };
         ProblemDetails: {
             type: string;
@@ -2161,6 +2423,408 @@ export interface operations {
             };
             /** @description No such certified copy of yours */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    searchSelfAccessDeclarants: {
+        parameters: {
+            query: {
+                /** @description A personnel file number or its beginning, or part of a name (both case-insensitive) */
+                q: string;
+            };
+            header?: never;
+            path: {
+                slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Records */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RosterCandidates"];
+                };
+            };
+            /** @description No search of at least 2 characters */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /**
+             * @description The Commission supervisor reads applications; only its access officer acts
+             *
+             *     Requires one of the roles: access-officer, supervisor, eacc-analyst, eacc-supervisor
+             */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not the caller's Commission (another Commission's, EACC's or anyone else's) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description The directory cannot be reached */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    listSelfAccessDeclarantVersions: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slug: string;
+                rosterRecordId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Versions */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeclarantVersions"];
+                };
+            };
+            /** @description rosterRecordId is not a UUID */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /**
+             * @description The Commission supervisor reads applications; only its access officer acts
+             *
+             *     Requires one of the roles: access-officer, supervisor, eacc-analyst, eacc-supervisor
+             */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not the caller's Commission (another Commission's, EACC's or anyone else's), or no such roster record of the Commission */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description The directory or declarations cannot be reached */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    listSelfAccessApplications: {
+        parameters: {
+            query?: {
+                /** @description Only applications in this status */
+                status?: "recorded" | "issued" | "delivered";
+                /** @description `nextCursor` of the previous page; omit for the first page */
+                cursor?: string;
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Page */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SelfAccessPage"];
+                };
+            };
+            /** @description Query failed validation, or an unknown cursor */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Requires one of the roles: access-officer, supervisor, eacc-analyst, eacc-supervisor */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not the caller's Commission (another Commission's, EACC's or anyone else's) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    recordSelfAccessApplication: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Client-generated UUID, unique per logical request; reuse on retry */
+                "Idempotency-Key": string;
+            };
+            path: {
+                slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SelfAccessApplicationInput"];
+            };
+        };
+        responses: {
+            /** @description Recorded; the certified copy is being issued */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SelfAccessApplicationDetail"];
+                };
+            };
+            /** @description The body failed validation; `rosterRecordId` is not an onboarded roster record of the Commission, `version` not a submitted version of its declarant, or a representative upload not a clean `access-representation` upload of the caller; `errors` name the field */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /**
+             * @description The Commission supervisor reads applications; only its access officer acts
+             *
+             *     Requires one of the roles: access-officer, supervisor, eacc-analyst, eacc-supervisor
+             */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not the caller's Commission (another Commission's, EACC's or anyone else's) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Idempotency-Key reused with a different request body */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description The directory, declarations, documents, the key service or the workflow engine cannot be reached; nothing was recorded */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    getSelfAccessApplication: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                applicationId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Application */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SelfAccessApplicationDetail"];
+                };
+            };
+            /** @description applicationId is not a UUID */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Requires one of the roles: access-officer, supervisor, eacc-analyst, eacc-supervisor */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description No such application at the caller's Commission */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description The key service cannot be reached */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    markSelfAccessDelivered: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Optional. Client-generated UUID, unique per logical request; reuse on retry and the stored answer is replayed instead of acting twice */
+                "Idempotency-Key"?: string;
+            };
+            path: {
+                applicationId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Marked */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SelfAccessApplicationDetail"];
+                };
+            };
+            /** @description applicationId is not a UUID */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /**
+             * @description The Commission supervisor reads applications; only its access officer acts
+             *
+             *     Requires one of the roles: access-officer, supervisor, eacc-analyst, eacc-supervisor
+             */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description No such application at the caller's Commission */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description The certified copy is not issued yet, or is marked already */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Idempotency-Key reused with a different request body */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description The key service cannot be reached */
+            503: {
                 headers: {
                     [name: string]: unknown;
                 };

@@ -127,7 +127,7 @@ export class CertifiedCopyActivities {
         .where(and(eq(certifiedCopies.id, copyId), eq(certifiedCopies.status, 'pending')))
         .returning();
       if (!recorded) return;
-      const representativeName = await representativeOf(tx, recorded);
+      const representativeName = await applicationIssued(tx, recorded);
       await this.register.record(tx, {
         tenant,
         subjectKind: 'self-access',
@@ -206,12 +206,25 @@ async function load(
   return found;
 }
 
-/** Who applied on the declarant's behalf, for a copy of an officer-recorded application. */
-async function representativeOf(
+/**
+ * For the copy of an officer-recorded application: the application is `issued` (ready to be
+ * collected or dispatched), and who applied on the declarant's behalf is returned, for the
+ * register. Null for a copy the declarant asked for online, or one they applied for themselves.
+ */
+async function applicationIssued(
   tx: AccessTransaction,
   copy: CertifiedCopyRow,
 ): Promise<string | null> {
   if (copy.applicationId === null) return null;
+  await tx
+    .update(selfAccessApplications)
+    .set({ status: 'issued' })
+    .where(
+      and(
+        eq(selfAccessApplications.id, copy.applicationId),
+        eq(selfAccessApplications.status, 'recorded'),
+      ),
+    );
   const [application] = await tx
     .select({ representative: selfAccessApplications.representative })
     .from(selfAccessApplications)

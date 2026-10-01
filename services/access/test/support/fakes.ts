@@ -6,6 +6,7 @@ import {
   type DisclosureDocument,
   type DisclosureRequest,
   type FullDocumentRequest,
+  type PersonVersion,
   type VersionDocument,
 } from '../../src/declarations/declarations-client.js';
 import {
@@ -257,6 +258,7 @@ export class FakeDeclarations extends DeclarationsClient {
   /** Each disclosure asked for, as asked. */
   readonly disclosureCalls: DisclosureRequest[] = [];
   readonly fullDocumentCalls: FullDocumentRequest[] = [];
+  readonly personVersionsCalls: { tenant: string; personId: string }[] = [];
   private readonly disclosures = new Map<string, DisclosureDocument>();
   private readonly documents = new Map<string, VersionDocument>();
   private readonly failures = new Failures();
@@ -277,6 +279,7 @@ export class FakeDeclarations extends DeclarationsClient {
   reset(): void {
     this.disclosureCalls.length = 0;
     this.fullDocumentCalls.length = 0;
+    this.personVersionsCalls.length = 0;
     this.disclosures.clear();
     this.documents.clear();
     this.failures.reset();
@@ -299,6 +302,30 @@ export class FakeDeclarations extends DeclarationsClient {
     const found = this.documents.get(`${request.declarationId}:${String(request.version)}`);
     const theirs = found?.personId === request.personId && found.commission.slug === request.tenant;
     return Promise.resolve(theirs ? found : null);
+  }
+
+  personVersions(tenant: string, personId: string): Promise<PersonVersion[]> {
+    this.personVersionsCalls.push({ tenant, personId });
+    if (this.failures.take()) {
+      return Promise.reject(new DeclarationsUnavailable('The declarations service is unreachable'));
+    }
+    // As declarations: the person's versions at the acting Commission, latest submitted first.
+    const versions = [...this.documents.values()]
+      .filter((found) => found.personId === personId && found.commission.slug === tenant)
+      .sort((a, b) => b.submittedAt.localeCompare(a.submittedAt) || b.version - a.version);
+    return Promise.resolve(
+      versions.map((found) => ({
+        declarationId: found.declarationId,
+        version: found.version,
+        reference: found.reference,
+        type: found.type,
+        statementDate: found.statementDate,
+        submittedAt: found.submittedAt,
+        superseded: versions.some(
+          (other) => other.declarationId === found.declarationId && other.version > found.version,
+        ),
+      })),
+    );
   }
 }
 
