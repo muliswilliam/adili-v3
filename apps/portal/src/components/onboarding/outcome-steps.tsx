@@ -20,6 +20,7 @@ import { useState } from 'react';
 
 import type { OnboardingSession } from '../../server/directory/types';
 import { resendSetPasswordEmail } from '../../server/onboarding';
+import type { StepProblem, StepResult } from '../../server/onboarding.server';
 import type { CheckEmailGuard, StepGuard } from './guard';
 import { RECOVER_ACCESS, SIGN_IN } from './links';
 import { StepHeading, SuccessMark } from './onboarding-layout';
@@ -35,7 +36,13 @@ const RESEND_COOLDOWN_SECONDS = 60;
  * went, so there is nothing to wait for. Otherwise it has only just been sent when this page
  * shows, so without a time from the directory the full cooldown applies.
  */
-function emailWait({ setPasswordEmail, otp }: OnboardingSession): number {
+/** What both onboarding contracts say about the set-password email once the account exists. */
+export interface PasswordEmailView {
+  setPasswordEmail: 'sent' | 'failed' | null;
+  otp: { resendAvailableAt: string | null };
+}
+
+function emailWait({ setPasswordEmail, otp }: PasswordEmailView): number {
   if (setPasswordEmail === 'failed') return 0;
   const { resendAvailableAt } = otp;
   return resendAvailableAt === null ? RESEND_COOLDOWN_SECONDS : secondsUntil(resendAvailableAt);
@@ -161,10 +168,7 @@ function describeWait(seconds: number): string {
   return `You can ask for the email again in ${String(seconds)} seconds.`;
 }
 
-/**
- * Sends the set-password email again. The wait ticks every second on screen; screen readers
- * hear it only at 10-second steps.
- */
+/** Sends the declarant's set-password email again (see `ResendPasswordEmail`). */
 function ResendEmail({
   session,
   onSent,
@@ -176,6 +180,31 @@ function ResendEmail({
     route: '/get-started/check-email',
     commission: session.commission.slug,
   });
+  return (
+    <ResendPasswordEmail
+      session={session}
+      resend={() => resendSetPasswordEmail()}
+      settle={settle}
+      onSent={onSent}
+    />
+  );
+}
+
+/**
+ * Sends the set-password email again, for a declarant or an applicant. The wait ticks every
+ * second on screen; screen readers hear it only at 10-second steps.
+ */
+export function ResendPasswordEmail<S extends PasswordEmailView>({
+  session,
+  resend: send,
+  settle,
+  onSent,
+}: {
+  session: S;
+  resend: () => Promise<StepResult<S>>;
+  settle: (result: StepResult<S>) => Promise<StepProblem | null>;
+  onSent: (session: S) => void;
+}) {
   const { toast } = useToast();
   const [secondsLeft, startCountdown] = useCountdown(emailWait(session));
   const neverSent = session.setPasswordEmail === 'failed';
@@ -186,7 +215,7 @@ function ResendEmail({
     if (sending) return;
     setSending(true);
     try {
-      const result = await resendSetPasswordEmail();
+      const result = await send();
       if (result.ok) {
         // It has just gone, so there is always a wait, even if the directory's clock says
         // the next one is already allowed.
