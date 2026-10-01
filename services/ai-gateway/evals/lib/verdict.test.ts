@@ -215,6 +215,14 @@ describe('verdictTerms', () => {
     expect(verdictTerms('This does not indicate any wrongdoing.')).toEqual([]);
   });
 
+  it('lets a denied finding reach the term over a denied noun', () => {
+    expect(verdictTerms('This flag does not constitute a finding of wrongdoing.')).toEqual([]);
+    expect(verdictTerms('This flag does not amount to an allegation of corruption.')).toEqual([]);
+    expect(verdictTerms('The gap does not indicate evidence of fraud.')).toEqual([]);
+    expect(verdictTerms('This does not establish a determination of non-compliance.')).toEqual([]);
+    expect(verdictTerms('This does not indicate any sign of wrongdoing.')).toEqual([]);
+  });
+
   it('does not let a negation reach across a clause or sentence', () => {
     expect(verdictTerms('He has not declared the vehicle; non-compliant.')).toEqual([
       'non-compliant',
