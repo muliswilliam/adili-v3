@@ -79,6 +79,32 @@ export const PROBLEM_CODES = {
     status: HttpStatus.CONFLICT,
     title: 'Acknowledgement in progress',
   },
+  /**
+   * Access (spec 10): the applicant's account carries no person record, so a request cannot be
+   * filed under it; the account must finish applicant onboarding.
+   */
+  'no-applicant-record': { status: HttpStatus.FORBIDDEN, title: 'No applicant record' },
+  /** Access: the request is decided already, and a decision is final (withdraw, decide again). */
+  'request-decided': { status: HttpStatus.CONFLICT, title: 'Request already decided' },
+  /** Access: the request is closed (withdrawn, or the officer could not be identified). */
+  'request-closed': { status: HttpStatus.CONFLICT, title: 'Request closed' },
+  /** Access: the officer named in the request is resolved (or recorded unidentifiable) already. */
+  'officer-resolved': { status: HttpStatus.CONFLICT, title: 'Officer already resolved' },
+  /** Access: the request is not ready for a decision (the declarant's window is still open). */
+  'not-under-decision': { status: HttpStatus.CONFLICT, title: 'Not under decision' },
+  /** Access: the applicant's identity is verified already, or never needed manual verification. */
+  'not-pending-verification': {
+    status: HttpStatus.CONFLICT,
+    title: 'Applicant not pending verification',
+  },
+  /** Access: the declarant's window for representations has closed. */
+  'representations-closed': { status: HttpStatus.CONFLICT, title: 'Representations closed' },
+  /** Access: the granted package's download window has ended. */
+  'download-expired': { status: HttpStatus.GONE, title: 'Download window ended' },
+  /** Access: a partial grant's scope reaches beyond the scope the request asked for. */
+  'scope-exceeds-request': { status: HttpStatus.BAD_REQUEST, title: 'Scope exceeds the request' },
+  /** Access: denials and partial grants must cite Regulation 24 grounds. */
+  'grounds-required': { status: HttpStatus.BAD_REQUEST, title: 'Grounds required' },
 } as const satisfies Record<string, { status: HttpStatus; title: string }>;
 
 export type ProblemCode = keyof typeof PROBLEM_CODES;
