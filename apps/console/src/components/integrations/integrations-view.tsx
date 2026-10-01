@@ -8,6 +8,7 @@ import {
   Card,
   cn,
   EmptyState,
+  formatDateTime,
   formatTime,
   Icon,
   type IconProps,
@@ -52,6 +53,7 @@ import {
   SYSTEMS,
 } from './coverage';
 import { messages as m } from './messages';
+import { PauseControl, type SetPaused } from './pause-control';
 
 const ICONS: Record<IntegrationSystem, IconProps['icon']> = {
   iprs: UserIcon,
@@ -76,6 +78,10 @@ export interface IntegrationsViewProps {
   refreshing?: boolean;
   /** Offered to staff refused the page (403). */
   forbiddenAction?: ReactNode;
+  /** Pauses or resumes a system; without it there are no Pause and Resume buttons. */
+  setPaused?: SetPaused;
+  /** A system was paused or resumed: read the coverage again. */
+  onChanged?: () => void;
   /** For tests. */
   now?: Date;
 }
@@ -83,7 +89,7 @@ export interface IntegrationsViewProps {
 /**
  * How each registry integration behaves (spec 07b FE-3, S13 read): calls in the last 24 hours,
  * cache hit rate, breaker, last success and paused, with the configured limits on expanding a
- * system. Platform administrators only. Pause and resume come with #187.
+ * system, and Pause and Resume with a confirm dialog (S13). Platform administrators only.
  */
 export function IntegrationsView({
   result,
@@ -91,6 +97,8 @@ export function IntegrationsView({
   onRefresh,
   refreshing = false,
   forbiddenAction,
+  setPaused,
+  onChanged = () => undefined,
   now = new Date(),
 }: IntegrationsViewProps) {
   if (
@@ -142,13 +150,29 @@ export function IntegrationsView({
           />
         </Card>
       ) : (
-        <Coverage rows={result.data} now={now} />
+        <Coverage
+          rows={result.data}
+          now={now}
+          pauseAction={
+            setPaused
+              ? (row) => <PauseControl row={row} setPaused={setPaused} onChanged={onChanged} />
+              : undefined
+          }
+        />
       )}
     </Page>
   );
 }
 
-function Coverage({ rows, now }: { rows: SystemCoverage[]; now: Date }) {
+function Coverage({
+  rows,
+  now,
+  pauseAction,
+}: {
+  rows: SystemCoverage[];
+  now: Date;
+  pauseAction: ((row: SystemCoverage) => ReactNode) | undefined;
+}) {
   const summary = summarise(rows);
   return (
     <div className="flex flex-col gap-[18px]">
@@ -189,7 +213,7 @@ function Coverage({ rows, now }: { rows: SystemCoverage[]; now: Date }) {
       <div className="flex flex-col gap-3.5">
         <SystemStatusList label={m.coverageLabel}>
           {rows.map((row) => (
-            <SystemRow key={row.system} row={row} now={now} />
+            <SystemRow key={row.system} row={row} now={now} action={pauseAction?.(row)} />
           ))}
         </SystemStatusList>
         <p className="flex items-center gap-2 text-[13px] text-muted-foreground">
@@ -238,7 +262,11 @@ function Alerts({ rows, now }: { rows: SystemCoverage[]; now: Date }) {
         <Alert key={row.system} variant="info" role="status">
           <Icon icon={PauseIcon} />
           <AlertDescription>
-            <b className="font-semibold">{m.paused(SYSTEMS[row.system].name)}</b> {m.pausedDetail}
+            <b className="font-semibold">{m.paused(SYSTEMS[row.system].name)}</b>{' '}
+            {row.pausedBy && row.pausedAt
+              ? `${m.pausedSince(row.pausedBy, formatTime(row.pausedAt))} `
+              : null}
+            {m.pausedDetail}
           </AlertDescription>
         </Alert>
       ))}
@@ -246,7 +274,7 @@ function Alerts({ rows, now }: { rows: SystemCoverage[]; now: Date }) {
   );
 }
 
-function SystemRow({ row, now }: { row: SystemCoverage; now: Date }) {
+function SystemRow({ row, now, action }: { row: SystemCoverage; now: Date; action: ReactNode }) {
   const system = SYSTEMS[row.system];
   return (
     <SystemStatusRow
@@ -255,6 +283,7 @@ function SystemRow({ row, now }: { row: SystemCoverage; now: Date }) {
       description={system.use}
       data-system={row.system}
       metrics={<Metrics row={row} now={now} />}
+      action={action}
       badge={
         <span className="flex w-[178px] items-center justify-end gap-2 max-sm:w-auto max-sm:justify-start">
           {row.paused ? (
@@ -317,7 +346,11 @@ function Details({ row }: { row: SystemCoverage }) {
   const callout = row.paused ? (
     <Alert variant="warning" role="status">
       <Icon icon={PauseIcon} />
-      <AlertDescription>{m.pausedCallout}</AlertDescription>
+      <AlertDescription>
+        {row.pausedBy && row.pausedAt
+          ? m.pausedByCallout(row.pausedBy, formatDateTime(row.pausedAt))
+          : m.pausedCallout}
+      </AlertDescription>
     </Alert>
   ) : row.breaker === 'open' ? (
     <Alert variant="destructive" role="status">

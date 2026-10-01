@@ -12,7 +12,11 @@ import type {
   IntegrationGatewayResult,
   SystemCoverage,
 } from '../../server/integration-gateway/client';
-import { getIntegrationsCoverage } from '../../server/integrations';
+import {
+  getIntegrationsCoverage,
+  pauseIntegration,
+  resumeIntegration,
+} from '../../server/integrations';
 import { getViewer } from '../../server/viewer';
 
 /** The coverage and when it was read. */
@@ -85,6 +89,10 @@ function IntegrationsLayout({ loaded }: { loaded: IntegrationsData | null }) {
           refreshing={refreshing}
           onRefresh={() => void router.invalidate()}
           forbiddenAction={backToOverview}
+          setPaused={(system, paused) =>
+            (paused ? pauseIntegration : resumeIntegration)({ data: { system } })
+          }
+          onChanged={() => void router.invalidate()}
         />
       )}
     </ConsoleShell>
