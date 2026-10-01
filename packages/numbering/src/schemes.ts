@@ -179,6 +179,37 @@ export const declarationSchemes: Readonly<Record<DeclarationType, NumberingSchem
   { initial: DCI, biennial: DCB, final: DCF },
 );
 
+/**
+ * Compliance report (Form M, Regs r.25(2)): numbered when the Responsible Commission submits it
+ * to EACC, per Commission and financial year, whose end year is the period (ADR-011 §2: 2027 is
+ * FY 2026/27). `RPT-PSC-2027-0000001-4`.
+ */
+export const RPT = defineScheme({
+  code: 'RPT',
+  name: 'Compliance report',
+  description: "A Commission's compliance report to EACC (Form M), due by 31 July.",
+  legalBasis: 'Regs r.25(2)',
+  issuer: true,
+  period: true,
+  periodName: 'Financial year end',
+  sequenceDigits: 7,
+});
+
+/**
+ * National consolidated report (spec 09): numbered when an EACC supervisor approves it, issued
+ * by EACC per financial year, whose end year is the period. `NCR-EACC-2027-0000001-Q`.
+ */
+export const NCR = defineScheme({
+  code: 'NCR',
+  name: 'National consolidated report',
+  description: "EACC's national report built from all Commissions' compliance reports.",
+  legalBasis: 'Act s.6; Users & Workflows US 21',
+  issuer: true,
+  period: true,
+  periodName: 'Financial year end',
+  sequenceDigits: 7,
+});
+
 /** Schemes this package knows; later slices add theirs (ARQ...) the same way. */
 export const numberingSchemes: readonly NumberingScheme[] = Object.freeze([
   OFR,
@@ -189,6 +220,8 @@ export const numberingSchemes: readonly NumberingScheme[] = Object.freeze([
   CMP,
   ADM,
   RFL,
+  RPT,
+  NCR,
 ]);
 
 /** The registered scheme with `code`, if any. */

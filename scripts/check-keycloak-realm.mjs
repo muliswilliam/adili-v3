@@ -202,7 +202,8 @@ if (!directory) {
 // listed here too.
 const scopes = new Map((realm.clientScopes ?? []).map((scope) => [scope.name, scope]));
 
-// Service scopes: each puts the adili-api audience on the token and names the internal API.
+// Service scopes: each puts the adili-api audience on the token and names the API it opens
+// (reports:submit: federated Commissions' Form M, spec 09).
 for (const name of [
   'messages',
   'iprs',
@@ -210,6 +211,7 @@ for (const name of [
   'directory:person-contacts',
   'declarations:internal',
   'directory:roster-national-id',
+  'reports:submit',
 ]) {
   const scope = scopes.get(name);
   if (!scope) {

@@ -463,6 +463,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/internal/v1/review/clarifications/details": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Clarifications of a Commission in a batch, for Form M section 4 (reporting, spec 09)
+         * @description Service tokens with scope review:internal, acting for the Commission in X-Acting-Tenant (ADR-013 §8.7). The officer asked and the kinds of requirement asked for, never the request's content. At most 1,000 ids; a clarification the Commission does not hold is left out. A read: it changes nothing, so it takes no Idempotency-Key and is safe to retry.
+         */
+        post: operations["internalClarificationDetails"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/internal/v1/review/referrals/{referralId}/icms-payload": {
         parameters: {
             query?: never;
@@ -1365,6 +1385,18 @@ export interface components {
             declarationReference: string;
             /** Format: uri */
             letterDownloadUrl: string | null;
+        };
+        InternalClarificationDetails: {
+            /** Format: uuid */
+            clarificationId: string;
+            /** @description `CLR-...`; null for one never issued */
+            reference: string | null;
+            name: string;
+            designation: string;
+            /** @description Personnel file number, or another staff, ID or passport number */
+            identifier: string;
+            /** @description Labels of the requirement kinds asked for, e.g. "Source of income" */
+            requirementLabels: string[];
         };
         ClarificationLetterPayload: {
             declarantName: string;
@@ -2759,6 +2791,39 @@ export interface operations {
                 };
             };
             503: components["responses"]["DirectoryUnavailable"];
+        };
+    };
+    internalClarificationDetails: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Tenant the calling service acts for; the resource must belong to it */
+                "X-Acting-Tenant": components["parameters"]["ActingTenant"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    clarificationIds: string[];
+                };
+            };
+        };
+        responses: {
+            /** @description The clarifications, one per known id */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: components["schemas"]["InternalClarificationDetails"][];
+                    };
+                };
+            };
+            400: components["responses"]["ValidationProblem"];
+            403: components["responses"]["Forbidden"];
         };
     };
     internalGetReferralIcmsPayload: {

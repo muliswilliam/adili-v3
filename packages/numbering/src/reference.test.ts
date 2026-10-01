@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 
 import { ALPHABET, hasValidCheckCharacter } from './check-character.js';
 import { format, InvalidReferenceError, issuerCode, parse, TENANT_KEY } from './reference.js';
-import { ADM, CLR, CMP, DCB, DCF, DCI, OFR, RFL } from './schemes.js';
+import { ADM, CLR, CMP, DCB, DCF, DCI, NCR, OFR, RFL, RPT } from './schemes.js';
 
 const schemes = [OFR, DCB];
 
@@ -121,6 +121,15 @@ describe('parse', () => {
         checkCharacter: reference.at(-1),
       });
     }
+  });
+
+  it.each([
+    { scheme: RPT, issuer: 'PSC' },
+    { scheme: NCR, issuer: 'EACC' },
+  ])('knows $scheme.code by default, with issuer and financial year end', ({ scheme, issuer }) => {
+    const reference = format(scheme, { issuer, period: 2027, sequence: 1 });
+    expect(reference).toMatch(new RegExp(`^${scheme.code}-${issuer}-2027-0000001-[0-9A-Z]$`));
+    expect(parse(reference)).toMatchObject({ scheme: scheme.code, issuer, period: 2027 });
   });
 
   it('knows CLR by default, with issuer and year of issue', () => {

@@ -822,6 +822,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/internal/v1/obligations/details": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * The officers behind a Commission's obligations, in a batch (spec 09 Form M non-filers)
+         * @description Service tokens with scope declarations:internal, acting for the Commission in X-Acting-Tenant (ADR-013 §8.7). At most 1,000 obligation ids; an obligation the Commission does not hold is left out. A read: it changes nothing, so it takes no Idempotency-Key and is safe to retry.
+         */
+        post: operations["internalObligationDetails"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -3396,6 +3416,50 @@ export interface operations {
                 };
             };
             404: components["responses"]["NotFound"];
+        };
+    };
+    internalObligationDetails: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Tenant the calling service acts for; the resource must belong to it */
+                "X-Acting-Tenant": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    obligationIds: string[];
+                };
+            };
+        };
+        responses: {
+            /** @description The officers, one per known obligation */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: {
+                            /** Format: uuid */
+                            obligationId: string;
+                            name: string;
+                            designation: string;
+                            /** @description Personnel file number, or another staff, ID or passport number */
+                            fileNumber: string;
+                            /** Format: date */
+                            appointmentDate: string | null;
+                            /** Format: date */
+                            exitDate: string | null;
+                        }[];
+                    };
+                };
+            };
+            400: components["responses"]["ValidationProblem"];
+            403: components["responses"]["Forbidden"];
         };
     };
 }
