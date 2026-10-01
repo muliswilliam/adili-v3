@@ -6,7 +6,6 @@ import {
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import {
-  ACTING_TENANT_HEADER,
   type AuditedReadOptions,
   type AuditedResource,
   type AuthenticatedRequest,
@@ -27,12 +26,6 @@ export const AUDIT_READ = 'audit.read.v1';
  * internal reads), recorded as the actor's `onBehalfOf` (ADR-008 `actor.on-behalf-of`).
  */
 export const ACTING_SUBJECT_HEADER = 'x-acting-subject';
-
-/**
- * Routes under it are internal (`/internal/v1`): never routed by the public entrypoint, and
- * guarded to service tokens carrying the internal scope (ADR-013 §8.1).
- */
-const INTERNAL_ROUTES = '/internal/';
 
 export interface AuditReadData extends Record<string, unknown> {
   /** The route's audit action, e.g. `roster.record.viewed`. */
@@ -64,7 +57,14 @@ export interface AuditReadData extends Record<string, unknown> {
   };
 }
 
-type AuditedRequest = AuthenticatedRequest & { params?: Record<string, string> };
+/**
+ * `actingTenant` is set by api-kit's `InternalApi()` guard once it admitted a service token with
+ * the route's internal scope and a valid `X-Acting-Tenant` (ADR-013 §8.1).
+ */
+type AuditedRequest = AuthenticatedRequest & {
+  params?: Record<string, string>;
+  actingTenant?: string;
+};
 
 /**
  * Records an `audit.read.v1` event in the outbox for each successful response of a route marked
@@ -75,8 +75,9 @@ type AuditedRequest = AuthenticatedRequest & { params?: Record<string, string> }
  * the person the data is about), else the route's `slug`, else the tenant a service acts for,
  * else the caller's. A read the handler marked `ReadAudit.ownRecord` (the caller's own record)
  * is not recorded. The acting headers (`X-Acting-Tenant`, and `X-Acting-Subject` as the actor's
- * `onBehalfOf`) count only on `/internal/` routes, which admit service tokens alone (ADR-013
- * §8.1); anywhere else a caller could name whomever it liked. Registered for every route by
+ * `onBehalfOf`) count only when api-kit's `InternalApi()` guard admitted the call, which takes
+ * service tokens with the route's internal scope alone (ADR-013 §8.1); anywhere else a caller
+ * could name whomever it liked. Registered for every route by
  * `EventsModule`; routes without the mark pass through untouched. Refused requests never reach
  * it (guards run first); they are the
  * audit service's to record from denials.
@@ -116,15 +117,12 @@ function auditRead(
   const principal = request.principal;
   const params = request.params ?? {};
   const route = request.routeOptions.url ?? request.url;
-  const internal = route.startsWith(INTERNAL_ROUTES);
-  const actingTenant = internal ? request.headers[ACTING_TENANT_HEADER] : undefined;
-  const actingSubject = internal ? request.headers[ACTING_SUBJECT_HEADER] : undefined;
-  const tenant =
-    resource?.tenant ??
-    params.slug ??
-    (typeof actingTenant === 'string' ? actingTenant : undefined) ??
-    principal?.tenant ??
-    undefined;
+  // The acting headers count only once InternalApi() admitted the call: a service token with the
+  // route's internal scope. Anywhere else a caller could name whomever it liked.
+  const actingTenant = request.actingTenant;
+  const actingSubject =
+    actingTenant === undefined ? undefined : request.headers[ACTING_SUBJECT_HEADER];
+  const tenant = resource?.tenant ?? params.slug ?? actingTenant ?? principal?.tenant ?? undefined;
   return {
     type: AUDIT_READ,
     tenant,
