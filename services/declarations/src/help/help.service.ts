@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { notFoundIfInvisible, type Principal } from '@adili/api-kit';
+import { notFoundIfInvisible, PLATFORM_TENANT, type Principal } from '@adili/api-kit';
 import { type Database, InjectDatabase, withPerson, withTenant } from '@adili/data-access';
 import { EventPublisher } from '@adili/events';
 import { and, asc, desc, eq, isNull, type SQL } from 'drizzle-orm';
@@ -13,7 +13,6 @@ import { validationProblem } from '../drafts/problems.js';
 import { isSectionKey, sectionKind } from '../drafts/sections.js';
 import { isUuid } from '../guards.js';
 import { nairobiDate } from '../obligations/dates.js';
-import { PLATFORM_TENANT } from '../obligations/access.js';
 import { articleEditTenant, articleReadTenant } from './access.js';
 import type { CorpusTag } from './corpus.js';
 import { CorpusImporter } from './corpus-importer.js';

@@ -1,7 +1,5 @@
 import { HttpStatus } from '@nestjs/common';
-import { notFoundIfInvisible, type Principal, ProblemException } from '@adili/api-kit';
-
-import { TENANT_SLUG } from '../obligations/access.js';
+import { notFoundIfInvisible, type Principal, ProblemException, TENANT_KEY } from '@adili/api-kit';
 
 /**
  * Who may do what with help articles (spec 11 authorisation): a Commission's administrators edit
@@ -16,7 +14,7 @@ export const REPORTING_OFFICER = 'reporting-officer';
 /** Whether the caller is staff of Commission `slug` in one of `roles`. */
 function staffOf(principal: Principal, slug: string, roles: readonly string[]): boolean {
   return (
-    TENANT_SLUG.test(slug) &&
+    TENANT_KEY.test(slug) &&
     principal.tenant === slug &&
     principal.roles.some((role) => roles.includes(role))
   );
