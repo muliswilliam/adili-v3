@@ -1,0 +1,46 @@
+# AI task evals
+
+Each AI task has a golden set: synthetic inputs, run through the task's current prompt and output schema, scored without a model (spec 07c S9, ADR-007). CI replays recorded model outputs, so a prompt, schema or model change is measured before it ships and no provider is called.
+
+| Command                                       | What it does                                                                                   |
+| --------------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| `pnpm --filter @adili/ai-gateway eval`        | Replays `evals/fixtures` and scores every case. CI runs this.                                  |
+| `pnpm --filter @adili/ai-gateway eval:record` | Calls Anthropic for every case and writes the responses to `evals/fixtures`, then scores them. |
+| `pnpm --filter @adili/ai-gateway eval:prune`  | Deletes fixtures no case requests any more, and counts the cases without one.                  |
+
+## Layout
+
+- `golden/<task>.ts`: the cases, what each must contain, the task's scorers and soft thresholds.
+- `golden/declarations.ts`, `golden/flags.ts`: synthetic `declaration.v1` documents (from the form fixtures) and risk flags shaped as the review rules raise them.
+- `lib/`: the shared scorers and the runner. `<task>.eval.ts` registers a task's suite.
+- `fixtures/`: one recorded response per case, named by the hash of the full provider request.
+
+## Scoring
+
+Hard scorers guard safety and must pass on every case; one failure fails the build:
+
+- `refs-resolve`: every source ref and flag id points at something in the input, and its parts agree (the item belongs to that person and section).
+- `no-foreign-numbers`: every number in the prose is in the input, in any written form (cents as shillings, `18 million`, `milioni 18`, percentages, date parts). Counts up to 10 and the Act's references are allowed. Rounded or derived amounts fail.
+- `no-verdict`: no compliance determination, administrative action or referral ("non-compliant", "corruption", "sanction", "refer to EACC", Swahili equivalents). Negated mentions ("not a finding of wrongdoing") pass.
+- Task shape: `one-per-flag` (explain-flags), `follows-selections` (draft-clarification: one item per selection, in order, the reviewer's requirement kept).
+
+Soft scorers are averaged over a task's cases against its threshold: `coverage` (the summary reports the planted changes and high-severity flags), `proposed-requirement`, `language` (function words, on fields of 15 words or more) and `brevity` (word budgets per field).
+
+`broken-fixture.test.ts` proves the hard scorers pass sound outputs and fail tampered ones through record and replay. The scorers and golden sets have unit tests in `pnpm test`.
+
+## Changing a prompt or the model
+
+Every fixture is keyed by the full request: prompt text, model, input and output schema. Any change to one of these misses the fixtures, and `eval` fails with `ReplayFixtureMissingError`.
+
+1. Edit `prompts/<task>/vN.md`. A version that has served real jobs is never edited: add `vN+1.md` and list it in the task's `promptVersions`.
+2. Put a key in `services/ai-gateway/.env` (`ANTHROPIC_API_KEY=...`, never committed) or the shell, then run `eval:record`. Recording uses `AI_MODEL` (default in `src/providers/provider-env.ts`).
+3. Read the failures and the new outputs; repeat.
+4. `eval:prune`, then commit the prompt with `evals/fixtures`. Reviewers read the fixture diffs: they are the model's actual answers.
+
+Swahili outputs and the Swahili verdict terms in `lib/verdict.ts` need a Swahili speaker's review before merge.
+
+## Adding a case or a task
+
+A case is `{ name, input, expected }` in `golden/<task>.ts`; record it, then commit its fixture. A new task gets `golden/<task>.ts` exporting an `EvalSuite`, an entry in `golden/suites.ts` and a `<task>.eval.ts`.
+
+Inputs must be synthetic. Fixtures hold the full request, prompts and inputs included, and are committed.

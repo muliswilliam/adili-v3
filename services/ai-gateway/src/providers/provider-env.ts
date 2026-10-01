@@ -20,6 +20,8 @@ export const providerEnvShape = {
   ANTHROPIC_API_KEY: z.string().min(1).optional(),
   ANTHROPIC_BASE_URL: z.url().optional(),
   AI_PROVIDER_TIMEOUT_MS: z.coerce.number().int().positive().default(60_000),
+  /** Model for every task until the routing table (spec 07c BE-3) lands. */
+  AI_MODEL: z.string().min(1).default('claude-opus-5-5'),
 };
 
 type ParsedProviderEnv = z.infer<z.ZodObject<typeof providerEnvShape>> & {

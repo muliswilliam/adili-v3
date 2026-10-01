@@ -20,6 +20,9 @@
     "test": {
       "dependsOn": ["^build"]
     },
+    "eval": {
+      "dependsOn": ["^build"]
+    },
     "test:integration": {
       "dependsOn": ["^build"],
       "cache": false,
