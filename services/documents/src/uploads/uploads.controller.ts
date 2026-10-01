@@ -25,6 +25,7 @@ import { z } from 'zod';
 import {
   type CreateUploadBody,
   createUploadBody,
+  type InternalUpload,
   type Upload,
   type UploadDownload,
   type UploadReservation,
@@ -118,6 +119,24 @@ export class UploadsController {
 export class InternalUploadsController {
   constructor(private readonly uploads: UploadsService) {}
 
+  @Get(':id')
+  @ApiUploadIdParam()
+  @ApiOperation({
+    operationId: 'getInternalUpload',
+    summary: 'Upload state and metadata, for services',
+    description:
+      'Service tokens with scope documents:internal, acting for the tenant in X-Acting-Tenant. Any state; with who uploaded it and whether it is linked. Hands out no bytes, so unlike the download it is no audited read.',
+  })
+  @ApiOkResponse({ description: 'The upload', schema: schemaRef('InternalUpload') })
+  @ApiProblemResponse(404, "Not found, or not the acting tenant's upload")
+  get(
+    @CurrentPrincipal() principal: Principal,
+    @ActingTenant() tenant: string,
+    @Param('id', uploadId) id: string,
+  ): Promise<InternalUpload> {
+    return this.uploads.getForService(principal, tenant, id);
+  }
+
   @Get(':id/download')
   @AuditedRead({ action: 'upload.download.issued', resource: 'upload' })
   @ApiUploadIdParam()
@@ -148,7 +167,7 @@ export class InternalUploadsController {
     operationId: 'markUploadLinked',
     summary: 'Record that the owning service linked a clean upload',
     description:
-      'Service tokens with scope documents:internal, acting for the tenant in X-Acting-Tenant. The owning service calls it when it links a clean upload to its record (declarations: an attachment on an item), so the upload is not an orphan. Idempotent: the first link time is kept.',
+      'Service tokens with scope documents:internal, acting for the tenant in X-Acting-Tenant. The owning service calls it when it links a clean upload to its record (declarations: an attachment on an item), so the upload is not an orphan: a declaration attachment left unlinked for 30 days is deleted. Idempotent: the first link time is kept.',
   })
   @ApiNoContentResponse({ description: 'Link recorded' })
   @ApiProblemResponse(404, "Not found, or not the acting tenant's upload")
@@ -159,5 +178,24 @@ export class InternalUploadsController {
     @Param('id', uploadId) id: string,
   ): Promise<void> {
     return this.uploads.markLinked(principal, tenant, id);
+  }
+
+  @Post(':id/unlinked')
+  @ApiUploadIdParam()
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({
+    operationId: 'markUploadUnlinked',
+    summary: 'Record that the owning service took its link to an upload back',
+    description:
+      'Service tokens with scope documents:internal, acting for the tenant in X-Acting-Tenant. The owning service calls it when it removes the record an upload was linked to (declarations: an attachment unlinked, or a draft discarded); a declaration attachment left unlinked for 30 days is deleted. Idempotent: an upload that is not linked is left as it is.',
+  })
+  @ApiNoContentResponse({ description: 'Link taken back' })
+  @ApiProblemResponse(404, "Not found, or not the acting tenant's upload")
+  markUnlinked(
+    @CurrentPrincipal() principal: Principal,
+    @ActingTenant() tenant: string,
+    @Param('id', uploadId) id: string,
+  ): Promise<void> {
+    return this.uploads.markUnlinked(principal, tenant, id);
   }
 }

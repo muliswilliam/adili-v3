@@ -8,6 +8,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { outbox, uploads } from '../../src/db/schema.js';
 import { CSV, HEIC, JPEG, PDF, PNG as PNG_TYPE, XLSX } from '../../src/uploads/purposes.js';
 import type {
+  InternalUpload,
   Upload,
   UploadDownload,
   UploadReservation,
@@ -623,30 +624,108 @@ describe('internal download', () => {
   });
 });
 
+/** The declarations service's account, which links attachments (spec 05). */
+const DECLARATIONS: Caller = {
+  sub: 'service-account-declarations',
+  azp: 'declarations',
+  scope: 'documents:internal',
+};
+
+const internal = (
+  method: 'linked' | 'unlinked',
+  id: string,
+  tenant = 'psc',
+  caller: Caller = DECLARATIONS,
+) =>
+  api.post(`/internal/v1/uploads/${id}/${method}`, undefined, caller, {
+    idempotencyKey: null,
+    headers: { 'x-acting-tenant': tenant },
+  });
+const link = (id: string, tenant?: string, caller?: Caller) =>
+  internal('linked', id, tenant, caller);
+const unlink = (id: string, tenant?: string, caller?: Caller) =>
+  internal('unlinked', id, tenant, caller);
+
+/** A clean declaration attachment of the declarant. */
+async function cleanAttachment(): Promise<UploadReservation> {
+  const reservation = await uploadAttachment(PDF_FILE, PDF);
+  expect((await complete(reservation.id, DECLARANT)).json<Upload>().state).toBe('clean');
+  return reservation;
+}
+
+describe('internal upload read (spec 05)', () => {
+  const read = (id: string, tenant = 'psc', caller: Caller = DECLARATIONS) =>
+    api.get(`/internal/v1/uploads/${id}`, caller, { 'x-acting-tenant': tenant });
+
+  it('shows the owning service an upload with who uploaded it and its link, unaudited', async () => {
+    const clean = await cleanAttachment();
+    const auditedBefore = await api.db
+      .select()
+      .from(outbox)
+      .where(eq(outbox.eventType, 'audit.read.v1'));
+
+    const response = await read(clean.id);
+
+    expect(response.statusCode).toBe(200);
+    const body = response.json<InternalUpload>();
+    expect(contractErrors(okResponse('/internal/v1/uploads/{id}', 'get'), body)).toEqual([]);
+    expect(body).toMatchObject({
+      id: clean.id,
+      purpose: 'declaration-attachment',
+      state: 'clean',
+      sha256: sha256(PDF_FILE),
+      size: PDF_FILE.length,
+      fileName: 'Title deed.pdf',
+      uploadedBy: 'declarant-1',
+      linkedAt: null,
+    });
+    expect(contractOperation('/internal/v1/uploads/{id}', 'get')).not.toHaveProperty(
+      'x-audited-read',
+    );
+    const auditedAfter = await api.db
+      .select()
+      .from(outbox)
+      .where(eq(outbox.eventType, 'audit.read.v1'));
+    expect(auditedAfter).toHaveLength(auditedBefore.length);
+
+    await link(clean.id);
+    expect((await read(clean.id)).json<InternalUpload>().linkedAt).not.toBeNull();
+  });
+
+  it('shows uploads in any state', async () => {
+    const pending = await reserve(fixture('roster.csv'));
+
+    expect((await read(pending.id)).json()).toMatchObject({ state: 'awaiting-upload' });
+  });
+
+  it("answers 404 for another tenant's upload and an unknown one, 403 without the scope", async () => {
+    const clean = await cleanAttachment();
+
+    expect((await read(clean.id, 'tsc')).statusCode).toBe(404);
+    expect((await read(randomUUID())).statusCode).toBe(404);
+    expect((await read(clean.id, 'psc', DECLARANT)).statusCode).toBe(403);
+  });
+});
+
 describe('internal link marker (spec 05)', () => {
   let clean: UploadReservation;
 
   beforeAll(async () => {
-    clean = await upload(fixture('roster.csv'));
-    await complete(clean.id);
+    clean = await cleanAttachment();
   });
 
-  const link = (id: string, tenant = 'psc', caller: Caller = DIRECTORY) =>
-    api.post(`/internal/v1/uploads/${id}/linked`, undefined, caller, {
-      headers: { 'x-acting-tenant': tenant },
-    });
-
-  it('records when the owning service linked a clean upload, keeping the first time on a repeat', async () => {
+  it('records when and by which service a clean upload was linked, keeping the first time on a repeat', async () => {
     expect((await row(clean.id)).linkedAt).toBeNull();
 
     const first = await link(clean.id);
 
     expect(first.statusCode).toBe(204);
-    const linkedAt = (await row(clean.id)).linkedAt;
-    expect(linkedAt).toBeInstanceOf(Date);
+    const linked = await row(clean.id);
+    expect(linked.linkedAt).toBeInstanceOf(Date);
+    expect(linked.linkedBy).toBe('declarations');
 
     expect((await link(clean.id)).statusCode).toBe(204);
-    expect((await row(clean.id)).linkedAt).toEqual(linkedAt);
+    expect((await row(clean.id)).linkedAt).toEqual(linked.linkedAt);
   });
 
   it("answers 404 for another tenant's upload and an unknown one", async () => {
@@ -666,12 +745,99 @@ describe('internal link marker (spec 05)', () => {
 
   it('refuses tokens without the documents:internal scope', async () => {
     expect((await link(clean.id, 'psc', OFFICER)).statusCode).toBe(403);
+    expect((await unlink(clean.id, 'psc', DECLARANT)).statusCode).toBe(403);
+  });
+
+  it('takes a link back, idempotently, and links again', async () => {
+    const attachment = await cleanAttachment();
+    await link(attachment.id);
+
+    expect((await unlink(attachment.id)).statusCode).toBe(204);
+    const unlinked = await row(attachment.id);
+    expect(unlinked).toMatchObject({ linkedAt: null, linkedBy: null, state: 'clean' });
+    expect(unlinked.unlinkedAt).toBeInstanceOf(Date);
+
+    expect((await unlink(attachment.id)).statusCode).toBe(204);
+    expect((await row(attachment.id)).unlinkedAt).toEqual(unlinked.unlinkedAt);
+
+    expect((await link(attachment.id)).statusCode).toBe(204);
+    expect(await row(attachment.id)).toMatchObject({ linkedBy: 'declarations', unlinkedAt: null });
+  });
+
+  it("answers an unlink of another tenant's upload or an unknown one with 404", async () => {
+    expect((await unlink(clean.id, 'tsc')).statusCode).toBe(404);
+    expect((await unlink(randomUUID())).statusCode).toBe(404);
+    expect((await row(clean.id)).linkedAt).not.toBeNull();
   });
 
   it('is in the implemented contract, not a draft', () => {
-    expect(contractOperation('/internal/v1/uploads/{id}/linked', 'post')).not.toHaveProperty(
-      'x-draft',
+    for (const path of ['/internal/v1/uploads/{id}/linked', '/internal/v1/uploads/{id}/unlinked']) {
+      expect(contractOperation(path, 'post')).not.toHaveProperty('x-draft');
+    }
+  });
+});
+
+describe('orphan sweep (spec 05)', () => {
+  /** Moves an upload's completion, and its unlink if any, `days` into the past. */
+  const age = (id: string, days: number) =>
+    withTenant(api.db, { tenant: 'platform', subject: 'test' }, (tx) =>
+      tx
+        .update(uploads)
+        .set({
+          completedAt: sql`now() - make_interval(days => ${days})`,
+          unlinkedAt: sql`case when ${uploads.unlinkedAt} is null then null else now() - make_interval(days => ${days}) end`,
+        })
+        .where(eq(uploads.id, id)),
     );
+  const sweep = () => api.app.get(UploadsService).sweepOrphans();
+
+  it('deletes declaration attachments left unlinked for 30 days, and keeps the rest', async () => {
+    const orphan = await cleanAttachment();
+    const recent = await cleanAttachment();
+    const linked = await cleanAttachment();
+    const unlinkedLongAgo = await cleanAttachment();
+    const unlinkedLately = await cleanAttachment();
+    const roster = await upload(fixture('roster.csv'));
+    await complete(roster.id);
+    await link(linked.id);
+    for (const id of [unlinkedLongAgo.id, unlinkedLately.id]) {
+      await link(id);
+      await unlink(id);
+    }
+    for (const id of [orphan.id, linked.id, unlinkedLongAgo.id, roster.id]) await age(id, 31);
+    await age(recent.id, 29);
+    // Completed long ago, but unlinked only yesterday: the 30 days run from the unlink.
+    await withTenant(api.db, { tenant: 'platform', subject: 'test' }, (tx) =>
+      tx
+        .update(uploads)
+        .set({
+          completedAt: sql`now() - interval '90 days'`,
+          unlinkedAt: sql`now() - interval '1 day'`,
+        })
+        .where(eq(uploads.id, unlinkedLately.id)),
+    );
+
+    expect(await sweep()).toBe(2);
+
+    for (const { id } of [orphan, unlinkedLongAgo]) {
+      const swept = await row(id);
+      expect(swept).toMatchObject({ state: 'deleted', cleanKey: null });
+      expect(swept.deletedAt).toBeInstanceOf(Date);
+      expect(await objectStatus('clean', `declaration-attachment/${id}`)).toBe(404);
+      expect((await api.get(`/v1/uploads/${id}`, DECLARANT)).json()).toMatchObject({
+        state: 'deleted',
+      });
+      expect((await download(id, 'psc', DECLARATIONS)).statusCode).toBe(409);
+      expect((await link(id)).statusCode).toBe(409);
+    }
+    for (const { id } of [recent, linked, unlinkedLately]) {
+      expect((await row(id)).state).toBe('clean');
+      expect(await objectStatus('clean', `declaration-attachment/${id}`)).toBe(200);
+    }
+    expect((await row(roster.id)).state).toBe('clean');
+    expect(await objectStatus('clean', `roster-import/${roster.id}`)).toBe(200);
+
+    expect(await sweep()).toBe(0);
   });
 });
 
