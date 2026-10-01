@@ -71,6 +71,16 @@ describe('EACC intake, report viewer and chase (S9, S10)', () => {
       nationalConsolidationWorkflowId(2025),
     ]);
 
+  /**
+   * Waits for the report workflow to end: its activities (the PDF and receipt, the emails) write
+   * rows the next test's reset truncates, and terminating a workflow does not stop an activity
+   * already running.
+   */
+  async function workflowEnded(tenant: string, fy: number): Promise<void> {
+    const handle = api.temporal.workflow.getHandle(complianceReportWorkflowId(tenant, fy));
+    await vi.waitFor(() => handle.result(), { timeout: 45_000, interval: 250 });
+  }
+
   /** psc, tsc and jsc in the directory, each with a supervisor, commission-admin and officer. */
   function givenDirectory() {
     givenPscDirectory(api);
@@ -115,7 +125,7 @@ describe('EACC intake, report viewer and chase (S9, S10)', () => {
       'idempotency-key': randomUUID(),
     });
     expect(confirmed.statusCode, confirmed.body).toBe(200);
-    return vi.waitFor(
+    const issued = await vi.waitFor(
       async () => {
         const body = (await api.get(path, SUPERVISOR)).json<ReportBody>();
         if (!body.formMDocumentId || !body.receiptDocumentId) throw new Error('not issued yet');
@@ -123,6 +133,9 @@ describe('EACC intake, report viewer and chase (S9, S10)', () => {
       },
       { timeout: 45_000, interval: 250 },
     );
+    // The receipt email still follows the documents.
+    await workflowEnded('psc', 2027);
+    return issued;
   }
 
   /** tsc's own system files FY 2027 on 5 August: every final declaration made. */
@@ -139,6 +152,7 @@ describe('EACC intake, report viewer and chase (S9, S10)', () => {
       'idempotency-key': randomUUID(),
     });
     expect(response.statusCode, response.body).toBe(201);
+    await workflowEnded('tsc', 2027);
     return response.json<ReportBody>();
   }
 
