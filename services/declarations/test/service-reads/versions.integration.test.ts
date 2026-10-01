@@ -5,6 +5,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
 import { commissionRefs, declarationVersions, outbox } from '../../src/db/schema.js';
 import type {
+  InternalPersonVersion,
   InternalPreviousVersion,
   InternalVersionDocument,
 } from '../../src/service-reads/representation.js';
@@ -273,5 +274,73 @@ describe('previous version', () => {
     expect(amending.statusCode, amending.body).toBe(200);
 
     expect((await previous(ACHIENG, v1)).statusCode).toBe(404);
+  });
+});
+
+describe("a person's versions (spec 10 certified copies)", () => {
+  /** The access service's account (client credentials). */
+  const ACCESS: Caller = {
+    sub: 'service-account-access',
+    azp: 'access',
+    scope: 'declarations:internal',
+  };
+  const VERSIONS = '/internal/v1/persons/{personId}/declaration-versions';
+
+  const versionsOf = (personId: string, { tenant = 'psc', caller = ACCESS } = {}) =>
+    api.request('GET', `/internal/v1/persons/${personId}/declaration-versions`, caller, {
+      headers: { 'x-acting-tenant': tenant },
+    });
+
+  it('S13: lists every submitted version of the person, latest first, with no content, audited', async () => {
+    const filed = await submitted();
+    api.clock.advance(60 * 60 * 1000);
+    await amendedOnce(filed);
+
+    const response = await versionsOf(ACHIENG);
+
+    expect(response.statusCode, response.body).toBe(200);
+    const versions = response.json<InternalPersonVersion[]>();
+    expect(contractErrors(okResponse(VERSIONS, 'get'), versions)).toEqual([]);
+    expect(versions).toEqual([
+      expect.objectContaining({
+        declarationId: filed.declarationId,
+        version: 2,
+        reference: filed.reference,
+        type: 'biennial',
+        statementDate: STATEMENT_DATE,
+        superseded: false,
+      }),
+      expect.objectContaining({ declarationId: filed.declarationId, version: 1, superseded: true }),
+    ]);
+    expect(Object.keys(versions[0] ?? {}).sort()).toEqual([
+      'declarationId',
+      'reference',
+      'statementDate',
+      'submittedAt',
+      'superseded',
+      'type',
+      'version',
+    ]);
+
+    const audits = await auditReads();
+    expect(audits).toContainEqual(
+      expect.objectContaining({
+        tenant: 'psc',
+        data: expect.objectContaining({
+          action: 'declaration.versions.listed',
+          resource: expect.objectContaining({ subjectPersonId: ACHIENG }) as unknown,
+        }) as unknown,
+      }),
+    );
+  });
+
+  it('is empty for another Commission and for someone with no versions; refuses other tokens', async () => {
+    await submitted();
+
+    expect((await versionsOf(ACHIENG, { tenant: 'tsc' })).json()).toEqual([]);
+    expect((await versionsOf(randomUUID())).json()).toEqual([]);
+    expect((await versionsOf('nope')).statusCode).toBe(400);
+    expect((await versionsOf(ACHIENG, { caller: DIRECTORY })).statusCode).toBe(403);
+    expect((await versionsOf(ACHIENG, { caller: declarant(ACHIENG) })).statusCode).toBe(403);
   });
 });

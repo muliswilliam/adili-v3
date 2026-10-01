@@ -1908,6 +1908,51 @@ paths:
       x-audited-read:
         action: obligation.officers.pulled
         resource: filing-obligation
+  /internal/v1/persons/{personId}/declaration-versions:
+    get:
+      tags:
+        - internal
+      summary: A person's submitted versions at the Commission (for certified copies)
+      description: "Service tokens with scope declarations:internal, acting for the Commission in X-Acting-Tenant; audited. Latest submitted first: declaration, version, reference, type, statement date, when submitted and whether a later version replaced it; no content. The access service lists them for the access officer recording a written self-access application. Empty when the acting tenant holds none of the person's."
+      operationId: internalListPersonVersions
+      parameters:
+        - name: X-Acting-Tenant
+          in: header
+          description: Tenant the calling service acts for; the resource must belong to it
+          required: true
+          schema:
+            type: string
+            pattern: ^[a-z][a-z0-9]{1,19}$
+        - name: personId
+          required: true
+          in: path
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Versions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/InternalPersonVersion'
+        '400':
+          description: personId is not a UUID
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '403':
+          description: Requires a service token with scope declarations:internal
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+      x-audited-read:
+        action: declaration.versions.listed
+        resource: declaration-version
   /v1/declarations/{declarationId}/suggestions/lookups:
     parameters:
       - $ref: '#/components/parameters/DeclarationId'
@@ -4162,6 +4207,36 @@ components:
         - personnelFileNumber
         - document
         - attachments
+    InternalPersonVersion:
+      type: object
+      properties:
+        declarationId:
+          type: string
+          format: uuid
+        version:
+          type: integer
+          minimum: 1
+        reference:
+          $ref: '#/components/schemas/DeclarationReference'
+        type:
+          $ref: '#/components/schemas/ObligationType'
+        statementDate:
+          type: string
+          format: date
+        submittedAt:
+          type: string
+          format: date-time
+        superseded:
+          type: boolean
+          description: A later version of the declaration replaced it
+      required:
+        - declarationId
+        - version
+        - reference
+        - type
+        - statementDate
+        - submittedAt
+        - superseded
     InternalPreviousVersion:
       type: object
       properties:
