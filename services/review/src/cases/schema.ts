@@ -247,6 +247,17 @@ export interface ClarificationItem {
   text: string;
 }
 
+/**
+ * What an issued clarification's letter says, fixed when it is issued: the Commission and, per
+ * item, what it concerns (labelled from the declaration as filed), what the Act requires and the
+ * reviewer's text. The documents service renders the letter from it, so a letter reads the same
+ * whenever it is rendered, and serving it calls no other service (ADR-013 §7.3).
+ */
+export interface ClarificationLetter {
+  commission: { name: string; issuerCode: string };
+  items: { label: string; requirementLabel: string; text: string }[];
+}
+
 /** A written request for clarification (Act s.35(2)-(4)), numbered `CLR-…` when issued. */
 export const clarifications = pgTable(
   'clarifications',
@@ -267,6 +278,8 @@ export const clarifications = pgTable(
     responseLate: boolean(),
     resolvedAt: timestamp({ withTimezone: true }),
     resolutionNote: text(),
+    /** Set when issued. */
+    letter: jsonb().$type<ClarificationLetter>(),
     letterDocumentId: uuid(),
     letterVerificationId: text(),
     followUpOf: uuid(),

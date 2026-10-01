@@ -36,6 +36,13 @@
       "when": 1790673023636,
       "tag": "0004_clarification_numbering",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1790851270523,
+      "tag": "0005_clarification_letter",
+      "breakpoints": true
     }
   ]
 }

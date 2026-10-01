@@ -19,6 +19,7 @@ import {
 } from '../cases/schema.js';
 import { Clock, nairobiDate, nairobiYear } from '../clock.js';
 import type { ReviewSchema } from '../db/schema.js';
+import { DeclarationsClient } from '../declarations/declarations-client.js';
 import { DirectoryClient } from '../directory/directory-client.js';
 import { DocumentsClient } from '../documents/documents-client.js';
 import { caseTenant } from '../cases/access.js';
@@ -31,6 +32,7 @@ import type {
 } from './clarification-input.js';
 import { ClarificationWorkflows } from './clarification-workflows.js';
 import { clarificationDueAt } from './contract.js';
+import { composeLetter } from './letter.js';
 import {
   CLARIFICATION_ISSUED,
   CLARIFICATION_RESOLVED,
@@ -60,6 +62,7 @@ export class ClarificationsService {
   constructor(
     @InjectDatabase() private readonly db: Database<ReviewSchema>,
     private readonly events: EventPublisher,
+    private readonly declarations: DeclarationsClient,
     private readonly directory: DirectoryClient,
     private readonly documents: DocumentsClient,
     private readonly workflows: ClarificationWorkflows,
@@ -167,10 +170,17 @@ export class ClarificationsService {
         issuer: commission.issuerCode,
         period: nairobiYear(now),
       });
+      const letter = await composeLetter(
+        this.declarations,
+        { tenant, actingSubject: principal.subject },
+        reviewCase,
+        commission,
+        clarification.items,
+      );
       const dueAt = clarificationDueAt(now, policy.replyWindowDays);
       const [issued] = await tx
         .update(clarifications)
-        .set({ status: 'issued', reference, issuedAt: now, dueAt })
+        .set({ status: 'issued', reference, issuedAt: now, dueAt, letter })
         .where(eq(clarifications.id, clarificationId))
         .returning();
       await tx
@@ -295,7 +305,7 @@ export class ClarificationsService {
         kind: 'clarification-follow-up',
         ref: draft.id,
         actor: principal.subject,
-        summary: `Follow-up of clarification ${clarification.reference ?? clarificationId} drafted`,
+        summary: `Further clarification on ${clarification.reference ?? clarificationId} drafted`,
       });
       return clarificationView(draft);
     });

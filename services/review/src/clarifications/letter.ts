@@ -1,0 +1,51 @@
+import type { DeclarationV1 } from '@adili/forms';
+
+import type { ClarificationItem, ClarificationLetter } from '../cases/schema.js';
+import {
+  type DeclarationsClient,
+  DeclarationsUnavailable,
+} from '../declarations/declarations-client.js';
+import type { CommissionFacts } from '../directory/directory-client.js';
+import { declarationsUnavailable } from '../internal-api/upstream.js';
+import { itemLabel, REQUIREMENT_LABELS } from './labels.js';
+
+/** The case a clarification is issued on: the version as filed is read for its item labels. */
+export interface IssuedOn {
+  id: string;
+  declarationId: string;
+  currentVersion: number;
+}
+
+/**
+ * The letter of a clarification being issued: each item labelled from the case's current version
+ * as filed, read from declarations on the reviewer's behalf (audited there). A declarations outage
+ * is a 502: nothing is issued, and the reviewer issues again.
+ */
+export async function composeLetter(
+  declarations: DeclarationsClient,
+  read: { tenant: string; actingSubject: string },
+  reviewCase: IssuedOn,
+  commission: CommissionFacts,
+  items: ClarificationItem[],
+): Promise<ClarificationLetter> {
+  let document: DeclarationV1 | null;
+  try {
+    const pulled = await declarations.getVersionDocument(
+      reviewCase.declarationId,
+      reviewCase.currentVersion,
+      { ...read, caseId: reviewCase.id },
+    );
+    document = (pulled?.document as unknown as DeclarationV1 | undefined) ?? null;
+  } catch (error) {
+    if (!(error instanceof DeclarationsUnavailable)) throw error;
+    throw declarationsUnavailable();
+  }
+  return {
+    commission: { name: commission.name, issuerCode: commission.issuerCode },
+    items: items.map((item) => ({
+      label: itemLabel(item, document),
+      requirementLabel: REQUIREMENT_LABELS[item.requirement],
+      text: item.text,
+    })),
+  };
+}
