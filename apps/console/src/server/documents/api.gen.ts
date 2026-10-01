@@ -435,6 +435,11 @@ export interface components {
             /** Format: date */
             date: string;
         };
+        CommissionRef: {
+            slug: string;
+            issuerCode: string;
+            name: string;
+        };
         /** @description Payload of acknowledgement-slip v1: what the declarations service's acknowledgement payload endpoint returns for a submitted version */
         AcknowledgementSlipPayload: {
             declarantName: string;
@@ -465,11 +470,7 @@ export interface components {
                  */
                 grantReference: string;
                 personName: string;
-                commission: {
-                    slug: string;
-                    issuerCode: string;
-                    name: string;
-                };
+                commission: components["schemas"]["CommissionRef"];
                 versions: {
                     reference: string;
                     version: number;
@@ -500,26 +501,22 @@ export interface components {
                 sections: ("bio" | "income" | "assets" | "liabilities" | "other")[];
             };
         };
-        /** @description Payload of certified-copy v1: the declarations service's full document of a submitted version, with the issuing Commission */
+        /** @description Payload of certified-copy v1: the declarations service's full document of a submitted version (FullVersionDocument without its identifiers and hash) */
         CertifiedCopyPayload: {
-            commissionName: string;
-            issuerCode: string;
+            commission: components["schemas"]["CommissionRef"];
             declarantName: string;
-            personnelFileNumber: string | null;
-            /** @enum {string} */
-            declarationType: "initial" | "biennial" | "final";
             /** @description Declaration reference number (ADR-011), e.g. DCB-PSC-2027-0000001-1 */
             reference: string;
             version: number;
+            /** @enum {string} */
+            type: "initial" | "biennial" | "final";
             /** Format: date */
             statementDate: string;
             /** Format: date-time */
             submittedAt: string;
-            late: boolean;
-            dueDate: string | null;
             document: components["schemas"]["DeclarationV1"];
         };
-        /** @description Subset of a declaration.v1 document limited to the granted persons and sections: officer only with bio; spouses and children only when included; statements of the included persons, with income, assets and liabilities (each with its nil flag) only when granted; otherInformation only with other */
+        /** @description The declaration.v1 document cut to the granted scope: always schemaVersion, type, statementDate and attestation; with bio, officer (and spouses, children when included); with income, assets or liabilities, statements of the included persons holding only those parts (incomePeriod too with income); with other, otherInformation. An absent key was not granted */
         DisclosedDeclaration: {
             /** @constant */
             schemaVersion: "declaration.v1";
@@ -527,7 +524,7 @@ export interface components {
             type: "initial" | "biennial" | "final";
             /** Format: date */
             statementDate: string;
-            incomePeriod: {
+            incomePeriod?: {
                 /** Format: date */
                 from: string;
                 /** Format: date */
@@ -538,7 +535,7 @@ export interface components {
             officer?: components["schemas"]["DeclarationOfficer"];
             spouses?: components["schemas"]["DeclarationSpouses"];
             children?: components["schemas"]["DeclarationChildren"];
-            statements: {
+            statements?: {
                 personKey: string;
                 personName: components["schemas"]["PersonName"];
                 /** Format: date */
@@ -558,6 +555,13 @@ export interface components {
                 knowledgeLimitation?: string;
             }[];
             otherInformation?: components["schemas"]["DeclarationOtherInformation"];
+            attestation: {
+                /** @constant */
+                text: "I solemnly declare that the information I have given in this declaration is, to the best of my knowledge, true and complete.";
+                /** Format: date-time */
+                declaredAt?: string;
+                reference?: string;
+            };
         };
         DeclarationV1: {
             /** @constant */

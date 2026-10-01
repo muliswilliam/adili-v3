@@ -43,26 +43,28 @@ const disclosedStatement = z.strictObject({
 });
 
 /**
- * The part of a `declaration.v1` document a grant discloses (spec 10): the document with what
- * the scope leaves out omitted. `officer` only with the bio section, `spouses` and `children`
- * only when the household is included, `statements` of the included persons with their granted
- * sections, `otherInformation` only with the other section.
+ * The part of a `declaration.v1` document a grant discloses (spec 10), as the declarations
+ * service cuts it: the document's identity and attestation always; `officer` (with `spouses`
+ * and `children` when included) only with bio; `statements` of the included persons with only
+ * their granted sections (and the income period with income) only with a financial section;
+ * `otherInformation` only with other. An absent key was not granted.
  */
 export const disclosedDeclarationSchema = z
   .strictObject({
     schemaVersion: declaration.schemaVersion,
     type: declaration.type,
     statementDate: declaration.statementDate,
-    incomePeriod: declaration.incomePeriod,
+    incomePeriod: declaration.incomePeriod.optional(),
     officer: declaration.officer.optional(),
     spouses: declaration.spouses.optional(),
     children: declaration.children.optional(),
-    statements: z.array(disclosedStatement),
+    statements: z.array(disclosedStatement).optional(),
     otherInformation: declaration.otherInformation.optional(),
+    attestation: declaration.attestation,
   })
   .meta({
     description:
-      'Subset of a declaration.v1 document limited to the granted persons and sections: officer only with bio; spouses and children only when included; statements of the included persons, with income, assets and liabilities (each with its nil flag) only when granted; otherInformation only with other',
+      'The declaration.v1 document cut to the granted scope: always schemaVersion, type, statementDate and attestation; with bio, officer (and spouses, children when included); with income, assets or liabilities, statements of the included persons holding only those parts (incomePeriod too with income); with other, otherInformation. An absent key was not granted',
   });
 
 export type DisclosedDeclaration = z.infer<typeof disclosedDeclarationSchema>;
@@ -400,13 +402,13 @@ export function declarationContent(
   return [
     content.officer ? bio(content.officer) : '',
     household(content.spouses, content.children, options),
-    statements(content.statements),
+    statements(content.statements ?? []),
     otherInformation(content.otherInformation),
   ].join('');
 }
 
 /** The attestation of a submitted version, as declared. */
-export function attestation(content: DeclarationV1): string {
+export function attestation(content: Pick<DeclarationV1, 'attestation'>): string {
   const declared = content.attestation.declaredAt
     ? `<p class="note">Declared ${esc(formatDateTime(content.attestation.declaredAt))}.</p>`
     : '';

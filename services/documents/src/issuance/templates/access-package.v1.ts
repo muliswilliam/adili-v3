@@ -3,6 +3,7 @@ import { ACCESS_PACKAGE } from '@adili/events/contracts';
 import { z } from 'zod';
 
 import {
+  attestation,
   CONTENT_STYLES,
   declarationContent,
   disclosedDeclarationSchema,
@@ -20,7 +21,7 @@ import {
   SOFT,
   signatureNote,
 } from './page.js';
-import { DECLARATION_TYPES, isDeclarationReference } from './references.js';
+import { commissionRefSchema, DECLARATION_TYPES, isDeclarationReference } from './references.js';
 import type { DocumentTemplate } from './template.js';
 
 /**
@@ -57,23 +58,21 @@ export const accessPackagePayload = z
           examples: ['ARQ-PSC-2026-0000012-5'],
         }),
       personName: z.string().trim().min(1).max(200),
-      commission: z.strictObject({
-        slug: z.string().min(1).max(20),
-        issuerCode: z.string().regex(/^[A-Z0-9]{2,20}$/),
-        name: z.string().trim().min(1).max(200),
-      }),
-      versions: z.array(
-        z.strictObject({
-          reference: z.string().refine(isDeclarationReference, {
-            message: 'Must be a declaration reference number with a valid check character',
+      commission: commissionRefSchema,
+      versions: z
+        .array(
+          z.strictObject({
+            reference: z.string().refine(isDeclarationReference, {
+              message: 'Must be a declaration reference number with a valid check character',
+            }),
+            version: z.int().min(1),
+            type: z.enum(DECLARATION_TYPES),
+            statementDate: z.iso.date(),
+            submittedAt: z.iso.datetime({ offset: true }),
+            content: disclosedDeclarationSchema,
           }),
-          version: z.int().min(1),
-          type: z.enum(DECLARATION_TYPES),
-          statementDate: z.iso.date(),
-          submittedAt: z.iso.datetime({ offset: true }),
-          content: disclosedDeclarationSchema,
-        }),
-      ),
+        )
+        .min(1),
     }),
     legalBasis: z.enum(LEGAL_BASES).meta({
       description: 'act-s36-1: an access request (Form K); act-s36-2: a law-enforcement request',
@@ -182,14 +181,12 @@ export const accessPackageV1: DocumentTemplate<AccessPackagePayload> = {
     const issuedTo = recipient.organisation
       ? `${recipient.name}, ${recipient.organisation}`
       : recipient.name;
-    const versions = disclosure.versions.length
-      ? disclosure.versions
-          .map((entry) => {
-            const scheme = declarationSchemes[entry.type];
-            return `<section class="version"><div class="vh"><div class="t">${esc(scheme.name)}, ${esc(formatDate(entry.statementDate))}</div><div class="mono nw">${esc(entry.reference)} · Version ${entry.version}</div></div><p class="note">Submitted ${esc(formatDateTime(entry.submittedAt))}.</p>${declarationContent(entry.content, { householdIdentifiers: false })}</section>`;
-          })
-          .join('')
-      : '<p class="fine">No declaration was submitted for the granted years.</p>';
+    const versions = disclosure.versions
+      .map((entry) => {
+        const scheme = declarationSchemes[entry.type];
+        return `<section class="version"><div class="vh"><div class="t">${esc(scheme.name)}, ${esc(formatDate(entry.statementDate))}</div><div class="mono nw">${esc(entry.reference)} · Version ${entry.version}</div></div><p class="note">Submitted ${esc(formatDateTime(entry.submittedAt))}.</p>${declarationContent(entry.content, { householdIdentifiers: false })}${attestation(entry.content)}</section>`;
+      })
+      .join('');
     const body = `${letterhead({ name: disclosure.commission.name, code: disclosure.commission.issuerCode })}
 <div class="doc-h"><div class="t1" role="heading" aria-level="1">Access package</div><div class="doc-sub">Disclosure of declarations of income, assets and liabilities</div></div>
 <div class="ref"><div><div class="lbl">Request reference</div><div class="big mono nw">${esc(disclosure.grantReference)}</div></div><div class="cpill">CONFIDENTIAL</div></div>

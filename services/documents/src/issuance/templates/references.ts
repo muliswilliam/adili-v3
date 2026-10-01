@@ -4,6 +4,7 @@ import {
   InvalidReferenceError,
   parse,
 } from '@adili/numbering/references';
+import { z } from 'zod';
 
 /** The declaration types, as the reference schemes name them. */
 export const DECLARATION_TYPES = Object.keys(declarationSchemes) as [
@@ -23,3 +24,11 @@ export function isDeclarationReference(reference: string): boolean {
     throw error;
   }
 }
+
+/** The issuing Commission as the declarations service names it (`CommissionRef`). */
+export const commissionRefSchema = z.strictObject({
+  slug: z.string().min(1).max(20),
+  /** As in the reference numbers, e.g. `PSC`. */
+  issuerCode: z.string().regex(/^[A-Z0-9]{2,20}$/),
+  name: z.string().trim().min(1).max(200),
+});

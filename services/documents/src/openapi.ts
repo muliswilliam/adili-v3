@@ -15,6 +15,7 @@ import { accessPackagePayload } from './issuance/templates/access-package.v1.js'
 import { acknowledgementSlipPayload } from './issuance/templates/acknowledgement-slip.v1.js';
 import { certifiedCopyPayload } from './issuance/templates/certified-copy.v1.js';
 import { disclosedDeclarationSchema } from './issuance/templates/declaration-content.js';
+import { commissionRefSchema } from './issuance/templates/references.js';
 import { uploadPurposeSchema } from './uploads/purposes.js';
 import {
   createUploadBody,
@@ -46,6 +47,7 @@ export const OPENAPI_SCHEMAS: Record<string, z.ZodType> = {
   IssuedDocument: issuedDocumentSchema,
   DocumentDownload: documentDownloadSchema,
   Watermark: watermarkSchema,
+  CommissionRef: commissionRefSchema,
   AcknowledgementSlipPayload: acknowledgementSlipPayload,
   AccessPackagePayload: accessPackagePayload,
   CertifiedCopyPayload: certifiedCopyPayload,

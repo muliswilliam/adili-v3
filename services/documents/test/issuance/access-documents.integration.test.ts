@@ -99,7 +99,7 @@ function disclosedContent(): DisclosedDeclaration {
     const disclosed: Partial<Statement> = { ...statement };
     delete disclosed.liabilities;
     delete disclosed.liabilitiesNil;
-    return disclosed as DisclosedDeclaration['statements'][number];
+    return disclosed as NonNullable<DisclosedDeclaration['statements']>[number];
   };
   const officer = withoutLiabilities(OFFICER_STATEMENT);
   const spouse = withoutLiabilities(SPOUSE_STATEMENT);
@@ -111,6 +111,7 @@ function disclosedContent(): DisclosedDeclaration {
     officer: DECLARATION.officer,
     spouses: DECLARATION.spouses,
     statements: [officer, spouse],
+    attestation: DECLARATION.attestation,
   };
 }
 
@@ -119,7 +120,7 @@ function packagePayload(overrides: Partial<AccessPackagePayload> = {}): AccessPa
     disclosure: {
       schemaVersion: 'disclosure.v1',
       grantReference: ARQ,
-      personName: 'Jane Wanjiru Kamau',
+      personName: 'James Ochieng Otieno',
       commission: { slug: 'psc', issuerCode: 'PSC', name: 'Public Service Commission' },
       versions: [
         {
@@ -168,17 +169,13 @@ function packageBody(overrides: Record<string, unknown> = {}) {
 
 function copyPayload(): CertifiedCopyPayload {
   return {
-    commissionName: 'Public Service Commission',
-    issuerCode: 'PSC',
-    declarantName: 'Jane Wanjiru Kamau',
-    personnelFileNumber: 'PSC/2019/00412',
-    declarationType: 'biennial',
+    commission: { slug: 'psc', issuerCode: 'PSC', name: 'Public Service Commission' },
+    declarantName: 'James Ochieng Otieno',
     reference: 'DCB-PSC-2027-0000001-1',
     version: 1,
+    type: 'biennial',
     statementDate: '2027-11-01',
     submittedAt: '2027-11-15T07:42:00.000Z',
-    late: false,
-    dueDate: '2027-12-31',
     document: DECLARATION,
   };
 }
@@ -290,7 +287,7 @@ describe('S10 issuing an access package', () => {
     expect(event?.data).toMatchObject({ disclosureLevel: 'confidential', publicPayload: null });
     const serialised = JSON.stringify(event);
     expect(serialised).not.toContain('Amina');
-    expect(serialised).not.toContain('Jane');
+    expect(serialised).not.toContain('Ochieng');
   });
 
   it('registers the request reference the package answers', async () => {
@@ -344,12 +341,38 @@ describe('S10 an access package needs its watermark, window and recipient', () =
   it('refuses a disclosure with an undisclosable field, naming it', async () => {
     const payload = packagePayload();
     const content = payload.disclosure.versions[0]?.content as Record<string, unknown>;
-    content.attestation = DECLARATION.attestation;
+    content.notes = 'Not a part of declaration.v1';
     const response = await issue(packageBody({ payload }));
     expect(response.statusCode).toBe(400);
     expect(response.json<Problem>().errors).toEqual([
       expect.objectContaining({ path: 'payload.disclosure.versions.0.content' }),
     ]);
+  });
+});
+
+describe('S10 an access package of the bio section only', () => {
+  it('prints the particulars and no statements', async () => {
+    const content: DisclosedDeclaration = {
+      schemaVersion: DECLARATION.schemaVersion,
+      type: DECLARATION.type,
+      statementDate: DECLARATION.statementDate,
+      officer: DECLARATION.officer,
+      attestation: DECLARATION.attestation,
+    };
+    const payload = packagePayload({
+      scope: { years: [2027], includeSpouses: false, includeChildren: false, sections: ['bio'] },
+    });
+    const [, version] = payload.disclosure.versions;
+    if (!version) throw new Error('the payload has two versions');
+    payload.disclosure.versions = [{ ...version, content }];
+    const document = await issued(packageBody({ payload }));
+    const all = (await pageTexts(await storedPdf(document.id))).join(' ');
+    expect(all).toContain('Biodata');
+    expect(all).toContain(DECLARATION.officer.birth.place);
+    expect(all).not.toContain('INCOME');
+    expect(all).not.toContain('Household');
+    for (const spouse of DECLARATION.spouses.items)
+      expect(all).not.toContain(spouse.name.firstName);
   });
 });
 

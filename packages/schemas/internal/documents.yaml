@@ -957,6 +957,25 @@ components:
         - date
       additionalProperties: false
       description: Printed across every page as `Issued to <recipientName> · <reference> · <date>` (ADR-010 §6), so a leaked copy traces to its recipient. Required for access-package
+    CommissionRef:
+      type: object
+      properties:
+        slug:
+          type: string
+          minLength: 1
+          maxLength: 20
+        issuerCode:
+          type: string
+          pattern: ^[A-Z0-9]{2,20}$
+        name:
+          type: string
+          minLength: 1
+          maxLength: 200
+      required:
+        - slug
+        - issuerCode
+        - name
+      additionalProperties: false
     AcknowledgementSlipPayload:
       type: object
       properties:
@@ -1036,25 +1055,9 @@ components:
               minLength: 1
               maxLength: 200
             commission:
-              type: object
-              properties:
-                slug:
-                  type: string
-                  minLength: 1
-                  maxLength: 20
-                issuerCode:
-                  type: string
-                  pattern: ^[A-Z0-9]{2,20}$
-                name:
-                  type: string
-                  minLength: 1
-                  maxLength: 200
-              required:
-                - slug
-                - issuerCode
-                - name
-              additionalProperties: false
+              $ref: '#/components/schemas/CommissionRef'
             versions:
+              minItems: 1
               type: array
               items:
                 type: object
@@ -1160,64 +1163,42 @@ components:
     CertifiedCopyPayload:
       type: object
       properties:
-        commissionName:
-          type: string
-          minLength: 1
-          maxLength: 200
-        issuerCode:
-          type: string
-          pattern: ^[A-Z0-9]{2,20}$
+        commission:
+          $ref: '#/components/schemas/CommissionRef'
         declarantName:
           type: string
           minLength: 1
           maxLength: 200
-        personnelFileNumber:
-          anyOf:
-            - type: string
-              minLength: 1
-              maxLength: 30
-            - type: 'null'
-        declarationType:
-          type: string
-          enum:
-            - initial
-            - biennial
-            - final
         reference:
           type: string
           description: Declaration reference number (ADR-011), e.g. DCB-PSC-2027-0000001-1
         version:
           type: integer
           minimum: 1
+        type:
+          type: string
+          enum:
+            - initial
+            - biennial
+            - final
         statementDate:
           type: string
           format: date
         submittedAt:
           type: string
           format: date-time
-        late:
-          type: boolean
-        dueDate:
-          anyOf:
-            - type: string
-              format: date
-            - type: 'null'
         document:
           $ref: '#/components/schemas/DeclarationV1'
       required:
-        - commissionName
-        - issuerCode
+        - commission
         - declarantName
-        - personnelFileNumber
-        - declarationType
         - reference
         - version
+        - type
         - statementDate
         - submittedAt
-        - late
-        - dueDate
         - document
-      description: "Payload of certified-copy v1: the declarations service's full document of a submitted version, with the issuing Commission"
+      description: "Payload of certified-copy v1: the declarations service's full document of a submitted version (FullVersionDocument without its identifiers and hash)"
     DisclosedDeclaration:
       type: object
       properties:
@@ -1313,14 +1294,27 @@ components:
             additionalProperties: false
         otherInformation:
           $ref: '#/components/schemas/DeclarationOtherInformation'
+        attestation:
+          type: object
+          properties:
+            text:
+              type: string
+              const: I solemnly declare that the information I have given in this declaration is, to the best of my knowledge, true and complete.
+            declaredAt:
+              type: string
+              format: date-time
+            reference:
+              type: string
+          required:
+            - text
+          additionalProperties: false
       required:
         - schemaVersion
         - type
         - statementDate
-        - incomePeriod
-        - statements
+        - attestation
       additionalProperties: false
-      description: 'Subset of a declaration.v1 document limited to the granted persons and sections: officer only with bio; spouses and children only when included; statements of the included persons, with income, assets and liabilities (each with its nil flag) only when granted; otherInformation only with other'
+      description: 'The declaration.v1 document cut to the granted scope: always schemaVersion, type, statementDate and attestation; with bio, officer (and spouses, children when included); with income, assets or liabilities, statements of the included persons holding only those parts (incomePeriod too with income); with other, otherInformation. An absent key was not granted'
     DeclarationV1:
       type: object
       properties:
