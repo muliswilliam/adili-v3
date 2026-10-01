@@ -14,7 +14,10 @@ export type QrCodeProps = Omit<ComponentProps<'svg'>, 'children' | 'role' | 'vie
    * text, e.g. "QR code for verification code ADL-7Q4K-M2XR-9HTC".
    */
   label: string;
-  /** Width and height in CSS pixels, quiet zone included. */
+  /**
+   * Width and height in CSS pixels, quiet zone included. It is rounded to the nearest whole
+   * number of pixels per module, so every module is the same size and its edges are crisp.
+   */
   size?: number;
 };
 
@@ -41,6 +44,11 @@ export function qrCodePath(value: string): { path: string; modules: number } {
   return { path, modules: size };
 }
 
+/** `size` rounded to a whole number of pixels per module (at least one). */
+export function qrCodeWidth(size: number, modules: number): number {
+  return modules * Math.max(1, Math.round(size / modules));
+}
+
 /**
  * A QR code drawn as an SVG from a string, with its quiet zone on white so it scans on any
  * background, dark theme included. It is an image named by `label`; print the code it carries
@@ -48,13 +56,14 @@ export function qrCodePath(value: string): { path: string; modules: number } {
  */
 export function QrCode({ value, label, size = 112, className, ...props }: QrCodeProps) {
   const { path, modules } = useMemo(() => qrCodePath(value), [value]);
+  const width = qrCodeWidth(size, modules);
   return (
     <svg
       role="img"
       aria-label={label}
       viewBox={`0 0 ${String(modules)} ${String(modules)}`}
-      width={size}
-      height={size}
+      width={width}
+      height={width}
       shapeRendering="crispEdges"
       className={cn('shrink-0 rounded-md', className)}
       {...props}

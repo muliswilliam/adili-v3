@@ -2,7 +2,8 @@ import type { Meta, StoryObj } from '@storybook/react-vite';
 
 import { QrCode } from './qr-code';
 
-const CODE = 'ADL-7Q4K-M2XR-9HTC';
+/** A verification code in its real format: ADL- and 26 characters in groups of four. */
+const CODE = 'ADL-7Q4K-M2XR-9HTC-W3NB-5FJD-K6RT-8P';
 
 const meta = {
   title: 'Verification/QrCode',

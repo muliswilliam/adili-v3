@@ -2,7 +2,7 @@ import { render, screen } from '@testing-library/react';
 import jsQR from 'jsqr';
 import { describe, expect, it } from 'vitest';
 
-import { QrCode } from './qr-code';
+import { QrCode, qrCodeWidth } from './qr-code';
 
 const VERIFY_URL = 'https://verify.adili.go.ke/v/ADL-7Q4K-M2XR-9HTC';
 const SCALE = 4;
@@ -34,7 +34,15 @@ describe('QrCode', () => {
     const image = screen.getByRole('img', {
       name: 'QR code for verification code ADL-7Q4K-M2XR-9HTC',
     });
-    expect(image.getAttribute('width')).toBe('112');
+    // 41 modules: 112 px rounds to 3 px a module.
+    expect(image.getAttribute('width')).toBe('123');
+  });
+
+  it('draws every module the same whole number of pixels, near the size asked for', () => {
+    expect(qrCodeWidth(124, 45)).toBe(135);
+    expect(qrCodeWidth(112, 41)).toBe(123);
+    expect(qrCodeWidth(100, 41)).toBe(82);
+    expect(qrCodeWidth(20, 41)).toBe(41);
   });
 
   it('encodes the string so a reader scans it back', () => {
@@ -42,7 +50,7 @@ describe('QrCode', () => {
 
     const svg = screen.getByRole<SVGSVGElement & HTMLElement>('img');
     expect(scan(svg)).toBe(VERIFY_URL);
-    expect(svg.getAttribute('width')).toBe('160');
+    expect(svg.getAttribute('width')).toBe('164');
   });
 
   it('keeps a white quiet zone around the code', () => {
