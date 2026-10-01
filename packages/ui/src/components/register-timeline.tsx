@@ -56,7 +56,7 @@ export const registerKindMeta: Record<RegisterKind, EntryMeta> = {
   expired: { label: 'Download window closed', icon: Timer02Icon, tone: 'warning' },
   withdrawn: { label: 'Request withdrawn', icon: Undo02Icon, tone: 'default' },
   'cannot-identify': {
-    label: 'Declarant could not be identified',
+    label: 'Officer could not be identified',
     icon: UserRemove01Icon,
     tone: 'destructive',
   },

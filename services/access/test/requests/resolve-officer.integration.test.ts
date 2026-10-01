@@ -47,7 +47,11 @@ describe('Resolving the officer a request names (S3)', () => {
       expect(
         contractErrors(okResponse('/v1/access/requests/{requestId}/resolve', 'post'), view),
       ).toEqual([]);
-      expect(view.resolvedRosterRecordId).toBe(anne.id);
+      expect(view).toMatchObject({
+        resolvedRosterRecordId: anne.id,
+        resolvedName: 'Anne Njeri Mutua',
+        resolvedFileNumber: 'PF-2011-004512',
+      });
 
       const row = await untilNotified(api, id);
       expect(row).toMatchObject({

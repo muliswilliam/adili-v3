@@ -2,10 +2,11 @@ import { randomUUID } from 'node:crypto';
 
 import { hasValidCheckCharacter } from '@adili/numbering';
 import { APPLICANT, DECLARANT, LAW_ENFORCEMENT } from '@adili/roles';
+import { eq } from 'drizzle-orm';
 import { afterEach, beforeAll, describe, expect, it } from 'vitest';
 
 import type { RosterCandidateFacts } from '../../src/directory/directory-client.js';
-import { leaRequests } from '../../src/db/schema.js';
+import { accessRequests, leaRequests } from '../../src/db/schema.js';
 import { leaRequestWorkflowId } from '../../src/lea/contract.js';
 import type { LeaRequest } from '../../src/lea/representation.js';
 import type { QueuePage } from '../../src/requests/officer-representation.js';
@@ -317,11 +318,13 @@ describe('Law enforcement requests (S11)', () => {
         applicantOrAgency: 'Directorate of Criminal Investigations',
         officerSought: 'Anne Njeri Mutua',
         resolvedName: null,
+        resolvedFileNumber: null,
         status: 'received',
         submittedAt: NOW,
         deadlineAt: DEADLINE,
         windowEndsAt: null,
         late: false,
+        closedAt: null,
       });
       expect(leaOnly.json<QueuePage>().items.map((item) => item.id)).toEqual([lea.id]);
       expect(formKOnly.json<QueuePage>().items.map((item) => item.id)).toEqual([formK.id]);
@@ -357,6 +360,56 @@ describe('Law enforcement requests (S11)', () => {
         [formK.id, false],
       ]);
       expect(two.json<QueuePage>().nextCursor).toBeNull();
+    });
+
+    it('lists open requests of both kinds first by earliest deadline, then decided and closed ones by latest, across pages', async () => {
+      given();
+      const withdrawn = await received();
+      const formK = await submitRequest(api);
+      api.clock.set('2027-01-12T07:00:00.000Z');
+      const open = await received();
+      const denied = await submitRequest(api);
+      await api.asPlatform((tx) =>
+        tx.update(leaRequests).set({ status: 'withdrawn' }).where(eq(leaRequests.id, withdrawn.id)),
+      );
+      await api.asPlatform((tx) =>
+        tx.update(accessRequests).set({ status: 'denied' }).where(eq(accessRequests.id, denied.id)),
+      );
+
+      const ids: string[] = [];
+      let cursor: string | null = null;
+      do {
+        const query = `?limit=1${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ''}`;
+        const page: QueuePage = (
+          await api.get(`/v1/commissions/psc/access/requests${query}`, officer)
+        ).json<QueuePage>();
+        ids.push(...page.items.map((item) => item.id));
+        cursor = page.nextCursor;
+      } while (cursor !== null);
+
+      // Open: the LEA one due day 15, then Form K due day 30; closed: Form K due day 31, LEA day 14.
+      expect(ids).toEqual([open.id, formK.id, denied.id, withdrawn.id]);
+    });
+
+    it('filters both kinds by late and by search', async () => {
+      given();
+      const withdrawn = await received();
+      const formK = await submitRequest(api);
+      api.clock.set('2027-01-12T07:00:00.000Z');
+      const open = await received();
+      await api.asPlatform((tx) =>
+        tx.update(leaRequests).set({ status: 'withdrawn' }).where(eq(leaRequests.id, withdrawn.id)),
+      );
+      api.clock.set('2027-01-31T07:00:00.000Z');
+      const list = async (query: string) =>
+        (await api.get(`/v1/commissions/psc/access/requests${query}`, officer))
+          .json<QueuePage>()
+          .items.map((item) => item.id);
+
+      expect(await list('?late=true')).toEqual([open.id]);
+      expect(await list('?late=false')).toEqual([formK.id, withdrawn.id]);
+      expect(await list(`?search=${open.reference}`)).toEqual([open.id]);
+      expect(await list('?search=criminal')).toEqual([open.id, withdrawn.id]);
     });
   });
 

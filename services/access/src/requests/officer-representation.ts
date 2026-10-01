@@ -54,6 +54,24 @@ export const queueQuery = z.object({
         'Only requests in these statuses, comma-separated, of either kind (e.g. the open ones: `submitted,pending-applicant-verification,officer-unresolved,awaiting-representations,under-decision,received,verified`)',
     }),
   kind: z.enum(QUEUE_KINDS).optional().meta({ description: 'Only Form K or only LEA requests' }),
+  late: z
+    .enum(['true', 'false'])
+    .optional()
+    .transform((value) => (value === undefined ? undefined : value === 'true'))
+    .meta({
+      description:
+        'Only requests past their decision deadline and neither decided nor closed (`true`), or only the others (`false`)',
+    }),
+  search: z
+    .string()
+    .trim()
+    .max(200)
+    .optional()
+    .transform((value) => (value === '' ? undefined : value))
+    .meta({
+      description:
+        "The reference or the identified officer's personnel file number (their beginning), or part of the applicant's or the officer's name (case-insensitive)",
+    }),
   cursor: z
     .string()
     .max(500)
@@ -75,6 +93,8 @@ export const queueItemSchema = z.object({
   officerSought: z.string(),
   /** The roster record's full name the officer sought was resolved to; null before. */
   resolvedName: z.string().nullable(),
+  /** That roster record's personnel file number; null before (always null for law enforcement requests). */
+  resolvedFileNumber: z.string().nullable(),
   status: z.enum(QUEUE_STATUSES).meta({
     description:
       'An `AccessRequestStatus` for Form K, a `LeaRequestStatus` for law enforcement requests',
@@ -86,6 +106,8 @@ export const queueItemSchema = z.object({
   windowEndsAt: z.iso.datetime({ offset: true }).nullable(),
   /** Past its decision deadline and not decided or closed. */
   late: z.boolean(),
+  /** When it was decided, or closed without a decision (withdrawn, cannot identify); null while open. */
+  closedAt: z.iso.datetime({ offset: true }).nullable(),
 });
 
 export type QueueItem = z.infer<typeof queueItemSchema>;
@@ -144,3 +166,11 @@ export const rosterCandidatesSchema = z.object({
 });
 
 export type RosterCandidates = z.infer<typeof rosterCandidatesSchema>;
+
+/** A short-lived link to an attachment of the declarant's representations. */
+export const attachmentDownloadSchema = z.object({
+  downloadUrl: z.url(),
+  expiresAt: z.iso.datetime({ offset: true }).meta({ description: 'A few minutes ahead' }),
+});
+
+export type AttachmentDownload = z.infer<typeof attachmentDownloadSchema>;

@@ -70,7 +70,7 @@ describe('RegisterTimeline', () => {
       );
     }
     expect(registerKindMeta['cannot-identify']).toMatchObject({
-      label: 'Declarant could not be identified',
+      label: 'Officer could not be identified',
       tone: 'destructive',
     });
   });

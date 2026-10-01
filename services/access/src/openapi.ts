@@ -21,6 +21,7 @@ import { declarantNoticeSchema, representationsInputSchema } from './notices/rep
 import { registerEntrySchema } from './register/representation.js';
 import { verifyApplicantBody } from './requests/applicant-verification.service.js';
 import {
+  attachmentDownloadSchema,
   queueItemSchema,
   queuePageSchema,
   resolveOfficerBody,
@@ -61,6 +62,7 @@ export const OPENAPI_SCHEMAS: Record<string, z.ZodType> = {
   ResolveOfficer: resolveOfficerBody,
   RosterCandidate: rosterCandidateSchema,
   RosterCandidates: rosterCandidatesSchema,
+  AttachmentDownload: attachmentDownloadSchema,
   RepresentationsInput: representationsInputSchema,
   DeclarantNotice: declarantNoticeSchema,
   AccessCommission: accessCommissionSchema,

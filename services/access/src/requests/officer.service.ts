@@ -1,8 +1,8 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { notFoundIfInvisible, type Principal } from '@adili/api-kit';
+import { notFoundIfInvisible, type Principal, type ReadAudit } from '@adili/api-kit';
 import { DATABASE, FieldCipher, withTenant } from '@adili/data-access';
 import { CANNOT_IDENTIFY_DECLINE_REASON } from '@adili/events/contracts';
-import { and, asc, eq, inArray, sql } from 'drizzle-orm';
+import { and, asc, eq, gte, ilike, inArray, lt, not, or, type SQL, sql } from 'drizzle-orm';
 
 import { commissionTenant, ownCommissionTenant, requireAccessOfficer } from '../access.js';
 import { Clock } from '../clock.js';
@@ -18,6 +18,13 @@ import {
   DirectoryUnavailable,
   type RosterRecordFacts,
 } from '../directory/directory-client.js';
+import {
+  DocumentsClient,
+  DocumentsUnavailable,
+  type UploadDownload,
+  UploadNotClean,
+  UploadNotFound,
+} from '../documents/documents-client.js';
 import type { LeaRequestRow } from '../lea/representation.js';
 import {
   LEA_OPEN_STATUSES,
@@ -25,8 +32,15 @@ import {
   type LeaRequestStatus,
   leaRequests,
 } from '../lea/schema.js';
-import { decodeCursor, encodeCursor } from '../paging.js';
-import { badRequest, conflict, directoryUnavailable, problem } from '../problems.js';
+import { decodeCursor, encodeCursor, type Position } from '../paging.js';
+import {
+  badRequest,
+  conflict,
+  directoryUnavailable,
+  documentsUnavailable,
+  notFound,
+  problem,
+} from '../problems.js';
 import { AccessRegister, type RegisterRow } from '../register/access-register.js';
 import { openFormK } from './form-k.js';
 import {
@@ -67,6 +81,7 @@ export class OfficerService {
   constructor(
     @Inject(DATABASE) private readonly db: AccessDatabase,
     private readonly directory: DirectoryClient,
+    private readonly documents: DocumentsClient,
     private readonly cipher: FieldCipher,
     private readonly register: AccessRegister,
     private readonly workflows: AccessRequestWorkflows,
@@ -75,8 +90,9 @@ export class OfficerService {
 
   /**
    * One page of the Commission's queue, Form K and law enforcement requests together (or one
-   * kind, by `kind`), earliest decision deadline first (then by id), each with whether it is
-   * late: past its deadline and neither decided nor closed.
+   * kind, by `kind`): open requests first, earliest decision deadline first; then decided and
+   * closed ones, latest deadline first (each then by id). Each says whether it is late: past its
+   * deadline and neither decided nor closed.
    */
   async queue(principal: Principal, slug: string, query: QueueQuery): Promise<QueuePage> {
     const tenant = commissionTenant(principal, slug);
@@ -90,58 +106,64 @@ export class OfficerService {
     const wantFormK = query.kind !== 'lea' && formKStatuses?.length !== 0;
     const wantLea = query.kind !== 'form-k' && leaStatuses?.length !== 0;
     const now = this.clock.now();
-    const items = await withTenant(this.db, { tenant, subject: principal.subject }, async (tx) => {
-      // Each kind's first `limit + 1` after the cursor, merged: the page is among them.
-      const formK = wantFormK
-        ? await tx
-            .select()
-            .from(accessRequests)
-            .where(
-              and(
-                eq(accessRequests.tenant, tenant),
-                formKStatuses === undefined
-                  ? undefined
-                  : inArray(accessRequests.status, formKStatuses),
-                after === undefined
-                  ? undefined
-                  : sql`(${accessRequests.decisionDeadlineAt}, ${accessRequests.id}) > (${after.at.toISOString()}::timestamptz, ${after.id}::uuid)`,
-              ),
-            )
-            .orderBy(asc(accessRequests.decisionDeadlineAt), asc(accessRequests.id))
-            .limit(query.limit + 1)
-        : [];
-      const lea = wantLea
-        ? await tx
-            .select()
-            .from(leaRequests)
-            .where(
-              and(
-                eq(leaRequests.tenant, tenant),
-                leaStatuses === undefined ? undefined : inArray(leaRequests.status, leaStatuses),
-                after === undefined
-                  ? undefined
-                  : sql`(${leaRequests.deadlineAt}, ${leaRequests.id}) > (${after.at.toISOString()}::timestamptz, ${after.id}::uuid)`,
-              ),
-            )
-            .orderBy(asc(leaRequests.deadlineAt), asc(leaRequests.id))
-            .limit(query.limit + 1)
-        : [];
-      return [
-        ...formK.map((row) => toQueueItem(row, now)),
-        ...lea.map((row) => leaQueueItem(row, now)),
-      ].sort(
-        (a, b) =>
-          new Date(a.deadlineAt).getTime() - new Date(b.deadlineAt).getTime() ||
-          (a.id < b.id ? -1 : a.id > b.id ? 1 : 0),
+    const filtered = (queue: QueueColumns, search: (text: string) => SQL | undefined) =>
+      and(
+        query.late === undefined ? undefined : lateCondition(queue, query.late, now),
+        query.search === undefined ? undefined : search(escapeLike(query.search)),
+        after === undefined ? undefined : afterPosition(queue, after),
       );
-    });
-    const page = items.slice(0, query.limit);
+    const entries = await withTenant(
+      this.db,
+      { tenant, subject: principal.subject },
+      async (tx) => {
+        // Each kind's first `limit + 1` after the cursor, merged: the page is among them.
+        const formK = wantFormK
+          ? await tx
+              .select()
+              .from(accessRequests)
+              .where(
+                and(
+                  eq(accessRequests.tenant, tenant),
+                  formKStatuses === undefined
+                    ? undefined
+                    : inArray(accessRequests.status, formKStatuses),
+                  filtered(FORM_K_QUEUE, formKSearch),
+                ),
+              )
+              .orderBy(...queueOrder(FORM_K_QUEUE))
+              .limit(query.limit + 1)
+          : [];
+        const lea = wantLea
+          ? await tx
+              .select()
+              .from(leaRequests)
+              .where(
+                and(
+                  eq(leaRequests.tenant, tenant),
+                  leaStatuses === undefined ? undefined : inArray(leaRequests.status, leaStatuses),
+                  filtered(LEA_QUEUE, leaSearch),
+                ),
+              )
+              .orderBy(...queueOrder(LEA_QUEUE))
+              .limit(query.limit + 1)
+          : [];
+        return [
+          ...formK.map((row) => ({ item: toQueueItem(row, now), closed: isClosed(row.status) })),
+          ...lea.map((row) => ({ item: leaQueueItem(row, now), closed: isLeaClosed(row.status) })),
+        ].sort(compareQueueEntries);
+      },
+    );
+    const page = entries.slice(0, query.limit);
     const last = page.at(-1);
     return {
-      items: page,
+      items: page.map((entry) => entry.item),
       nextCursor:
-        items.length > query.limit && last
-          ? encodeCursor({ at: new Date(last.deadlineAt), id: last.id })
+        entries.length > query.limit && last
+          ? encodeCursor({
+              closed: last.closed,
+              at: new Date(last.item.deadlineAt),
+              id: last.item.id,
+            })
           : null,
     };
   }
@@ -153,6 +175,37 @@ export class OfficerService {
       officerRecord(tx, requestId),
     );
     return this.view(notFoundIfInvisible(found));
+  }
+
+  /**
+   * A short-lived link to a file the declarant attached to their representations on a request of
+   * the caller's Commission (access officer or supervisor, who read the representations). 404
+   * when the request is not the Commission's or the upload is not attached to it.
+   */
+  async representationAttachmentDownload(
+    principal: Principal,
+    requestId: string,
+    uploadId: string,
+    audit: ReadAudit,
+  ): Promise<UploadDownload> {
+    const tenant = ownCommissionTenant(principal);
+    const found = notFoundIfInvisible(
+      await withTenant(this.db, { tenant, subject: principal.subject }, (tx) =>
+        officerRecord(tx, requestId),
+      ),
+    );
+    const attached = found.representations?.attachments.some(
+      (attachment) => attachment.uploadId === uploadId,
+    );
+    if (!attached) throw notFound();
+    audit.resource({ tenant, subjectPersonId: found.row.resolvedPersonId });
+    try {
+      return await this.documents.uploadDownload(tenant, uploadId);
+    } catch (error) {
+      if (error instanceof UploadNotFound || error instanceof UploadNotClean) throw notFound();
+      if (error instanceof DocumentsUnavailable) throw documentsUnavailable();
+      throw error;
+    }
   }
 
   /**
@@ -229,12 +282,13 @@ export class OfficerService {
         .update(accessRequests)
         .set(
           record === null
-            ? { ...resolution, status: 'cannot-identify' }
+            ? { ...resolution, status: 'cannot-identify', closedAt: now }
             : {
                 ...resolution,
                 resolvedRosterRecordId: record.id,
                 resolvedPersonId: record.personId,
                 resolvedName: record.fullName,
+                resolvedFileNumber: record.personnelFileNumber,
               },
         )
         .where(eq(accessRequests.id, current.id))
@@ -431,14 +485,133 @@ function leaQueueItem(row: LeaRequestRow, now: Date): QueueItem {
     applicantOrAgency: row.agencyName,
     officerSought: row.officerSought.name,
     resolvedName: row.resolvedName,
+    resolvedFileNumber: null,
     status: row.status,
     submittedAt: row.receivedAt.toISOString(),
     deadlineAt: row.deadlineAt.toISOString(),
     windowEndsAt: null,
-    late:
-      (LEA_OPEN_STATUSES as readonly LeaRequestStatus[]).includes(row.status) &&
-      now.getTime() > row.deadlineAt.getTime(),
+    late: !isLeaClosed(row.status) && now.getTime() > row.deadlineAt.getTime(),
+    closedAt: row.decision?.decidedAt ?? null,
   };
+}
+
+/** Whether a request is decided or closed: nothing changes it but its package. */
+function isClosed(status: AccessRequestStatus): boolean {
+  return (CLOSED_STATUSES as readonly AccessRequestStatus[]).includes(status);
+}
+
+/** Whether a law enforcement request is decided or withdrawn: no longer open. */
+function isLeaClosed(status: LeaRequestStatus): boolean {
+  return !(LEA_OPEN_STATUSES as readonly LeaRequestStatus[]).includes(status);
+}
+
+/** A kind's table as the queue orders and pages it. */
+interface QueueColumns {
+  /** True for decided and closed requests, which the queue lists after the open ones. */
+  closed: SQL<boolean>;
+  deadline: typeof accessRequests.decisionDeadlineAt | typeof leaRequests.deadlineAt;
+  id: typeof accessRequests.id | typeof leaRequests.id;
+}
+
+const FORM_K_QUEUE: QueueColumns = {
+  closed: sql<boolean>`(${accessRequests.status} in (${sql.join(
+    CLOSED_STATUSES.map((status) => sql`${status}`),
+    sql`, `,
+  )}))`,
+  deadline: accessRequests.decisionDeadlineAt,
+  id: accessRequests.id,
+};
+
+const LEA_QUEUE: QueueColumns = {
+  closed: sql<boolean>`(${leaRequests.status} not in (${sql.join(
+    LEA_OPEN_STATUSES.map((status) => sql`${status}`),
+    sql`, `,
+  )}))`,
+  deadline: leaRequests.deadlineAt,
+  id: leaRequests.id,
+};
+
+/** The queue's order: open ones by earliest deadline, then closed ones by latest, each then by id. */
+function queueOrder({ closed, deadline, id }: QueueColumns): SQL[] {
+  return [
+    asc(closed),
+    sql`case when ${closed} then null else ${deadline} end asc`,
+    sql`case when ${closed} then ${deadline} end desc`,
+    asc(id),
+  ];
+}
+
+/** `queueOrder` for rows of both kinds, merged in memory. */
+function compareQueueEntries(
+  a: { item: QueueItem; closed: boolean },
+  b: { item: QueueItem; closed: boolean },
+): number {
+  if (a.closed !== b.closed) return a.closed ? 1 : -1;
+  const byDeadline = new Date(a.item.deadlineAt).getTime() - new Date(b.item.deadlineAt).getTime();
+  if (byDeadline !== 0) return a.closed ? -byDeadline : byDeadline;
+  return a.item.id < b.item.id ? -1 : a.item.id > b.item.id ? 1 : 0;
+}
+
+/** The requests after `position` in `queueOrder`. */
+function afterPosition(
+  { closed, deadline, id }: QueueColumns,
+  position: Position,
+): SQL | undefined {
+  const at = sql`${position.at.toISOString()}::timestamptz`;
+  const positionId = sql`${position.id}::uuid`;
+  if (position.closed) {
+    return and(
+      closed,
+      or(sql`${deadline} < ${at}`, and(sql`${deadline} = ${at}`, sql`${id} > ${positionId}`)),
+    );
+  }
+  // After an open request: the open ones after it, then every closed one.
+  return or(closed, sql`(${deadline}, ${id}) > (${at}, ${positionId})`);
+}
+
+/**
+ * Requests past their decision deadline and neither decided nor closed (`late`), or the others.
+ * The same rule as `QueueItem.late`.
+ */
+function lateCondition(
+  { closed, deadline }: QueueColumns,
+  late: boolean,
+  now: Date,
+): SQL | undefined {
+  return late ? and(not(closed), lt(deadline, now)) : or(closed, gte(deadline, now));
+}
+
+/**
+ * The officer's search of Form K requests (`text` LIKE-escaped): the reference or the identified
+ * officer's personnel file number by their beginning, the applicant's name, the officer Part II
+ * names or the identified officer's name by any part (case-insensitive).
+ */
+function formKSearch(text: string): SQL | undefined {
+  return or(
+    ilike(accessRequests.reference, `${text}%`),
+    ilike(accessRequests.resolvedFileNumber, `${text}%`),
+    ilike(accessRequests.applicantName, `%${text}%`),
+    ilike(sql`${accessRequests.officerSought}->>'name'`, `%${text}%`),
+    ilike(accessRequests.resolvedName, `%${text}%`),
+  );
+}
+
+/**
+ * The same search of law enforcement requests: the reference by its beginning, the agency's
+ * name, the officer sought or the identified officer's name by any part.
+ */
+function leaSearch(text: string): SQL | undefined {
+  return or(
+    ilike(leaRequests.reference, `${text}%`),
+    ilike(leaRequests.agencyName, `%${text}%`),
+    ilike(sql`${leaRequests.officerSought}->>'name'`, `%${text}%`),
+    ilike(leaRequests.resolvedName, `%${text}%`),
+  );
+}
+
+/** `text` with LIKE's wildcards and escape character taken literally. */
+function escapeLike(text: string): string {
+  return text.replace(/[\\%_]/g, (character) => `\\${character}`);
 }
 
 function toQueueItem(row: AccessRequestRow, now: Date): QueueItem {
@@ -449,12 +622,12 @@ function toQueueItem(row: AccessRequestRow, now: Date): QueueItem {
     applicantOrAgency: row.applicantName,
     officerSought: row.officerSought.name,
     resolvedName: row.resolvedName,
+    resolvedFileNumber: row.resolvedFileNumber,
     status: row.status,
     submittedAt: row.submittedAt.toISOString(),
     deadlineAt: row.decisionDeadlineAt.toISOString(),
     windowEndsAt: row.windowEndsAt?.toISOString() ?? null,
-    late:
-      !(CLOSED_STATUSES as readonly AccessRequestStatus[]).includes(row.status) &&
-      now.getTime() > row.decisionDeadlineAt.getTime(),
+    late: !isClosed(row.status) && now.getTime() > row.decisionDeadlineAt.getTime(),
+    closedAt: row.decision?.decidedAt ?? row.closedAt?.toISOString() ?? null,
   };
 }

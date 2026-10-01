@@ -36,6 +36,13 @@
       "when": 1790896032618,
       "tag": "0004_lea_requests",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1790896541682,
+      "tag": "0005_officer_queue_details",
+      "breakpoints": true
     }
   ]
 }

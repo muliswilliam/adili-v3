@@ -221,7 +221,7 @@ export class RequestsService {
         }
         const [updated] = await tx
           .update(accessRequests)
-          .set({ status: 'withdrawn' })
+          .set({ status: 'withdrawn', closedAt: now })
           .where(eq(accessRequests.id, current.id))
           .returning();
         if (!updated) throw new Error('The access request was not withdrawn');

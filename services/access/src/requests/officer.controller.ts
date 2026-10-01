@@ -4,9 +4,12 @@ import {
   AcceptIdempotencyKey,
   ApiProblemResponse,
   ApiQueryParameters,
+  AuditedRead,
   CurrentPrincipal,
+  CurrentReadAudit,
   type Principal,
   RequireIdempotencyKey,
+  ReadAudit,
   Roles,
   schemaRef,
   TENANT_KEY,
@@ -17,6 +20,7 @@ import { z } from 'zod';
 
 import { type DecisionInput, decisionInputSchema } from '../decision.js';
 import {
+  type AttachmentDownload,
   type QueuePage,
   type QueueQuery,
   queueQuery,
@@ -53,7 +57,7 @@ export class OfficerController {
     operationId: 'listCommissionAccessRequests',
     summary: 'Queue of access requests with deadlines (access officer; supervisor reads)',
     description:
-      'Form K requests (30-day deadline) and law enforcement requests (14-day deadline) together, or one `kind`; earliest decision deadline first. `late`: past the deadline and neither decided nor closed (for a law enforcement request, the breach flag).',
+      'Form K requests (30-day deadline) and law enforcement requests (14-day deadline) together, or one `kind`. Open requests first, earliest decision deadline first; then decided and closed ones, latest deadline first. `late`: past the deadline and neither decided nor closed (for a law enforcement request, the breach flag). Filters combine (`status`, `kind`, `late`, `search`).',
   })
   @ApiQueryParameters(queueQuery)
   @ApiOkResponse({ description: 'Page', schema: schemaRef('QueuePage') })
@@ -83,6 +87,37 @@ export class OfficerController {
     @Param('requestId', new ZodValidationPipe(z.uuid())) requestId: string,
   ): Promise<OfficerRequestView> {
     return this.officer.get(principal, requestId);
+  }
+
+  @Get('v1/access/requests/:requestId/representations/attachments/:uploadId/download')
+  @Roles(...OFFICER_ROUTE_ROLES)
+  @AuditedRead({
+    action: 'access.representations.attachment.downloaded',
+    resource: 'access-request',
+  })
+  @ApiParam(REQUEST_ID)
+  @ApiParam({ name: 'uploadId', schema: { type: 'string', format: 'uuid' } })
+  @ApiOperation({
+    operationId: 'getRepresentationAttachmentDownload',
+    summary:
+      "Short-lived download link for a file attached to the declarant's representations (audited)",
+    description:
+      'The access officer and the supervisor of the Commission read the representations, attachments included.',
+  })
+  @ApiOkResponse({ description: 'Link', schema: schemaRef('AttachmentDownload') })
+  @ApiProblemResponse(400, 'requestId or uploadId is not a UUID')
+  @ApiProblemResponse(
+    404,
+    `${NOT_THE_COMMISSIONS}; or the upload is not attached to its representations`,
+  )
+  @ApiProblemResponse(503, 'The documents service cannot be reached')
+  representationAttachmentDownload(
+    @CurrentPrincipal() principal: Principal,
+    @Param('requestId', new ZodValidationPipe(z.uuid())) requestId: string,
+    @Param('uploadId', new ZodValidationPipe(z.uuid())) uploadId: string,
+    @CurrentReadAudit() audit: ReadAudit,
+  ): Promise<AttachmentDownload> {
+    return this.officer.representationAttachmentDownload(principal, requestId, uploadId, audit);
   }
 
   @Get('v1/access/requests/:requestId/roster-candidates')

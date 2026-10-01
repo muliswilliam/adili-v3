@@ -10,7 +10,13 @@ import type { OfficerRequestView } from '../../src/requests/officer-view.js';
 import type { AccessRequestStatus } from '../../src/requests/schema.js';
 import { type AccessApi, type Caller, startAccessApi } from '../support/access-api.js';
 import { contractErrors, okResponse } from '../support/contract.js';
-import { callers, COMPLETE, givenCommissions, submitRequest } from '../support/requests.js';
+import {
+  callers,
+  COMPLETE,
+  givenCommissions,
+  resolve,
+  submitRequest,
+} from '../support/requests.js';
 
 const NOW = '2027-03-04T09:00:00.000Z';
 const QUEUE = '/v1/commissions/psc/access/requests';
@@ -63,11 +69,13 @@ describe("The Commission's queue and a request as its access officer reads it (S
       applicantOrAgency: 'Mercy Wanjiku Kamau',
       officerSought: 'Anne Njeri Mutua',
       resolvedName: null,
+      resolvedFileNumber: null,
       status: 'submitted',
       submittedAt: NOW,
       deadlineAt: '2027-04-03T09:00:00.000Z',
       windowEndsAt: null,
       late: false,
+      closedAt: null,
     });
     expect(page.nextCursor).toBeNull();
   });
@@ -84,6 +92,24 @@ describe("The Commission's queue and a request as its access officer reads it (S
     expect(first.items.map((item) => item.id)).toEqual(ids.slice(0, 2));
     expect(second.items.map((item) => item.id)).toEqual(ids.slice(2));
     expect(second.nextCursor).toBeNull();
+  });
+
+  it('lists open requests first by earliest deadline, then closed ones by latest, across pages', async () => {
+    givenCommissions(api, NOW);
+    const [closedEarly, open, closedLate, openLater] = await received(4);
+    await setStatus(closedEarly ?? '', 'withdrawn');
+    await setStatus(closedLate ?? '', 'denied');
+
+    const ids: (string | undefined)[] = [];
+    let cursor: string | null = null;
+    do {
+      const query = `?limit=1${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ''}`;
+      const page: QueuePage = (await queue(query)).json<QueuePage>();
+      ids.push(...page.items.map((item) => item.id));
+      cursor = page.nextCursor;
+    } while (cursor !== null);
+
+    expect(ids).toEqual([open, openLater, closedLate, closedEarly]);
   });
 
   it('flags a request late once its deadline passed undecided, but not a closed one', async () => {
@@ -115,7 +141,79 @@ describe("The Commission's queue and a request as its access officer reads it (S
     expect(bad.statusCode).toBe(400);
   });
 
-  it('has no law enforcement requests yet, and answers 400 for an unknown cursor', async () => {
+  it('filters late requests, or the others, with the same rule as the late flag', async () => {
+    givenCommissions(api, NOW);
+    const [late, withdrawn, onTime] = await received(3);
+    await setStatus(withdrawn ?? '', 'withdrawn');
+    // The first two deadlines have passed, the third has not.
+    api.clock.set('2027-04-04T12:00:00.000Z');
+
+    const lateOnly = (await queue('?late=true')).json<QueuePage>();
+    const others = (await queue('?late=false')).json<QueuePage>();
+    const lateAndOpen = (await queue('?late=true&status=submitted')).json<QueuePage>();
+
+    expect(lateOnly.items.map((item) => [item.id, item.late])).toEqual([[late, true]]);
+    expect(others.items.map((item) => item.id)).toEqual([onTime, withdrawn]);
+    expect(lateAndOpen.items.map((item) => item.id)).toEqual([late]);
+    expect((await queue('?late=yes')).statusCode).toBe(400);
+  });
+
+  it("searches by reference or file number (beginning), or the applicant's or officer's name (any part)", async () => {
+    const { anne } = givenCommissions(api, NOW);
+    const [first, second] = await received(2);
+    const resolved = await resolve(api, second ?? '', anne.id);
+    expect(resolved.statusCode, resolved.body).toBe(200);
+    const [row] = await api.asPlatform((tx) =>
+      tx
+        .select()
+        .from(accessRequests)
+        .where(eq(accessRequests.id, first ?? '')),
+    );
+    const search = async (text: string) =>
+      (await queue(`?search=${encodeURIComponent(text)}`))
+        .json<QueuePage>()
+        .items.map((item) => item.id);
+
+    expect(await search(row?.reference ?? '')).toEqual([first]);
+    expect(await search('arq-psc-2027')).toEqual([first, second]);
+    expect(await search('PF-2011')).toEqual([second]);
+    expect(await search('wanjiku')).toEqual([first, second]);
+    expect(await search('njeri mutua')).toEqual([first, second]);
+    expect(await search('2011-004512')).toEqual([]);
+    expect(await search('%')).toEqual([]);
+    expect(await search('  ')).toEqual([first, second]);
+    const page = (await queue('?search=PF-2011')).json<QueuePage>();
+    expect(page.items[0]).toMatchObject({
+      resolvedName: 'Anne Njeri Mutua',
+      resolvedFileNumber: 'PF-2011-004512',
+    });
+  });
+
+  it('tells when a request closed: withdrawn or cannot identify', async () => {
+    givenCommissions(api, NOW);
+    const [cannot] = await received(1);
+    api.clock.set('2027-03-08T10:00:00.000Z');
+    expect((await resolve(api, cannot ?? '', null)).statusCode).toBe(200);
+    api.clock.set('2027-03-09T11:00:00.000Z');
+    const { id: withdrawn } = await submitRequest(api);
+    const response = await api.send(
+      'POST',
+      `/v1/access/requests/${withdrawn}/withdraw`,
+      callers.mercy,
+      {},
+    );
+    expect(response.statusCode, response.body).toBe(200);
+
+    const page = (await queue()).json<QueuePage>();
+
+    // Closed requests list latest deadline first.
+    expect(page.items.map((item) => [item.id, item.status, item.closedAt])).toEqual([
+      [withdrawn, 'withdrawn', '2027-03-09T11:00:00.000Z'],
+      [cannot, 'cannot-identify', '2027-03-08T10:00:00.000Z'],
+    ]);
+  });
+
+  it('filters by kind, and answers 400 for an unknown cursor', async () => {
     givenCommissions(api, NOW);
     await received(1);
 
@@ -162,6 +260,8 @@ describe("The Commission's queue and a request as its access officer reads it (S
       status: 'submitted',
       applicantIdentityStatus: 'verified',
       resolvedRosterRecordId: null,
+      resolvedName: null,
+      resolvedFileNumber: null,
       representations: null,
       windowEndsAt: null,
       formK: { partII: { name: 'Anne Njeri Mutua' } },

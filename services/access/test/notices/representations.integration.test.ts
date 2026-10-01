@@ -297,6 +297,59 @@ describe("The declarant's notices and representations (S4)", () => {
       expect(stored).toEqual([]);
     });
 
+    it('S4: the officer and the supervisor open an attachment of the representations; audited, and 404 for anything else', async () => {
+      const { declarant, row, anne } = await notified();
+      const upload = api.documents.givenUpload('psc', {
+        uploadedBy: declarant.sub,
+        fileName: 'title-deed.pdf',
+      });
+      const notAttached = api.documents.givenUpload('psc', { uploadedBy: declarant.sub });
+      const saved = await respond(row.id, declarant, {
+        stance: 'object',
+        text: OBJECTION,
+        attachments: [upload.id],
+      });
+      expect(saved.statusCode, saved.body).toBe(200);
+      const url = (uploadId: string) =>
+        `/v1/access/requests/${row.id}/representations/attachments/${uploadId}/download`;
+
+      const response = await api.get(url(upload.id), officer);
+      const asSupervisor = await api.get(url(upload.id), callers.supervisor);
+
+      expect(response.statusCode, response.body).toBe(200);
+      expect(
+        contractErrors(
+          okResponse(
+            '/v1/access/requests/{requestId}/representations/attachments/{uploadId}/download',
+            'get',
+          ),
+          response.json(),
+        ),
+      ).toEqual([]);
+      expect(response.json()).toEqual({
+        downloadUrl: `https://files.test/uploads/${upload.id}`,
+        expiresAt: '2030-01-01T00:00:00.000Z',
+      });
+      expect(asSupervisor.statusCode).toBe(200);
+      const audits = await api.events('audit.read.v1');
+      expect(audits).toHaveLength(2);
+      expect(audits[0]).toMatchObject({
+        tenant: 'psc',
+        data: {
+          action: 'access.representations.attachment.downloaded',
+          resource: { type: 'access-request', subjectPersonId: anne.personId },
+          actor: { subject: officer.sub },
+        },
+      });
+
+      expect((await api.get(url(notAttached.id), officer)).statusCode).toBe(404);
+      expect((await api.get(url(upload.id), callers.tscOfficer)).statusCode).toBe(404);
+      expect((await api.get(url(upload.id), callers.eacc)).statusCode).toBe(404);
+      expect((await api.get(url(upload.id), mercy)).statusCode).toBe(403);
+      api.documents.failCalls(1);
+      expect((await api.get(url(upload.id), officer)).statusCode).toBe(503);
+    });
+
     it('answers 404 for a request about someone else, or one the declarant was not notified of', async () => {
       const { row } = await notified();
       const other = api.directory.givenRosterRecord('psc', { fullName: 'John Otieno' });
