@@ -88,7 +88,7 @@ const FIXTURES: Record<string, Fixture> = {
     disclosureLevel: 'restricted',
     document: {
       ...SLIP,
-      reference: 'DCB-TSC-2027-0012345-A',
+      reference: 'DCI-TSC-2026-0012388-L',
       issuedAt: '2026-09-18T08:30:00Z',
       version: 1,
     },

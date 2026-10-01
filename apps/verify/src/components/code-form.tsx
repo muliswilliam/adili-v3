@@ -80,9 +80,10 @@ export function CodeForm({ initialCode = '', pending = false, onSubmit }: CodeFo
             onChange={change}
             aria-invalid={error ? true : undefined}
             aria-describedby={hintId}
-            // 16px everywhere: smaller text makes iOS zoom in on focus. A code longer than a narrow
-            // field scrolls in it, and the placeholder ends in an ellipsis.
-            className="h-full min-w-0 flex-1 rounded-r-lg bg-transparent pr-3 pl-1 font-mono text-base text-ellipsis uppercase outline-none placeholder:text-placeholder placeholder:normal-case sm:tracking-[0.06em] sm:placeholder:tracking-[0.04em]"
+            // 16px typed text everywhere: smaller text makes iOS zoom in on focus. A code longer
+            // than a narrow field scrolls in it. The placeholder is smaller on phones, so the whole
+            // example code shows.
+            className="h-full min-w-0 flex-1 rounded-r-lg bg-transparent pr-3 pl-1 font-mono text-base text-ellipsis uppercase outline-none placeholder:text-[13px] placeholder:text-placeholder placeholder:normal-case sm:tracking-[0.06em] sm:placeholder:text-base sm:placeholder:tracking-[0.04em]"
           />
         </div>
         {error ? (

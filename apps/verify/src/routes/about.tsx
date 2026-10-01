@@ -21,6 +21,9 @@ const LEVELS = [
   [copy.aboutPublic, copy.aboutPublicExamples, copy.aboutPublicShows],
 ] as const;
 
+/** A table cell; the outer ones line up with the card's padding, as the other cards' text does. */
+const CELL = 'px-2.5 py-2.5 first:pl-5 last:pr-5 sm:px-3 sm:first:pl-6 sm:last:pr-6';
+
 /** What the result page shows for each disclosure level (ADR-010) and what a check records. */
 function About() {
   return (
@@ -38,18 +41,20 @@ function About() {
         <p className="mt-2 text-muted-foreground">{copy.aboutIntro}</p>
       </div>
       <Card className="mt-2 overflow-hidden p-0 sm:p-0">
-        <h2 className="border-b px-5 py-4 text-[15px] font-semibold">{copy.aboutSee}</h2>
+        <h2 className="border-b px-5 pt-5 pb-4 text-base font-semibold tracking-[-0.01em] sm:px-6 sm:pt-6">
+          {copy.aboutSee}
+        </h2>
         <div className="overflow-x-auto">
           <table className="w-full border-collapse text-[13px] sm:text-sm">
             <thead>
               <tr className="border-b text-left text-[12.5px] text-muted-foreground">
-                <th scope="col" className="px-2.5 py-2.5 sm:px-3 font-medium">
+                <th scope="col" className={`${CELL} font-medium`}>
                   {copy.aboutKind}
                 </th>
-                <th scope="col" className="px-2.5 py-2.5 sm:px-3 font-medium">
+                <th scope="col" className={`${CELL} font-medium`}>
                   {copy.aboutExamples}
                 </th>
-                <th scope="col" className="px-2.5 py-2.5 sm:px-3 font-medium">
+                <th scope="col" className={`${CELL} font-medium`}>
                   {copy.aboutShows}
                 </th>
               </tr>
@@ -57,11 +62,11 @@ function About() {
             <tbody>
               {LEVELS.map(([kind, examples, shows]) => (
                 <tr key={kind} className="border-b align-top last:border-b-0">
-                  <th scope="row" className="px-2.5 py-2.5 sm:px-3 text-left font-semibold">
+                  <th scope="row" className={`${CELL} text-left font-semibold`}>
                     {kind}
                   </th>
-                  <td className="px-2.5 py-2.5 sm:px-3">{examples}</td>
-                  <td className="px-2.5 py-2.5 sm:px-3">{shows}</td>
+                  <td className={CELL}>{examples}</td>
+                  <td className={CELL}>{shows}</td>
                 </tr>
               ))}
             </tbody>

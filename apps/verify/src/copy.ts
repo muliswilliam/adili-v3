@@ -22,7 +22,9 @@ export const verifyMessages = {
   checking: 'Checking',
   whereHeading: 'Where to find the code',
   whereVerifyAt: (host: string) => `Verify at ${host}`,
-  whereSample: 'Teachers Service Commission · Issued 26 Sep 2026 · Page 1 of 2',
+  // No-break spaces keep the date and the page number whole when the line wraps.
+  whereSample:
+    'Teachers Service Commission · Issued\u00A026\u00A0Sep\u00A02026 · Page\u00A01\u00A0of\u00A02',
   whereAlt:
     'The footer of an Adili Online document: a QR code with the verification code under it.',
   showsHeading: 'What the check shows',
