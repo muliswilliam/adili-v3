@@ -1,6 +1,6 @@
 import { createHash, randomBytes, randomUUID } from 'node:crypto';
 
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 
 import { keycloakAdmin } from './support/admin.js';
 import { Browser, type KcContext, type Page } from './support/browser.js';
@@ -50,6 +50,8 @@ async function signInWithPassword(user: { username: string; password: string }) 
     username: user.username,
     password: user.password,
   });
+  // A locked account, for one, comes back to the login page with only a message to say why.
+  expect(context(page).pageId, context(page).message?.summary).not.toBe('login.ftl');
   return { browser, page };
 }
 
@@ -65,15 +67,39 @@ function context(page: Page): KcContext {
 const post = (browser: Browser, page: Page, fields: Record<string, string>) =>
   browser.post(context(page).url.loginAction, fields);
 
-const wrongCode = (code: string) => (code === '000000' ? '111111' : '000000');
-
 /**
  * Keycloak's brute-force protection locks an account for a minute after two failures within a
  * second (quick login check), which no person typing codes does; tests pace themselves the same.
  */
-const humanPause = () => new Promise((resolve) => setTimeout(resolve, 1_100));
+const humanPause = () => new Promise((resolve) => setTimeout(resolve, 1_500));
+
+/**
+ * Posts a wrong code a human pause after anything before it, the previous case's failures
+ * included. Keycloak stamps each failure when its brute-force executor gets to it, not when the
+ * request arrives, so the pause keeps a clear margin over the one-second window.
+ */
+async function postWrongCode(browser: Browser, page: Page, rightCode: string): Promise<Page> {
+  await humanPause();
+  return post(browser, page, {
+    action: 'verify',
+    otp: rightCode === '000000' ? '111111' : '000000',
+  });
+}
 
 describe('S22: declarant sign-in with a one-time code', () => {
+  // The cases share the demo declarant, so none inherits another's brute-force failures or a
+  // lockout they caused: a success clears them only asynchronously, and some cases end on a failure.
+  beforeEach(async () => {
+    const admin = await adminToken();
+    const [declarant] = (await (
+      await adminFetch(admin, `/users?exact=true&username=${DECLARANT.username}`)
+    ).json()) as { id: string }[];
+    if (!declarant) throw new Error('no demo declarant in the realm');
+    await adminFetch(admin, `/attack-detection/brute-force/users/${declarant.id}`, {
+      method: 'DELETE',
+    });
+  });
+
   it('sends a code by SMS after the password and signs in with it', async () => {
     const before = await latestSmsCode(MOCKS, DECLARANT.phone);
     const { browser, page } = await signInWithPassword(DECLARANT);
@@ -100,7 +126,7 @@ describe('S22: declarant sign-in with a one-time code', () => {
     const { browser, page } = await signInWithPassword(DECLARANT);
     const sms = await waitForNew(() => latestSmsCode(MOCKS, DECLARANT.phone), before);
 
-    const wrong = await post(browser, page, { action: 'verify', otp: wrongCode(sms.code) });
+    const wrong = await postWrongCode(browser, page, sms.code);
 
     expect(context(wrong)).toMatchObject({
       pageId: 'login-adili-otp.ftl',
@@ -118,8 +144,7 @@ describe('S22: declarant sign-in with a one-time code', () => {
     const sms = await waitForNew(() => latestSmsCode(MOCKS, DECLARANT.phone), before);
 
     for (let i = 0; i < 5; i += 1) {
-      page = await post(browser, page, { action: 'verify', otp: wrongCode(sms.code) });
-      await humanPause();
+      page = await postWrongCode(browser, page, sms.code);
     }
 
     expect(context(page).pageId).toBe('login.ftl');
@@ -242,8 +267,7 @@ describe('S22: declarant sign-in with a one-time code', () => {
       const code = await waitForNew(() => latestSmsCode(MOCKS, DECLARANT.phone), beforeStepUp);
 
       for (let i = 0; i < 5; i += 1) {
-        stepUp = await post(browser, stepUp, { action: 'verify', otp: wrongCode(code.code) });
-        await humanPause();
+        stepUp = await postWrongCode(browser, stepUp, code.code);
       }
 
       expect(context(stepUp).pageId).toBe('login.ftl');
