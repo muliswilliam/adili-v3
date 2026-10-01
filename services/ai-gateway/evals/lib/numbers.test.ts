@@ -49,6 +49,13 @@ describe('foreignNumbers', () => {
     ).toEqual([]);
   });
 
+  it('rejects small percentages and amounts, which are not counts', () => {
+    expect(foreignNumbers('Income rose by 7 percent.', input)).toEqual(['7 percent']);
+    expect(foreignNumbers('A rise of 8%.', input)).toEqual(['8%']);
+    expect(foreignNumbers('A fee of KES 5.', input)).toEqual(['5']);
+    expect(foreignNumbers('Ongezeko la asilimia 6.', input)).toEqual(['6']);
+  });
+
   it('rejects rounded, derived and invented amounts', () => {
     expect(foreignNumbers('Assets of about KES 20 million.', input)).toEqual(['20 million']);
     expect(foreignNumbers('An increase of KES 3,900,000.', input)).toEqual(['3,900,000']);

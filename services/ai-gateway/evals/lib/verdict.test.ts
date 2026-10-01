@@ -10,6 +10,17 @@ describe('verdictTerms', () => {
       'false declaration',
     ]);
     expect(verdictTerms('The declaration is fully compliant.')).toEqual(['is fully compliant']);
+    expect(verdictTerms('The declarant is non compliant.')).toEqual(['non compliant']);
+  });
+
+  it('finds positive determinations', () => {
+    expect(verdictTerms('The declarant has complied with the Act.')).toEqual(['has complied with']);
+    expect(verdictTerms('The declarant complied with all requirements.')).toEqual([
+      'complied with',
+    ]);
+    expect(verdictTerms('The declarant has not complied with the Act.')).toEqual([
+      'has not complied',
+    ]);
   });
 
   it('finds wrongdoing, administrative action and referral language', () => {
@@ -37,6 +48,15 @@ describe('verdictTerms', () => {
     expect(verdictTerms('It does not mean the declarant is non-compliant.')).toEqual([]);
     expect(verdictTerms('Hii si ishara ya rushwa.')).toEqual([]);
     expect(verdictTerms('An indicator to check rather than a finding of wrongdoing.')).toEqual([]);
+    expect(verdictTerms('The officer should not be sanctioned on this alone.')).toEqual([]);
+    expect(verdictTerms('Haimaanishi kuna rushwa.')).toEqual([]);
+    expect(verdictTerms('An indicator for review, not evidence of any wrongdoing.')).toEqual([]);
+    expect(verdictTerms('It does not by itself suggest any wrongdoing.')).toEqual([]);
+  });
+
+  it('flags a term when a negation in its clause does not govern it', () => {
+    expect(verdictTerms('There is no doubt the declarant is corrupt.')).toEqual(['corrupt']);
+    expect(verdictTerms('The officer did not disclose the illicit income.')).toEqual(['illicit']);
   });
 
   it('does not let a negation reach across a clause or sentence', () => {

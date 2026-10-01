@@ -21,7 +21,7 @@ const SCALES: Record<string, number> = {
 /** Swahili writes the scale word before the number: "milioni 18". */
 const PREFIX_SCALES = new Set(['elfu', 'milioni', 'bilioni']);
 
-/** Counts ("two vehicles", "3 flags") need no source. */
+/** Bare counts ("two vehicles", "3 flags") need no source; a percentage or amount does. */
 const MAX_FREE_COUNT = 10;
 
 /** Act sections, thresholds and the Act's year, which the prompts may cite. */
@@ -35,9 +35,14 @@ const UUID = /^[\da-f]{8}-[\da-f]{4}-[\da-f]{4}-[\da-f]{4}-[\da-f]{12}$/i;
 const NUMBER =
   /(?:\b(elfu|milioni|bilioni)\s+)?(\d{1,3}(?:,\d{3})+|\d+)(?:\.(\d+))?(?:\s*(%|percent\b|asilimia\b))?(?:\s*(k|thousand|m|million|bn|billion)\b)?/giu;
 
+/** A currency or Swahili "asilimia" just before a number: "KES 5", "asilimia 8". */
+const UNIT_BEFORE = /\b(?:kes|kshs?|usd|eur|gbp|shilingi|sh|asilimia)\.?\s*$/iu;
+
 interface NumberMention {
   value: number;
   text: string;
+  /** Written with a percent sign, a scale word or a currency: an amount, not a count. */
+  hasUnit: boolean;
 }
 
 function mentions(text: string): NumberMention[] {
@@ -48,7 +53,9 @@ function mentions(text: string): NumberMention[] {
     const scaleWord = (prefix ?? suffix)?.toLowerCase();
     const scale =
       scaleWord && (prefix ? PREFIX_SCALES.has(scaleWord) : true) ? SCALES[scaleWord] : 1;
-    return { value: base * (scale ?? 1), text: whole.trim() };
+    const hasUnit =
+      Boolean(prefix ?? match[4] ?? suffix) || UNIT_BEFORE.test(text.slice(0, match.index));
+    return { value: base * (scale ?? 1), text: whole.trim(), hasUnit };
   });
 }
 
@@ -74,9 +81,9 @@ function same(a: number, b: number): boolean {
   return Math.abs(a - b) <= 1e-9 * Math.max(1, Math.abs(a), Math.abs(b));
 }
 
-function isFree(value: number): boolean {
+function isFree({ value, hasUnit }: NumberMention): boolean {
   return (
-    (Number.isInteger(value) && value >= 0 && value <= MAX_FREE_COUNT) ||
+    (!hasUnit && Number.isInteger(value) && value >= 0 && value <= MAX_FREE_COUNT) ||
     LEGAL_REFERENCES.includes(value)
   );
 }
@@ -85,6 +92,6 @@ function isFree(value: number): boolean {
 export function foreignNumbers(text: string, input: unknown): string[] {
   const known = inputNumbers(input);
   return mentions(text)
-    .filter(({ value }) => !isFree(value) && !known.some((each) => same(each, value)))
+    .filter((mention) => !isFree(mention) && !known.some((each) => same(each, mention.value)))
     .map((mention) => mention.text);
 }

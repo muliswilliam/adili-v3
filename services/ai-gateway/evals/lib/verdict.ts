@@ -8,9 +8,10 @@
  */
 const TERMS: readonly RegExp[] = [
   // Compliance determination.
-  /\bnon-?compliant\b/,
+  /\bnon[- ]?compliant\b/,
   /\bnot compliant\b/,
-  /\b(?:is|was|are|were) (?:fully )?compliant\b/,
+  /\b(?:is|was|are|were|been) (?:fully )?compliant\b/,
+  /\b(?:(?:has|have|had) )?(?:fully )?complied with\b/,
   /\b(?:did not|didn't|failed to|has not|have not|hasn't) compl(?:y|ied)\b/,
   /\bin breach of\b/,
   /\b(?:breached|violated|violation of)\b/,
@@ -45,27 +46,32 @@ const TERMS: readonly RegExp[] = [
   /\bkinidhamu\b/,
 ];
 
-/** Words that, shortly before a term, make it a denial ("not a finding of wrongdoing"). */
-const NEGATIONS = new Set([
-  'not',
-  'no',
-  'never',
-  'without',
-  "isn't",
-  "doesn't",
-  'nor',
-  'rather',
-  'instead',
-  'si',
-  'sio',
-  'siyo',
-  'hakuna',
-  'bila',
-  'haimaanishi',
-]);
+/** A denial: "not", "without", "rather than", "si", "hakuna". */
+const NEGATION = String.raw`(?:not|no|never|without|isn't|aren't|wasn't|doesn't|nor|rather than|instead of|si|sio|siyo|hakuna|bila)`;
 
-/** How many words before a term a negation still applies, within the term's own clause. */
-const NEGATION_REACH = 5;
+/** A hedge a denial may carry: "not by itself", "not necessarily". */
+const HEDGE = String.raw`(?:(?:by itself|on its own|alone|necessarily|in itself)\s+)?`;
+
+/** What a denial may put between itself and the term: "not a finding of any", "si ishara ya". */
+const DENIED_NOUN = String.raw`(?:(?:a|an|the|any)\s+)?(?:(?:finding|determination|sign|indication|indicator|evidence|proof|suggestion|allegation|case|ishara|dalili|ushahidi|uthibitisho)\s+(?:of|ya|za|wa)\s+(?:(?:any|the)\s+)?)?`;
+
+/**
+ * The end of a term's clause when a negation governs the term: right before it ("not corrupt",
+ * "should not be sanctioned"), through a denied noun ("not a finding of any wrongdoing"), or as a
+ * denied inference ("does not by itself suggest any wrongdoing", "haimaanishi kuna rushwa").
+ * A negation elsewhere in the clause does not count: "did not disclose the illicit income" and
+ * "there is no doubt the declarant is corrupt" state the term.
+ */
+const GOVERNED = [
+  new RegExp(
+    String.raw`(?:^|[^\p{L}'])${NEGATION}\s+${HEDGE}(?:(?:be|being|been)\s+)?${DENIED_NOUN}$`,
+    'u',
+  ),
+  new RegExp(
+    String.raw`(?:^|[^\p{L}'])(?:${NEGATION}\s+${HEDGE}(?:mean|imply|suggest|indicate|show|prove|establish)|haimaanishi)(?:\s+[\p{L}']+){0,4}\s+$`,
+    'u',
+  ),
+];
 
 /** Ends a clause: a negation before one does not reach a term after it. */
 const CLAUSE_END = /[.;:!?,]/g;
@@ -78,8 +84,8 @@ export function verdictTerms(text: string): string[] {
     for (const match of lower.matchAll(new RegExp(term.source, 'gu'))) {
       const preceding = lower.slice(0, match.index);
       const clauseStart = Math.max(-1, ...[...preceding.matchAll(CLAUSE_END)].map((m) => m.index));
-      const before = preceding.slice(clauseStart + 1).match(/[\p{L}']+/gu) ?? [];
-      const negated = before.slice(-NEGATION_REACH).some((word) => NEGATIONS.has(word));
+      const clause = ` ${preceding.slice(clauseStart + 1).replaceAll(/\s+/g, ' ')}`;
+      const negated = GOVERNED.some((pattern) => pattern.test(clause));
       if (!negated) found.push({ index: match.index, term: match[0] });
     }
   }
