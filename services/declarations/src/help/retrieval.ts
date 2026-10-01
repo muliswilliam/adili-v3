@@ -18,7 +18,7 @@ import {
  * question's words the passage has, and boosted for each tag it shares with the section and items
  * the declarant is on. Only wordings in force on `date` count, and only published articles the
  * transaction may read: under `withPerson`, the platform's and those of the declarant's own
- * Commissions (row-level security, migration 0012).
+ * Commissions (row-level security, migration 0018).
  *
  * English questions search the `english` vectors, with the glossary's English synonyms (and the
  * English of any Swahili term in them) added.
