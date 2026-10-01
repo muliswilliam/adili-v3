@@ -17,6 +17,14 @@ export {
   formatFileSize,
 } from './components/attachment-list';
 export { Badge, type BadgeProps, badgeVariants } from './components/badge';
+export {
+  BREAKER_BADGE_MESSAGES,
+  BREAKER_STATES,
+  BreakerBadge,
+  type BreakerBadgeMessages,
+  type BreakerBadgeProps,
+  type BreakerState,
+} from './components/breaker-badge';
 export { Button, type ButtonProps, buttonVariants } from './components/button';
 export {
   Card,
@@ -196,6 +204,15 @@ export { MaskedContact, type MaskedContactProps } from './components/masked-cont
 // The masking rules live in @adili/contacts (the services mask with them too).
 export { type ContactChannel, maskContact, maskEmail, maskPhone } from '@adili/contacts';
 export {
+  MATCH_RELATIONS,
+  MATCH_TABLE_MESSAGES,
+  type MatchRelation,
+  MatchTable,
+  type MatchTableMessages,
+  type MatchTableProps,
+  type MatchTableRow,
+} from './components/match-table';
+export {
   Menu,
   MenuContent,
   MenuItem,
@@ -358,6 +375,16 @@ export {
   TableRowLink,
   type TableRowLinkProps,
 } from './components/table';
+export {
+  SYSTEM_CHECK_STATUSES,
+  SYSTEM_STATUS_ROW_MESSAGES,
+  type SystemCheckStatus,
+  SystemStatusList,
+  type SystemStatusListProps,
+  SystemStatusRow,
+  type SystemStatusRowMessages,
+  type SystemStatusRowProps,
+} from './components/system-status-row';
 export { Tabs, TabsContent, TabsCount, TabsList, TabsTrigger } from './components/tabs';
 export { Textarea } from './components/textarea';
 export { type ToastOptions, ToastProvider, type ToastUrgency, useToast } from './components/toast';
