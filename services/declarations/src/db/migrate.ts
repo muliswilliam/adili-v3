@@ -1,4 +1,5 @@
 import { createDatabase, runMigrations } from '@adili/data-access';
+import { EventPublisher } from '@adili/events';
 
 import { config, SERVICE_NAME } from '../config.js';
 import { loadCorpus } from '../help/corpus.js';
@@ -15,7 +16,8 @@ const db = createDatabase({
   applicationName: `${SERVICE_NAME}-migrate`,
 });
 try {
-  const result = await runCorpusImport(db, loadCorpus());
+  const events = new EventPublisher({ service: SERVICE_NAME, rabbitmqUrl: config.RABBITMQ_URL });
+  const result = await runCorpusImport(db, loadCorpus(), { events, trigger: 'migrate', by: null });
   console.log(
     result.skipped
       ? 'declarations: corpus unchanged'

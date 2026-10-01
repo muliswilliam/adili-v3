@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 
-import { eq } from 'drizzle-orm';
+import { asc, eq } from 'drizzle-orm';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
 import { corpusPassages, filingObligations, outbox, rosterSnapshots } from '../../src/db/schema.js';
@@ -218,7 +218,8 @@ describe('S6 / S9 effective dates and the corpus import', () => {
     );
   }
 
-  const importCorpus = () => api.request('POST', '/v1/help/corpus/import', platformAdmin);
+  const importCorpus = () =>
+    api.request('POST', '/v1/help/corpus/import', { ...platformAdmin, sub: 'platform-admin-1' });
 
   it('imports the committed corpus on boot, each wording with its version and effective dates', async () => {
     const response = await api.get('/v1/help/corpus', platformAdmin);
@@ -242,6 +243,10 @@ describe('S6 / S9 effective dates and the corpus import', () => {
       version: corpusVersion(loadCorpus()),
       skipped: true,
     });
+    const audited = await api.asPlatform((tx) =>
+      tx.select().from(outbox).where(eq(outbox.eventType, 'help.corpus.imported.v1')),
+    );
+    expect(audited).toEqual([]);
   });
 
   it('versions an amendment: the earlier wording ends when it takes effect, and search reads the law in force', async () => {
@@ -255,6 +260,26 @@ describe('S6 / S9 effective dates and the corpus import', () => {
         updated: 1,
         removed: 0,
       });
+      const audited = await api.asPlatform((tx) =>
+        tx
+          .select({ envelope: outbox.envelope })
+          .from(outbox)
+          .where(eq(outbox.eventType, 'help.corpus.imported.v1')),
+      );
+      expect(audited.map(({ envelope }) => envelope)).toEqual([
+        expect.objectContaining({
+          subject: corpusVersion(amendedCorpus()),
+          tenant: 'platform',
+          data: {
+            version: corpusVersion(amendedCorpus()),
+            inserted: 1,
+            updated: 1,
+            removed: 0,
+            trigger: 'request',
+            by: 'platform-admin-1',
+          },
+        }),
+      ]);
 
       const wordings = (await api.get('/v1/help/corpus', platformAdmin))
         .json<CorpusPassageView[]>()
@@ -352,6 +377,40 @@ describe('S6 / S9 Commission and platform articles', () => {
       }),
     ]);
     expect(await citations('personnel file number')).toContain('Help: File numbers');
+  });
+
+  it('records the audit trail of every write to an article, identifiers only', async () => {
+    const admin: Caller = { ...pscAdmin, sub: 'psc-admin-1' };
+    const created = await publish('psc', article({ published: false }), admin);
+    await api.request('PUT', `${articles('psc')}/${created.id}`, admin, {
+      body: article({ published: false, title: 'File numbers' }),
+    });
+    await api.request('DELETE', `${articles('psc')}/${created.id}`, admin);
+
+    const events = await api.asPlatform((tx) =>
+      tx
+        .select({ type: outbox.eventType, envelope: outbox.envelope })
+        .from(outbox)
+        .orderBy(asc(outbox.createdAt)),
+    );
+    const record = (type: string, version: number) => ({
+      type,
+      subject: created.id,
+      tenant: 'psc',
+      data: { articleId: created.id, tenant: 'psc', version, published: false, by: 'psc-admin-1' },
+    });
+    expect(
+      events.map(({ type, envelope: { subject, tenant, data } }) => ({
+        type,
+        subject,
+        tenant,
+        data,
+      })),
+    ).toEqual([
+      record('help.article.created.v1', 1),
+      record('help.article.updated.v1', 2),
+      record('help.article.deleted.v1', 2),
+    ]);
   });
 
   it('a platform article reaches every declarant', async () => {

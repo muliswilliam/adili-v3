@@ -264,7 +264,7 @@ export class HelpController {
     schema: schemaRef('CorpusImportResult'),
   })
   @ApiProblemResponse(403, 'Not a platform admin')
-  importCorpus(): Promise<CorpusImportResult> {
-    return this.help.importCorpus();
+  importCorpus(@CurrentPrincipal() principal: Principal): Promise<CorpusImportResult> {
+    return this.help.importCorpus(principal);
   }
 }

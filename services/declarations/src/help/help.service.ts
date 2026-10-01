@@ -16,7 +16,13 @@ import { nairobiDate } from '../obligations/dates.js';
 import { articleEditTenant, articleReadTenant } from './access.js';
 import type { CorpusTag } from './corpus.js';
 import { CorpusImporter } from './corpus-importer.js';
-import { helpArticlePublished } from './events.js';
+import {
+  helpArticleCreated,
+  helpArticleDeleted,
+  helpArticlePublished,
+  helpArticleUpdated,
+  type HelpArticleWrittenData,
+} from './events.js';
 import {
   type CorpusImportResult,
   type CorpusPassageView,
@@ -161,8 +167,8 @@ export class HelpService {
   }
 
   /** Re-imports the deployed corpus files; a no-op when they are the version already stored. */
-  importCorpus(): Promise<CorpusImportResult> {
-    return this.importer.run();
+  importCorpus(principal: Principal): Promise<CorpusImportResult> {
+    return this.importer.run({ trigger: 'request', by: principal.subject });
   }
 
   private async list(principal: Principal, owner: Owner): Promise<HelpArticle[]> {
@@ -184,6 +190,7 @@ export class HelpService {
         .values({ id: uuidv7(), tenant: owner.tenant, ...input, updatedBy: principal.subject })
         .returning();
       if (!created) throw new Error('insert returned no row');
+      await this.events.record(tx, helpArticleCreated(written(created, principal)));
       if (created.published) {
         await this.events.record(
           tx,
@@ -210,6 +217,7 @@ export class HelpService {
         .where(eq(helpArticles.id, current.id))
         .returning();
       if (!updated) throw new Error('update returned no row');
+      await this.events.record(tx, helpArticleUpdated(written(updated, principal)));
       if (updated.published && !current.published) {
         await this.events.record(
           tx,
@@ -225,6 +233,7 @@ export class HelpService {
     await this.inTenant(owner, principal.subject, async (tx) => {
       const current = notFoundIfInvisible(await findArticle(tx, owner, articleId));
       await tx.delete(helpArticles).where(eq(helpArticles.id, current.id));
+      await this.events.record(tx, helpArticleDeleted(written(current, principal)));
     });
   }
 
@@ -256,6 +265,17 @@ async function findArticle(
     .where(and(eq(helpArticles.id, articleId), ownedBy(owner)))
     .for('update');
   return row;
+}
+
+/** The audit record of a write to `row` by `principal`: ids, version and published only. */
+function written(row: ArticleRow, principal: Principal): HelpArticleWrittenData {
+  return {
+    articleId: row.id,
+    tenant: row.tenant,
+    version: row.version,
+    published: row.published,
+    by: principal.subject,
+  };
 }
 
 function parseArticle(body: unknown): HelpArticleInput {

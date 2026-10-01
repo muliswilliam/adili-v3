@@ -2,9 +2,11 @@ import { setTimeout } from 'node:timers/promises';
 
 import { Injectable, Logger, type OnApplicationBootstrap } from '@nestjs/common';
 import { type Database, InjectDatabase } from '@adili/data-access';
+import { EventPublisher } from '@adili/events';
 
 import type { DeclarationsSchema } from '../db/schema.js';
 import { type CorpusFile, importCorpus, type ImportResult, loadCorpus } from './corpus.js';
+import { corpusImported, type CorpusImportTrigger } from './events.js';
 import { lockCorpus, PostgresCorpusStore } from './postgres-corpus-store.js';
 
 /** How often the boot import is tried, and the pause before the next try (times the attempt). */
@@ -19,14 +21,40 @@ export class CorpusFiles {
   }
 }
 
-/** Imports the corpus files into `corpus_passages`, all under the corpus lock in one transaction. */
+/** Who asked for an import, for its audit record: a platform admin's subject, or none. */
+export interface CorpusImportAudit {
+  events: EventPublisher;
+  trigger: CorpusImportTrigger;
+  by: string | null;
+}
+
+/**
+ * Imports the corpus files into `corpus_passages`, all under the corpus lock in one transaction,
+ * with the audit record of an import that changed the corpus (ADR-008) in the same transaction.
+ */
 export async function runCorpusImport(
   db: Database<DeclarationsSchema>,
   files: CorpusFile[],
+  audit: CorpusImportAudit,
 ): Promise<ImportResult> {
   return db.transaction(async (tx) => {
     await lockCorpus(tx);
-    return importCorpus(new PostgresCorpusStore(tx), files);
+    const result = await importCorpus(new PostgresCorpusStore(tx), files);
+    if (!result.skipped) {
+      const { version, inserted, updated, removed } = result;
+      await audit.events.record(
+        tx,
+        corpusImported({
+          version,
+          inserted,
+          updated,
+          removed,
+          trigger: audit.trigger,
+          by: audit.by,
+        }),
+      );
+    }
+    return result;
   });
 }
 
@@ -41,6 +69,7 @@ export class CorpusImporter implements OnApplicationBootstrap {
   constructor(
     @InjectDatabase() private readonly db: Database<DeclarationsSchema>,
     private readonly files: CorpusFiles,
+    private readonly events: EventPublisher,
   ) {}
 
   /**
@@ -51,7 +80,7 @@ export class CorpusImporter implements OnApplicationBootstrap {
   async onApplicationBootstrap(): Promise<void> {
     for (let attempt = 1; ; attempt += 1) {
       try {
-        await this.run();
+        await this.run({ trigger: 'boot', by: null });
         return;
       } catch (error) {
         if (attempt >= BOOT_IMPORT_ATTEMPTS) throw error;
@@ -61,8 +90,12 @@ export class CorpusImporter implements OnApplicationBootstrap {
     }
   }
 
-  async run(): Promise<ImportResult> {
-    const result = await runCorpusImport(this.db, this.files.load());
+  /** Imports the deployed files; `by` is the platform admin who asked, null on boot. */
+  async run(audit: Omit<CorpusImportAudit, 'events'>): Promise<ImportResult> {
+    const result = await runCorpusImport(this.db, this.files.load(), {
+      ...audit,
+      events: this.events,
+    });
     if (!result.skipped) {
       this.logger.log(
         `corpus ${result.version.slice(0, 12)} imported: ${String(result.inserted)} inserted, ${String(result.updated)} updated, ${String(result.removed)} removed`,

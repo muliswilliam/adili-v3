@@ -4,7 +4,7 @@ import { CorpusImporter } from '../../src/help/corpus-importer.js';
 
 /** An importer whose import fails `failures` times, then succeeds. */
 function importer(failures: number) {
-  const subject = new CorpusImporter({} as never, { load: () => [] });
+  const subject = new CorpusImporter({} as never, { load: () => [] }, {} as never);
   let left = failures;
   const run = vi.spyOn(subject, 'run').mockImplementation(() => {
     if (left > 0) {
