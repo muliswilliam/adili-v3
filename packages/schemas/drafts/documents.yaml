@@ -179,7 +179,7 @@ components:
       name: X-Acting-Tenant
       in: header
       required: true
-      description: Tenant the calling service acts for; the resource must belong to it (ADR-013 §8.1)
+      description: Tenant the calling service acts for; the resource must belong to it
       schema:
         type: string
         pattern: '^[a-z][a-z0-9]{1,19}$'

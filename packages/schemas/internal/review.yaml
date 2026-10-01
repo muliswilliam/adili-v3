@@ -1511,7 +1511,7 @@ components:
       name: X-Acting-Tenant
       in: header
       required: true
-      description: Commission the calling service acts for; the resource must belong to it
+      description: Tenant the calling service acts for; the resource must belong to it
       schema:
         type: string
         pattern: '^[a-z][a-z0-9]{1,19}$'

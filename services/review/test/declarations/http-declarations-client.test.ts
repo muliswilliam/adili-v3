@@ -86,7 +86,6 @@ describe('HttpDeclarationsClient', () => {
     expect(url.pathname).toBe('/internal/v1/declarations/previous-version');
     expect(Object.fromEntries(url.searchParams)).toEqual({
       personId: PERSON,
-      tenant: 'psc',
       beforeVersionId: VERSION,
     });
   });

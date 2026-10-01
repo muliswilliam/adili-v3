@@ -132,7 +132,7 @@ export interface paths {
         parameters: {
             query?: never;
             header: {
-                /** @description Tenant the calling service acts for; the resource must belong to it (ADR-013 §8.1) */
+                /** @description Tenant the calling service acts for; the resource must belong to it */
                 "X-Acting-Tenant": components["parameters"]["ActingTenant"];
             };
             path: {
@@ -375,7 +375,7 @@ export interface components {
         };
     };
     parameters: {
-        /** @description Tenant the calling service acts for; the resource must belong to it (ADR-013 §8.1) */
+        /** @description Tenant the calling service acts for; the resource must belong to it */
         ActingTenant: string;
         DocumentId: string;
     };
@@ -596,7 +596,7 @@ export interface operations {
         parameters: {
             query?: never;
             header: {
-                /** @description Tenant the calling service acts for; the resource must belong to it (ADR-013 §8.1) */
+                /** @description Tenant the calling service acts for; the resource must belong to it */
                 "X-Acting-Tenant": components["parameters"]["ActingTenant"];
                 /** @description Optional. Client-generated UUID, unique per logical request; reuse on retry and the stored answer is replayed instead of acting twice */
                 "Idempotency-Key"?: string;
@@ -674,7 +674,7 @@ export interface operations {
         parameters: {
             query?: never;
             header: {
-                /** @description Tenant the calling service acts for; the resource must belong to it (ADR-013 §8.1) */
+                /** @description Tenant the calling service acts for; the resource must belong to it */
                 "X-Acting-Tenant": components["parameters"]["ActingTenant"];
             };
             path: {

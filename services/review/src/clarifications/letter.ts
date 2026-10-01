@@ -4,13 +4,14 @@ import type { ClarificationItem, ClarificationLetter } from '../cases/schema.js'
 import {
   type DeclarationsClient,
   DeclarationsUnavailable,
+  type ReadContext,
 } from '../declarations/declarations-client.js';
 import type { CommissionFacts } from '../directory/directory-client.js';
 import { declarationsUnavailable } from '../internal-api/upstream.js';
 import { itemLabel, REQUIREMENT_LABELS } from './labels.js';
 
-/** The case a clarification is issued on: the version as filed is read for its item labels. */
-export interface IssuedOn {
+/** The case a clarification is issued on: its current version as filed labels the items. */
+export interface LetterCase {
   id: string;
   declarationId: string;
   currentVersion: number;
@@ -23,8 +24,8 @@ export interface IssuedOn {
  */
 export async function composeLetter(
   declarations: DeclarationsClient,
-  read: { tenant: string; actingSubject: string },
-  reviewCase: IssuedOn,
+  read: Omit<ReadContext, 'caseId'>,
+  reviewCase: LetterCase,
   commission: CommissionFacts,
   items: ClarificationItem[],
 ): Promise<ClarificationLetter> {

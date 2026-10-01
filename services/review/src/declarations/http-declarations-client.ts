@@ -114,7 +114,7 @@ export class HttpDeclarationsClient extends DeclarationsClient {
         api.GET('/internal/v1/declarations/previous-version', {
           params: {
             header: { 'X-Acting-Tenant': tenant },
-            query: { personId, tenant, beforeVersionId },
+            query: { personId, beforeVersionId },
           },
         }),
       { status: 200, schema: previousSchema, otherwise: { 404: () => null } },
