@@ -223,6 +223,13 @@ describe('verdictTerms', () => {
     expect(verdictTerms('This does not indicate any sign of wrongdoing.')).toEqual([]);
   });
 
+  it('flags a term after a denied finding over a definite denied noun, which presupposes it', () => {
+    expect(verdictTerms('The declarant did not show the proof of the illicit income.')).toEqual([
+      'illicit',
+    ]);
+    expect(verdictTerms('The declarant did not establish the case of fraud.')).toEqual(['fraud']);
+  });
+
   it('does not let a negation reach across a clause or sentence', () => {
     expect(verdictTerms('He has not declared the vehicle; non-compliant.')).toEqual([
       'non-compliant',

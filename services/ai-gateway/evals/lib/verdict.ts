@@ -92,8 +92,9 @@ const DENIED_INFERENCE = String.raw`(?:${NEGATION}\s+${HEDGE}(?:mean|imply|sugge
 /**
  * A denied inference whose verb takes an object, which reaches a subject only over "that": "does
  * not show", "does not constitute", "not necessarily point to", "no part of this flag indicates".
- * Its object is not denied unless it is a denied noun: "does not show the source of the illicit
- * income" states the term, "does not constitute a finding of wrongdoing" denies it.
+ * Its object is not denied unless it is a denied noun without "the": "does not show the source of
+ * the illicit income" states the term, "did not show the proof of the illicit income" presupposes
+ * it, "does not constitute a finding of wrongdoing" denies it.
  */
 const DENIED_FINDING = String.raw`(?:${NEGATION}\s+${HEDGE}(?:indicate|show|prove|establish|constitute|amount to|point to)|(?:nothing|no part of)(?:\s+${INFERRED_WORD}){0,4}\s+(?:indicates|shows|proves|establishes|constitutes|amounts to|points to))`;
 
@@ -125,7 +126,7 @@ const GOVERNED = [
     'u',
   ),
   new RegExp(
-    String.raw`(?:^|[^\p{L}'])(?:${DENIED_INFERENCE}(?:${SOURCE}\s+that)?${SUBJECT}|${DENIED_FINDING}(?:${SOURCE}\s+that${SUBJECT}|(?:\s+(?:a|an|any))?\s+$|(?:\s+(?:a|an|the|any))?\s+${DENIED_NOUNS}\s+(?:of|ya|za|wa)\s+(?:(?:any|the)\s+)?$))`,
+    String.raw`(?:^|[^\p{L}'])(?:${DENIED_INFERENCE}(?:${SOURCE}\s+that)?${SUBJECT}|${DENIED_FINDING}(?:${SOURCE}\s+that${SUBJECT}|(?:\s+(?:a|an|any))?\s+$|(?:\s+(?:a|an|any))?\s+${DENIED_NOUNS}\s+(?:of|ya|za|wa)\s+(?:(?:any|the)\s+)?$))`,
     'u',
   ),
   new RegExp(
