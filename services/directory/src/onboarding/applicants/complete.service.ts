@@ -18,6 +18,7 @@ import { alreadyOnboarded } from '../identify/identify.service.js';
 import type { SessionCredentials } from '../public-route.js';
 import { confirmedExpiry } from '../session-state.js';
 import {
+  applicantFullName,
   type ApplicantSessionRow,
   OnboardingSessions,
   type SessionContext,
@@ -134,7 +135,7 @@ export class ApplicantCompleteService {
       id,
       kind: 'applicant',
       ...documentColumns(document),
-      fullName: `${firstName} ${session.surname}`,
+      fullName: applicantFullName(session),
       identityStatus,
       // IPRS matched the national ID at start; a passport waits for an access officer.
       identityVerifiedAt: identityStatus === 'verified' ? now : null,
