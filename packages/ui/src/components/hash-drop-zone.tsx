@@ -221,7 +221,9 @@ export function HashDropZone({
                   <Button
                     type="button"
                     variant="link"
-                    className="w-fit text-[13px] text-current"
+                    // The padding gives the focus ring room around the text; the margin keeps
+                    // the text in line with the alert's.
+                    className="-mx-1 w-fit px-1 text-[13px] text-current"
                     aria-expanded={showDetails}
                     aria-controls={detailsId}
                     onClick={() => {

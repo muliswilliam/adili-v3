@@ -5,8 +5,8 @@ import { HashDropZone } from './hash-drop-zone';
 
 // A stand-in for the issued slip, and its SHA-256 as the verification API returns it.
 const ISSUED =
-  '%PDF-1.7\n% Adili Online acknowledgement slip DCB-TSC-2027-0012345-K, version 2\n%%EOF\n';
-const ISSUED_SHA256 = 'ff08a84e7dd54af25fda9f2e74bd6b285f6719c7504d043d2a0eec30e613b6d3';
+  '%PDF-1.7\n% Adili Online acknowledgement slip DCI-TSC-2026-0012345-8, version 2\n%%EOF\n';
+const ISSUED_SHA256 = 'f045701b0daa22b501b046d42bd5d9d5d6b3482f48b371e285a2c9a3e09eaca3';
 
 const meta = {
   title: 'Verification/HashDropZone',
@@ -54,5 +54,39 @@ export const DoesNotMatch: Story = {
 export const CouldNotRead: Story = {
   play: async ({ canvasElement }) => {
     await choose(canvasElement, new File(['Payslip September 2026'], 'payslip.docx'));
+  },
+};
+
+/** A file whose bytes never finish reading, so the zone stays on "Checking". */
+class HeldFile extends File {
+  override arrayBuffer(): Promise<ArrayBuffer> {
+    return new Promise(() => undefined);
+  }
+}
+
+/** The file is being read and hashed on the device. */
+export const Checking: Story = {
+  play: async ({ canvasElement }) => {
+    const input = canvasElement.querySelector<HTMLInputElement>('input[type="file"]');
+    if (input) {
+      await userEvent.upload(input, new HeldFile([ISSUED], 'acknowledgement-slip-v2.pdf'), {
+        applyAccept: false,
+      });
+    }
+    await within(canvasElement).findByText('Checking the file on your device');
+  },
+};
+
+/** No Web Crypto, as on a page served over plain http: the file cannot be checked here. */
+export const Unavailable: Story = {
+  beforeEach: () => {
+    // Shadows the prototype's getter until the story unmounts.
+    Object.defineProperty(globalThis.crypto, 'subtle', { value: undefined, configurable: true });
+    return () => {
+      Reflect.deleteProperty(globalThis.crypto, 'subtle');
+    };
+  },
+  play: async ({ canvasElement }) => {
+    await choose(canvasElement, new File([ISSUED], 'acknowledgement-slip-v2.pdf'));
   },
 };
