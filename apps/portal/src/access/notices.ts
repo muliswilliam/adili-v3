@@ -47,23 +47,11 @@ export function needsResponse(notice: DeclarantNotice, now: string): boolean {
   return windowOpen(notice, now) && notice.representations === null;
 }
 
-const OUTCOME_OF_STATUS: Partial<Record<DeclarantNotice['status'], Outcome>> = {
-  granted: 'grant',
-  'partially-granted': 'partial-grant',
-  denied: 'deny',
-};
-
-/** The decision's outcome, from the decision or, until it is read, from the status. */
-export function outcomeOf(notice: DeclarantNotice): Outcome | null {
-  return notice.decision?.outcome ?? OUTCOME_OF_STATUS[notice.status] ?? null;
-}
-
 export function noticeState(notice: DeclarantNotice, now: string): NoticeState {
   if (notice.kind === 'lea') return 'lea';
   if (notice.status === 'withdrawn') return 'withdrawn';
   if (notice.status === 'cannot-identify') return 'closed';
-  const outcome = outcomeOf(notice);
-  if (outcome) return outcome;
+  if (notice.decision) return notice.decision.outcome;
   if (windowOpen(notice, now)) return notice.representations ? 'saved' : 'awaiting';
   return 'under-decision';
 }
@@ -158,7 +146,7 @@ export interface WindowView {
  */
 export function windowView(notice: DeclarantNotice, now: string): WindowView | null {
   const { windowEndsAt } = notice;
-  if (notice.kind !== 'form-k' || !windowEndsAt || outcomeOf(notice)) return null;
+  if (notice.kind !== 'form-k' || !windowEndsAt || notice.decision) return null;
   if (notice.status === 'withdrawn' || notice.status === 'cannot-identify') return null;
   const of = Math.max(1, daysBetween(notice.notifiedAt, windowEndsAt));
   const open = windowOpen(notice, now);

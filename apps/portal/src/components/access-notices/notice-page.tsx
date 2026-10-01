@@ -41,7 +41,6 @@ import {
   leaGrantedAt,
   leaTitle,
   noticeState,
-  outcomeOf,
   windowOpen,
   windowView,
 } from '../../access/notices';
@@ -257,19 +256,19 @@ function Banner({
       </BannerBox>
     );
   }
-  const outcome = outcomeOf(notice);
-  if (outcome) {
+  const { decision } = notice;
+  if (decision) {
+    const { outcome } = decision;
     const meta = DECIDED_BANNERS[outcome];
-    const decidedAt = notice.decision?.decidedAt;
     return (
       <BannerBox
         variant={meta.variant}
         icon={meta.icon}
-        lead={
-          decidedAt
-            ? COPY.bannerDecided(commission, OUTCOMES[outcome].verb.en, formatDate(decidedAt))
-            : COPY.bannerDecidedUndated(commission, OUTCOMES[outcome].verb.en)
-        }
+        lead={COPY.bannerDecided(
+          commission,
+          OUTCOMES[outcome].verb.en,
+          formatDate(decision.decidedAt),
+        )}
       >
         {OUTCOMES[outcome].released.en}
       </BannerBox>
@@ -445,7 +444,7 @@ function ScopeView({ scope, granted }: { scope: Scope; granted: Scope | null }) 
 function RequestCard({ notice }: { notice: DeclarantNotice }) {
   const lea = notice.kind === 'lea';
   const partial =
-    outcomeOf(notice) === 'partial-grant' ? (notice.decision?.grantedScope ?? null) : null;
+    notice.decision?.outcome === 'partial-grant' ? notice.decision.grantedScope : null;
   return (
     <Card className="gap-0 p-0 sm:p-0">
       <div className="border-b border-border px-5 py-4 sm:px-6">

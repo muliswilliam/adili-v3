@@ -98,7 +98,12 @@ describe('the window', () => {
   });
 
   it('is not shown once decided, withdrawn, or for law enforcement', () => {
-    expect(windowView(notice({ status: 'denied', canRespond: false }), NOW)).toBeNull();
+    expect(
+      windowView(
+        notice({ status: 'denied', canRespond: false, decision: { ...DECISION, outcome: 'deny' } }),
+        NOW,
+      ),
+    ).toBeNull();
     expect(windowView(notice({ status: 'withdrawn', canRespond: false }), NOW)).toBeNull();
     expect(windowView(notice({ kind: 'lea', windowEndsAt: null }), NOW)).toBeNull();
   });
@@ -116,9 +121,16 @@ describe('noticeState', () => {
     expect(noticeState(notice({ status: 'partially-granted', decision: DECISION }), NOW)).toBe(
       'partial-grant',
     );
-    // From the status alone, before the decision is read (#259 runs concurrently).
-    expect(noticeState(notice({ status: 'granted', canRespond: false }), NOW)).toBe('grant');
-    expect(noticeState(notice({ status: 'denied', canRespond: false }), NOW)).toBe('deny');
+    const decided = (outcome: 'grant' | 'deny') => ({ ...DECISION, outcome });
+    expect(
+      noticeState(
+        notice({ status: 'granted', canRespond: false, decision: decided('grant') }),
+        NOW,
+      ),
+    ).toBe('grant');
+    expect(
+      noticeState(notice({ status: 'denied', canRespond: false, decision: decided('deny') }), NOW),
+    ).toBe('deny');
     expect(noticeState(notice({ status: 'withdrawn', canRespond: false }), NOW)).toBe('withdrawn');
     expect(noticeState(notice({ kind: 'lea', status: 'granted' }), NOW)).toBe('lea');
   });

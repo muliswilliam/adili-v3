@@ -288,15 +288,6 @@ describe('after the window and the decision', () => {
     expect(screen.getByText('Frivolous, vexatious or scandalous (Regulation 24(c))')).toBeTruthy();
   });
 
-  it('reads the outcome from the status before the decision is in', async () => {
-    const notice = await seededNotice(IDS.closedNone);
-    renderPage({ ...notice, status: 'granted' });
-    expect(banner()).toBe(
-      'Teachers Service Commission granted access. What was asked was released.',
-    );
-    expect(screen.getByText('Granted')).toBeTruthy();
-  });
-
   it('says the applicant withdrew', async () => {
     renderPage(await seededNotice(IDS.withdrawn));
     expect(banner()).toBe('The applicant withdrew the request. Nothing was released.');

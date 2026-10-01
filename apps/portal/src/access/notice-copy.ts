@@ -91,7 +91,6 @@ const NOTICE = {
   ),
   bannerWithdrawn: en('The applicant withdrew the request.'),
   bannerWithdrawnNext: en('Nothing was released.'),
-  bannerDecidedUndated: en((commission: string, verb: string) => `${commission} ${verb}.`),
   bannerDecided: en(
     (commission: string, verb: string, date: string) => `${commission} ${verb} on ${date}.`,
   ),

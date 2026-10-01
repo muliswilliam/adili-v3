@@ -8,7 +8,6 @@ import {
   leaTitle,
   noticeState,
   type NoticeState,
-  outcomeOf,
   scopeLine,
   STATE_META,
   windowOpen,
@@ -45,9 +44,8 @@ function rowTitle(notice: DeclarantNotice, open: boolean): string {
 }
 
 function dateLine(notice: DeclarantNotice): string {
-  const decidedAt = notice.decision?.decidedAt;
-  return decidedAt && outcomeOf(notice)
-    ? COPY.decidedOn(formatDate(decidedAt))
+  return notice.decision
+    ? COPY.decidedOn(formatDate(notice.decision.decidedAt))
     : COPY.notifiedOn(formatDate(notice.notifiedAt));
 }
 
