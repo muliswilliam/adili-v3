@@ -107,6 +107,15 @@ function Landing({ error }: { error: string | null }) {
       <p className="mt-3 text-[13.5px] text-muted-foreground">
         First time here? You need your personnel file number and national ID.
       </p>
+      <p className="mt-7 border-t pt-4 text-[13.5px] text-muted-foreground">
+        Not a public officer?{' '}
+        <Link
+          to="/access"
+          className="font-medium text-foreground underline decoration-input underline-offset-3 hover:decoration-foreground"
+        >
+          Request access to a declaration
+        </Link>
+      </p>
     </AuthShell>
   );
 }

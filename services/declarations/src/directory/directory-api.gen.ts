@@ -2110,8 +2110,15 @@ export interface components {
             /** Format: uuid */
             id: string;
             state: components["schemas"]["ApplicantOnboardingState"];
+            /** @description The names entered at start, first and other names then surname, as the account will have them */
+            fullName: string;
+            /** @description The document entered at start, so the applicant can check it before the account is created; only the holder of the session secret sees it */
             identityDocument: {
                 kind: components["schemas"]["IdentityDocumentKind"];
+                /** @description As entered at start, normalised (national ID digits, passport upper-cased) */
+                number: string;
+                /** @description A passport's issuing country (ISO 3166-1 alpha-2); null for a national ID */
+                country: string | null;
             };
             /** @description The identity status the account gets: `verified` for a national ID IPRS matched at start, `pending-verification` for a passport */
             identityStatus: components["schemas"]["IdentityStatus"];
@@ -2147,8 +2154,15 @@ export interface components {
             /** Format: uuid */
             id: string;
             state: components["schemas"]["ApplicantOnboardingState"];
+            /** @description The names entered at start, first and other names then surname, as the account will have them */
+            fullName: string;
+            /** @description The document entered at start, so the applicant can check it before the account is created; only the holder of the session secret sees it */
             identityDocument: {
                 kind: components["schemas"]["IdentityDocumentKind"];
+                /** @description As entered at start, normalised (national ID digits, passport upper-cased) */
+                number: string;
+                /** @description A passport's issuing country (ISO 3166-1 alpha-2); null for a national ID */
+                country: string | null;
             };
             /** @description The identity status the account gets: `verified` for a national ID IPRS matched at start, `pending-verification` for a passport */
             identityStatus: components["schemas"]["IdentityStatus"];

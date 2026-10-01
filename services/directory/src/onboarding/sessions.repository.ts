@@ -90,6 +90,13 @@ export function asApplicant(session: SessionRow): ApplicantSessionRow {
   return session as ApplicantSessionRow;
 }
 
+/** An applicant's full name as the account gets it: first and other names, then surname. */
+export function applicantFullName(
+  session: Pick<ApplicantSessionRow, 'firstName' | 'otherNames' | 'surname'>,
+): string {
+  return [session.firstName, session.otherNames, session.surname].filter(Boolean).join(' ');
+}
+
 /** `app.subject` of the public onboarding routes' transactions: a system actor, no user. */
 export const ONBOARDING_SUBJECT = 'onboarding';
 
@@ -402,7 +409,12 @@ export class OnboardingSessions {
     return {
       id: session.id,
       state: session.state,
-      identityDocument: { kind: session.documentKind },
+      fullName: applicantFullName(session),
+      identityDocument: {
+        kind: session.documentKind,
+        number: session.documentNumber,
+        country: session.documentCountry,
+      },
       identityStatus: session.documentKind === 'national-id' ? 'verified' : 'pending-verification',
       contacts: {
         phone:

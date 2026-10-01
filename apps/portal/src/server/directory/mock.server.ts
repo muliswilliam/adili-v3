@@ -25,6 +25,8 @@
  * DECLARANT_PROFILES, or the Teachers Service Commission demo profile; anyone else gets 403, as
  * the directory answers callers without the role.
  *
+ * Applicant onboarding (Get started as an applicant) is answered by `applicant-mock.server.ts`.
+ *
  * Every code is 123456; 000000 is treated as expired. Codes follow the spec's rules otherwise:
  * five wrong codes or a fourth resend end the session, and resends wait 60 seconds. The
  * set-password email can be sent again after the same 60 seconds.
@@ -32,6 +34,7 @@
 import { maskContact } from '@adili/ui';
 
 import { json } from '../mock-http';
+import { mockApplicantOnboardingFetch } from './applicant-mock.server';
 import type {
   DeclarantProfile,
   IdentifyDeclarant,
@@ -619,6 +622,11 @@ async function idempotent(
 export async function mockDirectoryFetch(request: Request): Promise<Response> {
   const url = new URL(request.url);
   const path = url.pathname;
+
+  if (path.startsWith('/v1/onboarding/applicants')) {
+    const answer = await mockApplicantOnboardingFetch(request);
+    if (answer) return answer;
+  }
 
   if (request.method === 'GET' && path === '/v1/onboarding/commissions') {
     const search = url.searchParams.get('search')?.toLowerCase() ?? '';

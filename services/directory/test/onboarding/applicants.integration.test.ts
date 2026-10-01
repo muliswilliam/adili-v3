@@ -106,7 +106,9 @@ describe('S1 start with a national ID', () => {
       id: expect.any(String) as unknown,
       secret: expect.stringMatching(/^[A-Za-z0-9_-]{43}$/) as unknown,
       state: 'phone-pending',
-      identityDocument: { kind: 'national-id' },
+      // What was entered, normalised, so the applicant can check it before complete.
+      fullName: 'Njoki Wairimu Wambua',
+      identityDocument: { kind: 'national-id', number: '23456789', country: null },
       identityStatus: 'verified',
       contacts: {
         phone: { masked: '07** *** 456', verified: false },
@@ -267,7 +269,8 @@ describe('S1 start with a passport', () => {
     expect(response.statusCode, response.body).toBe(201);
     expect(response.json()).toMatchObject({
       state: 'phone-pending',
-      identityDocument: { kind: 'passport' },
+      fullName: 'Amina Okello',
+      identityDocument: { kind: 'passport', number: 'B1234567', country: 'UG' },
       identityStatus: 'pending-verification',
       contacts: { phone: { masked: expect.stringContaining('456') as unknown, verified: false } },
     });
