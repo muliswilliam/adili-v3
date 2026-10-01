@@ -28,6 +28,7 @@ import {
   declarationAttachmentUnlinked,
   declarationDraftDiscarded,
   declarationDraftStarted,
+  declarationSectionSaved,
 } from './events.js';
 import { duplicatePeople, householdPeople, type NotIncluded } from './household.js';
 import { composeMaterialChanges } from './material-changes.js';
@@ -476,8 +477,9 @@ export class DraftsService {
    * Saves one section: `ifMatch` must be the draft version the client read (428 without it, 412
    * when another save came first). The body must be well formed for the section; missing fields
    * are completeness, not errors. Locked bio fields cannot change (400 `identity-locked-field`);
-   * a statement's person and dates are the service's. One transaction bumps the draft version
-   * and stores the encrypted section with its clear metadata.
+   * a statement's person and dates are the service's. One transaction bumps the draft version,
+   * stores the encrypted section with its clear metadata and records the save (ADR-008: no
+   * change without its audit record), identifiers only.
    */
   async saveSection(
     principal: Principal,
@@ -539,6 +541,9 @@ export class DraftsService {
         )
       : [];
 
+    const sectionsChanged = statements.flatMap((change) =>
+      change.action ? [{ key: change.key, action: change.action }] : [],
+    );
     const now = this.clock.now();
     const draftVersion = await withPerson(this.db, person, async (tx) => {
       const bumped = await storeSection(tx, this.sections, declaration, key, contents, {
@@ -560,6 +565,15 @@ export class DraftsService {
       }
       await writeStatementChanges(tx, declaration.id, statements, now);
       if (isStatementKey(key)) await this.unlinkRemovedItems(tx, declaration, key, contents);
+      await this.events.record(
+        tx,
+        declarationSectionSaved(declaration.tenant, {
+          declarationId: declaration.id,
+          sectionKey: key,
+          draftVersion: bumped,
+          sectionsChanged,
+        }),
+      );
       return bumped;
     });
     await this.sections.cache(
@@ -584,9 +598,7 @@ export class DraftsService {
       draftVersion,
       issues: assessment.section.issues,
       ...(household && { notIncluded: household.notIncluded }),
-      sectionsChanged: statements.flatMap((change) =>
-        change.action ? [{ key: change.key, action: change.action }] : [],
-      ),
+      sectionsChanged,
     };
   }
 

@@ -725,6 +725,8 @@ describe('events carry identifiers only (S22)', () => {
       'audit.read.v1',
       'audit.read.v1',
       'declaration.draft-started.v1',
+      'declaration.section-saved.v1',
+      'declaration.section-saved.v1',
     ]);
     const serialised = JSON.stringify(rows);
     for (const secret of SECRETS) expect(serialised).not.toContain(secret);
@@ -734,5 +736,46 @@ describe('events carry identifiers only (S22)', () => {
       'obligationId',
       'type',
     ]);
+  });
+
+  it('records each section save in the outbox with identifiers only (ADR-008)', async () => {
+    const draft = await savedDraft();
+
+    const saves = await api.db
+      .select({ envelope: outbox.envelope })
+      .from(outbox)
+      .where(eq(outbox.eventType, 'declaration.section-saved.v1'));
+
+    expect(
+      saves.map(({ envelope: { subject, tenant, data } }) => ({ subject, tenant, data })),
+    ).toEqual([
+      {
+        subject: draft.id,
+        tenant: draft.commission.slug,
+        data: { declarationId: draft.id, sectionKey: 'bio', draftVersion: 2, sectionsChanged: [] },
+      },
+      {
+        subject: draft.id,
+        tenant: draft.commission.slug,
+        data: {
+          declarationId: draft.id,
+          sectionKey: 'statement:officer',
+          draftVersion: 3,
+          sectionsChanged: [],
+        },
+      },
+    ]);
+  });
+
+  it('a refused save records nothing', async () => {
+    const draft = await started();
+
+    expect((await save(draft.id, 'bio', {}, '"7"')).statusCode).toBe(412);
+
+    const saves = await api.db
+      .select()
+      .from(outbox)
+      .where(eq(outbox.eventType, 'declaration.section-saved.v1'));
+    expect(saves).toEqual([]);
   });
 });
