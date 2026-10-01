@@ -384,6 +384,28 @@
       "optionalClientScopes": []
     },
     {
+      "clientId": "access",
+      "name": "Access service",
+      "description": "Service account the access service uses to read Commissions, roster records and staff from the directory, to ask declarations for scoped disclosures and full documents, to issue packages and certified copies and check attachments with documents, and to send messages through notifications",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "clientAuthenticatorType": "client-secret",
+      "secret": "access-dev-secret",
+      "standardFlowEnabled": false,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": true,
+      "defaultClientScopes": [
+        "basic",
+        "declarations:internal",
+        "directory:internal",
+        "documents:internal",
+        "messages"
+      ],
+      "optionalClientScopes": []
+    },
+    {
       "clientId": "tsc-reports",
       "name": "TSC reporting system (demo)",
       "description": "Demo federated Commission: the Teachers Service Commission's own system, which files Form M through POST /v1/compliance-reports (spec 09) with client credentials",
