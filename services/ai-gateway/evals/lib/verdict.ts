@@ -7,20 +7,21 @@
  * The Swahili list is a draft for a Swahili speaker to review.
  */
 /**
- * A positive determination, which a check instruction also names: "check whether the declarant
- * complied with the deadline" asks, "the declarant complied with the deadline" decides.
+ * A determination stated with "comply" or "compliant", which a check instruction also names:
+ * "check whether the declarant complied with the deadline" asks, "the declarant complied with the
+ * deadline" and "the declarant does not comply" decide.
  */
-const POSITIVE: readonly RegExp[] = [
-  /\b(?:is|was|are|were|been) (?:fully )?compliant\b/,
+const DETERMINATION: readonly RegExp[] = [
+  /\b(?:(?:is|was|are|were|been)|(?:appears?|seems?)(?: to be)?) (?:fully )?compliant\b/,
   /\b(?:(?:has|have|had) )?(?:fully )?complied with\b/,
+  /\bnot (?:fully |in )?complian(?:t|ce)\b/,
+  /\b(?:does not|do not|doesn't|don't|did not|didn't|had not|hadn't|has not|hasn't|have not|haven't|never|fails? to|failed to) (?:fully )?compl(?:y|ies|ied)\b/,
 ];
 
 const TERMS: readonly RegExp[] = [
   // Compliance determination.
   /\bnon[- ]?compliant\b/,
-  /\bnot compliant\b/,
-  ...POSITIVE,
-  /\b(?:did not|didn't|failed to|has not|have not|hasn't) compl(?:y|ied)\b/,
+  ...DETERMINATION,
   /\b(?:in |a |an )?breach(?:es)? of\b/,
   /\b(?:breached|violated|violates|violation of)\b/,
   /\bnon[- ]?compliance\b/,
@@ -59,8 +60,8 @@ const TERMS: readonly RegExp[] = [
   /\bkinidhamu\b/,
 ];
 
-/** A denial: "not", "without", "rather than", "si", "hakuna". */
-const NEGATION = String.raw`(?:not|no|never|without|isn't|aren't|wasn't|doesn't|nor|rather than|instead of|si|sio|siyo|hakuna|bila)`;
+/** A denial: "not", "without", "rather than", "nothing", "si", "hakuna". */
+const NEGATION = String.raw`(?:not|no|nothing|never|without|isn't|aren't|wasn't|doesn't|nor|rather than|instead of|si|sio|siyo|hakuna|bila)`;
 
 /** A hedge a denial may carry: "not by itself", "not necessarily". */
 const HEDGE = String.raw`(?:(?:by itself|on its own|alone|necessarily|in itself)\s+)?`;
@@ -71,14 +72,20 @@ const DENIED_NOUNS = String.raw`(?:finding|determination|sign|indication|indicat
 /** What a denial may put between itself and the term: "not a finding of any", "si ishara ya". */
 const DENIED_NOUN = String.raw`(?:(?:a|an|the|any)\s+)?(?:${DENIED_NOUNS}\s+(?:of|ya|za|wa)\s+(?:(?:any|the)\s+)?)?`;
 
-/** A denied inference: "does not mean", "not by itself suggest", "do not conclude", "haimaanishi". */
-const DENIED_INFERENCE = String.raw`(?:${NEGATION}\s+${HEDGE}(?:mean|imply|suggest|indicate|show|prove|establish|constitute|amount to|conclude|assume|infer)|haimaanishi)`;
+/** How a denial may present the term: "should not be read as a finding of". */
+const READ_AS = String.raw`(?:(?:read|taken|seen|treated)\s+as\s+)?`;
 
 /**
  * A word a denied inference may reach over to its term: a subject ("the declarant", "any"), not a
  * coordinator or a verb, which start a predicate of their own the denial does not govern.
  */
 const INFERRED_WORD = String.raw`(?!(?:and|but|or|nor|yet|so|then|while|because|which|who|na|lakini|bali|ila|is|was|are|were|be|been|being|has|have|had|do|does|did|will|would|shall|should|may|might|must|can|could)\b)[\p{L}']+`;
+
+/**
+ * A denied inference: "does not mean", "not by itself suggest", "do not conclude", "nothing in the
+ * flag itself suggests", "no part of this flag indicates", "haimaanishi".
+ */
+const DENIED_INFERENCE = String.raw`(?:${NEGATION}\s+${HEDGE}(?:mean|imply|suggest|indicate|show|prove|establish|constitute|amount to|conclude|assume|infer)|(?:nothing|no part of)(?:\s+${INFERRED_WORD}){0,4}\s+(?:means|implies|suggests|indicates|shows|proves|establishes|constitutes|amounts to)|haimaanishi)`;
 
 /** A subject and a copula a denial reaches over to the term: "the declarant is", "there was any". */
 const SUBJECT = String.raw`(?:\s+${INFERRED_WORD}){0,4}(?:\s+(?:is|was|are|were|be|(?:has|have|had) been)(?:\s+(?:a|an|any))?)?\s+$`;
@@ -88,18 +95,19 @@ const SOURCE = String.raw`(?:\s+from(?:\s+${INFERRED_WORD}){1,3})?`;
 
 /**
  * The end of a term's clause when a negation governs the term: right before it ("not corrupt",
- * "should not be sanctioned"), through a denied noun ("not a finding of any wrongdoing"), or as a
- * denied inference or a denied noun with "that" over a subject and a copula ("does not mean the
- * declarant is non-compliant", "does not mean there was any wrongdoing", "haimaanishi kuna
+ * "should not be sanctioned"), through a denied noun ("not a finding of any wrongdoing", "should
+ * not be read as a finding of wrongdoing"), or as a denied inference or a denied noun with "that"
+ * over a subject and a copula ("does not mean the declarant is non-compliant", "does not mean
+ * there was any wrongdoing", "nothing in the flag itself suggests wrongdoing", "haimaanishi kuna
  * rushwa", "do not conclude from this flag alone that the declarant is non-compliant", "not
- * evidence that the declarant is dishonest"). A term joined by "or",
- * "nor" or "and" to a denied one is denied too ("not dishonest or corrupt"). A negation elsewhere
- * in the clause does not count: "did not disclose the illicit income", "there is no doubt the
- * declarant is corrupt" and "did not show the loan and is non-compliant" state the term.
+ * evidence that the declarant is dishonest"). A term joined by "or", "nor" or "and" to a denied
+ * one is denied too ("not dishonest or corrupt"). A negation elsewhere in the clause does not
+ * count: "did not disclose the illicit income", "there is no doubt the declarant is corrupt" and
+ * "did not show the loan and is non-compliant" state the term.
  */
 const GOVERNED = [
   new RegExp(
-    String.raw`(?:^|[^\p{L}'])${NEGATION}\s+${HEDGE}(?:(?:be|being|been)\s+)?${DENIED_NOUN}$`,
+    String.raw`(?:^|[^\p{L}'])${NEGATION}\s+${HEDGE}(?:(?:be|being|been)\s+)?${READ_AS}${DENIED_NOUN}$`,
     'u',
   ),
   new RegExp(String.raw`(?:^|[^\p{L}'])${DENIED_INFERENCE}(?:${SOURCE}\s+that)?${SUBJECT}`, 'u'),
@@ -130,7 +138,7 @@ export function verdictTerms(text: string): string[] {
       index: match.index,
       end: match.index + match[0].length,
       term: match[0],
-      positive: POSITIVE.includes(term),
+      checkable: DETERMINATION.includes(term),
     })),
   ).sort((a, b) => a.index - b.index);
   const found: string[] = [];
@@ -145,7 +153,7 @@ export function verdictTerms(text: string): string[] {
         (end) => end <= match.index && COORDINATED.test(lower.slice(end, match.index)),
       );
     if (negated) deniedEnds.push(match.end);
-    else if (!(match.positive && CHECK.test(clause))) found.push(match.term);
+    else if (!(match.checkable && CHECK.test(clause))) found.push(match.term);
   }
   return found;
 }

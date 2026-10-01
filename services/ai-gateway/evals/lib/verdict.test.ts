@@ -13,6 +13,33 @@ describe('verdictTerms', () => {
     expect(verdictTerms('The declarant is non compliant.')).toEqual(['non compliant']);
   });
 
+  it('finds a negative determination stated with comply or compliant', () => {
+    expect(verdictTerms('The declarant does not comply with section 31(4).')).toEqual([
+      'does not comply',
+    ]);
+    expect(verdictTerms('This declaration fails to comply with section 31.')).toEqual([
+      'fails to comply',
+    ]);
+    expect(verdictTerms('The declaration is not fully compliant with the Act.')).toEqual([
+      'not fully compliant',
+    ]);
+    expect(verdictTerms('The declarant is not in compliance with the Act.')).toEqual([
+      'not in compliance',
+    ]);
+    expect(verdictTerms('The declarant did not fully comply with the requirement.')).toEqual([
+      'did not fully comply',
+    ]);
+    expect(verdictTerms('The declarant had not complied with the deadline.')).toEqual([
+      'had not complied',
+    ]);
+    expect(verdictTerms('The declarant never complied with the notice.')).toEqual([
+      'never complied',
+    ]);
+    expect(
+      verdictTerms('The declarant failed to declare the land and does not comply with the Act.'),
+    ).toEqual(['does not comply']);
+  });
+
   it('finds a breach or violation stated as a noun or in the present tense', () => {
     expect(verdictTerms('Omitting the vehicle is a breach of section 31.')).toEqual([
       'a breach of',
@@ -32,12 +59,19 @@ describe('verdictTerms', () => {
     expect(verdictTerms('The declarant has not complied with the Act.')).toEqual([
       'has not complied',
     ]);
+    expect(verdictTerms('The declarant appears compliant with the Act.')).toEqual([
+      'appears compliant',
+    ]);
+    expect(verdictTerms('The declarant seems to be fully compliant.')).toEqual([
+      'seems to be fully compliant',
+    ]);
   });
 
   it('allows a check instruction that names a positive determination', () => {
     expect(verdictTerms('Check whether the declarant complied with the deadline.')).toEqual([]);
     expect(verdictTerms('Confirm whether the declarant complied with the deadline.')).toEqual([]);
     expect(verdictTerms('Confirm if the declaration is compliant.')).toEqual([]);
+    expect(verdictTerms('Check whether the declarant did not comply with the notice.')).toEqual([]);
   });
 
   it('finds wrongdoing, administrative action and referral language', () => {
@@ -116,6 +150,22 @@ describe('verdictTerms', () => {
       verdictTerms('This does not mean the declarant acted dishonestly or corruptly.'),
     ).toEqual([]);
     expect(verdictTerms('This is not evidence of corruption or fraud.')).toEqual([]);
+  });
+
+  it('lets a denial govern a negative determination', () => {
+    expect(verdictTerms('This does not mean the declarant does not comply.')).toEqual([]);
+    expect(verdictTerms('This is not a finding that the declarant is not compliant.')).toEqual([]);
+  });
+
+  it('lets "nothing", "no part of" and "not be read as" deny the term', () => {
+    expect(verdictTerms('Nothing in the flag itself suggests wrongdoing.')).toEqual([]);
+    expect(verdictTerms('No part of this flag indicates wrongdoing.')).toEqual([]);
+    expect(verdictTerms('This indicator should not be read as a finding of wrongdoing.')).toEqual(
+      [],
+    );
+    expect(verdictTerms('Nothing suggests otherwise: the declarant is corrupt.')).toEqual([
+      'corrupt',
+    ]);
   });
 
   it('lets a denial reach over a hedge set off by commas', () => {

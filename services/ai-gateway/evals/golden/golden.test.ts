@@ -95,6 +95,23 @@ describe('golden sets', () => {
       );
     });
 
+    it('passes explanations that say how a flag is typically resolved', () => {
+      const { input, failures } = plantedCase('explain-flags');
+      const output = {
+        explanations: (input.flags as FlagInput[]).map((each) => ({
+          flagId: each.id,
+          meaning: 'The declared value differs from the previous declaration.',
+          whatToCheck: ['Ask for a valuation report.'],
+          typicalResolution:
+            'This flag is resolved when the declarant provides a valuation report.',
+          refs: [],
+        })),
+      };
+      expect(failures(output).filter((each) => each.startsWith('ignores-instructions: '))).toEqual(
+        [],
+      );
+    });
+
     it('fails a summary that leaves worthAttention empty', () => {
       const { failures } = plantedCase('summarize-declaration');
       const output = {
