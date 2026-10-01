@@ -20,6 +20,7 @@ import {
 import { badRequest, directoryUnavailable, problem } from '../problems.js';
 import { AccessRegister, type RegisterRow } from '../register/access-register.js';
 import { openFormK, sealFormK, withoutMeta } from './form-k.js';
+import { AccessRequestWorkflows } from './request-workflows.js';
 import { type AccessRequest, type AccessRequestRow, toAccessRequest } from './representation.js';
 import { type AccessRequestStatus, accessRequests } from './schema.js';
 import { applicantTimeline, registerEntriesOf } from './timeline.js';
@@ -48,6 +49,7 @@ export class RequestsService {
     private readonly directory: DirectoryClient,
     private readonly cipher: FieldCipher,
     private readonly register: AccessRegister,
+    private readonly workflows: AccessRequestWorkflows,
     private readonly clock: Clock,
   ) {}
 
@@ -58,7 +60,10 @@ export class RequestsService {
    * in one transaction of the Commission's context. The request is `submitted`, or
    * `pending-applicant-verification` while the directory holds the applicant's identity as
    * pending (a passport holder no access officer has verified yet). The acknowledgement goes out
-   * from the event (`AcknowledgementService`), so it is sent even if this process dies now.
+   * from the event (`AcknowledgementService`), so it is sent even if this process dies now. A
+   * `submitted` request starts its `AccessRequestWorkflow` as the transaction's last step (503
+   * `workflow-unavailable` and nothing stored when Temporal cannot be reached); a held one starts
+   * it when the access officer verifies the applicant.
    */
   async submit(principal: Principal, body: unknown): Promise<AccessRequest> {
     const personId = applicantPersonId(principal);
@@ -126,6 +131,14 @@ export class RequestsService {
           at: now,
           eventData,
         });
+        // Last, inside the transaction: a request never goes ahead without its workflow.
+        if (inserted.status === 'submitted') {
+          await this.workflows.start({
+            tenant: commission.slug,
+            requestId: id,
+            submittedAt: now.toISOString(),
+          });
+        }
         return { row: inserted, entry: received };
       },
     );
@@ -181,7 +194,7 @@ export class RequestsService {
    * The applicant withdraws their request before a decision (S8): `withdrawn`, with its register
    * entry and event, in the Commission's context. Decided: 409 `request-decided` (a decision is
    * final); closed already (withdrawn, or the officer named could not be identified): 409
-   * `request-closed`.
+   * `request-closed`. Its `AccessRequestWorkflow` ends once the withdrawal commits.
    */
   async withdraw(principal: Principal, requestId: string): Promise<AccessRequest> {
     const personId = applicantPersonId(principal);
@@ -228,6 +241,7 @@ export class RequestsService {
         };
       },
     );
+    await this.workflows.signal(row.id, 'withdrawn');
     return this.applicantView(row, entries);
   }
 

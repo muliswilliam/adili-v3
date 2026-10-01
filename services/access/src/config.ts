@@ -25,6 +25,8 @@ export const envSchema = baseEnvSchema.extend({
   NOTIFICATIONS_URL: z.url(),
   /** The portal, where applicants and declarants sign in: the link in their messages. */
   PORTAL_URL: z.url(),
+  /** The console, where access officers sign in: the link in their reminders. */
+  CONSOLE_URL: z.url(),
   /** Confidential Keycloak client whose service account calls other services' internal APIs. */
   KEYCLOAK_CLIENT_ID: z.string().min(1).default('access'),
   KEYCLOAK_CLIENT_SECRET: z.string().min(1),

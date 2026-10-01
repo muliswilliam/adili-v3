@@ -1,19 +1,14 @@
+import type { components } from './notifications-api.gen.js';
+
 /**
- * The notifications templates the access service sends (spec 10; notifications.yaml `TemplateId`
- * once notifications registers them, #258). One id per channel.
+ * The notifications templates the access service sends (spec 10; notifications.yaml
+ * `TemplateId`): to applicants, declarants, law enforcement and access officers. One id per
+ * channel.
  */
-export type AccessTemplate =
-  | 'access-acknowledgement-email'
-  | 'access-acknowledgement-sms'
-  | 'access-request-notified-email'
-  | 'access-request-notified-sms'
-  | 'access-decision-applicant-email'
-  | 'access-decision-declarant-email'
-  | 'access-package-ready-email'
-  | 'access-officer-reminder-email'
-  | 'lea-grant-notice-email'
-  | 'lea-decision-email'
-  | 'certified-copy-ready-email';
+export type AccessTemplate = Extract<
+  components['schemas']['TemplateId'],
+  `access-${string}` | `lea-${string}` | `certified-copy-${string}`
+>;
 
 /** Who receives a message: an address the caller holds, or a person whose contacts directory holds. */
 export type Recipient = { kind: 'address'; to: string } | { kind: 'person'; personId: string };

@@ -1,8 +1,16 @@
 import type { z } from 'zod';
 
 import { decisionSchema, groundSchema, outcomeSchema, packageSchema } from './decision.js';
+import { declarantNoticeSchema, representationsInputSchema } from './notices/representation.js';
 import { registerEntrySchema } from './register/representation.js';
 import { verifyApplicantBody } from './requests/applicant-verification.service.js';
+import {
+  queueItemSchema,
+  queuePageSchema,
+  resolveOfficerBody,
+  rosterCandidateSchema,
+  rosterCandidatesSchema,
+} from './requests/officer-representation.js';
 import { officerRequestViewSchema, representationsSchema } from './requests/officer-view.js';
 import {
   accessRequestSchema,
@@ -30,4 +38,11 @@ export const OPENAPI_SCHEMAS: Record<string, z.ZodType> = {
   Representations: representationsSchema,
   OfficerRequestView: officerRequestViewSchema,
   VerifyApplicantIdentity: verifyApplicantBody,
+  QueueItem: queueItemSchema,
+  QueuePage: queuePageSchema,
+  ResolveOfficer: resolveOfficerBody,
+  RosterCandidate: rosterCandidateSchema,
+  RosterCandidates: rosterCandidatesSchema,
+  RepresentationsInput: representationsInputSchema,
+  DeclarantNotice: declarantNoticeSchema,
 };

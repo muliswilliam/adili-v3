@@ -13,6 +13,7 @@ import { directoryUnavailable, problem } from '../problems.js';
 import { AccessRegister } from '../register/access-register.js';
 import { openFormK } from './form-k.js';
 import { type OfficerRequestView, toOfficerRequestView } from './officer-view.js';
+import { AccessRequestWorkflows } from './request-workflows.js';
 import type { AccessRequestRow } from './representation.js';
 import { accessRequests, type ApplicantVerification, representations } from './schema.js';
 import { officerTimeline, registerEntriesOf } from './timeline.js';
@@ -43,6 +44,7 @@ export class ApplicantVerificationService {
     private readonly directory: DirectoryClient,
     private readonly cipher: FieldCipher,
     private readonly register: AccessRegister,
+    private readonly workflows: AccessRequestWorkflows,
     private readonly clock: Clock,
   ) {}
 
@@ -53,7 +55,9 @@ export class ApplicantVerificationService {
    *
    * Verified: the directory first records the applicant's identity as `verified` (on the person
    * and the account, so their next requests are not held), then the request becomes `submitted`
-   * with the officer's check on it, and the `verified` register entry and its event are recorded.
+   * with the officer's check on it, and the `verified` register entry and its event are recorded;
+   * its `AccessRequestWorkflow` starts (503 and nothing changed here when Temporal cannot be
+   * reached).
    * The directory unreachable is 503 and nothing changes here; its record is idempotent (the key
    * is the request's), so trying again is safe.
    *
@@ -112,6 +116,13 @@ export class ApplicantVerificationService {
           kind: 'verified',
           actor: { subject: principal.subject, name: principal.name },
           at: now,
+        });
+        // Last, inside the transaction: the request goes ahead with its workflow, its clock
+        // still running from receipt.
+        await this.workflows.start({
+          tenant,
+          requestId: updated.id,
+          submittedAt: updated.submittedAt.toISOString(),
         });
       }
       const [representationsRow] = await tx
