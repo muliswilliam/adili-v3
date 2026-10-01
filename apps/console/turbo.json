@@ -7,7 +7,8 @@
         "$TURBO_DEFAULT$",
         "$TURBO_ROOT$/packages/schemas/internal/directory.yaml",
         "$TURBO_ROOT$/packages/schemas/internal/documents.yaml",
-        "$TURBO_ROOT$/packages/schemas/internal/declarations.yaml"
+        "$TURBO_ROOT$/packages/schemas/internal/declarations.yaml",
+        "$TURBO_ROOT$/packages/schemas/internal/integration-gateway.yaml"
       ]
     },
     "typecheck": {
@@ -15,7 +16,8 @@
         "$TURBO_DEFAULT$",
         "$TURBO_ROOT$/packages/schemas/internal/directory.yaml",
         "$TURBO_ROOT$/packages/schemas/internal/documents.yaml",
-        "$TURBO_ROOT$/packages/schemas/internal/declarations.yaml"
+        "$TURBO_ROOT$/packages/schemas/internal/declarations.yaml",
+        "$TURBO_ROOT$/packages/schemas/internal/integration-gateway.yaml"
       ]
     }
   }

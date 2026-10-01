@@ -17,6 +17,11 @@ import {
   type DocumentsResult,
 } from './documents/client';
 import { env } from './env.server';
+import {
+  createIntegrationGatewayClient,
+  type IntegrationGatewayClient,
+  type IntegrationGatewayResult,
+} from './integration-gateway/client';
 
 /** The answer for a request without a signed-in user; every service result type has it. */
 export interface Unauthenticated {
@@ -65,6 +70,17 @@ export function asDeclarationsViewer<T>(
 ): Promise<DeclarationsResult<T>> {
   return withViewerClient(
     (accessToken) => createDeclarationsClient({ baseUrl: env().DECLARATIONS_API_URL, accessToken }),
+    work,
+  );
+}
+
+/** Runs `work` with an integration-gateway client acting as the signed-in user. */
+export function asIntegrationGatewayViewer<T>(
+  work: (client: IntegrationGatewayClient) => Promise<IntegrationGatewayResult<T>>,
+): Promise<IntegrationGatewayResult<T>> {
+  return withViewerClient(
+    (accessToken) =>
+      createIntegrationGatewayClient({ baseUrl: env().INTEGRATION_GATEWAY_API_URL, accessToken }),
     work,
   );
 }
