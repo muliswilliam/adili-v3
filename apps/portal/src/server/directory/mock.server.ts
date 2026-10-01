@@ -23,7 +23,8 @@
  * `GET /v1/me/declarant` reads the bearer token's claims without checking its signature. A user
  * with the `declarant` realm role gets the profile listed under their username in
  * DECLARANT_PROFILES, or the Teachers Service Commission demo profile; anyone else gets 403, as
- * the directory answers callers without the role.
+ * the directory answers callers without the role. `GET /v1/me/applicant` does the same for
+ * applicants (`mock-applicant.server.ts`).
  *
  * Every code is 123456; 000000 is treated as expired. Codes follow the spec's rules otherwise:
  * five wrong codes or a fourth resend end the session, and resends wait 60 seconds. The
@@ -32,6 +33,7 @@
 import { maskContact } from '@adili/ui';
 
 import { json } from '../mock-http';
+import { myApplicantProfile } from './mock-applicant.server';
 import type {
   DeclarantProfile,
   IdentifyDeclarant,
@@ -630,6 +632,13 @@ export async function mockDirectoryFetch(request: Request): Promise<Response> {
 
   if (request.method === 'GET' && path === '/v1/me/declarant') {
     return myDeclarantProfile(request);
+  }
+
+  if (request.method === 'GET' && path === '/v1/me/applicant') {
+    const claims = bearerClaims(request);
+    return claims
+      ? myApplicantProfile(claims)
+      : json(401, { type: 'about:blank', title: 'Unauthorized', status: 401 });
   }
 
   if (request.method === 'POST' && path === '/v1/onboarding/sessions') {
