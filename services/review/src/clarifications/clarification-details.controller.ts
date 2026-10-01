@@ -5,19 +5,21 @@ import {
   ApiProblemResponse,
   AuditedRead,
   CurrentPrincipal,
+  CurrentReadAudit,
   InternalApi,
   type Principal,
+  type ReadAudit,
   ZodValidationPipe,
 } from '@adili/api-kit';
 import { REVIEW_INTERNAL_SCOPE } from '@adili/roles';
 import { z } from 'zod';
 
+import { ClarificationDetailsService } from './clarification-details.service.js';
 import {
   type ClarificationDetails,
-  ClarificationDetailsService,
   type ClarificationDetailsRequest,
   clarificationDetailsRequest,
-} from './clarification-details.service.js';
+} from './representation.js';
 
 /**
  * Internal: not routed by the public entrypoint. The reporting service reads a Commission's
@@ -39,14 +41,18 @@ export class ClarificationDetailsController {
   })
   @ApiOkResponse({ description: 'The clarifications, one per known id' })
   @ApiProblemResponse(400, 'Body failed validation: no ids, more than 1,000, or one not a UUID')
-  details(
+  async details(
     @CurrentPrincipal() principal: Principal,
     @ActingTenant() tenant: string,
     @Body(new ZodValidationPipe(clarificationDetailsRequest)) body: ClarificationDetailsRequest,
+    @CurrentReadAudit() audit: ReadAudit,
   ): Promise<{ items: ClarificationDetails[] }> {
-    return this.clarifications.details(
+    const details = await this.clarifications.details(
       { tenant, subject: principal.subject },
       body.clarificationIds,
     );
+    // The trail names the clarifications read, not the ids asked for.
+    audit.resource({ tenant, ids: details.items.map((item) => item.clarificationId) });
+    return details;
   }
 }

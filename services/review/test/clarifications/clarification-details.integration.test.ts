@@ -99,16 +99,21 @@ describe('clarification details (Form M section 4)', () => {
     expect(response.body).not.toContain('vehicle');
   });
 
-  it('records the read as the calling service', async () => {
+  it('records the read as the calling service, naming the clarifications read', async () => {
     const issued = await givenClarification('psc');
 
-    await details([issued.clarificationId]);
+    await details([issued.clarificationId, randomUUID()]);
 
     const rows = await api.asPlatform((tx) => tx.select().from(outbox));
     const audits = rows
       .filter((row) => row.eventType === 'audit.read.v1')
-      .map((row) => (row.envelope.data as { action: string }).action);
-    expect(audits).toContain('review.clarifications.details.read');
+      .map((row) => row.envelope.data as { action: string; resource: { ids?: string[] } });
+    expect(audits).toContainEqual(
+      expect.objectContaining({
+        action: 'review.clarifications.details.read',
+        resource: expect.objectContaining({ ids: [issued.clarificationId] }) as unknown,
+      }),
+    );
   });
 
   it('takes 1 to 1,000 ids, and refuses user tokens', async () => {

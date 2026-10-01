@@ -1,29 +1,11 @@
 import { Injectable } from '@nestjs/common';
-import { type Database, InjectDatabase, withTenant } from '@adili/data-access';
+import { type Database, InjectDatabase, type TenantContext, withTenant } from '@adili/data-access';
 import { and, asc, eq, inArray } from 'drizzle-orm';
-import { z } from 'zod';
 
 import { clarifications, reviewCases } from '../cases/schema.js';
 import type { ReviewSchema } from '../db/schema.js';
 import { REQUIREMENT_LABELS } from './labels.js';
-
-/** The most clarification ids one details request carries (reporting pages by it). */
-export const CLARIFICATION_DETAILS_PAGE = 1_000;
-
-export const clarificationDetailsRequest = z.object({
-  clarificationIds: z.array(z.uuid()).min(1).max(CLARIFICATION_DETAILS_PAGE),
-});
-export type ClarificationDetailsRequest = z.infer<typeof clarificationDetailsRequest>;
-
-/** review.yaml `InternalClarificationDetails`: Form M section 4's row of a clarification. */
-export interface ClarificationDetails {
-  clarificationId: string;
-  reference: string | null;
-  name: string;
-  designation: string;
-  identifier: string;
-  requirementLabels: string[];
-}
+import type { ClarificationDetails } from './representation.js';
 
 /**
  * A Commission's clarifications as the reporting service lists them in Form M section 4 (spec 09
@@ -35,7 +17,7 @@ export class ClarificationDetailsService {
   constructor(@InjectDatabase() private readonly db: Database<ReviewSchema>) {}
 
   async details(
-    read: { tenant: string; subject: string },
+    read: TenantContext,
     clarificationIds: string[],
   ): Promise<{ items: ClarificationDetails[] }> {
     const rows = await withTenant(this.db, read, (tx) =>

@@ -116,11 +116,16 @@ async function givenObligation({
 
 const actingFor = (tenant: string) => ({ headers: { 'x-acting-tenant': tenant } });
 
-async function auditActions(): Promise<string[]> {
+interface AuditRead extends Record<string, unknown> {
+  action: string;
+  resource: { subjectPersonId: string | null; ids?: string[] };
+}
+
+async function auditReads(): Promise<AuditRead[]> {
   const rows = await api.asPlatform((tx) => tx.select().from(outbox));
   return rows
     .filter((row) => row.eventType === 'audit.read.v1')
-    .map((row) => (row.envelope.data as { action: string }).action);
+    .map((row) => row.envelope.data as AuditRead);
 }
 
 describe('one obligation (spec 08, the ladder)', () => {
@@ -148,7 +153,7 @@ describe('one obligation (spec 08, the ladder)', () => {
       declarantName: 'Mary Wambui',
       personnelFileNumber: 'PSC/0077',
     });
-    expect(await auditActions()).toContain('obligation.pulled');
+    expect((await auditReads()).map((read) => read.action)).toContain('obligation.pulled');
   });
 
   it("is 404 for another Commission's or an unknown obligation, and refuses user tokens", async () => {
@@ -171,7 +176,7 @@ describe('one obligation (spec 08, the ladder)', () => {
 });
 
 describe("a person's obligation history (S16, the referral sweep)", () => {
-  it('gives per-cycle statuses, oldest first, for a person with two unfiled biennials', async () => {
+  it('gives per-cycle statuses, oldest first, for a person with two unfiled biennials, audited', async () => {
     const { obligationId: earlier } = await givenObligation();
     const { obligationId: later } = await givenObligation({
       cycleKey: 'biennial:2027',
@@ -200,6 +205,12 @@ describe("a person's obligation history (S16, the referral sweep)", () => {
       [earlier, 'overdue', null],
       [later, 'overdue', null],
     ]);
+    expect(await auditReads()).toContainEqual(
+      expect.objectContaining({
+        action: 'obligation.history.pulled',
+        resource: expect.objectContaining({ subjectPersonId: MARY }) as unknown,
+      }),
+    );
   });
 
   it('is 404 at another Commission and for an unknown person; no names in it', async () => {
@@ -262,7 +273,11 @@ describe('officer details of a batch of obligations (spec 09, Form M)', () => {
         },
       ].sort((a, b) => a.obligationId.localeCompare(b.obligationId)),
     );
-    expect(await auditActions()).toContain('obligation.officers.pulled');
+    // The trail names the obligations read, not the ids asked for.
+    const audited = (await auditReads()).find(
+      (read) => read.action === 'obligation.officers.pulled',
+    );
+    expect([...(audited?.resource.ids ?? [])].sort()).toEqual([mine, exited].sort());
   });
 
   it('takes 1 to 1,000 ids, and refuses user tokens', async () => {

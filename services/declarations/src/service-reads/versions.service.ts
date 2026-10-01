@@ -1,6 +1,12 @@
 import { Injectable } from '@nestjs/common';
 import { notFoundIfInvisible } from '@adili/api-kit';
-import { type Database, FieldCipher, InjectDatabase, withTenant } from '@adili/data-access';
+import {
+  type Database,
+  FieldCipher,
+  InjectDatabase,
+  type TenantContext,
+  withTenant,
+} from '@adili/data-access';
 import type { DeclarationV1 } from '@adili/forms';
 import { and, desc, eq, lt, ne, or } from 'drizzle-orm';
 
@@ -13,12 +19,6 @@ import type {
   InternalVersionDocument,
   PreviousVersionQuery,
 } from './representation.js';
-
-/** Who a service reads for: the Commission it acts for and the subject of its token. */
-export interface ServiceRead {
-  tenant: string;
-  subject: string;
-}
 
 /**
  * Submitted versions as the review service reads them (spec 07a #155): one version as filed,
@@ -34,7 +34,7 @@ export class ServiceVersionsService {
 
   /** A version of the Commission's declaration as filed; 404 when it has no such version. */
   async document(
-    read: ServiceRead,
+    read: TenantContext,
     declarationId: string,
     version: number,
   ): Promise<InternalVersionDocument> {
@@ -85,7 +85,7 @@ export class ServiceVersionsService {
    * such version of the person.
    */
   async previous(
-    read: ServiceRead,
+    read: TenantContext,
     { personId, beforeVersionId }: PreviousVersionQuery,
   ): Promise<InternalPreviousVersion> {
     const found = await withTenant(this.db, read, async (tx) => {

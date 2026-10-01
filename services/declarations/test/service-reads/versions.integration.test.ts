@@ -44,7 +44,9 @@ const DIRECTORY: Caller = {
 };
 
 let api: DeclarationsApi;
-const { declarant, steppedUp, completeDraft, submit } = submissionFixtures(() => api);
+const { declarant, steppedUp, givenObligation, completeDraft, submit } = submissionFixtures(
+  () => api,
+);
 
 beforeAll(async () => {
   api = await startDeclarationsApi();
@@ -247,5 +249,29 @@ describe('previous version', () => {
 
     expect((await previous(ACHIENG, v2, 'tsc')).statusCode).toBe(404);
     expect((await previous(randomUUID(), v2)).statusCode).toBe(404);
+  });
+
+  it('never gives a discarded declaration, a draft or an amendment in progress', async () => {
+    const obligationId = await givenObligation(ACHIENG);
+    const discarded = await completeDraft(ACHIENG, obligationId);
+    const discarding = await api.request(
+      'DELETE',
+      `/v1/declarations/${discarded.id}`,
+      declarant(ACHIENG),
+    );
+    expect(discarding.statusCode, discarding.body).toBe(204);
+    const draft = await completeDraft(ACHIENG, obligationId);
+    const filed = await submit(draft.id, steppedUp(ACHIENG));
+    expect(filed.statusCode, filed.body).toBe(201);
+    const [v1] = await versionIds(draft.id);
+    if (!v1) throw new Error('a version expected');
+    const amending = await api.request(
+      'POST',
+      `/v1/declarations/${draft.id}/amend`,
+      declarant(ACHIENG),
+    );
+    expect(amending.statusCode, amending.body).toBe(200);
+
+    expect((await previous(ACHIENG, v1)).statusCode).toBe(404);
   });
 });

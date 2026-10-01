@@ -504,7 +504,10 @@ describe('Commission staff by role (spec 09 reminders and chase)', () => {
       items: [{ subject: admin, email: 'admin@psc.go.ke' }],
     });
     expect(await auditReads()).toContainEqual(
-      expect.objectContaining({ action: 'commission.staff.pulled' }),
+      expect.objectContaining({
+        action: 'commission.staff.pulled',
+        resource: expect.objectContaining({ type: 'staff-account', ids: [supervisor] }) as unknown,
+      }),
     );
   });
 

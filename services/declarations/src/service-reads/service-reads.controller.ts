@@ -178,11 +178,12 @@ export class InternalObligationsController {
   }
 
   @Get('persons/:personId/obligations')
+  @AuditedRead({ action: 'obligation.history.pulled', resource: 'filing-obligation' })
   @ApiParam({ name: 'personId', schema: { type: 'string', format: 'uuid' } })
   @ApiOperation({
     operationId: 'internalListPersonObligations',
     summary: "A person's filing obligations across cycles (for the referral sweep)",
-    description: `${CALLERS}. Oldest first: type, cycle, status, due date, and when it was filed and whether late; no names.`,
+    description: `${CALLERS}; audited. Oldest first: type, cycle, status, due date, and when it was filed and whether late; no names.`,
   })
   @ApiOkResponse({
     description: 'Obligations',
@@ -190,12 +191,18 @@ export class InternalObligationsController {
   })
   @ApiProblemResponse(400, 'personId is not a UUID')
   @ApiProblemResponse(404, 'The acting tenant holds no obligation of the person')
-  personHistory(
+  async personHistory(
     @CurrentPrincipal() principal: Principal,
     @ActingTenant() tenant: string,
     @Param('personId', uuid) personId: string,
+    @CurrentReadAudit() audit: ReadAudit,
   ): Promise<InternalPersonObligation[]> {
-    return this.obligations.personHistory({ tenant, subject: principal.subject }, personId);
+    const history = await this.obligations.personHistory(
+      { tenant, subject: principal.subject },
+      personId,
+    );
+    audit.resource({ tenant, subjectPersonId: personId });
+    return history;
   }
 
   @Post('obligations/details')
@@ -206,18 +213,25 @@ export class InternalObligationsController {
     operationId: 'internalObligationDetails',
     summary:
       "The officers behind a Commission's obligations, in a batch (spec 09 Form M non-filers)",
-    description: `${CALLERS}; audited. At most 1,000 obligation ids; an obligation the Commission does not hold is left out. A read: it changes nothing, so it takes no Idempotency-Key and is safe to retry.`,
+    description: `${CALLERS}; audited, naming the obligations read. At most 1,000 obligation ids; an obligation the Commission does not hold is left out. A read: it changes nothing, so it takes no Idempotency-Key and is safe to retry.`,
   })
   @ApiOkResponse({
     description: 'The officers, one per known obligation',
     schema: schemaRef('InternalObligationDetails'),
   })
   @ApiProblemResponse(400, 'Body failed validation: no ids, more than 1,000, or one not a UUID')
-  details(
+  async details(
     @CurrentPrincipal() principal: Principal,
     @ActingTenant() tenant: string,
     @Body(new ZodValidationPipe(obligationDetailsRequest)) body: ObligationDetailsRequest,
+    @CurrentReadAudit() audit: ReadAudit,
   ): Promise<InternalObligationDetails> {
-    return this.obligations.details({ tenant, subject: principal.subject }, body.obligationIds);
+    const details = await this.obligations.details(
+      { tenant, subject: principal.subject },
+      body.obligationIds,
+    );
+    // The trail names the obligations whose officers were read, not the ids asked for.
+    audit.resource({ tenant, ids: details.items.map((item) => item.obligationId) });
+    return details;
   }
 }

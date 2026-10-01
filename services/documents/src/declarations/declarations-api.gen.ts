@@ -651,7 +651,7 @@ export interface paths {
         };
         /**
          * A person's filing obligations across cycles (for the referral sweep)
-         * @description Service tokens with scope declarations:internal, acting for the Commission in X-Acting-Tenant. Oldest first: type, cycle, status, due date, and when it was filed and whether late; no names.
+         * @description Service tokens with scope declarations:internal, acting for the Commission in X-Acting-Tenant; audited. Oldest first: type, cycle, status, due date, and when it was filed and whether late; no names.
          */
         get: operations["internalListPersonObligations"];
         put?: never;
@@ -673,7 +673,7 @@ export interface paths {
         put?: never;
         /**
          * The officers behind a Commission's obligations, in a batch (spec 09 Form M non-filers)
-         * @description Service tokens with scope declarations:internal, acting for the Commission in X-Acting-Tenant; audited. At most 1,000 obligation ids; an obligation the Commission does not hold is left out. A read: it changes nothing, so it takes no Idempotency-Key and is safe to retry.
+         * @description Service tokens with scope declarations:internal, acting for the Commission in X-Acting-Tenant; audited, naming the obligations read. At most 1,000 obligation ids; an obligation the Commission does not hold is left out. A read: it changes nothing, so it takes no Idempotency-Key and is safe to retry.
          */
         post: operations["internalObligationDetails"];
         delete?: never;

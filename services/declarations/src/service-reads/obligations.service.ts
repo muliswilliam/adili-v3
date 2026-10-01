@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { notFoundIfInvisible } from '@adili/api-kit';
-import { type Database, InjectDatabase, withTenant } from '@adili/data-access';
+import { type Database, InjectDatabase, type TenantContext, withTenant } from '@adili/data-access';
 import { and, asc, eq, inArray } from 'drizzle-orm';
 
 import type { DeclarationsSchema } from '../db/schema.js';
@@ -10,7 +10,6 @@ import type {
   InternalObligationDetails,
   InternalPersonObligation,
 } from './representation.js';
-import type { ServiceRead } from './versions.service.js';
 
 /**
  * Filing obligations as other services read them: one obligation and a person's history for the
@@ -23,7 +22,7 @@ export class ServiceObligationsService {
   constructor(@InjectDatabase() private readonly db: Database<DeclarationsSchema>) {}
 
   /** One obligation of the Commission, with the declarant it falls on; 404 when it has none. */
-  async obligation(read: ServiceRead, obligationId: string): Promise<InternalObligation> {
+  async obligation(read: TenantContext, obligationId: string): Promise<InternalObligation> {
     const [found] = await withTenant(this.db, read, (tx) =>
       tx
         .select({
@@ -53,7 +52,7 @@ export class ServiceObligationsService {
    * The person's obligations at the Commission, oldest first: type, cycle, status, due date and
    * whether and when it was filed. 404 when the Commission has none for the person.
    */
-  async personHistory(read: ServiceRead, personId: string): Promise<InternalPersonObligation[]> {
+  async personHistory(read: TenantContext, personId: string): Promise<InternalPersonObligation[]> {
     const rows = await withTenant(this.db, read, (tx) =>
       tx
         .select({
@@ -79,7 +78,7 @@ export class ServiceObligationsService {
    * The officer behind each of the Commission's obligations among `obligationIds`, as Form M names
    * them; an id the Commission does not hold is left out.
    */
-  async details(read: ServiceRead, obligationIds: string[]): Promise<InternalObligationDetails> {
+  async details(read: TenantContext, obligationIds: string[]): Promise<InternalObligationDetails> {
     const rows = await withTenant(this.db, read, (tx) =>
       tx
         .select({
