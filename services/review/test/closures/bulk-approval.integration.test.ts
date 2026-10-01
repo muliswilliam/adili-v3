@@ -336,6 +336,43 @@ describe('bulk approval of closures and on-demand letters (S4)', () => {
     expect(api.documents.issued).toHaveLength(2);
   });
 
+  it("audit: staff reads of the letter are recorded, even with a person id; a declarant's own read is not", async () => {
+    await givenProposals(1);
+    await approveAll(supervisor);
+    const [closure] = await closures();
+    if (!closure) throw new Error('no closures');
+    const url = `/v1/review/determinations/${closure.id}/letter`;
+    const letterReads = async () =>
+      (await api.asPlatform((tx) => tx.select().from(outbox)))
+        .map((event) => event.envelope)
+        .filter(
+          (envelope) =>
+            envelope.type === 'audit.read.v1' &&
+            (envelope.data as { action?: string }).action ===
+              'review.determination.letter.downloaded',
+        );
+    const owner: Caller = {
+      sub: 'declarant-owner',
+      roles: ['declarant'],
+      personId: closure.personId,
+    };
+    // A staff token that also names a person (none should, but nothing forbids it).
+    const staffWithPerson: Caller = { ...reviewer, personId: closure.personId };
+
+    expect((await api.get(url, owner)).statusCode).toBe(200);
+    expect(await letterReads()).toEqual([]);
+
+    expect((await api.get(url, staffWithPerson)).statusCode).toBe(200);
+    expect(await letterReads()).toEqual([
+      expect.objectContaining({
+        tenant: 'psc',
+        data: expect.objectContaining({
+          actor: expect.objectContaining({ subject: reviewer.sub }) as unknown,
+        }) as unknown,
+      }),
+    ]);
+  });
+
   it('authorisation: the letter is for the Commission staff and its declarant only', async () => {
     await givenProposals(2);
     const [proposed] = await closures();

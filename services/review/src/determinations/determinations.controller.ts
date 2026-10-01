@@ -21,6 +21,7 @@ import {
 } from '@adili/api-kit';
 import { z } from 'zod';
 
+import { reviewTenant } from '../cases/access.js';
 import {
   DeterminationLetterService,
   type LetterDownloadView,
@@ -112,8 +113,9 @@ export class DeterminationsController {
     @CurrentReadAudit() audit: ReadAudit,
   ): Promise<LetterDownloadView> {
     const declarant = request.principal?.personId ?? null;
-    // A declarant reads only their own letter (anyone else's is 404): not an audited access.
-    if (declarant !== null) audit.ownRecord();
+    // Review staff read the Commission's letters, audited. Anyone else reads only their own letter
+    // as a declarant (anyone else's is 404): not an audited access. The service branches the same.
+    if (reviewTenant(principal) === null && declarant !== null) audit.ownRecord();
     return this.letters.letter(principal, declarant, determinationId);
   }
 
