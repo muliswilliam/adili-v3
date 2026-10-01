@@ -113,7 +113,8 @@ describe('the success page (spec 06 FE-3)', () => {
     expect(screen.getByText('Version 2')).toBeTruthy();
     expect(
       screen.getByText(
-        'Received by Public Service Commission, replacing version 1. Keep your reference number.',
+        'Received by Public Service Commission, replacing version\u00A01. Keep your reference number.',
+        { normalizer: (text) => text },
       ),
     ).toBeTruthy();
   });

@@ -278,8 +278,9 @@ function IssuedSlip({
     <Card asChild className="overflow-hidden p-0 sm:p-0">
       <section aria-labelledby="slip-heading">
         <div className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-dashed border-brand/30 bg-stripes-brand px-5 py-[18px]">
-          <LogoWordmark className="h-5" />
-          <h2 id="slip-heading" className="ml-1 text-sm font-semibold">
+          {/* On phones the page header's logo stands in, so the title and badge share a line. */}
+          <LogoWordmark className="hidden h-5 sm:block" />
+          <h2 id="slip-heading" className="text-sm font-semibold sm:ml-1">
             {SLIP_COPY.issued}
           </h2>
           <Badge variant="success" className="ml-auto">
@@ -323,7 +324,8 @@ function IssuedSlip({
               {SLIP_COPY.verificationCode}
             </p>
             <div className="flex items-center gap-1.5 rounded-lg bg-muted py-2 pr-2 pl-3">
-              <span className="flex-1 font-mono text-sm font-semibold tracking-[0.03em] break-words">
+              {/* Wraps only after a group's dash (no break-words), into lines of even length. */}
+              <span className="flex-1 font-mono text-sm font-semibold tracking-[0.03em] text-balance">
                 {code}
               </span>
               <CopyButton

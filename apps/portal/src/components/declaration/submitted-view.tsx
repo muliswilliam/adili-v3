@@ -25,8 +25,9 @@ import { SlipCard, type SlipCardProps } from './slip-card';
 /** Copy of the success page (spec 06 FE-3). */
 export const SUBMITTED_COPY = {
   title: 'Declaration submitted',
+  // A no-break space keeps "version" and its number on one line.
   received: (commission: string, version: number) =>
-    `Received by ${commission}${version > 1 ? `, replacing version ${String(version - 1)}` : ''}. Keep your reference number.`,
+    `Received by ${commission}${version > 1 ? `, replacing version\u00A0${String(version - 1)}` : ''}. Keep your reference number.`,
   submittedAt: (at: string) => `Submitted ${formatDateTime(at)}`,
   home: 'Home',
   myDeclarations: 'My declarations',
