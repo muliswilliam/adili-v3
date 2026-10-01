@@ -1,4 +1,4 @@
-import { HttpStatus, Injectable } from '@nestjs/common';
+import { HttpStatus, Injectable, Logger } from '@nestjs/common';
 import { notFoundIfInvisible, type Principal, ProblemException } from '@adili/api-kit';
 import { type Database, InjectDatabase, type PersonContext, withPerson } from '@adili/data-access';
 import { EventPublisher } from '@adili/events';
@@ -13,6 +13,7 @@ import {
   DECLARATION_ATTACHMENT_PURPOSE,
   DocumentsClient,
   DocumentsUnavailable,
+  releaseUploads,
   UploadNotClean,
   UploadNotFound,
 } from '../documents/documents-client.js';
@@ -47,11 +48,13 @@ type AttachmentRow = typeof declarationAttachments.$inferSelect;
  * uploaded as a declaration attachment, then in one transaction stores the row (hash and size),
  * adds the reference (with the file name, which stays encrypted) to the item inside the section
  * and bumps the draft version, and only then records the link in documents (so the orphan sweep
- * keeps it). Unlinking removes both; the object is left to documents' orphan sweep. Declarant
+ * keeps it). Unlinking removes both and then tells documents, whose orphan sweep deletes the object. Declarant
  * only, under person row-level security; each change is an event with identifiers only.
  */
 @Injectable()
 export class AttachmentsService {
+  private readonly logger = new Logger(AttachmentsService.name);
+
   constructor(
     @InjectDatabase() private readonly db: Database<DeclarationsSchema>,
     private readonly documents: DocumentsClient,
@@ -96,7 +99,7 @@ export class AttachmentsService {
     const contents = await this.sections.open(tenant, current.section);
     if (!hasItem(contents, itemId)) notFoundIfInvisible(null);
 
-    const upload = await this.verified(tenant, uploadId);
+    const upload = await this.verified(principal, tenant, uploadId);
 
     const fileName = attachmentFileName(upload.fileName);
     const attachment: AttachmentRow = {
@@ -198,14 +201,14 @@ export class AttachmentsService {
         .limit(1);
       return this.remove(tx, declaration, notFoundIfInvisible(found));
     });
-    await this.cacheRemoved(declarationId, saved);
+    await this.afterRemoved(saved);
     return { draftVersion: saved.draftVersion };
   }
 
   /**
    * Takes back a link whose mark in documents failed after it was stored: the row and the
    * reference are removed again in a transaction of their own, which bumps the draft version and
-   * records the unlink. Nothing to do when the draft or the row went meanwhile (a discard or a
+   * records the unlink, and documents is told to let it go (it may have recorded the link). Nothing to do when the draft or the row went meanwhile (a discard or a
    * save removing the item unlinked it already).
    */
   private async takeBack(person: PersonContext, attachment: AttachmentRow): Promise<void> {
@@ -219,7 +222,7 @@ export class AttachmentsService {
         .limit(1);
       return stored ? this.remove(tx, declaration, stored) : null;
     });
-    if (removed) await this.cacheRemoved(attachment.declarationId, removed);
+    if (removed) await this.afterRemoved(removed);
   }
 
   /**
@@ -251,13 +254,26 @@ export class AttachmentsService {
       );
       draftVersion = await this.store(tx, declaration, attachment.sectionKey, contents);
     }
-    return { draftVersion, sectionKey: attachment.sectionKey, contents };
+    return {
+      declaration,
+      uploadId: attachment.uploadId,
+      draftVersion,
+      sectionKey: attachment.sectionKey,
+      contents,
+    };
   }
 
-  private async cacheRemoved(declarationId: string, removed: Removed): Promise<void> {
+  /** After the removal is committed: the cache at its version, and documents told. */
+  private async afterRemoved(removed: Removed): Promise<void> {
+    const { declaration } = removed;
+    await releaseUploads(this.documents, this.logger, declaration.tenant, [removed.uploadId]);
     if (!removed.contents) return;
     await this.sections.cache(
-      { declarationId, sectionKey: removed.sectionKey, savedVersion: removed.draftVersion },
+      {
+        declarationId: declaration.id,
+        sectionKey: removed.sectionKey,
+        savedVersion: removed.draftVersion,
+      },
       removed.contents,
     );
   }
@@ -277,10 +293,18 @@ export class AttachmentsService {
   }
 
   /** The Commission's clean upload, if it was uploaded as a declaration attachment. */
-  private async verified(tenant: string, uploadId: string): Promise<CleanUpload> {
+  private async verified(
+    principal: Principal,
+    tenant: string,
+    uploadId: string,
+  ): Promise<CleanUpload> {
     const upload = await this.documentsCall(uploadId, () =>
       this.documents.getCleanUpload(tenant, uploadId),
     );
+    // Another declarant's upload is as unknown to the caller as another Commission's.
+    if (upload.uploadedBy !== principal.subject) {
+      return this.documentsCall(uploadId, () => Promise.reject(new UploadNotFound(uploadId)));
+    }
     if (upload.purpose !== DECLARATION_ATTACHMENT_PURPOSE) {
       throw new ProblemException({
         type: 'upload-wrong-purpose',
@@ -366,6 +390,8 @@ async function editableSection(
 
 /** What removing an attachment changed: the version, and the section re-sealed unless it was gone. */
 interface Removed {
+  declaration: Pick<DeclarationRow, 'id' | 'tenant'>;
+  uploadId: string;
   draftVersion: number;
   sectionKey: StatementKey;
   contents?: SectionContents;

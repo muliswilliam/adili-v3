@@ -1,4 +1,4 @@
-import { HttpStatus, Injectable } from '@nestjs/common';
+import { HttpStatus, Injectable, Logger } from '@nestjs/common';
 import { notFoundIfInvisible, type Principal, ProblemException } from '@adili/api-kit';
 import { type Database, InjectDatabase, type PersonContext, withPerson } from '@adili/data-access';
 import { EventPublisher } from '@adili/events';
@@ -16,6 +16,7 @@ import { Clock } from '../clock.js';
 import type { DeclarationsSchema } from '../db/schema.js';
 import type { Transaction } from '../db/transaction.js';
 import { DirectoryClient, DirectoryUnavailable } from '../directory/directory-client.js';
+import { DocumentsClient, releaseUploads } from '../documents/documents-client.js';
 import { isRecord, isUuid } from '../guards.js';
 import { commissionRef } from '../obligations/access.js';
 import { nairobiDate } from '../obligations/dates.js';
@@ -104,9 +105,12 @@ const CLOSED_OBLIGATION_STATUSES = new Set(['filed', 'cancelled']);
  */
 @Injectable()
 export class DraftsService {
+  private readonly logger = new Logger(DraftsService.name);
+
   constructor(
     @InjectDatabase() private readonly db: Database<DeclarationsSchema>,
     private readonly directory: DirectoryClient,
+    private readonly documents: DocumentsClient,
     private readonly sections: SectionCipher,
     private readonly events: EventPublisher,
     private readonly clock: Clock,
@@ -342,12 +346,12 @@ export class DraftsService {
    */
   async discard(principal: Principal, declarationId: string): Promise<void> {
     const person = personOf(principal);
-    await withPerson(this.db, person, async (tx) => {
+    const { tenant, unlinked } = await withPerson(this.db, person, async (tx) => {
       const declaration = notFoundIfInvisible(
         await liveDeclaration(tx, declarationId, { lock: true }),
       );
       if (declaration.status !== 'draft') throw declarationNotDraft('discarded');
-      await deleteAttachments(tx, this.events, declaration);
+      const unlinked = await deleteAttachments(tx, this.events, declaration);
       await tx
         .delete(declarationSections)
         .where(eq(declarationSections.declarationId, declaration.id));
@@ -360,7 +364,9 @@ export class DraftsService {
         tx,
         declarationDraftDiscarded(declaration.tenant, { declarationId: declaration.id }),
       );
+      return { tenant: declaration.tenant, unlinked };
     });
+    await releaseUploads(this.documents, this.logger, tenant, unlinked);
   }
 
   /**
@@ -533,7 +539,7 @@ export class DraftsService {
       change.action ? [{ key: change.key, action: change.action }] : [],
     );
     const now = this.clock.now();
-    const draftVersion = await withPerson(this.db, person, async (tx) => {
+    const { draftVersion, unlinked } = await withPerson(this.db, person, async (tx) => {
       const bumped = await storeSection(tx, this.sections, declaration, key, contents, {
         now,
         ifVersion: expected,
@@ -552,7 +558,9 @@ export class DraftsService {
           .where(sectionIs(declaration.id, sibling.sectionKey));
       }
       await writeStatementChanges(tx, declaration.id, statements, now);
-      if (isStatementKey(key)) await this.unlinkRemovedItems(tx, declaration, key, contents);
+      const unlinked = isStatementKey(key)
+        ? await this.unlinkRemovedItems(tx, declaration, key, contents)
+        : [];
       await this.events.record(
         tx,
         declarationSectionSaved(declaration.tenant, {
@@ -562,8 +570,9 @@ export class DraftsService {
           sectionsChanged,
         }),
       );
-      return bumped;
+      return { draftVersion: bumped, unlinked };
     });
+    await releaseUploads(this.documents, this.logger, declaration.tenant, unlinked);
     await this.sections.cache(
       { declarationId: declaration.id, sectionKey: key, savedVersion: draftVersion },
       contents,
@@ -639,16 +648,17 @@ export class DraftsService {
 
   /**
    * In a statement save's transaction: the attachments of items the save removed are unlinked,
-   * each with its event, as an unlink would (the references went with the items).
+   * each with its event, as an unlink would (the references went with the items). Their upload
+   * ids, for documents to be told once the save is committed.
    */
   private async unlinkRemovedItems(
     tx: Transaction,
     declaration: DeclarationRow,
     key: StatementKey,
     contents: SectionContents,
-  ): Promise<void> {
+  ): Promise<string[]> {
     const kept = itemIds(contents).filter(isUuid);
-    await deleteAttachments(
+    return deleteAttachments(
       tx,
       this.events,
       declaration,

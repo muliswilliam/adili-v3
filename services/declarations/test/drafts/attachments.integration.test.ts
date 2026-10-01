@@ -34,7 +34,7 @@ import { assetItem, incomeItem } from '../fixtures/sections.js';
 
 const ACHIENG = randomUUID();
 const OTIENO = randomUUID();
-const declarant = (personId: string): Caller => ({ personId, roles: ['declarant'] });
+const declarant = (personId: string): Caller => ({ personId, sub: personId, roles: ['declarant'] });
 const STATEMENT = 'statement:officer';
 const ASSET_ID = assetItem().id;
 
@@ -162,7 +162,7 @@ async function events(type: string) {
 describe('linking an attachment (S10)', () => {
   it('links a clean declaration attachment to an item: row with hash, reference in the item, event', async () => {
     const draft = await draftWithItems();
-    const deed = upload('psc', { fileName: 'title-deed-kisumu.pdf', size: 1_204_551 });
+    const deed = upload('psc', ACHIENG, { fileName: 'title-deed-kisumu.pdf', size: 1_204_551 });
     api.documents.givenUploads(deed);
     api.clock.setToday('2027-10-15');
 
@@ -227,7 +227,7 @@ describe('linking an attachment (S10)', () => {
 
   it('refuses an infected upload with 409 and changes nothing', async () => {
     const draft = await draftWithItems();
-    const infected = upload('psc', { state: 'infected' });
+    const infected = upload('psc', ACHIENG, { state: 'infected' });
     api.documents.givenUploads(infected);
 
     const response = await link(draft.id, {
@@ -246,7 +246,7 @@ describe('linking an attachment (S10)', () => {
 
   it('refuses an upload of another purpose with 409', async () => {
     const draft = await draftWithItems();
-    const roster = upload('psc', { purpose: 'roster-import', fileName: 'roster.csv' });
+    const roster = upload('psc', ACHIENG, { purpose: 'roster-import', fileName: 'roster.csv' });
     api.documents.givenUploads(roster);
 
     const response = await link(draft.id, {
@@ -263,7 +263,7 @@ describe('linking an attachment (S10)', () => {
 
   it("refuses another Commission's upload, or an unknown one, with 409", async () => {
     const draft = await draftWithItems();
-    const theirs = upload('tsc');
+    const theirs = upload('tsc', ACHIENG);
     api.documents.givenUploads(theirs);
 
     for (const uploadId of [theirs.id, randomUUID()]) {
@@ -274,9 +274,26 @@ describe('linking an attachment (S10)', () => {
     expect(await attachmentRows(draft.id)).toEqual([]);
   });
 
+  it('refuses an upload another declarant of the Commission reserved, with 409', async () => {
+    const draft = await draftWithItems();
+    const theirs = upload('psc', OTIENO);
+    api.documents.givenUploads(theirs);
+
+    const response = await link(draft.id, {
+      sectionKey: STATEMENT,
+      itemId: ASSET_ID,
+      uploadId: theirs.id,
+    });
+
+    expect(response.statusCode).toBe(409);
+    expect(response.json()).toMatchObject({ type: 'upload-not-found' });
+    expect(await attachmentRows(draft.id)).toEqual([]);
+    expect(api.documents.linked).toEqual([]);
+  });
+
   it('refuses an upload attached already with 409', async () => {
     const draft = await draftWithItems();
-    const deed = upload('psc');
+    const deed = upload('psc', ACHIENG);
     api.documents.givenUploads(deed);
     const body = { sectionKey: STATEMENT, itemId: ASSET_ID, uploadId: deed.id };
     expect((await link(draft.id, body)).statusCode).toBe(201);
@@ -292,7 +309,7 @@ describe('linking an attachment (S10)', () => {
 
   it('takes the link back and answers 503 when documents cannot mark it', async () => {
     const draft = await draftWithItems();
-    const deed = upload('psc');
+    const deed = upload('psc', ACHIENG);
     api.documents.givenUploads(deed);
     api.documents.markLinkedUnavailable = true;
 
@@ -312,6 +329,8 @@ describe('linking an attachment (S10)', () => {
     expect(
       (await events('declaration.attachment-unlinked.v1')).map((event) => event.envelope),
     ).toEqual([expect.objectContaining({ data: { declarationId: draft.id, uploadId: deed.id } })]);
+    // Whether or not documents recorded the link, it is told to let the upload go.
+    expect(api.documents.unlinked).toEqual([`psc ${deed.id}`]);
 
     api.documents.markLinkedUnavailable = false;
     const again = await link(draft.id, {
@@ -325,7 +344,7 @@ describe('linking an attachment (S10)', () => {
 
   it('answers 404 for an item the statement does not have, or a section without items', async () => {
     const draft = await draftWithItems();
-    const deed = upload('psc');
+    const deed = upload('psc', ACHIENG);
     api.documents.givenUploads(deed);
 
     const noItem = await link(draft.id, {
@@ -346,7 +365,7 @@ describe('linking an attachment (S10)', () => {
 
   it('answers 404 to anyone but the declarant, and 400 to a malformed body', async () => {
     const draft = await draftWithItems();
-    const deed = upload('psc');
+    const deed = upload('psc', ACHIENG);
     api.documents.givenUploads(deed);
     const body = { sectionKey: STATEMENT, itemId: ASSET_ID, uploadId: deed.id };
 
@@ -374,7 +393,7 @@ describe('linking an attachment (S10)', () => {
 
   it('keeps references through section saves: a client cannot add, change or drop one', async () => {
     const draft = await draftWithItems();
-    const deed = upload('psc', { fileName: 'logbook.jpg' });
+    const deed = upload('psc', ACHIENG, { fileName: 'logbook.jpg' });
     api.documents.givenUploads(deed);
     await link(draft.id, { sectionKey: STATEMENT, itemId: ASSET_ID, uploadId: deed.id });
     const forged = { uploadId: randomUUID(), fileName: 'forged.pdf', sha256: 'a'.repeat(64) };
@@ -399,8 +418,8 @@ describe('linking an attachment (S10)', () => {
 
   it('unlinks the attachments of an item a save removes, with an event each', async () => {
     const draft = await draftWithItems();
-    const deed = upload('psc');
-    const payslip = upload('psc');
+    const deed = upload('psc', ACHIENG);
+    const payslip = upload('psc', ACHIENG);
     api.documents.givenUploads(deed, payslip);
     await link(draft.id, { sectionKey: STATEMENT, itemId: ASSET_ID, uploadId: deed.id });
     await link(draft.id, { sectionKey: STATEMENT, itemId: incomeItem().id, uploadId: payslip.id });
@@ -424,11 +443,12 @@ describe('linking an attachment (S10)', () => {
     expect(itemOf(await statement(draft.id), 'income', incomeItem().id).attachments).toEqual([
       { uploadId: payslip.id, fileName: payslip.fileName, sha256: payslip.sha256 },
     ]);
+    expect(api.documents.unlinked).toEqual([`psc ${deed.id}`]);
   });
 
   it('keeps the attachments when a save keeps the item', async () => {
     const draft = await draftWithItems();
-    const deed = upload('psc');
+    const deed = upload('psc', ACHIENG);
     api.documents.givenUploads(deed);
     await link(draft.id, { sectionKey: STATEMENT, itemId: ASSET_ID, uploadId: deed.id });
 
@@ -443,7 +463,7 @@ describe('linking an attachment (S10)', () => {
 describe('ciphertext opacity for attachments (S13, ADR-006)', () => {
   it('keeps the file name out of every clear column: only the encrypted statement holds it', async () => {
     const draft = await draftWithItems();
-    const deed = upload('psc', { fileName: 'title-deed-kisumu.pdf' });
+    const deed = upload('psc', ACHIENG, { fileName: 'title-deed-kisumu.pdf' });
     api.documents.givenUploads(deed);
     expect(
       (await link(draft.id, { sectionKey: STATEMENT, itemId: ASSET_ID, uploadId: deed.id }))
@@ -473,7 +493,7 @@ describe('ciphertext opacity for attachments (S13, ADR-006)', () => {
 describe('unlinking an attachment (S10)', () => {
   it('removes the row and the reference, bumps the version and records the event', async () => {
     const draft = await draftWithItems();
-    const deed = upload('psc');
+    const deed = upload('psc', ACHIENG);
     api.documents.givenUploads(deed);
     const linked = (
       await link(draft.id, { sectionKey: STATEMENT, itemId: ASSET_ID, uploadId: deed.id })
@@ -496,12 +516,31 @@ describe('unlinking an attachment (S10)', () => {
       }),
     ]);
 
+    // Documents' orphan sweep may now delete the object.
+    expect(api.documents.unlinked).toEqual([`psc ${deed.id}`]);
+
     expect((await unlink(draft.id, linked.id)).statusCode).toBe(404);
+  });
+
+  it('unlinks even when documents cannot be told, which leaves the object marked linked there', async () => {
+    const draft = await draftWithItems();
+    const deed = upload('psc', ACHIENG);
+    api.documents.givenUploads(deed);
+    const linked = (
+      await link(draft.id, { sectionKey: STATEMENT, itemId: ASSET_ID, uploadId: deed.id })
+    ).json<DeclarationAttachment>();
+    api.documents.unavailable = true;
+
+    const response = await unlink(draft.id, linked.id);
+
+    expect(response.statusCode).toBe(204);
+    expect(await attachmentRows(draft.id)).toEqual([]);
+    expect(api.documents.unlinked).toEqual([]);
   });
 
   it('answers 404 to anyone but the declarant and keeps the attachment', async () => {
     const draft = await draftWithItems();
-    const deed = upload('psc');
+    const deed = upload('psc', ACHIENG);
     api.documents.givenUploads(deed);
     const linked = (
       await link(draft.id, { sectionKey: STATEMENT, itemId: ASSET_ID, uploadId: deed.id })

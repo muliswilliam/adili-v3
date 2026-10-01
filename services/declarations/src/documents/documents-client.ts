@@ -1,3 +1,5 @@
+import type { Logger } from '@nestjs/common';
+
 /** The upload purpose a declaration attachment must have been uploaded for (spec 05). */
 export const DECLARATION_ATTACHMENT_PURPOSE = 'declaration-attachment';
 
@@ -6,6 +8,8 @@ export interface CleanUpload {
   id: string;
   /** The purpose it was uploaded for, e.g. `declaration-attachment`. */
   purpose: string;
+  /** Token subject (`sub`) of the caller who reserved it. */
+  uploadedBy: string;
   /** Name of the file as uploaded; display only. Null when the uploader gave none. */
   fileName: string | null;
   /** Hex SHA-256 of the clean object. */
@@ -55,4 +59,34 @@ export abstract class DocumentsClient {
    * Throws like `getCleanUpload`.
    */
   abstract markLinked(tenant: string, uploadId: string): Promise<void>;
+
+  /**
+   * Records that the link is gone, so the orphan sweep deletes the object 30 days on.
+   * Idempotent. Throws `UploadNotFound` or `DocumentsUnavailable`.
+   */
+  abstract markUnlinked(tenant: string, uploadId: string): Promise<void>;
+}
+
+/**
+ * Tells documents the uploads are no longer linked, once the change that unlinked them is
+ * committed, so its orphan sweep deletes the objects. Best effort: the unlink stands either way,
+ * and an upload documents was not told about stays marked linked (kept, never swept).
+ */
+export async function releaseUploads(
+  documents: DocumentsClient,
+  logger: Pick<Logger, 'warn'>,
+  tenant: string,
+  uploadIds: readonly string[],
+): Promise<void> {
+  const results = await Promise.allSettled(
+    uploadIds.map((uploadId) => documents.markUnlinked(tenant, uploadId)),
+  );
+  results.forEach((result, index) => {
+    if (result.status === 'rejected') {
+      logger.warn(
+        { err: result.reason as unknown, tenant, uploadId: uploadIds[index] },
+        'Documents was not told an upload is unlinked; it stays marked linked',
+      );
+    }
+  });
 }
