@@ -4,63 +4,6 @@
 # `Decision`, `RegisterEntry`, `ProblemDetails`). When an operation or component is implemented,
 # delete it here: the export fails while both define it.
 paths:
-  /v1/me/access-history:
-    get:
-      tags: [declarant]
-      operationId: getMyAccessHistory
-      summary: Who accessed my declaration (register entries visible to the declarant)
-      responses:
-        '200':
-          description: Entries
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/RegisterEntry'
-        '404':
-          $ref: '#/components/responses/NotFound'
-  /v1/me/certified-copies:
-    post:
-      tags: [declarant]
-      operationId: requestCertifiedCopy
-      summary: Certified copy of one of my submitted versions
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [declarationId, version]
-              properties:
-                declarationId:
-                  type: string
-                  format: uuid
-                version:
-                  type: integer
-                  minimum: 1
-      responses:
-        '202':
-          description: Issuance requested; poll the copy
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/CertifiedCopy'
-        '404':
-          $ref: '#/components/responses/NotFound'
-    get:
-      tags: [declarant]
-      operationId: listMyCertifiedCopies
-      summary: My certified copies with download links
-      responses:
-        '200':
-          description: Copies
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/CertifiedCopy'
   /v1/lea/requests:
     post:
       tags: [lea]
@@ -239,33 +182,6 @@ components:
     LeaRequestStatus:
       type: string
       enum: [received, verified, granted, denied, withdrawn]
-    CertifiedCopy:
-      type: object
-      required:
-        [id, declarationId, version, status, documentId, verificationId, downloadUrl, requestedAt]
-      properties:
-        id:
-          type: string
-          format: uuid
-        declarationId:
-          type: string
-          format: uuid
-        version:
-          type: integer
-        status:
-          type: string
-          enum: [pending, issued, failed]
-        documentId:
-          type: [string, 'null']
-          format: uuid
-        verificationId:
-          type: [string, 'null']
-        downloadUrl:
-          type: [string, 'null']
-          format: uri
-        requestedAt:
-          type: string
-          format: date-time
     LeaRequestInput:
       type: object
       required: [commission, officerSought, reason, caseReference, scope]

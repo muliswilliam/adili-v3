@@ -31,6 +31,7 @@ import { DeclarationsClient } from '../../src/declarations/declarations-client.j
 import { DirectoryClient } from '../../src/directory/directory-client.js';
 import { DocumentsClient } from '../../src/documents/documents-client.js';
 import { accessRequestWorkflowId } from '../../src/requests/contract.js';
+import { certifiedCopyWorkflowId } from '../../src/self-access/contract.js';
 import { NotificationsClient } from '../../src/notifications/notifications-client.js';
 import { FakeClock } from './fake-clock.js';
 import { FakeDeclarations, FakeDirectory, FakeDocuments, FakeNotifications } from './fakes.js';
@@ -221,12 +222,21 @@ export async function startAccessApi(): Promise<AccessApi> {
     },
     async reset() {
       // The suite's requests' workflows end first, so none acts on the next test's rows.
-      const requests = await withTenant(db, { tenant: PLATFORM_TENANT, subject: 'test' }, (tx) =>
-        tx.select({ id: schema.accessRequests.id }).from(schema.accessRequests),
+      const { requests, copies } = await withTenant(
+        db,
+        { tenant: PLATFORM_TENANT, subject: 'test' },
+        async (tx) => ({
+          requests: await tx.select({ id: schema.accessRequests.id }).from(schema.accessRequests),
+          copies: await tx.select({ id: schema.certifiedCopies.id }).from(schema.certifiedCopies),
+        }),
       );
-      for (const { id } of requests) {
+      const workflowIds = [
+        ...requests.map(({ id }) => accessRequestWorkflowId(id)),
+        ...copies.map(({ id }) => certifiedCopyWorkflowId(id)),
+      ];
+      for (const id of workflowIds) {
         try {
-          await temporal.workflow.getHandle(accessRequestWorkflowId(id)).terminate();
+          await temporal.workflow.getHandle(id).terminate();
         } catch {
           // Never started (held), or ended already.
         }

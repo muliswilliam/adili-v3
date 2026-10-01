@@ -15,6 +15,11 @@ export function declarantNoticesUrl(): string {
   return new URL('/access/notices', config.PORTAL_URL).toString();
 }
 
+/** The declarant's certified copies in the portal, where they download them (spec 10 FE-4). */
+export function declarantCertifiedCopiesUrl(): string {
+  return new URL('/access/certified-copies', config.PORTAL_URL).toString();
+}
+
 /** One request in the access officer's workspace in the console (spec 10 FE-5). */
 export function officerRequestUrl(requestId: string): string {
   return new URL(`/access/requests/${requestId}`, config.CONSOLE_URL).toString();

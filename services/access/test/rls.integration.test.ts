@@ -358,6 +358,7 @@ describe('access row-level security', () => {
         await tx.insert(certifiedCopies).values({
           id,
           tenant: 'psc',
+          commissionName: 'Public Service Commission',
           personId,
           declarationId: randomUUID(),
           version: 1,

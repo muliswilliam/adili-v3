@@ -17,8 +17,10 @@ import { OPENBAO } from './cipher.module.js';
 import { CommissionsModule } from './commissions/commissions.module.js';
 import { config, SERVICE_NAME } from './config.js';
 import { schema } from './db/schema.js';
+import { HistoryModule } from './history/history.module.js';
 import { NoticesModule } from './notices/notices.module.js';
 import { RequestsModule } from './requests/requests.module.js';
+import { SelfAccessModule } from './self-access/self-access.module.js';
 import { AccessWorkerModule } from './worker.module.js';
 
 @Module({
@@ -50,6 +52,8 @@ import { AccessWorkerModule } from './worker.module.js';
     CommissionsModule,
     RequestsModule,
     NoticesModule,
+    HistoryModule,
+    SelfAccessModule,
     AccessWorkerModule,
   ],
 })
