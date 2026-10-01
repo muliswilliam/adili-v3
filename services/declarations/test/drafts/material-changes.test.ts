@@ -98,7 +98,7 @@ describe('composeMaterialChanges (S9)', () => {
     ).toEqual([]);
   });
 
-  it("lists flagged directorships and memberships after the statements, as the officer's", () => {
+  it("lists flagged directorships and memberships after the statements, as the declarant's", () => {
     expect(
       composeMaterialChanges({
         bio: bio(),

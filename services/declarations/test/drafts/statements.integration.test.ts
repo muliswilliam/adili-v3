@@ -19,7 +19,7 @@ import {
 import { rosterRecord } from '../support/fake-directory.js';
 
 /**
- * Spec 05 S7-S9 over HTTP, on the officer's own financial statement (paragraph 8): items of every
+ * Spec 05 S7-S9 over HTTP, on the declarant's own financial statement (paragraph 8): items of every
  * kind round-trip unchanged with integer cents, a category is either nil or lists items (a save
  * with both is refused), a flagged change needs a kind and an explanation and then appears in
  * paragraph 9 with a reference to its item. Values stay inside the encrypted blob (S13).
@@ -111,7 +111,7 @@ function save(id: string, key: string, body: unknown, version: number) {
   });
 }
 
-/** The officer's statement as stored, with `edit` applied: what a client sends back. */
+/** The declarant's own statement as stored, with `edit` applied: what a client sends back. */
 async function statementWith(
   id: string,
   edit: Record<string, unknown>,

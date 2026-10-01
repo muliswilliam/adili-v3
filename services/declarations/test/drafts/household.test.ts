@@ -72,7 +72,7 @@ describe('duplicatePeople', () => {
 });
 
 describe('planStatements', () => {
-  it('creates, keeps, restores and archives; never the officer', () => {
+  it("creates, keeps, restores and archives; never the declarant's own", () => {
     const plan = planStatements(
       [
         { personKey: `spouse:${SPOUSE}`, personName: name },

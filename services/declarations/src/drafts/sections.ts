@@ -50,7 +50,7 @@ export function siblingSection(key: DeclarationSectionKey): 'bio' | 'household' 
   return null;
 }
 
-/** First Schedule order: bio, household, the statements (officer, spouses, children), other. */
+/** First Schedule order: bio, household, the statements (the declarant's, then spouses', then children's), other. */
 export function sectionRank(key: string): number {
   if (key === 'bio') return 0;
   if (key === 'household') return 1;
@@ -71,7 +71,7 @@ export interface RosterFacts {
 }
 
 /**
- * Bio as a new draft starts it: name, employer, designation, Commission and personnel file
+ * Bio as a new draft starts it: name, reporting entity (`employer`), designation, Commission and personnel file
  * number from the roster record, each locked (identity is fixed at onboarding; the roster is
  * corrected by the Commission, not here). A field the roster leaves empty is not locked, so the
  * declarant can fill it in. `lockedFields` are JSON pointers, kept in clear metadata.

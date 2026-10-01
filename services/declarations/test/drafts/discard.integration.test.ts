@@ -346,12 +346,12 @@ describe('my declarations (S16)', () => {
       2,
       household([{ id: spouseId, name: { surname: 'O', firstName: 'G' }, separated: false }]),
     );
-    // Live: bio, household (complete), officer (complete), spouse, other: 2 of 5.
+    // Live: bio, household (complete), statement:officer (complete), spouse, other: 2 of 5.
     expect((await mine()).json<DeclarationListItem[]>()[0]?.completenessPercent).toBe(40);
 
     await put(3, household([]));
 
-    // Live: bio, household (complete), officer (complete), other: 2 of 4.
+    // Live: bio, household (complete), statement:officer (complete), other: 2 of 4.
     expect((await mine()).json<DeclarationListItem[]>()[0]?.completenessPercent).toBe(50);
   });
 

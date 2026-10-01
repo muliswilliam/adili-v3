@@ -633,7 +633,7 @@ export class DraftsService {
           title: 'Locked field changed',
           status: HttpStatus.BAD_REQUEST,
           detail:
-            "Names, employer, designation and Commission come from the Commission's roster and cannot be changed here.",
+            "Names, reporting entity, designation, personnel file number and Commission come from the Commission's roster and cannot be changed here.",
           errors: changed.map((pointer) => ({
             path: pointer.slice(1).replaceAll('/', '.'),
             message: 'Comes from the roster; ask your Commission to correct it',

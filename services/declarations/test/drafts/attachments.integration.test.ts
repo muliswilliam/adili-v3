@@ -60,7 +60,7 @@ beforeEach(async () => {
   );
 });
 
-/** A PSC declarant's draft whose officer statement has one income and one asset item (version 2). */
+/** A PSC declarant's draft whose own statement has one income and one asset item (version 2). */
 async function draftWithItems(personId = ACHIENG): Promise<Declaration> {
   const record = rosterRecord('psc', { personId, fullName: 'Achieng Wambui Otieno' });
   api.directory.givenRecords([record]);

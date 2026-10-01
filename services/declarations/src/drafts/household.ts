@@ -114,7 +114,7 @@ export interface StatementPlan {
   archive: PersonKey[];
 }
 
-/** How the stored statements change for a household that needs `wanted`. The officer's stays. */
+/** How the stored statements change for a household that needs `wanted`. The declarant's own stays. */
 export function planStatements(
   wanted: readonly StatementPerson[],
   stored: readonly StoredStatement[],

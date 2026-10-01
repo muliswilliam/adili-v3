@@ -481,7 +481,7 @@ describe('saving a section (S4)', () => {
     expect((await getSection(draft.id, 'bio')).headers.etag).toBe('"2"');
   });
 
-  it("refuses a change to the officer's name with identity-locked-field", async () => {
+  it("refuses a change to the declarant's name with identity-locked-field", async () => {
     const draft = await started();
     const bio = fullBio(await bioContents(draft.id));
 
