@@ -9,8 +9,13 @@ describe('workspacesFor', () => {
     expect(ids(['reviewer', 'default-roles-adili'])).toEqual(['review', 'obligations']);
   });
 
-  it('gives supervisors review, approvals and obligations, once each', () => {
-    expect(ids(['supervisor', 'reviewer'])).toEqual(['review', 'approvals', 'obligations']);
+  it('gives supervisors review, approvals, access requests and obligations, once each', () => {
+    expect(ids(['supervisor', 'reviewer'])).toEqual([
+      'review',
+      'approvals',
+      'access',
+      'obligations',
+    ]);
   });
 
   it('gives EACC analysts Commissions, national obligations and compliance reports but not the review queue', () => {
@@ -119,6 +124,40 @@ describe('Obligations workspace', () => {
       expect(workspaceFor([role], 'obligations')).toBeUndefined();
     },
   );
+});
+
+describe('Access requests workspace (spec 10)', () => {
+  it('opens for the access officer, who acts', () => {
+    expect(workspaceFor(['access-officer'], 'access')).toEqual({
+      id: 'access',
+      title: 'Access requests',
+      description: 'Decide Form K and law enforcement requests for declarations.',
+      href: '/access/requests',
+      readOnly: false,
+    });
+  });
+
+  it('opens read-only for the supervisor', () => {
+    expect(workspaceFor(['supervisor'], 'access')).toEqual({
+      id: 'access',
+      title: 'Access requests',
+      description: 'Form K requests for declarations and where each one stands.',
+      href: '/access/requests',
+      readOnly: true,
+    });
+  });
+
+  it.each([
+    'reviewer',
+    'commission-admin',
+    'reporting-officer',
+    'eacc-analyst',
+    'eacc-supervisor',
+    'platform-admin',
+    'declarant',
+  ])('stays closed for %s', (role) => {
+    expect(workspaceFor([role], 'access')).toBeUndefined();
+  });
 });
 
 describe("the Obligations workspace's policy page (spec 04 access table)", () => {

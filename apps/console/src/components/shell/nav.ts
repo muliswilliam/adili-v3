@@ -4,6 +4,7 @@ import {
   Calendar03Icon,
   ChartColumnIcon,
   Key01Icon,
+  SquareLock02Icon,
   UserGroupIcon,
 } from '@hugeicons/core-free-icons';
 
@@ -48,6 +49,10 @@ const NAV: { label: string; items: NavDefinition[] }[] = [
       { workspace: 'commissions', icon: Building03Icon },
       { workspace: 'national-obligations', icon: ChartColumnIcon },
     ],
+  },
+  {
+    label: 'Access',
+    items: [{ workspace: 'access', icon: SquareLock02Icon }],
   },
   {
     label: 'Commission',
