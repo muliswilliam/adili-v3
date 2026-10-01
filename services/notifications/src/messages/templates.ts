@@ -179,8 +179,8 @@ function acknowledgementEmail(params: AcknowledgementParams): RenderedEmail {
  *
  * Later specs add theirs here, which widens the contract's `TemplateId` enum: 07a clarifications
  * (issued, reminder), 08 decisions, notices, salary stopped and reinstated, 09 Form M (draft
- * ready, reminder, chase, receipt) and the access request acknowledgement. Spec 10's access
- * templates are in access-templates.ts.
+ * ready, reminder, chase, receipt). Spec 10's access templates, the Form K acknowledgement
+ * among them, are in access-templates.ts.
  */
 export const templates = {
   'onboarding-otp-email': define({

@@ -27,6 +27,16 @@ function issuesOf(template: TemplateId, params: unknown): string[] {
 /** Spec 10 templates, with valid params each; every one has an email and an SMS. */
 const ACCESS_TEMPLATES: [string, Record<string, unknown>][] = [
   [
+    'access-acknowledgement',
+    {
+      reference: ARQ,
+      commissionName: PSC,
+      decideBy: '2026-10-31',
+      identityStatus: 'verified',
+      signInUrl: PORTAL,
+    },
+  ],
+  [
     'access-request-notified',
     { reference: ARQ, commissionName: PSC, respondBy: '2026-10-08', signInUrl: PORTAL },
   ],
@@ -110,17 +120,45 @@ describe('access templates', () => {
     expect(rendered.html).not.toContain('<Service>');
   });
 
+  it('acknowledges Form K to the applicant with its reference and decision deadline', () => {
+    const params = ACCESS_TEMPLATES[0]?.[1];
+    const rendered = renderTemplate('access-acknowledgement-email', 'en', params);
+    expect(rendered.subject).toBe(`Request ${ARQ} received`);
+    expect(rendered.text).toContain(`${PSC} has received your request ${ARQ} to see a declaration`);
+    expect(rendered.text).toContain('The Commission must decide by 31 October 2026.');
+    expect(rendered.text).not.toContain('passport');
+    expect(renderTemplate('access-acknowledgement-sms', 'en', params).text).toBe(
+      `Adili: your request ${ARQ} was received. Decision due by 31 October 2026. Follow it at ${PORTAL}`,
+    );
+  });
+
+  it('tells a passport applicant their particulars are checked before the request goes ahead', () => {
+    const rendered = renderTemplate('access-acknowledgement-email', 'en', {
+      ...ACCESS_TEMPLATES[0]?.[1],
+      identityStatus: 'pending-verification',
+    });
+    expect(rendered.text).toContain(
+      'You registered with a passport, so the Commission will first check the particulars you entered.',
+    );
+    expect(
+      issuesOf('access-acknowledgement-email', {
+        ...ACCESS_TEMPLATES[0]?.[1],
+        identityStatus: 'unknown',
+      }),
+    ).toEqual(['params.identityStatus']);
+  });
+
   it('tells the declarant of a request before any decision, with the window, and nothing of who asked', () => {
     const rendered = renderTemplate(
       'access-request-notified-email',
       'en',
-      ACCESS_TEMPLATES[0]?.[1],
+      ACCESS_TEMPLATES[1]?.[1],
     );
     expect(rendered.subject).toBe('Someone has asked to see your declaration');
     expect(rendered.text).toContain(`A request (${ARQ}) has been made to ${PSC}`);
     expect(rendered.text).toContain('You may object, consent or add context until 8 October 2026.');
     expect(rendered.text).toContain('to see who asked, why and what they asked to see');
-    expect(renderTemplate('access-request-notified-sms', 'en', ACCESS_TEMPLATES[0]?.[1]).text).toBe(
+    expect(renderTemplate('access-request-notified-sms', 'en', ACCESS_TEMPLATES[1]?.[1]).text).toBe(
       `Adili: request ${ARQ} asks to see your declaration. Respond by 8 October 2026 at ${PORTAL}`,
     );
   });
@@ -140,32 +178,32 @@ describe('access templates', () => {
   it('does not offer the declarant a decision they cannot get: cannot-identify never reaches them', () => {
     expect(
       issuesOf('access-decision-declarant-email', {
-        ...ACCESS_TEMPLATES[2]?.[1],
+        ...ACCESS_TEMPLATES[3]?.[1],
         outcome: 'cannot-identify',
       }),
     ).toEqual(['params.outcome']);
   });
 
   it('reminds the recipient of a package of its window and of the republication offence', () => {
-    const rendered = renderTemplate('access-package-ready-email', 'en', ACCESS_TEMPLATES[3]?.[1]);
+    const rendered = renderTemplate('access-package-ready-email', 'en', ACCESS_TEMPLATES[4]?.[1]);
     expect(rendered.text).toContain('You can download it until 15 October 2026');
     expect(rendered.text).toContain('section 36(4) of the Conflict of Interest Act');
     expect(rendered.text).toContain('It is not attached to this email');
   });
 
   it('accepts a law-enforcement package and reminder, refuses another reference scheme', () => {
-    const ready = ACCESS_TEMPLATES[3]?.[1];
+    const ready = ACCESS_TEMPLATES[4]?.[1];
     expect(issuesOf('access-package-ready-sms', { ...ready, reference: LEA })).toEqual([]);
     expect(
       issuesOf('access-package-ready-sms', { ...ready, reference: 'DCB-PSC-2027-0000001-1' }),
     ).toEqual(['params.reference']);
-    expect(issuesOf('lea-decision-sms', { ...ACCESS_TEMPLATES[6]?.[1], reference: ARQ })).toEqual([
+    expect(issuesOf('lea-decision-sms', { ...ACCESS_TEMPLATES[7]?.[1], reference: ARQ })).toEqual([
       'params.reference',
     ]);
   });
 
   it('reminds the access officer to identify the officer, or to decide by the deadline', () => {
-    const params = ACCESS_TEMPLATES[4]?.[1];
+    const params = ACCESS_TEMPLATES[5]?.[1];
     const identify = renderTemplate('access-officer-reminder-email', 'en', {
       ...params,
       task: 'identify-officer',
@@ -178,7 +216,7 @@ describe('access templates', () => {
   });
 
   it('tells the declarant of a law-enforcement grant after it, naming the agency and date', () => {
-    const rendered = renderTemplate('lea-grant-notice-email', 'en', ACCESS_TEMPLATES[5]?.[1]);
+    const rendered = renderTemplate('lea-grant-notice-email', 'en', ACCESS_TEMPLATES[6]?.[1]);
     expect(rendered.text).toContain(
       `On 1 October 2026 ${PSC} granted Directorate of Criminal Investigations access to your declaration, on law-enforcement request ${LEA}`,
     );
@@ -186,12 +224,12 @@ describe('access templates', () => {
   });
 
   it('tells the declarant their certified copy is ready with its verification code', () => {
-    const rendered = renderTemplate('certified-copy-ready-email', 'en', ACCESS_TEMPLATES[7]?.[1]);
+    const rendered = renderTemplate('certified-copy-ready-email', 'en', ACCESS_TEMPLATES[8]?.[1]);
     expect(rendered.subject).toBe('Your certified copy of DCB-PSC-2027-0000001-1 is ready');
     expect(rendered.text).toContain('ADL-7Q4K-M2XR-9HTC-2B7F-Q3ZD-8WNA-9K');
     expect(
       issuesOf('certified-copy-ready-sms', {
-        ...ACCESS_TEMPLATES[7]?.[1],
+        ...ACCESS_TEMPLATES[8]?.[1],
         reference: 'DCB-PSC-2027-0000001-2',
       }),
     ).toEqual(['params.reference']);
@@ -199,6 +237,7 @@ describe('access templates', () => {
 
   it('keeps every SMS to one segment with the longest values but the sign-in link', () => {
     const longest: Record<string, Record<string, unknown>> = {
+      'access-acknowledgement': { decideBy: '2026-09-30' },
       'access-request-notified': { respondBy: '2026-09-30' },
       'access-decision-applicant': { outcome: 'partially-granted' },
       'access-decision-declarant': { outcome: 'partially-granted' },
