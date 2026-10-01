@@ -252,6 +252,48 @@ describe('verdictTerms', () => {
     expect(verdictTerms('The declarant did not establish the case of fraud.')).toEqual(['fraud']);
   });
 
+  it('lets a denied inference or denied noun reach a term over a perfect', () => {
+    expect(verdictTerms('This does not mean the declarant has breached the Act.')).toEqual([]);
+    expect(verdictTerms('This does not mean the declarant has contravened the Act.')).toEqual([]);
+    expect(
+      verdictTerms('This flag does not by itself mean the declarant has violated section 26.'),
+    ).toEqual([]);
+    expect(
+      verdictTerms('This does not mean the declarant has failed to comply with the Act.'),
+    ).toEqual([]);
+    expect(verdictTerms('This is not proof that the declarant has breached the Act.')).toEqual([]);
+    expect(verdictTerms('This does not mean the declarant has committed fraud.')).toEqual([]);
+  });
+
+  it('flags a perfect stated or barely negated', () => {
+    expect(verdictTerms('The declarant has breached the Act.')).toEqual(['breached']);
+    expect(verdictTerms('The declarant has not contravened the Act.')).toEqual(['contravened']);
+    expect(verdictTerms('The declarant has committed fraud.')).toEqual(['fraud']);
+  });
+
+  it('carries a denial over a comma list', () => {
+    expect(verdictTerms('This flag is not evidence of corruption, fraud or dishonesty.')).toEqual(
+      [],
+    );
+    expect(verdictTerms('It is not a finding of wrongdoing, corruption or fraud.')).toEqual([]);
+    expect(
+      verdictTerms('This does not mean the declarant is corrupt, dishonest or non-compliant.'),
+    ).toEqual([]);
+    expect(verdictTerms('This is not evidence of corruption, fraud, or dishonesty.')).toEqual([]);
+  });
+
+  it('does not carry a denial past a comma into a new clause', () => {
+    expect(verdictTerms('This is not corrupt, but the declarant is dishonest.')).toEqual([
+      'dishonest',
+    ]);
+    expect(verdictTerms('Not a finding of wrongdoing; the declarant is corrupt.')).toEqual([
+      'corrupt',
+    ]);
+    expect(verdictTerms('The declarant is not corrupt, in breach of the Act.')).toEqual([
+      'in breach of',
+    ]);
+  });
+
   it('does not let a negation reach across a clause or sentence', () => {
     expect(verdictTerms('He has not declared the vehicle; non-compliant.')).toEqual([
       'non-compliant',

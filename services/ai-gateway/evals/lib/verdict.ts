@@ -107,8 +107,11 @@ const DENIED_INFERENCE = String.raw`(?:${NEGATION}\s+${HEDGE}(?:mean|imply|sugge
  */
 const DENIED_FINDING = String.raw`(?:${NEGATION}\s+${HEDGE}(?:indicate|show|prove|establish|constitute|amount to|point to)|(?:nothing|no part of)(?:\s+${INFERRED_WORD}){0,4}\s+(?:indicates|shows|proves|establishes|constitutes|amounts to|points to))`;
 
-/** A subject and a copula a denial reaches over to the term: "the declarant is", "there was any". */
-const SUBJECT = String.raw`(?:\s+${INFERRED_WORD}){0,4}(?:\s+(?:is|was|are|were|be|(?:has|have|had) been)(?:\s+(?:a|an|any))?)?\s+$`;
+/**
+ * A subject and a copula or perfect a denial reaches over to the term: "the declarant is", "there
+ * was any", "the declarant has" (breached), "the declarant has committed" (fraud).
+ */
+const SUBJECT = String.raw`(?:\s+${INFERRED_WORD}){0,4}(?:\s+(?:is|was|are|were|be|(?:has|have|had)(?:\s+(?:been|committed))?)(?:\s+(?:a|an|any))?)?\s+$`;
 
 /** Where an inference is drawn from, before "that": "do not conclude from this flag alone that". */
 const SOURCE = String.raw`(?:\s+from(?:\s+${INFERRED_WORD}){1,3})?`;
@@ -123,8 +126,9 @@ const SOURCE = String.raw`(?:\s+from(?:\s+${INFERRED_WORD}){1,3})?`;
  * directly or over a denied noun ("does not constitute a breach of", "does not indicate any
  * wrongdoing", "does not constitute a finding of wrongdoing"), or as a denied finding or a denied
  * noun with "that" over a subject and a copula ("does not show that the declarant is corrupt",
- * "not evidence that the declarant is dishonest"). A term joined by "or", "nor" or
- * "and" to a denied one is denied too ("not dishonest or corrupt"). A negation elsewhere in the
+ * "not evidence that the declarant is dishonest", "does not mean the declarant has breached the
+ * Act"). A term joined by "or", "nor", "and" or a list comma to a denied one is denied too ("not
+ * dishonest or corrupt", "not evidence of corruption, fraud or dishonesty"). A negation elsewhere in the
  * clause does not count: "did not disclose the illicit income", "there is no doubt the declarant
  * is corrupt", "does not show the source of the illicit income", "does not mean anything other
  * than fraud" and "did not show the loan and is non-compliant" state the term. A bare negation
@@ -169,8 +173,12 @@ const CLAUSE_END = /[.;:!?,]/g;
 /** A hedge set off by commas, which does not end the clause: "not, by itself, evidence of". */
 const COMMA_HEDGE = /,(\s*(?:by itself|on its own|in itself|alone)\s*),/g;
 
-/** What may join a term to a denied one, which the denial covers: "not fraud or corruption". */
-const COORDINATED = /^\s+(?:or|nor|and)\s+(?:any\s+)?$/;
+/**
+ * What may join a term to a denied one, which the denial covers: "not fraud or corruption", a list
+ * comma ("not evidence of corruption, fraud or dishonesty"). It is checked against the text between
+ * the two terms, not the clause, so the comma does not end the denial here.
+ */
+const COORDINATED = /^(?:\s*,\s*(?:(?:or|nor|and)\s+)?|\s+(?:or|nor|and)\s+)(?:any\s+)?$/;
 
 /** A check instruction rather than a statement: "check whether", "confirm if". */
 const CHECK = /\b(?:whether|if)\b/;
