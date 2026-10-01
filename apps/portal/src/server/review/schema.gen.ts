@@ -1154,10 +1154,14 @@ export interface components {
         CopilotStatus: "not-enabled" | "pending" | "ready" | "failed" | "stale";
         CopilotView: {
             status: components["schemas"]["CopilotStatus"];
-            /** Format: uuid */
+            /**
+             * Format: uuid
+             * @description The version the outputs shown are for (while `stale`, an earlier one); the version requested while there are none
+             */
             forVersionId: string | null;
             /** Format: date-time */
             generatedAt: string | null;
+            /** @description The ai-gateway's job reason (`validation`, `budget`, `provider`, ...), `policy` when not enabled, or `rejected` / `ai-gateway-unavailable` */
             failureReason: string | null;
             /** @description ai-gateway SummarizeDeclarationOutput (label, overview, changesSincePrevious, sections, worthAttention) */
             summary: {
@@ -3866,8 +3870,26 @@ export interface operations {
             };
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
-            /** @description Already pending, or AI not enabled for this Commission */
+            /** @description Already pending (problem type `copilot-pending`), or AI not enabled for this Commission (`ai-not-enabled`) */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description The declarations service could not give the declaration; nothing was requested */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description The ai-gateway cannot be reached (problem type `ai-gateway-unavailable`); nothing was requested */
+            503: {
                 headers: {
                     [name: string]: unknown;
                 };
