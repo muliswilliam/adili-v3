@@ -20,7 +20,8 @@ import { registryCheck } from '../../src/registry/workflows.js';
  */
 const workflowsPath = fileURLToPath(new URL('../../src/processing/workflows.ts', import.meta.url));
 
-type Activities = { [K in keyof RegistryCheckActivities]: RegistryCheckActivities[K] };
+type CheckActivities = Pick<RegistryCheckActivities, 'lookupRegistries' | 'matchRegistries'>;
+type Activities = { [K in keyof CheckActivities]: CheckActivities[K] };
 
 const request: RegistryCheckRequest = {
   tenant: 'psc',

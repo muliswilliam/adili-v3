@@ -6,9 +6,9 @@ import { config } from './config.js';
 /** How long the service waits before trying again to keep a schedule when Temporal is down. */
 export const SCHEDULE_RETRY_MS = 60_000;
 
-/** A daily sweep the service keeps a Temporal schedule of. */
+/** A sweep the service keeps a Temporal schedule of (daily, or hourly for registries). */
 export interface Sweep {
-  /** What the logs call it: `closure`, `referral`. */
+  /** What the logs call it: `closure`, `referral`, `registry`. */
   name: string;
   /** The workflow type the schedule starts, by name (the worker bundles the code). */
   workflowType: string;
@@ -19,7 +19,7 @@ export interface Sweep {
 }
 
 /**
- * The schedule of a daily sweep (ADR-003), kept by the service on start: created, or an existing
+ * The schedule of a sweep (ADR-003), kept by the service on start: created, or an existing
  * one brought to the configured time. Not awaited on start: the service starts even if Temporal
  * is down, and tries again every minute until it answers. Overlapping runs are skipped: a sweep
  * still running when the next is due finishes first.

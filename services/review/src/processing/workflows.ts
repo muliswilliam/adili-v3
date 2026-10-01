@@ -14,7 +14,7 @@ export { closureNotices, closureSweep, closureSweeps } from '../closures/workflo
 export { determinationIssuance } from '../determinations/workflows.js';
 export { enforcement } from '../enforcement/workflows.js';
 export { referralSending, referralSweep, referralSweeps } from '../referrals/workflows.js';
-export { registryCheck } from '../registry/workflows.js';
+export { registryCheck, registrySweep } from '../registry/workflows.js';
 
 /**
  * Pulls from declarations and the directory, and database work: retried with backoff until they

@@ -11,6 +11,7 @@ import type {
   ClarificationItem,
   ClarificationStatus,
   DeclarationType,
+  FlagClosedReason,
   reviewCases,
   reviewFlags,
 } from './schema.js';
@@ -112,6 +113,8 @@ export interface FlagView {
   indicator: string;
   evidence: Evidence;
   itemRefs: ItemRef[];
+  /** Why the flag no longer counts (a registry re-check no longer raises it); null while it does. */
+  closedReason: FlagClosedReason | null;
   reviewed: { at: string; by: Assignee; note: string } | null;
   recomputed: boolean;
 }
@@ -227,6 +230,7 @@ export function flagView(
     indicator: flag.indicator,
     evidence: flag.evidence,
     itemRefs: flag.itemRefs,
+    closedReason: flag.closedReason,
     reviewed:
       flag.reviewedAt === null || flag.reviewedBy === null
         ? null

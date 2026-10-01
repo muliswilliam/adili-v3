@@ -76,6 +76,7 @@ function activities(overrides: Partial<Activities> = {}): Activities {
     upsertCase: vi.fn(() => Promise.resolve({ outcome: 'created' as const, caseId: 'case-1' })),
     lookupRegistries: vi.fn(() => Promise.resolve<RegistryLookups | null>(lookups)),
     matchRegistries: vi.fn(() => Promise.resolve(checked)),
+    registrySweepCandidates: vi.fn(() => Promise.resolve([])),
     ...overrides,
   };
 }
