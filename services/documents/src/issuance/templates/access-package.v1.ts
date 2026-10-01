@@ -1,4 +1,4 @@
-import { declarationSchemes } from '@adili/numbering/references';
+import { ARQ, declarationSchemes, LEA, parse } from '@adili/numbering/references';
 import { ACCESS_PACKAGE } from '@adili/events/contracts';
 import { z } from 'zod';
 
@@ -25,10 +25,23 @@ import { commissionRefSchema, DECLARATION_TYPES, isDeclarationReference } from '
 import type { DocumentTemplate } from './template.js';
 
 /**
- * An access request (`ARQ`) or law-enforcement request (`LEA`) reference (ADR-011), e.g.
- * `ARQ-PSC-2026-0000012-5`. The shape only: the numbering schemes check the check character.
+ * ADR-011: the shape of an access request (`ARQ`) or law-enforcement request (`LEA`) reference,
+ * e.g. `ARQ-PSC-2026-0000012-H`, published as the contract's pattern. `isGrantReference` also
+ * verifies it against the numbering schemes, check character included.
  */
-export const GRANT_REFERENCE = /^(ARQ|LEA)-[A-Z0-9]{2,20}-\d{4}-\d{7}-[0-9A-Z]$/;
+const GRANT_REFERENCE = /^(ARQ|LEA)-[A-Z][A-Z0-9]{1,19}-[0-9]{4}-[0-9]{7}-[0-9A-Z]$/;
+
+const GRANT_SCHEMES = [ARQ, LEA];
+
+/** A valid ARQ or LEA reference, check character included. */
+function isGrantReference(reference: string): boolean {
+  try {
+    parse(reference, GRANT_SCHEMES);
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 export const LEGAL_BASES = ['act-s36-1', 'act-s36-2'] as const;
 export const DISCLOSURE_SECTIONS = ['bio', 'income', 'assets', 'liabilities', 'other'] as const;
@@ -53,9 +66,12 @@ export const accessPackagePayload = z
       grantReference: z
         .string()
         .regex(GRANT_REFERENCE)
+        .refine(isGrantReference, {
+          message: 'Must be an ARQ or LEA reference number with a valid check character',
+        })
         .meta({
           description: 'The access request (ARQ) or law-enforcement request (LEA) reference',
-          examples: ['ARQ-PSC-2026-0000012-5'],
+          examples: ['ARQ-PSC-2026-0000012-H'],
         }),
       personName: z.string().trim().min(1).max(200),
       commission: commissionRefSchema,

@@ -947,7 +947,7 @@ components:
           minLength: 1
           maxLength: 60
           examples:
-            - ARQ-PSC-2026-0000012-5
+            - ARQ-PSC-2026-0000012-H
         date:
           type: string
           format: date
@@ -1046,10 +1046,10 @@ components:
               const: disclosure.v1
             grantReference:
               type: string
-              pattern: ^(ARQ|LEA)-[A-Z0-9]{2,20}-\d{4}-\d{7}-[0-9A-Z]$
+              pattern: ^(ARQ|LEA)-[A-Z][A-Z0-9]{1,19}-[0-9]{4}-[0-9]{7}-[0-9A-Z]$
               description: The access request (ARQ) or law-enforcement request (LEA) reference
               examples:
-                - ARQ-PSC-2026-0000012-5
+                - ARQ-PSC-2026-0000012-H
             personName:
               type: string
               minLength: 1

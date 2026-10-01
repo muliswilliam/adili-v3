@@ -430,7 +430,7 @@ export interface components {
         /** @description Printed across every page as `Issued to <recipientName> · <reference> · <date>` (ADR-010 §6), so a leaked copy traces to its recipient. Required for access-package */
         Watermark: {
             recipientName: string;
-            /** @example ARQ-PSC-2026-0000012-5 */
+            /** @example ARQ-PSC-2026-0000012-H */
             reference: string;
             /** Format: date */
             date: string;
@@ -466,7 +466,7 @@ export interface components {
                 schemaVersion: "disclosure.v1";
                 /**
                  * @description The access request (ARQ) or law-enforcement request (LEA) reference
-                 * @example ARQ-PSC-2026-0000012-5
+                 * @example ARQ-PSC-2026-0000012-H
                  */
                 grantReference: string;
                 personName: string;

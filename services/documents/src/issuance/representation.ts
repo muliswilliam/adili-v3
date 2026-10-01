@@ -30,7 +30,7 @@ export const watermarkSchema = z
       .trim()
       .min(1)
       .max(60)
-      .meta({ examples: ['ARQ-PSC-2026-0000012-5'] }),
+      .meta({ examples: ['ARQ-PSC-2026-0000012-H'] }),
     date: z.iso.date(),
   })
   .meta({

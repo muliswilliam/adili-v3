@@ -60,10 +60,10 @@ const DECLARANT_PERSON = randomUUID();
 const DECLARANT: Caller = { sub: 'declarant-1', personId: DECLARANT_PERSON, roles: ['declarant'] };
 const ACCESS_OFFICER: Caller = { sub: 'officer-1', tenant: 'psc', roles: ['access-officer'] };
 
-const ARQ = 'ARQ-PSC-2026-0000012-5';
-const LEA = 'LEA-PSC-2026-0000004-M';
+const ARQ = 'ARQ-PSC-2026-0000012-H';
+const LEA = 'LEA-PSC-2026-0000004-3';
 const DAY_MS = 24 * 60 * 60 * 1000;
-const WATERMARK = 'Issued to Amina Achieng Otieno · ARQ-PSC-2026-0000012-5 · 1 Oct 2026';
+const WATERMARK = 'Issued to Amina Achieng Otieno · ARQ-PSC-2026-0000012-H · 1 Oct 2026';
 
 const fixture = createRequire(import.meta.url).resolve(
   '@adili/schemas/forms/fixtures/declaration.v1/valid/biennial-household.json',
@@ -331,6 +331,15 @@ describe('S10 an access package needs its watermark, window and recipient', () =
       'a watermark without a date',
       { watermark: { recipientName: 'A', reference: ARQ } },
       'watermark.date',
+    ],
+    [
+      'a grant reference with a wrong check character',
+      {
+        payload: packagePayload({
+          disclosure: { ...packagePayload().disclosure, grantReference: 'ARQ-PSC-2026-0000012-5' },
+        }),
+      },
+      'payload.disclosure.grantReference',
     ],
   ])('refuses %s with 400', async (_, overrides, path) => {
     const response = await issue(packageBody(overrides));

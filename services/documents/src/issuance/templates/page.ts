@@ -126,13 +126,13 @@ export function htmlDocument(title: string, styles: string, body: string): strin
 /** Who a watermarked document was issued to, for what and when (ADR-010 §6). */
 export interface Watermark {
   recipientName: string;
-  /** The request reference the document answers, e.g. `ARQ-PSC-2026-0000012-5`. */
+  /** The request reference the document answers, e.g. `ARQ-PSC-2026-0000012-H`. */
   reference: string;
   /** Calendar date `YYYY-MM-DD`. */
   date: string;
 }
 
-/** `Issued to Amina Otieno · ARQ-PSC-2026-0000012-5 · 1 Oct 2026`: the watermark's line. */
+/** `Issued to Amina Otieno · ARQ-PSC-2026-0000012-H · 1 Oct 2026`: the watermark's line. */
 export function watermarkText(watermark: Watermark): string {
   return `Issued to ${watermark.recipientName} · ${watermark.reference} · ${formatDate(watermark.date)}`;
 }

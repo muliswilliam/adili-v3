@@ -12,14 +12,14 @@ import {
 
 const WATERMARK = {
   recipientName: 'Amina Otieno',
-  reference: 'ARQ-PSC-2026-0000012-5',
+  reference: 'ARQ-PSC-2026-0000012-H',
   date: '2026-10-01',
 };
 
 describe('the watermark', () => {
   it('names the recipient, the request reference and the date', () => {
     expect(watermarkText(WATERMARK)).toBe(
-      'Issued to Amina Otieno · ARQ-PSC-2026-0000012-5 · 1 Oct 2026',
+      'Issued to Amina Otieno · ARQ-PSC-2026-0000012-H · 1 Oct 2026',
     );
   });
 
