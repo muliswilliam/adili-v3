@@ -21,9 +21,8 @@ export class CorpusFiles {
   }
 }
 
-/** Who asked for an import, for its audit record: a platform admin's subject, or none. */
-export interface CorpusImportAudit {
-  events: EventPublisher;
+/** What started an import, for its audit record, and the platform admin who asked, if any. */
+export interface CorpusImportCause {
   trigger: CorpusImportTrigger;
   by: string | null;
 }
@@ -35,22 +34,23 @@ export interface CorpusImportAudit {
 export async function runCorpusImport(
   db: Database<DeclarationsSchema>,
   files: CorpusFile[],
-  audit: CorpusImportAudit,
+  events: EventPublisher,
+  cause: CorpusImportCause,
 ): Promise<ImportResult> {
   return db.transaction(async (tx) => {
     await lockCorpus(tx);
     const result = await importCorpus(new PostgresCorpusStore(tx), files);
     if (!result.skipped) {
       const { version, inserted, updated, removed } = result;
-      await audit.events.record(
+      await events.record(
         tx,
         corpusImported({
           version,
           inserted,
           updated,
           removed,
-          trigger: audit.trigger,
-          by: audit.by,
+          trigger: cause.trigger,
+          by: cause.by,
         }),
       );
     }
@@ -90,12 +90,9 @@ export class CorpusImporter implements OnApplicationBootstrap {
     }
   }
 
-  /** Imports the deployed files; `by` is the platform admin who asked, null on boot. */
-  async run(audit: Omit<CorpusImportAudit, 'events'>): Promise<ImportResult> {
-    const result = await runCorpusImport(this.db, this.files.load(), {
-      ...audit,
-      events: this.events,
-    });
+  /** Imports the deployed files; `cause` (what started it) goes into the audit record. */
+  async run(cause: CorpusImportCause): Promise<ImportResult> {
+    const result = await runCorpusImport(this.db, this.files.load(), this.events, cause);
     if (!result.skipped) {
       this.logger.log(
         `corpus ${result.version.slice(0, 12)} imported: ${String(result.inserted)} inserted, ${String(result.updated)} updated, ${String(result.removed)} removed`,

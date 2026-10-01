@@ -17,7 +17,7 @@ const db = createDatabase({
 });
 try {
   const events = new EventPublisher({ service: SERVICE_NAME, rabbitmqUrl: config.RABBITMQ_URL });
-  const result = await runCorpusImport(db, loadCorpus(), { events, trigger: 'migrate', by: null });
+  const result = await runCorpusImport(db, loadCorpus(), events, { trigger: 'migrate', by: null });
   console.log(
     result.skipped
       ? 'declarations: corpus unchanged'

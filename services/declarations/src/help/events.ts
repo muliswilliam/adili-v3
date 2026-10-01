@@ -14,18 +14,6 @@ export interface HelpArticlePublishedData extends Record<string, unknown> {
   tenant: string | null;
 }
 
-/** An article became published: it now reaches help search (and the assistant). */
-export function helpArticlePublished(
-  data: HelpArticlePublishedData,
-): NewEvent<HelpArticlePublishedData> {
-  return {
-    type: HELP_ARTICLE_PUBLISHED,
-    subject: data.articleId,
-    tenant: data.tenant ?? PLATFORM_TENANT,
-    data,
-  };
-}
-
 export const HELP_ARTICLE_CREATED = 'help.article.created.v1';
 export const HELP_ARTICLE_UPDATED = 'help.article.updated.v1';
 export const HELP_ARTICLE_DELETED = 'help.article.deleted.v1';
@@ -34,10 +22,7 @@ export const HELP_ARTICLE_DELETED = 'help.article.deleted.v1';
  * A write to an article: the audit record of the create, update or delete (ADR-008), with the
  * version it produced and whether it is published after it. Ids only, never the title or body.
  */
-export interface HelpArticleWrittenData extends Record<string, unknown> {
-  articleId: string;
-  /** The Commission's slug; null for a platform article. */
-  tenant: string | null;
+export interface HelpArticleWrittenData extends HelpArticlePublishedData {
   /** The article's version after the write; for a delete, the version deleted. */
   version: number;
   published: boolean;
@@ -45,11 +30,19 @@ export interface HelpArticleWrittenData extends Record<string, unknown> {
   by: string;
 }
 
-function articleEvent(
+/** An article's event: the article is the subject, filed under its Commission or the platform. */
+function articleEvent<TData extends HelpArticlePublishedData>(
   type: string,
-  data: HelpArticleWrittenData,
-): NewEvent<HelpArticleWrittenData> {
+  data: TData,
+): NewEvent<TData> {
   return { type, subject: data.articleId, tenant: data.tenant ?? PLATFORM_TENANT, data };
+}
+
+/** An article became published: it now reaches help search (and the assistant). */
+export function helpArticlePublished(
+  data: HelpArticlePublishedData,
+): NewEvent<HelpArticlePublishedData> {
+  return articleEvent(HELP_ARTICLE_PUBLISHED, data);
 }
 
 export function helpArticleCreated(data: HelpArticleWrittenData): NewEvent<HelpArticleWrittenData> {
