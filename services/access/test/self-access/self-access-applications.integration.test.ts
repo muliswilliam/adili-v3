@@ -235,6 +235,7 @@ describe('Written self-access applications (#303)', () => {
       late: false,
       deliveredAt: null,
       recordedBy: 'Peter Access',
+      recordedByCaller: true,
       certifiedCopy: { status: 'pending', declarationId: DECLARATION_ID, version: 1 },
     });
     // The proofs are linked, kept from documents' orphan sweep.
@@ -271,8 +272,17 @@ describe('Written self-access applications (#303)', () => {
         type: 'certified-copy',
         subjectRef: `certified-copy:${issued.certifiedCopy.id}`,
         subjectPersonId: anne.personId,
+        // The recording officer may download it to hand it over; no other officer may.
+        additionalDownloaders: [officer.sub],
       }),
     ]);
+    // Another access officer of the PSC reads the application but is not the one named on it.
+    const colleague = await api.get(`/v1/access/self-access/${recorded.id}`, {
+      ...officer,
+      sub: 'access-officer-2',
+      name: 'Grace Access',
+    });
+    expect(colleague.json<SelfAccessApplicationDetail>().recordedByCaller).toBe(false);
 
     // Registered self-access, with the officer acting and Joseph named; its event carries ids only.
     const entries = await api.asPlatform((tx) =>

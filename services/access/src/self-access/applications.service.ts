@@ -212,6 +212,7 @@ export class SelfAccessApplicationsService {
       row,
       copy,
       input.representative?.idNumber ?? null,
+      principal.subject,
       this.clock.now(),
     );
   }
@@ -271,7 +272,7 @@ export class SelfAccessApplicationsService {
         applicationWithCopy(tx, applicationId),
       ),
     );
-    return this.detail(found.row, found.copy);
+    return this.detail(principal, found.row, found.copy);
   }
 
   /**
@@ -312,14 +313,21 @@ export class SelfAccessApplicationsService {
         return { row: updated, copy: current.copy };
       },
     );
-    return this.detail(row, copy);
+    return this.detail(principal, row, copy);
   }
 
   private async detail(
+    principal: Principal,
     row: SelfAccessApplicationRow,
     copy: CertifiedCopyRow,
   ): Promise<SelfAccessApplicationDetail> {
-    return toSelfAccessApplicationDetail(row, copy, await this.open(row), this.clock.now());
+    return toSelfAccessApplicationDetail(
+      row,
+      copy,
+      await this.open(row),
+      principal.subject,
+      this.clock.now(),
+    );
   }
 
   private async commission(tenant: string): Promise<CommissionFacts> {

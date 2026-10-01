@@ -50,9 +50,9 @@ export class CertifiedCopyActivities {
   /**
    * Issues the certified copy, once: declarations renders the version in full for the declarant
    * (audited there as self-access, with who asked as recipient) and documents issues it as their
-   * Restricted `certified-copy`, which only they may download. Both calls run in this one
-   * activity, so the declaration never enters the workflow's history; only the document's ids are
-   * kept. The copy is recorded `issued` with its `self-access` register entry and
+   * Restricted `certified-copy`, which they may download, and for an in-person application also
+   * the officer who recorded it, to hand it over. Both calls run in this one activity, so the
+   * declaration never enters the workflow's history; only the document's ids are kept. The copy is recorded `issued` with its `self-access` register entry and
    * `access.certified-copy.issued.v1`. When declarations has no such submitted version of the
    * declarant at the Commission the copy `failed` and nothing is issued.
    */
@@ -106,6 +106,9 @@ export class CertifiedCopyActivities {
         templateVersion: CERTIFIED_COPY_TEMPLATE_VERSION,
         subjectRef: certifiedCopySubjectRef(copyId),
         subjectPersonId: copy.personId,
+        // Ordered through an in-person application: the officer who recorded it prints the copy
+        // to hand over, downloading it with their own token (audited by documents as any other).
+        ...(copy.applicationId === null ? {} : { additionalDownloaders: [copy.requestedBy] }),
         payload,
         idempotencyKey: messageKey(copyId, 'certified-copy'),
       });

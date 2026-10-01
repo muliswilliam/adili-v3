@@ -118,7 +118,7 @@ export class SelfAccessApplicationsController {
     operationId: 'recordSelfAccessApplication',
     summary: 'Record a written self-access application and issue its certified copy',
     description:
-      "The declarant's identity check, and for a representative their name, ID number (stored encrypted), written authority and ID as the officer's clean uploads of purpose `access-representation`. The certified copy (Restricted, the declarant its subject) is ordered at once and due 14 days from receipt; once issued it is registered `self-access` naming the representative (`access.certified-copy.issued.v1`) and shows in the declarant's access history. Follow `certifiedCopy.status` until `issued`, then mark it collected or dispatched.",
+      "The declarant's identity check, and for a representative their name, ID number (stored encrypted), written authority and ID as the officer's clean uploads of purpose `access-representation`. The certified copy (Restricted, the declarant its subject) is ordered at once and due 14 days from receipt; once issued it is registered `self-access` naming the representative (`access.certified-copy.issued.v1`) and shows in the declarant's access history. Follow `certifiedCopy.status` until `issued`; the recording officer (`recordedByCaller`) is named on the copy and downloads it from documents (`getDocumentDownload` with `certifiedCopy.documentId`, audited there) to print it, then marks it collected or dispatched.",
   })
   @ApiBody({ required: true, schema: schemaRef('SelfAccessApplicationInput') })
   @ApiCreatedResponse({
