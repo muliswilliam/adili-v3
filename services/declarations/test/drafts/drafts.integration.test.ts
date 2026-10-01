@@ -8,6 +8,7 @@ import {
   declarationSections,
   declarations,
   filingObligations,
+  obligationDrafts,
   outbox,
   rosterSnapshots,
 } from '../../src/db/schema.js';
@@ -711,7 +712,57 @@ describe('ciphertext opacity (S13)', () => {
       (await api.asPerson(ACHIENG, (tx) => tx.select().from(declarations))).map((row) => row.id),
     ).toEqual([draft.id]);
   });
+
+  it("lets no other person write a declarant's draft rows (ADR-018 decision 5)", async () => {
+    const draft = await savedDraft();
+    const [section] = await api.asPerson(ACHIENG, (tx) =>
+      tx.select().from(declarationSections).where(eq(declarationSections.declarationId, draft.id)),
+    );
+    const [started] = await api.asPerson(ACHIENG, (tx) => tx.select().from(obligationDrafts));
+    if (!section || !started) throw new Error('the draft has no section or obligation draft');
+
+    // Another person's updates and deletes see no rows.
+    const touched = await api.asPerson(OTIENO, async (tx) => ({
+      updated: await tx
+        .update(declarations)
+        .set({ draftVersion: 99 })
+        .where(eq(declarations.id, draft.id))
+        .returning(),
+      deleted: await tx
+        .delete(declarationSections)
+        .where(eq(declarationSections.declarationId, draft.id))
+        .returning(),
+    }));
+    expect(touched).toEqual({ updated: [], deleted: [] });
+
+    // Their inserts into the declarant's draft are refused.
+    await expect(
+      api.asPerson(OTIENO, (tx) =>
+        tx.insert(declarationSections).values({ ...section, sectionKey: 'statement:child:x' }),
+      ),
+    ).rejects.toMatchObject(RLS_REFUSED);
+    await expect(
+      api.asPerson(OTIENO, (tx) =>
+        tx.insert(obligationDrafts).values({ ...started, obligationId: randomUUID() }),
+      ),
+    ).rejects.toMatchObject(RLS_REFUSED);
+
+    // The declarant cannot hand a draft to someone else.
+    await expect(
+      api.asPerson(ACHIENG, (tx) =>
+        tx.update(declarations).set({ personId: OTIENO }).where(eq(declarations.id, draft.id)),
+      ),
+    ).rejects.toMatchObject(RLS_REFUSED);
+
+    const [kept] = await api.asPerson(ACHIENG, (tx) =>
+      tx.select().from(declarations).where(eq(declarations.id, draft.id)),
+    );
+    expect(kept).toMatchObject({ personId: ACHIENG, draftVersion: 3 });
+  });
 });
+
+/** Postgres refusing a row under row-level security (insufficient_privilege). */
+const RLS_REFUSED = { cause: { code: '42501' } };
 
 describe('events carry identifiers only (S22)', () => {
   it('writes no section content to the outbox', async () => {

@@ -822,7 +822,7 @@ adili-v3/
 | [015](../adr/0015-java-for-keycloak-providers.md) | Java (Maven) for Keycloak providers only, e.g. the `adili-otp` authenticator |
 | [016](../adr/0016-azure-vm-demo-stand-in.md) | Azure VM as a credit-funded stand-in for the Dokploy demo host |
 | [017](../adr/0017-obligation-reminder-delivery.md) | Service calls for filing obligations: acting tenant on the directory's pulls, two hops for a reminder, longer timeouts |
-| [018](../adr/0018-person-scoped-row-level-security.md) | Person-scoped row-level security: a declarant reads their own rows across Commissions |
+| [018](../adr/0018-person-scoped-row-level-security.md) | Person-scoped row-level security: a declarant reads their own rows across Commissions, and writes their own drafts |
 
 ---
 
