@@ -8,7 +8,7 @@ import {
   ToastProvider,
   useToast,
 } from '@adili/ui';
-import { createFileRoute, Link, useNavigate } from '@tanstack/react-router';
+import { createFileRoute, Link, redirect, useNavigate } from '@tanstack/react-router';
 import { AlertCircleIcon, ArrowRight01Icon } from '@hugeicons/core-free-icons';
 import { useEffect, useRef } from 'react';
 import { z } from 'zod';
@@ -22,6 +22,7 @@ import { DISCARDED_TOAST } from '../components/declaration/discard-dialog';
 import { SignOutButton } from '../components/sign-out-button';
 import { getMyDeclarations } from '../server/declarations';
 import type { DeclarationListResult } from '../server/declarations.server';
+import { isSignedInApplicant } from '../server/access-requests';
 import { getMyObligations, getObligationDetail } from '../server/obligations';
 import type { MyObligationsResult } from '../server/obligations.server';
 import { getViewer, type Viewer } from '../server/viewer';
@@ -33,6 +34,10 @@ export const Route = createFileRoute('/')({
   }),
   loader: async () => {
     const viewer = await getViewer();
+    // Applicants (Form K, spec 10) have no declarant record: their home is My requests.
+    if (viewer?.declarant.status === 'not-declarant' && (await isSignedInApplicant())) {
+      throw redirect({ to: '/access/requests' });
+    }
     // Not awaited: the dashboard renders with skeleton cards, and the obligations and the
     // declarations stream in, each on its own.
     const obligations = viewer ? orUnavailable(getMyObligations()) : null;
