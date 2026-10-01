@@ -198,6 +198,18 @@ describe('HttpIntegrationGatewayClient: registries', () => {
     }
   });
 
+  it('reads the rate limits by system, with no acting tenant', async () => {
+    const fetch = answering([
+      { system: 'kra', ratePerMinute: 30 },
+      { system: 'hr-suppliers', ratePerMinute: 60 },
+    ]);
+
+    expect(await client(fetch).getRegistryRateLimits()).toEqual({ kra: 30, 'hr-suppliers': 60 });
+    const request = fetch.mock.calls[0]?.[0] as Request;
+    expect(request.url).toBe('http://gateway.test/internal/v1/registry-rate-limits');
+    expect(request.headers.has('x-acting-tenant')).toBe(false);
+  });
+
   it('checks a company against the employer supplier list, with the number in the path', async () => {
     const fetch = answering({ ...envelope, system: 'hr-suppliers', supplies: true });
 

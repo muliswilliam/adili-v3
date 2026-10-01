@@ -417,7 +417,7 @@ describe('registry re-checks and the sweep', () => {
       });
     });
 
-    it('takes open cases with a registry unavailable, oldest check first, at most the batch', async () => {
+    it('plans open cases with a registry unavailable, oldest check first, paced under the rate limits', async () => {
       api.gateway.failRegistry('kra', { kind: 'unavailable', reason: 'timeout' });
       const older = await checkedCase();
       const newer = await checkedCase();
@@ -435,11 +435,16 @@ describe('registry re-checks and the sweep', () => {
           .where(eq(reviewCases.id, determined.caseId));
       });
 
-      const candidates = await registry.registrySweepCandidates({ limit: 10 });
+      // KRA at one call a minute: the sweep takes half, and each case re-checks four people's KRA.
+      api.gateway.givenRateLimits({ kra: 1 });
 
-      expect(candidates).toEqual([older, newer]);
-      expect(candidates.map((c) => c.caseId)).not.toContain(answered.caseId);
-      expect(await registry.registrySweepCandidates({ limit: 1 })).toEqual([older]);
+      const plan = await registry.planRegistrySweep();
+
+      expect(plan).toEqual([
+        { request: older, startAfterMs: 0 },
+        { request: newer, startAfterMs: 8 * 60_000 },
+      ]);
+      expect(plan.map((c) => c.request.caseId)).not.toContain(answered.caseId);
     });
 
     it('keeps an hourly Temporal schedule that starts the sweep', async () => {

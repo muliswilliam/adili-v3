@@ -53,6 +53,16 @@ export type RegistryFailure =
   | { kind: 'gateway-down' }
   | { kind: 'refused' };
 
+/** Calls per minute per system, as the gateway's .env.example configures them. */
+const DEFAULT_RATE_LIMITS: Record<string, number> = {
+  iprs: 1_200,
+  kra: 30,
+  ntsa: 60,
+  brs: 60,
+  ardhisasa: 60,
+  'hr-suppliers': 60,
+};
+
 /**
  * The integration-gateway's payroll instructions for tests, behaving as the payroll mock does:
  * one instruction per reference (a resubmission answers the stored acknowledgement and stores
@@ -77,6 +87,7 @@ export class FakeIntegrationGateway extends IntegrationGatewayClient {
   private readonly failing = new Map<FakeSystem, { failure: RegistryFailure; times: number }>();
   private storedResultsDown = false;
   private storedResultsRefused = false;
+  private rateLimits: Record<string, number> = { ...DEFAULT_RATE_LIMITS };
 
   /** The instructions payroll holds, in the order it received them. */
   get instructions(): StoredInstruction[] {
@@ -122,6 +133,15 @@ export class FakeIntegrationGateway extends IntegrationGatewayClient {
   }
 
   /** Stored result reads are refused with 403 (the token lacks the scope) until said again. */
+  /** The rate limits the gateway gives, per system (the test app's defaults otherwise). */
+  givenRateLimits(limits: Record<string, number>): void {
+    this.rateLimits = { ...DEFAULT_RATE_LIMITS, ...limits };
+  }
+
+  getRegistryRateLimits(): Promise<Record<string, number>> {
+    return Promise.resolve({ ...this.rateLimits });
+  }
+
   refuseStoredResults(refused = true): void {
     this.storedResultsRefused = refused;
   }
@@ -139,6 +159,7 @@ export class FakeIntegrationGateway extends IntegrationGatewayClient {
     this.failing.clear();
     this.storedResultsDown = false;
     this.storedResultsRefused = false;
+    this.rateLimits = { ...DEFAULT_RATE_LIMITS };
   }
 
   lookupRegistry<S extends LookupSystem>(

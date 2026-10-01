@@ -281,6 +281,26 @@ describe('registry lookups', () => {
     });
   });
 
+  describe('GET /internal/v1/registry-rate-limits', () => {
+    it('gives the configured rate limit of every system with an adapter, to the registry scope alone', async () => {
+      const read = (headers: Record<string, string>) =>
+        t.app.inject({ method: 'GET', url: '/internal/v1/registry-rate-limits', headers });
+
+      // No X-Acting-Tenant: configuration, not tenant data.
+      const response = await read({ authorization: review.authorization ?? '' });
+
+      expect(response.statusCode).toBe(200);
+      expect(response.json()).toEqual(
+        ['iprs', 'kra', 'ntsa', 'brs', 'ardhisasa', 'hr-suppliers'].map((system) => ({
+          system,
+          ratePerMinute: system === 'iprs' ? 1_200 : 60_000,
+        })),
+      );
+      const other = await t.token({ clientId: 'directory', scope: 'iprs' });
+      expect((await read({ authorization: `Bearer ${other}` })).statusCode).toBe(403);
+    });
+  });
+
   describe('when a registry does not answer', () => {
     it('answers unavailable with the reason and empty records, recorded', async () => {
       registries.behaviour.ntsa = { kind: 'status', status: 503 };

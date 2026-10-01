@@ -124,6 +124,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/internal/v1/registry-rate-limits": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Configured calls per minute of every system with an adapter (services)
+         * @description Service tokens with scope `registry`; no X-Acting-Tenant (configuration, no tenant data). A lookup answered from the cache spends none of it.
+         */
+        get: operations["getRegistryRateLimits"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/internal/v1/verification-results/{resultId}": {
         parameters: {
             query?: never;
@@ -451,6 +471,11 @@ export interface components {
         };
         /** @description Every system with an adapter, in a fixed order */
         Coverage: components["schemas"]["SystemCoverage"][];
+        /** @description The configured rate limit of every system with an adapter */
+        RegistryRateLimits: {
+            system: components["schemas"]["System"];
+            ratePerMinute: number;
+        }[];
         ProblemDetails: {
             type: string;
             title: string;
@@ -891,6 +916,35 @@ export interface operations {
             };
             /** @description Problem type `lookup-not-recorded`: the lookup could not be recorded (audit), so no answer is given; retry */
             503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    getRegistryRateLimits: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Rate limits per system */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RegistryRateLimits"];
+                };
+            };
+            /** @description Requires one of the scopes: registry */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };

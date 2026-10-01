@@ -4,7 +4,7 @@ import { type Database, InjectDatabase, withTenant } from '@adili/data-access';
 import { EventPublisher } from '@adili/events';
 import type { DeclarationV1 } from '@adili/forms';
 import { ApplicationFailure } from '@temporalio/common';
-import { and, asc, eq, max, ne, sql } from 'drizzle-orm';
+import { and, asc, eq, inArray, max, ne, sql } from 'drizzle-orm';
 
 import { reviewCases } from '../cases/schema.js';
 import type { ReviewSchema } from '../db/schema.js';
@@ -51,10 +51,17 @@ import {
   type RegistryLookups,
   RESULT_MISSING,
   type SupplierOutcome,
-  type SweepCandidatesRequest,
+  type SweepCheck,
 } from './contract.js';
 import { storeRegistryCheck } from './registry-check-store.js';
 import { registryChecks } from './schema.js';
+import { planSweep, type SweepCandidate } from './sweep-plan.js';
+
+/** Cases one sweep run considers at most, oldest check first; the plan takes what fits. */
+const SWEEP_CANDIDATES = 1_000;
+
+/** The reason a BRS status is unavailable when only the supplier check (`hr-suppliers`) is. */
+const SUPPLIER_CHECK_UNAVAILABLE = 'supplier-check-unavailable';
 
 const logger = new Logger('RegistryChecks');
 
@@ -175,16 +182,15 @@ export class RegistryCheckActivities {
   }
 
   /**
-   * The sweep's cases, across Commissions: open (not determined) with a registry still
-   * unavailable at their latest check, the oldest check first, at most `limit`, each at its
-   * current version.
+   * The sweep's plan: the open (not determined) cases across Commissions with a registry still
+   * unavailable at their latest check, the oldest check first, each at its current version, paced
+   * under the gateway's rate limits (`planSweep`). A case's re-check sends each system its
+   * unavailable lookups only: its answered ones come from the gateway's cache.
    */
-  async registrySweepCandidates({
-    limit,
-  }: SweepCandidatesRequest): Promise<RegistryCheckRequest[]> {
-    const lastChecked = max(registryChecks.checkedAt);
-    return withTenant(this.db, systemContext(PLATFORM_TENANT), (tx) =>
-      tx
+  async planRegistrySweep(): Promise<SweepCheck[]> {
+    const limits = await this.gateway.getRegistryRateLimits();
+    const candidates = await withTenant(this.db, systemContext(PLATFORM_TENANT), async (tx) => {
+      const cases = await tx
         .select({
           tenant: reviewCases.tenant,
           caseId: reviewCases.id,
@@ -196,9 +202,37 @@ export class RegistryCheckActivities {
         .innerJoin(registryChecks, eq(registryChecks.caseId, reviewCases.id))
         .where(and(eq(reviewCases.registryUnavailable, true), ne(reviewCases.status, 'determined')))
         .groupBy(reviewCases.id)
-        .orderBy(asc(lastChecked), asc(reviewCases.id))
-        .limit(limit),
-    );
+        .orderBy(asc(max(registryChecks.checkedAt)), asc(reviewCases.id))
+        .limit(SWEEP_CANDIDATES);
+      const unavailable =
+        cases.length === 0
+          ? []
+          : await tx
+              .select({
+                caseId: registryChecks.caseId,
+                system: registryChecks.system,
+                reason: registryChecks.reason,
+              })
+              .from(registryChecks)
+              .where(
+                and(
+                  inArray(
+                    registryChecks.caseId,
+                    cases.map((c) => c.caseId),
+                  ),
+                  eq(registryChecks.status, 'unavailable'),
+                ),
+              );
+      return cases.map((request): SweepCandidate => {
+        const lookups: Record<string, number> = {};
+        for (const row of unavailable.filter((entry) => entry.caseId === request.caseId)) {
+          const system = row.reason === SUPPLIER_CHECK_UNAVAILABLE ? 'hr-suppliers' : row.system;
+          lookups[system] = (lookups[system] ?? 0) + 1;
+        }
+        return { request, lookups };
+      });
+    });
+    return planSweep(candidates, limits);
   }
 }
 

@@ -103,6 +103,11 @@ export const supplierCheckSchema: z.ZodType<SupplierCheckResult> = envelope.exte
   supplies: z.boolean().nullable(),
 });
 
+/** `RegistryRateLimits`. */
+export const rateLimitsSchema = z.array(
+  z.object({ system: z.string(), ratePerMinute: z.int().positive() }),
+);
+
 /** `StoredResult`; its payload is checked against `REGISTRY_RECORDS` where it is used. */
 export const storedResultSchema: z.ZodType<StoredResult> = z.object({
   resultId: z.uuid(),

@@ -133,4 +133,11 @@ export abstract class IntegrationGatewayClient {
    * gateway cannot be reached or cannot decrypt now.
    */
   abstract getStoredResult(resultId: string, tenant: string): Promise<StoredResult | null>;
+
+  /**
+   * `getRegistryRateLimits`: the calls per minute the gateway sends each system (by the
+   * gateway's system names, `hr-suppliers` among them), for pacing batch work under them. Throws
+   * `IntegrationGatewayUnavailable` when the gateway cannot be reached.
+   */
+  abstract getRegistryRateLimits(): Promise<Record<string, number>>;
 }

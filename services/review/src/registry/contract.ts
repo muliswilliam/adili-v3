@@ -32,17 +32,16 @@ export function registrySweepCheckWorkflowId(caseId: string, sweepRunId: string)
 /** How long after a re-check of a case the next one is refused (429), in minutes. */
 export const RECHECK_COOLDOWN_MINUTES = 10;
 
-/**
- * Cases one sweep run checks at most, oldest check first. With `SWEEP_SPACING` between them a run
- * fits in the hour even when every check waits out its retries, and the registries see a few
- * cases a minute, under their rate limits (only what was unavailable reaches a registry: the
- * other answers come from the gateway's cache).
- */
-export const REGISTRY_SWEEP_BATCH = 50;
-export const SWEEP_SPACING = '10 seconds';
+/** Checks a sweep run has going at once at most. */
+export const SWEEP_CONCURRENCY = 4;
 
-export interface SweepCandidatesRequest {
-  limit: number;
+/**
+ * A check of the sweep's plan: the case, and how long after the run started it may start, so the
+ * run's lookups stay under the systems' rate limits (`planSweep`).
+ */
+export interface SweepCheck {
+  request: RegistryCheckRequest;
+  startAfterMs: number;
 }
 
 /** What one sweep run did. */

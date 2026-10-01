@@ -3,7 +3,12 @@ import { z } from 'zod';
 
 import { rejectedBy } from '../internal-api/rejected.js';
 import type { paths } from './integration-gateway-api.gen.js';
-import { lookupResultSchema, storedResultSchema, supplierCheckSchema } from './registry-records.js';
+import {
+  lookupResultSchema,
+  rateLimitsSchema,
+  storedResultSchema,
+  supplierCheckSchema,
+} from './registry-records.js';
 import {
   IntegrationGatewayClient,
   IntegrationGatewayUnavailable,
@@ -167,6 +172,14 @@ export class HttpIntegrationGatewayClient extends IntegrationGatewayClient {
         }),
       { status: 200, schema: storedResultSchema, otherwise: { ...refused, 404: () => null } },
     );
+  }
+
+  async getRegistryRateLimits(): Promise<Record<string, number>> {
+    const limits = await this.registries.call(
+      (api) => api.GET('/internal/v1/registry-rate-limits'),
+      { status: 200, schema: rateLimitsSchema, otherwise: refused },
+    );
+    return Object.fromEntries(limits.map(({ system, ratePerMinute }) => [system, ratePerMinute]));
   }
 }
 

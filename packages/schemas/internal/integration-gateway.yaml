@@ -438,6 +438,28 @@ paths:
                 $ref: '#/components/schemas/ProblemDetails'
       security:
         - bearer: []
+  /internal/v1/registry-rate-limits:
+    get:
+      tags:
+        - internal
+      summary: Configured calls per minute of every system with an adapter (services)
+      description: Service tokens with scope `registry`; no X-Acting-Tenant (configuration, no tenant data). A lookup answered from the cache spends none of it.
+      operationId: getRegistryRateLimits
+      responses:
+        '200':
+          description: Rate limits per system
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RegistryRateLimits'
+        '403':
+          description: 'Requires one of the scopes: registry'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+      security:
+        - bearer: []
   /internal/v1/verification-results/{resultId}:
     get:
       tags:
@@ -1225,6 +1247,20 @@ components:
       items:
         $ref: '#/components/schemas/SystemCoverage'
       description: Every system with an adapter, in a fixed order
+    RegistryRateLimits:
+      type: array
+      items:
+        type: object
+        properties:
+          system:
+            $ref: '#/components/schemas/System'
+          ratePerMinute:
+            type: integer
+            exclusiveMinimum: 0
+        required:
+          - system
+          - ratePerMinute
+      description: The configured rate limit of every system with an adapter
     ProblemDetails:
       type: object
       properties:
