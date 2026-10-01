@@ -24,6 +24,7 @@ import {
   type Commission,
   type CommissionPage,
   type InternalCommission,
+  type InternalCommissionListItem,
   type OfficerCategory,
 } from './representation.js';
 import {
@@ -202,13 +203,34 @@ export class CommissionsService {
     return toCommission(notFoundIfInvisible(found));
   }
 
-  /** Every Commission's reference, by slug: public facts, for services' read models. */
-  async internalRefs(): Promise<InternalCommission[]> {
-    const rows = await this.db
-      .select({ slug: commissions.slug, name: commissions.name })
-      .from(commissions)
-      .orderBy(asc(commissions.slug));
-    return rows.map(({ slug, name }) => ({ slug, issuerCode: slug.toUpperCase(), name }));
+  /**
+   * Every Commission's reference, by slug, with its status and earliest obligations-start date:
+   * public facts, for services' read models. Policy versions are tenant data under RLS, so they
+   * are read as the platform.
+   */
+  async internalRefs(principal: Principal): Promise<InternalCommissionListItem[]> {
+    const platform = { tenant: PLATFORM_TENANT, subject: principal.subject };
+    const rows = await withTenant(this.db, platform, (tx) =>
+      tx
+        .select({
+          slug: commissions.slug,
+          name: commissions.name,
+          status: commissions.status,
+          obligationsStartDate: sql<string>`(
+            select min(${tenantPolicyVersions.obligationsStartDate})::text from ${tenantPolicyVersions}
+            where ${tenantPolicyVersions.tenant} = ${commissions.slug}
+          )`,
+        })
+        .from(commissions)
+        .orderBy(asc(commissions.slug)),
+    );
+    return rows.map(({ slug, name, status, obligationsStartDate }) => ({
+      slug,
+      issuerCode: slug.toUpperCase(),
+      name,
+      status,
+      obligationsStartDate,
+    }));
   }
 
   /** Slug, issuer code and name, for a service acting for `tenant`; another Commission's is 404. */

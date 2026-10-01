@@ -236,8 +236,8 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Slug, issuer code and name of every Commission (services)
-         * @description Service tokens with scope directory:internal; no X-Acting-Tenant (platform reference data, no personal data). E.g. declarations lists Commissions without a roster yet in the national obligations summary.
+         * Slug, issuer code, name, status and obligations start of every Commission (services)
+         * @description Service tokens with scope directory:internal; no X-Acting-Tenant (platform reference data, no personal data). E.g. declarations lists Commissions without a roster yet in the national obligations summary; access offers applicants the active Commissions and the declaration years each can hold (from its earliest obligations-start date).
          */
         get: operations["internalListCommissions"];
         put?: never;
@@ -1224,8 +1224,27 @@ export interface components {
             issuerCode: string;
             name: string;
         };
+        InternalCommissionListItem: {
+            slug: components["schemas"]["Slug"];
+            /**
+             * @description slug upper-cased
+             * @example TSC
+             */
+            issuerCode: string;
+            name: string;
+            /**
+             * @description Only active Commissions take declarations and requests; more states may follow
+             * @enum {string}
+             */
+            status: "active";
+            /**
+             * Format: date
+             * @description The earliest obligations-start date of any of its policy versions: no declaration on Adili has an earlier statement date
+             */
+            obligationsStartDate: string;
+        };
         InternalCommissionList: {
-            items: components["schemas"]["InternalCommission"][];
+            items: components["schemas"]["InternalCommissionListItem"][];
         };
         InternalStaffList: {
             items: {

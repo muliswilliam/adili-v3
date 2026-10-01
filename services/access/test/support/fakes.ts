@@ -13,6 +13,7 @@ import {
   type ApplicantIdentityStatus,
   type ApplicantVerificationInput,
   type CommissionFacts,
+  type CommissionListing,
   DirectoryClient,
   DirectoryUnavailable,
   type RosterCandidateFacts,
@@ -68,14 +69,23 @@ export class FakeDirectory extends DirectoryClient {
   readonly verifications: ApplicantVerificationInput[] = [];
   private readonly applicants = new Map<string, ApplicantIdentityStatus>();
   private failingMethod: string | undefined;
-  private readonly commissions = new Map<string, CommissionFacts>();
+  private readonly commissions = new Map<string, CommissionListing>();
   private readonly records = new Map<string, RosterCandidateFacts & { slug: string }>();
   private readonly staff = new Map<string, StaffMember[]>();
   private readonly failures = new Failures();
 
-  givenCommission(slug: string, name = `${slug.toUpperCase()} Commission`): CommissionFacts {
+  /** An active Commission on Adili since 1 January 2025, unless `listing` says otherwise. */
+  givenCommission(
+    slug: string,
+    name = `${slug.toUpperCase()} Commission`,
+    listing: Partial<Pick<CommissionListing, 'status' | 'obligationsStartDate'>> = {},
+  ): CommissionFacts {
     const commission = { slug, issuerCode: slug.toUpperCase(), name };
-    this.commissions.set(slug, commission);
+    this.commissions.set(slug, {
+      ...commission,
+      status: listing.status ?? 'active',
+      obligationsStartDate: listing.obligationsStartDate ?? '2025-01-01',
+    });
     return commission;
   }
 
@@ -130,10 +140,13 @@ export class FakeDirectory extends DirectoryClient {
   }
 
   findCommission(slug: string): Promise<CommissionFacts | null> {
-    return this.answer('findCommission', slug, () => this.commissions.get(slug) ?? null);
+    return this.answer('findCommission', slug, () => {
+      const found = this.commissions.get(slug);
+      return found ? { slug: found.slug, issuerCode: found.issuerCode, name: found.name } : null;
+    });
   }
 
-  listCommissions(): Promise<CommissionFacts[]> {
+  listCommissions(): Promise<CommissionListing[]> {
     return this.answer('listCommissions', '', () => [...this.commissions.values()]);
   }
 

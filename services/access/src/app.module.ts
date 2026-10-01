@@ -14,6 +14,7 @@ import {
 } from '@adili/temporal';
 
 import { OPENBAO } from './cipher.module.js';
+import { CommissionsModule } from './commissions/commissions.module.js';
 import { config, SERVICE_NAME } from './config.js';
 import { schema } from './db/schema.js';
 import { NoticesModule } from './notices/notices.module.js';
@@ -46,6 +47,7 @@ import { AccessWorkerModule } from './worker.module.js';
       address: config.TEMPORAL_ADDRESS,
       namespace: config.TEMPORAL_NAMESPACE,
     }),
+    CommissionsModule,
     RequestsModule,
     NoticesModule,
     AccessWorkerModule,

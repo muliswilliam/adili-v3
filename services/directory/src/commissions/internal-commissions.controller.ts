@@ -39,16 +39,16 @@ export class InternalCommissionListController {
   @Get()
   @ApiOperation({
     operationId: 'internalListCommissions',
-    summary: 'Slug, issuer code and name of every Commission (services)',
+    summary: 'Slug, issuer code, name, status and obligations start of every Commission (services)',
     description:
-      'Service tokens with scope directory:internal; no X-Acting-Tenant (platform reference data, no personal data). E.g. declarations lists Commissions without a roster yet in the national obligations summary.',
+      'Service tokens with scope directory:internal; no X-Acting-Tenant (platform reference data, no personal data). E.g. declarations lists Commissions without a roster yet in the national obligations summary; access offers applicants the active Commissions and the declaration years each can hold (from its earliest obligations-start date).',
   })
   @ApiOkResponse({
     description: 'Every Commission, by slug',
     schema: schemaRef('InternalCommissionList'),
   })
-  async list(): Promise<InternalCommissionList> {
-    return { items: await this.commissions.internalRefs() };
+  async list(@CurrentPrincipal() principal: Principal): Promise<InternalCommissionList> {
+    return { items: await this.commissions.internalRefs(principal) };
   }
 }
 

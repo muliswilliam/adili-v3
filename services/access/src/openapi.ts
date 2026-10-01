@@ -1,5 +1,6 @@
 import type { z } from 'zod';
 
+import { accessCommissionSchema } from './commissions/representation.js';
 import { decisionSchema, groundSchema, outcomeSchema, packageSchema } from './decision.js';
 import { declarantNoticeSchema, representationsInputSchema } from './notices/representation.js';
 import { registerEntrySchema } from './register/representation.js';
@@ -45,4 +46,5 @@ export const OPENAPI_SCHEMAS: Record<string, z.ZodType> = {
   RosterCandidates: rosterCandidatesSchema,
   RepresentationsInput: representationsInputSchema,
   DeclarantNotice: declarantNoticeSchema,
+  AccessCommission: accessCommissionSchema,
 };

@@ -194,3 +194,29 @@ describe('HttpDirectoryClient: staff by role', () => {
     expect(sent[0]?.headers.get('authorization')).toBe('Bearer reference-token');
   });
 });
+
+describe('HttpDirectoryClient: Commission list', () => {
+  it('reads every Commission with its status and earliest obligations start, acting for none', async () => {
+    const psc = {
+      slug: 'psc',
+      issuerCode: 'PSC',
+      name: 'Public Service Commission',
+      status: 'active',
+      obligationsStartDate: '2025-07-01',
+    };
+    const { client, sent } = clientAnswering(() => json({ items: [psc] }, 200));
+
+    await expect(client.listCommissions()).resolves.toEqual([psc]);
+    expect(sent[0]?.url).toBe('http://directory.test/internal/v1/commissions');
+    expect(sent[0]?.headers.get('x-acting-tenant')).toBeNull();
+    expect(sent[0]?.headers.get('authorization')).toBe('Bearer reference-token');
+  });
+
+  it('an answer outside the contract is an outage the caller retries', async () => {
+    const { client } = clientAnswering(() =>
+      json({ items: [{ slug: 'psc', issuerCode: 'PSC', name: 'Public Service Commission' }] }, 200),
+    );
+
+    await expect(client.listCommissions()).rejects.toBeInstanceOf(DirectoryUnavailable);
+  });
+});
