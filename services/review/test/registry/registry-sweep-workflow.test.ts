@@ -94,7 +94,12 @@ describe('registrySweep', () => {
     const result = await env.execute(registrySweep, { workflowsPath, activities: mocks, args: [] });
 
     expect(result).toEqual({ checked: 3, stale: 0, failed: 0 });
-    expect([...lookedUpAt.keys()]).toEqual(plan.map((entry) => entry.request.caseId));
+    // Cases 1 and 2 start together, so their activities may run in either order; 3 is held back.
+    const lookedUp = [...lookedUpAt.keys()];
+    expect(lookedUp.slice(0, 2).sort()).toEqual(
+      [caseRequest(1).caseId, caseRequest(2).caseId].sort(),
+    );
+    expect(lookedUp[2]).toBe(caseRequest(3).caseId);
     // The third waits for its share of the rate limits: eight minutes into the run.
     expect(lookedUpAt.get(caseRequest(3).caseId)).toBeGreaterThanOrEqual(8 * 60_000);
     expect(lookedUpAt.get(caseRequest(2).caseId)).toBeLessThan(60_000);
