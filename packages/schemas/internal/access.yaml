@@ -919,7 +919,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetails'
         '409':
-          description: Problem code `officer-resolved` (verified already), `request-decided` or `request-closed`; or the account the request came from is no longer an active officer account of its agency
+          description: 'Problem code `officer-resolved` (verified already), `request-decided` or `request-closed`; or `lea-account-inactive`: the account the request came from is no longer an active officer account of its agency (deny it instead)'
           content:
             application/problem+json:
               schema:
@@ -3143,6 +3143,7 @@ components:
             - officer-resolved
             - not-under-decision
             - not-pending-verification
+            - lea-account-inactive
             - representations-closed
             - download-expired
             - scope-exceeds-request

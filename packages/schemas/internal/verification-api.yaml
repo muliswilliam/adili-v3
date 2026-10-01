@@ -233,6 +233,7 @@ components:
             - officer-resolved
             - not-under-decision
             - not-pending-verification
+            - lea-account-inactive
             - representations-closed
             - download-expired
             - scope-exceeds-request

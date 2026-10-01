@@ -168,7 +168,7 @@ export class LeaController {
   @ApiProblemResponse(404, NOT_VISIBLE)
   @ApiProblemResponse(
     409,
-    'Problem code `officer-resolved` (verified already), `request-decided` or `request-closed`; or the account the request came from is no longer an active officer account of its agency',
+    'Problem code `officer-resolved` (verified already), `request-decided` or `request-closed`; or `lea-account-inactive`: the account the request came from is no longer an active officer account of its agency (deny it instead)',
   )
   @ApiProblemResponse(503, 'The directory cannot be reached; nothing was recorded')
   verify(

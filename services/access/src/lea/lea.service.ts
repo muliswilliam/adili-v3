@@ -18,7 +18,7 @@ import {
   type LeaOfficerFacts,
   type RosterRecordFacts,
 } from '../directory/directory-client.js';
-import { badRequest, conflict, directoryUnavailable, forbidden, problem } from '../problems.js';
+import { badRequest, directoryUnavailable, forbidden, problem } from '../problems.js';
 import { AccessRegister, type RegisterRow } from '../register/access-register.js';
 import type { RosterCandidates } from '../requests/officer-representation.js';
 import { rosterCandidates } from '../requests/roster-candidates.js';
@@ -210,7 +210,8 @@ export class LeaService {
       !isActiveAccount(officer, before.officerSubject) ||
       officer.agency.code !== before.agencyCode
     ) {
-      throw conflict(
+      throw problem(
+        'lea-account-inactive',
         'The account this request came from is no longer an active officer account of its agency: deny the request instead.',
       );
     }

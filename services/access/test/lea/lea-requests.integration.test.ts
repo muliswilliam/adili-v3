@@ -543,7 +543,9 @@ describe('Law enforcement requests (S11)', () => {
 
       // Peter's account revoked since he filed: the provenance no longer holds.
       api.directory.givenLeaOfficer(peter.personId, peter.sub, { state: 'revoked' });
-      expect((await verifyLea(api, id, anne.id)).statusCode).toBe(409);
+      const inactive = await verifyLea(api, id, anne.id);
+      expect(inactive.statusCode).toBe(409);
+      expect(inactive.json()).toMatchObject({ code: 'lea-account-inactive' });
       api.directory.givenLeaOfficer(peter.personId, peter.sub, { name: peter.name });
 
       expect((await verifyLea(api, id, anne.id)).statusCode).toBe(200);

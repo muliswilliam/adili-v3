@@ -1105,7 +1105,7 @@ export interface components {
              * @description Machine-readable cause, from the platform registry; clients map it to copy and never show `title` or `detail`
              * @enum {string}
              */
-            code?: "database-unavailable" | "rate-limit-exceeded" | "no-match" | "already-onboarded" | "no-roster" | "otp-invalid" | "otp-expired" | "resend-cooldown" | "otp-send-failed" | "wrong-step" | "session-expired" | "iprs-unavailable" | "identity-unavailable" | "email-in-use" | "identity-mismatch" | "step-up-required" | "incomplete" | "before-statement-date" | "amendment-window-closed" | "not-a-draft" | "not-submitted" | "obligation-cancelled" | "acknowledgement-issued" | "acknowledgement-in-progress" | "no-applicant-record" | "request-decided" | "request-closed" | "officer-resolved" | "not-under-decision" | "not-pending-verification" | "representations-closed" | "download-expired" | "scope-exceeds-request" | "grounds-required";
+            code?: "database-unavailable" | "rate-limit-exceeded" | "no-match" | "already-onboarded" | "no-roster" | "otp-invalid" | "otp-expired" | "resend-cooldown" | "otp-send-failed" | "wrong-step" | "session-expired" | "iprs-unavailable" | "identity-unavailable" | "email-in-use" | "identity-mismatch" | "step-up-required" | "incomplete" | "before-statement-date" | "amendment-window-closed" | "not-a-draft" | "not-submitted" | "obligation-cancelled" | "acknowledgement-issued" | "acknowledgement-in-progress" | "no-applicant-record" | "request-decided" | "request-closed" | "officer-resolved" | "not-under-decision" | "not-pending-verification" | "lea-account-inactive" | "representations-closed" | "download-expired" | "scope-exceeds-request" | "grounds-required";
             detail?: string;
             instance?: string;
             /** @description Field-level errors; `path` is the dotted request field */
@@ -2181,7 +2181,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
-            /** @description Problem code `officer-resolved` (verified already), `request-decided` or `request-closed`; or the account the request came from is no longer an active officer account of its agency */
+            /** @description Problem code `officer-resolved` (verified already), `request-decided` or `request-closed`; or `lea-account-inactive`: the account the request came from is no longer an active officer account of its agency (deny it instead) */
             409: {
                 headers: {
                     [name: string]: unknown;
