@@ -95,6 +95,10 @@ _Avoid_: reference number, document ID, serial
 
 ### Review
 
+**Registry check**:
+The comparison of a declaration's items with what KRA, NTSA, BRS and ArdhiSasa hold for each person whose national ID is known (Regs r.20(1)(b)), run when the declaration is processed. Each person has a status per registry: matched, mismatched, unavailable, not checked, or no ID. Mismatches are flags: indicators, never findings.
+_Avoid_: verification (that is the gateway's stored lookup), registry audit
+
 **Clarification**:
 A Responsible Commission's request that a declarant explain or complete a declaration (Act s.35).
 _Avoid_: query, question, follow-up
