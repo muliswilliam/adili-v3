@@ -422,7 +422,19 @@ describe('clarifications: drafts, issue, letter payload, declarant reads', () =>
 
     // A draft has no letter.
     expect((await api.get(payloadUrl, documentsService, psc)).statusCode).toBe(404);
+    api.declarations.reads.length = 0;
     const { reference } = (await issue(id)).json<ClarificationView>();
+    // Issuing fixes the letter: its labels are read from the declaration as filed, for the case,
+    // as the reviewer issuing it.
+    expect(api.declarations.reads).toEqual([
+      {
+        declarationId: version.declarationId,
+        version: 1,
+        tenant: 'psc',
+        actingSubject: 'reviewer-a',
+        caseId,
+      },
+    ]);
     api.declarations.reads.length = 0;
 
     const response = await api.get(payloadUrl, documentsService, psc);
@@ -462,16 +474,8 @@ describe('clarifications: drafts, issue, letter payload, declarant reads', () =>
     for (const leak of [caseId, version.personId, version.declarationId, plot.id, '1000000000']) {
       expect(text).not.toContain(leak);
     }
-    // The labels were read from the declaration as filed, for the case, as the service.
-    expect(api.declarations.reads).toEqual([
-      {
-        declarationId: version.declarationId,
-        version: 1,
-        tenant: 'psc',
-        actingSubject: 'system:review',
-        caseId,
-      },
-    ]);
+    // Rendering calls no other service (ADR-013 §7.3): the letter was fixed when it was issued.
+    expect(api.declarations.reads).toEqual([]);
 
     // Another Commission, a user token, or no acting Commission: refused.
     expect(
@@ -480,15 +484,27 @@ describe('clarifications: drafts, issue, letter payload, declarant reads', () =>
     expect((await api.get(payloadUrl, reviewerA, psc)).statusCode).toBe(403);
     expect((await api.get(payloadUrl, documentsService)).statusCode).toBe(400);
 
-    // Declarations unreachable: the same 502 as every other read of the declaration.
+    // Declarations unreachable: the issued letter is served all the same.
     api.declarations.failReads(1);
-    const unavailable = await api.get(payloadUrl, documentsService, psc);
-    expect(unavailable.statusCode).toBe(502);
-    expect(unavailable.json()).toMatchObject({
+    expect((await api.get(payloadUrl, documentsService, psc)).statusCode).toBe(200);
+  });
+
+  it('issuing while declarations is unreachable is a 502 and issues nothing', async () => {
+    const caseId = await givenAssignedCase(api, version);
+    const { id } = (await draft(caseId)).json<ClarificationView>();
+    api.declarations.failReads(1);
+
+    const refused = await issue(id);
+
+    expect(refused.statusCode).toBe(502);
+    expect(refused.json()).toMatchObject({
       type: 'declarations-unavailable',
       title: 'Upstream service unavailable',
       status: 502,
     });
+    const still = await api.get(`/v1/review/clarifications/${id}`, reviewerA);
+    expect(still.json<ClarificationView>()).toMatchObject({ status: 'draft', reference: null });
+    expect((await issue(id)).statusCode).toBe(200);
   });
 
   it("declarant: lists and reads their issued clarifications with the letter link, never drafts or other people's", async () => {
