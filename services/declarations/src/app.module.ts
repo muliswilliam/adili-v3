@@ -19,6 +19,7 @@ import {
 import { AcknowledgementModule } from './acknowledgement/acknowledgement.module.js';
 import { config, SERVICE_NAME } from './config.js';
 import { schema } from './db/schema.js';
+import { DisclosureModule } from './disclosure/disclosure.module.js';
 import { DraftsModule } from './drafts/drafts.module.js';
 import { HelpModule } from './help/help.module.js';
 import { ObligationsModule } from './obligations/obligations.module.js';
@@ -65,6 +66,7 @@ class FieldCipherModule {}
     DraftsModule,
     SubmissionModule,
     AcknowledgementModule,
+    DisclosureModule,
     HelpModule,
   ],
 })
