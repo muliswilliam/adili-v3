@@ -2,6 +2,8 @@ import type { z } from 'zod';
 
 import { decisionSchema, groundSchema, outcomeSchema, packageSchema } from './decision.js';
 import { registerEntrySchema } from './register/representation.js';
+import { verifyApplicantBody } from './requests/applicant-verification.service.js';
+import { officerRequestViewSchema, representationsSchema } from './requests/officer-view.js';
 import {
   accessRequestSchema,
   accessRequestStatusSchema,
@@ -25,4 +27,7 @@ export const OPENAPI_SCHEMAS: Record<string, z.ZodType> = {
   FormK: formKSchema,
   AccessRequest: accessRequestSchema,
   RegisterEntry: registerEntrySchema,
+  Representations: representationsSchema,
+  OfficerRequestView: officerRequestViewSchema,
+  VerifyApplicantIdentity: verifyApplicantBody,
 };

@@ -3,6 +3,8 @@ import { z } from 'zod';
 
 import type { paths } from './directory-api.gen.js';
 import {
+  type ApplicantFacts,
+  type ApplicantVerificationInput,
   type CommissionFacts,
   DirectoryClient,
   DirectoryUnavailable,
@@ -16,6 +18,11 @@ export const COMMISSION_CACHE_TTL_MS = 5 * 60 * 1000;
 export interface HttpDirectoryClientOptions {
   directoryUrl: string;
   tokens: Pick<ServiceTokenClient, 'token' | 'invalidate'>;
+  /**
+   * Tokens with `directory:applicants`, for applicants' particulars and verifications: personal
+   * data, so a scope of its own, apart from the reference data `tokens` read.
+   */
+  applicantTokens: Pick<ServiceTokenClient, 'token' | 'invalidate'>;
   /** Per attempt. Default ADR-013's 2 s. */
   timeoutMs?: number;
   cacheTtlMs?: number;
@@ -43,6 +50,11 @@ const staffSchema = z.object({
   items: z.array(z.object({ subject: z.string().min(1), email: z.email() })),
 });
 
+const applicantSchema = z.object({
+  personId: z.uuid(),
+  identityStatus: z.enum(['verified', 'pending-verification']),
+});
+
 const none = (): null => null;
 
 /**
@@ -54,6 +66,7 @@ const none = (): null => null;
  */
 export class HttpDirectoryClient extends DirectoryClient {
   private readonly directory: ServiceClient<paths>;
+  private readonly applicants: ServiceClient<paths>;
   private readonly commissions = new Map<string, { commission: CommissionFacts; until: number }>();
   private readonly ttlMs: number;
   private readonly now: () => number;
@@ -64,6 +77,14 @@ export class HttpDirectoryClient extends DirectoryClient {
       baseUrl: options.directoryUrl,
       service: 'directory',
       tokens: options.tokens,
+      unavailable: (message, cause) => new DirectoryUnavailable(message, cause),
+      timeoutMs: options.timeoutMs,
+      fetch: options.fetch,
+    });
+    this.applicants = createServiceClient<paths>({
+      baseUrl: options.directoryUrl,
+      service: 'directory',
+      tokens: options.applicantTokens,
       unavailable: (message, cause) => new DirectoryUnavailable(message, cause),
       timeoutMs: options.timeoutMs,
       fetch: options.fetch,
@@ -118,5 +139,37 @@ export class HttpDirectoryClient extends DirectoryClient {
       { status: 200, schema: staffSchema },
     );
     return found.items;
+  }
+
+  async applicant(personId: string, tenant: string): Promise<ApplicantFacts | null> {
+    const found = await this.applicants.call(
+      (api) =>
+        api.GET('/internal/v1/applicants/{personId}', {
+          params: { path: { personId }, header: { 'X-Acting-Tenant': tenant } },
+        }),
+      { status: 200, schema: applicantSchema, otherwise: { 404: none } },
+    );
+    return found === null
+      ? null
+      : { personId: found.personId, identityStatus: found.identityStatus };
+  }
+
+  async verifyApplicantIdentity(input: ApplicantVerificationInput): Promise<ApplicantFacts | null> {
+    // A 502 `identity-unavailable` (the account could not be changed, nothing changed) is an
+    // outage like any other: the caller retries with the same key.
+    const found = await this.applicants.call(
+      (api) =>
+        api.POST('/internal/v1/applicants/{personId}/identity-verification', {
+          params: {
+            path: { personId: input.personId },
+            header: { 'X-Acting-Tenant': input.tenant, 'Idempotency-Key': input.idempotencyKey },
+          },
+          body: { verifiedBy: input.verifiedBy },
+        }),
+      { status: 200, schema: applicantSchema, otherwise: { 404: none } },
+    );
+    return found === null
+      ? null
+      : { personId: found.personId, identityStatus: found.identityStatus };
   }
 }

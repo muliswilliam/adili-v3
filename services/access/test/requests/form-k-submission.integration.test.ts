@@ -47,6 +47,7 @@ describe('Form K submission (S2)', () => {
 
   function given(): void {
     api.directory.givenCommission('psc', 'Public Service Commission');
+    api.directory.givenApplicant(applicant.personId ?? '');
     api.clock.set(NOW);
   }
 
@@ -230,6 +231,27 @@ describe('Form K submission (S2)', () => {
 
     expect(response.statusCode).toBe(403);
     expect(response.json()).toMatchObject({ code: 'no-applicant-record' });
+    await expectNothingStored();
+  });
+
+  it('an applicant account with no applicant person in the directory gets 403 no-applicant-record', async () => {
+    given();
+
+    const response = await submit(COMPLETE, { ...applicant, personId: randomUUID() });
+
+    expect(response.statusCode).toBe(403);
+    expect(response.json()).toMatchObject({ code: 'no-applicant-record' });
+    await expectNothingStored();
+  });
+
+  it('the directory down when the applicant is looked up is 503 and nothing is stored', async () => {
+    given();
+    api.directory.failCalls(1, 'applicant');
+
+    const response = await submit(COMPLETE);
+
+    expect(response.statusCode).toBe(503);
+    expect(response.json()).toMatchObject({ type: 'directory-unavailable' });
     await expectNothingStored();
   });
 

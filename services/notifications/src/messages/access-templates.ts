@@ -6,8 +6,8 @@ import { define, email, longDate, NEVER_ASKS, paragraph, signInParagraph } from 
 
 /**
  * Templates of access to declarations (spec 10): to the declarant (a request was made, what was
- * decided, a law-enforcement grant), to the applicant or law-enforcement officer (the decision,
- * the package), to the access officer (reminders) and the declarant's certified copy. They name
+ * decided, a law-enforcement grant), to the applicant (the acknowledgement of their Form K) or
+ * law-enforcement officer (the decision, the package), to the access officer (reminders) and the declarant's certified copy. They name
  * the request and the Commission only: who asked, why, and what was disclosed stay behind
  * sign-in.
  */
@@ -57,6 +57,47 @@ const declarationReference = z.string().superRefine((reference, ctx) => {
 });
 
 const UNDER_SECTION_36 = 'under section 36 of the Conflict of Interest Act';
+
+// ---- To the applicant: Form K received (the acknowledgement, Regulation 22) ----
+
+const APPLICANT_IDENTITY_STATUSES = ['verified', 'pending-verification'] as const;
+
+const acknowledgementParams = z.strictObject({
+  reference: accessReference,
+  commissionName,
+  /** Civil date `YYYY-MM-DD`: the decision deadline (receipt + 30 days). */
+  decideBy: z.iso.date(),
+  /**
+   * `pending-verification` for a passport applicant whose particulars the access officer still
+   * has to check: the request waits until then.
+   */
+  identityStatus: z.enum(APPLICANT_IDENTITY_STATUSES),
+  signInUrl,
+});
+type AcknowledgementParams = z.infer<typeof acknowledgementParams>;
+
+function acknowledgementEmail(params: AcknowledgementParams) {
+  return email(`Request ${params.reference} received`, [
+    paragraph(
+      `${params.commissionName} has received your request ${params.reference} to see a declaration ${UNDER_SECTION_36}. Quote this reference whenever you contact the Commission about it.`,
+    ),
+    ...(params.identityStatus === 'pending-verification'
+      ? [
+          paragraph(
+            'You registered with a passport, so the Commission will first check the particulars you entered. Your request goes ahead once it has.',
+          ),
+        ]
+      : []),
+    paragraph(
+      `The Commission must decide by ${longDate(params.decideBy)}. We will tell you when it has.`,
+    ),
+    signInParagraph(
+      params.signInUrl,
+      'to follow your request, or to withdraw it before it is decided.',
+    ),
+    paragraph(NEVER_ASKS),
+  ]);
+}
 
 // ---- To the declarant: a request was made (before any decision, Act s.36(3)) ----
 
@@ -296,6 +337,20 @@ function certifiedCopyEmail(params: CertifiedCopyParams) {
 
 /** The access templates, registered with the others in `templates`. */
 export const accessTemplates = {
+  'access-acknowledgement-email': define({
+    channel: 'email',
+    params: acknowledgementParams,
+    copy: { en: acknowledgementEmail },
+  }),
+  'access-acknowledgement-sms': define({
+    channel: 'sms',
+    params: acknowledgementParams,
+    copy: {
+      en: (params) => ({
+        text: `Adili: your request ${params.reference} was received. Decision due by ${longDate(params.decideBy)}. Follow it at ${params.signInUrl}`,
+      }),
+    },
+  }),
   'access-request-notified-email': define({
     channel: 'email',
     params: notifiedParams,

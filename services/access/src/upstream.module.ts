@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { ServiceTokenClient } from '@adili/api-kit';
 import {
   DECLARATIONS_INTERNAL_SCOPE,
+  DIRECTORY_APPLICANTS_SCOPE,
   DIRECTORY_INTERNAL_SCOPE,
   DOCUMENTS_INTERNAL_SCOPE,
   MESSAGES_SCOPE,
@@ -28,8 +29,8 @@ const tokens = (scope: string) =>
 
 /**
  * The other services' internal APIs the access service calls, with its own token through clients
- * generated from their contracts (ADR-013 §2, §8.7): Commissions, roster records and staff
- * (directory), scoped disclosures and full documents (declarations), packages, certified copies
+ * generated from their contracts (ADR-013 §2, §8.7): Commissions, roster records, staff and
+ * applicants (directory), scoped disclosures and full documents (declarations), packages, certified copies
  * and representation attachments (documents), and messages (notifications).
  */
 @Module({
@@ -40,6 +41,7 @@ const tokens = (scope: string) =>
         new HttpDirectoryClient({
           directoryUrl: config.DIRECTORY_URL,
           tokens: tokens(DIRECTORY_INTERNAL_SCOPE),
+          applicantTokens: tokens(DIRECTORY_APPLICANTS_SCOPE),
         }),
     },
     {

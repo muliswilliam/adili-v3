@@ -9,6 +9,9 @@ import {
   type VersionDocument,
 } from '../../src/declarations/declarations-client.js';
 import {
+  type ApplicantFacts,
+  type ApplicantIdentityStatus,
+  type ApplicantVerificationInput,
   type CommissionFacts,
   DirectoryClient,
   DirectoryUnavailable,
@@ -55,9 +58,13 @@ class Failures {
   }
 }
 
-/** The directory: Commissions, roster records and staff, per Commission. */
+/** The directory: Commissions, roster records and staff, per Commission, and applicants. */
 export class FakeDirectory extends DirectoryClient {
   readonly calls: { method: string; slug: string }[] = [];
+  /** Each verification recorded, as asked (a replayed key included). */
+  readonly verifications: ApplicantVerificationInput[] = [];
+  private readonly applicants = new Map<string, ApplicantIdentityStatus>();
+  private failingMethod: string | undefined;
   private readonly commissions = new Map<string, CommissionFacts>();
   private readonly records = new Map<string, RosterRecordFacts & { slug: string }>();
   private readonly staff = new Map<string, StaffMember[]>();
@@ -84,13 +91,27 @@ export class FakeDirectory extends DirectoryClient {
     this.staff.set(`${slug}:${role}`, members);
   }
 
-  /** The next `count` calls fail, as a directory outage would. */
-  failCalls(count: number): void {
+  /** An applicant person, verified (national ID matched by IPRS) unless said otherwise. */
+  givenApplicant(personId: string, identityStatus: ApplicantIdentityStatus = 'verified'): void {
+    this.applicants.set(personId, identityStatus);
+  }
+
+  /** The applicant's identity status as the directory now holds it. */
+  identityStatusOf(personId: string): ApplicantIdentityStatus | undefined {
+    return this.applicants.get(personId);
+  }
+
+  /** The next `count` calls (of `method` only, when given) fail, as a directory outage would. */
+  failCalls(count: number, method?: string): void {
     this.failures.next(count);
+    this.failingMethod = method;
   }
 
   reset(): void {
     this.calls.length = 0;
+    this.verifications.length = 0;
+    this.applicants.clear();
+    this.failingMethod = undefined;
     this.commissions.clear();
     this.records.clear();
     this.staff.clear();
@@ -118,9 +139,26 @@ export class FakeDirectory extends DirectoryClient {
     return this.answer('staffWithRole', slug, () => this.staff.get(`${slug}:${role}`) ?? []);
   }
 
+  applicant(personId: string, tenant: string): Promise<ApplicantFacts | null> {
+    return this.answer('applicant', tenant, () => {
+      const identityStatus = this.applicants.get(personId);
+      return identityStatus === undefined ? null : { personId, identityStatus };
+    });
+  }
+
+  verifyApplicantIdentity(input: ApplicantVerificationInput): Promise<ApplicantFacts | null> {
+    return this.answer('verifyApplicantIdentity', input.tenant, () => {
+      this.verifications.push({ ...input });
+      if (!this.applicants.has(input.personId)) return null;
+      this.applicants.set(input.personId, 'verified');
+      return { personId: input.personId, identityStatus: 'verified' as const };
+    });
+  }
+
   private answer<T>(method: string, slug: string, value: () => T): Promise<T> {
     this.calls.push({ method, slug });
-    if (this.failures.take()) {
+    const failing = this.failingMethod === undefined || this.failingMethod === method;
+    if (failing && this.failures.take()) {
       return Promise.reject(new DirectoryUnavailable('The directory is unreachable'));
     }
     return Promise.resolve(value());

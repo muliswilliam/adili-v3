@@ -28,58 +28,6 @@ paths:
                       type: array
                       items:
                         type: integer
-  /v1/access/requests:
-    get:
-      tags: [applicant]
-      operationId: listMyAccessRequests
-      summary: The applicant's requests
-      responses:
-        '200':
-          description: Requests
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/AccessRequest'
-  /v1/access/requests/{requestId}:
-    parameters:
-      - $ref: '#/components/parameters/RequestId'
-    get:
-      tags: [applicant]
-      operationId: getMyAccessRequest
-      summary: One request with decision and package status (applicant)
-      responses:
-        '200':
-          description: Request
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/AccessRequest'
-        '404':
-          $ref: '#/components/responses/NotFound'
-  /v1/access/requests/{requestId}/withdraw:
-    parameters:
-      - $ref: '#/components/parameters/RequestId'
-    post:
-      tags: [applicant]
-      operationId: withdrawAccessRequest
-      summary: Withdraw before a decision
-      responses:
-        '200':
-          description: Withdrawn
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/AccessRequest'
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '409':
-          description: Already decided
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ProblemDetails'
   /v1/access/requests/{requestId}/package/download:
     parameters:
       - $ref: '#/components/parameters/RequestId'
@@ -264,37 +212,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/OfficerRequestView'
-        '404':
-          $ref: '#/components/responses/NotFound'
-  /v1/access/requests/{requestId}/verify-applicant:
-    parameters:
-      - $ref: '#/components/parameters/RequestId'
-    post:
-      tags: [officer]
-      operationId: verifyApplicantIdentity
-      summary: Record manual verification of a passport applicant
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [verified, note]
-              properties:
-                verified:
-                  type: boolean
-                note:
-                  type: string
-                  maxLength: 1000
-      responses:
-        '200':
-          description: Recorded
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/OfficerRequestView'
-        '403':
-          $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
   /v1/access/requests/{requestId}/resolve:
@@ -626,32 +543,6 @@ components:
           format: date-time
         late:
           type: boolean
-    Representations:
-      type: object
-      required: [stance, text, attachments, submittedAt, updatedAt]
-      properties:
-        stance:
-          type: string
-          enum: [object, consent, context]
-        text:
-          type: string
-        attachments:
-          type: array
-          items:
-            type: object
-            required: [uploadId, fileName]
-            properties:
-              uploadId:
-                type: string
-                format: uuid
-              fileName:
-                type: string
-        submittedAt:
-          type: string
-          format: date-time
-        updatedAt:
-          type: string
-          format: date-time
     RepresentationsInput:
       type: object
       required: [stance, text, attachments]
@@ -668,25 +559,6 @@ components:
           items:
             type: string
             format: uuid
-    OfficerRequestView:
-      allOf:
-        - $ref: '#/components/schemas/AccessRequest'
-        - type: object
-          required: [applicantIdentityStatus, resolvedRosterRecordId, representations, windowEndsAt]
-          properties:
-            applicantIdentityStatus:
-              type: string
-              enum: [verified, pending-verification]
-            resolvedRosterRecordId:
-              type: [string, 'null']
-              format: uuid
-            representations:
-              oneOf:
-                - $ref: '#/components/schemas/Representations'
-                - type: 'null'
-            windowEndsAt:
-              type: [string, 'null']
-              format: date-time
     DeclarantNotice:
       type: object
       required:
