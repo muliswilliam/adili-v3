@@ -221,6 +221,7 @@ export {
   type MenuNoteProps,
   MenuTrigger,
 } from './components/menu';
+export { Meter, type MeterProps } from './components/meter';
 export { MoneyInput, type MoneyInputProps } from './components/money-input';
 export { OtpInput, type OtpInputProps } from './components/otp-input';
 export { OfficerReference } from './components/officer-reference';
@@ -321,6 +322,8 @@ export {
   StatTile,
   type StatTileBreakdownItem,
   type StatTileProps,
+  StatTileSkeleton,
+  type StatTileSkeletonProps,
   type StatTileTone,
 } from './components/stat-tile';
 export {

@@ -3,7 +3,7 @@ import { UserRemove01Icon } from '@hugeicons/core-free-icons';
 import { useState } from 'react';
 
 import { Icon } from './icon';
-import { StatTile } from './stat-tile';
+import { StatTile, StatTileSkeleton } from './stat-tile';
 
 const byType = (initial: number, biennial: number, final: number) => [
   { label: 'Initial', value: initial },
@@ -112,4 +112,14 @@ export const SummaryRow: Story = {
       </div>
     );
   },
+};
+
+/** While the counts load. */
+export const Loading: Story = {
+  render: () => (
+    <div className="grid max-w-[540px] grid-cols-2 gap-3">
+      <StatTileSkeleton />
+      <StatTileSkeleton lines={2} />
+    </div>
+  ),
 };
