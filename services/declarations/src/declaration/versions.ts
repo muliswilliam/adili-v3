@@ -39,6 +39,15 @@ export async function openSnapshot(cipher: FieldCipher, row: VersionRow): Promis
   return JSON.parse(plaintext.toString('utf8')) as DeclarationV1;
 }
 
+/** The officer's name as declared in the document: first, other and surname. */
+export function declaredName(document: DeclarationV1): string {
+  const name = document.officer.name;
+  return [name.firstName, name.otherNames, name.surname]
+    .map((part) => part?.trim())
+    .filter(Boolean)
+    .join(' ');
+}
+
 /** A version of the declaration by number, as the transaction's context lets it be seen. */
 export async function versionRow(
   tx: Transaction,

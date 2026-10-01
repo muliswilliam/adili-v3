@@ -52,6 +52,15 @@ import {
 } from './obligations/representation.js';
 import { declarationReferenceSchema } from './declaration/reference.js';
 import {
+  disclosedVersionSchema,
+  disclosureDocumentSchema,
+  disclosureRequestSchema,
+  disclosureSectionSchema,
+  fullVersionDocumentSchema,
+  grantReferenceSchema,
+  legalBasisSchema,
+} from './disclosure/representation.js';
+import {
   acknowledgementSchema,
   acknowledgementStatusSchema,
   declarationVersionDetailSchema,
@@ -106,6 +115,13 @@ export const OPENAPI_SCHEMAS: Record<string, z.ZodType> = {
   SubmitProblem: submitProblemSchema,
   AcknowledgementSlip: acknowledgementSlipSchema,
   AcknowledgementPayload: acknowledgementPayloadSchema,
+  DisclosureSection: disclosureSectionSchema,
+  LegalBasis: legalBasisSchema,
+  GrantReference: grantReferenceSchema,
+  DisclosureRequest: disclosureRequestSchema,
+  DisclosedVersion: disclosedVersionSchema,
+  DisclosureDocument: disclosureDocumentSchema,
+  FullVersionDocument: fullVersionDocumentSchema,
   HelpLanguage: helpLanguageSchema,
   HelpTag: helpTagSchema,
   HelpPassage: helpPassageSchema,
