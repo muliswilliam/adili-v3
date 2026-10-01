@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-import type { AccessRequestStatus } from '../../server/access/types';
+import type { QueueStatus } from '../../server/access/types';
 
 /**
  * The access requests queue's filters (spec 10 FE-5), kept in the URL so a view can be shared,
@@ -29,19 +29,21 @@ export const queueSearchSchema = z.object({
 export type QueueSearch = z.infer<typeof queueSearchSchema>;
 
 /** The statuses that need the access officer: verify, identify, decide. */
-export const NEEDS_ACTION: readonly AccessRequestStatus[] = [
+export const NEEDS_ACTION: readonly QueueStatus[] = [
   'submitted',
   'pending-applicant-verification',
   'officer-unresolved',
   'under-decision',
 ];
 
-export const DECIDED: readonly AccessRequestStatus[] = ['granted', 'partially-granted', 'denied'];
+export const DECIDED: readonly QueueStatus[] = ['granted', 'partially-granted', 'denied'];
 
-export const CLOSED: readonly AccessRequestStatus[] = ['cannot-identify', 'withdrawn'];
+export const CLOSED: readonly QueueStatus[] = ['cannot-identify', 'withdrawn'];
 
 /** The access service's query for a filter: statuses, or the late flag. */
 export interface QueueServiceQuery {
+  /** Form K only: law enforcement requests have their own tab (#265). */
+  kind: 'form-k';
   status?: string;
   late?: 'true';
   search?: string;
@@ -53,7 +55,7 @@ export function queueServiceQuery(
   search: QueueSearch,
   limit: number = QUEUE_PAGE_SIZE,
 ): QueueServiceQuery {
-  const query: QueueServiceQuery = { limit };
+  const query: QueueServiceQuery = { kind: 'form-k', limit };
   switch (search.filter) {
     case 'action':
       query.status = NEEDS_ACTION.join(',');

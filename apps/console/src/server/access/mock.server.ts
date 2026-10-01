@@ -32,6 +32,7 @@ import type {
   AccessRequestStatus,
   OfficerRequestView,
   QueueItem,
+  QueueStatus,
   RegisterEntry,
   RosterCandidate,
 } from './types';
@@ -748,7 +749,7 @@ function callerOf(request: Request): Caller {
   }
 }
 
-const CLOSED: readonly AccessRequestStatus[] = [
+const CLOSED: readonly QueueStatus[] = [
   'granted',
   'partially-granted',
   'denied',

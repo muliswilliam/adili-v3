@@ -13,6 +13,8 @@ export type OfficerRequestView = Omit<Schemas['OfficerRequestView'], 'formK'> & 
   formK: FormKV1;
 };
 export type QueueItem = Schemas['QueueItem'];
+/** A `QueueItem` status: an `AccessRequestStatus`, or a law enforcement request's. */
+export type QueueStatus = QueueItem['status'];
 export type QueuePage = Schemas['QueuePage'];
 export type RegisterEntry = Schemas['RegisterEntry'];
 export type Representations = Schemas['Representations'];

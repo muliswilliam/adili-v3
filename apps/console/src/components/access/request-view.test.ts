@@ -27,7 +27,7 @@ describe('the queue filters', () => {
   });
 
   it("maps each filter to the service's query", () => {
-    expect(queueServiceQuery({})).toEqual({ limit: 20 });
+    expect(queueServiceQuery({})).toEqual({ kind: 'form-k', limit: 20 });
     expect(queueServiceQuery({ filter: 'action' })).toMatchObject({
       status: 'submitted,pending-applicant-verification,officer-unresolved,under-decision',
     });
@@ -35,6 +35,7 @@ describe('the queue filters', () => {
       status: 'awaiting-representations',
     });
     expect(queueServiceQuery({ filter: 'late', search: 'x', cursor: 'c' })).toEqual({
+      kind: 'form-k',
       late: 'true',
       search: 'x',
       cursor: 'c',

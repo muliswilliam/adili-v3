@@ -1,6 +1,6 @@
 import { plural } from '@adili/ui';
 
-import type { AccessRequestStatus } from '../../server/access/types';
+import type { QueueStatus } from '../../server/access/types';
 import type { QueueFilter } from './queue-query';
 
 /**
@@ -219,7 +219,7 @@ export const en = {
 
 /** The queue badge's word and tone for each status, as the prototype's `FK` table. */
 export const STATUS: Record<
-  AccessRequestStatus,
+  QueueStatus,
   { label: string; tone: 'default' | 'info' | 'brand' | 'success' | 'warning' | 'destructive' }
 > = {
   submitted: { label: 'Submitted', tone: 'info' },
@@ -232,6 +232,8 @@ export const STATUS: Record<
   denied: { label: 'Denied', tone: 'destructive' },
   'cannot-identify': { label: 'Cannot identify officer', tone: 'default' },
   withdrawn: { label: 'Withdrawn', tone: 'default' },
+  received: { label: 'Received', tone: 'info' },
+  verified: { label: 'Verified', tone: 'brand' },
 };
 
 export const messages = en;
