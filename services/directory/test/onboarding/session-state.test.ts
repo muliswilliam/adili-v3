@@ -35,6 +35,18 @@ describe('onboarding session state machine', () => {
     }
   });
 
+  it("S1: walks an applicant's session through the phone only, with no mismatch", () => {
+    expect(canTransition('identified', 'phone-pending', 'applicant')).toBe(true);
+    expect(canTransition('phone-pending', 'phone-verified', 'applicant')).toBe(true);
+    expect(canTransition('phone-verified', 'confirmed', 'applicant')).toBe(true);
+    expect(canTransition('phone-pending', 'expired', 'applicant')).toBe(true);
+
+    expect(canTransition('identified', 'email-pending', 'applicant')).toBe(false);
+    expect(canTransition('identified', 'phone-contact-required', 'applicant')).toBe(false);
+    expect(canTransition('phone-verified', 'identity-mismatch', 'applicant')).toBe(false);
+    expect(canTransition('confirmed', 'expired', 'applicant')).toBe(false);
+  });
+
   it('lets every live state expire', () => {
     const live = ONBOARDING_STATES.filter(
       (state) => !(TERMINAL_STATES as readonly string[]).includes(state),

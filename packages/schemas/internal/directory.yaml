@@ -2667,6 +2667,508 @@ paths:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/ProblemDetails'
+  /v1/onboarding/applicants:
+    post:
+      tags:
+        - onboarding
+      summary: Start onboarding as a public applicant (national ID with IPRS check, or passport pending manual verification)
+      description: Public, rate-limited per client IP (the budget of identify, which a session that runs out of codes or resends also uses up). A national ID is checked with IPRS against the names entered first (`identity-mismatch` if IPRS disagrees); a passport is not checked, and the account will be `pending-verification` until an access officer verifies it. The phone's code is sent at once. On success the response carries the session and, once only, the session secret the BFF stores in an httpOnly cookie.
+      operationId: startApplicantOnboarding
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StartApplicantOnboarding'
+      responses:
+        '201':
+          description: Session started; the code sent to the phone (`phone-pending`)
+          headers:
+            RateLimit-Limit:
+              description: Requests the caller's budget holds when full
+              schema:
+                type: integer
+            RateLimit-Remaining:
+              description: Requests left in the budget after this one
+              schema:
+                type: integer
+            RateLimit-Reset:
+              description: Seconds until the budget is full again
+              schema:
+                type: integer
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApplicantOnboardingSessionCreated'
+        '400':
+          description: Body failed validation
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '409':
+          description: 'Problem code `identity-mismatch`: IPRS has no person with this national ID under these names; or `already-onboarded` (with `links`): an applicant account has this document'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ApplicantOnboardingProblem'
+        '429':
+          description: |-
+            Problem code `rate-limit-exceeded` (with `retryAfterSeconds` and Retry-After)
+
+            Problem code `rate-limit-exceeded`: rate limit exceeded; retry after the seconds in `retryAfterSeconds` and Retry-After
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+          headers:
+            RateLimit-Limit:
+              description: Requests the caller's budget holds when full
+              schema:
+                type: integer
+            RateLimit-Remaining:
+              description: Requests left in the budget after this one
+              schema:
+                type: integer
+            RateLimit-Reset:
+              description: Seconds until the budget is full again
+              schema:
+                type: integer
+            Retry-After:
+              description: Seconds until the next request would be allowed
+              schema:
+                type: integer
+        '502':
+          description: 'Problem code `otp-send-failed`: the code could not be sent; no session was created'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ApplicantOnboardingProblem'
+        '503':
+          description: 'Problem code `iprs-unavailable`: IPRS could not be checked; try again later'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ApplicantOnboardingProblem'
+      security: []
+  /v1/onboarding/applicants/{sessionId}:
+    get:
+      tags:
+        - onboarding
+      summary: Current step, masked contacts and the identity status the account gets
+      description: Public, with the session secret; rate-limited per client IP.
+      operationId: getApplicantOnboardingSession
+      parameters:
+        - name: sessionId
+          required: true
+          in: path
+          schema:
+            type: string
+            format: uuid
+        - name: X-Onboarding-Secret
+          in: header
+          description: Session secret returned once at creation; held by the portal BFF in an httpOnly cookie
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: The session
+          headers:
+            RateLimit-Limit:
+              description: Requests the caller's budget holds when full
+              schema:
+                type: integer
+            RateLimit-Remaining:
+              description: Requests left in the budget after this one
+              schema:
+                type: integer
+            RateLimit-Reset:
+              description: Seconds until the budget is full again
+              schema:
+                type: integer
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApplicantOnboardingSession'
+        '404':
+          description: No such session, or the secret is missing or wrong
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '410':
+          description: 'Problem code `session-expired`: the session ended or ran out of time; the BFF clears its cookie'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/OnboardingProblem'
+        '429':
+          description: 'Problem code `rate-limit-exceeded`: rate limit exceeded; retry after the seconds in `retryAfterSeconds` and Retry-After'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+          headers:
+            RateLimit-Limit:
+              description: Requests the caller's budget holds when full
+              schema:
+                type: integer
+            RateLimit-Remaining:
+              description: Requests left in the budget after this one
+              schema:
+                type: integer
+            RateLimit-Reset:
+              description: Seconds until the budget is full again
+              schema:
+                type: integer
+            Retry-After:
+              description: Seconds until the next request would be allowed
+              schema:
+                type: integer
+      security: []
+  /v1/onboarding/applicants/{sessionId}/otp/verify:
+    post:
+      tags:
+        - onboarding
+      summary: Verify the phone's 6-digit code
+      description: Public, with the session secret; rate-limited per client IP. The right code verifies the phone (`phone-verified`, the complete step). Five wrong codes end the session (410), which also uses up a start attempt of the client IP.
+      operationId: verifyApplicantOnboardingOtp
+      parameters:
+        - name: sessionId
+          required: true
+          in: path
+          schema:
+            type: string
+            format: uuid
+        - name: X-Onboarding-Secret
+          in: header
+          description: Session secret returned once at creation; held by the portal BFF in an httpOnly cookie
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VerifyOnboardingOtp'
+      responses:
+        '200':
+          description: Verified; the session moved on
+          headers:
+            RateLimit-Limit:
+              description: Requests the caller's budget holds when full
+              schema:
+                type: integer
+            RateLimit-Remaining:
+              description: Requests left in the budget after this one
+              schema:
+                type: integer
+            RateLimit-Reset:
+              description: Seconds until the budget is full again
+              schema:
+                type: integer
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApplicantOnboardingSession'
+        '400':
+          description: Problem code `otp-invalid` (with `attemptsLeft`) or `otp-expired`; a body failing validation has no code
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ApplicantOnboardingProblem'
+        '404':
+          description: No such session, or the secret is missing or wrong
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '409':
+          description: "Problem code `wrong-step`: the session is not waiting for the phone's code; re-read it"
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ApplicantOnboardingProblem'
+        '410':
+          description: 'Problem code `session-expired`: the session ended or ran out of time; the BFF clears its cookie'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/OnboardingProblem'
+        '429':
+          description: 'Problem code `rate-limit-exceeded`: rate limit exceeded; retry after the seconds in `retryAfterSeconds` and Retry-After'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+          headers:
+            RateLimit-Limit:
+              description: Requests the caller's budget holds when full
+              schema:
+                type: integer
+            RateLimit-Remaining:
+              description: Requests left in the budget after this one
+              schema:
+                type: integer
+            RateLimit-Reset:
+              description: Seconds until the budget is full again
+              schema:
+                type: integer
+            Retry-After:
+              description: Seconds until the next request would be allowed
+              schema:
+                type: integer
+      security: []
+  /v1/onboarding/applicants/{sessionId}/otp/resend:
+    post:
+      tags:
+        - onboarding
+      summary: Send a new phone code (60-second cooldown, at most 3)
+      description: Public, with the session secret; rate-limited per client IP. The new code replaces the old one. A fourth resend ends the session (410), which also uses up a start attempt of the client IP. Re-read the session for the next `resendAvailableAt` and `resendsLeft`.
+      operationId: resendApplicantOnboardingOtp
+      parameters:
+        - name: sessionId
+          required: true
+          in: path
+          schema:
+            type: string
+            format: uuid
+        - name: X-Onboarding-Secret
+          in: header
+          description: Session secret returned once at creation; held by the portal BFF in an httpOnly cookie
+          required: true
+          schema:
+            type: string
+      responses:
+        '202':
+          description: New code sent
+          headers:
+            RateLimit-Limit:
+              description: Requests the caller's budget holds when full
+              schema:
+                type: integer
+            RateLimit-Remaining:
+              description: Requests left in the budget after this one
+              schema:
+                type: integer
+            RateLimit-Reset:
+              description: Seconds until the budget is full again
+              schema:
+                type: integer
+        '404':
+          description: No such session, or the secret is missing or wrong
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '409':
+          description: "Problem code `wrong-step`: the session is not waiting for the phone's code; re-read it"
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ApplicantOnboardingProblem'
+        '410':
+          description: 'Problem code `session-expired`: the session ended or ran out of time; the BFF clears its cookie'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/OnboardingProblem'
+        '429':
+          description: Problem code `resend-cooldown` (with `retryAfterSeconds`) or `rate-limit-exceeded` (with `retryAfterSeconds` and Retry-After)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ApplicantOnboardingProblem'
+        '502':
+          description: 'Problem code `otp-send-failed`: the code could not be sent; nothing changed, try again'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ApplicantOnboardingProblem'
+      security: []
+  /v1/onboarding/applicants/{sessionId}/complete:
+    post:
+      tags:
+        - onboarding
+      summary: Create the applicant account and send its set-password email
+      description: 'Public, with the session secret; rate-limited per client IP. From `phone-verified` only. Creates the person (kind `applicant`) and the account (role `applicant`, no tenant, `identityStatus` `verified` for a national ID, `pending-verification` for a passport), then sends the set-password email; should that fail the account stands and the session says `setPasswordEmail: failed`. Idempotent per Idempotency-Key: a retry gets the first answer back.'
+      operationId: completeApplicantOnboarding
+      parameters:
+        - name: sessionId
+          required: true
+          in: path
+          schema:
+            type: string
+            format: uuid
+        - name: X-Onboarding-Secret
+          in: header
+          description: Session secret returned once at creation; held by the portal BFF in an httpOnly cookie
+          required: true
+          schema:
+            type: string
+        - name: Idempotency-Key
+          in: header
+          description: Client-generated UUID, unique per logical request; reuse on retry
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Account created; the session as it now is
+          headers:
+            RateLimit-Limit:
+              description: Requests the caller's budget holds when full
+              schema:
+                type: integer
+            RateLimit-Remaining:
+              description: Requests left in the budget after this one
+              schema:
+                type: integer
+            RateLimit-Reset:
+              description: Seconds until the budget is full again
+              schema:
+                type: integer
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApplicantOnboardingSession'
+        '404':
+          description: No such session, or the secret is missing or wrong
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '409':
+          description: Problem code `wrong-step` (the BFF re-reads the session), `already-onboarded` (an applicant account has this document) or `email-in-use` (the email belongs to another account); nothing changed
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ApplicantOnboardingProblem'
+        '410':
+          description: 'Problem code `session-expired`: the session ended or ran out of time; the BFF clears its cookie'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/OnboardingProblem'
+        '422':
+          description: Idempotency-Key reused with a different request body
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '429':
+          description: 'Problem code `rate-limit-exceeded`: rate limit exceeded; retry after the seconds in `retryAfterSeconds` and Retry-After'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+          headers:
+            RateLimit-Limit:
+              description: Requests the caller's budget holds when full
+              schema:
+                type: integer
+            RateLimit-Remaining:
+              description: Requests left in the budget after this one
+              schema:
+                type: integer
+            RateLimit-Reset:
+              description: Seconds until the budget is full again
+              schema:
+                type: integer
+            Retry-After:
+              description: Seconds until the next request would be allowed
+              schema:
+                type: integer
+        '502':
+          description: 'Problem code `identity-unavailable`: the account could not be created; nothing changed'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ApplicantOnboardingProblem'
+      security: []
+  /v1/onboarding/applicants/{sessionId}/resend-password-email:
+    post:
+      tags:
+        - onboarding
+      summary: Send the set-password email again
+      description: 'Public, with the session secret; rate-limited per client IP. Only for a completed session, a minute after the last email, until 24 hours after complete (the session `expiresAt`, then 410); the session then says when the next may be sent (`otp.resendAvailableAt`). Idempotent per Idempotency-Key: a retry sends no second email.'
+      operationId: resendApplicantSetPasswordEmail
+      parameters:
+        - name: sessionId
+          required: true
+          in: path
+          schema:
+            type: string
+            format: uuid
+        - name: X-Onboarding-Secret
+          in: header
+          description: Session secret returned once at creation; held by the portal BFF in an httpOnly cookie
+          required: true
+          schema:
+            type: string
+        - name: Idempotency-Key
+          in: header
+          description: Client-generated UUID, unique per logical request; reuse on retry
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '202':
+          description: Email requested
+          headers:
+            RateLimit-Limit:
+              description: Requests the caller's budget holds when full
+              schema:
+                type: integer
+            RateLimit-Remaining:
+              description: Requests left in the budget after this one
+              schema:
+                type: integer
+            RateLimit-Reset:
+              description: Seconds until the budget is full again
+              schema:
+                type: integer
+        '404':
+          description: No such session, or the secret is missing or wrong
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '409':
+          description: 'Problem code `wrong-step`: the session is not waiting for a set-password email (it is not completed); re-read it'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ApplicantOnboardingProblem'
+        '410':
+          description: 'Problem code `session-expired`: the session ended or ran out of time; the BFF clears its cookie'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/OnboardingProblem'
+        '422':
+          description: Idempotency-Key reused with a different request body
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '429':
+          description: Problem code `resend-cooldown` with `retryAfterSeconds`
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ApplicantOnboardingProblem'
+        '502':
+          description: 'Problem code `identity-unavailable`: the email could not be sent; try again'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ApplicantOnboardingProblem'
+      security: []
   /v1/me/declarant:
     get:
       tags:
@@ -2752,7 +3254,7 @@ paths:
       tags:
         - internal
       summary: Verified contacts of a person (notifications)
-      description: Service tokens with scope directory:person-contacts (the notifications service only), acting for the tenant a message is sent for; audited. A declarant's email and phone verified at the latest onboarding, null where none; a law-enforcement officer's official email and phone as provisioned, whatever the acting tenant (officers request from any Commission). 404 when the person is unknown, or a declarant not onboarded at that tenant.
+      description: Service tokens with scope directory:person-contacts (the notifications service only), acting for the tenant a message is sent for; audited. A declarant's email and phone verified at the latest onboarding, null where none; a law-enforcement officer's official email and phone as provisioned, and an applicant's as entered at applicant onboarding, whatever the acting tenant (officers and applicants request from any Commission). 404 when the person is unknown, or a declarant not onboarded at that tenant.
       operationId: internalGetPersonContacts
       parameters:
         - name: X-Acting-Tenant
@@ -2796,6 +3298,161 @@ paths:
       x-audited-read:
         action: person.contacts.read
         resource: person
+  /v1/me/applicant:
+    get:
+      tags:
+        - me
+      summary: The signed-in applicant's particulars and identity status
+      description: "Applicants only, their own: the person is the one whose account is the token's subject. The portal pre-fills Part I of Form K from it."
+      operationId: getMyApplicantProfile
+      responses:
+        '200':
+          description: Profile
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApplicantProfile'
+        '401':
+          description: Missing, expired or invalid access token
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '403':
+          description: |-
+            Not an applicant
+
+            Requires one of the roles: applicant
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: The account has the applicant role but no applicant person
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+  /internal/v1/applicants/{personId}:
+    get:
+      tags:
+        - internal
+      summary: An applicant's particulars and identity status (access)
+      description: 'Service tokens with scope directory:applicants (the access service only); audited. The identity document, names and contacts entered at applicant onboarding, and whether the identity is verified: Form K of a `pending-verification` applicant is held until an access officer verifies it.'
+      operationId: internalGetApplicant
+      parameters:
+        - name: X-Acting-Tenant
+          in: header
+          description: Tenant the calling service acts for; the resource must belong to it
+          required: true
+          schema:
+            type: string
+            pattern: ^[a-z][a-z0-9]{1,19}$
+        - name: personId
+          required: true
+          in: path
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: The applicant
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InternalApplicant'
+        '400':
+          description: personId is not a UUID
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '403':
+          description: Requires a service token with scope directory:applicants
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: No applicant has this id
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+      x-audited-read:
+        action: applicant.read
+        resource: person
+  /internal/v1/applicants/{personId}/identity-verification:
+    post:
+      tags:
+        - internal
+      summary: Record an access officer's verification of an applicant's identity (access)
+      description: "Service tokens with scope directory:applicants (the access service only), acting for the officer's Commission. The applicant's identity status becomes `verified`, on the person and on the account (`identityStatus` attribute), and `applicant.identity-verified.v1` is recorded. Idempotent: an applicant already verified (by IPRS, or before) is returned unchanged."
+      operationId: internalVerifyApplicantIdentity
+      parameters:
+        - name: X-Acting-Tenant
+          in: header
+          description: Tenant the calling service acts for; the resource must belong to it
+          required: true
+          schema:
+            type: string
+            pattern: ^[a-z][a-z0-9]{1,19}$
+        - name: personId
+          required: true
+          in: path
+          schema:
+            type: string
+            format: uuid
+        - name: Idempotency-Key
+          in: header
+          description: Client-generated UUID, unique per logical request; reuse on retry
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VerifyApplicantIdentity'
+      responses:
+        '200':
+          description: The applicant, verified
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InternalApplicant'
+        '400':
+          description: personId is not a UUID, or the body failed validation
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '403':
+          description: Requires a service token with scope directory:applicants
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: No applicant has this id
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '422':
+          description: Idempotency-Key reused with a different request body
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '502':
+          description: 'Problem code `identity-unavailable`: the account could not be changed; nothing changed, try again'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
   /v1/law-enforcement/agencies:
     get:
       tags:
@@ -2983,74 +3640,6 @@ paths:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/ProblemDetails'
-  /v1/onboarding/applicants:
-    post:
-      tags:
-        - onboarding
-      summary: Start onboarding as a public applicant (national ID with IPRS check, or passport pending manual verification)
-      operationId: startApplicantOnboarding
-      x-draft: true
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required:
-                - identityDocument
-                - names
-                - phone
-              properties:
-                identityDocument:
-                  type: object
-                  required:
-                    - kind
-                    - number
-                  properties:
-                    kind:
-                      type: string
-                      enum:
-                        - national-id
-                        - passport
-                    number:
-                      type: string
-                    country:
-                      type: string
-                names:
-                  type: object
-                  required:
-                    - surname
-                    - firstName
-                  properties:
-                    surname:
-                      type: string
-                    firstName:
-                      type: string
-                    otherNames:
-                      type: string
-                phone:
-                  type: string
-                email:
-                  type: string
-                  format: email
-      responses:
-        '201':
-          description: Session created; phone OTP sent
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/OnboardingSessionCreated'
-        '400':
-          $ref: '#/components/responses/ValidationProblem'
-        '409':
-          description: The identity document does not match IPRS, or belongs to an existing account
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/OnboardingProblem'
-        '429':
-          $ref: '#/components/responses/RateLimited'
-      security: []
   /internal/v1/commissions/{slug}/staff:
     get:
       tags:
@@ -4032,6 +4621,7 @@ components:
             - iprs-unavailable
             - identity-unavailable
             - email-in-use
+            - identity-mismatch
             - step-up-required
             - incomplete
             - before-statement-date
@@ -4093,6 +4683,7 @@ components:
             - iprs-unavailable
             - identity-unavailable
             - email-in-use
+            - identity-mismatch
             - step-up-required
             - incomplete
             - before-statement-date
@@ -5263,7 +5854,7 @@ components:
           type: string
           format: uuid
         email:
-          description: Verified at onboarding; null when none
+          description: "Verified at onboarding (an applicant's: as entered, proved by the set-password link); null when none"
           type:
             - string
             - 'null'
@@ -5400,6 +5991,456 @@ components:
         - email
         - phone
       additionalProperties: false
+    IdentityDocumentKind:
+      type: string
+      enum:
+        - national-id
+        - passport
+    IdentityStatus:
+      type: string
+      enum:
+        - verified
+        - pending-verification
+      description: '`verified`: by IPRS at onboarding (national ID) or by an access officer (passport). `pending-verification`: a passport applicant whose first Form K is held until an access officer verifies the particulars entered'
+    StartApplicantOnboarding:
+      type: object
+      properties:
+        identityDocument:
+          type: object
+          properties:
+            kind:
+              $ref: '#/components/schemas/IdentityDocumentKind'
+            number:
+              type: string
+              maxLength: 30
+              description: 'A national ID: 5 to 10 digits. A passport: 5 to 20 letters and digits, compared upper-cased. Spaces are ignored'
+            country:
+              description: A passport's issuing country, ISO 3166-1 alpha-2 (e.g. `UG`); required for a passport, not sent for a national ID
+              examples:
+                - UG
+              type: string
+          required:
+            - kind
+            - number
+        names:
+          type: object
+          properties:
+            surname:
+              type: string
+              minLength: 1
+              maxLength: 100
+              pattern: ^\p{L}[\p{L}\p{M}' .-]*$
+            firstName:
+              type: string
+              minLength: 1
+              maxLength: 100
+              pattern: ^\p{L}[\p{L}\p{M}' .-]*$
+            otherNames:
+              type: string
+              minLength: 1
+              maxLength: 100
+              pattern: ^\p{L}[\p{L}\p{M}' .-]*$
+          required:
+            - surname
+            - firstName
+        phone:
+          type: string
+          maxLength: 30
+          description: E.164, or a Kenyan number such as 0712345678; its code is sent at once
+        email:
+          type: string
+          maxLength: 254
+          description: The account username; the set-password email goes here when onboarding completes
+      required:
+        - identityDocument
+        - names
+        - phone
+        - email
+    ApplicantOnboardingState:
+      type: string
+      enum:
+        - identified
+        - phone-pending
+        - phone-verified
+        - confirmed
+        - expired
+    ApplicantOnboardingSession:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        state:
+          $ref: '#/components/schemas/ApplicantOnboardingState'
+        identityDocument:
+          type: object
+          properties:
+            kind:
+              $ref: '#/components/schemas/IdentityDocumentKind'
+          required:
+            - kind
+        identityStatus:
+          description: 'The identity status the account gets: `verified` for a national ID IPRS matched at start, `pending-verification` for a passport'
+          $ref: '#/components/schemas/IdentityStatus'
+        contacts:
+          type: object
+          properties:
+            phone:
+              anyOf:
+                - type: object
+                  properties:
+                    masked:
+                      type: string
+                      description: e.g. 07** *** 123
+                    verified:
+                      type: boolean
+                  required:
+                    - masked
+                    - verified
+                - type: 'null'
+            email:
+              anyOf:
+                - type: object
+                  properties:
+                    masked:
+                      type: string
+                      description: e.g. j***@example.com
+                  required:
+                    - masked
+                - type: 'null'
+          required:
+            - phone
+            - email
+        otp:
+          type: object
+          properties:
+            channel:
+              anyOf:
+                - type: string
+                  const: phone
+                - type: 'null'
+            resendAvailableAt:
+              anyOf:
+                - type: string
+                  format: date-time
+                - type: 'null'
+            resendsLeft:
+              type: integer
+            attemptsLeft:
+              type: integer
+          required:
+            - channel
+            - resendAvailableAt
+            - resendsLeft
+            - attemptsLeft
+          description: 'The phone code while `phone-pending`; once confirmed, `resendAvailableAt` is when the set-password email may be sent again (null: now)'
+        outcome:
+          anyOf:
+            - type: string
+              const: account-created
+            - type: 'null'
+          description: 'Set once confirmed: the account was created'
+        setPasswordEmail:
+          anyOf:
+            - type: string
+              enum:
+                - sent
+                - failed
+            - type: 'null'
+          description: 'Once confirmed: `sent`, the set-password email went; `failed`, the account stands but the email could not be sent, so the portal offers resend-password-email at once. Null before'
+        expiresAt:
+          type: string
+          format: date-time
+          description: 'When the session ends: 30 minutes after start, 10 more per successful step, at most 60 minutes after start. Once confirmed, 24 hours after (the set-password link lifespan)'
+      required:
+        - id
+        - state
+        - identityDocument
+        - identityStatus
+        - contacts
+        - otp
+        - outcome
+        - setPasswordEmail
+        - expiresAt
+    ApplicantOnboardingSessionCreated:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        state:
+          $ref: '#/components/schemas/ApplicantOnboardingState'
+        identityDocument:
+          type: object
+          properties:
+            kind:
+              $ref: '#/components/schemas/IdentityDocumentKind'
+          required:
+            - kind
+        identityStatus:
+          description: 'The identity status the account gets: `verified` for a national ID IPRS matched at start, `pending-verification` for a passport'
+          $ref: '#/components/schemas/IdentityStatus'
+        contacts:
+          type: object
+          properties:
+            phone:
+              anyOf:
+                - type: object
+                  properties:
+                    masked:
+                      type: string
+                      description: e.g. 07** *** 123
+                    verified:
+                      type: boolean
+                  required:
+                    - masked
+                    - verified
+                - type: 'null'
+            email:
+              anyOf:
+                - type: object
+                  properties:
+                    masked:
+                      type: string
+                      description: e.g. j***@example.com
+                  required:
+                    - masked
+                - type: 'null'
+          required:
+            - phone
+            - email
+        otp:
+          type: object
+          properties:
+            channel:
+              anyOf:
+                - type: string
+                  const: phone
+                - type: 'null'
+            resendAvailableAt:
+              anyOf:
+                - type: string
+                  format: date-time
+                - type: 'null'
+            resendsLeft:
+              type: integer
+            attemptsLeft:
+              type: integer
+          required:
+            - channel
+            - resendAvailableAt
+            - resendsLeft
+            - attemptsLeft
+          description: 'The phone code while `phone-pending`; once confirmed, `resendAvailableAt` is when the set-password email may be sent again (null: now)'
+        outcome:
+          anyOf:
+            - type: string
+              const: account-created
+            - type: 'null'
+          description: 'Set once confirmed: the account was created'
+        setPasswordEmail:
+          anyOf:
+            - type: string
+              enum:
+                - sent
+                - failed
+            - type: 'null'
+          description: 'Once confirmed: `sent`, the set-password email went; `failed`, the account stands but the email could not be sent, so the portal offers resend-password-email at once. Null before'
+        expiresAt:
+          type: string
+          format: date-time
+          description: 'When the session ends: 30 minutes after start, 10 more per successful step, at most 60 minutes after start. Once confirmed, 24 hours after (the set-password link lifespan)'
+        secret:
+          type: string
+          description: Returned once; the BFF stores it in an httpOnly cookie and sends it back in X-Onboarding-Secret
+      required:
+        - id
+        - state
+        - identityDocument
+        - identityStatus
+        - contacts
+        - otp
+        - outcome
+        - setPasswordEmail
+        - expiresAt
+        - secret
+    ApplicantOnboardingProblem:
+      type: object
+      properties:
+        type:
+          type: string
+        title:
+          type: string
+        status:
+          type: integer
+        code:
+          type: string
+          enum:
+            - identity-mismatch
+            - already-onboarded
+            - otp-invalid
+            - otp-expired
+            - otp-send-failed
+            - resend-cooldown
+            - session-expired
+            - iprs-unavailable
+            - identity-unavailable
+            - email-in-use
+            - rate-limit-exceeded
+            - wrong-step
+        detail:
+          type: string
+        instance:
+          type: string
+        errors:
+          description: Field-level errors; `path` is the dotted request field
+          type: array
+          items:
+            type: object
+            properties:
+              path:
+                type: string
+              message:
+                type: string
+            required:
+              - path
+              - message
+        attemptsLeft:
+          type: integer
+        retryAfterSeconds:
+          type: integer
+        links:
+          description: Present for already-onboarded
+          type: object
+          properties:
+            signIn:
+              type: string
+              format: uri
+            recoverAccess:
+              type: string
+              format: uri
+      required:
+        - type
+        - title
+        - status
+        - code
+    ApplicantIdentityDocument:
+      type: object
+      properties:
+        kind:
+          type: string
+          enum:
+            - national-id
+            - passport
+        number:
+          type: string
+          description: National ID digits, or the passport number upper-cased without spaces
+        country:
+          description: A passport's issuing country, ISO 3166-1 alpha-2; null for a national ID
+          type:
+            - string
+            - 'null'
+      required:
+        - kind
+        - number
+        - country
+    ApplicantProfile:
+      type: object
+      properties:
+        personId:
+          type: string
+          format: uuid
+        fullName:
+          type: string
+          description: First, other and surname as entered
+        identityDocument:
+          $ref: '#/components/schemas/ApplicantIdentityDocument'
+        identityStatus:
+          type: string
+          enum:
+            - verified
+            - pending-verification
+        contacts:
+          type: object
+          properties:
+            email:
+              type:
+                - string
+                - 'null'
+            phone:
+              description: E.164, verified at onboarding
+              type:
+                - string
+                - 'null'
+          required:
+            - email
+            - phone
+      required:
+        - personId
+        - fullName
+        - identityDocument
+        - identityStatus
+        - contacts
+    InternalApplicant:
+      type: object
+      properties:
+        personId:
+          type: string
+          format: uuid
+        fullName:
+          type: string
+          description: First, other and surname as entered
+        identityDocument:
+          $ref: '#/components/schemas/ApplicantIdentityDocument'
+        identityStatus:
+          type: string
+          enum:
+            - verified
+            - pending-verification
+        contacts:
+          type: object
+          properties:
+            email:
+              type:
+                - string
+                - 'null'
+            phone:
+              description: E.164, verified at onboarding
+              type:
+                - string
+                - 'null'
+          required:
+            - email
+            - phone
+        identityVerifiedAt:
+          anyOf:
+            - type: string
+              format: date-time
+            - type: 'null'
+          description: When the identity became verified; null while pending
+        identityVerifiedBy:
+          description: Subject of the access officer who verified a passport applicant's particulars; null when IPRS verified a national ID, or while pending
+          type:
+            - string
+            - 'null'
+      required:
+        - personId
+        - fullName
+        - identityDocument
+        - identityStatus
+        - contacts
+        - identityVerifiedAt
+        - identityVerifiedBy
+    VerifyApplicantIdentity:
+      type: object
+      properties:
+        verifiedBy:
+          type: string
+          minLength: 1
+          maxLength: 255
+          description: Subject (`sub`) of the access officer who checked the particulars entered
+      required:
+        - verifiedBy
     ProblemDetails:
       type: object
       properties:
@@ -5426,6 +6467,7 @@ components:
             - iprs-unavailable
             - identity-unavailable
             - email-in-use
+            - identity-mismatch
             - step-up-required
             - incomplete
             - before-statement-date
@@ -5476,42 +6518,7 @@ components:
               email:
                 type: string
                 format: email
-  parameters:
-    IdempotencyKey:
-      name: Idempotency-Key
-      in: header
-      required: true
-      description: Client-generated UUID, unique per logical request; reuse on retry
-      schema:
-        type: string
-        format: uuid
-    SessionId:
-      name: sessionId
-      in: path
-      required: true
-      schema:
-        type: string
-        format: uuid
-    OnboardingSecret:
-      name: X-Onboarding-Secret
-      in: header
-      required: true
-      description: Session secret returned once at creation; held by the portal BFF in an httpOnly cookie
-      schema:
-        type: string
   responses:
-    RateLimited:
-      description: Problem code `rate-limit-exceeded`; RateLimit-* headers present
-      content:
-        application/problem+json:
-          schema:
-            $ref: '#/components/schemas/OnboardingProblem'
-    SessionEnded:
-      description: Problem code `session-expired`; the cookie is cleared
-      content:
-        application/problem+json:
-          schema:
-            $ref: '#/components/schemas/OnboardingProblem'
     NotFound:
       description: Not found, or not visible to the caller
       content:

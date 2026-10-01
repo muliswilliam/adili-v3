@@ -30,6 +30,15 @@ import {
   leaOfficerStateSchema,
   provisionAgencyOfficerBody,
 } from './law-enforcement/representation.js';
+import {
+  applicantOnboardingProblemSchema,
+  applicantOnboardingSessionCreatedSchema,
+  applicantOnboardingSessionSchema,
+  applicantOnboardingStateSchema,
+  identityDocumentKindSchema,
+  identityStatusSchema,
+  startApplicantOnboardingBody,
+} from './onboarding/applicants/representation.js';
 import { onboardingFailuresSchema } from './onboarding/failures/representation.js';
 import {
   identifyDeclarantBody,
@@ -47,9 +56,13 @@ import {
   verifyOnboardingOtpBody,
 } from './onboarding/representation.js';
 import {
+  applicantIdentityDocumentSchema,
+  applicantProfileSchema,
   declarantProfileSchema,
+  internalApplicantSchema,
   personContactsSchema,
   personSummarySchema,
+  verifyApplicantIdentityBody,
 } from './persons/representation.js';
 import {
   confirmExitsBody,
@@ -172,4 +185,15 @@ export const OPENAPI_SCHEMAS: Record<string, z.ZodType> = {
   LeaOfficerState: leaOfficerStateSchema,
   LeaOfficerAccount: leaOfficerAccountSchema,
   ProvisionAgencyOfficer: provisionAgencyOfficerBody,
+  IdentityDocumentKind: identityDocumentKindSchema,
+  IdentityStatus: identityStatusSchema,
+  StartApplicantOnboarding: startApplicantOnboardingBody,
+  ApplicantOnboardingState: applicantOnboardingStateSchema,
+  ApplicantOnboardingSession: applicantOnboardingSessionSchema,
+  ApplicantOnboardingSessionCreated: applicantOnboardingSessionCreatedSchema,
+  ApplicantOnboardingProblem: applicantOnboardingProblemSchema,
+  ApplicantIdentityDocument: applicantIdentityDocumentSchema,
+  ApplicantProfile: applicantProfileSchema,
+  InternalApplicant: internalApplicantSchema,
+  VerifyApplicantIdentity: verifyApplicantIdentityBody,
 };

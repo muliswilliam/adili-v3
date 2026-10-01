@@ -5,6 +5,7 @@ import { afterAll, describe, expect, it } from 'vitest';
 import {
   type ActivationEmailOptions,
   ApiClientExists,
+  type CreateApplicantUserInput,
   ApiClientNotFound,
   type CreateApiClientInput,
   type CreateDeclarantUserInput,
@@ -32,6 +33,8 @@ export interface InspectedUser {
   /** A law-enforcement officer's agency code attribute. */
   agency: string | null;
   phone: string | null;
+  /** Applicants' `identityStatus` attribute. */
+  identityStatus: string | null;
   realmRoles: string[];
   requiredActions: string[];
   enabled: boolean;
@@ -132,6 +135,20 @@ export function lawEnforcementOfficer(email: string): CreateLawEnforcementUserIn
     phone: '+254712345987',
     agency: 'DCI',
     personId: randomUUID(),
+  };
+}
+
+export function applicant(
+  email: string,
+  identityStatus: CreateApplicantUserInput['identityStatus'] = 'pending-verification',
+): CreateApplicantUserInput {
+  return {
+    email,
+    firstName: 'Amina Nakato',
+    lastName: 'Okello',
+    phone: '+256772123456',
+    personId: randomUUID(),
+    identityStatus,
   };
 }
 
@@ -507,6 +524,68 @@ export function identityProvisioningContract(name: string, harness: () => Contra
       expect(again).toBeNull();
       expect(await harness().inspect(userId)).toMatchObject({ tenant: 'tsc', tenants: ['tsc'] });
       await expect(harness().adapter.addTenantToUser(userId, 'tsc')).resolves.toBeNull();
+    });
+
+    it('S1: creates an applicant with the email as username, unverified, no tenant, attributes, role and UPDATE_PASSWORD', async () => {
+      const email = uniqueEmail('S1-applicant');
+      const input = applicant(email.toUpperCase());
+
+      const userId = await harness().adapter.createApplicantUser(input);
+      created.push(userId);
+
+      expect(await harness().inspect(userId)).toMatchObject({
+        username: email,
+        email,
+        emailVerified: false,
+        name: 'Amina Nakato Okello',
+        tenant: null,
+        tenants: [],
+        ofr: null,
+        personId: input.personId,
+        phone: '+256772123456',
+        identityStatus: 'pending-verification',
+        enabled: true,
+        requiredActions: ['UPDATE_PASSWORD'],
+      });
+      await expect(harness().adapter.findById(userId)).resolves.toMatchObject({
+        tenant: null,
+        roles: ['applicant'],
+      });
+    });
+
+    it('reports an applicant whose email has an account as EmailTaken', async () => {
+      const email = uniqueEmail('applicant-taken');
+      await create(reportingOfficer(email));
+
+      await expect(
+        harness().adapter.createApplicantUser(applicant(email.toUpperCase())),
+      ).rejects.toBeInstanceOf(EmailTaken);
+    });
+
+    it('S2: sets the identity status, idempotently, keeping everything else, and restores it exactly', async () => {
+      const userId = await harness().adapter.createApplicantUser(
+        applicant(uniqueEmail('identity-status')),
+      );
+      created.push(userId);
+
+      const restore = await harness().adapter.setIdentityStatus(userId, 'verified');
+      const verified = await harness().inspect(userId);
+      const again = await harness().adapter.setIdentityStatus(userId, 'verified');
+      await restore?.();
+
+      expect(verified).toMatchObject({
+        identityStatus: 'verified',
+        phone: '+256772123456',
+        tenant: null,
+      });
+      expect(verified.realmRoles).toContain('applicant');
+      expect(again).toBeNull();
+      expect(await harness().inspect(userId)).toMatchObject({
+        identityStatus: 'pending-verification',
+      });
+      await expect(
+        harness().adapter.setIdentityStatus(UNKNOWN_USER_ID, 'verified'),
+      ).rejects.toBeInstanceOf(IdentityUserNotFound);
     });
 
     it('S11, S17: sends an execute-actions email each time it is asked, recording nothing on the account', async () => {

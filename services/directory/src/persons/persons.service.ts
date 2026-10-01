@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { notFoundIfInvisible, PLATFORM_TENANT } from '@adili/api-kit';
 import { type Database, InjectDatabase, type TenantContext, withTenant } from '@adili/data-access';
-import { and, asc, eq, exists, or } from 'drizzle-orm';
+import { and, asc, eq, exists, inArray, or } from 'drizzle-orm';
 
 import { commissions, type DirectorySchema, persons, rosterRecords } from '../db/schema.js';
 import type { DeclarantProfile, PersonContacts, PersonSummary } from './representation.js';
@@ -10,7 +10,7 @@ import type { DeclarantProfile, PersonContacts, PersonSummary } from './represen
  * Reading persons (spec 03): a declarant's own profile, found by the subject of their token, and
  * the helpdesk's lookup by officer reference, and a person's verified contacts for notifications.
  * Persons are platform-level; their roster records are read in the platform context, since the
- * reads span Commissions.
+ * reads span Commissions. Applicants' own reads and writes are `ApplicantsService`'s.
  */
 @Injectable()
 export class PersonsService {
@@ -84,10 +84,11 @@ export class PersonsService {
   }
 
   /**
-   * A declarant's contacts verified at their latest onboarding, null where none, or a
-   * law-enforcement officer's provisioned ones; 404 if no such person, or a declarant not
-   * onboarded at the acting tenant. Officers request from any Commission, so any tenant's
-   * messages may reach them.
+   * A declarant's contacts verified at their latest onboarding, null where none; a
+   * law-enforcement officer's provisioned ones; an applicant's entered at applicant onboarding.
+   * 404 if no such person, or a declarant not onboarded at the acting tenant. Officers and
+   * applicants belong to no Commission and request from any, so any tenant's messages may reach
+   * them.
    */
   async contacts(context: TenantContext, personId: string): Promise<PersonContacts> {
     const [person] = await withTenant(this.db, context, (tx) =>
@@ -98,7 +99,7 @@ export class PersonsService {
           and(
             eq(persons.id, personId),
             or(
-              eq(persons.kind, 'law-enforcement'),
+              inArray(persons.kind, ['law-enforcement', 'applicant']),
               // Onboarded at the acting tenant: its roster records are the only ones RLS shows.
               exists(
                 tx
