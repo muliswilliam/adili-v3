@@ -2752,7 +2752,7 @@ paths:
       tags:
         - internal
       summary: Verified contacts of a person (notifications)
-      description: Service tokens with scope directory:person-contacts (the notifications service only), acting for the tenant a message is sent for; audited. The email and phone verified at the latest onboarding, null where none. 404 when the person is unknown or not onboarded at that tenant.
+      description: Service tokens with scope directory:person-contacts (the notifications service only), acting for the tenant a message is sent for; audited. A declarant's email and phone verified at the latest onboarding, null where none; a law-enforcement officer's official email and phone as provisioned, whatever the acting tenant (officers request from any Commission). 404 when the person is unknown, or a declarant not onboarded at that tenant.
       operationId: internalGetPersonContacts
       parameters:
         - name: X-Acting-Tenant
@@ -2788,7 +2788,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetails'
         '404':
-          description: No person has this id, or not one onboarded at the acting tenant
+          description: No person has this id, or a declarant not onboarded at the acting tenant
           content:
             application/problem+json:
               schema:
@@ -2796,6 +2796,193 @@ paths:
       x-audited-read:
         action: person.contacts.read
         resource: person
+  /v1/law-enforcement/agencies:
+    get:
+      tags:
+        - law-enforcement
+      summary: Registered law-enforcement agencies (reference data)
+      description: Any staff role and law-enforcement officers. Seeded reference data in display order.
+      operationId: listAgencies
+      responses:
+        '200':
+          description: Agencies
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Agency'
+        '403':
+          description: |-
+            Declarants and applicants have no access
+
+            Requires one of the roles: platform-admin, eacc-analyst, eacc-supervisor, reporting-officer, reviewer, supervisor, commission-admin, access-officer, auditor, helpdesk, law-enforcement
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+  /v1/law-enforcement/agencies/{code}/officers:
+    get:
+      tags:
+        - law-enforcement
+      summary: Provisioned officer accounts for an agency (platform-admin)
+      description: platform-admin only. Every officer ever provisioned for the agency, by name.
+      operationId: listAgencyOfficers
+      parameters:
+        - name: code
+          required: true
+          in: path
+          schema:
+            $ref: '#/components/schemas/AgencyCode'
+      responses:
+        '200':
+          description: Officers
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/LeaOfficerAccount'
+        '403':
+          description: |-
+            Only platform admins manage officer accounts
+
+            Requires one of the roles: platform-admin
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: No agency has this code
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+    post:
+      tags:
+        - law-enforcement
+      summary: Provision a law-enforcement officer account (platform-admin); one activation email
+      description: "platform-admin only. Creates the officer's directory person (kind `law-enforcement`) and Keycloak account: the email as username, role `law-enforcement`, tenant `lea`, the `agency` and `person_id` attributes, and the staff required actions (verify email, set a password, enrol TOTP); then, once recorded, sends exactly one activation email. Provisioning an officer of this agency again updates their name and phone (and resends the email while they are `invited`); a revoked officer is enabled and invited again. Idempotent per Idempotency-Key."
+      operationId: provisionAgencyOfficer
+      parameters:
+        - name: code
+          required: true
+          in: path
+          schema:
+            $ref: '#/components/schemas/AgencyCode'
+        - name: Idempotency-Key
+          in: header
+          description: Client-generated UUID, unique per logical request; reuse on retry
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProvisionAgencyOfficer'
+      responses:
+        '201':
+          description: The officer account, `invited` when new or provisioned again
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LeaOfficerAccount'
+        '400':
+          description: Request failed validation
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '403':
+          description: |-
+            Only platform admins manage officer accounts
+
+            Requires one of the roles: platform-admin
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: No agency has this code
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '409':
+          description: 'Problem type `email-belongs-to-other-tenant` with `errors[0].path = email`: the email belongs to an account that is not a law-enforcement officer. Problem type `lea-officer-of-other-agency`: it belongs to an officer of another agency. Problem type `lea-officer-busy`: another change to this officer is still in progress; try again shortly. Nothing changed.'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '422':
+          description: Idempotency-Key reused with a different request body
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '502':
+          description: 'Problem type `identity-unavailable`: the identity provider failed and nothing was provisioned. Problem type `invitation-not-sent`: the officer was provisioned but the activation email was not sent; provision them again to resend it. Both are safe to retry.'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+  /v1/law-enforcement/officers/{officerId}/revoke:
+    post:
+      tags:
+        - law-enforcement
+      summary: Disable a law-enforcement officer account (platform-admin)
+      description: platform-admin only. Disables the Keycloak account, so the officer signs in no more, and records the officer as `revoked`. Revoking a revoked officer changes nothing, so no Idempotency-Key is needed.
+      operationId: revokeAgencyOfficer
+      parameters:
+        - name: officerId
+          required: true
+          in: path
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Revoked
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LeaOfficerAccount'
+        '400':
+          description: officerId is not a UUID
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '403':
+          description: |-
+            Only platform admins manage officer accounts
+
+            Requires one of the roles: platform-admin
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: No officer has this id
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '409':
+          description: 'Problem type `lea-officer-busy`: another change to this officer is still in progress; try again shortly.'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '502':
+          description: 'Problem type `identity-unavailable`: the identity provider failed and the officer was not revoked. Safe to retry.'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
   /v1/onboarding/applicants:
     post:
       tags:
@@ -2864,114 +3051,6 @@ paths:
         '429':
           $ref: '#/components/responses/RateLimited'
       security: []
-  /v1/law-enforcement/agencies:
-    get:
-      tags:
-        - law-enforcement
-      summary: Registered law-enforcement agencies (reference data)
-      operationId: listAgencies
-      x-draft: true
-      responses:
-        '200':
-          description: Agencies
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/Agency'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-  /v1/law-enforcement/agencies/{code}/officers:
-    parameters:
-      - name: code
-        in: path
-        required: true
-        schema:
-          type: string
-    get:
-      tags:
-        - law-enforcement
-      summary: Provisioned officer accounts for an agency (platform-admin)
-      operationId: listAgencyOfficers
-      x-draft: true
-      responses:
-        '200':
-          description: Officers
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/LeaOfficerAccount'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-    post:
-      tags:
-        - law-enforcement
-      summary: Provision a law-enforcement officer account (platform-admin); one activation email
-      operationId: provisionAgencyOfficer
-      x-draft: true
-      parameters:
-        - $ref: '#/components/parameters/IdempotencyKey'
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required:
-                - name
-                - email
-                - phone
-              properties:
-                name:
-                  type: string
-                email:
-                  type: string
-                  format: email
-                phone:
-                  type: string
-      responses:
-        '201':
-          description: Provisioned
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/LeaOfficerAccount'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '409':
-          description: Email belongs to an account in another tenant
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ProblemDetails'
-  /v1/law-enforcement/officers/{officerId}/revoke:
-    parameters:
-      - name: officerId
-        in: path
-        required: true
-        schema:
-          type: string
-          format: uuid
-    post:
-      tags:
-        - law-enforcement
-      summary: Disable a law-enforcement officer account (platform-admin)
-      operationId: revokeAgencyOfficer
-      x-draft: true
-      responses:
-        '200':
-          description: Revoked
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/LeaOfficerAccount'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '404':
-          $ref: '#/components/responses/NotFound'
   /internal/v1/commissions/{slug}/staff:
     get:
       tags:
@@ -5218,6 +5297,109 @@ components:
       required:
         - channel
         - value
+    AgencyCode:
+      type: string
+      pattern: ^[A-Z][A-Z0-9]{1,9}$
+      description: Upper-case agency code
+      examples:
+        - DCI
+        - ODPP
+        - ARA
+        - FRC
+    Agency:
+      type: object
+      properties:
+        code:
+          $ref: '#/components/schemas/AgencyCode'
+        name:
+          type: string
+          examples:
+            - Directorate of Criminal Investigations
+        legalBasis:
+          type: string
+          description: The statute that gives the agency its mandate
+          examples:
+            - National Police Service Act, 2011, s.35
+      required:
+        - code
+        - name
+        - legalBasis
+    LeaOfficerState:
+      type: string
+      enum:
+        - invited
+        - activated
+        - revoked
+      description: "`invited` once provisioned; `activated` when the officer's account first makes an authenticated request to the directory (in practice the console's `/v1/me` after their first sign-in); `revoked` once disabled."
+    LeaOfficerAccount:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: The officer's directory person id, which services address notifications and packages to
+        agencyCode:
+          $ref: '#/components/schemas/AgencyCode'
+        name:
+          type: string
+        email:
+          type: string
+          format: email
+          description: Official email; the username they sign in with
+        phone:
+          type: string
+          description: E.164
+          examples:
+            - '+254712345678'
+        state:
+          $ref: '#/components/schemas/LeaOfficerState'
+        invitedAt:
+          type: string
+          format: date-time
+          description: When the account was provisioned (or provisioned again)
+        activatedAt:
+          anyOf:
+            - type: string
+              format: date-time
+            - type: 'null'
+          description: First authenticated request of the officer's account; null until then
+        revokedAt:
+          anyOf:
+            - type: string
+              format: date-time
+            - type: 'null'
+      required:
+        - id
+        - agencyCode
+        - name
+        - email
+        - phone
+        - state
+        - invitedAt
+        - activatedAt
+        - revokedAt
+    ProvisionAgencyOfficer:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 2
+          maxLength: 120
+        email:
+          format: email
+          maxLength: 254
+          type: string
+        phone:
+          type: string
+          pattern: ^\+[1-9][0-9]{6,14}$
+          description: E.164
+          examples:
+            - '+254712345678'
+      required:
+        - name
+        - email
+        - phone
+      additionalProperties: false
     ProblemDetails:
       type: object
       properties:
@@ -5275,65 +5457,6 @@ components:
         - type
         - title
         - status
-    Agency:
-      type: object
-      required:
-        - code
-        - name
-        - legalBasis
-      properties:
-        code:
-          type: string
-          examples:
-            - DCI
-            - ODPP
-            - ARA
-            - FRC
-        name:
-          type: string
-        legalBasis:
-          type: string
-    LeaOfficerAccount:
-      type: object
-      required:
-        - id
-        - agencyCode
-        - name
-        - email
-        - state
-        - invitedAt
-        - activatedAt
-        - revokedAt
-      properties:
-        id:
-          type: string
-          format: uuid
-        agencyCode:
-          type: string
-        name:
-          type: string
-        email:
-          type: string
-          format: email
-        state:
-          type: string
-          enum:
-            - invited
-            - activated
-            - revoked
-        invitedAt:
-          type: string
-          format: date-time
-        activatedAt:
-          type:
-            - string
-            - 'null'
-          format: date-time
-        revokedAt:
-          type:
-            - string
-            - 'null'
-          format: date-time
     InternalStaffList:
       type: object
       required:

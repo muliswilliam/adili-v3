@@ -281,7 +281,7 @@ export async function startDirectoryApi(options: DirectoryApiOptions = {}): Prom
     },
     async reset() {
       await db.execute(
-        sql`truncate onboarding_otps, onboarding_sessions, onboarding_failures, persons, numbering_counters, roster_import_batches, roster_import_rows, roster_exits, roster_records, reporting_entities, roster_summaries, roster_imports, roster_api_credentials, reporting_officer_assignments, tenant_policy_versions, commission_categories, commissions, outbox, inbox, idempotency_keys`,
+        sql`truncate onboarding_otps, onboarding_sessions, onboarding_failures, law_enforcement_officers, persons, numbering_counters, roster_import_batches, roster_import_rows, roster_exits, roster_records, reporting_entities, roster_summaries, roster_imports, roster_api_credentials, reporting_officer_assignments, tenant_policy_versions, commission_categories, commissions, outbox, inbox, idempotency_keys`,
       );
       identity.reset();
       otpDelivery.reset();

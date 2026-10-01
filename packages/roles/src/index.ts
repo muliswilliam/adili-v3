@@ -41,6 +41,12 @@ export const PLATFORM_ADMIN = 'platform-admin';
 /** Requests access to declarations on behalf of a law enforcement agency. */
 export const LAW_ENFORCEMENT = 'law-enforcement';
 
+/**
+ * The tenant key of every law-enforcement account (the `tenant` claim): officers belong to no
+ * Commission, and request access from any of them (spec 10).
+ */
+export const LAW_ENFORCEMENT_TENANT = 'lea';
+
 /** A Responsible Commission's own staff, who work on its declarants (spec 04: its obligations). */
 export const COMMISSION_STAFF_ROLES = [
   REPORTING_OFFICER,

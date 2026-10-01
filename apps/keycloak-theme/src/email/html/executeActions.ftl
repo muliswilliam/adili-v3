@@ -1,7 +1,8 @@
 <#--
   Execute-actions email: the activation email of a staff account (spec 01, user stories 21, 22
-  and 25). The directory sets the account's `commissionName` and `invitedRole` attributes before
-  it asks Keycloak to send this email; without them the email falls back to a generic
+  and 25) or of a law-enforcement officer's account (spec 10), which names the agency instead of
+  a Commission. The directory sets the account's `commissionName` and `invitedRole` attributes
+  before it asks Keycloak to send this email; without them the email falls back to a generic
   "complete your account setup" message.
 -->
 <#import "template.ftl" as layout>
@@ -28,7 +29,7 @@
     <td style="padding:16px 20px;${font}font-size:14px;line-height:22px;color:#1a1a1a;">
       <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
         <tr>
-          <td class="detail-label" width="112" style="padding:2px 12px 2px 0;vertical-align:top;${font}font-size:13px;line-height:22px;color:#6f6e6b;">${msg("adiliDetailCommission")}</td>
+          <td class="detail-label" width="112" style="padding:2px 12px 2px 0;vertical-align:top;${font}font-size:13px;line-height:22px;color:#6f6e6b;">${i.commissionLabel}</td>
           <td class="detail-value" style="padding:2px 0;vertical-align:top;${font}font-size:14px;line-height:22px;font-weight:600;color:#1a1a1a;">${i.commission}</td>
         </tr>
         <tr>

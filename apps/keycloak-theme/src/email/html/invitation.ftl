@@ -27,6 +27,7 @@
   <#return {
     "invited": invited,
     "commission": commission,
+    "commissionLabel": message("adiliDetailCommission." + roleCode, msg("adiliDetailCommission")),
     "roleTitle": roleTitle,
     "duty": message("adiliRoleDuty." + roleCode, ""),
     "greeting": firstName?has_content?then(msg("adiliGreetingName", firstName), msg("adiliGreeting")),

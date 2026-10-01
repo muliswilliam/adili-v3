@@ -1,5 +1,5 @@
 import { randomBytes, randomUUID } from 'node:crypto';
-import { DECLARANT } from '@adili/roles';
+import { DECLARANT, LAW_ENFORCEMENT, LAW_ENFORCEMENT_TENANT } from '@adili/roles';
 
 import {
   type ActivationEmailOptions,
@@ -8,6 +8,7 @@ import {
   type ApiClientSecret,
   type CreateApiClientInput,
   type CreateDeclarantUserInput,
+  type CreateLawEnforcementUserInput,
   type CreateStaffUserInput,
   DECLARANT_REQUIRED_ACTIONS,
   EmailTaken,
@@ -17,6 +18,7 @@ import {
   IdentityUserNotFound,
   type RequiredAction,
   type Restore,
+  STAFF_REQUIRED_ACTIONS,
   type StaffProfile,
   UsernameTaken,
 } from './identity-provisioning.js';
@@ -26,6 +28,7 @@ export type IdentityCall =
   | { operation: 'findByEmail'; email: string }
   | { operation: 'findById'; userId: string }
   | { operation: 'createStaffUser'; input: CreateStaffUserInput }
+  | { operation: 'createLawEnforcementUser'; input: CreateLawEnforcementUserInput }
   | { operation: 'createDeclarantUser'; input: CreateDeclarantUserInput }
   | { operation: 'addTenantToUser'; userId: string; tenant: string }
   | { operation: 'grantRole'; userId: string; role: string }
@@ -56,6 +59,8 @@ export interface InMemoryUser {
   /** Declarants' officer reference and directory person id attributes. */
   ofr: string | null;
   personId: string | null;
+  /** A law-enforcement officer's agency code attribute. */
+  agency: string | null;
   roles: string[];
   requiredActions: RequiredAction[];
   enabled: boolean;
@@ -87,6 +92,7 @@ export interface SeedUser {
   username?: string;
   ofr?: string;
   personId?: string;
+  agency?: string;
   userId?: string;
   name?: string;
   phone?: string;
@@ -123,6 +129,7 @@ export class InMemoryIdentityProvisioning extends IdentityProvisioning {
       tenants: seed.tenants ?? (seed.tenant === null ? [] : [seed.tenant]),
       ofr: seed.ofr ?? null,
       personId: seed.personId ?? null,
+      agency: seed.agency ?? null,
       roles: [...(seed.roles ?? [])],
       requiredActions: [],
       enabled: seed.enabled ?? true,
@@ -208,8 +215,36 @@ export class InMemoryIdentityProvisioning extends IdentityProvisioning {
       tenants: [input.tenant],
       ofr: null,
       personId: null,
+      agency: null,
       roles: [input.role],
       requiredActions: [...input.requiredActions],
+      enabled: true,
+      commissionName: null,
+      invitedRole: null,
+    });
+    return Promise.resolve(userId);
+  }
+
+  createLawEnforcementUser(input: CreateLawEnforcementUserInput): Promise<string> {
+    this.log.push({ operation: 'createLawEnforcementUser', input: structuredClone(input) });
+    const failure = this.takeFailure('createLawEnforcementUser');
+    if (failure) return Promise.reject(failure);
+    if (this.byEmail(input.email)) return Promise.reject(new EmailTaken(input.email));
+    const userId = randomUUID();
+    this.users.set(userId, {
+      userId,
+      username: normalise(input.email),
+      email: normalise(input.email),
+      emailVerified: false,
+      name: input.name,
+      phone: input.phone,
+      tenant: LAW_ENFORCEMENT_TENANT,
+      tenants: [],
+      ofr: null,
+      personId: input.personId,
+      agency: input.agency,
+      roles: [LAW_ENFORCEMENT],
+      requiredActions: [...STAFF_REQUIRED_ACTIONS],
       enabled: true,
       commissionName: null,
       invitedRole: null,
@@ -241,6 +276,7 @@ export class InMemoryIdentityProvisioning extends IdentityProvisioning {
       tenants: [input.tenant],
       ofr: input.ofr,
       personId: input.personId,
+      agency: null,
       roles: [DECLARANT],
       requiredActions: [...DECLARANT_REQUIRED_ACTIONS],
       enabled: true,
