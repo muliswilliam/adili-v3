@@ -14,6 +14,7 @@ import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { HttpStatus, Inject, Injectable, Logger } from '@nestjs/common';
 import { callerOf, PLATFORM_TENANT, type Principal, ProblemException } from '@adili/api-kit';
 import { type Database, InjectDatabase, withTenant } from '@adili/data-access';
+import { EventPublisher } from '@adili/events';
 import { and, eq, inArray, isNull, lt, or, sql } from 'drizzle-orm';
 import { v7 as uuidv7 } from 'uuid';
 
@@ -21,6 +22,7 @@ import { config } from '../config.js';
 import type { DocumentsSchema } from '../db/schema.js';
 import { MalwareScanner } from '../scanning/malware-scanner.js';
 import { S3, S3_PUBLIC } from '../storage/storage.module.js';
+import { uploadDeleted, uploadLinked, uploadUnlinked } from './events.js';
 import { CSV, type DetectedType, LINKED_PURPOSES, policyOf, purposesFor } from './purposes.js';
 import type {
   CreateUploadBody,
@@ -72,6 +74,7 @@ export class UploadsService {
     @Inject(S3) private readonly s3: S3Client,
     @Inject(S3_PUBLIC) private readonly publicS3: S3Client,
     private readonly scanner: MalwareScanner,
+    private readonly events: EventPublisher,
     @Inject(COMPLETE_BUDGET_MS) private readonly completeBudgetMs: number,
   ) {}
 
@@ -272,8 +275,8 @@ export class UploadsService {
 
   /**
    * Records that the owning service linked a clean upload of `actingTenant` to its record, so
-   * it is no orphan, and which service did. Idempotent: the first link time is kept. Invisible
-   * uploads are 404, uploads that are not clean 409.
+   * it is no orphan, and which service did, with its audit event. Idempotent: the first link
+   * time is kept and a repeat records nothing. Invisible uploads are 404, unclean ones 409.
    */
   async markLinked(caller: Principal, actingTenant: string, id: string): Promise<void> {
     const upload = await withTenant(
@@ -281,15 +284,20 @@ export class UploadsService {
       { tenant: actingTenant, subject: caller.subject },
       async (tx) => {
         const [found] = await tx
-          .select({ state: uploads.state, linkedAt: uploads.linkedAt })
+          .select({ state: uploads.state, linkedAt: uploads.linkedAt, purpose: uploads.purpose })
           .from(uploads)
           .where(eq(uploads.id, id))
           .for('update');
         if (found?.state === 'clean' && found.linkedAt === null) {
+          const linkedBy = callerOf(caller);
           await tx
             .update(uploads)
-            .set({ linkedAt: sql`now()`, linkedBy: callerOf(caller), unlinkedAt: null })
+            .set({ linkedAt: sql`now()`, linkedBy, unlinkedAt: null })
             .where(eq(uploads.id, id));
+          await this.events.record(
+            tx,
+            uploadLinked(actingTenant, { uploadId: id, purpose: found.purpose, linkedBy }),
+          );
         }
         return found;
       },
@@ -300,8 +308,8 @@ export class UploadsService {
 
   /**
    * Records that the owning service took its link to an upload of `actingTenant` back, so the
-   * orphan sweep deletes the object 30 days on unless it is linked again. Idempotent: an upload
-   * that is not linked is left as it is. Invisible uploads are 404.
+   * orphan sweep deletes the object 30 days on unless it is linked again, with its audit event.
+   * Idempotent: an upload that is not linked is left as it is. Invisible uploads are 404.
    */
   async markUnlinked(caller: Principal, actingTenant: string, id: string): Promise<void> {
     const found = await withTenant(
@@ -309,7 +317,7 @@ export class UploadsService {
       { tenant: actingTenant, subject: caller.subject },
       async (tx) => {
         const [upload] = await tx
-          .select({ linkedAt: uploads.linkedAt })
+          .select({ linkedAt: uploads.linkedAt, purpose: uploads.purpose })
           .from(uploads)
           .where(eq(uploads.id, id))
           .for('update');
@@ -318,6 +326,14 @@ export class UploadsService {
             .update(uploads)
             .set({ linkedAt: null, linkedBy: null, unlinkedAt: sql`now()` })
             .where(eq(uploads.id, id));
+          await this.events.record(
+            tx,
+            uploadUnlinked(actingTenant, {
+              uploadId: id,
+              purpose: upload.purpose,
+              unlinkedBy: callerOf(caller),
+            }),
+          );
         }
         return upload;
       },
@@ -358,16 +374,16 @@ export class UploadsService {
   /**
    * Deletes the clean objects of uploads that need a link (declaration attachments) and have
    * had none for 30 days, since completion or since the owning service took its link back, and
-   * marks them `deleted`. Uploads of other purposes are never swept. Idempotent, so every replica
-   * may run it. Returns the count.
+   * marks them `deleted`, each with its audit event in the same transaction. Uploads of other
+   * purposes are never swept. Idempotent, so every replica may run it. Returns the count.
    */
   async sweepOrphans(): Promise<number> {
     if (LINKED_PURPOSES.length === 0) return 0;
     const orphans = await withTenant(
       this.db,
       { tenant: PLATFORM_TENANT, subject: 'system' },
-      (tx) =>
-        tx
+      async (tx) => {
+        const deleted = await tx
           .update(uploads)
           .set({ state: 'deleted', cleanKey: null, deletedAt: sql`now()` })
           .where(
@@ -379,7 +395,20 @@ export class UploadsService {
             ),
           )
           // The clean object has the quarantine key (a server-side copy keeps it).
-          .returning({ key: uploads.quarantineKey }),
+          .returning({
+            id: uploads.id,
+            tenant: uploads.tenant,
+            purpose: uploads.purpose,
+            key: uploads.quarantineKey,
+          });
+        for (const { id, tenant, purpose } of deleted) {
+          await this.events.record(
+            tx,
+            uploadDeleted(tenant, { uploadId: id, purpose, reason: 'orphaned' }),
+          );
+        }
+        return deleted;
+      },
     );
     for (const { key } of orphans) {
       await this.deleteQuietly(config.S3_BUCKET_CLEAN, key);

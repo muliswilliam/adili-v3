@@ -707,6 +707,18 @@ describe('internal upload read (spec 05)', () => {
   });
 });
 
+/** The outbox events about upload `id` of `type`, as subject, tenant and data. */
+async function uploadEvents(type: string, id: string) {
+  const rows = await api.db
+    .select({ envelope: outbox.envelope })
+    .from(outbox)
+    .where(eq(outbox.eventType, type))
+    .orderBy(asc(outbox.createdAt), asc(outbox.id));
+  return rows
+    .map(({ envelope: { subject, tenant, data } }) => ({ subject, tenant, data }))
+    .filter((event) => event.subject === id);
+}
+
 describe('internal link marker (spec 05)', () => {
   let clean: UploadReservation;
 
@@ -726,6 +738,14 @@ describe('internal link marker (spec 05)', () => {
 
     expect((await link(clean.id)).statusCode).toBe(204);
     expect((await row(clean.id)).linkedAt).toEqual(linked.linkedAt);
+    // Audited once (ADR-008): a repeat changes nothing, so records nothing.
+    expect(await uploadEvents('upload.linked.v1', clean.id)).toEqual([
+      {
+        subject: clean.id,
+        tenant: 'psc',
+        data: { uploadId: clean.id, purpose: 'declaration-attachment', linkedBy: 'declarations' },
+      },
+    ]);
   });
 
   it("answers 404 for another tenant's upload and an unknown one", async () => {
@@ -759,6 +779,17 @@ describe('internal link marker (spec 05)', () => {
 
     expect((await unlink(attachment.id)).statusCode).toBe(204);
     expect((await row(attachment.id)).unlinkedAt).toEqual(unlinked.unlinkedAt);
+    expect(await uploadEvents('upload.unlinked.v1', attachment.id)).toEqual([
+      {
+        subject: attachment.id,
+        tenant: 'psc',
+        data: {
+          uploadId: attachment.id,
+          purpose: 'declaration-attachment',
+          unlinkedBy: 'declarations',
+        },
+      },
+    ]);
 
     expect((await link(attachment.id)).statusCode).toBe(204);
     expect(await row(attachment.id)).toMatchObject({ linkedBy: 'declarations', unlinkedAt: null });
@@ -829,6 +860,14 @@ describe('orphan sweep (spec 05)', () => {
       });
       expect((await download(id, 'psc', DECLARATIONS)).statusCode).toBe(409);
       expect((await link(id)).statusCode).toBe(409);
+      // The deletion of declarant evidence is audited (ADR-008), by the system.
+      expect(await uploadEvents('upload.deleted.v1', id)).toEqual([
+        {
+          subject: id,
+          tenant: 'psc',
+          data: { uploadId: id, purpose: 'declaration-attachment', reason: 'orphaned' },
+        },
+      ]);
     }
     for (const { id } of [recent, linked, unlinkedLately]) {
       expect((await row(id)).state).toBe('clean');
@@ -838,6 +877,7 @@ describe('orphan sweep (spec 05)', () => {
     expect(await objectStatus('clean', `roster-import/${roster.id}`)).toBe(200);
 
     expect(await sweep()).toBe(0);
+    expect(await uploadEvents('upload.deleted.v1', recent.id)).toEqual([]);
   });
 });
 
