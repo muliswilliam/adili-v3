@@ -19,8 +19,16 @@ import {
 } from '@adili/api-kit';
 import type { FastifyReply } from 'fastify';
 
+import type { LookupPurpose } from '../adapter-kit/registry-adapter.js';
+import { RegistryLookups } from '../adapter-kit/registry-lookups.js';
+import { IprsClient } from './iprs-client.js';
 import { type IprsPerson, type LookupIprsPerson, lookupIprsPersonSchema } from './iprs-person.js';
-import { IprsLookupService } from './iprs-lookup.service.js';
+
+/**
+ * The route's one purpose: confirming a declarant's identity at onboarding (ADR-014). Lookups
+ * act for no tenant, so nothing of IPRS's answer is kept on the verification-results row.
+ */
+const ONBOARDING: LookupPurpose = { legalBasis: 'adr-014-onboarding', caseRef: null };
 
 /** Whether the answer (found or not found) came from the 24-hour cache. */
 const X_CACHE = {
@@ -36,7 +44,10 @@ const X_CACHE = {
 @Scopes('iprs')
 @Controller('internal/v1/iprs')
 export class IprsController {
-  constructor(private readonly iprs: IprsLookupService) {}
+  constructor(
+    private readonly lookups: RegistryLookups,
+    private readonly iprs: IprsClient,
+  ) {}
 
   /**
    * A read, posted so the national ID travels in the body: URLs end up in access logs, traces
@@ -65,7 +76,11 @@ export class IprsController {
     @CurrentPrincipal() caller: Principal,
     @Res({ passthrough: true }) reply: FastifyReply,
   ): Promise<IprsPerson> {
-    const result = await this.iprs.lookup(body.nationalId, caller);
+    const result = await this.lookups.lookup(this.iprs, body.nationalId, {
+      caller,
+      purpose: ONBOARDING,
+      tenant: null,
+    });
     if (result.outcome === 'unavailable') {
       throw new ProblemException({
         type: 'upstream-unavailable',
@@ -83,6 +98,6 @@ export class IprsController {
         detail: 'IPRS has no person with this national ID.',
       });
     }
-    return result.person;
+    return result.data;
   }
 }

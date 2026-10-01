@@ -359,7 +359,8 @@ components:
       enum: [found, not-found, unavailable]
     UnavailableReason:
       type: string
-      enum: [timeout, breaker-open, paused, upstream-error]
+      description: rate-limited when no slot of the system's rate limit freed up within the max queue wait
+      enum: [timeout, breaker-open, paused, rate-limited, upstream-error]
     ResultEnvelope:
       type: object
       required: [resultId, system, outcome, reason, cached, checkedAt]

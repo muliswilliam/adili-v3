@@ -19,6 +19,13 @@ export const envSchema = baseEnvSchema.extend({
   IPRS_TIMEOUT_MS: z.coerce.number().int().positive().max(10_000).default(2_000),
   /** How long an IPRS answer (found or not found) is reused. */
   IPRS_CACHE_TTL_SECONDS: z.coerce.number().int().positive().default(86_400),
+  /** Calls per minute IPRS is sent, across every instance; one second's worth may burst. */
+  IPRS_RATE_LIMIT_PER_MINUTE: z.coerce.number().int().positive().default(1_200),
+  /**
+   * Longest a lookup queues for its system's rate limit before it is answered unavailable
+   * (`rate-limited`) instead.
+   */
+  RATE_LIMIT_MAX_WAIT_MS: z.coerce.number().int().nonnegative().max(10_000).default(1_000),
   /** Consecutive upstream failures that open a system's circuit. */
   BREAKER_FAILURE_THRESHOLD: z.coerce.number().int().positive().default(5),
   /** How long an open circuit fails fast before letting one probe through. */
@@ -28,6 +35,9 @@ export const envSchema = baseEnvSchema.extend({
    * to enumerate, so an unkeyed hash would be reversible.
    */
   SUBJECT_HASH_KEY: z.string().min(32),
+  /** OpenBao Transit, whose tenant keys encrypt stored lookup answers (ADR-006). */
+  OPENBAO_ADDR: z.url(),
+  OPENBAO_TOKEN: z.string().min(1),
 });
 
 export type Env = z.infer<typeof envSchema>;
