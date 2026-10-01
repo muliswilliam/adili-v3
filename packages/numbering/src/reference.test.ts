@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 
 import { ALPHABET, hasValidCheckCharacter } from './check-character.js';
 import { format, InvalidReferenceError, issuerCode, parse, TENANT_KEY } from './reference.js';
-import { CLR, DCB, DCF, DCI, OFR } from './schemes.js';
+import { ADM, CLR, CMP, DCB, DCF, DCI, OFR, RFL } from './schemes.js';
 
 const schemes = [OFR, DCB];
 
@@ -131,6 +131,39 @@ describe('parse', () => {
       issuer: 'PSC',
       period: 2028,
       sequence: 451,
+    });
+  });
+
+  it('knows CMP by default, with issuer and year of approval', () => {
+    const reference = format(CMP, { issuer: 'PSC', period: 2027, sequence: 1 });
+    expect(reference).toMatch(/^CMP-PSC-2027-0000001-[0-9A-Z]$/);
+    expect(parse(reference)).toMatchObject({
+      scheme: 'CMP',
+      issuer: 'PSC',
+      period: 2027,
+      sequence: 1,
+    });
+  });
+
+  it('knows ADM by default, with issuer and year of approval', () => {
+    const reference = format(ADM, { issuer: 'PSC', period: 2027, sequence: 1 });
+    expect(reference).toMatch(/^ADM-PSC-2027-0000001-[0-9A-Z]$/);
+    expect(parse(reference)).toMatchObject({
+      scheme: 'ADM',
+      issuer: 'PSC',
+      period: 2027,
+      sequence: 1,
+    });
+  });
+
+  it('knows RFL by default, with issuer and year of approval', () => {
+    const reference = format(RFL, { issuer: 'PSC', period: 2027, sequence: 1 });
+    expect(reference).toMatch(/^RFL-PSC-2027-0000001-[0-9A-Z]$/);
+    expect(parse(reference)).toMatchObject({
+      scheme: 'RFL',
+      issuer: 'PSC',
+      period: 2027,
+      sequence: 1,
     });
   });
 

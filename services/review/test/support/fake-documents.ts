@@ -1,19 +1,23 @@
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 
 import {
   DocumentsClient,
   DocumentsUnavailable,
   type IssuedDocument,
+  type IssuedDocumentFacts,
   type IssueDocumentRequest,
   type RevocationReason,
   type UploadDownload,
 } from '../../src/documents/documents-client.js';
 import { InternalApiRejected } from '../../src/internal-api/rejected.js';
 
-/** How the fake documents service pulls a letter's fields, as the real one would over HTTP. */
+/**
+ * How the fake documents service pulls a document's fields (a letter's, a referral package's), as
+ * the real one would over HTTP.
+ */
 export type PayloadSource = (
   tenant: string,
-  clarificationId: string,
+  document: IssueDocumentRequest,
 ) => Promise<{ status: number; body: unknown }>;
 
 export interface IssuedLetter {
@@ -22,6 +26,8 @@ export interface IssuedLetter {
   /** What the pull of the letter payload answered when the letter was rendered. */
   pulled: { status: number; body: unknown };
   document: IssuedDocument;
+  /** SHA-256 of the "signed PDF": derived from the document id, stable for assertions. */
+  sha256: string;
 }
 
 /** An upload as the fake documents service holds it. */
@@ -36,16 +42,19 @@ export interface FakeUpload {
 /**
  * The documents internal API for tests: uploads per Commission, and a record of every download
  * link issued (which upload, for which Commission) and every document revoked. Each document
- * issued pulls the letter payload by clarification id from the review service (as documents does
- * when it renders the template) and records what it got.
+ * issued pulls the letter payload by the record it names (clarification or determination) from the
+ * review service (as documents does when it renders the template) and records what it got.
  */
 export class FakeDocuments extends DocumentsClient {
   readonly downloads: { uploadId: string; tenant: string }[] = [];
   readonly issued: IssuedLetter[] = [];
   readonly revoked: { documentId: string; tenant: string; reason: RevocationReason }[] = [];
   payloadSource: PayloadSource | undefined;
+  /** Every document the Commission issued, through `issue` or given, by id. */
+  private readonly known = new Map<string, { tenant: string; type: string; sha256: string }>();
   private readonly uploads = new Map<string, FakeUpload>();
   private failures = 0;
+  private refusals = 0;
 
   /** Clean declaration attachments of `tenant`. */
   givenUploads(tenant: string, ...uploadIds: string[]): void {
@@ -63,14 +72,35 @@ export class FakeDocuments extends DocumentsClient {
     });
   }
 
+  /**
+   * A document the Commission issued before the test (a letter arranged directly in the review
+   * database); `getIssuedDocument` then knows it. Returns its SHA-256.
+   */
+  givenIssuedDocument(
+    tenant: string,
+    documentId: string,
+    type: IssueDocumentRequest['type'],
+  ): string {
+    const sha256 = fakeDocumentSha256(documentId);
+    this.known.set(documentId, { tenant, type, sha256 });
+    return sha256;
+  }
+
   /** The next `count` calls fail, as a documents outage would. */
   failCalls(count: number): void {
     this.failures = count;
   }
 
+  /** The next `count` documents asked for are refused (422), as documents refuses a bad request. */
+  refuseIssues(count: number): void {
+    this.refusals = count;
+  }
+
   reset(): void {
+    this.refusals = 0;
     this.downloads.length = 0;
     this.issued.length = 0;
+    this.known.clear();
     this.revoked.length = 0;
     this.uploads.clear();
     this.failures = 0;
@@ -112,8 +142,12 @@ export class FakeDocuments extends DocumentsClient {
       this.failures -= 1;
       throw new DocumentsUnavailable('The documents service is unreachable');
     }
+    if (this.refusals > 0) {
+      this.refusals -= 1;
+      throw new InternalApiRejected('documents', 422);
+    }
     if (!this.payloadSource) throw new Error('No payload source for the fake documents service');
-    const pulled = await this.payloadSource(tenant, request.payload.clarificationId);
+    const pulled = await this.payloadSource(tenant, request);
     if (pulled.status !== 200) {
       throw new DocumentsUnavailable(`The payload pull answered ${String(pulled.status)}`);
     }
@@ -121,7 +155,24 @@ export class FakeDocuments extends DocumentsClient {
       id: randomUUID(),
       verificationId: `ADL-${randomUUID().slice(0, 4).toUpperCase()}-TEST`,
     };
-    this.issued.push({ request: structuredClone(request), tenant, pulled, document });
+    const sha256 = fakeDocumentSha256(document.id);
+    this.issued.push({ request: structuredClone(request), tenant, pulled, document, sha256 });
+    this.known.set(document.id, { tenant, type: request.type, sha256 });
     return document;
   }
+
+  getIssuedDocument(documentId: string, tenant: string): Promise<IssuedDocumentFacts | null> {
+    if (this.failures > 0) {
+      this.failures -= 1;
+      return Promise.reject(new DocumentsUnavailable('The documents service is unreachable'));
+    }
+    const found = this.known.get(documentId);
+    if (found?.tenant !== tenant) return Promise.resolve(null);
+    return Promise.resolve({ id: documentId, type: found.type, sha256: found.sha256 });
+  }
+}
+
+/** The SHA-256 the fake gives an issued document. */
+export function fakeDocumentSha256(documentId: string): string {
+  return createHash('sha256').update(`document:${documentId}`).digest('hex');
 }

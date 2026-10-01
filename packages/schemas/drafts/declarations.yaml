@@ -136,6 +136,67 @@ paths:
                 $ref: '#/components/schemas/InternalVersionDocument'
         '404':
           $ref: '#/components/responses/NotFound'
+  /internal/v1/obligations/{obligationId}:
+    parameters:
+      - name: obligationId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/ActingTenant'
+    get:
+      tags: [internal]
+      operationId: internalGetObligation
+      summary: One filing obligation of the acting Commission (for the enforcement ladder)
+      description: >-
+        Service tokens with `declarations:internal`; the Commission in `X-Acting-Tenant`. The review
+        service reads it when an obligation goes overdue (spec 08): whom the ladder addresses and
+        what they failed to file. `personId` is null until the officer onboards.
+      responses:
+        '200':
+          description: The obligation
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  [
+                    obligationId,
+                    rosterRecordId,
+                    personId,
+                    type,
+                    cycleKey,
+                    dueDate,
+                    status,
+                    declarantName,
+                    personnelFileNumber,
+                  ]
+                properties:
+                  obligationId:
+                    type: string
+                    format: uuid
+                  rosterRecordId:
+                    type: string
+                    format: uuid
+                  personId:
+                    type: [string, 'null']
+                    format: uuid
+                  type:
+                    $ref: '#/components/schemas/ObligationType'
+                  cycleKey:
+                    type: string
+                  dueDate:
+                    type: string
+                    format: date
+                  status:
+                    $ref: '#/components/schemas/ObligationStatus'
+                  declarantName:
+                    type: string
+                  personnelFileNumber:
+                    type: string
+        '404':
+          $ref: '#/components/responses/NotFound'
   /internal/v1/persons/{personId}/obligations:
     parameters:
       - name: personId
@@ -149,11 +210,7 @@ paths:
       operationId: internalListPersonObligations
       summary: A person's filing obligations across cycles (for the referral sweep)
       parameters:
-        - name: tenant
-          in: query
-          required: true
-          schema:
-            type: string
+        - $ref: '#/components/parameters/ActingTenant'
       responses:
         '200':
           description: Obligations

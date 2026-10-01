@@ -46,7 +46,7 @@ describe('declaration.submitted.v1 consumer and processing', () => {
       tx.select().from(reviewCases).where(eq(reviewCases.declarationId, declarationId)),
     );
 
-  it('S5: version 1 becomes an unassigned case with flags, score, receipt, window and read model; review.case.created.v1', async () => {
+  it('S5: version 1 becomes an unassigned case with flags, score, receipt, window, read model, roster record and reporting entity; review.case.created.v1', async () => {
     const version = firstDeclaration();
     api.declarations.given(version);
 
@@ -75,6 +75,8 @@ describe('declaration.submitted.v1 consumer and processing', () => {
       late: false,
       declarantName: 'James Otieno',
       personnelFileNumber: 'PSC/2019/0042',
+      rosterRecordId: version.rosterRecordId,
+      reportingEntityId: version.reportingEntityId,
       // First declaration: no-previous-version and foreign-holdings, both info.
       score: 0,
       band: 'low',

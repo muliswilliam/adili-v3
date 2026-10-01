@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  ADM,
   CLR,
+  CMP,
   DCB,
   DCF,
   DCI,
@@ -10,16 +12,20 @@ import {
   findScheme,
   numberingSchemes,
   OFR,
+  RFL,
 } from './schemes.js';
 
 describe('numbering scheme registry', () => {
-  it('registers OFR, the three declaration schemes and CLR', () => {
+  it('registers OFR, the three declaration schemes and the review schemes', () => {
     expect(numberingSchemes.map((scheme) => scheme.code)).toEqual([
       'OFR',
       'DCI',
       'DCB',
       'DCF',
       'CLR',
+      'CMP',
+      'ADM',
+      'RFL',
     ]);
   });
 
@@ -40,6 +46,19 @@ describe('numbering scheme registry', () => {
     { code: 'DCI', scheme: DCI, name: 'Initial declaration', legalBasis: 'Act s.34(1)' },
     { code: 'DCB', scheme: DCB, name: 'Biennial declaration', legalBasis: 'Act s.34(2)' },
     { code: 'DCF', scheme: DCF, name: 'Final declaration', legalBasis: 'Act s.34(3)' },
+    {
+      code: 'CMP',
+      scheme: CMP,
+      name: 'Compliance determination',
+      legalBasis: 'Act s.35; Regs r.20',
+    },
+    {
+      code: 'ADM',
+      scheme: ADM,
+      name: 'Administrative action',
+      legalBasis: 'Admin Mechanisms (2026)',
+    },
+    { code: 'RFL', scheme: RFL, name: 'Referral', legalBasis: 'Regs r.20(1)(c), r.20(2)' },
     { code: 'OFR', scheme: OFR, name: 'Officer reference', legalBasis: 'Adili Online' },
     { code: 'CLR', scheme: CLR, name: 'Clarification request', legalBasis: 'Act s.35' },
   ])('$code carries its name and legal basis', ({ scheme, name, legalBasis }) => {

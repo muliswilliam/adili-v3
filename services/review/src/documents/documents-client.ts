@@ -14,21 +14,60 @@ export interface UploadDownload {
 export type RevocationReason = 'issued-in-error';
 
 /**
- * A request to render, sign and register a verifiable document (documents.yaml `IssueDocument`,
- * ADR-010), for the tenant the call acts for. The disclosure level and what the verify page shows
- * are the template's. For a clarification letter the payload names the clarification only: the
- * documents service pulls the fields the template renders from the review service's
- * `internalGetClarificationLetterPayload`, so no personal data travels in the request's logs or in
- * workflow history.
+ * The letters the review service issues, and the record whose letter payload each names: the
+ * documents service pulls the fields the template renders from the review service's letter payload
+ * endpoint for that record (`internalGetClarificationLetterPayload`,
+ * `internalGetDeterminationLetterPayload`, `internalGetActionLetterPayload`), so no personal data
+ * travels in the request's logs or in workflow history.
  */
-export interface IssueDocumentRequest {
-  type: 'clarification-letter';
+export type ReviewLetter =
+  | { type: 'clarification-letter'; payload: { clarificationId: string } }
+  | { type: 'decision-letter'; payload: { determinationId: string } }
+  | { type: ActionLetterType; payload: { actionId: string } };
+
+/** The letters of the enforcement ladder's steps (documents.yaml `DocumentType`). */
+export type ActionLetterType =
+  'notice-to-comply' | 'warning' | 'salary-stoppage' | 'disciplinary-referral';
+
+/** A letter of the review service, which its template issues Restricted (ADR-010). */
+export type IssueLetterRequest = ReviewLetter & {
   templateVersion: number;
   /** The owning record, e.g. `clarification:<uuid>`. One document per type and subject. */
   subjectRef: string;
-  /** The person allowed to download the document (the documents owner rule). */
-  subjectPersonId: string;
-  payload: { clarificationId: string };
+  /**
+   * The person allowed to download the document (the documents owner rule); null for an officer
+   * who never onboarded.
+   */
+  subjectPersonId: string | null;
+};
+
+/**
+ * A referral's Confidential evidence package (`referral-package`, ADR-010): the documents service
+ * pulls its fields from `internalGetReferralPackagePayload`. Nobody owns it as a person (the
+ * declarant is never told of a referral, spec 08).
+ */
+export interface IssuePackageRequest {
+  type: 'referral-package';
+  payload: { referralId: string };
+  templateVersion: number;
+  /** `referral:<uuid>`. */
+  subjectRef: string;
+  subjectPersonId: null;
+}
+
+/**
+ * A document the review service asks documents to render, sign and register (documents.yaml
+ * `IssueDocument`, ADR-010), for the tenant the call acts for. The disclosure level and what the
+ * verify page shows are the template's.
+ */
+export type IssueDocumentRequest = IssueLetterRequest | IssuePackageRequest;
+
+/** An issued document as documents describes it to its issuer (`internalGetDocument`). */
+export interface IssuedDocumentFacts {
+  id: string;
+  type: string;
+  /** SHA-256 of the signed PDF, lowercase hex. */
+  sha256: string;
 }
 
 /** What the review service keeps of an issued document (documents.yaml `IssuedDocument`). */
@@ -63,6 +102,15 @@ export abstract class DocumentsClient {
    * `InternalApiRejected` when documents refuses the request.
    */
   abstract issue(request: IssueDocumentRequest, tenant: string): Promise<IssuedDocument>;
+
+  /**
+   * What documents holds of a document the Commission issued (`internalGetDocument`): its type and
+   * SHA-256; null when the Commission issued no such document.
+   */
+  abstract getIssuedDocument(
+    documentId: string,
+    tenant: string,
+  ): Promise<IssuedDocumentFacts | null>;
 
   /**
    * Revokes an issued document of the Commission (`revokeDocument`): its verify page then shows it

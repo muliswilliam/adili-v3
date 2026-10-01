@@ -1,10 +1,25 @@
 import 'reflect-metadata';
 
-import { Controller, Get, NotFoundException, Param } from '@nestjs/common';
-import { APP_INTERCEPTOR } from '@nestjs/core';
+import {
+  type CanActivate,
+  Controller,
+  type ExecutionContext,
+  Get,
+  Injectable,
+  NotFoundException,
+  Param,
+} from '@nestjs/common';
+import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { FastifyAdapter, type NestFastifyApplication } from '@nestjs/platform-fastify';
 import { Test } from '@nestjs/testing';
-import { AuditedRead, CurrentReadAudit, type ReadAudit } from '@adili/api-kit';
+import {
+  AuditedRead,
+  type AuthenticatedRequest,
+  CurrentReadAudit,
+  InternalApi,
+  type Principal,
+  type ReadAudit,
+} from '@adili/api-kit';
 import { DATABASE } from '@adili/data-access';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
@@ -39,6 +54,52 @@ class ThingsController {
   }
 }
 
+/** An internal route: a service reads for the subject and tenant it names. */
+@Controller('internal/v1/records')
+@InternalApi('records:internal')
+class InternalRecordsController {
+  @Get(':recordId')
+  @AuditedRead({ action: 'roster.record.viewed', resource: 'roster-record' })
+  get(@Param('recordId') recordId: string) {
+    return { id: recordId };
+  }
+}
+
+/** Under `/internal/` but without InternalApi(): nothing admitted the acting headers. */
+@Controller('internal/v1/unguarded')
+class UnguardedInternalController {
+  @Get(':recordId')
+  @AuditedRead({ action: 'roster.record.viewed', resource: 'roster-record' })
+  get(@Param('recordId') recordId: string) {
+    return { id: recordId };
+  }
+}
+
+/** The records service's client credentials token. */
+const SERVICE: Principal = {
+  subject: 'service-account-records',
+  tenant: null,
+  roles: [],
+  scopes: ['records:internal'],
+  clientId: 'records',
+  name: null,
+  issuedAt: null,
+  personId: null,
+  acr: null,
+  authTime: null,
+  tokenId: null,
+};
+
+/** Stands in for the JWT guard: `authorization: service` is the service token, else anonymous. */
+@Injectable()
+class TestAuthGuard implements CanActivate {
+  canActivate(context: ExecutionContext): boolean {
+    const request = context.switchToHttp().getRequest<AuthenticatedRequest>();
+    if (request.headers.authorization === 'service') request.principal = SERVICE;
+    return true;
+  }
+}
+
 const recorded: NewEvent[] = [];
 let failing = false;
 const publisher = {
@@ -53,8 +114,14 @@ let app: NestFastifyApplication;
 
 beforeAll(async () => {
   const moduleRef = await Test.createTestingModule({
-    controllers: [RecordsController, ThingsController],
+    controllers: [
+      RecordsController,
+      ThingsController,
+      InternalRecordsController,
+      UnguardedInternalController,
+    ],
     providers: [
+      { provide: APP_GUARD, useClass: TestAuthGuard },
       { provide: EventPublisher, useValue: publisher },
       { provide: DATABASE, useValue: {} },
       { provide: APP_INTERCEPTOR, useClass: AuditedReadInterceptor },
@@ -102,6 +169,82 @@ describe('AuditedReadInterceptor', () => {
           request: { method: 'GET', route: '/v1/commissions/:slug/records/:recordId' },
         },
       },
+    ]);
+  });
+
+  it('records the subject and tenant a service acts for once InternalApi() admitted it', async () => {
+    const response = await app.inject({
+      method: 'GET',
+      url: '/internal/v1/records/rec-1',
+      headers: {
+        authorization: 'service',
+        'x-acting-subject': 'analyst-e',
+        'x-acting-tenant': 'psc',
+      },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(recorded).toMatchObject([
+      {
+        tenant: 'psc',
+        data: {
+          resource: { tenant: 'psc' },
+          actor: {
+            subject: 'service-account-records',
+            clientId: 'records',
+            tenant: null,
+            roles: [],
+            onBehalfOf: 'analyst-e',
+          },
+        },
+      },
+    ]);
+  });
+
+  it('ignores the acting headers on an internal path nothing admitted them on', async () => {
+    const response = await app.inject({
+      method: 'GET',
+      url: '/internal/v1/unguarded/rec-1',
+      headers: {
+        authorization: 'service',
+        'x-acting-subject': 'someone-else',
+        'x-acting-tenant': 'psc',
+      },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(recorded).toEqual([
+      expect.objectContaining({
+        tenant: undefined,
+        data: expect.objectContaining({
+          resource: expect.objectContaining({ tenant: null }) as unknown,
+          actor: {
+            subject: 'service-account-records',
+            clientId: 'records',
+            tenant: null,
+            roles: [],
+          },
+        }) as unknown,
+      }),
+    ]);
+  });
+
+  it('ignores the acting headers on any other route: a caller cannot name whom it acts for', async () => {
+    const response = await app.inject({
+      method: 'GET',
+      url: '/v1/things/thing-2',
+      headers: { 'x-acting-subject': 'someone-else', 'x-acting-tenant': 'psc' },
+    });
+    await app.inject({
+      method: 'GET',
+      url: '/v1/commissions/psc/records/rec-1',
+      headers: { 'x-acting-subject': 'someone-else' },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(recorded.map((event) => (event.data as { actor: object }).actor)).toEqual([
+      { subject: 'anonymous', clientId: null, tenant: null, roles: [] },
+      { subject: 'anonymous', clientId: null, tenant: null, roles: [] },
     ]);
   });
 

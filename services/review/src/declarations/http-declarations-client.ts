@@ -5,6 +5,8 @@ import type { paths } from './declarations-api.gen.js';
 import {
   DeclarationsClient,
   DeclarationsUnavailable,
+  type ObligationFacts,
+  type PersonObligation,
   type PreviousVersionRef,
   type PulledVersion,
   type ReadContext,
@@ -32,6 +34,8 @@ const versionSchema = z.object({
   versionId: z.uuid(),
   version: z.int().positive(),
   personId: z.uuid(),
+  rosterRecordId: z.uuid(),
+  reportingEntityId: z.uuid().nullable(),
   reference: z.string().min(1),
   type: z.enum(['initial', 'biennial', 'final']),
   statementDate: civilDate,
@@ -59,6 +63,30 @@ const previousSchema = z.object({
   statementDate: civilDate,
   submittedAt: instant,
 }) satisfies z.ZodType<PreviousVersionRef>;
+
+const obligationSchema = z.object({
+  obligationId: z.uuid(),
+  rosterRecordId: z.uuid(),
+  personId: z.uuid().nullable(),
+  type: z.enum(['initial', 'biennial', 'final']),
+  cycleKey: z.string().min(1),
+  dueDate: civilDate,
+  status: z.enum(['upcoming', 'due', 'overdue', 'filed', 'cancelled']),
+  declarantName: z.string(),
+  personnelFileNumber: z.string(),
+}) satisfies z.ZodType<ObligationFacts>;
+
+const personObligationsSchema = z.array(
+  z.object({
+    obligationId: z.uuid(),
+    type: z.enum(['initial', 'biennial', 'final']),
+    cycleKey: z.string().min(1),
+    status: z.enum(['upcoming', 'due', 'overdue', 'filed', 'cancelled']),
+    dueDate: civilDate,
+    filedAt: instant.nullable(),
+    late: z.boolean(),
+  }),
+) satisfies z.ZodType<PersonObligation[]>;
 
 /**
  * The declarations service's internal API through the client generated from its contract
@@ -118,6 +146,26 @@ export class HttpDeclarationsClient extends DeclarationsClient {
           },
         }),
       { status: 200, schema: previousSchema, otherwise: { 404: () => null } },
+    );
+  }
+
+  getObligation(obligationId: string, tenant: string): Promise<ObligationFacts | null> {
+    return this.declarations.call(
+      (api) =>
+        api.GET('/internal/v1/obligations/{obligationId}', {
+          params: { path: { obligationId }, header: { 'X-Acting-Tenant': tenant } },
+        }),
+      { status: 200, schema: obligationSchema, otherwise: { 404: () => null } },
+    );
+  }
+
+  async listPersonObligations(personId: string, tenant: string): Promise<PersonObligation[]> {
+    return this.declarations.call(
+      (api) =>
+        api.GET('/internal/v1/persons/{personId}/obligations', {
+          params: { path: { personId }, header: { 'X-Acting-Tenant': tenant } },
+        }),
+      { status: 200, schema: personObligationsSchema, otherwise: { 404: () => [] } },
     );
   }
 }

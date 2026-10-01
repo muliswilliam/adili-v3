@@ -6,10 +6,12 @@ import {
   ApiQueryParameters,
   AuditedRead,
   CurrentPrincipal,
+  InternalApi,
   type Principal,
   schemaRef,
   ZodValidationPipe,
 } from '@adili/api-kit';
+import { DIRECTORY_ROSTER_NATIONAL_ID_SCOPE } from '@adili/roles';
 import { z } from 'zod';
 
 import { DirectoryInternalApi } from '../../internal-api.js';
@@ -18,7 +20,11 @@ import {
   internalListRosterRecordsQuery,
 } from './internal-query.js';
 import { InternalRosterRecordsService } from './internal-records.service.js';
-import type { InternalRosterRecord, InternalRosterRecordPage } from './representation.js';
+import type {
+  InternalRosterRecord,
+  InternalRosterRecordPage,
+  RosterNationalId,
+} from './representation.js';
 
 const CALLERS =
   'Service tokens with scope directory:internal, acting for the Commission in X-Acting-Tenant; audited.';
@@ -76,5 +82,39 @@ export class InternalRosterRecordsController {
     @Param('recordId', new ZodValidationPipe(z.uuid())) recordId: string,
   ): Promise<InternalRosterRecord> {
     return this.records.get(principal, tenant, slug, recordId);
+  }
+}
+
+/**
+ * Internal: not routed by the public entrypoint. A national ID is personal data: only the review
+ * service's token carries `directory:roster-national-id`, for payroll's salary stoppage and the
+ * ICMS referral (spec 08), acting for the Commission in X-Acting-Tenant (ADR-013 §8.1).
+ */
+@ApiTags('internal')
+@Controller('internal/v1/commissions/:slug/roster/records/:recordId/national-id')
+@ApiParam({ name: 'slug', schema: schemaRef('Slug') })
+@ApiParam({ name: 'recordId', schema: { type: 'string', format: 'uuid' } })
+@InternalApi(DIRECTORY_ROSTER_NATIONAL_ID_SCOPE)
+export class InternalRosterNationalIdController {
+  constructor(private readonly records: InternalRosterRecordsService) {}
+
+  @Get()
+  @AuditedRead({ action: 'roster.record.national-id.read', resource: 'roster-record' })
+  @ApiOperation({
+    operationId: 'internalGetRosterNationalId',
+    summary: "A roster record's national ID (review)",
+    description:
+      'Service tokens with scope directory:roster-national-id (the review service only), acting for the Commission in X-Acting-Tenant; audited. What payroll and the ICMS referral identify the officer by.',
+  })
+  @ApiOkResponse({ description: 'The national ID', schema: schemaRef('RosterNationalId') })
+  @ApiProblemResponse(400, 'recordId is not a UUID')
+  @ApiProblemResponse(404, "No such record in the acting tenant's Commission")
+  get(
+    @CurrentPrincipal() principal: Principal,
+    @ActingTenant() tenant: string,
+    @Param('slug') slug: string,
+    @Param('recordId', new ZodValidationPipe(z.uuid())) recordId: string,
+  ): Promise<RosterNationalId> {
+    return this.records.nationalId(principal, tenant, slug, recordId);
   }
 }

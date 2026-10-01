@@ -43,6 +43,62 @@
       "when": 1790851270523,
       "tag": "0005_clarification_letter",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1790680670032,
+      "tag": "0006_determinations",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1790685073528,
+      "tag": "0007_bulk_closures",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1790688713431,
+      "tag": "0008_enforcement_ladder",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1790692471188,
+      "tag": "0009_salary_stoppage_payroll",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1790695921561,
+      "tag": "0010_referrals",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1790701974041,
+      "tag": "0011_case_roster_record",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1790702572837,
+      "tag": "0012_determination_further_action_link",
+      "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1790750816027,
+      "tag": "0013_referral_icms_case_number",
+      "breakpoints": true
     }
   ]
 }

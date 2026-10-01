@@ -4,10 +4,10 @@ info:
   version: '1'
   description: |
     Draft contract for specs 07a (queue, cases, clarifications), 07b (registry cross-checks) and 08
-    (determinations, approvals, enforcement ladder, referrals). Review cases are created by the processing workflow from
-    submitted declarations; the service stores flags and case data only and reads declaration
-    content from the declarations service on demand. The review service's Swagger document
-    becomes the source of truth once implemented.
+    (determinations, approvals, the administrative action ladder, referrals). Review cases are
+    created by the processing workflow from submitted declarations; the service stores flags and
+    case data only and reads declaration content from the declarations service on demand. The
+    review service's Swagger document becomes the source of truth once implemented.
 servers:
   - url: http://localhost:4003
 security:
@@ -665,6 +665,136 @@ paths:
                 $ref: '#/components/schemas/ClarificationLetterPayload'
         '404':
           $ref: '#/components/responses/NotFound'
+  /internal/v1/review/determinations/{determinationId}/letter-payload:
+    parameters:
+      - $ref: '#/components/parameters/DeterminationId'
+      - $ref: '#/components/parameters/ActingTenant'
+    get:
+      tags: [internal]
+      operationId: internalGetDeterminationLetterPayload
+      summary: Fields the decision letter template needs (documents service)
+      responses:
+        '400':
+          $ref: '#/components/responses/ValidationProblem'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '200':
+          description: Payload
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeterminationLetterPayload'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '503':
+          $ref: '#/components/responses/DirectoryUnavailable'
+  /internal/v1/review/actions/{actionId}/letter-payload:
+    parameters:
+      - $ref: '#/components/parameters/ActionId'
+      - $ref: '#/components/parameters/ActingTenant'
+    get:
+      tags: [internal]
+      operationId: internalGetActionLetterPayload
+      summary: Fields the step letter templates need (notice to comply, warning, salary stoppage, disciplinary referral; documents service)
+      responses:
+        '400':
+          $ref: '#/components/responses/ValidationProblem'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '200':
+          description: Payload
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ActionLetterPayload'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '503':
+          $ref: '#/components/responses/DirectoryUnavailable'
+  /internal/v1/review/referrals/{referralId}/package-payload:
+    parameters:
+      - $ref: '#/components/parameters/ReferralId'
+      - $ref: '#/components/parameters/ActingTenant'
+    get:
+      tags: [internal]
+      operationId: internalGetReferralPackagePayload
+      x-audited-read:
+        action: review.referral.package-payload.read
+        resource: referral
+      summary: Cover sheet, manifest and evidence the referral package template needs (documents service)
+      description: >-
+        Service tokens with `review:internal`; the Commission in `X-Acting-Tenant`. An approved or
+        sent referral whose manifest is built. The evidence is pulled from declarations again
+        (versions are immutable, so their hashes match the manifest); letters are named by document
+        id for documents to append.
+      responses:
+        '400':
+          $ref: '#/components/responses/ValidationProblem'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '200':
+          description: Payload
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReferralPackagePayload'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '502':
+          description: The evidence could not be read from declarations or documents
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '503':
+          $ref: '#/components/responses/DirectoryUnavailable'
+  /internal/v1/review/referrals/{referralId}/icms-payload:
+    parameters:
+      - $ref: '#/components/parameters/ReferralId'
+      - $ref: '#/components/parameters/ActingTenant'
+    get:
+      tags: [internal]
+      operationId: internalGetReferralIcmsPayload
+      summary: What ICMS needs of a sent referral, with the declarant's national ID (reporting)
+      description: >-
+        Service tokens with `review:internal`; the Commission in `X-Acting-Tenant`. A sent referral
+        only. What ICMS needs and no more: the declarant's national ID is read from the directory's
+        roster record of the referral's case at each call and kept nowhere in the review service.
+        Every read is audited (`audit.read.v1`, action `review.referral.icms-payload.read`), naming
+        the officer in `X-Acting-Subject` when the caller gives one.
+      x-audited-read:
+        action: review.referral.icms-payload.read
+        resource: referral
+      parameters:
+        - name: X-Acting-Subject
+          in: header
+          required: false
+          description: The officer on whose behalf the service reads it; recorded in the audit event
+          schema:
+            type: string
+      responses:
+        '400':
+          $ref: '#/components/responses/ValidationProblem'
+        '200':
+          description: Payload
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReferralIcmsPayload'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: >-
+            Problem code `roster-record-unknown`: no roster record of the declarant is known, so the
+            national ID cannot be read
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '503':
+          $ref: '#/components/responses/DirectoryUnavailable'
   /v1/review/cases/{caseId}/registry:
     parameters:
       - $ref: '#/components/parameters/CaseId'
@@ -707,6 +837,8 @@ paths:
     post:
       tags: [determinations]
       operationId: proposeDetermination
+      parameters:
+        - $ref: '#/components/parameters/OptionalIdempotencyKey'
       summary: Propose a compliance determination (assignee)
       requestBody:
         required: true
@@ -726,7 +858,9 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
         '409':
-          description: A determination is already proposed or approved
+          description: >-
+            A determination is already proposed or approved (problem code `determination-open`), or
+            a clarification of the case is still open (problem code `clarification-open`)
           content:
             application/problem+json:
               schema:
@@ -764,7 +898,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Determination'
         '403':
-          description: 'Problem code `separation-of-duties` or role'
+          description: 'Problem code `separation-of-duties` (proposer or reviewer of record) or `supervisor-required` (role)'
           content:
             application/problem+json:
               schema:
@@ -772,17 +906,21 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
         '409':
-          description: Not proposed
+          description: 'Not proposed: problem code `not-proposed`'
           content:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/ProblemDetails'
+        '503':
+          $ref: '#/components/responses/DirectoryUnavailable'
   /v1/review/determinations/{determinationId}/return:
     parameters:
       - $ref: '#/components/parameters/DeterminationId'
     post:
       tags: [determinations]
       operationId: returnDetermination
+      parameters:
+        - $ref: '#/components/parameters/OptionalIdempotencyKey'
       summary: Return to the proposer with a reason
       requestBody:
         required: true
@@ -798,15 +936,27 @@ paths:
               schema:
                 $ref: '#/components/schemas/Determination'
         '403':
-          $ref: '#/components/responses/Forbidden'
+          description: 'Problem code `separation-of-duties` or `supervisor-required`'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
         '404':
           $ref: '#/components/responses/NotFound'
+        '409':
+          description: 'Problem code `not-proposed`'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
   /v1/review/determinations/{determinationId}/withdraw:
     parameters:
       - $ref: '#/components/parameters/DeterminationId'
     post:
       tags: [determinations]
       operationId: withdrawDetermination
+      parameters:
+        - $ref: '#/components/parameters/OptionalIdempotencyKey'
       summary: Proposer withdraws while proposed
       responses:
         '200':
@@ -819,13 +969,26 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '409':
+          description: 'Problem code `not-proposed`'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
   /v1/review/determinations/{determinationId}/letter:
     parameters:
       - $ref: '#/components/parameters/DeterminationId'
     get:
       tags: [determinations]
       operationId: getDeterminationLetter
+      x-audited-read:
+        action: review.determination.letter.downloaded
+        resource: determination
       summary: Decision letter download; issued on first request for bulk closures
+      description: >-
+        The Commission's reviewers and supervisors, and the declarant for their own approved
+        determinations; anyone else 404. A bulk closure's letter is issued the first time anyone
+        asks for it, then served like any other.
       responses:
         '200':
           description: Download link
@@ -836,7 +999,19 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
         '409':
-          description: Not approved
+          description: 'Not approved: problem code `not-approved`'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '502':
+          description: The documents service refused the letter
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '503':
+          description: The documents service could not be reached; try again
           content:
             application/problem+json:
               schema:
@@ -881,10 +1056,21 @@ paths:
                     type: [string, 'null']
                   counts:
                     type: object
+                    description: 'Pending approvals by kind (`determination`, `action`, `referral`) and by age band (`under-7-days`, `7-to-30-days`, `over-30-days`), whatever the kind filter'
                     additionalProperties:
                       type: integer
+        '400':
+          description: The cursor is not one this inbox issued
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
         '403':
-          $ref: '#/components/responses/Forbidden'
+          description: 'Problem code `supervisor-required`: approvals are for supervisors'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
         '404':
           $ref: '#/components/responses/NotFound'
   /v1/review/approvals/{kind}/{subjectId}/reassign:
@@ -903,6 +1089,8 @@ paths:
     post:
       tags: [approvals]
       operationId: reassignApproval
+      parameters:
+        - $ref: '#/components/parameters/OptionalIdempotencyKey'
       summary: Point an approval at another supervisor (informational; the separation rule still applies)
       requestBody:
         required: true
@@ -917,10 +1105,24 @@ paths:
       responses:
         '200':
           description: Reassigned
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApprovalReassignment'
         '403':
-          $ref: '#/components/responses/Forbidden'
+          description: 'Problem code `supervisor-required`: approvals are for supervisors'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
         '404':
           $ref: '#/components/responses/NotFound'
+        '409':
+          description: 'Decided already: problem code `not-proposed`'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
   /v1/commissions/{slug}/closures:
     parameters:
       - $ref: '#/components/parameters/Slug'
@@ -950,6 +1152,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ClosureSummary'
+        '400':
+          description: Query failed validation
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
         '403':
           $ref: '#/components/responses/Forbidden'
         '404':
@@ -958,6 +1166,12 @@ paths:
       tags: [closures]
       operationId: approveBulkClosures
       summary: Approve system-proposed closures matching the filters, in chunks (supervisor)
+      description: >-
+        Chunks of 100 per transaction, each allocating its CMP numbers in sequence, moving the
+        cases to `determined` and notifying the declarants by person; no letter is rendered
+        (`getDeterminationLetter` issues it on first request). Closures of cases the caller once
+        held are skipped and counted. Sent again with the same Idempotency-Key after a failure,
+        the approval resumes and reports every closure approved under the key.
       parameters:
         - name: cycleYear
           in: query
@@ -981,17 +1195,27 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/BulkApprovalResult'
+        '400':
+          description: Query failed validation
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
         '403':
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '503':
+          $ref: '#/components/responses/DirectoryUnavailable'
   /v1/commissions/{slug}/actions:
     parameters:
       - $ref: '#/components/parameters/Slug'
     get:
       tags: [actions]
       operationId: listEnforcementLadders
-      summary: Ladders (per overdue obligation or clarification) with current step and status
+      summary: >-
+        Administrative action ladders (per overdue obligation or clarification) with current step
+        and status
       parameters:
         - name: status
           in: query
@@ -1070,18 +1294,22 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
         '409':
-          description: Not proposed
+          description: 'Not proposed (problem code `not-proposed`)'
           content:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/ProblemDetails'
+        '503':
+          $ref: '#/components/responses/DirectoryUnavailable'
   /v1/review/actions/{actionId}/decline:
     parameters:
       - $ref: '#/components/parameters/ActionId'
     post:
       tags: [actions]
       operationId: declineAction
-      summary: Decline a proposed step with a note (ends the ladder)
+      parameters:
+        - $ref: '#/components/parameters/OptionalIdempotencyKey'
+      summary: Decline a proposed step with a note (ends the ladder; a declined disciplinary referral leaves it waiting for compliance)
       requestBody:
         required: true
         content:
@@ -1095,16 +1323,30 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/AdministrativeAction'
+        '400':
+          $ref: '#/components/responses/ValidationProblem'
         '403':
-          $ref: '#/components/responses/Forbidden'
+          description: 'Role or `separation-of-duties`, as for approval'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
         '404':
           $ref: '#/components/responses/NotFound'
+        '409':
+          description: 'Not proposed (problem code `not-proposed`)'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
   /v1/review/ladders/{ladderId}/restart:
     parameters:
       - $ref: '#/components/parameters/LadderId'
     post:
       tags: [actions]
       operationId: restartLadder
+      parameters:
+        - $ref: '#/components/parameters/OptionalIdempotencyKey'
       summary: Supervisor restarts a declined ladder
       responses:
         '200':
@@ -1118,7 +1360,7 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
         '409':
-          description: Ladder not declined
+          description: 'Ladder not declined (problem code `ladder-not-declined`)'
           content:
             application/problem+json:
               schema:
@@ -1129,7 +1371,14 @@ paths:
     post:
       tags: [referrals]
       operationId: proposeReferral
+      parameters:
+        - $ref: '#/components/parameters/OptionalIdempotencyKey'
       summary: Propose a referral to EACC from a case (assignee)
+      description: >-
+        The case's assignee (reviewer or supervisor), on grounds of undeclared or unexplained assets
+        (Regs r.20(1)(c)), selecting at least one registry or comparison flag of the case and any
+        issued clarifications of it. The issued steps of the clarifications' ladders are added to
+        the sources. The declarant is not told.
       requestBody:
         required: true
         content:
@@ -1143,10 +1392,28 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Referral'
+        '400':
+          description: >-
+            Body failed validation, or a flag is not a registry or comparison flag of the case, or a
+            clarification is not an issued one of the case
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
         '403':
-          $ref: '#/components/responses/Forbidden'
+          description: Problem code `not-the-assignee`
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
         '404':
           $ref: '#/components/responses/NotFound'
+        '409':
+          description: 'Problem code `referral-open`: a referral from this case waits for approval'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
   /v1/commissions/{slug}/referrals:
     parameters:
       - $ref: '#/components/parameters/Slug'
@@ -1185,6 +1452,8 @@ paths:
                       $ref: '#/components/schemas/Referral'
                   nextCursor:
                     type: [string, 'null']
+        '400':
+          $ref: '#/components/responses/ValidationProblem'
         '404':
           $ref: '#/components/responses/NotFound'
   /v1/review/referrals/{referralId}:
@@ -1194,6 +1463,10 @@ paths:
       tags: [referrals]
       operationId: getReferral
       summary: One referral with its package manifest
+      description: >-
+        The Commission's reviewers and supervisors. Carries `evidence`, what the package includes
+        by reference, so a supervisor previews it before approving; `package.manifest`, with the
+        SHA-256 of every item, once the package is assembled.
       responses:
         '200':
           description: Referral
@@ -1210,25 +1483,44 @@ paths:
       tags: [referrals]
       operationId: approveReferral
       summary: Approve (supervisor, separation rule); allocates RFL, assembles the package, sends to EACC
+      description: >-
+        A supervisor who neither proposed it nor held any of its cases. Allocates
+        `RFL-<ISSUER>-<YEAR>-<seq>-<check>` (year of approval) and answers `approved`; the evidence
+        is then pulled, the manifest stored, the Confidential `referral-package` issued and the
+        referral `sent` (`referral.sent.v1`) in the background. The declarant is not notified.
       parameters:
         - $ref: '#/components/parameters/IdempotencyKey'
       responses:
         '200':
-          description: Sent
+          description: Approved; the package is assembled and the referral sent in the background
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Referral'
         '403':
-          $ref: '#/components/responses/Forbidden'
+          description: 'Problem code `separation-of-duties` (proposer or reviewer of record) or `supervisor-required` (role)'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
         '404':
           $ref: '#/components/responses/NotFound'
+        '409':
+          description: 'Not proposed: problem code `not-proposed`'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '503':
+          $ref: '#/components/responses/DirectoryUnavailable'
   /v1/review/referrals/{referralId}/decline:
     parameters:
       - $ref: '#/components/parameters/ReferralId'
     post:
       tags: [referrals]
       operationId: declineReferral
+      parameters:
+        - $ref: '#/components/parameters/OptionalIdempotencyKey'
       summary: Decline with a note
       requestBody:
         required: true
@@ -1243,10 +1535,22 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Referral'
+        '400':
+          $ref: '#/components/responses/ValidationProblem'
         '403':
-          $ref: '#/components/responses/Forbidden'
+          description: 'Problem code `separation-of-duties` (proposer or reviewer of record) or `supervisor-required` (role)'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
         '404':
           $ref: '#/components/responses/NotFound'
+        '409':
+          description: 'Not proposed: problem code `not-proposed`'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
   /v1/me/decisions:
     get:
       tags: [declarant]
@@ -1315,8 +1619,16 @@ paths:
                 $ref: '#/components/schemas/DeclarantNotice'
         '404':
           $ref: '#/components/responses/NotFound'
+        '400':
+          $ref: '#/components/responses/ValidationProblem'
         '409':
-          description: Already responded or step not open
+          description: 'Problem code `already-responded`, `notice-closed`, `attachment-not-clean` or `attachment-not-accepted`'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '503':
+          description: The documents service could not check the attachments; nothing changed
           content:
             application/problem+json:
               schema:
@@ -1997,6 +2309,11 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/Assignee'
+        determinations:
+          type: array
+          description: Every determination of the case, oldest first; the current one is last
+          items:
+            $ref: '#/components/schemas/Determination'
     VersionComparison:
       type: object
       required: [previousVersion, currentVersion, statements]
@@ -2392,6 +2709,24 @@ components:
         furtherActionNote:
           type: [string, 'null']
           maxLength: 2000
+        furtherActionLink:
+          description: >-
+            For `further-action` only: the administrative action or referral the further action
+            is, of the same declarant (400 otherwise)
+          oneOf:
+            - $ref: '#/components/schemas/FurtherActionLink'
+            - type: 'null'
+    FurtherActionLink:
+      type: object
+      required: [kind, id]
+      properties:
+        kind:
+          type: string
+          enum: [action, referral]
+        id:
+          type: string
+          format: uuid
+          description: The administrative action's or the referral's id
     Determination:
       type: object
       required:
@@ -2441,6 +2776,21 @@ components:
           format: date-time
         returnReason:
           type: [string, 'null']
+        returnedBy:
+          description: The supervisor who returned it; null unless returned
+          oneOf:
+            - $ref: '#/components/schemas/Assignee'
+            - type: 'null'
+        returnedAt:
+          type: [string, 'null']
+          format: date-time
+        furtherActionNote:
+          type: [string, 'null']
+        furtherActionLink:
+          description: The action or referral a `further-action` determination links to; null when none
+          oneOf:
+            - $ref: '#/components/schemas/FurtherActionLink'
+            - type: 'null'
         reference:
           type: [string, 'null']
           description: 'CMP-<ISSUER>-<YEAR>-<seq>-<check>, allocated at approval'
@@ -2448,7 +2798,7 @@ components:
           type: boolean
     LetterDownload:
       type: object
-      required: [documentId, verificationId, downloadUrl, expiresAt]
+      required: [documentId, verificationId, downloadUrl]
       properties:
         documentId:
           type: string
@@ -2456,11 +2806,11 @@ components:
         verificationId:
           type: string
         downloadUrl:
-          type: string
+          type: [string, 'null']
           format: uri
-        expiresAt:
-          type: string
-          format: date-time
+          description: >-
+            The declarant's portal download of their own letter (the documents owner rule); null
+            for staff, who download the document by id from the documents service
     ApprovalKind:
       type: string
       enum: [determination, action, referral]
@@ -2508,27 +2858,39 @@ components:
             - type: 'null'
     ClosureSummary:
       type: object
-      required: [cycleYear, eligibleProposed, sampled, approved, sampleRate, windowClosedAt]
+      required:
+        [cycleYear, eligibleProposed, sampled, approved, sampleRate, windowClosedAt, lastSweptAt]
       properties:
         cycleYear:
           type: integer
         eligibleProposed:
           type: integer
+          description: System `compliant-no-issues` proposals waiting for approval
         sampled:
           type: integer
+          description: Cases the sweep diverted to review instead of proposing their closure
         approved:
           type: integer
         sampleRate:
           type: number
+          description: Fraction of eligible cases diverted to review, e.g. 0.02 for 2%
         windowClosedAt:
           type: [string, 'null']
           format: date-time
+          description: When the last low-band case of the cycle and filters leaves its clarification window
+        lastSweptAt:
+          type: [string, 'null']
+          format: date-time
+          description: When the closure sweep last ran for the cycle; null before the first sweep
     BulkApprovalResult:
       type: object
-      required: [approved, firstReference, lastReference, chunks]
+      required: [approved, skipped, firstReference, lastReference, chunks]
       properties:
         approved:
           type: integer
+        skipped:
+          type: integer
+          description: Waiting closures of cases the caller once held, left for another supervisor
         firstReference:
           type: [string, 'null']
         lastReference:
@@ -2577,9 +2939,14 @@ components:
           step,
           status,
           proposerKind,
+          proposer,
           proposedAt,
           approver,
           approvedAt,
+          declinedBy,
+          declinedAt,
+          declineNote,
+          issuedAt,
           windowEndsAt,
           reference,
           letter,
@@ -2600,6 +2967,11 @@ components:
           $ref: '#/components/schemas/ActionStatus'
         proposerKind:
           $ref: '#/components/schemas/ProposerKind'
+        proposer:
+          description: The proposing officer; null for the system's drafts
+          oneOf:
+            - $ref: '#/components/schemas/Assignee'
+            - type: 'null'
         proposedAt:
           type: string
           format: date-time
@@ -2610,6 +2982,19 @@ components:
         approvedAt:
           type: [string, 'null']
           format: date-time
+        declinedBy:
+          oneOf:
+            - $ref: '#/components/schemas/Assignee'
+            - type: 'null'
+        declinedAt:
+          type: [string, 'null']
+          format: date-time
+        declineNote:
+          type: [string, 'null']
+        issuedAt:
+          type: [string, 'null']
+          format: date-time
+          description: When the letter was requested; the window runs from here
         windowEndsAt:
           type: [string, 'null']
           format: date-time
@@ -2668,6 +3053,7 @@ components:
           declarantName,
           personnelFileNumber,
           status,
+          closingCause,
           currentStep,
           steps,
           startedAt,
@@ -2692,6 +3078,21 @@ components:
         status:
           type: string
           enum: [active, complied, declined, ended]
+        closingCause:
+          description: >-
+            What closed the ladder: compliance (`filed`, `clarification-responded`,
+            `clarification-resolved`) or the subject gone (`obligation-cancelled`,
+            `clarification-withdrawn`); null while active or declined
+          type: [string, 'null']
+          enum:
+            [
+              filed,
+              clarification-responded,
+              clarification-resolved,
+              obligation-cancelled,
+              clarification-withdrawn,
+              null,
+            ]
         currentStep:
           oneOf:
             - $ref: '#/components/schemas/ActionStep'
@@ -2738,17 +3139,25 @@ components:
       required:
         [
           id,
+          caseId,
+          cycleYear,
           grounds,
           proposerKind,
           proposer,
           proposedAt,
           status,
           approver,
+          approvedAt,
+          declinedBy,
+          declinedAt,
+          declineNote,
           reference,
           sources,
           narrative,
           package,
           sentAt,
+          icmsCaseNumber,
+          icmsRegisteredAt,
           declarantName,
           personnelFileNumber,
         ]
@@ -2756,6 +3165,13 @@ components:
         id:
           type: string
           format: uuid
+        caseId:
+          type: [string, 'null']
+          format: uuid
+          description: The case it was proposed from (or whose clarification went unanswered)
+        cycleYear:
+          type: integer
+          description: The cycle it is about (the case's, or the later missed biennial cycle's)
         grounds:
           $ref: '#/components/schemas/ReferralGrounds'
         proposerKind:
@@ -2773,6 +3189,18 @@ components:
           oneOf:
             - $ref: '#/components/schemas/Assignee'
             - type: 'null'
+        approvedAt:
+          type: [string, 'null']
+          format: date-time
+        declinedBy:
+          oneOf:
+            - $ref: '#/components/schemas/Assignee'
+            - type: 'null'
+        declinedAt:
+          type: [string, 'null']
+          format: date-time
+        declineNote:
+          type: [string, 'null']
         reference:
           type: [string, 'null']
           description: 'RFL-<ISSUER>-<YEAR>-<seq>-<check>'
@@ -2820,23 +3248,341 @@ components:
                 manifest:
                   type: array
                   items:
-                    type: object
-                    required: [kind, reference, sha256]
-                    properties:
-                      kind:
-                        type: string
-                      reference:
-                        type: string
-                      sha256:
-                        type: string
+                    $ref: '#/components/schemas/ReferralManifestItem'
             - type: 'null'
         sentAt:
           type: [string, 'null']
           format: date-time
+        icmsCaseNumber:
+          type: [string, 'null']
+          description: >-
+            ICMS's case number once EACC registered the sent referral there
+            (`referral.icms-registered.v1`, spec 09); null until then
+        icmsRegisteredAt:
+          type: [string, 'null']
+          format: date-time
+          description: When ICMS registered it; null until then
         declarantName:
           type: string
         personnelFileNumber:
           type: string
+        evidence:
+          type: array
+          description: >-
+            `getReferral` only: what the package includes, by reference (attachments are listed in
+            the manifest once it is assembled)
+          items:
+            type: object
+            required: [kind, reference]
+            properties:
+              kind:
+                $ref: '#/components/schemas/ReferralManifestKind'
+              reference:
+                type: string
+    ReferralManifestKind:
+      type: string
+      enum:
+        [
+          declaration-version,
+          declaration-attachment,
+          flag,
+          clarification,
+          clarification-attachment,
+          obligation,
+          letter,
+        ]
+    ReferralManifestItem:
+      type: object
+      required: [kind, reference, sha256, documentId]
+      properties:
+        kind:
+          $ref: '#/components/schemas/ReferralManifestKind'
+        reference:
+          type: string
+        sha256:
+          type: string
+          pattern: '^[0-9a-f]{64}$'
+          description: >-
+            SHA-256 of the item as the package includes it: canonical JSON (sorted keys) for
+            versions' documents, flags, clarifications and obligations; the file's own hash for
+            uploads and letters
+        documentId:
+          type: [string, 'null']
+          format: uuid
+          description: The upload (attachments) or issued document (letters); null for records
+    ReferralIcmsPayload:
+      type: object
+      description: >-
+        What ICMS needs of a sent referral (spec 09 BE-5): its reference, grounds, Commission and
+        narrative, and the declarant's name and national ID. Personal data: the caller passes it to
+        ICMS and keeps it nowhere.
+      required: [reference, grounds, groundsLabel, commission, declarant, narrative]
+      properties:
+        reference:
+          type: string
+          description: 'RFL-<ISSUER>-<YEAR>-<seq>-<check>'
+        grounds:
+          $ref: '#/components/schemas/ReferralGrounds'
+        groundsLabel:
+          type: string
+        commission:
+          type: object
+          required: [name, issuerCode]
+          properties:
+            name:
+              type: string
+            issuerCode:
+              type: string
+        declarant:
+          type: object
+          required: [name, nationalId]
+          properties:
+            name:
+              type: string
+            nationalId:
+              type: string
+              description: From the directory's roster record of the referral's case
+        narrative:
+          type: string
+    ReferralPackagePayload:
+      type: object
+      required:
+        [
+          reference,
+          grounds,
+          groundsLabel,
+          cycleYear,
+          commission,
+          declarant,
+          narrative,
+          proposedBy,
+          proposedAt,
+          approvedBy,
+          approvedAt,
+          manifest,
+          versions,
+          flags,
+          clarifications,
+          obligations,
+          letters,
+        ]
+      properties:
+        reference:
+          type: string
+        grounds:
+          $ref: '#/components/schemas/ReferralGrounds'
+        groundsLabel:
+          type: string
+        cycleYear:
+          type: integer
+        commission:
+          type: object
+          required: [name, issuerCode]
+          properties:
+            name:
+              type: string
+            issuerCode:
+              type: string
+        declarant:
+          type: object
+          required: [name, personnelFileNumber]
+          properties:
+            name:
+              type: string
+            personnelFileNumber:
+              type: string
+        narrative:
+          type: string
+        proposedBy:
+          type: string
+        proposedAt:
+          type: string
+          format: date-time
+        approvedBy:
+          type: string
+        approvedAt:
+          type: string
+          format: date-time
+        manifest:
+          type: array
+          items:
+            $ref: '#/components/schemas/ReferralManifestItem'
+        versions:
+          type: array
+          items:
+            type: object
+            required: [reference, version, type, statementDate, submittedAt, late, document]
+            properties:
+              reference:
+                type: string
+              version:
+                type: integer
+              type:
+                $ref: '#/components/schemas/DeclarationType'
+              statementDate:
+                type: string
+                format: date
+              submittedAt:
+                type: string
+                format: date-time
+              late:
+                type: boolean
+              document:
+                type: object
+                description: The declaration.v1 document as submitted
+                additionalProperties: true
+        flags:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+        clarifications:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+        obligations:
+          type: array
+          items:
+            type: object
+            required: [cycleKey, type, status, dueDate, filedAt]
+            properties:
+              cycleKey:
+                type: string
+              type:
+                type: string
+              status:
+                type: string
+              dueDate:
+                type: string
+                format: date
+              filedAt:
+                type: [string, 'null']
+                format: date-time
+        letters:
+          type: array
+          items:
+            type: object
+            required: [reference, documentId]
+            properties:
+              reference:
+                type: string
+              documentId:
+                type: string
+                format: uuid
+    ApprovalReassignment:
+      type: object
+      required: [kind, subjectId, reassignedTo]
+      properties:
+        kind:
+          $ref: '#/components/schemas/ApprovalKind'
+        subjectId:
+          type: string
+          format: uuid
+        reassignedTo:
+          $ref: '#/components/schemas/Assignee'
+    DeterminationLetterPayload:
+      type: object
+      required:
+        [
+          declarantName,
+          commission,
+          declarationReference,
+          determinationReference,
+          outcome,
+          outcomeLabel,
+          reasons,
+          decidedAt,
+          portalUrl,
+        ]
+      properties:
+        declarantName:
+          type: string
+        commission:
+          type: object
+          required: [name, issuerCode]
+          properties:
+            name:
+              type: string
+            issuerCode:
+              type: string
+        declarationReference:
+          type: string
+        determinationReference:
+          type: string
+        outcome:
+          $ref: '#/components/schemas/DeterminationOutcome'
+        outcomeLabel:
+          type: string
+        reasons:
+          type: string
+        decidedAt:
+          type: string
+          format: date-time
+        portalUrl:
+          type: string
+          format: uri
+    ActionLetterPayload:
+      type: object
+      required:
+        [
+          declarantName,
+          personnelFileNumber,
+          commission,
+          reference,
+          step,
+          stepLabel,
+          subjectKind,
+          subjectReference,
+          whatToDo,
+          issuedAt,
+          actBy,
+          salaryStoppedFrom,
+          respondUrl,
+        ]
+      properties:
+        declarantName:
+          type: string
+        personnelFileNumber:
+          type: string
+        commission:
+          type: object
+          required: [name, issuerCode]
+          properties:
+            name:
+              type: string
+            issuerCode:
+              type: string
+        reference:
+          type: string
+          description: 'ADM-<ISSUER>-<YEAR>-<seq>-<check>'
+        step:
+          $ref: '#/components/schemas/ActionStep'
+        stepLabel:
+          type: string
+        subjectKind:
+          type: string
+          enum: [obligation, clarification]
+        subjectReference:
+          type: string
+          description: "The obligation's cycle key (`biennial:2027`) or the clarification's CLR reference"
+        whatToDo:
+          type: string
+          enum: [file-declaration, respond-to-clarification]
+        issuedAt:
+          type: string
+          format: date-time
+        actBy:
+          type: [string, 'null']
+          format: date-time
+          description: By when to act; null for the disciplinary referral, which sets no deadline
+        salaryStoppedFrom:
+          type: [string, 'null']
+          format: date
+          description: The salary stoppage's effective date (payroll stops the salary from this day); null for other steps
+        respondUrl:
+          type: string
+          format: uri
     DeclarantDecision:
       type: object
       required:

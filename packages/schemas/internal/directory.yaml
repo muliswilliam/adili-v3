@@ -1653,6 +1653,60 @@ paths:
       x-audited-read:
         action: roster.record.pulled
         resource: roster-record
+  /internal/v1/commissions/{slug}/roster/records/{recordId}/national-id:
+    get:
+      tags:
+        - internal
+      summary: A roster record's national ID (review)
+      description: Service tokens with scope directory:roster-national-id (the review service only), acting for the Commission in X-Acting-Tenant; audited. What payroll and the ICMS referral identify the officer by.
+      operationId: internalGetRosterNationalId
+      parameters:
+        - name: X-Acting-Tenant
+          in: header
+          description: Tenant the calling service acts for; the resource must belong to it
+          required: true
+          schema:
+            type: string
+            pattern: ^[a-z][a-z0-9]{1,19}$
+        - name: slug
+          required: true
+          in: path
+          schema:
+            $ref: '#/components/schemas/Slug'
+        - name: recordId
+          required: true
+          in: path
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: The national ID
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RosterNationalId'
+        '400':
+          description: recordId is not a UUID
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '403':
+          description: Requires a service token with scope directory:roster-national-id
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: No such record in the acting tenant's Commission
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+      x-audited-read:
+        action: roster.record.national-id.read
+        resource: roster-record
   /v1/commissions/{slug}/roster/exits:
     post:
       tags:
@@ -4529,6 +4583,16 @@ components:
       required:
         - items
         - nextCursor
+    RosterNationalId:
+      type: object
+      properties:
+        nationalId:
+          type: string
+          description: As the roster gives it
+          examples:
+            - '27451863'
+      required:
+        - nationalId
     ConfirmExits:
       type: object
       properties:

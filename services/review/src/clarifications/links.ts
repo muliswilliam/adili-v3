@@ -1,6 +1,7 @@
 import { config } from '../config.js';
 
-const portal = (path: string) => new URL(path, config.PORTAL_URL.replace(/\/?$/, '/')).href;
+/** A page of the declarant portal. */
+export const portal = (path: string) => new URL(path, config.PORTAL_URL.replace(/\/?$/, '/')).href;
 
 /** The portal page where the declarant reads and answers a clarification. */
 export function portalClarificationUrl(clarificationId: string): string {

@@ -6,7 +6,6 @@ import {
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import {
-  ACTING_TENANT_HEADER,
   type AuditedReadOptions,
   type AuditedResource,
   type AuthenticatedRequest,
@@ -21,6 +20,12 @@ import type { NewEvent } from './envelope.js';
 
 /** A read of sensitive data, for the audit trail (ADR-008 Pipeline step 2). */
 export const AUDIT_READ = 'audit.read.v1';
+
+/**
+ * The header in which a calling service names the officer it reads for (`X-Acting-Subject` on
+ * internal reads), recorded as the actor's `onBehalfOf` (ADR-008 `actor.on-behalf-of`).
+ */
+export const ACTING_SUBJECT_HEADER = 'x-acting-subject';
 
 export interface AuditReadData extends Record<string, unknown> {
   /** The route's audit action, e.g. `roster.record.viewed`. */
@@ -41,6 +46,8 @@ export interface AuditReadData extends Record<string, unknown> {
     clientId: string | null;
     tenant: string | null;
     roles: readonly string[];
+    /** The subject the caller says it acts for (`X-Acting-Subject`); absent when it names none. */
+    onBehalfOf?: string;
   };
   outcome: 'success';
   request: {
@@ -50,7 +57,14 @@ export interface AuditReadData extends Record<string, unknown> {
   };
 }
 
-type AuditedRequest = AuthenticatedRequest & { params?: Record<string, string> };
+/**
+ * `actingTenant` is set by api-kit's `InternalApi()` guard once it admitted a service token with
+ * the route's internal scope and a valid `X-Acting-Tenant` (ADR-013 §8.1).
+ */
+type AuditedRequest = AuthenticatedRequest & {
+  params?: Record<string, string>;
+  actingTenant?: string;
+};
 
 /**
  * Records an `audit.read.v1` event in the outbox for each successful response of a route marked
@@ -60,8 +74,12 @@ type AuditedRequest = AuthenticatedRequest & { params?: Record<string, string> }
  * is the tenant whose data was read: the one the handler named with `ReadAudit.resource` (with
  * the person the data is about), else the route's `slug`, else the tenant a service acts for,
  * else the caller's. A read the handler marked `ReadAudit.ownRecord` (the caller's own record)
- * is not recorded. Registered for every route by `EventsModule`; routes without the mark pass
- * through untouched. Refused requests never reach it (guards run first); they are the
+ * is not recorded. The acting headers (`X-Acting-Tenant`, and `X-Acting-Subject` as the actor's
+ * `onBehalfOf`) count only when api-kit's `InternalApi()` guard admitted the call, which takes
+ * service tokens with the route's internal scope alone (ADR-013 §8.1); anywhere else a caller
+ * could name whomever it liked. Registered for every route by
+ * `EventsModule`; routes without the mark pass through untouched. Refused requests never reach
+ * it (guards run first); they are the
  * audit service's to record from denials.
  */
 @Injectable()
@@ -98,13 +116,13 @@ function auditRead(
 ): NewEvent<AuditReadData> {
   const principal = request.principal;
   const params = request.params ?? {};
-  const actingTenant = request.headers[ACTING_TENANT_HEADER];
-  const tenant =
-    resource?.tenant ??
-    params.slug ??
-    (typeof actingTenant === 'string' ? actingTenant : undefined) ??
-    principal?.tenant ??
-    undefined;
+  const route = request.routeOptions.url ?? request.url;
+  // The acting headers count only once InternalApi() admitted the call: a service token with the
+  // route's internal scope. Anywhere else a caller could name whomever it liked.
+  const actingTenant = request.actingTenant;
+  const actingSubject =
+    actingTenant === undefined ? undefined : request.headers[ACTING_SUBJECT_HEADER];
+  const tenant = resource?.tenant ?? params.slug ?? actingTenant ?? principal?.tenant ?? undefined;
   return {
     type: AUDIT_READ,
     tenant,
@@ -121,9 +139,12 @@ function auditRead(
         clientId: principal?.clientId ?? null,
         tenant: principal?.tenant ?? null,
         roles: principal?.roles ?? [],
+        ...(typeof actingSubject === 'string' && actingSubject !== ''
+          ? { onBehalfOf: actingSubject }
+          : {}),
       },
       outcome: 'success',
-      request: { method: request.method, route: request.routeOptions.url ?? request.url },
+      request: { method: request.method, route },
     },
   };
 }

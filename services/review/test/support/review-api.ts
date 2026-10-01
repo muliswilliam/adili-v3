@@ -8,7 +8,8 @@ import { Test } from '@nestjs/testing';
 import { TokenVerifier } from '@adili/api-kit';
 import { createDatabase, DATABASE, type Database, withTenant } from '@adili/data-access';
 import { type EventEnvelope, OutboxRelay } from '@adili/events';
-import { sql } from 'drizzle-orm';
+import { getTableName, is, sql } from 'drizzle-orm';
+import { PgTable } from 'drizzle-orm/pg-core';
 import { createLocalJWKSet, exportJWK, generateKeyPair, type JWK, SignJWT } from 'jose';
 import { v7 as uuidv7 } from 'uuid';
 
@@ -18,14 +19,21 @@ import { Clock } from '../../src/clock.js';
 import { type ReviewSchema, schema } from '../../src/db/schema.js';
 import { DeclarationsClient } from '../../src/declarations/declarations-client.js';
 import { DirectoryClient } from '../../src/directory/directory-client.js';
-import { DocumentsClient } from '../../src/documents/documents-client.js';
+import {
+  DocumentsClient,
+  type IssueDocumentRequest,
+} from '../../src/documents/documents-client.js';
+import { EnforcementConsumer } from '../../src/enforcement/enforcement.consumer.js';
+import { IntegrationGatewayClient } from '../../src/integration-gateway/integration-gateway-client.js';
 import { NotificationsClient } from '../../src/notifications/notifications-client.js';
 import { ProcessingActivities } from '../../src/processing/activities.js';
 import { DeclarationSubmittedConsumer } from '../../src/processing/declaration-submitted.consumer.js';
+import { ReferralIcmsRegisteredConsumer } from '../../src/referrals/icms-registered.consumer.js';
 import { FakeClock } from './fake-clock.js';
 import { FakeDeclarations } from './fake-declarations.js';
 import { FakeDirectory } from './fake-directory.js';
 import { FakeDocuments } from './fake-documents.js';
+import { FakeIntegrationGateway } from './fake-integration-gateway.js';
 import { FakeNotifications } from './fake-notifications.js';
 
 const ISSUER = 'http://keycloak.test/realms/adili';
@@ -56,9 +64,15 @@ export interface ReviewApi {
   /** Documents; each letter issued pulls its payload from this app's internal endpoint. */
   documents: FakeDocuments;
   notifications: FakeNotifications;
+  /** The integration-gateway's payroll instructions. */
+  gateway: FakeIntegrationGateway;
   clock: FakeClock;
   /** The inbox consumer of `declaration.submitted.v1`, called as the RabbitMQ transport would. */
   consumer: DeclarationSubmittedConsumer;
+  /** The inbox consumers of the obligation and clarification events that drive the ladder. */
+  enforcement: EnforcementConsumer;
+  /** The inbox consumer of `referral.icms-registered.v1` (spec 09's ICMS case number). */
+  icmsRegistered: ReferralIcmsRegisteredConsumer;
   /** The processing workflow's activities, for driving its steps directly. */
   activities: ProcessingActivities;
   get(
@@ -78,6 +92,23 @@ export interface ReviewApi {
   reset(): Promise<void>;
   close(): Promise<void>;
 }
+
+/** How often `reset` tries to truncate before a lock held for good fails the suite. */
+const RESET_ATTEMPTS = 20;
+
+/** Postgres `lock_not_available` (55P03), as the driver or drizzle's wrapper reports it. */
+function isLockTimeout(error: unknown): boolean {
+  const codeOf = (value: unknown) =>
+    typeof value === 'object' && value !== null && 'code' in value ? value.code : undefined;
+  const cause =
+    typeof error === 'object' && error !== null && 'cause' in error ? error.cause : undefined;
+  return codeOf(error) === '55P03' || codeOf(cause) === '55P03';
+}
+
+/** Every table of the service, which `reset` empties. */
+const TABLES = Object.values(schema)
+  .filter((value) => is(value, PgTable))
+  .map((table) => sql.identifier(getTableName(table)));
 
 /**
  * The review service over HTTP and at its event inbox, against a real Postgres
@@ -105,6 +136,7 @@ export async function startReviewApi(): Promise<ReviewApi> {
   const directory = new FakeDirectory();
   const documents = new FakeDocuments();
   const notifications = new FakeNotifications();
+  const gateway = new FakeIntegrationGateway();
   const clock = new FakeClock();
   const moduleRef = await Test.createTestingModule({ imports: [AppModule] })
     .overrideProvider(DATABASE)
@@ -119,6 +151,8 @@ export async function startReviewApi(): Promise<ReviewApi> {
     .useValue(documents)
     .overrideProvider(NotificationsClient)
     .useValue(notifications)
+    .overrideProvider(IntegrationGatewayClient)
+    .useValue(gateway)
     .overrideProvider(Clock)
     .useValue(clock)
     .overrideProvider(OutboxRelay)
@@ -130,12 +164,12 @@ export async function startReviewApi(): Promise<ReviewApi> {
   await app.init();
   await app.getHttpAdapter().getInstance().ready();
 
-  // The documents service pulls a letter's fields with its own service token (review:internal).
-  documents.payloadSource = async (tenant, clarificationId) => {
+  // The documents service pulls a document's fields with its own service token (review:internal).
+  documents.payloadSource = async (tenant, letter) => {
     const token = await signer({ sub: 'service-account-documents', scopes: ['review:internal'] });
     const response = await app.inject({
       method: 'GET',
-      url: `/internal/v1/review/clarifications/${clarificationId}/letter-payload`,
+      url: letterPayloadPath(letter),
       headers: { authorization: `Bearer ${token}`, 'x-acting-tenant': tenant },
     });
     return { status: response.statusCode, body: response.json<unknown>() };
@@ -149,8 +183,11 @@ export async function startReviewApi(): Promise<ReviewApi> {
     directory,
     documents,
     notifications,
+    gateway,
     clock,
     consumer: app.get(DeclarationSubmittedConsumer),
+    enforcement: app.get(EnforcementConsumer),
+    icmsRegistered: app.get(ReferralIcmsRegisteredConsumer),
     activities: app.get(ProcessingActivities),
     async get(path, caller, headers = {}) {
       const token = await signer(caller);
@@ -170,21 +207,58 @@ export async function startReviewApi(): Promise<ReviewApi> {
       });
     },
     async reset() {
-      await db.execute(
-        sql`truncate clarification_responses, clarifications, review_assignments, review_flags, review_notes, review_timeline, review_case_versions, review_cases, outbox, inbox, numbering_counters, idempotency_keys`,
-      );
+      // A letter activity of the previous test may still hold a row lock while the fake documents
+      // service pulls its payload over HTTP. That read would queue behind a waiting truncate, which
+      // waits for the lock: a wait Postgres cannot see as a deadlock (see `close`). So the truncate
+      // gives up after a moment, letting the read and the activity finish, and tries again.
+      for (let attempt = 1; ; attempt += 1) {
+        try {
+          await db.transaction(async (tx) => {
+            await tx.execute(sql`set local lock_timeout = '2s'`);
+            await tx.execute(sql`truncate ${sql.join(TABLES, sql`, `)}`);
+          });
+          break;
+        } catch (error) {
+          if (attempt >= RESET_ATTEMPTS || !isLockTimeout(error)) throw error;
+        }
+      }
       declarations.reset();
       directory.reset();
       documents.reset();
       notifications.reset();
+      gateway.reset();
       clock.reset();
     },
     async close() {
-      // Closing the app ends the pool (DatabaseModule lifecycle), so drop the schema first.
-      await db.execute(sql.raw(`drop schema if exists ${pgSchema} cascade`));
+      // Close the app first: its worker drains in-flight activities while the pool and the HTTP
+      // routes they call back into still work. Dropping the schema under a running activity can
+      // hang for good: the decision letter activity holds a row lock while the fake documents
+      // service pulls the payload over HTTP, and that read queues behind the drop, which waits
+      // for the lock (a wait Postgres cannot see as a deadlock). Closing the app ends the pool
+      // (DatabaseModule lifecycle), so the drop takes a connection of its own.
       await app.close();
+      const admin = createDatabase({ url: baseUrl, schema: {}, applicationName: 'review-test' });
+      try {
+        await admin.execute(sql.raw(`drop schema if exists ${pgSchema} cascade`));
+      } finally {
+        await admin.$client.end();
+      }
     },
   };
+}
+
+/** Where the documents service pulls a document's fields from. */
+function letterPayloadPath(letter: IssueDocumentRequest): string {
+  switch (letter.type) {
+    case 'referral-package':
+      return `/internal/v1/review/referrals/${letter.payload.referralId}/package-payload`;
+    case 'clarification-letter':
+      return `/internal/v1/review/clarifications/${letter.payload.clarificationId}/letter-payload`;
+    case 'decision-letter':
+      return `/internal/v1/review/determinations/${letter.payload.determinationId}/letter-payload`;
+    default:
+      return `/internal/v1/review/actions/${letter.payload.actionId}/letter-payload`;
+  }
 }
 
 /** `declaration.submitted.v1` for a version, as the RabbitMQ transport delivers it. */

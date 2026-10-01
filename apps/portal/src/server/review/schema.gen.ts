@@ -394,6 +394,100 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/internal/v1/review/determinations/{determinationId}/letter-payload": {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Tenant the calling service acts for; the resource must belong to it */
+                "X-Acting-Tenant": components["parameters"]["ActingTenant"];
+            };
+            path: {
+                determinationId: components["parameters"]["DeterminationId"];
+            };
+            cookie?: never;
+        };
+        /** Fields the decision letter template needs (documents service) */
+        get: operations["internalGetDeterminationLetterPayload"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/internal/v1/review/actions/{actionId}/letter-payload": {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Tenant the calling service acts for; the resource must belong to it */
+                "X-Acting-Tenant": components["parameters"]["ActingTenant"];
+            };
+            path: {
+                actionId: components["parameters"]["ActionId"];
+            };
+            cookie?: never;
+        };
+        /** Fields the step letter templates need (notice to comply, warning, salary stoppage, disciplinary referral; documents service) */
+        get: operations["internalGetActionLetterPayload"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/internal/v1/review/referrals/{referralId}/package-payload": {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Tenant the calling service acts for; the resource must belong to it */
+                "X-Acting-Tenant": components["parameters"]["ActingTenant"];
+            };
+            path: {
+                referralId: components["parameters"]["ReferralId"];
+            };
+            cookie?: never;
+        };
+        /**
+         * Cover sheet, manifest and evidence the referral package template needs (documents service)
+         * @description Service tokens with `review:internal`; the Commission in `X-Acting-Tenant`. An approved or sent referral whose manifest is built. The evidence is pulled from declarations again (versions are immutable, so their hashes match the manifest); letters are named by document id for documents to append.
+         */
+        get: operations["internalGetReferralPackagePayload"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/internal/v1/review/referrals/{referralId}/icms-payload": {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Tenant the calling service acts for; the resource must belong to it */
+                "X-Acting-Tenant": components["parameters"]["ActingTenant"];
+            };
+            path: {
+                referralId: components["parameters"]["ReferralId"];
+            };
+            cookie?: never;
+        };
+        /**
+         * What ICMS needs of a sent referral, with the declarant's national ID (reporting)
+         * @description Service tokens with `review:internal`; the Commission in `X-Acting-Tenant`. A sent referral only. What ICMS needs and no more: the declarant's national ID is read from the directory's roster record of the referral's case at each call and kept nowhere in the review service. Every read is audited (`audit.read.v1`, action `review.referral.icms-payload.read`), naming the officer in `X-Acting-Subject` when the caller gives one.
+         */
+        get: operations["internalGetReferralIcmsPayload"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/review/cases/{caseId}/registry": {
         parameters: {
             query?: never;
@@ -536,7 +630,10 @@ export interface paths {
             };
             cookie?: never;
         };
-        /** Decision letter download; issued on first request for bulk closures */
+        /**
+         * Decision letter download; issued on first request for bulk closures
+         * @description The Commission's reviewers and supervisors, and the declarant for their own approved determinations; anyone else 404. A bulk closure's letter is issued the first time anyone asks for it, then served like any other.
+         */
         get: operations["getDeterminationLetter"];
         put?: never;
         post?: never;
@@ -597,7 +694,10 @@ export interface paths {
         /** Eligible system proposals, sampled and approved counts for a cycle and filters */
         get: operations["getBulkClosureSummary"];
         put?: never;
-        /** Approve system-proposed closures matching the filters, in chunks (supervisor) */
+        /**
+         * Approve system-proposed closures matching the filters, in chunks (supervisor)
+         * @description Chunks of 100 per transaction, each allocating its CMP numbers in sequence, moving the cases to `determined` and notifying the declarants by person; no letter is rendered (`getDeterminationLetter` issues it on first request). Closures of cases the caller once held are skipped and counted. Sent again with the same Idempotency-Key after a failure, the approval resumes and reports every closure approved under the key.
+         */
         post: operations["approveBulkClosures"];
         delete?: never;
         options?: never;
@@ -614,7 +714,7 @@ export interface paths {
             };
             cookie?: never;
         };
-        /** Ladders (per overdue obligation or clarification) with current step and status */
+        /** Administrative action ladders (per overdue obligation or clarification) with current step and status */
         get: operations["listEnforcementLadders"];
         put?: never;
         post?: never;
@@ -673,7 +773,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Decline a proposed step with a note (ends the ladder) */
+        /** Decline a proposed step with a note (ends the ladder; a declined disciplinary referral leaves it waiting for compliance) */
         post: operations["declineAction"];
         delete?: never;
         options?: never;
@@ -711,7 +811,10 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Propose a referral to EACC from a case (assignee) */
+        /**
+         * Propose a referral to EACC from a case (assignee)
+         * @description The case's assignee (reviewer or supervisor), on grounds of undeclared or unexplained assets (Regs r.20(1)(c)), selecting at least one registry or comparison flag of the case and any issued clarifications of it. The issued steps of the clarifications' ladders are added to the sources. The declarant is not told.
+         */
         post: operations["proposeReferral"];
         delete?: never;
         options?: never;
@@ -747,7 +850,10 @@ export interface paths {
             };
             cookie?: never;
         };
-        /** One referral with its package manifest */
+        /**
+         * One referral with its package manifest
+         * @description The Commission's reviewers and supervisors. Carries `evidence`, what the package includes by reference, so a supervisor previews it before approving; `package.manifest`, with the SHA-256 of every item, once the package is assembled.
+         */
         get: operations["getReferral"];
         put?: never;
         post?: never;
@@ -768,7 +874,10 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Approve (supervisor, separation rule); allocates RFL, assembles the package, sends to EACC */
+        /**
+         * Approve (supervisor, separation rule); allocates RFL, assembles the package, sends to EACC
+         * @description A supervisor who neither proposed it nor held any of its cases. Allocates `RFL-<ISSUER>-<YEAR>-<seq>-<check>` (year of approval) and answers `approved`; the evidence is then pulled, the manifest stored, the Confidential `referral-package` issued and the referral `sent` (`referral.sent.v1`) in the background. The declarant is not notified.
+         */
         post: operations["approveReferral"];
         delete?: never;
         options?: never;
@@ -1156,6 +1265,8 @@ export interface components {
                 late: boolean;
             }[];
             reviewerHistory: components["schemas"]["Assignee"][];
+            /** @description Every determination of the case, oldest first; the current one is last */
+            determinations?: components["schemas"]["Determination"][];
         };
         VersionComparison: {
             previousVersion: number;
@@ -1330,6 +1441,17 @@ export interface components {
             outcome: "compliant" | "non-compliant" | "further-action";
             reasons: string;
             furtherActionNote?: string | null;
+            /** @description For `further-action` only: the administrative action or referral the further action is, of the same declarant (400 otherwise) */
+            furtherActionLink?: components["schemas"]["FurtherActionLink"] | null;
+        };
+        FurtherActionLink: {
+            /** @enum {string} */
+            kind: "action" | "referral";
+            /**
+             * Format: uuid
+             * @description The administrative action's or the referral's id
+             */
+            id: string;
         };
         Determination: {
             /** Format: uuid */
@@ -1347,6 +1469,13 @@ export interface components {
             /** Format: date-time */
             approvedAt: string | null;
             returnReason: string | null;
+            /** @description The supervisor who returned it; null unless returned */
+            returnedBy?: components["schemas"]["Assignee"] | null;
+            /** Format: date-time */
+            returnedAt?: string | null;
+            furtherActionNote?: string | null;
+            /** @description The action or referral a `further-action` determination links to; null when none */
+            furtherActionLink?: components["schemas"]["FurtherActionLink"] | null;
             /** @description CMP-<ISSUER>-<YEAR>-<seq>-<check>, allocated at approval */
             reference: string | null;
             letterAvailable: boolean;
@@ -1355,10 +1484,11 @@ export interface components {
             /** Format: uuid */
             documentId: string;
             verificationId: string;
-            /** Format: uri */
-            downloadUrl: string;
-            /** Format: date-time */
-            expiresAt: string;
+            /**
+             * Format: uri
+             * @description The declarant's portal download of their own letter (the documents owner rule); null for staff, who download the document by id from the documents service
+             */
+            downloadUrl: string | null;
         };
         /** @enum {string} */
         ApprovalKind: "determination" | "action" | "referral";
@@ -1381,15 +1511,28 @@ export interface components {
         };
         ClosureSummary: {
             cycleYear: number;
+            /** @description System `compliant-no-issues` proposals waiting for approval */
             eligibleProposed: number;
+            /** @description Cases the sweep diverted to review instead of proposing their closure */
             sampled: number;
             approved: number;
+            /** @description Fraction of eligible cases diverted to review, e.g. 0.02 for 2% */
             sampleRate: number;
-            /** Format: date-time */
+            /**
+             * Format: date-time
+             * @description When the last low-band case of the cycle and filters leaves its clarification window
+             */
             windowClosedAt: string | null;
+            /**
+             * Format: date-time
+             * @description When the closure sweep last ran for the cycle; null before the first sweep
+             */
+            lastSweptAt: string | null;
         };
         BulkApprovalResult: {
             approved: number;
+            /** @description Waiting closures of cases the caller once held, left for another supervisor */
+            skipped: number;
             firstReference: string | null;
             lastReference: string | null;
             chunks: number;
@@ -1415,11 +1558,22 @@ export interface components {
             step: components["schemas"]["ActionStep"];
             status: components["schemas"]["ActionStatus"];
             proposerKind: components["schemas"]["ProposerKind"];
+            /** @description The proposing officer; null for the system's drafts */
+            proposer: components["schemas"]["Assignee"] | null;
             /** Format: date-time */
             proposedAt: string;
             approver: components["schemas"]["Assignee"] | null;
             /** Format: date-time */
             approvedAt: string | null;
+            declinedBy: components["schemas"]["Assignee"] | null;
+            /** Format: date-time */
+            declinedAt: string | null;
+            declineNote: string | null;
+            /**
+             * Format: date-time
+             * @description When the letter was requested; the window runs from here
+             */
+            issuedAt: string | null;
             /** Format: date-time */
             windowEndsAt: string | null;
             /** @description ADM-<ISSUER>-<YEAR>-<seq>-<check> */
@@ -1454,6 +1608,11 @@ export interface components {
             personnelFileNumber: string;
             /** @enum {string} */
             status: "active" | "complied" | "declined" | "ended";
+            /**
+             * @description What closed the ladder: compliance (`filed`, `clarification-responded`, `clarification-resolved`) or the subject gone (`obligation-cancelled`, `clarification-withdrawn`); null while active or declined
+             * @enum {string|null}
+             */
+            closingCause: "filed" | "clarification-responded" | "clarification-resolved" | "obligation-cancelled" | "clarification-withdrawn" | null;
             currentStep: components["schemas"]["ActionStep"] | null;
             steps: components["schemas"]["AdministrativeAction"][];
             /** Format: date-time */
@@ -1475,6 +1634,13 @@ export interface components {
         Referral: {
             /** Format: uuid */
             id: string;
+            /**
+             * Format: uuid
+             * @description The case it was proposed from (or whose clarification went unanswered)
+             */
+            caseId: string | null;
+            /** @description The cycle it is about (the case's, or the later missed biennial cycle's) */
+            cycleYear: number;
             grounds: components["schemas"]["ReferralGrounds"];
             proposerKind: components["schemas"]["ProposerKind"];
             proposer: components["schemas"]["Assignee"] | null;
@@ -1482,6 +1648,12 @@ export interface components {
             proposedAt: string;
             status: components["schemas"]["ReferralStatus"];
             approver: components["schemas"]["Assignee"] | null;
+            /** Format: date-time */
+            approvedAt: string | null;
+            declinedBy: components["schemas"]["Assignee"] | null;
+            /** Format: date-time */
+            declinedAt: string | null;
+            declineNote: string | null;
             /** @description RFL-<ISSUER>-<YEAR>-<seq>-<check> */
             reference: string | null;
             sources: {
@@ -1496,16 +1668,164 @@ export interface components {
                 /** Format: uuid */
                 documentId: string;
                 verificationId: string;
-                manifest: {
-                    kind: string;
-                    reference: string;
-                    sha256: string;
-                }[];
+                manifest: components["schemas"]["ReferralManifestItem"][];
             } | null;
             /** Format: date-time */
             sentAt: string | null;
+            /** @description ICMS's case number once EACC registered the sent referral there (`referral.icms-registered.v1`, spec 09); null until then */
+            icmsCaseNumber: string | null;
+            /**
+             * Format: date-time
+             * @description When ICMS registered it; null until then
+             */
+            icmsRegisteredAt: string | null;
             declarantName: string;
             personnelFileNumber: string;
+            /** @description `getReferral` only: what the package includes, by reference (attachments are listed in the manifest once it is assembled) */
+            evidence?: {
+                kind: components["schemas"]["ReferralManifestKind"];
+                reference: string;
+            }[];
+        };
+        /** @enum {string} */
+        ReferralManifestKind: "declaration-version" | "declaration-attachment" | "flag" | "clarification" | "clarification-attachment" | "obligation" | "letter";
+        ReferralManifestItem: {
+            kind: components["schemas"]["ReferralManifestKind"];
+            reference: string;
+            /** @description SHA-256 of the item as the package includes it: canonical JSON (sorted keys) for versions' documents, flags, clarifications and obligations; the file's own hash for uploads and letters */
+            sha256: string;
+            /**
+             * Format: uuid
+             * @description The upload (attachments) or issued document (letters); null for records
+             */
+            documentId: string | null;
+        };
+        /** @description What ICMS needs of a sent referral (spec 09 BE-5): its reference, grounds, Commission and narrative, and the declarant's name and national ID. Personal data: the caller passes it to ICMS and keeps it nowhere. */
+        ReferralIcmsPayload: {
+            /** @description RFL-<ISSUER>-<YEAR>-<seq>-<check> */
+            reference: string;
+            grounds: components["schemas"]["ReferralGrounds"];
+            groundsLabel: string;
+            commission: {
+                name: string;
+                issuerCode: string;
+            };
+            declarant: {
+                name: string;
+                /** @description From the directory's roster record of the referral's case */
+                nationalId: string;
+            };
+            narrative: string;
+        };
+        ReferralPackagePayload: {
+            reference: string;
+            grounds: components["schemas"]["ReferralGrounds"];
+            groundsLabel: string;
+            cycleYear: number;
+            commission: {
+                name: string;
+                issuerCode: string;
+            };
+            declarant: {
+                name: string;
+                personnelFileNumber: string;
+            };
+            narrative: string;
+            proposedBy: string;
+            /** Format: date-time */
+            proposedAt: string;
+            approvedBy: string;
+            /** Format: date-time */
+            approvedAt: string;
+            manifest: components["schemas"]["ReferralManifestItem"][];
+            versions: {
+                reference: string;
+                version: number;
+                type: components["schemas"]["DeclarationType"];
+                /** Format: date */
+                statementDate: string;
+                /** Format: date-time */
+                submittedAt: string;
+                late: boolean;
+                /** @description The declaration.v1 document as submitted */
+                document: {
+                    [key: string]: unknown;
+                };
+            }[];
+            flags: {
+                [key: string]: unknown;
+            }[];
+            clarifications: {
+                [key: string]: unknown;
+            }[];
+            obligations: {
+                cycleKey: string;
+                type: string;
+                status: string;
+                /** Format: date */
+                dueDate: string;
+                /** Format: date-time */
+                filedAt: string | null;
+            }[];
+            letters: {
+                reference: string;
+                /** Format: uuid */
+                documentId: string;
+            }[];
+        };
+        ApprovalReassignment: {
+            kind: components["schemas"]["ApprovalKind"];
+            /** Format: uuid */
+            subjectId: string;
+            reassignedTo: components["schemas"]["Assignee"];
+        };
+        DeterminationLetterPayload: {
+            declarantName: string;
+            commission: {
+                name: string;
+                issuerCode: string;
+            };
+            declarationReference: string;
+            determinationReference: string;
+            outcome: components["schemas"]["DeterminationOutcome"];
+            outcomeLabel: string;
+            reasons: string;
+            /** Format: date-time */
+            decidedAt: string;
+            /** Format: uri */
+            portalUrl: string;
+        };
+        ActionLetterPayload: {
+            declarantName: string;
+            personnelFileNumber: string;
+            commission: {
+                name: string;
+                issuerCode: string;
+            };
+            /** @description ADM-<ISSUER>-<YEAR>-<seq>-<check> */
+            reference: string;
+            step: components["schemas"]["ActionStep"];
+            stepLabel: string;
+            /** @enum {string} */
+            subjectKind: "obligation" | "clarification";
+            /** @description The obligation's cycle key (`biennial:2027`) or the clarification's CLR reference */
+            subjectReference: string;
+            /** @enum {string} */
+            whatToDo: "file-declaration" | "respond-to-clarification";
+            /** Format: date-time */
+            issuedAt: string;
+            /**
+             * Format: date-time
+             * @description By when to act; null for the disciplinary referral, which sets no deadline
+             */
+            actBy: string | null;
+            /**
+             * Format: date
+             * @description The salary stoppage's effective date (payroll stops the salary from this day); null for other steps
+             */
+            salaryStoppedFrom: string | null;
+            /** Format: uri */
+            respondUrl: string;
         };
         DeclarantDecision: {
             /** Format: uuid */
@@ -2345,6 +2665,142 @@ export interface operations {
             404: components["responses"]["NotFound"];
         };
     };
+    internalGetDeterminationLetterPayload: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Tenant the calling service acts for; the resource must belong to it */
+                "X-Acting-Tenant": components["parameters"]["ActingTenant"];
+            };
+            path: {
+                determinationId: components["parameters"]["DeterminationId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Payload */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeterminationLetterPayload"];
+                };
+            };
+            400: components["responses"]["ValidationProblem"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            503: components["responses"]["DirectoryUnavailable"];
+        };
+    };
+    internalGetActionLetterPayload: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Tenant the calling service acts for; the resource must belong to it */
+                "X-Acting-Tenant": components["parameters"]["ActingTenant"];
+            };
+            path: {
+                actionId: components["parameters"]["ActionId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Payload */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ActionLetterPayload"];
+                };
+            };
+            400: components["responses"]["ValidationProblem"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            503: components["responses"]["DirectoryUnavailable"];
+        };
+    };
+    internalGetReferralPackagePayload: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Tenant the calling service acts for; the resource must belong to it */
+                "X-Acting-Tenant": components["parameters"]["ActingTenant"];
+            };
+            path: {
+                referralId: components["parameters"]["ReferralId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Payload */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReferralPackagePayload"];
+                };
+            };
+            400: components["responses"]["ValidationProblem"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description The evidence could not be read from declarations or documents */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            503: components["responses"]["DirectoryUnavailable"];
+        };
+    };
+    internalGetReferralIcmsPayload: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Tenant the calling service acts for; the resource must belong to it */
+                "X-Acting-Tenant": components["parameters"]["ActingTenant"];
+                /** @description The officer on whose behalf the service reads it; recorded in the audit event */
+                "X-Acting-Subject"?: string;
+            };
+            path: {
+                referralId: components["parameters"]["ReferralId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Payload */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReferralIcmsPayload"];
+                };
+            };
+            400: components["responses"]["ValidationProblem"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description Problem code `roster-record-unknown`: no roster record of the declarant is known, so the national ID cannot be read */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            503: components["responses"]["DirectoryUnavailable"];
+        };
+    };
     getCaseRegistryChecks: {
         parameters: {
             query?: never;
@@ -2402,7 +2858,10 @@ export interface operations {
     proposeDetermination: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Client-generated UUID, unique per logical request (ADR-013 §7.5). With it, a retry gets the stored answer back instead of acting twice; without it the request runs unguarded. */
+                "Idempotency-Key"?: components["parameters"]["OptionalIdempotencyKey"];
+            };
             path: {
                 caseId: components["parameters"]["CaseId"];
             };
@@ -2425,7 +2884,7 @@ export interface operations {
             };
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
-            /** @description A determination is already proposed or approved */
+            /** @description A determination is already proposed or approved (problem code `determination-open`), or a clarification of the case is still open (problem code `clarification-open`) */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -2481,7 +2940,7 @@ export interface operations {
                     "application/json": components["schemas"]["Determination"];
                 };
             };
-            /** @description Problem code `separation-of-duties` or role */
+            /** @description Problem code `separation-of-duties` (proposer or reviewer of record) or `supervisor-required` (role) */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -2491,7 +2950,7 @@ export interface operations {
                 };
             };
             404: components["responses"]["NotFound"];
-            /** @description Not proposed */
+            /** @description Not proposed: problem code `not-proposed` */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -2500,12 +2959,16 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
+            503: components["responses"]["DirectoryUnavailable"];
         };
     };
     returnDetermination: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Client-generated UUID, unique per logical request (ADR-013 §7.5). With it, a retry gets the stored answer back instead of acting twice; without it the request runs unguarded. */
+                "Idempotency-Key"?: components["parameters"]["OptionalIdempotencyKey"];
+            };
             path: {
                 determinationId: components["parameters"]["DeterminationId"];
             };
@@ -2526,14 +2989,34 @@ export interface operations {
                     "application/json": components["schemas"]["Determination"];
                 };
             };
-            403: components["responses"]["Forbidden"];
+            /** @description Problem code `separation-of-duties` or `supervisor-required` */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
             404: components["responses"]["NotFound"];
+            /** @description Problem code `not-proposed` */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
         };
     };
     withdrawDetermination: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Client-generated UUID, unique per logical request (ADR-013 §7.5). With it, a retry gets the stored answer back instead of acting twice; without it the request runs unguarded. */
+                "Idempotency-Key"?: components["parameters"]["OptionalIdempotencyKey"];
+            };
             path: {
                 determinationId: components["parameters"]["DeterminationId"];
             };
@@ -2552,6 +3035,15 @@ export interface operations {
             };
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
+            /** @description Problem code `not-proposed` */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
         };
     };
     getDeterminationLetter: {
@@ -2575,8 +3067,26 @@ export interface operations {
                 };
             };
             404: components["responses"]["NotFound"];
-            /** @description Not approved */
+            /** @description Not approved: problem code `not-approved` */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description The documents service refused the letter */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description The documents service could not be reached; try again */
+            503: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -2610,20 +3120,41 @@ export interface operations {
                     "application/json": {
                         items: components["schemas"]["ApprovalItem"][];
                         nextCursor: string | null;
+                        /** @description Pending approvals by kind (`determination`, `action`, `referral`) and by age band (`under-7-days`, `7-to-30-days`, `over-30-days`), whatever the kind filter */
                         counts: {
                             [key: string]: number;
                         };
                     };
                 };
             };
-            403: components["responses"]["Forbidden"];
+            /** @description The cursor is not one this inbox issued */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Problem code `supervisor-required`: approvals are for supervisors */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
             404: components["responses"]["NotFound"];
         };
     };
     reassignApproval: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Client-generated UUID, unique per logical request (ADR-013 §7.5). With it, a retry gets the stored answer back instead of acting twice; without it the request runs unguarded. */
+                "Idempotency-Key"?: components["parameters"]["OptionalIdempotencyKey"];
+            };
             path: {
                 kind: components["schemas"]["ApprovalKind"];
                 subjectId: string;
@@ -2643,10 +3174,29 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ApprovalReassignment"];
+                };
             };
-            403: components["responses"]["Forbidden"];
+            /** @description Problem code `supervisor-required`: approvals are for supervisors */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
             404: components["responses"]["NotFound"];
+            /** @description Decided already: problem code `not-proposed` */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
         };
     };
     getBulkClosureSummary: {
@@ -2671,6 +3221,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ClosureSummary"];
+                };
+            };
+            /** @description Query failed validation */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
             403: components["responses"]["Forbidden"];
@@ -2703,8 +3262,18 @@ export interface operations {
                     "application/json": components["schemas"]["BulkApprovalResult"];
                 };
             };
+            /** @description Query failed validation */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
+            503: components["responses"]["DirectoryUnavailable"];
         };
     };
     listEnforcementLadders: {
@@ -2793,7 +3362,7 @@ export interface operations {
                 };
             };
             404: components["responses"]["NotFound"];
-            /** @description Not proposed */
+            /** @description Not proposed (problem code `not-proposed`) */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -2802,12 +3371,16 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
+            503: components["responses"]["DirectoryUnavailable"];
         };
     };
     declineAction: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Client-generated UUID, unique per logical request (ADR-013 §7.5). With it, a retry gets the stored answer back instead of acting twice; without it the request runs unguarded. */
+                "Idempotency-Key"?: components["parameters"]["OptionalIdempotencyKey"];
+            };
             path: {
                 actionId: components["parameters"]["ActionId"];
             };
@@ -2828,14 +3401,35 @@ export interface operations {
                     "application/json": components["schemas"]["AdministrativeAction"];
                 };
             };
-            403: components["responses"]["Forbidden"];
+            400: components["responses"]["ValidationProblem"];
+            /** @description Role or `separation-of-duties`, as for approval */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
             404: components["responses"]["NotFound"];
+            /** @description Not proposed (problem code `not-proposed`) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
         };
     };
     restartLadder: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Client-generated UUID, unique per logical request (ADR-013 §7.5). With it, a retry gets the stored answer back instead of acting twice; without it the request runs unguarded. */
+                "Idempotency-Key"?: components["parameters"]["OptionalIdempotencyKey"];
+            };
             path: {
                 ladderId: components["parameters"]["LadderId"];
             };
@@ -2854,7 +3448,7 @@ export interface operations {
             };
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
-            /** @description Ladder not declined */
+            /** @description Ladder not declined (problem code `ladder-not-declined`) */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -2868,7 +3462,10 @@ export interface operations {
     proposeReferral: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Client-generated UUID, unique per logical request (ADR-013 §7.5). With it, a retry gets the stored answer back instead of acting twice; without it the request runs unguarded. */
+                "Idempotency-Key"?: components["parameters"]["OptionalIdempotencyKey"];
+            };
             path: {
                 caseId: components["parameters"]["CaseId"];
             };
@@ -2889,8 +3486,34 @@ export interface operations {
                     "application/json": components["schemas"]["Referral"];
                 };
             };
-            403: components["responses"]["Forbidden"];
+            /** @description Body failed validation, or a flag is not a registry or comparison flag of the case, or a clarification is not an issued one of the case */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Problem code `not-the-assignee` */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
             404: components["responses"]["NotFound"];
+            /** @description Problem code `referral-open`: a referral from this case waits for approval */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
         };
     };
     listReferrals: {
@@ -2920,6 +3543,7 @@ export interface operations {
                     };
                 };
             };
+            400: components["responses"]["ValidationProblem"];
             404: components["responses"]["NotFound"];
         };
     };
@@ -2959,7 +3583,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Sent */
+            /** @description Approved; the package is assembled and the referral sent in the background */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -2968,14 +3592,35 @@ export interface operations {
                     "application/json": components["schemas"]["Referral"];
                 };
             };
-            403: components["responses"]["Forbidden"];
+            /** @description Problem code `separation-of-duties` (proposer or reviewer of record) or `supervisor-required` (role) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
             404: components["responses"]["NotFound"];
+            /** @description Not proposed: problem code `not-proposed` */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            503: components["responses"]["DirectoryUnavailable"];
         };
     };
     declineReferral: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Client-generated UUID, unique per logical request (ADR-013 §7.5). With it, a retry gets the stored answer back instead of acting twice; without it the request runs unguarded. */
+                "Idempotency-Key"?: components["parameters"]["OptionalIdempotencyKey"];
+            };
             path: {
                 referralId: components["parameters"]["ReferralId"];
             };
@@ -2996,8 +3641,26 @@ export interface operations {
                     "application/json": components["schemas"]["Referral"];
                 };
             };
-            403: components["responses"]["Forbidden"];
+            400: components["responses"]["ValidationProblem"];
+            /** @description Problem code `separation-of-duties` (proposer or reviewer of record) or `supervisor-required` (role) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
             404: components["responses"]["NotFound"];
+            /** @description Not proposed: problem code `not-proposed` */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
         };
     };
     getMyDecisions: {
@@ -3071,9 +3734,19 @@ export interface operations {
                     "application/json": components["schemas"]["DeclarantNotice"];
                 };
             };
+            400: components["responses"]["ValidationProblem"];
             404: components["responses"]["NotFound"];
-            /** @description Already responded or step not open */
+            /** @description Problem code `already-responded`, `notice-closed`, `attachment-not-clean` or `attachment-not-accepted` */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description The documents service could not check the attachments; nothing changed */
+            503: {
                 headers: {
                     [name: string]: unknown;
                 };

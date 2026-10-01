@@ -105,8 +105,9 @@ export class ProcessingActivities {
   /**
    * Creates the case of the version with the clarification window of the Commission's policy, or
    * updates the case with a later version (the amendment path); idempotent by version. The
-   * declarant's name and personnel file number (the queue's read model) are pulled here and
-   * written straight to the case, so they never enter the workflow's history.
+   * declarant's name and personnel file number (the queue's read model), roster record and
+   * reporting entity are pulled here and written straight to the case, so they never enter the
+   * workflow's history.
    */
   async upsertCase(request: UpsertCaseRequest): Promise<UpsertCaseOutcome> {
     const { input } = request;
@@ -122,6 +123,8 @@ export class ProcessingActivities {
       declarant: {
         declarantName: pulled.declarantName,
         personnelFileNumber: pulled.personnelFileNumber,
+        rosterRecordId: pulled.rosterRecordId,
+        reportingEntityId: pulled.reportingEntityId,
       },
     });
   }
