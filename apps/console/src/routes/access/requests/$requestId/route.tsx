@@ -1,13 +1,12 @@
 import { Button, EmptyState, Icon } from '@adili/ui';
 import { Search01Icon } from '@hugeicons/core-free-icons';
-import { createFileRoute, Link, notFound } from '@tanstack/react-router';
+import { createFileRoute, Link, notFound, Outlet } from '@tanstack/react-router';
 
-import { messages as m } from '../../../components/access/messages';
-import { RequestDetailView } from '../../../components/access/request-detail';
-import { LoadError } from '../../../components/load-error';
-import { Page, PageHead } from '../../../components/page';
-import { signInRedirect } from '../../../components/sign-in-redirect';
-import { getAccessRequest } from '../../../server/access-requests';
+import { messages as m } from '../../../../components/access/messages';
+import { LoadError } from '../../../../components/load-error';
+import { Page, PageHead } from '../../../../components/page';
+import { signInRedirect } from '../../../../components/sign-in-redirect';
+import { getAccessRequest } from '../../../../server/access-requests';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -21,8 +20,9 @@ function crumbOf(loaderData: unknown): string | null {
 
 /**
  * One Form K request (spec 10 FE-5), where the access officer's reminders link
- * (`<CONSOLE_URL>/access/requests/<id>`, #253). Another Commission's request, or one that does
- * not exist, reads as not found.
+ * (`<CONSOLE_URL>/access/requests/<id>`, #253): the request page, and its decision form under
+ * it (`/decide`, #260). Another Commission's request, or one that does not exist, reads as not
+ * found.
  */
 export const Route = createFileRoute('/access/requests/$requestId')({
   loader: async ({ params, location, context }) => {
@@ -41,7 +41,7 @@ export const Route = createFileRoute('/access/requests/$requestId')({
   head: ({ loaderData }) => ({
     meta: [{ title: `${crumbOf(loaderData) ?? m.title} · Adili Online Console` }],
   }),
-  component: RequestRoute,
+  component: RequestLayout,
   notFoundComponent: () => (
     <Page narrow>
       <EmptyState
@@ -58,7 +58,7 @@ export const Route = createFileRoute('/access/requests/$requestId')({
   ),
 });
 
-function RequestRoute() {
+function RequestLayout() {
   const load = Route.useLoaderData();
   const { workspace } = Route.useRouteContext();
   if (!load || !workspace) return null;
@@ -74,14 +74,5 @@ function RequestRoute() {
       </Page>
     );
   }
-  const { view, now } = load.data;
-  return (
-    <RequestDetailView
-      // A new status starts the step's forms again (a verified request opens Identify officer).
-      key={`${view.id}:${view.status}:${view.resolvedRosterRecordId ?? ''}`}
-      view={view}
-      readOnly={workspace.readOnly}
-      now={now}
-    />
-  );
+  return <Outlet />;
 }

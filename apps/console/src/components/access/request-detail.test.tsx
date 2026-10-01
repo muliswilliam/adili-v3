@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { ACCESS_OFFICER } from '@adili/roles';
 import { ToastProvider, TooltipProvider } from '@adili/ui';
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
@@ -22,7 +22,29 @@ import { RequestDetailView } from './request-detail';
 
 const invalidate = vi.fn(() => Promise.resolve());
 
-vi.mock('@tanstack/react-router', () => ({ useRouter: () => ({ invalidate }) }));
+vi.mock('@tanstack/react-router', () => ({
+  useRouter: () => ({ invalidate }),
+  Link: ({
+    to,
+    params,
+    children,
+    ...props
+  }: {
+    to: string;
+    params?: Record<string, string>;
+    children: React.ReactNode;
+  }) => (
+    <a
+      href={Object.entries(params ?? {}).reduce(
+        (path, [name, value]) => path.replace(`$${name}`, value),
+        to,
+      )}
+      {...props}
+    >
+      {children}
+    </a>
+  ),
+}));
 vi.mock('../../server/access-requests', () => ({
   findRosterCandidates: vi.fn(),
   resolveRequestedOfficer: vi.fn(),
@@ -245,6 +267,61 @@ describe('RequestDetailView (spec 10 FE-5)', () => {
     renderDetail(await viewOf(R.objection), true);
     expect(within(side()).getByText('Only the access officer decides.')).toBeTruthy();
     expect(within(side()).getByRole('region', { name: 'Representations' })).toBeTruthy();
+  });
+
+  it('#260: under decision, the access officer opens the decision form; in the window it is locked', async () => {
+    renderDetail(await viewOf(R.objection));
+    expect(within(side()).getByRole('link', { name: 'Decide' }).getAttribute('href')).toBe(
+      `/access/requests/${R.objection}/decide`,
+    );
+    cleanup();
+    renderDetail(await viewOf(R.window));
+    const decide = within(side()).getByRole('button', { name: 'Decide' });
+    expect((decide as HTMLButtonElement).disabled).toBe(true);
+  });
+
+  it('#260: the supervisor gets no Decide', async () => {
+    renderDetail(await viewOf(R.objection), true);
+    expect(within(side()).queryByRole('link', { name: 'Decide' })).toBeNull();
+    expect(within(side()).queryByRole('button', { name: 'Decide' })).toBeNull();
+  });
+
+  it('#260: a partial grant shows its scope, grounds and reasons, and the package with its downloads', async () => {
+    renderDetail(await viewOf(R.partial));
+    const decision = within(side()).getByRole('region', { name: 'Decision' });
+    expect(within(decision).getByText('Partially granted')).toBeTruthy();
+    expect(
+      within(decision).getByText(
+        '2026 · Officer and spouses · Assets, liabilities · clarifications',
+      ),
+    ).toBeTruthy();
+    expect(within(decision).getByText('Against public interest')).toBeTruthy();
+    const pkg = within(side()).getByRole('region', { name: 'Package' });
+    expect(within(pkg).getByText('Confidential')).toBeTruthy();
+    expect(within(pkg).getByText('Download until')).toBeTruthy();
+    expect(within(pkg).getByText('2')).toBeTruthy();
+    expect(within(pkg).getByText(/· last /)).toBeTruthy();
+    expect(within(pkg).getByText(/Mercy Wanjiku Kamau ·/)).toBeTruthy();
+    expect(within(pkg).getByText('Only Mercy Wanjiku Kamau can download it.')).toBeTruthy();
+  });
+
+  it('#260: a package past its window says so; one not issued yet is preparing; a denial has none', async () => {
+    renderDetail(await viewOf(R.expired));
+    let pkg = within(side()).getByRole('region', { name: 'Package' });
+    expect(within(pkg).getByText('Window closed')).toBeTruthy();
+    expect(within(pkg).getByText('Closed')).toBeTruthy();
+    cleanup();
+
+    renderDetail(await viewOf(R.preparing));
+    pkg = within(side()).getByRole('region', { name: 'Package' });
+    expect(within(pkg).getByRole('status').textContent).toContain('Preparing');
+    cleanup();
+
+    renderDetail(await viewOf(R.denied));
+    expect(within(side()).queryByRole('region', { name: 'Package' })).toBeNull();
+    const decision = within(side()).getByRole('region', { name: 'Decision' });
+    expect(within(decision).getByText('Frivolous, vexatious or scandalous')).toBeTruthy();
+    expect(within(decision).getByText('Does not promote the objectives of the Act')).toBeTruthy();
   });
 
   it('closed requests say how they closed', async () => {

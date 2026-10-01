@@ -17,11 +17,14 @@ import {
   Attachment01Icon,
   CheckmarkCircle02Icon,
   Download01Icon,
+  JusticeScale01Icon,
   Message01Icon,
+  SquareLock02Icon,
   UnavailableIcon,
   Undo02Icon,
   UserRemove01Icon,
 } from '@hugeicons/core-free-icons';
+import { Link } from '@tanstack/react-router';
 import type { ReactNode } from 'react';
 
 import { getRepresentationAttachmentLink } from '../../server/access-requests';
@@ -90,8 +93,8 @@ function decisionChip(view: OfficerRequestView) {
 }
 
 /**
- * The decision while it waits for representations, or is the access officer's to take. The
- * decision form joins it with #260; the supervisor only reads.
+ * The decision while it waits for representations (Decide stays locked), or is the access
+ * officer's to take (Decide opens the decision form, #260); the supervisor only reads.
  */
 export function DecisionCard({
   view,
@@ -114,11 +117,25 @@ export function DecisionCard({
       ) : (
         <p className="text-sm text-muted-foreground">{m.decisionOpen}</p>
       )}
+      {readOnly ? null : windowEndsAt ? (
+        <Button variant="secondary" disabled>
+          <Icon icon={SquareLock02Icon} />
+          {m.decide}
+        </Button>
+      ) : (
+        <Button asChild>
+          <Link to="/access/requests/$requestId/decide" params={{ requestId: view.id }}>
+            <Icon icon={JusticeScale01Icon} />
+            {m.decide}
+          </Link>
+        </Button>
+      )}
     </SideCard>
   );
 }
 
-function Outcome({
+/** An outcome with its tinted icon: decided, or closed without a decision. */
+export function OutcomeLine({
   icon,
   tone,
   children,
@@ -143,47 +160,15 @@ function Outcome({
   );
 }
 
-/** A decided request's outcome, reasons and who decided (the package joins it with #260). */
-export function DecidedCard({ view }: { view: OfficerRequestView }) {
-  const { decision } = view;
-  if (!decision) return null;
-  return (
-    <SideCard
-      id="decision"
-      title={m.decisionTitle}
-      actions={<span className="text-[13px] text-muted-foreground">{m.decisionFinal}</span>}
-    >
-      <Outcome
-        icon={decision.outcome === 'deny' ? UnavailableIcon : CheckmarkCircle02Icon}
-        tone={decision.outcome === 'deny' ? 'destructive' : 'success'}
-      >
-        {m.decided[decision.outcome]}
-      </Outcome>
-      <dl className="grid gap-3 text-sm">
-        <div>
-          <dt className="text-[13px] text-muted-foreground">{m.reasons}</dt>
-          <dd className="mt-0.5 whitespace-pre-line">{decision.reasons}</dd>
-        </div>
-        <div>
-          <dt className="text-[13px] text-muted-foreground">{m.decidedBy}</dt>
-          <dd className="mt-0.5 font-medium">
-            {decision.decidedBy.name} · {formatDateTime(decision.decidedAt)}
-          </dd>
-        </div>
-      </dl>
-    </SideCard>
-  );
-}
-
 /** Closed without a decision: the officer cannot be identified, or the applicant withdrew. */
 export function ClosedCard({ view }: { view: OfficerRequestView }) {
   const cannot = view.status === 'cannot-identify';
   const closed = lastEntry(view, cannot ? 'cannot-identify' : 'withdrawn');
   return (
     <SideCard id="closed" title={m.closedTitle}>
-      <Outcome icon={cannot ? UserRemove01Icon : Undo02Icon} tone="muted">
+      <OutcomeLine icon={cannot ? UserRemove01Icon : Undo02Icon} tone="muted">
         {cannot ? m.cannotIdentifyOutcome : m.withdrawnOutcome}
-      </Outcome>
+      </OutcomeLine>
       {closed ? (
         <p className="text-sm text-muted-foreground">
           {cannot

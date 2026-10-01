@@ -32,7 +32,7 @@ import type { RosterCandidate } from '../../server/access/types';
 import { messages as m } from './messages';
 
 /** One consequence of confirming, with its icon (the prototype's `.conseq` list). */
-function Consequences({
+export function Consequences({
   items,
 }: {
   items: { icon: IconProps['icon']; title: string; text?: string; danger?: boolean }[];
@@ -65,7 +65,7 @@ interface ConfirmProps {
   onConfirm: () => void;
 }
 
-function Problem({ error }: { error: string | null }) {
+export function Problem({ error }: { error: string | null }) {
   if (!error) return null;
   return (
     <Alert variant="destructive">

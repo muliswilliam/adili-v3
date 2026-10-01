@@ -12,14 +12,22 @@
  * - `consent`: the declarant consented, which closed the window early.
  * - `late`: under decision with context, 7 days past its decision deadline.
  * - `noReply`: under decision, the window closed without representations.
- * - `cannot`, `withdrawn`: closed; `granted`, `denied`: decided. Older decided requests fill a
- *   second page.
+ * - `cannot`, `withdrawn`: closed; `denied`: decided with two grounds.
+ * - `granted`: package issued, not downloaded yet; `partial`: partially granted, its package
+ *   downloaded twice; `endsToday`: the download window ends today; `expired`: the window closed;
+ *   `preparing`: granted a minute ago, the package not issued yet (it stays so).
+ * - Older decided requests fill a second page.
  *
  * Only the access officer acts (roster search, resolve, verify); a supervisor gets 403, as the
  * service answers. Resolving to a record leaves the request as it was until the workflow notifies
  * the declarant, two seconds later. Searching the queue for `slow` answers after four seconds
  * (the loading state); for `offline`, 503. Searching the roster for `offline` is 503 too.
  * Attachment links point at `/api/mock-files/{id}` (`routes/api/mock-files.$id.ts`).
+ *
+ * A decision follows the access service's rules (`decisionOf`: 400 by field, 409 unless under
+ * decision); a grant's package is issued four seconds later. Reasons containing `offline` answer
+ * 503; `rejected`, a 400 the form did not foresee (`grounds-required`); `raced`, a 409 as if
+ * another officer decided first (the request is then decided by Peter Otieno).
  */
 import { randomUUID } from 'node:crypto';
 
@@ -50,6 +58,10 @@ export const MOCK_REQUEST_IDS = {
   withdrawn: 'a11c0000-0000-4000-8000-000000000010',
   granted: 'a11c0000-0000-4000-8000-000000000011',
   denied: 'a11c0000-0000-4000-8000-000000000012',
+  partial: 'a11c0000-0000-4000-8000-000000000013',
+  endsToday: 'a11c0000-0000-4000-8000-000000000014',
+  expired: 'a11c0000-0000-4000-8000-000000000015',
+  preparing: 'a11c0000-0000-4000-8000-000000000016',
 } as const;
 
 export const MOCK_ROSTER_IDS = {
@@ -70,6 +82,9 @@ const DECISION_DAYS = 30;
 const WINDOW_DAYS = 7;
 /** How long the mock's workflow takes to notify the declarant after a resolution. */
 const NOTIFY_AFTER_MS = 2000;
+/** How long it takes to issue a grant's package after the decision. */
+const ISSUE_AFTER_MS = 4000;
+const DOWNLOAD_DAYS = 14;
 
 const ROSTER: RosterCandidate[] = [
   candidate(
@@ -246,8 +261,25 @@ interface Seed {
     editedAfterDays?: number;
   };
   closedAfterDays?: number;
-  decision?: { outcome: 'grant' | 'partial-grant' | 'deny'; afterDays: number; reasons: string };
+  decision?: {
+    outcome: 'grant' | 'partial-grant' | 'deny';
+    afterDays: number;
+    reasons: string;
+    grantedScope?: OfficerRequestView['formK']['scope'];
+    grounds?: Ground[];
+  };
+  /**
+   * A grant's package: issued an hour after the decision, unless `expiresAt` (epoch ms from the
+   * seeding time) places its window; downloads hours after issue. Left out: still preparing.
+   */
+  pkg?: { downloadsAfterHours?: number[]; expiresAt?: (now: number) => number };
 }
+
+type Ground = OfficerRequestView['decision'] extends infer D
+  ? D extends { grounds: (infer G)[] }
+    ? G
+    : never
+  : never;
 
 const SCOPE_2026_ASSETS = {
   years: [2026],
@@ -261,6 +293,8 @@ interface Stored {
   view: OfficerRequestView;
   /** When the mock workflow notifies the declarant of a resolution (epoch ms), if pending. */
   notifyAt: number | null;
+  /** When it issues a grant's package (epoch ms), if pending. */
+  issueAt: number | null;
   /** For the queue's closed and decided rows. */
   closedAt: string | null;
 }
@@ -273,6 +307,22 @@ function iso(now: number, days: number): string {
 
 function hoursLater(at: string, hours: number): string {
   return new Date(Date.parse(at) + hours * 60 * 60 * 1000).toISOString();
+}
+
+/** An issued package, with a verification code made from its reference. */
+function packageOf(
+  issuedAt: string,
+  downloads: number,
+  reference: string,
+): NonNullable<OfficerRequestView['package']> {
+  const seq = reference.split('-').slice(3).join('');
+  return {
+    documentId: randomUUID(),
+    verificationId: `ADL-A7KQ-${seq.slice(0, 4)}-${seq.slice(4, 8).padEnd(4, 'X')}-9TPD-2HRC`,
+    issuedAt,
+    downloadExpiresAt: iso(Date.parse(issuedAt), DOWNLOAD_DAYS),
+    downloads,
+  };
 }
 
 function entry(
@@ -339,18 +389,45 @@ function build(seed: Seed, now: number): Stored {
     );
   }
   let decision: OfficerRequestView['decision'] = null;
+  let pkg: OfficerRequestView['package'] = null;
   if (seed.decision) {
-    const decidedAt = hoursLater(iso(Date.parse(submittedAt), seed.decision.afterDays), 6);
+    const { outcome } = seed.decision;
+    const decidedAt =
+      seed.decision.afterDays < 0
+        ? new Date(now + seed.decision.afterDays * 24 * 60 * 60 * 1000).toISOString()
+        : hoursLater(iso(Date.parse(submittedAt), seed.decision.afterDays), 6);
     closedAt = decidedAt;
     decision = {
-      outcome: seed.decision.outcome,
-      grantedScope: null,
-      grounds: seed.decision.outcome === 'deny' ? ['frivolous-vexatious'] : [],
+      outcome,
+      grantedScope:
+        outcome === 'deny'
+          ? null
+          : outcome === 'grant'
+            ? seed.scope
+            : (seed.decision.grantedScope ?? null),
+      grounds: seed.decision.grounds ?? (outcome === 'deny' ? ['frivolous-vexatious'] : []),
       reasons: seed.decision.reasons,
       decidedBy: { subject: 'mock-access-officer', name: OFFICER_NAME },
       decidedAt,
     };
     timeline.push(entry('decided', decidedAt, OFFICER_NAME, seed.reference));
+    if (seed.pkg && outcome !== 'deny') {
+      const expiresAt = seed.pkg.expiresAt
+        ? new Date(seed.pkg.expiresAt(now)).toISOString()
+        : iso(Date.parse(hoursLater(decidedAt, 1)), DOWNLOAD_DAYS);
+      const issuedAt = iso(Date.parse(expiresAt), -DOWNLOAD_DAYS);
+      const downloads = (seed.pkg.downloadsAfterHours ?? []).map((hours) =>
+        hoursLater(issuedAt, hours),
+      );
+      pkg = packageOf(issuedAt, downloads.length, seed.reference);
+      timeline.push(entry('package-issued', issuedAt, null, seed.reference));
+      for (const at of downloads) {
+        timeline.push(entry('downloaded', at, seed.applicant.name, seed.reference));
+      }
+      if (Date.parse(expiresAt) <= now) {
+        timeline.push(entry('expired', expiresAt, null, seed.reference));
+      }
+    }
   }
   const partII: OfficerRequestView['formK']['partII'] = {
     name: seed.sought.name,
@@ -360,6 +437,7 @@ function build(seed: Seed, now: number): Stored {
   if (seed.sought.personnelFileNumber) partII.personnelFileNumber = seed.sought.personnelFileNumber;
   return {
     notifyAt: null,
+    issueAt: null,
     closedAt,
     view: {
       id: seed.id,
@@ -391,7 +469,7 @@ function build(seed: Seed, now: number): Stored {
       submittedAt,
       decisionDeadlineAt: deadline,
       decision,
-      package: null,
+      package: pkg,
       timeline,
       applicantIdentityStatus:
         seed.status === 'pending-applicant-verification' ? 'pending-verification' : 'verified',
@@ -621,15 +699,16 @@ const SEEDS: Seed[] = [
     informationSought: 'Assets declared in 2025.',
     reason: 'Reporting on the Northern Bypass contract variations.',
     scope: { ...SCOPE_2026_ASSETS, years: [2025] },
-    receivedDaysAgo: 40,
+    receivedDaysAgo: 20,
     status: 'granted',
     resolved: K.josephine,
     notifiedAfterDays: 1,
     decision: {
       outcome: 'grant',
-      afterDays: 14,
+      afterDays: -3,
       reasons: 'A legitimate interest in public procurement; the declarant consented.',
     },
+    pkg: {},
   },
   {
     id: R.denied,
@@ -658,9 +737,126 @@ const SEEDS: Seed[] = [
       afterDays: 20,
       reasons:
         'The request is part of a private dispute and does not promote the objectives of the Act.',
+      grounds: ['frivolous-vexatious', 'not-objectives'],
+    },
+  },
+  {
+    id: R.partial,
+    reference: 'ARQ-PSC-2026-0000118-3',
+    applicant: MERCY,
+    sought: {
+      name: 'Peter Mwangi Kamau',
+      entity: 'State Department for Housing and Urban Development',
+      workStation: 'Ardhi House, Nairobi',
+    },
+    informationSought:
+      'Assets, liabilities and income in the 2025 and 2026 declarations, with spouse and children.',
+    reason:
+      'Several parcels in Ruiru were re-allocated to companies linked to officers of the department. The declarations show whether the officer declared land held directly or through family.',
+    scope: {
+      years: [2025, 2026],
+      includeSpouses: true,
+      includeChildren: true,
+      sections: ['income', 'assets', 'liabilities'],
+      includeClarifications: true,
+    },
+    receivedDaysAgo: 34,
+    status: 'partially-granted',
+    resolved: K.peterKamau,
+    notifiedAfterDays: 2,
+    decision: {
+      outcome: 'partial-grant',
+      afterDays: -6,
+      reasons:
+        "The request for land holdings is in furtherance of the objectives of the Act. Income and the declarations of the officer's children are not needed for that purpose and disclosing them would be against the public interest. The 2025 declaration predates the re-allocations and is not granted.",
+      grantedScope: {
+        years: [2026],
+        includeSpouses: true,
+        includeChildren: false,
+        sections: ['assets', 'liabilities'],
+        includeClarifications: true,
+      },
+      grounds: ['public-interest'],
+    },
+    pkg: { downloadsAfterHours: [6, 30] },
+  },
+  {
+    id: R.endsToday,
+    reference: 'ARQ-PSC-2026-0000102-K',
+    applicant: BRENDA,
+    sought: {
+      name: 'Esther Wairimu Njoroge',
+      entity: 'State Department for Public Service',
+      workStation: 'ICT',
+    },
+    informationSought: 'Other information (business interests) in 2026.',
+    reason: 'A research project on lifestyle audits in public procurement, for my thesis.',
+    scope: { ...SCOPE_2026_ASSETS, sections: ['other'] },
+    receivedDaysAgo: 40,
+    status: 'granted',
+    resolved: K.esther,
+    notifiedAfterDays: 1,
+    decision: {
+      outcome: 'grant',
+      afterDays: -14.05,
+      reasons: 'A legitimate research interest; the declarant consented.',
+    },
+    pkg: { expiresAt: endOfToday },
+  },
+  {
+    id: R.expired,
+    reference: 'ARQ-PSC-2026-0000079-5',
+    applicant: PAUL,
+    sought: {
+      name: 'Lilian Wairimu Njoroge',
+      entity: 'The National Treasury',
+      workStation: 'Treasury Building, Nairobi',
+    },
+    informationSought: 'Liabilities declared in 2025.',
+    reason: 'A supplier payment audit.',
+    scope: { ...SCOPE_2026_ASSETS, years: [2025], sections: ['liabilities'] },
+    receivedDaysAgo: 60,
+    status: 'granted',
+    resolved: K.lilian,
+    notifiedAfterDays: 1,
+    decision: {
+      outcome: 'grant',
+      afterDays: 18,
+      reasons: 'A legitimate interest in public finance; no representations were made.',
+    },
+    pkg: { downloadsAfterHours: [20] },
+  },
+  {
+    id: R.preparing,
+    reference: 'ARQ-PSC-2026-0000127-8',
+    applicant: ESTHER,
+    sought: {
+      name: 'Grace Nyambura Kamau',
+      entity: 'State Department for Housing and Urban Development',
+      workStation: 'Ardhi House, Nairobi',
+    },
+    informationSought: 'Assets declared in 2026.',
+    reason: 'Our research on affordable housing tenders.',
+    scope: SCOPE_2026_ASSETS,
+    receivedDaysAgo: 18,
+    status: 'granted',
+    resolved: K.grace,
+    notifiedAfterDays: 2,
+    decision: {
+      outcome: 'grant',
+      afterDays: -0.001,
+      reasons: 'A legitimate research interest in public procurement.',
     },
   },
 ];
+
+/** Ten minutes before the end of the Kenyan day of `now`, or five minutes on when that passed. */
+function endOfToday(now: number): number {
+  const nairobi = 3 * 60 * 60 * 1000;
+  const midnight = Date.parse(`${new Date(now + nairobi).toISOString().slice(0, 10)}T00:00:00Z`);
+  const end = midnight - nairobi + 24 * 60 * 60 * 1000 - 10 * 60 * 1000;
+  return end > now ? end : now + 5 * 60 * 1000;
+}
 
 /** Older decided requests, so the queue has a second page. */
 function fillers(): Seed[] {
@@ -689,6 +885,7 @@ function fillers(): Seed[] {
         afterDays: 12,
         reasons: 'Decided on the requested scope.',
       },
+      pkg: {},
     };
   });
 }
@@ -715,6 +912,15 @@ function ensureSeeded() {
 
 /** Runs the mock workflow: a resolution notifies the declarant once its time has come. */
 function advance(stored: Stored, now: number) {
+  if (stored.issueAt !== null && now >= stored.issueAt) {
+    const at = new Date(stored.issueAt).toISOString();
+    stored.issueAt = null;
+    stored.view = {
+      ...stored.view,
+      package: packageOf(at, 0, stored.view.reference),
+      timeline: [...stored.view.timeline, entry('package-issued', at, null, stored.view.reference)],
+    };
+  }
   if (stored.notifyAt === null || now < stored.notifyAt) return;
   const at = new Date(stored.notifyAt).toISOString();
   stored.notifyAt = null;
@@ -919,6 +1125,141 @@ async function verify(request: Request, stored: Stored, caller: Caller): Promise
   return json(200, stored.view);
 }
 
+function badDecision(path: string, message: string, code?: string): Response {
+  return json(400, {
+    type: 'about:blank',
+    title: 'Bad Request',
+    status: 400,
+    detail: `${path} ${message}`,
+    ...(code ? { code } : {}),
+    errors: [{ path, message }],
+  });
+}
+
+type MockScope = OfficerRequestView['formK']['scope'];
+
+function within(scope: MockScope, requested: MockScope): boolean {
+  return (
+    scope.years.every((year) => requested.years.includes(year)) &&
+    scope.sections.every((section) => requested.sections.includes(section)) &&
+    (!scope.includeSpouses || requested.includeSpouses) &&
+    (!scope.includeChildren || requested.includeChildren) &&
+    (!scope.includeClarifications || requested.includeClarifications)
+  );
+}
+
+const DECIDED_STATUS = {
+  grant: 'granted',
+  'partial-grant': 'partially-granted',
+  deny: 'denied',
+} as const;
+
+/** As the access service's `decide`: status first, then `decisionOf`'s rules. */
+async function decide(request: Request, stored: Stored, caller: Caller): Promise<Response> {
+  const body = await readJson(request);
+  if (!isRecord(body)) return problem(400, 'A decision is required');
+  const outcome = body.outcome;
+  const reasons = typeof body.reasons === 'string' ? body.reasons.trim() : '';
+  const grounds = Array.isArray(body.grounds) ? (body.grounds as Ground[]) : [];
+  const scope = isRecord(body.grantedScope) ? (body.grantedScope as unknown as MockScope) : null;
+  if (outcome !== 'grant' && outcome !== 'partial-grant' && outcome !== 'deny') {
+    return badDecision('outcome', 'must be grant, partial-grant or deny');
+  }
+  if (!reasons || reasons.length > 4000)
+    return badDecision('reasons', 'must be 1 to 4000 characters');
+  if (reasons.includes('offline')) return problem(503, 'Service unavailable');
+  const { view } = stored;
+  if (reasons.includes('raced') && view.status === 'under-decision') {
+    const at = new Date().toISOString();
+    stored.closedAt = at;
+    stored.view = {
+      ...view,
+      status: 'denied',
+      decision: {
+        outcome: 'deny',
+        grantedScope: null,
+        grounds: ['not-objectives'],
+        reasons: 'The reason given does not promote the objectives of the Act.',
+        decidedBy: { subject: 'mock-other-officer', name: 'Peter Otieno' },
+        decidedAt: at,
+      },
+      timeline: [...view.timeline, entry('decided', at, 'Peter Otieno', view.reference)],
+    };
+  }
+  const current = stored.view;
+  if (current.decision) {
+    return problem(409, 'The request is decided, and a decision is final.', 'request-decided');
+  }
+  if (current.status === 'withdrawn' || current.status === 'cannot-identify') {
+    return problem(409, 'The request is closed.', 'request-closed');
+  }
+  if (current.status !== 'under-decision') {
+    return problem(409, 'The request is not under decision yet', 'not-under-decision');
+  }
+  if (reasons.includes('rejected')) {
+    return badDecision(
+      'grounds',
+      'a denial must cite at least one Regulation 24 ground',
+      'grounds-required',
+    );
+  }
+  const requested = current.formK.scope;
+  const exceeds = scope !== null && !within(scope, requested);
+  const whole = scope !== null && !exceeds && within(requested, scope);
+  if (exceeds) {
+    return badDecision(
+      'grantedScope',
+      'grants more than the request asked for',
+      'scope-exceeds-request',
+    );
+  }
+  if (outcome === 'grant') {
+    if (scope !== null && !whole)
+      return badDecision(
+        'grantedScope',
+        'is narrower than the requested scope: decide a partial grant to narrow it',
+      );
+    if (grounds.length > 0) return badDecision('grounds', 'must be empty for a grant');
+  }
+  if (outcome === 'partial-grant') {
+    if (scope === null) return badDecision('grantedScope', 'is required for a partial grant');
+    if (whole)
+      return badDecision('grantedScope', 'is the whole requested scope: decide a grant instead');
+    if (grounds.length === 0)
+      return badDecision(
+        'grounds',
+        'a partial grant must cite at least one Regulation 24 ground',
+        'grounds-required',
+      );
+  }
+  if (outcome === 'deny') {
+    if (scope !== null) return badDecision('grantedScope', 'must be absent for a denial');
+    if (grounds.length === 0)
+      return badDecision(
+        'grounds',
+        'a denial must cite at least one Regulation 24 ground',
+        'grounds-required',
+      );
+  }
+  const at = new Date().toISOString();
+  stored.closedAt = at;
+  stored.issueAt = outcome === 'deny' ? null : Date.now() + ISSUE_AFTER_MS;
+  stored.view = {
+    ...current,
+    status: DECIDED_STATUS[outcome],
+    decision: {
+      outcome,
+      grantedScope: outcome === 'deny' ? null : outcome === 'grant' ? requested : scope,
+      grounds,
+      reasons,
+      decidedBy: { subject: caller.subject, name: caller.name },
+      decidedAt: at,
+    },
+    timeline: [...current.timeline, entry('decided', at, caller.name, current.reference)],
+  };
+  return json(200, stored.view);
+}
+
 export async function mockAccessFetch(request: Request): Promise<Response> {
   ensureSeeded();
   const url = new URL(request.url);
@@ -976,6 +1317,10 @@ export async function mockAccessFetch(request: Request): Promise<Response> {
   if (method === 'POST' && action === 'verify-applicant') {
     await delay(500);
     return verify(request, stored, caller);
+  }
+  if (method === 'POST' && action === 'decision') {
+    await delay(700);
+    return decide(request, stored, caller);
   }
   return problem(404, 'Not found');
 }

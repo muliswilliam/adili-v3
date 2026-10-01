@@ -174,14 +174,7 @@ export const en = {
     `Opens when representations close on ${date}, or earlier if the declarant consents.`,
   decisionOpen: 'Representations are closed. Decide before the deadline.',
   decisionReadOnly: 'Only the access officer decides.',
-  decisionFinal: 'Final',
-  decided: {
-    grant: 'Granted',
-    'partial-grant': 'Partially granted',
-    deny: 'Denied',
-  },
-  decidedBy: 'Decided by',
-  reasons: 'Reasons',
+  decide: 'Decide',
 
   // Closed side card
   closedTitle: 'Closed',

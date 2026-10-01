@@ -34,7 +34,7 @@ import { Route as RosterImportsRouteRouteImport } from './routes/roster/imports/
 import { Route as RosterRecordsRouteRouteImport } from './routes/roster/records/route'
 import { Route as RosterTemplateRouteImport } from './routes/roster/template'
 import { Route as AccessRequestsIndexRouteImport } from './routes/access/requests/index'
-import { Route as AccessRequestsRequestIdRouteImport } from './routes/access/requests/$requestId'
+import { Route as AccessRequestsRequestIdRouteRouteImport } from './routes/access/requests/$requestId/route'
 import { Route as ApiMockFilesIdRouteImport } from './routes/api/mock-files.$id'
 import { Route as CommissionsSlugIndexRouteImport } from './routes/commissions/$slug/index'
 import { Route as CommissionsSlugObligationsRouteRouteImport } from './routes/commissions/$slug/obligations/route'
@@ -45,6 +45,8 @@ import { Route as RosterApiAccessDocsRouteImport } from './routes/roster/api-acc
 import { Route as RosterImportsIndexRouteImport } from './routes/roster/imports/index'
 import { Route as RosterRecordsIndexRouteImport } from './routes/roster/records/index'
 import { Route as RosterRecordsRecordIdRouteImport } from './routes/roster/records/$recordId'
+import { Route as AccessRequestsRequestIdIndexRouteImport } from './routes/access/requests/$requestId/index'
+import { Route as AccessRequestsRequestIdDecideRouteImport } from './routes/access/requests/$requestId/decide'
 import { Route as CommissionsSlugObligationsIndexRouteImport } from './routes/commissions/$slug/obligations/index'
 import { Route as CommissionsSlugRecordsIndexRouteImport } from './routes/commissions/$slug/records/index'
 import { Route as CommissionsSlugRecordsRecordIdRouteImport } from './routes/commissions/$slug/records/$recordId'
@@ -180,11 +182,12 @@ const AccessRequestsIndexRoute = AccessRequestsIndexRouteImport.update({
   path: '/',
   getParentRoute: () => AccessRequestsRouteRoute,
 } as any)
-const AccessRequestsRequestIdRoute = AccessRequestsRequestIdRouteImport.update({
-  id: '/$requestId',
-  path: '/$requestId',
-  getParentRoute: () => AccessRequestsRouteRoute,
-} as any)
+const AccessRequestsRequestIdRouteRoute =
+  AccessRequestsRequestIdRouteRouteImport.update({
+    id: '/$requestId',
+    path: '/$requestId',
+    getParentRoute: () => AccessRequestsRouteRoute,
+  } as any)
 const ApiMockFilesIdRoute = ApiMockFilesIdRouteImport.update({
   id: '/api/mock-files/$id',
   path: '/api/mock-files/$id',
@@ -238,6 +241,18 @@ const RosterRecordsRecordIdRoute = RosterRecordsRecordIdRouteImport.update({
   path: '/$recordId',
   getParentRoute: () => RosterRecordsRouteRoute,
 } as any)
+const AccessRequestsRequestIdIndexRoute =
+  AccessRequestsRequestIdIndexRouteImport.update({
+    id: '/',
+    path: '/',
+    getParentRoute: () => AccessRequestsRequestIdRouteRoute,
+  } as any)
+const AccessRequestsRequestIdDecideRoute =
+  AccessRequestsRequestIdDecideRouteImport.update({
+    id: '/decide',
+    path: '/decide',
+    getParentRoute: () => AccessRequestsRequestIdRouteRoute,
+  } as any)
 const CommissionsSlugObligationsIndexRoute =
   CommissionsSlugObligationsIndexRouteImport.update({
     id: '/',
@@ -312,9 +327,9 @@ export interface FileRoutesByFullPath {
   '/commissions/': typeof CommissionsIndexRoute
   '/obligations/': typeof ObligationsIndexRoute
   '/roster/': typeof RosterIndexRoute
+  '/access/requests/$requestId': typeof AccessRequestsRequestIdRouteRouteWithChildren
   '/commissions/$slug/obligations': typeof CommissionsSlugObligationsRouteRouteWithChildren
   '/commissions/$slug/records': typeof CommissionsSlugRecordsRouteRouteWithChildren
-  '/access/requests/$requestId': typeof AccessRequestsRequestIdRoute
   '/api/mock-files/$id': typeof ApiMockFilesIdRoute
   '/roster/api-access/docs': typeof RosterApiAccessDocsRoute
   '/roster/records/$recordId': typeof RosterRecordsRecordIdRoute
@@ -324,8 +339,10 @@ export interface FileRoutesByFullPath {
   '/roster/api-access/': typeof RosterApiAccessIndexRoute
   '/roster/imports/': typeof RosterImportsIndexRoute
   '/roster/records/': typeof RosterRecordsIndexRoute
+  '/access/requests/$requestId/decide': typeof AccessRequestsRequestIdDecideRoute
   '/commissions/$slug/records/$recordId': typeof CommissionsSlugRecordsRecordIdRoute
   '/roster/imports/$importId/report.csv': typeof RosterImportsImportIdReportDotcsvRoute
+  '/access/requests/$requestId/': typeof AccessRequestsRequestIdIndexRoute
   '/commissions/$slug/obligations/': typeof CommissionsSlugObligationsIndexRoute
   '/commissions/$slug/records/': typeof CommissionsSlugRecordsIndexRoute
   '/roster/imports/$importId/': typeof RosterImportsImportIdIndexRoute
@@ -348,7 +365,6 @@ export interface FileRoutesByTo {
   '/commissions': typeof CommissionsIndexRoute
   '/obligations': typeof ObligationsIndexRoute
   '/roster': typeof RosterIndexRoute
-  '/access/requests/$requestId': typeof AccessRequestsRequestIdRoute
   '/api/mock-files/$id': typeof ApiMockFilesIdRoute
   '/roster/api-access/docs': typeof RosterApiAccessDocsRoute
   '/roster/records/$recordId': typeof RosterRecordsRecordIdRoute
@@ -358,8 +374,10 @@ export interface FileRoutesByTo {
   '/roster/api-access': typeof RosterApiAccessIndexRoute
   '/roster/imports': typeof RosterImportsIndexRoute
   '/roster/records': typeof RosterRecordsIndexRoute
+  '/access/requests/$requestId/decide': typeof AccessRequestsRequestIdDecideRoute
   '/commissions/$slug/records/$recordId': typeof CommissionsSlugRecordsRecordIdRoute
   '/roster/imports/$importId/report.csv': typeof RosterImportsImportIdReportDotcsvRoute
+  '/access/requests/$requestId': typeof AccessRequestsRequestIdIndexRoute
   '/commissions/$slug/obligations': typeof CommissionsSlugObligationsIndexRoute
   '/commissions/$slug/records': typeof CommissionsSlugRecordsIndexRoute
   '/roster/imports/$importId': typeof RosterImportsImportIdIndexRoute
@@ -393,9 +411,9 @@ export interface FileRoutesById {
   '/commissions/': typeof CommissionsIndexRoute
   '/obligations/': typeof ObligationsIndexRoute
   '/roster/': typeof RosterIndexRoute
+  '/access/requests/$requestId': typeof AccessRequestsRequestIdRouteRouteWithChildren
   '/commissions/$slug/obligations': typeof CommissionsSlugObligationsRouteRouteWithChildren
   '/commissions/$slug/records': typeof CommissionsSlugRecordsRouteRouteWithChildren
-  '/access/requests/$requestId': typeof AccessRequestsRequestIdRoute
   '/api/mock-files/$id': typeof ApiMockFilesIdRoute
   '/roster/api-access/docs': typeof RosterApiAccessDocsRoute
   '/roster/records/$recordId': typeof RosterRecordsRecordIdRoute
@@ -405,8 +423,10 @@ export interface FileRoutesById {
   '/roster/api-access/': typeof RosterApiAccessIndexRoute
   '/roster/imports/': typeof RosterImportsIndexRoute
   '/roster/records/': typeof RosterRecordsIndexRoute
+  '/access/requests/$requestId/decide': typeof AccessRequestsRequestIdDecideRoute
   '/commissions/$slug/records/$recordId': typeof CommissionsSlugRecordsRecordIdRoute
   '/roster/imports/$importId/report.csv': typeof RosterImportsImportIdReportDotcsvRoute
+  '/access/requests/$requestId/': typeof AccessRequestsRequestIdIndexRoute
   '/commissions/$slug/obligations/': typeof CommissionsSlugObligationsIndexRoute
   '/commissions/$slug/records/': typeof CommissionsSlugRecordsIndexRoute
   '/roster/imports/$importId/': typeof RosterImportsImportIdIndexRoute
@@ -441,9 +461,9 @@ export interface FileRouteTypes {
     | '/commissions/'
     | '/obligations/'
     | '/roster/'
+    | '/access/requests/$requestId'
     | '/commissions/$slug/obligations'
     | '/commissions/$slug/records'
-    | '/access/requests/$requestId'
     | '/api/mock-files/$id'
     | '/roster/api-access/docs'
     | '/roster/records/$recordId'
@@ -453,8 +473,10 @@ export interface FileRouteTypes {
     | '/roster/api-access/'
     | '/roster/imports/'
     | '/roster/records/'
+    | '/access/requests/$requestId/decide'
     | '/commissions/$slug/records/$recordId'
     | '/roster/imports/$importId/report.csv'
+    | '/access/requests/$requestId/'
     | '/commissions/$slug/obligations/'
     | '/commissions/$slug/records/'
     | '/roster/imports/$importId/'
@@ -477,7 +499,6 @@ export interface FileRouteTypes {
     | '/commissions'
     | '/obligations'
     | '/roster'
-    | '/access/requests/$requestId'
     | '/api/mock-files/$id'
     | '/roster/api-access/docs'
     | '/roster/records/$recordId'
@@ -487,8 +508,10 @@ export interface FileRouteTypes {
     | '/roster/api-access'
     | '/roster/imports'
     | '/roster/records'
+    | '/access/requests/$requestId/decide'
     | '/commissions/$slug/records/$recordId'
     | '/roster/imports/$importId/report.csv'
+    | '/access/requests/$requestId'
     | '/commissions/$slug/obligations'
     | '/commissions/$slug/records'
     | '/roster/imports/$importId'
@@ -521,9 +544,9 @@ export interface FileRouteTypes {
     | '/commissions/'
     | '/obligations/'
     | '/roster/'
+    | '/access/requests/$requestId'
     | '/commissions/$slug/obligations'
     | '/commissions/$slug/records'
-    | '/access/requests/$requestId'
     | '/api/mock-files/$id'
     | '/roster/api-access/docs'
     | '/roster/records/$recordId'
@@ -533,8 +556,10 @@ export interface FileRouteTypes {
     | '/roster/api-access/'
     | '/roster/imports/'
     | '/roster/records/'
+    | '/access/requests/$requestId/decide'
     | '/commissions/$slug/records/$recordId'
     | '/roster/imports/$importId/report.csv'
+    | '/access/requests/$requestId/'
     | '/commissions/$slug/obligations/'
     | '/commissions/$slug/records/'
     | '/roster/imports/$importId/'
@@ -738,7 +763,7 @@ declare module '@tanstack/react-router' {
       id: '/access/requests/$requestId'
       path: '/$requestId'
       fullPath: '/access/requests/$requestId'
-      preLoaderRoute: typeof AccessRequestsRequestIdRouteImport
+      preLoaderRoute: typeof AccessRequestsRequestIdRouteRouteImport
       parentRoute: typeof AccessRequestsRouteRoute
     }
     '/api/mock-files/$id': {
@@ -811,6 +836,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof RosterRecordsRecordIdRouteImport
       parentRoute: typeof RosterRecordsRouteRoute
     }
+    '/access/requests/$requestId/': {
+      id: '/access/requests/$requestId/'
+      path: '/'
+      fullPath: '/access/requests/$requestId/'
+      preLoaderRoute: typeof AccessRequestsRequestIdIndexRouteImport
+      parentRoute: typeof AccessRequestsRequestIdRouteRoute
+    }
+    '/access/requests/$requestId/decide': {
+      id: '/access/requests/$requestId/decide'
+      path: '/decide'
+      fullPath: '/access/requests/$requestId/decide'
+      preLoaderRoute: typeof AccessRequestsRequestIdDecideRouteImport
+      parentRoute: typeof AccessRequestsRequestIdRouteRoute
+    }
     '/commissions/$slug/obligations/': {
       id: '/commissions/$slug/obligations/'
       path: '/'
@@ -870,13 +909,30 @@ declare module '@tanstack/react-router' {
   }
 }
 
+interface AccessRequestsRequestIdRouteRouteChildren {
+  AccessRequestsRequestIdDecideRoute: typeof AccessRequestsRequestIdDecideRoute
+  AccessRequestsRequestIdIndexRoute: typeof AccessRequestsRequestIdIndexRoute
+}
+
+const AccessRequestsRequestIdRouteRouteChildren: AccessRequestsRequestIdRouteRouteChildren =
+  {
+    AccessRequestsRequestIdDecideRoute: AccessRequestsRequestIdDecideRoute,
+    AccessRequestsRequestIdIndexRoute: AccessRequestsRequestIdIndexRoute,
+  }
+
+const AccessRequestsRequestIdRouteRouteWithChildren =
+  AccessRequestsRequestIdRouteRoute._addFileChildren(
+    AccessRequestsRequestIdRouteRouteChildren,
+  )
+
 interface AccessRequestsRouteRouteChildren {
-  AccessRequestsRequestIdRoute: typeof AccessRequestsRequestIdRoute
+  AccessRequestsRequestIdRouteRoute: typeof AccessRequestsRequestIdRouteRouteWithChildren
   AccessRequestsIndexRoute: typeof AccessRequestsIndexRoute
 }
 
 const AccessRequestsRouteRouteChildren: AccessRequestsRouteRouteChildren = {
-  AccessRequestsRequestIdRoute: AccessRequestsRequestIdRoute,
+  AccessRequestsRequestIdRouteRoute:
+    AccessRequestsRequestIdRouteRouteWithChildren,
   AccessRequestsIndexRoute: AccessRequestsIndexRoute,
 }
 
