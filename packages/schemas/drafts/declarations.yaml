@@ -9,6 +9,7 @@ paths:
     parameters:
       - $ref: '#/components/parameters/DeclarationId'
       - $ref: '#/components/parameters/VersionNumber'
+      - $ref: '#/components/parameters/ActingTenant'
       - name: X-Acting-Subject
         in: header
         required: true
@@ -40,17 +41,13 @@ paths:
       operationId: internalFindPreviousVersion
       summary: Latest earlier submitted version of the same person at the same Commission
       parameters:
+        - $ref: '#/components/parameters/ActingTenant'
         - name: personId
           in: query
           required: true
           schema:
             type: string
             format: uuid
-        - name: tenant
-          in: query
-          required: true
-          schema:
-            type: string
         - name: beforeVersionId
           in: query
           required: true
@@ -750,6 +747,14 @@ components:
       schema:
         type: string
         format: uuid
+    ActingTenant:
+      name: X-Acting-Tenant
+      in: header
+      required: true
+      description: Tenant the calling service acts for; the resource must belong to it
+      schema:
+        type: string
+        pattern: '^[a-z][a-z0-9]{1,19}$'
     IdempotencyKey:
       name: Idempotency-Key
       in: header
@@ -1073,6 +1078,7 @@ components:
         - declarationId
         - versionId
         - version
+        - personId
         - reference
         - type
         - statementDate
@@ -1092,6 +1098,10 @@ components:
           format: uuid
         version:
           type: integer
+        personId:
+          type: string
+          format: uuid
+          description: The declarant; the review service looks up their previous version with it
         reference:
           $ref: '#/components/schemas/DeclarationReference'
         type:

@@ -430,6 +430,8 @@ export interface paths {
         parameters: {
             query?: never;
             header: {
+                /** @description Tenant the calling service acts for; the resource must belong to it */
+                "X-Acting-Tenant": components["parameters"]["ActingTenant"];
                 /** @description Staff subject on whose behalf the content is read; recorded in the audit event */
                 "X-Acting-Subject": string;
                 "X-Review-Case"?: string;
@@ -1491,6 +1493,11 @@ export interface components {
             /** Format: uuid */
             versionId: string;
             version: number;
+            /**
+             * Format: uuid
+             * @description The declarant; the review service looks up their previous version with it
+             */
+            personId: string;
             reference: components["schemas"]["DeclarationReference"];
             type: components["schemas"]["ObligationType"];
             /** Format: date */
@@ -1552,6 +1559,8 @@ export interface components {
         VersionNumber: number;
         SuggestionId: string;
         ConversationId: string;
+        /** @description Tenant the calling service acts for; the resource must belong to it */
+        ActingTenant: string;
         /** @description Client-generated UUID, unique per logical request; reuse on retry */
         IdempotencyKey: string;
     };
@@ -2638,6 +2647,8 @@ export interface operations {
         parameters: {
             query?: never;
             header: {
+                /** @description Tenant the calling service acts for; the resource must belong to it */
+                "X-Acting-Tenant": components["parameters"]["ActingTenant"];
                 /** @description Staff subject on whose behalf the content is read; recorded in the audit event */
                 "X-Acting-Subject": string;
                 "X-Review-Case"?: string;
@@ -2666,10 +2677,12 @@ export interface operations {
         parameters: {
             query: {
                 personId: string;
-                tenant: string;
                 beforeVersionId: string;
             };
-            header?: never;
+            header: {
+                /** @description Tenant the calling service acts for; the resource must belong to it */
+                "X-Acting-Tenant": components["parameters"]["ActingTenant"];
+            };
             path?: never;
             cookie?: never;
         };

@@ -35,8 +35,11 @@ export interface ServiceAnswer {
 }
 
 export interface ExpectedAnswer<T, R> {
-  /** The status that carries the answer asked for... */
-  status: number;
+  /**
+   * The status that carries the answer asked for, or several that carry the same body (e.g. 201
+   * issued and 200 already issued)...
+   */
+  status: number | readonly number[];
   /** ...and its body, validated before use: the generated types describe the contract, not what arrived. */
   schema: z.ZodType<T>;
   /**
@@ -113,7 +116,9 @@ export function createServiceClient<Paths extends object>(
       const { data, response } = answer;
       const handler = expected.otherwise?.[response.status];
       if (handler) return handler(response);
-      if (response.status !== expected.status) {
+      const answers: readonly number[] =
+        typeof expected.status === 'number' ? [expected.status] : expected.status;
+      if (!answers.includes(response.status)) {
         throw unavailable(`${service} answered ${String(response.status)}`);
       }
       const parsed = expected.schema.safeParse(data);

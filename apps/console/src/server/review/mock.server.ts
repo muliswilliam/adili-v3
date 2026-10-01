@@ -405,7 +405,16 @@ function detail(stored: StoredCase, caller: Assignee): CaseDetail {
     notes: [],
     timeline: stored.timeline,
     document: null,
-    versions: [{ version: 1, submittedAt: stored.item.receivedAt, late: false }],
+    // One version per mock case; the case id stands in for its version id.
+    versions: [
+      {
+        versionId: stored.item.id,
+        version: 1,
+        submittedAt: stored.item.receivedAt,
+        late: false,
+        amendment: false,
+      },
+    ],
     reviewerHistory: [holder],
   };
 }

@@ -372,13 +372,19 @@ export interface paths {
     "/internal/v1/review/clarifications/{clarificationId}/letter-payload": {
         parameters: {
             query?: never;
-            header?: never;
+            header: {
+                /** @description Tenant the calling service acts for; the resource must belong to it */
+                "X-Acting-Tenant": components["parameters"]["ActingTenant"];
+            };
             path: {
                 clarificationId: components["parameters"]["ClarificationId"];
             };
             cookie?: never;
         };
-        /** Fields the clarification letter template needs (documents service) */
+        /**
+         * Fields the clarification letter template needs (documents service)
+         * @description Service tokens with scope review:internal, acting for the Commission in X-Acting-Tenant (ADR-013 §8.1). Served from the letter fixed when the clarification was issued.
+         */
         get: operations["internalGetClarificationLetterPayload"];
         put?: never;
         post?: never;
@@ -1138,7 +1144,12 @@ export interface components {
             document: {
                 [key: string]: unknown;
             } | null;
+            /** @description Every version the case has processed, from the review service's own records; only the current one's document is pulled */
             versions: {
+                /** Format: uuid */
+                versionId: string;
+                /** @description The version amended an earlier one of the same declaration */
+                amendment: boolean;
                 version: number;
                 /** Format: date-time */
                 submittedAt: string;
@@ -1183,7 +1194,7 @@ export interface components {
         };
         ClarificationResponseInput: {
             items: {
-                /** @description Position of the clarification item being answered */
+                /** @description Position of the clarification item being answered, once each */
                 index: number;
                 text: string;
                 attachments: string[];
@@ -1565,12 +1576,34 @@ export interface components {
                 "application/problem+json": components["schemas"]["ProblemDetails"];
             };
         };
+        /** @description Problem type `declarations-unavailable` (title "Upstream service unavailable"): the declaration could not be read from the declarations service */
+        DeclarationsUnavailable: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["ProblemDetails"];
+            };
+        };
+        /** @description Problem type `directory-unavailable` (title "Upstream service unavailable"): the Commission directory could not be reached; nothing changed, try again */
+        DirectoryUnavailable: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["ProblemDetails"];
+            };
+        };
     };
     parameters: {
         Slug: string;
         CaseId: string;
         ClarificationId: string;
         IdempotencyKey: string;
+        /** @description Tenant the calling service acts for; the resource must belong to it */
+        ActingTenant: string;
+        /** @description Client-generated UUID, unique per logical request (ADR-013 §7.5). With it, a retry gets the stored answer back instead of acting twice; without it the request runs unguarded. */
+        OptionalIdempotencyKey: string;
         DeterminationId: string;
         LadderId: string;
         ActionId: string;
@@ -1665,13 +1698,13 @@ export interface operations {
                 };
             };
             404: components["responses"]["NotFound"];
-            /** @description Declarations service unavailable; case metadata may still be shown by the client */
+            /** @description Problem type `declarations-unavailable`: the declaration could not be read. The problem carries the rest of the case detail (document null) so the client can still show the case; no view is recorded. */
             502: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                    "application/problem+json": components["schemas"]["ProblemDetails"] & components["schemas"]["CaseDetail"];
                 };
             };
         };
@@ -1706,6 +1739,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
+            502: components["responses"]["DeclarationsUnavailable"];
         };
     };
     getCaseAttachmentDownload: {
@@ -1735,12 +1769,24 @@ export interface operations {
                 };
             };
             404: components["responses"]["NotFound"];
+            /** @description Problem type `declarations-unavailable` or `documents-unavailable` */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
         };
     };
     claimCase: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Client-generated UUID, unique per logical request (ADR-013 §7.5). With it, a retry gets the stored answer back instead of acting twice; without it the request runs unguarded. */
+                "Idempotency-Key"?: components["parameters"]["OptionalIdempotencyKey"];
+            };
             path: {
                 caseId: components["parameters"]["CaseId"];
             };
@@ -1758,7 +1804,7 @@ export interface operations {
                 };
             };
             404: components["responses"]["NotFound"];
-            /** @description Already assigned */
+            /** @description Problem type `case-already-assigned`: another officer holds the case */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -1772,7 +1818,10 @@ export interface operations {
     releaseCase: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Client-generated UUID, unique per logical request (ADR-013 §7.5). With it, a retry gets the stored answer back instead of acting twice; without it the request runs unguarded. */
+                "Idempotency-Key"?: components["parameters"]["OptionalIdempotencyKey"];
+            };
             path: {
                 caseId: components["parameters"]["CaseId"];
             };
@@ -1796,7 +1845,10 @@ export interface operations {
     reassignCase: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Client-generated UUID, unique per logical request (ADR-013 §7.5). With it, a retry gets the stored answer back instead of acting twice; without it the request runs unguarded. */
+                "Idempotency-Key"?: components["parameters"]["OptionalIdempotencyKey"];
+            };
             path: {
                 caseId: components["parameters"]["CaseId"];
             };
@@ -1820,6 +1872,7 @@ export interface operations {
                     "application/json": components["schemas"]["CaseListItem"];
                 };
             };
+            400: components["responses"]["ValidationProblem"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
         };
@@ -1827,7 +1880,10 @@ export interface operations {
     addCaseNote: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Client-generated UUID, unique per logical request (ADR-013 §7.5). With it, a retry gets the stored answer back instead of acting twice; without it the request runs unguarded. */
+                "Idempotency-Key"?: components["parameters"]["OptionalIdempotencyKey"];
+            };
             path: {
                 caseId: components["parameters"]["CaseId"];
             };
@@ -1850,13 +1906,17 @@ export interface operations {
                     "application/json": components["schemas"]["Note"];
                 };
             };
+            400: components["responses"]["ValidationProblem"];
             404: components["responses"]["NotFound"];
         };
     };
     markFlagReviewed: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Client-generated UUID, unique per logical request (ADR-013 §7.5). With it, a retry gets the stored answer back instead of acting twice; without it the request runs unguarded. */
+                "Idempotency-Key"?: components["parameters"]["OptionalIdempotencyKey"];
+            };
             path: {
                 caseId: components["parameters"]["CaseId"];
                 flagId: string;
@@ -1880,13 +1940,26 @@ export interface operations {
                     "application/json": components["schemas"]["Flag"];
                 };
             };
+            400: components["responses"]["ValidationProblem"];
             404: components["responses"]["NotFound"];
+            /** @description Problem type `flag-already-reviewed`: the flag was marked reviewed before */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
         };
     };
     createClarificationDraft: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Client-generated UUID, unique per logical request (ADR-013 §7.5). With it, a retry gets the stored answer back instead of acting twice; without it the request runs unguarded. */
+                "Idempotency-Key"?: components["parameters"]["OptionalIdempotencyKey"];
+            };
             path: {
                 caseId: components["parameters"]["CaseId"];
             };
@@ -1937,7 +2010,10 @@ export interface operations {
     updateClarificationDraft: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Client-generated UUID, unique per logical request (ADR-013 §7.5). With it, a retry gets the stored answer back instead of acting twice; without it the request runs unguarded. */
+                "Idempotency-Key"?: components["parameters"]["OptionalIdempotencyKey"];
+            };
             path: {
                 clarificationId: components["parameters"]["ClarificationId"];
             };
@@ -2012,12 +2088,17 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
+            502: components["responses"]["DeclarationsUnavailable"];
+            503: components["responses"]["DirectoryUnavailable"];
         };
     };
     resolveClarification: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Client-generated UUID, unique per logical request (ADR-013 §7.5). With it, a retry gets the stored answer back instead of acting twice; without it the request runs unguarded. */
+                "Idempotency-Key"?: components["parameters"]["OptionalIdempotencyKey"];
+            };
             path: {
                 clarificationId: components["parameters"]["ClarificationId"];
             };
@@ -2042,7 +2123,7 @@ export interface operations {
             };
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
-            /** @description Not issued or responded */
+            /** @description Problem code `clarification-not-responded`: only a responded clarification is resolved. One still issued or overdue is withdrawn if issued in error; overdue escalates (spec 08) */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -2056,7 +2137,10 @@ export interface operations {
     createFollowUpClarification: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Client-generated UUID, unique per logical request (ADR-013 §7.5). With it, a retry gets the stored answer back instead of acting twice; without it the request runs unguarded. */
+                "Idempotency-Key"?: components["parameters"]["OptionalIdempotencyKey"];
+            };
             path: {
                 clarificationId: components["parameters"]["ClarificationId"];
             };
@@ -2075,12 +2159,24 @@ export interface operations {
             };
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
+            /** @description Problem code `not-followable`: a draft or a withdrawn clarification */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
         };
     };
     withdrawClarification: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Client-generated UUID, unique per logical request (ADR-013 §7.5). With it, a retry gets the stored answer back instead of acting twice; without it the request runs unguarded. */
+                "Idempotency-Key"?: components["parameters"]["OptionalIdempotencyKey"];
+            };
             path: {
                 clarificationId: components["parameters"]["ClarificationId"];
             };
@@ -2105,8 +2201,17 @@ export interface operations {
             };
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
-            /** @description Not issued */
+            /** @description Problem code `clarification-not-open`: not issued, overdue or responded */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description The documents service could not revoke the letter; nothing changed */
+            503: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -2188,8 +2293,21 @@ export interface operations {
             };
             400: components["responses"]["ValidationProblem"];
             404: components["responses"]["NotFound"];
-            /** @description Already responded, withdrawn or resolved; or an attachment is not clean */
+            /**
+             * @description Problem code `already-responded`, `clarification-closed` (withdrawn or resolved),
+             *     `attachment-not-clean` or `attachment-not-accepted` (not an upload of the Commission
+             *     with purpose clarification-attachment)
+             */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description The documents service could not check the attachments; nothing changed */
+            503: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -2202,7 +2320,10 @@ export interface operations {
     internalGetClarificationLetterPayload: {
         parameters: {
             query?: never;
-            header?: never;
+            header: {
+                /** @description Tenant the calling service acts for; the resource must belong to it */
+                "X-Acting-Tenant": components["parameters"]["ActingTenant"];
+            };
             path: {
                 clarificationId: components["parameters"]["ClarificationId"];
             };
@@ -2219,6 +2340,8 @@ export interface operations {
                     "application/json": components["schemas"]["ClarificationLetterPayload"];
                 };
             };
+            400: components["responses"]["ValidationProblem"];
+            403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
         };
     };

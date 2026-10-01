@@ -10,6 +10,21 @@ export const envSchema = baseEnvSchema.extend({
   RABBITMQ_URL: z.url(),
   TEMPORAL_ADDRESS: z.string().min(1),
   TEMPORAL_NAMESPACE: z.string().min(1),
+  /** The queue the review worker polls: `DeclarationProcessingWorkflow` runs here (ADR-013 §4). */
+  TEMPORAL_TASK_QUEUE: z.string().min(1).default('review'),
+  /** Base URL of the declarations service, whose internal API serves submitted versions. */
+  DECLARATIONS_URL: z.url(),
+  /** Base URL of the directory service, whose internal API serves Commission policies. */
+  DIRECTORY_URL: z.url(),
+  /** Base URL of the documents service, whose internal API serves attachment downloads. */
+  DOCUMENTS_URL: z.url(),
+  /** Base URL of the notifications service, which sends clarification emails and SMS. */
+  NOTIFICATIONS_URL: z.url(),
+  /** The declarant portal, linked from clarification letters and messages. */
+  PORTAL_URL: z.url(),
+  /** Confidential Keycloak client whose service account calls other services' internal APIs. */
+  KEYCLOAK_CLIENT_ID: z.string().min(1).default('review'),
+  KEYCLOAK_CLIENT_SECRET: z.string().min(1),
 });
 
 export type Env = z.infer<typeof envSchema>;

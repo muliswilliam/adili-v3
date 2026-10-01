@@ -13,6 +13,7 @@ export {
   type ReferenceParts,
 } from './reference.js';
 export {
+  CLR,
   DCB,
   DCF,
   DCI,
