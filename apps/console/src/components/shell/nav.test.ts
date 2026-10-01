@@ -7,12 +7,19 @@ const labels = (roles: string[]) =>
 
 describe('navFor', () => {
   it('shows Commissions and National obligations under Platform to platform admins and EACC staff', () => {
-    for (const role of ['platform-admin', 'eacc-analyst', 'eacc-supervisor']) {
+    for (const role of ['eacc-analyst', 'eacc-supervisor']) {
       expect(labels([role])).toEqual([['Platform', ['Commissions', 'National obligations']]]);
     }
+  });
+
+  it('adds AI policy under Platform for platform admins only (spec 07c)', () => {
+    expect(labels(['platform-admin'])).toEqual([
+      ['Platform', ['Commissions', 'National obligations', 'AI policy']],
+    ]);
     expect(navFor(['platform-admin'])[0]?.items.map((item) => item.to)).toEqual([
       '/commissions',
       '/obligations/national',
+      '/ai-policy',
     ]);
   });
 

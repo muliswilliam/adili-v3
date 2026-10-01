@@ -8,7 +8,8 @@
         "$TURBO_ROOT$/packages/schemas/internal/directory.yaml",
         "$TURBO_ROOT$/packages/schemas/internal/documents.yaml",
         "$TURBO_ROOT$/packages/schemas/internal/declarations.yaml",
-        "$TURBO_ROOT$/packages/schemas/internal/review.yaml"
+        "$TURBO_ROOT$/packages/schemas/internal/review.yaml",
+        "$TURBO_ROOT$/packages/schemas/internal/ai-gateway.yaml"
       ]
     },
     "typecheck": {
@@ -17,7 +18,8 @@
         "$TURBO_ROOT$/packages/schemas/internal/directory.yaml",
         "$TURBO_ROOT$/packages/schemas/internal/documents.yaml",
         "$TURBO_ROOT$/packages/schemas/internal/declarations.yaml",
-        "$TURBO_ROOT$/packages/schemas/internal/review.yaml"
+        "$TURBO_ROOT$/packages/schemas/internal/review.yaml",
+        "$TURBO_ROOT$/packages/schemas/internal/ai-gateway.yaml"
       ]
     }
   }
