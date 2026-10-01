@@ -1,6 +1,6 @@
 import { randomInt } from 'node:crypto';
 
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it } from 'vitest';
 
 import { createTestApp, requireEnv, type TestApp } from './support/test-app.js';
 
@@ -22,10 +22,7 @@ describe('delivery through Mailpit and the SMS mock', () => {
   beforeAll(async () => {
     t = await createTestApp();
     auth = { authorization: `Bearer ${await t.token()}` };
-  });
-
-  afterAll(async () => {
-    await t.close();
+    return () => t.close();
   });
 
   const send = (payload: object) =>

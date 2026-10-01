@@ -1,5 +1,5 @@
 import { ACTING_TENANT_HEADER, ServiceTokenClient, TokenVerifier } from '@adili/api-kit';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it } from 'vitest';
 
 import { CSV } from '../../src/uploads/purposes.js';
 import type { UploadDownload, UploadReservation } from '../../src/uploads/representation.js';
@@ -39,10 +39,7 @@ beforeAll(async () => {
   });
   await api.post(`/v1/uploads/${reservation.id}/complete`, undefined, OFFICER);
   uploadId = reservation.id;
-});
-
-afterAll(async () => {
-  await api.close();
+  return () => api.close();
 });
 
 const downloadAs = async (token: string, tenant: string) =>

@@ -4,7 +4,7 @@ import { parse } from '@adili/numbering';
 import { TEMPORAL_CLIENT } from '@adili/temporal';
 import type { Client } from '@temporalio/client';
 import { asc, eq } from 'drizzle-orm';
-import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { clarificationWorkflowId } from '../../src/clarifications/contract.js';
 import type {
@@ -76,10 +76,7 @@ describe('clarifications: drafts, issue, letter payload, declarant reads', () =>
 
   beforeAll(async () => {
     api = await startReviewApi();
-  });
-
-  afterAll(async () => {
-    await api.close();
+    return () => api.close();
   });
 
   beforeEach(async () => {

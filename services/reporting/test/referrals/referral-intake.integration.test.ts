@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 
 import { eq } from 'drizzle-orm';
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
 import { config } from '../../src/config.js';
 import { referralFacts, referralIntake } from '../../src/db/schema.js';
@@ -60,10 +60,7 @@ describe('Referrals intake and ICMS push (S12)', () => {
 
   beforeAll(async () => {
     api = await startReportingApi();
-  });
-
-  afterAll(async () => {
-    await api.close();
+    return () => api.close();
   });
 
   beforeEach(async () => {

@@ -1,5 +1,5 @@
 import { ServiceTokenClient, TokenVerifier } from '@adili/api-kit';
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
 import { type DirectoryApi, startDirectoryApi } from '../support/directory-api.js';
 import { givenCommissions } from '../support/fixtures.js';
@@ -22,10 +22,7 @@ let api: DirectoryApi;
 
 beforeAll(async () => {
   api = await startDirectoryApi({ keycloakIssuerUrl: ISSUER });
-});
-
-afterAll(async () => {
-  await api.close();
+  return () => api.close();
 });
 
 beforeEach(async () => {

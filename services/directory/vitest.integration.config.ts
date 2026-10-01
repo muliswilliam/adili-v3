@@ -12,6 +12,7 @@ export default defineConfig({
     include: ['test/**/*.integration.test.ts'],
     testTimeout: 30_000,
     hookTimeout: 30_000,
+    globalSetup: ['test/support/workflow-bundles.ts'],
     setupFiles: ['test/support/temporal-task-queue.ts'],
     env: {
       ...parseEnv(readFileSync('.env.example', 'utf8')),

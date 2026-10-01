@@ -14,7 +14,8 @@ export default defineConfig({
     // psc 2027 on the shared Temporal would signal each other's workflows.
     fileParallelism: false,
     testTimeout: 60_000,
-    hookTimeout: 150_000,
+    hookTimeout: 60_000,
+    globalSetup: ['test/support/workflow-bundles.ts'],
     setupFiles: ['test/support/temporal-task-queue.ts'],
     env: {
       ...parseEnv(readFileSync('.env.example', 'utf8')),

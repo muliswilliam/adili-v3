@@ -13,11 +13,12 @@ import {
 } from '@adili/api-kit';
 import { createValkey, VALKEY } from '@adili/cache';
 import { createDatabase, DATABASE, type Database } from '@adili/data-access';
-import { TEMPORAL_CLIENT, TemporalWorkerReadinessCheck } from '@adili/temporal';
-import { untilWorkerPolling } from '@adili/temporal/testing';
+import { TEMPORAL_CLIENT, TemporalWorkerReadinessCheck, WorkflowBundler } from '@adili/temporal';
+import { prebuiltWorkflowBundler, untilWorkerPolling } from '@adili/temporal/testing';
 import { type Client as TemporalClient, ScheduleNotFoundError } from '@temporalio/client';
 import { sql } from 'drizzle-orm';
 import { createLocalJWKSet, exportJWK, generateKeyPair, type JWK, SignJWT } from 'jose';
+import { inject } from 'vitest';
 
 import { AppModule } from '../../src/app.module.js';
 import { config } from '../../src/config.js';
@@ -195,6 +196,8 @@ export async function startDirectoryApi(options: DirectoryApiOptions = {}): Prom
     .useValue(iprs)
     .overrideProvider(RATE_LIMIT_POLICIES)
     .useValue({ ...config.RATE_LIMITS, ...options.rateLimits })
+    .overrideProvider(WorkflowBundler)
+    .useValue(prebuiltWorkflowBundler(inject('workflowBundles')))
     .compile();
   // Quiet like LOG_LEVEL=fatal in the service; expected 5xx in tests would otherwise log errors.
   // Proxies trusted as `createService` trusts them, so the client address is the socket's

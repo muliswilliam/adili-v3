@@ -7,8 +7,8 @@ import { join } from 'node:path';
 import { FastifyAdapter, type NestFastifyApplication } from '@nestjs/platform-fastify';
 import { Test } from '@nestjs/testing';
 import { TokenVerifier } from '@adili/api-kit';
-import { TEMPORAL_CLIENT, TemporalWorkerReadinessCheck } from '@adili/temporal';
-import { untilWorkerPolling } from '@adili/temporal/testing';
+import { TEMPORAL_CLIENT, TemporalWorkerReadinessCheck, WorkflowBundler } from '@adili/temporal';
+import { prebuiltWorkflowBundler, untilWorkerPolling } from '@adili/temporal/testing';
 import type { Client } from '@temporalio/client';
 import { createDatabase, DATABASE, type Database } from '@adili/data-access';
 import { inArray } from 'drizzle-orm';
@@ -16,6 +16,7 @@ import { drizzle } from 'drizzle-orm/node-postgres';
 import { migrate } from 'drizzle-orm/node-postgres/migrator';
 import { createLocalJWKSet, exportJWK, generateKeyPair, SignJWT } from 'jose';
 import pg from 'pg';
+import { inject } from 'vitest';
 
 import { AppModule } from '../../src/app.module.js';
 import { config } from '../../src/config.js';
@@ -84,6 +85,8 @@ export async function createTestApp(options: TestAppOptions = {}): Promise<TestA
     )
     .overrideProvider(MODEL_PROVIDER)
     .useValue(options.provider ?? new ReplayAdapter({ fixturesDir, mode: 'replay' }))
+    .overrideProvider(WorkflowBundler)
+    .useValue(prebuiltWorkflowBundler(inject('workflowBundles')))
     .compile();
 
   const app = moduleRef.createNestApplication<NestFastifyApplication>(new FastifyAdapter());

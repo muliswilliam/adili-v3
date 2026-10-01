@@ -5,7 +5,7 @@ import { type FormMV1, validateFormM } from '@adili/forms';
 import { format, RPT } from '@adili/numbering';
 import { eq } from 'drizzle-orm';
 import { v7 as uuidv7 } from 'uuid';
-import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { complianceReportWorkflowId } from '../../src/compliance-reports/contract.js';
 import { openSnapshot } from '../../src/compliance-reports/snapshot.js';
@@ -36,11 +36,10 @@ describe('Federated Form M submission (S8)', () => {
 
   beforeAll(async () => {
     api = await startReportingApi();
-  });
-
-  afterAll(async () => {
-    await endWorkflows();
-    await api.close();
+    return async () => {
+      await endWorkflows();
+      await api.close();
+    };
   });
 
   beforeEach(async () => {

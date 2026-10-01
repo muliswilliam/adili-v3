@@ -4,7 +4,7 @@ import { parse } from '@adili/numbering';
 import { TEMPORAL_CLIENT } from '@adili/temporal';
 import type { Client } from '@temporalio/client';
 import { asc, eq } from 'drizzle-orm';
-import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { clarifications, ladderHistory, outbox } from '../../src/db/schema.js';
 import { enforcementWorkflowId } from '../../src/enforcement/contract.js';
@@ -79,10 +79,7 @@ describe('enforcement ladder', () => {
 
   beforeAll(async () => {
     api = await startReviewApi();
-  });
-
-  afterAll(async () => {
-    await api.close();
+    return () => api.close();
   });
 
   beforeEach(async () => {

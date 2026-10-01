@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 
 import { withTenant } from '@adili/data-access';
 import { sql } from 'drizzle-orm';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it } from 'vitest';
 
 import { clarifications, reviewCases, reviewFlags, reviewTimeline } from '../../src/db/schema.js';
 import { declaration, statement } from '../fixtures/declarations.js';
@@ -64,10 +64,7 @@ describe('review tables under row-level security', () => {
         createdBy: 'reviewer-a',
       }),
     );
-  });
-
-  afterAll(async () => {
-    await api.close();
+    return () => api.close();
   });
 
   it("another Commission's transactions see none of the rows and cannot write them", async () => {

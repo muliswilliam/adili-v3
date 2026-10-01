@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { EventPublisher } from '@adili/events';
 
 import { useDemoReminderOffsets } from '../../src/commissions/demo-seed.js';
@@ -18,10 +18,7 @@ const events = new EventPublisher({ service: 'directory', rabbitmqUrl: 'amqp://u
 
 beforeAll(async () => {
   api = await startDirectoryApi();
-});
-
-afterAll(async () => {
-  await api.close();
+  return () => api.close();
 });
 
 beforeEach(async () => {

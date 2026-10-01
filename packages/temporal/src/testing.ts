@@ -17,7 +17,9 @@ import {
   type WorkflowBundle,
 } from '@temporalio/worker';
 
-import type { TemporalWorkerReadinessCheck } from './temporal-worker.module.js';
+import type { TestProject } from 'vitest/node';
+
+import type { TemporalWorkerReadinessCheck, WorkflowBundler } from './temporal-worker.module.js';
 
 export interface ExecuteWorkflowOptions<W extends Workflow> {
   /** Module exporting the workflow functions, as given to the worker in production. */
@@ -222,13 +224,71 @@ async function startTimeSkippingServer(): Promise<TestWorkflowEnvironment> {
   }
 }
 
+/** Workflow bundles built once per test run: each workflows module's path to its bundled code. */
+export type WorkflowBundles = Record<string, string>;
+
+declare module 'vitest' {
+  export interface ProvidedContext {
+    /** Provided by `workflowBundlesSetup`, for `prebuiltWorkflowBundler`. */
+    workflowBundles: WorkflowBundles;
+  }
+}
+
+/**
+ * A Vitest `globalSetup` for suites that boot a service with a `TemporalWorkerModule` in each test
+ * file. It bundles each workflows module once, before any file runs, and provides the bundles to
+ * the files, whose harnesses override `WorkflowBundler` with
+ * `prebuiltWorkflowBundler(inject('workflowBundles'))`. Bundling is seconds of CPU; done in every
+ * file's app start, on a runner busy with parallel suites, it pushed the start past the hook
+ * timeout.
+ *
+ * ```ts
+ * // test/support/workflow-bundles.ts, listed in the config's `globalSetup`
+ * export default workflowBundlesSetup([fileURLToPath(new URL('../../src/workflows.ts', import.meta.url))]);
+ * ```
+ */
+export function workflowBundlesSetup(
+  workflowsPaths: readonly string[],
+): (project: TestProject) => Promise<void> {
+  return async (project) => {
+    const bundles: WorkflowBundles = {};
+    for (const workflowsPath of workflowsPaths) {
+      const { code } = await bundleWorkflowCode({ workflowsPath, logger: quietLogger });
+      bundles[workflowsPath] = code;
+    }
+    project.provide('workflowBundles', bundles);
+  };
+}
+
+/**
+ * A `WorkflowBundler` serving the bundles `workflowBundlesSetup` built, for
+ * `.overrideProvider(WorkflowBundler)`. A worker whose workflows module the setup did not bundle
+ * fails to start, naming the module.
+ */
+export function prebuiltWorkflowBundler(bundles: WorkflowBundles | undefined): WorkflowBundler {
+  return {
+    bundle(workflowsPath) {
+      const code = bundles?.[workflowsPath];
+      if (code === undefined) {
+        return Promise.reject(
+          new Error(
+            `No prebuilt workflow bundle for ${workflowsPath}: list it in the suite's workflowBundlesSetup`,
+          ),
+        );
+      }
+      return Promise.resolve({ code });
+    },
+  };
+}
+
 /**
  * Resolves once an app's `TemporalWorkerModule` worker polls its task queue, as a deployment
  * waits for readiness before it sends traffic. Harnesses that boot a service with a worker wait
- * for it after `app.init()`: the worker starts in the background by bundling the workflow code,
- * seconds of CPU on the event loop, and a test running meanwhile has its database connections
- * time out on a loaded runner (the pool's `connectionTimeoutMillis` timer fires before the
- * stalled loop reads Postgres' answer).
+ * for it after `app.init()`: the worker starts in the background, and a test running meanwhile
+ * races it. Bundling the workflow code, seconds of CPU on the event loop, once made database
+ * connections time out on a loaded runner (the pool's `connectionTimeoutMillis` timer fired
+ * before the stalled loop read Postgres' answer); harnesses now serve bundles built once per run
+ * (`workflowBundlesSetup`), so the worker only connects and loads the bundle.
  */
 export async function untilWorkerPolling(
   readiness: TemporalWorkerReadinessCheck,

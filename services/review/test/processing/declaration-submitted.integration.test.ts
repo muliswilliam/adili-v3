@@ -1,5 +1,5 @@
 import { asc, eq } from 'drizzle-orm';
-import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { inbox, outbox, reviewCases, reviewFlags, reviewTimeline } from '../../src/db/schema.js';
 import { asset, declaration, income, statement } from '../fixtures/declarations.js';
@@ -16,10 +16,7 @@ describe('declaration.submitted.v1 consumer and processing', () => {
 
   beforeAll(async () => {
     api = await startReviewApi();
-  });
-
-  afterAll(async () => {
-    await api.close();
+    return () => api.close();
   });
 
   beforeEach(async () => {

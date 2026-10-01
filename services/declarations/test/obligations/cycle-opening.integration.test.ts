@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url';
 import { withTenant } from '@adili/data-access';
 import { WorkflowTestEnvironment } from '@adili/temporal/testing';
 import { and, asc, eq } from 'drizzle-orm';
-import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { cycleCalendar, cycleOpenings, filingObligations, outbox } from '../../src/db/schema.js';
 import type { Transaction } from '../../src/db/transaction.js';
@@ -40,12 +40,11 @@ let pageCalls: CycleOpeningPageRequest[];
 beforeAll(async () => {
   api = await startDeclarationsApi();
   env = await WorkflowTestEnvironment.create();
+  return async () => {
+    await env.teardown();
+    await api.close();
+  };
 }, 60_000);
-
-afterAll(async () => {
-  await env.teardown();
-  await api.close();
-});
 
 beforeEach(async () => {
   await api.reset();

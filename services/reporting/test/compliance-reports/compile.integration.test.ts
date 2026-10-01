@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 
 import { formMIssues, validateFormM } from '@adili/forms';
 import { eq } from 'drizzle-orm';
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
 import { complianceReportWorkflowId } from '../../src/compliance-reports/contract.js';
 import { complianceReports } from '../../src/db/schema.js';
@@ -30,11 +30,10 @@ describe('Form M compile (S2, S3, S4)', () => {
 
   beforeAll(async () => {
     api = await startReportingApi();
-  });
-
-  afterAll(async () => {
-    await endWorkflows();
-    await api.close();
+    return async () => {
+      await endWorkflows();
+      await api.close();
+    };
   });
 
   beforeEach(async () => {
