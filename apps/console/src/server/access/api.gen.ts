@@ -4,6 +4,26 @@
  */
 
 export interface paths {
+    "/v1/access/commissions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Commissions an applicant can address, with the declaration years available
+         * @description Every active Responsible Commission in the directory, by name. `years` are the statement-date years a Form K's scope can ask of it: from the year it joined Adili (its earliest obligations-start date, not before 2025) to the current year in Nairobi; empty while it holds no declarations yet. Platform reference data: no personal data.
+         */
+        get: operations["listAccessCommissions"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/access/requests": {
         parameters: {
             query?: never;
@@ -162,6 +182,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/access/requests/{requestId}/decision": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Grant, partially grant or deny (final; Regulation 24 grounds required for partial and deny)
+         * @description Only once the request is `under-decision`. A grant is of the requested scope and cites no grounds; a partial grant narrows the scope and cites grounds; a denial cites grounds. The request becomes `granted`, `partially-granted` or `denied` (`access.request.decided.v1` with outcome and grounds). The applicant and the declarant are told next; for a grant the applicant's package (`package.documentId`, downloadable by the applicant from documents until `package.downloadExpiresAt`) follows.
+         */
+        post: operations["decideAccessRequest"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/access/requests/{requestId}/verify-applicant": {
         parameters: {
             query?: never;
@@ -222,42 +262,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/access/commissions": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Commissions an applicant can address, with the declaration years available */
-        get: operations["listAccessCommissions"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/access/requests/{requestId}/package/download": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                requestId: components["parameters"]["RequestId"];
-            };
-            cookie?: never;
-        };
-        /** Short-lived link to the granted package (registered as a download) */
-        get: operations["downloadAccessPackage"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/v1/me/access-history": {
         parameters: {
             query?: never;
@@ -265,7 +269,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Who accessed my declaration (register entries visible to the declarant) */
+        /**
+         * Who accessed my declaration (register entries visible to the declarant)
+         * @description Newest first: Form K requests about the declarant from notification on (notified, representations, decision, package, downloads, expiry, withdrawal), law enforcement requests from the grant on (decision, package, downloads, expiry), and their certified copies. Staff and law enforcement officers are not named.
+         */
         get: operations["getMyAccessHistory"];
         put?: never;
         post?: never;
@@ -282,10 +289,16 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** My certified copies with download links */
+        /**
+         * My certified copies
+         * @description Latest asked for first, whether asked online or recorded by an access officer.
+         */
         get: operations["listMyCertifiedCopies"];
         put?: never;
-        /** Certified copy of one of my submitted versions */
+        /**
+         * Certified copy of one of my submitted versions
+         * @description Records the copy `pending` and has it issued as a Restricted `certified-copy` from the full document of the version (registered `self-access`, `access.certified-copy.issued.v1`); poll until `issued` (then download it from documents with `documentId`) or `failed` (no such submitted version of yours at the Commission). Asking again for the same version returns the same copy; a failed one is tried again.
+         */
         post: operations["requestCertifiedCopy"];
         delete?: never;
         options?: never;
@@ -293,19 +306,20 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/access/requests/{requestId}/decision": {
+    "/v1/me/certified-copies/{copyId}": {
         parameters: {
             query?: never;
             header?: never;
-            path: {
-                requestId: components["parameters"]["RequestId"];
-            };
+            path?: never;
             cookie?: never;
         };
-        get?: never;
+        /**
+         * One of my certified copies
+         * @description For following a copy from `pending` to `issued` (or `failed`).
+         */
+        get: operations["getMyCertifiedCopy"];
         put?: never;
-        /** Grant, partially grant or deny (final; Regulation 24 grounds required for partial and deny) */
-        post: operations["decideAccessRequest"];
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -439,6 +453,14 @@ export interface components {
             };
             /** Format: date-time */
             decidedAt: string;
+        };
+        DecisionInput: {
+            outcome: components["schemas"]["Outcome"];
+            /** @description Required for partial-grant: narrower than the requested scope, never wider. A grant is of the requested scope (omit it, or send the requested scope); a denial has none */
+            grantedScope?: components["schemas"]["Scope"] | null;
+            /** @description Regulation 24 grounds: required for partial-grant and deny, none for grant */
+            grounds?: components["schemas"]["Ground"][];
+            reasons: string;
         };
         Package: {
             /** Format: uuid */
@@ -615,6 +637,72 @@ export interface components {
             representations: components["schemas"]["Representations"] | null;
             decision: components["schemas"]["Decision"] | null;
         };
+        AccessCommission: {
+            /** @description The form-k.v1 `responsibleCommission` */
+            slug: string;
+            name: string;
+            /** @description The declaration years (statement-date years) a request can ask of it, ascending: from the year it joined Adili (its earliest obligations-start date, not before 2025) to the current year in Nairobi. Empty while it holds none yet. */
+            years: number[];
+        };
+        AccessHistoryEntry: {
+            /** Format: uuid */
+            id: string;
+            /** @enum {string} */
+            kind: "received" | "verified" | "notified" | "representations" | "decided" | "package-issued" | "downloaded" | "expired" | "withdrawn" | "cannot-identify" | "self-access";
+            /** Format: date-time */
+            at: string;
+            actor: string | null;
+            summary: string;
+            reference: string;
+            /** @enum {string} */
+            subjectKind: "access-request" | "lea-request" | "self-access";
+            /** Format: uuid */
+            subjectId: string;
+            commission: {
+                slug: string;
+                name: string;
+            };
+            requester: string | null;
+            caseReference: string | null;
+            outcome: components["schemas"]["Outcome"] | null;
+            certifiedCopy: components["schemas"]["HistoryCertifiedCopy"] | null;
+        };
+        HistoryCertifiedCopy: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            declarationId: string;
+            version: number;
+            documentId: string | null;
+            representativeName: string | null;
+        };
+        CertifiedCopyRequest: {
+            /** @description Slug of the Commission the declaration was filed with (its `commission.slug`) */
+            commission: string;
+            /** Format: uuid */
+            declarationId: string;
+            /** @description The submitted version */
+            version: number;
+        };
+        CertifiedCopy: {
+            /** Format: uuid */
+            id: string;
+            commission: {
+                slug: string;
+                name: string;
+            };
+            /** Format: uuid */
+            declarationId: string;
+            version: number;
+            reference: string | null;
+            /** @enum {string} */
+            status: "pending" | "issued" | "failed";
+            documentId: string | null;
+            verificationId: string | null;
+            /** Format: date-time */
+            requestedAt: string;
+            issuedAt: string | null;
+        };
         ProblemDetails: {
             type: string;
             title: string;
@@ -634,30 +722,6 @@ export interface components {
         };
         /** @enum {string} */
         LeaRequestStatus: "received" | "verified" | "granted" | "denied" | "withdrawn";
-        DecisionInput: {
-            outcome: components["schemas"]["Outcome"];
-            /** @description Required for partial-grant; must be a subset of the requested scope */
-            grantedScope?: components["schemas"]["Scope"] | null;
-            /** @description Required for partial-grant and deny */
-            grounds?: components["schemas"]["Ground"][];
-            reasons: string;
-        };
-        CertifiedCopy: {
-            /** Format: uuid */
-            id: string;
-            /** Format: uuid */
-            declarationId: string;
-            version: number;
-            /** @enum {string} */
-            status: "pending" | "issued" | "failed";
-            /** Format: uuid */
-            documentId: string | null;
-            verificationId: string | null;
-            /** Format: uri */
-            downloadUrl: string | null;
-            /** Format: date-time */
-            requestedAt: string;
-        };
         LeaRequestInput: {
             commission: string;
             officerSought: {
@@ -746,7 +810,6 @@ export interface components {
         };
     };
     parameters: {
-        RequestId: string;
         LeaRequestId: string;
         IdempotencyKey: string;
     };
@@ -756,6 +819,48 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    listAccessCommissions: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Commissions */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AccessCommission"][];
+                };
+            };
+            /**
+             * @description Not an applicant
+             *
+             *     Requires one of the roles: applicant
+             */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Problem type `directory-unavailable`: the directory cannot be reached */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
     listMyAccessRequests: {
         parameters: {
             query?: never;
@@ -1331,6 +1436,84 @@ export interface operations {
             };
         };
     };
+    decideAccessRequest: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Client-generated UUID, unique per logical request; reuse on retry */
+                "Idempotency-Key": string;
+            };
+            path: {
+                requestId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DecisionInput"];
+            };
+        };
+        responses: {
+            /** @description Decided; notifications and package follow */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OfficerRequestView"];
+                };
+            };
+            /** @description requestId is not a UUID or the body failed validation; problem code `grounds-required` (partial grant or denial without grounds) or `scope-exceeds-request` (`grantedScope` wider than the request); `errors` name the field */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /**
+             * @description The Commission supervisor reads requests; only its access officer acts
+             *
+             *     Requires one of the roles: access-officer, supervisor, eacc-analyst, eacc-supervisor
+             */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description No such request at the caller's Commission (another Commission's, EACC's or anyone else's view) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Problem code `request-decided` (a decision is final), `request-closed`, or `not-under-decision` (the window for representations is still open, or the officer is unresolved) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Idempotency-Key reused with a different request body */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
     verifyApplicantIdentity: {
         parameters: {
             query?: never;
@@ -1548,62 +1731,6 @@ export interface operations {
             };
         };
     };
-    listAccessCommissions: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Commissions */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        slug: string;
-                        name: string;
-                        years: number[];
-                    }[];
-                };
-            };
-        };
-    };
-    downloadAccessPackage: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                requestId: components["parameters"]["RequestId"];
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Link */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["DownloadLink"];
-                };
-            };
-            404: components["responses"]["NotFound"];
-            /** @description Download window expired */
-            410: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetails"];
-                };
-            };
-        };
-    };
     getMyAccessHistory: {
         parameters: {
             query?: never;
@@ -1619,10 +1746,27 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["RegisterEntry"][];
+                    "application/json": components["schemas"]["AccessHistoryEntry"][];
                 };
             };
-            404: components["responses"]["NotFound"];
+            /** @description Requires one of the roles: declarant */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not a declarant */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
         };
     };
     listMyCertifiedCopies: {
@@ -1643,26 +1787,43 @@ export interface operations {
                     "application/json": components["schemas"]["CertifiedCopy"][];
                 };
             };
+            /** @description Requires one of the roles: declarant */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not a declarant */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
         };
     };
     requestCertifiedCopy: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Optional. Client-generated UUID, unique per logical request; reuse on retry and the stored answer is replayed instead of acting twice */
+                "Idempotency-Key"?: string;
+            };
             path?: never;
             cookie?: never;
         };
         requestBody: {
             content: {
-                "application/json": {
-                    /** Format: uuid */
-                    declarationId: string;
-                    version: number;
-                };
+                "application/json": components["schemas"]["CertifiedCopyRequest"];
             };
         };
         responses: {
-            /** @description Issuance requested; poll the copy */
+            /** @description The copy as it stands */
             202: {
                 headers: {
                     [name: string]: unknown;
@@ -1671,40 +1832,93 @@ export interface operations {
                     "application/json": components["schemas"]["CertifiedCopy"];
                 };
             };
-            404: components["responses"]["NotFound"];
+            /** @description The body failed validation */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Requires one of the roles: declarant */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not a declarant, or no such Commission */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Idempotency-Key reused with a different request body */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description The directory or the workflow engine cannot be reached; nothing was done */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
         };
     };
-    decideAccessRequest: {
+    getMyCertifiedCopy: {
         parameters: {
             query?: never;
-            header: {
-                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
-            };
+            header?: never;
             path: {
-                requestId: components["parameters"]["RequestId"];
+                copyId: string;
             };
             cookie?: never;
         };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["DecisionInput"];
-            };
-        };
+        requestBody?: never;
         responses: {
-            /** @description Decided; notifications and package follow */
+            /** @description The copy */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["OfficerRequestView"];
+                    "application/json": components["schemas"]["CertifiedCopy"];
                 };
             };
-            400: components["responses"]["ValidationProblem"];
-            403: components["responses"]["Forbidden"];
-            404: components["responses"]["NotFound"];
-            /** @description Already decided or not yet under decision */
-            409: {
+            /** @description copyId is not a UUID */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Requires one of the roles: declarant */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description No such certified copy of yours */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };

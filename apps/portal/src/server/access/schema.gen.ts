@@ -94,7 +94,7 @@ export interface paths {
         };
         /**
          * Queue of access requests with deadlines (access officer; supervisor reads)
-         * @description Earliest decision deadline first. `late`: past the deadline and neither decided nor closed. Law enforcement requests join the queue with their own workspace (`kind=lea` is empty until then).
+         * @description Open requests first, earliest decision deadline first; then decided and closed ones, latest deadline first. `late`: past the deadline and neither decided nor closed. Filters combine (`status`, `late`, `search`). Law enforcement requests join the queue with their own workspace (`kind=lea` is empty until then).
          */
         get: operations["listCommissionAccessRequests"];
         put?: never;
@@ -114,6 +114,26 @@ export interface paths {
         };
         /** Full request for the access officer (Form K, representations, register) */
         get: operations["getAccessRequestForOfficer"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/access/requests/{requestId}/representations/attachments/{uploadId}/download": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Short-lived download link for a file attached to the declarant's representations (audited)
+         * @description The access officer and the supervisor of the Commission read the representations, attachments included.
+         */
+        get: operations["getRepresentationAttachmentDownload"];
         put?: never;
         post?: never;
         delete?: never;
@@ -523,6 +543,8 @@ export interface components {
             /** @enum {string} */
             applicantIdentityStatus: "verified" | "pending-verification";
             resolvedRosterRecordId: string | null;
+            resolvedName: string | null;
+            resolvedFileNumber: string | null;
             representations: components["schemas"]["Representations"] | null;
             windowEndsAt: string | null;
         };
@@ -539,6 +561,7 @@ export interface components {
             applicantOrAgency: string;
             officerSought: string;
             resolvedName: string | null;
+            resolvedFileNumber: string | null;
             status: components["schemas"]["AccessRequestStatus"];
             /** Format: date-time */
             submittedAt: string;
@@ -546,6 +569,7 @@ export interface components {
             deadlineAt: string;
             windowEndsAt: string | null;
             late: boolean;
+            closedAt: string | null;
         };
         QueuePage: {
             items: components["schemas"]["QueueItem"][];
@@ -571,6 +595,15 @@ export interface components {
         RosterCandidates: {
             /** @description By full name, at most 20 */
             items: components["schemas"]["RosterCandidate"][];
+        };
+        AttachmentDownload: {
+            /** Format: uri */
+            downloadUrl: string;
+            /**
+             * Format: date-time
+             * @description A few minutes ahead
+             */
+            expiresAt: string;
         };
         RepresentationsInput: {
             /**
@@ -1080,6 +1113,10 @@ export interface operations {
                 status?: string;
                 /** @description Only Form K or only LEA requests */
                 kind?: "form-k" | "lea";
+                /** @description Only requests past their decision deadline and neither decided nor closed (`true`), or only the others (`false`) */
+                late?: "true" | "false";
+                /** @description The reference or the identified officer's personnel file number (their beginning), or part of the applicant's or the officer's name (case-insensitive) */
+                search?: string;
                 /** @description `nextCursor` of the previous page; omit for the first page */
                 cursor?: string;
                 limit?: number;
@@ -1178,6 +1215,65 @@ export interface operations {
                 };
             };
             /** @description The key service cannot be reached */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    getRepresentationAttachmentDownload: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                requestId: string;
+                uploadId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Link */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AttachmentDownload"];
+                };
+            };
+            /** @description requestId or uploadId is not a UUID */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Requires one of the roles: access-officer, supervisor, eacc-analyst, eacc-supervisor */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description No such request at the caller's Commission (another Commission's, EACC's or anyone else's view); or the upload is not attached to its representations */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description The documents service cannot be reached */
             503: {
                 headers: {
                     [name: string]: unknown;
