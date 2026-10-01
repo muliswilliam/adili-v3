@@ -3,6 +3,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
 import {
   attachmentLink,
+  decideRequest,
   loadQueue,
   loadRequest,
   resolveOfficer,
@@ -167,5 +168,98 @@ describe('a request (S3)', () => {
   it('answers 404 for an attachment not on the representations', async () => {
     const result = await attachmentLink(officer(), R.objection, crypto.randomUUID());
     expect(result).toMatchObject({ ok: false, error: { problem: { status: 404 } } });
+  });
+});
+
+describe('the decision (S6, #260)', () => {
+  const narrower = {
+    years: [2026],
+    includeSpouses: true,
+    includeChildren: false,
+    sections: ['income' as const],
+    includeClarifications: false,
+  };
+
+  it('records a partial grant of a narrower scope; the package follows', async () => {
+    const result = await decideRequest(
+      officer(),
+      R.objection,
+      {
+        outcome: 'partial-grant',
+        grantedScope: narrower,
+        grounds: ['public-interest'],
+        reasons: 'Narrowed.',
+      },
+      key(),
+    );
+    if (!result.ok) throw new Error(JSON.stringify(result.error));
+    expect(result.data.status).toBe('partially-granted');
+    expect(result.data.decision).toMatchObject({
+      grantedScope: narrower,
+      grounds: ['public-interest'],
+    });
+    expect(result.data.package).toBeNull();
+    expect(result.data.timeline.at(-1)?.kind).toBe('decided');
+  });
+
+  it('refuses a denial without grounds (400 grounds-required) and a second decision (409)', async () => {
+    const bare = await decideRequest(
+      officer(),
+      R.objection,
+      { outcome: 'deny', reasons: 'No.' },
+      key(),
+    );
+    expect(bare).toMatchObject({
+      ok: false,
+      error: { problem: { status: 400, code: 'grounds-required', errors: [{ path: 'grounds' }] } },
+    });
+    const deny = {
+      outcome: 'deny' as const,
+      grounds: ['frivolous-vexatious' as const],
+      reasons: 'No.',
+    };
+    expect((await decideRequest(officer(), R.objection, deny, key())).ok).toBe(true);
+    expect(await decideRequest(officer(), R.objection, deny, key())).toMatchObject({
+      ok: false,
+      error: { problem: { status: 409, code: 'request-decided' } },
+    });
+  });
+
+  it('refuses a scope wider than requested, and a decision before the window closed', async () => {
+    const wider = await decideRequest(
+      officer(),
+      R.objection,
+      {
+        outcome: 'partial-grant',
+        grantedScope: { ...narrower, sections: ['assets'] },
+        grounds: ['public-interest'],
+        reasons: 'Wider.',
+      },
+      key(),
+    );
+    expect(wider).toMatchObject({
+      ok: false,
+      error: { problem: { status: 400, code: 'scope-exceeds-request' } },
+    });
+    const early = await decideRequest(
+      officer(),
+      R.window,
+      { outcome: 'grant', reasons: 'Early.' },
+      key(),
+    );
+    expect(early).toMatchObject({
+      ok: false,
+      error: { problem: { status: 409, code: 'not-under-decision' } },
+    });
+  });
+
+  it('is for the access officer only: the supervisor gets 403', async () => {
+    const result = await decideRequest(
+      supervisor(),
+      R.objection,
+      { outcome: 'grant', reasons: 'Yes.' },
+      key(),
+    );
+    expect(result).toMatchObject({ ok: false, error: { problem: { status: 403 } } });
   });
 });

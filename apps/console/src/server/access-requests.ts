@@ -1,3 +1,4 @@
+import { REGULATION_24_GROUNDS } from '@adili/ui';
 import { createServerFn } from '@tanstack/react-start';
 import { z } from 'zod';
 
@@ -12,6 +13,7 @@ import type {
 import {
   type AccessResult,
   attachmentLink,
+  decideRequest,
   loadQueue,
   loadRequest,
   resolveOfficer,
@@ -66,6 +68,29 @@ export const verifyApplicantIdentity = createServerFn({ method: 'POST' })
   )
   .handler(({ data }): Promise<AccessResult<OfficerRequestView>> =>
     asOfficer((client) => verifyApplicant(client, data.requestId, data.note, data.idempotencyKey)),
+  );
+
+const grounds = z.enum(REGULATION_24_GROUNDS);
+const scope = z.strictObject({
+  years: z.array(z.int().min(2025)).min(1).max(50),
+  includeSpouses: z.boolean(),
+  includeChildren: z.boolean(),
+  sections: z.array(z.enum(['bio', 'income', 'assets', 'liabilities', 'other'])).min(1),
+  includeClarifications: z.boolean(),
+});
+
+/** The decision as the form sends it; the access service applies the rules between fields. */
+export const decisionInputSchema = z.strictObject({
+  outcome: z.enum(['grant', 'partial-grant', 'deny']),
+  grantedScope: scope.nullable().optional(),
+  grounds: z.array(grounds).max(4).optional(),
+  reasons: z.string().trim().min(1).max(4000),
+});
+
+export const decideAccessRequest = createServerFn({ method: 'POST' })
+  .validator(z.object({ requestId: id, input: decisionInputSchema, idempotencyKey: id }))
+  .handler(({ data }): Promise<AccessResult<OfficerRequestView>> =>
+    asOfficer((client) => decideRequest(client, data.requestId, data.input, data.idempotencyKey)),
   );
 
 export const getRepresentationAttachmentLink = createServerFn({ method: 'GET' })

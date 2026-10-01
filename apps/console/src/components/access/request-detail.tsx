@@ -15,13 +15,14 @@ import type { OfficerRequestView } from '../../server/access/types';
 import { ReadOnlyBadge } from '../commissions/badges';
 import { Page } from '../page';
 import { IdentifyOfficerCard, VerifyApplicantCard } from './action-cards';
+import { DecidedCard } from './decision/decided-card';
+import { PackageCard, packageState } from './decision/package-card';
 import { FormKCard, formKOf } from './form-k-card';
 import { messages as m } from './messages';
 import { StatusBadge } from './queue-list';
 import { isOpen, requestStep, timelineOf } from './request-view';
 import {
   ClosedCard,
-  DecidedCard,
   DecisionCard,
   OfficerCard,
   RepresentationsCard,
@@ -31,6 +32,9 @@ import {
 /** How often, and how many times, the page looks again while the declarant is being notified. */
 const NOTIFY_POLL_MS = 2000;
 const NOTIFY_POLLS = 15;
+/** And while a grant's package is prepared (rendering, watermarking and signing: seconds). */
+const PACKAGE_POLL_MS = 3000;
+const PACKAGE_POLLS = 20;
 
 /**
  * A Form K request as its Commission's access officer works it and its supervisor reads it
@@ -49,7 +53,16 @@ export function RequestDetailView({
 }) {
   const step = requestStep(view, readOnly);
   const form = formKOf(view);
-  useNotifyPolling(step.kind === 'notifying');
+  const pkg = view.decision
+    ? packageState(
+        view.decision,
+        view.package,
+        view.timeline.filter((entry) => entry.kind === 'downloaded').map((entry) => entry.at),
+        Date.parse(now),
+      )
+    : null;
+  useReloadWhile(step.kind === 'notifying', NOTIFY_POLL_MS, NOTIFY_POLLS);
+  useReloadWhile(pkg?.state === 'preparing', PACKAGE_POLL_MS, PACKAGE_POLLS);
   // The decision deadline goes in the header until a side card shows it.
   const deadlineInHead =
     isOpen(view) && view.status !== 'awaiting-representations' && view.status !== 'under-decision';
@@ -101,6 +114,9 @@ export function RequestDetailView({
           aria-label={m.whereItStands}
         >
           <StepCard view={view} step={step} readOnly={readOnly} now={now} />
+          {pkg ? (
+            <PackageCard state={pkg} recipientName={form.partI.name} reference={view.reference} />
+          ) : null}
           <OfficerCard view={view} />
           <RepresentationsCard view={view} />
         </aside>
@@ -134,7 +150,7 @@ function StepCard({
     case 'decide':
       return <DecisionCard view={view} readOnly={readOnly} windowEndsAt={null} />;
     case 'decided':
-      return <DecidedCard view={view} />;
+      return view.decision ? <DecidedCard decision={view.decision} /> : null;
     case 'cannot-identify':
     case 'withdrawn':
       return <ClosedCard view={view} />;
@@ -142,24 +158,25 @@ function StepCard({
 }
 
 /**
- * While the workflow notifies the declarant of a resolution (seconds), reload the request a few
- * times so the page moves on to the window for representations by itself.
+ * While the workflow does something the page waits on (notifying the declarant of a resolution,
+ * issuing a grant's package: seconds), reload the request a few times so the page moves on by
+ * itself.
  */
-function useNotifyPolling(active: boolean) {
+function useReloadWhile(active: boolean, everyMs: number, times: number) {
   const router = useRouter();
   useEffect(() => {
     if (!active) return;
     let polls = 0;
     const timer = setInterval(() => {
       polls += 1;
-      if (polls > NOTIFY_POLLS) {
+      if (polls > times) {
         clearInterval(timer);
         return;
       }
       void router.invalidate();
-    }, NOTIFY_POLL_MS);
+    }, everyMs);
     return () => {
       clearInterval(timer);
     };
-  }, [active, router]);
+  }, [active, everyMs, times, router]);
 }

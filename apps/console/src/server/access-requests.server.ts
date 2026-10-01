@@ -109,6 +109,27 @@ export function verifyApplicant(
   );
 }
 
+/**
+ * `POST .../decision`: the access officer's final decision (S6). The access service checks it
+ * against the requested scope (400 by field) and that the request is under decision (409); the
+ * key makes a retry of the same decision safe.
+ */
+export function decideRequest(
+  client: AccessClient,
+  requestId: string,
+  input: Schemas['DecisionInput'],
+  idempotencyKey: string,
+): Promise<AccessResult<OfficerRequestView>> {
+  return asOfficerView(
+    callService(() =>
+      client.POST('/v1/access/requests/{requestId}/decision', {
+        params: { path: { requestId }, header: { 'Idempotency-Key': idempotencyKey } },
+        body: input,
+      }),
+    ),
+  );
+}
+
 /** A short-lived link to a file attached to the declarant's representations (audited). */
 export function attachmentLink(
   client: AccessClient,
