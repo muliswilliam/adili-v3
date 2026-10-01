@@ -303,7 +303,7 @@ describe('S15 Integrations page', () => {
       expect(dialog.queryByText(/Registry tab/)).toBe(null);
     });
 
-    it('keeps the dialog open when pausing fails, saying nothing changed', async () => {
+    it('keeps the dialog open when pausing fails, asking to try again', async () => {
       const { onChanged } = renderActions([coverage({ system: 'kra' })], {
         ok: false,
         error: { kind: 'unavailable', detail: null },
@@ -314,9 +314,7 @@ describe('S15 Integrations page', () => {
         within(screen.getByRole('dialog')).getByRole('button', { name: 'Pause KRA iTax' }),
       );
 
-      await within(screen.getByRole('dialog')).findByText(
-        'Could not pause KRA iTax. Nothing changed. Try again.',
-      );
+      await within(screen.getByRole('dialog')).findByText('Could not pause KRA iTax. Try again.');
       expect(onChanged).not.toHaveBeenCalled();
     });
 
@@ -363,6 +361,29 @@ describe('S15 Integrations page', () => {
         'Paused by Amina Wanjiru on 26 Sep 2026, 09:00. Nothing is sent until it is resumed.',
       );
     });
+  });
+
+  it('lists only the systems coverage returns, naming one it has no description of by its id', () => {
+    renderView({ result: ok([coverage({ system: 'kra' }), coverage({ system: 'payroll' })]) });
+
+    expect(
+      within(list())
+        .getAllByRole('listitem')
+        .map((item) => item.dataset.system),
+    ).toEqual(['kra', 'payroll']);
+    const payroll = within(row('payroll'));
+    fireEvent.click(payroll.getByRole('button', { name: 'PAYROLL' }));
+    expect(payroll.queryByText('Operated by')).toBe(null);
+    payroll.getByText('Rate limit');
+  });
+
+  it('draws the cache hit rate as a decorative bar beside its percentage', () => {
+    renderView();
+
+    const kra = within(row('kra'));
+    const bar = kra.getByText('38%').nextElementSibling as HTMLElement;
+    expect(bar.getAttribute('aria-hidden')).toBe('true');
+    expect((bar.firstElementChild as HTMLElement).style.width).toBe('38%');
   });
 
   it('says so when no system has an adapter', () => {

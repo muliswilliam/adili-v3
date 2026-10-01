@@ -7,6 +7,7 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import {
+  AcceptIdempotencyKey,
   ApiProblemResponse,
   AuditedRead,
   CurrentPrincipal,
@@ -48,6 +49,7 @@ export class RegistryController {
   }
 
   @Post('recheck')
+  @AcceptIdempotencyKey()
   @HttpCode(HttpStatus.ACCEPTED)
   @ApiParam({ name: 'caseId', schema: { type: 'string', format: 'uuid' } })
   @ApiOperation({

@@ -16,7 +16,12 @@ import { type Answer, AnswerCache } from './answer-cache.js';
 import { CircuitBreakers } from './circuit-breakers.js';
 import { PauseFlags } from './pause-flags.js';
 import { RateLimiter } from './rate-limiter.js';
-import type { LookupContext, LookupResult, RegistryAdapter } from './registry-adapter.js';
+import type {
+  KeyedRegistryAdapter,
+  LookupContext,
+  LookupResult,
+  RegistryAdapter,
+} from './registry-adapter.js';
 import { policyOf, SYSTEM_POLICIES, type SystemPolicies } from './system-policies.js';
 import { UpstreamError } from './upstream-error.js';
 
@@ -47,17 +52,30 @@ export class RegistryLookups {
   ) {}
 
   /**
-   * Looks `subject` (e.g. a national ID) up through `adapter`. Recording is best effort: the
-   * caller gets its answer even when the row cannot be written (`resultId` null). An unexpected
-   * error is recorded as unavailable before it propagates.
+   * Looks `subject` (e.g. a national ID) up through `adapter`. The answer does not wait on its
+   * record: when the row cannot be written, `resultId` is null and the route decides (IPRS at
+   * onboarding answers anyway; the registry routes refuse with 503 `lookup-not-recorded`, as a
+   * lookup for a case must be audited). An unexpected error is recorded as unavailable before it
+   * propagates.
    */
   async lookup<T>(
     adapter: RegistryAdapter<T>,
     subject: string,
     context: LookupContext,
+  ): Promise<LookupResult<T>>;
+  async lookup<T, S>(
+    adapter: KeyedRegistryAdapter<T, S>,
+    subject: S,
+    context: LookupContext,
+  ): Promise<LookupResult<T>>;
+  async lookup<T, S>(
+    adapter: RegistryAdapter<T, S> & Partial<Pick<KeyedRegistryAdapter<T, S>, 'subjectKey'>>,
+    subject: S,
+    context: LookupContext,
   ): Promise<LookupResult<T>> {
     const started = performance.now();
-    const subjectHash = this.hasher.hash(adapter.system, subject);
+    const key = adapter.subjectKey ? adapter.subjectKey(subject) : String(subject);
+    const subjectHash = this.hasher.hash(adapter.system, key);
     let resolved: Resolved<T>;
     try {
       resolved = await this.resolve(adapter, subject, subjectHash);
@@ -75,9 +93,9 @@ export class RegistryLookups {
     return { ...resolved, resultId, checkedAt: new Date() };
   }
 
-  private async resolve<T>(
-    adapter: RegistryAdapter<T>,
-    subject: string,
+  private async resolve<T, S>(
+    adapter: RegistryAdapter<T, S>,
+    subject: S,
     subjectHash: string,
   ): Promise<Resolved<T>> {
     const { system } = adapter;
@@ -109,7 +127,7 @@ export class RegistryLookups {
   }
 
   private unavailable(
-    adapter: RegistryAdapter<unknown>,
+    adapter: Pick<RegistryAdapter<unknown>, 'system'>,
     subjectHash: string,
     reason: UnavailableReason,
   ): Resolved<never> {
@@ -123,7 +141,7 @@ export class RegistryLookups {
   }
 
   private async record<T>(
-    adapter: RegistryAdapter<T>,
+    adapter: Pick<RegistryAdapter<T>, 'system'>,
     subjectHash: string,
     resolved: Resolved<T>,
     started: number,
@@ -142,6 +160,7 @@ export class RegistryLookups {
         caller,
         legalBasis: purpose.legalBasis,
         caseRef: purpose.caseRef,
+        subjectPersonId: purpose.subjectPersonId,
         tenant,
         payload: resolved.outcome === 'found' ? resolved.data : undefined,
       });

@@ -4,7 +4,7 @@ import { InjectValkey } from '@adili/cache';
 import type { Redis } from 'iovalkey';
 import { z } from 'zod';
 
-import type { RegistryAdapter } from './registry-adapter.js';
+import type { CachedAdapter } from './registry-adapter.js';
 
 /** A registry answer worth reusing: the normalised data, or that the registry has no record. */
 export type Answer<T> = { found: true; data: T } | { found: false };
@@ -20,7 +20,7 @@ export class AnswerCache {
 
   constructor(@InjectValkey() private readonly valkey: Redis) {}
 
-  async get<T>(adapter: RegistryAdapter<T>, subjectHash: string): Promise<Answer<T> | undefined> {
+  async get<T>(adapter: CachedAdapter<T>, subjectHash: string): Promise<Answer<T> | undefined> {
     let raw: string | null;
     try {
       raw = await this.valkey.get(key(adapter, subjectHash));
@@ -38,7 +38,7 @@ export class AnswerCache {
   }
 
   async set<T>(
-    adapter: RegistryAdapter<T>,
+    adapter: CachedAdapter<T>,
     subjectHash: string,
     answer: Answer<T>,
     ttlSeconds: number,
@@ -54,7 +54,7 @@ export class AnswerCache {
   }
 }
 
-const key = (adapter: RegistryAdapter<unknown>, subjectHash: string) =>
+const key = (adapter: CachedAdapter<unknown>, subjectHash: string) =>
   `${adapter.system}:${adapter.operation}:${subjectHash}`;
 
 function answerSchema<T>(data: z.ZodType<T>) {

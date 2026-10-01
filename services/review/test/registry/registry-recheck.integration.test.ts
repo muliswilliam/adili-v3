@@ -22,6 +22,7 @@ import {
   registrySweepScheduleId,
 } from '../../src/registry/contract.js';
 import { RegistryWorkflows } from '../../src/registry/registry-workflows.js';
+import type { RegistryView } from '../../src/registry/representation.js';
 import type { registryCheck, registrySweep } from '../../src/registry/workflows.js';
 import { wanjikuDocument, wanjikuHousehold } from '../fixtures/households.js';
 import { BARAKA, IMANI, PETER, type SeededPerson, WANJIKU } from '../fixtures/registries.js';
@@ -104,7 +105,7 @@ describe('registry re-checks and the sweep', () => {
   async function check(request: RegistryCheckRequest) {
     const lookups = await registry.lookupRegistries({ check: request, previous: null });
     if (!lookups) throw new Error('stale');
-    return registry.matchRegistries({ check: request, lookups });
+    return registry.matchAndStoreRegistries({ check: request, lookups });
   }
 
   const claim = async (caseId: string, caller = assignee) => {
@@ -245,6 +246,21 @@ describe('registry re-checks and the sweep', () => {
     expect(await eventsOf('review.case.rechecked.v1')).toHaveLength(2);
   });
 
+  it('accepts an Idempotency-Key: a retry with it replays the 202 instead of meeting the cooldown (ADR-013 §7.5)', async () => {
+    const { caseId } = await checkedCase();
+    await claim(caseId);
+    const key = { 'idempotency-key': randomUUID() };
+
+    const first = await api.send('POST', recheckPath(caseId), assignee, undefined, key);
+    expect(first.statusCode).toBe(202);
+    await recheckRun(caseId);
+    const retry = await api.send('POST', recheckPath(caseId), assignee, undefined, key);
+
+    expect(retry.statusCode).toBe(202);
+    expect(retry.headers['idempotent-replayed']).toBe('true');
+    expect(await eventsOf('review.case.rechecked.v1')).toHaveLength(1);
+  });
+
   it('an unassigned case is refused to reviewers; another Commission sees nothing; a determined case is 409', async () => {
     const { caseId } = await checkedCase();
 
@@ -284,6 +300,75 @@ describe('registry re-checks and the sweep', () => {
     const reopened = await flagOf(request.caseId, 'registry-vehicle-undeclared');
     expect(reopened).toMatchObject({ id: vehicle.id, closedReason: null });
     expect(await caseRow(request.caseId)).toMatchObject({ score: 17, openFlags: 4 });
+  });
+
+  it('of two checks of a case that overlap, the one that started later is kept, whichever ends last', async () => {
+    const request = await checkedCase();
+    // A slow check (the sweep's, say) starts while NTSA still lists the sold vehicle...
+    const slow = await registry.lookupRegistries({ check: request, previous: null });
+    if (!slow) throw new Error('stale');
+    // ...then a re-check starts after the sale and is stored first.
+    seed(WANJIKU, { without: [SOLD_VEHICLE] });
+    await check(request);
+    expect((await flagOf(request.caseId, 'registry-vehicle-undeclared')).closedReason).toBe(
+      'superseded-by-recheck',
+    );
+
+    const late = await registry.matchAndStoreRegistries({ check: request, lookups: slow });
+
+    expect(late).toEqual({ outcome: 'stale' });
+    expect((await flagOf(request.caseId, 'registry-vehicle-undeclared')).closedReason).toBe(
+      'superseded-by-recheck',
+    );
+    expect(await eventsOf('review.registry.checked.v1')).toHaveLength(2);
+  });
+
+  it("an amendment resets the registry statuses; the tab never pairs another version's records with the document", async () => {
+    api.gateway.failRegistry('ardhisasa', { kind: 'unavailable', reason: 'timeout' });
+    const request = await checkedCase();
+    expect(await caseRow(request.caseId)).toMatchObject({ registryUnavailable: true });
+    const [first] = await api.asPlatform((tx) =>
+      tx.select().from(registryChecks).where(eq(registryChecks.caseId, request.caseId)),
+    );
+    if (!first) throw new Error('not checked');
+
+    // Version 2 is processed: the case moves to it, its registries not checked yet.
+    const amended = submittedVersion({
+      tenant: 'psc',
+      declarationId: request.declarationId,
+      personId: (await caseRow(request.caseId)).personId,
+      declarantName: 'Wanjiku Njoki Kamau',
+      version: 2,
+      document: wanjikuDocument(wanjikuHousehold()),
+    });
+    api.declarations.given(amended);
+    api.directory.givenRosterRecord('psc', amended.rosterRecordId, {
+      personalNumber: 'KEMSA/2016/0311',
+      nationalId: WANJIKU.nationalId,
+      employerCode: 'KEMSA',
+      reportingEntityId: null,
+    });
+    expect(await processed(api, amended)).toBe(request.caseId);
+
+    expect(await caseRow(request.caseId)).toMatchObject({
+      currentVersionId: amended.versionId,
+      registryUnavailable: false,
+    });
+    const detail = (
+      await api.get(`/v1/review/cases/${request.caseId}`, supervisor)
+    ).json<CaseDetail>();
+    expect(detail.registry).toEqual({ checkedAt: null, checks: [] });
+
+    // Even a status of version 1 left behind is not shown against version 2's document.
+    await api.asPlatform((tx) => tx.insert(registryChecks).values({ ...first, id: randomUUID() }));
+    const reads = api.gateway.storedReads.length;
+    const view = (
+      await api.get(`/v1/review/cases/${request.caseId}/registry`, supervisor)
+    ).json<RegistryView>();
+    expect(new Set(view.persons.flatMap((p) => p.systems.map((s) => s.status)))).toEqual(
+      new Set(['not-checked']),
+    );
+    expect(api.gateway.storedReads.slice(reads)).toEqual([]);
   });
 
   describe('S10: the sweep', () => {
@@ -332,7 +417,7 @@ describe('registry re-checks and the sweep', () => {
       });
     });
 
-    it('takes open cases with a registry unavailable, oldest check first, at most the batch', async () => {
+    it('plans open cases with a registry unavailable, oldest check first, paced under the rate limits', async () => {
       api.gateway.failRegistry('kra', { kind: 'unavailable', reason: 'timeout' });
       const older = await checkedCase();
       const newer = await checkedCase();
@@ -350,11 +435,16 @@ describe('registry re-checks and the sweep', () => {
           .where(eq(reviewCases.id, determined.caseId));
       });
 
-      const candidates = await registry.registrySweepCandidates({ limit: 10 });
+      // KRA at one call a minute: the sweep takes half, and each case re-checks four people's KRA.
+      api.gateway.givenRateLimits({ kra: 1 });
 
-      expect(candidates).toEqual([older, newer]);
-      expect(candidates.map((c) => c.caseId)).not.toContain(answered.caseId);
-      expect(await registry.registrySweepCandidates({ limit: 1 })).toEqual([older]);
+      const plan = await registry.planRegistrySweep();
+
+      expect(plan).toEqual([
+        { request: older, startAfterMs: 0 },
+        { request: newer, startAfterMs: 8 * 60_000 },
+      ]);
+      expect(plan.map((c) => c.request.caseId)).not.toContain(answered.caseId);
     });
 
     it('keeps an hourly Temporal schedule that starts the sweep', async () => {

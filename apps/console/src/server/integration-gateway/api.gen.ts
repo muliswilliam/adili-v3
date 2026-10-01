@@ -113,9 +113,29 @@ export interface paths {
         };
         /**
          * Whether a company is on an employer's supplier list (HR), for the BRS check
-         * @description Every lookup, answered or not, is recorded with its legal basis and case reference, the answer encrypted under the acting tenant, and emits registry.lookup.performed.v1. Answers (found and not found) are cached for 24 hours. A registry that gives no answer is outcome unavailable with a reason, never an error. Filed under BRS. An employer HR does not know has no suppliers: false. Requires a service token with scope `registry` acting for the Commission.
+         * @description Every lookup, answered or not, is recorded with its legal basis and case reference, the answer encrypted under the acting tenant, and emits registry.lookup.performed.v1. Answers (found and not found) are cached for 24 hours. A registry that gives no answer is outcome unavailable with a reason, never an error. Its own system, hr-suppliers (HR's supplier lists), with its own breaker, rate limit and pause. An employer HR does not know has no suppliers: false. Requires a service token with scope `registry` acting for the Commission.
          */
         get: operations["checkCompanySuppliesEmployer"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/internal/v1/registry-rate-limits": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Configured calls per minute of every system with an adapter (services)
+         * @description Service tokens with scope `registry`; no X-Acting-Tenant (configuration, no tenant data). A lookup answered from the cache spends none of it.
+         */
+        get: operations["getRegistryRateLimits"];
         put?: never;
         post?: never;
         delete?: never;
@@ -133,7 +153,7 @@ export interface paths {
         };
         /**
          * A stored lookup result, decrypted for the services of its tenant (audited)
-         * @description The normalised records of a found lookup (payload), with its system, outcome, legal basis and case reference. Each read is audited (audit.read.v1). Requires a service token with scope `registry` acting for the tenant the lookup acted for.
+         * @description The normalised records of a found lookup (payload), with its system, outcome, legal basis and case reference. Each read is audited (audit.read.v1) under the tenant, naming the person the lookup was about (X-Subject-Person at lookup). Requires a service token with scope `registry` acting for the tenant the lookup acted for.
          */
         get: operations["getVerificationResult"];
         put?: never;
@@ -295,7 +315,7 @@ export interface components {
             sex: "F" | "M";
         };
         /** @enum {string} */
-        System: "iprs" | "kra" | "ntsa" | "brs" | "ardhisasa" | "payroll" | "icms";
+        System: "iprs" | "kra" | "ntsa" | "brs" | "ardhisasa" | "hr-suppliers" | "payroll" | "icms";
         /** @enum {string} */
         LookupOutcome: "found" | "not-found" | "unavailable";
         /**
@@ -451,6 +471,11 @@ export interface components {
         };
         /** @description Every system with an adapter, in a fixed order */
         Coverage: components["schemas"]["SystemCoverage"][];
+        /** @description The configured rate limit of every system with an adapter */
+        RegistryRateLimits: {
+            system: components["schemas"]["System"];
+            ratePerMinute: number;
+        }[];
         ProblemDetails: {
             type: string;
             title: string;
@@ -527,7 +552,7 @@ export interface components {
     parameters: {
         /** @description Review case the lookup is for; recorded on the result and the audit event */
         CaseRef: string;
-        /** @description e.g. regs-r20-1-b, act-s35-5, adr-014-onboarding, declarant-request (lookups the declarant asked for while filing; DPA s.30(1)(a)) */
+        /** @description e.g. regs-r20-1-b, act-s35-5, adr-014-onboarding */
         LegalBasis: string;
     };
     requestBodies: never;
@@ -606,10 +631,12 @@ export interface operations {
             header: {
                 /** @description Tenant the calling service acts for; the resource must belong to it */
                 "X-Acting-Tenant": string;
-                /** @description Why the registry is consulted, recorded on the result and the audit event. regs-r20-1-b, act-s35-5, adr-014-onboarding or declarant-request (lookups the declarant asked for while filing; DPA s.30(1)(a)) */
-                "X-Legal-Basis": "regs-r20-1-b" | "act-s35-5" | "adr-014-onboarding" | "declarant-request";
+                /** @description Why the registry is consulted, recorded on the result and the audit event. regs-r20-1-b, act-s35-5 or adr-014-onboarding */
+                "X-Legal-Basis": "regs-r20-1-b" | "act-s35-5" | "adr-014-onboarding";
                 /** @description Review case the lookup is for; recorded on the result and the audit event */
                 "X-Case-Ref"?: string;
+                /** @description Platform person the lookup is about (the case declarant); recorded on the result, so reads of it are audited as reads of their data */
+                "X-Subject-Person"?: string;
             };
             path?: never;
             cookie?: never;
@@ -629,7 +656,7 @@ export interface operations {
                     "application/json": components["schemas"]["KraResult"];
                 };
             };
-            /** @description X-Legal-Basis missing or unknown, or X-Case-Ref malformed */
+            /** @description X-Legal-Basis missing or unknown, or X-Case-Ref or X-Subject-Person malformed */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -664,10 +691,12 @@ export interface operations {
             header: {
                 /** @description Tenant the calling service acts for; the resource must belong to it */
                 "X-Acting-Tenant": string;
-                /** @description Why the registry is consulted, recorded on the result and the audit event. regs-r20-1-b, act-s35-5, adr-014-onboarding or declarant-request (lookups the declarant asked for while filing; DPA s.30(1)(a)) */
-                "X-Legal-Basis": "regs-r20-1-b" | "act-s35-5" | "adr-014-onboarding" | "declarant-request";
+                /** @description Why the registry is consulted, recorded on the result and the audit event. regs-r20-1-b, act-s35-5 or adr-014-onboarding */
+                "X-Legal-Basis": "regs-r20-1-b" | "act-s35-5" | "adr-014-onboarding";
                 /** @description Review case the lookup is for; recorded on the result and the audit event */
                 "X-Case-Ref"?: string;
+                /** @description Platform person the lookup is about (the case declarant); recorded on the result, so reads of it are audited as reads of their data */
+                "X-Subject-Person"?: string;
             };
             path?: never;
             cookie?: never;
@@ -687,7 +716,7 @@ export interface operations {
                     "application/json": components["schemas"]["NtsaResult"];
                 };
             };
-            /** @description X-Legal-Basis missing or unknown, or X-Case-Ref malformed */
+            /** @description X-Legal-Basis missing or unknown, or X-Case-Ref or X-Subject-Person malformed */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -722,10 +751,12 @@ export interface operations {
             header: {
                 /** @description Tenant the calling service acts for; the resource must belong to it */
                 "X-Acting-Tenant": string;
-                /** @description Why the registry is consulted, recorded on the result and the audit event. regs-r20-1-b, act-s35-5, adr-014-onboarding or declarant-request (lookups the declarant asked for while filing; DPA s.30(1)(a)) */
-                "X-Legal-Basis": "regs-r20-1-b" | "act-s35-5" | "adr-014-onboarding" | "declarant-request";
+                /** @description Why the registry is consulted, recorded on the result and the audit event. regs-r20-1-b, act-s35-5 or adr-014-onboarding */
+                "X-Legal-Basis": "regs-r20-1-b" | "act-s35-5" | "adr-014-onboarding";
                 /** @description Review case the lookup is for; recorded on the result and the audit event */
                 "X-Case-Ref"?: string;
+                /** @description Platform person the lookup is about (the case declarant); recorded on the result, so reads of it are audited as reads of their data */
+                "X-Subject-Person"?: string;
             };
             path?: never;
             cookie?: never;
@@ -745,7 +776,7 @@ export interface operations {
                     "application/json": components["schemas"]["BrsResult"];
                 };
             };
-            /** @description X-Legal-Basis missing or unknown, or X-Case-Ref malformed */
+            /** @description X-Legal-Basis missing or unknown, or X-Case-Ref or X-Subject-Person malformed */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -780,10 +811,12 @@ export interface operations {
             header: {
                 /** @description Tenant the calling service acts for; the resource must belong to it */
                 "X-Acting-Tenant": string;
-                /** @description Why the registry is consulted, recorded on the result and the audit event. regs-r20-1-b, act-s35-5, adr-014-onboarding or declarant-request (lookups the declarant asked for while filing; DPA s.30(1)(a)) */
-                "X-Legal-Basis": "regs-r20-1-b" | "act-s35-5" | "adr-014-onboarding" | "declarant-request";
+                /** @description Why the registry is consulted, recorded on the result and the audit event. regs-r20-1-b, act-s35-5 or adr-014-onboarding */
+                "X-Legal-Basis": "regs-r20-1-b" | "act-s35-5" | "adr-014-onboarding";
                 /** @description Review case the lookup is for; recorded on the result and the audit event */
                 "X-Case-Ref"?: string;
+                /** @description Platform person the lookup is about (the case declarant); recorded on the result, so reads of it are audited as reads of their data */
+                "X-Subject-Person"?: string;
             };
             path?: never;
             cookie?: never;
@@ -803,7 +836,7 @@ export interface operations {
                     "application/json": components["schemas"]["ArdhisasaResult"];
                 };
             };
-            /** @description X-Legal-Basis missing or unknown, or X-Case-Ref malformed */
+            /** @description X-Legal-Basis missing or unknown, or X-Case-Ref or X-Subject-Person malformed */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -840,10 +873,12 @@ export interface operations {
             header: {
                 /** @description Tenant the calling service acts for; the resource must belong to it */
                 "X-Acting-Tenant": string;
-                /** @description Why the registry is consulted, recorded on the result and the audit event. regs-r20-1-b, act-s35-5, adr-014-onboarding or declarant-request (lookups the declarant asked for while filing; DPA s.30(1)(a)) */
-                "X-Legal-Basis": "regs-r20-1-b" | "act-s35-5" | "adr-014-onboarding" | "declarant-request";
+                /** @description Why the registry is consulted, recorded on the result and the audit event. regs-r20-1-b, act-s35-5 or adr-014-onboarding */
+                "X-Legal-Basis": "regs-r20-1-b" | "act-s35-5" | "adr-014-onboarding";
                 /** @description Review case the lookup is for; recorded on the result and the audit event */
                 "X-Case-Ref"?: string;
+                /** @description Platform person the lookup is about (the case declarant); recorded on the result, so reads of it are audited as reads of their data */
+                "X-Subject-Person"?: string;
             };
             path: {
                 registrationNumber: string;
@@ -861,7 +896,7 @@ export interface operations {
                     "application/json": components["schemas"]["SupplierCheckResult"];
                 };
             };
-            /** @description X-Legal-Basis missing or unknown, or X-Case-Ref malformed */
+            /** @description X-Legal-Basis missing or unknown, or X-Case-Ref or X-Subject-Person malformed */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -881,6 +916,35 @@ export interface operations {
             };
             /** @description Problem type `lookup-not-recorded`: the lookup could not be recorded (audit), so no answer is given; retry */
             503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    getRegistryRateLimits: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Rate limits per system */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RegistryRateLimits"];
+                };
+            };
+            /** @description Requires one of the scopes: registry */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -983,7 +1047,10 @@ export interface operations {
     pauseIntegration: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Optional. Client-generated UUID, unique per logical request; reuse on retry and the stored answer is replayed instead of acting twice */
+                "Idempotency-Key"?: string;
+            };
             path: {
                 system: components["schemas"]["System"];
             };
@@ -1018,7 +1085,16 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
-            /** @description Problem type `pause-flag-unavailable`: the pause flag could not be written; nothing changed */
+            /** @description Idempotency-Key reused with a different request body */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Problem type `pause-flag-unavailable`: the change is recorded but the pause flag could not be written; retry to apply it */
             503: {
                 headers: {
                     [name: string]: unknown;
@@ -1032,7 +1108,10 @@ export interface operations {
     resumeIntegration: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Optional. Client-generated UUID, unique per logical request; reuse on retry and the stored answer is replayed instead of acting twice */
+                "Idempotency-Key"?: string;
+            };
             path: {
                 system: components["schemas"]["System"];
             };
@@ -1067,7 +1146,16 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
-            /** @description Problem type `pause-flag-unavailable`: the pause flag could not be written; nothing changed */
+            /** @description Idempotency-Key reused with a different request body */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Problem type `pause-flag-unavailable`: the change is recorded but the pause flag could not be written; retry to apply it */
             503: {
                 headers: {
                     [name: string]: unknown;
@@ -1084,7 +1172,7 @@ export interface operations {
             header: {
                 /** @description Review case the lookup is for; recorded on the result and the audit event */
                 "X-Case-Ref"?: components["parameters"]["CaseRef"];
-                /** @description e.g. regs-r20-1-b, act-s35-5, adr-014-onboarding, declarant-request (lookups the declarant asked for while filing; DPA s.30(1)(a)) */
+                /** @description e.g. regs-r20-1-b, act-s35-5, adr-014-onboarding */
                 "X-Legal-Basis": components["parameters"]["LegalBasis"];
             };
             path?: never;
@@ -1163,7 +1251,7 @@ export interface operations {
             header: {
                 /** @description Review case the lookup is for; recorded on the result and the audit event */
                 "X-Case-Ref"?: components["parameters"]["CaseRef"];
-                /** @description e.g. regs-r20-1-b, act-s35-5, adr-014-onboarding, declarant-request (lookups the declarant asked for while filing; DPA s.30(1)(a)) */
+                /** @description e.g. regs-r20-1-b, act-s35-5, adr-014-onboarding */
                 "X-Legal-Basis": components["parameters"]["LegalBasis"];
             };
             path?: never;

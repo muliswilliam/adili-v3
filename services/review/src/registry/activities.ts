@@ -4,11 +4,16 @@ import { type Database, InjectDatabase, withTenant } from '@adili/data-access';
 import { EventPublisher } from '@adili/events';
 import type { DeclarationV1 } from '@adili/forms';
 import { ApplicationFailure } from '@temporalio/common';
-import { and, asc, eq, max, ne } from 'drizzle-orm';
+import { and, asc, eq, inArray, max, ne, sql } from 'drizzle-orm';
 
 import { reviewCases } from '../cases/schema.js';
 import type { ReviewSchema } from '../db/schema.js';
-import { DeclarationsClient, type PulledVersion } from '../declarations/declarations-client.js';
+import {
+  declarationOf,
+  DeclarationOutsideContract,
+  DeclarationsClient,
+  type PulledVersion,
+} from '../declarations/declarations-client.js';
 import { DirectoryClient } from '../directory/directory-client.js';
 import {
   IntegrationGatewayClient,
@@ -23,6 +28,7 @@ import {
   householdIds,
   matchRegistries,
   type PersonRegistryResults,
+  type RegistryAnswer,
   REGISTRY_SYSTEMS,
   type RegistryRecords,
   type SupplierCheckResult,
@@ -30,10 +36,14 @@ import {
 } from '../rules/index.js';
 import { SYSTEM_SUBJECT, systemContext } from '../system-context.js';
 import {
+  type AnsweredLookup,
+  DECLARATION_INVALID,
   GATEWAY_REJECTED,
   GATEWAY_UNAVAILABLE,
+  isAnswered,
   type LookupOutcome,
   type LookupRequest,
+  lookUpAgain,
   type MatchRequest,
   PROCESSING_LEGAL_BASIS,
   type RegistryCheckRequest,
@@ -41,10 +51,17 @@ import {
   type RegistryLookups,
   RESULT_MISSING,
   type SupplierOutcome,
-  type SweepCandidatesRequest,
+  type SweepCheck,
 } from './contract.js';
 import { storeRegistryCheck } from './registry-check-store.js';
 import { registryChecks } from './schema.js';
+import { planSweep, type SweepCandidate } from './sweep-plan.js';
+
+/** Cases one sweep run considers at most, oldest check first; the plan takes what fits. */
+const SWEEP_CANDIDATES = 1_000;
+
+/** The reason a BRS status is unavailable when only the supplier check (`hr-suppliers`) is. */
+const SUPPLIER_CHECK_UNAVAILABLE = 'supplier-check-unavailable';
 
 const logger = new Logger('RegistryChecks');
 
@@ -74,22 +91,26 @@ export class RegistryCheckActivities {
    * Looks up every person of the version with a national ID in every registry, and the officer's
    * BRS companies against the officer's employer's supplier list, with the case as reference and
    * the legal basis of processing. Given the previous attempt, looks up again only what was
-   * unavailable. Null when the case is no longer at the version (nothing is looked up).
+   * unavailable and not refused. Null when the case is no longer at the version (nothing is looked
+   * up).
    */
   async lookupRegistries({ check, previous }: LookupRequest): Promise<RegistryLookups | null> {
-    if (!(await atVersion(this.db, check))) return null;
-    const pulled = await pullVersion(this.declarations, check);
-    const roster = await this.directory.getRosterRecord(check.tenant, pulled.rosterRecordId);
-    const ids = householdIds(
-      pulled.document as unknown as DeclarationV1,
-      roster?.nationalId ?? null,
-    );
+    // A new check takes its number on the case; a further attempt keeps the check's.
+    const found = previous ? await caseAt(this.db, check) : await startCheck(this.db, check);
+    if (found === null) return null;
+    const sequence = previous?.sequence ?? found.sequence;
+    const { roster, ids } = await household(this.declarations, this.directory, check);
     const context: RegistryContext = {
       tenant: check.tenant,
       legalBasis: PROCESSING_LEGAL_BASIS,
       caseRef: check.caseId,
+      subjectPersonId: found.personId,
     };
-    const lookups: RegistryLookups = { persons: {}, suppliers: { ...previous?.suppliers } };
+    const lookups: RegistryLookups = {
+      sequence,
+      persons: {},
+      suppliers: { ...previous?.suppliers },
+    };
     let officerCompanies: string[] | undefined;
 
     for (const [personKey, nationalId] of Object.entries(ids)) {
@@ -99,7 +120,7 @@ export class RegistryCheckActivities {
       const answers = await Promise.all(
         REGISTRY_SYSTEMS.map(async (system) => {
           const known = before[system];
-          if (known && known.outcome !== 'unavailable') return { system, outcome: known };
+          if (known && !lookUpAgain(known)) return { system, outcome: known };
           return { system, ...(await lookUp(this.gateway, system, nationalId, context)) };
         }),
       );
@@ -117,7 +138,7 @@ export class RegistryCheckActivities {
       const companies = officerCompanies ?? Object.keys(lookups.suppliers);
       for (const registrationNumber of companies) {
         const known = lookups.suppliers[registrationNumber];
-        if (known && known.outcome !== 'unavailable') continue;
+        if (known && !lookUpAgain(known)) continue;
         lookups.suppliers[registrationNumber] = await checkSupplier(
           this.gateway,
           registrationNumber,
@@ -136,11 +157,9 @@ export class RegistryCheckActivities {
    * band with the registry flags, a timeline entry and `review.registry.checked.v1`. `stale` (and
    * nothing stored) when the case moved on to a later version.
    */
-  async matchRegistries({ check, lookups }: MatchRequest): Promise<RegistryCheckResult> {
-    if (!(await atVersion(this.db, check))) return { outcome: 'stale' };
-    const pulled = await pullVersion(this.declarations, check);
-    const document = pulled.document as unknown as DeclarationV1;
-    const roster = await this.directory.getRosterRecord(check.tenant, pulled.rosterRecordId);
+  async matchAndStoreRegistries({ check, lookups }: MatchRequest): Promise<RegistryCheckResult> {
+    if ((await caseAt(this.db, check)) === null) return { outcome: 'stale' };
+    const { document, ids } = await household(this.declarations, this.directory, check);
 
     const results: Record<string, PersonRegistryResults> = {};
     for (const [personKey, systems] of Object.entries(lookups.persons)) {
@@ -153,40 +172,25 @@ export class RegistryCheckActivities {
     }
     const suppliers: Record<string, SupplierCheckResult | Unavailable> = {};
     for (const [registrationNumber, supplier] of Object.entries(lookups.suppliers)) {
-      suppliers[registrationNumber] =
-        supplier.outcome === 'unavailable'
-          ? unavailable(supplier.reason, supplier.resultId)
-          : {
-              resultId: supplier.resultId ?? '',
-              system: 'brs',
-              outcome: supplier.outcome,
-              reason: null,
-              cached: false,
-              checkedAt: supplier.checkedAt ?? new Date().toISOString(),
-              supplies: supplier.supplies,
-            };
+      suppliers[registrationNumber] = isAnswered(supplier)
+        ? { ...answerOf(supplier), supplies: supplier.supplies }
+        : unavailable(supplier.reason, supplier.resultId);
     }
 
-    const match = matchRegistries({
-      document,
-      householdIds: householdIds(document, roster?.nationalId ?? null),
-      results,
-      suppliers,
-    });
-    return storeRegistryCheck(this.db, this.events, check, match);
+    const match = matchRegistries({ document, householdIds: ids, results, suppliers });
+    return storeRegistryCheck(this.db, this.events, check, match, lookups.sequence);
   }
 
   /**
-   * The sweep's cases, across Commissions: open (not determined) with a registry still
-   * unavailable at their latest check, the oldest check first, at most `limit`, each at its
-   * current version.
+   * The sweep's plan: the open (not determined) cases across Commissions with a registry still
+   * unavailable at their latest check, the oldest check first, each at its current version, paced
+   * under the gateway's rate limits (`planSweep`). A case's re-check sends each system its
+   * unavailable lookups only: its answered ones come from the gateway's cache.
    */
-  async registrySweepCandidates({
-    limit,
-  }: SweepCandidatesRequest): Promise<RegistryCheckRequest[]> {
-    const lastChecked = max(registryChecks.checkedAt);
-    return withTenant(this.db, systemContext(PLATFORM_TENANT), (tx) =>
-      tx
+  async planRegistrySweep(): Promise<SweepCheck[]> {
+    const limits = await this.gateway.getRegistryRateLimits();
+    const candidates = await withTenant(this.db, systemContext(PLATFORM_TENANT), async (tx) => {
+      const cases = await tx
         .select({
           tenant: reviewCases.tenant,
           caseId: reviewCases.id,
@@ -198,9 +202,37 @@ export class RegistryCheckActivities {
         .innerJoin(registryChecks, eq(registryChecks.caseId, reviewCases.id))
         .where(and(eq(reviewCases.registryUnavailable, true), ne(reviewCases.status, 'determined')))
         .groupBy(reviewCases.id)
-        .orderBy(asc(lastChecked), asc(reviewCases.id))
-        .limit(limit),
-    );
+        .orderBy(asc(max(registryChecks.checkedAt)), asc(reviewCases.id))
+        .limit(SWEEP_CANDIDATES);
+      const unavailable =
+        cases.length === 0
+          ? []
+          : await tx
+              .select({
+                caseId: registryChecks.caseId,
+                system: registryChecks.system,
+                reason: registryChecks.reason,
+              })
+              .from(registryChecks)
+              .where(
+                and(
+                  inArray(
+                    registryChecks.caseId,
+                    cases.map((c) => c.caseId),
+                  ),
+                  eq(registryChecks.status, 'unavailable'),
+                ),
+              );
+      return cases.map((request): SweepCandidate => {
+        const lookups: Record<string, number> = {};
+        for (const row of unavailable.filter((entry) => entry.caseId === request.caseId)) {
+          const system = row.reason === SUPPLIER_CHECK_UNAVAILABLE ? 'hr-suppliers' : row.system;
+          lookups[system] = (lookups[system] ?? 0) + 1;
+        }
+        return { request, lookups };
+      });
+    });
+    return planSweep(candidates, limits);
   }
 }
 
@@ -216,10 +248,34 @@ function unavailable(reason: string | null, resultId: string | null): Unavailabl
   return { outcome: 'unavailable', reason, resultId };
 }
 
+/** An answered lookup as the matching module reads it. */
+function answerOf({ outcome, resultId }: AnsweredLookup): RegistryAnswer {
+  return { outcome, resultId };
+}
+
+/**
+ * A gateway result's envelope as the check hands it on (`LookupOutcome`): its reason only when
+ * unavailable.
+ */
+function outcomeOf(result: {
+  outcome: LookupOutcome['outcome'];
+  reason?: string | null;
+  resultId: string;
+  checkedAt: string;
+}): LookupOutcome {
+  return {
+    outcome: result.outcome,
+    reason: result.outcome === 'unavailable' ? (result.reason ?? null) : null,
+    resultId: result.resultId,
+    checkedAt: result.checkedAt,
+  };
+}
+
 /**
  * A lookup as the matching module takes it: a found one with its records read back from the
  * gateway, a not-found one with none, or `unavailable`. A result the gateway no longer has is
- * unavailable (`result-missing`); the gateway not answering propagates, so the activity retries.
+ * unavailable (`result-missing`), one it refuses to give `gateway-rejected`, as a refused lookup
+ * is; the gateway not answering propagates, so the activity retries.
  */
 async function recordsOf(
   gateway: IntegrationGatewayClient,
@@ -227,52 +283,86 @@ async function recordsOf(
   system: LookupSystem,
   lookup: LookupOutcome,
 ): Promise<NonNullable<PersonRegistryResults[LookupSystem]>> {
-  if (lookup.outcome === 'unavailable' || lookup.resultId === null) {
-    return unavailable(lookup.reason, lookup.resultId);
-  }
-  const envelope = {
-    resultId: lookup.resultId,
-    system,
-    outcome: lookup.outcome,
-    reason: null,
-    cached: false,
-    checkedAt: lookup.checkedAt ?? new Date().toISOString(),
-  };
-  if (lookup.outcome === 'not-found') return { ...envelope, ...NO_RECORDS[system] };
+  if (!isAnswered(lookup)) return unavailable(lookup.reason, lookup.resultId);
+  const answer = answerOf(lookup);
+  if (lookup.outcome === 'not-found') return { ...answer, ...NO_RECORDS[system] };
 
   let stored;
   try {
     stored = await gateway.getStoredResult(lookup.resultId, tenant);
   } catch (error) {
     if (error instanceof InternalApiRejected) {
-      throw ApplicationFailure.nonRetryable(error.message, GATEWAY_REJECTED);
+      logger.error(
+        `The integration-gateway refused a ${system} result with ${String(error.status)}`,
+      );
+      return unavailable(GATEWAY_REJECTED, lookup.resultId);
     }
     throw error;
   }
   const records = stored && REGISTRY_RECORDS[system].safeParse(stored.payload);
   if (!records?.success) return unavailable(RESULT_MISSING, lookup.resultId);
-  return { ...envelope, ...records.data };
+  return { ...answer, ...records.data };
 }
 
-/** Whether the case still exists and is at the version being checked. */
-async function atVersion(
+/**
+ * The case's declarant and last check number, if the case still exists and is at the version
+ * being checked.
+ */
+async function caseAt(
   db: Database<ReviewSchema>,
   check: RegistryCheckRequest,
-): Promise<boolean> {
+): Promise<{ personId: string; sequence: number } | null> {
   const [found] = await withTenant(db, systemContext(check.tenant), (tx) =>
     tx
-      .select({ versionId: reviewCases.currentVersionId })
+      .select({ personId: reviewCases.personId, sequence: reviewCases.registryCheckSequence })
       .from(reviewCases)
-      .where(eq(reviewCases.id, check.caseId)),
+      .where(
+        and(eq(reviewCases.id, check.caseId), eq(reviewCases.currentVersionId, check.versionId)),
+      ),
   );
-  return found?.versionId === check.versionId;
+  return found ?? null;
 }
 
-/** The version as declarations gives it, read as the service for the case. */
+/** As `caseAt`, handing out the next check number of the case. */
+async function startCheck(
+  db: Database<ReviewSchema>,
+  check: RegistryCheckRequest,
+): Promise<{ personId: string; sequence: number } | null> {
+  const [started] = await withTenant(db, systemContext(check.tenant), (tx) =>
+    tx
+      .update(reviewCases)
+      .set({ registryCheckSequence: sql`${reviewCases.registryCheckSequence} + 1` })
+      .where(
+        and(eq(reviewCases.id, check.caseId), eq(reviewCases.currentVersionId, check.versionId)),
+      )
+      .returning({ personId: reviewCases.personId, sequence: reviewCases.registryCheckSequence }),
+  );
+  return started ?? null;
+}
+
+/**
+ * The version's document and the national ID of each of its people (the officer's from the
+ * roster record, others' as declared), with the roster record for the employer code.
+ */
+async function household(
+  declarations: DeclarationsClient,
+  directory: DirectoryClient,
+  check: RegistryCheckRequest,
+) {
+  const { pulled, document } = await pullVersion(declarations, check);
+  const roster = await directory.getRosterRecord(check.tenant, pulled.rosterRecordId);
+  return { document, roster, ids: householdIds(document, roster?.nationalId ?? null) };
+}
+
+/**
+ * The version as declarations gives it, read as the service for the case, with its document
+ * checked against declaration.v1. A version gone, or a document outside the contract, fails the
+ * check for good: reading the immutable version again changes nothing.
+ */
 async function pullVersion(
   declarations: DeclarationsClient,
   check: RegistryCheckRequest,
-): Promise<PulledVersion> {
+): Promise<{ pulled: PulledVersion; document: DeclarationV1 }> {
   const pulled = await declarations.getVersionDocument(check.declarationId, check.version, {
     tenant: check.tenant,
     actingSubject: SYSTEM_SUBJECT,
@@ -284,13 +374,21 @@ async function pullVersion(
       VERSION_MISSING,
     );
   }
-  return pulled;
+  try {
+    return { pulled, document: declarationOf(pulled) };
+  } catch (error) {
+    if (error instanceof DeclarationOutsideContract) {
+      throw ApplicationFailure.nonRetryable(error.message, DECLARATION_INVALID);
+    }
+    throw error;
+  }
 }
 
 /**
- * One lookup; the gateway not answering (unreachable, or the lookup not recorded) or refusing
- * the request is `unavailable` with no result id, looked up again like a registry outage. For a
- * found BRS lookup, the companies' registration numbers, for the supplier check.
+ * One lookup; the gateway not answering (unreachable, or the lookup not recorded) is
+ * `unavailable` with no result id, looked up again like a registry outage, and the gateway
+ * refusing the request is `unavailable` (`gateway-rejected`), not looked up again. For a found
+ * BRS lookup, the companies' registration numbers, for the supplier check.
  */
 async function lookUp(
   gateway: IntegrationGatewayClient,
@@ -301,12 +399,7 @@ async function lookUp(
   try {
     const result = await gateway.lookupRegistry(system, nationalId, context);
     return {
-      outcome: {
-        outcome: result.outcome,
-        reason: result.outcome === 'unavailable' ? (result.reason ?? null) : null,
-        resultId: result.resultId,
-        checkedAt: result.checkedAt,
-      },
+      outcome: outcomeOf(result),
       ...('directorships' in result && result.outcome === 'found'
         ? { companies: [...new Set(result.directorships.map((d) => d.companyRegistrationNumber))] }
         : {}),
@@ -325,14 +418,11 @@ async function checkSupplier(
   try {
     const result = await gateway.checkSupplier(registrationNumber, employerCode, context);
     return {
-      outcome: result.outcome,
-      reason: result.outcome === 'unavailable' ? (result.reason ?? null) : null,
-      resultId: result.resultId,
-      checkedAt: result.checkedAt,
+      ...outcomeOf(result),
       supplies: result.outcome === 'found' ? result.supplies : null,
     };
   } catch (error) {
-    return { ...gatewayFailure(error, 'brs'), checkedAt: null, supplies: null };
+    return { ...gatewayFailure(error, 'hr-suppliers'), checkedAt: null, supplies: null };
   }
 }
 

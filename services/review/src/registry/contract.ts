@@ -1,11 +1,11 @@
 /**
  * What passes between the registry check workflow, its activities and the workflows that run it
- * (spec 07b). Bundled into the workflow sandbox: types and constants only.
+ * (spec 07b). Bundled into the workflow sandbox: types, constants and pure helpers only.
  *
  * No national ID and no registry record passes through a workflow: they would sit in Temporal's
  * history, a second store. `lookupRegistries` reads the IDs where it uses them and hands on, per
- * person and registry, the outcome and the gateway's result id; `matchRegistries` reads the
- * records back from the gateway by result id. Person keys, outcomes, reasons, result ids and
+ * person and registry, the outcome and the gateway's result id; `matchAndStoreRegistries` reads
+ * the records back from the gateway by result id. Person keys, outcomes, reasons, result ids and
  * company registration numbers are all that is handed on.
  */
 import type { RegistryCheckStatus, RegistrySystem } from '../rules/index.js';
@@ -32,17 +32,16 @@ export function registrySweepCheckWorkflowId(caseId: string, sweepRunId: string)
 /** How long after a re-check of a case the next one is refused (429), in minutes. */
 export const RECHECK_COOLDOWN_MINUTES = 10;
 
-/**
- * Cases one sweep run checks at most, oldest check first. With `SWEEP_SPACING` between them a run
- * fits in the hour even when every check waits out its retries, and the registries see a few
- * cases a minute, under their rate limits (only what was unavailable reaches a registry: the
- * other answers come from the gateway's cache).
- */
-export const REGISTRY_SWEEP_BATCH = 50;
-export const SWEEP_SPACING = '10 seconds';
+/** Checks a sweep run has going at once at most. */
+export const SWEEP_CONCURRENCY = 4;
 
-export interface SweepCandidatesRequest {
-  limit: number;
+/**
+ * A check of the sweep's plan: the case, and how long after the run started it may start, so the
+ * run's lookups stay under the systems' rate limits (`planSweep`).
+ */
+export interface SweepCheck {
+  request: RegistryCheckRequest;
+  startAfterMs: number;
 }
 
 /** What one sweep run did. */
@@ -74,6 +73,14 @@ export interface LookupOutcome {
   checkedAt: string | null;
 }
 
+/** A lookup the gateway answered (found or not found), so it has a result id. */
+export type AnsweredLookup = LookupOutcome & { outcome: 'found' | 'not-found'; resultId: string };
+
+/** Whether the gateway answered the lookup (its own `unavailable` and no answer are not). */
+export function isAnswered<L extends LookupOutcome>(lookup: L): lookup is L & AnsweredLookup {
+  return lookup.outcome !== 'unavailable' && lookup.resultId !== null;
+}
+
 /** A supplier check of one of the officer's companies; `supplies` is null unless found. */
 export interface SupplierOutcome extends LookupOutcome {
   supplies: boolean | null;
@@ -85,6 +92,11 @@ export interface SupplierOutcome extends LookupOutcome {
  * companies against the officer's employer, by company registration number.
  */
 export interface RegistryLookups {
+  /**
+   * The check's number on the case, handed out when its first lookups start: of two checks of a
+   * case, the one that started later is stored and the other is stale.
+   */
+  sequence: number;
   persons: Record<string, Partial<Record<RegistrySystem, LookupOutcome>>>;
   suppliers: Record<string, SupplierOutcome>;
 }
@@ -95,6 +107,7 @@ export interface LookupRequest {
   previous: RegistryLookups | null;
 }
 
+/** What `matchAndStoreRegistries` is given: the check and its lookups. */
 export interface MatchRequest {
   check: RegistryCheckRequest;
   lookups: RegistryLookups;
@@ -110,7 +123,8 @@ export interface CheckStatus {
 
 /**
  * How a check ended: `checked` (statuses stored, flags merged into the case) or `stale` (the case
- * moved on to a later version or is gone, so nothing was looked up or stored).
+ * moved on to a later version or is gone, or a check that started later is already stored, so
+ * nothing was stored).
  */
 export type RegistryCheckResult =
   { outcome: 'checked'; flags: number; statuses: CheckStatus[] } | { outcome: 'stale' };
@@ -119,12 +133,22 @@ export type RegistryCheckResult =
 export const PROCESSING_LEGAL_BASIS = 'regs-r20-1-b';
 
 /**
- * Why the gateway gave no answer of its own: it could not be reached (or could not record the
- * lookup), or it refused the request (a missing scope, say). Both are retried like a registry's
- * `unavailable`.
+ * Why the gateway gave no answer of its own. `gateway-unavailable`: it could not be reached (or
+ * could not record the lookup), looked up again like a registry's `unavailable`.
+ * `gateway-rejected`: it refused the request (a missing scope, say), which needs fixing, not
+ * waiting: that lookup (or stored-result read) is not tried again in the check, its system is
+ * `unavailable` with this reason, and the rest of the check goes on.
  */
 export const GATEWAY_UNAVAILABLE = 'gateway-unavailable';
 export const GATEWAY_REJECTED = 'gateway-rejected';
+
+/** Whether a lookup without an answer is worth looking up again: not one the gateway refused. */
+export function lookUpAgain(lookup: Pick<LookupOutcome, 'outcome' | 'reason'>): boolean {
+  return lookup.outcome === 'unavailable' && lookup.reason !== GATEWAY_REJECTED;
+}
+
+/** A pulled document that is not a declaration.v1 document: the check fails for good. */
+export const DECLARATION_INVALID = 'declaration-invalid';
 
 /** Why a stored result could not be read back for matching: the gateway does not have it. */
 export const RESULT_MISSING = 'result-missing';

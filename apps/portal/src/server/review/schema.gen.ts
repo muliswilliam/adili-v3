@@ -2937,7 +2937,10 @@ export interface operations {
     recheckCaseRegistries: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Client-generated UUID, unique per logical request (ADR-013 §7.5). With it, a retry gets the stored answer back instead of acting twice; without it the request runs unguarded. */
+                "Idempotency-Key"?: components["parameters"]["OptionalIdempotencyKey"];
+            };
             path: {
                 caseId: components["parameters"]["CaseId"];
             };

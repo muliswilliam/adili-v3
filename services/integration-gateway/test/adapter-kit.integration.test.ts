@@ -65,7 +65,7 @@ describe('adapter kit', () => {
   };
   const forCase: LookupContext = {
     caller,
-    purpose: { legalBasis: 'regs-r20-1-b', caseRef: 'case-0001' },
+    purpose: { legalBasis: 'regs-r20-1-b', caseRef: 'case-0001', subjectPersonId: null },
     tenant: 'psc',
   };
 
@@ -410,18 +410,38 @@ describe('adapter kit', () => {
       const response = await echo({ 'x-legal-basis': 'act-s35-5', 'x-case-ref': 'case-0001' });
 
       expect(response.statusCode).toBe(200);
-      expect(response.json()).toEqual({ legalBasis: 'act-s35-5', caseRef: 'case-0001' });
+      expect(response.json()).toEqual({
+        legalBasis: 'act-s35-5',
+        caseRef: 'case-0001',
+        subjectPersonId: null,
+      });
     });
 
     it('takes the case reference as optional', async () => {
       const response = await echo({ 'x-legal-basis': 'regs-r20-1-b' });
 
-      expect(response.json()).toEqual({ legalBasis: 'regs-r20-1-b', caseRef: null });
+      expect(response.json()).toEqual({
+        legalBasis: 'regs-r20-1-b',
+        caseRef: null,
+        subjectPersonId: null,
+      });
+    });
+
+    it('reads the person the lookup is about; a malformed one is 400', async () => {
+      const person = '0190A3B2-7C4D-7E8F-9A0B-1C2D3E4F5A6B';
+      const response = await echo({ 'x-legal-basis': 'regs-r20-1-b', 'x-subject-person': person });
+
+      expect(response.json()).toMatchObject({ subjectPersonId: person.toLowerCase() });
+      const malformed = await echo({ 'x-legal-basis': 'regs-r20-1-b', 'x-subject-person': 'p-1' });
+      expect(malformed.statusCode).toBe(400);
+      expect(malformed.json()).toMatchObject({ errors: [{ path: 'X-Subject-Person' }] });
     });
 
     it.each([
       ['missing', {}],
       ['unknown', { 'x-legal-basis': 'curiosity' }],
+      // Spec 05b adds the declarant's own lookups; until then nothing may claim them.
+      ['declarant-request', { 'x-legal-basis': 'declarant-request' }],
     ])('answers 400 when the legal basis is %s', async (_, headers) => {
       const response = await echo(headers);
 

@@ -57,12 +57,19 @@ describe('GET /v1/integrations/coverage', () => {
   type Row = { system: string } & Record<string, unknown>;
   const of = (rows: Row[], system: string) => rows.find((row) => row.system === system);
 
-  it('lists the five systems with counts, hit rate, breaker, last success and config', async () => {
+  it('lists the six systems with counts, hit rate, breaker, last success and config', async () => {
     const response = await coverage();
 
     expect(response.statusCode).toBe(200);
     const rows = response.json<Row[]>();
-    expect(rows.map((row) => row.system)).toEqual(['iprs', 'kra', 'ntsa', 'brs', 'ardhisasa']);
+    expect(rows.map((row) => row.system)).toEqual([
+      'iprs',
+      'kra',
+      'ntsa',
+      'brs',
+      'ardhisasa',
+      'hr-suppliers',
+    ]);
     expect(of(rows, 'kra')).toEqual({
       system: 'kra',
       calls24h: 0,

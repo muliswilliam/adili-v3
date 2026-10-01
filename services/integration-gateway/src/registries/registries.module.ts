@@ -6,13 +6,14 @@ import { ArdhisasaAdapter } from './ardhisasa-adapter.js';
 import { BrsDirectorshipsAdapter, SupplierCheckAdapter } from './brs-adapters.js';
 import { KraAdapter } from './kra-adapter.js';
 import { NtsaAdapter } from './ntsa-adapter.js';
+import { RegistryRateLimitsController } from './rate-limits.controller.js';
 import { RegistriesController } from './registries.controller.js';
 import { REGISTRY_URLS, type RegistryUrls } from './registry-urls.js';
 
 /** KRA, NTSA, BRS and ArdhiSasa lookups and the employer-supplier check, on the adapter kit. */
 @Module({
   imports: [AdapterKitModule],
-  controllers: [RegistriesController],
+  controllers: [RegistriesController, RegistryRateLimitsController],
   providers: [
     KraAdapter,
     NtsaAdapter,

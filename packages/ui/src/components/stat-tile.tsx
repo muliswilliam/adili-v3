@@ -2,6 +2,10 @@ import type { ReactNode } from 'react';
 
 import { cn } from '../lib/cn';
 import { formatNumber } from '../lib/format-number';
+import { Skeleton } from './skeleton';
+
+/** The tile's card: 16px radius, 16px padding. */
+const TILE = 'rounded-2xl bg-card p-4 text-card-foreground shadow-card';
 
 /** Grid rows a tile spans: label and value, then the description and breakdown it has. */
 const ROW_SPAN = ['row-span-2', 'row-span-3', 'row-span-4'] as const;
@@ -82,7 +86,8 @@ export function StatTile({
       title={title}
       data-tone={tone}
       className={cn(
-        'relative grid grid-rows-subgrid gap-y-1 rounded-2xl bg-card p-4 text-card-foreground shadow-card',
+        TILE,
+        'relative grid grid-rows-subgrid gap-y-1',
         tone === 'warning' && 'bg-linear-to-b from-warning-subtle/70 to-card',
         rows,
         onPressedChange && 'transition-shadow hover:shadow-control-hover',
@@ -120,6 +125,28 @@ export function StatTile({
           ))}
         </ul>
       ) : null}
+    </div>
+  );
+}
+
+export interface StatTileSkeletonProps {
+  /** Placeholder lines under the value, for a description or breakdown. Defaults to none. */
+  lines?: number;
+  className?: string;
+}
+
+/**
+ * A StatTile while its count loads: the same card with placeholders for the label and value.
+ * Decorative; mark the loading region with `aria-busy`.
+ */
+export function StatTileSkeleton({ lines = 0, className }: StatTileSkeletonProps) {
+  return (
+    <div aria-hidden="true" className={cn(TILE, 'flex flex-col gap-2', className)}>
+      <Skeleton className="w-1/2" />
+      <Skeleton className="my-1 h-6 w-1/3" />
+      {Array.from({ length: lines }, (_, index) => (
+        <Skeleton key={index} className={index % 2 === 0 ? 'w-4/5' : 'w-3/4'} />
+      ))}
     </div>
   );
 }

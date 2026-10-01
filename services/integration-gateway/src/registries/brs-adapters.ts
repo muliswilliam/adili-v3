@@ -1,6 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common';
 
-import type { RegistryAdapter } from '../adapter-kit/registry-adapter.js';
+import type { KeyedRegistryAdapter, RegistryAdapter } from '../adapter-kit/registry-adapter.js';
 import { getFromRegistry, segment } from './registry-http.js';
 import {
   type BrsDirectorships,
@@ -31,8 +31,10 @@ export class BrsDirectorshipsAdapter implements RegistryAdapter<BrsDirectorships
 }
 
 /** The supplier check's subject: one employer and one company (neither is personal data). */
-export const supplierSubject = (registrationNumber: string, employerCode: string) =>
-  `${employerCode}:${registrationNumber}`;
+export interface SupplierSubject {
+  employerCode: string;
+  registrationNumber: string;
+}
 
 const sameRegistration = (a: string, b: string) =>
   a.replace(/\s+/g, '').toUpperCase() === b.replace(/\s+/g, '').toUpperCase();
@@ -40,22 +42,28 @@ const sameRegistration = (a: string, b: string) =>
 /**
  * The employer-supplier check: whether a company is on an employer's supplier list
  * (external/hr.yaml `listSuppliersByEmployer`). It answers a BRS question (does an officer's
- * company supply their employer), so it is cached, rate limited and broken under BRS, with an
- * operation and subject of its own (`supplierSubject`). An employer HR does not know has no
- * suppliers: false, never not found.
+ * company supply their employer) but calls HR, so it is its own system, `hr-suppliers`: HR
+ * failing opens its circuit, not BRS's, and it has its own rate limit, cache entries, pause and
+ * coverage row. The subject is the employer and company (`SupplierSubject`). An employer HR does
+ * not know has no suppliers: false, never not found.
  */
 @Injectable()
-export class SupplierCheckAdapter implements RegistryAdapter<SupplierAnswer> {
-  readonly system = 'brs';
+export class SupplierCheckAdapter implements KeyedRegistryAdapter<SupplierAnswer, SupplierSubject> {
+  readonly system = 'hr-suppliers';
   readonly operation = 'supplies';
   readonly schema = supplierAnswerSchema;
 
   constructor(@Inject(REGISTRY_URLS) private readonly urls: RegistryUrls) {}
 
-  async fetch(subject: string, signal: AbortSignal): Promise<SupplierAnswer | null> {
-    const split = subject.indexOf(':');
-    const employerCode = subject.slice(0, split);
-    const registrationNumber = subject.slice(split + 1);
+  /** Employer codes have no `:` (`EMPLOYER_CODE`), so the key reads back one way only. */
+  subjectKey({ employerCode, registrationNumber }: SupplierSubject): string {
+    return `${employerCode}:${registrationNumber}`;
+  }
+
+  async fetch(
+    { employerCode, registrationNumber }: SupplierSubject,
+    signal: AbortSignal,
+  ): Promise<SupplierAnswer | null> {
     const url = `${this.urls.hr}/v1/employers/${segment(employerCode)}/suppliers`;
     const list = await getFromRegistry('HR', url, hrEmployerSuppliersSchema, signal);
     const supplies = (list?.registration_numbers ?? []).some((number) =>

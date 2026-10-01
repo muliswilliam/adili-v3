@@ -25,13 +25,14 @@ export interface VerificationResult {
   caller: Principal;
   legalBasis: LegalBasis;
   caseRef: string | null;
+  subjectPersonId: string | null;
   /** Tenant the lookup acted for; its key encrypts `payload`. */
   tenant: string | null;
   /** The normalised answer, kept only when there is a tenant to encrypt it for. */
   payload: unknown;
 }
 
-/** A recorded lookup as a service of its tenant reads it back. */
+/** A recorded lookup as a service of its tenant reads it back (`StoredResult` in the contract). */
 export interface StoredResult {
   resultId: string;
   system: System;
@@ -72,6 +73,7 @@ export class VerificationResults {
         tenant: result.tenant,
         legalBasis: result.legalBasis,
         caseRef: result.caseRef,
+        subjectPersonId: result.subjectPersonId,
         payloadCiphertext: sealed?.ciphertext ?? null,
         payloadEnvelope: sealed?.envelope ?? null,
       });
@@ -96,11 +98,14 @@ export class VerificationResults {
   }
 
   /**
-   * The row `id` as `tenant`'s services may read it, payload decrypted; null when there is no
-   * such row or it belongs to another tenant (or to none: lookups for no tenant keep nothing),
-   * so the two look the same.
+   * The row `id` as `tenant`'s services may read it, payload decrypted, with the person it is
+   * about; null when there is no such row or it belongs to another tenant (or to none: lookups
+   * for no tenant keep nothing), so the two look the same.
    */
-  async read(id: string, tenant: string): Promise<StoredResult | null> {
+  async read(
+    id: string,
+    tenant: string,
+  ): Promise<{ result: StoredResult; subjectPersonId: string | null } | null> {
     const [row] = await this.db
       .select()
       .from(verificationResults)
@@ -118,13 +123,16 @@ export class VerificationResults {
       payload = JSON.parse(plaintext.toString('utf8')) as Record<string, unknown>;
     }
     return {
-      resultId: row.id,
-      system: row.system,
-      outcome: row.outcome,
-      checkedAt: row.checkedAt.toISOString(),
-      legalBasis: row.legalBasis,
-      caseRef: row.caseRef,
-      payload,
+      result: {
+        resultId: row.id,
+        system: row.system,
+        outcome: row.outcome,
+        checkedAt: row.checkedAt.toISOString(),
+        legalBasis: row.legalBasis,
+        caseRef: row.caseRef,
+        payload,
+      },
+      subjectPersonId: row.subjectPersonId,
     };
   }
 

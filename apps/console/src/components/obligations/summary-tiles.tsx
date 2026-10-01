@@ -3,8 +3,8 @@ import {
   Icon,
   obligationStatusMeta,
   obligationTypeNames,
-  Skeleton,
   StatTile,
+  StatTileSkeleton,
 } from '@adili/ui';
 import { UserRemove01Icon } from '@hugeicons/core-free-icons';
 import type { ReactNode } from 'react';
@@ -84,12 +84,7 @@ function SummaryTilesSkeleton() {
   return (
     <div aria-busy="true" aria-label={m.summaryLabel} role="group" className={GRID}>
       {Array.from({ length: 4 }, (_, index) => (
-        <div key={index} className="flex flex-col gap-2 rounded-2xl bg-card p-4 shadow-card">
-          <Skeleton className="w-1/2" />
-          <Skeleton className="my-1 h-6 w-1/3" />
-          <Skeleton className="w-4/5" />
-          <Skeleton className="w-3/4" />
-        </div>
+        <StatTileSkeleton key={index} lines={2} />
       ))}
     </div>
   );

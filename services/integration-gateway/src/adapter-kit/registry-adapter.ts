@@ -8,7 +8,7 @@ import type { LegalBasis, System, UnavailableReason } from '../db/schema.js';
  * the registry; the kit (`RegistryLookups`) adds the cache, pause flag, rate limit, timeout,
  * circuit breaker and the verification-results row around it.
  */
-export interface RegistryAdapter<T> {
+export interface RegistryAdapter<T, S = string> {
   readonly system: System;
   /** Names the kind of answer in cache keys (`<system>:<operation>:<subject hash>`). */
   readonly operation: string;
@@ -19,14 +19,31 @@ export interface RegistryAdapter<T> {
    * or null when the registry has no record; anything else (network, 5xx, a body that breaks
    * the contract) rejects with an `UpstreamError`. Stops when `signal` aborts: the kit's timeout.
    */
-  fetch(subject: string, signal: AbortSignal): Promise<T | null>;
+  fetch(subject: S, signal: AbortSignal): Promise<T | null>;
 }
+
+/**
+ * An adapter whose subject is more than one identifier (the supplier check's employer and
+ * company): it says how the subject reads as one string, which the kit hashes for the cache key
+ * and the verification-results row.
+ */
+export interface KeyedRegistryAdapter<T, S> extends RegistryAdapter<T, S> {
+  subjectKey(subject: S): string;
+}
+
+/** What the answer cache needs of an adapter. */
+export type CachedAdapter<T> = Pick<RegistryAdapter<T, unknown>, 'system' | 'operation' | 'schema'>;
 
 /** Why a lookup is made and for what, as the calling service declares it. */
 export interface LookupPurpose {
   legalBasis: LegalBasis;
   /** The review case (or other record) the lookup is for; null when there is none. */
   caseRef: string | null;
+  /**
+   * The platform person the lookup is about (the declarant of the case), so a later read of the
+   * stored result is audited as a read of their data (ADR-008); null when there is none yet.
+   */
+  subjectPersonId: string | null;
 }
 
 export interface LookupContext {

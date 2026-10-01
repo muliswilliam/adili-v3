@@ -28,7 +28,11 @@ import { type IprsPerson, type LookupIprsPerson, lookupIprsPersonSchema } from '
  * The route's one purpose: confirming a declarant's identity at onboarding (ADR-014). Lookups
  * act for no tenant, so nothing of IPRS's answer is kept on the verification-results row.
  */
-const ONBOARDING: LookupPurpose = { legalBasis: 'adr-014-onboarding', caseRef: null };
+const ONBOARDING: LookupPurpose = {
+  legalBasis: 'adr-014-onboarding',
+  caseRef: null,
+  subjectPersonId: null,
+};
 
 /** Whether the answer (found or not found) came from the 24-hour cache. */
 const X_CACHE = {

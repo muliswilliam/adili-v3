@@ -13,13 +13,13 @@ import {
 
 import type { RegistryCheckActivities } from './activities.js';
 import {
-  REGISTRY_SWEEP_BATCH,
   type RegistryCheckRequest,
   type RegistryCheckResult,
   type RegistryLookups,
   type RegistrySweepResult,
+  lookUpAgain,
   registrySweepCheckWorkflowId,
-  SWEEP_SPACING,
+  SWEEP_CONCURRENCY,
 } from './contract.js';
 
 /**
@@ -34,18 +34,19 @@ export const LOOKUP_RETRY_DELAYS = ['5 seconds', '10 seconds', '20 seconds'] as 
  * with backoff until they succeed, as the processing workflow's pulls are. A version that
  * disappeared fails at once (`version-missing`).
  */
-const { lookupRegistries, matchRegistries, registrySweepCandidates } =
+const { lookupRegistries, matchAndStoreRegistries, planRegistrySweep } =
   proxyActivities<RegistryCheckActivities>({
     startToCloseTimeout: '5 minutes',
     retry: { initialInterval: '1 second', backoffCoefficient: 2, maximumInterval: '5 minutes' },
   });
 
 /**
- * `RegistryCheckWorkflow`: looks up everyone on the case's version with a national ID in KRA,
- * NTSA, BRS and ArdhiSasa (and the officer's companies against the employer's supplier list),
- * looks up again what a registry or the gateway gave no answer to, three times with backoff, then
- * matches the records against the declared items and stores the flags and statuses on the case.
- * A registry still without an answer is `unavailable` on the case; it never stops the check.
+ * `registryCheck` (the spec's RegistryCheckWorkflow): looks up everyone on the case's version
+ * with a national ID in KRA, NTSA, BRS and ArdhiSasa (and the officer's companies against the
+ * employer's supplier list), looks up again what a registry or the gateway gave no answer to (not
+ * what the gateway refused), three times with backoff, then matches the records against the
+ * declared items and stores the flags and statuses on the case. A registry still without an
+ * answer is `unavailable` on the case; it never stops the check.
  *
  * Run by `DeclarationProcessingWorkflow` once the case is created or amended; started on its own
  * for a case by a re-check (`POST /v1/review/cases/{caseId}/recheck`) and, as a child, by the
@@ -54,45 +55,65 @@ const { lookupRegistries, matchRegistries, registrySweepCandidates } =
 export async function registryCheck(request: RegistryCheckRequest): Promise<RegistryCheckResult> {
   let lookups = await lookupRegistries({ check: request, previous: null });
   for (const delay of LOOKUP_RETRY_DELAYS) {
-    if (lookups === null || !anyUnavailable(lookups)) break;
+    if (lookups === null || !anyToLookUpAgain(lookups)) break;
     await sleep(delay);
     lookups = await lookupRegistries({ check: request, previous: lookups });
   }
   if (lookups === null) return { outcome: 'stale' };
-  return matchRegistries({ check: request, lookups });
-}
-
-/** Whether a lookup or supplier check is still without an answer. */
-export function anyUnavailable(lookups: RegistryLookups): boolean {
-  return [
-    ...Object.values(lookups.persons).flatMap((systems) => Object.values(systems)),
-    ...Object.values(lookups.suppliers),
-  ].some((lookup) => lookup.outcome === 'unavailable');
+  return matchAndStoreRegistries({ check: request, lookups });
 }
 
 /**
- * `RegistryUnavailableSweep`, started hourly by the service's Temporal schedule: checks the
- * registries again for the open cases with a registry still unavailable, oldest check first, at
- * most `REGISTRY_SWEEP_BATCH` a run, one at a time and `SWEEP_SPACING` apart so a registry that
- * just came back is not flooded. Each check is a `registryCheck` child; one that fails leaves its
- * case for the next run.
+ * Whether a lookup or supplier check is still without an answer worth waiting for (one the
+ * gateway refused is not: it needs fixing).
+ */
+export function anyToLookUpAgain(lookups: RegistryLookups): boolean {
+  return [
+    ...Object.values(lookups.persons).flatMap((systems) => Object.values(systems)),
+    ...Object.values(lookups.suppliers),
+  ].some(lookUpAgain);
+}
+
+/**
+ * `registrySweep` (the spec's RegistryUnavailableSweep), started hourly by the service's Temporal
+ * schedule: checks the registries again for the open cases with a registry still unavailable,
+ * oldest check first, as `planRegistrySweep` paces them under the systems' rate limits (each case
+ * starting once the systems it looks up have room for it, until the plan's window closes), at
+ * most `SWEEP_CONCURRENCY` at once. Each check is a `registryCheck` child; one that fails leaves
+ * its case for the next run.
  */
 export async function registrySweep(): Promise<RegistrySweepResult> {
-  const candidates = await registrySweepCandidates({ limit: REGISTRY_SWEEP_BATCH });
+  const plan = await planRegistrySweep();
   const result: RegistrySweepResult = { checked: 0, stale: 0, failed: 0 };
-  for (const [index, request] of candidates.entries()) {
-    if (index > 0) await sleep(SWEEP_SPACING);
-    try {
-      const checked = await executeChild(registryCheck, {
-        workflowId: registrySweepCheckWorkflowId(request.caseId, workflowInfo().runId),
-        args: [request],
-      });
-      result[checked.outcome] += 1;
-    } catch (error) {
-      if (isCancellation(error)) throw error;
-      log.warn('Registry check of a swept case failed', { caseId: request.caseId });
-      result.failed += 1;
-    }
+  const startedAt = Date.now();
+  const running = new Set<Promise<void>>();
+  for (const { request, startAfterMs } of plan) {
+    const wait = startedAt + startAfterMs - Date.now();
+    if (wait > 0) await sleep(wait);
+    while (running.size >= SWEEP_CONCURRENCY) await Promise.race(running);
+    const run: Promise<void> = checkSwept(request, result).then(() => {
+      running.delete(run);
+    });
+    running.add(run);
   }
+  await Promise.all(running);
   return result;
+}
+
+/** One swept case's check as a child, counted in `result`; a failure never stops the run. */
+async function checkSwept(
+  request: RegistryCheckRequest,
+  result: RegistrySweepResult,
+): Promise<void> {
+  try {
+    const checked = await executeChild(registryCheck, {
+      workflowId: registrySweepCheckWorkflowId(request.caseId, workflowInfo().runId),
+      args: [request],
+    });
+    result[checked.outcome] += 1;
+  } catch (error) {
+    if (isCancellation(error)) throw error;
+    log.warn('Registry check of a swept case failed', { caseId: request.caseId });
+    result.failed += 1;
+  }
 }

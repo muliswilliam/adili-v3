@@ -13,7 +13,16 @@ import type {
  */
 
 const outcome = z.enum(['found', 'not-found', 'unavailable']);
-const system = z.enum(['iprs', 'kra', 'ntsa', 'brs', 'ardhisasa', 'payroll', 'icms']);
+const system = z.enum([
+  'iprs',
+  'kra',
+  'ntsa',
+  'brs',
+  'ardhisasa',
+  'hr-suppliers',
+  'payroll',
+  'icms',
+]);
 const isoDate = z.iso.date();
 
 /** `ResultEnvelope`. */
@@ -93,6 +102,11 @@ export function lookupResultSchema<S extends LookupSystem>(
 export const supplierCheckSchema: z.ZodType<SupplierCheckResult> = envelope.extend({
   supplies: z.boolean().nullable(),
 });
+
+/** `RegistryRateLimits`. */
+export const rateLimitsSchema = z.array(
+  z.object({ system: z.string(), ratePerMinute: z.int().positive() }),
+);
 
 /** `StoredResult`; its payload is checked against `REGISTRY_RECORDS` where it is used. */
 export const storedResultSchema: z.ZodType<StoredResult> = z.object({

@@ -100,7 +100,7 @@ describe('registry checks', () => {
   async function check(request: RegistryCheckRequest, previous: RegistryLookups | null = null) {
     const lookups = await registry.lookupRegistries({ check: request, previous });
     if (!lookups) throw new Error('stale');
-    return { lookups, result: await registry.matchRegistries({ check: request, lookups }) };
+    return { lookups, result: await registry.matchAndStoreRegistries({ check: request, lookups }) };
   }
 
   const caseRow = async (caseId: string) => {
@@ -182,6 +182,10 @@ describe('registry checks', () => {
     // Every lookup for the case, with the legal basis of processing; one supplier check.
     expect(api.gateway.lookups).toHaveLength(17);
     expect(api.gateway.lookups.every((lookup) => lookup.context.caseRef === caseId)).toBe(true);
+    // ADR-008: the gateway audits reads of the results as reads of the declarant's data.
+    expect(
+      api.gateway.lookups.every((lookup) => lookup.context.subjectPersonId === row.personId),
+    ).toBe(true);
     expect(
       api.gateway.lookups.every(
         (lookup) => lookup.context.tenant === 'psc' && lookup.context.legalBasis === 'regs-r20-1-b',
@@ -316,6 +320,37 @@ describe('registry checks', () => {
     expect(again?.suppliers).toEqual(first?.suppliers);
   });
 
+  it('a lookup the gateway refuses is unavailable (gateway-rejected) and not looked up again', async () => {
+    const request = await caseOf(wanjikuVersion());
+    api.gateway.failRegistry('ntsa', { kind: 'refused' }, 1);
+
+    const first = await registry.lookupRegistries({ check: request, previous: null });
+    expect(first?.persons.officer?.ntsa).toEqual({
+      outcome: 'unavailable',
+      reason: 'gateway-rejected',
+      resultId: null,
+      checkedAt: null,
+    });
+    const before = api.gateway.lookups.length;
+
+    const again = await registry.lookupRegistries({ check: request, previous: first });
+
+    expect(api.gateway.lookups.slice(before)).toEqual([]);
+    expect(again?.persons.officer?.ntsa?.reason).toBe('gateway-rejected');
+  });
+
+  it('a stored result the gateway refuses to give leaves its registry unavailable (gateway-rejected); the check goes on', async () => {
+    const request = await caseOf(wanjikuVersion());
+    const lookups = await registry.lookupRegistries({ check: request, previous: null });
+    if (!lookups) throw new Error('stale');
+    api.gateway.refuseStoredResults();
+
+    const result = await registry.matchAndStoreRegistries({ check: request, lookups });
+
+    expect(result.outcome).toBe('checked');
+    expect(await checksOf(request.caseId)).toContain('officer ntsa unavailable gateway-rejected');
+  });
+
   it('storing the same check twice changes nothing; a reviewed registry flag keeps its note', async () => {
     const request = await caseOf(wanjikuVersion());
     const { lookups } = await check(request);
@@ -330,7 +365,7 @@ describe('registry checks', () => {
     );
     expect(reviewed.statusCode).toBe(200);
 
-    await registry.matchRegistries({ check: request, lookups });
+    await registry.matchAndStoreRegistries({ check: request, lookups });
 
     const flags = await flagsOf(request.caseId);
     expect(
@@ -355,7 +390,10 @@ describe('registry checks', () => {
 
     expect(await registry.lookupRegistries({ check: request, previous: null })).toBeNull();
     expect(
-      await registry.matchRegistries({ check: request, lookups: { persons: {}, suppliers: {} } }),
+      await registry.matchAndStoreRegistries({
+        check: request,
+        lookups: { sequence: 1, persons: {}, suppliers: {} },
+      }),
     ).toEqual({ outcome: 'stale' });
     expect(api.gateway.lookups).toEqual([]);
     expect(await checksOf(request.caseId)).toEqual([]);
@@ -471,6 +509,21 @@ describe('registry checks', () => {
       ]) {
         expect((await api.get(registryPath(request.caseId), caller)).statusCode).toBe(404);
       }
+    });
+
+    it('a document outside declaration.v1 fails the check for good and the tab with 502 (ADR-013 §2)', async () => {
+      const version = wanjikuVersion();
+      const request = await caseOf(version);
+      // Declarations answering outside its contract: statements is no list.
+      version.document.statements = 'not a list';
+
+      await expect(
+        registry.lookupRegistries({ check: request, previous: null }),
+      ).rejects.toMatchObject({ type: 'declaration-invalid', nonRetryable: true });
+      expect(api.gateway.lookups).toEqual([]);
+      const view = await api.get(registryPath(request.caseId), reviewer);
+      expect(view.statusCode).toBe(502);
+      expect(view.json()).toMatchObject({ type: 'declarations-unavailable' });
     });
 
     it('the case detail carries the statuses of the latest check', async () => {

@@ -33,6 +33,7 @@ type Activities = { [K in keyof ProcessingActivities]: ProcessingActivities[K] }
 };
 
 const lookups: RegistryLookups = {
+  sequence: 1,
   persons: {
     officer: {
       kra: { outcome: 'found', reason: null, resultId: 'r-kra', checkedAt: '2027-12-10T09:00:00Z' },
@@ -75,8 +76,8 @@ function activities(overrides: Partial<Activities> = {}): Activities {
     runRules: vi.fn(() => Promise.resolve([noPrevious])),
     upsertCase: vi.fn(() => Promise.resolve({ outcome: 'created' as const, caseId: 'case-1' })),
     lookupRegistries: vi.fn(() => Promise.resolve<RegistryLookups | null>(lookups)),
-    matchRegistries: vi.fn(() => Promise.resolve(checked)),
-    registrySweepCandidates: vi.fn(() => Promise.resolve([])),
+    matchAndStoreRegistries: vi.fn(() => Promise.resolve(checked)),
+    planRegistrySweep: vi.fn(() => Promise.resolve([])),
     ...overrides,
   };
 }
@@ -121,24 +122,24 @@ describe('DeclarationProcessingWorkflow', () => {
     // S9: the lookups come after the rules, for the case the version is now on.
     const check = { ...input, caseId: 'case-1' };
     expect(mocks.lookupRegistries).toHaveBeenCalledWith({ check, previous: null });
-    expect(mocks.matchRegistries).toHaveBeenCalledWith({ check, lookups });
+    expect(mocks.matchAndStoreRegistries).toHaveBeenCalledWith({ check, lookups });
     const order = (fn: unknown) => vi.mocked(fn as () => void).mock.invocationCallOrder[0] ?? 0;
     expect(order(mocks.upsertCase)).toBeLessThan(order(mocks.lookupRegistries));
   }, 60_000);
 
   it('S9: a registry check that fails for good leaves the case created', async () => {
-    const matchRegistries = vi.fn(() =>
+    const matchAndStoreRegistries = vi.fn(() =>
       Promise.reject(ApplicationFailure.nonRetryable('gone', VERSION_MISSING)),
     );
 
     const result = await env.execute(declarationProcessing, {
       workflowsPath,
-      activities: activities({ matchRegistries }),
+      activities: activities({ matchAndStoreRegistries }),
       args: [input],
     });
 
     expect(result).toEqual({ outcome: 'created', caseId: 'case-1' });
-    expect(matchRegistries).toHaveBeenCalledTimes(1);
+    expect(matchAndStoreRegistries).toHaveBeenCalledTimes(1);
   }, 60_000);
 
   it('checks the registries of an amended case, and of one already at the version (a re-run)', async () => {
@@ -154,7 +155,7 @@ describe('DeclarationProcessingWorkflow', () => {
       });
 
       expect(result).toEqual({ outcome, caseId: 'case-1' });
-      expect(mocks.matchRegistries).toHaveBeenCalledTimes(1);
+      expect(mocks.matchAndStoreRegistries).toHaveBeenCalledTimes(1);
     }
   }, 60_000);
 

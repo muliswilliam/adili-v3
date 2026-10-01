@@ -21,17 +21,16 @@ export const getIntegrationsCoverage = createServerFn({ method: 'GET' }).handler
     ),
 );
 
-const SYSTEMS = [
-  'iprs',
-  'kra',
-  'ntsa',
-  'brs',
-  'ardhisasa',
-  'payroll',
-  'icms',
-] as const satisfies readonly IntegrationSystem[];
-
-const systemInput = z.object({ system: z.enum(SYSTEMS) });
+/**
+ * A system as the coverage response names it: the page offers Pause and Resume only on the rows
+ * coverage returns, so no list is kept here; the gateway answers 404 for a system without an
+ * adapter.
+ */
+const systemInput = z.object({
+  system: z.custom<IntegrationSystem>(
+    (value) => typeof value === 'string' && /^[a-z][a-z0-9-]*$/.test(value),
+  ),
+});
 
 /**
  * `POST /v1/integrations/{system}/pause`: the system's lookups answer unavailable (paused) until

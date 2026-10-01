@@ -1,3 +1,4 @@
+import { idempotencySchema } from '@adili/api-kit/schema';
 import type { FieldEnvelope } from '@adili/data-access';
 import { eventsSchema } from '@adili/events/schema';
 import {
@@ -11,7 +12,21 @@ import {
   uuid,
 } from 'drizzle-orm/pg-core';
 
-export const SYSTEMS = ['iprs', 'kra', 'ntsa', 'brs', 'ardhisasa', 'payroll', 'icms'] as const;
+/**
+ * Every upstream the gateway calls. `hr-suppliers` is HR's employer supplier lists, asked for the
+ * BRS employer-supplier check: an upstream of its own, so its outages, rate limit and pause never
+ * touch BRS's.
+ */
+export const SYSTEMS = [
+  'iprs',
+  'kra',
+  'ntsa',
+  'brs',
+  'ardhisasa',
+  'hr-suppliers',
+  'payroll',
+  'icms',
+] as const;
 export type System = (typeof SYSTEMS)[number];
 
 export const LOOKUP_OUTCOMES = ['found', 'not-found', 'unavailable'] as const;
@@ -37,8 +52,6 @@ export const LEGAL_BASES = [
   'act-s35-5',
   /** ADR-014: confirm a declarant's identity against the roster at onboarding. */
   'adr-014-onboarding',
-  /** Lookups the declarant asked for while filing (DPA s.30(1)(a)). */
-  'declarant-request',
 ] as const;
 export type LegalBasis = (typeof LEGAL_BASES)[number];
 
@@ -66,6 +79,11 @@ export const verificationResults = pgTable(
     legalBasis: text({ enum: LEGAL_BASES }).notNull(),
     /** The review case (or other record) the lookup was for, as the caller named it. */
     caseRef: text(),
+    /**
+     * The platform person the lookup is about, as the caller named it (`X-Subject-Person`): a
+     * read of the stored result is audited as a read of their data (ADR-008).
+     */
+    subjectPersonId: uuid(),
     /**
      * Base64 AES-256-GCM ciphertext of the normalised answer under the tenant's key, bound to the
      * row id. Only for `found` lookups that act for a tenant.
@@ -99,8 +117,10 @@ export const integrationSettings = pgTable('integration_settings', {
 /** Drizzle schema of the integration-gateway database. Only this service reads or writes it (ADR-013). */
 export const schema = {
   ...eventsSchema,
+  ...idempotencySchema,
   verificationResults,
   integrationSettings,
 };
 
+export * from '@adili/api-kit/schema';
 export * from '@adili/events/schema';

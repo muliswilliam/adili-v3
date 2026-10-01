@@ -7,6 +7,7 @@ import {
   formatPercent,
   isLastSuccessStale,
   summarise,
+  systemInfo,
 } from './coverage';
 
 const NOW = new Date('2026-09-26T07:30:00Z');
@@ -102,5 +103,17 @@ describe('isLastSuccessStale', () => {
       isLastSuccessStale(coverage({ failures24h: 3, lastSuccessAt: '2026-09-26T07:00:00Z' }), NOW),
     ).toBe(false);
     expect(isLastSuccessStale(coverage({ failures24h: 3, paused: true }), NOW)).toBe(false);
+  });
+});
+
+describe('systemInfo', () => {
+  it('describes the systems coverage lists and names any other by its id', () => {
+    expect(systemInfo('kra')).toEqual({
+      name: 'KRA iTax',
+      owner: 'Kenya Revenue Authority',
+      use: 'PIN, tax compliance and income declared to KRA',
+    });
+    expect(systemInfo('hr-suppliers').name).toBe('HR supplier lists');
+    expect(systemInfo('icms')).toEqual({ name: 'ICMS', owner: null, use: null });
   });
 });

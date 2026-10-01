@@ -12,8 +12,10 @@ import {
   formatTime,
   Icon,
   type IconProps,
+  Meter,
   Skeleton,
   StatTile,
+  StatTileSkeleton,
   SystemStatusList,
   SystemStatusRow,
 } from '@adili/ui';
@@ -25,10 +27,8 @@ import {
   Car01Icon,
   CheckmarkCircle02Icon,
   Clock01Icon,
-  Flag01Icon,
   InformationCircleIcon,
   Location01Icon,
-  Money03Icon,
   PauseIcon,
   PlugSocketIcon,
   RefreshIcon,
@@ -50,19 +50,17 @@ import {
   formatPercent,
   isLastSuccessStale,
   summarise,
-  SYSTEMS,
+  systemInfo,
 } from './coverage';
 import { messages as m } from './messages';
 import { PauseControl, type SetPaused } from './pause-control';
 
-const ICONS: Record<IntegrationSystem, IconProps['icon']> = {
+const ICONS: Partial<Record<IntegrationSystem, IconProps['icon']>> = {
   iprs: UserIcon,
   kra: BankIcon,
   ntsa: Car01Icon,
   brs: Briefcase01Icon,
   ardhisasa: Location01Icon,
-  payroll: Money03Icon,
-  icms: Flag01Icon,
 };
 
 const TILES = 'grid grid-cols-2 gap-3 min-[980px]:grid-cols-4';
@@ -204,7 +202,7 @@ function Coverage({
           value={summary.paused.length}
           description={
             summary.paused.length > 0
-              ? summary.paused.map((row) => SYSTEMS[row.system].name).join(', ')
+              ? summary.paused.map((row) => systemInfo(row.system).name).join(', ')
               : m.noneHint
           }
         />
@@ -242,7 +240,7 @@ function Alerts({ rows, now }: { rows: SystemCoverage[]; now: Date }) {
         <Alert key={row.system} variant="destructive">
           <Icon icon={BanIcon} />
           <AlertDescription>
-            <b className="font-semibold">{m.notResponding(SYSTEMS[row.system].name)}</b>{' '}
+            <b className="font-semibold">{m.notResponding(systemInfo(row.system).name)}</b>{' '}
             {m.notRespondingDetail(
               formatLastSuccess(row.lastSuccessAt, now, m.never).toLowerCase(),
             )}
@@ -253,7 +251,7 @@ function Alerts({ rows, now }: { rows: SystemCoverage[]; now: Date }) {
         <Alert key={row.system} variant="warning" role="status">
           <Icon icon={Activity01Icon} />
           <AlertDescription>
-            <b className="font-semibold">{m.recovering(SYSTEMS[row.system].name)}</b>{' '}
+            <b className="font-semibold">{m.recovering(systemInfo(row.system).name)}</b>{' '}
             {m.recoveringDetail}
           </AlertDescription>
         </Alert>
@@ -262,7 +260,7 @@ function Alerts({ rows, now }: { rows: SystemCoverage[]; now: Date }) {
         <Alert key={row.system} variant="info" role="status">
           <Icon icon={PauseIcon} />
           <AlertDescription>
-            <b className="font-semibold">{m.paused(SYSTEMS[row.system].name)}</b>{' '}
+            <b className="font-semibold">{m.paused(systemInfo(row.system).name)}</b>{' '}
             {row.pausedBy && row.pausedAt
               ? `${m.pausedSince(row.pausedBy, formatTime(row.pausedAt))} `
               : null}
@@ -275,12 +273,12 @@ function Alerts({ rows, now }: { rows: SystemCoverage[]; now: Date }) {
 }
 
 function SystemRow({ row, now, action }: { row: SystemCoverage; now: Date; action: ReactNode }) {
-  const system = SYSTEMS[row.system];
+  const system = systemInfo(row.system);
   return (
     <SystemStatusRow
       name={system.name}
-      icon={ICONS[row.system]}
-      description={system.use}
+      icon={ICONS[row.system] ?? PlugSocketIcon}
+      description={system.use ?? undefined}
       data-system={row.system}
       metrics={<Metrics row={row} now={now} />}
       action={action}
@@ -310,12 +308,7 @@ function Metrics({ row, now }: { row: SystemCoverage; now: Date }) {
       <Metric term={m.hitRate}>
         <span className="flex items-center gap-2">
           <span className="w-10">{formatPercent(row.cacheHitRate)}</span>
-          <span aria-hidden="true" className="h-1.5 w-[54px] overflow-hidden rounded-full bg-muted">
-            <span
-              className="block h-full rounded-full bg-secondary-foreground"
-              style={{ width: formatPercent(row.cacheHitRate) }}
-            />
-          </span>
+          <Meter value={row.cacheHitRate} />
         </span>
       </Metric>
       <Metric term={m.lastSuccess}>
@@ -363,8 +356,9 @@ function Details({ row }: { row: SystemCoverage }) {
       <AlertDescription>{m.breakerHalfOpenCallout}</AlertDescription>
     </Alert>
   ) : null;
+  const { owner } = systemInfo(row.system);
   const items: [string, string][] = [
-    [m.operatedBy, SYSTEMS[row.system].owner],
+    ...(owner === null ? [] : [[m.operatedBy, owner] satisfies [string, string]]),
     [m.rateLimit, m.rateLimitValue(row.rateLimitPerMinute)],
     [m.cacheLifetime, m.cacheLifetimeValue(formatDuration(row.cacheTtlSeconds))],
     [m.failedCalls, formatNumber(row.failures24h)],
@@ -394,16 +388,13 @@ function CoverageSkeleton() {
     <div aria-busy="true" aria-label={m.loadingLabel} className="flex flex-col gap-[18px]">
       <div className={TILES}>
         {Array.from({ length: 4 }, (_, index) => (
-          <div key={index} className="flex flex-col gap-2 rounded-2xl bg-card p-4 shadow-card">
-            <Skeleton className="w-1/2" />
-            <Skeleton className="my-1 h-6 w-1/3" />
-          </div>
+          <StatTileSkeleton key={index} />
         ))}
       </div>
       <Skeleton className="h-12 w-full rounded-lg" />
-      <div className="overflow-hidden rounded-item bg-card shadow-card">
+      <SystemStatusList aria-hidden="true">
         {Array.from({ length: 5 }, (_, index) => (
-          <div
+          <li
             key={index}
             className="flex items-center gap-3 border-t border-border/60 px-3.5 py-3 first:border-t-0"
           >
@@ -414,9 +405,9 @@ function CoverageSkeleton() {
             </div>
             <Skeleton className="hidden w-80 sm:block" />
             <Skeleton className="h-6 w-20 rounded-full" />
-          </div>
+          </li>
         ))}
-      </div>
+      </SystemStatusList>
     </div>
   );
 }

@@ -68,6 +68,11 @@ export interface RegistryContext {
   legalBasis: RegistryLegalBasis;
   /** The review case the lookup is for. */
   caseRef: string;
+  /**
+   * The case's declarant: the gateway records it on the result, so each read of the stored
+   * result is audited as a read of their data (ADR-008).
+   */
+  subjectPersonId: string;
 }
 
 /**
@@ -128,4 +133,11 @@ export abstract class IntegrationGatewayClient {
    * gateway cannot be reached or cannot decrypt now.
    */
   abstract getStoredResult(resultId: string, tenant: string): Promise<StoredResult | null>;
+
+  /**
+   * `getRegistryRateLimits`: the calls per minute the gateway sends each system (by the
+   * gateway's system names, `hr-suppliers` among them), for pacing batch work under them. Throws
+   * `IntegrationGatewayUnavailable` when the gateway cannot be reached.
+   */
+  abstract getRegistryRateLimits(): Promise<Record<string, number>>;
 }

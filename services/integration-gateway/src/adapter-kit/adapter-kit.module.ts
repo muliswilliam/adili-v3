@@ -69,6 +69,12 @@ export const OPENBAO = { url: config.OPENBAO_ADDR, token: config.OPENBAO_TOKEN }
           ratePerMinute: config.ARDHISASA_RATE_LIMIT_PER_MINUTE,
           maxQueueMs: config.RATE_LIMIT_MAX_WAIT_MS,
         },
+        'hr-suppliers': {
+          timeoutMs: config.HR_SUPPLIERS_TIMEOUT_MS,
+          cacheTtlSeconds: config.HR_SUPPLIERS_CACHE_TTL_SECONDS,
+          ratePerMinute: config.HR_SUPPLIERS_RATE_LIMIT_PER_MINUTE,
+          maxQueueMs: config.RATE_LIMIT_MAX_WAIT_MS,
+        },
       } satisfies SystemPolicies,
     },
   ],

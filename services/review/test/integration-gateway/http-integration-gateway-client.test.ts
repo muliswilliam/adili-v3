@@ -102,7 +102,13 @@ describe('HttpIntegrationGatewayClient', () => {
 /** The registry lookups, supplier check and stored results as integration-gateway.yaml has them. */
 describe('HttpIntegrationGatewayClient: registries', () => {
   const caseRef = '0199b000-0000-7000-8000-0000000000e1';
-  const context = { tenant: 'kemsa', legalBasis: 'regs-r20-1-b', caseRef } as const;
+  const subjectPersonId = '0199b000-0000-7000-8000-0000000000a1';
+  const context = {
+    tenant: 'kemsa',
+    legalBasis: 'regs-r20-1-b',
+    caseRef,
+    subjectPersonId,
+  } as const;
   const envelope = {
     resultId: '0199b000-0000-7000-8000-0000000000f1',
     system: 'ntsa',
@@ -130,7 +136,7 @@ describe('HttpIntegrationGatewayClient: registries', () => {
   const answering = (body: unknown, status = 200) =>
     vi.fn<typeof globalThis.fetch>(() => Promise.resolve(Response.json(body, { status })));
 
-  it('posts the national ID in the body, acting for the Commission with the legal basis and the case', async () => {
+  it('posts the national ID in the body, acting for the Commission with the legal basis, the case and its declarant', async () => {
     const fetch = answering({ ...envelope, vehicles });
 
     const result = await client(fetch).lookupRegistry('ntsa', '27451863', context);
@@ -145,6 +151,7 @@ describe('HttpIntegrationGatewayClient: registries', () => {
       'x-acting-tenant': 'kemsa',
       'x-legal-basis': 'regs-r20-1-b',
       'x-case-ref': caseRef,
+      'x-subject-person': subjectPersonId,
     });
   });
 
@@ -191,8 +198,20 @@ describe('HttpIntegrationGatewayClient: registries', () => {
     }
   });
 
+  it('reads the rate limits by system, with no acting tenant', async () => {
+    const fetch = answering([
+      { system: 'kra', ratePerMinute: 30 },
+      { system: 'hr-suppliers', ratePerMinute: 60 },
+    ]);
+
+    expect(await client(fetch).getRegistryRateLimits()).toEqual({ kra: 30, 'hr-suppliers': 60 });
+    const request = fetch.mock.calls[0]?.[0] as Request;
+    expect(request.url).toBe('http://gateway.test/internal/v1/registry-rate-limits');
+    expect(request.headers.has('x-acting-tenant')).toBe(false);
+  });
+
   it('checks a company against the employer supplier list, with the number in the path', async () => {
-    const fetch = answering({ ...envelope, system: 'brs', supplies: true });
+    const fetch = answering({ ...envelope, system: 'hr-suppliers', supplies: true });
 
     const result = await client(fetch).checkSupplier('PVT-9XYZ2L4Q', 'KEMSA', context);
 

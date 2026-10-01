@@ -29,6 +29,20 @@
       "when": 1790892404794,
       "tag": "0003_integration_settings",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1790895153713,
+      "tag": "0004_verification_subject_person",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1790895382464,
+      "tag": "0005_idempotency_keys",
+      "breakpoints": true
     }
   ]
 }

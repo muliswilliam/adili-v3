@@ -11,7 +11,7 @@ import { RegistryWorkflows } from './registry-workflows.js';
 /**
  * Registry cross-checks (spec 07b) on the API side: the Registry tab of a case, a re-check, and
  * the schedule of the hourly sweep of cases with a registry unavailable. The check and the sweep
- * (`RegistryCheckWorkflow`, `RegistryUnavailableSweep`) and their activities run on the review
+ * (workflows `registryCheck` and `registrySweep`) and their activities run on the review
  * worker (ProcessingModule).
  */
 @Module({
