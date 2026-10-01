@@ -12,8 +12,10 @@ import {
   formatTime,
   Icon,
   type IconProps,
+  Meter,
   Skeleton,
   StatTile,
+  StatTileSkeleton,
   SystemStatusList,
   SystemStatusRow,
 } from '@adili/ui';
@@ -310,12 +312,7 @@ function Metrics({ row, now }: { row: SystemCoverage; now: Date }) {
       <Metric term={m.hitRate}>
         <span className="flex items-center gap-2">
           <span className="w-10">{formatPercent(row.cacheHitRate)}</span>
-          <span aria-hidden="true" className="h-1.5 w-[54px] overflow-hidden rounded-full bg-muted">
-            <span
-              className="block h-full rounded-full bg-secondary-foreground"
-              style={{ width: formatPercent(row.cacheHitRate) }}
-            />
-          </span>
+          <Meter value={row.cacheHitRate} />
         </span>
       </Metric>
       <Metric term={m.lastSuccess}>
@@ -394,16 +391,13 @@ function CoverageSkeleton() {
     <div aria-busy="true" aria-label={m.loadingLabel} className="flex flex-col gap-[18px]">
       <div className={TILES}>
         {Array.from({ length: 4 }, (_, index) => (
-          <div key={index} className="flex flex-col gap-2 rounded-2xl bg-card p-4 shadow-card">
-            <Skeleton className="w-1/2" />
-            <Skeleton className="my-1 h-6 w-1/3" />
-          </div>
+          <StatTileSkeleton key={index} />
         ))}
       </div>
       <Skeleton className="h-12 w-full rounded-lg" />
-      <div className="overflow-hidden rounded-item bg-card shadow-card">
+      <SystemStatusList aria-hidden="true">
         {Array.from({ length: 5 }, (_, index) => (
-          <div
+          <li
             key={index}
             className="flex items-center gap-3 border-t border-border/60 px-3.5 py-3 first:border-t-0"
           >
@@ -414,9 +408,9 @@ function CoverageSkeleton() {
             </div>
             <Skeleton className="hidden w-80 sm:block" />
             <Skeleton className="h-6 w-20 rounded-full" />
-          </div>
+          </li>
         ))}
-      </div>
+      </SystemStatusList>
     </div>
   );
 }

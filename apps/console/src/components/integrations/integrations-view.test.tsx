@@ -365,6 +365,15 @@ describe('S15 Integrations page', () => {
     });
   });
 
+  it('draws the cache hit rate as a decorative bar beside its percentage', () => {
+    renderView();
+
+    const kra = within(row('kra'));
+    const bar = kra.getByText('38%').nextElementSibling as HTMLElement;
+    expect(bar.getAttribute('aria-hidden')).toBe('true');
+    expect((bar.firstElementChild as HTMLElement).style.width).toBe('38%');
+  });
+
   it('says so when no system has an adapter', () => {
     renderView({ result: ok([]) });
 
