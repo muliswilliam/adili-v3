@@ -26,10 +26,13 @@ function row(name: string) {
 }
 
 describe('formatFileSize', () => {
-  it('prints megabytes to one place and kilobytes whole', () => {
+  it('prints megabytes to one place, kilobytes whole and bytes under a kilobyte', () => {
     expect(formatFileSize(1843200)).toBe('1.8 MB');
     expect(formatFileSize(245760)).toBe('240 KB');
-    expect(formatFileSize(100)).toBe('1 KB');
+    expect(formatFileSize(1024)).toBe('1 KB');
+    expect(formatFileSize(1023)).toBe('1023 bytes');
+    expect(formatFileSize(266)).toBe('266 bytes');
+    expect(formatFileSize(1)).toBe('1 byte');
   });
 });
 

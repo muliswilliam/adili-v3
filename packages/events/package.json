@@ -14,6 +14,14 @@
     "./schema": {
       "types": "./dist/schema.d.ts",
       "default": "./dist/schema.js"
+    },
+    "./contracts": {
+      "types": "./dist/contracts/index.d.ts",
+      "default": "./dist/contracts/index.js"
+    },
+    "./contracts/schemas": {
+      "types": "./dist/contracts/schemas.d.ts",
+      "default": "./dist/contracts/schemas.js"
     }
   },
   "scripts": {
@@ -28,6 +36,7 @@
   "dependencies": {
     "@adili/api-kit": "workspace:*",
     "@adili/data-access": "workspace:*",
+    "@adili/numbering": "workspace:*",
     "amqp-connection-manager": "^5.0.0",
     "amqplib": "^2.0.1",
     "drizzle-orm": "^0.45.3",

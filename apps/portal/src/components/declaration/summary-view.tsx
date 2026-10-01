@@ -19,6 +19,7 @@ import {
   Alert02Icon,
   CloudSavingDone01Icon,
   PencilEdit02Icon,
+  SecurityCheckIcon,
   SentIcon,
   Tick02Icon,
 } from '@hugeicons/core-free-icons';
@@ -32,7 +33,11 @@ import { isSaving } from './autosave';
 import { CompletenessBadge } from './completeness-badge';
 import type { Draft, Statement } from '../../declaration/contents';
 import { HR_LABELS, SUMMARY_COPY } from '../../declaration/copy';
+import { amendingFrom, useAmendmentDiscarded } from './amendment-banner';
+import { DiscardAmendmentButton } from './discard-amendment-dialog';
 import { DiscardDraftButton } from './discard-dialog';
+import { AffirmationDialog, StepUpFailedAlert, useSubmitFlow } from './submit-flow';
+import { type StepUpMarker, SUBMIT_COPY } from './submit';
 import { fullName, orUnanswered, UNANSWERED } from '../../declaration/format';
 import { sourceDetails } from '../../declaration/item-source';
 import { OFFICER_KEY, statementSectionKey } from '../../declaration/section-key';
@@ -75,7 +80,6 @@ import {
   spousesEmptyText,
   statementTotals,
   submitNote,
-  todayInKenya,
 } from './summary';
 import { useWorkspace } from './workspace';
 
@@ -122,14 +126,22 @@ function ErrorsLink({
   );
 }
 
-function BlockingPanel({ summary, sections }: { summary: LoadedSummary; sections: Sections }) {
+function BlockingPanel({
+  declarationId,
+  blocking,
+  sections,
+}: {
+  declarationId: string;
+  blocking: LoadedSummary['blocking'];
+  sections: Sections;
+}) {
   const headingId = useId();
-  const { groups, hidden } = blockingGroups(summary.blocking, sections);
+  const { groups, hidden } = blockingGroups(blocking, sections);
   return (
     <section aria-labelledby={headingId} className="grid gap-3 rounded-lg bg-warning-subtle p-5">
       <h2 id={headingId} className="flex items-center gap-2 text-base font-semibold">
         <Icon icon={Alert02Icon} className="size-5 text-warning" />
-        {blockingTitle(summary.blocking.length)}
+        {blockingTitle(blocking.length)}
       </h2>
       <ul className="grid gap-3">
         {groups.map((group) => (
@@ -138,7 +150,7 @@ function BlockingPanel({ summary, sections }: { summary: LoadedSummary; sections
             <ul className="grid gap-1 pl-4 text-sm">
               {group.issues.map((issue) => (
                 <li key={`${issue.path}-${issue.code}-${issue.message}`} className="list-disc">
-                  <ErrorsLink declarationId={summary.declaration.id} step={group.key}>
+                  <ErrorsLink declarationId={declarationId} step={group.key}>
                     {issue.message}
                   </ErrorsLink>
                 </li>
@@ -700,28 +712,59 @@ function useFreshSummary(loaded: LoadedSummary): LoadedSummary {
 
 export interface SummaryViewProps {
   summary: LoadedSummary;
-  /** Today as an ISO date; defaults to today in Kenya. */
-  today?: string;
+  /** Set when the summary was opened on the way back from a step-up (`?stepUp=`). */
+  stepUpMarker?: StepUpMarker | null;
 }
 
 /**
  * The summary (FE-8): what blocks submission with links to fix it, one card per paragraph of
  * the First Schedule with its completeness and an Edit link, the solemn declaration, and
- * Submit, which stays disabled in spec 05 with the reason (S20).
+ * Submit (spec 06 FE-2): enabled when the service says `canSubmit`, it confirms the
+ * declarant's identity with a one-time code, then asks them to affirm the solemn declaration
+ * and files it. Disabled, it says why (S20).
  */
-export function SummaryView({ summary: loaded, today }: SummaryViewProps) {
+export function SummaryView({ summary: loaded, stepUpMarker = null }: SummaryViewProps) {
   const summary = useFreshSummary(loaded);
   const navigate = useNavigate();
   const { declaration } = summary;
+  const flow = useSubmitFlow(declaration.id, stepUpMarker, summary.canSubmit);
+  const { state } = flow;
   const document = readSummaryDocument(summary.document);
   const noteId = useId();
   const solemnId = useId();
   const isDraft = declaration.status === 'draft';
+  const fromVersion = amendingFrom(declaration);
+  const nextVersion = fromVersion === null ? null : fromVersion + 1;
+  const amendmentDiscarded = useAmendmentDiscarded(fromVersion ?? 0);
+  // A summary read after a 400 is fresher than what the 400 said blocks.
+  const { dispatch } = flow;
+  const [shownSummary, setShownSummary] = useState(summary);
+  if (shownSummary !== summary) {
+    setShownSummary(summary);
+    dispatch({ type: 'summary-refreshed' });
+  }
+  // A 400 from submit is fresher than the summary it followed: show what it says blocks.
+  const blocking = state.step === 'incomplete' ? state.blocking : summary.blocking;
+  const cannotSubmitReason =
+    state.step === 'incomplete' ? 'incomplete' : summary.cannotSubmitReason;
+  const canSubmit = cannotSubmitReason === null;
+  const note = submitNote({ cannotSubmitReason, blocking, declaration });
 
   return (
     <div className="grid gap-6">
-      {summary.blocking.length > 0 ? (
-        <BlockingPanel summary={summary} sections={declaration.sections} />
+      {state.step === 'step-up-failed' ? (
+        <StepUpFailedAlert
+          onRetry={() => {
+            flow.dispatch({ type: 'submit-pressed' });
+          }}
+        />
+      ) : null}
+      {blocking.length > 0 ? (
+        <BlockingPanel
+          declarationId={declaration.id}
+          blocking={blocking}
+          sections={declaration.sections}
+        />
       ) : (
         <Alert variant="success">
           <Icon icon={Tick02Icon} />
@@ -744,26 +787,50 @@ export function SummaryView({ summary: loaded, today }: SummaryViewProps) {
         <blockquote className="border-l-2 border-border pl-4 text-[15px]">
           "{summary.attestationText}"
         </blockquote>
+        <p className="text-[13px] text-muted-foreground">{SUBMIT_COPY.noSignature}</p>
       </section>
 
-      <Card className="flex flex-wrap items-center gap-4 p-5">
-        <div className="grid flex-1 gap-0.5">
-          <p className="font-semibold">Submit your declaration</p>
-          <p id={noteId} className="text-sm text-muted-foreground">
-            {submitNote(summary, today ?? todayInKenya())}
+      <Card className="flex-row flex-wrap items-center gap-4 p-5">
+        <div className="grid min-w-[220px] flex-1 gap-0.5">
+          <p className="font-semibold">{SUBMIT_COPY.title(nextVersion)}</p>
+          <p id={noteId} className="flex items-center gap-1.5 text-sm text-muted-foreground">
+            {canSubmit ? <Icon icon={SecurityCheckIcon} className="size-4 shrink-0" /> : null}
+            {note}
           </p>
         </div>
-        <Button type="button" disabled aria-describedby={noteId}>
+        <Button
+          type="button"
+          disabled={!canSubmit || state.step === 'stepping-up'}
+          aria-describedby={noteId}
+          onClick={() => {
+            flow.dispatch({ type: 'submit-pressed' });
+          }}
+        >
           <Icon icon={SentIcon} />
-          Submit declaration
+          {SUBMIT_COPY.submit}
         </Button>
       </Card>
+      <AffirmationDialog
+        flow={flow}
+        attestationText={summary.attestationText}
+        statementDate={declaration.statementDate}
+        dueDate={declaration.dueDate}
+        late={summary.late}
+        nextVersion={nextVersion}
+      />
 
       <div className="flex flex-wrap items-center justify-between gap-3">
         {isDraft ? (
           <DiscardDraftButton
             declarationId={declaration.id}
             onDiscarded={() => navigate({ to: '/', search: { discarded: true } })}
+          />
+        ) : fromVersion !== null ? (
+          <DiscardAmendmentButton
+            declarationId={declaration.id}
+            fromVersion={fromVersion}
+            withIcon
+            onDiscarded={amendmentDiscarded}
           />
         ) : (
           <span />

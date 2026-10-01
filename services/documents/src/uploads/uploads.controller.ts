@@ -2,26 +2,31 @@ import { Body, Controller, Get, HttpCode, HttpStatus, Param, Post } from '@nestj
 import {
   ApiBody,
   ApiCreatedResponse,
+  ApiNoContentResponse,
   ApiOkResponse,
   ApiOperation,
   ApiParam,
   ApiTags,
 } from '@nestjs/swagger';
 import {
+  AcceptIdempotencyKey,
+  ActingTenant,
   ApiProblemResponse,
   AuditedRead,
   CurrentPrincipal,
+  InternalApi,
   type Principal,
   RequireIdempotencyKey,
   schemaRef,
   ZodValidationPipe,
 } from '@adili/api-kit';
+import { DOCUMENTS_INTERNAL_SCOPE } from '@adili/roles';
 import { z } from 'zod';
 
-import { ActingTenant, InternalApi } from '../internal/acting-tenant.js';
 import {
   type CreateUploadBody,
   createUploadBody,
+  type InternalUpload,
   type Upload,
   type UploadDownload,
   type UploadReservation,
@@ -33,7 +38,8 @@ const ApiUploadIdParam = () => ApiParam({ name: 'id', schema: { type: 'string', 
 
 /**
  * Uploads for the caller's tenant. Who may upload is decided per purpose (roster-import:
- * reporting-officer), so the service checks roles rather than a controller-level `@Roles`.
+ * reporting-officer; declaration-attachment: declarant), so the service checks roles rather than
+ * a controller-level `@Roles`.
  */
 @ApiTags('uploads')
 @Controller('v1/uploads')
@@ -46,7 +52,7 @@ export class UploadsController {
     operationId: 'createUpload',
     summary: 'Reserve an upload and get a presigned PUT to quarantine',
     description:
-      "The purpose's roles only (roster-import: reporting-officer). The PUT URL is valid for 15 minutes and accepts exactly the declared Content-Type and size.",
+      "The purpose's roles only (roster-import: reporting-officer; declaration-attachment: declarant). The PUT URL is valid for 15 minutes and accepts exactly the declared Content-Type and size.",
   })
   @ApiBody({ required: true, schema: schemaRef('CreateUpload') })
   @ApiCreatedResponse({
@@ -68,7 +74,7 @@ export class UploadsController {
     operationId: 'getUpload',
     summary: 'Upload state and metadata',
     description:
-      "Uploads of the caller's tenant whose purpose the caller's roles cover; any other is 404.",
+      "Uploads of the caller's tenant whose purpose the caller's roles cover, and declaration attachments only to the declarant who uploaded them; any other is 404.",
   })
   @ApiOkResponse({ description: 'The upload', schema: schemaRef('Upload') })
   @ApiProblemResponse(404, 'Not found, or not visible to the caller')
@@ -110,9 +116,27 @@ export class UploadsController {
 /** Internal: not routed by the public entrypoint. Callers are services acting for a tenant. */
 @ApiTags('internal')
 @Controller('internal/v1/uploads')
-@InternalApi()
+@InternalApi(DOCUMENTS_INTERNAL_SCOPE)
 export class InternalUploadsController {
   constructor(private readonly uploads: UploadsService) {}
+
+  @Get(':id')
+  @ApiUploadIdParam()
+  @ApiOperation({
+    operationId: 'getInternalUpload',
+    summary: 'Upload state and metadata, for services',
+    description:
+      'Service tokens with scope documents:internal, acting for the tenant in X-Acting-Tenant. Any state; with who uploaded it and whether it is linked. Hands out no bytes, so unlike the download it is no audited read.',
+  })
+  @ApiOkResponse({ description: 'The upload', schema: schemaRef('InternalUpload') })
+  @ApiProblemResponse(404, "Not found, or not the acting tenant's upload")
+  get(
+    @CurrentPrincipal() principal: Principal,
+    @ActingTenant() tenant: string,
+    @Param('id', uploadId) id: string,
+  ): Promise<InternalUpload> {
+    return this.uploads.getForService(principal, tenant, id);
+  }
 
   @Get(':id/download')
   @AuditedRead({ action: 'upload.download.issued', resource: 'upload' })
@@ -135,5 +159,45 @@ export class InternalUploadsController {
     @Param('id', uploadId) id: string,
   ): Promise<UploadDownload> {
     return this.uploads.download(principal, tenant, id);
+  }
+
+  @Post(':id/linked')
+  @ApiUploadIdParam()
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @AcceptIdempotencyKey()
+  @ApiOperation({
+    operationId: 'markUploadLinked',
+    summary: 'Record that the owning service linked a clean upload',
+    description:
+      'Service tokens with scope documents:internal, acting for the tenant in X-Acting-Tenant. The owning service calls it when it links a clean upload to its record (declarations: an attachment on an item), so the upload is not an orphan: a declaration attachment left unlinked for 30 days is deleted. Idempotent: the first link time is kept.',
+  })
+  @ApiNoContentResponse({ description: 'Link recorded' })
+  @ApiProblemResponse(404, "Not found, or not the acting tenant's upload")
+  @ApiProblemResponse(409, 'Problem type `upload-not-clean`: the upload is not clean')
+  markLinked(
+    @CurrentPrincipal() principal: Principal,
+    @ActingTenant() tenant: string,
+    @Param('id', uploadId) id: string,
+  ): Promise<void> {
+    return this.uploads.markLinked(principal, tenant, id);
+  }
+
+  @Post(':id/unlinked')
+  @ApiUploadIdParam()
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({
+    operationId: 'markUploadUnlinked',
+    summary: 'Record that the owning service took its link to an upload back',
+    description:
+      'Service tokens with scope documents:internal, acting for the tenant in X-Acting-Tenant. The owning service calls it when it removes the record an upload was linked to (declarations: an attachment unlinked, or a draft discarded); a declaration attachment left unlinked for 30 days is deleted. Idempotent: an upload that is not linked is left as it is.',
+  })
+  @ApiNoContentResponse({ description: 'Link taken back' })
+  @ApiProblemResponse(404, "Not found, or not the acting tenant's upload")
+  markUnlinked(
+    @CurrentPrincipal() principal: Principal,
+    @ActingTenant() tenant: string,
+    @Param('id', uploadId) id: string,
+  ): Promise<void> {
+    return this.uploads.markUnlinked(principal, tenant, id);
   }
 }

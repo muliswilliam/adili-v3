@@ -118,7 +118,7 @@ export function CommissionPicker({
   if (!open && selected) {
     return (
       <div className="flex items-center gap-3 rounded-lg bg-card px-3.5 py-3 ring-[1.5px] ring-foreground">
-        <CodeChip code={selected.issuerCode} className="h-[30px] rounded-[7px] text-xs" />
+        <CodeChip code={selected.issuerCode} className="h-[30px] rounded-sm text-xs" />
         <p className="min-w-0 flex-1 leading-[1.3] font-semibold">{selected.name}</p>
         <Button
           ref={changeRef}
@@ -193,9 +193,9 @@ export function CommissionPicker({
               onMouseMove={() => {
                 setActive(index);
               }}
-              className="flex cursor-pointer items-center gap-3 rounded-[9px] p-2.5 select-none hover:bg-muted data-active:bg-muted aria-selected:bg-muted"
+              className="flex cursor-pointer items-center gap-3 rounded-md p-2.5 select-none hover:bg-muted data-active:bg-muted aria-selected:bg-muted"
             >
-              <CodeChip code={entry.issuerCode} className="h-[26px] rounded-md text-[11.5px]" />
+              <CodeChip code={entry.issuerCode} className="h-[26px] rounded-sm text-[11.5px]" />
               <span className="min-w-0 flex-1 text-[14.5px] leading-[1.3] font-medium">
                 {entry.name}
                 {entry.hasRoster ? null : (

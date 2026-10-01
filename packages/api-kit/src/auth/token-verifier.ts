@@ -1,4 +1,5 @@
 import { createRemoteJWKSet, type JWTPayload, jwtVerify, type JWTVerifyGetKey } from 'jose';
+import { z } from 'zod';
 
 import type { Principal } from './principal.js';
 
@@ -10,9 +11,13 @@ interface KeycloakClaims extends JWTPayload {
   scope?: string;
   name?: string;
   preferred_username?: string;
-  acr?: string;
-  auth_time?: number;
+  /** The account's person, from the `person_id` user attribute (declarants once onboarded). */
+  person_id?: string;
+  acr?: unknown;
+  auth_time?: unknown;
 }
+
+const personIdSchema = z.uuid();
 
 /** Verifies Keycloak access tokens against the realm's published signing keys. */
 export class TokenVerifier {
@@ -42,8 +47,11 @@ export class TokenVerifier {
       clientId: payload.azp ?? null,
       name: payload.name ?? payload.preferred_username ?? null,
       issuedAt: payload.iat ?? null,
-      ...(typeof payload.acr === 'string' ? { acr: payload.acr } : {}),
-      ...(typeof payload.auth_time === 'number' ? { authTime: payload.auth_time } : {}),
+      // Person ids are UUIDs (RLS casts them); anything else links the account to no person.
+      personId: personIdSchema.safeParse(payload.person_id).data ?? null,
+      acr: typeof payload.acr === 'string' ? payload.acr : null,
+      authTime: Number.isSafeInteger(payload.auth_time) ? (payload.auth_time as number) : null,
+      tokenId: typeof payload.jti === 'string' && payload.jti !== '' ? payload.jti : null,
     };
   }
 }

@@ -4,7 +4,7 @@ import { Controller, Get, NotFoundException, Param } from '@nestjs/common';
 import { APP_INTERCEPTOR } from '@nestjs/core';
 import { FastifyAdapter, type NestFastifyApplication } from '@nestjs/platform-fastify';
 import { Test } from '@nestjs/testing';
-import { AuditedRead, AuditedTenant, type SetAuditedTenant } from '@adili/api-kit';
+import { AuditedRead, CurrentReadAudit, type ReadAudit } from '@adili/api-kit';
 import { DATABASE } from '@adili/data-access';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
@@ -27,14 +27,15 @@ class RecordsController {
   }
 }
 
-/** A read by id across tenants: the handler names the tenant whose record it returned. */
-@Controller('v1/reports')
-class ReportsController {
-  @Get(':reportId')
-  @AuditedRead({ action: 'report.viewed', resource: 'report' })
-  get(@Param('reportId') reportId: string, @AuditedTenant() audit: SetAuditedTenant) {
-    audit('psc');
-    return { id: reportId };
+/** A resource loaded by id: the handler says whose it is once loaded. */
+@Controller('v1/things')
+class ThingsController {
+  @Get(':id')
+  @AuditedRead({ action: 'thing.viewed', resource: 'thing' })
+  get(@Param('id') id: string, @CurrentReadAudit() audit: ReadAudit) {
+    if (id === 'mine') audit.ownRecord();
+    else audit.resource({ tenant: 'tsc', subjectPersonId: 'person-1' });
+    return { id };
   }
 }
 
@@ -52,7 +53,7 @@ let app: NestFastifyApplication;
 
 beforeAll(async () => {
   const moduleRef = await Test.createTestingModule({
-    controllers: [RecordsController, ReportsController],
+    controllers: [RecordsController, ThingsController],
     providers: [
       { provide: EventPublisher, useValue: publisher },
       { provide: DATABASE, useValue: {} },
@@ -90,7 +91,12 @@ describe('AuditedReadInterceptor', () => {
         data: {
           action: 'roster.record.viewed',
           // Path parameters only: the query may hold a search for a national ID.
-          resource: { type: 'roster-record', params: { slug: 'psc', recordId: 'rec-1' } },
+          resource: {
+            type: 'roster-record',
+            params: { slug: 'psc', recordId: 'rec-1' },
+            tenant: 'psc',
+            subjectPersonId: null,
+          },
           actor: { subject: 'anonymous', clientId: null, tenant: null, roles: [] },
           outcome: 'success',
           request: { method: 'GET', route: '/v1/commissions/:slug/records/:recordId' },
@@ -99,18 +105,32 @@ describe('AuditedReadInterceptor', () => {
     ]);
   });
 
-  it('records the tenant the handler named, for a route that names none', async () => {
-    const response = await app.inject({ method: 'GET', url: '/v1/reports/rep-1' });
+  it('files the read under the tenant and person the handler names', async () => {
+    const response = await app.inject({ method: 'GET', url: '/v1/things/thing-1' });
 
     expect(response.statusCode).toBe(200);
-    expect(recorded).toEqual([
-      expect.objectContaining({
-        tenant: 'psc',
-        data: expect.objectContaining({
-          resource: { type: 'report', params: { reportId: 'rep-1' } },
-        }) as unknown,
-      }),
+    expect(recorded).toMatchObject([
+      {
+        type: AUDIT_READ,
+        tenant: 'tsc',
+        data: {
+          action: 'thing.viewed',
+          resource: {
+            type: 'thing',
+            params: { id: 'thing-1' },
+            tenant: 'tsc',
+            subjectPersonId: 'person-1',
+          },
+        },
+      },
     ]);
+  });
+
+  it('records nothing when the caller read their own record', async () => {
+    const response = await app.inject({ method: 'GET', url: '/v1/things/mine' });
+
+    expect(response.statusCode).toBe(200);
+    expect(recorded).toEqual([]);
   });
 
   it('records nothing for routes without the mark, or reads that failed', async () => {

@@ -2,6 +2,8 @@ import { baseEnvSchema, loadConfig } from '@adili/api-kit';
 import { z } from 'zod';
 
 export const SERVICE_NAME = 'documents';
+/** The subject of the service's own work (events it handles, sweeps): `issuedBy` of its slips. */
+export const SYSTEM_SUBJECT = `system:${SERVICE_NAME}`;
 export const SERVICE_DESCRIPTION =
   'Uploads, malware scanning, PDF issuance, signing, QR codes and verification records.';
 
@@ -27,6 +29,16 @@ export const envSchema = baseEnvSchema.extend({
   GOTENBERG_URL: z.url(),
   OPENBAO_ADDR: z.url(),
   OPENBAO_TOKEN: z.string().min(1),
+  /**
+   * Origin of the public verify app: QR codes on issued documents point at `<origin>/v/<code>`
+   * (the demo's verify app on its own port, so a demo slip resolves on the demo machine).
+   */
+  VERIFY_BASE_URL: z.url(),
+  /** The declarations service, whose internal API an acknowledgement slip's payload comes from. */
+  DECLARATIONS_API_URL: z.url(),
+  /** The service's confidential Keycloak client (client credentials, `declarations:internal`). */
+  KEYCLOAK_CLIENT_ID: z.string().min(1).default('documents'),
+  KEYCLOAK_CLIENT_SECRET: z.string().min(1),
 });
 
 export type Env = z.infer<typeof envSchema>;

@@ -1,11 +1,12 @@
+import { mockableClient } from '@adili/api-kit/client';
+
 import { env } from '../env.server';
-import { mockableClient } from '../mockable-client.server';
 import type { paths } from './schema.gen';
 
 /**
  * Typed client for the documents service's uploads, generated from
- * `packages/schemas/internal/documents.yaml`, called as the signed-in declarant. Shares the
- * DECLARATIONS_MOCK flag with the declarations client so linking sees the mock's uploads.
+ * `packages/schemas/internal/documents.yaml`, called as the signed-in declarant. Mocked under
+ * DECLARATIONS_MOCK, with the drafts, so linking sees the mock's uploads.
  */
 export function documentsClient(accessToken: string) {
   const config = env();

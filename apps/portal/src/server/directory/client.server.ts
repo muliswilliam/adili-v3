@@ -1,5 +1,6 @@
+import { mockableClient } from '@adili/api-kit/client';
+
 import { env } from '../env.server';
-import { mockableClient } from '../mockable-client.server';
 import type { paths } from './schema.gen';
 
 /** A typed directory client with these headers. */
@@ -25,7 +26,7 @@ function createDirectoryClient(headers: Record<string, string>) {
  * `packages/schemas/internal/directory.yaml`. These calls carry no access token; calls on a
  * session pass its secret in the X-Onboarding-Secret header.
  *
- * `clientIp` is the browser's address from `clientIp()` (../client-ip.ts), sent as the only
+ * `clientIp` is the browser's address from `clientIp()` (@adili/api-kit/client), sent as the only
  * X-Forwarded-For entry, so the directory's per-IP rate limits apply to the declarant rather
  * than to the portal. Never pass a client-supplied header through.
  */

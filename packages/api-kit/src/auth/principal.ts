@@ -22,15 +22,26 @@ export interface Principal {
    */
   issuedAt: number | null;
   /**
-   * The level of authentication the token was issued at (`acr`), e.g. `step-up` after a fresh
-   * re-authentication (ADR-004); absent when the token has none.
+   * The declarant's person (`person_id` claim, set when onboarding links the account to a person);
+   * null for staff and service tokens. Declarant data is keyed by it, not by tenant.
    */
-  acr?: string;
+  personId: string | null;
   /**
-   * When the user last authenticated (`auth_time`), in seconds since the epoch; absent when the
-   * token has none. With `acr`, lets a legal act require a recent step-up.
+   * Authentication context class the token was issued at (`acr`): `step-up` after a fresh
+   * one-time code (spec 06), else Keycloak's level such as `1`; null when the token has none.
+   * A legal act checks it with `authTime` itself, never trusting the BFF.
    */
-  authTime?: number;
+  acr: string | null;
+  /**
+   * When the user last actively authenticated (`auth_time`), in seconds since the epoch; null
+   * for tokens without it, such as service accounts'.
+   */
+  authTime: number | null;
+  /**
+   * The token's own id (`jti`); null when it has none. A legal act keeps a hash of it with its
+   * step-up evidence, tying the act to the one token it was made with.
+   */
+  tokenId: string | null;
 }
 
 /**
@@ -61,4 +72,14 @@ export const principalSchema = z.object({
   issuedAt: z.int().nullable().meta({
     description: 'When the token was issued (`iat`), in seconds since the epoch',
   }),
+  personId: z.uuid().nullable().meta({
+    description: 'Person the declarant account is linked to (`person_id`); null for staff',
+  }),
+  acr: z.string().nullable().meta({
+    description: 'Authentication context class of the token (`acr`), e.g. `step-up`',
+  }),
+  authTime: z.int().nullable().meta({
+    description: 'When the user last authenticated (`auth_time`), in seconds since the epoch',
+  }),
+  tokenId: z.string().nullable().meta({ description: 'The token id (`jti`)' }),
 }) satisfies z.ZodType<Principal>;

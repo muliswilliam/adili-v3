@@ -3,10 +3,10 @@ import { ApiOkResponse, ApiOperation, ApiParam, ApiQuery, ApiTags } from '@nestj
 import {
   ApiProblemResponse,
   AuditedRead,
-  AuditedTenant,
   CurrentPrincipal,
+  CurrentReadAudit,
   type Principal,
-  type SetAuditedTenant,
+  type ReadAudit,
   ZodValidationPipe,
 } from '@adili/api-kit';
 import { z } from 'zod';
@@ -74,7 +74,7 @@ export class EaccReportsController {
   get(
     @CurrentPrincipal() principal: Principal,
     @Param('reportId', new ZodValidationPipe(z.uuid())) reportId: string,
-    @AuditedTenant() audit: SetAuditedTenant,
+    @CurrentReadAudit() audit: ReadAudit,
   ): Promise<ComplianceReportView> {
     return this.reports.submittedReport(principal, reportId, audit);
   }

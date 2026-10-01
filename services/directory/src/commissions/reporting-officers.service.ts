@@ -1,7 +1,13 @@
 import { HttpStatus, Injectable, Logger } from '@nestjs/common';
-import { notFoundIfInvisible, type Principal, ProblemException } from '@adili/api-kit';
+import {
+  notFoundIfInvisible,
+  type Principal,
+  ProblemException,
+  PLATFORM_TENANT,
+} from '@adili/api-kit';
 import { type Database, InjectDatabase, withTenant } from '@adili/data-access';
 import { EventPublisher } from '@adili/events';
+import { REPORTING_OFFICER } from '@adili/roles';
 import { and, eq, ne, sql } from 'drizzle-orm';
 
 import { config } from '../config.js';
@@ -15,7 +21,6 @@ import {
   IdentityUserNotFound,
   STAFF_REQUIRED_ACTIONS,
 } from '../identity/identity-provisioning.js';
-import { PLATFORM_TENANT, REPORTING_OFFICER_ROLE } from './access.js';
 import { ActivationLookups } from './activation-lookups.js';
 import { IdentityChanges } from './identity-changes.js';
 import type { AssignReportingOfficerBody } from './assign-reporting-officer.js';
@@ -50,7 +55,7 @@ export function activationEmail(
     redirectUri: new URL('/auth/login', consoleUrl).toString(),
     clientId: 'console',
     commissionName,
-    role: REPORTING_OFFICER_ROLE,
+    role: REPORTING_OFFICER,
   };
 }
 
@@ -308,10 +313,10 @@ export class ReportingOfficersService {
     if (existing) {
       if (existing.tenant !== slug) throw emailInOtherTenant();
       const { userId } = existing;
-      if (!existing.roles.includes(REPORTING_OFFICER_ROLE)) {
-        await this.identity.grantRole(userId, REPORTING_OFFICER_ROLE);
-        changes.made(`granted ${REPORTING_OFFICER_ROLE} to ${userId}`, () =>
-          this.identity.revokeRole(userId, REPORTING_OFFICER_ROLE),
+      if (!existing.roles.includes(REPORTING_OFFICER)) {
+        await this.identity.grantRole(userId, REPORTING_OFFICER);
+        changes.made(`granted ${REPORTING_OFFICER} to ${userId}`, () =>
+          this.identity.revokeRole(userId, REPORTING_OFFICER),
         );
       }
       if (!existing.enabled) {
@@ -330,7 +335,7 @@ export class ReportingOfficersService {
       name: body.name,
       phone: body.phone,
       tenant: slug,
-      role: REPORTING_OFFICER_ROLE,
+      role: REPORTING_OFFICER,
       requiredActions: STAFF_REQUIRED_ACTIONS,
     });
     changes.made(`created ${userId}`, () => this.identity.deleteUser(userId));
@@ -346,13 +351,13 @@ export class ReportingOfficersService {
   private async retire(userId: string, changes: IdentityChanges): Promise<void> {
     const account = await this.identity.findById(userId);
     if (!account) return;
-    if (account.roles.includes(REPORTING_OFFICER_ROLE)) {
-      await this.identity.revokeRole(userId, REPORTING_OFFICER_ROLE);
-      changes.made(`revoked ${REPORTING_OFFICER_ROLE} from ${userId}`, () =>
-        this.identity.grantRole(userId, REPORTING_OFFICER_ROLE),
+    if (account.roles.includes(REPORTING_OFFICER)) {
+      await this.identity.revokeRole(userId, REPORTING_OFFICER);
+      changes.made(`revoked ${REPORTING_OFFICER} from ${userId}`, () =>
+        this.identity.grantRole(userId, REPORTING_OFFICER),
       );
     }
-    const otherRoles = account.roles.filter((role) => role !== REPORTING_OFFICER_ROLE);
+    const otherRoles = account.roles.filter((role) => role !== REPORTING_OFFICER);
     if (account.enabled && otherRoles.length === 0) {
       await this.identity.setEnabled(userId, false);
       changes.made(`disabled ${userId}`, () => this.identity.setEnabled(userId, true));

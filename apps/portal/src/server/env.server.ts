@@ -9,10 +9,10 @@ export const envSchema = bffEnvSchema.extend({
    */
   DIRECTORY_MOCK: z.stringbool().default(false),
   /**
-   * Trusted proxies in front of the portal that append to X-Forwarded-For; see
-   * server/client-ip.ts. Defaults to 1: every deployment serves the portal behind one edge proxy
-   * (Traefik on Dokploy, the ingress on Kubernetes), and with 0 every browser would share that
-   * proxy's address and so one per-IP rate limit. Must equal the real number of proxies: a
+   * Trusted proxies in front of the portal that append to X-Forwarded-For; see `clientIp` in
+   * @adili/api-kit/client. Defaults to 1: every deployment serves the portal behind one edge
+   * proxy (Traefik on Dokploy, the ingress on Kubernetes), and with 0 every browser would share
+   * that proxy's address and so one per-IP rate limit. Must equal the real number of proxies: a
    * higher value lets a client pick its own address. Without a proxy (local dev) the header is
    * short and the socket address is used anyway.
    */
@@ -20,9 +20,16 @@ export const envSchema = bffEnvSchema.extend({
   DECLARATIONS_API_URL: z.url(),
   DOCUMENTS_API_URL: z.url(),
   /**
-   * Serve declaration drafts and uploads from in-memory fixtures until the services implement
-   * spec 05 (#115). Honoured in `vite dev` and tests only; production builds do not contain the
-   * mocks.
+   * Serve the declarant's obligations (spec 04) from in-memory fixtures, to work on the portal
+   * without the declarations service. Honoured in `vite dev` and tests only; production builds
+   * do not contain the mocks.
+   */
+  OBLIGATIONS_MOCK: z.stringbool().default(false),
+  /**
+   * Serve declarations (drafts, submission, versions, amendments, acknowledgement slips) and
+   * uploads from in-memory fixtures, to work on the portal without the declarations and documents
+   * services. Independent of OBLIGATIONS_MOCK: with that off, drafts start from the real
+   * service's obligations. Honoured in `vite dev` and tests only, like the other mocks.
    */
   DECLARATIONS_MOCK: z.stringbool().default(false),
   REVIEW_API_URL: z.url(),

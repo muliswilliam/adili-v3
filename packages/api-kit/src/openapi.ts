@@ -12,6 +12,7 @@ import {
 } from '@nestjs/swagger';
 import { z } from 'zod';
 
+import { problemCodeSchema } from './problem-codes.js';
 import { PROBLEM_CONTENT_TYPE, type ProblemDetails } from './problem-details.filter.js';
 
 /**
@@ -35,6 +36,7 @@ export const problemDetailsSchema = z.object({
   type: z.string(),
   title: z.string(),
   status: z.number().int(),
+  code: problemCodeSchema.optional(),
   detail: z.string().optional(),
   instance: z.string().optional(),
   errors: z

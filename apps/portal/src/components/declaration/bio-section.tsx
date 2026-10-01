@@ -32,6 +32,9 @@ export const ROSTER_NOTE =
 
 const fieldId = (field: BioField) => `bio-${field}`;
 
+/** Lines up the controls of side-by-side fields when only some of them show the roster hint. */
+const ALIGNED_FIELD = 'sm:row-span-2 sm:grid-rows-subgrid';
+
 function RosterBlock({ officer, commission }: { officer: Draft<Officer>; commission: string }) {
   const rows: [string, string | undefined][] = [
     ['Surname', officer.name?.surname],
@@ -271,6 +274,7 @@ export function BioSection({ section, etag, showErrors = false }: BioSectionProp
           Employment
         </h2>
         <FormField
+          className={ALIGNED_FIELD}
           label={optionalLabel(HR_LABELS.jobGroup)}
           hint={rosterHint('jobGroup')}
           controlId="bio-jobGroup"
@@ -285,6 +289,7 @@ export function BioSection({ section, etag, showErrors = false }: BioSectionProp
           />
         </FormField>
         <FormField
+          className={ALIGNED_FIELD}
           label={optionalLabel(HR_LABELS.appointmentDate)}
           hint={rosterHint('appointmentDate')}
           error={appointmentInvalid ? BIO_MESSAGES.dateFormat : undefined}
@@ -300,6 +305,7 @@ export function BioSection({ section, etag, showErrors = false }: BioSectionProp
           />
         </FormField>
         <FormField
+          className={ALIGNED_FIELD}
           label={optionalLabel(HR_LABELS.workStation)}
           hint={rosterHint('workStation')}
           controlId="bio-workStation"
@@ -314,6 +320,7 @@ export function BioSection({ section, etag, showErrors = false }: BioSectionProp
           />
         </FormField>
         <FormField
+          className={ALIGNED_FIELD}
           label="Nature of employment"
           error={error('nature')}
           controlId={fieldId('nature')}
@@ -341,6 +348,7 @@ export function BioSection({ section, etag, showErrors = false }: BioSectionProp
         </FormField>
         {nature === 'other' ? (
           <FormField
+            className={ALIGNED_FIELD}
             label="Describe it"
             error={error('natureOther')}
             controlId={fieldId('natureOther')}

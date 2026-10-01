@@ -1,6 +1,6 @@
 import type { Principal } from '@adili/api-kit';
+import { REPORTING_OFFICER } from '@adili/roles';
 
-import { REPORTING_OFFICER_ROLE } from '../commissions/access.js';
 import type { RosterActorKind } from './schema.js';
 
 /** Who changed a roster: a user, or a Commission's HR system (API channel). */
@@ -18,7 +18,7 @@ export interface RosterActor {
  * to people reading the roster's history.
  */
 export function rosterActorOf(principal: Principal): RosterActor {
-  if (principal.roles.includes(REPORTING_OFFICER_ROLE) || principal.clientId === null) {
+  if (principal.roles.includes(REPORTING_OFFICER) || principal.clientId === null) {
     return { kind: 'user', id: principal.subject, name: principal.name };
   }
   return { kind: 'client', id: principal.clientId, name: principal.clientId };

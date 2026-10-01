@@ -36,7 +36,7 @@ const config: BaseEnv = {
 const createThing = z.object({ name: z.string().min(1), tags: z.array(z.string()).optional() });
 
 /** How often each handler actually ran. */
-const calls = { create: 0, update: 0, conflict: 0, flaky: 0, slow: 0, plain: 0 };
+const calls = { create: 0, update: 0, conflict: 0, flaky: 0, transient: 0, slow: 0, plain: 0 };
 let releaseSlow: () => void = () => undefined;
 
 @Controller('v1/things')
@@ -73,6 +73,13 @@ class ThingsController {
     calls.flaky++;
     if (calls.flaky === 1) throw new Error('database unavailable');
     return { attempt: calls.flaky };
+  }
+
+  @Post('transient')
+  @RequireIdempotencyKey({ settled: (body: { status: string }) => body.status !== 'try-again' })
+  transient() {
+    calls.transient++;
+    return { status: calls.transient === 1 ? 'try-again' : 'done', attempt: calls.transient };
   }
 
   @Post('slow')
@@ -311,6 +318,21 @@ export function describeIdempotency(
       expect(retry.headers['idempotent-replayed']).toBeUndefined();
       expect(retry.json()).toEqual({ attempt: 2 });
       expect(calls.flaky).toBe(2);
+    });
+
+    it('does not store a 2xx the route says is not final, so a retry runs the handler again', async () => {
+      const key = randomUUID();
+      const first = await harness.send({ url: '/v1/things/transient', key, body: {} });
+      const retry = await harness.send({ url: '/v1/things/transient', key, body: {} });
+      const again = await harness.send({ url: '/v1/things/transient', key, body: {} });
+
+      expect(first.statusCode).toBe(201);
+      expect(first.json()).toEqual({ status: 'try-again', attempt: 1 });
+      expect(retry.headers['idempotent-replayed']).toBeUndefined();
+      expect(retry.json()).toEqual({ status: 'done', attempt: 2 });
+      expect(again.headers['idempotent-replayed']).toBe('true');
+      expect(again.json()).toEqual({ status: 'done', attempt: 2 });
+      expect(calls.transient).toBe(2);
     });
 
     it('refuses a retry while the first request is still running', async () => {

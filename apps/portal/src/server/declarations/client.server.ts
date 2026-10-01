@@ -1,11 +1,13 @@
+import { mockableClient } from '@adili/api-kit/client';
+
 import { env } from '../env.server';
-import { mockableClient } from '../mockable-client.server';
 import type { paths } from './schema.gen';
 
 /**
  * Typed client for the declarations service, generated from
  * `packages/schemas/internal/declarations.yaml`, called as the signed-in declarant. With
- * DECLARATIONS_MOCK set in development it talks to the in-memory mock instead (`mock.server.ts`).
+ * OBLIGATIONS_MOCK or DECLARATIONS_MOCK set in development, the in-memory mock answers
+ * that part (`mock.server.ts`) and the real service the rest.
  */
 export function declarationsClient(accessToken: string) {
   const config = env();
@@ -15,8 +17,12 @@ export function declarationsClient(accessToken: string) {
     timeoutMs: 10_000,
     // Inline, so production builds drop the mock (see mockableClient).
     mock:
-      import.meta.env.DEV && config.DECLARATIONS_MOCK
-        ? async (request) => (await import('./mock.server')).mockDeclarationsFetch(request)
+      import.meta.env.DEV && (config.OBLIGATIONS_MOCK || config.DECLARATIONS_MOCK)
+        ? async (request, init) =>
+            (await import('./mock.server')).declarationsMock({
+              obligations: config.OBLIGATIONS_MOCK,
+              declarations: config.DECLARATIONS_MOCK,
+            })(request, init)
         : null,
   });
 }

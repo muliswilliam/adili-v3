@@ -1,6 +1,5 @@
-import { daysBetween, plural } from '@adili/ui';
+import { daysBetween, formatDate, formatDateTime, plural } from '@adili/ui';
 
-import { formatDate, formatDateTime } from '../components/format';
 import type { Clarification } from '../server/review/types';
 import type { Tone } from './labels';
 import { lateDays, reminderAt, reminderSent } from './period';

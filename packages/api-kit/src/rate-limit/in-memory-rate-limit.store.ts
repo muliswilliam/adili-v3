@@ -1,13 +1,13 @@
 import {
+  type ConsumeOptions,
+  countRequest,
   type RateLimitDecision,
   type RateLimitPolicy,
   RateLimitStore,
-  takeToken,
-  type TokenBucket,
 } from './rate-limit.store.js';
 
 export interface InMemoryRateLimitStoreOptions {
-  /** Clock in epoch milliseconds; tests pass their own to exercise refill. */
+  /** Clock in epoch milliseconds when the caller passes none (see `RATE_LIMIT_CLOCK`). */
   now?: () => number;
 }
 
@@ -16,7 +16,7 @@ export interface InMemoryRateLimitStoreOptions {
  * `ValkeyRateLimitStore` from `@adili/cache`, but each replica counts on its own.
  */
 export class InMemoryRateLimitStore extends RateLimitStore {
-  private readonly buckets = new Map<string, TokenBucket>();
+  private readonly logs = new Map<string, number[]>();
   private readonly now: () => number;
 
   constructor(options: InMemoryRateLimitStoreOptions = {}) {
@@ -24,9 +24,14 @@ export class InMemoryRateLimitStore extends RateLimitStore {
     this.now = options.now ?? Date.now;
   }
 
-  consume(key: string, policy: RateLimitPolicy): Promise<RateLimitDecision> {
-    const { bucket, decision } = takeToken(this.buckets.get(key), policy, this.now());
-    this.buckets.set(key, bucket);
+  consume(
+    key: string,
+    policy: RateLimitPolicy,
+    { cost = 1, nowMs = this.now() }: ConsumeOptions = {},
+  ): Promise<RateLimitDecision> {
+    const { log, decision } = countRequest(this.logs.get(key), policy, nowMs, cost);
+    if (log.length > 0) this.logs.set(key, log);
+    else this.logs.delete(key);
     return Promise.resolve(decision);
   }
 }

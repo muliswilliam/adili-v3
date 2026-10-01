@@ -1,0 +1,340 @@
+/**
+ * The obligation engine (spec 04): which filing obligations a roster record owes, and the plan
+ * that reconciles them with the ones that already exist. Pure, no I/O: the consumers and the
+ * cycle opening apply the plan (rows, events, workflows), so these rules are tested on their own.
+ *
+ * - **Initial** (Act s.34(1)): statement date = appointment date, due `initialDueAfterAppointmentDays`
+ *   later. Due from creation, overdue after the due date; never upcoming.
+ * - **Biennial** (Act s.34(2)): one per opened cycle whose statement date is in the declarant's
+ *   term: appointed on or before it and not exited on or before it (the spec's "before any exit
+ *   date": an exit on the statement date owes the final alone). Upcoming before the statement date.
+ * - **Final** (Act s.34(3)): statement date = exit date, due `finalDueAfterExitDays` later. Due from
+ *   creation, like the initial.
+ *
+ * The Commission's obligations-start date gates every type: an obligation whose statement date is
+ * before it is assumed declared outside Adili. It is not created, and an open one is cancelled
+ * (`before-obligations-start-date`) when a later policy version moves the date past it (story 22:
+ * the Commission fixes the date after its first import). Moving the date earlier creates what it
+ * now reaches. A filed obligation is kept whatever the date.
+ *
+ * Reconciliation creates what is missing, supersedes an initial or final whose date changed
+ * (the date is part of its cycle key), cancels what the record no longer owes, and links the
+ * person once onboarded. `filed` obligations are never touched, and a filed initial or final
+ * discharges that duty for the record: no replacement is created. `cancelled` rows are history
+ * and play no part; a recreated obligation is a new row with the same cycle key.
+ */
+import { DECLARATION_TYPES, type DeclarationType } from '@adili/numbering/references';
+
+import {
+  biennialCycleKey,
+  biennialYear,
+  type CycleKey,
+  finalCycleKey,
+  initialCycleKey,
+} from './cycle-key.js';
+import { addDays, atMonthDay, type CivilDate } from './dates.js';
+
+export const OBLIGATION_TYPES = DECLARATION_TYPES;
+export type ObligationType = DeclarationType;
+
+/** The statuses of an obligation still owed: it is created in one, and moves between them by date. */
+export const OPEN_STATUSES = ['upcoming', 'due', 'overdue'] as const;
+export type OpenStatus = (typeof OPEN_STATUSES)[number];
+
+/** Every status; `filed` and `cancelled` are terminal. */
+export const OBLIGATION_STATUSES = [...OPEN_STATUSES, 'filed', 'cancelled'] as const;
+export type ObligationStatus = (typeof OBLIGATION_STATUSES)[number];
+
+export const CANCEL_REASONS = [
+  'exited-before-statement-date',
+  'exit-reversed',
+  'superseded',
+  'before-obligations-start-date',
+] as const;
+export type CancelReason = (typeof CANCEL_REASONS)[number];
+
+/** The declarations service's snapshot of a roster record, as the engine needs it. */
+export interface RosterSnapshot {
+  rosterRecordId: string;
+  /** Null when the Commission's roster gives none: treated as appointed before any cycle. */
+  appointmentDate: CivilDate | null;
+  /** Set once an exit is confirmed; null again when a later import reverses it. */
+  exitDate: CivilDate | null;
+  /** Null until the declarant onboards. */
+  personId: string | null;
+  ofr: string | null;
+}
+
+/** The fields of the tenant policy version (directory `TenantPolicyVersion`) the rules read. */
+export interface ObligationPolicy {
+  version: number;
+  obligationsStartDate: CivilDate;
+  initialDueAfterAppointmentDays: number;
+  /** Month-days, e.g. `11-01` and `12-31`. */
+  biennial: { statementDate: string; dueDate: string };
+  finalDueAfterExitDays: number;
+  reminderOffsetsDays: readonly number[];
+}
+
+/** A biennial cycle: platform data (`cycle_calendar`), not tenant policy. */
+export interface CycleCalendarEntry {
+  cycleYear: number;
+  /** Obligations for the cycle are created this many days before its statement date. */
+  openingLeadDays: number;
+}
+export type CycleCalendar = readonly CycleCalendarEntry[];
+
+/** An obligation as stored, with what reconciliation reads. */
+export interface ExistingObligation {
+  id: string;
+  type: ObligationType;
+  cycleKey: string;
+  status: ObligationStatus;
+  personId: string | null;
+}
+
+/** A reminder: sent `offsetDays` before the due date (the workflow adds jitter). */
+export interface PlannedReminder {
+  offsetDays: number;
+  date: CivilDate;
+}
+
+/** An obligation the record owes, with its status and reminders as of today. */
+export interface DesiredObligation {
+  type: ObligationType;
+  cycleKey: CycleKey;
+  statementDate: CivilDate;
+  dueDate: CivilDate;
+  status: OpenStatus;
+  policyVersion: number;
+  personId: string | null;
+  ofr: string | null;
+  /** Reminders still ahead (today included), earliest first. */
+  reminders: PlannedReminder[];
+  /** Reminders already past when created: recorded `skipped-past-due-at-creation`, not sent. */
+  skippedReminders: PlannedReminder[];
+}
+
+export type PlanOperation =
+  | { kind: 'create'; obligation: DesiredObligation }
+  | { kind: 'cancel'; obligationId: string; reason: CancelReason }
+  /** Cancel the old obligation as `superseded` and create its replacement. */
+  | { kind: 'supersede'; obligationId: string; obligation: DesiredObligation }
+  | { kind: 'link-person'; obligationIds: string[]; personId: string; ofr: string | null };
+
+export interface ObligationPlan {
+  /**
+   * Every obligation the record should have (existing, filed included, or to be created):
+   * initial, biennials, final. Status and reminders are computed as of today; for existing
+   * rows the stored status (written by the workflow) is authoritative.
+   */
+  obligations: DesiredObligation[];
+  /** Cancels and supersedes first, then creates, then the person link. */
+  operations: PlanOperation[];
+}
+
+export interface PlanInput {
+  record: RosterSnapshot;
+  policy: ObligationPolicy;
+  calendar: CycleCalendar;
+  /** Today in Africa/Nairobi (`nairobiDate`). */
+  today: CivilDate;
+  /** The record's obligations in any status. */
+  existing: readonly ExistingObligation[];
+}
+
+/** The date a cycle's obligations are created (the cycle-opening schedule fires then). */
+export function cycleOpeningDate(entry: CycleCalendarEntry, policy: ObligationPolicy): CivilDate {
+  return addDays(biennialStatementDate(entry.cycleYear, policy), -entry.openingLeadDays);
+}
+
+/** The cycle years opened by `today`, oldest first. */
+export function openedCycles(
+  calendar: CycleCalendar,
+  policy: ObligationPolicy,
+  today: CivilDate,
+): number[] {
+  return calendar
+    .filter((entry) => cycleOpeningDate(entry, policy) <= today)
+    .map((entry) => entry.cycleYear)
+    .sort((a, b) => a - b);
+}
+
+export function planObligations(input: PlanInput): ObligationPlan {
+  const { record, existing } = input;
+  const live = existing.filter((o) => o.status !== 'cancelled');
+  const open = live.filter((o) => o.status !== 'filed');
+  const liveKeys = new Set(live.map((o) => o.cycleKey));
+  const filed = live.filter((o) => o.status === 'filed');
+  const filedKeys = new Set(filed.map((o) => o.cycleKey));
+  const filedTypes = new Set(filed.map((o) => o.type));
+
+  const owed = owedObligations(input);
+  const obligations = owed.filter(
+    (o) =>
+      filedKeys.has(o.cycleKey) ||
+      // The start date gates open obligations too, and a filed initial or final discharges that
+      // duty for the record whatever its dates say now.
+      (o.statementDate >= input.policy.obligationsStartDate &&
+        (liveKeys.has(o.cycleKey) || o.type === 'biennial' || !filedTypes.has(o.type))),
+  );
+  const beforeStart = new Set<string>(
+    owed.filter((o) => o.statementDate < input.policy.obligationsStartDate).map((o) => o.cycleKey),
+  );
+  const owedKeys = new Set<string>(obligations.map((o) => o.cycleKey));
+
+  const cancels: PlanOperation[] = [];
+  const supersedes: PlanOperation[] = [];
+  const replaced = new Set<string>();
+  for (const old of open) {
+    if (owedKeys.has(old.cycleKey)) continue;
+    const replacement =
+      old.type === 'biennial'
+        ? undefined
+        : obligations.find((o) => o.type === old.type && !liveKeys.has(o.cycleKey));
+    if (replacement && !replaced.has(replacement.cycleKey)) {
+      replaced.add(replacement.cycleKey);
+      supersedes.push({ kind: 'supersede', obligationId: old.id, obligation: replacement });
+    } else {
+      cancels.push({
+        kind: 'cancel',
+        obligationId: old.id,
+        reason: beforeStart.has(old.cycleKey)
+          ? 'before-obligations-start-date'
+          : cancelReason(old, record, input.policy),
+      });
+    }
+  }
+
+  const creates: PlanOperation[] = obligations
+    .filter((o) => !liveKeys.has(o.cycleKey) && !replaced.has(o.cycleKey))
+    .map((obligation) => ({ kind: 'create', obligation }));
+
+  const link: PlanOperation[] = [];
+  if (record.personId !== null) {
+    const unlinked = open
+      .filter((o) => owedKeys.has(o.cycleKey) && o.personId !== record.personId)
+      .map((o) => o.id);
+    if (unlinked.length > 0) {
+      link.push({
+        kind: 'link-person',
+        obligationIds: unlinked,
+        personId: record.personId,
+        ofr: record.ofr,
+      });
+    }
+  }
+
+  return { obligations, operations: [...cancels, ...supersedes, ...creates, ...link] };
+}
+
+/** What the record owes by the statutory rules alone, before the creation rules. */
+function owedObligations(input: PlanInput): DesiredObligation[] {
+  const { record, policy, calendar, today } = input;
+  const { appointmentDate, exitDate } = record;
+  const owed: DesiredObligation[] = [];
+
+  if (appointmentDate !== null) {
+    owed.push(
+      obligation(input, 'initial', initialCycleKey(appointmentDate), appointmentDate, {
+        dueAfterDays: policy.initialDueAfterAppointmentDays,
+      }),
+    );
+  }
+
+  for (const year of openedCycles(calendar, policy, today)) {
+    const statementDate = biennialStatementDate(year, policy);
+    const heldOffice =
+      (appointmentDate === null || appointmentDate <= statementDate) &&
+      (exitDate === null || exitDate > statementDate);
+    if (!heldOffice) continue;
+    owed.push(
+      obligation(input, 'biennial', biennialCycleKey(year), statementDate, {
+        dueDate: atMonthDay(year, policy.biennial.dueDate),
+      }),
+    );
+  }
+
+  if (exitDate !== null) {
+    owed.push(
+      obligation(input, 'final', finalCycleKey(exitDate), exitDate, {
+        dueAfterDays: policy.finalDueAfterExitDays,
+      }),
+    );
+  }
+
+  return owed;
+}
+
+function obligation(
+  { record, policy, today }: Pick<PlanInput, 'record' | 'policy' | 'today'>,
+  type: ObligationType,
+  cycleKey: CycleKey,
+  statementDate: CivilDate,
+  due: { dueAfterDays: number } | { dueDate: CivilDate },
+): DesiredObligation {
+  const dueDate = 'dueDate' in due ? due.dueDate : addDays(statementDate, due.dueAfterDays);
+  const reminders = [...new Set(policy.reminderOffsetsDays)]
+    .sort((a, b) => b - a)
+    .map((offsetDays) => ({ offsetDays, date: addDays(dueDate, -offsetDays) }));
+  return {
+    type,
+    cycleKey,
+    statementDate,
+    dueDate,
+    status: statusOn(type, statementDate, dueDate, today),
+    policyVersion: policy.version,
+    personId: record.personId,
+    ofr: record.ofr,
+    reminders: reminders.filter((r) => r.date >= today),
+    skippedReminders: reminders.filter((r) => r.date < today),
+  };
+}
+
+/**
+ * The open status an obligation has on `today`: initial and final are due from creation, a
+ * biennial waits for its statement date; all are overdue after the due date.
+ */
+export function statusOn(
+  type: ObligationType,
+  statementDate: CivilDate,
+  dueDate: CivilDate,
+  today: CivilDate,
+): OpenStatus {
+  if (today > dueDate) return 'overdue';
+  if (type === 'biennial' && today < statementDate) return 'upcoming';
+  return 'due';
+}
+
+/**
+ * Whether moving from `from` to the open status `to` goes forward in time. An obligation's dates
+ * never change in place (a correction supersedes it), so its date-based status only moves
+ * upcoming → due → overdue; a terminal status never moves.
+ */
+export function movesForward(from: ObligationStatus, to: OpenStatus): boolean {
+  const index = (OPEN_STATUSES as readonly ObligationStatus[]).indexOf(from);
+  return index !== -1 && OPEN_STATUSES.indexOf(to) > index;
+}
+
+function biennialStatementDate(year: number, policy: ObligationPolicy): CivilDate {
+  return atMonthDay(year, policy.biennial.statementDate);
+}
+
+/** Why an open obligation the record no longer owes is cancelled. */
+function cancelReason(
+  old: ExistingObligation,
+  record: RosterSnapshot,
+  policy: ObligationPolicy,
+): CancelReason {
+  if (old.type === 'final' && record.exitDate === null) return 'exit-reversed';
+  if (old.type === 'biennial' && record.exitDate !== null) {
+    const year = biennialYear(old.cycleKey);
+    // On the statement date too: the biennial is owed only for an exit after it.
+    if (year !== null && record.exitDate <= biennialStatementDate(year, policy)) {
+      return 'exited-before-statement-date';
+    }
+  }
+  // The appointment or exit date moved: an initial or final off its date, or a biennial whose
+  // statement date now precedes the appointment.
+  return 'superseded';
+}

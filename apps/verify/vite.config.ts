@@ -4,6 +4,8 @@ import viteReact from '@vitejs/plugin-react';
 import { nitro } from 'nitro/vite';
 import { defineConfig, type Rolldown } from 'vite';
 
+import { bundleBudget } from './vite-plugins/bundle-budget.ts';
+
 /** Libraries mark modules "use client" for React Server Components; harmless without RSC. */
 function ignoreUseClientDirectives(
   warning: Rolldown.RollupLog,
@@ -12,9 +14,16 @@ function ignoreUseClientDirectives(
   if (warning.code !== 'MODULE_LEVEL_DIRECTIVE') warn(warning);
 }
 
+const port = Number(process.env.PORT) || 3030;
+const demoBind = process.env.ADILI_DEMO_BIND === '1';
+
 export default defineConfig({
-  server: { port: 3030, strictPort: true },
-  preview: { port: 3030, strictPort: true },
+  server: {
+    ...(demoBind ? { host: true, allowedHosts: true as const } : {}),
+    port,
+    strictPort: true,
+  },
+  preview: { ...(demoBind ? { host: true } : {}), port, strictPort: true },
   resolve: { tsconfigPaths: true },
   build: { rolldownOptions: { onwarn: ignoreUseClientDirectives } },
   plugins: [
@@ -22,5 +31,6 @@ export default defineConfig({
     tanstackStart(),
     nitro({ rolldownConfig: { onwarn: ignoreUseClientDirectives } }),
     viteReact(),
+    bundleBudget(),
   ],
 });

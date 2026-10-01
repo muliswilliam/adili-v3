@@ -1,3 +1,18 @@
+import {
+  ACCESS_OFFICER,
+  AUDITOR,
+  COMMISSION_ADMIN,
+  COMMISSION_ROSTER_ROLES,
+  COMMISSION_STAFF_ROLES,
+  EACC_ROLES,
+  HELPDESK,
+  NATIONAL_ROLES,
+  PLATFORM_ADMIN,
+  REPORTING_OFFICER,
+  REVIEWER,
+  SUPERVISOR,
+} from '@adili/roles';
+
 export interface Workspace {
   id: string;
   title: string;
@@ -9,7 +24,7 @@ export interface Workspace {
 }
 
 /** Routes of workspaces that exist so far. */
-export type WorkspaceHref = '/commissions' | '/roster';
+export type WorkspaceHref = '/commissions' | '/roster' | '/obligations' | '/obligations/national';
 
 interface WorkspaceDefinition {
   id: string;
@@ -25,10 +40,35 @@ interface WorkspaceDefinition {
 }
 
 /** Roles that manage Responsible Commissions; EACC analysts and supervisors only read them. */
-export const COMMISSION_WRITE_ROLES = ['platform-admin'] as const;
+export const COMMISSION_WRITE_ROLES = [PLATFORM_ADMIN] as const;
 
 /** Roles that import and maintain a Commission's roster; commission admins only read it. */
-export const ROSTER_WRITE_ROLES = ['reporting-officer'] as const;
+export const ROSTER_WRITE_ROLES = [REPORTING_OFFICER] as const;
+
+/** The Commission's own staff, who see its declarants' obligations (spec 04). */
+export const OBLIGATIONS_ROLES = COMMISSION_STAFF_ROLES;
+
+/**
+ * Roles that open their own Commission's obligations policy from the Obligations workspace and
+ * change its start date (spec 04 access table). Platform admins use the Commission's page.
+ */
+export const OWN_POLICY_ROLES = [COMMISSION_ADMIN] as const;
+
+/** Whether the viewer opens the Obligations workspace's policy page. */
+export function opensOwnPolicy(roles: readonly string[]): boolean {
+  return OWN_POLICY_ROLES.some((role) => roles.includes(role));
+}
+
+/** Roles that see (and change) a Commission's obligations policy on its page (spec 04 FE-4). */
+export const COMMISSION_POLICY_ROLES = [PLATFORM_ADMIN] as const;
+
+/** Whether the viewer gets the policy card on a Commission's page; EACC staff see counts only. */
+export function readsCommissionPolicy(roles: readonly string[]): boolean {
+  return COMMISSION_POLICY_ROLES.some((role) => roles.includes(role));
+}
+
+/** National roles, who see obligation counts per Commission but no declarant (spec 04). */
+export const NATIONAL_OBLIGATIONS_ROLES = NATIONAL_ROLES;
 
 /** Console areas, in display order, with the realm roles that open each one (architecture section 7). */
 const WORKSPACES: WorkspaceDefinition[] = [
@@ -38,26 +78,33 @@ const WORKSPACES: WorkspaceDefinition[] = [
     description: 'Create Responsible Commissions and assign their reporting officers.',
     readOnlyDescription: 'Responsible Commissions, their reporting officers and roster coverage.',
     href: '/commissions',
-    roles: ['platform-admin', 'eacc-analyst', 'eacc-supervisor'],
+    roles: NATIONAL_ROLES,
     writeRoles: COMMISSION_WRITE_ROLES,
+  },
+  {
+    id: 'national-obligations',
+    title: 'National obligations',
+    description: 'Due and overdue counts per Commission.',
+    href: '/obligations/national',
+    roles: NATIONAL_OBLIGATIONS_ROLES,
   },
   {
     id: 'review',
     title: 'Review queue',
     description: 'Analyse declarations, raise clarifications and propose determinations.',
-    roles: ['reviewer', 'supervisor'],
+    roles: [REVIEWER, SUPERVISOR],
   },
   {
     id: 'approvals',
     title: 'Approvals',
     description: 'Approve determinations and administrative actions proposed by reviewers.',
-    roles: ['supervisor'],
+    roles: [SUPERVISOR],
   },
   {
     id: 'access',
     title: 'Access requests',
     description: 'Decide Form K and law enforcement requests for declarations.',
-    roles: ['access-officer'],
+    roles: [ACCESS_OFFICER],
   },
   {
     id: 'roster',
@@ -66,38 +113,45 @@ const WORKSPACES: WorkspaceDefinition[] = [
       "Import and maintain your Commission's roster and help officers who cannot onboard.",
     readOnlyDescription: "Your Commission's roster and import history.",
     href: '/roster',
-    roles: ['reporting-officer', 'commission-admin'],
+    roles: COMMISSION_ROSTER_ROLES,
     writeRoles: ROSTER_WRITE_ROLES,
+  },
+  {
+    id: 'obligations',
+    title: 'Obligations',
+    description: 'Who must declare, by when, and who has been reminded.',
+    href: '/obligations',
+    roles: OBLIGATIONS_ROLES,
   },
   {
     id: 'commission',
     title: 'Commission administration',
     description: 'Manage users, policies and document templates for your Commission.',
-    roles: ['commission-admin'],
+    roles: [COMMISSION_ADMIN],
   },
   {
     id: 'compliance',
     title: 'Compliance reports',
     description: 'Receive Form M reports and build the national consolidated report.',
-    roles: ['eacc-analyst', 'eacc-supervisor'],
+    roles: EACC_ROLES,
   },
   {
     id: 'audit',
     title: 'Audit trail',
     description: 'Investigate who did what, and when, across the platform.',
-    roles: ['auditor'],
+    roles: [AUDITOR],
   },
   {
     id: 'support',
     title: 'Account support',
     description: 'Help users unlock accounts and recover access.',
-    roles: ['helpdesk'],
+    roles: [HELPDESK],
   },
   {
     id: 'platform',
     title: 'Platform settings',
     description: 'Operate the platform: tenants, integrations and configuration.',
-    roles: ['platform-admin'],
+    roles: [PLATFORM_ADMIN],
   },
 ];
 

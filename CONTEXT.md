@@ -43,6 +43,10 @@ _Avoid_: employee, entry
 The identifier a Responsible Commission uses for an officer; the onboarding match key.
 _Avoid_: staff number, PF, employee ID
 
+**Roster exit**:
+The confirmed departure from office of a roster record's declarant, as at an exit date. It owes a final declaration.
+_Avoid_: termination, removal, offboarding
+
 **Onboarding**:
 The one-time process that turns a roster record into a declarant account: Commission selection, file-number match, email and phone OTP, Keycloak account.
 _Avoid_: registration, sign-up, invitation
@@ -57,6 +61,18 @@ _Avoid_: return, filing, form
 A declarant's duty to make a specific declaration by a due date.
 _Avoid_: deadline, task
 
+**Cycle opening**:
+The day a biennial cycle's filing obligations are created for every declarant on a roster, a set number of days (120 by default) before its statement date.
+_Avoid_: cycle start, launch
+
+**Obligations policy**:
+A Responsible Commission's versioned rules for filing obligations: the statutory periods, the reminder schedule and the obligations start date, before which no declaration is owed on Adili.
+_Avoid_: settings, configuration, tenant policy (in prose)
+
+**Reminder**:
+A message to a declarant by SMS and email a set number of days before a filing obligation's due date, recorded with its outcome whether it was sent or skipped.
+_Avoid_: notification (alone), alert, nudge
+
 **Statement date**:
 The date the financial position is declared as at.
 _Avoid_: as-of date, cut-off
@@ -68,6 +84,14 @@ _Avoid_: section, schedule
 **Material change**:
 A change meeting Act s.31(4): 25% or more in value, acquisition or disposal, marital status, directorships or memberships.
 _Avoid_: significant change, delta
+
+**Acknowledgement slip**:
+The signed PDF receipt issued for each submitted version of a declaration, carrying its reference number, version, submission time, verification code and QR code; a later version's slip supersedes it.
+_Avoid_: receipt (alone), certificate, confirmation
+
+**Verification code**:
+The random, unguessable identifier of an issued document's verification record, printed under its QR code (e.g. `ADL-7Q4K-M2XR-9HTC-2B7F-Q3ZD-8WNA-9K`), with which anyone can check that the document is genuine and current.
+_Avoid_: reference number, document ID, serial
 
 ### Review
 

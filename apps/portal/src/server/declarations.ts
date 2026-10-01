@@ -19,12 +19,10 @@ import {
   linkAttachment,
   type LinkResult,
   listDeclarations,
-  listObligations,
   listSuggestions,
   loadDeclaration,
   loadSection,
   loadSummary,
-  type ObligationsResult,
   type RegistryLookupsResult,
   requestLookups,
   type SaveOutcome,
@@ -39,6 +37,12 @@ import {
   type UnlinkResult,
 } from './declarations.server';
 import { declarationsClient, type DeclarationsClient } from './declarations/client.server';
+import {
+  amendDeclaration,
+  type AmendOutcome,
+  discardAmendment,
+  type DiscardAmendmentOutcome,
+} from './my-declarations.server';
 import type { Unauthenticated } from './results';
 
 /** Server functions for the declaration workspace. Tokens stay on the server. */
@@ -50,10 +54,6 @@ function asDeclarant<T>(call: (client: DeclarationsClient) => Promise<T>) {
 const id = z.uuid();
 const sectionKey = z.string().refine(isSectionKey, 'Not a section key');
 const declarationInput = z.object({ declarationId: id });
-
-export const getMyObligations = createServerFn({ method: 'GET' }).handler(
-  (): Promise<ObligationsResult | Unauthenticated> => asDeclarant(listObligations),
-);
 
 export const startMyDeclaration = createServerFn({ method: 'POST' })
   .validator(z.object({ obligationId: id }))
@@ -94,6 +94,20 @@ export const discardMyDeclaration = createServerFn({ method: 'POST' })
   .validator(declarationInput)
   .handler(({ data }): Promise<DiscardResult | Unauthenticated> =>
     asDeclarant((client) => discardDeclaration(client, data.declarationId)),
+  );
+
+/** Reopens a submitted declaration as an amendment (spec 06 FE-4). */
+export const amendMyDeclaration = createServerFn({ method: 'POST' })
+  .validator(declarationInput)
+  .handler(({ data }): Promise<AmendOutcome | Unauthenticated> =>
+    asDeclarant((client) => amendDeclaration(client, data.declarationId)),
+  );
+
+/** Discards an amendment in progress; the submitted version stays in force. */
+export const discardMyAmendment = createServerFn({ method: 'POST' })
+  .validator(declarationInput)
+  .handler(({ data }): Promise<DiscardAmendmentOutcome | Unauthenticated> =>
+    asDeclarant((client) => discardAmendment(client, data.declarationId)),
   );
 
 export const linkDeclarationAttachment = createServerFn({ method: 'POST' })

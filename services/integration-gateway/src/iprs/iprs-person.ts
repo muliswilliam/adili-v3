@@ -1,14 +1,17 @@
 import { z } from 'zod';
 
-/** integration-gateway.yaml `IprsPerson`: a person as IPRS holds them, in our casing. */
-export interface IprsPerson {
-  nationalId: string;
-  firstName: string;
-  middleName: string | null;
-  lastName: string;
-  dateOfBirth: string;
-  sex: 'F' | 'M';
-}
+/** `IprsPerson`: a person as IPRS holds them, in our casing. */
+export const iprsPersonSchema = z
+  .object({
+    nationalId: z.string(),
+    firstName: z.string(),
+    middleName: z.string().nullable(),
+    lastName: z.string(),
+    dateOfBirth: z.iso.date(),
+    sex: z.enum(['F', 'M']),
+  })
+  .meta({ description: 'A person as IPRS holds them' });
+export type IprsPerson = z.infer<typeof iprsPersonSchema>;
 
 /** external/iprs.yaml `Person`, as the registry sends it. Unused fields are dropped. */
 export const registryPersonSchema = z
@@ -30,7 +33,7 @@ export const registryPersonSchema = z
     sex: person.sex,
   }));
 
-/** Body of `POST /internal/v1/iprs/person-lookups` (integration-gateway.yaml `lookupIprsPerson`). */
+/** Body of `POST /internal/v1/iprs/person-lookups` (`LookupIprsPerson`). */
 export const lookupIprsPersonSchema = z.strictObject({
   nationalId: z.string().regex(/^[0-9]{5,10}$/, 'must be 5 to 10 digits'),
 });

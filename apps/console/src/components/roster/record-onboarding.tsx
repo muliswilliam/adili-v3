@@ -3,11 +3,7 @@ import { SquareLock02Icon } from '@hugeicons/core-free-icons';
 
 import { IdentityMismatchBadge } from './identity-mismatch';
 
-/**
- * The spec 03 onboarding fields of a roster record (`RosterRecord` in the directory contract).
- * The contract draft does not carry `ofr`, `onboardedAt` or `identityMismatchAt` yet; these are
- * the names spec 03 gives them (S25), so map the contract's record onto this until it does.
- */
+/** The spec 03 onboarding fields of a roster record (`RosterRecord` in the directory contract). */
 export interface RosterRecordOnboarding {
   state: 'not_onboarded' | 'onboarded' | 'exited';
   /** Officer reference, once the declarant has onboarded. */

@@ -13,7 +13,7 @@ import { cn } from '../lib/cn';
 import { focusRing } from '../lib/focus';
 import { joinIds } from '../lib/use-field-ids';
 import { FieldError } from './form-field';
-import { Icon } from './icon';
+import { Icon, type IconProps } from './icon';
 
 export type FileRejection = 'type' | 'size';
 
@@ -28,6 +28,8 @@ export type FileDropZoneProps = Omit<ComponentProps<'button'>, 'onSelect' | 'chi
   label: ReactNode;
   /** Shown in the zone under the label, e.g. accepted formats and the size limit. */
   hint?: ReactNode;
+  /** The icon in the zone's tile. An upload arrow by default. */
+  icon?: IconProps['icon'];
   /**
    * File extensions (".csv") or MIME types ("text/csv", "image/*"). Any file when empty.
    * Include extensions: Windows reports some CSVs as `application/vnd.ms-excel` or with no type.
@@ -92,6 +94,7 @@ function rejectionFor(file: File, accept: string[], maxSize?: number): FileRejec
 export function FileDropZone({
   label,
   hint,
+  icon = Upload04Icon,
   accept = [],
   maxSize,
   messages,
@@ -202,7 +205,7 @@ export function FileDropZone({
         )}
       >
         <span className="mb-0.5 flex size-11 items-center justify-center rounded-xl bg-muted text-secondary-foreground">
-          <Icon icon={Upload04Icon} className="size-[18px]" />
+          <Icon icon={icon} className="size-[18px]" />
         </span>
         <span id={labelId} className="text-[15px] font-semibold">
           {label}

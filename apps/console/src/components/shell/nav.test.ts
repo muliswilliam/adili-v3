@@ -6,30 +6,39 @@ const labels = (roles: string[]) =>
   navFor(roles).map((group) => [group.label, group.items.map((item) => item.label)]);
 
 describe('navFor', () => {
-  it('shows Commissions under Platform to platform admins and EACC staff', () => {
+  it('shows Commissions and National obligations under Platform to platform admins and EACC staff', () => {
     for (const role of ['platform-admin', 'eacc-analyst', 'eacc-supervisor']) {
-      expect(labels([role])).toEqual([['Platform', ['Commissions']]]);
+      expect(labels([role])).toEqual([['Platform', ['Commissions', 'National obligations']]]);
     }
-    expect(navFor(['platform-admin'])[0]?.items[0]?.to).toBe('/commissions');
+    expect(navFor(['platform-admin'])[0]?.items.map((item) => item.to)).toEqual([
+      '/commissions',
+      '/obligations/national',
+    ]);
   });
 
   it('shows the Roster and API access under Commission to reporting officers', () => {
-    expect(labels(['reporting-officer'])).toEqual([['Commission', ['Roster', 'API access']]]);
+    expect(labels(['reporting-officer'])).toEqual([
+      ['Commission', ['Roster', 'API access', 'Obligations']],
+    ]);
     expect(navFor(['reporting-officer'])[0]?.items.map((item) => item.to)).toEqual([
       '/roster',
       '/roster/api-access',
+      '/obligations',
     ]);
   });
 
   it('shows commission admins the Roster but not API access, which they cannot open', () => {
-    expect(labels(['commission-admin'])).toEqual([['Commission', ['Roster']]]);
+    expect(labels(['commission-admin'])).toEqual([['Commission', ['Roster', 'Obligations']]]);
     expect(labels(['commission-admin', 'reporting-officer'])).toEqual([
-      ['Commission', ['Roster', 'API access']],
+      ['Commission', ['Roster', 'API access', 'Obligations']],
     ]);
   });
 
-  it('leaves out destinations that are not built yet', () => {
-    expect(navFor(['reviewer', 'supervisor', 'access-officer'])).toEqual([]);
+  it('shows reviewers and supervisors Obligations only, leaving out what is not built yet', () => {
+    expect(labels(['reviewer', 'supervisor', 'access-officer'])).toEqual([
+      ['Commission', ['Obligations']],
+    ]);
+    expect(navFor(['access-officer'])).toEqual([]);
   });
 });
 
@@ -40,6 +49,9 @@ describe('activeNavHref', () => {
     ['/roster', '/roster'],
     ['/roster/records', '/roster'],
     ['/roster/api-access', '/roster/api-access'],
+    ['/obligations', '/obligations'],
+    ['/obligations/policy', '/obligations'],
+    ['/obligations/national', '/obligations/national'],
     ['/commissions/psc', '/commissions'],
     ['/rosters', null],
     ['/', null],

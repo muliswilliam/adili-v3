@@ -8,6 +8,111 @@
       "when": 1790325258462,
       "tag": "0000_init",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1790621001470,
+      "tag": "0001_obligations",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1790621002045,
+      "tag": "0002_obligations_rls",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1790622013676,
+      "tag": "0003_commission_last_roster_import",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1790623746170,
+      "tag": "0004_cycle_openings",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1790627721822,
+      "tag": "0005_policy_cache_cycle_openings_rls",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1790627999901,
+      "tag": "0006_obligation_reminder_offsets",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1790666439353,
+      "tag": "0007_reminder_messages",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1790666548198,
+      "tag": "0008_reminder_outcome_missed",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1790764641182,
+      "tag": "0009_platform_tables_without_rls",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1790771223446,
+      "tag": "0010_roster_snapshots_person_read",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1790781157719,
+      "tag": "0011_declaration_drafts",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1790781164335,
+      "tag": "0012_declaration_drafts_rls",
+      "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1790781306459,
+      "tag": "0013_in_progress_counts",
+      "breakpoints": true
+    },
+    {
+      "idx": 15,
+      "version": "7",
+      "when": 1790784651426,
+      "tag": "0015_submission",
+      "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1790784661958,
+      "tag": "0016_submission_partitions_immutability_rls",
+      "breakpoints": true
     }
   ]
 }

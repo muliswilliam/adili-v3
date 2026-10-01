@@ -1,4 +1,14 @@
-import { Alert, AlertDescription, Button, Card, EmptyState, Icon, Skeleton } from '@adili/ui';
+import {
+  Alert,
+  AlertDescription,
+  Button,
+  Card,
+  EmptyState,
+  formatDate,
+  formatDateTime,
+  Icon,
+  Skeleton,
+} from '@adili/ui';
 import { InformationCircleIcon, Search01Icon } from '@hugeicons/core-free-icons';
 import { useRouter } from '@tanstack/react-router';
 import type { ReactNode } from 'react';
@@ -9,7 +19,7 @@ import type {
   RosterImportRowPage,
 } from '../../server/directory/client';
 import { getRosterImport, listRejectedRows } from '../../server/roster-imports';
-import { formatDate, formatDateTime, formatNumber } from '../format';
+import { formatNumber } from '../format';
 import { LoadError } from '../load-error';
 import { Page, PageHead } from '../page';
 import { goToSignIn } from '../sign-in-redirect';
@@ -269,7 +279,7 @@ export function ImportReportSkeleton() {
           <Skeleton className="h-6 w-[92px] rounded-full" />
         </div>
       </PageHead>
-      <Card aria-busy="true" aria-label={m.loading}>
+      <Card role="status" aria-busy="true" aria-label={m.loading}>
         <div className="grid grid-cols-2 gap-x-6 gap-y-4 min-[700px]:grid-cols-3 min-[1100px]:grid-cols-5">
           {Array.from({ length: 5 }, (_, index) => (
             <div key={index} className="grid gap-2">

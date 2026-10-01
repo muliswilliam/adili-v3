@@ -1,5 +1,6 @@
 import { createHash, randomBytes } from 'node:crypto';
 
+import { STEP_UP_ACR, STEP_UP_WINDOW_SECONDS } from '@adili/api-kit/client';
 import * as oidc from 'openid-client';
 
 import { clearCookie, readCookie, serializeCookie } from './cookies.ts';
@@ -25,6 +26,10 @@ export interface SessionUser {
 export interface Session {
   user: SessionUser;
   accessToken: string;
+  /** Authentication context class of the last sign-in or step-up (`acr`), e.g. `step-up`. */
+  acr: string | null;
+  /** When the user last actively authenticated (`auth_time`), in seconds since the epoch. */
+  authTime: number | null;
 }
 
 interface StoredSession {
@@ -33,6 +38,9 @@ interface StoredSession {
   accessTokenExpiresAt: number;
   refreshToken?: string;
   idToken?: string;
+  /** Absent on sessions opened before step-up existed. */
+  acr?: string | null;
+  authTime?: number | null;
 }
 
 interface LoginTransaction {
@@ -40,6 +48,48 @@ interface LoginTransaction {
   state: string;
   nonce: string;
   returnTo: string;
+  /** A step-up: the callback reports the outcome on `returnTo` (`stepUp=done|failed`). */
+  stepUp?: boolean;
+}
+
+/*
+ * A step-up asks Keycloak for `STEP_UP_ACR` (realm `acr.loa.map`: `step-up` is level 2, the
+ * one-time code). Keycloak re-runs only the steps whose level has lapsed, so a step-up asks for
+ * the code again once its max age ({@link STEP_UP_CODE_MAX_AGE_SECONDS}) is over and is silent
+ * before that. The ACR and the window services accept it for come from api-kit, which the
+ * services check them with.
+ */
+export { STEP_UP_ACR, STEP_UP_WINDOW_SECONDS };
+
+/** Query parameter on a step-up's `returnTo` that says how it ended. */
+export const STEP_UP_PARAM = 'stepUp';
+
+/**
+ * The least time a step-up leaves to affirm and submit: Keycloak's silent answer carries the old
+ * `auth_time`, so the code must lapse this long before the window closes.
+ */
+export const STEP_UP_SUBMIT_MARGIN_SECONDS = 120;
+
+/**
+ * The realm's max age for the one-time code (LoA 2, `adili-loa-2` in adili-realm.json): the window
+ * less the margin. Within it a step-up is silent; after it Keycloak asks for a new code.
+ */
+export const STEP_UP_CODE_MAX_AGE_SECONDS = STEP_UP_WINDOW_SECONDS - STEP_UP_SUBMIT_MARGIN_SECONDS;
+
+/**
+ * Whether the session holds a step-up recent enough to open the affirmation for a legal act such
+ * as submission: within the code's max age, so at least the margin of the window is left. A hint
+ * for the UI only: the service that performs the act checks the access token itself.
+ */
+export function hasFreshStepUp(
+  session: Pick<Session, 'acr' | 'authTime'>,
+  now: number = Date.now(),
+): boolean {
+  return (
+    session.acr === STEP_UP_ACR &&
+    session.authTime !== null &&
+    now / 1000 - session.authTime <= STEP_UP_CODE_MAX_AGE_SECONDS
+  );
 }
 
 export interface BffOptions {
@@ -78,19 +128,36 @@ export class Bff {
   }
 
   /** GET /auth/login?returnTo=/path: starts Authorization Code + PKCE. */
-  async login(request: Request): Promise<Response> {
+  login(request: Request): Promise<Response> {
+    return this.authorize(request, false);
+  }
+
+  /**
+   * GET /auth/step-up?returnTo=/path: asks Keycloak for a fresh proof of identity
+   * (`acr_values=step-up`) without a full sign-in. The callback replaces the session with the
+   * new tokens and returns to `returnTo` with `stepUp=done`, or `stepUp=failed` when Keycloak
+   * refused or did not reach the step-up level. Services check `acr` and `auth_time` in the
+   * access token themselves.
+   */
+  stepUp(request: Request): Promise<Response> {
+    return this.authorize(request, true);
+  }
+
+  private async authorize(request: Request, stepUp: boolean): Promise<Response> {
     const returnTo = safeReturnTo(new URL(request.url).searchParams.get('returnTo'));
     const transaction: LoginTransaction = {
       codeVerifier: oidc.randomPKCECodeVerifier(),
       state: oidc.randomState(),
       nonce: oidc.randomNonce(),
       returnTo,
+      ...(stepUp ? { stepUp } : {}),
     };
     const url = await this.options.provider.authorizationUrl({
       redirectUri: this.redirectUri,
       state: transaction.state,
       nonce: transaction.nonce,
       codeChallenge: await oidc.calculatePKCECodeChallenge(transaction.codeVerifier),
+      ...(stepUp ? { acrValues: STEP_UP_ACR } : {}),
     });
 
     const transactionId = randomId();
@@ -115,22 +182,15 @@ export class Bff {
       secure: this.secure,
     });
     const requestUrl = new URL(request.url);
-    const providerError = requestUrl.searchParams.get('error');
-    if (providerError) {
-      return this.failLogin(providerError, clearTransaction);
-    }
+    const transaction = await this.takeTransaction(request);
+    const fail = (reason: string) =>
+      transaction?.stepUp
+        ? redirect(this.stepUpOutcome(transaction.returnTo, 'failed'), 302, [clearTransaction])
+        : this.failLogin(reason, clearTransaction);
 
-    const transactionId = readCookie(request, this.transactionCookie);
-    if (!transactionId) {
-      return this.failLogin('login_expired', clearTransaction);
-    }
-    const transactionKey = `login:${hash(transactionId)}`;
-    const stored = await this.options.store.get(transactionKey);
-    await this.options.store.delete(transactionKey);
-    if (!stored) {
-      return this.failLogin('login_expired', clearTransaction);
-    }
-    const transaction = JSON.parse(stored) as LoginTransaction;
+    const providerError = requestUrl.searchParams.get('error');
+    if (providerError) return fail(providerError);
+    if (!transaction) return this.failLogin('login_expired', clearTransaction);
 
     let tokens: TokenSet;
     try {
@@ -138,22 +198,45 @@ export class Bff {
       const callbackUrl = new URL(`${requestUrl.pathname}${requestUrl.search}`, this.appUrl);
       tokens = await this.options.provider.exchangeCode(callbackUrl, transaction);
     } catch {
-      return this.failLogin('login_failed', clearTransaction);
+      return fail('login_failed');
     }
-    if (!tokens.claims) {
-      return this.failLogin('login_failed', clearTransaction);
-    }
+    if (!tokens.claims) return fail('login_failed');
 
+    // A new session ID on every sign-in and step-up; the one it replaces is ended.
+    const previousId = readCookie(request, this.options.cookieName);
+    if (previousId) await this.options.store.delete(sessionKey(previousId));
     const sessionId = randomId();
     await this.saveSession(
       sessionId,
       this.toStoredSession(tokens, userFrom(tokens.claims)),
       tokens,
     );
-    return redirect(new URL(transaction.returnTo, this.appUrl).toString(), 302, [
+    const location = transaction.stepUp
+      ? this.stepUpOutcome(
+          transaction.returnTo,
+          tokens.claims.acr === STEP_UP_ACR ? 'done' : 'failed',
+        )
+      : new URL(transaction.returnTo, this.appUrl).toString();
+    return redirect(location, 302, [
       clearTransaction,
       serializeCookie(this.options.cookieName, sessionId, { secure: this.secure }),
     ]);
+  }
+
+  /** The login transaction the callback belongs to, used at most once. */
+  private async takeTransaction(request: Request): Promise<LoginTransaction | null> {
+    const transactionId = readCookie(request, this.transactionCookie);
+    if (!transactionId) return null;
+    const transactionKey = `login:${hash(transactionId)}`;
+    const stored = await this.options.store.get(transactionKey);
+    await this.options.store.delete(transactionKey);
+    return stored ? (JSON.parse(stored) as LoginTransaction) : null;
+  }
+
+  private stepUpOutcome(returnTo: string, outcome: 'done' | 'failed'): string {
+    const url = new URL(returnTo, this.appUrl);
+    url.searchParams.set(STEP_UP_PARAM, outcome);
+    return url.toString();
   }
 
   /** POST /auth/logout: ends the local session and the Keycloak SSO session. */
@@ -192,7 +275,14 @@ export class Bff {
     if (session.accessTokenExpiresAt - this.now() < REFRESH_MARGIN_MS) {
       session = await this.refreshOnce(sessionId, session);
     }
-    return session ? { user: session.user, accessToken: session.accessToken } : null;
+    return session
+      ? {
+          user: session.user,
+          accessToken: session.accessToken,
+          acr: session.acr ?? null,
+          authTime: session.authTime ?? null,
+        }
+      : null;
   }
 
   /** Concurrent requests of one session share a single refresh. */
@@ -236,6 +326,9 @@ export class Bff {
       // Keycloak may rotate refresh tokens; keep the old one only if none was returned.
       refreshToken: tokens.refreshToken ?? previous?.refreshToken,
       idToken: tokens.idToken ?? previous?.idToken,
+      // A refresh does not authenticate: keep the sign-in's values unless the new ID token says.
+      acr: tokens.claims?.acr ?? previous?.acr ?? null,
+      authTime: tokens.claims?.auth_time ?? previous?.authTime ?? null,
     };
   }
 

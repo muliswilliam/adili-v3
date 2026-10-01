@@ -1,14 +1,8 @@
-import {
-  applyDecorators,
-  createParamDecorator,
-  type ExecutionContext,
-  SetMetadata,
-} from '@nestjs/common';
+import { applyDecorators, SetMetadata } from '@nestjs/common';
 import type { Reflector } from '@nestjs/core';
 import { ApiExtension } from '@nestjs/swagger';
 
 const AUDITED_READ = Symbol('AUDITED_READ');
-const AUDITED_TENANT = Symbol('AUDITED_TENANT');
 
 export interface AuditedReadOptions {
   /** Audit action of the read, e.g. `roster.record.viewed` (ADR-008 event schema). */
@@ -22,7 +16,8 @@ export interface AuditedReadOptions {
  * (Pipeline step 2: an interceptor writes `audit.read.v1` to the service's outbox before the
  * response is sent). The interceptor (`AuditedReadInterceptor` in `@adili/events`) reads the
  * mark with `auditedReadOf`; the OpenAPI operation carries it as `x-audited-read`, so clients
- * see which reads leave a trace.
+ * see which reads leave a trace. A handler that loads the resource by id says whose it is, or
+ * that the caller read their own record, through `@CurrentReadAudit()` (`ReadAudit`).
  *
  * @example
  * @Get(':recordId')
@@ -41,37 +36,4 @@ export function auditedReadOf(
   handler: object,
 ): AuditedReadOptions | undefined {
   return reflector.get<AuditedReadOptions | undefined>(AUDITED_READ, handler as () => void);
-}
-
-/** Names the tenant whose data an audited read returned (see `AuditedTenant`). */
-export type SetAuditedTenant = (tenant: string) => void;
-
-interface AuditableRequest {
-  [AUDITED_TENANT]?: string;
-}
-
-/**
- * Injects a setter for the tenant whose data an audited read returned, for a route whose path
- * does not name it (a read by id across tenants, e.g. EACC reading a Commission's report). The
- * handler calls it once it knows the record's tenant; the audit interceptor records that tenant
- * in place of the route's `slug` or the caller's.
- *
- * @example
- * get(@Param('id') id: string, @AuditedTenant() audit: SetAuditedTenant) {
- *   const record = find(id);
- *   audit(record.tenant);
- * }
- */
-export const AuditedTenant = createParamDecorator(
-  (_data: unknown, context: ExecutionContext): SetAuditedTenant => {
-    const request = context.switchToHttp().getRequest<AuditableRequest>();
-    return (tenant) => {
-      request[AUDITED_TENANT] = tenant;
-    };
-  },
-);
-
-/** The tenant a handler named through `AuditedTenant`; undefined when it named none. */
-export function auditedTenantOf(request: object): string | undefined {
-  return (request as AuditableRequest)[AUDITED_TENANT];
 }

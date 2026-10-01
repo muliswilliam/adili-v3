@@ -166,7 +166,27 @@ describe('CoreModule', () => {
       clientId: 'console',
       name: null,
       issuedAt: null,
+      personId: null,
+      acr: null,
+      authTime: null,
+      tokenId: null,
     });
+  });
+
+  it('S21: exposes the person_id claim of a declarant token as personId', async () => {
+    const token = await signToken({
+      azp: 'portal',
+      tenant: 'psc',
+      realm_access: { roles: ['declarant'] },
+      person_id: '5f0c7a8e-3b1d-4c2a-9e6f-2d4b8a1c7e90',
+    });
+    const response = await app.inject({
+      method: 'GET',
+      url: '/v1/me',
+      headers: { authorization: `Bearer ${token}` },
+    });
+
+    expect(response.json()).toMatchObject({ personId: '5f0c7a8e-3b1d-4c2a-9e6f-2d4b8a1c7e90' });
   });
 
   it('names the caller from the name claim, else the preferred username', async () => {

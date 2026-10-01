@@ -15,7 +15,7 @@ import { z } from 'zod';
 
 import type { RosterSummary } from '../../commissions/representation.js';
 import { HrSystemAccess } from '../api-credential/hr-system-access.js';
-import { IMPORT_READ_ROLES } from '../import/imports.controller.js';
+import { ROSTER_OVERVIEW_ROLES } from '../access.js';
 import { RECORD_READ_ROLES } from './access.js';
 import { type ListRosterRecordsQuery, listRosterRecordsQuery } from './list-query.js';
 import { RosterRecordsService } from './records.service.js';
@@ -32,7 +32,7 @@ export class RosterRecordsController {
   constructor(private readonly records: RosterRecordsService) {}
 
   @Get('summary')
-  @Roles(...IMPORT_READ_ROLES)
+  @Roles(...ROSTER_OVERVIEW_ROLES)
   @HrSystemAccess('roster-read')
   @ApiOperation({
     operationId: 'getRosterSummary',

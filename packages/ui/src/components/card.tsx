@@ -1,11 +1,21 @@
+import { Slot } from '@radix-ui/react-slot';
 import type { ComponentProps } from 'react';
 
 import { cn } from '../lib/cn';
+import { IconTile, type IconTileProps } from './icon-tile';
 
-/** A white panel with a hairline ring, 16px radius and 20px padding (24px from `sm`). */
-export function Card({ className, ...props }: ComponentProps<'div'>) {
+/**
+ * A white panel with a hairline ring, 16px radius and 20px padding (24px from `sm`). With
+ * `asChild` the styles go on the single child instead, e.g. an `article`.
+ */
+export function Card({
+  className,
+  asChild = false,
+  ...props
+}: ComponentProps<'div'> & { asChild?: boolean }) {
+  const Component = asChild ? Slot : 'div';
   return (
-    <div
+    <Component
       className={cn(
         'flex flex-col rounded-2xl bg-card p-5 text-card-foreground shadow-card sm:p-6',
         className,
@@ -20,17 +30,8 @@ export function CardHeader({ className, ...props }: ComponentProps<'div'>) {
 }
 
 /** A 34px decorative icon tile above the title, e.g. `<CardIcon><Icon icon={…} /></CardIcon>`. */
-export function CardIcon({ className, ...props }: ComponentProps<'div'>) {
-  return (
-    <div
-      aria-hidden="true"
-      className={cn(
-        'mb-2 flex size-[34px] items-center justify-center rounded-[9px] bg-muted text-secondary-foreground [&_svg]:size-[18px]',
-        className,
-      )}
-      {...props}
-    />
-  );
+export function CardIcon({ className, ...props }: IconTileProps) {
+  return <IconTile className={cn('mb-2', className)} {...props} />;
 }
 
 export function CardTitle({ className, ...props }: ComponentProps<'h3'>) {

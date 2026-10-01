@@ -1,11 +1,10 @@
 import type { Principal } from '@adili/api-kit';
-import { ProblemException } from '@adili/api-kit';
+import { ProblemException, PLATFORM_TENANT } from '@adili/api-kit';
 import { withTenant } from '@adili/data-access';
 import type { Client, WorkflowStartOptions } from '@temporalio/client';
 import { eq } from 'drizzle-orm';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
-import { PLATFORM_TENANT } from '../../src/commissions/access.js';
 import { rosterImportBatches, rosterImports } from '../../src/db/schema.js';
 import { RosterImportsService } from '../../src/roster/import/imports.service.js';
 import { type DirectoryApi, startDirectoryApi } from '../support/directory-api.js';
@@ -24,6 +23,10 @@ const OFFICER: Principal = {
   clientId: 'console',
   name: 'Fatuma Wanjiru',
   issuedAt: null,
+  personId: null,
+  acr: null,
+  authTime: null,
+  tokenId: null,
 };
 const ROWS = [{ personnelFileNumber: 'PSC/1', fullName: 'Achieng Otieno', nationalId: '12345678' }];
 

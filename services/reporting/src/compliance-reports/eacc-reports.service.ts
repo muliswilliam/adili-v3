@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { type Principal, type SetAuditedTenant } from '@adili/api-kit';
+import { type Principal, type ReadAudit } from '@adili/api-kit';
 import { type Database, FieldCipher, InjectDatabase, withTenant } from '@adili/data-access';
 import { and, count, eq, max } from 'drizzle-orm';
 
@@ -78,7 +78,7 @@ export class EaccReportsService {
   async submittedReport(
     principal: Principal,
     reportId: string,
-    audit: SetAuditedTenant,
+    audit: ReadAudit,
   ): Promise<ComplianceReportView> {
     const reader = submittedReportReader(principal, REPORTS_SUBMIT_SCOPE);
     const report = await withTenant(
@@ -99,7 +99,7 @@ export class EaccReportsService {
       },
     );
     if (!report) throw notFound();
-    audit(report.tenant);
+    audit.resource({ tenant: report.tenant });
     const document = await openSnapshot(this.cipher, report.tenant, report);
     return reportView(report, await commissionOf(this.directory, report.tenant), document);
   }
