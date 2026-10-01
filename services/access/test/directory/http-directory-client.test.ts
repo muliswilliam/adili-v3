@@ -220,3 +220,47 @@ describe('HttpDirectoryClient: Commission list', () => {
     await expect(client.listCommissions()).rejects.toBeInstanceOf(DirectoryUnavailable);
   });
 });
+
+describe('HttpDirectoryClient: law enforcement officers', () => {
+  const OFFICER = {
+    personId: PERSON,
+    keycloakUserId: 'kc-peter',
+    name: 'Peter Mwangi',
+    agency: {
+      code: 'DCI',
+      name: 'Directorate of Criminal Investigations',
+      legalBasis: 'National Police Service Act, 2011, s.35',
+    },
+    state: 'activated',
+    activatedAt: '2027-01-04T07:00:00.000Z',
+    revokedAt: null,
+  };
+
+  it("reads an officer's account and agency for the Commission addressed, with the reference token", async () => {
+    const { client, sent } = clientAnswering(() => json(OFFICER, 200));
+
+    await expect(client.leaOfficer(PERSON, 'psc')).resolves.toEqual({
+      personId: PERSON,
+      keycloakUserId: 'kc-peter',
+      name: 'Peter Mwangi',
+      agency: OFFICER.agency,
+      state: 'activated',
+      activatedAt: new Date('2027-01-04T07:00:00.000Z'),
+    });
+    expect(sent[0]?.url).toBe(
+      `http://directory.test/internal/v1/law-enforcement/officers/${PERSON}`,
+    );
+    expect(sent[0]?.headers.get('x-acting-tenant')).toBe('psc');
+    expect(sent[0]?.headers.get('authorization')).toBe('Bearer reference-token');
+  });
+
+  it('an unknown officer is null; an answer outside the contract is an outage', async () => {
+    const unknown = clientAnswering(() => json({ status: 404 }, 404));
+    const broken = clientAnswering(() => json({ ...OFFICER, state: 'lost' }, 200));
+
+    await expect(unknown.client.leaOfficer(PERSON, 'psc')).resolves.toBeNull();
+    await expect(broken.client.leaOfficer(PERSON, 'psc')).rejects.toBeInstanceOf(
+      DirectoryUnavailable,
+    );
+  });
+});

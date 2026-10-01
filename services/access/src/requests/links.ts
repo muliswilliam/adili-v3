@@ -24,3 +24,13 @@ export function declarantCertifiedCopiesUrl(): string {
 export function officerRequestUrl(requestId: string): string {
   return new URL(`/access/requests/${requestId}`, config.CONSOLE_URL).toString();
 }
+
+/** A law enforcement request in the access officer's workspace in the console (spec 10 FE-6). */
+export function officerLeaRequestUrl(requestId: string): string {
+  return new URL(`/access/lea-requests/${requestId}`, config.CONSOLE_URL).toString();
+}
+
+/** A law enforcement request in its officer's workspace in the console (spec 10 FE-6). */
+export function leaRequestUrl(requestId: string): string {
+  return new URL(`/lea/requests/${requestId}`, config.CONSOLE_URL).toString();
+}

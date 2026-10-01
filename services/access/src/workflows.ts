@@ -4,5 +4,6 @@
  * re-exported here: `AccessRequestWorkflow` (requests, #253), `LeaRequestWorkflow` (lea, #264)
  * and `CertifiedCopyWorkflow` (self-access, #267).
  */
+export { leaRequest } from './lea/workflows.js';
 export { accessRequest } from './requests/workflows.js';
 export { certifiedCopy } from './self-access/workflows.js';

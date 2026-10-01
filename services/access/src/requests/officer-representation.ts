@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-import { accessRequestStatusSchema } from './representation.js';
+import type { LeaRequestStatus } from '../lea/schema.js';
 import { ACCESS_REQUEST_STATUSES, type AccessRequestStatus } from './schema.js';
 
 /**
@@ -8,8 +8,30 @@ import { ACCESS_REQUEST_STATUSES, type AccessRequestStatus } from './schema.js';
  * queue, and the roster records the officer named in a request may be resolved to.
  */
 
-/** The kinds of request the queue holds: Form K, and law enforcement requests (#264). */
+/** The kinds of request the queue holds: Form K, and law enforcement requests. */
 export const QUEUE_KINDS = ['form-k', 'lea'] as const;
+
+/**
+ * The statuses of either kind: `AccessRequestStatus` and the law enforcement ones it lacks
+ * (`granted`, `denied` and `withdrawn` are both kinds').
+ */
+export const QUEUE_STATUSES = [
+  ...ACCESS_REQUEST_STATUSES,
+  'received',
+  'verified',
+] as const satisfies readonly (AccessRequestStatus | LeaRequestStatus)[];
+export type QueueStatus = AccessRequestStatus | LeaRequestStatus;
+
+const isQueueStatus = (status: string): status is QueueStatus =>
+  (QUEUE_STATUSES as readonly string[]).includes(status);
+
+/** The statuses of `kind` among `statuses`. */
+export function statusesOfKind<S extends QueueStatus>(
+  statuses: readonly QueueStatus[],
+  kind: readonly S[],
+): S[] {
+  return statuses.filter((status): status is S => (kind as readonly string[]).includes(status));
+}
 
 /** Query of `listCommissionAccessRequests`. */
 export const queueQuery = z.object({
@@ -20,18 +42,16 @@ export const queueQuery = z.object({
     .transform((value, ctx) => {
       if (value === undefined || value === '') return undefined;
       const statuses = value.split(',').map((status) => status.trim());
-      const unknown = statuses.filter(
-        (status) => !(ACCESS_REQUEST_STATUSES as readonly string[]).includes(status),
-      );
+      const unknown = statuses.filter((status) => !isQueueStatus(status));
       if (unknown.length > 0) {
         ctx.addIssue({ code: 'custom', message: `Unknown status: ${unknown.join(', ')}` });
         return z.NEVER;
       }
-      return statuses as AccessRequestStatus[];
+      return statuses.filter(isQueueStatus);
     })
     .meta({
       description:
-        'Only requests in these statuses, comma-separated (e.g. the open ones: `submitted,pending-applicant-verification,officer-unresolved,awaiting-representations,under-decision`)',
+        'Only requests in these statuses, comma-separated, of either kind (e.g. the open ones: `submitted,pending-applicant-verification,officer-unresolved,awaiting-representations,under-decision,received,verified`)',
     }),
   kind: z.enum(QUEUE_KINDS).optional().meta({ description: 'Only Form K or only LEA requests' }),
   cursor: z
@@ -49,17 +69,20 @@ export const queueItemSchema = z.object({
   kind: z.enum(QUEUE_KINDS),
   id: z.uuid(),
   reference: z.string(),
-  /** The applicant's name (Form K Part I), or the agency of a law enforcement request. */
+  /** The applicant's name (Form K Part I), or the agency's name of a law enforcement request. */
   applicantOrAgency: z.string(),
   /** The officer sought, as the request names them. */
   officerSought: z.string(),
   /** The roster record's full name the officer sought was resolved to; null before. */
   resolvedName: z.string().nullable(),
-  status: accessRequestStatusSchema,
+  status: z.enum(QUEUE_STATUSES).meta({
+    description:
+      'An `AccessRequestStatus` for Form K, a `LeaRequestStatus` for law enforcement requests',
+  }),
   submittedAt: z.iso.datetime({ offset: true }),
   /** The decision deadline. */
   deadlineAt: z.iso.datetime({ offset: true }),
-  /** When the declarant's window for representations ends, once notified. */
+  /** When the declarant's window for representations ends, once notified (Form K only). */
   windowEndsAt: z.iso.datetime({ offset: true }).nullable(),
   /** Past its decision deadline and not decided or closed. */
   late: z.boolean(),

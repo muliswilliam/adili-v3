@@ -68,6 +68,24 @@ export interface ApplicantVerificationInput {
   idempotencyKey: string;
 }
 
+/** The state of a law enforcement officer's account (directory.yaml `LeaOfficerState`). */
+export type LeaOfficerState = 'invited' | 'activated' | 'revoked';
+
+/**
+ * A law enforcement officer's account as the directory holds it (directory.yaml
+ * `InternalLeaOfficer`): the provenance of the requests filed from it (r.23(1)).
+ */
+export interface LeaOfficerFacts {
+  /** The officer's directory person (token `person_id`): packages and messages go to it. */
+  personId: string;
+  /** The Keycloak account their tokens are issued to (token `sub`). */
+  keycloakUserId: string;
+  name: string;
+  agency: { code: string; name: string; legalBasis: string };
+  state: LeaOfficerState;
+  activatedAt: Date | null;
+}
+
 /** The staff role access lists a Commission's accounts by: its access officers, for reminders. */
 export type StaffRole = typeof ACCESS_OFFICER;
 
@@ -123,4 +141,10 @@ export abstract class DirectoryClient {
   abstract verifyApplicantIdentity(
     input: ApplicantVerificationInput,
   ): Promise<ApplicantFacts | null>;
+
+  /**
+   * The law enforcement officer person `personId`, with their agency and account, read for
+   * `tenant` (the Commission a request is addressed to); null when no officer has this id.
+   */
+  abstract leaOfficer(personId: string, tenant: string): Promise<LeaOfficerFacts | null>;
 }

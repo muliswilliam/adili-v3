@@ -28,6 +28,7 @@ import {
 import {
   agencyCodeSchema,
   agencySchema,
+  internalLeaOfficerSchema,
   leaOfficerAccountSchema,
   leaOfficerStateSchema,
   provisionAgencyOfficerBody,
@@ -188,6 +189,7 @@ export const OPENAPI_SCHEMAS: Record<string, z.ZodType> = {
   Agency: agencySchema,
   LeaOfficerState: leaOfficerStateSchema,
   LeaOfficerAccount: leaOfficerAccountSchema,
+  InternalLeaOfficer: internalLeaOfficerSchema,
   ProvisionAgencyOfficer: provisionAgencyOfficerBody,
   IdentityDocumentKind: identityDocumentKindSchema,
   IdentityStatus: identityStatusSchema,

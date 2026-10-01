@@ -18,6 +18,7 @@ import { CommissionsModule } from './commissions/commissions.module.js';
 import { config, SERVICE_NAME } from './config.js';
 import { schema } from './db/schema.js';
 import { HistoryModule } from './history/history.module.js';
+import { LeaModule } from './lea/lea.module.js';
 import { NoticesModule } from './notices/notices.module.js';
 import { RequestsModule } from './requests/requests.module.js';
 import { SelfAccessModule } from './self-access/self-access.module.js';
@@ -51,6 +52,7 @@ import { AccessWorkerModule } from './worker.module.js';
     }),
     CommissionsModule,
     RequestsModule,
+    LeaModule,
     NoticesModule,
     HistoryModule,
     SelfAccessModule,

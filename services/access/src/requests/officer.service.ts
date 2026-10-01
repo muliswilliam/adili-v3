@@ -18,6 +18,13 @@ import {
   DirectoryUnavailable,
   type RosterRecordFacts,
 } from '../directory/directory-client.js';
+import type { LeaRequestRow } from '../lea/representation.js';
+import {
+  LEA_OPEN_STATUSES,
+  LEA_REQUEST_STATUSES,
+  type LeaRequestStatus,
+  leaRequests,
+} from '../lea/schema.js';
 import { decodeCursor, encodeCursor } from '../paging.js';
 import { badRequest, conflict, directoryUnavailable, problem } from '../problems.js';
 import { AccessRegister, type RegisterRow } from '../register/access-register.js';
@@ -28,6 +35,7 @@ import {
   type QueueQuery,
   type ResolveOfficerBody,
   type RosterCandidates,
+  statusesOfKind,
 } from './officer-representation.js';
 import {
   type OfficerRequestView,
@@ -37,6 +45,7 @@ import {
 import { AccessRequestWorkflows } from './request-workflows.js';
 import type { AccessRequestRow } from './representation.js';
 import {
+  ACCESS_REQUEST_STATUSES,
   type AccessRequestStatus,
   accessRequests,
   CLOSED_STATUSES,
@@ -65,38 +74,74 @@ export class OfficerService {
   ) {}
 
   /**
-   * One page of the Commission's queue, earliest decision deadline first (then by id), each with
-   * whether it is late: past its deadline and neither decided nor closed. Law enforcement
-   * requests join it with #264; until then `kind=lea` is an empty page.
+   * One page of the Commission's queue, Form K and law enforcement requests together (or one
+   * kind, by `kind`), earliest decision deadline first (then by id), each with whether it is
+   * late: past its deadline and neither decided nor closed.
    */
   async queue(principal: Principal, slug: string, query: QueueQuery): Promise<QueuePage> {
     const tenant = commissionTenant(principal, slug);
     const after = query.cursor === undefined ? undefined : decodeCursor(query.cursor);
-    if (query.kind === 'lea') return { items: [], nextCursor: null };
-    const rows = await withTenant(this.db, { tenant, subject: principal.subject }, (tx) =>
-      tx
-        .select()
-        .from(accessRequests)
-        .where(
-          and(
-            eq(accessRequests.tenant, tenant),
-            query.status === undefined ? undefined : inArray(accessRequests.status, query.status),
-            after === undefined
-              ? undefined
-              : sql`(${accessRequests.decisionDeadlineAt}, ${accessRequests.id}) > (${after.at.toISOString()}::timestamptz, ${after.id}::uuid)`,
-          ),
-        )
-        .orderBy(asc(accessRequests.decisionDeadlineAt), asc(accessRequests.id))
-        .limit(query.limit + 1),
-    );
+    const formKStatuses =
+      query.status === undefined
+        ? undefined
+        : statusesOfKind(query.status, ACCESS_REQUEST_STATUSES);
+    const leaStatuses =
+      query.status === undefined ? undefined : statusesOfKind(query.status, LEA_REQUEST_STATUSES);
+    const wantFormK = query.kind !== 'lea' && formKStatuses?.length !== 0;
+    const wantLea = query.kind !== 'form-k' && leaStatuses?.length !== 0;
     const now = this.clock.now();
-    const page = rows.slice(0, query.limit);
+    const items = await withTenant(this.db, { tenant, subject: principal.subject }, async (tx) => {
+      // Each kind's first `limit + 1` after the cursor, merged: the page is among them.
+      const formK = wantFormK
+        ? await tx
+            .select()
+            .from(accessRequests)
+            .where(
+              and(
+                eq(accessRequests.tenant, tenant),
+                formKStatuses === undefined
+                  ? undefined
+                  : inArray(accessRequests.status, formKStatuses),
+                after === undefined
+                  ? undefined
+                  : sql`(${accessRequests.decisionDeadlineAt}, ${accessRequests.id}) > (${after.at.toISOString()}::timestamptz, ${after.id}::uuid)`,
+              ),
+            )
+            .orderBy(asc(accessRequests.decisionDeadlineAt), asc(accessRequests.id))
+            .limit(query.limit + 1)
+        : [];
+      const lea = wantLea
+        ? await tx
+            .select()
+            .from(leaRequests)
+            .where(
+              and(
+                eq(leaRequests.tenant, tenant),
+                leaStatuses === undefined ? undefined : inArray(leaRequests.status, leaStatuses),
+                after === undefined
+                  ? undefined
+                  : sql`(${leaRequests.deadlineAt}, ${leaRequests.id}) > (${after.at.toISOString()}::timestamptz, ${after.id}::uuid)`,
+              ),
+            )
+            .orderBy(asc(leaRequests.deadlineAt), asc(leaRequests.id))
+            .limit(query.limit + 1)
+        : [];
+      return [
+        ...formK.map((row) => toQueueItem(row, now)),
+        ...lea.map((row) => leaQueueItem(row, now)),
+      ].sort(
+        (a, b) =>
+          new Date(a.deadlineAt).getTime() - new Date(b.deadlineAt).getTime() ||
+          (a.id < b.id ? -1 : a.id > b.id ? 1 : 0),
+      );
+    });
+    const page = items.slice(0, query.limit);
     const last = page.at(-1);
     return {
-      items: page.map((row) => toQueueItem(row, now)),
+      items: page,
       nextCursor:
-        rows.length > query.limit && last
-          ? encodeCursor({ at: last.decisionDeadlineAt, id: last.id })
+        items.length > query.limit && last
+          ? encodeCursor({ at: new Date(last.deadlineAt), id: last.id })
           : null,
     };
   }
@@ -376,6 +421,24 @@ function requireUnderDecision(row: AccessRequestRow): void {
     'not-under-decision',
     "The request is not under decision yet: the declarant's window for representations has not closed.",
   );
+}
+
+function leaQueueItem(row: LeaRequestRow, now: Date): QueueItem {
+  return {
+    kind: 'lea',
+    id: row.id,
+    reference: row.reference,
+    applicantOrAgency: row.agencyName,
+    officerSought: row.officerSought.name,
+    resolvedName: row.resolvedName,
+    status: row.status,
+    submittedAt: row.receivedAt.toISOString(),
+    deadlineAt: row.deadlineAt.toISOString(),
+    windowEndsAt: null,
+    late:
+      (LEA_OPEN_STATUSES as readonly LeaRequestStatus[]).includes(row.status) &&
+      now.getTime() > row.deadlineAt.getTime(),
+  };
 }
 
 function toQueueItem(row: AccessRequestRow, now: Date): QueueItem {

@@ -69,6 +69,8 @@ describe("The declarant's notices and representations (S4)", () => {
           applicantName: 'Mercy Wanjiku Kamau',
           purposeInGeneralTerms:
             "Reporting on land allocations approved by the officer's department, where a conflict of interest has been alleged.",
+          agency: null,
+          caseReference: null,
           scope: {
             years: [2025, 2026],
             includeSpouses: true,

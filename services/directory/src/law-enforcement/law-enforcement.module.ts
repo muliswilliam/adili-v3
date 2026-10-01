@@ -1,7 +1,10 @@
 import { Module } from '@nestjs/common';
 
 import { CommissionsModule } from '../commissions/commissions.module.js';
-import { LawEnforcementController } from './law-enforcement.controller.js';
+import {
+  InternalLawEnforcementController,
+  LawEnforcementController,
+} from './law-enforcement.controller.js';
 import { LawEnforcementOfficersService } from './officers.service.js';
 
 /**
@@ -12,7 +15,7 @@ import { LawEnforcementOfficersService } from './officers.service.js';
  */
 @Module({
   imports: [CommissionsModule],
-  controllers: [LawEnforcementController],
+  controllers: [LawEnforcementController, InternalLawEnforcementController],
   providers: [LawEnforcementOfficersService],
 })
 export class LawEnforcementModule {}

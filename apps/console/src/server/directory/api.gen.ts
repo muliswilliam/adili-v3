@@ -1084,6 +1084,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/internal/v1/law-enforcement/officers/{personId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * A law-enforcement officer's account and agency (access)
+         * @description Service tokens with scope directory:internal, acting for any tenant; audited. The officer's agency, the Keycloak account their tokens are issued to, and its state: the access service records a request's provenance from it and refuses requests from accounts that are not, or no longer, active.
+         */
+        get: operations["internalGetLeaOfficer"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -2082,6 +2102,20 @@ export interface components {
              */
             invitedAt: string;
             /** @description First authenticated request of the officer's account; null until then */
+            activatedAt: string | null;
+            revokedAt: string | null;
+        };
+        InternalLeaOfficer: {
+            /**
+             * Format: uuid
+             * @description The officer's directory person id (token `person_id`)
+             */
+            personId: string;
+            /** @description The officer's Keycloak account: the `sub` of the tokens they request with */
+            keycloakUserId: string;
+            name: string;
+            agency: components["schemas"]["Agency"];
+            state: components["schemas"]["LeaOfficerState"];
             activatedAt: string | null;
             revokedAt: string | null;
         };
@@ -6112,6 +6146,58 @@ export interface operations {
             };
             /** @description Problem type `identity-unavailable`: the identity provider failed and the officer was not revoked. Safe to retry. */
             502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    internalGetLeaOfficer: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Tenant the calling service acts for; the resource must belong to it */
+                "X-Acting-Tenant": string;
+            };
+            path: {
+                personId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The officer */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InternalLeaOfficer"];
+                };
+            };
+            /** @description personId is not a UUID */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Requires a service token with scope directory:internal */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description No law-enforcement officer has this id */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };

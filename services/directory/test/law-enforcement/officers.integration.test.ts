@@ -449,3 +449,76 @@ describe('S11 activation', () => {
     expect(api.identity.calls('sendActivationEmail')).toHaveLength(1);
   });
 });
+
+describe('S11 GET /internal/v1/law-enforcement/officers/{personId} (provenance for access)', () => {
+  const ACCESS: Caller = {
+    sub: 'service-account-access',
+    tenant: 'platform',
+    azp: 'access',
+    scope: 'profile directory:internal',
+  };
+  const ACTING_PSC = { 'x-acting-tenant': 'psc' };
+  const path = (personId: string) => `/internal/v1/law-enforcement/officers/${personId}`;
+
+  it("returns the officer's account, agency and state to the access service, audited", async () => {
+    const officer = await provisioned();
+    const sub = api.identity.userByEmail(OFFICER.email)?.userId ?? '';
+    await api.get('/v1/me', { sub, tenant: 'lea', roles: ['law-enforcement'] });
+
+    const response = await api.get(path(officer.id), ACCESS, ACTING_PSC);
+
+    expect(response.statusCode, response.body).toBe(200);
+    const body = response.json<Record<string, unknown>>();
+    expect(
+      contractErrors(okResponse('/internal/v1/law-enforcement/officers/{personId}', 'get'), body),
+    ).toEqual([]);
+    expect(body).toEqual({
+      personId: officer.id,
+      keycloakUserId: sub,
+      name: OFFICER.name,
+      agency: {
+        code: 'DCI',
+        name: 'Directorate of Criminal Investigations',
+        legalBasis: 'National Police Service Act, 2011, s.35',
+      },
+      state: 'activated',
+      activatedAt: expect.any(String) as unknown,
+      revokedAt: null,
+    });
+    const audits = (
+      await api.db
+        .select({ type: outbox.eventType, envelope: outbox.envelope })
+        .from(outbox)
+        .orderBy(outbox.id)
+    ).filter((event) => event.type === 'audit.read.v1');
+    expect(audits.at(-1)?.envelope).toMatchObject({
+      tenant: 'psc',
+      data: { action: 'lea-officer.read', actor: { subject: 'service-account-access' } },
+    });
+  });
+
+  it('shows a revoked officer as revoked', async () => {
+    const officer = await provisioned();
+    await revoke(officer.id);
+
+    const response = await api.get(path(officer.id), ACCESS, ACTING_PSC);
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({
+      state: 'revoked',
+      revokedAt: expect.any(String) as unknown,
+    });
+  });
+
+  it('answers 404 for an unknown id, 400 for a bad id or no tenant, 403 without the scope or for a user', async () => {
+    const officer = await provisioned();
+
+    expect((await api.get(path(randomUUID()), ACCESS, ACTING_PSC)).statusCode).toBe(404);
+    expect((await api.get(path('nope'), ACCESS, ACTING_PSC)).statusCode).toBe(400);
+    expect((await api.get(path(officer.id), ACCESS)).statusCode).toBe(400);
+    expect(
+      (await api.get(path(officer.id), { ...ACCESS, scope: 'profile' }, ACTING_PSC)).statusCode,
+    ).toBe(403);
+    expect((await api.get(path(officer.id), ACCESS_OFFICER, ACTING_PSC)).statusCode).toBe(403);
+  });
+});

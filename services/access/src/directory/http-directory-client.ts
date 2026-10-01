@@ -9,6 +9,7 @@ import {
   type CommissionListing,
   DirectoryClient,
   DirectoryUnavailable,
+  type LeaOfficerFacts,
   type RosterCandidateFacts,
   type RosterRecordFacts,
   ROSTER_SEARCH_LIMIT,
@@ -71,6 +72,15 @@ const staffSchema = z.object({
 const applicantSchema = z.object({
   personId: z.uuid(),
   identityStatus: z.enum(['verified', 'pending-verification']),
+});
+
+const leaOfficerSchema = z.object({
+  personId: z.uuid(),
+  keycloakUserId: z.string().min(1),
+  name: z.string().min(1),
+  agency: z.object({ code: z.string().min(1), name: z.string().min(1), legalBasis: z.string() }),
+  state: z.enum(['invited', 'activated', 'revoked']),
+  activatedAt: z.iso.datetime({ offset: true }).nullable(),
 });
 
 const none = (): null => null;
@@ -218,5 +228,24 @@ export class HttpDirectoryClient extends DirectoryClient {
     return found === null
       ? null
       : { personId: found.personId, identityStatus: found.identityStatus };
+  }
+
+  async leaOfficer(personId: string, tenant: string): Promise<LeaOfficerFacts | null> {
+    const found = await this.directory.call(
+      (api) =>
+        api.GET('/internal/v1/law-enforcement/officers/{personId}', {
+          params: { path: { personId }, header: { 'X-Acting-Tenant': tenant } },
+        }),
+      { status: 200, schema: leaOfficerSchema, otherwise: { 404: none } },
+    );
+    if (found === null) return null;
+    return {
+      personId: found.personId,
+      keycloakUserId: found.keycloakUserId,
+      name: found.name,
+      agency: found.agency,
+      state: found.state,
+      activatedAt: found.activatedAt === null ? null : new Date(found.activatedAt),
+    };
   }
 }

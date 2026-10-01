@@ -9,6 +9,14 @@ import {
   packageSchema,
 } from './decision.js';
 import { accessHistoryEntrySchema, historyCertifiedCopySchema } from './history/representation.js';
+import {
+  leaProvenanceSchema,
+  leaRequestInputSchema,
+  leaRequestSchema,
+  leaRequestStatusSchema,
+  leaVerificationSchema,
+  verifyLeaRequestBody,
+} from './lea/representation.js';
 import { declarantNoticeSchema, representationsInputSchema } from './notices/representation.js';
 import { registerEntrySchema } from './register/representation.js';
 import { verifyApplicantBody } from './requests/applicant-verification.service.js';
@@ -60,4 +68,10 @@ export const OPENAPI_SCHEMAS: Record<string, z.ZodType> = {
   HistoryCertifiedCopy: historyCertifiedCopySchema,
   CertifiedCopyRequest: certifiedCopyRequestSchema,
   CertifiedCopy: certifiedCopySchema,
+  LeaRequestStatus: leaRequestStatusSchema,
+  LeaRequestInput: leaRequestInputSchema,
+  LeaProvenance: leaProvenanceSchema,
+  LeaVerification: leaVerificationSchema,
+  VerifyLeaRequest: verifyLeaRequestBody,
+  LeaRequest: leaRequestSchema,
 };

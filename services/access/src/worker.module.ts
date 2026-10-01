@@ -6,6 +6,7 @@ import { TemporalWorkerModule } from '@adili/temporal';
 import { CipherModule } from './cipher.module.js';
 import { ClockModule } from './clock.module.js';
 import { config } from './config.js';
+import { LeaRequestActivities } from './lea/activities.js';
 import { RegisterModule } from './register/access-register.js';
 import { AccessRequestActivities } from './requests/activities.js';
 import { DecisionActivities } from './requests/decision-activities.js';
@@ -23,8 +24,8 @@ const workflowsPath = fileURLToPath(
 /**
  * The access worker (ADR-003), one per service: every workflow of the access service runs on its
  * queue, with its activities listed here as their modules add them (`AccessRequestWorkflow`,
- * `LeaRequestWorkflow`, `CertifiedCopyWorkflow`). Activities get the clock, the cipher, the upstream clients and the
- * access register.
+ * `LeaRequestWorkflow`, `CertifiedCopyWorkflow`). Activities get the clock, the cipher, the
+ * upstream clients and the access register.
  */
 @Module({
   imports: [
@@ -33,7 +34,12 @@ const workflowsPath = fileURLToPath(
       namespace: config.TEMPORAL_NAMESPACE,
       taskQueue: config.TEMPORAL_TASK_QUEUE,
       workflowsPath,
-      activities: [AccessRequestActivities, DecisionActivities, CertifiedCopyActivities],
+      activities: [
+        AccessRequestActivities,
+        DecisionActivities,
+        CertifiedCopyActivities,
+        LeaRequestActivities,
+      ],
       imports: [ClockModule, CipherModule, UpstreamModule, RegisterModule],
     }),
   ],

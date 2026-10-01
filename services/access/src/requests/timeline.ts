@@ -1,6 +1,8 @@
 import { and, asc, eq, inArray } from 'drizzle-orm';
 
 import type { AccessTransaction } from '../db/database.js';
+import type { AccessSubjectKind } from '@adili/events/contracts';
+
 import type { RegisterRow } from '../register/access-register.js';
 import { type RegisterEntry, toRegisterEntry } from '../register/representation.js';
 import { accessRegister } from '../register/schema.js';
@@ -8,10 +10,12 @@ import { accessRegister } from '../register/schema.js';
 /**
  * A request's timeline: its register entries, oldest first. Read in the caller's context, so the
  * register's row-level security (an entry is visible to whoever sees its request) applies.
+ * `subjectKind` says which requests the ids are: Form K (the default) or law enforcement.
  */
 export async function registerEntriesOf(
   tx: AccessTransaction,
   requestIds: readonly string[],
+  subjectKind: Extract<AccessSubjectKind, 'access-request' | 'lea-request'> = 'access-request',
 ): Promise<Map<string, RegisterRow[]>> {
   const byRequest = new Map<string, RegisterRow[]>(requestIds.map((id) => [id, []]));
   if (requestIds.length === 0) return byRequest;
@@ -20,7 +24,7 @@ export async function registerEntriesOf(
     .from(accessRegister)
     .where(
       and(
-        eq(accessRegister.subjectKind, 'access-request'),
+        eq(accessRegister.subjectKind, subjectKind),
         inArray(accessRegister.subjectId, [...requestIds]),
       ),
     )

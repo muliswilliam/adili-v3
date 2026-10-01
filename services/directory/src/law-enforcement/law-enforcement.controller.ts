@@ -9,6 +9,7 @@ import {
 } from '@nestjs/swagger';
 import {
   ApiProblemResponse,
+  AuditedRead,
   CurrentPrincipal,
   type Principal,
   RequireIdempotencyKey,
@@ -20,9 +21,11 @@ import { LAW_ENFORCEMENT, PLATFORM_ADMIN } from '@adili/roles';
 import { z } from 'zod';
 
 import { STAFF_ROLES } from '../commissions/access.js';
+import { DirectoryInternalApi } from '../internal-api.js';
 import { LawEnforcementOfficersService } from './officers.service.js';
 import {
   type Agency,
+  type InternalLeaOfficer,
   type LeaOfficerAccount,
   type ProvisionAgencyOfficerBody,
   provisionAgencyOfficerBody,
@@ -139,5 +142,37 @@ export class LawEnforcementController {
     @Param('officerId', new ZodValidationPipe(z.uuid())) officerId: string,
   ): Promise<LeaOfficerAccount> {
     return this.officers.revoke(principal, officerId);
+  }
+}
+
+/**
+ * Internal: not routed by the public entrypoint. The access service checks the provenance of a
+ * law enforcement request against the officer's account (r.23(1)), acting for the Commission the
+ * request is addressed to (X-Acting-Tenant, for the audit trail): officers belong to no
+ * Commission, so any acting tenant reads them.
+ */
+@ApiTags('internal')
+@Controller('internal/v1/law-enforcement/officers')
+@DirectoryInternalApi()
+export class InternalLawEnforcementController {
+  constructor(private readonly officers: LawEnforcementOfficersService) {}
+
+  @Get(':personId')
+  @AuditedRead({ action: 'lea-officer.read', resource: 'person' })
+  @ApiParam({ name: 'personId', schema: { type: 'string', format: 'uuid' } })
+  @ApiOperation({
+    operationId: 'internalGetLeaOfficer',
+    summary: "A law-enforcement officer's account and agency (access)",
+    description:
+      "Service tokens with scope directory:internal, acting for any tenant; audited. The officer's agency, the Keycloak account their tokens are issued to, and its state: the access service records a request's provenance from it and refuses requests from accounts that are not, or no longer, active.",
+  })
+  @ApiOkResponse({ description: 'The officer', schema: schemaRef('InternalLeaOfficer') })
+  @ApiProblemResponse(400, 'personId is not a UUID')
+  @ApiProblemResponse(404, 'No law-enforcement officer has this id')
+  find(
+    @CurrentPrincipal() principal: Principal,
+    @Param('personId', new ZodValidationPipe(z.uuid())) personId: string,
+  ): Promise<InternalLeaOfficer> {
+    return this.officers.internalOfficer(principal.subject, personId);
   }
 }

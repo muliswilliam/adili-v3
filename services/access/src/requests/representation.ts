@@ -33,8 +33,17 @@ export type AccessRequest = z.infer<typeof accessRequestSchema>;
 
 export type AccessRequestRow = typeof accessRequests.$inferSelect;
 
-/** The request's granted package, once issued; `downloads` counts the register's entries. */
-export function packageOf(row: AccessRequestRow, downloads: number): Package | null {
+/**
+ * The request's granted package (Form K or law enforcement), once issued; `downloads` counts the
+ * register's entries.
+ */
+export function packageOf(
+  row: Pick<
+    AccessRequestRow,
+    'packageDocumentId' | 'packageVerificationId' | 'packageIssuedAt' | 'downloadExpiresAt'
+  >,
+  downloads: number,
+): Package | null {
   if (
     row.packageDocumentId === null ||
     row.packageVerificationId === null ||

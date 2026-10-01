@@ -11,7 +11,10 @@ import { systemContext } from '../system-context.js';
 import type { AccessRequestRow } from './representation.js';
 import { accessRequests } from './schema.js';
 
-/** What `AccessRequestWorkflow`'s activities share: reading the request, sending its messages. */
+/**
+ * What the workflows' activities share (`AccessRequestWorkflow`, `LeaRequestWorkflow`): reading a
+ * Form K request, sending a request's messages with their idempotency keys.
+ */
 
 /** Namespace of the workflow's messages' idempotency keys (UUID v5). */
 const MESSAGE_KEY_NAMESPACE = '9a4c2e71-5b3d-4f86-a0e9-7c1d3b5f2a64';
@@ -32,8 +35,8 @@ export async function load(
 }
 
 /**
- * Sends one message about a request (or another record of the service, e.g. a certified copy);
- * refused or undeliverable is logged, not retried.
+ * Sends one message about a request (or another record of the service, e.g. a certified copy or
+ * a law-enforcement request); refused or undeliverable is logged, not retried.
  */
 export async function send(
   notifications: NotificationsClient,
@@ -50,6 +53,21 @@ export async function send(
   } catch (error) {
     if (!(error instanceof InternalApiRejected)) throw error;
     logger.error({ ...context, err: errorType(error) }, 'Access message refused by notifications');
+  }
+}
+
+/**
+ * Logs an upstream service's refusal of a call (declarations, documents) before it propagates to
+ * be retried; an outage is not logged here (Temporal records the retries).
+ */
+export function logRefusal(
+  logger: Logger,
+  error: unknown,
+  context: Record<string, unknown>,
+  message: string,
+): void {
+  if (error instanceof InternalApiRejected) {
+    logger.error({ ...context, err: errorType(error) }, message);
   }
 }
 
