@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 
+import { switchTenant } from '@adili/data-access';
 import type { EventEnvelope } from '@adili/events';
 import { and, asc, eq } from 'drizzle-orm';
 import { vi } from 'vitest';
@@ -52,26 +53,35 @@ export function clarificationEvent(
   };
 }
 
-/** The ladder of a subject and its actions, oldest first; null while there is none. */
+/**
+ * The ladder of a subject and its actions, oldest first; null while there is none. Both are read
+ * from one snapshot (repeatable read): under read committed, a workflow step committing between
+ * the two reads (an action drafted and made the ladder's current one) would pair the ladder from
+ * before with the actions from after.
+ */
 export async function ladderOf(api: ReviewApi, subjectKind: SubjectKind, subjectId: string) {
-  return api.asPlatform(async (tx) => {
-    const [ladder] = await tx
-      .select()
-      .from(enforcementLadders)
-      .where(
-        and(
-          eq(enforcementLadders.subjectKind, subjectKind),
-          eq(enforcementLadders.subjectId, subjectId),
-        ),
-      );
-    if (!ladder) return null;
-    const actions = await tx
-      .select()
-      .from(administrativeActions)
-      .where(eq(administrativeActions.ladderId, ladder.id))
-      .orderBy(asc(administrativeActions.proposedAt), asc(administrativeActions.createdAt));
-    return { ladder, actions };
-  });
+  return api.db.transaction(
+    async (tx) => {
+      await switchTenant(tx, { tenant: 'platform', subject: 'test' });
+      const [ladder] = await tx
+        .select()
+        .from(enforcementLadders)
+        .where(
+          and(
+            eq(enforcementLadders.subjectKind, subjectKind),
+            eq(enforcementLadders.subjectId, subjectId),
+          ),
+        );
+      if (!ladder) return null;
+      const actions = await tx
+        .select()
+        .from(administrativeActions)
+        .where(eq(administrativeActions.ladderId, ladder.id))
+        .orderBy(asc(administrativeActions.proposedAt), asc(administrativeActions.createdAt));
+      return { ladder, actions };
+    },
+    { isolationLevel: 'repeatable read' },
+  );
 }
 
 type Ladder = NonNullable<Awaited<ReturnType<typeof ladderOf>>>;
