@@ -44,6 +44,18 @@
           "primaryKey": false,
           "notNull": true
         },
+        "reference": {
+          "name": "reference",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "subject_version": {
+          "name": "subject_version",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
         "subject_person_id": {
           "name": "subject_person_id",
           "type": "uuid",
@@ -105,6 +117,33 @@
           "columns": [
             {
               "expression": "subject_person_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "with": {},
+          "method": "btree",
+          "concurrently": false
+        },
+        "issued_documents_reference_idx": {
+          "name": "issued_documents_reference_idx",
+          "columns": [
+            {
+              "expression": "tenant",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "type",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "reference",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -433,6 +472,12 @@
           "type": "timestamp with time zone",
           "primaryKey": false,
           "notNull": false
+        },
+        "linked_at": {
+          "name": "linked_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
         }
       },
       "indexes": {
@@ -481,6 +526,10 @@
         "uploads_completed_at_check": {
           "name": "uploads_completed_at_check",
           "value": "(\"uploads\".\"state\" in ('clean', 'infected', 'rejected')) = (\"uploads\".\"completed_at\" is not null)"
+        },
+        "uploads_linked_at_check": {
+          "name": "uploads_linked_at_check",
+          "value": "\"uploads\".\"linked_at\" is null or \"uploads\".\"state\" = 'clean'"
         },
         "uploads_declared_size_check": {
           "name": "uploads_declared_size_check",

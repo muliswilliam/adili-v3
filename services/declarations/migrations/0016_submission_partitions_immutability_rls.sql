@@ -37,7 +37,7 @@ CREATE TABLE "declaration_items_default" PARTITION OF "declaration_items" DEFAUL
 -- refused. The trigger is on the partitioned table, so every partition has it.
 CREATE FUNCTION "declaration_versions_insert_only"() RETURNS trigger LANGUAGE plpgsql AS $$
 DECLARE
-	mutable CONSTANT text[] := ARRAY['superseded_at', 'ack_status', 'ack_document_id', 'ack_verification_id', 'ack_issued_at', 'verified_count'];
+	mutable CONSTANT text[] := ARRAY['superseded_at', 'ack_status', 'ack_document_id', 'ack_verification_id', 'ack_verify_url', 'ack_issued_at', 'ack_requested_at', 'verified_count'];
 BEGIN
 	IF TG_OP = 'DELETE' THEN
 		RAISE EXCEPTION 'declaration_versions is insert-only: a submitted version cannot be deleted'
@@ -69,22 +69,25 @@ $$;
 CREATE TRIGGER "declaration_items_insert_only" BEFORE UPDATE OR DELETE ON "declaration_items"
 	FOR EACH ROW EXECUTE FUNCTION "declaration_items_insert_only"();
 --> statement-breakpoint
--- Row-level security, as for drafts (migration 0012): the declarant reads and writes their own
--- versions through `app.person` (`withPerson`), across Commissions; the Commission reads them and
--- sets what follows the legal act (acknowledgement, verified count) through `app.tenant`, or
--- `platform`. Nobody inserts through the tenant policy. A reset setting reads back as '' on a
--- pooled connection, hence nullif. FORCE applies the policies to the service's own role, which
--- owns the tables.
+-- Row-level security (ADR-018 §2): the declarant reads their own versions and items through
+-- `app.person` (`withPerson`), across Commissions, and never writes through the person axis. The
+-- submit transaction writes the version and its items in the Commission's context (`app.tenant`,
+-- switched to the declaration's tenant after the declarant's own rows are checked); the
+-- acknowledgement and the verified count follow the legal act there or as `platform`. A reset
+-- setting reads back as '' on a pooled connection, hence nullif. FORCE applies the policies to
+-- the service's own role, which owns the tables.
 ALTER TABLE "declaration_versions" ENABLE ROW LEVEL SECURITY;
 --> statement-breakpoint
 ALTER TABLE "declaration_versions" FORCE ROW LEVEL SECURITY;
 --> statement-breakpoint
-CREATE POLICY "declaration_versions_person" ON "declaration_versions"
-	USING ("person_id" = nullif(current_setting('app.person', true), '')::uuid)
-	WITH CHECK ("person_id" = nullif(current_setting('app.person', true), '')::uuid);
+CREATE POLICY "declaration_versions_person_read" ON "declaration_versions" FOR SELECT
+	USING ("person_id" = nullif(current_setting('app.person', true), '')::uuid);
 --> statement-breakpoint
 CREATE POLICY "declaration_versions_tenant_read" ON "declaration_versions" FOR SELECT
 	USING ("tenant" = current_setting('app.tenant', true) OR current_setting('app.tenant', true) = 'platform');
+--> statement-breakpoint
+CREATE POLICY "declaration_versions_tenant_insert" ON "declaration_versions" FOR INSERT
+	WITH CHECK ("tenant" = current_setting('app.tenant', true) OR current_setting('app.tenant', true) = 'platform');
 --> statement-breakpoint
 CREATE POLICY "declaration_versions_tenant_update" ON "declaration_versions" FOR UPDATE
 	USING ("tenant" = current_setting('app.tenant', true) OR current_setting('app.tenant', true) = 'platform')
@@ -95,13 +98,8 @@ ALTER TABLE "declaration_items" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "declaration_items" FORCE ROW LEVEL SECURITY;
 --> statement-breakpoint
 -- The items of the versions the person may read (the subquery is itself under RLS).
-CREATE POLICY "declaration_items_person" ON "declaration_items"
+CREATE POLICY "declaration_items_person_read" ON "declaration_items" FOR SELECT
 	USING (EXISTS (
-		SELECT 1 FROM "declaration_versions" v
-		WHERE v."id" = "declaration_items"."version_id" AND v."cycle_year" = "declaration_items"."cycle_year"
-			AND v."person_id" = nullif(current_setting('app.person', true), '')::uuid
-	))
-	WITH CHECK (EXISTS (
 		SELECT 1 FROM "declaration_versions" v
 		WHERE v."id" = "declaration_items"."version_id" AND v."cycle_year" = "declaration_items"."cycle_year"
 			AND v."person_id" = nullif(current_setting('app.person', true), '')::uuid
@@ -109,6 +107,9 @@ CREATE POLICY "declaration_items_person" ON "declaration_items"
 --> statement-breakpoint
 CREATE POLICY "declaration_items_tenant_read" ON "declaration_items" FOR SELECT
 	USING ("tenant" = current_setting('app.tenant', true) OR current_setting('app.tenant', true) = 'platform');
+--> statement-breakpoint
+CREATE POLICY "declaration_items_tenant_insert" ON "declaration_items" FOR INSERT
+	WITH CHECK ("tenant" = current_setting('app.tenant', true) OR current_setting('app.tenant', true) = 'platform');
 --> statement-breakpoint
 -- Platform-level service plumbing, no row-level security (ADR-006), as in the directory: the
 -- reference counters hold sequence values per (scheme, Commission, year), no tenant's data, and

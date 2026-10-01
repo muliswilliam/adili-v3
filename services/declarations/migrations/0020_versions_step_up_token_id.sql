@@ -1,1 +1,0 @@
-ALTER TABLE "declaration_versions" ADD COLUMN "step_up_token_id_hash" text;

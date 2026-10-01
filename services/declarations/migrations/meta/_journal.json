@@ -120,34 +120,6 @@
       "when": 1790784661958,
       "tag": "0016_submission_partitions_immutability_rls",
       "breakpoints": true
-    },
-    {
-      "idx": 17,
-      "version": "7",
-      "when": 1790789221968,
-      "tag": "0017_acknowledgement_requests",
-      "breakpoints": true
-    },
-    {
-      "idx": 18,
-      "version": "7",
-      "when": 1790789222951,
-      "tag": "0018_acknowledgement_requests_mutable",
-      "breakpoints": true
-    },
-    {
-      "idx": 19,
-      "version": "7",
-      "when": 1790794809824,
-      "tag": "0019_versions_person_read_only",
-      "breakpoints": true
-    },
-    {
-      "idx": 20,
-      "version": "7",
-      "when": 1790810748866,
-      "tag": "0020_versions_step_up_token_id",
-      "breakpoints": true
     }
   ]
 }

@@ -1,2 +1,0 @@
-ALTER TABLE "uploads" ADD COLUMN "linked_at" timestamp with time zone;--> statement-breakpoint
-ALTER TABLE "uploads" ADD CONSTRAINT "uploads_linked_at_check" CHECK ("uploads"."linked_at" is null or "uploads"."state" = 'clean');

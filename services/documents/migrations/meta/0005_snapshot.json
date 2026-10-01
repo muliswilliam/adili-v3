@@ -44,6 +44,18 @@
           "primaryKey": false,
           "notNull": true
         },
+        "reference": {
+          "name": "reference",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "subject_version": {
+          "name": "subject_version",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
         "subject_person_id": {
           "name": "subject_person_id",
           "type": "uuid",
@@ -111,9 +123,36 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
+        },
+        "issued_documents_reference_idx": {
+          "name": "issued_documents_reference_idx",
+          "columns": [
+            {
+              "expression": "tenant",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "type",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "reference",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "with": {},
+          "method": "btree",
+          "concurrently": false
         }
       },
       "foreignKeys": {},
@@ -121,25 +160,25 @@
       "uniqueConstraints": {
         "issued_documents_verificationId_unique": {
           "name": "issued_documents_verificationId_unique",
-          "nullsNotDistinct": false,
           "columns": [
             "verification_id"
-          ]
+          ],
+          "nullsNotDistinct": false
         },
         "issued_documents_objectKey_unique": {
           "name": "issued_documents_objectKey_unique",
-          "nullsNotDistinct": false,
           "columns": [
             "object_key"
-          ]
+          ],
+          "nullsNotDistinct": false
         },
         "issued_documents_type_subject_key": {
           "name": "issued_documents_type_subject_key",
-          "nullsNotDistinct": false,
           "columns": [
             "type",
             "subject_ref"
-          ]
+          ],
+          "nullsNotDistinct": false
         }
       },
       "policies": {},
@@ -262,38 +301,38 @@
         "verification_records_document_id_issued_documents_id_fk": {
           "name": "verification_records_document_id_issued_documents_id_fk",
           "tableFrom": "verification_records",
-          "tableTo": "issued_documents",
           "columnsFrom": [
             "document_id"
           ],
+          "tableTo": "issued_documents",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "no action"
         },
         "verification_records_superseded_by_issued_documents_id_fk": {
           "name": "verification_records_superseded_by_issued_documents_id_fk",
           "tableFrom": "verification_records",
-          "tableTo": "issued_documents",
           "columnsFrom": [
             "superseded_by"
           ],
+          "tableTo": "issued_documents",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "no action"
         }
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {
         "verification_records_documentId_unique": {
           "name": "verification_records_documentId_unique",
-          "nullsNotDistinct": false,
           "columns": [
             "document_id"
-          ]
+          ],
+          "nullsNotDistinct": false
         }
       },
       "policies": {},
@@ -433,6 +472,12 @@
           "type": "timestamp with time zone",
           "primaryKey": false,
           "notNull": false
+        },
+        "linked_at": {
+          "name": "linked_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
         }
       },
       "indexes": {
@@ -447,10 +492,10 @@
             }
           ],
           "isUnique": false,
-          "where": "\"uploads\".\"state\" = 'awaiting-upload'",
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "where": "\"uploads\".\"state\" = 'awaiting-upload'",
+          "concurrently": false
         }
       },
       "foreignKeys": {},
@@ -458,10 +503,10 @@
       "uniqueConstraints": {
         "uploads_quarantineKey_unique": {
           "name": "uploads_quarantineKey_unique",
-          "nullsNotDistinct": false,
           "columns": [
             "quarantine_key"
-          ]
+          ],
+          "nullsNotDistinct": false
         }
       },
       "policies": {},
@@ -481,6 +526,10 @@
         "uploads_completed_at_check": {
           "name": "uploads_completed_at_check",
           "value": "(\"uploads\".\"state\" in ('clean', 'infected', 'rejected')) = (\"uploads\".\"completed_at\" is not null)"
+        },
+        "uploads_linked_at_check": {
+          "name": "uploads_linked_at_check",
+          "value": "\"uploads\".\"linked_at\" is null or \"uploads\".\"state\" = 'clean'"
         },
         "uploads_declared_size_check": {
           "name": "uploads_declared_size_check",
@@ -550,9 +599,9 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         }
       },
       "foreignKeys": {},
@@ -671,10 +720,10 @@
             }
           ],
           "isUnique": false,
-          "where": "\"outbox\".\"published_at\" is null",
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "where": "\"outbox\".\"published_at\" is null",
+          "concurrently": false
         }
       },
       "foreignKeys": {},
@@ -687,10 +736,10 @@
   },
   "enums": {},
   "schemas": {},
+  "views": {},
   "sequences": {},
   "roles": {},
   "policies": {},
-  "views": {},
   "_meta": {
     "columns": {},
     "schemas": {},

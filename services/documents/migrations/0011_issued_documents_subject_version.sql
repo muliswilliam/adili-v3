@@ -1,1 +1,0 @@
-ALTER TABLE "issued_documents" ADD COLUMN "subject_version" integer;

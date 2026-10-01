@@ -114,8 +114,8 @@ export const declarations = pgTable(
  * list-partitioned by cycle year (the statement date's year) and insert-only: a trigger refuses
  * every DELETE, every UPDATE of an item, and every UPDATE of a version except to the columns that
  * follow the legal act (supersession, set once; the acknowledgement; the verified count). See
- * migrations 0016, 0018 and 0019 for the partitions, triggers and row-level security (the
- * declarant reads their own through `app.person`; only the Commission's context writes).
+ * migration 0016 for the partitions, triggers and row-level security (the declarant reads their
+ * own through `app.person`; only the Commission's context writes).
  */
 
 export const ACKNOWLEDGEMENT_STATUS_VALUES = ['pending', 'issued', 'failed'] as const;

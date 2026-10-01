@@ -1,1 +1,0 @@
-CREATE INDEX "verification_records_reference_idx" ON "verification_records" USING btree ("tenant","document_type",("public_payload"->>'reference'));

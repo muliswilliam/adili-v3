@@ -58,12 +58,15 @@ CREATE TABLE "declaration_versions" (
 	"late" boolean NOT NULL,
 	"step_up_acr" text NOT NULL,
 	"step_up_auth_time" timestamp with time zone NOT NULL,
+	"step_up_token_id_hash" text,
 	"idempotency_key_hash" text NOT NULL,
 	"superseded_at" timestamp with time zone,
 	"ack_status" text DEFAULT 'pending' NOT NULL,
 	"ack_document_id" uuid,
 	"ack_verification_id" text,
+	"ack_verify_url" text,
 	"ack_issued_at" timestamp with time zone,
+	"ack_requested_at" timestamp with time zone,
 	"verified_count" integer DEFAULT 0 NOT NULL,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
 	CONSTRAINT "declaration_versions_id_cycle_year_pk" PRIMARY KEY("id","cycle_year"),
@@ -82,4 +85,5 @@ ALTER TABLE "declaration_items" ADD CONSTRAINT "declaration_items_version_fk" FO
 ALTER TABLE "declaration_versions" ADD CONSTRAINT "declaration_versions_declaration_id_declarations_id_fk" FOREIGN KEY ("declaration_id") REFERENCES "public"."declarations"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 CREATE INDEX "idempotency_keys_created_at_idx" ON "idempotency_keys" USING btree ("created_at");--> statement-breakpoint
 CREATE INDEX "declaration_items_version_id_idx" ON "declaration_items" USING btree ("version_id");--> statement-breakpoint
-CREATE INDEX "declaration_items_tenant_category_type_idx" ON "declaration_items" USING btree ("tenant","category","type");
+CREATE INDEX "declaration_items_tenant_category_type_idx" ON "declaration_items" USING btree ("tenant","category","type");--> statement-breakpoint
+CREATE INDEX "declaration_versions_ack_verification_id_idx" ON "declaration_versions" USING btree ("ack_verification_id");

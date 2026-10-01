@@ -247,6 +247,593 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
+    "public.declaration_items": {
+      "name": "declaration_items",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "version_id": {
+          "name": "version_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "cycle_year": {
+          "name": "cycle_year",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "tenant": {
+          "name": "tenant",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "person_key": {
+          "name": "person_key",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "category": {
+          "name": "category",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "type": {
+          "name": "type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "in_kenya": {
+          "name": "in_kenya",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "county": {
+          "name": "county",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "country": {
+          "name": "country",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "is_joint": {
+          "name": "is_joint",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "share_percent": {
+          "name": "share_percent",
+          "type": "numeric(5, 2)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "change_kind": {
+          "name": "change_kind",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "item_id": {
+          "name": "item_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "description_ciphertext": {
+          "name": "description_ciphertext",
+          "type": "bytea",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "value_ciphertext": {
+          "name": "value_ciphertext",
+          "type": "bytea",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "envelope": {
+          "name": "envelope",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {
+        "declaration_items_version_id_idx": {
+          "name": "declaration_items_version_id_idx",
+          "columns": [
+            {
+              "expression": "version_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "declaration_items_tenant_category_type_idx": {
+          "name": "declaration_items_tenant_category_type_idx",
+          "columns": [
+            {
+              "expression": "tenant",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "category",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "type",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "declaration_items_version_fk": {
+          "name": "declaration_items_version_fk",
+          "tableFrom": "declaration_items",
+          "tableTo": "declaration_versions",
+          "columnsFrom": [
+            "version_id",
+            "cycle_year"
+          ],
+          "columnsTo": [
+            "id",
+            "cycle_year"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "declaration_items_id_cycle_year_pk": {
+          "name": "declaration_items_id_cycle_year_pk",
+          "columns": [
+            "id",
+            "cycle_year"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "declaration_items_category_check": {
+          "name": "declaration_items_category_check",
+          "value": "\"declaration_items\".\"category\" in ('income', 'asset', 'liability')"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.declaration_versions": {
+      "name": "declaration_versions",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "declaration_id": {
+          "name": "declaration_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "version": {
+          "name": "version",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "cycle_year": {
+          "name": "cycle_year",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "tenant": {
+          "name": "tenant",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "person_id": {
+          "name": "person_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "reference": {
+          "name": "reference",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "snapshot_ciphertext": {
+          "name": "snapshot_ciphertext",
+          "type": "bytea",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "envelope": {
+          "name": "envelope",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "canonical_sha256": {
+          "name": "canonical_sha256",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "submitted_at": {
+          "name": "submitted_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "late": {
+          "name": "late",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "step_up_acr": {
+          "name": "step_up_acr",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "step_up_auth_time": {
+          "name": "step_up_auth_time",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "step_up_token_id_hash": {
+          "name": "step_up_token_id_hash",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "idempotency_key_hash": {
+          "name": "idempotency_key_hash",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "superseded_at": {
+          "name": "superseded_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "ack_status": {
+          "name": "ack_status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'pending'"
+        },
+        "ack_document_id": {
+          "name": "ack_document_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "ack_verification_id": {
+          "name": "ack_verification_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "ack_verify_url": {
+          "name": "ack_verify_url",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "ack_issued_at": {
+          "name": "ack_issued_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "ack_requested_at": {
+          "name": "ack_requested_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "verified_count": {
+          "name": "verified_count",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "declaration_versions_ack_verification_id_idx": {
+          "name": "declaration_versions_ack_verification_id_idx",
+          "columns": [
+            {
+              "expression": "ack_verification_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "declaration_versions_declaration_id_declarations_id_fk": {
+          "name": "declaration_versions_declaration_id_declarations_id_fk",
+          "tableFrom": "declaration_versions",
+          "tableTo": "declarations",
+          "columnsFrom": [
+            "declaration_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "declaration_versions_id_cycle_year_pk": {
+          "name": "declaration_versions_id_cycle_year_pk",
+          "columns": [
+            "id",
+            "cycle_year"
+          ]
+        }
+      },
+      "uniqueConstraints": {
+        "declaration_versions_declaration_version_key": {
+          "name": "declaration_versions_declaration_version_key",
+          "nullsNotDistinct": false,
+          "columns": [
+            "declaration_id",
+            "cycle_year",
+            "version"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "declaration_versions_version_check": {
+          "name": "declaration_versions_version_check",
+          "value": "\"declaration_versions\".\"version\" >= 1"
+        },
+        "declaration_versions_ack_status_check": {
+          "name": "declaration_versions_ack_status_check",
+          "value": "\"declaration_versions\".\"ack_status\" in ('pending', 'issued', 'failed')"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.declarations": {
+      "name": "declarations",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "tenant": {
+          "name": "tenant",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "person_id": {
+          "name": "person_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "obligation_id": {
+          "name": "obligation_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "roster_record_id": {
+          "name": "roster_record_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "type": {
+          "name": "type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "statement_date": {
+          "name": "statement_date",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "income_period_from": {
+          "name": "income_period_from",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "income_period_to": {
+          "name": "income_period_to",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "previous_statement_date_source": {
+          "name": "previous_statement_date_source",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'draft'"
+        },
+        "schema_version": {
+          "name": "schema_version",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'declaration.v1'"
+        },
+        "draft_version": {
+          "name": "draft_version",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 1
+        },
+        "last_section": {
+          "name": "last_section",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "reference": {
+          "name": "reference",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "current_version": {
+          "name": "current_version",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "amending_from_version": {
+          "name": "amending_from_version",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "declarations_live_obligation_key": {
+          "name": "declarations_live_obligation_key",
+          "columns": [
+            {
+              "expression": "obligation_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "where": "\"declarations\".\"status\" <> 'discarded'",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "declarations_person_id_idx": {
+          "name": "declarations_person_id_idx",
+          "columns": [
+            {
+              "expression": "person_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "declarations_type_check": {
+          "name": "declarations_type_check",
+          "value": "\"declarations\".\"type\" in ('initial', 'biennial', 'final')"
+        },
+        "declarations_status_check": {
+          "name": "declarations_status_check",
+          "value": "\"declarations\".\"status\" in ('draft', 'amending', 'submitted', 'discarded')"
+        },
+        "declarations_previous_statement_date_source_check": {
+          "name": "declarations_previous_statement_date_source_check",
+          "value": "\"declarations\".\"previous_statement_date_source\" in ('declared', 'assumed')"
+        }
+      },
+      "isRLSEnabled": false
+    },
     "public.declaration_attachments": {
       "name": "declaration_attachments",
       "schema": "",
@@ -440,183 +1027,6 @@
         "declaration_sections_completeness_check": {
           "name": "declaration_sections_completeness_check",
           "value": "\"declaration_sections\".\"completeness\" in ('not-started', 'incomplete', 'complete', 'archived')"
-        }
-      },
-      "isRLSEnabled": false
-    },
-    "public.declarations": {
-      "name": "declarations",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "tenant": {
-          "name": "tenant",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "person_id": {
-          "name": "person_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "obligation_id": {
-          "name": "obligation_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "roster_record_id": {
-          "name": "roster_record_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "type": {
-          "name": "type",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "statement_date": {
-          "name": "statement_date",
-          "type": "date",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "income_period_from": {
-          "name": "income_period_from",
-          "type": "date",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "income_period_to": {
-          "name": "income_period_to",
-          "type": "date",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "previous_statement_date_source": {
-          "name": "previous_statement_date_source",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "status": {
-          "name": "status",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'draft'"
-        },
-        "schema_version": {
-          "name": "schema_version",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'declaration.v1'"
-        },
-        "draft_version": {
-          "name": "draft_version",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 1
-        },
-        "last_section": {
-          "name": "last_section",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "reference": {
-          "name": "reference",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "current_version": {
-          "name": "current_version",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "amending_from_version": {
-          "name": "amending_from_version",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {
-        "declarations_live_obligation_key": {
-          "name": "declarations_live_obligation_key",
-          "columns": [
-            {
-              "expression": "obligation_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "where": "\"declarations\".\"status\" <> 'discarded'",
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "declarations_person_id_idx": {
-          "name": "declarations_person_id_idx",
-          "columns": [
-            {
-              "expression": "person_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {},
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {
-        "declarations_type_check": {
-          "name": "declarations_type_check",
-          "value": "\"declarations\".\"type\" in ('initial', 'biennial', 'final')"
-        },
-        "declarations_status_check": {
-          "name": "declarations_status_check",
-          "value": "\"declarations\".\"status\" in ('draft', 'amending', 'submitted', 'discarded')"
-        },
-        "declarations_previous_statement_date_source_check": {
-          "name": "declarations_previous_statement_date_source_check",
-          "value": "\"declarations\".\"previous_statement_date_source\" in ('declared', 'assumed')"
         }
       },
       "isRLSEnabled": false
@@ -1431,382 +1841,6 @@
       "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.declaration_items": {
-      "name": "declaration_items",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "version_id": {
-          "name": "version_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "cycle_year": {
-          "name": "cycle_year",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "tenant": {
-          "name": "tenant",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "person_key": {
-          "name": "person_key",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "category": {
-          "name": "category",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "type": {
-          "name": "type",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "in_kenya": {
-          "name": "in_kenya",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "county": {
-          "name": "county",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "country": {
-          "name": "country",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "is_joint": {
-          "name": "is_joint",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "share_percent": {
-          "name": "share_percent",
-          "type": "numeric(5, 2)",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "change_kind": {
-          "name": "change_kind",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "item_id": {
-          "name": "item_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "description_ciphertext": {
-          "name": "description_ciphertext",
-          "type": "bytea",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "value_ciphertext": {
-          "name": "value_ciphertext",
-          "type": "bytea",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "envelope": {
-          "name": "envelope",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": true
-        }
-      },
-      "indexes": {
-        "declaration_items_version_id_idx": {
-          "name": "declaration_items_version_id_idx",
-          "columns": [
-            {
-              "expression": "version_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "declaration_items_tenant_category_type_idx": {
-          "name": "declaration_items_tenant_category_type_idx",
-          "columns": [
-            {
-              "expression": "tenant",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "category",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "type",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "declaration_items_version_fk": {
-          "name": "declaration_items_version_fk",
-          "tableFrom": "declaration_items",
-          "tableTo": "declaration_versions",
-          "columnsFrom": [
-            "version_id",
-            "cycle_year"
-          ],
-          "columnsTo": [
-            "id",
-            "cycle_year"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {
-        "declaration_items_id_cycle_year_pk": {
-          "name": "declaration_items_id_cycle_year_pk",
-          "columns": [
-            "id",
-            "cycle_year"
-          ]
-        }
-      },
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {
-        "declaration_items_category_check": {
-          "name": "declaration_items_category_check",
-          "value": "\"declaration_items\".\"category\" in ('income', 'asset', 'liability')"
-        }
-      },
-      "isRLSEnabled": false
-    },
-    "public.declaration_versions": {
-      "name": "declaration_versions",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "declaration_id": {
-          "name": "declaration_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "version": {
-          "name": "version",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "cycle_year": {
-          "name": "cycle_year",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "tenant": {
-          "name": "tenant",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "person_id": {
-          "name": "person_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "reference": {
-          "name": "reference",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "snapshot_ciphertext": {
-          "name": "snapshot_ciphertext",
-          "type": "bytea",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "envelope": {
-          "name": "envelope",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "canonical_sha256": {
-          "name": "canonical_sha256",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "submitted_at": {
-          "name": "submitted_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "late": {
-          "name": "late",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "step_up_acr": {
-          "name": "step_up_acr",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "step_up_auth_time": {
-          "name": "step_up_auth_time",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "idempotency_key_hash": {
-          "name": "idempotency_key_hash",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "superseded_at": {
-          "name": "superseded_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "ack_status": {
-          "name": "ack_status",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'pending'"
-        },
-        "ack_document_id": {
-          "name": "ack_document_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "ack_verification_id": {
-          "name": "ack_verification_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "ack_issued_at": {
-          "name": "ack_issued_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "verified_count": {
-          "name": "verified_count",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 0
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {
-        "declaration_versions_declaration_id_declarations_id_fk": {
-          "name": "declaration_versions_declaration_id_declarations_id_fk",
-          "tableFrom": "declaration_versions",
-          "tableTo": "declarations",
-          "columnsFrom": [
-            "declaration_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {
-        "declaration_versions_id_cycle_year_pk": {
-          "name": "declaration_versions_id_cycle_year_pk",
-          "columns": [
-            "id",
-            "cycle_year"
-          ]
-        }
-      },
-      "uniqueConstraints": {
-        "declaration_versions_declaration_version_key": {
-          "name": "declaration_versions_declaration_version_key",
-          "nullsNotDistinct": false,
-          "columns": [
-            "declaration_id",
-            "cycle_year",
-            "version"
-          ]
-        }
-      },
-      "policies": {},
-      "checkConstraints": {
-        "declaration_versions_version_check": {
-          "name": "declaration_versions_version_check",
-          "value": "\"declaration_versions\".\"version\" >= 1"
-        },
-        "declaration_versions_ack_status_check": {
-          "name": "declaration_versions_ack_status_check",
-          "value": "\"declaration_versions\".\"ack_status\" in ('pending', 'issued', 'failed')"
-        }
-      },
       "isRLSEnabled": false
     }
   },
