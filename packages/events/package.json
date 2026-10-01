@@ -18,6 +18,10 @@
     "./contracts": {
       "types": "./dist/contracts/index.d.ts",
       "default": "./dist/contracts/index.js"
+    },
+    "./contracts/schemas": {
+      "types": "./dist/contracts/schemas.d.ts",
+      "default": "./dist/contracts/schemas.js"
     }
   },
   "scripts": {

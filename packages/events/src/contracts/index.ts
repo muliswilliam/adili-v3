@@ -18,14 +18,10 @@ export {
   DOCUMENT_STATUSES,
   DOCUMENT_SUPERSEDED,
   type DocumentEventData,
-  documentEventDataSchema,
   type DocumentIssuedData,
-  documentIssuedDataSchema,
   type DocumentRevokedData,
-  documentRevokedDataSchema,
   type DocumentStatus,
   type DocumentSupersededData,
-  documentSupersededDataSchema,
   ACKNOWLEDGEMENT_SLIP,
   DOCUMENT_TYPES,
   type DocumentType,
@@ -35,7 +31,6 @@ export {
   REVOCATION_REASONS,
   type RevocationReason,
   VERIFICATION_ID_PATTERN,
-  verificationIdSchema,
 } from './documents.js';
 export {
   OBLIGATION_CYCLE_OPENED,
@@ -53,6 +48,5 @@ export {
   VERIFICATION_OUTCOMES,
   type VerificationAuditedData,
   type VerificationCheckedData,
-  verificationCheckedDataSchema,
   type VerificationOutcome,
 } from './verification.js';

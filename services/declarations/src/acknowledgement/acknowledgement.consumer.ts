@@ -2,12 +2,11 @@ import { Controller } from '@nestjs/common';
 import { Payload } from '@nestjs/microservices';
 import { TENANT_KEY } from '@adili/api-kit';
 import { type EventEnvelope, OnEvent } from '@adili/events';
+import { DOCUMENT_ISSUED, VERIFICATION_CHECKED } from '@adili/events/contracts';
 import {
-  DOCUMENT_ISSUED,
   documentIssuedDataSchema,
-  VERIFICATION_CHECKED,
   verificationCheckedDataSchema,
-} from '@adili/events/contracts';
+} from '@adili/events/contracts/schemas';
 import { z } from 'zod';
 
 import { AcknowledgementService, type IssuedDocument } from './acknowledgement.service.js';

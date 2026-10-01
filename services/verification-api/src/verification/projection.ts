@@ -5,7 +5,7 @@ import {
   documentIssuedDataSchema,
   documentRevokedDataSchema,
   documentSupersededDataSchema,
-} from '@adili/events/contracts';
+} from '@adili/events/contracts/schemas';
 import { sql } from 'drizzle-orm';
 import type { z } from 'zod';
 

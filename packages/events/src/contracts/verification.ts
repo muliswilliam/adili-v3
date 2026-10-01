@@ -4,9 +4,7 @@
  * only, nothing about who checked. `audit.verification.v1` is for the audit trail alone and adds
  * the lookup's coarse origin.
  */
-import { z } from 'zod';
-
-import { DOCUMENT_STATUSES, verificationIdSchema } from './documents.js';
+import { DOCUMENT_STATUSES } from './documents.js';
 
 /** What a lookup answered: the document's status, or `not-found` for an unknown code. */
 export const VERIFICATION_OUTCOMES = [...DOCUMENT_STATUSES, 'not-found'] as const;
@@ -22,12 +20,6 @@ export interface VerificationCheckedData extends Record<string, unknown> {
   verificationId: string;
   outcome: VerificationOutcome;
 }
-
-/** `verification.checked.v1` data, as its consumers validate it. */
-export const verificationCheckedDataSchema = z.object({
-  verificationId: verificationIdSchema,
-  outcome: z.enum(VERIFICATION_OUTCOMES),
-}) satisfies z.ZodType<VerificationCheckedData>;
 
 /**
  * A lookup, for the audit trail (ADR-010 §5: every verification is audited with its time and

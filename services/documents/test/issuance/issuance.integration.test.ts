@@ -2,11 +2,11 @@ import { createHash, createPublicKey, randomUUID, verify } from 'node:crypto';
 
 import { GetObjectCommand } from '@aws-sdk/client-s3';
 import { withTenant } from '@adili/data-access';
+import { VERIFICATION_ID_PATTERN } from '@adili/events/contracts';
 import {
   documentIssuedDataSchema,
   documentSupersededDataSchema,
-  VERIFICATION_ID_PATTERN,
-} from '@adili/events/contracts';
+} from '@adili/events/contracts/schemas';
 import { asc, eq } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 
