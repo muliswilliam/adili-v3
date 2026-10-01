@@ -46,6 +46,23 @@ describe('FormField', () => {
     expect(screen.getByRole('textbox', { name: 'Email' }).id).toBe('officer-email');
   });
 
+  it('splits into a header with the label and hint and a body with the control and error', () => {
+    const { container } = render(
+      <FormField label="Reason" hint="Shown to the officer" error="Enter a reason">
+        <Textarea />
+      </FormField>,
+    );
+
+    const field = container.firstElementChild;
+    if (!field) throw new Error('field not rendered');
+    expect(field.children).toHaveLength(2);
+    const [header, body] = field.children;
+    expect(header?.contains(screen.getByText('Reason'))).toBe(true);
+    expect(header?.contains(screen.getByText('Shown to the officer'))).toBe(true);
+    expect(body?.contains(screen.getByRole('textbox', { name: 'Reason' }))).toBe(true);
+    expect(body?.contains(screen.getByRole('alert'))).toBe(true);
+  });
+
   it('labels a control that brings its own id', () => {
     render(
       <FormField label="Gazette reference">
