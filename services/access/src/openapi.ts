@@ -8,6 +8,7 @@ import {
   outcomeSchema,
   packageSchema,
 } from './decision.js';
+import { accessHistoryEntrySchema, historyCertifiedCopySchema } from './history/representation.js';
 import { declarantNoticeSchema, representationsInputSchema } from './notices/representation.js';
 import { registerEntrySchema } from './register/representation.js';
 import { verifyApplicantBody } from './requests/applicant-verification.service.js';
@@ -25,6 +26,7 @@ import {
   formKSchema,
 } from './requests/representation.js';
 import { scopeSchema, sectionSchema } from './scope.js';
+import { certifiedCopyRequestSchema, certifiedCopySchema } from './self-access/representation.js';
 
 /**
  * Named schemas of the access service's OpenAPI document (`#/components/schemas/<name>`). The
@@ -54,4 +56,8 @@ export const OPENAPI_SCHEMAS: Record<string, z.ZodType> = {
   RepresentationsInput: representationsInputSchema,
   DeclarantNotice: declarantNoticeSchema,
   AccessCommission: accessCommissionSchema,
+  AccessHistoryEntry: accessHistoryEntrySchema,
+  HistoryCertifiedCopy: historyCertifiedCopySchema,
+  CertifiedCopyRequest: certifiedCopyRequestSchema,
+  CertifiedCopy: certifiedCopySchema,
 };

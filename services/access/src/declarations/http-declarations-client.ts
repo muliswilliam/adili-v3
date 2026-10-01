@@ -42,7 +42,7 @@ const none = (): null => null;
  * (packages/schemas/internal/declarations.yaml → declarations-api.gen.ts via
  * `pnpm generate:api`), with the access service's own token (`declarations:internal`), the
  * Commission in `X-Acting-Tenant` and, in `X-Acting-Subject`, the deciding officer (disclosure)
- * or the declarant (full document), whom declarations audits the read for.
+ * or who asked for a certified copy (full document), whom declarations audits the read for.
  */
 export class HttpDeclarationsClient extends DeclarationsClient {
   private readonly declarations: ServiceClient<paths>;
@@ -85,7 +85,7 @@ export class HttpDeclarationsClient extends DeclarationsClient {
             query: { personId: request.personId },
             header: {
               'X-Acting-Tenant': request.tenant,
-              'X-Acting-Subject': request.declarantSubject,
+              'X-Acting-Subject': request.actingSubject,
             },
           },
         }),

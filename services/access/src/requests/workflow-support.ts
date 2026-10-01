@@ -31,14 +31,17 @@ export async function load(
   return found;
 }
 
-/** Sends one message; refused or undeliverable is logged, not retried. */
+/**
+ * Sends one message about a request (or another record of the service, e.g. a certified copy);
+ * refused or undeliverable is logged, not retried.
+ */
 export async function send(
   notifications: NotificationsClient,
   logger: Logger,
-  request: AccessRequestRow,
+  about: { id: string },
   message: AccessMessage,
 ): Promise<void> {
-  const context = { requestId: request.id, template: message.template };
+  const context = { recordId: about.id, template: message.template };
   try {
     const sent = await notifications.send(message);
     if (sent.status === 'failed') {

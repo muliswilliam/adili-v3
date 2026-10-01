@@ -1,0 +1,117 @@
+import {
+  ACCESS_OUTCOMES,
+  ACCESS_SUBJECT_KINDS,
+  type AccessOutcome,
+  type AccessRegisterKind,
+} from '@adili/events/contracts';
+import { z } from 'zod';
+
+import { outcomeSchema } from '../decision.js';
+import type { RegisterRow } from '../register/access-register.js';
+import { registerEntrySchema, toRegisterEntry } from '../register/representation.js';
+import { commissionRefSchema } from '../requests/representation.js';
+
+/**
+ * What the declarant sees of each kind of subject (spec 10 S12): a Form K request from the moment
+ * they were notified (r.22, Act s.36(3)), a law enforcement request only once granted (r.23(2)),
+ * and their certified copies. Steps before those (receipt, verification) and a request closed
+ * before it reached them never show.
+ */
+export const FORM_K_VISIBLE_KINDS: readonly AccessRegisterKind[] = [
+  'notified',
+  'representations',
+  'decided',
+  'package-issued',
+  'downloaded',
+  'expired',
+  'withdrawn',
+];
+export const LEA_VISIBLE_KINDS: readonly AccessRegisterKind[] = [
+  'decided',
+  'package-issued',
+  'downloaded',
+  'expired',
+];
+
+/** The certified copy a `self-access` entry records. */
+export const historyCertifiedCopySchema = z.object({
+  id: z.uuid(),
+  declarationId: z.uuid(),
+  version: z.int().min(1),
+  /** The Restricted `certified-copy` document, downloadable by the declarant from documents. */
+  documentId: z.uuid().nullable(),
+  /** Who applied on the declarant's behalf (an officer-recorded application); null otherwise. */
+  representativeName: z.string().nullable(),
+});
+
+/**
+ * access.yaml `AccessHistoryEntry`: one step of "who accessed my declaration", a register entry
+ * as the declarant may see it. Staff and law enforcement officers are never named: `actor` is
+ * the applicant on their own steps (download, withdrawal) and null otherwise; who sought access
+ * is `requester` (the applicant, or the law enforcement agency).
+ */
+export const accessHistoryEntrySchema = registerEntrySchema.extend({
+  subjectKind: z.enum(ACCESS_SUBJECT_KINDS),
+  /** The access request, law enforcement request or certified copy. */
+  subjectId: z.uuid(),
+  /** The request's `ARQ` or `LEA` reference; the declaration's for a certified copy. */
+  reference: z.string(),
+  commission: commissionRefSchema,
+  /** The applicant (Form K) or the agency (law enforcement); null for a certified copy. */
+  requester: z.string().nullable(),
+  /** The agency's case reference (law enforcement); null otherwise. */
+  caseReference: z.string().nullable(),
+  /** A `decided` entry's outcome; null for every other kind. */
+  outcome: outcomeSchema.nullable(),
+  /** A `self-access` entry's certified copy; null for every other kind. */
+  certifiedCopy: historyCertifiedCopySchema.nullable(),
+});
+
+export type AccessHistoryEntry = z.infer<typeof accessHistoryEntrySchema>;
+
+/** What the declarant may know of the subject an entry is about. */
+export interface HistorySubject {
+  reference: string;
+  commission: { slug: string; name: string };
+  requester: string | null;
+  caseReference: string | null;
+}
+
+/** Register kinds the applicant themselves acts on, named to the declarant (Form K only). */
+const APPLICANT_KINDS: readonly AccessRegisterKind[] = ['downloaded', 'withdrawn'];
+
+export function toAccessHistoryEntry(
+  row: RegisterRow,
+  subject: HistorySubject,
+): AccessHistoryEntry {
+  const details = row.details;
+  return {
+    ...toRegisterEntry(row),
+    subjectKind: row.subjectKind,
+    subjectId: row.subjectId,
+    reference: subject.reference,
+    commission: subject.commission,
+    requester: subject.requester,
+    caseReference: subject.caseReference,
+    actor:
+      row.subjectKind === 'access-request' && APPLICANT_KINDS.includes(row.kind)
+        ? (row.actorName ?? null)
+        : null,
+    outcome: row.kind === 'decided' ? outcomeOf(details.outcome) : null,
+    certifiedCopy:
+      row.kind === 'self-access'
+        ? {
+            id: row.subjectId,
+            declarationId: String(details.declarationId),
+            version: Number(details.version),
+            documentId: typeof details.documentId === 'string' ? details.documentId : null,
+            representativeName:
+              typeof details.representativeName === 'string' ? details.representativeName : null,
+          }
+        : null,
+  };
+}
+
+function outcomeOf(value: unknown): AccessOutcome | null {
+  return (ACCESS_OUTCOMES as readonly unknown[]).includes(value) ? (value as AccessOutcome) : null;
+}

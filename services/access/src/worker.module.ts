@@ -9,6 +9,7 @@ import { config } from './config.js';
 import { RegisterModule } from './register/access-register.js';
 import { AccessRequestActivities } from './requests/activities.js';
 import { DecisionActivities } from './requests/decision-activities.js';
+import { CertifiedCopyActivities } from './self-access/activities.js';
 import { UpstreamModule } from './upstream.module.js';
 
 /**
@@ -22,7 +23,7 @@ const workflowsPath = fileURLToPath(
 /**
  * The access worker (ADR-003), one per service: every workflow of the access service runs on its
  * queue, with its activities listed here as their modules add them (`AccessRequestWorkflow`,
- * `LeaRequestWorkflow`). Activities get the clock, the cipher, the upstream clients and the
+ * `LeaRequestWorkflow`, `CertifiedCopyWorkflow`). Activities get the clock, the cipher, the upstream clients and the
  * access register.
  */
 @Module({
@@ -32,7 +33,7 @@ const workflowsPath = fileURLToPath(
       namespace: config.TEMPORAL_NAMESPACE,
       taskQueue: config.TEMPORAL_TASK_QUEUE,
       workflowsPath,
-      activities: [AccessRequestActivities, DecisionActivities],
+      activities: [AccessRequestActivities, DecisionActivities, CertifiedCopyActivities],
       imports: [ClockModule, CipherModule, UpstreamModule, RegisterModule],
     }),
   ],

@@ -6,6 +6,19 @@
 import { z } from 'zod';
 
 import {
+  ACCESS_GROUNDS,
+  ACCESS_LEGAL_BASES,
+  ACCESS_OUTCOMES,
+  ACCESS_REGISTER_KINDS,
+  ACCESS_SUBJECT_KINDS,
+  type AccessCertifiedCopyIssuedData,
+  type AccessRegisterEventData,
+  type AccessRequestCannotIdentifyData,
+  type AccessRequestDecidedData,
+  type AccessRequestReceivedData,
+  CANNOT_IDENTIFY_DECLINE_REASON,
+} from './access.js';
+import {
   DISCLOSURE_LEVELS,
   DOCUMENT_STATUSES,
   REVOCATION_REASONS,
@@ -71,3 +84,58 @@ export const verificationCheckedDataSchema = z.object({
   verificationId: verificationIdSchema,
   outcome: z.enum(VERIFICATION_OUTCOMES),
 }) satisfies z.ZodType<VerificationCheckedData>;
+
+/**
+ * `AccessRegisterEventData` as its consumers validate it: the data of every access event (one per
+ * access-register entry). Open, as each kind adds its own facts.
+ */
+export const accessRegisterEventDataSchema = z.looseObject({
+  registerEntryId: z.uuid(),
+  subjectKind: z.enum(ACCESS_SUBJECT_KINDS),
+  subjectId: z.uuid(),
+  reference: z.string().min(1).nullable(),
+  tenant: z.string().min(1),
+  kind: z.enum(ACCESS_REGISTER_KINDS),
+  legalBasis: z.enum(ACCESS_LEGAL_BASES),
+  personId: z.uuid().nullable(),
+  actor: z.string().min(1).nullable(),
+  at: timestamp,
+}) satisfies z.ZodType<AccessRegisterEventData>;
+
+/**
+ * `access.request.received.v1` / `lea.request.received.v1` data: Form M section 5 counts a request
+ * received from it.
+ */
+export const accessRequestReceivedDataSchema = accessRegisterEventDataSchema.extend({
+  kind: z.literal('received'),
+  decisionDeadlineAt: timestamp,
+}) satisfies z.ZodType<AccessRequestReceivedData>;
+
+/**
+ * `access.request.decided.v1` / `lea.request.decided.v1` data: Form M section 5 counts a grant
+ * (full or partial) or a decline, with the Regulation 24 grounds (none for a full grant).
+ */
+export const accessRequestDecidedDataSchema = accessRegisterEventDataSchema.extend({
+  kind: z.literal('decided'),
+  outcome: z.enum(ACCESS_OUTCOMES),
+  grounds: z.array(z.enum(ACCESS_GROUNDS)),
+}) satisfies z.ZodType<AccessRequestDecidedData>;
+
+/**
+ * `access.request.cannot-identify.v1` data: Form M section 5 counts the request declined for
+ * reason `other`.
+ */
+export const accessRequestCannotIdentifyDataSchema = accessRegisterEventDataSchema.extend({
+  kind: z.literal('cannot-identify'),
+  declineReason: z.literal(CANNOT_IDENTIFY_DECLINE_REASON),
+}) satisfies z.ZodType<AccessRequestCannotIdentifyData>;
+
+/** `access.certified-copy.issued.v1` data. */
+export const accessCertifiedCopyIssuedDataSchema = accessRegisterEventDataSchema.extend({
+  subjectKind: z.literal('self-access'),
+  kind: z.literal('self-access'),
+  declarationId: z.uuid(),
+  version: z.int().positive(),
+  documentId: z.uuid(),
+  applicationId: z.uuid().nullable(),
+}) satisfies z.ZodType<AccessCertifiedCopyIssuedData>;

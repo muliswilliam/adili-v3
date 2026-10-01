@@ -11,7 +11,10 @@ import { index, integer, jsonb, pgTable, text, timestamp, unique, uuid } from 'd
  * the declarant reads their own certified copies (`app.person`).
  */
 
-/** access.yaml `CertifiedCopy.status`. */
+/**
+ * access.yaml `CertifiedCopy.status`: `pending` until `CertifiedCopyWorkflow` has it issued;
+ * `failed` when declarations has no such submitted version of the declarant at the Commission.
+ */
 export const CERTIFIED_COPY_STATUSES = ['pending', 'issued', 'failed'] as const;
 export type CertifiedCopyStatus = (typeof CERTIFIED_COPY_STATUSES)[number];
 
@@ -21,10 +24,14 @@ export const certifiedCopies = pgTable(
     id: uuid().primaryKey(),
     /** The Commission the declaration was filed with. */
     tenant: text().notNull(),
+    /** The Commission's name when the copy was asked for, as lists and messages show it. */
+    commissionName: text().notNull(),
     /** The declarant: the subject of the Restricted `certified-copy` document. */
     personId: uuid().notNull(),
     declarationId: uuid().notNull(),
     version: integer().notNull(),
+    /** The declaration's reference (ADR-011), known once declarations has rendered the version. */
+    reference: text(),
     status: text().$type<CertifiedCopyStatus>().notNull(),
     documentId: uuid(),
     verificationId: text(),
@@ -32,6 +39,8 @@ export const certifiedCopies = pgTable(
     applicationId: uuid(),
     /** Token subject of who asked: the declarant, or the access officer recording an application. */
     requestedBy: text().notNull(),
+    /** Their name, as the register shows who acted. */
+    requestedByName: text(),
     requestedAt: timestamp({ withTimezone: true }).notNull(),
     issuedAt: timestamp({ withTimezone: true }),
     failedAt: timestamp({ withTimezone: true }),

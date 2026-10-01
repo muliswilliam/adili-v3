@@ -125,3 +125,19 @@ export interface AccessRequestCannotIdentifyData extends AccessRegisterEventData
   kind: 'cannot-identify';
   declineReason: typeof CANNOT_IDENTIFY_DECLINE_REASON;
 }
+
+/**
+ * `access.certified-copy.issued.v1`: a declarant's certified copy of a submitted version was
+ * issued (Administrative Mechanism 32, self-access), online or from a written application the
+ * access officer recorded. The subject is the certified copy.
+ */
+export interface AccessCertifiedCopyIssuedData extends AccessRegisterEventData {
+  subjectKind: 'self-access';
+  kind: 'self-access';
+  declarationId: string;
+  version: number;
+  /** The Restricted `certified-copy` document. */
+  documentId: string;
+  /** The officer-recorded application it was issued for; null when the declarant asked online. */
+  applicationId: string | null;
+}

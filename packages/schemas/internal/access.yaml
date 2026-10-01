@@ -725,8 +725,8 @@ paths:
       tags:
         - declarant
       summary: Who accessed my declaration (register entries visible to the declarant)
+      description: 'Newest first: Form K requests about the declarant from notification on (notified, representations, decision, package, downloads, expiry, withdrawal), law enforcement requests from the grant on (decision, package, downloads, expiry), and their certified copies. Staff and law enforcement officers are not named.'
       operationId: getMyAccessHistory
-      x-draft: true
       responses:
         '200':
           description: Entries
@@ -735,47 +735,83 @@ paths:
               schema:
                 type: array
                 items:
-                  $ref: '#/components/schemas/RegisterEntry'
+                  $ref: '#/components/schemas/AccessHistoryEntry'
+        '403':
+          description: 'Requires one of the roles: declarant'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
         '404':
-          $ref: '#/components/responses/NotFound'
+          description: Not a declarant
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
   /v1/me/certified-copies:
     post:
       tags:
         - declarant
       summary: Certified copy of one of my submitted versions
+      description: Records the copy `pending` and has it issued as a Restricted `certified-copy` from the full document of the version (registered `self-access`, `access.certified-copy.issued.v1`); poll until `issued` (then download it from documents with `documentId`) or `failed` (no such submitted version of yours at the Commission). Asking again for the same version returns the same copy; a failed one is tried again.
       operationId: requestCertifiedCopy
-      x-draft: true
+      parameters:
+        - name: Idempotency-Key
+          in: header
+          description: Optional. Client-generated UUID, unique per logical request; reuse on retry and the stored answer is replayed instead of acting twice
+          required: false
+          schema:
+            type: string
+            format: uuid
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              type: object
-              required:
-                - declarationId
-                - version
-              properties:
-                declarationId:
-                  type: string
-                  format: uuid
-                version:
-                  type: integer
-                  minimum: 1
+              $ref: '#/components/schemas/CertifiedCopyRequest'
       responses:
         '202':
-          description: Issuance requested; poll the copy
+          description: The copy as it stands
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/CertifiedCopy'
+        '400':
+          description: The body failed validation
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '403':
+          description: 'Requires one of the roles: declarant'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
         '404':
-          $ref: '#/components/responses/NotFound'
+          description: Not a declarant, or no such Commission
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '422':
+          description: Idempotency-Key reused with a different request body
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '503':
+          description: The directory or the workflow engine cannot be reached; nothing was done
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
     get:
       tags:
         - declarant
-      summary: My certified copies with download links
+      summary: My certified copies
+      description: Latest asked for first, whether asked online or recorded by an access officer.
       operationId: listMyCertifiedCopies
-      x-draft: true
       responses:
         '200':
           description: Copies
@@ -785,6 +821,57 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/CertifiedCopy'
+        '403':
+          description: 'Requires one of the roles: declarant'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: Not a declarant
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+  /v1/me/certified-copies/{copyId}:
+    get:
+      tags:
+        - declarant
+      summary: One of my certified copies
+      description: For following a copy from `pending` to `issued` (or `failed`).
+      operationId: getMyCertifiedCopy
+      parameters:
+        - name: copyId
+          required: true
+          in: path
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: The copy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CertifiedCopy'
+        '400':
+          description: copyId is not a UUID
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '403':
+          description: 'Requires one of the roles: declarant'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: No such certified copy of yours
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
   /v1/lea/requests:
     post:
       tags:
@@ -1536,6 +1623,192 @@ components:
         - slug
         - name
         - years
+    AccessHistoryEntry:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        kind:
+          type: string
+          enum:
+            - received
+            - verified
+            - notified
+            - representations
+            - decided
+            - package-issued
+            - downloaded
+            - expired
+            - withdrawn
+            - cannot-identify
+            - self-access
+        at:
+          type: string
+          format: date-time
+        actor:
+          type:
+            - string
+            - 'null'
+        summary:
+          type: string
+        reference:
+          type: string
+        subjectKind:
+          type: string
+          enum:
+            - access-request
+            - lea-request
+            - self-access
+        subjectId:
+          type: string
+          format: uuid
+        commission:
+          type: object
+          properties:
+            slug:
+              type: string
+            name:
+              type: string
+          required:
+            - slug
+            - name
+        requester:
+          type:
+            - string
+            - 'null'
+        caseReference:
+          type:
+            - string
+            - 'null'
+        outcome:
+          anyOf:
+            - $ref: '#/components/schemas/Outcome'
+            - type: 'null'
+        certifiedCopy:
+          anyOf:
+            - $ref: '#/components/schemas/HistoryCertifiedCopy'
+            - type: 'null'
+      required:
+        - id
+        - kind
+        - at
+        - actor
+        - summary
+        - reference
+        - subjectKind
+        - subjectId
+        - commission
+        - requester
+        - caseReference
+        - outcome
+        - certifiedCopy
+    HistoryCertifiedCopy:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        declarationId:
+          type: string
+          format: uuid
+        version:
+          type: integer
+          minimum: 1
+        documentId:
+          anyOf:
+            - type: string
+              format: uuid
+            - type: 'null'
+        representativeName:
+          type:
+            - string
+            - 'null'
+      required:
+        - id
+        - declarationId
+        - version
+        - documentId
+        - representativeName
+    CertifiedCopyRequest:
+      type: object
+      properties:
+        commission:
+          type: string
+          pattern: ^[a-z][a-z0-9]{1,19}$
+          description: Slug of the Commission the declaration was filed with (its `commission.slug`)
+        declarationId:
+          type: string
+          format: uuid
+        version:
+          type: integer
+          minimum: 1
+          description: The submitted version
+      required:
+        - commission
+        - declarationId
+        - version
+      additionalProperties: false
+    CertifiedCopy:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        commission:
+          type: object
+          properties:
+            slug:
+              type: string
+            name:
+              type: string
+          required:
+            - slug
+            - name
+        declarationId:
+          type: string
+          format: uuid
+        version:
+          type: integer
+          minimum: 1
+        reference:
+          type:
+            - string
+            - 'null'
+        status:
+          type: string
+          enum:
+            - pending
+            - issued
+            - failed
+        documentId:
+          anyOf:
+            - type: string
+              format: uuid
+            - type: 'null'
+        verificationId:
+          type:
+            - string
+            - 'null'
+        requestedAt:
+          type: string
+          format: date-time
+        issuedAt:
+          anyOf:
+            - type: string
+              format: date-time
+            - type: 'null'
+      required:
+        - id
+        - commission
+        - declarationId
+        - version
+        - reference
+        - status
+        - documentId
+        - verificationId
+        - requestedAt
+        - issuedAt
     ProblemDetails:
       type: object
       properties:
@@ -1612,49 +1885,6 @@ components:
         - granted
         - denied
         - withdrawn
-    CertifiedCopy:
-      type: object
-      required:
-        - id
-        - declarationId
-        - version
-        - status
-        - documentId
-        - verificationId
-        - downloadUrl
-        - requestedAt
-      properties:
-        id:
-          type: string
-          format: uuid
-        declarationId:
-          type: string
-          format: uuid
-        version:
-          type: integer
-        status:
-          type: string
-          enum:
-            - pending
-            - issued
-            - failed
-        documentId:
-          type:
-            - string
-            - 'null'
-          format: uuid
-        verificationId:
-          type:
-            - string
-            - 'null'
-        downloadUrl:
-          type:
-            - string
-            - 'null'
-          format: uri
-        requestedAt:
-          type: string
-          format: date-time
     LeaRequestInput:
       type: object
       required:

@@ -10,8 +10,8 @@ import { NoticesService } from './notices.service.js';
 
 /**
  * The declarant's side of access requests (spec 10, Act s.36(3)): the requests about them they
- * were notified of, and their representations. Who accessed their declaration and certified
- * copies join it (#267).
+ * were notified of, and their representations. Who accessed their declaration and their certified
+ * copies are `HistoryModule` and `SelfAccessModule`.
  */
 @Module({
   imports: [

@@ -257,9 +257,10 @@ export class FakeDeclarations extends DeclarationsClient {
     if (this.failures.take()) {
       return Promise.reject(new DeclarationsUnavailable('The declarations service is unreachable'));
     }
-    return Promise.resolve(
-      this.documents.get(`${request.declarationId}:${String(request.version)}`) ?? null,
-    );
+    // As declarations: only a version of the person, at the acting Commission.
+    const found = this.documents.get(`${request.declarationId}:${String(request.version)}`);
+    const theirs = found?.personId === request.personId && found.commission.slug === request.tenant;
+    return Promise.resolve(theirs ? found : null);
   }
 }
 

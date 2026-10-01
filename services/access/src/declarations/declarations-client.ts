@@ -36,14 +36,17 @@ export type VersionDocument = components['schemas']['FullVersionDocument'];
 
 /** A version of a declarant's declaration, asked for in full for their certified copy. */
 export interface FullDocumentRequest {
-  /** The Commission the certified copy request was made to. */
+  /** The Commission the declaration was filed with. */
   tenant: string;
   declarationId: string;
   version: number;
   /** The declarant: the version must be theirs. */
   personId: string;
-  /** Token subject of the declarant, who receives the copy. */
-  declarantSubject: string;
+  /**
+   * Token subject of who asked for the copy, recorded as its recipient in declarations' audit:
+   * the declarant online, or the access officer recording their written application.
+   */
+  actingSubject: string;
 }
 
 /** The declarations service is unreachable or answered outside its contract; activities retry. */
