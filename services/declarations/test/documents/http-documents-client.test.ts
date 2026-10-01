@@ -15,8 +15,9 @@ import { HttpDocumentsClient } from '../../src/documents/http-documents-client.j
 
 /**
  * The documents client against answers that conform to the documents contract (checked here):
- * a clean upload is read through the internal download endpoint, a link is recorded through the
- * linked marker, both acting for the Commission; refusals map to the errors attachments act on.
+ * an upload is read through the internal metadata read (not the audited download), a link is
+ * recorded and taken back through the linked and unlinked markers, all acting for the Commission;
+ * refusals map to the errors attachments act on.
  */
 const ajv = new Ajv2020({ strict: false, allErrors: true });
 addFormats.default(ajv);
@@ -55,31 +56,57 @@ function clientAnswering(respond: (request: Request) => Response) {
 }
 
 describe('HttpDocumentsClient', () => {
-  it("reads the Commission's clean upload through the download endpoint", async () => {
-    const download = conforming('UploadDownload', {
+  const internalUpload = (overrides: Record<string, unknown> = {}) =>
+    conforming('InternalUpload', {
       id: UPLOAD_ID,
-      purpose: 'roster-import',
+      purpose: 'declaration-attachment',
       state: 'clean',
-      downloadUrl: 'http://minio.test/clean/object',
-      expiresAt: '2027-11-02T09:00:00.000Z',
-      sha256: SHA256,
-      size: 1204,
-      fileName: 'deed.pdf',
+      rejection: null,
+      contentType: 'application/pdf',
       detectedType: 'application/pdf',
+      declaredSize: 1204,
+      size: 1204,
+      sha256: SHA256,
+      fileName: 'deed.pdf',
+      createdAt: '2027-11-02T08:55:00.000Z',
+      completedAt: '2027-11-02T08:56:00.000Z',
+      uploadedBy: 'f3c1d0aa-5f5e-4a52-9d55-0b7f1f7c2e10',
+      linkedAt: null,
+      ...overrides,
     });
-    const { client, requests } = clientAnswering(() => json(download));
+
+  it("reads the Commission's clean upload through the internal metadata read", async () => {
+    const { client, requests } = clientAnswering(() => json(internalUpload()));
 
     const upload = await client.getCleanUpload('psc', UPLOAD_ID);
 
     expect(upload).toEqual({
       id: UPLOAD_ID,
-      purpose: 'roster-import',
+      purpose: 'declaration-attachment',
+      uploadedBy: 'f3c1d0aa-5f5e-4a52-9d55-0b7f1f7c2e10',
       fileName: 'deed.pdf',
       sha256: SHA256,
       size: 1204,
     });
     expect(requests).toEqual([
-      { method: 'GET', path: `/internal/v1/uploads/${UPLOAD_ID}/download`, actingTenant: 'psc' },
+      { method: 'GET', path: `/internal/v1/uploads/${UPLOAD_ID}`, actingTenant: 'psc' },
+    ]);
+  });
+
+  it('refuses an upload that is not clean', async () => {
+    const infected = internalUpload({ state: 'infected', sha256: null, size: null });
+    const { client } = clientAnswering(() => json(infected));
+
+    await expect(client.getCleanUpload('psc', UPLOAD_ID)).rejects.toBeInstanceOf(UploadNotClean);
+  });
+
+  it('takes a link back through the unlinked marker', async () => {
+    const { client, requests } = clientAnswering(() => new Response(null, { status: 204 }));
+
+    await client.markUnlinked('psc', UPLOAD_ID);
+
+    expect(requests).toEqual([
+      { method: 'POST', path: `/internal/v1/uploads/${UPLOAD_ID}/unlinked`, actingTenant: 'psc' },
     ]);
   });
 
@@ -112,5 +139,8 @@ describe('HttpDocumentsClient', () => {
     await expect(
       clientAnswering(() => problem(500)).client.markLinked('psc', UPLOAD_ID),
     ).rejects.toBeInstanceOf(DocumentsUnavailable);
+    await expect(
+      clientAnswering(() => problem(404)).client.markUnlinked('psc', UPLOAD_ID),
+    ).rejects.toBeInstanceOf(UploadNotFound);
   });
 });

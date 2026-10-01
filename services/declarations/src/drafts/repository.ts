@@ -1,12 +1,19 @@
+import type { EventPublisher } from '@adili/events';
 import type { DeclarationSectionKey } from '@adili/forms';
-import { and, eq, inArray, like, ne, sql } from 'drizzle-orm';
+import { and, eq, inArray, like, ne, type SQL, sql } from 'drizzle-orm';
 
 import { declarations, EDITABLE_STATUSES } from '../declaration/schema.js';
 import type { Transaction } from '../db/transaction.js';
 import { isUuid } from '../guards.js';
 import type { ObligationStatus } from '../obligations/engine.js';
 import { filingObligations } from '../obligations/schema.js';
-import { type SectionCompleteness, type SectionMetadata, declarationSections } from './schema.js';
+import { declarationAttachmentUnlinked } from './events.js';
+import {
+  declarationAttachments,
+  declarationSections,
+  type SectionCompleteness,
+  type SectionMetadata,
+} from './schema.js';
 import type { SectionCipher } from './section-cipher.js';
 import type { DocumentFrame } from './summary.js';
 import {
@@ -243,4 +250,30 @@ export async function storeSection(
     })
     .where(sectionIs(declaration.id, key));
   return bumped.draftVersion;
+}
+
+/**
+ * Deletes the draft's attachment rows that `which` selects and records an unlink event for each:
+ * the one way an attachment goes (unlink, a save removing its item, discard). The upload ids.
+ */
+export async function deleteAttachments(
+  tx: Transaction,
+  events: EventPublisher,
+  declaration: DeclarationRow,
+  which?: SQL,
+): Promise<string[]> {
+  const deleted = await tx
+    .delete(declarationAttachments)
+    .where(and(eq(declarationAttachments.declarationId, declaration.id), which))
+    .returning({ uploadId: declarationAttachments.uploadId });
+  for (const { uploadId } of deleted) {
+    await events.record(
+      tx,
+      declarationAttachmentUnlinked(declaration.tenant, {
+        declarationId: declaration.id,
+        uploadId,
+      }),
+    );
+  }
+  return deleted.map(({ uploadId }) => uploadId);
 }

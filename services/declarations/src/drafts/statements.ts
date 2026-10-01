@@ -169,7 +169,7 @@ export async function writeStatementChanges(
 
 /**
  * Display names by person key, from the sections that hold them (`named`: bio, household and the
- * archived statements): the officer from bio, spouses and children from household, and people
+ * archived statements): the declarant from bio, spouses and children from household, and people
  * removed from the household from their archived statements.
  */
 export async function personNames(

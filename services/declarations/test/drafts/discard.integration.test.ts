@@ -31,7 +31,7 @@ import { assetItem, incomeItem } from '../fixtures/sections.js';
 
 const ACHIENG = randomUUID();
 const OTIENO = randomUUID();
-const declarant = (personId: string): Caller => ({ personId, roles: ['declarant'] });
+const declarant = (personId: string): Caller => ({ personId, sub: personId, roles: ['declarant'] });
 const achieng = declarant(ACHIENG);
 const reviewer: Caller = { tenant: 'psc', roles: ['reviewer'] };
 
@@ -160,8 +160,8 @@ describe('discarding a draft (S15)', () => {
     const obligation = await givenObligation();
     const draft = await started(obligation);
     await saveStatement(draft.id, 1);
-    const deed = upload('psc');
-    const logbook = upload('psc');
+    const deed = upload('psc', ACHIENG);
+    const logbook = upload('psc', ACHIENG);
     api.documents.givenUploads(deed, logbook);
     for (const [itemId, uploadId] of [
       [assetItem().id, deed.id],
@@ -202,6 +202,7 @@ describe('discarding a draft (S15)', () => {
     // Linking recorded two unlinked events' worth of uploads; discard unlinks both.
     const unlinked = await eventsOf('declaration.attachment-unlinked.v1');
     expect(unlinked).toHaveLength(2);
+    expect(api.documents.unlinked.sort()).toEqual([`psc ${deed.id}`, `psc ${logbook.id}`].sort());
     expect(unlinked.map((event) => (event as { data: unknown }).data)).toEqual(
       expect.arrayContaining([
         { declarationId: draft.id, uploadId: deed.id },
@@ -361,12 +362,12 @@ describe('my declarations (S16)', () => {
       2,
       household([{ id: spouseId, name: { surname: 'O', firstName: 'G' }, separated: false }]),
     );
-    // Live: bio, household (complete), officer (complete), spouse, other: 2 of 5.
+    // Live: bio, household (complete), statement:officer (complete), spouse, other: 2 of 5.
     expect((await mine()).json<DeclarationListItem[]>()[0]?.completenessPercent).toBe(40);
 
     await put(3, household([]));
 
-    // Live: bio, household (complete), officer (complete), other: 2 of 4.
+    // Live: bio, household (complete), statement:officer (complete), other: 2 of 4.
     expect((await mine()).json<DeclarationListItem[]>()[0]?.completenessPercent).toBe(50);
   });
 

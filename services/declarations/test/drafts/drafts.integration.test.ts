@@ -8,6 +8,7 @@ import {
   declarationSections,
   declarations,
   filingObligations,
+  obligationDrafts,
   outbox,
   rosterSnapshots,
 } from '../../src/db/schema.js';
@@ -481,7 +482,7 @@ describe('saving a section (S4)', () => {
     expect((await getSection(draft.id, 'bio')).headers.etag).toBe('"2"');
   });
 
-  it("refuses a change to the officer's name with identity-locked-field", async () => {
+  it("refuses a change to the declarant's name with identity-locked-field", async () => {
     const draft = await started();
     const bio = fullBio(await bioContents(draft.id));
 
@@ -711,7 +712,57 @@ describe('ciphertext opacity (S13)', () => {
       (await api.asPerson(ACHIENG, (tx) => tx.select().from(declarations))).map((row) => row.id),
     ).toEqual([draft.id]);
   });
+
+  it("lets no other person write a declarant's draft rows (ADR-018 decision 5)", async () => {
+    const draft = await savedDraft();
+    const [section] = await api.asPerson(ACHIENG, (tx) =>
+      tx.select().from(declarationSections).where(eq(declarationSections.declarationId, draft.id)),
+    );
+    const [started] = await api.asPerson(ACHIENG, (tx) => tx.select().from(obligationDrafts));
+    if (!section || !started) throw new Error('the draft has no section or obligation draft');
+
+    // Another person's updates and deletes see no rows.
+    const touched = await api.asPerson(OTIENO, async (tx) => ({
+      updated: await tx
+        .update(declarations)
+        .set({ draftVersion: 99 })
+        .where(eq(declarations.id, draft.id))
+        .returning(),
+      deleted: await tx
+        .delete(declarationSections)
+        .where(eq(declarationSections.declarationId, draft.id))
+        .returning(),
+    }));
+    expect(touched).toEqual({ updated: [], deleted: [] });
+
+    // Their inserts into the declarant's draft are refused.
+    await expect(
+      api.asPerson(OTIENO, (tx) =>
+        tx.insert(declarationSections).values({ ...section, sectionKey: 'statement:child:x' }),
+      ),
+    ).rejects.toMatchObject(RLS_REFUSED);
+    await expect(
+      api.asPerson(OTIENO, (tx) =>
+        tx.insert(obligationDrafts).values({ ...started, obligationId: randomUUID() }),
+      ),
+    ).rejects.toMatchObject(RLS_REFUSED);
+
+    // The declarant cannot hand a draft to someone else.
+    await expect(
+      api.asPerson(ACHIENG, (tx) =>
+        tx.update(declarations).set({ personId: OTIENO }).where(eq(declarations.id, draft.id)),
+      ),
+    ).rejects.toMatchObject(RLS_REFUSED);
+
+    const [kept] = await api.asPerson(ACHIENG, (tx) =>
+      tx.select().from(declarations).where(eq(declarations.id, draft.id)),
+    );
+    expect(kept).toMatchObject({ personId: ACHIENG, draftVersion: 3 });
+  });
 });
+
+/** Postgres refusing a row under row-level security (insufficient_privilege). */
+const RLS_REFUSED = { cause: { code: '42501' } };
 
 describe('events carry identifiers only (S22)', () => {
   it('writes no section content to the outbox', async () => {
@@ -725,6 +776,8 @@ describe('events carry identifiers only (S22)', () => {
       'audit.read.v1',
       'audit.read.v1',
       'declaration.draft-started.v1',
+      'declaration.section-saved.v1',
+      'declaration.section-saved.v1',
     ]);
     const serialised = JSON.stringify(rows);
     for (const secret of SECRETS) expect(serialised).not.toContain(secret);
@@ -734,5 +787,46 @@ describe('events carry identifiers only (S22)', () => {
       'obligationId',
       'type',
     ]);
+  });
+
+  it('records each section save in the outbox with identifiers only (ADR-008)', async () => {
+    const draft = await savedDraft();
+
+    const saves = await api.db
+      .select({ envelope: outbox.envelope })
+      .from(outbox)
+      .where(eq(outbox.eventType, 'declaration.section-saved.v1'));
+
+    expect(
+      saves.map(({ envelope: { subject, tenant, data } }) => ({ subject, tenant, data })),
+    ).toEqual([
+      {
+        subject: draft.id,
+        tenant: draft.commission.slug,
+        data: { declarationId: draft.id, sectionKey: 'bio', draftVersion: 2, sectionsChanged: [] },
+      },
+      {
+        subject: draft.id,
+        tenant: draft.commission.slug,
+        data: {
+          declarationId: draft.id,
+          sectionKey: 'statement:officer',
+          draftVersion: 3,
+          sectionsChanged: [],
+        },
+      },
+    ]);
+  });
+
+  it('a refused save records nothing', async () => {
+    const draft = await started();
+
+    expect((await save(draft.id, 'bio', {}, '"7"')).statusCode).toBe(412);
+
+    const saves = await api.db
+      .select()
+      .from(outbox)
+      .where(eq(outbox.eventType, 'declaration.section-saved.v1'));
+    expect(saves).toEqual([]);
   });
 });

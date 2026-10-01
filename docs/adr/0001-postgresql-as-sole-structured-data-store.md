@@ -1,6 +1,6 @@
 # ADR-001: PostgreSQL as the sole structured data store (Cassandra dropped)
 
-- **Status:** Accepted
+- **Status:** Accepted; amended 2026-10-01: drafts live in Postgres, Valkey only caches them (Decision 6, spec #108)
 - **Date:** 2026-09-24
 - **Deciders:** Adili V3 DIALs team
 - **Supporting analysis:** [research/database-sizing.md](../research/database-sizing.md), [research/dials-scope-and-scale.md](../research/dials-scope-and-scale.md)
@@ -38,7 +38,7 @@ The workload is dominated by relational operations:
 4. **Audit:** append-only, hash-chained, range-partitioned by month, written in batches by a queue consumer. 24 months kept live; older partitions exported to Parquet in object-locked (write-once) storage.
 5. **Multi-tenancy:** `tenant_id` on every tenant-scoped row, enforced with PostgreSQL row-level security. The org hierarchy (Commission → delegated body → reporting entity → department) is stored as an `ltree` path.
 6. **Supporting pieces:**
-   - Valkey for drafts (write-behind), sessions, rate limits and reference data.
+   - Valkey for sessions, rate limits, reference data and a read cache of draft sections. *Amended 2026-10-01 (spec #108):* drafts are written to Postgres on every save, not written behind from Valkey. A save is one transaction that bumps the draft version (the `If-Match` check), stores the envelope-encrypted section (ADR-006) and records the audit event (ADR-008). A write-behind store could not give any of the three, and a lost Valkey would lose a declarant's work. Valkey keeps decrypted sections for 10 minutes, keyed by (declaration, section, version), so a reread costs no decrypt; losing it costs only that. The cost: at the design peak, up to 1.7k-4.2k autosaves/s reach the declarations cluster rather than the ~300-1.4k/s flushes the sizing assumed. If they become its bottleneck, the client debounces harder first, then Citus shards by tenant (point 8).
    - PgBouncer in front of each cluster.
    - Read replicas for reviewer search, dashboards and Form M.
    - Transactional outbox for publishing events to the message queue.
@@ -68,7 +68,7 @@ The workload is dominated by relational operations:
 - A sizing-backed story for the judges' architecture and scalability criteria.
 
 **Negative / risks**
-- Vertical limits of a single primary. Mitigated by database-per-service, partitioning, replicas, Valkey write-behind, queue-batched audit, and the documented Citus path.
+- Vertical limits of a single primary. Mitigated by database-per-service, partitioning, replicas, client-debounced autosaves, queue-batched audit, and the documented Citus path.
 - JSONB snapshot + normalised items duplicates data. Accepted: the snapshot is the legal record; the items are derived and can be rebuilt.
 - The audit table grows fastest (~1.1TB in 10 years). Mitigated by monthly partitions and archiving to object-locked storage.
 - Row-level security needs discipline: every connection must set the tenant context. Enforce with a shared data-access library and tests that assert cross-tenant reads fail.

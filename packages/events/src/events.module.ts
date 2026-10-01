@@ -4,6 +4,7 @@ import {
   Injectable,
   Logger,
   Module,
+  type BeforeApplicationShutdown,
   type OnApplicationBootstrap,
   type OnApplicationShutdown,
 } from '@nestjs/common';
@@ -37,7 +38,7 @@ export const RELAY_PUBLISH_TIMEOUT_MS = 10_000;
  * database pool closes.
  */
 @Injectable()
-export class OutboxRelay implements OnApplicationBootstrap, OnApplicationShutdown {
+export class OutboxRelay implements OnApplicationBootstrap, BeforeApplicationShutdown {
   private readonly logger = new Logger(OutboxRelay.name);
   private timer: NodeJS.Timeout | undefined;
   private stopped = false;
@@ -52,7 +53,11 @@ export class OutboxRelay implements OnApplicationBootstrap, OnApplicationShutdow
     this.schedule(0);
   }
 
-  async onApplicationShutdown(): Promise<void> {
+  /**
+   * Runs before the shutdown hooks that close the broker client and the database pool, so the
+   * batch in flight finishes on a live connection instead of waiting out its publish timeout.
+   */
+  async beforeApplicationShutdown(): Promise<void> {
     this.stopped = true;
     clearTimeout(this.timer);
     await this.inFlight;

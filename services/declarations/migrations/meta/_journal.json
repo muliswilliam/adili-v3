@@ -96,15 +96,8 @@
     {
       "idx": 13,
       "version": "7",
-      "when": 1790781183074,
-      "tag": "0013_declaration_attachment_file_name",
-      "breakpoints": true
-    },
-    {
-      "idx": 14,
-      "version": "7",
       "when": 1790781306459,
-      "tag": "0014_in_progress_counts",
+      "tag": "0013_in_progress_counts",
       "breakpoints": true
     },
     {

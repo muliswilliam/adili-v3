@@ -19,7 +19,7 @@ import {
 import { rosterRecord } from '../support/fake-directory.js';
 
 /**
- * Spec 05 S7-S9 over HTTP, on the officer's own financial statement (paragraph 8): items of every
+ * Spec 05 S7-S9 over HTTP, on the declarant's own financial statement (paragraph 8): items of every
  * kind round-trip unchanged with integer cents, a category is either nil or lists items (a save
  * with both is refused), a flagged change needs a kind and an explanation and then appears in
  * paragraph 9 with a reference to its item. Values stay inside the encrypted blob (S13).
@@ -111,7 +111,7 @@ function save(id: string, key: string, body: unknown, version: number) {
   });
 }
 
-/** The officer's statement as stored, with `edit` applied: what a client sends back. */
+/** The declarant's own statement as stored, with `edit` applied: what a client sends back. */
 async function statementWith(
   id: string,
   edit: Record<string, unknown>,
@@ -471,6 +471,55 @@ describe('changed-since-last flags (S9)', () => {
     expect(
       (await getSection(draft.id, 'other')).json<SectionEnvelope>().contents.materialChanges,
     ).toEqual([]);
+  });
+});
+
+describe('paragraph 9 registrable interests (S9)', () => {
+  it('lists a directorship flagged as changed, and holds paragraph 9 incomplete until it is explained', async () => {
+    const draft = await started();
+    const other = (await getSection(draft.id, 'other')).json<SectionEnvelope>();
+    const interests = other.contents.registrableInterests as Record<string, unknown>;
+    const directorship = {
+      company: 'Lake Basin Holdings Ltd',
+      role: 'Director',
+      remunerated: true,
+      change: { changed: true, kind: 'acquisition' },
+    };
+
+    const unexplained = await save(
+      draft.id,
+      'other',
+      { ...other.contents, registrableInterests: { ...interests, directorships: [directorship] } },
+      1,
+    );
+
+    expect(unexplained.json<SectionSaveResult>()).toMatchObject({ completeness: 'incomplete' });
+    expect(unexplained.json<SectionSaveResult>().issues.map((found) => found.path)).toEqual([
+      '/registrableInterests/directorships/0/change/explanation',
+    ]);
+
+    const explained = {
+      ...directorship,
+      change: { ...directorship.change, explanation: 'Appointed in 2026.' },
+    };
+    const saved = await save(
+      draft.id,
+      'other',
+      { ...other.contents, registrableInterests: { ...interests, directorships: [explained] } },
+      2,
+    );
+
+    expect(saved.json<SectionSaveResult>()).toMatchObject({ completeness: 'complete' });
+    expect(
+      (await getSection(draft.id, 'other')).json<SectionEnvelope>().contents.materialChanges,
+    ).toEqual([
+      {
+        personKey: 'officer',
+        itemDescription: 'Lake Basin Holdings Ltd',
+        kind: 'directorship',
+        explanation: 'Appointed in 2026.',
+      },
+    ]);
   });
 });
 

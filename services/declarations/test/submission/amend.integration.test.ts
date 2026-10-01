@@ -323,7 +323,7 @@ describe('amending before the due date (S7)', () => {
   it('carries attachments into the amendment and version 2', async () => {
     const obligationId = await givenObligation(ACHIENG);
     const draft = await completeDraft(ACHIENG, obligationId);
-    const deed = upload('psc', { fileName: 'title-deed.pdf' });
+    const deed = upload('psc', `account-${ACHIENG}`, { fileName: 'title-deed.pdf' });
     api.documents.givenUploads(deed);
     const linked = await api.request(
       'POST',
@@ -442,8 +442,11 @@ describe('amending after the due date, and discarding an amendment (S8)', () => 
   it('takes back what the amendment did to attachments', async () => {
     const obligationId = await givenObligation(ACHIENG);
     const draft = await completeDraft(ACHIENG, obligationId);
-    const deed = upload('psc', { fileName: 'title-deed.pdf', size: 1_204_551 });
-    const payslip = upload('psc', { fileName: 'payslip.pdf' });
+    const deed = upload('psc', `account-${ACHIENG}`, {
+      fileName: 'title-deed.pdf',
+      size: 1_204_551,
+    });
+    const payslip = upload('psc', `account-${ACHIENG}`, { fileName: 'payslip.pdf' });
     api.documents.givenUploads(deed, payslip);
     const attach = (itemId: string, uploadId: string) =>
       api.request('POST', `/v1/declarations/${draft.id}/attachments`, declarant(ACHIENG), {
@@ -490,7 +493,7 @@ describe('amending after the due date, and discarding an amendment (S8)', () => 
   it('checks the attachments with documents before it locks the declaration (ADR-013)', async () => {
     const obligationId = await givenObligation(ACHIENG);
     const draft = await completeDraft(ACHIENG, obligationId);
-    const deed = upload('psc');
+    const deed = upload('psc', `account-${ACHIENG}`);
     api.documents.givenUploads(deed);
     const linked = await api.request(
       'POST',

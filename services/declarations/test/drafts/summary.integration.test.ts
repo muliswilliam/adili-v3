@@ -214,7 +214,7 @@ function otherInformation() {
   };
 }
 
-/** Every section filled in: married to Grace, no children, the officer's items, paragraph 9. */
+/** Every section filled in: married to Grace, no children, the declarant's items, paragraph 9. */
 async function completeDraft(): Promise<Declaration> {
   const draft = await started();
   await save(draft.id, 'bio', await bio(draft.id));

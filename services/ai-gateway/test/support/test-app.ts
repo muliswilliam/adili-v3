@@ -7,7 +7,8 @@ import { join } from 'node:path';
 import { FastifyAdapter, type NestFastifyApplication } from '@nestjs/platform-fastify';
 import { Test } from '@nestjs/testing';
 import { TokenVerifier } from '@adili/api-kit';
-import { TEMPORAL_CLIENT } from '@adili/temporal';
+import { TEMPORAL_CLIENT, TemporalWorkerReadinessCheck } from '@adili/temporal';
+import { untilWorkerPolling } from '@adili/temporal/testing';
 import type { Client } from '@temporalio/client';
 import { createDatabase, DATABASE, type Database } from '@adili/data-access';
 import { inArray } from 'drizzle-orm';
@@ -88,6 +89,8 @@ export async function createTestApp(options: TestAppOptions = {}): Promise<TestA
   const app = moduleRef.createNestApplication<NestFastifyApplication>(new FastifyAdapter());
   await app.init();
   await app.getHttpAdapter().getInstance().ready();
+  // Tests start once the worker polls, as traffic waits for readiness (see untilWorkerPolling).
+  await untilWorkerPolling(app.get(TemporalWorkerReadinessCheck));
 
   return {
     app,

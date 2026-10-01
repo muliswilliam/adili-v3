@@ -13,6 +13,7 @@ import { acknowledgementSlipPayload } from './issuance/templates/acknowledgement
 import { uploadPurposeSchema } from './uploads/purposes.js';
 import {
   createUploadBody,
+  internalUploadSchema,
   uploadDownloadSchema,
   uploadRejectionSchema,
   uploadReservationSchema,
@@ -37,4 +38,5 @@ export const OPENAPI_SCHEMAS: Record<string, z.ZodType> = {
   IssuedDocument: issuedDocumentSchema,
   DocumentDownload: documentDownloadSchema,
   AcknowledgementSlipPayload: acknowledgementSlipPayload,
+  InternalUpload: internalUploadSchema,
 };

@@ -1,5 +1,5 @@
-import { HttpStatus, Injectable } from '@nestjs/common';
-import { notFoundIfInvisible, type Principal, ProblemException } from '@adili/api-kit';
+import { Injectable, Logger } from '@nestjs/common';
+import { notFoundIfInvisible, type Principal } from '@adili/api-kit';
 import { type Database, InjectDatabase, type PersonContext, withPerson } from '@adili/data-access';
 import { EventPublisher } from '@adili/events';
 import { ATTESTATION_TEXT, type DeclarationSectionKey, type PersonKey } from '@adili/forms';
@@ -11,7 +11,8 @@ import { Clock } from '../clock.js';
 import type { DeclarationsSchema } from '../db/schema.js';
 import type { Transaction } from '../db/transaction.js';
 import { DirectoryClient, DirectoryUnavailable } from '../directory/directory-client.js';
-import { isRecord, isUuid, UUID } from '../guards.js';
+import { DocumentsClient, releaseUploads } from '../documents/documents-client.js';
+import { isRecord, isUuid } from '../guards.js';
 import { commissionRef } from '../obligations/access.js';
 import { nairobiDate } from '../obligations/dates.js';
 import { commissionRefs, filingObligations } from '../obligations/schema.js';
@@ -23,14 +24,19 @@ import { itemIds, keepAttachments } from './attachments.js';
 import { assessSections, type DraftSections, type SectionAssessment } from './completeness.js';
 import { deriveHeader } from './derive.js';
 import {
-  declarationAttachmentUnlinked,
   declarationDraftDiscarded,
   declarationDraftStarted,
+  declarationSectionSaved,
 } from './events.js';
 import { duplicatePeople, householdPeople, type NotIncluded } from './household.js';
 import { composeMaterialChanges } from './material-changes.js';
 import {
   declarationNotDraft,
+  directoryUnavailable,
+  identityLockedField,
+  ifMatchRequired,
+  nilConflictsWithItems,
+  obligationClosed,
   sectionArchived,
   validationProblem,
   versionMismatch,
@@ -38,6 +44,7 @@ import {
 } from './problems.js';
 import {
   type DeclarationRow,
+  deleteAttachments,
   documentFrame,
   incomePeriodOf,
   inScheduleOrder,
@@ -97,9 +104,12 @@ const CLOSED_OBLIGATION_STATUSES = new Set(['filed', 'cancelled']);
  */
 @Injectable()
 export class DraftsService {
+  private readonly logger = new Logger(DraftsService.name);
+
   constructor(
     @InjectDatabase() private readonly db: Database<DeclarationsSchema>,
     private readonly directory: DirectoryClient,
+    private readonly documents: DocumentsClient,
     private readonly sections: SectionCipher,
     private readonly events: EventPublisher,
     private readonly clock: Clock,
@@ -115,7 +125,7 @@ export class DraftsService {
     obligationId: string,
   ): Promise<{ created: boolean; declaration: Declaration }> {
     const person = personOf(principal);
-    if (!UUID.test(obligationId)) notFoundIfInvisible(null);
+    if (!isUuid(obligationId)) notFoundIfInvisible(null);
     const found = await withPerson(this.db, person, async (tx) => {
       const [obligation] = await tx
         .select({
@@ -151,12 +161,7 @@ export class DraftsService {
     const { obligation, existing, previousStatementDate } = notFoundIfInvisible(found);
     // A filed or cancelled obligation is closed, whatever draft of it is still live.
     if (CLOSED_OBLIGATION_STATUSES.has(obligation.status)) {
-      throw new ProblemException({
-        type: 'obligation-closed',
-        title: 'Obligation filed or cancelled',
-        status: HttpStatus.CONFLICT,
-        detail: `No declaration can be started for a ${obligation.status} obligation.`,
-      });
+      throw obligationClosed(obligation.status);
     }
     if (existing) return { created: false, declaration: await this.read(person, existing.id) };
 
@@ -305,15 +310,12 @@ export class DraftsService {
    */
   async discard(principal: Principal, declarationId: string): Promise<void> {
     const person = personOf(principal);
-    await withPerson(this.db, person, async (tx) => {
+    const { tenant, unlinked } = await withPerson(this.db, person, async (tx) => {
       const declaration = notFoundIfInvisible(
         await liveDeclaration(tx, declarationId, { lock: true }),
       );
       if (declaration.status !== 'draft') throw declarationNotDraft('discarded');
-      const unlinked = await tx
-        .delete(declarationAttachments)
-        .where(eq(declarationAttachments.declarationId, declaration.id))
-        .returning({ uploadId: declarationAttachments.uploadId });
+      const unlinked = await deleteAttachments(tx, this.events, declaration);
       await tx
         .delete(declarationSections)
         .where(eq(declarationSections.declarationId, declaration.id));
@@ -322,20 +324,13 @@ export class DraftsService {
         .set({ status: 'discarded' })
         .where(eq(declarations.id, declaration.id));
       await tx.delete(obligationDrafts).where(eq(obligationDrafts.declarationId, declaration.id));
-      for (const { uploadId } of unlinked) {
-        await this.events.record(
-          tx,
-          declarationAttachmentUnlinked(declaration.tenant, {
-            declarationId: declaration.id,
-            uploadId,
-          }),
-        );
-      }
       await this.events.record(
         tx,
         declarationDraftDiscarded(declaration.tenant, { declarationId: declaration.id }),
       );
+      return { tenant: declaration.tenant, unlinked };
     });
+    await releaseUploads(this.documents, this.logger, tenant, unlinked);
   }
 
   /**
@@ -473,7 +468,14 @@ export class DraftsService {
     // Paragraph 9's material changes follow the items as they are now, not as `other` was saved.
     const contents =
       key === 'other'
-        ? { ...opened, materialChanges: await this.materialChanges(person, state.declaration) }
+        ? {
+            ...opened,
+            materialChanges: await this.materialChanges(
+              person,
+              state.declaration,
+              opened.registrableInterests,
+            ),
+          }
         : opened;
     const issues =
       state.section.completeness === 'not-started' || state.section.completeness === 'archived'
@@ -493,8 +495,9 @@ export class DraftsService {
    * Saves one section: `ifMatch` must be the draft version the client read (428 without it, 412
    * when another save came first). The body must be well formed for the section; missing fields
    * are completeness, not errors. Locked bio fields cannot change (400 `identity-locked-field`);
-   * a statement's person and dates are the service's. One transaction bumps the draft version
-   * and stores the encrypted section with its clear metadata.
+   * a statement's person and dates are the service's. One transaction bumps the draft version,
+   * stores the encrypted section with its clear metadata and records the save (ADR-008: no
+   * change without its audit record), identifiers only.
    */
   async saveSection(
     principal: Principal,
@@ -519,13 +522,7 @@ export class DraftsService {
     if (isStatementKey(key)) {
       const conflicts = nilConflicts(body);
       if (conflicts.length > 0) {
-        throw new ProblemException({
-          type: 'nil-conflicts-with-items',
-          title: 'Nil conflicts with items',
-          status: HttpStatus.BAD_REQUEST,
-          detail: 'A category declared as having nothing to declare cannot list items.',
-          errors: conflicts,
-        });
+        throw nilConflictsWithItems(conflicts);
       }
     }
 
@@ -556,8 +553,11 @@ export class DraftsService {
         )
       : [];
 
+    const sectionsChanged = statements.flatMap((change) =>
+      change.action ? [{ key: change.key, action: change.action }] : [],
+    );
     const now = this.clock.now();
-    const draftVersion = await withPerson(this.db, person, async (tx) => {
+    const { draftVersion, unlinked } = await withPerson(this.db, person, async (tx) => {
       const bumped = await storeSection(tx, this.sections, declaration, key, contents, {
         now,
         ifVersion: expected,
@@ -576,9 +576,21 @@ export class DraftsService {
           .where(sectionIs(declaration.id, sibling.sectionKey));
       }
       await writeStatementChanges(tx, declaration.id, statements, now);
-      if (isStatementKey(key)) await this.unlinkRemovedItems(tx, declaration, key, contents);
-      return bumped;
+      const unlinked = isStatementKey(key)
+        ? await this.unlinkRemovedItems(tx, declaration, key, contents)
+        : [];
+      await this.events.record(
+        tx,
+        declarationSectionSaved(declaration.tenant, {
+          declarationId: declaration.id,
+          sectionKey: key,
+          draftVersion: bumped,
+          sectionsChanged,
+        }),
+      );
+      return { draftVersion: bumped, unlinked };
     });
+    await releaseUploads(this.documents, this.logger, declaration.tenant, unlinked);
     await this.sections.cache(
       { declarationId: declaration.id, sectionKey: key, savedVersion: draftVersion },
       contents,
@@ -601,9 +613,7 @@ export class DraftsService {
       draftVersion,
       issues: assessment.section.issues,
       ...(household && { notIncluded: household.notIncluded }),
-      sectionsChanged: statements.flatMap((change) =>
-        change.action ? [{ key: change.key, action: change.action }] : [],
-      ),
+      sectionsChanged,
     };
   }
 
@@ -621,22 +631,15 @@ export class DraftsService {
     metadata: SectionMetadata,
   ): Promise<SectionContents> {
     if (key === 'other') {
-      return { ...body, materialChanges: await this.materialChanges(person, declaration) };
+      return {
+        ...body,
+        materialChanges: await this.materialChanges(person, declaration, body.registrableInterests),
+      };
     }
     if (key === 'bio') {
       const { contents, changed } = applyLockedFields(body, stored, metadata.lockedFields ?? []);
       if (changed.length > 0) {
-        throw new ProblemException({
-          type: 'identity-locked-field',
-          title: 'Locked field changed',
-          status: HttpStatus.BAD_REQUEST,
-          detail:
-            "Names, employer, designation and Commission come from the Commission's roster and cannot be changed here.",
-          errors: changed.map((pointer) => ({
-            path: pointer.slice(1).replaceAll('/', '.'),
-            message: 'Comes from the roster; ask your Commission to correct it',
-          })),
-        });
+        throw identityLockedField(changed);
       }
       return contents;
     }
@@ -656,34 +659,25 @@ export class DraftsService {
 
   /**
    * In a statement save's transaction: the attachments of items the save removed are unlinked,
-   * each with its event, as an unlink would (the references went with the items).
+   * each with its event, as an unlink would (the references went with the items). Their upload
+   * ids, for documents to be told once the save is committed.
    */
   private async unlinkRemovedItems(
     tx: Transaction,
     declaration: DeclarationRow,
     key: StatementKey,
     contents: SectionContents,
-  ): Promise<void> {
+  ): Promise<string[]> {
     const kept = itemIds(contents).filter(isUuid);
-    const unlinked = await tx
-      .delete(declarationAttachments)
-      .where(
-        and(
-          eq(declarationAttachments.declarationId, declaration.id),
-          eq(declarationAttachments.sectionKey, key),
-          ...(kept.length > 0 ? [notInArray(declarationAttachments.itemId, kept)] : []),
-        ),
-      )
-      .returning({ uploadId: declarationAttachments.uploadId });
-    for (const { uploadId } of unlinked) {
-      await this.events.record(
-        tx,
-        declarationAttachmentUnlinked(declaration.tenant, {
-          declarationId: declaration.id,
-          uploadId,
-        }),
-      );
-    }
+    return deleteAttachments(
+      tx,
+      this.events,
+      declaration,
+      and(
+        eq(declarationAttachments.sectionKey, key),
+        ...(kept.length > 0 ? [notInArray(declarationAttachments.itemId, kept)] : []),
+      ),
+    );
   }
 
   /** Completeness of a section, and for bio and household of the other one too. */
@@ -715,10 +709,15 @@ export class DraftsService {
   }
 
   /**
-   * Paragraph 9's material changes as the draft stands: the marital-status change from bio and
-   * every flagged item of the live (not archived) statements, in First Schedule order.
+   * Paragraph 9's material changes as the draft stands: the marital-status change from bio,
+   * every flagged item of the live (not archived) statements in First Schedule order, and the
+   * flagged registrable interests of paragraph 9 as given.
    */
-  private async materialChanges(person: PersonContext, declaration: DeclarationRow) {
+  private async materialChanges(
+    person: PersonContext,
+    declaration: DeclarationRow,
+    interests: unknown,
+  ) {
     const rows = await withPerson(this.db, person, (tx) => liveSections(tx, declaration.id));
     let bio: SectionContents | undefined;
     const statements: [PersonKey, SectionContents][] = [];
@@ -729,7 +728,7 @@ export class DraftsService {
       if (personKey) statements.push([personKey, contents]);
       else bio = contents;
     }
-    return composeMaterialChanges({ bio, statements });
+    return composeMaterialChanges({ bio, statements, interests });
   }
 
   private async read(person: PersonContext, declarationId: string): Promise<Declaration> {
@@ -809,12 +808,7 @@ export class DraftsService {
       return record;
     } catch (error) {
       if (!(error instanceof DirectoryUnavailable)) throw error;
-      throw new ProblemException({
-        type: 'directory-unavailable',
-        title: 'Roster unavailable',
-        status: HttpStatus.SERVICE_UNAVAILABLE,
-        detail: 'The roster record could not be read to pre-fill the declaration. Try again.',
-      });
+      throw directoryUnavailable();
     }
   }
 }
@@ -826,12 +820,7 @@ function sectionKeyOf(value: string): DeclarationSectionKey {
 /** The draft version in `If-Match` (`"3"`, `W/"3"` or `3`); 428 without one. */
 function expectedVersion(ifMatch: string | undefined): number {
   if (ifMatch === undefined || ifMatch.trim() === '') {
-    throw new ProblemException({
-      type: 'if-match-required',
-      title: 'If-Match required',
-      status: HttpStatus.PRECONDITION_REQUIRED,
-      detail: 'Send the draft version you read (its ETag) as If-Match.',
-    });
+    throw ifMatchRequired();
   }
   const match = /^\s*(?:W\/)?"?(\d{1,9})"?\s*$/.exec(ifMatch);
   if (!match?.[1]) throw versionMismatch();

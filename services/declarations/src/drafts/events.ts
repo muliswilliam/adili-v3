@@ -23,6 +23,27 @@ export function declarationDraftStarted(
   return { type: DECLARATION_DRAFT_STARTED, subject: data.declarationId, tenant, data };
 }
 
+export const DECLARATION_SECTION_SAVED = 'declaration.section-saved.v1';
+
+/**
+ * A section of a draft saved: the audit record of the write (ADR-008), with the statements a
+ * household save created, archived or restored. Keys and the version only, never contents.
+ */
+export interface DeclarationSectionSavedData extends Record<string, unknown> {
+  declarationId: string;
+  sectionKey: string;
+  /** The draft version the save produced. */
+  draftVersion: number;
+  sectionsChanged: { key: string; action: 'created' | 'archived' | 'restored' }[];
+}
+
+export function declarationSectionSaved(
+  tenant: string,
+  data: DeclarationSectionSavedData,
+): NewEvent<DeclarationSectionSavedData> {
+  return { type: DECLARATION_SECTION_SAVED, subject: data.declarationId, tenant, data };
+}
+
 export const DECLARATION_ATTACHMENT_LINKED = 'declaration.attachment-linked.v1';
 export const DECLARATION_ATTACHMENT_UNLINKED = 'declaration.attachment-unlinked.v1';
 

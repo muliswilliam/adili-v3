@@ -152,12 +152,6 @@
           "primaryKey": false,
           "notNull": true
         },
-        "file_name": {
-          "name": "file_name",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
         "sha256": {
           "name": "sha256",
           "type": "text",

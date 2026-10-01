@@ -129,6 +129,8 @@ export class ObligationsController {
     return this.commissions.summary(principal, slug, query);
   }
 
+  // No @Roles: it answers 403, which would tell any caller the route exists. #300 has every
+  // caller but the Commission's PROGRESS_ROLES get 404, which `progressReadTenant` decides.
   @Get('commissions/:slug/declarations/progress')
   @ApiSlugParam()
   @ApiOperation({

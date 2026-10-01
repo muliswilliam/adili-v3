@@ -1,11 +1,13 @@
 import { randomUUID } from 'node:crypto';
 
+import { eq } from 'drizzle-orm';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
 import {
   commissionRefs,
   declarationSections,
   filingObligations,
+  outbox,
   rosterSnapshots,
 } from '../../src/db/schema.js';
 import { liveSections } from '../../src/drafts/repository.js';
@@ -340,6 +342,23 @@ describe('household statements (S5)', () => {
     expect(response.json<SectionSaveResult>().sectionsChanged).toEqual([]);
     const grace = (await getSection(draft.id, `statement:spouse:${GRACE}`)).json<SectionEnvelope>();
     expect(grace.contents.personName).toEqual({ surname: 'Otieno', firstName: 'Gracie' });
+  });
+
+  it('records the statements a save created or archived in its audit event', async () => {
+    const draft = await started();
+    await save(draft.id, 'household', household());
+    const withoutPeter = household();
+    withoutPeter.spouses.items = withoutPeter.spouses.items.filter((s) => s.id !== PETER);
+    await save(draft.id, 'household', withoutPeter);
+
+    const saves = await api.db
+      .select({ envelope: outbox.envelope })
+      .from(outbox)
+      .where(eq(outbox.eventType, 'declaration.section-saved.v1'));
+
+    const changes = saves.map(({ envelope }) => envelope.data.sectionsChanged);
+    expect(changes[0]).toHaveLength(4);
+    expect(changes[1]).toEqual([{ key: `statement:spouse:${PETER}`, action: 'archived' }]);
   });
 
   it('refuses a person listed twice', async () => {

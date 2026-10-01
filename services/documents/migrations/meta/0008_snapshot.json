@@ -1,9 +1,357 @@
 {
-  "id": "2205bf1b-d4a1-44c3-a652-626d3a3360fd",
-  "prevId": "3f4f9359-9c63-4af6-a4aa-ef634c66ee14",
+  "id": "c6199c22-46fd-45d0-b71b-f3fad83ca6e0",
+  "prevId": "c1aa3f0c-4dcd-4047-9ba4-f1b2b5db8ddd",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
+    "public.issued_documents": {
+      "name": "issued_documents",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "tenant": {
+          "name": "tenant",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "type": {
+          "name": "type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "template_version": {
+          "name": "template_version",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "disclosure_level": {
+          "name": "disclosure_level",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "subject_ref": {
+          "name": "subject_ref",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "reference": {
+          "name": "reference",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "subject_version": {
+          "name": "subject_version",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "subject_person_id": {
+          "name": "subject_person_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "verification_id": {
+          "name": "verification_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "object_key": {
+          "name": "object_key",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "sha256": {
+          "name": "sha256",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "size": {
+          "name": "size",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "signer_name": {
+          "name": "signer_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "signer_certificate_sha256": {
+          "name": "signer_certificate_sha256",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "issued_at": {
+          "name": "issued_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "issued_by": {
+          "name": "issued_by",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {
+        "issued_documents_subject_person_idx": {
+          "name": "issued_documents_subject_person_idx",
+          "columns": [
+            {
+              "expression": "subject_person_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "with": {},
+          "method": "btree",
+          "concurrently": false
+        },
+        "issued_documents_reference_idx": {
+          "name": "issued_documents_reference_idx",
+          "columns": [
+            {
+              "expression": "tenant",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "type",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "reference",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "with": {},
+          "method": "btree",
+          "concurrently": false
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "issued_documents_verificationId_unique": {
+          "name": "issued_documents_verificationId_unique",
+          "columns": [
+            "verification_id"
+          ],
+          "nullsNotDistinct": false
+        },
+        "issued_documents_objectKey_unique": {
+          "name": "issued_documents_objectKey_unique",
+          "columns": [
+            "object_key"
+          ],
+          "nullsNotDistinct": false
+        },
+        "issued_documents_type_subject_key": {
+          "name": "issued_documents_type_subject_key",
+          "columns": [
+            "type",
+            "subject_ref"
+          ],
+          "nullsNotDistinct": false
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "issued_documents_disclosure_level_check": {
+          "name": "issued_documents_disclosure_level_check",
+          "value": "\"issued_documents\".\"disclosure_level\" in ('public', 'restricted', 'confidential')"
+        },
+        "issued_documents_sha256_check": {
+          "name": "issued_documents_sha256_check",
+          "value": "\"issued_documents\".\"sha256\" ~ '^[0-9a-f]{64}$'"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.verification_records": {
+      "name": "verification_records",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "document_id": {
+          "name": "document_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "tenant": {
+          "name": "tenant",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "document_type": {
+          "name": "document_type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "template_version": {
+          "name": "template_version",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "disclosure_level": {
+          "name": "disclosure_level",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "issued_at": {
+          "name": "issued_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "content_sha256": {
+          "name": "content_sha256",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "public_payload": {
+          "name": "public_payload",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'valid'"
+        },
+        "status_reason_category": {
+          "name": "status_reason_category",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "superseded_by": {
+          "name": "superseded_by",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "status_changed_at": {
+          "name": "status_changed_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "expires_at": {
+          "name": "expires_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "record_signature": {
+          "name": "record_signature",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "record_signing_key_version": {
+          "name": "record_signing_key_version",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "verification_records_document_id_issued_documents_id_fk": {
+          "name": "verification_records_document_id_issued_documents_id_fk",
+          "tableFrom": "verification_records",
+          "columnsFrom": [
+            "document_id"
+          ],
+          "tableTo": "issued_documents",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "no action"
+        },
+        "verification_records_superseded_by_issued_documents_id_fk": {
+          "name": "verification_records_superseded_by_issued_documents_id_fk",
+          "tableFrom": "verification_records",
+          "columnsFrom": [
+            "superseded_by"
+          ],
+          "tableTo": "issued_documents",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "verification_records_documentId_unique": {
+          "name": "verification_records_documentId_unique",
+          "columns": [
+            "document_id"
+          ],
+          "nullsNotDistinct": false
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "verification_records_status_check": {
+          "name": "verification_records_status_check",
+          "value": "\"verification_records\".\"status\" in ('valid', 'superseded', 'revoked', 'expired')"
+        },
+        "verification_records_superseded_check": {
+          "name": "verification_records_superseded_check",
+          "value": "(\"verification_records\".\"status\" = 'superseded') = (\"verification_records\".\"superseded_by\" is not null)"
+        },
+        "verification_records_public_payload_check": {
+          "name": "verification_records_public_payload_check",
+          "value": "(\"verification_records\".\"disclosure_level\" = 'confidential') = (\"verification_records\".\"public_payload\" is null)"
+        }
+      },
+      "isRLSEnabled": false
+    },
     "public.uploads": {
       "name": "uploads",
       "schema": "",
@@ -162,26 +510,26 @@
             }
           ],
           "isUnique": false,
-          "where": "\"uploads\".\"state\" = 'awaiting-upload'",
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "where": "\"uploads\".\"state\" = 'awaiting-upload'",
+          "concurrently": false
         },
         "uploads_orphaned_since_idx": {
           "name": "uploads_orphaned_since_idx",
           "columns": [
             {
               "expression": "coalesce(\"unlinked_at\", \"completed_at\")",
-              "asc": true,
               "isExpression": true,
+              "asc": true,
               "nulls": "last"
             }
           ],
           "isUnique": false,
-          "where": "\"uploads\".\"state\" = 'clean' and \"uploads\".\"linked_at\" is null",
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "where": "\"uploads\".\"state\" = 'clean' and \"uploads\".\"linked_at\" is null",
+          "concurrently": false
         }
       },
       "foreignKeys": {},
@@ -189,10 +537,10 @@
       "uniqueConstraints": {
         "uploads_quarantineKey_unique": {
           "name": "uploads_quarantineKey_unique",
-          "nullsNotDistinct": false,
           "columns": [
             "quarantine_key"
-          ]
+          ],
+          "nullsNotDistinct": false
         }
       },
       "policies": {},
@@ -293,9 +641,9 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         }
       },
       "foreignKeys": {},
@@ -414,10 +762,10 @@
             }
           ],
           "isUnique": false,
-          "where": "\"outbox\".\"published_at\" is null",
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "where": "\"outbox\".\"published_at\" is null",
+          "concurrently": false
         }
       },
       "foreignKeys": {},
@@ -430,10 +778,10 @@
   },
   "enums": {},
   "schemas": {},
+  "views": {},
   "sequences": {},
   "roles": {},
   "policies": {},
-  "views": {},
   "_meta": {
     "columns": {},
     "schemas": {},

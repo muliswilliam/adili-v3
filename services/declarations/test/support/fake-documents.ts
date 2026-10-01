@@ -15,12 +15,17 @@ export interface FakeUpload extends CleanUpload {
   state: 'awaiting-upload' | 'clean' | 'infected' | 'rejected';
 }
 
-/** A clean declaration attachment of the Commission, unless overridden. */
-export function upload(tenant: string, overrides: Partial<FakeUpload> = {}): FakeUpload {
+/** A clean declaration attachment of the Commission reserved by `uploadedBy`, unless overridden. */
+export function upload(
+  tenant: string,
+  uploadedBy: string,
+  overrides: Partial<FakeUpload> = {},
+): FakeUpload {
   const id = overrides.id ?? randomUUID();
   return {
     id,
     tenant,
+    uploadedBy,
     state: 'clean',
     purpose: DECLARATION_ATTACHMENT_PURPOSE,
     fileName: 'title-deed.pdf',
@@ -32,13 +37,15 @@ export function upload(tenant: string, overrides: Partial<FakeUpload> = {}): Fak
 
 /**
  * The documents internal uploads API for tests: answers only for the acting Commission's uploads
- * (404 otherwise, as documents does) and only for clean ones (409). `linked` lists the uploads
- * whose link was recorded, as `<tenant> <uploadId>`; `unavailable` makes every call fail, and
- * `markLinkedUnavailable` only the call that records a link. `whileAnswering` runs before each
- * answer, to look at what the caller holds while it waits on documents.
+ * (404 otherwise, as documents does) and only for clean ones (409). `linked` and `unlinked` list
+ * the uploads whose link was recorded or taken back, as `<tenant> <uploadId>`; `unavailable`
+ * makes every call fail, and `markLinkedUnavailable` only the call that records a link.
+ * `whileAnswering` runs before each answer, to look at what the caller holds while it waits on
+ * documents.
  */
 export class FakeDocuments extends DocumentsClient {
   readonly linked: string[] = [];
+  readonly unlinked: string[] = [];
   unavailable = false;
   markLinkedUnavailable = false;
   whileAnswering: (() => Promise<void>) | null = null;
@@ -50,6 +57,7 @@ export class FakeDocuments extends DocumentsClient {
 
   reset(): void {
     this.linked.length = 0;
+    this.unlinked.length = 0;
     this.unavailable = false;
     this.markLinkedUnavailable = false;
     this.whileAnswering = null;
@@ -57,9 +65,10 @@ export class FakeDocuments extends DocumentsClient {
   }
 
   getCleanUpload(tenant: string, uploadId: string): Promise<CleanUpload> {
-    return this.answer(tenant, uploadId, ({ id, purpose, fileName, sha256, size }) => ({
+    return this.answer(tenant, uploadId, ({ id, purpose, uploadedBy, fileName, sha256, size }) => ({
       id,
       purpose,
+      uploadedBy,
       fileName,
       sha256,
       size,
@@ -73,6 +82,17 @@ export class FakeDocuments extends DocumentsClient {
     return this.answer(tenant, uploadId, () => {
       this.linked.push(`${tenant} ${uploadId}`);
     });
+  }
+
+  markUnlinked(tenant: string, uploadId: string): Promise<void> {
+    if (this.unavailable) {
+      return Promise.reject(new DocumentsUnavailable('The documents service did not answer'));
+    }
+    if (this.uploads.get(uploadId)?.tenant !== tenant) {
+      return Promise.reject(new UploadNotFound(uploadId));
+    }
+    this.unlinked.push(`${tenant} ${uploadId}`);
+    return Promise.resolve();
   }
 
   private async answer<T>(

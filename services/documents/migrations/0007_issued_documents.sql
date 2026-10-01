@@ -49,6 +49,4 @@ CREATE TABLE "verification_records" (
 ALTER TABLE "verification_records" ADD CONSTRAINT "verification_records_document_id_issued_documents_id_fk" FOREIGN KEY ("document_id") REFERENCES "public"."issued_documents"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "verification_records" ADD CONSTRAINT "verification_records_superseded_by_issued_documents_id_fk" FOREIGN KEY ("superseded_by") REFERENCES "public"."issued_documents"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 CREATE INDEX "issued_documents_subject_person_idx" ON "issued_documents" USING btree ("subject_person_id");--> statement-breakpoint
-CREATE INDEX "issued_documents_reference_idx" ON "issued_documents" USING btree ("tenant","type","reference");--> statement-breakpoint
-ALTER TABLE "uploads" ADD COLUMN "linked_at" timestamp with time zone;--> statement-breakpoint
-ALTER TABLE "uploads" ADD CONSTRAINT "uploads_linked_at_check" CHECK ("uploads"."linked_at" is null or "uploads"."state" = 'clean');
+CREATE INDEX "issued_documents_reference_idx" ON "issued_documents" USING btree ("tenant","type","reference");

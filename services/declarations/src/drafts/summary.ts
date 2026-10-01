@@ -65,7 +65,11 @@ export function assembleDocument(
     children: household.children,
     statements: statements.map(([, contents]) => contents),
     otherInformation: {
-      materialChanges: composeMaterialChanges({ bio, statements }),
+      materialChanges: composeMaterialChanges({
+        bio,
+        statements,
+        interests: other.registrableInterests,
+      }),
       ...interests,
     },
     attestation: { text: ATTESTATION_TEXT },

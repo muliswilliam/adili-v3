@@ -70,6 +70,7 @@ describe('outbox to consumer over RabbitMQ', () => {
   let app: NestFastifyApplication;
   let db: Database<typeof eventsSchema>;
   let publisher: EventPublisher;
+  let closed = false;
 
   beforeAll(async () => {
     await SCHEMA.create();
@@ -85,7 +86,7 @@ describe('outbox to consumer over RabbitMQ', () => {
   });
 
   afterAll(async () => {
-    await app.close();
+    if (!closed) await app.close();
     const connection = await amqp.connect(RABBITMQ_URL);
     const channel = await connection.createChannel();
     await channel.deleteQueue(eventsQueue(SERVICE));
@@ -162,12 +163,40 @@ describe('outbox to consumer over RabbitMQ', () => {
     const packet = JSON.parse(message.content.toString()) as { data: EventEnvelope };
     expect(packet.data.id).toBe(envelope.id);
   });
+
+  // Last: it closes the app.
+  it('closes while the relay is publishing a batch', async () => {
+    const batch = await db.transaction(async (tx) => {
+      const ids = new Set<string>();
+      for (let i = 0; i < 300; i++) {
+        ids.add((await publisher.record(tx, { type: HAPPENED, data: { i } })).id);
+      }
+      return ids;
+    });
+    // The first event arrives while the relay's transaction still holds the rest of its batch.
+    await waitFor(() => received.some((event) => batch.has(event.id)), 10_000, 1);
+
+    // A publish cut off by the broker client closing never settles; its open transaction kept
+    // the pool, and so the close, from ending.
+    closed = true;
+    let stuck: NodeJS.Timeout | undefined;
+    const outcome = await Promise.race([
+      app.close().then(() => 'closed'),
+      new Promise((resolve) => (stuck = setTimeout(resolve, 10_000, 'stuck'))),
+    ]);
+    clearTimeout(stuck);
+    expect(outcome).toBe('closed');
+  });
 });
 
-async function waitFor(condition: () => boolean | Promise<boolean>, timeoutMs = 10_000) {
+async function waitFor(
+  condition: () => boolean | Promise<boolean>,
+  timeoutMs = 10_000,
+  intervalMs = 50,
+) {
   const deadline = Date.now() + timeoutMs;
   while (!(await condition())) {
     if (Date.now() > deadline) throw new Error('condition not met in time');
-    await new Promise((resolve) => setTimeout(resolve, 50));
+    await new Promise((resolve) => setTimeout(resolve, intervalMs));
   }
 }

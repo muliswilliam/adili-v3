@@ -1,5 +1,11 @@
 import { notFoundIfInvisible, PLATFORM_TENANT, type Principal, TENANT_KEY } from '@adili/api-kit';
-import { COMMISSION_STAFF_ROLES, EACC_ROLES, PLATFORM_ADMIN } from '@adili/roles';
+import {
+  COMMISSION_ADMIN,
+  COMMISSION_STAFF_ROLES,
+  EACC_ROLES,
+  PLATFORM_ADMIN,
+  REPORTING_OFFICER,
+} from '@adili/roles';
 
 /** A Commission's issuer code until the directory has named it: its slug in capitals. */
 export function fallbackIssuerCode(slug: string): string {
@@ -48,7 +54,7 @@ export function commissionReadTenant(
 }
 
 /** The roles that read their Commission's declaration progress counts (#300). */
-export const PROGRESS_ROLES = ['reporting-officer', 'commission-admin'] as const;
+export const PROGRESS_ROLES = [REPORTING_OFFICER, COMMISSION_ADMIN] as const;
 
 /**
  * The RLS tenant of a read of Commission `slug`'s declaration progress: the caller's own

@@ -13,7 +13,7 @@ paths:
       tags:
         - uploads
       summary: Reserve an upload and get a presigned PUT to quarantine
-      description: "The purpose's roles only (roster-import: reporting-officer). The PUT URL is valid for 15 minutes and accepts exactly the declared Content-Type and size."
+      description: "The purpose's roles only (roster-import: reporting-officer; declaration-attachment: declarant). The PUT URL is valid for 15 minutes and accepts exactly the declared Content-Type and size."
       operationId: createUpload
       parameters:
         - name: Idempotency-Key
@@ -59,7 +59,7 @@ paths:
       tags:
         - uploads
       summary: Upload state and metadata
-      description: Uploads of the caller's tenant whose purpose the caller's roles cover; any other is 404.
+      description: Uploads of the caller's tenant whose purpose the caller's roles cover, and declaration attachments only to the declarant who uploaded them; any other is 404.
       operationId: getUpload
       parameters:
         - name: id
@@ -133,6 +133,52 @@ paths:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/ProblemDetails'
+  /internal/v1/uploads/{id}:
+    get:
+      tags:
+        - internal
+      summary: Upload state and metadata, for services
+      description: Service tokens with scope documents:internal, acting for the tenant in X-Acting-Tenant. Any state; with who uploaded it and whether it is linked. Hands out no bytes, so unlike the download it is no audited read.
+      operationId: getInternalUpload
+      parameters:
+        - name: X-Acting-Tenant
+          in: header
+          description: Tenant the calling service acts for; the resource must belong to it
+          required: true
+          schema:
+            type: string
+            pattern: ^[a-z][a-z0-9]{1,19}$
+        - name: id
+          required: true
+          in: path
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: The upload
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InternalUpload'
+        '400':
+          description: X-Acting-Tenant is missing or not a tenant key
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '403':
+          description: Requires a service token with scope documents:internal
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: Not found, or not the acting tenant's upload
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
   /internal/v1/uploads/{id}/download:
     get:
       tags:
@@ -193,7 +239,7 @@ paths:
       tags:
         - internal
       summary: Record that the owning service linked a clean upload
-      description: 'Service tokens with scope documents:internal, acting for the tenant in X-Acting-Tenant. The owning service calls it when it links a clean upload to its record (declarations: an attachment on an item), so the upload is not an orphan. Idempotent: the first link time is kept.'
+      description: 'Service tokens with scope documents:internal, acting for the tenant in X-Acting-Tenant. The owning service calls it when it links a clean upload to its record (declarations: an attachment on an item), so the upload is not an orphan: a declaration attachment left unlinked for 30 days is deleted. Idempotent: the first link time is kept.'
       operationId: markUploadLinked
       parameters:
         - name: X-Acting-Tenant
@@ -245,6 +291,48 @@ paths:
                 $ref: '#/components/schemas/ProblemDetails'
         '422':
           description: Idempotency-Key reused with a different request body
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+  /internal/v1/uploads/{id}/unlinked:
+    post:
+      tags:
+        - internal
+      summary: Record that the owning service took its link to an upload back
+      description: 'Service tokens with scope documents:internal, acting for the tenant in X-Acting-Tenant. The owning service calls it when it removes the record an upload was linked to (declarations: an attachment unlinked, or a draft discarded); a declaration attachment left unlinked for 30 days is deleted. Idempotent: an upload that is not linked is left as it is.'
+      operationId: markUploadUnlinked
+      parameters:
+        - name: X-Acting-Tenant
+          in: header
+          description: Tenant the calling service acts for; the resource must belong to it
+          required: true
+          schema:
+            type: string
+            pattern: ^[a-z][a-z0-9]{1,19}$
+        - name: id
+          required: true
+          in: path
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Link taken back
+        '400':
+          description: X-Acting-Tenant is missing or not a tenant key
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '403':
+          description: Requires a service token with scope documents:internal
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: Not found, or not the acting tenant's upload
           content:
             application/problem+json:
               schema:
@@ -459,6 +547,7 @@ components:
       type: string
       enum:
         - roster-import
+        - declaration-attachment
       description: Sets allowed content types and the size limit
     UploadState:
       type: string
@@ -468,6 +557,7 @@ components:
         - infected
         - rejected
         - expired
+        - deleted
     UploadRejection:
       type: string
       enum:
@@ -802,6 +892,74 @@ components:
         - statementCount
         - itemCount
       description: "Payload of acknowledgement-slip v1: what the declarations service's acknowledgement payload endpoint returns for a submitted version"
+    InternalUpload:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        purpose:
+          $ref: '#/components/schemas/UploadPurpose'
+        state:
+          $ref: '#/components/schemas/UploadState'
+        rejection:
+          anyOf:
+            - $ref: '#/components/schemas/UploadRejection'
+            - type: 'null'
+        contentType:
+          type: string
+          description: Declared type; detectedType is set after completion
+        detectedType:
+          type:
+            - string
+            - 'null'
+        declaredSize:
+          type: integer
+        size:
+          type:
+            - integer
+            - 'null'
+        sha256:
+          description: Hex digest, set when clean
+          type:
+            - string
+            - 'null'
+        fileName:
+          type:
+            - string
+            - 'null'
+        createdAt:
+          type: string
+          format: date-time
+        completedAt:
+          anyOf:
+            - type: string
+              format: date-time
+            - type: 'null'
+        uploadedBy:
+          type: string
+          description: Token subject (`sub`) of the caller who reserved the upload
+        linkedAt:
+          anyOf:
+            - type: string
+              format: date-time
+            - type: 'null'
+          description: When the owning service linked it to its record; null while unlinked
+      required:
+        - id
+        - purpose
+        - state
+        - rejection
+        - contentType
+        - detectedType
+        - declaredSize
+        - size
+        - sha256
+        - fileName
+        - createdAt
+        - completedAt
+        - uploadedBy
+        - linkedAt
     ProblemDetails:
       type: object
       properties:

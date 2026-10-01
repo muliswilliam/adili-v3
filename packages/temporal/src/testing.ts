@@ -17,6 +17,8 @@ import {
   type WorkflowBundle,
 } from '@temporalio/worker';
 
+import type { TemporalWorkerReadinessCheck } from './temporal-worker.module.js';
+
 export interface ExecuteWorkflowOptions<W extends Workflow> {
   /** Module exporting the workflow functions, as given to the worker in production. */
   workflowsPath: string;
@@ -217,5 +219,33 @@ async function startTimeSkippingServer(): Promise<TestWorkflowEnvironment> {
       const timedOut = error instanceof Error && error.message.includes('did not start within');
       if (!timedOut || attempt >= SERVER_START_ATTEMPTS) throw error;
     }
+  }
+}
+
+/**
+ * Resolves once an app's `TemporalWorkerModule` worker polls its task queue, as a deployment
+ * waits for readiness before it sends traffic. Harnesses that boot a service with a worker wait
+ * for it after `app.init()`: the worker starts in the background by bundling the workflow code,
+ * seconds of CPU on the event loop, and a test running meanwhile has its database connections
+ * time out on a loaded runner (the pool's `connectionTimeoutMillis` timer fires before the
+ * stalled loop reads Postgres' answer).
+ */
+export async function untilWorkerPolling(
+  readiness: TemporalWorkerReadinessCheck,
+  timeoutMs = 25_000,
+): Promise<void> {
+  const deadline = Date.now() + timeoutMs;
+  for (;;) {
+    try {
+      await readiness.check();
+      return;
+    } catch (error) {
+      if (Date.now() > deadline) {
+        throw new Error(`Temporal worker not polling after ${String(timeoutMs)} ms`, {
+          cause: error,
+        });
+      }
+    }
+    await new Promise((resolve) => setTimeout(resolve, 50));
   }
 }

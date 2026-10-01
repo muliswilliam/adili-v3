@@ -13,7 +13,7 @@ import {
 } from 'drizzle-orm/pg-core';
 
 /**
- * Issued documents (ADR-010), tenant data of the issuing Commission under RLS (migration 0006),
+ * Issued documents (ADR-010), tenant data of the issuing Commission under RLS (migration 0008),
  * readable by the person they are about. Insert-only: what was issued never changes; its status
  * lives on the verification record. One document per type and subject: issuing again for the
  * same subject returns the one issued.

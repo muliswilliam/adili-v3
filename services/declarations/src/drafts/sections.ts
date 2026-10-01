@@ -1,5 +1,6 @@
 import { type DeclarationSectionKey, type PersonKey, sectionSchema } from '@adili/forms';
 
+import { recordOf } from '../guards.js';
 import type { SectionMetadata } from './schema.js';
 
 /**
@@ -49,7 +50,7 @@ export function siblingSection(key: DeclarationSectionKey): 'bio' | 'household' 
   return null;
 }
 
-/** First Schedule order: bio, household, the statements (officer, spouses, children), other. */
+/** First Schedule order: bio, household, the statements (the declarant's, then spouses', then children's), other. */
 export function sectionRank(key: string): number {
   if (key === 'bio') return 0;
   if (key === 'household') return 1;
@@ -70,7 +71,7 @@ export interface RosterFacts {
 }
 
 /**
- * Bio as a new draft starts it: name, employer, designation, Commission and personnel file
+ * Bio as a new draft starts it: name, reporting entity (`employer`), designation, Commission and personnel file
  * number from the roster record, each locked (identity is fixed at onboarding; the roster is
  * corrected by the Commission, not here). A field the roster leaves empty is not locked, so the
  * declarant can fill it in. `lockedFields` are JSON pointers, kept in clear metadata.
@@ -239,7 +240,7 @@ export function applyLockedFields(
   return { contents, changed };
 }
 
-const STATEMENT_CATEGORIES = [
+export const STATEMENT_CATEGORIES = [
   { list: 'income', nil: 'incomeNil' },
   { list: 'assets', nil: 'assetsNil' },
   { list: 'liabilities', nil: 'liabilitiesNil' },
@@ -269,8 +270,6 @@ export function sectionMetadata(
   contents: SectionContents,
 ): SectionMetadata {
   const count = (value: unknown) => (Array.isArray(value) ? value.length : 0);
-  const record = (value: unknown) =>
-    typeof value === 'object' && value !== null ? (value as Record<string, unknown>) : {};
   if (statementPersonKey(key)) {
     return {
       counts: {
@@ -288,13 +287,13 @@ export function sectionMetadata(
   if (key === 'household') {
     return {
       counts: {
-        spouses: count(record(contents.spouses).items),
-        children: count(record(contents.children).items),
+        spouses: count(recordOf(contents.spouses).items),
+        children: count(recordOf(contents.children).items),
       },
     };
   }
   if (key === 'other') {
-    const interests = record(contents.registrableInterests);
+    const interests = recordOf(contents.registrableInterests);
     return {
       counts: {
         directorships: count(interests.directorships),

@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { getDeclaration, saveDeclarationSection } from '../../server/declarations';
 import type { SaveOutcome } from '../../server/declarations.server';
+import { retryDelay } from './autosave';
 import { DECLARATION_ID, renderWorkspace, sampleDeclaration } from './testing';
 import { invalidate, navigate } from './testing-mocks';
 import { useWorkspace } from './workspace';
@@ -214,9 +215,14 @@ describe('WorkspaceLayout', () => {
     });
     await edit();
 
-    await waitFor(() => {
-      expect(saveMock).toHaveBeenCalledTimes(2);
-    });
+    // The second edit waits out the first failure's backoff, which is as long as waitFor's
+    // default timeout, so give waitFor longer than the backoff.
+    await waitFor(
+      () => {
+        expect(saveMock).toHaveBeenCalledTimes(2);
+      },
+      { timeout: retryDelay(1) + 1_000 },
+    );
     expect(signInAgain).toHaveBeenCalledOnce();
   });
 
