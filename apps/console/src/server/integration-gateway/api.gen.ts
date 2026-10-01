@@ -1018,7 +1018,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
-            /** @description Problem type `pause-flag-unavailable`: the pause flag could not be written; nothing changed */
+            /** @description Problem type `pause-flag-unavailable`: the change is recorded but the pause flag could not be written; retry to apply it */
             503: {
                 headers: {
                     [name: string]: unknown;
@@ -1067,7 +1067,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
-            /** @description Problem type `pause-flag-unavailable`: the pause flag could not be written; nothing changed */
+            /** @description Problem type `pause-flag-unavailable`: the change is recorded but the pause flag could not be written; retry to apply it */
             503: {
                 headers: {
                     [name: string]: unknown;

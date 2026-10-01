@@ -5,7 +5,7 @@ import { EventPublisher } from '@adili/events';
 import { eq } from 'drizzle-orm';
 
 import { PauseFlags } from '../adapter-kit/pause-flags.js';
-import { integrationSettings, type schema, type System } from '../db/schema.js';
+import { integrationSettings, type schema, type System, SYSTEMS } from '../db/schema.js';
 import {
   INTEGRATIONS_SYSTEM_PAUSED,
   INTEGRATIONS_SYSTEM_RESUMED,
@@ -23,11 +23,13 @@ export interface PauseRecord {
  * lookups to `unavailable` (reason `paused`) during a known outage, then lets them through again.
  *
  * The pause is recorded in `integration_settings` with who and when, and announced
- * (`integrations.system.paused.v1` / `resumed.v1`) in the same transaction; the pause flag the
- * lookups read is set in Valkey inside that transaction, so a flag that cannot be set changes
- * nothing. Pausing a paused system (or resuming a running one) sets the flag again and records
- * nothing new. On start the flags of paused systems are restored from the table, so a Valkey
- * restart does not resume a system by itself.
+ * (`integrations.system.paused.v1` / `resumed.v1`) in the same transaction. The table is the
+ * truth; the pause flag the lookups read in Valkey follows it, written only once the transaction
+ * has committed and from what the table then says, so a flag never runs ahead of a record that
+ * did not commit. A flag that cannot be written is 503 with the record kept: pausing a paused
+ * system (or resuming a running one) records nothing new and writes the flag again, so the retry
+ * the 503 asks for converges. On start every flag is reconciled with the table both ways, so a
+ * Valkey restart neither resumes a paused system nor leaves a stray flag pausing a running one.
  */
 @Injectable()
 export class IntegrationSettings implements OnApplicationBootstrap {
@@ -41,14 +43,17 @@ export class IntegrationSettings implements OnApplicationBootstrap {
 
   async onApplicationBootstrap(): Promise<void> {
     try {
-      const paused = await this.db
+      const rows = await this.db
         .select({ system: integrationSettings.system })
         .from(integrationSettings)
         .where(eq(integrationSettings.paused, true));
-      for (const { system } of paused) await this.pauses.pause(system);
+      const paused = new Set(rows.map((row) => row.system));
+      for (const system of SYSTEMS) {
+        await (paused.has(system) ? this.pauses.pause(system) : this.pauses.resume(system));
+      }
     } catch (error) {
       // Not fatal: lookups fail open while Valkey is down, and the next pause sets the flag.
-      this.logger.warn({ errorType: errorType(error) }, 'Pause flags not restored');
+      this.logger.warn({ errorType: errorType(error) }, 'Pause flags not reconciled');
     }
   }
 
@@ -59,25 +64,24 @@ export class IntegrationSettings implements OnApplicationBootstrap {
         .from(integrationSettings)
         .where(eq(integrationSettings.system, system))
         .for('update');
-      if (!current?.paused) {
-        const paused = {
-          paused: true,
-          pausedBy: principal.subject,
-          pausedByName: principal.name,
-          pausedAt: new Date(),
-          updatedAt: new Date(),
-        };
-        await tx
-          .insert(integrationSettings)
-          .values({ system, ...paused })
-          .onConflictDoUpdate({ target: integrationSettings.system, set: paused });
-        await this.events.record(
-          tx,
-          systemPauseEvent(INTEGRATIONS_SYSTEM_PAUSED, { system, by: principal.subject }),
-        );
-      }
-      await this.applyFlag(() => this.pauses.pause(system));
+      if (current?.paused) return;
+      const paused = {
+        paused: true,
+        pausedBy: principal.subject,
+        pausedByName: principal.name,
+        pausedAt: new Date(),
+        updatedAt: new Date(),
+      };
+      await tx
+        .insert(integrationSettings)
+        .values({ system, ...paused })
+        .onConflictDoUpdate({ target: integrationSettings.system, set: paused });
+      await this.events.record(
+        tx,
+        systemPauseEvent(INTEGRATIONS_SYSTEM_PAUSED, { system, by: principal.subject }),
+      );
     });
+    await this.syncFlag(system);
   }
 
   async resume(system: System, principal: Principal): Promise<void> {
@@ -87,24 +91,23 @@ export class IntegrationSettings implements OnApplicationBootstrap {
         .from(integrationSettings)
         .where(eq(integrationSettings.system, system))
         .for('update');
-      if (current?.paused) {
-        await tx
-          .update(integrationSettings)
-          .set({
-            paused: false,
-            pausedBy: null,
-            pausedByName: null,
-            pausedAt: null,
-            updatedAt: new Date(),
-          })
-          .where(eq(integrationSettings.system, system));
-        await this.events.record(
-          tx,
-          systemPauseEvent(INTEGRATIONS_SYSTEM_RESUMED, { system, by: principal.subject }),
-        );
-      }
-      await this.applyFlag(() => this.pauses.resume(system));
+      if (!current?.paused) return;
+      await tx
+        .update(integrationSettings)
+        .set({
+          paused: false,
+          pausedBy: null,
+          pausedByName: null,
+          pausedAt: null,
+          updatedAt: new Date(),
+        })
+        .where(eq(integrationSettings.system, system));
+      await this.events.record(
+        tx,
+        systemPauseEvent(INTEGRATIONS_SYSTEM_RESUMED, { system, by: principal.subject }),
+      );
     });
+    await this.syncFlag(system);
   }
 
   /** Who paused each paused system, and when. */
@@ -130,16 +133,25 @@ export class IntegrationSettings implements OnApplicationBootstrap {
     );
   }
 
-  private async applyFlag(apply: () => Promise<void>): Promise<void> {
+  /**
+   * Writes the system's pause flag as the committed table has it. Read after the commit, so of a
+   * pause and a resume racing, the flag ends as the record that committed last.
+   */
+  private async syncFlag(system: System): Promise<void> {
     try {
-      await apply();
+      const [row] = await this.db
+        .select({ paused: integrationSettings.paused })
+        .from(integrationSettings)
+        .where(eq(integrationSettings.system, system));
+      await (row?.paused ? this.pauses.pause(system) : this.pauses.resume(system));
     } catch (error) {
-      this.logger.error({ errorType: errorType(error) }, 'Pause flag not written');
+      this.logger.error({ system, errorType: errorType(error) }, 'Pause flag not written');
       throw new ProblemException({
         type: 'pause-flag-unavailable',
         title: 'Pause not applied',
         status: HttpStatus.SERVICE_UNAVAILABLE,
-        detail: 'The pause flag could not be written. Nothing changed. Try again shortly.',
+        detail:
+          'The change is recorded, but the pause flag could not be written, so lookups do not follow it yet. Try again shortly.',
       });
     }
   }

@@ -19,7 +19,7 @@ import { IntegrationSettings } from './integration-settings.js';
 const systemParam = ApiParam({ name: 'system', schema: schemaRef('System') });
 const NO_ADAPTER = 'No adapter for the system (payroll and ICMS have no coverage to pause)';
 const FLAG_UNAVAILABLE =
-  'Problem type `pause-flag-unavailable`: the pause flag could not be written; nothing changed';
+  'Problem type `pause-flag-unavailable`: the change is recorded but the pause flag could not be written; retry to apply it';
 
 /** How the registry integrations behave, for platform administrators (spec 07b). */
 @ApiTags('integrations')

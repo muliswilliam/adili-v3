@@ -515,7 +515,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetails'
         '503':
-          description: 'Problem type `pause-flag-unavailable`: the pause flag could not be written; nothing changed'
+          description: 'Problem type `pause-flag-unavailable`: the change is recorded but the pause flag could not be written; retry to apply it'
           content:
             application/problem+json:
               schema:
@@ -555,7 +555,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetails'
         '503':
-          description: 'Problem type `pause-flag-unavailable`: the pause flag could not be written; nothing changed'
+          description: 'Problem type `pause-flag-unavailable`: the change is recorded but the pause flag could not be written; retry to apply it'
           content:
             application/problem+json:
               schema:

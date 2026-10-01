@@ -1,5 +1,5 @@
 import { asc, eq } from 'drizzle-orm';
-import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { PauseFlags } from '../src/adapter-kit/pause-flags.js';
 import { integrationSettings, outbox, verificationResults } from '../src/db/schema.js';
@@ -159,6 +159,59 @@ describe('POST /v1/integrations/{system}/pause and /resume', () => {
     await t.app.get(IntegrationSettings).onApplicationBootstrap();
 
     expect(await pauses.isPaused('brs')).toBe(true);
+  });
+
+  it('clears on start a pause flag no paused record backs', async () => {
+    const pauses = t.app.get(PauseFlags);
+    // A flag left behind: written for a pause whose record never committed, say.
+    await pauses.pause('ntsa');
+
+    await t.app.get(IntegrationSettings).onApplicationBootstrap();
+
+    expect(await pauses.isPaused('ntsa')).toBe(false);
+  });
+
+  it('writes the pause flag only once the pause is committed', async () => {
+    const pauses = t.app.get(PauseFlags);
+    const committedWhenFlagged: boolean[] = [];
+    const spy = vi.spyOn(pauses, 'pause').mockImplementation(async function (this: PauseFlags) {
+      // Read outside the request's transaction: only committed rows are visible.
+      const [row] = await t.db
+        .select()
+        .from(integrationSettings)
+        .where(eq(integrationSettings.system, 'kra'));
+      committedWhenFlagged.push(row?.paused === true);
+    });
+    try {
+      expect((await act('kra', 'pause')).statusCode).toBe(200);
+    } finally {
+      spy.mockRestore();
+    }
+
+    expect(committedWhenFlagged).toEqual([true]);
+  });
+
+  it('keeps the record and answers 503 when the flag cannot be written; a retry applies it', async () => {
+    const pauses = t.app.get(PauseFlags);
+    const spy = vi.spyOn(pauses, 'pause').mockRejectedValueOnce(new Error('valkey down'));
+    try {
+      const failed = await act('kra', 'pause');
+
+      expect(failed.statusCode).toBe(503);
+      expect(failed.json()).toMatchObject({ type: 'pause-flag-unavailable' });
+    } finally {
+      spy.mockRestore();
+    }
+    const [row] = await t.db
+      .select()
+      .from(integrationSettings)
+      .where(eq(integrationSettings.system, 'kra'));
+    expect(row?.paused).toBe(true);
+    expect(await pauses.isPaused('kra')).toBe(false);
+
+    expect((await act('kra', 'pause')).statusCode).toBe(200);
+    expect(await pauses.isPaused('kra')).toBe(true);
+    expect(await events()).toHaveLength(1);
   });
 
   it('refuses reviewers and service tokens with 403, nobody with 401; nothing is paused', async () => {
