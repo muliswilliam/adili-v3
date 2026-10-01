@@ -6,7 +6,7 @@ import { asc, eq, sql } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { outbox, uploads } from '../../src/db/schema.js';
-import { CSV, XLSX } from '../../src/uploads/purposes.js';
+import { CSV, HEIC, JPEG, PDF, PNG as PNG_TYPE, XLSX } from '../../src/uploads/purposes.js';
 import type {
   Upload,
   UploadDownload,
@@ -20,7 +20,14 @@ import {
   okResponse,
 } from '../support/contract.js';
 import { type Caller, type DocumentsApi, startDocumentsApi } from '../support/documents-api.js';
-import { EICAR, fixture, PNG } from '../support/files.js';
+import {
+  EICAR,
+  fixture,
+  HEIC as HEIC_PHOTO,
+  JPEG as JPEG_PHOTO,
+  PDF as PDF_FILE,
+  PNG,
+} from '../support/files.js';
 
 /**
  * Spec 02 S2 and S3: presigned upload, completion with type sniffing and a real ClamAV scan,
@@ -29,6 +36,8 @@ import { EICAR, fixture, PNG } from '../support/files.js';
 const OFFICER: Caller = { sub: 'officer-1', tenant: 'psc', roles: ['reporting-officer'] };
 const OTHER_OFFICER: Caller = { sub: 'officer-2', tenant: 'psc', roles: ['reporting-officer'] };
 const TSC_OFFICER: Caller = { sub: 'officer-3', tenant: 'tsc', roles: ['reporting-officer'] };
+const DECLARANT: Caller = { sub: 'declarant-1', tenant: 'psc', roles: ['declarant'] };
+const OTHER_DECLARANT: Caller = { sub: 'declarant-2', tenant: 'psc', roles: ['declarant'] };
 const COMMISSION_ADMIN: Caller = { tenant: 'psc', roles: ['commission-admin'] };
 const PLATFORM_ADMIN: Caller = {
   tenant: 'platform',
@@ -81,6 +90,33 @@ async function reserve(
 /** Reserves an upload and PUTs the bytes as a browser would. */
 async function upload(bytes: Uint8Array, contentType: string = CSV, caller: Caller = OFFICER) {
   const reservation = await reserve(bytes, contentType, caller);
+  const put = await fetch(reservation.uploadUrl, {
+    method: 'PUT',
+    body: bytes,
+    headers: { 'content-type': contentType },
+  });
+  expect(put.status).toBe(200);
+  return reservation;
+}
+
+/** Uploads a declaration attachment as the declarant's portal does: reserve, then PUT. */
+async function uploadAttachment(
+  bytes: Uint8Array,
+  contentType: string,
+  caller: Caller = DECLARANT,
+): Promise<UploadReservation> {
+  const response = await api.post(
+    '/v1/uploads',
+    {
+      purpose: 'declaration-attachment',
+      contentType,
+      declaredSize: bytes.length,
+      fileName: 'Title deed.pdf',
+    },
+    caller,
+  );
+  expect(response.statusCode).toBe(201);
+  const reservation = response.json<UploadReservation>();
   const put = await fetch(reservation.uploadUrl, {
     method: 'PUT',
     body: bytes,
@@ -305,6 +341,97 @@ describe('S3 refused files', () => {
 
     expect(again.statusCode).toBe(409);
     expect(again.json<Problem>().type).toBe('upload-completed');
+  });
+});
+
+describe('S21 declaration attachments (spec 05)', () => {
+  it.each([
+    ['a PDF', PDF_FILE, PDF],
+    ['a JPEG', JPEG_PHOTO, JPEG],
+    ['a PNG', PNG, PNG_TYPE],
+    ['a HEIC photo', HEIC_PHOTO, HEIC],
+  ])('completes %s to clean for the declarant who uploaded it', async (_, bytes, type) => {
+    const reservation = await uploadAttachment(bytes, type);
+    expect(reservation.maxSize).toBe(20 * MB);
+    expect(new URL(reservation.uploadUrl).pathname).toBe(
+      `/quarantine/declaration-attachment/${reservation.id}`,
+    );
+
+    const response = await complete(reservation.id, DECLARANT);
+
+    expect(response.statusCode).toBe(200);
+    const body = response.json<Upload>();
+    expect(contractErrors(okResponse('/v1/uploads/{id}/complete', 'post'), body)).toEqual([]);
+    expect(body).toMatchObject({
+      purpose: 'declaration-attachment',
+      state: 'clean',
+      contentType: type,
+      detectedType: type,
+      sha256: sha256(bytes),
+      size: bytes.length,
+    });
+  });
+
+  it.each([
+    ['a CSV', CSV],
+    ['an XLSX', XLSX],
+    ['a GIF', 'image/gif'],
+    ['a Word document', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'],
+  ])('refuses %s with 400', async (_, contentType) => {
+    const response = await api.post(
+      '/v1/uploads',
+      { purpose: 'declaration-attachment', contentType, declaredSize: 10 },
+      DECLARANT,
+    );
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json<Problem>().errors?.map((error) => error.path)).toEqual(['contentType']);
+  });
+
+  it('refuses a declared size over 20 MB with 400, and takes exactly 20 MB', async () => {
+    const request = { purpose: 'declaration-attachment', contentType: PDF };
+
+    const over = await api.post(
+      '/v1/uploads',
+      { ...request, declaredSize: 20 * MB + 1 },
+      DECLARANT,
+    );
+    const limit = await api.post('/v1/uploads', { ...request, declaredSize: 20 * MB }, DECLARANT);
+
+    expect(over.statusCode).toBe(400);
+    expect(over.json<Problem>().errors?.map((error) => error.path)).toEqual(['declaredSize']);
+    expect(limit.statusCode).toBe(201);
+  });
+
+  it('rejects bytes that are not the declared type with type', async () => {
+    const reservation = await uploadAttachment(PNG, PDF);
+
+    expect((await complete(reservation.id, DECLARANT)).json()).toMatchObject({
+      state: 'rejected',
+      rejection: 'type',
+    });
+  });
+
+  it("is for declarants only; the roster purpose stays the reporting officer's", async () => {
+    const attachment = { purpose: 'declaration-attachment', contentType: PDF, declaredSize: 10 };
+    const roster = { purpose: 'roster-import', contentType: CSV, declaredSize: 10 };
+
+    expect((await api.post('/v1/uploads', attachment, OFFICER)).statusCode).toBe(403);
+    expect((await api.post('/v1/uploads', attachment, COMMISSION_ADMIN)).statusCode).toBe(403);
+    expect((await api.post('/v1/uploads', roster, DECLARANT)).statusCode).toBe(403);
+    expect((await api.post('/v1/uploads', roster, OFFICER)).statusCode).toBe(201);
+  });
+
+  it('shows an attachment to the declarant who uploaded it only', async () => {
+    const reservation = await uploadAttachment(PDF_FILE, PDF);
+    const path = `/v1/uploads/${reservation.id}`;
+
+    expect((await api.get(path, DECLARANT)).statusCode).toBe(200);
+    for (const caller of [OTHER_DECLARANT, OFFICER, TSC_OFFICER]) {
+      expect((await api.get(path, caller)).statusCode).toBe(404);
+      expect((await complete(reservation.id, caller)).statusCode).toBe(404);
+    }
+    expect((await row(reservation.id)).state).toBe('awaiting-upload');
   });
 });
 

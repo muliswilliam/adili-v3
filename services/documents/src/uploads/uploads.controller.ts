@@ -36,7 +36,8 @@ const ApiUploadIdParam = () => ApiParam({ name: 'id', schema: { type: 'string', 
 
 /**
  * Uploads for the caller's tenant. Who may upload is decided per purpose (roster-import:
- * reporting-officer), so the service checks roles rather than a controller-level `@Roles`.
+ * reporting-officer; declaration-attachment: declarant), so the service checks roles rather than
+ * a controller-level `@Roles`.
  */
 @ApiTags('uploads')
 @Controller('v1/uploads')
@@ -49,7 +50,7 @@ export class UploadsController {
     operationId: 'createUpload',
     summary: 'Reserve an upload and get a presigned PUT to quarantine',
     description:
-      "The purpose's roles only (roster-import: reporting-officer). The PUT URL is valid for 15 minutes and accepts exactly the declared Content-Type and size.",
+      "The purpose's roles only (roster-import: reporting-officer; declaration-attachment: declarant). The PUT URL is valid for 15 minutes and accepts exactly the declared Content-Type and size.",
   })
   @ApiBody({ required: true, schema: schemaRef('CreateUpload') })
   @ApiCreatedResponse({
@@ -71,7 +72,7 @@ export class UploadsController {
     operationId: 'getUpload',
     summary: 'Upload state and metadata',
     description:
-      "Uploads of the caller's tenant whose purpose the caller's roles cover; any other is 404.",
+      "Uploads of the caller's tenant whose purpose the caller's roles cover, and declaration attachments only to the declarant who uploaded them; any other is 404.",
   })
   @ApiOkResponse({ description: 'The upload', schema: schemaRef('Upload') })
   @ApiProblemResponse(404, 'Not found, or not visible to the caller')

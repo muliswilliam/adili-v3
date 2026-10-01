@@ -303,7 +303,10 @@ export class UploadsService {
     return expired.length;
   }
 
-  /** The upload when the caller's tenant owns it and their roles cover its purpose; else 404. */
+  /**
+   * The upload when the caller's tenant owns it and their roles cover its purpose, and, for a
+   * purpose whose uploads are the uploader's only, the caller reserved it; else 404.
+   */
   private async visible(principal: Principal, id: string): Promise<UploadRow> {
     const tenant = tenantOf(principal);
     const purposes = purposesFor(principal.roles);
@@ -315,6 +318,9 @@ export class UploadsService {
         .where(and(eq(uploads.id, id), inArray(uploads.purpose, purposes))),
     );
     if (!upload) throw notFound();
+    if (policyOf(upload.purpose).uploaderOnly && upload.createdBy !== principal.subject) {
+      throw notFound();
+    }
     return upload;
   }
 

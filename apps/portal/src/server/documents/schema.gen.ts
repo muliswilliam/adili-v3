@@ -15,7 +15,7 @@ export interface paths {
         put?: never;
         /**
          * Reserve an upload and get a presigned PUT to quarantine
-         * @description The purpose's roles only (roster-import: reporting-officer). The PUT URL is valid for 15 minutes and accepts exactly the declared Content-Type and size.
+         * @description The purpose's roles only (roster-import: reporting-officer; declaration-attachment: declarant). The PUT URL is valid for 15 minutes and accepts exactly the declared Content-Type and size.
          */
         post: operations["createUpload"];
         delete?: never;
@@ -33,7 +33,7 @@ export interface paths {
         };
         /**
          * Upload state and metadata
-         * @description Uploads of the caller's tenant whose purpose the caller's roles cover; any other is 404.
+         * @description Uploads of the caller's tenant whose purpose the caller's roles cover, and declaration attachments only to the declarant who uploaded them; any other is 404.
          */
         get: operations["getUpload"];
         put?: never;
@@ -201,7 +201,7 @@ export interface components {
          * @description Sets allowed content types and the size limit
          * @enum {string}
          */
-        UploadPurpose: "roster-import";
+        UploadPurpose: "roster-import" | "declaration-attachment";
         /** @enum {string} */
         UploadState: "awaiting-upload" | "clean" | "infected" | "rejected" | "expired";
         /**
