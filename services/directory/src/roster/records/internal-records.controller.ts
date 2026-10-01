@@ -29,7 +29,10 @@ import type {
 const CALLERS =
   'Service tokens with scope directory:internal, acting for the Commission in X-Acting-Tenant; audited.';
 
-/** Internal: not routed by the public entrypoint. Callers are services pulling after an event. */
+/**
+ * Internal: not routed by the public entrypoint. Callers are services pulling after an event, or
+ * searching the roster for a record (the access service, spec 10).
+ */
 @ApiTags('internal')
 @Controller('internal/v1/commissions/:slug/roster/records')
 @ApiParam({ name: 'slug', schema: schemaRef('Slug') })
@@ -41,8 +44,9 @@ export class InternalRosterRecordsController {
   @AuditedRead({ action: 'roster.records.pulled', resource: 'roster-record' })
   @ApiOperation({
     operationId: 'internalListRosterRecords',
-    summary: 'Roster records touched by an import or an exit batch (services)',
-    description: `${CALLERS} Exactly one of importId and exitBatchId. Each record as it is now, up to 1,000 per page.`,
+    summary:
+      'Roster records touched by an import or an exit batch, or matching a search (services)',
+    description: `${CALLERS} Exactly one of importId, exitBatchId and search. Each record as it is now, up to 1,000 per page (50 for a search).`,
   })
   @ApiQueryParameters(internalListRosterRecordsQuery)
   @ApiOkResponse({
@@ -51,7 +55,7 @@ export class InternalRosterRecordsController {
   })
   @ApiProblemResponse(
     400,
-    'Query failed validation: not exactly one of importId and exitBatchId, or an unknown cursor',
+    'Query failed validation: not exactly one of importId, exitBatchId and search, or an unknown cursor',
   )
   @ApiProblemResponse(404, "No such import or exit batch of the acting tenant's Commission")
   list(

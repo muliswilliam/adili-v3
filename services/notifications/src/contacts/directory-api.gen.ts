@@ -468,8 +468,8 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Roster records touched by an import or an exit batch (services)
-         * @description Service tokens with scope directory:internal, acting for the Commission in X-Acting-Tenant; audited. Exactly one of importId and exitBatchId. Each record as it is now, up to 1,000 per page.
+         * Roster records touched by an import or an exit batch, or matching a search (services)
+         * @description Service tokens with scope directory:internal, acting for the Commission in X-Acting-Tenant; audited. Exactly one of importId, exitBatchId and search. Each record as it is now, up to 1,000 per page (50 for a search).
          */
         get: operations["internalListRosterRecords"];
         put?: never;
@@ -3886,8 +3886,11 @@ export interface operations {
                 importId?: string;
                 /** @description The records the exit confirmation exited (`roster.exits.confirmed.v1` `batchId`), in id order */
                 exitBatchId?: string;
+                /** @description A personnel file number or its beginning, or part of a name (both case-insensitive): the records that match, ordered by full name, up to 50 per page. E.g. the access service resolving the officer a Form K names (spec 10). No national ID search. */
+                search?: string;
                 /** @description `nextCursor` of the previous page; omit for the first page */
                 cursor?: string;
+                /** @description Records per page: up to 1000 (default) for an import or exit batch, 50 (default) for a search */
                 limit?: number;
             };
             header: {
@@ -3910,7 +3913,7 @@ export interface operations {
                     "application/json": components["schemas"]["InternalRosterRecordPage"];
                 };
             };
-            /** @description Query failed validation: not exactly one of importId and exitBatchId, or an unknown cursor */
+            /** @description Query failed validation: not exactly one of importId, exitBatchId and search, or an unknown cursor */
             400: {
                 headers: {
                     [name: string]: unknown;
