@@ -8,10 +8,13 @@ import { Test } from '@nestjs/testing';
 import { TokenVerifier } from '@adili/api-kit';
 import { createDatabase, DATABASE, type Database, withTenant } from '@adili/data-access';
 import { type EventEnvelope, OutboxRelay } from '@adili/events';
+import { TemporalWorkerReadinessCheck, WorkflowBundler } from '@adili/temporal';
+import { prebuiltWorkflowBundler, untilWorkerPolling } from '@adili/temporal/testing';
 import { getTableName, is, sql } from 'drizzle-orm';
 import { PgTable } from 'drizzle-orm/pg-core';
 import { createLocalJWKSet, exportJWK, generateKeyPair, type JWK, SignJWT } from 'jose';
 import { v7 as uuidv7 } from 'uuid';
+import { inject } from 'vitest';
 
 import { AppModule } from '../../src/app.module.js';
 import type { ReviewTransaction } from '../../src/cases/case-lookup.js';
@@ -160,12 +163,16 @@ export async function startReviewApi(): Promise<ReviewApi> {
     .useValue(clock)
     .overrideProvider(OutboxRelay)
     .useValue({})
+    .overrideProvider(WorkflowBundler)
+    .useValue(prebuiltWorkflowBundler(inject('workflowBundles')))
     .compile();
   const app = moduleRef.createNestApplication<NestFastifyApplication>(new FastifyAdapter(), {
     logger: ['fatal'],
   });
   await app.init();
   await app.getHttpAdapter().getInstance().ready();
+  // Tests start once the worker polls, as traffic waits for readiness (see untilWorkerPolling).
+  await untilWorkerPolling(app.get(TemporalWorkerReadinessCheck));
 
   // The documents service pulls a document's fields with its own service token (review:internal).
   documents.payloadSource = async (tenant, letter) => {

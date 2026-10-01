@@ -2,7 +2,7 @@ import { PLATFORM_TENANT } from '@adili/api-kit';
 import { withTenant } from '@adili/data-access';
 import { EventPublisher } from '@adili/events';
 import { asc, eq, sql } from 'drizzle-orm';
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
 import {
   outbox,
@@ -48,10 +48,7 @@ let events: EventPublisher;
 beforeAll(async () => {
   api = await startDirectoryApi();
   events = api.app.get(EventPublisher);
-});
-
-afterAll(async () => {
-  await api.close();
+  return () => api.close();
 });
 
 beforeEach(async () => {

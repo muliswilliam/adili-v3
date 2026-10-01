@@ -1,5 +1,5 @@
 import { eq, sql } from 'drizzle-orm';
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
 import { FakePersonContacts } from '../src/contacts/fake-person-contacts.js';
 import { ContactLookupError } from '../src/contacts/person-contacts.js';
@@ -19,10 +19,7 @@ describe('internal messages API', () => {
   beforeAll(async () => {
     t = await createTestApp({ email, sms, contacts: directory });
     auth = { authorization: `Bearer ${await t.token()}` };
-  });
-
-  afterAll(async () => {
-    await t.close();
+    return () => t.close();
   });
 
   beforeEach(() => {

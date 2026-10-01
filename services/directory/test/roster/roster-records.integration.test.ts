@@ -1,7 +1,7 @@
 import { PLATFORM_TENANT } from '@adili/api-kit';
 import { withTenant } from '@adili/data-access';
 import { and, asc, eq } from 'drizzle-orm';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it } from 'vitest';
 
 import type { Commission, RosterSummary } from '../../src/commissions/representation.js';
 import { outbox, rosterRecords } from '../../src/db/schema.js';
@@ -139,10 +139,7 @@ beforeAll(async () => {
       .from(rosterRecords),
   );
   for (const { id, fileNumber } of all) ids.set(fileNumber, id);
-});
-
-afterAll(async () => {
-  await api.close();
+  return () => api.close();
 });
 
 describe('S20 visibility', () => {

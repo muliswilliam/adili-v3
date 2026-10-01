@@ -1,6 +1,6 @@
 import { checkCharacter } from '@adili/numbering';
 import { eq } from 'drizzle-orm';
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
 import { outbox } from '../../src/db/schema.js';
 import type { DeclarantProfile, PersonSummary } from '../../src/persons/representation.js';
@@ -38,6 +38,7 @@ const declarant = (person: OnboardedPerson): Caller => ({
 
 beforeAll(async () => {
   api = await startDirectoryApi();
+  return () => api.close();
 });
 
 beforeEach(async () => {
@@ -69,10 +70,6 @@ beforeEach(async () => {
     email: 'wanjiru.kamau@example.go.ke',
     phone: '+254712345678',
   });
-});
-
-afterAll(async () => {
-  await api.close();
 });
 
 describe('GET /v1/me/declarant (S18)', () => {

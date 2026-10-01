@@ -3,7 +3,7 @@ import { randomUUID } from 'node:crypto';
 import { TEMPORAL_CLIENT } from '@adili/temporal';
 import type { Client } from '@temporalio/client';
 import { asc, eq } from 'drizzle-orm';
-import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { ClarificationActivities } from '../../src/clarifications/activities.js';
 import {
@@ -86,10 +86,7 @@ describe('clarifications: responses, clock, resolve, follow-up, withdraw', () =>
   beforeAll(async () => {
     api = await startReviewApi();
     temporal = api.app.get<Client>(TEMPORAL_CLIENT);
-  });
-
-  afterAll(async () => {
-    await api.close();
+    return () => api.close();
   });
 
   beforeEach(async () => {

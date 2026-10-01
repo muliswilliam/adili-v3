@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import type { Principal } from '@adili/api-kit';
 import { parse } from '@adili/numbering';
 import { eq, inArray } from 'drizzle-orm';
-import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { BulkClosuresService } from '../../src/closures/bulk-closures.service.js';
 import { CLOSURE_SWEEP_WORKFLOW } from '../../src/closures/contract.js';
@@ -52,10 +52,7 @@ describe('bulk approval of closures and on-demand letters (S4)', () => {
 
   beforeAll(async () => {
     api = await startReviewApi();
-  });
-
-  afterAll(async () => {
-    await api.close();
+    return () => api.close();
   });
 
   beforeEach(async () => {

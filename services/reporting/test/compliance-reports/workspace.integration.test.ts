@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
 import { complianceReportWorkflowId } from '../../src/compliance-reports/contract.js';
 import { complianceReports } from '../../src/db/schema.js';
@@ -25,11 +25,10 @@ describe('Form M workspace: periods and access', () => {
 
   beforeAll(async () => {
     api = await startReportingApi();
-  });
-
-  afterAll(async () => {
-    await endWorkflow();
-    await api.close();
+    return async () => {
+      await endWorkflow();
+      await api.close();
+    };
   });
 
   beforeEach(async () => {

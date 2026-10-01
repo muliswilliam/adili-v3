@@ -1,5 +1,5 @@
 import { asc } from 'drizzle-orm';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it } from 'vitest';
 
 import { cycleCalendar } from '../../src/db/schema.js';
 import { openDemoCycle } from '../../src/obligations/demo-seed.js';
@@ -11,10 +11,7 @@ let api: DeclarationsApi;
 
 beforeAll(async () => {
   api = await startDeclarationsApi();
-});
-
-afterAll(async () => {
-  await api.close();
+  return () => api.close();
 });
 
 describe('demo seed', () => {

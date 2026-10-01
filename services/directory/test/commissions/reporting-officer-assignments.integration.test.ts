@@ -3,7 +3,7 @@ import { randomUUID } from 'node:crypto';
 
 import { withTenant } from '@adili/data-access';
 import { eq, sql } from 'drizzle-orm';
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
 import { commissions, reportingOfficerAssignments } from '../../src/db/schema.js';
 import { type DirectoryApi, startDirectoryApi } from '../support/directory-api.js';
@@ -24,10 +24,7 @@ let otherCommissionId: string;
 
 beforeAll(async () => {
   api = await startDirectoryApi();
-});
-
-afterAll(async () => {
-  await api.close();
+  return () => api.close();
 });
 
 beforeEach(async () => {
