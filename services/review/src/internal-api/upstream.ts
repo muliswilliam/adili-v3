@@ -5,7 +5,7 @@ import { DirectoryUnavailable } from '../directory/directory-client.js';
 import { DocumentsUnavailable } from '../documents/documents-client.js';
 
 /** The services the review service reads from on a request's behalf. */
-export type Upstream = 'declarations' | 'directory' | 'documents';
+export type Upstream = 'declarations' | 'directory' | 'documents' | 'integration-gateway';
 
 /**
  * The problem for a request another service could not serve: type `<upstream>-unavailable`, one

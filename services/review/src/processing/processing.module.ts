@@ -15,6 +15,7 @@ import { DocumentsModule } from '../documents/documents.module.js';
 import { IntegrationGatewayModule } from '../integration-gateway/integration-gateway.module.js';
 import { NotificationsModule } from '../notifications/notifications.module.js';
 import { ReferralActivities } from '../referrals/activities.js';
+import { RegistryCheckActivities } from '../registry/activities.js';
 import { ProcessingActivities } from './activities.js';
 import { DeclarationSubmittedConsumer } from './declaration-submitted.consumer.js';
 import { ProcessingWorkflows } from './processing-workflows.js';
@@ -31,7 +32,7 @@ const workflowsPath = fileURLToPath(
  * Processing of submitted declarations (spec 07a): the `declaration.submitted.v1` consumer and the
  * review worker hosting `DeclarationProcessingWorkflow`, `ClarificationWorkflow`,
  * `DeterminationIssuanceWorkflow`, the bulk closure workflows, `EnforcementWorkflow`, the referral
- * workflows and their activities.
+ * workflows, `RegistryCheckWorkflow` (spec 07b) and their activities.
  */
 @Module({
   imports: [
@@ -48,6 +49,7 @@ const workflowsPath = fileURLToPath(
         ClosureActivities,
         EnforcementActivities,
         ReferralActivities,
+        RegistryCheckActivities,
       ],
       imports: [
         ClockModule,

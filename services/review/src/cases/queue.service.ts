@@ -145,6 +145,9 @@ function filters(principal: Principal, query: QueueQuery): (SQL | undefined)[] {
   if (query.type) where.push(eq(reviewCases.type, query.type));
   if (query.cycle !== undefined) where.push(eq(reviewCases.cycleYear, query.cycle));
   if (query.late !== undefined) where.push(eq(reviewCases.late, query.late));
+  if (query.registryUnavailable !== undefined) {
+    where.push(eq(reviewCases.registryUnavailable, query.registryUnavailable));
+  }
   if (query.openClarification !== undefined) {
     where.push(
       query.openClarification

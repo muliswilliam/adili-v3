@@ -171,11 +171,14 @@ describe('amendment re-processing', () => {
         .where(eq(reviewTimeline.caseId, caseId))
         .orderBy(asc(reviewTimeline.at)),
     );
+    // Each version's registries are checked after it is processed (spec 07b).
     expect(timeline).toMatchObject([
       { kind: 'case-created', ref: first.versionId },
+      { kind: 'registry-checked', ref: first.versionId },
       { kind: 'version-processed', ref: second.versionId, actor: 'system:review' },
+      { kind: 'registry-checked', ref: second.versionId },
     ]);
-    expect(timeline[1]?.summary).toBe(
+    expect(timeline[2]?.summary).toBe(
       'Version 2 processed: 3 flags raised, 1 reviewed flag kept as recomputed',
     );
 
@@ -183,9 +186,11 @@ describe('amendment re-processing', () => {
     const events = await api.db.select().from(outbox).orderBy(asc(outbox.createdAt));
     expect(events.map((event) => event.eventType)).toEqual([
       'review.case.created.v1',
+      'review.registry.checked.v1',
       'review.case.updated.v1',
+      'review.registry.checked.v1',
     ]);
-    expect(events[1]?.envelope).toMatchObject({
+    expect(events[2]?.envelope).toMatchObject({
       type: 'review.case.updated.v1',
       subject: caseId,
       tenant: 'psc',
@@ -196,7 +201,7 @@ describe('amendment re-processing', () => {
         band: 'medium',
       },
     });
-    expect(Object.keys(events[1]?.envelope.data ?? {}).sort()).toEqual([
+    expect(Object.keys(events[2]?.envelope.data ?? {}).sort()).toEqual([
       'band',
       'caseId',
       'declarationId',
@@ -243,6 +248,7 @@ describe('amendment re-processing', () => {
       flagsAfter.map((flag) => flag.id).sort(),
     );
     const events = await api.db.select().from(outbox);
-    expect(events).toHaveLength(2);
+    // Created and updated, each with its registry check.
+    expect(events).toHaveLength(4);
   });
 });
