@@ -270,6 +270,7 @@ async function upsertSnapshots(
           tenant: record.tenant,
           personnelFileNumber: record.personnelFileNumber,
           fullName: record.fullName,
+          designation: record.designation,
           state: record.state,
           appointmentDate: record.appointmentDate,
           exitDate: record.exitDate,
@@ -287,6 +288,7 @@ async function upsertSnapshots(
         set: {
           personnelFileNumber: excluded('personnel_file_number'),
           fullName: excluded('full_name'),
+          designation: excluded('designation'),
           state: excluded('state'),
           appointmentDate: excluded('appointment_date'),
           exitDate: excluded('exit_date'),

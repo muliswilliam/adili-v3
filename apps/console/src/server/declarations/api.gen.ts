@@ -585,20 +585,14 @@ export interface paths {
     "/internal/v1/declarations/{declarationId}/versions/{version}/document": {
         parameters: {
             query?: never;
-            header: {
-                /** @description Tenant the calling service acts for; the resource must belong to it */
-                "X-Acting-Tenant": components["parameters"]["ActingTenant"];
-                /** @description Staff subject on whose behalf the content is read; recorded in the audit event */
-                "X-Acting-Subject": string;
-                "X-Review-Case"?: string;
-            };
-            path: {
-                declarationId: components["parameters"]["DeclarationId"];
-                version: components["parameters"]["VersionNumber"];
-            };
+            header?: never;
+            path?: never;
             cookie?: never;
         };
-        /** Decrypted declaration.v1 document of a submitted version, for the review service (audited read) */
+        /**
+         * Decrypted declaration.v1 document of a submitted version, for the review service (audited read)
+         * @description Service tokens with scope declarations:internal, acting for the Commission in X-Acting-Tenant; audited with the subject it reads for and the case. The version as filed, with the declarant's name, file number and due date and the attachments of its items.
+         */
         get: operations["internalGetVersionDocument"];
         put?: never;
         post?: never;
@@ -615,10 +609,73 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Latest earlier submitted version of the same person at the same Commission */
+        /**
+         * Latest earlier submitted version of the same person at the same Commission
+         * @description Service tokens with scope declarations:internal, acting for the Commission in X-Acting-Tenant. Identifiers and dates only. An earlier version of the same declaration counts.
+         */
         get: operations["internalFindPreviousVersion"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/internal/v1/obligations/{obligationId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * One filing obligation of the acting Commission (for the enforcement ladder)
+         * @description Service tokens with scope declarations:internal, acting for the Commission in X-Acting-Tenant; audited. The review service reads it when an obligation goes overdue (spec 08): whom the ladder addresses and what they failed to file. `personId` is null until the declarant onboards.
+         */
+        get: operations["internalGetObligation"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/internal/v1/persons/{personId}/obligations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * A person's filing obligations across cycles (for the referral sweep)
+         * @description Service tokens with scope declarations:internal, acting for the Commission in X-Acting-Tenant. Oldest first: type, cycle, status, due date, and when it was filed and whether late; no names.
+         */
+        get: operations["internalListPersonObligations"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/internal/v1/obligations/details": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * The officers behind a Commission's obligations, in a batch (spec 09 Form M non-filers)
+         * @description Service tokens with scope declarations:internal, acting for the Commission in X-Acting-Tenant; audited. At most 1,000 obligation ids; an obligation the Commission does not hold is left out. A read: it changes nothing, so it takes no Idempotency-Key and is safe to retry.
+         */
+        post: operations["internalObligationDetails"];
         delete?: never;
         options?: never;
         head?: never;
@@ -660,50 +717,6 @@ export interface paths {
         };
         /** The full immutable document of a version for the declarant's certified copy (audited as self-access) */
         get: operations["internalGetFullDocumentForCertifiedCopy"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/internal/v1/obligations/{obligationId}": {
-        parameters: {
-            query?: never;
-            header: {
-                /** @description Tenant the calling service acts for; the resource must belong to it */
-                "X-Acting-Tenant": components["parameters"]["ActingTenant"];
-            };
-            path: {
-                obligationId: string;
-            };
-            cookie?: never;
-        };
-        /**
-         * One filing obligation of the acting Commission (for the enforcement ladder)
-         * @description Service tokens with `declarations:internal`; the Commission in `X-Acting-Tenant`. The review service reads it when an obligation goes overdue (spec 08): whom the ladder addresses and what they failed to file. `personId` is null until the officer onboards.
-         */
-        get: operations["internalGetObligation"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/internal/v1/persons/{personId}/obligations": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                personId: string;
-            };
-            cookie?: never;
-        };
-        /** A person's filing obligations across cycles (for the referral sweep) */
-        get: operations["internalListPersonObligations"];
         put?: never;
         post?: never;
         delete?: never;
@@ -915,26 +928,6 @@ export interface paths {
         get: operations["getQuestionThemes"];
         put?: never;
         post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/internal/v1/obligations/details": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * The officers behind a Commission's obligations, in a batch (spec 09 Form M non-filers)
-         * @description Service tokens with scope declarations:internal, acting for the Commission in X-Acting-Tenant (ADR-013 §8.7). At most 1,000 obligation ids; an obligation the Commission does not hold is left out. A read: it changes nothing, so it takes no Idempotency-Key and is safe to retry.
-         */
-        post: operations["internalObligationDetails"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1549,6 +1542,99 @@ export interface components {
             removed: number;
             unchanged: number;
         };
+        InternalVersionDocument: {
+            /** Format: uuid */
+            declarationId: string;
+            /** Format: uuid */
+            versionId: string;
+            version: number;
+            /**
+             * Format: uuid
+             * @description The declarant; the review service looks up their previous version with it
+             */
+            personId: string;
+            /**
+             * Format: uuid
+             * @description The declarant's roster record at the Commission, as the declaration was started
+             */
+            rosterRecordId: string;
+            /** @description The roster record's reporting entity; null when it has none */
+            reportingEntityId: string | null;
+            reference: components["schemas"]["DeclarationReference"];
+            type: components["schemas"]["ObligationType"];
+            /** Format: date */
+            statementDate: string;
+            /** Format: date-time */
+            submittedAt: string;
+            late: boolean;
+            /** Format: date */
+            dueDate: string;
+            declarantName: string;
+            personnelFileNumber: string;
+            /** @description The immutable declaration.v1 document, decrypted */
+            document: {
+                [key: string]: unknown;
+            };
+            attachments: {
+                /** Format: uuid */
+                uploadId: string;
+                /** Format: uuid */
+                itemId: string;
+                personKey: string;
+                fileName: string;
+                sha256: string;
+            }[];
+        };
+        InternalPreviousVersion: {
+            /** Format: uuid */
+            declarationId: string;
+            /** Format: uuid */
+            versionId: string;
+            version: number;
+            /** Format: date */
+            statementDate: string;
+            /** Format: date-time */
+            submittedAt: string;
+        };
+        InternalObligation: {
+            /** Format: uuid */
+            obligationId: string;
+            /** Format: uuid */
+            rosterRecordId: string;
+            /** @description Null until the declarant onboards */
+            personId: string | null;
+            type: components["schemas"]["ObligationType"];
+            cycleKey: string;
+            /** Format: date */
+            dueDate: string;
+            status: components["schemas"]["ObligationStatus"];
+            declarantName: string;
+            personnelFileNumber: string;
+        };
+        InternalPersonObligation: {
+            /** Format: uuid */
+            obligationId: string;
+            type: components["schemas"]["ObligationType"];
+            cycleKey: string;
+            status: components["schemas"]["ObligationStatus"];
+            /** Format: date */
+            dueDate: string;
+            filedAt: string | null;
+            late: boolean;
+        };
+        InternalObligationDetails: {
+            items: {
+                /** Format: uuid */
+                obligationId: string;
+                name: string;
+                /** @description Empty when the roster gives none */
+                designation: string;
+                /** @description Personnel file number, or another staff, ID or passport number */
+                fileNumber: string;
+                appointmentDate: string | null;
+                exitDate: string | null;
+            }[];
+        };
         ProblemDetails: {
             type: string;
             title: string;
@@ -1674,42 +1760,6 @@ export interface components {
             rating: "helpful" | "not-helpful" | null;
             /** Format: date-time */
             at: string;
-        };
-        InternalVersionDocument: {
-            /** Format: uuid */
-            declarationId: string;
-            /** Format: uuid */
-            versionId: string;
-            version: number;
-            /**
-             * Format: uuid
-             * @description The declarant; the review service looks up their previous version with it
-             */
-            personId: string;
-            reference: components["schemas"]["DeclarationReference"];
-            type: components["schemas"]["ObligationType"];
-            /** Format: date */
-            statementDate: string;
-            /** Format: date-time */
-            submittedAt: string;
-            late: boolean;
-            /** Format: date */
-            dueDate: string;
-            declarantName: string;
-            personnelFileNumber: string;
-            /** @description The immutable declaration.v1 document, decrypted */
-            document: {
-                [key: string]: unknown;
-            };
-            attachments: {
-                /** Format: uuid */
-                uploadId: string;
-                /** Format: uuid */
-                itemId: string;
-                personKey: string;
-                fileName: string;
-                sha256: string;
-            }[];
         };
     };
     responses: {
@@ -3349,14 +3399,15 @@ export interface operations {
             query?: never;
             header: {
                 /** @description Tenant the calling service acts for; the resource must belong to it */
-                "X-Acting-Tenant": components["parameters"]["ActingTenant"];
+                "X-Acting-Tenant": string;
+                /** @description The review case the read is for; recorded as the audit event's legal basis */
+                "X-Review-Case"?: string;
                 /** @description Staff subject on whose behalf the content is read; recorded in the audit event */
                 "X-Acting-Subject": string;
-                "X-Review-Case"?: string;
             };
             path: {
-                declarationId: components["parameters"]["DeclarationId"];
-                version: components["parameters"]["VersionNumber"];
+                declarationId: string;
+                version: number;
             };
             cookie?: never;
         };
@@ -3371,7 +3422,33 @@ export interface operations {
                     "application/json": components["schemas"]["InternalVersionDocument"];
                 };
             };
-            404: components["responses"]["NotFound"];
+            /** @description X-Acting-Subject missing, or X-Review-Case not a UUID */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Requires a service token with scope declarations:internal */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description No such version of the acting tenant's declarations */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
         };
     };
     internalFindPreviousVersion: {
@@ -3382,7 +3459,7 @@ export interface operations {
             };
             header: {
                 /** @description Tenant the calling service acts for; the resource must belong to it */
-                "X-Acting-Tenant": components["parameters"]["ActingTenant"];
+                "X-Acting-Tenant": string;
             };
             path?: never;
             cookie?: never;
@@ -3395,21 +3472,180 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        /** Format: uuid */
-                        declarationId: string;
-                        /** Format: uuid */
-                        versionId: string;
-                        version: number;
-                        /** Format: date */
-                        statementDate: string;
-                        /** Format: date-time */
-                        submittedAt: string;
-                    };
+                    "application/json": components["schemas"]["InternalPreviousVersion"];
+                };
+            };
+            /** @description Query failed validation */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Requires a service token with scope declarations:internal */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
             /** @description No earlier submitted version */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    internalGetObligation: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Tenant the calling service acts for; the resource must belong to it */
+                "X-Acting-Tenant": string;
+            };
+            path: {
+                obligationId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The obligation */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InternalObligation"];
+                };
+            };
+            /** @description obligationId is not a UUID */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Requires a service token with scope declarations:internal */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description No such obligation of the acting tenant's Commission */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    internalListPersonObligations: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Tenant the calling service acts for; the resource must belong to it */
+                "X-Acting-Tenant": string;
+            };
+            path: {
+                personId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Obligations */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InternalPersonObligation"][];
+                };
+            };
+            /** @description personId is not a UUID */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Requires a service token with scope declarations:internal */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description The acting tenant holds no obligation of the person */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    internalObligationDetails: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Tenant the calling service acts for; the resource must belong to it */
+                "X-Acting-Tenant": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    obligationIds: string[];
+                };
+            };
+        };
+        responses: {
+            /** @description The officers, one per known obligation */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InternalObligationDetails"];
+                };
+            };
+            /** @description Body failed validation: no ids, more than 1,000, or one not a UUID */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Requires a service token with scope declarations:internal */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -3468,83 +3704,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["InternalVersionDocument"];
-                };
-            };
-            404: components["responses"]["NotFound"];
-        };
-    };
-    internalGetObligation: {
-        parameters: {
-            query?: never;
-            header: {
-                /** @description Tenant the calling service acts for; the resource must belong to it */
-                "X-Acting-Tenant": components["parameters"]["ActingTenant"];
-            };
-            path: {
-                obligationId: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description The obligation */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        /** Format: uuid */
-                        obligationId: string;
-                        /** Format: uuid */
-                        rosterRecordId: string;
-                        /** Format: uuid */
-                        personId: string | null;
-                        type: components["schemas"]["ObligationType"];
-                        cycleKey: string;
-                        /** Format: date */
-                        dueDate: string;
-                        status: components["schemas"]["ObligationStatus"];
-                        declarantName: string;
-                        personnelFileNumber: string;
-                    };
-                };
-            };
-            404: components["responses"]["NotFound"];
-        };
-    };
-    internalListPersonObligations: {
-        parameters: {
-            query?: never;
-            header: {
-                /** @description Tenant the calling service acts for; the resource must belong to it */
-                "X-Acting-Tenant": components["parameters"]["ActingTenant"];
-            };
-            path: {
-                personId: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Obligations */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        /** Format: uuid */
-                        obligationId: string;
-                        type: components["schemas"]["ObligationType"];
-                        cycleKey: string;
-                        status: components["schemas"]["ObligationStatus"];
-                        /** Format: date */
-                        dueDate: string;
-                        /** Format: date-time */
-                        filedAt: string | null;
-                        late: boolean;
-                    }[];
                 };
             };
             404: components["responses"]["NotFound"];
@@ -3968,50 +4127,6 @@ export interface operations {
                 };
             };
             404: components["responses"]["NotFound"];
-        };
-    };
-    internalObligationDetails: {
-        parameters: {
-            query?: never;
-            header: {
-                /** @description Tenant the calling service acts for; the resource must belong to it */
-                "X-Acting-Tenant": string;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": {
-                    obligationIds: string[];
-                };
-            };
-        };
-        responses: {
-            /** @description The officers, one per known obligation */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        items: {
-                            /** Format: uuid */
-                            obligationId: string;
-                            name: string;
-                            designation: string;
-                            /** @description Personnel file number, or another staff, ID or passport number */
-                            fileNumber: string;
-                            /** Format: date */
-                            appointmentDate: string | null;
-                            /** Format: date */
-                            exitDate: string | null;
-                        }[];
-                    };
-                };
-            };
-            400: components["responses"]["ValidationProblem"];
-            403: components["responses"]["Forbidden"];
         };
     };
 }
