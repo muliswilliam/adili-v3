@@ -277,7 +277,7 @@
       "citation": "Act First Schedule, note 13",
       "title": "Guideline 13",
       "text": "Income, assets and liabilities that a public officer may have outside Kenya, should be declared. Joint assets, properties, personal and business accounts within and outside Kenya should also be declared.",
-      "tags": ["foreign", "joint", "assets", "income", "liabilities", "statement"]
+      "tags": ["foreign", "joint", "assets", "income", "liabilities", "statement", "bank-account"]
     },
     {
       "citation": "Act First Schedule, note 14",
@@ -331,7 +331,21 @@
       "citation": "Act First Schedule, para. 8",
       "title": "Financial statement",
       "text": "8. Financial statement for _______________________(A separate statement is required for the officer and each spouse and dependent child under the age of 18 years. Additional sheets should be added as required.) (a) Statement date: (b) Income, including emoluments, for periods from __________________ to ____________________(Including, but not limited to, salary and emoluments and.income from investments. The period is from the previous statement date to the current statement date. For an initial declaration, the period is the year ending on the statement date.) Description Approximate amount (c) Assets (as of the statement date)(Including, but not limited to, land, buildings, vehicles, investments and financial obligations owed to the person for whom the statement is made.) Description (include location of asset where applicable) Approximate value (c) Liabilities (as of the statement date) Description Approximate amount",
-      "tags": ["statement", "statement-date", "income-period", "income", "assets", "liabilities"]
+      "tags": [
+        "statement",
+        "statement-date",
+        "income-period",
+        "income",
+        "assets",
+        "liabilities",
+        "land",
+        "building",
+        "vehicle",
+        "securities",
+        "receivable",
+        "salary-emoluments",
+        "dividends-interest"
+      ]
     },
     {
       "citation": "Act First Schedule, para. 9",
@@ -367,7 +381,7 @@
       "citation": "Act Second Schedule, item 3",
       "title": "Registrable interest 3",
       "text": "Securities (shares, bonds, debentures or any other similar holding) in a company or enterprise or undertaking the aggregate nominal or market value of which exceeds a prescribed value while the state officer was in office.",
-      "tags": ["registrable-interest", "other", "assets"]
+      "tags": ["registrable-interest", "other", "assets", "securities", "shareholding"]
     },
     {
       "citation": "Act Second Schedule, item 4",
@@ -391,13 +405,13 @@
       "citation": "Act Second Schedule, item 7",
       "title": "Registrable interest 7",
       "text": "Shareholdings (amounting or not amounting to a controlling interest).",
-      "tags": ["registrable-interest", "other", "assets"]
+      "tags": ["registrable-interest", "other", "assets", "shareholding"]
     },
     {
       "citation": "Act Second Schedule, item 8",
       "title": "Registrable interest 8",
       "text": "Land and property.",
-      "tags": ["registrable-interest", "other", "assets"]
+      "tags": ["registrable-interest", "other", "assets", "land", "building"]
     },
     {
       "citation": "Act Second Schedule, item 9",
