@@ -63,6 +63,8 @@ export interface Caller {
 export interface WriteOptions {
   /** Random by default; null sends no header. */
   idempotencyKey?: string | null;
+  /** Extra headers, e.g. `X-Acting-Tenant` for a service. */
+  headers?: Record<string, string>;
 }
 
 export interface AnonymousRequest {
@@ -224,13 +226,14 @@ export async function startDirectoryApi(options: DirectoryApiOptions = {}): Prom
     path: string,
     body: unknown,
     caller: Caller,
-    { idempotencyKey = randomUUID() }: WriteOptions = {},
+    { idempotencyKey = randomUUID(), headers = {} }: WriteOptions = {},
   ) => {
     const token = await signer(caller);
     return app.inject({
       method,
       url: path,
       headers: {
+        ...headers,
         authorization: `Bearer ${token}`,
         ...(idempotencyKey === null ? {} : { 'idempotency-key': idempotencyKey }),
       },

@@ -2,9 +2,9 @@ import type { ContactChannel } from '@adili/contacts';
 import { and, eq, isNull, or } from 'drizzle-orm';
 
 import type { Transaction } from '../commissions/commissions.service.js';
-import { type ContactSource, rosterRecords } from '../roster/schema.js';
+import { rosterRecords } from '../roster/schema.js';
 import { CHANNELS } from './channels.js';
-import type { onboardingSessions } from './schema.js';
+import type { onboardingSessions, SessionContactSource } from './schema.js';
 
 type SessionRow = typeof onboardingSessions.$inferSelect;
 type SessionContactColumns = (typeof CHANNELS)[ContactChannel]['session'];
@@ -13,7 +13,7 @@ type SessionContactColumns = (typeof CHANNELS)[ContactChannel]['session'];
 export interface SessionContact {
   /** The email address, or the phone number in E.164. */
   value: string | null;
-  source: ContactSource | null;
+  source: SessionContactSource | null;
   verifiedAt: Date | null;
 }
 
@@ -55,6 +55,7 @@ export async function writeBackDeclarantContact(
 ): Promise<void> {
   const { value, source, verifiedAt } = sessionContact(session, channel);
   if (source !== 'declarant' || value === null || verifiedAt === null) return;
+  if (session.rosterRecordId === null) return;
   const columns = CHANNELS[channel].roster;
   await tx
     .update(rosterRecords)

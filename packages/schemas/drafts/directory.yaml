@@ -1,66 +1,9 @@
-# Drafted operations of the directory API not implemented yet: public applicant onboarding and
-# a Commission's staff by role (spec 09). `pnpm --filter @adili/directory contracts`
+# Drafted operations of the directory API not implemented yet: a Commission's staff by role
+# (spec 09). `pnpm --filter @adili/directory contracts`
 # merges them into packages/schemas/internal/directory.yaml, where they may reference the
 # implemented components (e.g. `#/components/schemas/Commission`). When an operation or component
 # is implemented, delete it here: the export fails while both define it.
 paths:
-  /v1/onboarding/applicants:
-    post:
-      tags: [onboarding]
-      operationId: startApplicantOnboarding
-      summary: Start onboarding as a public applicant (national ID with IPRS check, or passport pending manual verification)
-      security: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [identityDocument, names, phone]
-              properties:
-                identityDocument:
-                  type: object
-                  required: [kind, number]
-                  properties:
-                    kind:
-                      type: string
-                      enum: [national-id, passport]
-                    number:
-                      type: string
-                    country:
-                      type: string
-                names:
-                  type: object
-                  required: [surname, firstName]
-                  properties:
-                    surname:
-                      type: string
-                    firstName:
-                      type: string
-                    otherNames:
-                      type: string
-                phone:
-                  type: string
-                email:
-                  type: string
-                  format: email
-      responses:
-        '201':
-          description: Session created; phone OTP sent
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/OnboardingSessionCreated'
-        '400':
-          $ref: '#/components/responses/ValidationProblem'
-        '409':
-          description: The identity document does not match IPRS, or belongs to an existing account
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/OnboardingProblem'
-        '429':
-          $ref: '#/components/responses/RateLimited'
   /internal/v1/commissions/{slug}/staff:
     get:
       tags: [internal]
@@ -105,42 +48,7 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
 components:
-  parameters:
-    IdempotencyKey:
-      name: Idempotency-Key
-      in: header
-      required: true
-      description: Client-generated UUID, unique per logical request; reuse on retry
-      schema:
-        type: string
-        format: uuid
-    SessionId:
-      name: sessionId
-      in: path
-      required: true
-      schema:
-        type: string
-        format: uuid
-    OnboardingSecret:
-      name: X-Onboarding-Secret
-      in: header
-      required: true
-      description: Session secret returned once at creation; held by the portal BFF in an httpOnly cookie
-      schema:
-        type: string
   responses:
-    RateLimited:
-      description: 'Problem code `rate-limit-exceeded`; RateLimit-* headers present'
-      content:
-        application/problem+json:
-          schema:
-            $ref: '#/components/schemas/OnboardingProblem'
-    SessionEnded:
-      description: 'Problem code `session-expired`; the cookie is cleared'
-      content:
-        application/problem+json:
-          schema:
-            $ref: '#/components/schemas/OnboardingProblem'
     NotFound:
       description: Not found, or not visible to the caller
       content:

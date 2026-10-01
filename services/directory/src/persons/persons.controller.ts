@@ -83,7 +83,8 @@ export class DeclarantProfileController {
  * Internal: not routed by the public entrypoint. Contacts are personal data: only the
  * notifications service's token carries `directory:person-contacts`, and it names the tenant it
  * sends for in X-Acting-Tenant (ADR-013 §8.1, ADR-017); a declarant not onboarded there is 404.
- * Law-enforcement officers are reached for any tenant.
+ * Law-enforcement officers and applicants, who belong to no Commission, are reached for any
+ * tenant (spec 10).
  */
 @ApiTags('internal')
 @Controller('internal/v1/persons')
@@ -98,7 +99,7 @@ export class InternalPersonsController {
     operationId: 'internalGetPersonContacts',
     summary: 'Verified contacts of a person (notifications)',
     description:
-      "Service tokens with scope directory:person-contacts (the notifications service only), acting for the tenant a message is sent for; audited. A declarant's email and phone verified at the latest onboarding, null where none; a law-enforcement officer's official email and phone as provisioned, whatever the acting tenant (officers request from any Commission). 404 when the person is unknown, or a declarant not onboarded at that tenant.",
+      "Service tokens with scope directory:person-contacts (the notifications service only), acting for the tenant a message is sent for; audited. A declarant's email and phone verified at the latest onboarding, null where none; a law-enforcement officer's official email and phone as provisioned, and an applicant's as entered at applicant onboarding, whatever the acting tenant (officers and applicants request from any Commission). 404 when the person is unknown, or a declarant not onboarded at that tenant.",
   })
   @ApiOkResponse({
     description: 'Contacts, null where none is verified',

@@ -2,6 +2,12 @@ import { Module } from '@nestjs/common';
 import { MESSAGES_SCOPE } from '@adili/roles';
 
 import { Clock, SystemClock } from '../clock.js';
+import {
+  ApplicantSessionController,
+  ApplicantStartController,
+} from './applicants/applicants.controller.js';
+import { ApplicantCompleteService } from './applicants/complete.service.js';
+import { ApplicantStartService } from './applicants/start.service.js';
 import { config } from '../config.js';
 import { directoryServiceTokens } from '../service-tokens.js';
 import { OnboardingCodesController } from './codes/codes.controller.js';
@@ -26,8 +32,8 @@ import { OnboardingSessionsController } from './sessions/sessions.controller.js'
 import { OnboardingSessions } from './sessions.repository.js';
 
 /**
- * Declarant onboarding (spec 03): the public routes under `/v1/onboarding` that turn a roster
- * record into a declarant account.
+ * Onboarding: the public routes under `/v1/onboarding` that turn a roster record into a declarant
+ * account (spec 03), and a member of the public into an applicant account (spec 10).
  *
  * - `session-state.ts`: states, allowed moves, timing rules (pure).
  * - `sessions.repository.ts`: `OnboardingSessions`, the only way to read and change a session:
@@ -47,6 +53,10 @@ import { OnboardingSessions } from './sessions.repository.js';
  * - `commissions/onboarding-commission.ts`, `contacts.ts`: the Commission and per-channel contact
  *   helpers every step shares.
  * - `iprs/`: the `IprsLookup` port onto the integration-gateway and the confirm step's name rule.
+ * - `applicants/`: applicant onboarding under `v1/onboarding/applicants`, on the same sessions
+ *   (kind `applicant`: no Commission, no roster record, the phone's code only): start (IPRS for a
+ *   national ID, none for a passport), the code (`codes/`), complete (person and account),
+ *   resend-password-email (`password-email/`).
  * - `events.ts`: every onboarding event; `rejection.ts`: fail after committing (attempt counts).
  */
 @Module({
@@ -58,6 +68,8 @@ import { OnboardingSessions } from './sessions.repository.js';
     ConfirmController,
     PasswordEmailController,
     OnboardingFailuresController,
+    ApplicantStartController,
+    ApplicantSessionController,
   ],
   providers: [
     { provide: Clock, useClass: SystemClock },
@@ -80,6 +92,8 @@ import { OnboardingSessions } from './sessions.repository.js';
     iprsLookupProvider,
     ConfirmService,
     PasswordEmailService,
+    ApplicantStartService,
+    ApplicantCompleteService,
   ],
   exports: [OnboardingSessionSweeper],
 })

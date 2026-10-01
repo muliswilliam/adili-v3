@@ -3,7 +3,7 @@ import { errorType, ProblemException } from '@adili/api-kit';
 import { EventPublisher } from '@adili/events';
 import { allocateReference, OFR } from '@adili/numbering';
 import { CONTACT_CHANNELS } from '@adili/contacts';
-import { eq, sql } from 'drizzle-orm';
+import { and, eq, sql } from 'drizzle-orm';
 
 import type { Transaction } from '../../commissions/commissions.service.js';
 import {
@@ -32,12 +32,15 @@ import {
   type OnboardingOutcome,
 } from '../session-state.js';
 import {
+  type DeclarantSessionRow,
   OnboardingSessions,
   sessionEnded,
   type SessionContext,
   wrongStep,
 } from '../sessions.repository.js';
-import { setPasswordEmail } from './set-password-email.js';
+
+type DeclarantContext = SessionContext<DeclarantSessionRow>;
+import { sendSetPasswordEmail, undoIdentityChanges } from './account.js';
 
 type RosterRecord = Pick<
   typeof rosterRecords.$inferSelect,
@@ -107,7 +110,12 @@ export class ConfirmService {
       if (confirmed === RECHECK) continue;
       if (
         confirmed.setPasswordEmailFor &&
-        !(await this.sendSetPasswordEmail(sessionId, confirmed.setPasswordEmailFor))
+        !(await sendSetPasswordEmail(
+          this.identity,
+          this.logger,
+          sessionId,
+          confirmed.setPasswordEmailFor,
+        ))
       ) {
         return this.setPasswordEmailFailed(credentials, confirmed.result);
       }
@@ -122,7 +130,7 @@ export class ConfirmService {
    * record can still onboard; a record that exited or onboarded otherwise ends the session.
    */
   private async confirmable(
-    { tx, session, now }: SessionContext,
+    { tx, session, now }: DeclarantContext,
     { lock }: { lock: boolean },
   ): Promise<RosterRecord | Rejection> {
     if (session.state !== 'phone-verified') throw wrongStep();
@@ -169,7 +177,7 @@ export class ConfirmService {
         return this.onboard(context, record, undo);
       });
     } catch (error) {
-      await this.undo(undo, credentials.sessionId);
+      await undoIdentityChanges(undo, this.logger, credentials.sessionId);
       if (error instanceof EmailTaken) throw ProblemException.fromCode('email-in-use');
       if (
         error instanceof IdentityUnavailable ||
@@ -188,7 +196,7 @@ export class ConfirmService {
 
   /** Flags the record for its reporting officer and ends the session `identity-mismatch`. */
   private async mismatch(
-    { tx, session, now }: SessionContext,
+    { tx, session, now }: DeclarantContext,
     record: RosterRecord,
     iprsOutcome: Exclude<IprsOutcome, 'match'>,
   ): Promise<OnboardingConfirmResult> {
@@ -211,7 +219,7 @@ export class ConfirmService {
   }
 
   private async onboard(
-    { tx, session, now }: SessionContext,
+    { tx, session, now }: DeclarantContext,
     record: RosterRecord,
     undo: Restore[],
   ): Promise<Confirmed> {
@@ -223,15 +231,16 @@ export class ConfirmService {
     await tx.execute(
       sql`select pg_advisory_xact_lock(hashtextextended(${`person:${record.nationalId}`}, 0))`,
     );
+    // An applicant with this national ID is another person with another account (spec 10).
     const [existing] = await tx
       .select({ id: persons.id, ofr: persons.ofr, keycloakUserId: persons.keycloakUserId })
       .from(persons)
-      .where(eq(persons.nationalId, record.nationalId));
+      .where(and(eq(persons.kind, 'declarant'), eq(persons.nationalId, record.nationalId)));
 
     let person: { id: string; ofr: string; keycloakUserId: string };
     let outcome: OnboardingOutcome;
     if (existing) {
-      // Only declarants have a national ID, and every declarant has an OFR (by constraint).
+      // Every declarant has an OFR (by constraint).
       if (existing.ofr === null) throw new Error(`Person ${existing.id} has no OFR`);
       // Linking adds the Commission and nothing else: the person's contacts (and the account's)
       // stay as their first onboarding verified them.
@@ -307,26 +316,6 @@ export class ConfirmService {
   }
 
   /**
-   * The set-password email of a committed new account; whether it went. Not sent, the account
-   * stands (an email cannot be taken back, so it is not part of the transaction, ADR-014).
-   */
-  private async sendSetPasswordEmail(sessionId: string, keycloakUserId: string): Promise<boolean> {
-    try {
-      await this.identity.sendExecuteActionsEmail(keycloakUserId, setPasswordEmail());
-      return true;
-    } catch (error) {
-      if (!(error instanceof IdentityUnavailable || error instanceof IdentityUserNotFound)) {
-        throw error;
-      }
-      this.logger.warn(
-        { sessionId, err: errorType(error) },
-        'Set-password email of a new declarant account not sent; the declarant can resend it',
-      );
-      return false;
-    }
-  }
-
-  /**
    * Records that the set-password email did not go: the session forgets when it was sent, so it
    * says `setPasswordEmail: failed` and resend is open at once, and the answer says so too.
    * A replay of this confirm (same Idempotency-Key) returns that stored `failed` answer even after
@@ -343,20 +332,6 @@ export class ConfirmService {
       });
       return { ...confirmed, session: await this.sessions.view(tx, amended, now) };
     });
-  }
-
-  /** Undoes what the identity provider did for a confirm that did not commit, latest first. */
-  private async undo(undo: Restore[], sessionId: string): Promise<void> {
-    for (const restore of undo.reverse()) {
-      try {
-        await restore();
-      } catch (error) {
-        this.logger.error(
-          { sessionId, err: errorType(error) },
-          'Could not undo an identity change of a failed confirm',
-        );
-      }
-    }
   }
 }
 

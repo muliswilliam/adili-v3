@@ -85,6 +85,13 @@ export const DIRECTORY_INTERNAL_SCOPE = 'directory:internal';
 export const DIRECTORY_PERSON_CONTACTS_SCOPE = 'directory:person-contacts';
 
 /**
+ * Applicants' particulars in the directory (identity document, identity status, contacts):
+ * personal data, so a scope of its own, held by the access client alone, which reads them for
+ * Form K and records an access officer's manual verification of a passport applicant (spec 10).
+ */
+export const DIRECTORY_APPLICANTS_SCOPE = 'directory:applicants';
+
+/**
  * A roster record's national ID in the directory: personal data, so a scope of its own, held by
  * the review client alone for payroll's salary stoppage and the ICMS referral (spec 08).
  */

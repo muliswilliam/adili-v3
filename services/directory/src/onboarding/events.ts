@@ -1,23 +1,48 @@
+import type { NewEvent } from '@adili/events';
+
+import type { IdentityDocumentKind, IdentityStatus } from '../persons/schema.js';
 import { tenantEvent } from '../tenant-event.js';
-import type { EndReason, OnboardingState } from './session-state.js';
+import type { EndReason, OnboardingKind, OnboardingState } from './session-state.js';
 
 /**
- * Events of declarant onboarding (spec 03): the audit trail of every session state change, and
- * what downstream services act on. Ids and states only: never a national ID, file number, name,
- * contact or code (ADR-013 §3). The `tenant` extension is the Commission's slug.
+ * Events of onboarding, declarants' (spec 03) and applicants' (spec 10): the audit trail of every
+ * session state change, and what downstream services act on. Ids and states only: never a
+ * national ID, passport or file number, name, contact or code (ADR-013 §3). The `tenant`
+ * extension is the Commission's slug; an applicant's session has none, so its events carry no
+ * `tenant`.
  */
+
+/**
+ * The factory of one type of event about a session: `tenant` is the session's Commission, or
+ * null for an applicant's session (then the event has no `tenant`).
+ */
+function sessionEvent<TData extends Record<string, unknown> & { sessionId: string }>(
+  type: string,
+): (tenant: string | null, data: TData) => NewEvent<TData> {
+  return (tenant, data) => ({
+    type,
+    subject: data.sessionId,
+    ...(tenant === null ? {} : { tenant }),
+    data,
+  });
+}
 
 export const ONBOARDING_SESSION_STARTED = 'onboarding.session.started.v1';
 
 export interface OnboardingSessionStartedData extends Record<string, unknown> {
   sessionId: string;
-  rosterRecordId: string;
+  /** `applicant` for an applicant's session; absent (a declarant's) before spec 10. */
+  kind?: OnboardingKind;
+  /** The roster record a declarant's session is for; absent for an applicant's. */
+  rosterRecordId?: string;
 }
 
-/** Identify matched a roster record and a session began (state `identified`). */
-export const onboardingSessionStarted = tenantEvent<OnboardingSessionStartedData>(
+/**
+ * A session began (state `identified`): identify matched a roster record, or an applicant
+ * started (their national ID matched IPRS, or they gave a passport).
+ */
+export const onboardingSessionStarted = sessionEvent<OnboardingSessionStartedData>(
   ONBOARDING_SESSION_STARTED,
-  (data) => data.sessionId,
 );
 
 export const ONBOARDING_SESSION_ADVANCED = 'onboarding.session.advanced.v1';
@@ -31,9 +56,8 @@ export interface OnboardingSessionAdvancedData extends Record<string, unknown> {
 }
 
 /** A session moved to its next live state (a code sent, a contact verified, ...). */
-export const onboardingSessionAdvanced = tenantEvent<OnboardingSessionAdvancedData>(
+export const onboardingSessionAdvanced = sessionEvent<OnboardingSessionAdvancedData>(
   ONBOARDING_SESSION_ADVANCED,
-  (data) => data.sessionId,
 );
 
 export const ONBOARDING_SESSION_ENDED = 'onboarding.session.ended.v1';
@@ -45,10 +69,8 @@ export interface OnboardingSessionEndedData extends Record<string, unknown> {
 }
 
 /** A session reached a terminal state, for audit and abuse analytics. */
-export const onboardingSessionEnded = tenantEvent<OnboardingSessionEndedData>(
-  ONBOARDING_SESSION_ENDED,
-  (data) => data.sessionId,
-);
+export const onboardingSessionEnded =
+  sessionEvent<OnboardingSessionEndedData>(ONBOARDING_SESSION_ENDED);
 
 export const ONBOARDING_IDENTITY_MISMATCH = 'onboarding.identity-mismatch.v1';
 
@@ -79,6 +101,22 @@ export const declarantOnboarded = tenantEvent<DeclarantOnboardedData>(
   DECLARANT_ONBOARDED,
   (data) => data.rosterRecordId,
 );
+
+export const APPLICANT_ONBOARDED = 'applicant.onboarded.v1';
+
+export interface ApplicantOnboardedData extends Record<string, unknown> {
+  personId: string;
+  keycloakUserId: string;
+  sessionId: string;
+  documentKind: IdentityDocumentKind;
+  /** `verified` (IPRS matched the national ID) or `pending-verification` (a passport). */
+  identityStatus: IdentityStatus;
+}
+
+/** Applicant onboarding completed: a person of kind `applicant` and their account (spec 10). */
+export function applicantOnboarded(data: ApplicantOnboardedData): NewEvent<ApplicantOnboardedData> {
+  return { type: APPLICANT_ONBOARDED, subject: data.personId, data };
+}
 
 export const ONBOARDING_ABUSE_THRESHOLD = 'onboarding.abuse-threshold.v1';
 
