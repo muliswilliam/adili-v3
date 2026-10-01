@@ -40,13 +40,14 @@ const sameRegistration = (a: string, b: string) =>
 /**
  * The employer-supplier check: whether a company is on an employer's supplier list
  * (external/hr.yaml `listSuppliersByEmployer`). It answers a BRS question (does an officer's
- * company supply their employer), so it is cached, rate limited and broken under BRS, with an
- * operation and subject of its own (`supplierSubject`). An employer HR does not know has no
- * suppliers: false, never not found.
+ * company supply their employer) but calls HR, so it is its own system, `hr-suppliers`: HR
+ * failing opens its circuit, not BRS's, and it has its own rate limit, cache entries, pause and
+ * coverage row. The subject is the employer and company (`supplierSubject`). An employer HR does
+ * not know has no suppliers: false, never not found.
  */
 @Injectable()
 export class SupplierCheckAdapter implements RegistryAdapter<SupplierAnswer> {
-  readonly system = 'brs';
+  readonly system = 'hr-suppliers';
   readonly operation = 'supplies';
   readonly schema = supplierAnswerSchema;
 

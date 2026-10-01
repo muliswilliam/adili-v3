@@ -192,7 +192,7 @@ describe('HttpIntegrationGatewayClient: registries', () => {
   });
 
   it('checks a company against the employer supplier list, with the number in the path', async () => {
-    const fetch = answering({ ...envelope, system: 'brs', supplies: true });
+    const fetch = answering({ ...envelope, system: 'hr-suppliers', supplies: true });
 
     const result = await client(fetch).checkSupplier('PVT-9XYZ2L4Q', 'KEMSA', context);
 

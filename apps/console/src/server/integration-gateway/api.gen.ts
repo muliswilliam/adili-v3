@@ -113,7 +113,7 @@ export interface paths {
         };
         /**
          * Whether a company is on an employer's supplier list (HR), for the BRS check
-         * @description Every lookup, answered or not, is recorded with its legal basis and case reference, the answer encrypted under the acting tenant, and emits registry.lookup.performed.v1. Answers (found and not found) are cached for 24 hours. A registry that gives no answer is outcome unavailable with a reason, never an error. Filed under BRS. An employer HR does not know has no suppliers: false. Requires a service token with scope `registry` acting for the Commission.
+         * @description Every lookup, answered or not, is recorded with its legal basis and case reference, the answer encrypted under the acting tenant, and emits registry.lookup.performed.v1. Answers (found and not found) are cached for 24 hours. A registry that gives no answer is outcome unavailable with a reason, never an error. Its own system, hr-suppliers (HR's supplier lists), with its own breaker, rate limit and pause. An employer HR does not know has no suppliers: false. Requires a service token with scope `registry` acting for the Commission.
          */
         get: operations["checkCompanySuppliesEmployer"];
         put?: never;
@@ -295,7 +295,7 @@ export interface components {
             sex: "F" | "M";
         };
         /** @enum {string} */
-        System: "iprs" | "kra" | "ntsa" | "brs" | "ardhisasa" | "payroll" | "icms";
+        System: "iprs" | "kra" | "ntsa" | "brs" | "ardhisasa" | "hr-suppliers" | "payroll" | "icms";
         /** @enum {string} */
         LookupOutcome: "found" | "not-found" | "unavailable";
         /**

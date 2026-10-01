@@ -11,7 +11,21 @@ import {
   uuid,
 } from 'drizzle-orm/pg-core';
 
-export const SYSTEMS = ['iprs', 'kra', 'ntsa', 'brs', 'ardhisasa', 'payroll', 'icms'] as const;
+/**
+ * Every upstream the gateway calls. `hr-suppliers` is HR's employer supplier lists, asked for the
+ * BRS employer-supplier check: an upstream of its own, so its outages, rate limit and pause never
+ * touch BRS's.
+ */
+export const SYSTEMS = [
+  'iprs',
+  'kra',
+  'ntsa',
+  'brs',
+  'ardhisasa',
+  'hr-suppliers',
+  'payroll',
+  'icms',
+] as const;
 export type System = (typeof SYSTEMS)[number];
 
 export const LOOKUP_OUTCOMES = ['found', 'not-found', 'unavailable'] as const;

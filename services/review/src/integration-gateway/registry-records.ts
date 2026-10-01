@@ -13,7 +13,16 @@ import type {
  */
 
 const outcome = z.enum(['found', 'not-found', 'unavailable']);
-const system = z.enum(['iprs', 'kra', 'ntsa', 'brs', 'ardhisasa', 'payroll', 'icms']);
+const system = z.enum([
+  'iprs',
+  'kra',
+  'ntsa',
+  'brs',
+  'ardhisasa',
+  'hr-suppliers',
+  'payroll',
+  'icms',
+]);
 const isoDate = z.iso.date();
 
 /** `ResultEnvelope`. */

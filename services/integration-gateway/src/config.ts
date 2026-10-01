@@ -30,7 +30,7 @@ export const envSchema = baseEnvSchema.extend({
   NTSA_BASE_URL: z.url(),
   BRS_BASE_URL: z.url(),
   ARDHISASA_BASE_URL: z.url(),
-  /** HR, for employers' supplier lists (the employer-supplier check, filed under BRS). */
+  /** HR, for employers' supplier lists (the BRS employer-supplier check, system `hr-suppliers`). */
   HR_BASE_URL: z.url(),
   /**
    * Per registry: longest wait for one lookup (every call it makes), how long an answer (found
@@ -50,6 +50,9 @@ export const envSchema = baseEnvSchema.extend({
   ARDHISASA_TIMEOUT_MS: timeoutMs,
   ARDHISASA_CACHE_TTL_SECONDS: cacheTtlSeconds,
   ARDHISASA_RATE_LIMIT_PER_MINUTE: ratePerMinute,
+  HR_SUPPLIERS_TIMEOUT_MS: timeoutMs,
+  HR_SUPPLIERS_CACHE_TTL_SECONDS: cacheTtlSeconds,
+  HR_SUPPLIERS_RATE_LIMIT_PER_MINUTE: ratePerMinute,
   /**
    * Longest a lookup queues for its system's rate limit before it is answered unavailable
    * (`rate-limited`) instead.

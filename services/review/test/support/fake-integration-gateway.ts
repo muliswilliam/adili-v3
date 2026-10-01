@@ -24,10 +24,13 @@ export interface StoredInstruction {
 /** What a registry holds about one national ID; a registry left out holds nothing on them. */
 export type RegistryPerson = Partial<RegistryRecords>;
 
+/** The gateway's systems the fake answers for: the registries and HR's supplier lists. */
+export type FakeSystem = LookupSystem | 'hr-suppliers';
+
 /** A lookup the fake gateway recorded, as its verification-results row would hold it. */
 export interface RecordedLookup {
   resultId: string;
-  system: LookupSystem;
+  system: FakeSystem;
   operation: 'lookup' | 'supplies';
   /** Whom it was about: the national ID, or `<employer code>:<registration number>`. */
   subject: string;
@@ -66,7 +69,7 @@ export class FakeIntegrationGateway extends IntegrationGatewayClient {
   readonly storedReads: { resultId: string; tenant: string }[] = [];
   private readonly registry = new Map<string, RegistryPerson>();
   private readonly supplierLists = new Map<string, Set<string>>();
-  private readonly failing = new Map<LookupSystem, { failure: RegistryFailure; times: number }>();
+  private readonly failing = new Map<FakeSystem, { failure: RegistryFailure; times: number }>();
   private storedResultsDown = false;
 
   /** The instructions payroll holds, in the order it received them. */
@@ -100,10 +103,10 @@ export class FakeIntegrationGateway extends IntegrationGatewayClient {
   }
 
   /**
-   * The next `times` lookups of `system` (supplier checks count as BRS) fail as `failure` says;
-   * `Infinity` keeps it failing.
+   * The next `times` lookups of `system` (supplier checks are `hr-suppliers`, as on the gateway)
+   * fail as `failure` says; `Infinity` keeps it failing.
    */
-  failRegistry(system: LookupSystem, failure: RegistryFailure, times = Infinity): void {
+  failRegistry(system: FakeSystem, failure: RegistryFailure, times = Infinity): void {
     this.failing.set(system, { failure, times });
   }
 
@@ -152,7 +155,7 @@ export class FakeIntegrationGateway extends IntegrationGatewayClient {
   ): Promise<SupplierCheckResult> {
     const supplies = this.supplierLists.get(employerCode)?.has(registrationNumber) ?? false;
     return this.answer(
-      'brs',
+      'hr-suppliers',
       'supplies',
       `${employerCode}:${registrationNumber}`,
       context,
@@ -182,7 +185,7 @@ export class FakeIntegrationGateway extends IntegrationGatewayClient {
 
   /** Records the lookup and answers it, failing as `failRegistry` set. */
   private answer(
-    system: LookupSystem,
+    system: FakeSystem,
     operation: RecordedLookup['operation'],
     subject: string,
     context: RegistryContext,

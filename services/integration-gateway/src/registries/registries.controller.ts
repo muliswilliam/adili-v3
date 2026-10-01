@@ -157,7 +157,7 @@ export class RegistriesController {
   @ApiOperation({
     operationId: 'checkCompanySuppliesEmployer',
     summary: "Whether a company is on an employer's supplier list (HR), for the BRS check",
-    description: `${RECORDED} Filed under BRS. An employer HR does not know has no suppliers: false. ${SCOPE}`,
+    description: `${RECORDED} Its own system, hr-suppliers (HR's supplier lists), with its own breaker, rate limit and pause. An employer HR does not know has no suppliers: false. ${SCOPE}`,
   })
   @ApiParam({
     name: 'registrationNumber',
@@ -181,6 +181,6 @@ export class RegistriesController {
     const context: LookupContext = { caller, purpose, tenant };
     const subject = supplierSubject(registration, employer);
     const result = await this.lookups.lookup(this.suppliers, subject, context);
-    return toLookupResult('brs', result, { supplies: null });
+    return toLookupResult(this.suppliers.system, result, { supplies: null });
   }
 }

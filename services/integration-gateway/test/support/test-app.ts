@@ -149,6 +149,7 @@ export async function createTestApp({
       ntsa: registryPolicy,
       brs: registryPolicy,
       ardhisasa: registryPolicy,
+      'hr-suppliers': registryPolicy,
       ...policies,
     } satisfies SystemPolicies)
     .overrideProvider(TokenVerifier)

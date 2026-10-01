@@ -259,7 +259,7 @@ describe('registry lookups', () => {
       expect(planted.statusCode).toBe(200);
       expect(planted.json<Body>()).toEqual({
         resultId: matching(RESULT_ID),
-        system: 'brs',
+        system: 'hr-suppliers',
         outcome: 'found',
         reason: null,
         cached: false,
@@ -299,6 +299,31 @@ describe('registry lookups', () => {
       });
       expect(supplier.json<Body>()).toMatchObject({ outcome: 'unavailable', supplies: null });
       expect((await rows()).map((row) => row.reason)).toEqual(['upstream-error', 'upstream-error']);
+    });
+
+    it('opens the supplier lists circuit on HR failures, not the BRS one', async () => {
+      registries.behaviour.hr = { kind: 'status', status: 500 };
+      for (let call = 0; call < 5; call += 1) {
+        await supplies(`PVT-${String(call)}FAIL`, 'KEMSA');
+      }
+
+      const supplier = await supplies('PVT-9XYZ2L4Q', 'KEMSA');
+      const brs = await lookup('brs/directorship-lookups', SEED.wanjiku);
+
+      expect(supplier.json<Body>()).toMatchObject({
+        system: 'hr-suppliers',
+        outcome: 'unavailable',
+        reason: 'breaker-open',
+      });
+      expect(brs.json<Body>()).toMatchObject({ system: 'brs', outcome: 'found' });
+      expect(registries.calls.brs).toBe(1);
+
+      // Close the circuit again for the tests after: HR answers the probe past the cool-down.
+      registries.behaviour.hr = { kind: 'registry' };
+      t.clock.advance(30_001);
+      expect((await supplies('PVT-9XYZ2L4Q', 'KEMSA')).json<Body>()).toMatchObject({
+        outcome: 'found',
+      });
     });
 
     it('answers rate-limited when the registry refuses the call for its own limit', async () => {
@@ -427,7 +452,7 @@ describe('registry lookups', () => {
       });
       expect(events[2]).toMatchObject({
         subject: supplier.json<Body>().resultId,
-        data: { system: 'brs', outcome: 'found' },
+        data: { system: 'hr-suppliers', outcome: 'found' },
       });
       expect(Object.keys(events[0]?.data ?? {}).sort()).toEqual(
         [
