@@ -1,7 +1,7 @@
 import { Module } from '@nestjs/common';
-import { CoreModule, HttpReadinessCheck } from '@adili/api-kit';
+import { CoreModule, HttpReadinessCheck, IdempotencyModule } from '@adili/api-kit';
 import { CacheModule } from '@adili/cache';
-import { DatabaseModule, DatabaseReadinessCheck } from '@adili/data-access';
+import { DATABASE, DatabaseModule, DatabaseReadinessCheck } from '@adili/data-access';
 import { EventsModule, RabbitMqReadinessCheck } from '@adili/events';
 import { TemporalModule, TemporalReadinessCheck } from '@adili/temporal';
 
@@ -30,6 +30,7 @@ import { VerificationModule } from './verification/verification.module.js';
       schema,
       applicationName: SERVICE_NAME,
     }),
+    IdempotencyModule.forRoot({ database: DATABASE }),
     EventsModule.forRoot({ service: SERVICE_NAME, rabbitmqUrl: config.RABBITMQ_URL }),
     TemporalModule.forRoot({
       address: config.TEMPORAL_ADDRESS,

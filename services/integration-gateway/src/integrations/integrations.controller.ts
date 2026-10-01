@@ -1,6 +1,7 @@
 import { Controller, Get, HttpCode, HttpStatus, Param, Post } from '@nestjs/common';
 import { ApiBearerAuth, ApiOkResponse, ApiOperation, ApiParam, ApiTags } from '@nestjs/swagger';
 import {
+  AcceptIdempotencyKey,
   ApiProblemResponse,
   CurrentPrincipal,
   notFoundIfInvisible,
@@ -45,6 +46,7 @@ export class IntegrationsController {
   }
 
   @Post(':system/pause')
+  @AcceptIdempotencyKey()
   @HttpCode(HttpStatus.OK)
   @systemParam
   @ApiOperation({
@@ -65,6 +67,7 @@ export class IntegrationsController {
   }
 
   @Post(':system/resume')
+  @AcceptIdempotencyKey()
   @HttpCode(HttpStatus.OK)
   @systemParam
   @ApiOperation({

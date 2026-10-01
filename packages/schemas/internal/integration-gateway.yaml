@@ -530,6 +530,13 @@ paths:
           in: path
           schema:
             $ref: '#/components/schemas/System'
+        - name: Idempotency-Key
+          in: header
+          description: Optional. Client-generated UUID, unique per logical request; reuse on retry and the stored answer is replayed instead of acting twice
+          required: false
+          schema:
+            type: string
+            format: uuid
       responses:
         '200':
           description: Paused
@@ -545,6 +552,12 @@ paths:
                 $ref: '#/components/schemas/ProblemDetails'
         '404':
           description: No adapter for the system (payroll and ICMS have no coverage to pause)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '422':
+          description: Idempotency-Key reused with a different request body
           content:
             application/problem+json:
               schema:
@@ -570,6 +583,13 @@ paths:
           in: path
           schema:
             $ref: '#/components/schemas/System'
+        - name: Idempotency-Key
+          in: header
+          description: Optional. Client-generated UUID, unique per logical request; reuse on retry and the stored answer is replayed instead of acting twice
+          required: false
+          schema:
+            type: string
+            format: uuid
       responses:
         '200':
           description: Resumed
@@ -585,6 +605,12 @@ paths:
                 $ref: '#/components/schemas/ProblemDetails'
         '404':
           description: No adapter for the system (payroll and ICMS have no coverage to pause)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '422':
+          description: Idempotency-Key reused with a different request body
           content:
             application/problem+json:
               schema:

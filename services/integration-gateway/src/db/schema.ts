@@ -1,3 +1,4 @@
+import { idempotencySchema } from '@adili/api-kit/schema';
 import type { FieldEnvelope } from '@adili/data-access';
 import { eventsSchema } from '@adili/events/schema';
 import {
@@ -116,8 +117,10 @@ export const integrationSettings = pgTable('integration_settings', {
 /** Drizzle schema of the integration-gateway database. Only this service reads or writes it (ADR-013). */
 export const schema = {
   ...eventsSchema,
+  ...idempotencySchema,
   verificationResults,
   integrationSettings,
 };
 
+export * from '@adili/api-kit/schema';
 export * from '@adili/events/schema';

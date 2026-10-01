@@ -1,3 +1,5 @@
+import { randomUUID } from 'node:crypto';
+
 import { asc, eq } from 'drizzle-orm';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -131,6 +133,20 @@ describe('POST /v1/integrations/{system}/pause and /resume', () => {
     // Resuming a running system changes nothing.
     expect((await act('kra', 'resume')).statusCode).toBe(200);
     expect(await events()).toHaveLength(2);
+  });
+
+  it('accepts an Idempotency-Key: a retry with it replays the answer (ADR-013 §7.5)', async () => {
+    const headers = { ...admin, 'idempotency-key': randomUUID() };
+
+    const first = await act('kra', 'pause', headers);
+    await act('kra', 'resume');
+    const retry = await act('kra', 'pause', headers);
+
+    expect(retry.statusCode).toBe(200);
+    expect(retry.headers['idempotent-replayed']).toBe('true');
+    expect(retry.json()).toEqual(first.json());
+    // The replay paused nothing again: the resume stands.
+    expect(await t.app.get(PauseFlags).isPaused('kra')).toBe(false);
   });
 
   it('shows who paused a system and since when in the coverage', async () => {

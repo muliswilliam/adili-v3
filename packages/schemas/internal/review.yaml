@@ -880,6 +880,8 @@ paths:
     post:
       tags: [cases]
       operationId: recheckCaseRegistries
+      parameters:
+        - $ref: '#/components/parameters/OptionalIdempotencyKey'
       summary: Re-run registry lookups and matching for the case (assignee or supervisor)
       description: >-
         The case's assignee or a supervisor of its Commission; another reviewer gets 403

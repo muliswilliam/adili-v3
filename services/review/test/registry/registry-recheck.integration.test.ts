@@ -245,6 +245,21 @@ describe('registry re-checks and the sweep', () => {
     expect(await eventsOf('review.case.rechecked.v1')).toHaveLength(2);
   });
 
+  it('accepts an Idempotency-Key: a retry with it replays the 202 instead of meeting the cooldown (ADR-013 §7.5)', async () => {
+    const { caseId } = await checkedCase();
+    await claim(caseId);
+    const key = { 'idempotency-key': randomUUID() };
+
+    const first = await api.send('POST', recheckPath(caseId), assignee, undefined, key);
+    expect(first.statusCode).toBe(202);
+    await recheckRun(caseId);
+    const retry = await api.send('POST', recheckPath(caseId), assignee, undefined, key);
+
+    expect(retry.statusCode).toBe(202);
+    expect(retry.headers['idempotent-replayed']).toBe('true');
+    expect(await eventsOf('review.case.rechecked.v1')).toHaveLength(1);
+  });
+
   it('an unassigned case is refused to reviewers; another Commission sees nothing; a determined case is 409', async () => {
     const { caseId } = await checkedCase();
 
