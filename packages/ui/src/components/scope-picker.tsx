@@ -95,7 +95,7 @@ export interface ScopePickerProps {
 /**
  * Chooses the scope of an access request or grant: years, people (the declarant, spouses,
  * children, and clarifications) and sections, each a fieldset with a legend. Side by side from
- * 760px of its own width, stacked below.
+ * 600px of its own width, stacked below (the prototype shows three columns inside a card).
  */
 export function ScopePicker({
   value,
@@ -162,7 +162,7 @@ export function ScopePicker({
 
   return (
     <div className={cn('@container', className)}>
-      <div className="grid gap-3.5 @min-[760px]:grid-cols-[minmax(0,0.8fr)_minmax(0,1fr)_minmax(0,1.1fr)]">
+      <div className="grid gap-3.5 @min-[600px]:grid-cols-[minmax(0,0.8fr)_minmax(0,1fr)_minmax(0,1.1fr)]">
         <ScopeGroup legend="Years" error={errors.years}>
           {sortedYears.map((year) =>
             item({
