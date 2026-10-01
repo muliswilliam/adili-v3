@@ -68,6 +68,13 @@ export interface CleanUpload {
   fileName: string | null;
 }
 
+/** A short-lived link to a clean upload's bytes (documents.yaml `UploadDownload`). */
+export interface UploadDownload {
+  downloadUrl: string;
+  /** ISO 8601; a few minutes ahead. */
+  expiresAt: string;
+}
+
 /** The Commission has no upload with this id: unknown, or another Commission's. */
 export class UploadNotFound extends Error {
   constructor(readonly uploadId: string) {
@@ -103,6 +110,9 @@ export abstract class DocumentsClient {
 
   /** Throws `UploadNotFound` or `UploadNotClean`. */
   abstract getCleanUpload(tenant: string, uploadId: string): Promise<CleanUpload>;
+
+  /** A short-lived download link to a clean upload. Throws `UploadNotFound` or `UploadNotClean`. */
+  abstract uploadDownload(tenant: string, uploadId: string): Promise<UploadDownload>;
 
   /** Keeps the upload from the orphan sweep: something now refers to it. */
   abstract markLinked(tenant: string, uploadId: string): Promise<void>;

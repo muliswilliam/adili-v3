@@ -28,6 +28,7 @@ import {
   DocumentsUnavailable,
   type IssuedDocument,
   type IssueDocumentRequest,
+  type UploadDownload,
   UploadNotClean,
   UploadNotFound,
 } from '../../src/documents/documents-client.js';
@@ -336,6 +337,19 @@ export class FakeDocuments extends DocumentsClient {
     if (!found.clean) return Promise.reject(new UploadNotClean(uploadId));
     const { id, purpose, uploadedBy, fileName } = found;
     return Promise.resolve({ id, purpose, uploadedBy, fileName });
+  }
+
+  uploadDownload(tenant: string, uploadId: string): Promise<UploadDownload> {
+    if (this.failures.take()) {
+      return Promise.reject(new DocumentsUnavailable('The documents service is unreachable'));
+    }
+    const found = this.uploads.get(uploadId);
+    if (found?.tenant !== tenant) return Promise.reject(new UploadNotFound(uploadId));
+    if (!found.clean) return Promise.reject(new UploadNotClean(uploadId));
+    return Promise.resolve({
+      downloadUrl: `https://files.test/uploads/${uploadId}`,
+      expiresAt: '2030-01-01T00:00:00.000Z',
+    });
   }
 
   markLinked(_tenant: string, uploadId: string): Promise<void> {

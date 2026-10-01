@@ -9,6 +9,7 @@ import {
   DocumentsUnavailable,
   type IssuedDocument,
   type IssueDocumentRequest,
+  type UploadDownload,
   UploadNotClean,
   UploadNotFound,
 } from './documents-client.js';
@@ -45,6 +46,11 @@ const internalUploadSchema = z.object({
   state: z.string(),
   uploadedBy: z.string(),
   fileName: z.string().nullable(),
+});
+
+const uploadDownloadSchema = z.object({
+  downloadUrl: z.url(),
+  expiresAt: z.iso.datetime({ offset: true }),
 });
 
 /**
@@ -106,6 +112,17 @@ export class HttpDocumentsClient extends DocumentsClient {
     if (upload.state !== 'clean') throw new UploadNotClean(uploadId);
     const { id, purpose, uploadedBy, fileName } = upload;
     return { id, purpose, uploadedBy, fileName };
+  }
+
+  async uploadDownload(tenant: string, uploadId: string): Promise<UploadDownload> {
+    const { downloadUrl, expiresAt } = await this.documents.call(
+      (api) =>
+        api.GET('/internal/v1/uploads/{id}/download', {
+          params: { path: { id: uploadId }, header: { 'X-Acting-Tenant': tenant } },
+        }),
+      { status: 200, schema: uploadDownloadSchema, otherwise: this.refusals(uploadId) },
+    );
+    return { downloadUrl, expiresAt };
   }
 
   async markLinked(tenant: string, uploadId: string): Promise<void> {

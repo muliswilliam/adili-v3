@@ -1,8 +1,8 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { notFoundIfInvisible, type Principal } from '@adili/api-kit';
+import { notFoundIfInvisible, type Principal, type ReadAudit } from '@adili/api-kit';
 import { DATABASE, FieldCipher, withTenant } from '@adili/data-access';
 import { CANNOT_IDENTIFY_DECLINE_REASON } from '@adili/events/contracts';
-import { and, asc, eq, inArray, sql } from 'drizzle-orm';
+import { and, asc, eq, gte, ilike, inArray, lt, notInArray, or, type SQL, sql } from 'drizzle-orm';
 
 import { commissionTenant, ownCommissionTenant, requireAccessOfficer } from '../access.js';
 import { Clock } from '../clock.js';
@@ -18,8 +18,22 @@ import {
   DirectoryUnavailable,
   type RosterRecordFacts,
 } from '../directory/directory-client.js';
+import {
+  DocumentsClient,
+  DocumentsUnavailable,
+  type UploadDownload,
+  UploadNotClean,
+  UploadNotFound,
+} from '../documents/documents-client.js';
 import { decodeCursor, encodeCursor } from '../paging.js';
-import { badRequest, conflict, directoryUnavailable, problem } from '../problems.js';
+import {
+  badRequest,
+  conflict,
+  directoryUnavailable,
+  documentsUnavailable,
+  notFound,
+  problem,
+} from '../problems.js';
 import { AccessRegister, type RegisterRow } from '../register/access-register.js';
 import { openFormK } from './form-k.js';
 import {
@@ -58,6 +72,7 @@ export class OfficerService {
   constructor(
     @Inject(DATABASE) private readonly db: AccessDatabase,
     private readonly directory: DirectoryClient,
+    private readonly documents: DocumentsClient,
     private readonly cipher: FieldCipher,
     private readonly register: AccessRegister,
     private readonly workflows: AccessRequestWorkflows,
@@ -73,6 +88,7 @@ export class OfficerService {
     const tenant = commissionTenant(principal, slug);
     const after = query.cursor === undefined ? undefined : decodeCursor(query.cursor);
     if (query.kind === 'lea') return { items: [], nextCursor: null };
+    const now = this.clock.now();
     const rows = await withTenant(this.db, { tenant, subject: principal.subject }, (tx) =>
       tx
         .select()
@@ -81,6 +97,8 @@ export class OfficerService {
           and(
             eq(accessRequests.tenant, tenant),
             query.status === undefined ? undefined : inArray(accessRequests.status, query.status),
+            query.late === undefined ? undefined : lateCondition(query.late, now),
+            query.search === undefined ? undefined : searchCondition(query.search),
             after === undefined
               ? undefined
               : sql`(${accessRequests.decisionDeadlineAt}, ${accessRequests.id}) > (${after.at.toISOString()}::timestamptz, ${after.id}::uuid)`,
@@ -89,7 +107,6 @@ export class OfficerService {
         .orderBy(asc(accessRequests.decisionDeadlineAt), asc(accessRequests.id))
         .limit(query.limit + 1),
     );
-    const now = this.clock.now();
     const page = rows.slice(0, query.limit);
     const last = page.at(-1);
     return {
@@ -108,6 +125,37 @@ export class OfficerService {
       officerRecord(tx, requestId),
     );
     return this.view(notFoundIfInvisible(found));
+  }
+
+  /**
+   * A short-lived link to a file the declarant attached to their representations on a request of
+   * the caller's Commission (access officer or supervisor, who read the representations). 404
+   * when the request is not the Commission's or the upload is not attached to it.
+   */
+  async representationAttachmentDownload(
+    principal: Principal,
+    requestId: string,
+    uploadId: string,
+    audit: ReadAudit,
+  ): Promise<UploadDownload> {
+    const tenant = ownCommissionTenant(principal);
+    const found = notFoundIfInvisible(
+      await withTenant(this.db, { tenant, subject: principal.subject }, (tx) =>
+        officerRecord(tx, requestId),
+      ),
+    );
+    const attached = found.representations?.attachments.some(
+      (attachment) => attachment.uploadId === uploadId,
+    );
+    if (!attached) throw notFound();
+    audit.resource({ tenant, subjectPersonId: found.row.resolvedPersonId });
+    try {
+      return await this.documents.uploadDownload(tenant, uploadId);
+    } catch (error) {
+      if (error instanceof UploadNotFound || error instanceof UploadNotClean) throw notFound();
+      if (error instanceof DocumentsUnavailable) throw documentsUnavailable();
+      throw error;
+    }
   }
 
   /**
@@ -184,12 +232,13 @@ export class OfficerService {
         .update(accessRequests)
         .set(
           record === null
-            ? { ...resolution, status: 'cannot-identify' }
+            ? { ...resolution, status: 'cannot-identify', closedAt: now }
             : {
                 ...resolution,
                 resolvedRosterRecordId: record.id,
                 resolvedPersonId: record.personId,
                 resolvedName: record.fullName,
+                resolvedFileNumber: record.personnelFileNumber,
               },
         )
         .where(eq(accessRequests.id, current.id))
@@ -378,6 +427,38 @@ function requireUnderDecision(row: AccessRequestRow): void {
   );
 }
 
+/**
+ * Requests past their decision deadline and neither decided nor closed (`late`), or the others.
+ * The same rule as `QueueItem.late`.
+ */
+function lateCondition(late: boolean, now: Date): SQL | undefined {
+  const closed = [...CLOSED_STATUSES];
+  return late
+    ? and(notInArray(accessRequests.status, closed), lt(accessRequests.decisionDeadlineAt, now))
+    : or(inArray(accessRequests.status, closed), gte(accessRequests.decisionDeadlineAt, now));
+}
+
+/**
+ * The officer's search of the queue: the reference or the identified officer's personnel file
+ * number by their beginning, the applicant's name, the officer Part II names or the identified
+ * officer's name by any part (case-insensitive).
+ */
+function searchCondition(search: string): SQL | undefined {
+  const text = escapeLike(search);
+  return or(
+    ilike(accessRequests.reference, `${text}%`),
+    ilike(accessRequests.resolvedFileNumber, `${text}%`),
+    ilike(accessRequests.applicantName, `%${text}%`),
+    ilike(sql`${accessRequests.officerSought}->>'name'`, `%${text}%`),
+    ilike(accessRequests.resolvedName, `%${text}%`),
+  );
+}
+
+/** `text` with LIKE's wildcards and escape character taken literally. */
+function escapeLike(text: string): string {
+  return text.replace(/[\\%_]/g, (character) => `\\${character}`);
+}
+
 function toQueueItem(row: AccessRequestRow, now: Date): QueueItem {
   return {
     kind: 'form-k',
@@ -386,6 +467,7 @@ function toQueueItem(row: AccessRequestRow, now: Date): QueueItem {
     applicantOrAgency: row.applicantName,
     officerSought: row.officerSought.name,
     resolvedName: row.resolvedName,
+    resolvedFileNumber: row.resolvedFileNumber,
     status: row.status,
     submittedAt: row.submittedAt.toISOString(),
     deadlineAt: row.decisionDeadlineAt.toISOString(),
@@ -393,5 +475,6 @@ function toQueueItem(row: AccessRequestRow, now: Date): QueueItem {
     late:
       !(CLOSED_STATUSES as readonly AccessRequestStatus[]).includes(row.status) &&
       now.getTime() > row.decisionDeadlineAt.getTime(),
+    closedAt: row.decision?.decidedAt ?? row.closedAt?.toISOString() ?? null,
   };
 }

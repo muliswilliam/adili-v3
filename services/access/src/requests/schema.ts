@@ -110,10 +110,14 @@ export const accessRequests = pgTable(
     /** The scope requested (form-k.v1 `scope`). */
     scope: jsonb().$type<Scope>().notNull(),
     status: text().$type<AccessRequestStatus>().notNull(),
-    /** The roster record and person the access officer resolved Part II to, and its full name. */
+    /**
+     * The roster record and person the access officer resolved Part II to, with its full name and
+     * personnel file number as the roster had them then.
+     */
     resolvedRosterRecordId: uuid(),
     resolvedPersonId: uuid(),
     resolvedName: text(),
+    resolvedFileNumber: text(),
     resolvedBy: text(),
     resolvedAt: timestamp({ withTimezone: true }),
     /** When the declarant was notified, and when their window for representations ends. */
@@ -123,6 +127,8 @@ export const accessRequests = pgTable(
     /** Received + `ACCESS_DECISION_DAYS` (30). */
     decisionDeadlineAt: timestamp({ withTimezone: true }).notNull(),
     decision: jsonb().$type<Decision>(),
+    /** When it closed without a decision: withdrawn, or the officer cannot be identified. */
+    closedAt: timestamp({ withTimezone: true }),
     /** The Confidential `access-package` of a grant, and until when its recipient may download it. */
     packageDocumentId: uuid(),
     packageVerificationId: text(),

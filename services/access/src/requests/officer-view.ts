@@ -28,6 +28,9 @@ export type Representations = z.infer<typeof representationsSchema>;
 export const officerRequestViewSchema = accessRequestSchema.extend({
   applicantIdentityStatus: z.enum(APPLICANT_IDENTITY_STATUSES),
   resolvedRosterRecordId: z.uuid().nullable(),
+  /** The roster record's full name and personnel file number, as the roster had them then. */
+  resolvedName: z.string().nullable(),
+  resolvedFileNumber: z.string().nullable(),
   representations: representationsSchema.nullable(),
   windowEndsAt: z.iso.datetime({ offset: true }).nullable(),
 });
@@ -57,6 +60,8 @@ export function toOfficerRequestView(
     ...toAccessRequest(row, formK, timeline),
     applicantIdentityStatus: row.applicantIdentityStatus,
     resolvedRosterRecordId: row.resolvedRosterRecordId,
+    resolvedName: row.resolvedName,
+    resolvedFileNumber: row.resolvedFileNumber,
     representations: representationsRow === null ? null : toRepresentations(representationsRow),
     windowEndsAt: row.windowEndsAt?.toISOString() ?? null,
   };
