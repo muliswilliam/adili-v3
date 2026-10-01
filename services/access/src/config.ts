@@ -47,6 +47,11 @@ export const envSchema = baseEnvSchema.extend({
   REPRESENTATION_WINDOW_DAYS: z.coerce.number().int().min(1).default(7),
   /** Days a granted package stays downloadable by its recipient (ADR-010 §6). */
   PACKAGE_DOWNLOAD_DAYS: z.coerce.number().int().min(1).default(14),
+  /**
+   * Days the Commission has to provide the certified copy a written self-access application asks
+   * for, from its receipt (Administrative Mechanism 32).
+   */
+  SELF_ACCESS_DAYS: z.coerce.number().int().min(1).default(14),
 });
 
 export type Env = z.infer<typeof envSchema>;

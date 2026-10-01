@@ -63,7 +63,11 @@ export const certifiedCopies = pgTable(
 export const DELIVERY_METHODS = ['collection', 'dispatch'] as const;
 export type DeliveryMethod = (typeof DELIVERY_METHODS)[number];
 
-/** The status of an officer-recorded self-access application. */
+/**
+ * The status of an officer-recorded self-access application: `recorded` while its certified copy
+ * is being issued, `issued` once it is (`CertifiedCopyActivities`), `delivered` once the access
+ * officer marked it collected or dispatched.
+ */
 export const SELF_ACCESS_STATUSES = ['recorded', 'issued', 'delivered'] as const;
 export type SelfAccessStatus = (typeof SELF_ACCESS_STATUSES)[number];
 
@@ -75,6 +79,9 @@ export interface SelfAccessRepresentative {
   name: string;
   authorityUploadId: string;
   idUploadId: string;
+  /** The uploads' file names, as the officer's view lists them. */
+  authorityFileName: string;
+  idFileName: string;
 }
 
 export const selfAccessApplications = pgTable(
@@ -85,8 +92,13 @@ export const selfAccessApplications = pgTable(
     /** The declarant, resolved on the Commission's roster. */
     personId: uuid().notNull(),
     rosterRecordId: uuid().notNull(),
+    /** The roster record's full name and personnel file number when it was recorded. */
+    declarantName: text().notNull(),
+    personnelFileNumber: text().notNull(),
     declarationId: uuid().notNull(),
     version: integer().notNull(),
+    /** The declaration's reference (ADR-011), as the officer chose the version by it. */
+    declarationReference: text().notNull(),
     /** What the access officer checked of the applicant's identity; no document numbers. */
     identityNote: text().notNull(),
     representative: jsonb().$type<SelfAccessRepresentative>(),
@@ -94,8 +106,11 @@ export const selfAccessApplications = pgTable(
     representativeIdCiphertext: text(),
     representativeIdEnvelope: jsonb().$type<FieldEnvelope>(),
     status: text().$type<SelfAccessStatus>().notNull(),
-    deliveryMethod: text().$type<DeliveryMethod>(),
+    /** How the copy is to reach the declarant, as marked when it was recorded. */
+    deliveryMethod: text().$type<DeliveryMethod>().notNull(),
+    /** When the copy was collected or dispatched, and the access officer who marked it. */
     deliveredAt: timestamp({ withTimezone: true }),
+    deliveredBy: text(),
     /** Received + 14 days. */
     deadlineAt: timestamp({ withTimezone: true }).notNull(),
     /** Token subject and name of the access officer who recorded it. */

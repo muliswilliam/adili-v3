@@ -8,6 +8,7 @@ import {
   internalObligationDetailsSchema,
   internalObligationSchema,
   internalPersonObligationSchema,
+  internalPersonVersionSchema,
   internalPreviousVersionSchema,
   internalVersionDocumentSchema,
 } from './service-reads/representation.js';
@@ -137,6 +138,7 @@ export const OPENAPI_SCHEMAS: Record<string, z.ZodType> = {
   CorpusPassage: corpusPassageSchema,
   CorpusImportResult: corpusImportResultSchema,
   InternalVersionDocument: internalVersionDocumentSchema,
+  InternalPersonVersion: internalPersonVersionSchema,
   InternalPreviousVersion: internalPreviousVersionSchema,
   InternalObligation: internalObligationSchema,
   InternalPersonObligation: internalPersonObligationSchema,

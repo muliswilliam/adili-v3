@@ -35,6 +35,14 @@ import {
   formKSchema,
 } from './requests/representation.js';
 import { scopeSchema, sectionSchema } from './scope.js';
+import {
+  declarantVersionSchema,
+  declarantVersionsSchema,
+  selfAccessApplicationDetailSchema,
+  selfAccessApplicationInputSchema,
+  selfAccessApplicationSchema,
+  selfAccessPageSchema,
+} from './self-access/application-representation.js';
 import { certifiedCopyRequestSchema, certifiedCopySchema } from './self-access/representation.js';
 
 /**
@@ -76,4 +84,10 @@ export const OPENAPI_SCHEMAS: Record<string, z.ZodType> = {
   LeaVerification: leaVerificationSchema,
   VerifyLeaRequest: verifyLeaRequestBody,
   LeaRequest: leaRequestSchema,
+  DeclarantVersion: declarantVersionSchema,
+  DeclarantVersions: declarantVersionsSchema,
+  SelfAccessApplicationInput: selfAccessApplicationInputSchema,
+  SelfAccessApplication: selfAccessApplicationSchema,
+  SelfAccessApplicationDetail: selfAccessApplicationDetailSchema,
+  SelfAccessPage: selfAccessPageSchema,
 };

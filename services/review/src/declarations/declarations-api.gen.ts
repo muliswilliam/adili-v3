@@ -722,6 +722,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/internal/v1/persons/{personId}/declaration-versions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * A person's submitted versions at the Commission (for certified copies)
+         * @description Service tokens with scope declarations:internal, acting for the Commission in X-Acting-Tenant; audited. Latest submitted first: declaration, version, reference, type, statement date, when submitted and whether a later version replaced it; no content. The access service lists them for the access officer recording a written self-access application. Empty when the acting tenant holds none of the person's.
+         */
+        get: operations["internalListPersonVersions"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/declarations/{declarationId}/suggestions/lookups": {
         parameters: {
             query?: never;
@@ -1665,6 +1685,19 @@ export interface components {
                 fileName: string;
                 sha256: string;
             }[];
+        };
+        InternalPersonVersion: {
+            /** Format: uuid */
+            declarationId: string;
+            version: number;
+            reference: components["schemas"]["DeclarationReference"];
+            type: components["schemas"]["ObligationType"];
+            /** Format: date */
+            statementDate: string;
+            /** Format: date-time */
+            submittedAt: string;
+            /** @description A later version of the declaration replaced it */
+            superseded: boolean;
         };
         InternalPreviousVersion: {
             /** Format: uuid */
@@ -3794,6 +3827,49 @@ export interface operations {
                 };
             };
             /** @description Body failed validation: no ids, more than 1,000, or one not a UUID */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Requires a service token with scope declarations:internal */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    internalListPersonVersions: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Tenant the calling service acts for; the resource must belong to it */
+                "X-Acting-Tenant": string;
+            };
+            path: {
+                personId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Versions */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InternalPersonVersion"][];
+                };
+            };
+            /** @description personId is not a UUID */
             400: {
                 headers: {
                     [name: string]: unknown;

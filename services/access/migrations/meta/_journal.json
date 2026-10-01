@@ -43,6 +43,13 @@
       "when": 1790896541682,
       "tag": "0005_officer_queue_details",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1790896988704,
+      "tag": "0006_self_access_applications",
+      "breakpoints": true
     }
   ]
 }
