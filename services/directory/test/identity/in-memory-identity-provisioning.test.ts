@@ -61,6 +61,10 @@ identityProvisioningContract('InMemoryIdentityProvisioning', () => ({
       admitted ? { tenant: client.tenant, scopes: client.scopes, clientId: client.clientId } : null,
     );
   },
+  verifyEmail: (userId) => {
+    fake.verifyEmail(userId);
+    return Promise.resolve();
+  },
   cleanup: () => {
     fake.reset();
     return Promise.resolve();

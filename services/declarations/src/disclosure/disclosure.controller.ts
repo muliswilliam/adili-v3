@@ -104,7 +104,7 @@ export class InternalDisclosureController {
     const disclosure = await this.disclosures.render(tenant, principal.subject, request);
     audit.resource({ tenant, subjectPersonId: request.personId });
     audit.disclosure({
-      legalBasis: request.legalBasis,
+      basis: request.legalBasis,
       reference: request.grantReference,
       recipient: request.recipientSubject,
     });
@@ -155,7 +155,7 @@ export class InternalDisclosureController {
       personId,
     });
     audit.resource({ tenant, subjectPersonId: personId });
-    audit.disclosure({ legalBasis: SELF_ACCESS, reference: null, recipient });
+    audit.disclosure({ basis: SELF_ACCESS, reference: null, recipient });
     return full;
   }
 }

@@ -6,21 +6,35 @@ export interface AuditedResource {
   tenant: string;
   /** The person the data is about, when known (ADR-008 "subject person id"). */
   subjectPersonId?: string | null;
+  /**
+   * The ids of the resources a batch read served (ADR-008 resource id), e.g. the obligations
+   * whose officers a details request returned. A read of one resource names it in its path.
+   */
+  ids?: readonly string[];
 }
 
 /**
- * A read that hands the data to someone under a legal basis, a disclosure (ADR-008
- * `legal_basis`): a scoped disclosure for a Form K or law-enforcement grant, or a declarant's
- * certified copy of their own declaration.
+ * Why a read was allowed (ADR-008 `legal_basis`): the basis and the act under it that authorises
+ * this read.
  */
-export interface ReadDisclosure {
+export interface ReadLegalBasis {
   /**
-   * The provision the disclosure rests on, e.g. `act-s36-1` (Form K), `act-s36-2` (law
-   * enforcement), `self-access` (Administrative Mechanism 32).
+   * The basis, e.g. a provision (`act-s36-1` for Form K, `act-s36-2` for law enforcement,
+   * `self-access` for Administrative Mechanism 32) or the work the read serves (`review-case`).
    */
-  legalBasis: string;
-  /** The act under it that authorises this read, e.g. the grant's `ARQ` or `LEA` reference; null when none. */
+  basis: string;
+  /**
+   * The act under it that authorises this read, e.g. a grant's `ARQ` or `LEA` reference or the
+   * review case's id; null when none.
+   */
   reference: string | null;
+}
+
+/**
+ * A read that hands the data to someone under a legal basis, a disclosure: a scoped disclosure
+ * for a Form K or law-enforcement grant, or a declarant's certified copy of their own declaration.
+ */
+export interface ReadDisclosure extends ReadLegalBasis {
   /** The subject the data read is handed to (the grant's recipient, the declarant). */
   recipient: string;
 }
@@ -30,13 +44,15 @@ export interface ReadDisclosure {
  * injected with `@CurrentReadAudit()`. A route whose path names the tenant needs none of it: the
  * event is then filed under the route's `slug`, else the tenant a service acts for, else the
  * caller's. A route that loads the resource by id says whose it is once loaded (`resource`), or
- * that the caller read their own record (`ownRecord`), which is not audited. A read that hands
- * the data to someone on a legal basis says so (`disclosure`).
+ * that the caller read their own record (`ownRecord`), which is not audited. A read made on a
+ * named legal basis says so (`legalBasis`); one that hands the data to someone on a legal basis
+ * names the recipient too (`disclosure`).
  */
 export class ReadAudit {
   #resource: AuditedResource | undefined;
   #ownRecord = false;
-  #disclosure: ReadDisclosure | undefined;
+  #legalBasis: ReadLegalBasis | undefined;
+  #recipient: string | undefined;
 
   /** The resource read: the event is filed under its tenant and names the person it is about. */
   resource(resource: AuditedResource): void {
@@ -52,12 +68,18 @@ export class ReadAudit {
     this.#ownRecord = true;
   }
 
+  /** The read is made on a legal basis: the event names the basis and the reference under it. */
+  legalBasis(legalBasis: ReadLegalBasis): void {
+    this.#legalBasis = { basis: legalBasis.basis, reference: legalBasis.reference };
+  }
+
   /**
    * The read hands the data to `recipient` on a legal basis (a disclosure): the event names the
    * basis, the reference that authorises it and the recipient.
    */
   disclosure(disclosure: ReadDisclosure): void {
-    this.#disclosure = disclosure;
+    this.legalBasis(disclosure);
+    this.#recipient = disclosure.recipient;
   }
 
   /** The resource the handler named, if any. */
@@ -65,9 +87,14 @@ export class ReadAudit {
     return this.#resource;
   }
 
-  /** The disclosure the handler named, if any. */
-  get describedDisclosure(): ReadDisclosure | undefined {
-    return this.#disclosure;
+  /** The legal basis the handler named, if any. */
+  get describedLegalBasis(): ReadLegalBasis | undefined {
+    return this.#legalBasis;
+  }
+
+  /** Whom the read hands the data to, when the handler named a disclosure. */
+  get describedRecipient(): string | undefined {
+    return this.#recipient;
   }
 
   /** Whether the handler said the caller read their own record. */

@@ -123,6 +123,7 @@ export class ProcessingActivities {
       declarant: {
         declarantName: pulled.declarantName,
         personnelFileNumber: pulled.personnelFileNumber,
+        designation: designationOf(pulled.document),
         rosterRecordId: pulled.rosterRecordId,
         reportingEntityId: pulled.reportingEntityId,
       },
@@ -174,4 +175,10 @@ async function filingOf(
 /** The calendar date in Nairobi of an instant, `YYYY-MM-DD`. */
 function nairobiDate(instant: string): string {
   return new Intl.DateTimeFormat('en-CA', { timeZone: 'Africa/Nairobi' }).format(new Date(instant));
+}
+
+/** The designation the filed declaration states (`officer.employment.designation`), if any. */
+function designationOf(document: Record<string, unknown>): string | null {
+  const designation = (document as Partial<DeclarationV1>).officer?.employment.designation;
+  return typeof designation === 'string' && designation.trim() !== '' ? designation.trim() : null;
 }

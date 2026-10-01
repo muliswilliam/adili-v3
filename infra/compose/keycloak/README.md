@@ -27,7 +27,7 @@ Declarant data is keyed by person, not tenant. The `portal` and `console` client
 
 ## Staff provisioning (spec 06)
 
-- `directory` is a confidential client with only a service account. The directory service uses it on the Admin REST API to create staff accounts, grant and revoke roles and send the activation email. Its service account has realm-management `manage-users`, `view-users` and `query-users` (not `view-realm`), plus the client roles below.
+- `directory` is a confidential client with only a service account. The directory service uses it on the Admin REST API to create staff accounts, grant and revoke roles and send the activation email. Its service account has realm-management `manage-users`, `view-users` and `query-users`, plus the client roles below. It also has `view-realm`, to list a role's holders (a Commission's staff by role, #220) in one paged read rather than searching every account at the Commission, declarants included, and reading each one's roles.
 - `smtpServer` sends to Mailpit (`mailpit:1025`); execute-actions email fails without it.
 - `emailTheme: adili` is the activation email in `apps/keycloak-theme/src/email`, so the stock Keycloak image cannot import this realm. Use `adili/keycloak:dev` (compose builds it; CI builds it in the Keycloak workflow).
 - The user profile declares the admin-only attributes `commissionName` and `invitedRole`, which the activation email reads. The unmanaged attribute policy is `ADMIN_VIEW`, so an undeclared attribute cannot be written.

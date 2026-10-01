@@ -49,6 +49,10 @@ class ThingsController {
   @AuditedRead({ action: 'thing.viewed', resource: 'thing' })
   get(@Param('id') id: string, @CurrentReadAudit() audit: ReadAudit) {
     if (id === 'mine') audit.ownRecord();
+    else if (id === 'for-a-case') {
+      audit.resource({ tenant: 'tsc', subjectPersonId: 'person-1' });
+      audit.legalBasis({ basis: 'review-case', reference: 'case-1' });
+    } else if (id === 'a-batch') audit.resource({ tenant: 'tsc', ids: ['thing-2', 'thing-3'] });
     else audit.resource({ tenant: 'tsc', subjectPersonId: 'person-1' });
     return { id };
   }
@@ -69,7 +73,7 @@ class InternalRecordsController {
   disclose(@Param('recordId') recordId: string, @CurrentReadAudit() audit: ReadAudit) {
     audit.resource({ tenant: 'psc', subjectPersonId: 'person-1' });
     audit.disclosure({
-      legalBasis: 'act-s36-1',
+      basis: 'act-s36-1',
       reference: 'ARQ-PSC-2028-0000012-5',
       recipient: 'applicant-7',
     });
@@ -233,11 +237,8 @@ describe('AuditedReadInterceptor', () => {
           action: 'roster.record.disclosed',
           resource: { subjectPersonId: 'person-1' },
           actor: { subject: 'service-account-records', onBehalfOf: 'access-officer-3' },
-          disclosure: {
-            legalBasis: 'act-s36-1',
-            reference: 'ARQ-PSC-2028-0000012-5',
-            recipient: 'applicant-7',
-          },
+          legalBasis: { basis: 'act-s36-1', reference: 'ARQ-PSC-2028-0000012-5' },
+          recipient: 'applicant-7',
         },
       },
     ]);
@@ -309,6 +310,30 @@ describe('AuditedReadInterceptor', () => {
         },
       },
     ]);
+  });
+
+  it('records the legal basis the handler names, and none when it names none', async () => {
+    await app.inject({ method: 'GET', url: '/v1/things/for-a-case' });
+    await app.inject({ method: 'GET', url: '/v1/things/thing-1' });
+
+    expect(
+      recorded.map((event) => {
+        const data = event.data as { legalBasis?: unknown; recipient?: unknown };
+        return { legalBasis: data.legalBasis, recipient: data.recipient };
+      }),
+    ).toEqual([
+      { legalBasis: { basis: 'review-case', reference: 'case-1' }, recipient: undefined },
+      { legalBasis: undefined, recipient: undefined },
+    ]);
+  });
+
+  it('records the ids of a batch read the handler names, and none when it names none', async () => {
+    await app.inject({ method: 'GET', url: '/v1/things/a-batch' });
+    await app.inject({ method: 'GET', url: '/v1/things/thing-1' });
+
+    expect(
+      recorded.map((event) => (event.data as { resource: { ids?: string[] } }).resource.ids),
+    ).toEqual([['thing-2', 'thing-3'], undefined]);
   });
 
   it('records nothing when the caller read their own record', async () => {

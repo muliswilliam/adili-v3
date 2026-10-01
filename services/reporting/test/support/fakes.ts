@@ -10,6 +10,7 @@ import {
   DirectoryClient,
   DirectoryUnavailable,
   type StaffMember,
+  type StaffRole,
 } from '../../src/directory/directory-client.js';
 import {
   DocumentsClient,
@@ -213,7 +214,7 @@ export class FakeDirectory extends DirectoryClient {
     return true;
   }
 
-  staffWithRole(slug: string, role: string): Promise<StaffMember[]> {
+  staffWithRole(slug: string, role: StaffRole): Promise<StaffMember[]> {
     return Promise.resolve(
       this.staff
         .filter((member) => member.slug === slug && member.role === role)

@@ -1633,28 +1633,45 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetails'
   /internal/v1/declarations/{declarationId}/versions/{version}/document:
-    parameters:
-      - $ref: '#/components/parameters/DeclarationId'
-      - $ref: '#/components/parameters/VersionNumber'
-      - $ref: '#/components/parameters/ActingTenant'
-      - name: X-Acting-Subject
-        in: header
-        required: true
-        description: Staff subject on whose behalf the content is read; recorded in the audit event
-        schema:
-          type: string
-      - name: X-Review-Case
-        in: header
-        required: false
-        schema:
-          type: string
-          format: uuid
     get:
       tags:
         - internal
       summary: Decrypted declaration.v1 document of a submitted version, for the review service (audited read)
+      description: Service tokens with scope declarations:internal, acting for the Commission in X-Acting-Tenant; audited with the subject it reads for and the case. The version as filed, with the declarant's name, file number and due date and the attachments of its items.
       operationId: internalGetVersionDocument
-      x-draft: true
+      parameters:
+        - name: X-Acting-Tenant
+          in: header
+          description: Tenant the calling service acts for; the resource must belong to it
+          required: true
+          schema:
+            type: string
+            pattern: ^[a-z][a-z0-9]{1,19}$
+        - name: declarationId
+          required: true
+          in: path
+          schema:
+            type: string
+            format: uuid
+        - name: version
+          required: true
+          in: path
+          schema:
+            type: integer
+            minimum: 1
+        - name: X-Review-Case
+          in: header
+          description: The review case the read is for; recorded as the audit event's legal basis
+          required: false
+          schema:
+            type: string
+            format: uuid
+        - name: X-Acting-Subject
+          in: header
+          description: Staff subject on whose behalf the content is read; recorded in the audit event
+          required: true
+          schema:
+            type: string
       responses:
         '200':
           description: Document and metadata
@@ -1662,26 +1679,51 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/InternalVersionDocument'
+        '400':
+          description: X-Acting-Subject missing, or X-Review-Case not a UUID
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '403':
+          description: Requires a service token with scope declarations:internal
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
         '404':
-          $ref: '#/components/responses/NotFound'
+          description: No such version of the acting tenant's declarations
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+      x-audited-read:
+        action: declaration.version-document.read
+        resource: declaration-version
   /internal/v1/declarations/previous-version:
     get:
       tags:
         - internal
       summary: Latest earlier submitted version of the same person at the same Commission
+      description: Service tokens with scope declarations:internal, acting for the Commission in X-Acting-Tenant. Identifiers and dates only. An earlier version of the same declaration counts.
       operationId: internalFindPreviousVersion
-      x-draft: true
       parameters:
-        - $ref: '#/components/parameters/ActingTenant'
-        - name: personId
-          in: query
+        - name: X-Acting-Tenant
+          in: header
+          description: Tenant the calling service acts for; the resource must belong to it
           required: true
+          schema:
+            type: string
+            pattern: ^[a-z][a-z0-9]{1,19}$
+        - name: personId
+          required: true
+          in: query
           schema:
             type: string
             format: uuid
         - name: beforeVersionId
-          in: query
           required: true
+          in: query
           schema:
             type: string
             format: uuid
@@ -1691,28 +1733,19 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-                required:
-                  - declarationId
-                  - versionId
-                  - version
-                  - statementDate
-                  - submittedAt
-                properties:
-                  declarationId:
-                    type: string
-                    format: uuid
-                  versionId:
-                    type: string
-                    format: uuid
-                  version:
-                    type: integer
-                  statementDate:
-                    type: string
-                    format: date
-                  submittedAt:
-                    type: string
-                    format: date-time
+                $ref: '#/components/schemas/InternalPreviousVersion'
+        '400':
+          description: Query failed validation
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '403':
+          description: Requires a service token with scope declarations:internal
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
         '404':
           description: No earlier submitted version
           content:
@@ -1720,81 +1753,75 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetails'
   /internal/v1/obligations/{obligationId}:
-    parameters:
-      - name: obligationId
-        in: path
-        required: true
-        schema:
-          type: string
-          format: uuid
-      - $ref: '#/components/parameters/ActingTenant'
     get:
       tags:
         - internal
       summary: One filing obligation of the acting Commission (for the enforcement ladder)
-      description: 'Service tokens with `declarations:internal`; the Commission in `X-Acting-Tenant`. The review service reads it when an obligation goes overdue (spec 08): whom the ladder addresses and what they failed to file. `personId` is null until the officer onboards.'
+      description: 'Service tokens with scope declarations:internal, acting for the Commission in X-Acting-Tenant; audited. The review service reads it when an obligation goes overdue (spec 08): whom the ladder addresses and what they failed to file. `personId` is null until the declarant onboards.'
       operationId: internalGetObligation
-      x-draft: true
+      parameters:
+        - name: X-Acting-Tenant
+          in: header
+          description: Tenant the calling service acts for; the resource must belong to it
+          required: true
+          schema:
+            type: string
+            pattern: ^[a-z][a-z0-9]{1,19}$
+        - name: obligationId
+          required: true
+          in: path
+          schema:
+            type: string
+            format: uuid
       responses:
         '200':
           description: The obligation
           content:
             application/json:
               schema:
-                type: object
-                required:
-                  - obligationId
-                  - rosterRecordId
-                  - personId
-                  - type
-                  - cycleKey
-                  - dueDate
-                  - status
-                  - declarantName
-                  - personnelFileNumber
-                properties:
-                  obligationId:
-                    type: string
-                    format: uuid
-                  rosterRecordId:
-                    type: string
-                    format: uuid
-                  personId:
-                    type:
-                      - string
-                      - 'null'
-                    format: uuid
-                  type:
-                    $ref: '#/components/schemas/ObligationType'
-                  cycleKey:
-                    type: string
-                  dueDate:
-                    type: string
-                    format: date
-                  status:
-                    $ref: '#/components/schemas/ObligationStatus'
-                  declarantName:
-                    type: string
-                  personnelFileNumber:
-                    type: string
+                $ref: '#/components/schemas/InternalObligation'
+        '400':
+          description: obligationId is not a UUID
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '403':
+          description: Requires a service token with scope declarations:internal
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
         '404':
-          $ref: '#/components/responses/NotFound'
+          description: No such obligation of the acting tenant's Commission
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+      x-audited-read:
+        action: obligation.pulled
+        resource: filing-obligation
   /internal/v1/persons/{personId}/obligations:
-    parameters:
-      - name: personId
-        in: path
-        required: true
-        schema:
-          type: string
-          format: uuid
     get:
       tags:
         - internal
       summary: A person's filing obligations across cycles (for the referral sweep)
+      description: 'Service tokens with scope declarations:internal, acting for the Commission in X-Acting-Tenant; audited. Oldest first: type, cycle, status, due date, and when it was filed and whether late; no names.'
       operationId: internalListPersonObligations
-      x-draft: true
       parameters:
-        - $ref: '#/components/parameters/ActingTenant'
+        - name: X-Acting-Tenant
+          in: header
+          description: Tenant the calling service acts for; the resource must belong to it
+          required: true
+          schema:
+            type: string
+            pattern: ^[a-z][a-z0-9]{1,19}$
+        - name: personId
+          required: true
+          in: path
+          schema:
+            type: string
+            format: uuid
       responses:
         '200':
           description: Obligations
@@ -1803,37 +1830,84 @@ paths:
               schema:
                 type: array
                 items:
-                  type: object
-                  required:
-                    - obligationId
-                    - type
-                    - cycleKey
-                    - status
-                    - dueDate
-                    - filedAt
-                    - late
-                  properties:
-                    obligationId:
-                      type: string
-                      format: uuid
-                    type:
-                      $ref: '#/components/schemas/ObligationType'
-                    cycleKey:
-                      type: string
-                    status:
-                      $ref: '#/components/schemas/ObligationStatus'
-                    dueDate:
-                      type: string
-                      format: date
-                    filedAt:
-                      type:
-                        - string
-                        - 'null'
-                      format: date-time
-                    late:
-                      type: boolean
+                  $ref: '#/components/schemas/InternalPersonObligation'
+        '400':
+          description: personId is not a UUID
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '403':
+          description: Requires a service token with scope declarations:internal
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
         '404':
-          $ref: '#/components/responses/NotFound'
+          description: The acting tenant holds no obligation of the person
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+      x-audited-read:
+        action: obligation.history.pulled
+        resource: filing-obligation
+  /internal/v1/obligations/details:
+    post:
+      tags:
+        - internal
+      summary: The officers behind a Commission's obligations, in a batch (spec 09 Form M non-filers)
+      description: 'Service tokens with scope declarations:internal, acting for the Commission in X-Acting-Tenant; audited, naming the obligations read. At most 1,000 obligation ids; an obligation the Commission does not hold is left out. A read: it changes nothing, so it takes no Idempotency-Key and is safe to retry.'
+      operationId: internalObligationDetails
+      parameters:
+        - name: X-Acting-Tenant
+          in: header
+          description: Tenant the calling service acts for; the resource must belong to it
+          required: true
+          schema:
+            type: string
+            pattern: ^[a-z][a-z0-9]{1,19}$
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $schema: https://json-schema.org/draft/2020-12/schema
+              type: object
+              properties:
+                obligationIds:
+                  minItems: 1
+                  maxItems: 1000
+                  type: array
+                  items:
+                    type: string
+                    format: uuid
+                    pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+              required:
+                - obligationIds
+              additionalProperties: false
+      responses:
+        '200':
+          description: The officers, one per known obligation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InternalObligationDetails'
+        '400':
+          description: 'Body failed validation: no ids, more than 1,000, or one not a UUID'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '403':
+          description: Requires a service token with scope declarations:internal
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+      x-audited-read:
+        action: obligation.officers.pulled
+        resource: filing-obligation
   /v1/declarations/{declarationId}/suggestions/lookups:
     parameters:
       - $ref: '#/components/parameters/DeclarationId'
@@ -2340,84 +2414,6 @@ paths:
                       type: integer
         '404':
           $ref: '#/components/responses/NotFound'
-  /internal/v1/obligations/details:
-    post:
-      tags:
-        - internal
-      summary: The officers behind a Commission's obligations, in a batch (spec 09 Form M non-filers)
-      description: 'Service tokens with scope declarations:internal, acting for the Commission in X-Acting-Tenant (ADR-013 §8.7). At most 1,000 obligation ids; an obligation the Commission does not hold is left out. A read: it changes nothing, so it takes no Idempotency-Key and is safe to retry.'
-      operationId: internalObligationDetails
-      x-draft: true
-      parameters:
-        - name: X-Acting-Tenant
-          in: header
-          required: true
-          description: Tenant the calling service acts for; the resource must belong to it
-          schema:
-            type: string
-            pattern: ^[a-z][a-z0-9]{1,19}$
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required:
-                - obligationIds
-              properties:
-                obligationIds:
-                  type: array
-                  minItems: 1
-                  maxItems: 1000
-                  items:
-                    type: string
-                    format: uuid
-      responses:
-        '200':
-          description: The officers, one per known obligation
-          content:
-            application/json:
-              schema:
-                type: object
-                required:
-                  - items
-                properties:
-                  items:
-                    type: array
-                    items:
-                      type: object
-                      required:
-                        - obligationId
-                        - name
-                        - designation
-                        - fileNumber
-                        - appointmentDate
-                        - exitDate
-                      properties:
-                        obligationId:
-                          type: string
-                          format: uuid
-                        name:
-                          type: string
-                        designation:
-                          type: string
-                        fileNumber:
-                          type: string
-                          description: Personnel file number, or another staff, ID or passport number
-                        appointmentDate:
-                          type:
-                            - string
-                            - 'null'
-                          format: date
-                        exitDate:
-                          type:
-                            - string
-                            - 'null'
-                          format: date
-        '400':
-          $ref: '#/components/responses/ValidationProblem'
-        '403':
-          $ref: '#/components/responses/Forbidden'
 components:
   securitySchemes:
     bearer:
@@ -4076,6 +4072,225 @@ components:
         - updated
         - removed
         - unchanged
+    InternalVersionDocument:
+      type: object
+      properties:
+        declarationId:
+          type: string
+          format: uuid
+        versionId:
+          type: string
+          format: uuid
+        version:
+          type: integer
+        personId:
+          type: string
+          format: uuid
+          description: The declarant; the review service looks up their previous version with it
+        rosterRecordId:
+          type: string
+          format: uuid
+          description: The declarant's roster record at the Commission, as the declaration was started
+        reportingEntityId:
+          anyOf:
+            - type: string
+              format: uuid
+            - type: 'null'
+          description: The roster record's reporting entity; null when it has none
+        reference:
+          $ref: '#/components/schemas/DeclarationReference'
+        type:
+          $ref: '#/components/schemas/ObligationType'
+        statementDate:
+          type: string
+          format: date
+        submittedAt:
+          type: string
+          format: date-time
+        late:
+          type: boolean
+        dueDate:
+          type: string
+          format: date
+        declarantName:
+          type: string
+        personnelFileNumber:
+          type: string
+        document:
+          type: object
+          propertyNames:
+            type: string
+          additionalProperties: {}
+          description: The immutable declaration.v1 document, decrypted
+        attachments:
+          type: array
+          items:
+            type: object
+            properties:
+              uploadId:
+                type: string
+                format: uuid
+              itemId:
+                type: string
+                format: uuid
+              personKey:
+                type: string
+              fileName:
+                type: string
+              sha256:
+                type: string
+            required:
+              - uploadId
+              - itemId
+              - personKey
+              - fileName
+              - sha256
+      required:
+        - declarationId
+        - versionId
+        - version
+        - personId
+        - rosterRecordId
+        - reportingEntityId
+        - reference
+        - type
+        - statementDate
+        - submittedAt
+        - late
+        - dueDate
+        - declarantName
+        - personnelFileNumber
+        - document
+        - attachments
+    InternalPreviousVersion:
+      type: object
+      properties:
+        declarationId:
+          type: string
+          format: uuid
+        versionId:
+          type: string
+          format: uuid
+        version:
+          type: integer
+        statementDate:
+          type: string
+          format: date
+        submittedAt:
+          type: string
+          format: date-time
+      required:
+        - declarationId
+        - versionId
+        - version
+        - statementDate
+        - submittedAt
+    InternalObligation:
+      type: object
+      properties:
+        obligationId:
+          type: string
+          format: uuid
+        rosterRecordId:
+          type: string
+          format: uuid
+        personId:
+          anyOf:
+            - type: string
+              format: uuid
+            - type: 'null'
+          description: Null until the declarant onboards
+        type:
+          $ref: '#/components/schemas/ObligationType'
+        cycleKey:
+          type: string
+        dueDate:
+          type: string
+          format: date
+        status:
+          $ref: '#/components/schemas/ObligationStatus'
+        declarantName:
+          type: string
+        personnelFileNumber:
+          type: string
+      required:
+        - obligationId
+        - rosterRecordId
+        - personId
+        - type
+        - cycleKey
+        - dueDate
+        - status
+        - declarantName
+        - personnelFileNumber
+    InternalPersonObligation:
+      type: object
+      properties:
+        obligationId:
+          type: string
+          format: uuid
+        type:
+          $ref: '#/components/schemas/ObligationType'
+        cycleKey:
+          type: string
+        status:
+          $ref: '#/components/schemas/ObligationStatus'
+        dueDate:
+          type: string
+          format: date
+        filedAt:
+          anyOf:
+            - type: string
+              format: date-time
+            - type: 'null'
+        late:
+          type: boolean
+      required:
+        - obligationId
+        - type
+        - cycleKey
+        - status
+        - dueDate
+        - filedAt
+        - late
+    InternalObligationDetails:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            type: object
+            properties:
+              obligationId:
+                type: string
+                format: uuid
+              name:
+                type: string
+              designation:
+                type: string
+                description: Empty when the roster gives none
+              fileNumber:
+                type: string
+                description: Personnel file number, or another staff, ID or passport number
+              appointmentDate:
+                anyOf:
+                  - type: string
+                    format: date
+                  - type: 'null'
+              exitDate:
+                anyOf:
+                  - type: string
+                    format: date
+                  - type: 'null'
+            required:
+              - obligationId
+              - name
+              - designation
+              - fileNumber
+              - appointmentDate
+              - exitDate
+      required:
+        - items
     ProblemDetails:
       type: object
       properties:
@@ -4352,82 +4567,6 @@ components:
         at:
           type: string
           format: date-time
-    InternalVersionDocument:
-      type: object
-      required:
-        - declarationId
-        - versionId
-        - version
-        - personId
-        - reference
-        - type
-        - statementDate
-        - submittedAt
-        - late
-        - dueDate
-        - declarantName
-        - personnelFileNumber
-        - document
-        - attachments
-      properties:
-        declarationId:
-          type: string
-          format: uuid
-        versionId:
-          type: string
-          format: uuid
-        version:
-          type: integer
-        personId:
-          type: string
-          format: uuid
-          description: The declarant; the review service looks up their previous version with it
-        reference:
-          $ref: '#/components/schemas/DeclarationReference'
-        type:
-          $ref: '#/components/schemas/ObligationType'
-        statementDate:
-          type: string
-          format: date
-        submittedAt:
-          type: string
-          format: date-time
-        late:
-          type: boolean
-        dueDate:
-          type: string
-          format: date
-        declarantName:
-          type: string
-        personnelFileNumber:
-          type: string
-        document:
-          type: object
-          description: The immutable declaration.v1 document, decrypted
-          additionalProperties: true
-        attachments:
-          type: array
-          items:
-            type: object
-            required:
-              - uploadId
-              - itemId
-              - personKey
-              - fileName
-              - sha256
-            properties:
-              uploadId:
-                type: string
-                format: uuid
-              itemId:
-                type: string
-                format: uuid
-              personKey:
-                type: string
-              fileName:
-                type: string
-              sha256:
-                type: string
   parameters:
     Slug:
       name: slug
@@ -4443,13 +4582,6 @@ components:
       schema:
         type: string
         format: uuid
-    VersionNumber:
-      name: version
-      in: path
-      required: true
-      schema:
-        type: integer
-        minimum: 1
     SuggestionId:
       name: suggestionId
       in: path
@@ -4464,14 +4596,6 @@ components:
       schema:
         type: string
         format: uuid
-    ActingTenant:
-      name: X-Acting-Tenant
-      in: header
-      required: true
-      description: Tenant the calling service acts for; the resource must belong to it
-      schema:
-        type: string
-        pattern: ^[a-z][a-z0-9]{1,19}$
     IdempotencyKey:
       name: Idempotency-Key
       in: header

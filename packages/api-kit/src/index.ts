@@ -9,6 +9,7 @@ export {
   ReadAudit,
   readAuditOf,
   type ReadDisclosure,
+  type ReadLegalBasis,
 } from './audit/read-audit.js';
 export { ActingTenant, InternalApi, PLATFORM_TENANT, TENANT_KEY } from './auth/acting-tenant.js';
 export { CurrentPrincipal } from './auth/current-principal.decorator.js';

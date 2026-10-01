@@ -309,3 +309,23 @@ export async function untilWorkerPolling(
     await new Promise((resolve) => setTimeout(resolve, 50));
   }
 }
+
+/**
+ * Resolves once an app's worker runs no activities. Terminating a workflow leaves its in-flight
+ * activities running, so a harness that ends a test's workflows waits for them here before it
+ * resets: a straggler's write would otherwise land in the next test.
+ */
+export async function untilActivitiesDrained(
+  readiness: TemporalWorkerReadinessCheck,
+  timeoutMs = 30_000,
+): Promise<void> {
+  const deadline = Date.now() + timeoutMs;
+  while (readiness.activitiesInFlight > 0) {
+    if (Date.now() > deadline) {
+      throw new Error(
+        `${String(readiness.activitiesInFlight)} activities still in flight after ${String(timeoutMs)} ms`,
+      );
+    }
+    await new Promise((resolve) => setTimeout(resolve, 50));
+  }
+}

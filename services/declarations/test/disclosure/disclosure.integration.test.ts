@@ -421,7 +421,8 @@ describe('the scoped disclosure of a grant (S9)', () => {
           clientId: 'access',
           onBehalfOf: ACCESS_OFFICER,
         },
-        disclosure: { legalBasis: 'act-s36-1', reference: GRANT, recipient: APPLICANT },
+        legalBasis: { basis: 'act-s36-1', reference: GRANT },
+        recipient: APPLICANT,
         request: { method: 'POST', route: DISCLOSURES },
       },
     });
@@ -536,11 +537,8 @@ describe('the scoped disclosure of a grant (S9)', () => {
     expect(response.statusCode, response.body).toBe(200);
     const [event] = await audited();
     expect(event?.data).toMatchObject({
-      disclosure: {
-        legalBasis: 'act-s36-2',
-        reference: 'LEA-PSC-2028-0000004-9',
-        recipient: APPLICANT,
-      },
+      legalBasis: { basis: 'act-s36-2', reference: 'LEA-PSC-2028-0000004-9' },
+      recipient: APPLICANT,
     });
   });
 
@@ -616,7 +614,8 @@ describe("the full document of a version for the declarant's certified copy (S13
           subjectPersonId: WANJIKU,
         },
         actor: { subject: 'service-account-access', onBehalfOf: `account-${WANJIKU}` },
-        disclosure: { legalBasis: 'self-access', reference: null, recipient: `account-${WANJIKU}` },
+        legalBasis: { basis: 'self-access', reference: null },
+        recipient: `account-${WANJIKU}`,
       },
     });
     expect(JSON.stringify(event)).not.toContain('Shamba');
