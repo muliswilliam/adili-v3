@@ -16,6 +16,7 @@ import {
   useState,
 } from 'react';
 
+import { plural } from '../lib/calendar-days';
 import { cn } from '../lib/cn';
 import { Button } from './button';
 import {
@@ -91,10 +92,11 @@ const DEFAULT_MESSAGES: AttachmentMessages = {
 
 const PROBLEMS: AttachmentStatus[] = ['infected', 'rejected-type', 'rejected-size', 'failed'];
 
-/** Bytes → "1.8 MB" or "240 KB". */
+/** Bytes → "1.8 MB", "240 KB", or "266 bytes" under a kilobyte. */
 export function formatFileSize(bytes: number): string {
   if (bytes >= 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-  return `${String(Math.max(1, Math.round(bytes / 1024)))} KB`;
+  if (bytes < 1024) return plural(bytes, 'byte');
+  return `${String(Math.round(bytes / 1024))} KB`;
 }
 
 export type AttachmentListProps = Omit<ComponentProps<'div'>, 'children'> & {

@@ -9,6 +9,7 @@ export const UPLOAD_STATES = [
   'infected',
   'rejected',
   'expired',
+  'deleted',
 ] as const;
 export type UploadState = (typeof UPLOAD_STATES)[number];
 
@@ -49,14 +50,28 @@ export const uploads = pgTable(
     /** Set while a completion runs, so a concurrent one (or the expiry sweep) keeps off. */
     completionStartedAt: timestamp({ withTimezone: true }),
     completedAt: timestamp({ withTimezone: true }),
+    /**
+     * When the owning service first linked the clean upload to its record (a declaration
+     * attachment); unlinked clean uploads are orphans.
+     */
+    linkedAt: timestamp({ withTimezone: true }),
+    /** The service that linked it (its OAuth client), while linked. */
+    linkedBy: text(),
+    /** When the owning service last took its link back; the orphan sweep counts from it. */
+    unlinkedAt: timestamp({ withTimezone: true }),
+    /** When the orphan sweep deleted the clean object of an upload nobody linked. */
+    deletedAt: timestamp({ withTimezone: true }),
   },
   (table) => [
     index('uploads_awaiting_expires_at_idx')
       .on(table.expiresAt)
       .where(sql`${table.state} = 'awaiting-upload'`),
+    index('uploads_orphaned_since_idx')
+      .on(sql`coalesce(${table.unlinkedAt}, ${table.completedAt})`)
+      .where(sql`${table.state} = 'clean' and ${table.linkedAt} is null`),
     check(
       'uploads_state_check',
-      sql`${table.state} in ('awaiting-upload', 'clean', 'infected', 'rejected', 'expired')`,
+      sql`${table.state} in ('awaiting-upload', 'clean', 'infected', 'rejected', 'expired', 'deleted')`,
     ),
     check(
       'uploads_rejection_check',
@@ -68,7 +83,16 @@ export const uploads = pgTable(
     ),
     check(
       'uploads_completed_at_check',
-      sql`(${table.state} in ('clean', 'infected', 'rejected')) = (${table.completedAt} is not null)`,
+      sql`(${table.state} in ('clean', 'infected', 'rejected', 'deleted')) = (${table.completedAt} is not null)`,
+    ),
+    check(
+      'uploads_deleted_at_check',
+      sql`(${table.state} = 'deleted') = (${table.deletedAt} is not null)`,
+    ),
+    check('uploads_linked_at_check', sql`${table.linkedAt} is null or ${table.state} = 'clean'`),
+    check(
+      'uploads_linked_by_check',
+      sql`(${table.linkedAt} is null) = (${table.linkedBy} is null)`,
     ),
     check('uploads_declared_size_check', sql`${table.declaredSize} > 0`),
   ],

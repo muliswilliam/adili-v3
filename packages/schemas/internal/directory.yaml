@@ -2967,6 +2967,21 @@ components:
               format: uuid
             - type: 'null'
           description: Person the declarant account is linked to (`person_id`); null for staff
+        acr:
+          description: Authentication context class of the token (`acr`), e.g. `step-up`
+          type:
+            - string
+            - 'null'
+        authTime:
+          description: When the user last authenticated (`auth_time`), in seconds since the epoch
+          type:
+            - integer
+            - 'null'
+        tokenId:
+          description: The token id (`jti`)
+          type:
+            - string
+            - 'null'
       required:
         - subject
         - tenant
@@ -2976,6 +2991,9 @@ components:
         - name
         - issuedAt
         - personId
+        - acr
+        - authTime
+        - tokenId
     Slug:
       type: string
       pattern: ^[a-z][a-z0-9]{1,19}$
@@ -3825,6 +3843,7 @@ components:
         code:
           type: string
           enum:
+            - database-unavailable
             - rate-limit-exceeded
             - no-match
             - already-onboarded
@@ -3838,6 +3857,15 @@ components:
             - iprs-unavailable
             - identity-unavailable
             - email-in-use
+            - step-up-required
+            - incomplete
+            - before-statement-date
+            - amendment-window-closed
+            - not-a-draft
+            - not-submitted
+            - obligation-cancelled
+            - acknowledgement-issued
+            - acknowledgement-in-progress
           description: Machine-readable cause, from the platform registry; clients map it to copy and never show `title` or `detail`
         detail:
           type: string
@@ -3876,6 +3904,7 @@ components:
         code:
           type: string
           enum:
+            - database-unavailable
             - rate-limit-exceeded
             - no-match
             - already-onboarded
@@ -3889,6 +3918,15 @@ components:
             - iprs-unavailable
             - identity-unavailable
             - email-in-use
+            - step-up-required
+            - incomplete
+            - before-statement-date
+            - amendment-window-closed
+            - not-a-draft
+            - not-submitted
+            - obligation-cancelled
+            - acknowledgement-issued
+            - acknowledgement-in-progress
           description: Machine-readable cause, from the platform registry; clients map it to copy and never show `title` or `detail`
         detail:
           type: string
@@ -5086,6 +5124,7 @@ components:
         code:
           type: string
           enum:
+            - database-unavailable
             - rate-limit-exceeded
             - no-match
             - already-onboarded
@@ -5099,6 +5138,15 @@ components:
             - iprs-unavailable
             - identity-unavailable
             - email-in-use
+            - step-up-required
+            - incomplete
+            - before-statement-date
+            - amendment-window-closed
+            - not-a-draft
+            - not-submitted
+            - obligation-cancelled
+            - acknowledgement-issued
+            - acknowledgement-in-progress
           description: Machine-readable cause, from the platform registry; clients map it to copy and never show `title` or `detail`
         detail:
           type: string

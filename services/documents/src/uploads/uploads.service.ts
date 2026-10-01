@@ -12,18 +12,21 @@ import {
 } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { HttpStatus, Inject, Injectable, Logger } from '@nestjs/common';
-import { PLATFORM_TENANT, type Principal, ProblemException } from '@adili/api-kit';
+import { callerOf, PLATFORM_TENANT, type Principal, ProblemException } from '@adili/api-kit';
 import { type Database, InjectDatabase, withTenant } from '@adili/data-access';
+import { EventPublisher } from '@adili/events';
 import { and, eq, inArray, isNull, lt, or, sql } from 'drizzle-orm';
 import { v7 as uuidv7 } from 'uuid';
 
-import { config } from '../config.js';
+import { config, SYSTEM_SUBJECT } from '../config.js';
 import type { DocumentsSchema } from '../db/schema.js';
 import { MalwareScanner } from '../scanning/malware-scanner.js';
 import { S3, S3_PUBLIC } from '../storage/storage.module.js';
-import { CSV, type DetectedType, policyOf, purposesFor } from './purposes.js';
+import { uploadDeleted, uploadLinked, uploadUnlinked } from './events.js';
+import { CSV, type DetectedType, LINKED_PURPOSES, policyOf, purposesFor } from './purposes.js';
 import type {
   CreateUploadBody,
+  InternalUpload,
   Upload,
   UploadDownload,
   UploadReservation,
@@ -43,6 +46,8 @@ const DOWNLOAD_URL_TTL_SECONDS = 5 * 60;
  * completion or the expiry sweep may take the upload over.
  */
 const STALE_COMPLETION = sql`now() - interval '2 minutes'`;
+/** A clean upload of a linked purpose left this long without a link is an orphan. */
+const ORPHANED_BEFORE = sql`now() - interval '30 days'`;
 
 type UploadRow = typeof uploads.$inferSelect;
 
@@ -69,6 +74,7 @@ export class UploadsService {
     @Inject(S3) private readonly s3: S3Client,
     @Inject(S3_PUBLIC) private readonly publicS3: S3Client,
     private readonly scanner: MalwareScanner,
+    private readonly events: EventPublisher,
     @Inject(COMPLETE_BUDGET_MS) private readonly completeBudgetMs: number,
   ) {}
 
@@ -215,6 +221,28 @@ export class UploadsService {
   }
 
   /**
+   * An upload of `actingTenant` as the owning service sees it, in any state: invisible uploads
+   * are 404. Unlike a download it hands out no bytes, so it is no audited read.
+   */
+  async getForService(
+    caller: Principal,
+    actingTenant: string,
+    id: string,
+  ): Promise<InternalUpload> {
+    const [upload] = await withTenant(
+      this.db,
+      { tenant: actingTenant, subject: caller.subject },
+      (tx) => tx.select().from(uploads).where(eq(uploads.id, id)),
+    );
+    if (!upload) throw notFound();
+    return {
+      ...toUpload(upload),
+      uploadedBy: upload.createdBy,
+      linkedAt: upload.linkedAt?.toISOString() ?? null,
+    };
+  }
+
+  /**
    * A short-lived presigned GET on a clean upload of `actingTenant`, for services: invisible
    * uploads are 404, uploads that are not clean 409.
    */
@@ -225,14 +253,7 @@ export class UploadsService {
       (tx) => tx.select().from(uploads).where(eq(uploads.id, id)),
     );
     if (!upload) throw notFound();
-    if (upload.state !== 'clean' || !upload.cleanKey) {
-      throw new ProblemException({
-        type: 'upload-not-clean',
-        title: 'Upload is not clean',
-        status: HttpStatus.CONFLICT,
-        detail: `The upload is ${upload.state}; only clean uploads can be downloaded.`,
-      });
-    }
+    if (upload.state !== 'clean' || !upload.cleanKey) throw notClean(upload.state, 'downloaded');
     const expiresAt = new Date(Date.now() + DOWNLOAD_URL_TTL_SECONDS * 1000);
     const downloadUrl = await getSignedUrl(
       this.s3,
@@ -253,13 +274,81 @@ export class UploadsService {
   }
 
   /**
+   * Records that the owning service linked a clean upload of `actingTenant` to its record, so
+   * it is no orphan, and which service did, with its audit event. Idempotent: the first link
+   * time is kept and a repeat records nothing. Invisible uploads are 404, unclean ones 409.
+   */
+  async markLinked(caller: Principal, actingTenant: string, id: string): Promise<void> {
+    const upload = await withTenant(
+      this.db,
+      { tenant: actingTenant, subject: caller.subject },
+      async (tx) => {
+        const [found] = await tx
+          .select({ state: uploads.state, linkedAt: uploads.linkedAt, purpose: uploads.purpose })
+          .from(uploads)
+          .where(eq(uploads.id, id))
+          .for('update');
+        if (found?.state === 'clean' && found.linkedAt === null) {
+          const linkedBy = callerOf(caller);
+          await tx
+            .update(uploads)
+            .set({ linkedAt: sql`now()`, linkedBy, unlinkedAt: null })
+            .where(eq(uploads.id, id));
+          await this.events.record(
+            tx,
+            uploadLinked(actingTenant, { uploadId: id, purpose: found.purpose, linkedBy }),
+          );
+        }
+        return found;
+      },
+    );
+    if (!upload) throw notFound();
+    if (upload.state !== 'clean') throw notClean(upload.state, 'linked');
+  }
+
+  /**
+   * Records that the owning service took its link to an upload of `actingTenant` back, so the
+   * orphan sweep deletes the object 30 days on unless it is linked again, with its audit event.
+   * Idempotent: an upload that is not linked is left as it is. Invisible uploads are 404.
+   */
+  async markUnlinked(caller: Principal, actingTenant: string, id: string): Promise<void> {
+    const found = await withTenant(
+      this.db,
+      { tenant: actingTenant, subject: caller.subject },
+      async (tx) => {
+        const [upload] = await tx
+          .select({ linkedAt: uploads.linkedAt, purpose: uploads.purpose })
+          .from(uploads)
+          .where(eq(uploads.id, id))
+          .for('update');
+        if (upload?.linkedAt) {
+          await tx
+            .update(uploads)
+            .set({ linkedAt: null, linkedBy: null, unlinkedAt: sql`now()` })
+            .where(eq(uploads.id, id));
+          await this.events.record(
+            tx,
+            uploadUnlinked(actingTenant, {
+              uploadId: id,
+              purpose: upload.purpose,
+              unlinkedBy: callerOf(caller),
+            }),
+          );
+        }
+        return upload;
+      },
+    );
+    if (!found) throw notFound();
+  }
+
+  /**
    * Marks uploads still awaiting their bytes after the PUT expired as `expired` and deletes any
    * quarantine object they left. Idempotent, so every replica may run it. Returns the count.
    */
   async expireStale(): Promise<number> {
     const expired = await withTenant(
       this.db,
-      { tenant: PLATFORM_TENANT, subject: 'system' },
+      { tenant: PLATFORM_TENANT, subject: SYSTEM_SUBJECT },
       (tx) =>
         tx
           .update(uploads)
@@ -282,7 +371,55 @@ export class UploadsService {
     return expired.length;
   }
 
-  /** The upload when the caller's tenant owns it and their roles cover its purpose; else 404. */
+  /**
+   * Deletes the clean objects of uploads that need a link (declaration attachments) and have
+   * had none for 30 days, since completion or since the owning service took its link back, and
+   * marks them `deleted`, each with its audit event in the same transaction. Uploads of other
+   * purposes are never swept. Idempotent, so every replica may run it. Returns the count.
+   */
+  async sweepOrphans(): Promise<number> {
+    if (LINKED_PURPOSES.length === 0) return 0;
+    const orphans = await withTenant(
+      this.db,
+      { tenant: PLATFORM_TENANT, subject: SYSTEM_SUBJECT },
+      async (tx) => {
+        const deleted = await tx
+          .update(uploads)
+          .set({ state: 'deleted', cleanKey: null, deletedAt: sql`now()` })
+          .where(
+            and(
+              eq(uploads.state, 'clean'),
+              isNull(uploads.linkedAt),
+              inArray(uploads.purpose, LINKED_PURPOSES),
+              lt(sql`coalesce(${uploads.unlinkedAt}, ${uploads.completedAt})`, ORPHANED_BEFORE),
+            ),
+          )
+          // The clean object has the quarantine key (a server-side copy keeps it).
+          .returning({
+            id: uploads.id,
+            tenant: uploads.tenant,
+            purpose: uploads.purpose,
+            key: uploads.quarantineKey,
+          });
+        for (const { id, tenant, purpose } of deleted) {
+          await this.events.record(
+            tx,
+            uploadDeleted(tenant, { uploadId: id, purpose, reason: 'orphaned' }),
+          );
+        }
+        return deleted;
+      },
+    );
+    for (const { key } of orphans) {
+      await this.deleteQuietly(config.S3_BUCKET_CLEAN, key);
+    }
+    return orphans.length;
+  }
+
+  /**
+   * The upload when the caller's tenant owns it and their roles cover its purpose, and, for a
+   * purpose whose uploads are the uploader's only, the caller reserved it; else 404.
+   */
   private async visible(principal: Principal, id: string): Promise<UploadRow> {
     const tenant = tenantOf(principal);
     const purposes = purposesFor(principal.roles);
@@ -294,6 +431,9 @@ export class UploadsService {
         .where(and(eq(uploads.id, id), inArray(uploads.purpose, purposes))),
     );
     if (!upload) throw notFound();
+    if (policyOf(upload.purpose).uploaderOnly && upload.createdBy !== principal.subject) {
+      throw notFound();
+    }
     return upload;
   }
 
@@ -432,6 +572,15 @@ function notAwaitingUpload(upload: UploadRow): ProblemException {
     title: 'Upload already completed',
     status: HttpStatus.CONFLICT,
     detail: `The upload is already ${upload.state}.`,
+  });
+}
+
+function notClean(state: string, action: 'downloaded' | 'linked'): ProblemException {
+  return new ProblemException({
+    type: 'upload-not-clean',
+    title: 'Upload is not clean',
+    status: HttpStatus.CONFLICT,
+    detail: `The upload is ${state}; only clean uploads can be ${action}.`,
   });
 }
 

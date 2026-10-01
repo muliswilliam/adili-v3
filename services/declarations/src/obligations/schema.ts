@@ -6,6 +6,7 @@ import {
 } from '@adili/events/contracts';
 import { sql } from 'drizzle-orm';
 import {
+  boolean,
   check,
   date,
   index,
@@ -68,6 +69,12 @@ export const rosterSnapshots = pgTable(
     personId: uuid(),
     ofr: text(),
     onboardedAt: timestamp({ withTimezone: true }),
+    /**
+     * The declarant's reporting entity as the roster names it (categorisation only: it never
+     * reads declarations); null when the roster gives none.
+     */
+    reportingEntityId: uuid(),
+    reportingEntityName: text(),
     /**
      * The record's `updatedAt` in the directory when pulled. A pull older than the stored one
      * (events handled out of order) does not overwrite it.
@@ -132,6 +139,12 @@ export const filingObligations = pgTable(
     workflowStartedAt: timestamp({ withTimezone: true }),
     /** The declaration that filed it (slice 06); null before. */
     filedDeclarationId: uuid(),
+    /** When it was filed: the submission time of its first version; null before. */
+    filedAt: timestamp({ withTimezone: true }),
+    /** The declaration version in force for it (the latest submitted); null before filing. */
+    filedVersionId: uuid(),
+    /** Filed after its due date (Africa/Nairobi). */
+    late: boolean().notNull().default(false),
     ...timestamps,
   },
   (table) => [

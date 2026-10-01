@@ -108,6 +108,7 @@ export const statusCountsSchema = z.object({
   due: z.int(),
   overdue: z.int(),
   filed: z.int(),
+  filedLate: z.int().meta({ description: 'Of those filed, the ones filed after their due date' }),
 });
 export type StatusCounts = z.infer<typeof statusCountsSchema>;
 
@@ -171,3 +172,47 @@ export const nationalSummarySchema = z.object({
   totals: statusCountsSchema,
 });
 export type NationalSummary = z.infer<typeof nationalSummarySchema>;
+
+/**
+ * A cycle's obligations by declaration progress (#300). Every counted obligation is in exactly
+ * one: `submitted` when filed, `late` when overdue (with or without a draft), otherwise
+ * `inProgress` when it has a live draft and `notStarted` when it has none.
+ */
+export const progressCountsSchema = z.object({
+  notStarted: z.int().meta({ description: 'Upcoming or due, with no live draft' }),
+  inProgress: z.int().meta({ description: 'Upcoming or due, with a live draft' }),
+  submitted: z.int().meta({ description: 'Filed' }),
+  late: z.int().meta({ description: 'Overdue and not filed, with or without a draft' }),
+});
+export type ProgressCounts = z.infer<typeof progressCountsSchema>;
+
+export const reportingEntityRefSchema = z.object({
+  id: z.uuid(),
+  name: z.string().meta({ description: 'As the roster names it' }),
+});
+
+export const declarationProgressSchema = z.object({
+  commission: commissionRefSchema,
+  cycle: summaryCycleSchema.meta({
+    description:
+      'The cycle counted: the one asked for, or the current one (the latest opened, or the first while none has)',
+  }),
+  cycles: z.array(summaryCycleSchema).meta({
+    description: "Every cycle of the calendar under the Commission's policy, oldest first",
+  }),
+  reportingEntities: z
+    .array(
+      z.object({
+        reportingEntity: reportingEntityRefSchema
+          .nullable()
+          .meta({ description: 'Null for declarants whose roster record names none' }),
+        counts: progressCountsSchema,
+      }),
+    )
+    .meta({
+      description:
+        'One entry per reporting entity with an obligation counted, by name, those with none last',
+    }),
+  total: progressCountsSchema,
+});
+export type DeclarationProgress = z.infer<typeof declarationProgressSchema>;

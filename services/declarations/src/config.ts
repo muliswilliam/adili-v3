@@ -19,6 +19,8 @@ export const envSchema = baseEnvSchema.extend({
   DIRECTORY_API_URL: z.url(),
   /** The notifications service, which sends obligation reminders to a person. */
   NOTIFICATIONS_API_URL: z.url(),
+  /** The documents service, which holds declaration attachments and says whether they are clean. */
+  DOCUMENTS_API_URL: z.url(),
   /** Where reminders send declarants to sign in (the portal). */
   PORTAL_URL: z.url(),
   /** Reminders are spread this many hours either side of midday (platform configuration). */

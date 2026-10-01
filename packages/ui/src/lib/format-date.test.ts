@@ -8,6 +8,7 @@ import {
   formatLongDate,
   formatMonth,
   formatMonthDay,
+  formatTime,
   msUntilKenyanMidnight,
 } from './format-date';
 
@@ -28,6 +29,13 @@ describe('formatDateTime', () => {
 
   it('rolls over to the next day after 21:00 UTC', () => {
     expect(formatDateTime('2026-03-11T21:05:00Z')).toBe('12 Mar 2026, 00:05');
+  });
+});
+
+describe('formatTime', () => {
+  it('prints the 24-hour time of day in Kenyan time, from an ISO string or epoch milliseconds', () => {
+    expect(formatTime('2026-09-26T07:42:00Z')).toBe('10:42');
+    expect(formatTime(Date.parse('2026-03-11T21:05:00Z'))).toBe('00:05');
   });
 });
 

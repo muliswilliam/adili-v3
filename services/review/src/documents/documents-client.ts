@@ -15,28 +15,20 @@ export type RevocationReason = 'issued-in-error';
 
 /**
  * A request to render, sign and register a verifiable document (documents.yaml `IssueDocument`,
- * ADR-010). For a clarification letter the payload names the clarification only: the documents
- * service pulls the fields the template renders from the review service's
+ * ADR-010), for the tenant the call acts for. The disclosure level and what the verify page shows
+ * are the template's. For a clarification letter the payload names the clarification only: the
+ * documents service pulls the fields the template renders from the review service's
  * `internalGetClarificationLetterPayload`, so no personal data travels in the request's logs or in
  * workflow history.
  */
 export interface IssueDocumentRequest {
   type: 'clarification-letter';
   templateVersion: number;
-  disclosureLevel: 'restricted';
-  issuerTenant: string;
-  /** The owning record, e.g. `clarification:<uuid>`. */
+  /** The owning record, e.g. `clarification:<uuid>`. One document per type and subject. */
   subjectRef: string;
   /** The person allowed to download the document (the documents owner rule). */
   subjectPersonId: string;
   payload: { clarificationId: string };
-  /** Shown on the verify page: reference, type, issuer and issue time. */
-  publicPayload: {
-    reference: string;
-    type: 'clarification-letter';
-    issuer: string;
-    issuedAt: string;
-  };
 }
 
 /** What the review service keeps of an issued document (documents.yaml `IssuedDocument`). */
@@ -66,10 +58,11 @@ export abstract class DocumentsClient {
   abstract getUploadDownload(uploadId: string, tenant: string): Promise<UploadDownload | null>;
 
   /**
-   * Renders, signs and registers a verifiable document (`issueDocument`, ADR-010). Throws
+   * Renders, signs and registers a verifiable document of the Commission (`issueDocument`,
+   * ADR-010); one issued before for the same type and subject is answered again. Throws
    * `InternalApiRejected` when documents refuses the request.
    */
-  abstract issue(request: IssueDocumentRequest): Promise<IssuedDocument>;
+  abstract issue(request: IssueDocumentRequest, tenant: string): Promise<IssuedDocument>;
 
   /**
    * Revokes an issued document of the Commission (`revokeDocument`): its verify page then shows it

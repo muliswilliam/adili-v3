@@ -17,8 +17,21 @@ ajv.addSchema(parse(readFileSync(path, 'utf8')) as object, 'declarations.yaml');
 
 /** JSON pointer of the 200 response body of an operation, e.g. `('/v1/me/obligations', 'get')`. */
 export function okResponse(operationPath: string, method: 'get'): string {
+  return responseBody(operationPath, method, 200);
+}
+
+/**
+ * JSON pointer of an operation's response body for a status, e.g. `('/v1/declarations/
+ * {declarationId}/submit', 'post', 409)`: the JSON body, or the problem body of an error.
+ */
+export function responseBody(
+  operationPath: string,
+  method: 'get' | 'post' | 'put' | 'delete',
+  status: number,
+): string {
   const escaped = operationPath.replaceAll('~', '~0').replaceAll('/', '~1');
-  return `/paths/${escaped}/${method}/responses/200/content/application~1json/schema`;
+  const mediaType = status >= 400 ? 'application~1problem+json' : 'application~1json';
+  return `/paths/${escaped}/${method}/responses/${String(status)}/content/${mediaType}/schema`;
 }
 
 /** The validation errors of `body` against the schema at `pointer`; empty when it conforms. */

@@ -1,3 +1,4 @@
+import { clientIp } from '@adili/api-kit/client';
 import { createServerFn } from '@tanstack/react-start';
 import {
   deleteCookie,
@@ -9,7 +10,6 @@ import {
 
 import { channelSchema, codeSchema, contactSchema } from '../components/onboarding/contact';
 import { identifySchema } from '../components/onboarding/identify';
-import { clientIp } from './client-ip';
 import { onboardingClient } from './directory/client.server';
 import type { OnboardingCommission } from './directory/types';
 import { env } from './env.server';

@@ -1,11 +1,10 @@
+import { TENANT_KEY as API_KIT_TENANT_KEY } from '@adili/api-kit';
 import { describe, expect, it } from 'vitest';
 
 import { ALPHABET, hasValidCheckCharacter } from './check-character.js';
-import { format, InvalidReferenceError, parse } from './reference.js';
-import { CLR, defineScheme, OFR } from './schemes.js';
+import { format, InvalidReferenceError, issuerCode, parse, TENANT_KEY } from './reference.js';
+import { CLR, DCB, DCF, DCI, OFR } from './schemes.js';
 
-// Test-only scheme with issuer and period, to exercise the full ADR-011 shape.
-const DCB = defineScheme({ code: 'DCB', issuer: true, period: true, sequenceDigits: 7 });
 const schemes = [OFR, DCB];
 
 describe('format', () => {
@@ -33,6 +32,74 @@ describe('format', () => {
     expect(() => format(OFR, { sequence: 1.5 })).toThrow(RangeError);
     expect(() => format(DCB, { issuer: 'tsc', period: 2027, sequence: 1 })).toThrow(RangeError);
     expect(() => format(DCB, { issuer: 'TSC', period: 27, sequence: 1 })).toThrow(RangeError);
+    expect(() => format(DCB, { issuer: '1TSC', period: 2027, sequence: 1 })).toThrow(RangeError);
+    expect(() => format(DCB, { issuer: 'T', period: 2027, sequence: 1 })).toThrow(RangeError);
+    expect(() => format(DCB, { issuer: 'A'.repeat(21), period: 2027, sequence: 1 })).toThrow(
+      RangeError,
+    );
+  });
+});
+
+describe('issuerCode', () => {
+  it('upper-cases a tenant key', () => {
+    expect(issuerCode('tsc')).toBe('TSC');
+    expect(issuerCode('cpsb047')).toBe('CPSB047');
+  });
+
+  it('takes every tenant key, up to 20 characters', () => {
+    const longest = `a${'b'.repeat(18)}9`;
+    expect(format(DCB, { issuer: issuerCode(longest), period: 2027, sequence: 1 })).toMatch(
+      /^DCB-AB{18}9-2027-0000001-[0-9A-Z]$/,
+    );
+  });
+
+  it('refuses what is not a tenant key', () => {
+    for (const key of ['TSC', 't', '1tsc', 'ts-c', '', `a${'b'.repeat(20)}`]) {
+      expect(() => issuerCode(key)).toThrow(RangeError);
+    }
+  });
+});
+
+describe('S18: declaration references', () => {
+  it('formats DC{I|B|F}-<issuer>-<year>-<7 digits>-<check>', () => {
+    const key = { issuer: issuerCode('tsc'), period: 2027, sequence: 1 };
+    expect(format(DCB, key)).toBe('DCB-TSC-2027-0000001-B');
+    expect(format(DCI, key)).toBe('DCI-TSC-2027-0000001-S');
+    expect(format(DCF, key)).toBe('DCF-TSC-2027-0000001-Y');
+  });
+
+  it('parses with the default registry', () => {
+    expect(parse('DCB-TSC-2027-0000001-B')).toEqual({
+      scheme: 'DCB',
+      issuer: 'TSC',
+      period: 2027,
+      sequence: 1,
+      checkCharacter: 'B',
+    });
+    expect(parse('DCI-PSC-2027-0000001-Z')).toMatchObject({ scheme: 'DCI', issuer: 'PSC' });
+    expect(parse('DCF-JSC-2028-0000042-4')).toMatchObject({ scheme: 'DCF', sequence: 42 });
+  });
+
+  it('validates the check character', () => {
+    expect(hasValidCheckCharacter('DCB-TSC-2027-0000001-B')).toBe(true);
+    expect(() => parse('DCB-TSC-2027-0000001-C')).toThrow(
+      expect.objectContaining({ reason: 'bad-check-character' }),
+    );
+    // The same body under another type code has another check character.
+    expect(() => parse('DCI-TSC-2027-0000001-B')).toThrow(
+      expect.objectContaining({ reason: 'bad-check-character' }),
+    );
+  });
+
+  it.each([
+    ['DCB-2027-0000001-B', 'malformed'], // no issuer
+    ['DCB-TSC-0000001-B', 'malformed'], // no year
+    ['DCB-TSC-27-0000001-B', 'malformed'],
+    ['DCB-tsc-2027-0000001-B', 'malformed'],
+    ['DCB-TSC-2027-000001-B', 'malformed'],
+    ['DCX-TSC-2027-0000001-B', 'unknown-scheme'],
+  ])('rejects %s with reason %s', (reference, reason) => {
+    expect(() => parse(reference)).toThrow(expect.objectContaining({ reason, reference }));
   });
 });
 
@@ -178,3 +245,10 @@ function seededRandom(seed: number): () => number {
     return ((t ^ (t >>> 14)) >>> 0) / 4_294_967_296;
   };
 }
+
+describe('the tenant key', () => {
+  it("is api-kit's, which this browser-safe package repeats rather than imports", () => {
+    expect(TENANT_KEY.source).toBe(API_KIT_TENANT_KEY.source);
+    expect(TENANT_KEY.flags).toBe(API_KIT_TENANT_KEY.flags);
+  });
+});

@@ -1,8 +1,15 @@
 import { describe, expect, it } from 'vitest';
 
-import { CSV, XLSX } from '../../src/uploads/purposes.js';
+import {
+  CSV,
+  HEIC as HEIC_TYPE,
+  JPEG as JPEG_TYPE,
+  PDF as PDF_TYPE,
+  PNG as PNG_TYPE,
+  XLSX,
+} from '../../src/uploads/purposes.js';
 import { detectType, NOT_UTF8_TEXT, type RangeReader } from '../../src/uploads/sniff.js';
-import { EICAR, fixture, PNG } from '../support/files.js';
+import { EICAR, fixture, HEIC, isoMedia, JPEG, PDF, PNG } from '../support/files.js';
 
 /** Sniffs an in-memory object, recording the ranges read. */
 async function sniff(bytes: Uint8Array) {
@@ -37,11 +44,23 @@ describe('detectType', () => {
   });
 
   it.each([
-    ['a PNG', PNG],
+    ['a PDF', PDF, PDF_TYPE],
+    ['a JPEG', JPEG, JPEG_TYPE],
+    ['a PNG', PNG, PNG_TYPE],
+    ['a HEIC photo', HEIC, HEIC_TYPE],
+    ['a HEIF with a HEVC brand among its compatible ones', isoMedia('mif1', ['heic']), HEIC_TYPE],
+    ['a HEIC image sequence', isoMedia('hevc', ['msf1']), HEIC_TYPE],
+  ])('detects %s from its magic bytes', async (_, bytes, type) => {
+    expect(await sniff(bytes)).toEqual({ type, reads: [[0, bytes.length - 1]] });
+  });
+
+  it.each([
+    ['an AVIF (HEIF, but AV1 rather than HEVC)', isoMedia('avif', ['mif1', 'miaf'])],
+    ['an MP4 video', isoMedia('isom', ['iso2', 'mp41'])],
+    ['an ftyp box too short for its brands', isoMedia('heic', []).subarray(0, 10)],
     ['a zip that is not a workbook', fixture('archive.zip')],
     ['a truncated zip', fixture('roster.xlsx').subarray(0, 600)],
     ['UTF-16 text without a byte order mark', Buffer.from('name,town\n', 'utf16le')],
-    ['a PDF', Buffer.from('%PDF-1.7\n%\xe2\xe3\xcf\xd3\n1 0 obj\n<<>>\n', 'latin1')],
     ['whitespace only', Buffer.from(' \n\r\n\t')],
     ['an empty object', Buffer.alloc(0)],
   ])('rejects %s', async (_, bytes) => {

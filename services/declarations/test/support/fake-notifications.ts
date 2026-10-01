@@ -1,20 +1,22 @@
 import { randomUUID } from 'node:crypto';
 
 import {
+  type AcknowledgementMessage,
   NotificationsClient,
   NotificationsKeyReused,
   NotificationsUnavailable,
-  type ReminderChannel,
+  type MessageChannel,
   type ReminderMessage,
   type SendOutcome,
 } from '../../src/notifications/notifications-client.js';
 
 /**
  * How the fake answers a channel: sent, a notifications failure reason, unreachable (never got
- * there), or `lost`: sent, but the answer never came back (a timeout after notifications stored it
- * under the key).
+ * there), `lost`: sent, but the answer never came back (a timeout after notifications stored it
+ * under the key), or `held`: sent, answered only once the test calls `release()` (a slow
+ * notifications).
  */
-export type FakeAnswer = 'sent' | 'unreachable' | 'lost' | { failed: string };
+export type FakeAnswer = 'sent' | 'unreachable' | 'lost' | 'held' | { failed: string };
 
 /**
  * The notifications messages API for tests: records every reminder asked for (`sent`, replays
@@ -26,20 +28,40 @@ export type FakeAnswer = 'sent' | 'unreachable' | 'lost' | { failed: string };
  */
 export class FakeNotifications extends NotificationsClient {
   readonly sent: (ReminderMessage & { messageId: string | null })[] = [];
-  private readonly answers = new Map<ReminderChannel, FakeAnswer[]>();
+  /** The acknowledgements asked for, answered like reminders (`sent`, keys kept). */
+  readonly acknowledgements: (AcknowledgementMessage & { messageId: string | null })[] = [];
+  private readonly answers = new Map<MessageChannel, FakeAnswer[]>();
   private readonly keys = new Map<string, { request: string; outcome: SendOutcome }>();
+  private held: (() => void)[] = [];
 
-  answer(channel: ReminderChannel, ...answers: FakeAnswer[]): void {
+  answer(channel: MessageChannel, ...answers: FakeAnswer[]): void {
     this.answers.set(channel, answers);
   }
 
+  /** Answers every `held` message, as sent. */
+  release(): void {
+    for (const answer of this.held) answer();
+    this.held = [];
+  }
+
   sendReminder(message: ReminderMessage): Promise<SendOutcome> {
+    return this.send(message, this.sent);
+  }
+
+  sendAcknowledgement(message: AcknowledgementMessage): Promise<SendOutcome> {
+    return this.send(message, this.acknowledgements);
+  }
+
+  private send<T extends ReminderMessage | AcknowledgementMessage>(
+    message: T,
+    sent: (T & { messageId: string | null })[],
+  ): Promise<SendOutcome> {
     const { idempotencyKey, ...body } = message;
     const request = JSON.stringify(body);
     const stored = this.keys.get(idempotencyKey);
     if (stored) {
       const { outcome } = stored;
-      this.sent.push({
+      sent.push({
         ...message,
         messageId: outcome.status === 'sent' ? outcome.messageId : null,
       });
@@ -50,31 +72,43 @@ export class FakeNotifications extends NotificationsClient {
     const queue = this.answers.get(message.channel) ?? [];
     const answer = (queue.length > 1 ? queue.shift() : queue[0]) ?? 'sent';
     if (answer === 'unreachable') {
-      this.sent.push({ ...message, messageId: null });
+      sent.push({ ...message, messageId: null });
       return Promise.reject(new NotificationsUnavailable('notifications unreachable'));
+    }
+    if (answer === 'held') {
+      const messageId = randomUUID();
+      sent.push({ ...message, messageId });
+      const outcome: SendOutcome = { status: 'sent', messageId };
+      return new Promise((resolve) => {
+        this.held.push(() => {
+          resolve(outcome);
+        });
+      });
     }
     if (answer === 'sent' || answer === 'lost') {
       const messageId = randomUUID();
-      this.sent.push({ ...message, messageId });
+      sent.push({ ...message, messageId });
       const outcome: SendOutcome = { status: 'sent', messageId };
       this.keys.set(idempotencyKey, { request, outcome });
       return answer === 'lost'
         ? Promise.reject(new NotificationsUnavailable('no answer in time'))
         : Promise.resolve(outcome);
     }
-    this.sent.push({ ...message, messageId: null });
+    sent.push({ ...message, messageId: null });
     const outcome: SendOutcome = { status: 'failed', error: answer.failed };
     this.keys.set(idempotencyKey, { request, outcome });
     return Promise.resolve(outcome);
   }
 
-  channels(): ReminderChannel[] {
+  channels(): MessageChannel[] {
     return this.sent.map((message) => message.channel);
   }
 
   reset(): void {
     this.sent.length = 0;
+    this.acknowledgements.length = 0;
     this.answers.clear();
     this.keys.clear();
+    this.release();
   }
 }

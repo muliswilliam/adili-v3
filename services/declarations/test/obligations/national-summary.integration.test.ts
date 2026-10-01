@@ -95,11 +95,12 @@ const cycle = (year: number, opened: boolean) => ({
   opened,
 });
 
-const counts = (upcoming: number, due: number, overdue: number, filed = 0) => ({
+const counts = (upcoming: number, due: number, overdue: number, filed = 0, filedLate = 0) => ({
   upcoming,
   due,
   overdue,
   filed,
+  filedLate,
 });
 
 describe('GET /v1/obligations/summary', () => {

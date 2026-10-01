@@ -9,6 +9,11 @@ import { vi } from 'vitest';
  *   vi.mock('../../server/declarations', async () =>
  *     (await import('./testing-mocks')).serverMock(),
  *   );
+ *
+ * Screens with the submit flow also mock `../../server/submission` (`submissionMock`) and
+ * `../../server/step-up` (`stepUpMock`); the success page mocks `../../server/submission` and
+ * `../download` (`downloadMock`); My declarations mocks `../../server/my-declarations`
+ * (`myDeclarationsMock`).
  */
 
 export const navigate = vi.fn();
@@ -49,6 +54,8 @@ export function serverMock() {
     startMyDeclaration: vi.fn(),
     getMyDeclarations: vi.fn(),
     discardMyDeclaration: vi.fn(),
+    amendMyDeclaration: vi.fn(),
+    discardMyAmendment: vi.fn(),
     linkDeclarationAttachment: vi.fn(),
     unlinkDeclarationAttachment: vi.fn(),
     getDeclarationSummary: vi.fn(),
@@ -58,4 +65,27 @@ export function serverMock() {
     dismissDeclarationSuggestion: vi.fn(),
     extractDeclarationAttachment: vi.fn(),
   };
+}
+
+export function submissionMock() {
+  return {
+    submitMyDeclaration: vi.fn(),
+    getMySubmission: vi.fn(),
+    getMyAcknowledgement: vi.fn(),
+    reissueMyAcknowledgement: vi.fn(),
+    getMySlipDownload: vi.fn(),
+    getMySlipContext: vi.fn(),
+  };
+}
+
+export function myDeclarationsMock() {
+  return { getMyDeclarationsPage: vi.fn(), getMyDeclarationVersions: vi.fn() };
+}
+
+export function downloadMock() {
+  return { downloadFrom: vi.fn() };
+}
+
+export function stepUpMock() {
+  return { getStepUpStatus: vi.fn() };
 }

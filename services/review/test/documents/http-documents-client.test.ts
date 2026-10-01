@@ -84,23 +84,16 @@ describe('HttpDocumentsClient', () => {
     const request = {
       type: 'clarification-letter',
       templateVersion: 1,
-      disclosureLevel: 'restricted',
-      issuerTenant: 'psc',
       subjectRef: 'clarification:0199b000-0000-7000-8000-0000000000c1',
       subjectPersonId: '0199b000-0000-7000-8000-0000000000a1',
       payload: { clarificationId: '0199b000-0000-7000-8000-0000000000c1' },
-      publicPayload: {
-        reference: 'CLR-PSC-2027-0000001-4',
-        type: 'clarification-letter',
-        issuer: 'PSC',
-        issuedAt: '2027-12-10T09:00:00.000Z',
-      },
     } as const;
 
-    expect(await documents.issue(request)).toEqual(issued);
-    expect(await documents.issue(request)).toEqual(issued);
+    expect(await documents.issue(request, 'psc')).toEqual(issued);
+    expect(await documents.issue(request, 'psc')).toEqual(issued);
     expect(sent(fetch).url).toBe('http://documents.test/internal/v1/documents/issue');
     expect(sent(fetch).headers.get('x-acting-tenant')).toBe('psc');
+    expect(await sent(fetch).json()).toEqual(request);
   });
 
   it('a revocation documents cannot take is unavailable', async () => {

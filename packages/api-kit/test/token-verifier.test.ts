@@ -39,4 +39,30 @@ describe('TokenVerifier', () => {
     expect(missing.personId).toBeNull();
     expect(malformed.personId).toBeNull();
   });
+
+  it('reads the authentication context and time (spec 06 step-up)', async () => {
+    const principal = await verifier.verify(
+      await sign({ acr: 'step-up', auth_time: 1_790_000_000 }),
+    );
+
+    expect(principal).toMatchObject({ acr: 'step-up', authTime: 1_790_000_000 });
+  });
+
+  it('reports absent or malformed acr and auth_time as null', async () => {
+    const missing = await verifier.verify(await sign({}));
+    const malformed = await verifier.verify(await sign({ acr: 2, auth_time: '1790000000' }));
+
+    expect(missing).toMatchObject({ acr: null, authTime: null });
+    expect(malformed).toMatchObject({ acr: null, authTime: null });
+  });
+
+  it('reads the token id, null when absent or empty', async () => {
+    const withId = await verifier.verify(await sign({ jti: 'onrtac:5b1f6c2e-token' }));
+    const missing = await verifier.verify(await sign({}));
+    const empty = await verifier.verify(await sign({ jti: '' }));
+
+    expect(withId.tokenId).toBe('onrtac:5b1f6c2e-token');
+    expect(missing.tokenId).toBeNull();
+    expect(empty.tokenId).toBeNull();
+  });
 });

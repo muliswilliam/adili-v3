@@ -35,6 +35,8 @@ export function rosterRecord(
     tenant,
     personnelFileNumber: `${tenant.toUpperCase()}/${id.slice(0, 8)}`,
     fullName: 'Achieng Otieno',
+    designation: 'Senior Accountant',
+    reportingEntity: { id: '0192f1a0-5a11-7000-8000-00000000e001', name: 'Ministry of Health' },
     state: overrides.personId ? 'onboarded' : 'not_onboarded',
     appointmentDate: '2015-01-05',
     exitDate: null,

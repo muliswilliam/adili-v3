@@ -73,24 +73,18 @@ export class ClarificationActivities {
     if (found.reference === null || found.issuedAt === null) {
       throw new Error(`Clarification ${clarificationId} is issued without a reference`);
     }
-    const commission = await this.directory.getCommission(tenant);
     let issued;
     try {
-      issued = await this.documents.issue({
-        type: 'clarification-letter',
-        templateVersion: CLARIFICATION_LETTER_TEMPLATE_VERSION,
-        disclosureLevel: 'restricted',
-        issuerTenant: tenant,
-        subjectRef: `clarification:${clarificationId}`,
-        subjectPersonId: found.personId,
-        payload: { clarificationId },
-        publicPayload: {
-          reference: found.reference,
+      issued = await this.documents.issue(
+        {
           type: 'clarification-letter',
-          issuer: commission.name,
-          issuedAt: found.issuedAt.toISOString(),
+          templateVersion: CLARIFICATION_LETTER_TEMPLATE_VERSION,
+          subjectRef: `clarification:${clarificationId}`,
+          subjectPersonId: found.personId,
+          payload: { clarificationId },
         },
-      });
+        tenant,
+      );
     } catch (error) {
       if (error instanceof InternalApiRejected) {
         throw ApplicationFailure.nonRetryable(

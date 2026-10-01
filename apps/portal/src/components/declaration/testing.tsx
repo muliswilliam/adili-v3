@@ -44,12 +44,16 @@ export function sampleDeclaration(overrides: Partial<Declaration> = {}): Declara
     commission: { slug: 'tsc', issuerCode: 'TSC', name: 'Teachers Service Commission' },
     type: 'biennial',
     statementDate: '2027-11-01',
+    dueDate: '2027-12-31',
     incomePeriod: { from: '2025-11-01', to: '2027-11-01', fromSource: 'assumed' },
     status: 'draft',
     schemaVersion: 'declaration.v1',
     draftVersion: 1,
     sections: sections(),
     lastSection: null,
+    reference: null,
+    currentVersion: null,
+    amendingFromVersion: null,
     createdAt: '2026-09-27T08:00:00Z',
     updatedAt: '2026-09-27T08:00:00Z',
     ...overrides,
@@ -77,18 +81,25 @@ export function sampleBio(contents: Record<string, unknown> = {}): LoadedSection
 }
 
 /** Renders a screen inside the workspace provider and layout, as the route does. */
-export function renderWorkspace(
+export function renderWorkspace(ui: ReactNode, options: WorkspaceOptions = {}) {
+  return render(workspaceTree(ui, options));
+}
+
+type WorkspaceOptions = Parameters<typeof workspaceTree>[1];
+
+/** What `renderWorkspace` renders, for a test that rerenders it with new props. */
+export function workspaceTree(
   ui: ReactNode,
   { declaration = sampleDeclaration(), step = 'overview', etag = '"1"' } = {},
 ) {
-  return render(
+  return (
     <ToastProvider>
       <TooltipProvider>
         <WorkspaceProvider declaration={declaration} etag={etag}>
           <WorkspaceLayout step={step}>{ui}</WorkspaceLayout>
         </WorkspaceProvider>
       </TooltipProvider>
-    </ToastProvider>,
+    </ToastProvider>
   );
 }
 

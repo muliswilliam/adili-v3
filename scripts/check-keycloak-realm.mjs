@@ -101,8 +101,9 @@ const configs = new Map(
   (realm.authenticatorConfig ?? []).map((config) => [config.alias, config.config]),
 );
 const loa2 = configs.get('adili-loa-2');
-if (loa2?.['loa-condition-level'] !== '2' || loa2?.['loa-max-age'] !== '300') {
-  fail('adili-loa-2 must be level 2 with max age 300 (spec 06)');
+if (loa2?.['loa-condition-level'] !== '2' || loa2?.['loa-max-age'] !== '180') {
+  // 300 s window services accept less a 120 s margin (@adili/bff-auth STEP_UP_CODE_MAX_AGE_SECONDS).
+  fail('adili-loa-2 must be level 2 with max age 180 (spec 06 step-up window less margin)');
 }
 
 const loa1 = configs.get('adili-loa-1');
@@ -202,7 +203,13 @@ if (!directory) {
 const scopes = new Map((realm.clientScopes ?? []).map((scope) => [scope.name, scope]));
 
 // Service scopes: each puts the adili-api audience on the token and names the internal API.
-for (const name of ['messages', 'iprs', 'directory:internal', 'directory:person-contacts']) {
+for (const name of [
+  'messages',
+  'iprs',
+  'directory:internal',
+  'directory:person-contacts',
+  'declarations:internal',
+]) {
   const scope = scopes.get(name);
   if (!scope) {
     fail(`missing client scope ${name}`);
@@ -246,11 +253,14 @@ if (directory) {
   if (!audience) fail('directory tokens need the adili-api audience mapper');
 }
 // Services pull from the directory's internal API (spec 04): declarations (roster records and
-// policy after roster events, and reminders through notifications) and notifications (a person's
-// verified contacts).
+// policy after roster events, reminders through notifications, and declaration attachments in
+// documents, spec 05) and notifications (a person's verified contacts).
+// The documents service pulls a submitted version's acknowledgement slip payload from
+// declarations (spec 06).
 for (const [id, needed] of [
-  ['declarations', ['directory:internal', 'messages']],
+  ['declarations', ['directory:internal', 'messages', 'documents:internal']],
   ['notifications', ['directory:person-contacts']],
+  ['documents', ['declarations:internal']],
 ]) {
   const client = clients.get(id);
   if (!client) {

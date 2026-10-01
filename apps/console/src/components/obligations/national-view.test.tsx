@@ -31,7 +31,7 @@ function row(
 ): NationalCommissionRow {
   return {
     commission: { slug, issuerCode: slug.toUpperCase(), name },
-    total: { upcoming: 0, due: 0, overdue: 0, filed: 0, ...counts },
+    total: { upcoming: 0, due: 0, overdue: 0, filed: 0, filedLate: 0, ...counts },
     notOnboarded,
     lastRosterImportAt,
   };
@@ -64,8 +64,9 @@ function ok(
           due: t.due + r.total.due,
           overdue: t.overdue + r.total.overdue,
           filed: 0,
+          filedLate: 0,
         }),
-        { upcoming: 0, due: 0, overdue: 0, filed: 0 },
+        { upcoming: 0, due: 0, overdue: 0, filed: 0, filedLate: 0 },
       ),
     },
   };

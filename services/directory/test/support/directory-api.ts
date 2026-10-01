@@ -13,7 +13,8 @@ import {
 } from '@adili/api-kit';
 import { createValkey, VALKEY } from '@adili/cache';
 import { createDatabase, DATABASE, type Database } from '@adili/data-access';
-import { TEMPORAL_CLIENT } from '@adili/temporal';
+import { TEMPORAL_CLIENT, TemporalWorkerReadinessCheck } from '@adili/temporal';
+import { untilWorkerPolling } from '@adili/temporal/testing';
 import { type Client as TemporalClient, ScheduleNotFoundError } from '@temporalio/client';
 import { sql } from 'drizzle-orm';
 import { createLocalJWKSet, exportJWK, generateKeyPair, type JWK, SignJWT } from 'jose';
@@ -204,6 +205,8 @@ export async function startDirectoryApi(options: DirectoryApiOptions = {}): Prom
   );
   await app.init();
   await app.getHttpAdapter().getInstance().ready();
+  // Tests start once the worker polls, as traffic waits for readiness (see untilWorkerPolling).
+  await untilWorkerPolling(app.get(TemporalWorkerReadinessCheck));
   // The suite's own expiry schedule (its task queue is the suite's) stays paused, so no sweep
   // ends sessions under a test that moves the clock; the schedule's test triggers it.
   const temporal = app.get<TemporalClient>(TEMPORAL_CLIENT);

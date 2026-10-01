@@ -37,6 +37,12 @@ import {
   type UnlinkResult,
 } from './declarations.server';
 import { declarationsClient, type DeclarationsClient } from './declarations/client.server';
+import {
+  amendDeclaration,
+  type AmendOutcome,
+  discardAmendment,
+  type DiscardAmendmentOutcome,
+} from './my-declarations.server';
 import type { Unauthenticated } from './results';
 
 /** Server functions for the declaration workspace. Tokens stay on the server. */
@@ -88,6 +94,20 @@ export const discardMyDeclaration = createServerFn({ method: 'POST' })
   .validator(declarationInput)
   .handler(({ data }): Promise<DiscardResult | Unauthenticated> =>
     asDeclarant((client) => discardDeclaration(client, data.declarationId)),
+  );
+
+/** Reopens a submitted declaration as an amendment (spec 06 FE-4). */
+export const amendMyDeclaration = createServerFn({ method: 'POST' })
+  .validator(declarationInput)
+  .handler(({ data }): Promise<AmendOutcome | Unauthenticated> =>
+    asDeclarant((client) => amendDeclaration(client, data.declarationId)),
+  );
+
+/** Discards an amendment in progress; the submitted version stays in force. */
+export const discardMyAmendment = createServerFn({ method: 'POST' })
+  .validator(declarationInput)
+  .handler(({ data }): Promise<DiscardAmendmentOutcome | Unauthenticated> =>
+    asDeclarant((client) => discardAmendment(client, data.declarationId)),
   );
 
 export const linkDeclarationAttachment = createServerFn({ method: 'POST' })

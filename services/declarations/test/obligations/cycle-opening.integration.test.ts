@@ -7,7 +7,7 @@ import { and, asc, eq } from 'drizzle-orm';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { cycleCalendar, cycleOpenings, filingObligations, outbox } from '../../src/db/schema.js';
-import type { Transaction } from '../../src/obligations/apply-page.js';
+import type { Transaction } from '../../src/db/transaction.js';
 import { ROSTER_IMPORT_COMPLETED } from '../../src/obligations/events.js';
 import { CycleOpening } from '../../src/obligations/workflow/cycle-opening.js';
 import { CycleOpeningActivities } from '../../src/obligations/workflow/cycle-opening-activities.js';

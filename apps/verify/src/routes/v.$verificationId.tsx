@@ -1,49 +1,55 @@
-import { Alert, AlertDescription, AlertTitle, Button, Icon } from '@adili/ui';
-import { createFileRoute, Link } from '@tanstack/react-router';
-import { AlertCircleIcon, ArrowLeft01Icon, ConstructionIcon } from '@hugeicons/core-free-icons';
+import { createFileRoute, redirect, useRouter } from '@tanstack/react-router';
 
-import { isVerificationId, normalizeVerificationId } from '../lib/verification-id';
+import { ResultSkeleton } from '../components/result-skeleton';
+import { ResultView } from '../components/result-view';
+import { outcomeTitles, verifyMessages as copy } from '../copy';
+import type { LookupOutcome } from '../lib/lookup-outcome';
+import { resolveCode } from '../lib/resolve-code';
+import { lookUpDocument } from '../server/lookup';
 
 export const Route = createFileRoute('/v/$verificationId')({
-  head: () => ({ meta: [{ name: 'robots', content: 'noindex' }] }),
+  loader: async ({ params }): Promise<{ code: string; outcome: LookupOutcome }> => {
+    const code = resolveCode(params.verificationId);
+    switch (code.action) {
+      case 'malformed':
+        return { code: code.shown, outcome: { kind: 'malformed' } };
+      case 'redirect':
+        throw redirect({
+          to: '/v/$verificationId',
+          params: { verificationId: code.verificationId },
+          replace: true,
+        });
+      case 'look-up':
+        return {
+          code: code.verificationId,
+          outcome: await lookUpDocument({ data: { verificationId: code.verificationId } }),
+        };
+    }
+  },
+  // Every lookup is recorded and rate limited: ask again on each visit, never speculatively.
+  staleTime: 0,
+  gcTime: 0,
+  pendingMs: 150,
+  pendingComponent: ResultSkeleton,
+  head: ({ loaderData }) => {
+    const outcome = loaderData?.outcome;
+    if (!outcome) return {};
+    const key = outcome.kind === 'found' ? outcome.result.status : outcome.kind;
+    return { meta: [{ title: copy.resultTitle(outcomeTitles[key]) }] };
+  },
   component: VerificationResult,
 });
 
 function VerificationResult() {
-  const { verificationId } = Route.useParams();
-  const id = normalizeVerificationId(verificationId);
-  const valid = isVerificationId(id);
-
+  const { code, outcome } = Route.useLoaderData();
+  const router = useRouter();
   return (
-    <div className="grid gap-6">
-      <div className="grid gap-2">
-        <p className="text-sm text-muted-foreground">Verification code</p>
-        <p className="font-mono text-xl font-medium tracking-wide break-all">{id}</p>
-      </div>
-      {valid ? (
-        <Alert variant="warning">
-          <Icon icon={ConstructionIcon} />
-          <AlertTitle>Verification is not available yet</AlertTitle>
-          <AlertDescription>
-            The verification service is not connected to this page yet, so this document cannot be
-            checked here. Do not treat this page as confirmation that the document is genuine.
-          </AlertDescription>
-        </Alert>
-      ) : (
-        <Alert variant="destructive">
-          <Icon icon={AlertCircleIcon} />
-          <AlertTitle>This is not a valid verification code</AlertTitle>
-          <AlertDescription>
-            Check the code printed under the QR code and try again.
-          </AlertDescription>
-        </Alert>
-      )}
-      <Button asChild variant="link" className="justify-self-start">
-        <Link to="/">
-          <Icon icon={ArrowLeft01Icon} />
-          Verify another document
-        </Link>
-      </Button>
-    </div>
+    <ResultView
+      code={code}
+      outcome={outcome}
+      onRetry={() => {
+        void router.invalidate();
+      }}
+    />
   );
 }

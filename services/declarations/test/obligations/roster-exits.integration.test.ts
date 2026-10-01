@@ -12,7 +12,7 @@ import {
   rosterSnapshots,
 } from '../../src/db/schema.js';
 import type { PulledRosterRecord } from '../../src/directory/directory-client.js';
-import type { Transaction } from '../../src/obligations/apply-page.js';
+import type { Transaction } from '../../src/db/transaction.js';
 import { ROSTER_EXITS_CONFIRMED, ROSTER_IMPORT_COMPLETED } from '../../src/obligations/events.js';
 import {
   type DeclarationsApi,

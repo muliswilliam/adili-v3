@@ -86,7 +86,7 @@ describe('starting a declaration (S1, S3)', () => {
       status: 'ok',
       section: {
         contents: {
-          name: { surname: 'Kamau', firstName: 'Mwangi', otherNames: 'Njoroge' },
+          name: { surname: 'Kamau', firstName: 'Wanjiku', otherNames: 'Njoki' },
           employment: {
             designation: 'Deputy Principal',
             employer: 'Nyeri High School',
@@ -143,6 +143,51 @@ describe('starting a declaration (S1, S3)', () => {
     });
     expect(await startDeclaration(client(), crypto.randomUUID())).toEqual({
       status: 'not-found',
+    });
+  });
+});
+
+describe('drafts belong to the declarant who started them, as in the service', () => {
+  /** A client signed in as `personId` (an unsigned token, as the mock reads it). */
+  function as(personId: string) {
+    const part = (value: object) => Buffer.from(JSON.stringify(value)).toString('base64url');
+    return createClient<paths>({
+      baseUrl: 'http://declarations.test',
+      fetch: mockDeclarationsFetch,
+      headers: {
+        authorization: `Bearer ${part({ alg: 'none' })}.${part({ person_id: personId })}.x`,
+      },
+    });
+  }
+  const wanjiku = () => as('5b0c8f7e-3f5d-4d59-9a53-0d6c1f0b2a11');
+  const grace = () => as('8d7f3a90-2b1c-4e5d-a6f7-9081a2b3c4d5');
+
+  it("lists only the caller's drafts and answers 404 to anyone else's", async () => {
+    const started = await startDeclaration(wanjiku(), MOCK_OBLIGATIONS.initial);
+    if (started.status !== 'started') throw new Error(started.status);
+    const { id } = started.declaration;
+
+    expect(await listDeclarations(wanjiku())).toMatchObject({
+      status: 'ok',
+      declarations: [{ id }],
+    });
+    expect(await listDeclarations(grace())).toEqual({ status: 'ok', declarations: [] });
+    expect(await loadDeclaration(grace(), id)).toEqual({ status: 'not-found' });
+    expect(await loadSection(grace(), id, 'bio')).toEqual({ status: 'not-found' });
+  });
+
+  it("pre-fills the bio from the caller's own roster entry", async () => {
+    const started = await startDeclaration(grace(), MOCK_OBLIGATIONS.initial);
+    if (started.status !== 'started') throw new Error(started.status);
+
+    const bio = await loadSection(grace(), started.declaration.id, 'bio');
+    expect(bio).toMatchObject({
+      section: {
+        contents: {
+          name: { surname: 'Njeri', firstName: 'Grace', otherNames: 'Wambui' },
+          employment: { personnelFileNumber: 'PSC/2009/118204' },
+        },
+      },
     });
   });
 });

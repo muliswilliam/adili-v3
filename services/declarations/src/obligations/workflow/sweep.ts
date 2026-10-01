@@ -20,7 +20,7 @@ import { PLATFORM_CONTEXT, systemContext } from '../system-context.js';
 import { reconcileSnapshots, storedReconcileContext } from '../apply-page.js';
 import { nairobiDate } from '../dates.js';
 import { filingObligations, rosterSnapshots } from '../schema.js';
-import { ObligationWorkflows, type StoppedWorkflow } from '../workflows.js';
+import { noChanges, ObligationWorkflows, type StoppedWorkflow } from '../workflows.js';
 import { OBLIGATIONS_SWEEP_WORKFLOW, type SweepResult } from './contract.js';
 import type { obligationsSweep } from './workflows.js';
 
@@ -111,9 +111,8 @@ export class ObligationsSweep {
       previous = rows[0]?.id;
       for (const [tenant, group] of Map.groupBy(rows, (row) => row.tenant)) {
         await this.workflows.apply(tenant, {
+          ...noChanges(),
           created: group.map((row) => row.id),
-          cancelled: [],
-          personLinked: [],
         });
       }
       started += rows.length;
@@ -156,9 +155,8 @@ export class ObligationsSweep {
       );
       for (const [tenant, group] of Map.groupBy(stopped, (row) => row.tenant)) {
         await this.workflows.apply(tenant, {
+          ...noChanges(),
           created: group.map((row) => row.id),
-          cancelled: [],
-          personLinked: [],
         });
       }
       restarted += stopped.length;

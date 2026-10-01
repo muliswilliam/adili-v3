@@ -54,7 +54,7 @@ export interface components {
          * @description Registered templates; each declares its channel and params
          * @enum {string}
          */
-        TemplateId: "onboarding-otp-email" | "onboarding-otp-sms" | "login-otp-sms" | "login-otp-email" | "obligation-reminder-sms" | "obligation-reminder-email";
+        TemplateId: "onboarding-otp-email" | "onboarding-otp-sms" | "login-otp-sms" | "login-otp-email" | "obligation-reminder-sms" | "obligation-reminder-email" | "acknowledgement-email" | "acknowledgement-sms";
         Recipient: {
             /** @constant */
             kind: "address";
@@ -73,7 +73,7 @@ export interface components {
             channel: components["schemas"]["Channel"];
             recipient: components["schemas"]["Recipient"];
             template: components["schemas"]["TemplateId"];
-            /** @description Validated against the template's parameter schema. `obligation-reminder-sms` and `obligation-reminder-email` take exactly `type` (initial, biennial, final), `commissionName` (1 to 120 characters), `statementDate` and `dueDate` (`YYYY-MM-DD`, due on or after statement), `daysLeft` (integer 0 to 366) and `portalUrl` (http or https URL). */
+            /** @description Validated against the template's parameter schema. `obligation-reminder-sms` and `obligation-reminder-email` take exactly `type` (initial, biennial, final), `commissionName` (1 to 120 characters), `statementDate` and `dueDate` (`YYYY-MM-DD`, due on or after statement), `daysLeft` (integer 0 to 366) and `portalUrl` (http or https URL). `acknowledgement-email` and `acknowledgement-sms` take exactly `reference` (a DCI, DCB or DCF declaration reference with a valid check character), `type` (the one the reference names), `version` (integer 1 to 99; above 1 the copy names the version, an amendment), `commissionName`, `statementDate`, `verificationCode` (`ADL-` and hyphenated groups of 0-9 and A-Z, at most 40 characters) and `portalUrl`; the email links to the portal and attaches nothing, the SMS carries only the reference and verification code. */
             params: {
                 [key: string]: unknown;
             };
@@ -108,7 +108,7 @@ export interface components {
              * @description Machine-readable cause, from the platform registry; clients map it to copy and never show `title` or `detail`
              * @enum {string}
              */
-            code?: "rate-limit-exceeded" | "no-match" | "already-onboarded" | "no-roster" | "otp-invalid" | "otp-expired" | "resend-cooldown" | "otp-send-failed" | "wrong-step" | "session-expired" | "iprs-unavailable" | "identity-unavailable" | "email-in-use";
+            code?: "database-unavailable" | "rate-limit-exceeded" | "no-match" | "already-onboarded" | "no-roster" | "otp-invalid" | "otp-expired" | "resend-cooldown" | "otp-send-failed" | "wrong-step" | "session-expired" | "iprs-unavailable" | "identity-unavailable" | "email-in-use" | "step-up-required" | "incomplete" | "before-statement-date" | "amendment-window-closed" | "not-a-draft" | "not-submitted" | "obligation-cancelled" | "acknowledgement-issued" | "acknowledgement-in-progress";
             detail?: string;
             instance?: string;
             /** @description Field-level errors; `path` is the dotted request field */
@@ -117,11 +117,6 @@ export interface components {
                 message: string;
             }[];
         };
-        /**
-         * @description Templates later specs register. Not accepted yet; each moves into `TemplateId` when implemented.
-         * @enum {string}
-         */
-        PlannedTemplateId: "acknowledgement-email" | "acknowledgement-sms" | "clarification-issued-email" | "clarification-issued-sms" | "clarification-reminder-email" | "clarification-reminder-sms" | "decision-email" | "decision-sms" | "notice-email" | "notice-sms" | "salary-stopped-email" | "salary-stopped-sms" | "salary-reinstated-email" | "salary-reinstated-sms" | "form-m-draft-ready-email" | "form-m-reminder-email" | "form-m-chase-email" | "form-m-receipt-email" | "access-request-acknowledged-email" | "access-request-notified-email" | "access-request-notified-sms" | "access-decision-applicant-email" | "access-decision-declarant-email" | "access-package-ready-email" | "access-officer-reminder-email" | "lea-grant-notice-email" | "lea-decision-email" | "certified-copy-ready-email";
     };
     responses: never;
     parameters: never;

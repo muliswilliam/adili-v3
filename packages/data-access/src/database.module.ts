@@ -2,7 +2,9 @@ import {
   type DynamicModule,
   Inject,
   Injectable,
+  Logger,
   Module,
+  type OnApplicationBootstrap,
   type OnApplicationShutdown,
 } from '@nestjs/common';
 import { ReadinessCheck } from '@adili/api-kit';
@@ -30,8 +32,22 @@ export class DatabaseReadinessCheck extends ReadinessCheck {
 }
 
 @Injectable()
-class DatabaseLifecycle implements OnApplicationShutdown {
+class DatabaseLifecycle implements OnApplicationBootstrap, OnApplicationShutdown {
+  private readonly logger = new Logger('Database');
+
   constructor(@InjectDatabase() private readonly db: Database) {}
+
+  /**
+   * Opens the pool's kept connection before the first request, so that request does not wait
+   * for a new Postgres session. Best effort: a database that is down now is readiness's concern.
+   */
+  async onApplicationBootstrap(): Promise<void> {
+    try {
+      await this.db.execute(sql`select 1`);
+    } catch (error) {
+      this.logger.warn({ err: error }, 'Database not reachable at startup');
+    }
+  }
 
   async onApplicationShutdown(): Promise<void> {
     await this.db.$client.end();

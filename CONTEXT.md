@@ -85,6 +85,14 @@ _Avoid_: section, schedule
 A change meeting Act s.31(4): 25% or more in value, acquisition or disposal, marital status, directorships or memberships.
 _Avoid_: significant change, delta
 
+**Acknowledgement slip**:
+The signed PDF receipt issued for each submitted version of a declaration, carrying its reference number, version, submission time, verification code and QR code; a later version's slip supersedes it.
+_Avoid_: receipt (alone), certificate, confirmation
+
+**Verification code**:
+The random, unguessable identifier of an issued document's verification record, printed under its QR code (e.g. `ADL-7Q4K-M2XR-9HTC-2B7F-Q3ZD-8WNA-9K`), with which anyone can check that the document is genuine and current.
+_Avoid_: reference number, document ID, serial
+
 ### Review
 
 **Clarification**:

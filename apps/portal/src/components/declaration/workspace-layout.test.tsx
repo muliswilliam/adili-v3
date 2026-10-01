@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { getDeclaration, saveDeclarationSection } from '../../server/declarations';
 import type { SaveOutcome } from '../../server/declarations.server';
+import { retryDelay } from './autosave';
 import { DECLARATION_ID, renderWorkspace, sampleDeclaration } from './testing';
 import { invalidate, navigate } from './testing-mocks';
 import { useWorkspace } from './workspace';
@@ -87,6 +88,36 @@ describe('WorkspaceLayout', () => {
     expect(screen.getByRole('button', { name: 'What is statement date?' })).toBeTruthy();
     expect(screen.getByRole('button', { name: 'What is income?' })).toBeTruthy();
     expect(screen.getByText(HEADER_COPY.assumed)).toBeTruthy();
+  });
+
+  it('goes back to My declarations, and has no amendment banner on a draft', () => {
+    renderWorkspace(<Editor />, { step: 'bio' });
+
+    expect(screen.getByRole('link', { name: 'My declarations' }).getAttribute('href')).toBe(
+      '/declarations',
+    );
+    expect(screen.queryByRole('note')).toBeNull();
+    expect(screen.queryByText(/Amending version/)).toBeNull();
+  });
+
+  it('says on every screen which version is being amended (spec 06 FE-4)', () => {
+    renderWorkspace(<Editor />, {
+      step: 'bio',
+      declaration: sampleDeclaration({
+        status: 'amending',
+        reference: 'DCB-TSC-2027-0000001-B',
+        currentVersion: 2,
+        amendingFromVersion: 2,
+      }),
+    });
+
+    expect(screen.getByRole('note').textContent).toContain(
+      'You are amending version 2. Submit again to file version 3, or discard the amendment to keep version 2.',
+    );
+    expect(
+      within(screen.getByRole('note')).getByRole('button', { name: 'Discard amendment' }),
+    ).toBeTruthy();
+    expect(screen.getByText('Amending version 2')).toBeTruthy();
   });
 
   it('leaves out the assumed-period note when the start was declared', () => {
@@ -184,9 +215,14 @@ describe('WorkspaceLayout', () => {
     });
     await edit();
 
-    await waitFor(() => {
-      expect(saveMock).toHaveBeenCalledTimes(2);
-    });
+    // The second edit waits out the first failure's backoff, which is as long as waitFor's
+    // default timeout, so give waitFor longer than the backoff.
+    await waitFor(
+      () => {
+        expect(saveMock).toHaveBeenCalledTimes(2);
+      },
+      { timeout: retryDelay(1) + 1_000 },
+    );
     expect(signInAgain).toHaveBeenCalledOnce();
   });
 

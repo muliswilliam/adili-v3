@@ -18,6 +18,7 @@ export type PayloadSource = (
 
 export interface IssuedLetter {
   request: IssueDocumentRequest;
+  tenant: string;
   /** What the pull of the letter payload answered when the letter was rendered. */
   pulled: { status: number; body: unknown };
   document: IssuedDocument;
@@ -106,13 +107,13 @@ export class FakeDocuments extends DocumentsClient {
     return Promise.resolve();
   }
 
-  async issue(request: IssueDocumentRequest): Promise<IssuedDocument> {
+  async issue(request: IssueDocumentRequest, tenant: string): Promise<IssuedDocument> {
     if (this.failures > 0) {
       this.failures -= 1;
       throw new DocumentsUnavailable('The documents service is unreachable');
     }
     if (!this.payloadSource) throw new Error('No payload source for the fake documents service');
-    const pulled = await this.payloadSource(request.issuerTenant, request.payload.clarificationId);
+    const pulled = await this.payloadSource(tenant, request.payload.clarificationId);
     if (pulled.status !== 200) {
       throw new DocumentsUnavailable(`The payload pull answered ${String(pulled.status)}`);
     }
@@ -120,7 +121,7 @@ export class FakeDocuments extends DocumentsClient {
       id: randomUUID(),
       verificationId: `ADL-${randomUUID().slice(0, 4).toUpperCase()}-TEST`,
     };
-    this.issued.push({ request: structuredClone(request), pulled, document });
+    this.issued.push({ request: structuredClone(request), tenant, pulled, document });
     return document;
   }
 }

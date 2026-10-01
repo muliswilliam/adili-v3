@@ -9,15 +9,23 @@ import {
   EmptyState,
   formatDate,
   Icon,
+  LateBadge,
   obligationTypeLabel,
+  ReferenceChip,
   remindersSentLabel,
   Skeleton,
   StatementDateTerm,
+  VersionBadge,
 } from '@adili/ui';
 import { AlertCircleIcon, Calendar03Icon, RefreshIcon } from '@hugeicons/core-free-icons';
 import { type MouseEvent, type ReactNode, Suspense, use, useId, useState } from 'react';
 
-import type { Obligation, ObligationGroup } from '../../server/declarations/types';
+import type {
+  DeclarationListItem,
+  Obligation,
+  ObligationGroup,
+} from '../../server/declarations/types';
+import { referenceParts } from '../../declaration/reference-parts';
 import type { MyObligationsResult } from '../../server/obligations.server';
 import { useDrafts } from './drafts';
 import { ObligationDrawer } from './obligation-drawer';
@@ -241,6 +249,9 @@ function ObligationCard({
           {availability.kind === 'continue' ? (
             <Badge variant="brand">{m.draftInProgress}</Badge>
           ) : null}
+          {availability.kind === 'filed' && availability.declaration.status === 'amending' ? (
+            <Badge variant="info">{m.amendmentInProgress}</Badge>
+          ) : null}
         </div>
         <Heading
           id={headingId}
@@ -264,6 +275,9 @@ function ObligationCard({
             {remindersSentLabel(obligation.remindersSent)}
           </CardFact>
         </dl>
+        {availability.kind === 'filed' ? (
+          <FiledDeclarationFacts declaration={availability.declaration} />
+        ) : null}
         {status === 'overdue' ? <OverdueNote className="relative -mt-1.5 mb-4" /> : null}
         <div className="relative flex flex-wrap items-center gap-2.5">
           <StartDeclarationButton obligationId={obligation.id} availability={availability} />
@@ -274,6 +288,23 @@ function ObligationCard({
         </div>
       </article>
     </Card>
+  );
+}
+
+/** What filed the obligation: the reference, the version in force and whether it was late. */
+function FiledDeclarationFacts({ declaration }: { declaration: DeclarationListItem }) {
+  const { reference, currentVersion } = declaration;
+  if (!reference || currentVersion === null) return null;
+  return (
+    <div className="relative -mt-1.5 mb-4 flex flex-wrap items-center gap-2">
+      <ReferenceChip
+        size="sm"
+        reference={reference}
+        parts={referenceParts(reference, declaration.commission.name)}
+      />
+      <VersionBadge version={currentVersion} />
+      {declaration.late ? <LateBadge /> : null}
+    </div>
   );
 }
 

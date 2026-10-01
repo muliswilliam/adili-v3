@@ -16,6 +16,7 @@ import {
 
 import { COMMISSION_STAFF_ROLES, EACC_ROLES, PLATFORM_ADMIN } from '@adili/roles';
 
+import { NOT_VISIBLE } from '../http.js';
 import { CommissionObligationsService } from './commission-obligations.service.js';
 import {
   type ListCommissionObligationsQuery,
@@ -26,13 +27,12 @@ import {
 import { ObligationsService } from './obligations.service.js';
 import type {
   CommissionSummary,
+  DeclarationProgress,
   MyObligations,
   NationalSummary,
   ObligationDetail,
   ObligationPage,
 } from './representation.js';
-
-const NOT_VISIBLE = 'Not found, or not visible to the caller';
 
 /** The `slug` path parameter, as the contract's `Slug`. */
 const ApiSlugParam = () =>
@@ -127,6 +127,31 @@ export class ObligationsController {
     @Query(new ZodValidationPipe(summaryQuery)) query: SummaryQuery,
   ): Promise<CommissionSummary> {
     return this.commissions.summary(principal, slug, query);
+  }
+
+  // No @Roles: it answers 403, which would tell any caller the route exists. #300 has every
+  // caller but the Commission's PROGRESS_ROLES get 404, which `progressReadTenant` decides.
+  @Get('commissions/:slug/declarations/progress')
+  @ApiSlugParam()
+  @ApiOperation({
+    operationId: 'getCommissionDeclarationProgress',
+    summary: 'Declarants not started, in progress, submitted and late, per reporting entity',
+    description:
+      "A cycle's obligations (the current cycle by default, scoped as the obligations summary) counted per reporting entity: `submitted` when filed, `late` when overdue, otherwise `inProgress` with a live draft and `notStarted` without one. Counts only, no declarant or draft content. The Commission's reporting officers and commission admins; anyone else gets 404.",
+  })
+  @ApiQueryParameters(summaryQuery)
+  @ApiOkResponse({
+    description: 'Counts per reporting entity and totals',
+    schema: schemaRef('DeclarationProgress'),
+  })
+  @ApiProblemResponse(400, 'Query failed validation')
+  @ApiProblemResponse(404, NOT_VISIBLE)
+  declarationProgress(
+    @CurrentPrincipal() principal: Principal,
+    @Param('slug') slug: string,
+    @Query(new ZodValidationPipe(summaryQuery)) query: SummaryQuery,
+  ): Promise<DeclarationProgress> {
+    return this.commissions.progress(principal, slug, query);
   }
 
   @Get('commissions/:slug/obligations')

@@ -12,7 +12,12 @@ import {
   ObligationStatusBadge,
   Tooltip,
 } from '@adili/ui';
-import { AlertCircleIcon, ArrowRight01Icon, Login03Icon } from '@hugeicons/core-free-icons';
+import {
+  AlertCircleIcon,
+  ArrowRight01Icon,
+  File01Icon,
+  Login03Icon,
+} from '@hugeicons/core-free-icons';
 import { Link, useNavigate } from '@tanstack/react-router';
 import { useId, useState } from 'react';
 
@@ -101,8 +106,9 @@ const START_FAILED = {
 } as const;
 
 /**
- * Start declaration, or Continue declaration when a draft for the obligation exists (S20). A
- * filed or cancelled obligation keeps the button disabled with the reason: a disabled button
+ * Start declaration, or Continue declaration when a draft for the obligation exists (S20), or
+ * View acknowledgement once filed, to the success page of the declaration that filed it. An
+ * obligation closed otherwise keeps Start disabled with the reason: a disabled button
  * takes neither hover nor focus, so a focusable wrapper carries the tooltip and the button is
  * described by the same words for screen readers. While the declarations load, Start waits
  * (busy) so a draft is not started twice.
@@ -128,6 +134,17 @@ export function StartDeclarationButton({
         <Link to="/declarations/$id" params={{ id: availability.declarationId }}>
           {m.continueDeclaration}
           <Icon icon={ArrowRight01Icon} />
+        </Link>
+      </Button>
+    );
+  }
+
+  if (availability.kind === 'filed') {
+    return (
+      <Button asChild className={className}>
+        <Link to="/declarations/$id/submitted" params={{ id: availability.declaration.id }}>
+          <Icon icon={File01Icon} />
+          {m.viewAcknowledgement}
         </Link>
       </Button>
     );

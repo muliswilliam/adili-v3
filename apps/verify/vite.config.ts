@@ -4,6 +4,8 @@ import viteReact from '@vitejs/plugin-react';
 import { nitro } from 'nitro/vite';
 import { defineConfig, type Rolldown } from 'vite';
 
+import { bundleBudget } from './vite-plugins/bundle-budget.ts';
+
 /** Libraries mark modules "use client" for React Server Components; harmless without RSC. */
 function ignoreUseClientDirectives(
   warning: Rolldown.RollupLog,
@@ -29,5 +31,6 @@ export default defineConfig({
     tanstackStart(),
     nitro({ rolldownConfig: { onwarn: ignoreUseClientDirectives } }),
     viteReact(),
+    bundleBudget(),
   ],
 });

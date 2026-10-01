@@ -4,7 +4,7 @@ import { parseEnv } from 'node:util';
 import swc from 'unplugin-swc';
 import { defineConfig } from 'vitest/config';
 
-// Needs Postgres, Temporal and RabbitMQ (`pnpm infra:up`); CI overrides the defaults. Other
+// Needs Postgres, Valkey, Temporal and RabbitMQ (`pnpm infra:up`); CI overrides the defaults. Other
 // services are faked.
 export default defineConfig({
   plugins: [swc.vite({ module: { type: 'es6' } })],
@@ -18,6 +18,7 @@ export default defineConfig({
       LOG_LEVEL: 'fatal',
       TEMPORAL_ADDRESS: process.env.TEST_TEMPORAL_ADDRESS ?? 'localhost:7233',
       TEMPORAL_NAMESPACE: process.env.TEST_TEMPORAL_NAMESPACE ?? 'adili',
+      VALKEY_URL: process.env.TEST_VALKEY_URL ?? 'redis://localhost:56379',
       TEST_RABBITMQ_URL: process.env.TEST_RABBITMQ_URL ?? 'amqp://adili:adili_dev@localhost:55672',
       TEST_DATABASE_URL:
         process.env.TEST_DATABASE_URL ??
