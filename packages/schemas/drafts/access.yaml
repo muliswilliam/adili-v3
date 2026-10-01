@@ -4,30 +4,6 @@
 # `Decision`, `RegisterEntry`, `ProblemDetails`). When an operation or component is implemented,
 # delete it here: the export fails while both define it.
 paths:
-  /v1/access/commissions:
-    get:
-      tags: [applicant]
-      operationId: listAccessCommissions
-      summary: Commissions an applicant can address, with the declaration years available
-      responses:
-        '200':
-          description: Commissions
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  type: object
-                  required: [slug, name, years]
-                  properties:
-                    slug:
-                      type: string
-                    name:
-                      type: string
-                    years:
-                      type: array
-                      items:
-                        type: integer
   /v1/access/requests/{requestId}/package/download:
     parameters:
       - $ref: '#/components/parameters/RequestId'

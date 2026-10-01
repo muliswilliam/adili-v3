@@ -6,6 +6,7 @@ import {
   type ApplicantFacts,
   type ApplicantVerificationInput,
   type CommissionFacts,
+  type CommissionListing,
   DirectoryClient,
   DirectoryUnavailable,
   type RosterCandidateFacts,
@@ -40,7 +41,11 @@ const commissionSchema = z.object({
   name: z.string().min(1),
 }) satisfies z.ZodType<CommissionFacts>;
 
-const commissionListSchema = z.object({ items: z.array(commissionSchema) });
+const commissionListSchema = z.object({
+  items: z.array(
+    commissionSchema.extend({ status: z.string().min(1), obligationsStartDate: z.iso.date() }),
+  ),
+});
 
 const rosterRecordSchema = z.object({
   id: z.uuid(),
@@ -122,12 +127,18 @@ export class HttpDirectoryClient extends DirectoryClient {
     return commission;
   }
 
-  async listCommissions(): Promise<CommissionFacts[]> {
+  async listCommissions(): Promise<CommissionListing[]> {
     const found = await this.directory.call((api) => api.GET('/internal/v1/commissions'), {
       status: 200,
       schema: commissionListSchema,
     });
-    return found.items.map(({ slug, issuerCode, name }) => ({ slug, issuerCode, name }));
+    return found.items.map(({ slug, issuerCode, name, status, obligationsStartDate }) => ({
+      slug,
+      issuerCode,
+      name,
+      status,
+      obligationsStartDate,
+    }));
   }
 
   async rosterRecord(slug: string, recordId: string): Promise<RosterRecordFacts | null> {

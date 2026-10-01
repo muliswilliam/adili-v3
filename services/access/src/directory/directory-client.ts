@@ -9,6 +9,17 @@ export interface CommissionFacts {
 }
 
 /**
+ * A Commission in the directory's platform-wide list (directory.yaml `InternalCommissionListItem`):
+ * what applicants choose among, and from when it can hold declarations on Adili.
+ */
+export interface CommissionListing extends CommissionFacts {
+  /** `active` takes requests; any other state the directory may add does not. */
+  status: string;
+  /** The earliest obligations-start date of its policy versions (`YYYY-MM-DD`). */
+  obligationsStartDate: string;
+}
+
+/**
  * A roster record the access officer resolves the officer named in a request to
  * (directory.yaml `InternalRosterRecord`): its declarant's person, once onboarded.
  */
@@ -82,8 +93,8 @@ export abstract class DirectoryClient {
   /** The Commission's name and issuer code; null when no active Commission has this slug. */
   abstract findCommission(slug: string): Promise<CommissionFacts | null>;
 
-  /** Every active Responsible Commission, as applicants choose among them. */
-  abstract listCommissions(): Promise<CommissionFacts[]>;
+  /** Every Commission on the platform, with its status and earliest obligations-start date. */
+  abstract listCommissions(): Promise<CommissionListing[]>;
 
   /** One roster record of the Commission; null when it has none with this id. */
   abstract rosterRecord(slug: string, recordId: string): Promise<RosterRecordFacts | null>;
