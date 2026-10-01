@@ -548,3 +548,64 @@ describe('S13 issuing a certified copy', () => {
     ]);
   });
 });
+
+describe('S13 a certified copy ordered in person: the recording officer hands it over', () => {
+  let document: IssuedDocument;
+
+  beforeAll(async () => {
+    document = await issued({
+      type: 'certified-copy',
+      templateVersion: 1,
+      subjectRef: `certified-copy:${randomUUID()}`,
+      subjectPersonId: DECLARANT_PERSON,
+      additionalDownloaders: [ACCESS_OFFICER.sub],
+      payload: copyPayload(),
+    });
+  });
+
+  it('downloads for the officer named on it, audited as document.downloaded.v1 by them', async () => {
+    const response = await download(document.id, ACCESS_OFFICER);
+    expect(response.statusCode, response.body).toBe(200);
+    expect(response.json<DocumentDownload>().sha256).toBe(document.sha256);
+    const metadata = await api.get(`/v1/documents/${document.id}`, ACCESS_OFFICER);
+    expect(metadata.statusCode).toBe(200);
+
+    const downloads = (await eventsAbout(document.id)).filter(
+      (event) => event.type === 'document.downloaded.v1',
+    );
+    expect(downloads.map((event) => event.data)).toEqual([
+      expect.objectContaining({ documentType: 'certified-copy', downloadedBy: ACCESS_OFFICER.sub }),
+    ]);
+  });
+
+  it('still downloads for the declarant', async () => {
+    expect((await download(document.id, DECLARANT)).statusCode).toBe(200);
+  });
+
+  it("answers 404 to other officers, the officer's subject under another Commission, and other people", async () => {
+    const otherOfficer: Caller = { ...ACCESS_OFFICER, sub: 'officer-2' };
+    const otherCommission: Caller = { ...ACCESS_OFFICER, tenant: 'tsc' };
+    const supervisor: Caller = { sub: 'supervisor-1', tenant: 'psc', roles: ['supervisor'] };
+    const before = (await eventsAbout(document.id)).length;
+    for (const caller of [otherOfficer, otherCommission, supervisor, APPLICANT, LEA_OFFICER]) {
+      expect((await download(document.id, caller)).statusCode).toBe(404);
+      expect((await api.get(`/v1/documents/${document.id}`, caller)).statusCode).toBe(404);
+    }
+    expect(await eventsAbout(document.id)).toHaveLength(before);
+  });
+
+  it('refuses repeated downloader subjects with 400', async () => {
+    const response = await issue({
+      type: 'certified-copy',
+      templateVersion: 1,
+      subjectRef: `certified-copy:${randomUUID()}`,
+      subjectPersonId: DECLARANT_PERSON,
+      additionalDownloaders: ['officer-1', 'officer-1'],
+      payload: copyPayload(),
+    });
+    expect(response.statusCode).toBe(400);
+    expect(response.json<Problem>().errors).toEqual([
+      expect.objectContaining({ path: 'additionalDownloaders' }),
+    ]);
+  });
+});

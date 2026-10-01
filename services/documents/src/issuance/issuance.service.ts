@@ -22,7 +22,7 @@ import {
   type DocumentType,
   newVerificationId,
 } from '@adili/events/contracts';
-import { and, eq } from 'drizzle-orm';
+import { and, arrayContains, eq } from 'drizzle-orm';
 import { v7 as uuidv7 } from 'uuid';
 
 import { Clock } from '../clock.js';
@@ -70,7 +70,18 @@ export interface IssueRequest {
   watermark?: Watermark;
   /** Days from issue the subject person may download it; none for no window. */
   downloadWindowDays?: number;
+  /** Subjects of the issuing Commission's staff who may download it too. */
+  additionalDownloaders?: string[];
   payload: unknown;
+}
+
+/** Who asks for a document or its download, from their token. */
+export interface Downloader {
+  /** The token's `person_id`: the subject person of the documents about them. */
+  personId: string | null;
+  subject: string;
+  /** The token's tenant: staff may download what their Commission named them on. */
+  tenant: string | null;
 }
 
 export interface IssueOutcome {
@@ -213,6 +224,7 @@ export class IssuanceService {
               issuedAt,
               issuedBy: request.actor,
               downloadExpiresAt,
+              additionalDownloaders: request.additionalDownloaders ?? [],
             })
             .onConflictDoNothing({ target: [issuedDocuments.type, issuedDocuments.subjectRef] })
             .returning();
@@ -374,23 +386,24 @@ export class IssuanceService {
     }));
   }
 
-  /** A document the caller is the subject person of; anyone else gets 404. */
-  async getOwned(personId: string | null, subject: string, id: string): Promise<IssuedDocument> {
-    const { document, record } = await this.owned(personId, subject, id);
+  /** A document the caller may download (see `download`); anyone else gets 404. */
+  async getOwned(caller: Downloader, id: string): Promise<IssuedDocument> {
+    const { document, record } = await this.owned(caller, id);
     return this.toIssuedDocument(document, record);
   }
 
   /**
-   * A five-minute presigned GET of the signed PDF, for the subject person only (404 for anyone
-   * else) and only within the document's download window (410 `download-window-closed` after
-   * it). Each link handed out is recorded as `document.downloaded.v1` under the issuer.
+   * A five-minute presigned GET of the signed PDF, for the subject person and the issuing
+   * Commission's staff named as additional downloaders only (404 for anyone else), and only
+   * within the document's download window (410 `download-window-closed` after it). Each link
+   * handed out is recorded as `document.downloaded.v1` under the issuer.
    */
   async download(
-    personId: string | null,
-    subject: string,
+    caller: Downloader,
     id: string,
   ): Promise<{ download: DocumentDownload; document: DocumentRow }> {
-    const { document, record } = await this.owned(personId, subject, id);
+    const { subject } = caller;
+    const { document, record } = await this.owned(caller, id);
     const now = this.clock.now();
     if (document.downloadExpiresAt && now >= document.downloadExpiresAt) {
       throw new ProblemException({
@@ -429,18 +442,33 @@ export class IssuanceService {
     };
   }
 
+  /**
+   * The document when the caller is its subject person (read under the person policy across
+   * Commissions) or, failing that, staff of the issuing Commission named among its additional
+   * downloaders (read in their own tenant's context); anyone else gets the same 404.
+   */
   private async owned(
-    personId: string | null,
-    subject: string,
+    { personId, subject, tenant }: Downloader,
     id: string,
   ): Promise<{ document: DocumentRow; record: RecordRow }> {
-    // No person, no document to download: the same 404 as another person's.
-    const [found] = personId
+    const [asSubjectPerson] = personId
       ? await withPerson(this.db, { personId, subject }, (tx) =>
           withRecord(tx).where(eq(issuedDocuments.id, id)),
         )
       : [];
-    return notFoundIfInvisible(found);
+    if (asSubjectPerson) return asSubjectPerson;
+    const [asDownloader] = tenant
+      ? await withTenant(this.db, { tenant, subject }, (tx) =>
+          withRecord(tx).where(
+            and(
+              eq(issuedDocuments.id, id),
+              eq(issuedDocuments.tenant, tenant),
+              arrayContains(issuedDocuments.additionalDownloaders, [subject]),
+            ),
+          ),
+        )
+      : [];
+    return notFoundIfInvisible(asDownloader);
   }
 
   private async findBySubject(
