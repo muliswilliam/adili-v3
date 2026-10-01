@@ -68,6 +68,16 @@ export class Browser {
   }
 }
 
+/** The page's kcContext; throws when the response was not a Keycloak page. */
+export function context(page: Page): KcContext {
+  if (!page.kcContext) {
+    throw new Error(
+      `no Keycloak page at ${page.url} (status ${page.status}, location ${page.location})`,
+    );
+  }
+  return page.kcContext;
+}
+
 /** Evaluates the page's kcContext declaration, which is a JavaScript literal rather than JSON. */
 function parseKcContext(html: string): KcContext | undefined {
   const start = html.indexOf('const kcContext =');

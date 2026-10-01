@@ -336,13 +336,11 @@ describe('referrals: propose, approve with evidence package, decline (S13)', () 
     expect(issued?.request).toEqual({
       type: 'referral-package',
       templateVersion: 1,
-      disclosureLevel: 'confidential',
-      issuerTenant: 'psc',
       subjectRef: `referral:${referral.id}`,
       subjectPersonId: null,
       payload: { referralId: referral.id },
-      publicPayload: {},
     });
+    expect(issued?.tenant).toBe('psc');
     expect(sent.package?.documentId).toBe(issued?.document.id);
     expect(issued?.pulled.status).toBe(200);
     expect(

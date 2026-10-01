@@ -91,7 +91,10 @@ function checkOf(upload: Upload): UploadCheck {
       return { status: 'infected' };
     case 'rejected':
       return { status: 'rejected', reason: rejectionOf(upload.rejection) };
+    // Left unlinked for 30 days, so the orphan sweep deleted the file: like an expired upload,
+    // it has to be uploaded again.
     case 'expired':
+    case 'deleted':
       return { status: 'expired' };
     case 'awaiting-upload':
       return { status: 'scanning' };

@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { TooltipProvider } from '@adili/ui';
+import { ToastProvider, TooltipProvider } from '@adili/ui';
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
@@ -91,13 +91,15 @@ function renderView(
     declarations?: Promise<DeclarationListResult> | null;
   } = {},
 ) {
-  render(
+  const view = (
     <TooltipProvider delayDuration={0}>
       <DraftsProvider declarations={declarations}>
         <ObligationsView result={result} onRetry={onRetry} loadDetail={loadDetail} now={now} />
       </DraftsProvider>
-    </TooltipProvider>,
+    </TooltipProvider>
   );
+  // A filed obligation's reference chip copies with a toast, as under the app shell.
+  render(declarations ? <ToastProvider>{view}</ToastProvider> : view);
   return { onRetry, loadDetail };
 }
 
@@ -205,7 +207,8 @@ describe('ObligationsView', () => {
     }
   });
 
-  // S20: a filed obligation keeps the action disabled, explained by a tooltip.
+  // S20: a filed obligation keeps Start disabled, explained by a tooltip, until the declaration
+  // that filed it is known.
   it('disables Start declaration on a filed obligation with the reason', () => {
     renderView({
       status: 'ok',
@@ -225,6 +228,92 @@ describe('ObligationsView', () => {
     expect(screen.getByRole('tooltip').textContent).toBe(messages.closedFiled);
   });
 
+  // Spec 06, as the prototype's "Home: filed": the reference, the version in force, late when it
+  // was, and the acknowledgement in place of Start.
+  it('shows what filed the obligation, and links to its acknowledgement', async () => {
+    const entry = obligation({ status: 'filed' });
+    const filedDeclaration = (overrides: Partial<DeclarationListItem>): DeclarationListItem => ({
+      id: 'd-1',
+      obligationId: entry.id,
+      commission: TSC,
+      type: 'initial',
+      statementDate: entry.statementDate,
+      status: 'submitted',
+      completenessPercent: 100,
+      dueDate: entry.dueDate,
+      reference: 'DCI-TSC-2026-0000001-H',
+      currentVersion: 2,
+      amendingFromVersion: null,
+      submittedAt: '2026-12-20T08:00:00Z',
+      late: false,
+      amendable: true,
+      acknowledgement: { status: 'issued', documentId: 'doc-1', verifiedCount: 0 },
+      updatedAt: '2026-12-20T08:00:00Z',
+      ...overrides,
+    });
+    const declarations = Promise.resolve<DeclarationListResult>({
+      status: 'ok',
+      declarations: [filedDeclaration({})],
+    });
+    renderView(
+      { status: 'ok', groups: [{ commission: TSC, obligations: [entry] }] },
+      { declarations },
+    );
+    await act(async () => {
+      await declarations;
+    });
+
+    const filed = within(card('Initial declaration'));
+    expect(filed.getByText('Filed')).toBeTruthy();
+    expect(filed.getByText('DCI-TSC-2026-0000001-H')).toBeTruthy();
+    expect(filed.getByText('Version 2')).toBeTruthy();
+    expect(filed.queryByText('Filed late')).toBeNull();
+    expect(filed.queryByText(messages.amendmentInProgress)).toBeNull();
+    expect(filed.queryByRole('button', { name: 'Start declaration' })).toBeNull();
+    expect(
+      filed.getByRole('link', { name: messages.viewAcknowledgement }).getAttribute('href'),
+    ).toBe('/declarations/d-1/submitted');
+  });
+
+  it('says a filed declaration was late, and that an amendment is in progress', async () => {
+    const entry = obligation({ status: 'filed' });
+    const declarations = Promise.resolve<DeclarationListResult>({
+      status: 'ok',
+      declarations: [
+        {
+          id: 'd-1',
+          obligationId: entry.id,
+          commission: TSC,
+          type: 'initial',
+          statementDate: entry.statementDate,
+          status: 'amending',
+          completenessPercent: 100,
+          dueDate: entry.dueDate,
+          reference: 'DCI-TSC-2026-0000001-H',
+          currentVersion: 1,
+          amendingFromVersion: 1,
+          submittedAt: '2027-01-05T08:00:00Z',
+          late: true,
+          amendable: false,
+          acknowledgement: { status: 'pending', documentId: null, verifiedCount: 0 },
+          updatedAt: '2027-01-05T08:00:00Z',
+        },
+      ],
+    });
+    renderView(
+      { status: 'ok', groups: [{ commission: TSC, obligations: [entry] }] },
+      { declarations },
+    );
+    await act(async () => {
+      await declarations;
+    });
+
+    const filed = within(card('Initial declaration'));
+    expect(filed.getByText('Filed late')).toBeTruthy();
+    expect(filed.getByText(messages.amendmentInProgress)).toBeTruthy();
+    expect(filed.getByRole('link', { name: messages.viewAcknowledgement })).toBeTruthy();
+  });
+
   // S20: an existing draft is continued, not started again.
   it('continues an existing draft once the declarations arrive', async () => {
     const entry = obligation();
@@ -236,6 +325,14 @@ describe('ObligationsView', () => {
       statementDate: entry.statementDate,
       status: 'draft',
       completenessPercent: 25,
+      dueDate: '2027-12-31',
+      reference: null,
+      currentVersion: null,
+      amendingFromVersion: null,
+      submittedAt: null,
+      late: null,
+      amendable: false,
+      acknowledgement: null,
       updatedAt: '2026-12-20T08:00:00Z',
     };
     let arrive: (result: DeclarationListResult) => void = () => undefined;

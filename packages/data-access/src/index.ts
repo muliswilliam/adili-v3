@@ -19,6 +19,7 @@ export {
   createDatabase,
   type Database,
   type DatabaseOptions,
+  DatabaseUnavailableError,
   type PersonContext,
   runMigrations,
   switchTenant,

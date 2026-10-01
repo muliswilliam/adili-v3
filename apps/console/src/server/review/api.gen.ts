@@ -3085,7 +3085,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
-            /** @description The documents service or the directory could not be reached; try again */
+            /** @description The documents service could not be reached; try again */
             503: {
                 headers: {
                     [name: string]: unknown;

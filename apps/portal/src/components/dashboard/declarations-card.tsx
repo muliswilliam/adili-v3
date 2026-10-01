@@ -6,12 +6,14 @@ import {
   Card,
   CardContent,
   CardDescription,
+  CardFooter,
   CardHeader,
   CardTitle,
   EmptyState,
   formatDate,
   formatDateTime,
   Icon,
+  LateBadge,
   ProgressBar,
   Skeleton,
   useToast,
@@ -22,6 +24,7 @@ import { type ReactNode, Suspense, use } from 'react';
 
 import { DISCARDED_TOAST, DiscardDraftButton } from '../declaration/discard-dialog';
 import { OBLIGATION_TYPE_LABELS } from '../../declaration/labels';
+import { orderDeclarations } from '../../declaration/my-declarations';
 import type { DeclarationListResult } from '../../server/declarations.server';
 import type { DeclarationListItem, DeclarationStatus } from '../../server/declarations/types';
 
@@ -35,17 +38,29 @@ const STATUS_BADGES: Record<
   discarded: { label: 'Discarded', variant: 'default' },
 };
 
-const isOpen = (item: DeclarationListItem) => item.status === 'draft' || item.status === 'amending';
-
-/** Drafts first, then by statement date, newest first. */
-export function sortDeclarations(items: DeclarationListItem[]): DeclarationListItem[] {
-  return items
-    .filter((item) => item.status !== 'discarded')
-    .sort(
-      (a, b) =>
-        Number(isOpen(b)) - Number(isOpen(a)) || b.statementDate.localeCompare(a.statementDate),
-    );
+/**
+ * A filed declaration says which version is in force and when it was submitted; a draft or an
+ * amendment says when it was last saved. The line wraps only between facts, never inside a date.
+ */
+function facts(item: DeclarationListItem): string {
+  return factsOf(item)
+    .map((fact) => fact.replaceAll(' ', '\u00A0'))
+    .join(' · ');
 }
+
+function factsOf(item: DeclarationListItem): string[] {
+  const statementDate = `Statement date ${formatDate(item.statementDate)}`;
+  if (item.status === 'submitted' && item.currentVersion !== null && item.submittedAt !== null) {
+    return [
+      statementDate,
+      `Version ${String(item.currentVersion)}`,
+      `Submitted ${formatDateTime(item.submittedAt)}`,
+    ];
+  }
+  return [statementDate, `Saved ${formatDateTime(item.updatedAt)}`];
+}
+
+const isOpen = (item: DeclarationListItem) => item.status === 'draft' || item.status === 'amending';
 
 function DeclarationRow({ item }: { item: DeclarationListItem }) {
   const router = useRouter();
@@ -59,11 +74,12 @@ function DeclarationRow({ item }: { item: DeclarationListItem }) {
           <h3 className="font-semibold">
             {title} · {item.commission.name}
           </h3>
-          <p className="text-sm text-muted-foreground">
-            Statement date {formatDate(item.statementDate)} · Saved {formatDateTime(item.updatedAt)}
-          </p>
+          <p className="text-sm text-muted-foreground">{facts(item)}</p>
         </div>
-        <Badge variant={badge.variant}>{badge.label}</Badge>
+        <div className="flex flex-wrap gap-1.5">
+          {item.status === 'submitted' && item.late ? <LateBadge /> : null}
+          <Badge variant={badge.variant}>{badge.label}</Badge>
+        </div>
       </div>
       {isOpen(item) ? (
         <>
@@ -128,14 +144,29 @@ function ResolvedDeclarationsCard({ promise }: { promise: Promise<DeclarationLis
   return <DeclarationsCard declarations={use(promise)} />;
 }
 
-function DeclarationsCardFrame({ children }: { children: ReactNode }) {
+const DESCRIPTIONS = {
+  drafts: 'Drafts save as you type. Continue where you left off.',
+  filed: 'Your filed declarations. Slips and amendments are on My declarations.',
+} as const;
+
+function DeclarationsCardFrame({
+  children,
+  footer,
+  description = 'drafts',
+}: {
+  children: ReactNode;
+  footer?: ReactNode;
+  /** `filed` when every declaration listed is filed, with nothing left to continue. */
+  description?: keyof typeof DESCRIPTIONS;
+}) {
   return (
     <Card>
       <CardHeader>
         <CardTitle>Your declarations</CardTitle>
-        <CardDescription>Drafts save as you type. Continue where you left off.</CardDescription>
+        <CardDescription>{DESCRIPTIONS[description]}</CardDescription>
       </CardHeader>
       <CardContent>{children}</CardContent>
+      {footer ? <CardFooter>{footer}</CardFooter> : null}
     </Card>
   );
 }
@@ -160,12 +191,26 @@ export function DeclarationsCardSkeleton() {
 
 /**
  * "Your declarations" on the dashboard (FE-9, S16): each draft with its completeness,
- * Continue and Discard; other declarations are listed read-only.
+ * Continue and Discard; other declarations are listed read-only, with their versions, slips
+ * and amending on My declarations (spec 06 FE-4).
  */
 export function DeclarationsCard({ declarations }: { declarations: DeclarationListResult }) {
-  const items = declarations.status === 'ok' ? sortDeclarations(declarations.declarations) : [];
+  const items = declarations.status === 'ok' ? orderDeclarations(declarations.declarations) : [];
+  const allFiled = items.length > 0 && !items.some(isOpen);
   return (
-    <DeclarationsCardFrame>
+    <DeclarationsCardFrame
+      description={allFiled ? 'filed' : 'drafts'}
+      footer={
+        items.length > 0 ? (
+          <Button asChild variant="secondary" size="sm">
+            <Link to="/declarations">
+              My declarations
+              <Icon icon={ArrowRight01Icon} />
+            </Link>
+          </Button>
+        ) : null
+      }
+    >
       {declarations.status === 'unavailable' ? (
         <Alert variant="destructive">
           <Icon icon={AlertCircleIcon} />

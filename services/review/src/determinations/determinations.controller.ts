@@ -105,7 +105,7 @@ export class DeterminationsController {
   @ApiProblemResponse(404, NOT_VISIBLE)
   @ApiProblemResponse(409, 'Problem code `not-approved`')
   @ApiProblemResponse(502, 'The documents service refused the letter')
-  @ApiProblemResponse(503, 'The documents service or the directory could not be reached')
+  @ApiProblemResponse(503, 'The documents service could not be reached')
   letter(
     @CurrentPrincipal() principal: Principal,
     @Req() request: AuthenticatedRequest,

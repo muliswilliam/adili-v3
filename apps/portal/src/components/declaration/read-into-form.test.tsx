@@ -147,6 +147,7 @@ beforeEach(() => {
       key: KEY,
       completeness: 'incomplete',
       draftVersion: 3,
+      issues: [],
       contents: { assets: [{ id: ITEM_ID, type: 'vehicle' }] },
     },
   });

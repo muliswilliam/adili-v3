@@ -5,6 +5,7 @@ import { v7 as uuidv7 } from 'uuid';
 
 import { REMINDER_JITTER_WINDOW_MS } from '../config.js';
 import type { DeclarationsSchema } from '../db/schema.js';
+import type { Transaction } from '../db/transaction.js';
 import type { PulledRosterRecord } from '../directory/directory-client.js';
 import type { CivilDate } from './dates.js';
 import {
@@ -33,8 +34,6 @@ import {
 } from './schema.js';
 import { reminderSlot } from './workflow/timeline.js';
 import { noChanges, type ObligationChanges } from './workflows.js';
-
-export type Transaction = Parameters<Parameters<Database<DeclarationsSchema>['transaction']>[0]>[0];
 
 /** What roster records are reconciled against. */
 export interface ReconcileContext {
@@ -277,6 +276,8 @@ async function upsertSnapshots(
           personId: record.personId,
           ofr: record.ofr,
           onboardedAt: record.onboardedAt === null ? null : new Date(record.onboardedAt),
+          reportingEntityId: record.reportingEntity?.id ?? null,
+          reportingEntityName: record.reportingEntity?.name ?? null,
           sourceUpdatedAt: new Date(record.updatedAt),
           syncedFrom: context.syncedFrom,
         })),
@@ -292,6 +293,8 @@ async function upsertSnapshots(
           personId: excluded('person_id'),
           ofr: excluded('ofr'),
           onboardedAt: excluded('onboarded_at'),
+          reportingEntityId: excluded('reporting_entity_id'),
+          reportingEntityName: excluded('reporting_entity_name'),
           sourceUpdatedAt: excluded('source_updated_at'),
           syncedFrom: excluded('synced_from'),
           syncedAt: sql`now()`,

@@ -12,6 +12,9 @@ const principal = (subject: string, role: string): Principal => ({
   name: null,
   issuedAt: null,
   personId: null,
+  acr: null,
+  authTime: null,
+  tokenId: null,
 });
 
 describe('separation of duties', () => {

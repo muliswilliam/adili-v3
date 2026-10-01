@@ -24,7 +24,7 @@ function row(
 ): NationalCommissionRow {
   return {
     commission: { slug, issuerCode: slug.toUpperCase(), name },
-    total: { upcoming: 0, due: 0, overdue: 0, filed: 0, ...counts },
+    total: { upcoming: 0, due: 0, overdue: 0, filed: 0, filedLate: 0, ...counts },
     notOnboarded,
     lastRosterImportAt,
   };
@@ -143,7 +143,7 @@ describe('S16 national summary: totals and pages', () => {
       opened: true,
     },
     commissions: [npsc, tsc, psc, jsc, caj],
-    totals: { upcoming: 0, due: 1_472, overdue: 1_820, filed: 0 },
+    totals: { upcoming: 0, due: 1_472, overdue: 1_820, filed: 0, filedLate: 0 },
   };
 
   it('takes the counts from the service totals and adds up not onboarded', () => {

@@ -15,6 +15,7 @@ import {
   DialogTitle,
 } from './dialog';
 import { Icon } from './icon';
+import { IconTile } from './icon-tile';
 import { SOURCE_KINDS, SOURCE_NAMES, type SourceKind } from './source-badge';
 
 /** A national ID with all but its last three digits hidden: "12345678" → "•••••678". */
@@ -131,12 +132,9 @@ export function ConsentDialog({
         }}
       >
         <DialogHeader className="flex-row items-center gap-3">
-          <span
-            aria-hidden="true"
-            className="grid size-[34px] shrink-0 place-items-center rounded-lg bg-muted text-secondary-foreground"
-          >
-            <Icon icon={BankIcon} className="size-[17px]" />
-          </span>
+          <IconTile>
+            <Icon icon={BankIcon} />
+          </IconTile>
           <DialogTitle>{messages.title}</DialogTitle>
         </DialogHeader>
         {/* Mounted only while open, so the tick starts cleared each time. */}

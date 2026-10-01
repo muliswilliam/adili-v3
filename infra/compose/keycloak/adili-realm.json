@@ -315,7 +315,7 @@
     {
       "clientId": "declarations",
       "name": "Declarations service",
-      "description": "Service account the declarations service uses to pull roster records and policy from the directory and to send reminders through notifications",
+      "description": "Service account the declarations service uses to pull roster records and policy from the directory, to send reminders through notifications and to link declaration attachments in documents",
       "enabled": true,
       "protocol": "openid-connect",
       "publicClient": false,
@@ -325,7 +325,7 @@
       "implicitFlowEnabled": false,
       "directAccessGrantsEnabled": false,
       "serviceAccountsEnabled": true,
-      "defaultClientScopes": ["basic", "directory:internal", "messages"],
+      "defaultClientScopes": ["basic", "directory:internal", "messages", "documents:internal"],
       "optionalClientScopes": []
     },
     {
@@ -342,6 +342,22 @@
       "directAccessGrantsEnabled": false,
       "serviceAccountsEnabled": true,
       "defaultClientScopes": ["basic", "directory:person-contacts"],
+      "optionalClientScopes": []
+    },
+    {
+      "clientId": "documents",
+      "name": "Documents service",
+      "description": "Service account the documents service uses to pull a submitted declaration version's acknowledgement slip payload from declarations and a clarification letter's payload from review",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "clientAuthenticatorType": "client-secret",
+      "secret": "documents-dev-secret",
+      "standardFlowEnabled": false,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": true,
+      "defaultClientScopes": ["basic", "declarations:internal", "review:internal"],
       "optionalClientScopes": []
     },
     {
@@ -1144,7 +1160,7 @@
     },
     {
       "name": "declarations:internal",
-      "description": "Service tokens for the declarations service's internal API: a submitted version's acknowledgement slip payload, acting for a tenant (spec 06)",
+      "description": "Service tokens for the declarations service's internal API: a submitted version's acknowledgement slip payload (spec 06), and a submitted version's document and the version before it for review (spec 07a), acting for a tenant",
       "protocol": "openid-connect",
       "attributes": {
         "include.in.token.scope": "true",
@@ -1217,7 +1233,7 @@
       "alias": "adili-loa-2",
       "config": {
         "loa-condition-level": "2",
-        "loa-max-age": "300"
+        "loa-max-age": "180"
       }
     },
     {

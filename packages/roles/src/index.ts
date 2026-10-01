@@ -79,8 +79,9 @@ export const DIRECTORY_PERSON_CONTACTS_SCOPE = 'directory:person-contacts';
 export const DIRECTORY_ROSTER_NATIONAL_ID_SCOPE = 'directory:roster-national-id';
 
 /**
- * The declarations service's internal API: the fields of a submitted version's acknowledgement
- * slip, pulled by the documents service acting for the Commission (spec 06).
+ * The declarations service's internal API, acting for the Commission: the fields of a submitted
+ * version's acknowledgement slip, pulled by the documents service (spec 06), and a submitted
+ * version's document and the version before it, read by the review service (spec 07a).
  */
 export const DECLARATIONS_INTERNAL_SCOPE = 'declarations:internal';
 

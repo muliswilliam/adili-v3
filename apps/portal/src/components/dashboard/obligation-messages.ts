@@ -26,6 +26,8 @@ export const en = {
   startDeclaration: 'Start declaration',
   continueDeclaration: 'Continue declaration',
   draftInProgress: 'Draft in progress',
+  amendmentInProgress: 'Amendment in progress',
+  viewAcknowledgement: 'View acknowledgement',
   submitFrom: (date: string) => `Submit from ${date}.`,
   closedFiled: 'Already filed. There is nothing more to declare for this obligation.',
   closedCancelled: 'Cancelled. You do not need to declare for this obligation.',

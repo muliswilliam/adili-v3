@@ -5,6 +5,8 @@ export {
   AuditedReadInterceptor,
 } from './audited-read.interceptor.js';
 export {
+  DECLARATION_SUBMITTED,
+  type DeclarationSubmittedData,
   OBLIGATION_CYCLE_OPENED,
   OBLIGATION_REMINDER_RECORDED,
   type ObligationCycleOpenedData,
@@ -22,7 +24,7 @@ export {
 } from './envelope.js';
 export { EventPublisher, type EventsModuleOptions } from './event-publisher.js';
 export { EventsModule, OutboxRelay, RabbitMqReadinessCheck } from './events.module.js';
-export { consumeOnce } from './inbox.js';
+export { consumeIdempotent, consumeOnce } from './inbox.js';
 export { OnEvent, RmqAckInterceptor } from './on-event.decorator.js';
 export { eventsSchema, inbox, outbox } from './schema.js';
 export { type EventsServerOptions, eventsServerOptions } from './server-options.js';

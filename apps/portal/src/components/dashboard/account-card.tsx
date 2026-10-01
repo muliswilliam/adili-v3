@@ -63,13 +63,17 @@ export function DeclarantCard({ account }: { account: DeclarantAccount }) {
       <CardFooter className="mt-5 flex-nowrap items-start gap-2 border-t text-[13.5px] text-muted-foreground">
         <Icon icon={SecurityCheckIcon} className="mt-px size-4 shrink-0" aria-hidden="true" />
         <ul className="grid gap-0.5">
-          {account.commissions.map((commission) => (
-            <li key={commission.slug}>
-              {multipleCommissions
-                ? `Onboarded at ${commission.name} on ${formatDate(commission.onboardedAt)}`
-                : `Onboarded on ${formatDate(commission.onboardedAt)}`}
-            </li>
-          ))}
+          {account.commissions.map((commission) => {
+            // No-break spaces keep the date whole when the line wraps.
+            const date = formatDate(commission.onboardedAt).replaceAll(' ', '\u00A0');
+            return (
+              <li key={commission.slug}>
+                {multipleCommissions
+                  ? `Onboarded at ${commission.name} on ${date}`
+                  : `Onboarded on ${date}`}
+              </li>
+            );
+          })}
         </ul>
       </CardFooter>
     </Card>

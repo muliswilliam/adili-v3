@@ -54,7 +54,7 @@ describe('POST /internal/v1/iprs/person-lookups', () => {
   beforeEach(async () => {
     iprs.reset();
     iprs.people.set(WANJIKU.id_number, WANJIKU);
-    await t.valkey.flushdb();
+    await t.clearCache();
     await t.db.delete(verificationResults);
     logs.length = 0;
   });
@@ -114,8 +114,7 @@ describe('POST /internal/v1/iprs/person-lookups', () => {
   it('keeps answers for 24 hours under a key without the national ID', async () => {
     await lookup('23456789');
 
-    const prefix = t.valkey.options.keyPrefix ?? '';
-    const keys = (await t.valkey.keys('*')).map((key) => key.slice(prefix.length));
+    const keys = await t.cacheKeys();
     expect(keys).toHaveLength(1);
     expect(keys[0]).toMatch(/^iprs:person:[0-9a-f]{64}$/);
     const ttl = await t.valkey.ttl(keys[0] ?? '');
@@ -150,7 +149,7 @@ describe('POST /internal/v1/iprs/person-lookups', () => {
       // Each case starts with a closed circuit: past any cool-down, one success closes it.
       t.clock.advance(30_000);
       expect((await lookup('23456789')).statusCode).toBe(200);
-      await t.valkey.flushdb();
+      await t.clearCache();
       iprs.calls = 0;
     });
 
@@ -199,7 +198,7 @@ describe('POST /internal/v1/iprs/person-lookups', () => {
 
       expect(probe.statusCode).toBe(200);
       expect(iprs.calls).toBe(6);
-      await t.valkey.flushdb();
+      await t.clearCache();
       expect((await lookup('23456789')).statusCode).toBe(200);
       expect(iprs.calls).toBe(7);
     });

@@ -17,11 +17,12 @@ vi.mock('@tanstack/react-router', () => ({ useRouter: () => ({ invalidate: vi.fn
 
 const PSC = { slug: 'psc', issuerCode: 'PSC', name: 'Public Service Commission' };
 
-const counts = (upcoming = 0, due = 0, overdue = 0, filed = 0) => ({
+const counts = (upcoming = 0, due = 0, overdue = 0, filed = 0, filedLate = 0) => ({
   upcoming,
   due,
   overdue,
   filed,
+  filedLate,
 });
 
 /** A biennial cycle under the statutory dates. */

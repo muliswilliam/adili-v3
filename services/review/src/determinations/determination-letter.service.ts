@@ -9,7 +9,6 @@ import { visibleId } from '../cases/case-lookup.js';
 import { asPerson } from '../clarifications/declarant-clarifications.service.js';
 import { letterDownloadUrl } from '../clarifications/links.js';
 import type { ReviewSchema } from '../db/schema.js';
-import { DirectoryClient } from '../directory/directory-client.js';
 import { DocumentsClient } from '../documents/documents-client.js';
 import { upstreamUnavailable, withUpstream } from '../internal-api/upstream.js';
 import { DECISION_LETTER_REFUSED } from './contract.js';
@@ -34,7 +33,6 @@ export interface LetterDownloadView {
 export class DeterminationLetterService {
   constructor(
     @InjectDatabase() private readonly db: Database<ReviewSchema>,
-    private readonly directory: DirectoryClient,
     private readonly documents: DocumentsClient,
   ) {}
 
@@ -85,11 +83,7 @@ export class DeterminationLetterService {
     let letter;
     try {
       letter = await withUpstream(() =>
-        issueDecisionLetter(
-          { db: this.db, directory: this.directory, documents: this.documents },
-          tenant,
-          determinationId,
-        ),
+        issueDecisionLetter({ db: this.db, documents: this.documents }, tenant, determinationId),
       );
     } catch (error) {
       if (error instanceof ApplicationFailure && error.type === DECISION_LETTER_REFUSED) {

@@ -13,6 +13,8 @@ interface KeycloakClaims extends JWTPayload {
   preferred_username?: string;
   /** The account's person, from the `person_id` user attribute (declarants once onboarded). */
   person_id?: string;
+  acr?: unknown;
+  auth_time?: unknown;
 }
 
 const personIdSchema = z.uuid();
@@ -47,6 +49,9 @@ export class TokenVerifier {
       issuedAt: payload.iat ?? null,
       // Person ids are UUIDs (RLS casts them); anything else links the account to no person.
       personId: personIdSchema.safeParse(payload.person_id).data ?? null,
+      acr: typeof payload.acr === 'string' ? payload.acr : null,
+      authTime: Number.isSafeInteger(payload.auth_time) ? (payload.auth_time as number) : null,
+      tokenId: typeof payload.jti === 'string' && payload.jti !== '' ? payload.jti : null,
     };
   }
 }

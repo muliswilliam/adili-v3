@@ -190,6 +190,9 @@ describe('bulk approval of closures and on-demand letters (S4)', () => {
       name: 'Samuel Njoroge',
       issuedAt: null,
       personId: null,
+      acr: null,
+      authTime: null,
+      tokenId: null,
     };
     const resumed = await api.app
       .get(BulkClosuresService)
@@ -290,13 +293,11 @@ describe('bulk approval of closures and on-demand letters (S4)', () => {
     const [issued] = api.documents.issued;
     expect(issued?.request).toMatchObject({
       type: 'decision-letter',
-      disclosureLevel: 'restricted',
-      issuerTenant: 'psc',
       subjectRef: `determination:${closure.id}`,
       subjectPersonId: closure.personId,
       payload: { determinationId: closure.id },
-      publicPayload: { reference: closure.reference, type: 'decision-letter' },
     });
+    expect(issued?.tenant).toBe('psc');
     expect(issued?.pulled).toMatchObject({
       status: 200,
       body: { determinationReference: closure.reference, outcome: 'compliant-no-issues' },

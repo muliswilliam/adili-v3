@@ -84,7 +84,7 @@ describe('OutboxRelay', () => {
     expect(state.open).toBe(1);
 
     let closed = false;
-    const shutdown = relay.onApplicationShutdown().then(() => {
+    const shutdown = relay.beforeApplicationShutdown().then(() => {
       closed = true;
     });
     await vi.advanceTimersByTimeAsync(RELAY_PUBLISH_TIMEOUT_MS - 1);
@@ -115,7 +115,7 @@ describe('OutboxRelay', () => {
 
     relay.onApplicationBootstrap();
     await vi.advanceTimersByTimeAsync(0);
-    const shutdown = relay.onApplicationShutdown();
+    const shutdown = relay.beforeApplicationShutdown();
     release();
     await shutdown;
 

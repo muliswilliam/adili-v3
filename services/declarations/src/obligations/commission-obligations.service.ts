@@ -24,8 +24,10 @@ import {
 
 import { Clock } from '../clock.js';
 import type { DeclarationsSchema } from '../db/schema.js';
-import { loadCalendar, type Transaction } from './apply-page.js';
-import { commissionReadTenant, fallbackIssuerCode } from './access.js';
+import type { Transaction } from '../db/transaction.js';
+import { obligationDrafts } from '../drafts/schema.js';
+import { loadCalendar } from './apply-page.js';
+import { commissionReadTenant, commissionRef, progressReadTenant } from './access.js';
 import {
   decodeListCursor,
   encodeListCursor,
@@ -37,9 +39,12 @@ import { OPEN_STATUSES, type ObligationStatus, type ObligationType } from './eng
 import { biennialCycleKey, biennialYear } from './cycle-key.js';
 import { obligationColumns, toObligation } from './obligations.service.js';
 import type {
+  CommissionRef,
   CommissionSummary,
+  DeclarationProgress,
   NationalSummary,
   ObligationPage,
+  ProgressCounts,
   Reminder,
   StatusCounts,
   SummaryCycle,
@@ -139,24 +144,7 @@ export class CommissionObligationsService {
   ): Promise<CommissionSummary> {
     const tenant = commissionReadTenant(principal, slug, { counts: true });
     return withTenant(this.db, { tenant, subject: principal.subject }, async (tx) => {
-      const [reference] = await tx
-        .select({ issuerCode: commissionRefs.issuerCode, name: commissionRefs.name })
-        .from(commissionRefs)
-        .where(eq(commissionRefs.slug, slug));
-      // Staff reading their own Commission know it exists, even before the read model has it.
-      // Readers across Commissions get 404 for a Commission the read model lacks: see
-      // `knownCommission` for when a real one can be missing.
-      if (tenant === PLATFORM_TENANT) notFoundIfInvisible(reference);
-      const [cached] = await tx
-        .select({ policy: tenantPolicyCache.policy })
-        .from(tenantPolicyCache)
-        .where(eq(tenantPolicyCache.tenant, slug));
-      const biennial = cached?.policy.biennial ?? STATUTORY_BIENNIAL;
-      const { counted, cycles } = await this.cycles(tx, {
-        asked: query.cycle,
-        biennial,
-        tenant: slug,
-      });
+      const { commission, counted, cycles } = await this.commissionCycles(tx, tenant, slug, query);
       const year = Number(counted.statementDate.slice(0, 4));
 
       const rows = await tx.execute<{
@@ -164,19 +152,22 @@ export class CommissionObligationsService {
         type: ObligationType | null;
         status: CountedStatus;
         n: number;
+        late: number;
       }>(sql`
         with scoped as (
           select ${filingObligations.rosterRecordId} as roster_record_id,
                  ${filingObligations.type} as type,
                  ${filingObligations.status} as status,
-                 ${filingObligations.personId} as person_id
+                 ${filingObligations.personId} as person_id,
+                 ${filingObligations.late} as late
           from ${filingObligations}
           where ${and(eq(filingObligations.tenant, slug), inCycle(year))}
         )
-        select 'count' as kind, type, status, count(*)::int as n
+        select 'count' as kind, type, status, count(*)::int as n,
+               count(*) filter (where late)::int as late
         from scoped group by type, status
         union all
-        select 'not-onboarded', null, worst, count(*)::int
+        select 'not-onboarded', null, worst, count(*)::int, 0
         from (
           select case when bool_or(status = 'overdue') then 'overdue' else 'due' end as worst
           from scoped
@@ -198,17 +189,77 @@ export class CommissionObligationsService {
         } else if (row.type !== null) {
           byType[row.type][row.status] = row.n;
           total[row.status] += row.n;
+          if (row.status === 'filed') {
+            byType[row.type].filedLate = row.late;
+            total.filedLate += row.late;
+          }
         }
       }
-      const issuerCode = reference?.issuerCode ?? fallbackIssuerCode(slug);
-      return {
-        commission: { slug, issuerCode, name: reference?.name ?? issuerCode },
-        cycle: counted,
-        cycles,
-        total,
-        byType,
-        notOnboarded,
-      };
+      return { commission, cycle: counted, cycles, total, byType, notOnboarded };
+    });
+  }
+
+  /**
+   * A cycle's obligations (the current cycle by default, as `summary` scopes them) by declaration
+   * progress per reporting entity (#300), in one aggregate query: filed ones are submitted,
+   * overdue ones late, and the rest in progress when they have a live draft, not started when
+   * not. Live drafts are known from `obligation_drafts`, written with each start and discard, so
+   * the Commission never reads a draft. Counts only: no declarant, no draft content. For the
+   * Commission's reporting officers and admins; anyone else gets 404.
+   */
+  async progress(
+    principal: Principal,
+    slug: string,
+    query: SummaryQuery,
+  ): Promise<DeclarationProgress> {
+    const tenant = progressReadTenant(principal, slug);
+    return withTenant(this.db, { tenant, subject: principal.subject }, async (tx) => {
+      const { commission, counted, cycles } = await this.commissionCycles(tx, tenant, slug, query);
+      const year = Number(counted.statementDate.slice(0, 4));
+      const open = sql`${filingObligations.status} in ('upcoming', 'due')`;
+      const rows = await tx.execute<{
+        reporting_entity_id: string | null;
+        reporting_entity_name: string | null;
+        not_started: number;
+        in_progress: number;
+        submitted: number;
+        late: number;
+      }>(sql`
+        select ${rosterSnapshots.reportingEntityId} as reporting_entity_id,
+               max(${rosterSnapshots.reportingEntityName}) as reporting_entity_name,
+               count(*) filter (where ${open} and ${obligationDrafts.obligationId} is null)::int
+                 as not_started,
+               count(*) filter (where ${open} and ${obligationDrafts.obligationId} is not null)::int
+                 as in_progress,
+               count(*) filter (where ${filingObligations.status} = 'filed')::int as submitted,
+               count(*) filter (where ${filingObligations.status} = 'overdue')::int as late
+        from ${filingObligations}
+        join ${rosterSnapshots}
+          on ${rosterSnapshots.rosterRecordId} = ${filingObligations.rosterRecordId}
+        left join ${obligationDrafts}
+          on ${obligationDrafts.obligationId} = ${filingObligations.id}
+        where ${and(eq(filingObligations.tenant, slug), inCycle(year))}
+        group by ${rosterSnapshots.reportingEntityId}
+        order by reporting_entity_id is null, reporting_entity_name, reporting_entity_id`);
+
+      const total = zeroProgress();
+      const reportingEntities = rows.rows.map((row) => {
+        const counts: ProgressCounts = {
+          notStarted: row.not_started,
+          inProgress: row.in_progress,
+          submitted: row.submitted,
+          late: row.late,
+        };
+        for (const key of PROGRESS_KEYS) total[key] += counts[key];
+        return {
+          reportingEntity:
+            row.reporting_entity_id === null
+              ? null
+              : { id: row.reporting_entity_id, name: row.reporting_entity_name ?? '' },
+          counts,
+        };
+      });
+      return { commission, cycle: counted, cycles, reportingEntities, total };
     });
   }
 
@@ -314,13 +365,15 @@ export class CommissionObligationsService {
           due: number;
           overdue: number;
           filed: number;
+          filed_late: number;
           not_onboarded: number;
         }>(sql`
         with scoped as (
           select ${filingObligations.tenant} as tenant,
                  ${filingObligations.rosterRecordId} as roster_record_id,
                  ${filingObligations.status} as status,
-                 ${filingObligations.personId} as person_id
+                 ${filingObligations.personId} as person_id,
+                 ${filingObligations.late} as late
           from ${filingObligations}
           where ${inCycle(year)}
         ),
@@ -330,6 +383,7 @@ export class CommissionObligationsService {
                  count(*) filter (where status = 'due')::int as due,
                  count(*) filter (where status = 'overdue')::int as overdue,
                  count(*) filter (where status = 'filed')::int as filed,
+                 count(*) filter (where status = 'filed' and late)::int as filed_late,
                  count(distinct roster_record_id)
                    filter (where person_id is null and status in ('due', 'overdue'))::int
                    as not_onboarded
@@ -344,6 +398,7 @@ export class CommissionObligationsService {
                coalesce(counts.due, 0)::int as due,
                coalesce(counts.overdue, 0)::int as overdue,
                coalesce(counts.filed, 0)::int as filed,
+               coalesce(counts.filed_late, 0)::int as filed_late,
                coalesce(counts.not_onboarded, 0)::int as not_onboarded
         from ${commissionRefs}
         left join counts on counts.tenant = ${commissionRefs.slug}
@@ -356,8 +411,10 @@ export class CommissionObligationsService {
             due: row.due,
             overdue: row.overdue,
             filed: row.filed,
+            filedLate: row.filed_late,
           };
           for (const status of COUNTED_STATUSES) totals[status] += total[status];
+          totals.filedLate += total.filedLate;
           return {
             commission: { slug: row.slug, issuerCode: row.issuer_code, name: row.name },
             total,
@@ -371,6 +428,38 @@ export class CommissionObligationsService {
         return { cycle: counted, commissions, totals };
       },
     );
+  }
+
+  /**
+   * The Commission as last pulled (404 to a reader across Commissions when unknown), with the
+   * counted cycle and the calendar's cycles under its policy's biennial dates (the statutory ones
+   * until a policy is pulled).
+   */
+  private async commissionCycles(
+    tx: Transaction,
+    tenant: string,
+    slug: string,
+    query: SummaryQuery,
+  ): Promise<{ commission: CommissionRef; counted: SummaryCycle; cycles: SummaryCycle[] }> {
+    const [reference] = await tx
+      .select({ issuerCode: commissionRefs.issuerCode, name: commissionRefs.name })
+      .from(commissionRefs)
+      .where(eq(commissionRefs.slug, slug));
+    // Staff reading their own Commission know it exists, even before the read model has it.
+    // Readers across Commissions get 404 for a Commission the read model lacks: see
+    // `knownCommission` for when a real one can be missing.
+    if (tenant === PLATFORM_TENANT) notFoundIfInvisible(reference);
+    const [cached] = await tx
+      .select({ policy: tenantPolicyCache.policy })
+      .from(tenantPolicyCache)
+      .where(eq(tenantPolicyCache.tenant, slug));
+    const biennial = cached?.policy.biennial ?? STATUTORY_BIENNIAL;
+    const { counted, cycles } = await this.cycles(tx, {
+      asked: query.cycle,
+      biennial,
+      tenant: slug,
+    });
+    return { commission: commissionRef(slug, reference), counted, cycles };
   }
 
   /**
@@ -485,5 +574,11 @@ export function cycleOf(
 }
 
 export function zeroCounts(): StatusCounts {
-  return { upcoming: 0, due: 0, overdue: 0, filed: 0 };
+  return { upcoming: 0, due: 0, overdue: 0, filed: 0, filedLate: 0 };
+}
+
+const PROGRESS_KEYS = ['notStarted', 'inProgress', 'submitted', 'late'] as const;
+
+function zeroProgress(): ProgressCounts {
+  return { notStarted: 0, inProgress: 0, submitted: 0, late: 0 };
 }

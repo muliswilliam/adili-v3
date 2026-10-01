@@ -85,6 +85,9 @@ const SERVICE: Principal = {
   name: null,
   issuedAt: null,
   personId: null,
+  acr: null,
+  authTime: null,
+  tokenId: null,
 };
 
 /** Stands in for the JWT guard: `authorization: service` is the service token, else anonymous. */

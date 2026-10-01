@@ -2,7 +2,7 @@ import { createServiceClient, type ServiceClient, type ServiceTokenClient } from
 import { z } from 'zod';
 
 import { rejectedBy } from '../internal-api/rejected.js';
-import type { paths } from './documents-api.gen.js';
+import type { components, paths } from './documents-api.gen.js';
 import {
   DocumentsClient,
   DocumentsUnavailable,
@@ -28,6 +28,8 @@ const downloadSchema = z.object({
   fileName: z.string().nullable(),
   sha256: z.string().min(1),
 }) satisfies z.ZodType<UploadDownload>;
+
+type IssueDocumentBody = components['schemas']['IssueDocument'];
 
 const issuedSchema = z.object({ id: z.uuid(), verificationId: z.string().min(1) });
 
@@ -86,12 +88,15 @@ export class HttpDocumentsClient extends DocumentsClient {
     return { downloadUrl, expiresAt, purpose, fileName, sha256 };
   }
 
-  async issue(request: IssueDocumentRequest): Promise<IssuedDocument> {
+  async issue(request: IssueDocumentRequest, tenant: string): Promise<IssuedDocument> {
     const issued = await this.issuance.call(
       (api) =>
         api.POST('/internal/v1/documents/issue', {
-          params: { header: { 'X-Acting-Tenant': request.issuerTenant } },
-          body: request,
+          params: { header: { 'X-Acting-Tenant': tenant } },
+          // Review's letters and the referral package join documents' contract with their
+          // templates (the clarification letter with #156); until then documents refuses them
+          // with 400 (InternalApiRejected), which the activities do not retry.
+          body: request as unknown as IssueDocumentBody,
         }),
       // 200: issued before (one document per type and subject), answered again.
       { status: [200, 201], schema: issuedSchema, otherwise: { 400: rejectedBy('documents') } },

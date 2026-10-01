@@ -283,18 +283,11 @@ describe('determinations: propose, approve, return, withdraw', () => {
     expect(letter?.request).toEqual({
       type: 'decision-letter',
       templateVersion: 1,
-      disclosureLevel: 'restricted',
-      issuerTenant: 'psc',
       subjectRef: `determination:${determination.id}`,
       subjectPersonId: version.personId,
       payload: { determinationId: determination.id },
-      publicPayload: {
-        reference: approved.reference,
-        type: 'decision-letter',
-        issuer: 'Public Service Commission',
-        issuedAt: '2027-12-20T08:00:00.000Z',
-      },
     });
+    expect(letter?.tenant).toBe('psc');
     expect(letter?.pulled.status).toBe(200);
     expect(
       contractErrors(

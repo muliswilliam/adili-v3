@@ -96,6 +96,14 @@ describe('startAvailability (S20)', () => {
     statementDate: '2027-11-01',
     status: 'draft',
     completenessPercent: 10,
+    dueDate: '2027-12-31',
+    reference: null,
+    currentVersion: null,
+    amendingFromVersion: null,
+    submittedAt: null,
+    late: null,
+    amendable: false,
+    acknowledgement: null,
     updatedAt: '2026-12-20T08:00:00Z',
   });
 
@@ -126,11 +134,28 @@ describe('startAvailability (S20)', () => {
     });
   });
 
-  it('disables filed and cancelled obligations with a reason, whatever the declarations', () => {
-    expect(startAvailability({ id: 'o-1', status: 'filed' }, { status: 'pending' })).toEqual({
-      kind: 'closed',
-      reason: messages.closedFiled,
-    });
+  it('offers the acknowledgement of the declaration that filed the obligation', () => {
+    const filed = { ...draft('d-1', 'o-1'), status: 'amending' as const, currentVersion: 1 };
+
+    expect(
+      startAvailability(
+        { id: 'o-1', status: 'filed' },
+        { status: 'ok', declarations: [draft('d-0', 'o-2'), filed] },
+      ),
+    ).toEqual({ kind: 'filed', declaration: filed });
+  });
+
+  it('disables filed obligations without their declaration, and cancelled ones, with a reason', () => {
+    for (const drafts of [
+      { status: 'pending' } as const,
+      { status: 'unavailable' } as const,
+      none,
+    ]) {
+      expect(startAvailability({ id: 'o-1', status: 'filed' }, drafts)).toEqual({
+        kind: 'closed',
+        reason: messages.closedFiled,
+      });
+    }
     expect(startAvailability({ id: 'o-1', status: 'cancelled' }, none)).toEqual({
       kind: 'closed',
       reason: messages.closedCancelled,

@@ -54,7 +54,7 @@ export class DeterminationActivities {
     determinationId,
   }: DeterminationIssuanceInput): Promise<DecisionLetterOutcome> {
     const letter = await issueDecisionLetter(
-      { db: this.db, directory: this.directory, documents: this.documents },
+      { db: this.db, documents: this.documents },
       tenant,
       determinationId,
     );

@@ -252,11 +252,9 @@ describe('salary stoppage, reinstatement and disciplinary referral', () => {
     });
     expect(letter.request).toMatchObject({
       type: 'salary-stoppage',
-      disclosureLevel: 'restricted',
       subjectRef: `action:${stoppage.id}`,
       subjectPersonId: obligation.personId,
       payload: { actionId: stoppage.id },
-      publicPayload: { reference, type: 'salary-stoppage' },
     });
     expect(
       contractErrors(
@@ -568,10 +566,8 @@ describe('salary stoppage, reinstatement and disciplinary referral', () => {
       return found;
     });
     expect(letter.request).toMatchObject({
-      disclosureLevel: 'restricted',
       subjectPersonId: obligation.personId,
       payload: { actionId: referral.id },
-      publicPayload: { reference, type: 'disciplinary-referral' },
     });
     expect(
       contractErrors(

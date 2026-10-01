@@ -1,9 +1,29 @@
 import type { z } from 'zod';
 
 import {
+  acknowledgementPayloadSchema,
+  acknowledgementSlipSchema,
+} from './acknowledgement/representation.js';
+import {
+  attachmentLinkSchema,
+  completenessIssueSchema,
+  declarationAttachmentSchema,
+  completenessSchema,
+  declarationListItemSchema,
+  declarationSchema,
+  declarationStatusSchema,
+  declarationSummarySchema,
+  notIncludedSchema,
+  sectionContentsSchema,
+  sectionEnvelopeSchema,
+  sectionKeySchema,
+  sectionSaveResultSchema,
+} from './drafts/representation.js';
+import {
   cancelReasonSchema,
   commissionRefSchema,
   commissionSummarySchema,
+  declarationProgressSchema,
   myObligationsSchema,
   nationalSummarySchema,
   obligationDetailSchema,
@@ -12,6 +32,8 @@ import {
   obligationSchema,
   obligationStatusSchema,
   obligationTypeSchema,
+  progressCountsSchema,
+  reportingEntityRefSchema,
   declarantRefSchema,
   reminderChannelSchema,
   reminderOutcomeSchema,
@@ -19,6 +41,14 @@ import {
   statusCountsSchema,
   summaryCycleSchema,
 } from './obligations/representation.js';
+import { declarationReferenceSchema } from './declaration/reference.js';
+import {
+  acknowledgementSchema,
+  acknowledgementStatusSchema,
+  declarationVersionDetailSchema,
+  declarationVersionSchema,
+} from './declaration/representation.js';
+import { submissionResultSchema, submitProblemSchema } from './submission/representation.js';
 
 /**
  * Named schemas of the declarations service's OpenAPI document (`#/components/schemas/<name>`),
@@ -42,4 +72,29 @@ export const OPENAPI_SCHEMAS: Record<string, z.ZodType> = {
   SummaryCycle: summaryCycleSchema,
   CommissionSummary: commissionSummarySchema,
   NationalSummary: nationalSummarySchema,
+  ProgressCounts: progressCountsSchema,
+  ReportingEntityRef: reportingEntityRefSchema,
+  DeclarationProgress: declarationProgressSchema,
+  DeclarationReference: declarationReferenceSchema,
+  SectionKey: sectionKeySchema,
+  Completeness: completenessSchema,
+  DeclarationStatus: declarationStatusSchema,
+  Declaration: declarationSchema,
+  SectionContents: sectionContentsSchema,
+  CompletenessIssue: completenessIssueSchema,
+  NotIncluded: notIncludedSchema,
+  SectionEnvelope: sectionEnvelopeSchema,
+  SectionSaveResult: sectionSaveResultSchema,
+  AttachmentLink: attachmentLinkSchema,
+  DeclarationAttachment: declarationAttachmentSchema,
+  DeclarationSummary: declarationSummarySchema,
+  DeclarationListItem: declarationListItemSchema,
+  AcknowledgementStatus: acknowledgementStatusSchema,
+  Acknowledgement: acknowledgementSchema,
+  DeclarationVersion: declarationVersionSchema,
+  DeclarationVersionDetail: declarationVersionDetailSchema,
+  SubmissionResult: submissionResultSchema,
+  SubmitProblem: submitProblemSchema,
+  AcknowledgementSlip: acknowledgementSlipSchema,
+  AcknowledgementPayload: acknowledgementPayloadSchema,
 };

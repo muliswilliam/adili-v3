@@ -200,18 +200,11 @@ describe('enforcement ladder', () => {
     expect(letter?.request).toEqual({
       type: 'notice-to-comply',
       templateVersion: 1,
-      disclosureLevel: 'restricted',
-      issuerTenant: 'psc',
       subjectRef: `action:${notice.id}`,
       subjectPersonId: obligation.personId,
       payload: { actionId: notice.id },
-      publicPayload: {
-        reference: approved.reference,
-        type: 'notice-to-comply',
-        issuer: 'Public Service Commission',
-        issuedAt: PAST,
-      },
     });
+    expect(letter?.tenant).toBe('psc');
     expect(
       contractErrors(
         okResponse('/internal/v1/review/actions/{actionId}/letter-payload', 'get'),
@@ -296,7 +289,6 @@ describe('enforcement ladder', () => {
     expect(api.documents.issued[1]?.request).toMatchObject({
       type: 'warning',
       payload: { actionId: warning.id },
-      publicPayload: { reference: warningReference, type: 'warning' },
     });
     expect(api.notifications.sent.map((message) => message.template)).toEqual([
       'notice-email',

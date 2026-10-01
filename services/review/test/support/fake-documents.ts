@@ -22,6 +22,7 @@ export type PayloadSource = (
 
 export interface IssuedLetter {
   request: IssueDocumentRequest;
+  tenant: string;
   /** What the pull of the letter payload answered when the letter was rendered. */
   pulled: { status: number; body: unknown };
   document: IssuedDocument;
@@ -136,7 +137,7 @@ export class FakeDocuments extends DocumentsClient {
     return Promise.resolve();
   }
 
-  async issue(request: IssueDocumentRequest): Promise<IssuedDocument> {
+  async issue(request: IssueDocumentRequest, tenant: string): Promise<IssuedDocument> {
     if (this.failures > 0) {
       this.failures -= 1;
       throw new DocumentsUnavailable('The documents service is unreachable');
@@ -146,7 +147,7 @@ export class FakeDocuments extends DocumentsClient {
       throw new InternalApiRejected('documents', 422);
     }
     if (!this.payloadSource) throw new Error('No payload source for the fake documents service');
-    const pulled = await this.payloadSource(request.issuerTenant, request);
+    const pulled = await this.payloadSource(tenant, request);
     if (pulled.status !== 200) {
       throw new DocumentsUnavailable(`The payload pull answered ${String(pulled.status)}`);
     }
@@ -155,8 +156,8 @@ export class FakeDocuments extends DocumentsClient {
       verificationId: `ADL-${randomUUID().slice(0, 4).toUpperCase()}-TEST`,
     };
     const sha256 = fakeDocumentSha256(document.id);
-    this.issued.push({ request: structuredClone(request), pulled, document, sha256 });
-    this.known.set(document.id, { tenant: request.issuerTenant, type: request.type, sha256 });
+    this.issued.push({ request: structuredClone(request), tenant, pulled, document, sha256 });
+    this.known.set(document.id, { tenant, type: request.type, sha256 });
     return document;
   }
 

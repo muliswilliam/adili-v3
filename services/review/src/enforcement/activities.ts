@@ -282,20 +282,15 @@ export class EnforcementActivities {
       if (action.reference === null || action.issuedAt === null) {
         throw new Error(`Action ${actionId} is approved without a reference`);
       }
-      const issued = await issueLetter(
-        { directory: this.directory, documents: this.documents },
-        {
-          type: STEP_LETTERS[action.step],
-          payload: { actionId },
-          tenant,
-          templateVersion: ACTION_LETTER_TEMPLATE_VERSION,
-          subjectRef: `action:${actionId}`,
-          subjectPersonId: action.personId,
-          reference: action.reference,
-          issuedAt: action.issuedAt,
-          refused: ACTION_LETTER_REFUSED,
-        },
-      );
+      const issued = await issueLetter(this.documents, {
+        type: STEP_LETTERS[action.step],
+        payload: { actionId },
+        tenant,
+        templateVersion: ACTION_LETTER_TEMPLATE_VERSION,
+        subjectRef: `action:${actionId}`,
+        subjectPersonId: action.personId,
+        refused: ACTION_LETTER_REFUSED,
+      });
       await tx
         .update(administrativeActions)
         .set({ letterDocumentId: issued.id, letterVerificationId: issued.verificationId })

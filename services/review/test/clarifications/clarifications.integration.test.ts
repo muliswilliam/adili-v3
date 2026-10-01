@@ -225,18 +225,11 @@ describe('clarifications: drafts, issue, letter payload, declarant reads', () =>
     expect(letter?.request).toEqual({
       type: 'clarification-letter',
       templateVersion: 1,
-      disclosureLevel: 'restricted',
-      issuerTenant: 'psc',
       subjectRef: `clarification:${id}`,
       subjectPersonId: version.personId,
       payload: { clarificationId: id },
-      publicPayload: {
-        reference: issued.reference,
-        type: 'clarification-letter',
-        issuer: 'Public Service Commission',
-        issuedAt: '2027-12-20T08:00:00.000Z',
-      },
     });
+    expect(letter?.tenant).toBe('psc');
     expect(letter?.pulled.status).toBe(200);
     expect(letter?.pulled.body).toMatchObject({ clarificationReference: issued.reference });
 

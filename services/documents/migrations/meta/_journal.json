@@ -36,6 +36,34 @@
       "when": 1790585709155,
       "tag": "0004_idempotency",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1790846678465,
+      "tag": "0005_upload_linked_at",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1790846965434,
+      "tag": "0006_upload_orphan_sweep",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1790858453128,
+      "tag": "0007_issued_documents",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1790858462814,
+      "tag": "0008_issued_documents_rls",
+      "breakpoints": true
     }
   ]
 }

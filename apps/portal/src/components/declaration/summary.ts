@@ -1,4 +1,4 @@
-import { formatDate, formatMoney } from '@adili/ui';
+import { formatDate, formatMoney, plural } from '@adili/ui';
 
 import type { JsonObject, LoadedSummary } from '../../server/declarations.server';
 import type {
@@ -24,43 +24,45 @@ import { changeWord, OCCUPATION_SECTOR_LABELS } from '../../declaration/labels';
 import type { Category } from '../../declaration/statement';
 import { type SectionKind, sectionKind } from '../../declaration/section-key';
 import { liveSections, stepTitle } from './steps';
+import { problemMessage } from './submit';
 
 /**
- * The summary's rules and words (FE-8): what the disabled Submit says (S20), the blocking
+ * The summary's rules and words (FE-8): what the note beside Submit says (S20), the blocking
  * issues panel, and the paragraph cards read from the summary's assembled document. Works on
  * draft contents, so anything may be missing.
  */
 
-export const SUBMIT_NEXT_RELEASE = 'Submission opens in the next release.';
+export const SUBMIT_READY =
+  'You will confirm your identity with a one-time code before submitting.';
 export const NOT_ANSWERED = 'Not answered yet.';
 export const BLOCKING_LIMIT = 12;
 
 /**
- * S20: submission is never open in spec 05. Before the statement date the declarant is told
- * when it will be ("Available from 1 Nov 2027"); otherwise that it opens in the next release.
- * The service gives one reason, and `incomplete` hides `before-statement-date`, so only then is
- * the date checked here; any other reason from the service stands.
+ * What the note beside Submit says (spec 05 S20, spec 06 FE-2), from the service's
+ * `cannotSubmitReason`: that a one-time code comes first when nothing stops it; otherwise how much
+ * is left to complete, the statement date that has not come ("Available from 1 Nov 2027"), or
+ * why the declaration or its obligation takes no submission, in the dialog's words.
  */
 export function submitNote(
   summary: Pick<LoadedSummary, 'cannotSubmitReason'> & {
-    declaration: { statementDate: string };
+    blocking: readonly unknown[];
+    declaration: { statementDate: string; dueDate: string };
   },
-  today: string,
 ): string {
-  const { statementDate } = summary.declaration;
-  const { cannotSubmitReason } = summary;
-  const upcoming =
-    cannotSubmitReason === 'before-statement-date' ||
-    (cannotSubmitReason === 'incomplete' && today < statementDate);
-  if (upcoming) {
-    return `Available from ${formatDate(statementDate)}`;
+  const { declaration } = summary;
+  switch (summary.cannotSubmitReason) {
+    case null:
+      return SUBMIT_READY;
+    case 'incomplete':
+      return `Complete the ${plural(summary.blocking.length, 'item')} listed above to submit.`;
+    case 'before-statement-date':
+      return `Available from ${formatDate(declaration.statementDate)}`;
+    case 'not-a-draft':
+      return 'This declaration has already been submitted.';
+    case 'amendment-window-closed':
+    case 'obligation-cancelled':
+      return problemMessage(summary.cannotSubmitReason, declaration);
   }
-  return SUBMIT_NEXT_RELEASE;
-}
-
-/** Today in Kenya, as an ISO date. */
-export function todayInKenya(now = new Date()): string {
-  return new Intl.DateTimeFormat('en-CA', { timeZone: 'Africa/Nairobi' }).format(now);
 }
 
 export function blockingTitle(count: number): string {

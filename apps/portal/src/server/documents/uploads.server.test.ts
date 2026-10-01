@@ -100,6 +100,7 @@ describe('checkUpload', () => {
     ['rejected', 'size', { status: 'rejected', reason: 'size' }],
     ['rejected', 'missing', { status: 'rejected', reason: 'missing' }],
     ['expired', null, { status: 'expired' }],
+    ['deleted', null, { status: 'expired' }],
   ] as const)('maps %s (%s)', async (state, rejection, expected) => {
     const { id } = await reserved();
     const send = () =>

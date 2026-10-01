@@ -15,6 +15,10 @@ export interface IdTokenClaims {
   name?: string;
   email?: string;
   preferred_username?: string;
+  /** Authentication context class the provider reports it satisfied, e.g. `step-up`. */
+  acr?: string;
+  /** When the user last actively authenticated, in seconds since the epoch. */
+  auth_time?: number;
 }
 
 /** The OpenID Provider operations the BFF needs; a seam for tests. */
@@ -24,6 +28,8 @@ export interface OidcProvider {
     state: string;
     nonce: string;
     codeChallenge: string;
+    /** Requested authentication context classes (`acr_values`), e.g. `step-up`. */
+    acrValues?: string;
   }): Promise<URL>;
   exchangeCode(
     callbackUrl: URL,
@@ -60,15 +66,17 @@ export function createOpenIdProvider(options: OpenIdProviderOptions): OidcProvid
   };
 
   return {
-    async authorizationUrl({ redirectUri, state, nonce, codeChallenge }) {
-      return oidc.buildAuthorizationUrl(await getConfiguration(), {
+    async authorizationUrl({ redirectUri, state, nonce, codeChallenge, acrValues }) {
+      const parameters: Record<string, string> = {
         redirect_uri: redirectUri,
         scope: 'openid profile email',
         code_challenge: codeChallenge,
         code_challenge_method: 'S256',
         state,
         nonce,
-      });
+      };
+      if (acrValues) parameters.acr_values = acrValues;
+      return oidc.buildAuthorizationUrl(await getConfiguration(), parameters);
     },
     async exchangeCode(callbackUrl, { codeVerifier, state, nonce }) {
       const tokens = await oidc.authorizationCodeGrant(await getConfiguration(), callbackUrl, {
@@ -109,6 +117,8 @@ function toTokenSet(
           name: stringClaim(claims.name),
           email: stringClaim(claims.email),
           preferred_username: stringClaim(claims.preferred_username),
+          acr: stringClaim(claims.acr),
+          auth_time: typeof claims.auth_time === 'number' ? claims.auth_time : undefined,
         }
       : undefined,
   };

@@ -335,16 +335,16 @@ export class ReferralActivities {
       }
       let issued;
       try {
-        issued = await this.documents.issue({
-          type: 'referral-package',
-          templateVersion: REFERRAL_PACKAGE_TEMPLATE_VERSION,
-          disclosureLevel: 'confidential',
-          issuerTenant: tenant,
-          subjectRef: `referral:${referralId}`,
-          subjectPersonId: null,
-          payload: { referralId },
-          publicPayload: {},
-        });
+        issued = await this.documents.issue(
+          {
+            type: 'referral-package',
+            templateVersion: REFERRAL_PACKAGE_TEMPLATE_VERSION,
+            subjectRef: `referral:${referralId}`,
+            subjectPersonId: null,
+            payload: { referralId },
+          },
+          tenant,
+        );
       } catch (error) {
         if (error instanceof InternalApiRejected) {
           throw ApplicationFailure.nonRetryable(

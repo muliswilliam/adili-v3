@@ -12,7 +12,7 @@ import { Clock } from '../clock.js';
 import type { DeclarationsSchema } from '../db/schema.js';
 import { DirectoryClient, type PulledCommission } from '../directory/directory-client.js';
 import { StartupTask } from '../startup-task.js';
-import type { Transaction } from './apply-page.js';
+import type { Transaction } from '../db/transaction.js';
 import { commissionRefs } from './schema.js';
 import { PLATFORM_CONTEXT } from './system-context.js';
 

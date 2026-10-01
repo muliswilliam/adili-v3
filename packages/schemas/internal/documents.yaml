@@ -15,7 +15,7 @@ paths:
       tags:
         - uploads
       summary: Reserve an upload and get a presigned PUT to quarantine
-      description: "The purpose's roles only (roster-import: reporting-officer). The PUT URL is valid for 15 minutes and accepts exactly the declared Content-Type and size."
+      description: "The purpose's roles only (roster-import: reporting-officer; declaration-attachment: declarant). The PUT URL is valid for 15 minutes and accepts exactly the declared Content-Type and size."
       operationId: createUpload
       parameters:
         - name: Idempotency-Key
@@ -61,7 +61,7 @@ paths:
       tags:
         - uploads
       summary: Upload state and metadata
-      description: Uploads of the caller's tenant whose purpose the caller's roles cover; any other is 404.
+      description: Uploads of the caller's tenant whose purpose the caller's roles cover, and declaration attachments only to the declarant who uploaded them; any other is 404.
       operationId: getUpload
       parameters:
         - name: id
@@ -135,6 +135,52 @@ paths:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/ProblemDetails'
+  /internal/v1/uploads/{id}:
+    get:
+      tags:
+        - internal
+      summary: Upload state and metadata, for services
+      description: Service tokens with scope documents:internal, acting for the tenant in X-Acting-Tenant. Any state; with who uploaded it and whether it is linked. Hands out no bytes, so unlike the download it is no audited read.
+      operationId: getInternalUpload
+      parameters:
+        - name: X-Acting-Tenant
+          in: header
+          description: Tenant the calling service acts for; the resource must belong to it
+          required: true
+          schema:
+            type: string
+            pattern: ^[a-z][a-z0-9]{1,19}$
+        - name: id
+          required: true
+          in: path
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: The upload
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InternalUpload'
+        '400':
+          description: X-Acting-Tenant is missing or not a tenant key
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '403':
+          description: Requires a service token with scope documents:internal
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: Not found, or not the acting tenant's upload
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
   /internal/v1/uploads/{id}/download:
     get:
       tags:
@@ -190,18 +236,181 @@ paths:
       x-audited-read:
         action: upload.download.issued
         resource: upload
+  /internal/v1/uploads/{id}/linked:
+    post:
+      tags:
+        - internal
+      summary: Record that the owning service linked a clean upload
+      description: 'Service tokens with scope documents:internal, acting for the tenant in X-Acting-Tenant. The owning service calls it when it links a clean upload to its record (declarations: an attachment on an item), so the upload is not an orphan: a declaration attachment left unlinked for 30 days is deleted. Idempotent: the first link time is kept.'
+      operationId: markUploadLinked
+      parameters:
+        - name: X-Acting-Tenant
+          in: header
+          description: Tenant the calling service acts for; the resource must belong to it
+          required: true
+          schema:
+            type: string
+            pattern: ^[a-z][a-z0-9]{1,19}$
+        - name: id
+          required: true
+          in: path
+          schema:
+            type: string
+            format: uuid
+        - name: Idempotency-Key
+          in: header
+          description: Optional. Client-generated UUID, unique per logical request; reuse on retry and the stored answer is replayed instead of acting twice
+          required: false
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Link recorded
+        '400':
+          description: X-Acting-Tenant is missing or not a tenant key
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '403':
+          description: Requires a service token with scope documents:internal
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: Not found, or not the acting tenant's upload
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '409':
+          description: 'Problem type `upload-not-clean`: the upload is not clean'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '422':
+          description: Idempotency-Key reused with a different request body
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+  /internal/v1/uploads/{id}/unlinked:
+    post:
+      tags:
+        - internal
+      summary: Record that the owning service took its link to an upload back
+      description: 'Service tokens with scope documents:internal, acting for the tenant in X-Acting-Tenant. The owning service calls it when it removes the record an upload was linked to (declarations: an attachment unlinked, or a draft discarded); a declaration attachment left unlinked for 30 days is deleted. Idempotent: an upload that is not linked is left as it is.'
+      operationId: markUploadUnlinked
+      parameters:
+        - name: X-Acting-Tenant
+          in: header
+          description: Tenant the calling service acts for; the resource must belong to it
+          required: true
+          schema:
+            type: string
+            pattern: ^[a-z][a-z0-9]{1,19}$
+        - name: id
+          required: true
+          in: path
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Link taken back
+        '400':
+          description: X-Acting-Tenant is missing or not a tenant key
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '403':
+          description: Requires a service token with scope documents:internal
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: Not found, or not the acting tenant's upload
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+  /v1/documents/{documentId}:
+    get:
+      tags:
+        - documents
+      summary: Metadata of an issued document (owner)
+      description: The person the document is about only; anyone else gets 404.
+      operationId: getDocument
+      parameters:
+        - name: documentId
+          required: true
+          in: path
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Metadata
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IssuedDocument'
+        '404':
+          description: Not found, or not visible to the caller
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+  /v1/documents/{documentId}/download:
+    get:
+      tags:
+        - documents
+      summary: Short-lived presigned download of an issued PDF (owner)
+      description: The person the document is about only; anyone else gets 404. Every download link handed out is audited under the issuing Commission.
+      operationId: getDocumentDownload
+      parameters:
+        - name: documentId
+          required: true
+          in: path
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Download URL valid for five minutes
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DocumentDownload'
+        '404':
+          description: Not found, or not visible to the caller
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+      x-audited-read:
+        action: document.downloaded
+        resource: issued-document
   /internal/v1/documents/issue:
     post:
       tags:
         - internal
       summary: Render, sign and register a document (services)
-      description: |
-        Gotenberg PDF from a versioned template with the verification code and QR in the footer,
-        PAdES signature, SHA-256, Ed25519-signed verification record, object storage, event.
+      description: "Service tokens with scope documents:internal, issuing for the tenant in X-Acting-Tenant. Renders the type's versioned template to PDF through Gotenberg with the verification code and QR in the footer of every page, PAdES-signs it with the documents signing certificate, stores its SHA-256 in an Ed25519-signed verification record, stores the PDF and emits `document.issued.v1`. The disclosure level and public payload are the template's. One document per type and subject: issuing again returns it with 200."
       operationId: issueDocument
-      x-draft: true
       parameters:
-        - $ref: '#/components/parameters/ActingTenant'
+        - name: X-Acting-Tenant
+          in: header
+          description: Tenant the calling service acts for; the resource must belong to it
+          required: true
+          schema:
+            type: string
+            pattern: ^[a-z][a-z0-9]{1,19}$
         - name: Idempotency-Key
           in: header
           description: Optional. Client-generated UUID, unique per logical request; reuse on retry and the stored answer is replayed instead of acting twice
@@ -216,6 +425,12 @@ paths:
             schema:
               $ref: '#/components/schemas/IssueDocument'
       responses:
+        '200':
+          description: Issued for this subject already; the document issued
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IssuedDocument'
         '201':
           description: Issued
           content:
@@ -223,9 +438,102 @@ paths:
               schema:
                 $ref: '#/components/schemas/IssuedDocument'
         '400':
-          $ref: '#/components/responses/ValidationProblem'
+          description: Request failed validation, or the payload is not the template's
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '403':
+          description: Requires a service token with scope documents:internal
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '422':
+          description: Idempotency-Key reused with a different request body
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
         '502':
-          description: Renderer or signer unavailable; nothing registered
+          description: 'Problem type `renderer-unavailable`, `signer-unavailable` or `storage-unavailable`: nothing was issued; retry'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+  /internal/v1/documents/{documentId}/supersede:
+    post:
+      tags:
+        - internal
+      summary: Mark a document superseded by a newer one (services)
+      description: Service tokens with scope documents:internal, acting for the tenant in X-Acting-Tenant. Sets the status to superseded and supersededBy to the newer document, re-signs the verification record and emits `document.superseded.v1`.
+      operationId: supersedeDocument
+      parameters:
+        - name: X-Acting-Tenant
+          in: header
+          description: Tenant the calling service acts for; the resource must belong to it
+          required: true
+          schema:
+            type: string
+            pattern: ^[a-z][a-z0-9]{1,19}$
+        - name: documentId
+          required: true
+          in: path
+          schema:
+            type: string
+            format: uuid
+        - name: Idempotency-Key
+          in: header
+          description: Optional. Client-generated UUID, unique per logical request; reuse on retry and the stored answer is replayed instead of acting twice
+          required: false
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SupersedeDocument'
+      responses:
+        '200':
+          description: Superseded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IssuedDocument'
+        '400':
+          description: X-Acting-Tenant is missing or not a tenant key
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '403':
+          description: Requires a service token with scope documents:internal
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: Not found, or not the acting tenant's document
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '409':
+          description: Problem type `document-not-valid` (superseded or revoked already) or `superseding-document-invalid` (the newer document is not a valid document of the same type)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '422':
+          description: Idempotency-Key reused with a different request body
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '502':
+          description: 'Problem type `signer-unavailable`: nothing changed; retry'
           content:
             application/problem+json:
               schema:
@@ -251,44 +559,9 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/IssuedDocument'
+                $ref: '#/components/schemas/InternalIssuedDocument'
         '404':
-          $ref: '#/components/responses/NotFound'
-  /internal/v1/documents/{documentId}/supersede:
-    parameters:
-      - $ref: '#/components/parameters/DocumentId'
-    post:
-      tags:
-        - internal
-      summary: Mark a document superseded by a newer one
-      description: |
-        Sets `status` to superseded and `supersededBy` to the newer document. A document
-        already superseded or revoked is refused with 409.
-      operationId: supersedeDocument
-      x-draft: true
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required:
-                - supersededBy
-              properties:
-                supersededBy:
-                  type: string
-                  format: uuid
-      responses:
-        '200':
-          description: Superseded
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/IssuedDocument'
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '409':
-          description: Already superseded or revoked
+          description: Not found, or not the acting tenant's document
           content:
             application/problem+json:
               schema:
@@ -327,69 +600,13 @@ paths:
               schema:
                 $ref: '#/components/schemas/IssuedDocument'
         '404':
-          $ref: '#/components/responses/NotFound'
-        '409':
-          description: Already revoked
+          description: Not found, or not the acting tenant's document
           content:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/ProblemDetails'
-  /v1/documents/{documentId}:
-    parameters:
-      - $ref: '#/components/parameters/DocumentId'
-    get:
-      tags:
-        - documents
-      summary: Metadata of an issued document (owner)
-      description: |
-        The subject person (`subjectPersonId`) only; anyone else gets 404.
-      operationId: getDocument
-      x-draft: true
-      responses:
-        '200':
-          description: Metadata
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/IssuedDocument'
-        '404':
-          $ref: '#/components/responses/NotFound'
-  /v1/documents/{documentId}/download:
-    parameters:
-      - $ref: '#/components/parameters/DocumentId'
-    get:
-      tags:
-        - documents
-      summary: Short-lived presigned download of an issued PDF (owner)
-      description: |
-        The subject person only; audited, and emits `document.downloaded.v1`. Refused with 410
-        once the document's download window has ended.
-      operationId: getDocumentDownload
-      x-draft: true
-      responses:
-        '200':
-          description: Download URL valid for five minutes
-          content:
-            application/json:
-              schema:
-                type: object
-                required:
-                  - downloadUrl
-                  - expiresAt
-                  - sha256
-                properties:
-                  downloadUrl:
-                    type: string
-                    format: uri
-                  expiresAt:
-                    type: string
-                    format: date-time
-                  sha256:
-                    type: string
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '410':
-          description: Download window has ended
+        '409':
+          description: Already revoked
           content:
             application/problem+json:
               schema:
@@ -405,6 +622,7 @@ components:
       type: string
       enum:
         - roster-import
+        - declaration-attachment
       description: Sets allowed content types and the size limit
     UploadState:
       type: string
@@ -414,6 +632,7 @@ components:
         - infected
         - rejected
         - expired
+        - deleted
     UploadRejection:
       type: string
       enum:
@@ -565,6 +784,257 @@ components:
         - size
         - fileName
         - detectedType
+    DocumentType:
+      type: string
+      enum:
+        - acknowledgement-slip
+      description: Document types with a template; later specs add theirs
+    DisclosureLevel:
+      type: string
+      enum:
+        - public
+        - restricted
+        - confidential
+      description: "What the public verify page shows: public (content), restricted (reference, type, Commission, date), confidential (validity only). Fixed by the document type's template"
+    DocumentStatus:
+      type: string
+      enum:
+        - valid
+        - superseded
+        - revoked
+        - expired
+    IssueDocument:
+      type: object
+      properties:
+        type:
+          $ref: '#/components/schemas/DocumentType'
+        templateVersion:
+          type: integer
+          minimum: 1
+        subjectRef:
+          type: string
+          pattern: ^[a-z][a-z-]*:[0-9a-f-]{36}$
+          description: The record the document is about; one document per type and subject. Issuing again returns it
+          examples:
+            - declaration-version:0192f0c4-8a51-7cc2-9d1e-3b3f2a7e4c10
+        subjectPersonId:
+          anyOf:
+            - type: string
+              format: uuid
+            - type: 'null'
+          description: The person who may download the document (the declarant); null for none
+        payload:
+          $ref: '#/components/schemas/AcknowledgementSlipPayload'
+      required:
+        - type
+        - templateVersion
+        - subjectRef
+        - subjectPersonId
+        - payload
+    SupersedeDocument:
+      type: object
+      properties:
+        supersededBy:
+          type: string
+          format: uuid
+          description: The newer document of the same type and tenant
+      required:
+        - supersededBy
+    IssuedDocument:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        type:
+          $ref: '#/components/schemas/DocumentType'
+        templateVersion:
+          type: integer
+        disclosureLevel:
+          $ref: '#/components/schemas/DisclosureLevel'
+        issuerTenant:
+          type: string
+        subjectRef:
+          type: string
+        verificationId:
+          type: string
+          description: Printed under the QR code
+          examples:
+            - ADL-7Q4K-M2XR-9HTC-2B7F-Q3ZD-9KMV-8P
+        verifyUrl:
+          type: string
+          format: uri
+          description: "The QR code's payload: the document's verify page"
+        sha256:
+          type: string
+          pattern: ^[0-9a-f]{64}$
+        status:
+          $ref: '#/components/schemas/DocumentStatus'
+        supersededBy:
+          anyOf:
+            - type: string
+              format: uuid
+            - type: 'null'
+        issuedAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - type
+        - templateVersion
+        - disclosureLevel
+        - issuerTenant
+        - subjectRef
+        - verificationId
+        - verifyUrl
+        - sha256
+        - status
+        - supersededBy
+        - issuedAt
+    DocumentDownload:
+      type: object
+      properties:
+        downloadUrl:
+          type: string
+          format: uri
+          description: Presigned GET of the signed PDF
+        expiresAt:
+          type: string
+          format: date-time
+        sha256:
+          type: string
+          pattern: ^[0-9a-f]{64}$
+      required:
+        - downloadUrl
+        - expiresAt
+        - sha256
+    AcknowledgementSlipPayload:
+      type: object
+      properties:
+        declarantName:
+          type: string
+          minLength: 1
+          maxLength: 200
+        commissionName:
+          type: string
+          minLength: 1
+          maxLength: 200
+        issuerCode:
+          type: string
+          pattern: ^[A-Z0-9]{2,20}$
+        declarationType:
+          type: string
+          enum:
+            - initial
+            - biennial
+            - final
+        statementDate:
+          type: string
+          format: date
+        dueDate:
+          anyOf:
+            - type: string
+              format: date
+            - type: 'null'
+        reference:
+          type: string
+          description: Declaration reference number (ADR-011), e.g. DCB-PSC-2027-0000001-1
+        version:
+          type: integer
+          minimum: 1
+        submittedAt:
+          type: string
+          format: date-time
+        late:
+          type: boolean
+        statementCount:
+          type: integer
+          minimum: 0
+        itemCount:
+          type: integer
+          minimum: 0
+      required:
+        - declarantName
+        - commissionName
+        - issuerCode
+        - declarationType
+        - statementDate
+        - dueDate
+        - reference
+        - version
+        - submittedAt
+        - late
+        - statementCount
+        - itemCount
+      description: "Payload of acknowledgement-slip v1: what the declarations service's acknowledgement payload endpoint returns for a submitted version"
+    InternalUpload:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        purpose:
+          $ref: '#/components/schemas/UploadPurpose'
+        state:
+          $ref: '#/components/schemas/UploadState'
+        rejection:
+          anyOf:
+            - $ref: '#/components/schemas/UploadRejection'
+            - type: 'null'
+        contentType:
+          type: string
+          description: Declared type; detectedType is set after completion
+        detectedType:
+          type:
+            - string
+            - 'null'
+        declaredSize:
+          type: integer
+        size:
+          type:
+            - integer
+            - 'null'
+        sha256:
+          description: Hex digest, set when clean
+          type:
+            - string
+            - 'null'
+        fileName:
+          type:
+            - string
+            - 'null'
+        createdAt:
+          type: string
+          format: date-time
+        completedAt:
+          anyOf:
+            - type: string
+              format: date-time
+            - type: 'null'
+        uploadedBy:
+          type: string
+          description: Token subject (`sub`) of the caller who reserved the upload
+        linkedAt:
+          anyOf:
+            - type: string
+              format: date-time
+            - type: 'null'
+          description: When the owning service linked it to its record; null while unlinked
+      required:
+        - id
+        - purpose
+        - state
+        - rejection
+        - contentType
+        - detectedType
+        - declaredSize
+        - size
+        - sha256
+        - fileName
+        - createdAt
+        - completedAt
+        - uploadedBy
+        - linkedAt
     ProblemDetails:
       type: object
       properties:
@@ -577,6 +1047,7 @@ components:
         code:
           type: string
           enum:
+            - database-unavailable
             - rate-limit-exceeded
             - no-match
             - already-onboarded
@@ -590,6 +1061,15 @@ components:
             - iprs-unavailable
             - identity-unavailable
             - email-in-use
+            - step-up-required
+            - incomplete
+            - before-statement-date
+            - amendment-window-closed
+            - not-a-draft
+            - not-submitted
+            - obligation-cancelled
+            - acknowledgement-issued
+            - acknowledgement-in-progress
           description: Machine-readable cause, from the platform registry; clients map it to copy and never show `title` or `detail`
         detail:
           type: string
@@ -612,155 +1092,22 @@ components:
         - type
         - title
         - status
-    DocumentType:
-      type: string
-      enum:
-        - acknowledgement-slip
-        - clarification-letter
-        - decision-letter
-        - notice-to-comply
-        - warning
-        - salary-stoppage
-        - disciplinary-referral
-        - referral-package
-        - form-m
-        - compliance-report-receipt
-        - ncr
-        - access-package
-        - certified-copy
-        - open-data-manifest
-    DisclosureLevel:
-      type: string
-      enum:
-        - public
-        - restricted
-        - confidential
-    DocumentStatus:
-      type: string
-      enum:
-        - valid
-        - superseded
-        - revoked
-        - expired
     RevocationReason:
       type: string
       enum:
         - issued-in-error
-    IssueDocument:
-      type: object
-      required:
-        - type
-        - templateVersion
-        - disclosureLevel
-        - issuerTenant
-        - subjectRef
-        - subjectPersonId
-        - payload
-        - publicPayload
-      properties:
-        type:
-          $ref: '#/components/schemas/DocumentType'
-        templateVersion:
-          type: integer
-          minimum: 1
-        disclosureLevel:
-          $ref: '#/components/schemas/DisclosureLevel'
-        issuerTenant:
-          type: string
-        subjectRef:
-          type: string
-          description: Owning record, e.g. declaration-version:<uuid>
-        subjectPersonId:
-          type:
-            - string
-            - 'null'
-          format: uuid
-          description: Person allowed to download the document
-        payload:
-          type: object
-          description: Fields the template renders; never stored beyond the PDF
-          additionalProperties: true
-        publicPayload:
-          type: object
-          description: Fields shown on the verify page for public and restricted levels
-          additionalProperties: true
-        watermark:
-          oneOf:
-            - $ref: '#/components/schemas/Watermark'
-            - type: 'null'
-          description: Rendered on every page (access packages)
-        downloadWindowDays:
-          type:
-            - integer
-            - 'null'
-          minimum: 1
-          maximum: 365
-          description: Downloads refused after issuedAt + window (410); null means no window
-    Watermark:
-      type: object
-      required:
-        - recipientName
-        - reference
-        - date
-      properties:
-        recipientName:
-          type: string
-        reference:
-          type: string
-          description: ARQ or LEA reference
-        date:
-          type: string
-          format: date
-    IssuedDocument:
-      type: object
-      required:
-        - id
-        - type
-        - templateVersion
-        - disclosureLevel
-        - issuerTenant
-        - subjectRef
-        - verificationId
-        - sha256
-        - status
-        - supersededBy
-        - issuedAt
-        - downloadExpiresAt
-      properties:
-        id:
-          type: string
-          format: uuid
-        type:
-          $ref: '#/components/schemas/DocumentType'
-        templateVersion:
-          type: integer
-        disclosureLevel:
-          $ref: '#/components/schemas/DisclosureLevel'
-        issuerTenant:
-          type: string
-        subjectRef:
-          type: string
-        verificationId:
-          type: string
-          description: e.g. ADL-7Q4K-M2XR-9HTC-2B7F-Q3ZD-9K
-        sha256:
-          type: string
-          pattern: ^[0-9a-f]{64}$
-        status:
-          $ref: '#/components/schemas/DocumentStatus'
-        supersededBy:
-          type:
-            - string
-            - 'null'
-          format: uuid
-        issuedAt:
-          type: string
-          format: date-time
-        downloadExpiresAt:
-          type:
-            - string
-            - 'null'
-          format: date-time
+    InternalIssuedDocument:
+      description: An issued document as its issuer reads it, with the SHA-256 of the signed PDF
+      allOf:
+        - $ref: '#/components/schemas/IssuedDocument'
+        - type: object
+          required:
+            - sha256
+          properties:
+            sha256:
+              type: string
+              pattern: ^[0-9a-f]{64}$
+              description: SHA-256 of the signed PDF, lowercase hex
   parameters:
     ActingTenant:
       name: X-Acting-Tenant
@@ -777,18 +1124,5 @@ components:
       schema:
         type: string
         format: uuid
-  responses:
-    ValidationProblem:
-      description: Request failed validation
-      content:
-        application/problem+json:
-          schema:
-            $ref: '#/components/schemas/ProblemDetails'
-    NotFound:
-      description: Not found, or not visible to the caller
-      content:
-        application/problem+json:
-          schema:
-            $ref: '#/components/schemas/ProblemDetails'
 security:
   - bearer: []

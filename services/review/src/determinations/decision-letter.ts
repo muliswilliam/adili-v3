@@ -2,7 +2,6 @@ import { type Database, withTenant } from '@adili/data-access';
 import { eq } from 'drizzle-orm';
 
 import type { ReviewSchema } from '../db/schema.js';
-import type { DirectoryClient } from '../directory/directory-client.js';
 import type { DocumentsClient } from '../documents/documents-client.js';
 import { issueLetter } from '../documents/letters.js';
 import { systemContext } from '../system-context.js';
@@ -15,7 +14,6 @@ export const DECISION_LETTER_TEMPLATE_VERSION = 1;
 /** The services issuing a decision letter reads and calls. */
 export interface DecisionLetterDeps {
   db: Database<ReviewSchema>;
-  directory: DirectoryClient;
   documents: DocumentsClient;
 }
 
@@ -35,7 +33,7 @@ export type DecisionLetter =
  * way nothing is stored.
  */
 export async function issueDecisionLetter(
-  { db, directory, documents }: DecisionLetterDeps,
+  { db, documents }: DecisionLetterDeps,
   tenant: string,
   determinationId: string,
 ): Promise<DecisionLetter> {
@@ -57,20 +55,15 @@ export async function issueDecisionLetter(
     if (found.reference === null || found.approvedAt === null) {
       throw new Error(`Determination ${determinationId} is approved without a reference`);
     }
-    const issued = await issueLetter(
-      { directory, documents },
-      {
-        type: 'decision-letter',
-        payload: { determinationId },
-        tenant,
-        templateVersion: DECISION_LETTER_TEMPLATE_VERSION,
-        subjectRef: `determination:${determinationId}`,
-        subjectPersonId: found.personId,
-        reference: found.reference,
-        issuedAt: found.approvedAt,
-        refused: DECISION_LETTER_REFUSED,
-      },
-    );
+    const issued = await issueLetter(documents, {
+      type: 'decision-letter',
+      payload: { determinationId },
+      tenant,
+      templateVersion: DECISION_LETTER_TEMPLATE_VERSION,
+      subjectRef: `determination:${determinationId}`,
+      subjectPersonId: found.personId,
+      refused: DECISION_LETTER_REFUSED,
+    });
     await tx
       .update(determinations)
       .set({ letterDocumentId: issued.id, letterVerificationId: issued.verificationId })

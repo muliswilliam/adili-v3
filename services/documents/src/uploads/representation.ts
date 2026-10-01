@@ -66,6 +66,17 @@ export const uploadSchema = z.object({
 });
 export type Upload = z.infer<typeof uploadSchema>;
 
+/** An upload as the owning service sees it: who uploaded it and whether it is linked. */
+export const internalUploadSchema = uploadSchema.extend({
+  uploadedBy: z.string().meta({
+    description: 'Token subject (`sub`) of the caller who reserved the upload',
+  }),
+  linkedAt: z.iso.datetime().nullable().meta({
+    description: 'When the owning service linked it to its record; null while unlinked',
+  }),
+});
+export type InternalUpload = z.infer<typeof internalUploadSchema>;
+
 export const uploadDownloadSchema = z.object({
   id: z.uuid(),
   purpose: uploadPurposeSchema,

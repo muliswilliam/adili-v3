@@ -1,6 +1,7 @@
 import {
   applyDecorators,
   type CallHandler,
+  createParamDecorator,
   type ExecutionContext,
   HttpStatus,
   Injectable,
@@ -69,9 +70,10 @@ export interface RequireIdempotencyKeyOptions {
  *   outcome anyway: turning a write that happened into an error would invite the very retry
  *   that runs it twice once the unfinished claim is taken for abandoned.
  *
- * Keys are scoped per caller (token `sub`, or `options.owner` on a public route): two callers
- * may use the same key independently. Needs `IdempotencyModule` in the application; the app
- * fails to start without it.
+ * Keys are scoped per caller (token `sub`, or `options.owner` on a public route), and on an
+ * internal route also per tenant the caller acts for (`X-Acting-Tenant`): two callers, or one
+ * acting for two tenants, may use the same key independently. Needs `IdempotencyModule` in the
+ * application; the app fails to start without it.
  *
  * @example
  * @Post()
@@ -111,6 +113,21 @@ function idempotencyKey(
   );
 }
 
+/**
+ * The request's `Idempotency-Key`, for a handler that keeps it with what it writes (e.g. to
+ * recognise its own retry after the stored answer was lost). Only on `@RequireIdempotencyKey()`
+ * routes, which refuse a request without one, so it is always a string there. Unlike
+ * `@Headers()`, it adds nothing to the contract: the decorator documents the header.
+ */
+export const IdempotencyKey = createParamDecorator(
+  (_: unknown, context: ExecutionContext): string => {
+    const header = context.switchToHttp().getRequest<AuthenticatedRequest>().headers[
+      IDEMPOTENCY_KEY_HEADER
+    ];
+    return readKey(header);
+  },
+);
+
 @Injectable()
 export class IdempotencyInterceptor implements NestInterceptor {
   private readonly logger = new Logger(IdempotencyInterceptor.name);
@@ -134,10 +151,15 @@ export class IdempotencyInterceptor implements NestInterceptor {
       IDEMPOTENCY_OWNER,
       context.getHandler(),
     );
-    const subject = owner ? owner(request) : request.principal?.subject;
-    if (subject === undefined) {
+    const caller = owner ? owner(request) : request.principal?.subject;
+    if (caller === undefined) {
       throw new Error('@RequireIdempotencyKey() needs an authenticated route or an owner');
     }
+    // On an internal route one service token acts for many tenants (`X-Acting-Tenant`, ADR-013
+    // §8.1), so its keys belong to the tenant it acts for too: the same key sent for another
+    // tenant is that tenant's own request, never a replay of the first tenant's answer.
+    const { actingTenant } = request as AuthenticatedRequest & { actingTenant?: string };
+    const subject = actingTenant === undefined ? caller : `${caller} acting-for:${actingTenant}`;
 
     const scope: IdempotencyScope = {
       key: readKey(request.headers[IDEMPOTENCY_KEY_HEADER]),

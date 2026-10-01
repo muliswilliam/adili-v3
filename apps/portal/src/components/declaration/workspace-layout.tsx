@@ -28,6 +28,7 @@ import { Link, useNavigate } from '@tanstack/react-router';
 import { type ReactNode, useState } from 'react';
 
 import { OBLIGATION_TYPE_LABELS } from '../../declaration/labels';
+import { AmendmentBanner, amendingFrom } from './amendment-banner';
 import { navEntries, neighbours, type Step, stepForNavEntry, stepLink, stepTitle } from './steps';
 import { useWorkspace } from './workspace';
 import { WorkspaceHeader } from './workspace-header';
@@ -67,6 +68,7 @@ export function WorkspaceLayout({ step, children }: { step: Step; children: Reac
   const entries = navSections(navEntries(sections));
   const { back, next } = neighbours(sections, step);
   const typeLabel = `${OBLIGATION_TYPE_LABELS[declaration.type]} declaration`;
+  const fromVersion = amendingFrom(declaration);
 
   function open(target: Step) {
     setSectionsOpen(false);
@@ -101,7 +103,7 @@ export function WorkspaceLayout({ step, children }: { step: Step; children: Reac
       <aside className="hidden lg:block">
         <div className="sticky top-6 grid gap-4">
           <Button asChild variant="ghost" size="sm" className="justify-self-start">
-            <Link to="/">
+            <Link to="/declarations">
               <Icon icon={ArrowLeft01Icon} />
               My declarations
             </Link>
@@ -172,6 +174,10 @@ export function WorkspaceLayout({ step, children }: { step: Step; children: Reac
             </DialogBody>
           </DialogContent>
         </Dialog>
+
+        {fromVersion !== null ? (
+          <AmendmentBanner declarationId={declaration.id} fromVersion={fromVersion} />
+        ) : null}
 
         {conflict ? (
           <Alert variant="destructive" className="flex flex-wrap items-center gap-3">

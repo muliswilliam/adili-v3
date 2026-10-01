@@ -74,20 +74,15 @@ export class ClarificationActivities {
     if (found.reference === null || found.issuedAt === null) {
       throw new Error(`Clarification ${clarificationId} is issued without a reference`);
     }
-    const issued = await issueLetter(
-      { directory: this.directory, documents: this.documents },
-      {
-        type: 'clarification-letter',
-        payload: { clarificationId },
-        tenant,
-        templateVersion: CLARIFICATION_LETTER_TEMPLATE_VERSION,
-        subjectRef: `clarification:${clarificationId}`,
-        subjectPersonId: found.personId,
-        reference: found.reference,
-        issuedAt: found.issuedAt,
-        refused: LETTER_REFUSED,
-      },
-    );
+    const issued = await issueLetter(this.documents, {
+      type: 'clarification-letter',
+      payload: { clarificationId },
+      tenant,
+      templateVersion: CLARIFICATION_LETTER_TEMPLATE_VERSION,
+      subjectRef: `clarification:${clarificationId}`,
+      subjectPersonId: found.personId,
+      refused: LETTER_REFUSED,
+    });
     const [kept] = await withTenant(this.db, systemContext(tenant), (tx) =>
       tx
         .update(clarifications)

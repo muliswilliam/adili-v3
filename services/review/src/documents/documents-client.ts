@@ -29,49 +29,37 @@ export type ReviewLetter =
 export type ActionLetterType =
   'notice-to-comply' | 'warning' | 'salary-stoppage' | 'disciplinary-referral';
 
-/**
- * A request to render, sign and register a verifiable document (documents.yaml `IssueDocument`,
- * ADR-010): a Restricted letter of the review service.
- */
+/** A letter of the review service, which its template issues Restricted (ADR-010). */
 export type IssueLetterRequest = ReviewLetter & {
   templateVersion: number;
-  disclosureLevel: 'restricted';
-  issuerTenant: string;
-  /** The owning record, e.g. `clarification:<uuid>`. */
+  /** The owning record, e.g. `clarification:<uuid>`. One document per type and subject. */
   subjectRef: string;
   /**
    * The person allowed to download the document (the documents owner rule); null for an officer
    * who never onboarded.
    */
   subjectPersonId: string | null;
-  /** Shown on the verify page: reference, type, issuer and issue time. */
-  publicPayload: {
-    reference: string;
-    type: ReviewLetter['type'];
-    issuer: string;
-    issuedAt: string;
-  };
 };
 
 /**
  * A referral's Confidential evidence package (`referral-package`, ADR-010): the documents service
  * pulls its fields from `internalGetReferralPackagePayload`. Nobody owns it as a person (the
- * declarant is never told of a referral, spec 08), and its verify page shows validity only, so no
- * public fields are sent.
+ * declarant is never told of a referral, spec 08).
  */
 export interface IssuePackageRequest {
   type: 'referral-package';
   payload: { referralId: string };
   templateVersion: number;
-  disclosureLevel: 'confidential';
-  issuerTenant: string;
   /** `referral:<uuid>`. */
   subjectRef: string;
   subjectPersonId: null;
-  publicPayload: Record<string, never>;
 }
 
-/** A document the review service asks documents to issue. */
+/**
+ * A document the review service asks documents to render, sign and register (documents.yaml
+ * `IssueDocument`, ADR-010), for the tenant the call acts for. The disclosure level and what the
+ * verify page shows are the template's.
+ */
 export type IssueDocumentRequest = IssueLetterRequest | IssuePackageRequest;
 
 /** An issued document as documents describes it to its issuer (`internalGetDocument`). */
@@ -109,10 +97,11 @@ export abstract class DocumentsClient {
   abstract getUploadDownload(uploadId: string, tenant: string): Promise<UploadDownload | null>;
 
   /**
-   * Renders, signs and registers a verifiable document (`issueDocument`, ADR-010). Throws
+   * Renders, signs and registers a verifiable document of the Commission (`issueDocument`,
+   * ADR-010); one issued before for the same type and subject is answered again. Throws
    * `InternalApiRejected` when documents refuses the request.
    */
-  abstract issue(request: IssueDocumentRequest): Promise<IssuedDocument>;
+  abstract issue(request: IssueDocumentRequest, tenant: string): Promise<IssuedDocument>;
 
   /**
    * What documents holds of a document the Commission issued (`internalGetDocument`): its type and
