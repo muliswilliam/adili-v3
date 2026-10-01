@@ -8,7 +8,7 @@ import {
   type RevocationReason,
   type UploadDownload,
 } from '../../src/documents/documents-client.js';
-import { InternalApiRejected } from '../../src/internal-api/internal-api.js';
+import { InternalApiRejected } from '../../src/internal-api/rejected.js';
 
 /** How the fake documents service pulls a letter's fields, as the real one would over HTTP. */
 export type PayloadSource = (

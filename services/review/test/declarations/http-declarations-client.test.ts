@@ -42,6 +42,10 @@ function client(...responses: Response[]) {
 
 const json = (body: unknown, status = 200) => Response.json(body, { status });
 
+/** What the service client sent: one `Request` per attempt. */
+const sent = (fetch: { mock: { calls: unknown[][] } }, call = 0) =>
+  fetch.mock.calls[call]?.[0] as Request;
+
 describe('HttpDeclarationsClient', () => {
   it('reads a version document with the service token, the tenant, the acting subject and the case', async () => {
     const { declarations, fetch } = client(json(document));
@@ -53,11 +57,11 @@ describe('HttpDeclarationsClient', () => {
     });
 
     expect(pulled).toEqual(document);
-    const [url, init] = fetch.mock.calls[0] ?? [];
-    expect((url as URL).href).toBe(
+    const request = sent(fetch);
+    expect(request.url).toBe(
       `http://declarations.test/internal/v1/declarations/${DECLARATION}/versions/1/document`,
     );
-    expect(init?.headers).toMatchObject({
+    expect(Object.fromEntries(request.headers)).toMatchObject({
       authorization: 'Bearer service-token',
       'x-acting-tenant': 'psc',
       'x-acting-subject': 'reviewer-a',
@@ -77,7 +81,8 @@ describe('HttpDeclarationsClient', () => {
 
     expect(await declarations.findPreviousVersion(PERSON, 'psc', VERSION)).toEqual(previous);
     expect(await declarations.findPreviousVersion(PERSON, 'psc', VERSION)).toBeNull();
-    const url = fetch.mock.calls[0]?.[0] as URL;
+    const url = new URL(sent(fetch).url);
+    expect(sent(fetch).headers.get('x-acting-tenant')).toBe('psc');
     expect(url.pathname).toBe('/internal/v1/declarations/previous-version');
     expect(Object.fromEntries(url.searchParams)).toEqual({
       personId: PERSON,

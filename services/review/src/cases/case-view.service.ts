@@ -11,7 +11,7 @@ import {
   type PulledVersion,
 } from '../declarations/declarations-client.js';
 import { DocumentsClient, DocumentsUnavailable } from '../documents/documents-client.js';
-import { InternalApiRejected } from '../internal-api/internal-api.js';
+import { InternalApiRejected } from '../internal-api/rejected.js';
 import { declarationsUnavailable, upstreamUnavailable } from '../internal-api/upstream.js';
 import { SYSTEM_SUBJECT } from '../system-context.js';
 import { caseTenant } from './access.js';

@@ -1,16 +1,13 @@
-import type { ServiceTokenClient } from '@adili/api-kit';
+import { createServiceClient, type ServiceClient, type ServiceTokenClient } from '@adili/api-kit';
 import { z } from 'zod';
 
-import { InternalApi } from '../internal-api/internal-api.js';
+import type { paths } from './directory-api.gen.js';
 import {
   type ClarificationPolicy,
   type CommissionFacts,
   DirectoryClient,
   DirectoryUnavailable,
 } from './directory-client.js';
-
-/** The scope the review service's token needs for the directory's internal API. */
-export const DIRECTORY_INTERNAL_SCOPE = 'directory:internal';
 
 /** How long a Commission's policy is reused before it is pulled again. */
 export const POLICY_CACHE_TTL_MS = 5 * 60 * 1000;
@@ -39,12 +36,14 @@ const commissionSchema = z.object({
 });
 
 /**
- * The directory's `internalGetTenantPolicy` and `internalGetCommission` with the review service's
- * own token, cached per Commission for a few minutes: a policy or a name changes rarely, and a
- * case's window is fixed when the case is created.
+ * The directory's `internalGetTenantPolicy` and `internalGetCommission` through the client
+ * generated from its contract (directory-api.gen.ts) on api-kit's service client, with the review
+ * service's own token (`directory:internal`) and the Commission in `X-Acting-Tenant`. Cached per
+ * Commission for a few minutes: a policy or a name changes rarely, and a case's window is fixed
+ * when the case is created. Anything unexpected, a 404 included, is `DirectoryUnavailable`.
  */
 export class HttpDirectoryClient extends DirectoryClient {
-  private readonly api: InternalApi;
+  private readonly directory: ServiceClient<paths>;
   private readonly policies = new Map<string, { policy: ClarificationPolicy; until: number }>();
   private readonly commissions = new Map<string, { commission: CommissionFacts; until: number }>();
   private readonly ttlMs: number;
@@ -52,12 +51,12 @@ export class HttpDirectoryClient extends DirectoryClient {
 
   constructor(options: HttpDirectoryClientOptions) {
     super();
-    this.api = new InternalApi({
+    this.directory = createServiceClient<paths>({
       baseUrl: options.directoryUrl,
       service: 'directory',
       tokens: options.tokens,
       unavailable: (message, cause) => new DirectoryUnavailable(message, cause),
-      timeoutMs: options.timeoutMs ?? 2_000,
+      timeoutMs: options.timeoutMs,
       fetch: options.fetch,
     });
     this.ttlMs = options.cacheTtlMs ?? POLICY_CACHE_TTL_MS;
@@ -67,12 +66,13 @@ export class HttpDirectoryClient extends DirectoryClient {
   async getClarificationPolicy(slug: string): Promise<ClarificationPolicy> {
     const cached = this.policies.get(slug);
     if (cached && cached.until > this.now()) return cached.policy;
-    const found = await this.api.get({
-      path: `internal/v1/commissions/${encodeURIComponent(slug)}/policy`,
-      tenant: slug,
-      schema: policySchema,
-    });
-    if (!found) throw new DirectoryUnavailable(`The directory has no policy for ${slug}`);
+    const found = await this.directory.call(
+      (api) =>
+        api.GET('/internal/v1/commissions/{slug}/policy', {
+          params: { path: { slug }, header: { 'X-Acting-Tenant': slug } },
+        }),
+      { status: 200, schema: policySchema },
+    );
     this.policies.set(slug, { policy: found.clarification, until: this.now() + this.ttlMs });
     return found.clarification;
   }
@@ -80,12 +80,13 @@ export class HttpDirectoryClient extends DirectoryClient {
   async getCommission(slug: string): Promise<CommissionFacts> {
     const cached = this.commissions.get(slug);
     if (cached && cached.until > this.now()) return cached.commission;
-    const found = await this.api.get({
-      path: `internal/v1/commissions/${encodeURIComponent(slug)}`,
-      tenant: slug,
-      schema: commissionSchema,
-    });
-    if (!found) throw new DirectoryUnavailable(`The directory has no Commission ${slug}`);
+    const found = await this.directory.call(
+      (api) =>
+        api.GET('/internal/v1/commissions/{slug}', {
+          params: { path: { slug }, header: { 'X-Acting-Tenant': slug } },
+        }),
+      { status: 200, schema: commissionSchema },
+    );
     const commission = { slug: found.slug, issuerCode: found.issuerCode, name: found.name };
     this.commissions.set(slug, { commission, until: this.now() + this.ttlMs });
     return commission;

@@ -1,8 +1,9 @@
 import { Module } from '@nestjs/common';
 import { ServiceTokenClient } from '@adili/api-kit';
+import { MESSAGES_SCOPE } from '@adili/roles';
 
 import { config } from '../config.js';
-import { HttpNotificationsClient, MESSAGES_SCOPE } from './http-notifications-client.js';
+import { HttpNotificationsClient } from './http-notifications-client.js';
 import { NotificationsClient } from './notifications-client.js';
 
 /** The notifications messages API, called with the service's own token (ADR-013 §8.1). */

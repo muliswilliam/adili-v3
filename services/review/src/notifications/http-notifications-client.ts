@@ -1,7 +1,8 @@
-import { IDEMPOTENCY_KEY_HEADER, type ServiceTokenClient } from '@adili/api-kit';
+import { createServiceClient, type ServiceClient, type ServiceTokenClient } from '@adili/api-kit';
 import { z } from 'zod';
 
-import { InternalApi } from '../internal-api/internal-api.js';
+import { rejectedBy } from '../internal-api/rejected.js';
+import type { paths } from './notifications-api.gen.js';
 import {
   NotificationsClient,
   NotificationsUnavailable,
@@ -9,8 +10,11 @@ import {
   type SentMessage,
 } from './notifications-client.js';
 
-/** The scope the review service's token needs for notifications' messages API. */
-export const MESSAGES_SCOPE = 'messages';
+/**
+ * Notifications answers within its 5-second provider budget; the rest covers the hop. Messages go
+ * out from workflow activities, which retry. Recorded in ADR-013 §2 (synchronous budgets).
+ */
+export const MESSAGES_TIMEOUT_MS = 7_000;
 
 export interface HttpNotificationsClientOptions {
   notificationsUrl: string;
@@ -20,6 +24,10 @@ export interface HttpNotificationsClientOptions {
   fetch?: typeof fetch;
 }
 
+/** The templates notifications' contract lists. */
+type MessageTemplate =
+  paths['/internal/v1/messages']['post']['requestBody']['content']['application/json']['template'];
+
 const messageSchema = z.object({
   id: z.uuid(),
   status: z.enum(['sent', 'failed']),
@@ -27,39 +35,48 @@ const messageSchema = z.object({
 });
 
 /**
- * `POST /internal/v1/messages` with the review service's own token (`messages`). Notifications
- * answers within its 5-second budget.
+ * `POST /internal/v1/messages` through the client generated from the notifications contract
+ * (notifications-api.gen.ts) with the review service's own token (`messages`). The tenant travels
+ * in the body, as the contract asks; no `X-Acting-Tenant`. A message notifications refuses (400,
+ * 422) is `InternalApiRejected`; anything else unexpected is `NotificationsUnavailable`.
  */
 export class HttpNotificationsClient extends NotificationsClient {
-  private readonly api: InternalApi;
+  private readonly notifications: ServiceClient<paths>;
 
   constructor(options: HttpNotificationsClientOptions) {
     super();
-    this.api = new InternalApi({
+    this.notifications = createServiceClient<paths>({
       baseUrl: options.notificationsUrl,
       service: 'notifications',
       tokens: options.tokens,
       unavailable: (message, cause) => new NotificationsUnavailable(message, cause),
-      timeoutMs: options.timeoutMs ?? 7_000,
+      timeoutMs: options.timeoutMs ?? MESSAGES_TIMEOUT_MS,
       fetch: options.fetch,
     });
   }
 
   async send(message: PersonMessage): Promise<SentMessage> {
-    const sent = await this.api.post({
-      path: 'internal/v1/messages',
-      tenant: message.tenant,
-      headers: { [IDEMPOTENCY_KEY_HEADER]: message.idempotencyKey },
-      body: {
-        channel: message.channel,
-        recipient: { kind: 'person', personId: message.personId },
-        template: message.template,
-        params: message.params,
-        tenant: message.tenant,
+    const sent = await this.notifications.call(
+      (api) =>
+        api.POST('/internal/v1/messages', {
+          params: { header: { 'Idempotency-Key': message.idempotencyKey } },
+          body: {
+            channel: message.channel,
+            recipient: { kind: 'person', personId: message.personId },
+            // Review's templates join notifications' contract with #157; until then notifications
+            // refuses them with 422 (InternalApiRejected), which the activities do not retry.
+            template: message.template as string as MessageTemplate,
+            params: message.params,
+            locale: 'en',
+            tenant: message.tenant,
+          },
+        }),
+      {
+        status: 201,
+        schema: messageSchema,
+        otherwise: { 400: rejectedBy('notifications'), 422: rejectedBy('notifications') },
       },
-      schema: messageSchema,
-    });
-    if (!sent) throw new NotificationsUnavailable('The notifications service answered 404');
+    );
     return { id: sent.id, status: sent.status, error: sent.error ?? null };
   }
 }

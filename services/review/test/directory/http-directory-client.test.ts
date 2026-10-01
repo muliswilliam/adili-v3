@@ -25,7 +25,7 @@ describe('HttpDirectoryClient', () => {
     });
     await directory.getClarificationPolicy('psc');
     expect(fetch).toHaveBeenCalledOnce();
-    expect((fetch.mock.calls[0]?.[0] as URL).href).toBe(
+    expect((fetch.mock.calls[0]?.[0] as Request).url).toBe(
       'http://directory.test/internal/v1/commissions/psc/policy',
     );
 
@@ -56,7 +56,7 @@ describe('HttpDirectoryClient', () => {
     });
     await directory.getCommission('psc');
     expect(fetch).toHaveBeenCalledOnce();
-    expect((fetch.mock.calls[0]?.[0] as URL).href).toBe(
+    expect((fetch.mock.calls[0]?.[0] as Request).url).toBe(
       'http://directory.test/internal/v1/commissions/psc',
     );
 

@@ -18,7 +18,7 @@ import { Clock } from '../clock.js';
 import type { ReviewSchema } from '../db/schema.js';
 import { DirectoryClient } from '../directory/directory-client.js';
 import { DocumentsClient } from '../documents/documents-client.js';
-import { InternalApiRejected } from '../internal-api/internal-api.js';
+import { InternalApiRejected } from '../internal-api/rejected.js';
 import { withUpstream } from '../internal-api/upstream.js';
 import { systemContext } from '../system-context.js';
 import type { ResponseInput } from './clarification-input.js';

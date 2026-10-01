@@ -1,7 +1,7 @@
-import type { ServiceTokenClient } from '@adili/api-kit';
+import { createServiceClient, type ServiceClient, type ServiceTokenClient } from '@adili/api-kit';
 import { z } from 'zod';
 
-import { InternalApi } from '../internal-api/internal-api.js';
+import type { paths } from './declarations-api.gen.js';
 import {
   DeclarationsClient,
   DeclarationsUnavailable,
@@ -10,15 +10,10 @@ import {
   type ReadContext,
 } from './declarations-client.js';
 
-/** The scope the review service's token needs for the declarations internal API. */
-export const DECLARATIONS_INTERNAL_SCOPE = 'declarations:internal';
-
-/** Staff subject on whose behalf content is read (declarations.yaml `internalGetVersionDocument`). */
-export const ACTING_SUBJECT_HEADER = 'x-acting-subject';
-/** The review case the read is for. */
-export const REVIEW_CASE_HEADER = 'x-review-case';
-
-/** Per attempt: a document is one decrypted version. Pulls run in activities, which retry. */
+/**
+ * Per attempt: a document is one decrypted version. Pulls run in activities, which retry.
+ * Recorded in ADR-013 §2 (synchronous budgets).
+ */
 export const DECLARATIONS_PULL_TIMEOUT_MS = 5_000;
 
 export interface HttpDeclarationsClientOptions {
@@ -66,16 +61,19 @@ const previousSchema = z.object({
 }) satisfies z.ZodType<PreviousVersionRef>;
 
 /**
- * The declarations service's internal API with the review service's own token
- * (`declarations:internal`) and the Commission in `X-Acting-Tenant`. Every document read names
- * the acting subject and the case, which declarations records in its audit trail (ADR-008).
+ * The declarations service's internal API through the client generated from its contract
+ * (packages/schemas/internal/declarations.yaml → declarations-api.gen.ts via `pnpm generate:api`)
+ * on api-kit's service client: the review service's own token (`declarations:internal`) and the
+ * Commission in `X-Acting-Tenant` (ADR-013 §8.1). Every document read names the acting subject and
+ * the case, which declarations records in its audit trail (ADR-008). Anything unexpected is
+ * `DeclarationsUnavailable`.
  */
 export class HttpDeclarationsClient extends DeclarationsClient {
-  private readonly api: InternalApi;
+  private readonly declarations: ServiceClient<paths>;
 
   constructor(options: HttpDeclarationsClientOptions) {
     super();
-    this.api = new InternalApi({
+    this.declarations = createServiceClient<paths>({
       baseUrl: options.declarationsUrl,
       service: 'declarations',
       tokens: options.tokens,
@@ -90,15 +88,20 @@ export class HttpDeclarationsClient extends DeclarationsClient {
     version: number,
     context: ReadContext,
   ): Promise<PulledVersion | null> {
-    return this.api.get({
-      path: `internal/v1/declarations/${encodeURIComponent(declarationId)}/versions/${String(version)}/document`,
-      tenant: context.tenant,
-      headers: {
-        [ACTING_SUBJECT_HEADER]: context.actingSubject,
-        ...(context.caseId === undefined ? {} : { [REVIEW_CASE_HEADER]: context.caseId }),
-      },
-      schema: versionSchema,
-    });
+    return this.declarations.call(
+      (api) =>
+        api.GET('/internal/v1/declarations/{declarationId}/versions/{version}/document', {
+          params: {
+            path: { declarationId, version },
+            header: {
+              'X-Acting-Tenant': context.tenant,
+              'X-Acting-Subject': context.actingSubject,
+              ...(context.caseId === undefined ? {} : { 'X-Review-Case': context.caseId }),
+            },
+          },
+        }),
+      { status: 200, schema: versionSchema, otherwise: { 404: () => null } },
+    );
   }
 
   findPreviousVersion(
@@ -106,11 +109,15 @@ export class HttpDeclarationsClient extends DeclarationsClient {
     tenant: string,
     beforeVersionId: string,
   ): Promise<PreviousVersionRef | null> {
-    return this.api.get({
-      path: 'internal/v1/declarations/previous-version',
-      query: { personId, tenant, beforeVersionId },
-      tenant,
-      schema: previousSchema,
-    });
+    return this.declarations.call(
+      (api) =>
+        api.GET('/internal/v1/declarations/previous-version', {
+          params: {
+            header: { 'X-Acting-Tenant': tenant },
+            query: { personId, tenant, beforeVersionId },
+          },
+        }),
+      { status: 200, schema: previousSchema, otherwise: { 404: () => null } },
+    );
   }
 }
