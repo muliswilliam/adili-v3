@@ -28,7 +28,7 @@ const TERMS: readonly RegExp[] = [
   /\bsanction(?:s|ed)?\b/,
   /\bpenal(?:ty|ties|ise|ised|ize|ized)\b/,
   /\bdisciplinary\b/,
-  /\brefer(?:red)? (?:the (?:matter|declarant|officer|case) )?to (?:the )?(?:eacc|dci|dpp|police)\b/,
+  /\brefer(?:ral|red|ring|s)? (?:(?:of )?the (?:matter|declarant|officer|case) )?to (?:the )?(?:eacc|dci|dpp|police)\b/,
   /\bprosecut(?:e|ed|ion)\b/,
   /\bcriminal\b/,
   // Swahili (draft).
@@ -55,12 +55,22 @@ const HEDGE = String.raw`(?:(?:by itself|on its own|alone|necessarily|in itself)
 /** What a denial may put between itself and the term: "not a finding of any", "si ishara ya". */
 const DENIED_NOUN = String.raw`(?:(?:a|an|the|any)\s+)?(?:(?:finding|determination|sign|indication|indicator|evidence|proof|suggestion|allegation|case|ishara|dalili|ushahidi|uthibitisho)\s+(?:of|ya|za|wa)\s+(?:(?:any|the)\s+)?)?`;
 
+/** A denied inference: "does not mean", "not by itself suggest", "haimaanishi". */
+const DENIED_INFERENCE = String.raw`(?:${NEGATION}\s+${HEDGE}(?:mean|imply|suggest|indicate|show|prove|establish)|haimaanishi)`;
+
+/**
+ * A word a denied inference may reach over to its term: a subject ("the declarant", "any"), not a
+ * coordinator or a verb, which start a predicate of their own the denial does not govern.
+ */
+const INFERRED_WORD = String.raw`(?!(?:and|but|or|nor|yet|so|then|while|because|which|who|na|lakini|bali|ila|is|was|are|were|be|been|being|has|have|had|do|does|did|will|would|shall|should|may|might|must|can|could)\b)[\p{L}']+`;
+
 /**
  * The end of a term's clause when a negation governs the term: right before it ("not corrupt",
  * "should not be sanctioned"), through a denied noun ("not a finding of any wrongdoing"), or as a
- * denied inference ("does not by itself suggest any wrongdoing", "haimaanishi kuna rushwa").
- * A negation elsewhere in the clause does not count: "did not disclose the illicit income" and
- * "there is no doubt the declarant is corrupt" state the term.
+ * denied inference over a subject and a copula ("does not mean the declarant is non-compliant",
+ * "does not mean there was any wrongdoing", "haimaanishi kuna rushwa"). A negation elsewhere in
+ * the clause does not count: "did not disclose the illicit income", "there is no doubt the
+ * declarant is corrupt" and "did not show the loan and is non-compliant" state the term.
  */
 const GOVERNED = [
   new RegExp(
@@ -68,7 +78,7 @@ const GOVERNED = [
     'u',
   ),
   new RegExp(
-    String.raw`(?:^|[^\p{L}'])(?:${NEGATION}\s+${HEDGE}(?:mean|imply|suggest|indicate|show|prove|establish)|haimaanishi)(?:\s+[\p{L}']+){0,4}\s+$`,
+    String.raw`(?:^|[^\p{L}'])${DENIED_INFERENCE}(?:\s+that)?(?:\s+${INFERRED_WORD}){0,4}(?:\s+(?:is|was|are|were|be|(?:has|have|had) been)(?:\s+(?:a|an|any))?)?\s+$`,
     'u',
   ),
 ];

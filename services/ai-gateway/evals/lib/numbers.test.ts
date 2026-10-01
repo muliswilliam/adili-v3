@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
+import { summarizeSuite } from '../golden/summarize-declaration.js';
 import { foreignNumbers, numbersIn } from './numbers.js';
 
 describe('numbersIn', () => {
@@ -44,9 +45,21 @@ describe('foreignNumbers', () => {
   });
 
   it('accepts small counts and the legal references', () => {
-    expect(
-      foreignNumbers('Two items, 3 flags, s.35 and s.31(4) of the Act 2025; 25%; 100%.', input),
-    ).toEqual([]);
+    expect(foreignNumbers('Two items, 3 flags, s.35 and s.31(4) of the Act 2025.', input)).toEqual(
+      [],
+    );
+  });
+
+  it('rejects a legal reference written as a percentage or an amount', () => {
+    expect(foreignNumbers('Income rose by 25%.', input)).toEqual(['25%']);
+    expect(foreignNumbers('Up 100 per cent.', input)).toEqual(['100 per cent']);
+    expect(foreignNumbers('A fee of KES 100, KES 35 or KES 4.', input)).toEqual(['100', '35', '4']);
+    expect(foreignNumbers('Ongezeko la asilimia 25.', input)).toEqual(['25']);
+  });
+
+  it('accepts a threshold the input states', () => {
+    const flagged = { ...input, title: 'Value changed by 25% or more' };
+    expect(foreignNumbers('A change of 25% or more.', flagged)).toEqual([]);
   });
 
   it('rejects small percentages and amounts, which are not counts', () => {
@@ -64,5 +77,11 @@ describe('foreignNumbers', () => {
 
   it('ignores digits inside ids', () => {
     expect(foreignNumbers('Flag 101 applies.', input)).toEqual(['101']);
+  });
+
+  it('ignores digits inside refs and keys that embed ids', () => {
+    const household = summarizeSuite.cases[0]?.input;
+    expect(foreignNumbers('Rent of KES 7,000.', household)).toEqual(['7,000']);
+    expect(foreignNumbers('The loan rose by 8000.', household)).toEqual(['8000']);
   });
 });

@@ -33,6 +33,7 @@ describe('verdictTerms', () => {
       'refer the matter to eacc',
       'prosecution',
     ]);
+    expect(verdictTerms('Recommend referral to the EACC.')).toEqual(['referral to the eacc']);
   });
 
   it('finds the Swahili terms', () => {
@@ -52,11 +53,18 @@ describe('verdictTerms', () => {
     expect(verdictTerms('Haimaanishi kuna rushwa.')).toEqual([]);
     expect(verdictTerms('An indicator for review, not evidence of any wrongdoing.')).toEqual([]);
     expect(verdictTerms('It does not by itself suggest any wrongdoing.')).toEqual([]);
+    expect(verdictTerms('This does not mean that there was any wrongdoing.')).toEqual([]);
   });
 
   it('flags a term when a negation in its clause does not govern it', () => {
     expect(verdictTerms('There is no doubt the declarant is corrupt.')).toEqual(['corrupt']);
     expect(verdictTerms('The officer did not disclose the illicit income.')).toEqual(['illicit']);
+    expect(
+      verdictTerms('The declarant did not indicate the source and is in breach of s.31.'),
+    ).toEqual(['in breach of']);
+    expect(verdictTerms('The declarant did not show the loan and is non-compliant.')).toEqual([
+      'non-compliant',
+    ]);
   });
 
   it('does not let a negation reach across a clause or sentence', () => {

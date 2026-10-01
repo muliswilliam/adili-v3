@@ -24,16 +24,33 @@ const PREFIX_SCALES = new Set(['elfu', 'milioni', 'bilioni']);
 /** Bare counts ("two vehicles", "3 flags") need no source; a percentage or amount does. */
 const MAX_FREE_COUNT = 10;
 
-/** Act sections, thresholds and the Act's year, which the prompts may cite. */
+/**
+ * The Act's sections and year, which the prompts may cite: "s.31(4)", "the Act 2025". Free only
+ * when bare. As a percentage or an amount ("25%", "KES 100") a number needs a source, so a
+ * threshold passes only when the input states it (a flag's title does: "changed by 25% or more").
+ */
 const LEGAL_REFERENCES = [4, 25, 31, 35, 100, 2025];
 
 /** Minor-unit amounts: the input holds cents, the text uses whole units. */
 const MINOR_UNIT_KEYS = new Set(['kesCents', 'minorUnits']);
 
-const UUID = /^[\da-f]{8}-[\da-f]{4}-[\da-f]{4}-[\da-f]{4}-[\da-f]{12}$/i;
+/** Refs and ids, not prose: their digits ("spouse:0192f1a0-…", "value-change-25") state nothing. */
+const REF_KEYS = new Set([
+  'id',
+  'itemId',
+  'personKey',
+  'sectionKey',
+  'fieldPath',
+  'itemRefs',
+  'flagIds',
+  'ruleId',
+]);
+
+/** A UUID anywhere in a string, as ids are embedded in keys like `spouse:<uuid>`. */
+const UUID = /[\da-f]{8}-[\da-f]{4}-[\da-f]{4}-[\da-f]{4}-[\da-f]{12}/gi;
 
 const NUMBER =
-  /(?:\b(elfu|milioni|bilioni)\s+)?(\d{1,3}(?:,\d{3})+|\d+)(?:\.(\d+))?(?:\s*(%|percent\b|asilimia\b))?(?:\s*(k|thousand|m|million|bn|billion)\b)?/giu;
+  /(?:\b(elfu|milioni|bilioni)\s+)?(\d{1,3}(?:,\d{3})+|\d+)(?:\.(\d+))?(?:\s*(%|per\s?cent\b|asilimia\b))?(?:\s*(k|thousand|m|million|bn|billion)\b)?/giu;
 
 /** A currency or Swahili "asilimia" just before a number: "KES 5", "asilimia 8". */
 const UNIT_BEFORE = /\b(?:kes|kshs?|usd|eur|gbp|shilingi|sh|asilimia)\.?\s*$/iu;
@@ -66,10 +83,11 @@ export function numbersIn(text: string): number[] {
 
 /** Every number the input states, in the units a reader would see. */
 function inputNumbers(value: unknown, key?: string): number[] {
+  if (key && REF_KEYS.has(key)) return [];
   if (typeof value === 'number') {
     return key && MINOR_UNIT_KEYS.has(key) ? [value, value / 100] : [value];
   }
-  if (typeof value === 'string') return UUID.test(value) ? [] : numbersIn(value);
+  if (typeof value === 'string') return numbersIn(value.replaceAll(UUID, ' '));
   if (Array.isArray(value)) return value.flatMap((item) => inputNumbers(item));
   if (value !== null && typeof value === 'object') {
     return Object.entries(value).flatMap(([entryKey, item]) => inputNumbers(item, entryKey));
@@ -82,8 +100,9 @@ function same(a: number, b: number): boolean {
 }
 
 function isFree({ value, hasUnit }: NumberMention): boolean {
+  if (hasUnit) return false;
   return (
-    (!hasUnit && Number.isInteger(value) && value >= 0 && value <= MAX_FREE_COUNT) ||
+    (Number.isInteger(value) && value >= 0 && value <= MAX_FREE_COUNT) ||
     LEGAL_REFERENCES.includes(value)
   );
 }
