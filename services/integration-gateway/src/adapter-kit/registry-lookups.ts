@@ -142,6 +142,7 @@ export class RegistryLookups {
         caller,
         legalBasis: purpose.legalBasis,
         caseRef: purpose.caseRef,
+        subjectPersonId: purpose.subjectPersonId,
         tenant,
         payload: resolved.outcome === 'found' ? resolved.data : undefined,
       });

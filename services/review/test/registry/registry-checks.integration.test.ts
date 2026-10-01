@@ -182,6 +182,10 @@ describe('registry checks', () => {
     // Every lookup for the case, with the legal basis of processing; one supplier check.
     expect(api.gateway.lookups).toHaveLength(17);
     expect(api.gateway.lookups.every((lookup) => lookup.context.caseRef === caseId)).toBe(true);
+    // ADR-008: the gateway audits reads of the results as reads of the declarant's data.
+    expect(
+      api.gateway.lookups.every((lookup) => lookup.context.subjectPersonId === row.personId),
+    ).toBe(true);
     expect(
       api.gateway.lookups.every(
         (lookup) => lookup.context.tenant === 'psc' && lookup.context.legalBasis === 'regs-r20-1-b',

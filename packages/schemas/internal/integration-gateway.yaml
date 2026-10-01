@@ -104,6 +104,13 @@ paths:
           schema:
             type: string
             pattern: ^[A-Za-z0-9][A-Za-z0-9._:-]{0,99}$
+        - name: X-Subject-Person
+          in: header
+          description: Platform person the lookup is about (the case declarant); recorded on the result, so reads of it are audited as reads of their data
+          required: false
+          schema:
+            type: string
+            format: uuid
       requestBody:
         required: true
         content:
@@ -118,7 +125,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/KraResult'
         '400':
-          description: X-Legal-Basis missing or unknown, or X-Case-Ref malformed
+          description: X-Legal-Basis missing or unknown, or X-Case-Ref or X-Subject-Person malformed
           content:
             application/problem+json:
               schema:
@@ -169,6 +176,13 @@ paths:
           schema:
             type: string
             pattern: ^[A-Za-z0-9][A-Za-z0-9._:-]{0,99}$
+        - name: X-Subject-Person
+          in: header
+          description: Platform person the lookup is about (the case declarant); recorded on the result, so reads of it are audited as reads of their data
+          required: false
+          schema:
+            type: string
+            format: uuid
       requestBody:
         required: true
         content:
@@ -183,7 +197,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/NtsaResult'
         '400':
-          description: X-Legal-Basis missing or unknown, or X-Case-Ref malformed
+          description: X-Legal-Basis missing or unknown, or X-Case-Ref or X-Subject-Person malformed
           content:
             application/problem+json:
               schema:
@@ -234,6 +248,13 @@ paths:
           schema:
             type: string
             pattern: ^[A-Za-z0-9][A-Za-z0-9._:-]{0,99}$
+        - name: X-Subject-Person
+          in: header
+          description: Platform person the lookup is about (the case declarant); recorded on the result, so reads of it are audited as reads of their data
+          required: false
+          schema:
+            type: string
+            format: uuid
       requestBody:
         required: true
         content:
@@ -248,7 +269,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/BrsResult'
         '400':
-          description: X-Legal-Basis missing or unknown, or X-Case-Ref malformed
+          description: X-Legal-Basis missing or unknown, or X-Case-Ref or X-Subject-Person malformed
           content:
             application/problem+json:
               schema:
@@ -299,6 +320,13 @@ paths:
           schema:
             type: string
             pattern: ^[A-Za-z0-9][A-Za-z0-9._:-]{0,99}$
+        - name: X-Subject-Person
+          in: header
+          description: Platform person the lookup is about (the case declarant); recorded on the result, so reads of it are audited as reads of their data
+          required: false
+          schema:
+            type: string
+            format: uuid
       requestBody:
         required: true
         content:
@@ -313,7 +341,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ArdhisasaResult'
         '400':
-          description: X-Legal-Basis missing or unknown, or X-Case-Ref malformed
+          description: X-Legal-Basis missing or unknown, or X-Case-Ref or X-Subject-Person malformed
           content:
             application/problem+json:
               schema:
@@ -376,6 +404,13 @@ paths:
           schema:
             type: string
             pattern: ^[A-Za-z0-9][A-Za-z0-9._:-]{0,99}$
+        - name: X-Subject-Person
+          in: header
+          description: Platform person the lookup is about (the case declarant); recorded on the result, so reads of it are audited as reads of their data
+          required: false
+          schema:
+            type: string
+            format: uuid
       responses:
         '200':
           description: The check result
@@ -384,7 +419,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/SupplierCheckResult'
         '400':
-          description: X-Legal-Basis missing or unknown, or X-Case-Ref malformed
+          description: X-Legal-Basis missing or unknown, or X-Case-Ref or X-Subject-Person malformed
           content:
             application/problem+json:
               schema:
@@ -408,7 +443,7 @@ paths:
       tags:
         - internal
       summary: A stored lookup result, decrypted for the services of its tenant (audited)
-      description: The normalised records of a found lookup (payload), with its system, outcome, legal basis and case reference. Each read is audited (audit.read.v1). Requires a service token with scope `registry` acting for the tenant the lookup acted for.
+      description: The normalised records of a found lookup (payload), with its system, outcome, legal basis and case reference. Each read is audited (audit.read.v1) under the tenant, naming the person the lookup was about (X-Subject-Person at lookup). Requires a service token with scope `registry` acting for the tenant the lookup acted for.
       operationId: getVerificationResult
       parameters:
         - name: X-Acting-Tenant

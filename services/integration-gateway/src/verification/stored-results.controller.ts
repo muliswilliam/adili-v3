@@ -4,9 +4,11 @@ import {
   ActingTenant,
   ApiProblemResponse,
   AuditedRead,
+  CurrentReadAudit,
   InternalApi,
   notFoundIfInvisible,
   ProblemException,
+  type ReadAudit,
   schemaRef,
   ZodValidationPipe,
 } from '@adili/api-kit';
@@ -32,7 +34,7 @@ export class StoredResultsController {
   @ApiOperation({
     operationId: 'getVerificationResult',
     summary: 'A stored lookup result, decrypted for the services of its tenant (audited)',
-    description: `The normalised records of a found lookup (payload), with its system, outcome, legal basis and case reference. Each read is audited (audit.read.v1). Requires a service token with scope \`${REGISTRY_SCOPE}\` acting for the tenant the lookup acted for.`,
+    description: `The normalised records of a found lookup (payload), with its system, outcome, legal basis and case reference. Each read is audited (audit.read.v1) under the tenant, naming the person the lookup was about (X-Subject-Person at lookup). Requires a service token with scope \`${REGISTRY_SCOPE}\` acting for the tenant the lookup acted for.`,
   })
   @ApiParam({ name: 'resultId', schema: { type: 'string', format: 'uuid' } })
   @ApiOkResponse({ description: 'The stored result', schema: schemaRef('StoredResult') })
@@ -44,9 +46,15 @@ export class StoredResultsController {
   async read(
     @Param('resultId', new ZodValidationPipe(z.uuid())) resultId: string,
     @ActingTenant() tenant: string,
+    @CurrentReadAudit() audit: ReadAudit,
   ): Promise<StoredResult> {
     try {
-      return notFoundIfInvisible(await this.results.read(resultId, tenant));
+      const { result, subjectPersonId } = notFoundIfInvisible(
+        await this.results.read(resultId, tenant),
+      );
+      // ADR-008: "who accessed my data" lists this read under the person the lookup was about.
+      audit.resource({ tenant, subjectPersonId });
+      return result;
     } catch (error) {
       if (error instanceof FieldCipherError && error.code === 'unavailable') {
         throw new ProblemException({

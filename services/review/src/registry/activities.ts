@@ -77,7 +77,8 @@ export class RegistryCheckActivities {
    * unavailable. Null when the case is no longer at the version (nothing is looked up).
    */
   async lookupRegistries({ check, previous }: LookupRequest): Promise<RegistryLookups | null> {
-    if (!(await atVersion(this.db, check))) return null;
+    const found = await caseAt(this.db, check);
+    if (found === null) return null;
     const pulled = await pullVersion(this.declarations, check);
     const roster = await this.directory.getRosterRecord(check.tenant, pulled.rosterRecordId);
     const ids = householdIds(
@@ -88,6 +89,7 @@ export class RegistryCheckActivities {
       tenant: check.tenant,
       legalBasis: PROCESSING_LEGAL_BASIS,
       caseRef: check.caseId,
+      subjectPersonId: found.personId,
     };
     const lookups: RegistryLookups = { persons: {}, suppliers: { ...previous?.suppliers } };
     let officerCompanies: string[] | undefined;
@@ -137,7 +139,7 @@ export class RegistryCheckActivities {
    * nothing stored) when the case moved on to a later version.
    */
   async matchRegistries({ check, lookups }: MatchRequest): Promise<RegistryCheckResult> {
-    if (!(await atVersion(this.db, check))) return { outcome: 'stale' };
+    if ((await caseAt(this.db, check)) === null) return { outcome: 'stale' };
     const pulled = await pullVersion(this.declarations, check);
     const document = pulled.document as unknown as DeclarationV1;
     const roster = await this.directory.getRosterRecord(check.tenant, pulled.rosterRecordId);
@@ -254,18 +256,18 @@ async function recordsOf(
   return { ...envelope, ...records.data };
 }
 
-/** Whether the case still exists and is at the version being checked. */
-async function atVersion(
+/** The case's declarant, if the case still exists and is at the version being checked. */
+async function caseAt(
   db: Database<ReviewSchema>,
   check: RegistryCheckRequest,
-): Promise<boolean> {
+): Promise<{ personId: string } | null> {
   const [found] = await withTenant(db, systemContext(check.tenant), (tx) =>
     tx
-      .select({ versionId: reviewCases.currentVersionId })
+      .select({ versionId: reviewCases.currentVersionId, personId: reviewCases.personId })
       .from(reviewCases)
       .where(eq(reviewCases.id, check.caseId)),
   );
-  return found?.versionId === check.versionId;
+  return found?.versionId === check.versionId ? { personId: found.personId } : null;
 }
 
 /** The version as declarations gives it, read as the service for the case. */

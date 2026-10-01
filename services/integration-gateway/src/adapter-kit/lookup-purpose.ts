@@ -15,15 +15,18 @@ import type { LookupPurpose } from './registry-adapter.js';
 
 export const LEGAL_BASIS_HEADER = 'x-legal-basis';
 export const CASE_REF_HEADER = 'x-case-ref';
+export const SUBJECT_PERSON_HEADER = 'x-subject-person';
 
 /** A case reference as callers send it: an id or printed reference, never free text. */
 const CASE_REF = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,99}$/;
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 type PurposeRequest = AuthenticatedRequest & { lookupPurpose?: LookupPurpose };
 
 /**
  * Reads why a lookup is made from `X-Legal-Basis` (required, one of `LEGAL_BASES`) and
- * `X-Case-Ref` (optional). Malformed headers are a 400 problem naming the header.
+ * `X-Case-Ref` (optional), and whom it is about from `X-Subject-Person` (optional). Malformed
+ * headers are a 400 problem naming the header.
  */
 export function parseLookupPurpose(headers: PurposeRequest['headers']): LookupPurpose {
   const legalBasis = single(headers[LEGAL_BASIS_HEADER]);
@@ -34,7 +37,15 @@ export function parseLookupPurpose(headers: PurposeRequest['headers']): LookupPu
   if (caseRef !== undefined && !CASE_REF.test(caseRef)) {
     throw invalid('X-Case-Ref', 'Must be an id or reference of at most 100 characters');
   }
-  return { legalBasis: legalBasis as LegalBasis, caseRef: caseRef ?? null };
+  const subjectPersonId = single(headers[SUBJECT_PERSON_HEADER]);
+  if (subjectPersonId !== undefined && !UUID.test(subjectPersonId)) {
+    throw invalid('X-Subject-Person', 'Must be a person id (uuid)');
+  }
+  return {
+    legalBasis: legalBasis as LegalBasis,
+    caseRef: caseRef ?? null,
+    subjectPersonId: subjectPersonId?.toLowerCase() ?? null,
+  };
 }
 
 @Injectable()
@@ -48,7 +59,7 @@ class LookupPurposeGuard implements CanActivate {
 
 /**
  * Requires a lookup route's caller to declare why it looks (ADR-008: legal basis on every
- * lookup), which `@Purpose()` reads. Documents both headers and the 400.
+ * lookup), which `@Purpose()` reads. Documents the headers and the 400.
  *
  * @example
  * @Get('owners/:nationalId/vehicles')
@@ -71,9 +82,16 @@ export const LookupPurposeHeaders = () =>
       description: 'Review case the lookup is for; recorded on the result and the audit event',
       schema: { type: 'string', pattern: CASE_REF.source },
     }),
+    ApiHeader({
+      name: 'X-Subject-Person',
+      required: false,
+      description:
+        'Platform person the lookup is about (the case declarant); recorded on the result, so reads of it are audited as reads of their data',
+      schema: { type: 'string', format: 'uuid' },
+    }),
     ApiProblemResponse(
       HttpStatus.BAD_REQUEST,
-      'X-Legal-Basis missing or unknown, or X-Case-Ref malformed',
+      'X-Legal-Basis missing or unknown, or X-Case-Ref or X-Subject-Person malformed',
     ),
   );
 

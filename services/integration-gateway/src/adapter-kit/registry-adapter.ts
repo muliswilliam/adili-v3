@@ -27,6 +27,11 @@ export interface LookupPurpose {
   legalBasis: LegalBasis;
   /** The review case (or other record) the lookup is for; null when there is none. */
   caseRef: string | null;
+  /**
+   * The platform person the lookup is about (the declarant of the case), so a later read of the
+   * stored result is audited as a read of their data (ADR-008); null when there is none yet.
+   */
+  subjectPersonId: string | null;
 }
 
 export interface LookupContext {

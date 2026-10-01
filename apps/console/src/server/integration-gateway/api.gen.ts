@@ -133,7 +133,7 @@ export interface paths {
         };
         /**
          * A stored lookup result, decrypted for the services of its tenant (audited)
-         * @description The normalised records of a found lookup (payload), with its system, outcome, legal basis and case reference. Each read is audited (audit.read.v1). Requires a service token with scope `registry` acting for the tenant the lookup acted for.
+         * @description The normalised records of a found lookup (payload), with its system, outcome, legal basis and case reference. Each read is audited (audit.read.v1) under the tenant, naming the person the lookup was about (X-Subject-Person at lookup). Requires a service token with scope `registry` acting for the tenant the lookup acted for.
          */
         get: operations["getVerificationResult"];
         put?: never;
@@ -610,6 +610,8 @@ export interface operations {
                 "X-Legal-Basis": "regs-r20-1-b" | "act-s35-5" | "adr-014-onboarding";
                 /** @description Review case the lookup is for; recorded on the result and the audit event */
                 "X-Case-Ref"?: string;
+                /** @description Platform person the lookup is about (the case declarant); recorded on the result, so reads of it are audited as reads of their data */
+                "X-Subject-Person"?: string;
             };
             path?: never;
             cookie?: never;
@@ -629,7 +631,7 @@ export interface operations {
                     "application/json": components["schemas"]["KraResult"];
                 };
             };
-            /** @description X-Legal-Basis missing or unknown, or X-Case-Ref malformed */
+            /** @description X-Legal-Basis missing or unknown, or X-Case-Ref or X-Subject-Person malformed */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -668,6 +670,8 @@ export interface operations {
                 "X-Legal-Basis": "regs-r20-1-b" | "act-s35-5" | "adr-014-onboarding";
                 /** @description Review case the lookup is for; recorded on the result and the audit event */
                 "X-Case-Ref"?: string;
+                /** @description Platform person the lookup is about (the case declarant); recorded on the result, so reads of it are audited as reads of their data */
+                "X-Subject-Person"?: string;
             };
             path?: never;
             cookie?: never;
@@ -687,7 +691,7 @@ export interface operations {
                     "application/json": components["schemas"]["NtsaResult"];
                 };
             };
-            /** @description X-Legal-Basis missing or unknown, or X-Case-Ref malformed */
+            /** @description X-Legal-Basis missing or unknown, or X-Case-Ref or X-Subject-Person malformed */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -726,6 +730,8 @@ export interface operations {
                 "X-Legal-Basis": "regs-r20-1-b" | "act-s35-5" | "adr-014-onboarding";
                 /** @description Review case the lookup is for; recorded on the result and the audit event */
                 "X-Case-Ref"?: string;
+                /** @description Platform person the lookup is about (the case declarant); recorded on the result, so reads of it are audited as reads of their data */
+                "X-Subject-Person"?: string;
             };
             path?: never;
             cookie?: never;
@@ -745,7 +751,7 @@ export interface operations {
                     "application/json": components["schemas"]["BrsResult"];
                 };
             };
-            /** @description X-Legal-Basis missing or unknown, or X-Case-Ref malformed */
+            /** @description X-Legal-Basis missing or unknown, or X-Case-Ref or X-Subject-Person malformed */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -784,6 +790,8 @@ export interface operations {
                 "X-Legal-Basis": "regs-r20-1-b" | "act-s35-5" | "adr-014-onboarding";
                 /** @description Review case the lookup is for; recorded on the result and the audit event */
                 "X-Case-Ref"?: string;
+                /** @description Platform person the lookup is about (the case declarant); recorded on the result, so reads of it are audited as reads of their data */
+                "X-Subject-Person"?: string;
             };
             path?: never;
             cookie?: never;
@@ -803,7 +811,7 @@ export interface operations {
                     "application/json": components["schemas"]["ArdhisasaResult"];
                 };
             };
-            /** @description X-Legal-Basis missing or unknown, or X-Case-Ref malformed */
+            /** @description X-Legal-Basis missing or unknown, or X-Case-Ref or X-Subject-Person malformed */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -844,6 +852,8 @@ export interface operations {
                 "X-Legal-Basis": "regs-r20-1-b" | "act-s35-5" | "adr-014-onboarding";
                 /** @description Review case the lookup is for; recorded on the result and the audit event */
                 "X-Case-Ref"?: string;
+                /** @description Platform person the lookup is about (the case declarant); recorded on the result, so reads of it are audited as reads of their data */
+                "X-Subject-Person"?: string;
             };
             path: {
                 registrationNumber: string;
@@ -861,7 +871,7 @@ export interface operations {
                     "application/json": components["schemas"]["SupplierCheckResult"];
                 };
             };
-            /** @description X-Legal-Basis missing or unknown, or X-Case-Ref malformed */
+            /** @description X-Legal-Basis missing or unknown, or X-Case-Ref or X-Subject-Person malformed */
             400: {
                 headers: {
                     [name: string]: unknown;

@@ -79,6 +79,11 @@ export const verificationResults = pgTable(
     /** The review case (or other record) the lookup was for, as the caller named it. */
     caseRef: text(),
     /**
+     * The platform person the lookup is about, as the caller named it (`X-Subject-Person`): a
+     * read of the stored result is audited as a read of their data (ADR-008).
+     */
+    subjectPersonId: uuid(),
+    /**
      * Base64 AES-256-GCM ciphertext of the normalised answer under the tenant's key, bound to the
      * row id. Only for `found` lookups that act for a tenant.
      */

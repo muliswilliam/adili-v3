@@ -79,7 +79,8 @@ const refused = {
  *   both answer the acknowledgement; an instruction the gateway refuses (400) is
  *   `InternalApiRejected`, anything else unexpected `IntegrationGatewayUnavailable`.
  * - The registry lookups, the supplier check and stored results (`registry`), acting for the
- *   Commission (`X-Acting-Tenant`) with the legal basis and the case. A lookup always answers
+ *   Commission (`X-Acting-Tenant`) with the legal basis, the case and its declarant
+ *   (`X-Subject-Person`, so reads of the stored result are audited as reads of their data). A lookup always answers
  *   200, `unavailable` included; 503 `lookup-not-recorded` (the gateway could not audit it) and
  *   anything else unexpected is `IntegrationGatewayUnavailable`, a refusal (400, 403)
  *   `InternalApiRejected`.
@@ -169,6 +170,11 @@ export class HttpIntegrationGatewayClient extends IntegrationGatewayClient {
   }
 }
 
-function registryHeaders({ tenant, legalBasis, caseRef }: RegistryContext) {
-  return { 'X-Acting-Tenant': tenant, 'X-Legal-Basis': legalBasis, 'X-Case-Ref': caseRef };
+function registryHeaders({ tenant, legalBasis, caseRef, subjectPersonId }: RegistryContext) {
+  return {
+    'X-Acting-Tenant': tenant,
+    'X-Legal-Basis': legalBasis,
+    'X-Case-Ref': caseRef,
+    'X-Subject-Person': subjectPersonId,
+  };
 }

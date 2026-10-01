@@ -68,6 +68,11 @@ export interface RegistryContext {
   legalBasis: RegistryLegalBasis;
   /** The review case the lookup is for. */
   caseRef: string;
+  /**
+   * The case's declarant: the gateway records it on the result, so each read of the stored
+   * result is audited as a read of their data (ADR-008).
+   */
+  subjectPersonId: string;
 }
 
 /**

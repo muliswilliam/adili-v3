@@ -11,6 +11,8 @@ import { createTestApp, type TestApp } from './support/test-app.js';
 /** A matcher typed `unknown`, so it sits in typed objects. */
 const isoDateTime = (): unknown => expect.stringMatching(/^\d{4}-\d{2}-\d{2}T/);
 
+const DECLARANT = '0190a3b2-7c4d-7e8f-9a0b-1c2d3e4f5a6b';
+
 /** The stored result read: decrypted for the lookup's own tenant, 404 for any other, audited. */
 describe('GET /internal/v1/verification-results/{resultId}', () => {
   let registries: StubRegistries;
@@ -46,7 +48,12 @@ describe('GET /internal/v1/verification-results/{resultId}', () => {
       await t.app.inject({
         method: 'POST',
         url: `/internal/v1/${path}`,
-        headers: { ...headers(), 'x-legal-basis': 'regs-r20-1-b', 'x-case-ref': 'case-0001' },
+        headers: {
+          ...headers(),
+          'x-legal-basis': 'regs-r20-1-b',
+          'x-case-ref': 'case-0001',
+          'x-subject-person': DECLARANT,
+        },
         payload: { nationalId },
       })
     ).json<{ resultId: string } & Record<string, unknown>>();
@@ -106,7 +113,7 @@ describe('GET /internal/v1/verification-results/{resultId}', () => {
     expect(await audits()).toEqual([]);
   });
 
-  it('audits each read under the tenant, naming the result and the service', async () => {
+  it('audits each read under the tenant, naming the result, the service and the person', async () => {
     const result = await lookup('ardhisasa/parcel-lookups', SEED.wanjiku);
 
     await read(result.resultId);
@@ -118,7 +125,13 @@ describe('GET /internal/v1/verification-results/{resultId}', () => {
       tenant: 'psc',
       data: {
         action: 'verification-result.read',
-        resource: { type: 'verification-result', params: { resultId: result.resultId } },
+        resource: {
+          type: 'verification-result',
+          params: { resultId: result.resultId },
+          tenant: 'psc',
+          // ADR-008: the declarant sees this read in "who accessed my data".
+          subjectPersonId: DECLARANT,
+        },
         actor: { clientId: 'review' },
         outcome: 'success',
       },
