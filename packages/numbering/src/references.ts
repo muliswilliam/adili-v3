@@ -14,6 +14,7 @@ export {
 } from './reference.js';
 export {
   ADM,
+  ARQ,
   CLR,
   CMP,
   DCB,
@@ -24,6 +25,7 @@ export {
   declarationSchemes,
   defineScheme,
   findScheme,
+  LEA,
   NCR,
   type NumberingScheme,
   numberingSchemes,

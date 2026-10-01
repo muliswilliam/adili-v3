@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   ADM,
+  ARQ,
   CLR,
   CMP,
   DCB,
@@ -10,6 +11,7 @@ import {
   declarationSchemes,
   defineScheme,
   findScheme,
+  LEA,
   NCR,
   numberingSchemes,
   OFR,
@@ -18,7 +20,7 @@ import {
 } from './schemes.js';
 
 describe('numbering scheme registry', () => {
-  it('registers OFR, the three declaration schemes, the review schemes and the two report schemes', () => {
+  it('registers OFR, the three declaration schemes, the review schemes, the two report schemes and the access schemes', () => {
     expect(numberingSchemes.map((scheme) => scheme.code)).toEqual([
       'OFR',
       'DCI',
@@ -30,6 +32,8 @@ describe('numbering scheme registry', () => {
       'RFL',
       'RPT',
       'NCR',
+      'ARQ',
+      'LEA',
     ]);
   });
 
@@ -39,6 +43,17 @@ describe('numbering scheme registry', () => {
         issuer: true,
         period: true,
         periodName: 'Financial year end',
+        sequenceDigits: 7,
+      });
+    }
+  });
+
+  it('numbers access requests with issuer and year of submission', () => {
+    for (const scheme of [ARQ, LEA]) {
+      expect(scheme).toMatchObject({
+        issuer: true,
+        period: true,
+        periodName: 'Year of submission',
         sequenceDigits: 7,
       });
     }
@@ -82,6 +97,13 @@ describe('numbering scheme registry', () => {
       scheme: NCR,
       name: 'National consolidated report',
       legalBasis: 'Act s.6; Users & Workflows US 21',
+    },
+    { code: 'ARQ', scheme: ARQ, name: 'Access request', legalBasis: 'Act s.36(1); Regs r.22' },
+    {
+      code: 'LEA',
+      scheme: LEA,
+      name: 'Law enforcement request',
+      legalBasis: 'Act s.36(2); Regs r.23',
     },
   ])('$code carries its name and legal basis', ({ scheme, name, legalBasis }) => {
     expect(scheme.name).toBe(name);

@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 
 import { ALPHABET, hasValidCheckCharacter } from './check-character.js';
 import { format, InvalidReferenceError, issuerCode, parse, TENANT_KEY } from './reference.js';
-import { ADM, CLR, CMP, DCB, DCF, DCI, NCR, OFR, RFL, RPT } from './schemes.js';
+import { ADM, ARQ, CLR, CMP, DCB, DCF, DCI, LEA, NCR, OFR, RFL, RPT } from './schemes.js';
 
 const schemes = [OFR, DCB];
 
@@ -175,6 +175,26 @@ describe('parse', () => {
       sequence: 1,
     });
   });
+
+  it.each([
+    { scheme: ARQ, issuer: 'JSC', sequence: 12 },
+    { scheme: LEA, issuer: 'PSC', sequence: 4 },
+  ])(
+    'knows $scheme.code by default, with issuer and year of submission',
+    ({ scheme, issuer, sequence }) => {
+      const reference = format(scheme, { issuer, period: 2028, sequence });
+      expect(reference).toMatch(
+        new RegExp(`^${scheme.code}-${issuer}-2028-${String(sequence).padStart(7, '0')}-[0-9A-Z]$`),
+      );
+      expect(hasValidCheckCharacter(reference)).toBe(true);
+      expect(parse(reference)).toMatchObject({
+        scheme: scheme.code,
+        issuer,
+        period: 2028,
+        sequence,
+      });
+    },
+  );
 
   it('knows OFR by default', () => {
     expect(parse('OFR-0482913-L')).toMatchObject({ scheme: 'OFR', sequence: 482_913 });
