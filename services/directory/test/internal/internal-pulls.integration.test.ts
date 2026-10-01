@@ -10,6 +10,7 @@ import type { RosterImport } from '../../src/roster/import/representation.js';
 import type {
   InternalRosterRecord,
   InternalRosterRecordPage,
+  RosterNationalId,
   RosterRecordPage,
 } from '../../src/roster/records/representation.js';
 import { todayInNairobi } from '../../src/roster/row-validation.js';
@@ -40,6 +41,12 @@ const NOTIFICATIONS: Caller = {
   sub: 'service-account-notifications',
   azp: 'notifications',
   scope: 'profile directory:person-contacts',
+};
+/** The review service's client credentials token. */
+const REVIEW: Caller = {
+  sub: 'service-account-review',
+  azp: 'review',
+  scope: 'profile directory:internal directory:roster-national-id',
 };
 const ACTING_PSC = { 'x-acting-tenant': 'psc' };
 
@@ -354,6 +361,88 @@ describe('S18 one record', () => {
     expect(viaPsc.statusCode).toBe(404);
     expect(actingForPsc.statusCode).toBe(404);
     expect(actingForTsc.statusCode).toBe(200);
+  });
+});
+
+describe("S6 a roster record's national ID (spec 08)", () => {
+  async function givenRecord(): Promise<string> {
+    const ids = await givenRoster(api, 'psc', [
+      { personnelFileNumber: 'PSC/9', fullName: 'Mary Wambui', nationalId: '45678901' },
+    ]);
+    return idOf(ids, 'PSC/9');
+  }
+
+  it('gives the national ID the roster has, kept off the record the pulls give', async () => {
+    const recordId = await givenRecord();
+
+    const response = await api.get(
+      `${INTERNAL_RECORDS}/${recordId}/national-id`,
+      REVIEW,
+      ACTING_PSC,
+    );
+    const record = await api.get(`${INTERNAL_RECORDS}/${recordId}`, REVIEW, ACTING_PSC);
+
+    expect(response.statusCode, response.body).toBe(200);
+    const found = response.json<RosterNationalId>();
+    expect(
+      contractErrors(
+        okResponse('/internal/v1/commissions/{slug}/roster/records/{recordId}/national-id', 'get'),
+        found,
+      ),
+    ).toEqual([]);
+    expect(found).toEqual({ nationalId: '45678901' });
+    expect(record.body).not.toContain('45678901');
+  });
+
+  it('records the read in the audit trail as the calling service', async () => {
+    const recordId = await givenRecord();
+
+    await api.get(`${INTERNAL_RECORDS}/${recordId}/national-id`, REVIEW, ACTING_PSC);
+
+    expect(await auditReads()).toContainEqual(
+      expect.objectContaining({
+        action: 'roster.record.national-id.read',
+        resource: expect.objectContaining({ params: { slug: 'psc', recordId } }) as unknown,
+        actor: expect.objectContaining({ clientId: 'review' }) as unknown,
+      }),
+    );
+  });
+
+  it('refuses service tokens with directory:internal only, and user tokens', async () => {
+    const recordId = await givenRecord();
+    const url = `${INTERNAL_RECORDS}/${recordId}/national-id`;
+
+    expect((await api.get(url, DECLARATIONS, ACTING_PSC)).statusCode).toBe(403);
+    expect((await api.get(url, OFFICER, ACTING_PSC)).statusCode).toBe(403);
+  });
+
+  it("answers 404 for another Commission's record and an unknown one, 400 for a bad id", async () => {
+    const tscIds = await givenRoster(api, 'tsc', [
+      { personnelFileNumber: 'TSC/1', fullName: 'Otieno Ouma', nationalId: '56789012' },
+    ]);
+    const tscRecord = idOf(tscIds, 'TSC/1');
+
+    const viaPsc = await api.get(
+      `${INTERNAL_RECORDS}/${tscRecord}/national-id`,
+      REVIEW,
+      ACTING_PSC,
+    );
+    const actingForPsc = await api.get(
+      `/internal/v1/commissions/tsc/roster/records/${tscRecord}/national-id`,
+      REVIEW,
+      ACTING_PSC,
+    );
+    const unknown = await api.get(
+      `${INTERNAL_RECORDS}/${randomUUID()}/national-id`,
+      REVIEW,
+      ACTING_PSC,
+    );
+    const invalid = await api.get(`${INTERNAL_RECORDS}/not-a-uuid/national-id`, REVIEW, ACTING_PSC);
+
+    expect(viaPsc.statusCode).toBe(404);
+    expect(actingForPsc.statusCode).toBe(404);
+    expect(unknown.statusCode).toBe(404);
+    expect(invalid.statusCode).toBe(400);
   });
 });
 

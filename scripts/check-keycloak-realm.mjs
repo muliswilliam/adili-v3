@@ -2,8 +2,8 @@
 // Checks that the Adili realm file still has the roles, BFF clients, authentication flows (with
 // the adili-otp authenticator), staff provisioning setup (directory service client, SMTP, email
 // theme, user profile attributes), declarant accounts (multi-valued tenants), service clients and
-// scopes (messages, iprs, directory:internal and directory:person-contacts; the keycloak-extension,
-// declarations and notifications clients) and API client setup (roster:write client scope; documents:internal and
+// scopes (messages, iprs, directory:internal, directory:person-contacts and
+// directory:roster-national-id; the keycloak-extension, declarations and notifications clients) and API client setup (roster:write client scope; documents:internal and
 // the adili-api audience for the directory) specs 03, 04, 06 and 27 require. Demo users are optional (#371 seeds them). Portal and console tokens carry the
 // person_id claim (spec 04).
 import { readFileSync } from 'node:fs';
@@ -202,7 +202,13 @@ if (!directory) {
 const scopes = new Map((realm.clientScopes ?? []).map((scope) => [scope.name, scope]));
 
 // Service scopes: each puts the adili-api audience on the token and names the internal API.
-for (const name of ['messages', 'iprs', 'directory:internal', 'directory:person-contacts']) {
+for (const name of [
+  'messages',
+  'iprs',
+  'directory:internal',
+  'directory:person-contacts',
+  'directory:roster-national-id',
+]) {
   const scope = scopes.get(name);
   if (!scope) {
     fail(`missing client scope ${name}`);
@@ -272,6 +278,10 @@ for (const client of realm.clients ?? []) {
   const scopesOf = [...(client.defaultClientScopes ?? []), ...(client.optionalClientScopes ?? [])];
   if (client.clientId !== 'notifications' && scopesOf.includes('directory:person-contacts')) {
     fail(`${client.clientId} must not get directory:person-contacts (notifications only)`);
+  }
+  // A national ID likewise: only review reads it, for payroll and the ICMS referral (spec 08).
+  if (client.clientId !== 'review' && scopesOf.includes('directory:roster-national-id')) {
+    fail(`${client.clientId} must not get directory:roster-national-id (review only)`);
   }
 }
 // API clients the directory creates get `basic` (the `sub` claim) with their own scope.

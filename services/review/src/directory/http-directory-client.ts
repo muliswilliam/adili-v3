@@ -62,16 +62,19 @@ const commissionSchema = z.object({
  */
 const rosterRecordSchema = z.object({
   personnelFileNumber: z.string().min(1),
-  nationalId: z.string().min(1),
   employerCode: z.string().min(1).nullish(),
   reportingEntity: z.object({ id: z.uuid() }).nullish(),
 });
 
+/** The record's national ID, which the directory serves on its own route and scope. */
+const nationalIdSchema = z.object({ nationalId: z.string().min(1) });
+
 /**
  * The directory's `internalGetTenantPolicy` (clarification periods, ladder windows),
- * `internalGetCommission` and `internalGetRosterRecord` through the client generated from its
- * contract (directory-api.gen.ts) on api-kit's service client, with the review service's own token
- * (`directory:internal`) and the Commission in `X-Acting-Tenant`. A policy and a Commission are
+ * `internalGetCommission`, `internalGetRosterRecord` and `internalGetRosterNationalId` through the
+ * client generated from its contract (directory-api.gen.ts) on api-kit's service client, with the
+ * review service's own token (`directory:internal`, and `directory:roster-national-id` for the
+ * national ID) and the Commission in `X-Acting-Tenant`. A policy and a Commission are
  * cached per Commission for a few minutes: they change rarely, and a case's window is fixed when
  * the case is created. A roster record (payroll's facts) is read uncached, each time. Anything
  * unexpected is `DirectoryUnavailable`.
@@ -145,17 +148,24 @@ export class HttpDirectoryClient extends DirectoryClient {
   }
 
   async getRosterRecord(slug: string, recordId: string): Promise<PayrollRosterFacts | null> {
-    const found = await this.directory.call(
-      (api) =>
-        api.GET('/internal/v1/commissions/{slug}/roster/records/{recordId}', {
-          params: { path: { slug, recordId }, header: { 'X-Acting-Tenant': slug } },
-        }),
-      { status: 200, schema: rosterRecordSchema, otherwise: { 404: () => null } },
-    );
-    if (!found) return null;
+    const params = { path: { slug, recordId }, header: { 'X-Acting-Tenant': slug } };
+    const [found, identity] = await Promise.all([
+      this.directory.call(
+        (api) => api.GET('/internal/v1/commissions/{slug}/roster/records/{recordId}', { params }),
+        { status: 200, schema: rosterRecordSchema, otherwise: { 404: () => null } },
+      ),
+      this.directory.call(
+        (api) =>
+          api.GET('/internal/v1/commissions/{slug}/roster/records/{recordId}/national-id', {
+            params,
+          }),
+        { status: 200, schema: nationalIdSchema, otherwise: { 404: () => null } },
+      ),
+    ]);
+    if (!found || !identity) return null;
     return {
       personalNumber: found.personnelFileNumber,
-      nationalId: found.nationalId,
+      nationalId: identity.nationalId,
       employerCode: found.employerCode ?? null,
       reportingEntityId: found.reportingEntity?.id ?? null,
     };

@@ -39,7 +39,8 @@ export interface CommissionFacts {
 }
 
 /**
- * What payroll needs of a roster record (directory.yaml `InternalRosterRecord`), read at send time
+ * What payroll needs of a roster record (directory.yaml `InternalRosterRecord`, and
+ * `RosterNationalId` for the national ID), read at send time
  * (spec 08). Personal data: used where it is read, never stored, logged or put in workflow history.
  */
 export interface PayrollRosterFacts {
@@ -81,8 +82,8 @@ export abstract class DirectoryClient {
   abstract getCommission(slug: string): Promise<CommissionFacts>;
 
   /**
-   * What payroll needs of one roster record of the Commission (`internalGetRosterRecord`); null
-   * when the Commission has no such record. Never cached: read each time an instruction is sent.
+   * What payroll needs of one roster record of the Commission (`internalGetRosterRecord` and
+   * `internalGetRosterNationalId`); null when the Commission has no such record. Never cached: read each time an instruction is sent.
    */
   abstract getRosterRecord(slug: string, recordId: string): Promise<PayrollRosterFacts | null>;
 }
