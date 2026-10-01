@@ -5,6 +5,7 @@ import {
   sectionIssues,
 } from '@adili/forms';
 
+import { recordOf } from '../guards.js';
 import { statementKey } from './sections.js';
 
 /**
@@ -122,7 +123,7 @@ const CATEGORIES = [
  * changed since the last declaration says what kind of change and explains it (S9).
  */
 function statementRules(key: DeclarationSectionKey, contents: unknown): DeclarationIssue[] {
-  const statement = record(contents);
+  const statement = recordOf(contents);
   const nilRules = CATEGORIES.flatMap(({ list, nil }) =>
     presenceRule(key, {
       flagged: statement[nil] === true,
@@ -141,7 +142,7 @@ function statementRules(key: DeclarationSectionKey, contents: unknown): Declarat
   );
   const changeRules = CATEGORIES.flatMap(({ list }) =>
     listOf(statement[list]).flatMap((item, index) => {
-      const change = record(record(item).change);
+      const change = recordOf(recordOf(item).change);
       if (change.changed !== true) return [];
       const at = `/${list}/${String(index)}/change`;
       return [
@@ -181,7 +182,7 @@ const WITHOUT_SPOUSE = new Set(['single', 'divorced', 'widowed']);
 
 /** The marital status bio holds, if it holds one. */
 function maritalStatus(bio: unknown): string | undefined {
-  const status = record(bio).maritalStatus;
+  const status = recordOf(bio).maritalStatus;
   return typeof status === 'string' ? status : undefined;
 }
 
@@ -190,9 +191,9 @@ function maritalStatus(bio: unknown): string | undefined {
  * when marital status says there is one (S5, S6). A separated spouse needs the date.
  */
 function householdRules(contents: unknown, status: string | undefined): DeclarationIssue[] {
-  const household = record(contents);
-  const spouses = record(household.spouses);
-  const children = record(household.children);
+  const household = recordOf(contents);
+  const spouses = recordOf(household.spouses);
+  const children = recordOf(household.children);
   const needsSpouse = status !== undefined && !WITHOUT_SPOUSE.has(status);
   return [
     ...presenceRule('household', {
@@ -227,7 +228,7 @@ function householdRules(contents: unknown, status: string | undefined): Declarat
       },
     }),
     ...listOf(spouses.items).flatMap((item, index) => {
-      const spouse = record(item);
+      const spouse = recordOf(item);
       return spouse.separated === true && spouse.separationDate === undefined
         ? [
             issue(
@@ -244,7 +245,7 @@ function householdRules(contents: unknown, status: string | undefined): Declarat
 
 /** A status with no current spouse blocks a listed spouse, with a message on each side (S6). */
 function spouseConflict(status: string | undefined, household: unknown): DeclarationIssue[] {
-  const listed = listOf(record(record(household).spouses).items).length;
+  const listed = listOf(recordOf(recordOf(household).spouses).items).length;
   if (status === undefined || !WITHOUT_SPOUSE.has(status) || listed === 0) return [];
   const code = 'spouse-conflicts-with-marital-status';
   return [
@@ -270,12 +271,6 @@ function issue(
   message: string,
 ): DeclarationIssue {
   return { sectionKey, path, code, message };
-}
-
-function record(value: unknown): Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value)
-    ? (value as Record<string, unknown>)
-    : {};
 }
 
 function listOf(value: unknown): unknown[] {

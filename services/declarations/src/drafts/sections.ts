@@ -1,5 +1,6 @@
 import { type DeclarationSectionKey, type PersonKey, sectionSchema } from '@adili/forms';
 
+import { recordOf } from '../guards.js';
 import type { SectionMetadata } from './schema.js';
 
 /**
@@ -239,7 +240,7 @@ export function applyLockedFields(
   return { contents, changed };
 }
 
-const STATEMENT_CATEGORIES = [
+export const STATEMENT_CATEGORIES = [
   { list: 'income', nil: 'incomeNil' },
   { list: 'assets', nil: 'assetsNil' },
   { list: 'liabilities', nil: 'liabilitiesNil' },
@@ -269,8 +270,6 @@ export function sectionMetadata(
   contents: SectionContents,
 ): SectionMetadata {
   const count = (value: unknown) => (Array.isArray(value) ? value.length : 0);
-  const record = (value: unknown) =>
-    typeof value === 'object' && value !== null ? (value as Record<string, unknown>) : {};
   if (statementPersonKey(key)) {
     return {
       counts: {
@@ -288,13 +287,13 @@ export function sectionMetadata(
   if (key === 'household') {
     return {
       counts: {
-        spouses: count(record(contents.spouses).items),
-        children: count(record(contents.children).items),
+        spouses: count(recordOf(contents.spouses).items),
+        children: count(recordOf(contents.children).items),
       },
     };
   }
   if (key === 'other') {
-    const interests = record(contents.registrableInterests);
+    const interests = recordOf(contents.registrableInterests);
     return {
       counts: {
         directorships: count(interests.directorships),

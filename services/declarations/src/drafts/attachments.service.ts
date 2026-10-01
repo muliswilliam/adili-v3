@@ -16,7 +16,7 @@ import {
   UploadNotClean,
   UploadNotFound,
 } from '../documents/documents-client.js';
-import { UUID } from '../guards.js';
+import { isUuid } from '../guards.js';
 import { personOf } from './access.js';
 import { attachmentFileName, hasItem, withAttachment, withoutAttachment } from './attachments.js';
 import { declarationAttachmentLinked, declarationAttachmentUnlinked } from './events.js';
@@ -182,7 +182,7 @@ export class AttachmentsService {
     attachmentId: string,
   ): Promise<{ draftVersion: number }> {
     const person: PersonContext = personOf(principal);
-    if (!UUID.test(attachmentId)) notFoundIfInvisible(null);
+    if (!isUuid(attachmentId)) notFoundIfInvisible(null);
     const saved = await withPerson(this.db, person, async (tx) => {
       const declaration = notFoundIfInvisible(await draftOf(tx, declarationId));
       const [found] = await tx

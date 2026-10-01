@@ -1,5 +1,7 @@
 import type { PersonKey } from '@adili/forms';
 
+import { recordOf } from '../guards.js';
+
 /**
  * Paragraph 9's material changes (Act s.31(3)-(4), Regs r.21), composed by the service rather
  * than typed twice: the officer's marital-status change from bio, then every item flagged as
@@ -27,18 +29,18 @@ const CATEGORIES = ['income', 'assets', 'liabilities'] as const;
 
 export function composeMaterialChanges({ bio, statements }: ComposedFrom): MaterialChangeEntry[] {
   const entries: MaterialChangeEntry[] = [];
-  const marital = record(record(bio).maritalStatusChange);
+  const marital = recordOf(recordOf(bio).maritalStatusChange);
   const maritalExplanation = text(marital.explanation);
   if (marital.changed === true && maritalExplanation) {
     entries.push({ kind: 'marital-status', explanation: maritalExplanation });
   }
   for (const [personKey, contents] of statements) {
-    const statement = record(contents);
+    const statement = recordOf(contents);
     for (const category of CATEGORIES) {
       const items = Array.isArray(statement[category]) ? (statement[category] as unknown[]) : [];
       for (const value of items) {
-        const item = record(value);
-        const change = record(item.change);
+        const item = recordOf(value);
+        const change = recordOf(item.change);
         const kind = text(change.kind);
         const explanation = text(change.explanation);
         if (change.changed !== true || !kind || !explanation) continue;
@@ -58,10 +60,4 @@ export function composeMaterialChanges({ bio, statements }: ComposedFrom): Mater
 /** A string with something in it, else undefined. */
 function text(value: unknown): string | undefined {
   return typeof value === 'string' && value.trim().length > 0 ? value : undefined;
-}
-
-function record(value: unknown): Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value)
-    ? (value as Record<string, unknown>)
-    : {};
 }

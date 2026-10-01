@@ -10,3 +10,8 @@ export function isUuid(value: unknown): value is string {
 export function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
+
+/** The value when it is a plain object, else an empty one. */
+export function recordOf(value: unknown): Record<string, unknown> {
+  return isRecord(value) ? value : {};
+}

@@ -1,5 +1,5 @@
 import { isRecord } from '../guards.js';
-import type { SectionContents } from './sections.js';
+import { type SectionContents, STATEMENT_CATEGORIES } from './sections.js';
 
 /**
  * Attachment references inside a statement's items (spec 05): `declaration.v1`'s `Attachment`
@@ -15,7 +15,7 @@ export interface AttachmentRef {
 }
 
 /** The item lists of a statement. */
-const ITEM_LISTS = ['income', 'assets', 'liabilities'] as const;
+const ITEM_LISTS = STATEMENT_CATEGORIES.map(({ list }) => list);
 
 /** `declaration.v1` caps an attachment's file name. */
 const FILE_NAME_MAX = 255;

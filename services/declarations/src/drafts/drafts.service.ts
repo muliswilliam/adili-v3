@@ -16,7 +16,7 @@ import { Clock } from '../clock.js';
 import type { DeclarationsSchema } from '../db/schema.js';
 import type { Transaction } from '../db/transaction.js';
 import { DirectoryClient, DirectoryUnavailable } from '../directory/directory-client.js';
-import { isRecord, isUuid, UUID } from '../guards.js';
+import { isRecord, isUuid } from '../guards.js';
 import { commissionRef } from '../obligations/access.js';
 import { nairobiDate } from '../obligations/dates.js';
 import { commissionRefs, filingObligations } from '../obligations/schema.js';
@@ -122,7 +122,7 @@ export class DraftsService {
     obligationId: string,
   ): Promise<{ created: boolean; declaration: Declaration }> {
     const person = personOf(principal);
-    if (!UUID.test(obligationId)) notFoundIfInvisible(null);
+    if (!isUuid(obligationId)) notFoundIfInvisible(null);
     const found = await withPerson(this.db, person, async (tx) => {
       const [obligation] = await tx
         .select({
