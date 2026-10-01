@@ -12,8 +12,8 @@ paths:
     get:
       tags:
         - applicant
-      summary: Commissions an applicant can address, with the declaration years available
-      description: "Every active Responsible Commission in the directory, by name. `years` are the statement-date years a Form K's scope can ask of it: from the year it joined Adili (its earliest obligations-start date, not before 2025) to the current year in Nairobi; empty while it holds no declarations yet. Platform reference data: no personal data."
+      summary: Commissions an applicant or a law enforcement officer can address, with the declaration years available
+      description: 'Every active Responsible Commission in the directory, by name. `years` are the statement-date years the scope of a Form K or a law enforcement request can ask of it: from the year it joined Adili (its earliest obligations-start date, not before 2025) to the current year in Nairobi; empty while it holds no declarations yet. Platform reference data: no personal data.'
       operationId: listAccessCommissions
       responses:
         '200':
@@ -26,9 +26,9 @@ paths:
                   $ref: '#/components/schemas/AccessCommission'
         '403':
           description: |-
-            Not an applicant
+            Neither an applicant nor a law enforcement officer
 
-            Requires one of the roles: applicant
+            Requires one of the roles: applicant, law-enforcement
           content:
             application/problem+json:
               schema:
@@ -801,6 +801,63 @@ paths:
                 $ref: '#/components/schemas/ProblemDetails'
         '404':
           description: No such request of the caller's (another officer's, another Commission's, EACC's or anyone else's view)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+  /v1/lea/requests/{leaRequestId}/roster-candidates:
+    get:
+      tags:
+        - lea
+        - officer
+      summary: Search the Commission's roster for the officer a law enforcement request names
+      description: 'As for Form K: by personnel file number (its beginning) or part of the name, at most 20 records by full name. Only an `onboarded` record can be chosen when verifying: its declarant is told after a grant.'
+      operationId: listLeaRosterCandidates
+      parameters:
+        - name: leaRequestId
+          required: true
+          in: path
+          schema:
+            type: string
+            format: uuid
+        - name: q
+          required: true
+          in: query
+          description: A personnel file number or its beginning, or part of a name (both case-insensitive)
+          schema:
+            type: string
+            minLength: 2
+            maxLength: 200
+      responses:
+        '200':
+          description: Records
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RosterCandidates'
+        '400':
+          description: leaRequestId is not a UUID, or no search of at least 2 characters
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '403':
+          description: |-
+            The Commission supervisor reads requests; only its access officer acts
+
+            Requires one of the roles: access-officer, supervisor, eacc-analyst, eacc-supervisor
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: No such request of the caller's (another officer's, another Commission's, EACC's or anyone else's view)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '503':
+          description: The directory cannot be reached
           content:
             application/problem+json:
               schema:

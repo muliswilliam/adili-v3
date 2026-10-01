@@ -20,6 +20,8 @@ import {
 } from '../directory/directory-client.js';
 import { badRequest, conflict, directoryUnavailable, forbidden, problem } from '../problems.js';
 import { AccessRegister, type RegisterRow } from '../register/access-register.js';
+import type { RosterCandidates } from '../requests/officer-representation.js';
+import { rosterCandidates } from '../requests/roster-candidates.js';
 import { applicantTimeline, officerTimeline, registerEntriesOf } from '../requests/timeline.js';
 import { LeaRequestWorkflows } from './lea-workflows.js';
 import {
@@ -159,6 +161,25 @@ export class LeaService {
       leaRecord(tx, requestId, reader),
     );
     return this.view(notFoundIfInvisible(found), reader, principal);
+  }
+
+  /**
+   * The Commission's roster records the officer sought may be, as the access officer searches
+   * before verifying (by personnel file number or name; the request must be the Commission's).
+   */
+  async rosterCandidates(
+    principal: Principal,
+    requestId: string,
+    search: string,
+  ): Promise<RosterCandidates> {
+    const tenant = ownCommissionTenant(principal);
+    requireAccessOfficer(principal, 'search the roster for the officer a request names');
+    notFoundIfInvisible(
+      await withTenant(this.db, { tenant, subject: principal.subject }, (tx) =>
+        leaRow(tx, requestId),
+      ),
+    );
+    return rosterCandidates(this.directory, tenant, search);
   }
 
   /**

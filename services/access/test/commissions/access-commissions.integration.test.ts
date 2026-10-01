@@ -78,12 +78,31 @@ describe('S2: Commissions an applicant can address', () => {
     ]);
   });
 
-  it('S2: only applicants list them', async () => {
+  it('S11: a law enforcement officer lists them too, for a written request', async () => {
+    api.clock.set('2027-03-04T09:00:00.000Z');
+    api.directory.givenCommission('psc', 'Public Service Commission', {
+      obligationsStartDate: '2026-01-01',
+    });
+    const officer: Caller = {
+      sub: 'lea-officer',
+      tenant: 'lea',
+      roles: [LAW_ENFORCEMENT],
+      personId: randomUUID(),
+    };
+
+    const response = await api.get(COMMISSIONS, officer);
+
+    expect(response.statusCode, response.body).toBe(200);
+    expect(response.json()).toEqual([
+      { slug: 'psc', name: 'Public Service Commission', years: [2026, 2027] },
+    ]);
+  });
+
+  it('S2: only applicants and law enforcement officers list them', async () => {
     api.directory.givenCommission('psc', 'Public Service Commission');
     const others: Caller[] = [
       { sub: 'declarant-1', roles: [DECLARANT], personId: randomUUID() },
       { sub: 'officer-psc', tenant: 'psc', roles: [ACCESS_OFFICER] },
-      { sub: 'lea-officer', tenant: 'lea', roles: [LAW_ENFORCEMENT] },
     ];
 
     for (const caller of others) {

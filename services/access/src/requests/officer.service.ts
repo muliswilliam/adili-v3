@@ -57,6 +57,7 @@ import {
   type RosterCandidates,
   statusesOfKind,
 } from './officer-representation.js';
+import { rosterCandidates } from './roster-candidates.js';
 import {
   type OfficerRequestView,
   type RepresentationsRow,
@@ -230,24 +231,7 @@ export class OfficerService {
         requestRow(tx, requestId),
       ),
     );
-    let found;
-    try {
-      found = await this.directory.searchRoster(tenant, search);
-    } catch (error) {
-      if (error instanceof DirectoryUnavailable) throw directoryUnavailable();
-      throw error;
-    }
-    return {
-      items: found.map((record) => ({
-        id: record.id,
-        personnelFileNumber: record.personnelFileNumber,
-        fullName: record.fullName,
-        designation: record.designation,
-        reportingEntity: record.reportingEntityName,
-        state: record.state,
-        onboarded: record.personId !== null,
-      })),
-    };
+    return rosterCandidates(this.directory, tenant, search);
   }
 
   /**
