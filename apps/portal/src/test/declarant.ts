@@ -57,8 +57,9 @@ export async function save(
   declarationId: string,
   sectionKey: string,
   contents: Parameters<typeof saveSection>[1]['contents'],
+  authorization: string = steppedUp(),
 ) {
-  const client = declarationsClient();
+  const client = declarationsClient(authorization);
   const loaded = await loadSummary(client, declarationId);
   if (loaded.status !== 'ok') throw new Error(loaded.status);
   const ifMatch = `"${String(loaded.summary.declaration.draftVersion)}"`;
@@ -66,45 +67,71 @@ export async function save(
   if (outcome.status !== 'saved') throw new Error(outcome.status);
 }
 
-/** A draft for the obligation with every section answered and nothing blocking. */
-export async function completeDraft(obligationId: string = MOCK_OBLIGATIONS.initial) {
-  const client = declarationsClient();
+/**
+ * A draft for the obligation with every section answered and nothing blocking, started as the
+ * declarant `authorization` is (the default declarant unless told otherwise).
+ */
+export async function completeDraft(
+  obligationId: string = MOCK_OBLIGATIONS.initial,
+  authorization: string = steppedUp(),
+) {
+  const client = declarationsClient(authorization);
   const started = await startDeclaration(client, obligationId);
   if (started.status !== 'started') throw new Error(started.status);
   const id = started.declaration.id;
   const bio = await loadSection(client, id, 'bio');
   if (bio.status !== 'ok') throw new Error(bio.status);
   const bioContents = bio.section.contents as Record<string, Record<string, unknown>>;
-  await save(id, 'bio', {
-    ...bioContents,
-    birth: { date: '1980-04-02', place: 'Nyeri' },
-    maritalStatus: 'single',
-    address: { postal: 'P.O. Box 12-10100, Nyeri', physical: 'Ruringu estate, Nyeri' },
-    employment: { ...bioContents.employment, nature: 'permanent' },
-  });
-  await save(id, 'household', {
-    spouses: { none: true, items: [] },
-    children: { none: true, items: [] },
-  });
+  await save(
+    id,
+    'bio',
+    {
+      ...bioContents,
+      birth: { date: '1980-04-02', place: 'Nyeri' },
+      maritalStatus: 'single',
+      address: { postal: 'P.O. Box 12-10100, Nyeri', physical: 'Ruringu estate, Nyeri' },
+      employment: { ...bioContents.employment, nature: 'permanent' },
+    },
+    authorization,
+  );
+  await save(
+    id,
+    'household',
+    {
+      spouses: { none: true, items: [] },
+      children: { none: true, items: [] },
+    },
+    authorization,
+  );
   const statement = await loadSection(client, id, 'statement:officer');
   if (statement.status !== 'ok') throw new Error(statement.status);
-  await save(id, 'statement:officer', {
-    ...statement.section.contents,
-    incomeNil: true,
-    income: [],
-    assetsNil: true,
-    assets: [],
-    liabilitiesNil: true,
-    liabilities: [],
-  });
-  await save(id, 'other', {
-    registrableInterests: {
-      directorships: [],
-      memberships: [],
-      dualCitizenship: { holds: false, pendingApplication: false },
-      pendingCases: [],
+  await save(
+    id,
+    'statement:officer',
+    {
+      ...statement.section.contents,
+      incomeNil: true,
+      income: [],
+      assetsNil: true,
+      assets: [],
+      liabilitiesNil: true,
+      liabilities: [],
     },
-    freeText: '',
-  });
+    authorization,
+  );
+  await save(
+    id,
+    'other',
+    {
+      registrableInterests: {
+        directorships: [],
+        memberships: [],
+        dualCitizenship: { holds: false, pendingApplication: false },
+        pendingCases: [],
+      },
+      freeText: '',
+    },
+    authorization,
+  );
   return id;
 }

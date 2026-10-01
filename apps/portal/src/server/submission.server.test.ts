@@ -175,14 +175,13 @@ describe('submitting (S1, S2)', () => {
 
 describe('the obligations mock sees what the declarations mock filed, as the service does', () => {
   /** Grace, whose PSC final declaration is overdue. */
-  const grace = () =>
-    client(
-      bearer({
-        person_id: '8d7f3a90-2b1c-4e5d-a6f7-9081a2b3c4d5',
-        acr: 'step-up',
-        auth_time: Date.now() / 1000 - 60,
-      }),
-    );
+  const graceToken = () =>
+    bearer({
+      person_id: '8d7f3a90-2b1c-4e5d-a6f7-9081a2b3c4d5',
+      acr: 'step-up',
+      auth_time: Date.now() / 1000 - 60,
+    });
+  const grace = () => client(graceToken());
 
   async function obligationsOf(declarant: ReturnType<typeof client>) {
     const listed = await loadMyObligations(declarant);
@@ -233,7 +232,7 @@ describe('the obligations mock sees what the declarations mock filed, as the ser
     const before = await obligationsOf(grace());
     const overdue = before.find(({ status }) => status === 'overdue');
     const obligationId = overdue?.id ?? '';
-    const id = await completeDraft(obligationId);
+    const id = await completeDraft(obligationId, graceToken());
 
     await submit(id, grace());
 

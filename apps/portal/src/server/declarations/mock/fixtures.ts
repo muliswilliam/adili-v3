@@ -1,5 +1,5 @@
 /**
- * The mock's fixtures: the Commissions, what their rosters hold about the demo declarant, and
+ * The mock's fixtures: the Commissions, what their rosters hold about each mock declarant, and
  * the obligations tests start declarations for (`MOCK_OBLIGATIONS`).
  */
 
@@ -21,28 +21,58 @@ export interface RosterHr {
   workStation?: string;
 }
 
-/** What each Commission's roster says about the demo declarant. */
-export const ROSTER: Record<
-  string,
-  { name: PersonName; designation: string; employer: string; file: string; hr?: RosterHr }
-> = {
-  tsc: {
-    name: { surname: 'Kamau', firstName: 'Wanjiku', otherNames: 'Njoki' },
-    designation: 'Deputy Principal',
-    employer: 'Nyeri High School',
-    file: 'TSC/999999',
-    hr: {
-      maritalStatus: 'married',
-      jobGroup: 'D3 (T-Scale 13)',
-      appointmentDate: '2026-09-02',
-      workStation: 'Eldoret, Uasin Gishu',
+/** What a Commission's roster says about a declarant. */
+export interface RosterEntry {
+  name: PersonName;
+  designation: string;
+  employer: string;
+  file: string;
+  hr?: RosterHr;
+}
+
+const WANJIKU: PersonName = { surname: 'Kamau', firstName: 'Wanjiku', otherNames: 'Njoki' };
+const GRACE: PersonName = { surname: 'Njeri', firstName: 'Grace', otherNames: 'Wambui' };
+
+/**
+ * What each Commission's roster says about each mock declarant, by Commission slug: the demo
+ * declarant (anyone the obligations mock does not know by name) and Grace Wambui Njeri
+ * (OFR-0000417-4, as in the directory mock). A draft's bio is pre-filled from its owner's
+ * entry, as the service reads the roster for the caller's person.
+ */
+export const ROSTERS: Record<'demo' | 'grace', Record<string, RosterEntry>> = {
+  demo: {
+    tsc: {
+      name: WANJIKU,
+      designation: 'Deputy Principal',
+      employer: 'Nyeri High School',
+      file: 'TSC/999999',
+      hr: {
+        maritalStatus: 'married',
+        jobGroup: 'D3 (T-Scale 13)',
+        appointmentDate: '2026-09-02',
+        workStation: 'Eldoret, Uasin Gishu',
+      },
+    },
+    psc: {
+      name: WANJIKU,
+      designation: 'Principal Accountant',
+      employer: 'State Department for Devolution',
+      file: 'PSC/300400',
     },
   },
-  psc: {
-    name: { surname: 'Kamau', firstName: 'Wanjiku', otherNames: 'Njoki' },
-    designation: 'Principal Accountant',
-    employer: 'State Department for Devolution',
-    file: 'PSC/300400',
+  grace: {
+    psc: {
+      name: GRACE,
+      designation: 'Senior Human Resource Officer',
+      employer: 'State Department for Public Service',
+      file: 'PSC/2009/118204',
+    },
+    npsc: {
+      name: GRACE,
+      designation: 'Inspector',
+      employer: 'Kilimani Police Station',
+      file: 'NPSC/400500',
+    },
   },
 };
 

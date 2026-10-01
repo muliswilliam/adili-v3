@@ -23,9 +23,9 @@ import type {
 } from '../types';
 import { readAcknowledgement } from './acknowledgement';
 import { lockedFieldsChanged } from './bio';
-import { OBLIGATIONS, ROSTER } from './fixtures';
+import { OBLIGATIONS, type RosterEntry, ROSTERS } from './fixtures';
 import { deriveHousehold, householdPersons } from './household';
-import { anyMockObligation } from './obligations';
+import { anyMockObligation, mockPerson, type TokenClaims } from './obligations';
 import { nilConflictsWithItems } from './statement';
 import {
   completeness,
@@ -60,10 +60,11 @@ export function editElsewhere(declarationId: string) {
   if (stored) stored.draftVersion += 1;
 }
 
-export function myDeclarations() {
+/** The caller's declarations, by the token's `person_id`, as the service scopes them. */
+export function myDeclarations(owner: string | null) {
   const now = Date.now();
   const items: DeclarationListItem[] = [...store.values()]
-    .filter((stored) => stored.status !== 'discarded')
+    .filter((stored) => stored.owner === owner && stored.status !== 'discarded')
     .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
     .map((stored) => {
       const inForce = stored.versions.at(-1);
@@ -183,25 +184,39 @@ export async function realObligation(
   throw new Error(`The declarations service answered ${String(response.status)}`);
 }
 
-export function startDeclaration(obligationId: string, obligation: Obligation | undefined) {
+/**
+ * The caller's entry in the obligation's Commission roster. A Commission without one (an
+ * obligation from the real service) pre-fills only the name, from another of their entries.
+ */
+function rosterEntry(claims: TokenClaims | null, slug: string): Partial<RosterEntry> {
+  const rosters = ROSTERS[mockPerson(claims)];
+  const entry = rosters[slug];
+  if (entry) return entry;
+  const name = Object.values(rosters)[0]?.name;
+  return name ? { name } : {};
+}
+
+export function startDeclaration(
+  claims: TokenClaims | null,
+  obligationId: string,
+  obligation: Obligation | undefined,
+) {
   if (!obligation) return problem(404, 'Not found');
   if (obligation.status === 'filed' || obligation.status === 'cancelled') {
     return problem(409, `The obligation is ${obligation.status}`);
   }
+  const owner = claims?.person_id ?? null;
+  const own = [...store.values()].filter(
+    (stored) => stored.owner === owner && stored.header.obligationId === obligationId,
+  );
   // Filed here, though a real obligation (the obligations mock off) does not know it.
-  const filed = [...store.values()].some(
-    (stored) =>
-      stored.header.obligationId === obligationId &&
-      (stored.status === 'submitted' || stored.status === 'amending'),
-  );
+  const filed = own.some((stored) => stored.status === 'submitted' || stored.status === 'amending');
   if (filed) return problem(409, 'The obligation is filed');
-  const existing = [...store.values()].find(
-    (stored) => stored.header.obligationId === obligationId && stored.status === 'draft',
-  );
+  const existing = own.find((stored) => stored.status === 'draft');
   if (existing) return json(200, view(existing), { ETag: etag(existing) });
 
   const now = new Date().toISOString();
-  const roster = ROSTER[obligation.commission.slug] ?? ROSTER.tsc;
+  const roster = rosterEntry(claims, obligation.commission.slug);
   const years = obligation.type === 'initial' ? 1 : 2;
   const header: Header = {
     id: randomUUID(),
@@ -221,22 +236,23 @@ export function startDeclaration(obligationId: string, obligation: Obligation | 
     amendingFromVersion: null,
     createdAt: now,
   };
-  const { maritalStatus, ...hr } = roster?.hr ?? {};
+  const { maritalStatus, ...hr } = roster.hr ?? {};
   const officer: Draft<Officer> = {
-    name: roster?.name,
+    name: roster.name,
     ...(maritalStatus ? { maritalStatus } : {}),
     employment: {
-      designation: roster?.designation,
-      employer: roster?.employer,
+      designation: roster.designation,
+      employer: roster.employer,
       responsibleCommission: obligation.commission.slug,
-      personnelFileNumber: roster?.file,
+      personnelFileNumber: roster.file,
       ...hr,
     },
   };
-  const officerStatement = emptyStatement('officer', roster?.name, header);
+  const officerStatement = emptyStatement('officer', roster.name, header);
   const sourced = obligation.commission.slug === 'psc';
   if (sourced) officerStatement.assets = sourcedAssets(now);
   const stored: Stored = {
+    owner,
     header,
     status: 'draft',
     draftVersion: 1,

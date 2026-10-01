@@ -30,6 +30,8 @@ export type Header = Omit<
 >;
 
 export interface Stored {
+  /** The `person_id` of the declarant who started it (null without one); only they see it. */
+  owner: string | null;
   header: Header;
   status: Declaration['status'];
   draftVersion: number;

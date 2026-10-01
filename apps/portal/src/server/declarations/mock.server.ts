@@ -3,8 +3,10 @@
  * each: the declarant's obligations (OBLIGATIONS_MOCK, spec 04), and declaration drafts
  * (DECLARATIONS_MOCK), to work on the portal without the service and for spec 05's
  * endpoints until the service implements them (#115). Requests of a part that is off go to the
- * real service, so real obligations work with mocked drafts. Every signed-in caller shares one
- * draft store; the service scopes drafts to their owner.
+ * real service, so real obligations work with mocked drafts. Like the service, drafts belong to
+ * the declarant who started them (the bearer token's `person_id`, read without checking the
+ * signature): the list shows only theirs and anyone else's answers 404. The bio is pre-filled
+ * from the caller's own roster entry (`ROSTERS`).
  *
  * The declarant's obligations and their detail come from `./mock/obligations.ts`, by the token's
  * person. A declaration can be started for any of those (or, with the obligations mock off, for
@@ -78,7 +80,12 @@ import {
   startDeclaration,
   unlinkAttachment,
 } from './mock/drafts';
-import { isObligationRead, obligationReads, resetObligationsMock } from './mock/obligations';
+import {
+  bearerClaims,
+  isObligationRead,
+  obligationReads,
+  resetObligationsMock,
+} from './mock/obligations';
 import { draft, store } from './mock/store';
 import { resetSubmissionMock } from './mock/submission';
 import { getSummary, resetSubmitMock, submitDeclaration } from './mock/submit';
@@ -156,7 +163,9 @@ async function route(
     return parts.obligations ? (obligationReads(request, path) ?? real(request)) : real(request);
   }
   if (!parts.declarations) return real(request);
-  if (method === 'GET' && path === '/v1/me/declarations') return myDeclarations();
+  const claims = bearerClaims(request);
+  const caller = claims?.person_id ?? null;
+  if (method === 'GET' && path === '/v1/me/declarations') return myDeclarations(caller);
 
   const start = /^\/v1\/obligations\/([^/]+)\/declaration$/.exec(path);
   if (method === 'POST' && start?.[1]) {
@@ -164,8 +173,13 @@ async function route(
     const obligation = parts.obligations
       ? mockObligation(obligationId)
       : await realObligation(request, obligationId, real);
-    return startDeclaration(obligationId, obligation);
+    return startDeclaration(claims, obligationId, obligation);
   }
+
+  // Someone else's declaration is not visible to the caller, whatever they ask of it.
+  const declarationId = /^\/v1\/declarations\/([^/]+)/.exec(path)?.[1];
+  const owned = declarationId === undefined ? undefined : store.get(declarationId);
+  if (owned && owned.owner !== caller) return problem(404, 'Not found');
 
   const section = /^\/v1\/declarations\/([^/]+)\/sections\/([^/]+)$/.exec(path);
   if (section?.[1] && section[2]) {

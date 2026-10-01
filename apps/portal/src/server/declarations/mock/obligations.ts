@@ -191,13 +191,18 @@ export function bearerClaims(request: Request): TokenClaims | null {
 
 const TWO_COMMISSIONS_PERSON = '8d7f3a90-2b1c-4e5d-a6f7-9081a2b3c4d5';
 
+/** Which mock declarant the token is: Grace (two Commissions) or the demo declarant. */
+export function mockPerson(claims: TokenClaims | null): 'grace' | 'demo' {
+  return claims?.person_id === TWO_COMMISSIONS_PERSON ||
+    claims?.preferred_username === 'OFR-0000417-4'
+    ? 'grace'
+    : 'demo';
+}
+
 /** The caller's obligations, or null when the token carries no person. */
 function obligationsOf(claims: TokenClaims): ObligationDetail[] | null {
   if (!claims.person_id) return null;
-  const fixtures =
-    claims.person_id === TWO_COMMISSIONS_PERSON || claims.preferred_username === 'OFR-0000417-4'
-      ? twoCommissions()
-      : demoDeclarant();
+  const fixtures = mockPerson(claims) === 'grace' ? twoCommissions() : demoDeclarant();
   return fixtures.map(detail);
 }
 
