@@ -286,7 +286,7 @@ export class FakeDocuments extends DocumentsClient {
  */
 export class FakeIntegrationGateway extends IntegrationGatewayClient {
   /** Every `submitReferral` request that reached ICMS, with the Commission it was sent for. */
-  readonly submitted: (IcmsReferralRequest & { tenant: string })[] = [];
+  readonly submitted: IcmsReferralRequest[] = [];
   /** How many `submitReferral` calls were made, failed and replayed ones included. */
   submitCalls = 0;
   private readonly registrations = new Map<string, IcmsReferral>();
@@ -332,7 +332,7 @@ export class FakeIntegrationGateway extends IntegrationGatewayClient {
     this.sequence = 0;
   }
 
-  submitReferral(tenant: string, referral: IcmsReferralRequest): Promise<IcmsReferral> {
+  submitReferral(referral: IcmsReferralRequest): Promise<IcmsReferral> {
     this.submitCalls += 1;
     if (this.failures > 0) {
       this.failures -= 1;
@@ -344,7 +344,7 @@ export class FakeIntegrationGateway extends IntegrationGatewayClient {
     }
     const replayed = this.registrations.get(referral.referralReference);
     if (replayed) return Promise.resolve({ ...replayed });
-    this.submitted.push(structuredClone({ ...referral, tenant }));
+    this.submitted.push(structuredClone(referral));
     this.sequence += 1;
     const now = new Date().toISOString();
     const registered = this.mode === 'registered';
@@ -359,7 +359,7 @@ export class FakeIntegrationGateway extends IntegrationGatewayClient {
     return Promise.resolve({ ...registration });
   }
 
-  getReferral(_tenant: string, referralReference: string): Promise<IcmsReferral | null> {
+  getReferral(referralReference: string): Promise<IcmsReferral | null> {
     if (this.failures > 0) {
       this.failures -= 1;
       return Promise.reject(new IntegrationGatewayUnavailable('ICMS is unreachable'));

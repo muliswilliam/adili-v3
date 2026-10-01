@@ -204,7 +204,7 @@ export class ReferralsService {
     }
     for (let attempt = 1; ; attempt += 1) {
       try {
-        return await this.gateway.submitReferral(row.tenant, request);
+        return await this.gateway.submitReferral(request);
       } catch (error) {
         if (error instanceof InternalApiRejected) throw new PushFailed('icms-rejected');
         if (!(error instanceof IntegrationGatewayUnavailable)) throw error;

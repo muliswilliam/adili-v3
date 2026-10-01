@@ -40,7 +40,7 @@ export class ReferralIcmsActivities {
       return found;
     });
     if (!waitingFor(row, input)) return 'superseded';
-    const registration = await this.gateway.getReferral(row.tenant, row.reference);
+    const registration = await this.gateway.getReferral(row.reference);
     if (registration?.status === 'registered' && registration.caseNumber !== null) {
       const { caseNumber } = registration;
       const registeredAt = new Date(registration.registeredAt ?? this.clock.now());

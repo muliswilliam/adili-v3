@@ -1,8 +1,7 @@
-import type { ServiceTokenClient } from '@adili/api-kit';
+import { createServiceClient, type ServiceClient, type ServiceTokenClient } from '@adili/api-kit';
 import { z } from 'zod';
 
-import { InternalApi } from '../internal-api/internal-api.js';
-import { PLATFORM_TENANT } from '../system-context.js';
+import type { paths } from './directory-api.gen.js';
 import {
   type CommissionFacts,
   DirectoryClient,
@@ -19,6 +18,7 @@ export const COMMISSION_CACHE_TTL_MS = 5 * 60 * 1000;
 export interface HttpDirectoryClientOptions {
   directoryUrl: string;
   tokens: Pick<ServiceTokenClient, 'token' | 'invalidate'>;
+  /** Per attempt. Default ADR-013's 2 s. */
   timeoutMs?: number;
   cacheTtlMs?: number;
   now?: () => number;
@@ -30,7 +30,7 @@ const commissionSchema = z.object({
   slug: z.string(),
   issuerCode: z.string().min(1),
   name: z.string().min(1),
-});
+}) satisfies z.ZodType<CommissionFacts>;
 
 const commissionListSchema = z.object({ items: z.array(commissionSchema) });
 
@@ -38,25 +38,32 @@ const staffSchema = z.object({
   items: z.array(z.object({ subject: z.string().min(1), email: z.email() })),
 });
 
+const noCommission = (slug: string) => (): never => {
+  throw new DirectoryUnavailable(`The directory has no Commission ${slug}`);
+};
+
 /**
- * The directory's `internalGetCommission` (cached per Commission for a few minutes: a name
- * changes rarely), its staff by role and the list of active Commissions, with the reporting
- * service's own token.
+ * The directory's internal API through the client generated from its contract
+ * (packages/schemas/internal/directory.yaml → directory-api.gen.ts via `pnpm generate:api`) on
+ * api-kit's service client, with the reporting service's own token (`directory:internal`): a
+ * Commission (cached per Commission for a few minutes: a name changes rarely) and its staff by
+ * role, acting for the Commission in `X-Acting-Tenant` (ADR-013 §8.6), and the list of every
+ * Commission, platform reference data that names no tenant.
  */
 export class HttpDirectoryClient extends DirectoryClient {
-  private readonly api: InternalApi;
+  private readonly directory: ServiceClient<paths>;
   private readonly commissions = new Map<string, { commission: CommissionFacts; until: number }>();
   private readonly ttlMs: number;
   private readonly now: () => number;
 
   constructor(options: HttpDirectoryClientOptions) {
     super();
-    this.api = new InternalApi({
+    this.directory = createServiceClient<paths>({
       baseUrl: options.directoryUrl,
       service: 'directory',
       tokens: options.tokens,
       unavailable: (message, cause) => new DirectoryUnavailable(message, cause),
-      timeoutMs: options.timeoutMs ?? 2_000,
+      timeoutMs: options.timeoutMs,
       fetch: options.fetch,
     });
     this.ttlMs = options.cacheTtlMs ?? COMMISSION_CACHE_TTL_MS;
@@ -66,35 +73,34 @@ export class HttpDirectoryClient extends DirectoryClient {
   async getCommission(slug: string): Promise<CommissionFacts> {
     const cached = this.commissions.get(slug);
     if (cached && cached.until > this.now()) return cached.commission;
-    const found = await this.api.get({
-      path: `internal/v1/commissions/${encodeURIComponent(slug)}`,
-      tenant: slug,
-      schema: commissionSchema,
-    });
-    if (!found) throw new DirectoryUnavailable(`The directory has no Commission ${slug}`);
+    const found = await this.directory.call(
+      (api) =>
+        api.GET('/internal/v1/commissions/{slug}', {
+          params: { path: { slug }, header: { 'X-Acting-Tenant': slug } },
+        }),
+      { status: 200, schema: commissionSchema, otherwise: { 404: noCommission(slug) } },
+    );
     const commission = { slug: found.slug, issuerCode: found.issuerCode, name: found.name };
     this.commissions.set(slug, { commission, until: this.now() + this.ttlMs });
     return commission;
   }
 
   async staffWithRole(slug: string, role: string): Promise<StaffMember[]> {
-    const found = await this.api.get({
-      path: `internal/v1/commissions/${encodeURIComponent(slug)}/staff`,
-      query: { role },
-      tenant: slug,
-      schema: staffSchema,
-    });
-    if (!found) throw new DirectoryUnavailable(`The directory has no Commission ${slug}`);
+    const found = await this.directory.call(
+      (api) =>
+        api.GET('/internal/v1/commissions/{slug}/staff', {
+          params: { path: { slug }, query: { role }, header: { 'X-Acting-Tenant': slug } },
+        }),
+      { status: 200, schema: staffSchema, otherwise: { 404: noCommission(slug) } },
+    );
     return found.items;
   }
 
   async listCommissions(): Promise<CommissionFacts[]> {
-    const found = await this.api.get({
-      path: 'internal/v1/commissions',
-      tenant: PLATFORM_TENANT,
+    const found = await this.directory.call((api) => api.GET('/internal/v1/commissions'), {
+      status: 200,
       schema: commissionListSchema,
     });
-    if (!found) throw new DirectoryUnavailable('The directory lists no Commissions');
     return found.items.map(({ slug, issuerCode, name }) => ({ slug, issuerCode, name }));
   }
 }

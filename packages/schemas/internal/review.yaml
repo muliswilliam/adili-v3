@@ -585,6 +585,82 @@ paths:
                 $ref: '#/components/schemas/ClarificationLetterPayload'
         '404':
           $ref: '#/components/responses/NotFound'
+  /internal/v1/review/clarifications/details:
+    post:
+      tags: [internal]
+      operationId: internalClarificationDetails
+      summary: Clarifications of a Commission in a batch, for Form M section 4 (reporting, spec 09)
+      description: >-
+        Service tokens with scope review:internal, acting for the Commission in X-Acting-Tenant
+        (ADR-013 §8.6). The officer asked and the kinds of requirement asked for, never the
+        request's content. At most 1,000 ids; a clarification the Commission does not hold is left
+        out. A read: it changes nothing, so it takes no Idempotency-Key and is safe to retry.
+      parameters:
+        - $ref: '#/components/parameters/ActingTenant'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [clarificationIds]
+              properties:
+                clarificationIds:
+                  type: array
+                  minItems: 1
+                  maxItems: 1000
+                  items:
+                    type: string
+                    format: uuid
+      responses:
+        '200':
+          description: The clarifications, one per known id
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/InternalClarificationDetails'
+        '400':
+          $ref: '#/components/responses/ValidationProblem'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /internal/v1/review/referrals/{referralId}/icms-payload:
+    parameters:
+      - $ref: '#/components/parameters/ReferralId'
+    get:
+      tags: [internal]
+      operationId: internalGetReferralIcmsPayload
+      summary: What ICMS needs of a sent referral (reporting's push to ICMS, spec 09)
+      description: >-
+        Service tokens with scope review:internal, acting for the referring Commission in
+        X-Acting-Tenant and for the EACC analyst pushing it in X-Acting-Subject, whom review's
+        audit of the read names (ADR-013 §8.6). Personal data (the declarant's national ID): the
+        caller passes it to the integration-gateway only.
+      parameters:
+        - $ref: '#/components/parameters/ActingTenant'
+        - $ref: '#/components/parameters/ActingSubject'
+      responses:
+        '200':
+          description: Payload
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InternalReferralIcmsPayload'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: No roster record of the declarant, so no national ID to send
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
   /v1/review/cases/{caseId}/registry:
     parameters:
       - $ref: '#/components/parameters/CaseId'
@@ -1455,6 +1531,21 @@ components:
       schema:
         type: string
         format: uuid
+    ActingTenant:
+      name: X-Acting-Tenant
+      in: header
+      required: true
+      description: Tenant the calling service acts for; the resource must belong to it
+      schema:
+        type: string
+        pattern: '^[a-z][a-z0-9]{1,19}$'
+    ActingSubject:
+      name: X-Acting-Subject
+      in: header
+      required: true
+      description: Staff subject on whose behalf the data is read; recorded in the audit event
+      schema:
+        type: string
   responses:
     NotFound:
       description: Not found, or not visible to the caller
@@ -2111,6 +2202,57 @@ components:
             letterDownloadUrl:
               type: [string, 'null']
               format: uri
+    InternalClarificationDetails:
+      type: object
+      required: [clarificationId, reference, name, designation, identifier, requirementLabels]
+      properties:
+        clarificationId:
+          type: string
+          format: uuid
+        reference:
+          type: [string, 'null']
+          description: '`CLR-...`; null for one never issued'
+        name:
+          type: string
+        designation:
+          type: string
+        identifier:
+          type: string
+          description: Personnel file number, or another staff, ID or passport number
+        requirementLabels:
+          type: array
+          description: Labels of the requirement kinds asked for, e.g. "Source of income"
+          items:
+            type: string
+    InternalReferralIcmsPayload:
+      type: object
+      required: [reference, grounds, groundsLabel, commission, declarant, narrative]
+      properties:
+        reference:
+          type: string
+          description: 'RFL-<ISSUER>-<YEAR>-<seq>-<check>'
+        grounds:
+          $ref: '#/components/schemas/ReferralGrounds'
+        groundsLabel:
+          type: string
+        commission:
+          type: object
+          required: [name, issuerCode]
+          properties:
+            name:
+              type: string
+            issuerCode:
+              type: string
+        declarant:
+          type: object
+          required: [name, nationalId]
+          properties:
+            name:
+              type: string
+            nationalId:
+              type: string
+        narrative:
+          type: string
     ClarificationLetterPayload:
       type: object
       required:

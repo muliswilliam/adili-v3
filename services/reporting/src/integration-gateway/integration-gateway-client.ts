@@ -42,17 +42,17 @@ export class IntegrationGatewayUnavailable extends Error {
  */
 export abstract class IntegrationGatewayClient {
   /**
-   * `submitIcmsReferral`: registers the referral with ICMS for the referring Commission `tenant`
-   * and answers the registration (a case number now, or `pending`). Idempotent by referral
+   * `submitIcmsReferral`: registers the referral with ICMS (the referring Commission travels in
+   * it) and answers the registration (a case number now, or `pending`). Idempotent by referral
    * reference: a replay answers the stored registration and registers nothing twice. Throws
    * `IntegrationGatewayUnavailable` when ICMS cannot be reached and `InternalApiRejected` when the
    * gateway refuses the request.
    */
-  abstract submitReferral(tenant: string, referral: IcmsReferralRequest): Promise<IcmsReferral>;
+  abstract submitReferral(referral: IcmsReferralRequest): Promise<IcmsReferral>;
 
   /**
    * `getIcmsReferral`: the stored registration of the referral `referralReference`, or null
    * for none. Throws `IntegrationGatewayUnavailable` when the gateway cannot be reached.
    */
-  abstract getReferral(tenant: string, referralReference: string): Promise<IcmsReferral | null>;
+  abstract getReferral(referralReference: string): Promise<IcmsReferral | null>;
 }

@@ -171,7 +171,6 @@ describe('Referrals intake and ICMS push (S12)', () => {
     ]);
     expect(api.gateway.submitted).toEqual([
       {
-        tenant: 'psc',
         referralReference: REFERENCE,
         nationalId: NATIONAL_ID,
         fullName: FULL_NAME,

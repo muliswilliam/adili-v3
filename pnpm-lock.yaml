@@ -2033,6 +2033,9 @@ importers:
       drizzle-orm:
         specifier: ^0.45.3
         version: 0.45.3(@opentelemetry/api@1.9.1)(@types/pg@8.23.1)(pg@8.23.0)
+      openapi-fetch:
+        specifier: ^0.17.0
+        version: 0.17.0
       reflect-metadata:
         specifier: ^0.2.2
         version: 0.2.2
@@ -2088,6 +2091,9 @@ importers:
       jose:
         specifier: ^6.2.12
         version: 6.2.12
+      openapi-typescript:
+        specifier: ^7.13.0
+        version: 7.13.0(typescript@6.0.3)
       typescript:
         specifier: ~6.0.3
         version: 6.0.3

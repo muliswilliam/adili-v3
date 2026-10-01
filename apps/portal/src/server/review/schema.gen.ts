@@ -388,6 +388,48 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/internal/v1/review/clarifications/details": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Clarifications of a Commission in a batch, for Form M section 4 (reporting, spec 09)
+         * @description Service tokens with scope review:internal, acting for the Commission in X-Acting-Tenant (ADR-013 §8.6). The officer asked and the kinds of requirement asked for, never the request's content. At most 1,000 ids; a clarification the Commission does not hold is left out. A read: it changes nothing, so it takes no Idempotency-Key and is safe to retry.
+         */
+        post: operations["internalClarificationDetails"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/internal/v1/review/referrals/{referralId}/icms-payload": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                referralId: components["parameters"]["ReferralId"];
+            };
+            cookie?: never;
+        };
+        /**
+         * What ICMS needs of a sent referral (reporting's push to ICMS, spec 09)
+         * @description Service tokens with scope review:internal, acting for the referring Commission in X-Acting-Tenant and for the EACC analyst pushing it in X-Acting-Subject, whom review's audit of the read names (ADR-013 §8.6). Personal data (the declarant's national ID): the caller passes it to the integration-gateway only.
+         */
+        get: operations["internalGetReferralIcmsPayload"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/review/cases/{caseId}/registry": {
         parameters: {
             query?: never;
@@ -1244,6 +1286,33 @@ export interface components {
             /** Format: uri */
             letterDownloadUrl: string | null;
         };
+        InternalClarificationDetails: {
+            /** Format: uuid */
+            clarificationId: string;
+            /** @description `CLR-...`; null for one never issued */
+            reference: string | null;
+            name: string;
+            designation: string;
+            /** @description Personnel file number, or another staff, ID or passport number */
+            identifier: string;
+            /** @description Labels of the requirement kinds asked for, e.g. "Source of income" */
+            requirementLabels: string[];
+        };
+        InternalReferralIcmsPayload: {
+            /** @description RFL-<ISSUER>-<YEAR>-<seq>-<check> */
+            reference: string;
+            grounds: components["schemas"]["ReferralGrounds"];
+            groundsLabel: string;
+            commission: {
+                name: string;
+                issuerCode: string;
+            };
+            declarant: {
+                name: string;
+                nationalId: string;
+            };
+            narrative: string;
+        };
         ClarificationLetterPayload: {
             declarantName: string;
             commission: {
@@ -1575,6 +1644,10 @@ export interface components {
         LadderId: string;
         ActionId: string;
         ReferralId: string;
+        /** @description Tenant the calling service acts for; the resource must belong to it */
+        ActingTenant: string;
+        /** @description Staff subject on whose behalf the data is read; recorded in the audit event */
+        ActingSubject: string;
     };
     requestBodies: never;
     headers: never;
@@ -2220,6 +2293,77 @@ export interface operations {
                 };
             };
             404: components["responses"]["NotFound"];
+        };
+    };
+    internalClarificationDetails: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Tenant the calling service acts for; the resource must belong to it */
+                "X-Acting-Tenant": components["parameters"]["ActingTenant"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    clarificationIds: string[];
+                };
+            };
+        };
+        responses: {
+            /** @description The clarifications, one per known id */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: components["schemas"]["InternalClarificationDetails"][];
+                    };
+                };
+            };
+            400: components["responses"]["ValidationProblem"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    internalGetReferralIcmsPayload: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Tenant the calling service acts for; the resource must belong to it */
+                "X-Acting-Tenant": components["parameters"]["ActingTenant"];
+                /** @description Staff subject on whose behalf the data is read; recorded in the audit event */
+                "X-Acting-Subject": components["parameters"]["ActingSubject"];
+            };
+            path: {
+                referralId: components["parameters"]["ReferralId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Payload */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InternalReferralIcmsPayload"];
+                };
+            };
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description No roster record of the declarant, so no national ID to send */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
         };
     };
     getCaseRegistryChecks: {

@@ -1,7 +1,8 @@
-import type { ServiceTokenClient } from '@adili/api-kit';
+import { createServiceClient, type ServiceClient, type ServiceTokenClient } from '@adili/api-kit';
 import { z } from 'zod';
 
-import { InternalApi } from '../internal-api/internal-api.js';
+import { refusedWith } from '../internal-api/internal-api.js';
+import type { paths } from './declarations-api.gen.js';
 import {
   DeclarationsClient,
   DeclarationsUnavailable,
@@ -12,9 +13,16 @@ import {
 /** The scope the reporting service's token needs for the declarations internal API. */
 export const DECLARATIONS_INTERNAL_SCOPE = 'declarations:internal';
 
+/**
+ * How long a page of details may take: up to 1,000 obligations. Recorded in ADR-013 §2; pulls
+ * run in workflow activities, which retry.
+ */
+export const DECLARATIONS_DETAILS_TIMEOUT_MS = 10_000;
+
 export interface HttpDeclarationsClientOptions {
   declarationsUrl: string;
   tokens: Pick<ServiceTokenClient, 'token' | 'invalidate'>;
+  /** Per attempt. Default `DECLARATIONS_DETAILS_TIMEOUT_MS`. */
   timeoutMs?: number;
   /** For tests. */
   fetch?: typeof fetch;
@@ -29,22 +37,27 @@ const detailsSchema = z.object({
       fileNumber: z.string(),
       appointmentDate: z.iso.date().nullable(),
       exitDate: z.iso.date().nullable(),
-    }),
+    }) satisfies z.ZodType<OfficerDetails>,
   ),
 });
 
-/** `POST /internal/v1/obligations/details` with the reporting service's own token. */
+/**
+ * Declarations' `internalObligationDetails` through the client generated from its contract
+ * (packages/schemas/internal/declarations.yaml → declarations-api.gen.ts via
+ * `pnpm generate:api`), with the reporting service's own token, acting for the Commission in
+ * `X-Acting-Tenant` (ADR-013 §8.6).
+ */
 export class HttpDeclarationsClient extends DeclarationsClient {
-  private readonly api: InternalApi;
+  private readonly declarations: ServiceClient<paths>;
 
   constructor(options: HttpDeclarationsClientOptions) {
     super();
-    this.api = new InternalApi({
+    this.declarations = createServiceClient<paths>({
       baseUrl: options.declarationsUrl,
       service: 'declarations',
       tokens: options.tokens,
       unavailable: (message, cause) => new DeclarationsUnavailable(message, cause),
-      timeoutMs: options.timeoutMs ?? 10_000,
+      timeoutMs: options.timeoutMs ?? DECLARATIONS_DETAILS_TIMEOUT_MS,
       fetch: options.fetch,
     });
   }
@@ -52,13 +65,14 @@ export class HttpDeclarationsClient extends DeclarationsClient {
   async officerDetails(tenant: string, obligationIds: string[]): Promise<OfficerDetails[]> {
     const officers: OfficerDetails[] = [];
     for (let start = 0; start < obligationIds.length; start += OFFICER_DETAILS_PAGE) {
-      const page = await this.api.post({
-        path: 'internal/v1/obligations/details',
-        tenant,
-        body: { obligationIds: obligationIds.slice(start, start + OFFICER_DETAILS_PAGE) },
-        schema: detailsSchema,
-      });
-      if (!page) throw new DeclarationsUnavailable('The declarations service answered 404');
+      const page = await this.declarations.call(
+        (api) =>
+          api.POST('/internal/v1/obligations/details', {
+            params: { header: { 'X-Acting-Tenant': tenant } },
+            body: { obligationIds: obligationIds.slice(start, start + OFFICER_DETAILS_PAGE) },
+          }),
+        { status: 200, schema: detailsSchema, otherwise: refusedWith('declarations', [400, 403]) },
+      );
       officers.push(...page.items);
     }
     return officers;

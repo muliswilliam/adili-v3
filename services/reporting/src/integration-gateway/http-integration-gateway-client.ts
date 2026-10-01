@@ -1,7 +1,8 @@
-import type { ServiceTokenClient } from '@adili/api-kit';
+import { createServiceClient, type ServiceClient, type ServiceTokenClient } from '@adili/api-kit';
 import { z } from 'zod';
 
-import { InternalApi } from '../internal-api/internal-api.js';
+import { refusedWith } from '../internal-api/internal-api.js';
+import type { paths } from './integration-gateway-api.gen.js';
 import {
   type IcmsReferral,
   type IcmsReferralRequest,
@@ -15,9 +16,16 @@ export const ICMS_SCOPE = 'icms';
 /** The legal basis of every ICMS registration: a referral to EACC under Regs r.20. */
 export const ICMS_LEGAL_BASIS = 'regs-r20-referral';
 
+/**
+ * How long an ICMS call may take: the gateway's adapter kit times ICMS out well within it.
+ * Recorded in ADR-013 §2; registration is idempotent by the referral reference.
+ */
+export const ICMS_TIMEOUT_MS = 15_000;
+
 export interface HttpIntegrationGatewayClientOptions {
   gatewayUrl: string;
   tokens: Pick<ServiceTokenClient, 'token' | 'invalidate'>;
+  /** Per attempt. Default `ICMS_TIMEOUT_MS`. */
   timeoutMs?: number;
   /** For tests. */
   fetch?: typeof fetch;
@@ -32,45 +40,49 @@ const referralSchema = z.object({
 });
 
 /**
- * The integration-gateway's ICMS adapter with the reporting service's own token (`icms`) and the
- * legal basis of a referral: `POST /internal/v1/icms/referrals` (201 registered now, 200 a replay
- * of the same reference) and `GET /internal/v1/icms/referrals/{referralReference}`.
+ * The integration-gateway's ICMS adapter through the client generated from its contract
+ * (packages/schemas/internal/integration-gateway.yaml → integration-gateway-api.gen.ts via
+ * `pnpm generate:api`), with the reporting service's own token (`icms`) and the legal basis of a
+ * referral: `submitIcmsReferral` (201 registered now, 200 a replay of the same reference) and
+ * `getIcmsReferral`.
  */
 export class HttpIntegrationGatewayClient extends IntegrationGatewayClient {
-  private readonly api: InternalApi;
+  private readonly gateway: ServiceClient<paths>;
 
   constructor(options: HttpIntegrationGatewayClientOptions) {
     super();
-    this.api = new InternalApi({
+    this.gateway = createServiceClient<paths>({
       baseUrl: options.gatewayUrl,
       service: 'integration-gateway',
       tokens: options.tokens,
       unavailable: (message, cause) => new IntegrationGatewayUnavailable(message, cause),
-      // The gateway's adapter kit times ICMS out well within this.
-      timeoutMs: options.timeoutMs ?? 15_000,
+      timeoutMs: options.timeoutMs ?? ICMS_TIMEOUT_MS,
       fetch: options.fetch,
     });
   }
 
-  async submitReferral(tenant: string, referral: IcmsReferralRequest): Promise<IcmsReferral> {
-    const registered = await this.api.post({
-      path: 'internal/v1/icms/referrals',
-      tenant,
-      headers: { 'x-legal-basis': ICMS_LEGAL_BASIS },
-      body: referral,
-      schema: referralSchema,
-    });
-    if (!registered) {
-      throw new IntegrationGatewayUnavailable('The integration-gateway answered 404');
-    }
-    return registered;
+  submitReferral(referral: IcmsReferralRequest): Promise<IcmsReferral> {
+    return this.gateway.call(
+      (api) =>
+        api.POST('/internal/v1/icms/referrals', {
+          params: { header: { 'X-Legal-Basis': ICMS_LEGAL_BASIS } },
+          body: referral,
+        }),
+      {
+        status: [200, 201],
+        schema: referralSchema,
+        otherwise: refusedWith('integration-gateway', [400]),
+      },
+    );
   }
 
-  getReferral(tenant: string, referralReference: string): Promise<IcmsReferral | null> {
-    return this.api.get({
-      path: `internal/v1/icms/referrals/${encodeURIComponent(referralReference)}`,
-      tenant,
-      schema: referralSchema,
-    });
+  getReferral(referralReference: string): Promise<IcmsReferral | null> {
+    return this.gateway.call(
+      (api) =>
+        api.GET('/internal/v1/icms/referrals/{referralReference}', {
+          params: { path: { referralReference } },
+        }),
+      { status: 200, schema: referralSchema, otherwise: { 404: () => null } },
+    );
   }
 }

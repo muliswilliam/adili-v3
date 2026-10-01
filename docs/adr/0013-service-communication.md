@@ -1,6 +1,6 @@
 # ADR-013: Service-to-service communication
 
-- **Status:** Accepted; amended 2026-09-28 with the recorded exceptions in §8 (spec #27, spec 03); the depth limit and default timeout in §2 and the acting-tenant uses in §8.1 partly superseded by [ADR-017](0017-obligation-reminder-delivery.md) for the declarations service's calls (spec 04)
+- **Status:** Accepted; amended 2026-09-28 with the recorded exceptions in §8 (spec #27, spec 03), and 2026-10-01 with the reporting service's (§2 timeouts, §8.6; spec 09); the depth limit and default timeout in §2 and the acting-tenant uses in §8.1 partly superseded by [ADR-017](0017-obligation-reminder-delivery.md) for the declarations service's calls (spec 04)
 - **Date:** 2026-09-24
 - **Deciders:** Adili V3 DIALs team
 - **Related:** [ADR-003](0003-temporal-as-workflow-engine.md), [ADR-004](0004-identity-keycloak-self-registration.md), [ADR-005](0005-message-queue-rabbitmq.md), [ADR-006](0006-multi-tenancy-and-hierarchy.md), [ADR-009](0009-api-first-interoperability.md), [ADR-012](0012-single-polyglot-monorepo.md)
@@ -52,6 +52,11 @@ flowchart LR
 - **Built so far:** `createServiceClient` in `packages/api-kit` wraps the generated client: the caller's client credentials token (§5), one retry after a 401 with a fresh token, the 2 s default timeout per attempt, and `call`, which validates the answer with Zod and turns everything the caller did not expect (no answer, another status, a body that breaks the contract) into the caller's own "unavailable" error. The directory's calls to documents (spec #27), notifications and the integration-gateway (spec 03) use it. **Not built yet:** retries with backoff and the circuit breaker; they land in `createServiceClient` with the first hop that needs them (the integration-gateway breaks its own upstream circuits, and roster file reads run in Temporal activities, whose retries cover transient failures).
 - **Recorded timeout exceptions** (longer than the 2 s default, each with its reason):
   - directory → notifications `POST /internal/v1/messages` (onboarding codes): 6 s. The messages API is synchronous with a 5 s budget for its email or SMS provider (spec 03), and the declarant waits on the answer; the extra second covers the hop.
+  - reporting (spec 09), all from Temporal activities that retry, except the ICMS push an EACC analyst waits on:
+    - → notifications `POST /internal/v1/messages` (Form M reminders, chase, receipt): 7 s, the 5 s provider budget plus the hop; a retry carries the same `Idempotency-Key`, so nothing is sent twice.
+    - → declarations `POST /internal/v1/obligations/details` and → review `POST /internal/v1/review/clarifications/details`: 10 s, a page is up to 1,000 records; review's `GET /internal/v1/review/referrals/{referralId}/icms-payload` shares the budget.
+    - → integration-gateway `POST /internal/v1/icms/referrals`: 15 s; the gateway's adapter kit times ICMS out within it, and registration is idempotent by the referral reference.
+    - → documents `POST /internal/v1/documents/issue` (Form M, receipt and NCR PDFs): 30 s, rendering through Gotenberg and PAdES signing take seconds; a retry carries the same `Idempotency-Key`.
 - **Depth limit:** at most **one synchronous hop** from a service (BFF → service → one dependency). Deeper chains become events or Temporal.
 - **Hot reference data** (tenants, org tree, policies, numbering schemes, reference data from `directory`) is **cached locally**: Valkey plus in-process cache, invalidated by `directory.*.changed.v1` events. Services don't call `directory` on every request.
 
@@ -112,6 +117,14 @@ So the header chooses among the tenants a trusted service may act for; it never 
 - documents' `POST /internal/v1/uploads/{id}/linked` (scope `documents:internal`), called by declarations when it links an attachment to an item and when a discarded amendment links one again.
 
 Token exchange (§5) replaces these with 8.1's.
+
+**8.6 Acting tenant and acting subject on the reporting service's internal calls (§5, spec 09).** The reporting service compiles each Commission's Form M, issues its documents and chases it from Temporal activities and event consumers, with no user token to exchange. It calls with its own client credentials token, through clients generated from the callees' contracts, and names the Commission in `X-Acting-Tenant` on these routes, each under every control of 8.1 (the path slug, when there is one, must equal the header; another Commission's resource is 404, or left out of a batch):
+- directory's `GET /internal/v1/commissions/{slug}` and `GET /internal/v1/commissions/{slug}/staff?role=` (scope `directory:internal`): the Commission's name and issuer code for Form M Part I and its reference, and the staff a reminder or the chase is emailed to. The list of every Commission, `GET /internal/v1/commissions`, takes the scope alone, as in ADR-017: public reference data, no tenant to act for, never `platform`;
+- declarations' `POST /internal/v1/obligations/details` (scope `declarations:internal`) and review's `POST /internal/v1/review/clarifications/details` (scope `review:internal`): batch reads naming the officers on Form M's non-filer and clarification rows;
+- documents' `POST /internal/v1/documents/issue` (8.5), for the Form M, receipt and NCR PDFs;
+- review's `GET /internal/v1/review/referrals/{referralId}/icms-payload` (scope `review:internal`), read when an EACC analyst pushes a referral to ICMS. It also names the analyst in `X-Acting-Subject`, as declarations' internal document reads name the officer for review: review's audit of the read records who caused it. The header is trusted on the same terms as the acting tenant (internal route, service scope, never a grant by itself) and only names; it widens nothing the token may read.
+
+Notifications' `POST /internal/v1/messages` and the gateway's ICMS routes take no acting tenant: the message carries its `tenant` for audit and branding, and ICMS registrations are keyed by the referral reference. Token exchange (§5) replaces these with 8.1's once system work carries an originating user or tenant claim.
 
 ## Alternatives considered
 
