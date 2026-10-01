@@ -22,12 +22,12 @@ import type { StatementKey } from './sections.js';
 
 /**
  * Declaration drafts (spec 05). Drafts live in Postgres; Valkey only caches decrypted sections
- * (ADR-001 as amended by spec 05). Section contents are one envelope-encrypted blob per section
+ * (ADR-001 as amended 2026-10-01 by spec 05). Section contents are one envelope-encrypted blob per section
  * (ADR-006): no clear column holds a name, description, amount or address. What the platform
  * indexes (section key, completeness, counts, nil flags, dates) is copied to clear columns on
  * save, never taken from the client.
  *
- * Row-level security (migration 0008): a declarant reads and writes their own declarations
+ * Row-level security (migration 0012): a declarant reads and writes their own declarations
  * through `app.person` (`withPerson`); sections and attachments follow their declaration. A
  * tenant policy exists for later staff reads, which no route of this slice uses.
  */
@@ -185,7 +185,7 @@ export const declarationAttachments = pgTable(
  * in the same transaction as the `declaration.draft-started.v1` and removed with
  * `declaration.draft-discarded.v1`. It is how the Commission counts drafts in progress without
  * reading drafts: the declarant writes their own rows (`app.person`), the tenant reads (migration
- * 0010), and `declarations` stays readable by nobody else while a draft.
+ * 0013), and `declarations` stays readable by nobody else while a draft.
  */
 export const obligationDrafts = pgTable(
   'obligation_drafts',
