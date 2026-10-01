@@ -1,0 +1,106 @@
+/**
+ * Copy for the Copilot panel on a review case (spec 07c FE-2), as the frontend comment on #272
+ * and the 07a-review prototype word it. English now; Swahili slots stay empty until translated.
+ */
+
+export const en = {
+  title: 'Copilot',
+  launcher: {
+    open: (status: string) => `Open Copilot, AI-assisted. ${status}`,
+    loading: 'Loading…',
+    ready: 'Summary ready',
+    pending: 'Preparing summary…',
+    stale: 'Updating…',
+    failed: 'Not available',
+    notEnabled: 'Not enabled',
+  },
+  refresh: 'Refresh summary and explanations',
+  refreshTip: 'Refresh',
+  close: 'Close Copilot',
+  closeTip: 'Close',
+  tabs: { label: 'Copilot', summary: 'Summary', flags: 'Flags' },
+  label: (when: string, version: string) =>
+    `AI-assisted · generated ${when} for version ${version}`,
+  labelShort: 'AI',
+  disclaimer: 'Indicators, not findings. A named officer decides.',
+  notEnabled: 'AI assistance is not enabled for this Commission.',
+  learnWhy: 'Learn why',
+  why: {
+    title: 'Why AI is not enabled',
+    body: [
+      'Declarations hold sensitive personal data. An AI provider may process them only after EACC and your Commission approve it for that kind of data.',
+      'Until then, nothing from a declaration is sent to an AI provider. Review works as usual.',
+    ],
+    done: 'Got it',
+  },
+  pending: 'Preparing summary…',
+  stillPreparing: 'Still preparing.',
+  stillUpdating: 'Still updating.',
+  checkAgain: 'Check again',
+  stale: 'Declaration or registry results changed. Updating…',
+  failed: (reason: string) => `The summary could not be produced (${reason}).`,
+  budgetResets: (date: string) => `The budget resets on ${date}.`,
+  tryAgain: 'Try again',
+  worksAsUsual: 'Flags, registry checks and clarifications work as usual.',
+  reasons: {
+    'provider-unavailable': 'AI service unavailable',
+    provider: 'AI service error',
+    timeout: 'timed out',
+    refused: 'declined by the AI model',
+    validation: 'output failed its checks',
+    budget: 'monthly AI budget used up',
+    policy: 'not allowed for this Commission',
+  } as Record<string, string>,
+  unknownReason: 'unknown error',
+  loadFailed: 'Copilot could not be loaded.',
+  sessionEnded: 'Your session has ended. Sign in again.',
+  live: { pending: 'Preparing summary', stale: 'Updating summary', ready: 'Summary ready' },
+  blocks: {
+    overview: 'Overview',
+    changes: 'Changes since previous version',
+    sections: 'By person',
+    attention: 'Worth attention',
+  },
+  firstDeclaration: 'First declaration on Adili. Nothing to compare.',
+  noChanges: 'No material changes.',
+  noAttention: 'No open flags.',
+  openFlag: (title: string) => `Open flag: ${title}`,
+  rateSummary: 'Rate this summary',
+  rateExplanations: 'Rate the flag explanations',
+  flags: {
+    none: 'No flags',
+    noneDetail: 'Nothing to explain on this case.',
+    meaning: 'What this indicates',
+    check: 'What to check',
+    resolves: 'What usually resolves it',
+    notFinding: 'An indicator, not a finding.',
+    noExplanation: 'No explanation for this flag yet.',
+    reviewed: 'Reviewed',
+    closed: 'Closed',
+    add: 'Add to clarification',
+    added: 'Added to clarification',
+    selected: (count: number) => `${String(count)} ${count === 1 ? 'flag' : 'flags'} selected`,
+    clear: 'Clear',
+    newClarification: 'New clarification',
+  },
+  severity: { high: 'High', medium: 'Medium', low: 'Low', info: 'Info' },
+  refreshFailed: {
+    pending: 'Already updating.',
+    notEnabled: 'AI assistance is not enabled for this Commission.',
+    forbidden: 'Only the officer holding the case or a supervisor can refresh it.',
+    unavailable: 'Copilot could not be refreshed. Try again.',
+  },
+  sections: {
+    personal: 'Personal and employment details',
+    spouses: 'Spouses',
+    children: 'Dependent children',
+    other: 'Other information',
+  },
+  categories: { income: 'Income', assets: 'Assets', liabilities: 'Liabilities' },
+  statementOf: (name: string, relation: string) => `${name} · ${relation}`,
+  relations: { officer: 'Declarant', spouse: 'Spouse', child: 'Child' },
+};
+
+export const sw: Partial<Record<keyof typeof en, string>> = {};
+
+export const messages = en;
