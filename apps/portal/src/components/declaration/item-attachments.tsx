@@ -56,10 +56,10 @@ import { useWorkspace } from './workspace';
  * for the whole statement screen, so an upload carries on when its item's editor closes; each
  * editor renders `ItemAttachments` in the slot the statement section leaves for it.
  *
- * Linking and unlinking change the draft on the service without returning an ETag, so they
- * run under the workspace's `whileHeld`: waiting edits go first (a new item must exist before a
- * document is linked to it), autosave waits, and the section is read back for the new ETag and
- * the item's attachments.
+ * Linking and unlinking change the draft on the service and bump its version, so they run under
+ * the workspace's `whileHeld`: waiting edits go first (a new item must exist before a document
+ * is linked to it), autosave waits, and the section is read back for the new ETag and the
+ * item's attachments together.
  *
  * A linked file's menu offers "Read into the form" (#316), by the attachment id the item's
  * reference carries, however long ago it was linked; once the Commission is known not to read

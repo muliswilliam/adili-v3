@@ -113,6 +113,20 @@
       "when": 1790784661958,
       "tag": "0016_submission_partitions_immutability_rls",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1790861751622,
+      "tag": "0017_help_tables",
+      "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1790861760262,
+      "tag": "0018_help_articles_rls",
+      "breakpoints": true
     }
   ]
 }

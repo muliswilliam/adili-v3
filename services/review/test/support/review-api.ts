@@ -100,8 +100,8 @@ export interface ReviewApi {
 const RESET_ATTEMPTS = 20;
 
 /**
- * Postgres `lock_not_available` (55P03) or `deadlock_detected` (40P01), as the driver or
- * drizzle's wrapper reports it: either way the truncate lost to an activity and can try again.
+ * Postgres `lock_not_available` (55P03) or `deadlock_detected` (40P01), as the driver or drizzle's
+ * wrapper reports it.
  */
 function isLockConflict(error: unknown): boolean {
   const codeOf = (value: unknown) =>
@@ -221,8 +221,9 @@ export async function startReviewApi(): Promise<ReviewApi> {
       // service pulls its payload over HTTP. That read would queue behind a waiting truncate, which
       // waits for the lock: a wait Postgres cannot see as a deadlock (see `close`). So the truncate
       // gives up after a moment, letting the read and the activity finish, and tries again. An
-      // activity that locks a table the truncate already holds while holding one it still needs
-      // is a deadlock Postgres does see, and ends the truncate: that tries again too.
+      // activity that locked a later table and then reads one the truncate already holds is a
+      // deadlock Postgres does see; when it breaks one by aborting the truncate, that too is tried
+      // again.
       for (let attempt = 1; ; attempt += 1) {
         try {
           await db.transaction(async (tx) => {

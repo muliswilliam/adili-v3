@@ -1028,6 +1028,483 @@ paths:
       x-audited-read:
         action: declaration.acknowledgement-payload.pulled
         resource: declaration-version
+  /v1/help/search:
+    get:
+      tags:
+        - help
+      summary: Full-text search over the legal corpus and help articles in force
+      description: "Declarants (by the person_id claim): the Act and Regulations, the platform's published articles and those of the declarant's own Commissions, in force on `date`. Passages tagged with the section or item type the declarant is on rank higher. Deterministic: no AI. Other callers get 404."
+      operationId: searchHelp
+      parameters:
+        - name: q
+          required: true
+          in: query
+          description: The question, in the declarant's words
+          schema:
+            type: string
+            minLength: 2
+            maxLength: 200
+        - name: language
+          required: true
+          in: query
+          description: 'The language of the question: `sw` also searches Swahili article bodies and expands Swahili words into the English of the law'
+          schema:
+            type: string
+            enum:
+              - en
+              - sw
+        - name: sectionKey
+          required: false
+          in: query
+          description: The section the declarant is on; passages tagged with it rank higher
+          schema:
+            type: string
+            pattern: ^(bio|household|other|statement:(officer|spouse:[0-9a-f-]{36}|child:[0-9a-f-]{36}))$
+        - name: itemType
+          required: false
+          in: query
+          description: The statement item type the declarant is on; boosted like the section
+          schema:
+            type: string
+            enum:
+              - land
+              - building
+              - vehicle
+              - securities
+              - shareholding
+              - bank-account
+              - cash
+              - receivable
+              - mortgage
+              - loan
+              - guarantee
+              - salary-emoluments
+              - allowances
+              - business
+              - rent
+              - dividends-interest
+              - pension
+              - farming
+              - consultancy
+        - name: date
+          required: false
+          in: query
+          description: Read the law in force on this day (`YYYY-MM-DD`); today by default
+          schema:
+            type: string
+            format: date
+        - name: limit
+          required: false
+          in: query
+          schema:
+            default: 8
+            type: integer
+            minimum: 1
+            maximum: 20
+      responses:
+        '200':
+          description: Passages, best first
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/HelpPassage'
+        '400':
+          description: Query failed validation
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: Not found, or not visible to the caller
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+  /v1/commissions/{slug}/help/articles:
+    get:
+      tags:
+        - help
+      summary: The Commission's help articles, published or not
+      description: The Commission's administrators and reporting officers. Anyone else gets 404.
+      operationId: listHelpArticles
+      parameters:
+        - name: slug
+          required: true
+          in: path
+          schema:
+            type: string
+            pattern: ^[a-z][a-z0-9]{1,19}$
+      responses:
+        '200':
+          description: Articles, last updated first
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/HelpArticle'
+        '404':
+          description: Not found, or not visible to the caller
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+    post:
+      tags:
+        - help
+      summary: Create a Commission help article
+      description: "The Commission's administrators. Its reporting officers get 403; anyone else 404. Needs an Idempotency-Key: a retry with the same key gets the same article. Records `help.article.created.v1`; a published article reaches the Commission's declarants' help search and also records `help.article.published.v1`."
+      operationId: createHelpArticle
+      parameters:
+        - name: slug
+          required: true
+          in: path
+          schema:
+            type: string
+            pattern: ^[a-z][a-z0-9]{1,19}$
+        - name: Idempotency-Key
+          in: header
+          description: Client-generated UUID, unique per logical request; reuse on retry
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/HelpArticleInput'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HelpArticle'
+        '400':
+          description: Request failed validation, or the Idempotency-Key header missing
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '403':
+          description: A reporting officer, who reads articles but does not edit them
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: Not found, or not visible to the caller
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '409':
+          description: A request with the same Idempotency-Key still running
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '422':
+          description: Idempotency-Key reused with a different request body
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+  /v1/commissions/{slug}/help/articles/{articleId}:
+    put:
+      tags:
+        - help
+      summary: Update, publish or unpublish a Commission help article
+      description: The Commission's administrators; as create. Records `help.article.updated.v1`; publishing an unpublished article also records `help.article.published.v1`.
+      operationId: updateHelpArticle
+      parameters:
+        - name: slug
+          required: true
+          in: path
+          schema:
+            type: string
+            pattern: ^[a-z][a-z0-9]{1,19}$
+        - name: articleId
+          required: true
+          in: path
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/HelpArticleInput'
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HelpArticle'
+        '400':
+          description: Request failed validation
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '403':
+          description: A reporting officer, who reads articles but does not edit them
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: Not found, or not visible to the caller
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+    delete:
+      tags:
+        - help
+      summary: Delete a Commission help article
+      description: The Commission's administrators; as create. Records `help.article.deleted.v1`.
+      operationId: deleteHelpArticle
+      parameters:
+        - name: slug
+          required: true
+          in: path
+          schema:
+            type: string
+            pattern: ^[a-z][a-z0-9]{1,19}$
+        - name: articleId
+          required: true
+          in: path
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Deleted
+        '403':
+          description: A reporting officer, who reads articles but does not edit them
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: Not found, or not visible to the caller
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+  /v1/help/articles:
+    get:
+      tags:
+        - help
+      summary: The platform's help articles, published or not, for every Commission's declarants
+      description: platform-admin only.
+      operationId: listPlatformHelpArticles
+      responses:
+        '200':
+          description: Articles, last updated first
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/HelpArticle'
+        '403':
+          description: |-
+            Not a platform admin
+
+            Requires one of the roles: platform-admin
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+    post:
+      tags:
+        - help
+      summary: Create a platform help article
+      description: platform-admin only. Needs an Idempotency-Key, as for a Commission article. Records `help.article.created.v1`; a published article reaches every declarant's help search and also records `help.article.published.v1`.
+      operationId: createPlatformHelpArticle
+      parameters:
+        - name: Idempotency-Key
+          in: header
+          description: Client-generated UUID, unique per logical request; reuse on retry
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/HelpArticleInput'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HelpArticle'
+        '400':
+          description: Request failed validation, or the Idempotency-Key header missing
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '403':
+          description: |-
+            Not a platform admin
+
+            Requires one of the roles: platform-admin
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '409':
+          description: A request with the same Idempotency-Key still running
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '422':
+          description: Idempotency-Key reused with a different request body
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+  /v1/help/articles/{articleId}:
+    put:
+      tags:
+        - help
+      summary: Update, publish or unpublish a platform help article
+      description: platform-admin only. Records `help.article.updated.v1`; publishing an unpublished article also records `help.article.published.v1`.
+      operationId: updatePlatformHelpArticle
+      parameters:
+        - name: articleId
+          required: true
+          in: path
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/HelpArticleInput'
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HelpArticle'
+        '400':
+          description: Request failed validation
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '403':
+          description: |-
+            Not a platform admin
+
+            Requires one of the roles: platform-admin
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: No such platform article
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+    delete:
+      tags:
+        - help
+      summary: Delete a platform help article
+      description: platform-admin only. Records `help.article.deleted.v1`.
+      operationId: deletePlatformHelpArticle
+      parameters:
+        - name: articleId
+          required: true
+          in: path
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Deleted
+        '403':
+          description: |-
+            Not a platform admin
+
+            Requires one of the roles: platform-admin
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: No such platform article
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+  /v1/help/corpus:
+    get:
+      tags:
+        - help
+      summary: 'The imported statutory corpus: every wording with its period and version'
+      description: 'platform-admin only. Read-only: statutory text changes only by import.'
+      operationId: listCorpusPassages
+      responses:
+        '200':
+          description: Wordings by source, citation and effective date
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CorpusPassage'
+        '403':
+          description: |-
+            Not a platform admin
+
+            Requires one of the roles: platform-admin
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+  /v1/help/corpus/import:
+    post:
+      tags:
+        - help
+      summary: Re-import the statutory corpus files deployed with the service
+      description: 'platform-admin only. Idempotent: the same files import as a no-op (`skipped`) and record nothing; an import that changes the corpus records `help.corpus.imported.v1`. An amended wording supersedes the earlier one from its effective date.'
+      operationId: importCorpus
+      responses:
+        '200':
+          description: What the import changed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CorpusImportResult'
+        '403':
+          description: |-
+            Not a platform admin
+
+            Requires one of the roles: platform-admin
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
   /internal/v1/declarations/{declarationId}/versions/{version}/document:
     parameters:
       - $ref: '#/components/parameters/DeclarationId'
@@ -1751,122 +2228,6 @@ paths:
                         - string
                         - 'null'
                       description: AI-assisted hint when available
-        '404':
-          $ref: '#/components/responses/NotFound'
-  /v1/help/search:
-    get:
-      tags:
-        - help
-      summary: Full-text search over the legal corpus and help articles in force (signed-in users)
-      operationId: searchHelp
-      x-draft: true
-      parameters:
-        - name: q
-          in: query
-          required: true
-          schema:
-            type: string
-            minLength: 2
-            maxLength: 200
-        - name: language
-          in: query
-          required: true
-          schema:
-            type: string
-            enum:
-              - en
-              - sw
-        - name: sectionKey
-          in: query
-          schema:
-            type: string
-        - name: limit
-          in: query
-          schema:
-            type: integer
-            minimum: 1
-            maximum: 20
-            default: 8
-      responses:
-        '200':
-          description: Passages
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/HelpPassage'
-  /v1/commissions/{slug}/help/articles:
-    parameters:
-      - $ref: '#/components/parameters/Slug'
-    get:
-      tags:
-        - help
-      summary: Commission help articles (commission-admin edit, reporting-officer read)
-      operationId: listHelpArticles
-      x-draft: true
-      responses:
-        '200':
-          description: Articles
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/HelpArticle'
-        '404':
-          $ref: '#/components/responses/NotFound'
-    post:
-      tags:
-        - help
-      summary: Create a Commission help article (commission-admin)
-      operationId: createHelpArticle
-      x-draft: true
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/HelpArticleInput'
-      responses:
-        '201':
-          description: Created
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HelpArticle'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-  /v1/commissions/{slug}/help/articles/{articleId}:
-    parameters:
-      - $ref: '#/components/parameters/Slug'
-      - name: articleId
-        in: path
-        required: true
-        schema:
-          type: string
-          format: uuid
-    put:
-      tags:
-        - help
-      summary: Update or publish a Commission help article (commission-admin)
-      operationId: updateHelpArticle
-      x-draft: true
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/HelpArticleInput'
-      responses:
-        '200':
-          description: Updated
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HelpArticle'
-        '403':
-          $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
   /v1/commissions/{slug}/help/themes:
@@ -3211,6 +3572,263 @@ components:
       required:
         - declarantPersonId
         - slip
+    HelpLanguage:
+      type: string
+      enum:
+        - en
+        - sw
+    HelpTag:
+      type: string
+      enum:
+        - bio
+        - household
+        - statement
+        - other
+        - access
+        - administrative-action
+        - assets
+        - biennial
+        - clarification
+        - complaints
+        - compliance-report
+        - confidentiality
+        - conflict-of-interest
+        - declaration
+        - definition
+        - dependent-child
+        - directorship
+        - dual-citizenship
+        - due-date
+        - employment
+        - filing
+        - final
+        - foreign
+        - gifts
+        - income
+        - income-period
+        - initial
+        - joint
+        - liabilities
+        - material-change
+        - membership
+        - offence
+        - pending-cases
+        - recusal
+        - registrable-interest
+        - responsible-commission
+        - spouse
+        - statement-date
+        - land
+        - building
+        - vehicle
+        - securities
+        - shareholding
+        - bank-account
+        - cash
+        - receivable
+        - mortgage
+        - loan
+        - guarantee
+        - salary-emoluments
+        - allowances
+        - business
+        - rent
+        - dividends-interest
+        - pension
+        - farming
+        - consultancy
+      description: A section kind (bio, household, statement, other), a statement item type or a topic of the corpus
+    HelpPassage:
+      type: object
+      properties:
+        id:
+          type: string
+          description: The corpus passage or help article id
+        source:
+          type: string
+          enum:
+            - act
+            - regs
+            - am
+            - help
+        citation:
+          type: string
+          examples:
+            - Act s.31
+            - Regs r.21
+            - 'Help: File numbers'
+        title:
+          type: string
+        snippet:
+          type: string
+          description: The passage text around the matched words
+        language:
+          description: The language of the snippet
+          $ref: '#/components/schemas/HelpLanguage'
+      required:
+        - id
+        - source
+        - citation
+        - title
+        - snippet
+        - language
+    HelpArticleInput:
+      type: object
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 200
+        bodyEn:
+          type: string
+          minLength: 1
+          maxLength: 20000
+        bodySw:
+          anyOf:
+            - type: string
+              minLength: 1
+              maxLength: 20000
+            - type: 'null'
+        tags:
+          maxItems: 20
+          type: array
+          items:
+            $ref: '#/components/schemas/HelpTag'
+        effectiveFrom:
+          type: string
+          format: date
+        effectiveTo:
+          anyOf:
+            - type: string
+              format: date
+            - type: 'null'
+          description: Exclusive; null while in force
+        published:
+          type: boolean
+      required:
+        - title
+        - bodyEn
+        - bodySw
+        - tags
+        - effectiveFrom
+        - effectiveTo
+        - published
+    HelpArticle:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        tenant:
+          description: The Commission's slug; null for the platform
+          type:
+            - string
+            - 'null'
+        title:
+          type: string
+        bodyEn:
+          type: string
+        bodySw:
+          type:
+            - string
+            - 'null'
+        tags:
+          type: array
+          items:
+            $ref: '#/components/schemas/HelpTag'
+        effectiveFrom:
+          type: string
+          format: date
+        effectiveTo:
+          anyOf:
+            - type: string
+              format: date
+            - type: 'null'
+        published:
+          type: boolean
+        version:
+          type: integer
+          description: Counts saves
+        updatedAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - tenant
+        - title
+        - bodyEn
+        - bodySw
+        - tags
+        - effectiveFrom
+        - effectiveTo
+        - published
+        - version
+        - updatedAt
+    CorpusPassage:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        source:
+          type: string
+          enum:
+            - act
+            - regs
+            - am
+        citation:
+          type: string
+        title:
+          type: string
+        tags:
+          type: array
+          items:
+            $ref: '#/components/schemas/HelpTag'
+        effectiveFrom:
+          type: string
+          format: date
+        effectiveTo:
+          anyOf:
+            - type: string
+              format: date
+            - type: 'null'
+          description: Exclusive; null while current
+        version:
+          type: string
+          description: The corpus version that last wrote the passage
+      required:
+        - id
+        - source
+        - citation
+        - title
+        - tags
+        - effectiveFrom
+        - effectiveTo
+        - version
+    CorpusImportResult:
+      type: object
+      properties:
+        version:
+          type: string
+          description: A hash of the corpus files
+        skipped:
+          type: boolean
+          description: The version was imported already; nothing changed
+        inserted:
+          type: integer
+        updated:
+          type: integer
+        removed:
+          type: integer
+        unchanged:
+          type: integer
+      required:
+        - version
+        - skipped
+        - inserted
+        - updated
+        - removed
+        - unchanged
     ProblemDetails:
       type: object
       properties:
@@ -3569,98 +4187,6 @@ components:
         at:
           type: string
           format: date-time
-    HelpPassage:
-      type: object
-      required:
-        - id
-        - source
-        - citation
-        - title
-        - snippet
-        - language
-      properties:
-        id:
-          type: string
-        source:
-          type: string
-          enum:
-            - act
-            - regs
-            - am
-            - help
-        citation:
-          type: string
-          examples:
-            - Act s.31(4)
-            - Regs r.21
-            - AM 24
-        title:
-          type: string
-        snippet:
-          type: string
-        language:
-          type: string
-          enum:
-            - en
-            - sw
-    HelpArticleInput:
-      type: object
-      required:
-        - title
-        - bodyEn
-        - bodySw
-        - tags
-        - effectiveFrom
-        - effectiveTo
-        - published
-      properties:
-        title:
-          type: string
-          maxLength: 200
-        bodyEn:
-          type: string
-          maxLength: 20000
-        bodySw:
-          type:
-            - string
-            - 'null'
-          maxLength: 20000
-        tags:
-          type: array
-          items:
-            type: string
-        effectiveFrom:
-          type: string
-          format: date
-        effectiveTo:
-          type:
-            - string
-            - 'null'
-          format: date
-        published:
-          type: boolean
-    HelpArticle:
-      allOf:
-        - $ref: '#/components/schemas/HelpArticleInput'
-        - type: object
-          required:
-            - id
-            - tenant
-            - version
-            - updatedAt
-          properties:
-            id:
-              type: string
-              format: uuid
-            tenant:
-              type:
-                - string
-                - 'null'
-            version:
-              type: integer
-            updatedAt:
-              type: string
-              format: date-time
     InternalVersionDocument:
       type: object
       required:
