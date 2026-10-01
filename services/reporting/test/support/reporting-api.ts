@@ -15,8 +15,17 @@ import {
 } from '@adili/data-access';
 import { FakeCipher } from '@adili/data-access/testing';
 import { type EventEnvelope, OutboxRelay } from '@adili/events';
-import { TEMPORAL_CLIENT, TemporalWorkerReadinessCheck, WorkflowBundler } from '@adili/temporal';
-import { prebuiltWorkflowBundler, untilWorkerPolling } from '@adili/temporal/testing';
+import {
+  TEMPORAL_CLIENT,
+  TemporalWorkerReadinessCheck,
+  TemporalWorkerStatus,
+  WorkflowBundler,
+} from '@adili/temporal';
+import {
+  prebuiltWorkflowBundler,
+  untilActivitiesSettled,
+  untilWorkerPolling,
+} from '@adili/temporal/testing';
 import type { Client } from '@temporalio/client';
 import { sql } from 'drizzle-orm';
 import { createLocalJWKSet, exportJWK, generateKeyPair, type JWK, SignJWT } from 'jose';
@@ -85,7 +94,10 @@ export interface ReportingApi {
   activities: ComplianceReportActivities;
   /** The events recorded in the outbox, of `type` when given, oldest first. */
   events(type?: string): Promise<RecordedEvent[]>;
-  /** Terminates the workflows with these ids; one not running is fine. */
+  /**
+   * Terminates the workflows with these ids (one not running is fine) and waits for the
+   * activities they started to finish, so none writes into the next test after its reset.
+   */
   endWorkflows(ids: readonly string[]): Promise<void>;
   /** Delivers an event to its consumer as the RabbitMQ transport would; false for a redelivery. */
   deliver(event: EventEnvelope): Promise<boolean>;
@@ -229,6 +241,9 @@ export async function startReportingApi(): Promise<ReportingApi> {
           // Not running.
         }
       }
+      // Terminating does not stop an activity already running (the Form M PDF and receipt, the
+      // emails): it would issue into the fakes and write rows after the next reset.
+      await untilActivitiesSettled(app.get(TemporalWorkerStatus));
     },
     deliver(event) {
       const handler = HANDLERS[event.type];

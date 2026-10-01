@@ -85,6 +85,11 @@ class TemporalWorkerHost implements OnApplicationBootstrap, BeforeApplicationShu
     return this.worker?.getState() === 'RUNNING';
   }
 
+  /** Activities the worker is running now; none when it is not running. */
+  get inFlightActivities(): number {
+    return this.worker?.getStatus().numInFlightActivities ?? 0;
+  }
+
   /** Why the worker is not running, if an attempt to run it failed. */
   get lastFailure(): unknown {
     return this.failure;
@@ -225,6 +230,20 @@ export class TemporalWorkerReadinessCheck extends ReadinessCheck {
 }
 
 /**
+ * What the worker is doing. Terminating or cancelling a workflow does not stop an activity it
+ * already started: the activity runs on in the worker, and only its result is discarded.
+ */
+@Injectable()
+export class TemporalWorkerStatus {
+  constructor(private readonly host: TemporalWorkerHost) {}
+
+  /** Activities the worker is running now, of any workflow; none when it is not running. */
+  get inFlightActivities(): number {
+    return this.host.inFlightActivities;
+  }
+}
+
+/**
  * Hosts workflows and activities on one task queue (ADR-003, ADR-013 §4). Import it next to
  * `TemporalModule` in services that run workers and list `TemporalWorkerReadinessCheck`
  * in `CoreModule.forRoot({ readiness })`.
@@ -246,8 +265,9 @@ export class TemporalWorkerModule {
         WorkflowBundler,
         TemporalWorkerHost,
         TemporalWorkerReadinessCheck,
+        TemporalWorkerStatus,
       ],
-      exports: [TemporalWorkerReadinessCheck, ...options.activities],
+      exports: [TemporalWorkerReadinessCheck, TemporalWorkerStatus, ...options.activities],
     };
   }
 }

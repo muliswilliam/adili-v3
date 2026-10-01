@@ -2,7 +2,8 @@ import { fileURLToPath } from 'node:url';
 
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 
-import { WorkflowTestEnvironment } from '../src/testing.js';
+import type { TemporalWorkerStatus } from '../src/temporal-worker.module.js';
+import { untilActivitiesSettled, WorkflowTestEnvironment } from '../src/testing.js';
 import { awaitNudge, greet, lastNudge, nudge } from './fixtures/workflows.js';
 
 // One spy for every importer: the factory may run once per module graph.
@@ -71,6 +72,36 @@ describe('WorkflowTestEnvironment', () => {
     expect(result).toBe('wake up');
     expect((await env.now()).getTime() - before.getTime()).toBeGreaterThanOrEqual(
       3 * 24 * 60 * 60 * 1000,
+    );
+  });
+});
+
+describe('untilActivitiesSettled', () => {
+  /** A worker status whose in-flight count drops by one on each read after the first. */
+  function draining(count: number): TemporalWorkerStatus {
+    let left = count;
+    return {
+      get inFlightActivities() {
+        const now = left;
+        left = Math.max(0, left - 1);
+        return now;
+      },
+    } as TemporalWorkerStatus;
+  }
+
+  it('resolves once the worker runs no activity', async () => {
+    const status = draining(3);
+
+    await untilActivitiesSettled(status);
+
+    expect(status.inFlightActivities).toBe(0);
+  });
+
+  it('fails when an activity is still running at the deadline', async () => {
+    const stuck = { inFlightActivities: 1 } as TemporalWorkerStatus;
+
+    await expect(untilActivitiesSettled(stuck, 50)).rejects.toThrow(
+      '1 activities still running after 50 ms',
     );
   });
 });

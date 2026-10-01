@@ -19,7 +19,11 @@ import {
 
 import type { TestProject } from 'vitest/node';
 
-import type { TemporalWorkerReadinessCheck, WorkflowBundler } from './temporal-worker.module.js';
+import type {
+  TemporalWorkerReadinessCheck,
+  TemporalWorkerStatus,
+  WorkflowBundler,
+} from './temporal-worker.module.js';
 
 export interface ExecuteWorkflowOptions<W extends Workflow> {
   /** Module exporting the workflow functions, as given to the worker in production. */
@@ -307,5 +311,25 @@ export async function untilWorkerPolling(
       }
     }
     await new Promise((resolve) => setTimeout(resolve, 50));
+  }
+}
+
+/**
+ * Resolves once an app's worker runs no activity. Harnesses that end a test's workflows wait for
+ * this before resetting tables and fakes: terminating a workflow leaves an activity it already
+ * started running, and its writes and calls would land in the next test.
+ */
+export async function untilActivitiesSettled(
+  status: TemporalWorkerStatus,
+  timeoutMs = 30_000,
+): Promise<void> {
+  const deadline = Date.now() + timeoutMs;
+  while (status.inFlightActivities > 0) {
+    if (Date.now() > deadline) {
+      throw new Error(
+        `${String(status.inFlightActivities)} activities still running after ${String(timeoutMs)} ms`,
+      );
+    }
+    await new Promise((resolve) => setTimeout(resolve, 20));
   }
 }
