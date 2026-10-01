@@ -1,5 +1,5 @@
 {
-  "id": "c06b3889-8d3b-4906-8808-9f927b8b91a3",
+  "id": "d59f8f75-9214-4ad0-bcb2-386827512f2f",
   "prevId": "6bdd841e-ed74-415f-893c-08758480bdee",
   "version": "7",
   "dialect": "postgresql",
@@ -472,6 +472,72 @@
           "value": "\"declarations\".\"previous_statement_date_source\" in ('declared', 'assumed')"
         }
       },
+      "isRLSEnabled": false
+    },
+    "public.obligation_drafts": {
+      "name": "obligation_drafts",
+      "schema": "",
+      "columns": {
+        "obligation_id": {
+          "name": "obligation_id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "declaration_id": {
+          "name": "declaration_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "tenant": {
+          "name": "tenant",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "person_id": {
+          "name": "person_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "started_at": {
+          "name": "started_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "obligation_drafts_declaration_id_declarations_id_fk": {
+          "name": "obligation_drafts_declaration_id_declarations_id_fk",
+          "tableFrom": "obligation_drafts",
+          "tableTo": "declarations",
+          "columnsFrom": [
+            "declaration_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "obligation_drafts_declaration_id_key": {
+          "name": "obligation_drafts_declaration_id_key",
+          "nullsNotDistinct": false,
+          "columns": [
+            "declaration_id"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
       "isRLSEnabled": false
     },
     "public.commission_refs": {
@@ -1051,6 +1117,18 @@
         "onboarded_at": {
           "name": "onboarded_at",
           "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "reporting_entity_id": {
+          "name": "reporting_entity_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "reporting_entity_name": {
+          "name": "reporting_entity_name",
+          "type": "text",
           "primaryKey": false,
           "notNull": false
         },

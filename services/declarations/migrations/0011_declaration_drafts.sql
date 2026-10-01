@@ -4,7 +4,6 @@ CREATE TABLE "declaration_attachments" (
 	"section_key" text NOT NULL,
 	"item_id" uuid NOT NULL,
 	"upload_id" uuid NOT NULL,
-	"file_name" text NOT NULL,
 	"sha256" text NOT NULL,
 	"size" bigint NOT NULL,
 	"linked_at" timestamp with time zone DEFAULT now() NOT NULL,

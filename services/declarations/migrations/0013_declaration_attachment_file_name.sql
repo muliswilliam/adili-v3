@@ -1,1 +1,0 @@
-ALTER TABLE "declaration_attachments" DROP COLUMN "file_name";
