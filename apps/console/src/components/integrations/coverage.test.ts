@@ -113,6 +113,7 @@ describe('systemInfo', () => {
       owner: 'Kenya Revenue Authority',
       use: 'PIN, tax compliance and income declared to KRA',
     });
+    expect(systemInfo('hr-suppliers').name).toBe('HR supplier lists');
     expect(systemInfo('icms')).toEqual({ name: 'ICMS', owner: null, use: null });
   });
 });

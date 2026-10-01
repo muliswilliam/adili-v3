@@ -32,12 +32,17 @@ const SYSTEM_INFO: Partial<Record<IntegrationSystem, SystemInfo>> = {
   brs: {
     name: 'BRS',
     owner: 'Business Registration Service',
-    use: 'Directorships, shareholdings and the employer supplier check',
+    use: 'Directorships and shareholdings',
   },
   ardhisasa: {
     name: 'ArdhiSasa',
     owner: 'Ministry of Lands and Physical Planning',
     use: 'Land parcels by owner',
+  },
+  'hr-suppliers': {
+    name: 'HR supplier lists',
+    owner: 'Employers (HR systems)',
+    use: "Whether an officer's company supplies their employer",
   },
 };
 

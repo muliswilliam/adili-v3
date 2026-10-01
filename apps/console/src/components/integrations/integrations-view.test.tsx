@@ -303,7 +303,7 @@ describe('S15 Integrations page', () => {
       expect(dialog.queryByText(/Registry tab/)).toBe(null);
     });
 
-    it('keeps the dialog open when pausing fails, saying nothing changed', async () => {
+    it('keeps the dialog open when pausing fails, asking to try again', async () => {
       const { onChanged } = renderActions([coverage({ system: 'kra' })], {
         ok: false,
         error: { kind: 'unavailable', detail: null },
@@ -314,9 +314,7 @@ describe('S15 Integrations page', () => {
         within(screen.getByRole('dialog')).getByRole('button', { name: 'Pause KRA iTax' }),
       );
 
-      await within(screen.getByRole('dialog')).findByText(
-        'Could not pause KRA iTax. Nothing changed. Try again.',
-      );
+      await within(screen.getByRole('dialog')).findByText('Could not pause KRA iTax. Try again.');
       expect(onChanged).not.toHaveBeenCalled();
     });
 

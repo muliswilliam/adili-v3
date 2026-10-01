@@ -47,8 +47,8 @@ function pauseEffects(row: SystemCoverage): string[] {
 /**
  * The Pause or Resume button of a system on the Integrations page (spec 07b FE-3, S13), with its
  * confirm dialog: "Pause {system}? Lookups will be marked unavailable until resumed." The dialog
- * stays open on failure so it can be tried again, and says nothing changed; on success a toast
- * and `onChanged` (the page reads the coverage again).
+ * stays open on failure so it can be tried again (a pause the gateway recorded but could not apply
+ * is applied by the retry); on success a toast and `onChanged` (the page reads the coverage again).
  */
 export function PauseControl({
   row,
