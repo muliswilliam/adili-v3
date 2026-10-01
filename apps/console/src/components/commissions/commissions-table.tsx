@@ -1,5 +1,6 @@
 import {
   Badge,
+  formatDateTime,
   cn,
   focusRing,
   Skeleton,
@@ -15,7 +16,7 @@ import {
 import { Link } from '@tanstack/react-router';
 
 import type { Commission } from '../../server/directory/client';
-import { formatDateTime, formatRelativeDate, formatRelativeTime } from '../format';
+import { formatRelativeDate, formatRelativeTime } from '../format';
 import { rosterCoverage } from '../roster/coverage';
 import { CommissionTypeBadge, IssuerCode, OfficerStateBadge } from './badges';
 import { messages as m } from './messages';
@@ -30,7 +31,7 @@ function Header() {
         <TableHead>{m.columnCommission}</TableHead>
         <TableHead>{m.columnType}</TableHead>
         <TableHead>{m.columnCategories}</TableHead>
-        <TableHead>{m.columnOfficer}</TableHead>
+        <TableHead>{m.columnReportingOfficer}</TableHead>
         <TableHead>{m.columnRoster}</TableHead>
         <TableHead>{m.columnCreated}</TableHead>
       </TableRow>

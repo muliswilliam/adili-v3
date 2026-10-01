@@ -1,4 +1,4 @@
-import { CSV, type DetectedType, XLSX } from './purposes.js';
+import { CSV, type DetectedType, HEIC, JPEG, PDF, PNG, XLSX } from './purposes.js';
 
 /** Reads bytes `start` to `end` inclusive of the object being sniffed. */
 export type RangeReader = (start: number, end: number) => Promise<Uint8Array>;
@@ -21,6 +21,15 @@ const UTF16_BOMS = [
 ];
 /** `%PDF-`: text-like at first, but never a CSV. */
 const PDF_MAGIC = [0x25, 0x50, 0x44, 0x46, 0x2d];
+const PNG_SIGNATURE = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
+/** Start of image, then the first segment's marker. */
+const JPEG_MAGIC = [0xff, 0xd8, 0xff];
+/**
+ * Brands of HEIF files holding HEVC: images (`heic`, `heix`), multi-layer and scalable images
+ * (`heim`, `heis`) and their image sequences (`hev*`). The generic HEIF brands (`mif1`, `msf1`)
+ * say nothing of the codec, so they are not enough: an AVIF carries them too.
+ */
+const HEIC_BRANDS = new Set(['heic', 'heix', 'heim', 'heis', 'hevc', 'hevx', 'hevm', 'hevs']);
 
 /** Zip entries every Office Open XML workbook has. */
 const XLSX_ENTRIES = ['[Content_Types].xml', 'xl/workbook.xml'];
@@ -34,15 +43,17 @@ export const NOT_UTF8_TEXT = 'not-utf8-text';
 export type SniffedType = DetectedType | typeof NOT_UTF8_TEXT;
 
 /**
- * The type of an object from its bytes, not its name or declared type: `text/csv` for UTF-8
- * text without control characters, `NOT_UTF8_TEXT` for text in another encoding, the XLSX type
- * for a zip whose central directory holds a workbook, otherwise null. Reads the first 8 KB, and
- * for zips the tail and central directory. Only the sample is checked: the importer rejects a
- * file whose text stops being UTF-8 later on.
+ * The type of an object from its bytes, not its name or declared type: PDF, JPEG, PNG or HEIC
+ * from their magic bytes, `text/csv` for UTF-8 text without control characters, `NOT_UTF8_TEXT`
+ * for text in another encoding, the XLSX type for a zip whose central directory holds a workbook,
+ * otherwise null. Reads the first 8 KB, and for zips the tail and central directory. Only the
+ * sample is checked: the importer rejects a file whose text stops being UTF-8 later on.
  */
 export async function detectType(read: RangeReader, size: number): Promise<SniffedType | null> {
   if (size <= 0) return null;
   const head = await read(0, Math.min(size, HEAD_BYTES) - 1);
+  const binary = magicType(head);
+  if (binary) return binary;
   if (startsWith(head, ZIP_LOCAL_HEADER)) {
     const names = await zipEntryNames(read, size);
     return names && XLSX_ENTRIES.every((entry) => names.has(entry)) ? XLSX : null;
@@ -50,9 +61,28 @@ export async function detectType(read: RangeReader, size: number): Promise<Sniff
   return textType(head, size > head.length);
 }
 
+function magicType(head: Uint8Array): DetectedType | null {
+  if (startsWith(head, PDF_MAGIC)) return PDF;
+  if (startsWith(head, PNG_SIGNATURE)) return PNG;
+  if (startsWith(head, JPEG_MAGIC)) return JPEG;
+  return isHeic(head) ? HEIC : null;
+}
+
+/**
+ * An ISO base media file opens with its `ftyp` box: size, `ftyp`, the major brand, a minor
+ * version, then the compatible brands. HEIC when any of them is a HEVC brand.
+ */
+function isHeic(head: Uint8Array): boolean {
+  if (head.length < 16 || ascii(head, 4, 8) !== 'ftyp') return false;
+  const boxSize = new DataView(head.buffer, head.byteOffset, head.byteLength).getUint32(0);
+  if (boxSize < 16 || boxSize > head.length) return false;
+  const brands = [ascii(head, 8, 12)];
+  for (let at = 16; at + 4 <= boxSize; at += 4) brands.push(ascii(head, at, at + 4));
+  return brands.some((brand) => HEIC_BRANDS.has(brand));
+}
+
 function textType(head: Uint8Array, truncated: boolean): SniffedType | null {
   if (UTF16_BOMS.some((bom) => startsWith(head, bom))) return NOT_UTF8_TEXT;
-  if (startsWith(head, PDF_MAGIC)) return null;
   const text = startsWith(head, UTF8_BOM) ? head.subarray(UTF8_BOM.length) : head;
   // Tab, line feed and carriage return are the only control characters a CSV contains.
   if (text.some((byte) => (byte < 0x20 && ![0x09, 0x0a, 0x0d].includes(byte)) || byte === 0x7f)) {
@@ -113,6 +143,10 @@ function centralDirectoryNames(directory: Uint8Array): Set<string> | null {
     at += 46 + nameLength + extraLength + commentLength;
   }
   return names;
+}
+
+function ascii(bytes: Uint8Array, start: number, end: number): string {
+  return String.fromCharCode(...bytes.subarray(start, end));
 }
 
 function startsWith(bytes: Uint8Array, prefix: readonly number[]): boolean {

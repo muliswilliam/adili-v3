@@ -1,8 +1,11 @@
-import type { Database } from '@adili/data-access';
+import { PLATFORM_TENANT } from '@adili/api-kit';
+import { type Database, withTenant } from '@adili/data-access';
+import type { EventPublisher } from '@adili/events';
 import { eq } from 'drizzle-orm';
 
 import type { DirectorySchema } from '../db/schema.js';
 import { PLATFORM_DEFAULT_POLICY } from './policy.js';
+import { createPolicyVersion, nairobiToday, readCurrentPolicy } from './policy-versions.js';
 import { commissionCategories, commissions, tenantPolicyVersions } from './schema.js';
 
 /** The tenants the demo accounts in the Keycloak realm import belong to. */
@@ -34,7 +37,7 @@ const SEEDED_BY = 'system:demo-seed';
  * they are, so it is safe to run on every `pnpm db:seed`.
  */
 export async function seedDemoCommissions(db: Database<DirectorySchema>): Promise<void> {
-  await db.transaction(async (tx) => {
+  await withTenant(db, { tenant: PLATFORM_TENANT, subject: SEEDED_BY }, async (tx) => {
     for (const demo of DEMO_COMMISSIONS) {
       await tx
         .insert(commissions)
@@ -59,6 +62,7 @@ export async function seedDemoCommissions(db: Database<DirectorySchema>): Promis
           tenant: demo.slug,
           version: 1,
           policy: PLATFORM_DEFAULT_POLICY,
+          obligationsStartDate: nairobiToday,
           createdBy: SEEDED_BY,
         })
         .onConflictDoNothing({
@@ -66,4 +70,48 @@ export async function seedDemoCommissions(db: Database<DirectorySchema>): Promis
         });
     }
   });
+}
+
+/**
+ * For the local reminder demo (#92): puts a policy version with `reminderOffsetsDays` in force for
+ * a demo Commission, the rest copied from the current one, and announces it
+ * (`directory.policy.changed.v1`) so the declarations service pulls it. Obligations created from
+ * then on are reminded at those offsets, e.g. 29 days before the due date for an officer appointed
+ * yesterday (an initial due in 29 days), so the reminder goes out today. `obligationsStartDate`
+ * (default: the current one) must not be after the demo officer's appointment, or no initial is
+ * owed; the seed sets it to the day the Commission was created. Changes nothing when both are in
+ * force already. Never run against real data: the product changes the
+ * obligations-start date only (spec 04).
+ */
+export async function useDemoReminderOffsets(
+  db: Database<DirectorySchema>,
+  events: EventPublisher,
+  {
+    tenant,
+    reminderOffsetsDays,
+    obligationsStartDate,
+  }: { tenant: string; reminderOffsetsDays: number[]; obligationsStartDate?: string },
+): Promise<void> {
+  await withTenant(db, { tenant: PLATFORM_TENANT, subject: SEEDED_BY }, async (tx) => {
+    const current = await readCurrentPolicy(tx, tenant);
+    const startDate = obligationsStartDate ?? current.obligationsStartDate;
+    if (
+      sameOffsets(current.reminderOffsetsDays, reminderOffsetsDays) &&
+      startDate === current.obligationsStartDate
+    ) {
+      return;
+    }
+    await createPolicyVersion(tx, events, {
+      tenant,
+      obligationsStartDate: startDate,
+      effectiveFrom: new Date(),
+      createdBy: SEEDED_BY,
+      createdByName: 'Reminder demo',
+      reminderOffsetsDays,
+    });
+  });
+}
+
+function sameOffsets(a: readonly number[], b: readonly number[]): boolean {
+  return a.length === b.length && a.every((days, index) => days === b[index]);
 }

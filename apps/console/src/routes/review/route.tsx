@@ -1,3 +1,4 @@
+import { SUPERVISOR } from '@adili/roles';
 import { Button } from '@adili/ui';
 import { createFileRoute, Link, Outlet } from '@tanstack/react-router';
 
@@ -23,7 +24,7 @@ export const Route = createFileRoute('/review')({
       viewer,
       roles,
       workspace: workspaceFor(roles, 'review') ?? null,
-      supervisor: roles.includes('supervisor'),
+      supervisor: roles.includes(SUPERVISOR),
     };
   },
   component: ReviewLayout,

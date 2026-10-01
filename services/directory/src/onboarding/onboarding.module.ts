@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { MESSAGES_SCOPE } from '@adili/roles';
 
 import { Clock, SystemClock } from '../clock.js';
 import { config } from '../config.js';
@@ -14,10 +15,7 @@ import { OnboardingFailures } from './failures/onboarding-failures.js';
 import { IdentifyController } from './identify/identify.controller.js';
 import { IdentifyService } from './identify/identify.service.js';
 import { iprsLookupProvider } from './iprs/iprs-lookup.provider.js';
-import {
-  NOTIFICATIONS_MESSAGES_SCOPE,
-  NotificationsOtpDelivery,
-} from './otp/notifications-otp-delivery.js';
+import { NotificationsOtpDelivery } from './otp/notifications-otp-delivery.js';
 import { OtpDelivery } from './otp/otp-delivery.js';
 import { OtpIssuer } from './otp/otp-issuer.js';
 import { PasswordEmailController } from './password-email/password-email.controller.js';
@@ -68,7 +66,7 @@ import { OnboardingSessions } from './sessions.repository.js';
       useFactory: () =>
         new NotificationsOtpDelivery({
           notificationsUrl: config.NOTIFICATIONS_URL,
-          tokens: directoryServiceTokens(NOTIFICATIONS_MESSAGES_SCOPE),
+          tokens: directoryServiceTokens(MESSAGES_SCOPE),
         }),
     },
     OnboardingSessions,

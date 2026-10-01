@@ -43,7 +43,7 @@ const LAST_USED_THROTTLE_SECONDS = 60;
  *
  * @example
  * @Post()
- * @Roles(REPORTING_OFFICER_ROLE)
+ * @Roles(REPORTING_OFFICER)
  * @HrSystemAccess('roster-write')
  * start() {}
  */

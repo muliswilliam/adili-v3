@@ -1,0 +1,1 @@
+ALTER TABLE "commission_refs" ADD COLUMN "last_roster_import_at" timestamp with time zone;

@@ -15,7 +15,7 @@ export interface paths {
         put?: never;
         /**
          * Reserve an upload and get a presigned PUT to quarantine
-         * @description The purpose's roles only (roster-import: reporting-officer). The PUT URL is valid for 15 minutes and accepts exactly the declared Content-Type and size.
+         * @description The purpose's roles only (roster-import: reporting-officer; declaration-attachment: declarant). The PUT URL is valid for 15 minutes and accepts exactly the declared Content-Type and size.
          */
         post: operations["createUpload"];
         delete?: never;
@@ -33,7 +33,7 @@ export interface paths {
         };
         /**
          * Upload state and metadata
-         * @description Uploads of the caller's tenant whose purpose the caller's roles cover; any other is 404.
+         * @description Uploads of the caller's tenant whose purpose the caller's roles cover, and declaration attachments only to the declarant who uploaded them; any other is 404.
          */
         get: operations["getUpload"];
         put?: never;
@@ -64,6 +64,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/internal/v1/uploads/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Upload state and metadata, for services
+         * @description Service tokens with scope documents:internal, acting for the tenant in X-Acting-Tenant. Any state; with who uploaded it and whether it is linked. Hands out no bytes, so unlike the download it is no audited read.
+         */
+        get: operations["getInternalUpload"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/internal/v1/uploads/{id}/download": {
         parameters: {
             query?: never;
@@ -78,6 +98,46 @@ export interface paths {
         get: operations["getUploadDownload"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/internal/v1/uploads/{id}/linked": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Record that the owning service linked a clean upload
+         * @description Service tokens with scope documents:internal, acting for the tenant in X-Acting-Tenant. The owning service calls it when it links a clean upload to its record (declarations: an attachment on an item), so the upload is not an orphan: a declaration attachment left unlinked for 30 days is deleted. Idempotent: the first link time is kept.
+         */
+        post: operations["markUploadLinked"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/internal/v1/uploads/{id}/unlinked": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Record that the owning service took its link to an upload back
+         * @description Service tokens with scope documents:internal, acting for the tenant in X-Acting-Tenant. The owning service calls it when it removes the record an upload was linked to (declarations: an attachment unlinked, or a draft discarded); a declaration attachment left unlinked for 30 days is deleted. Idempotent: an upload that is not linked is left as it is.
+         */
+        post: operations["markUploadUnlinked"];
         delete?: never;
         options?: never;
         head?: never;
@@ -181,9 +241,9 @@ export interface components {
          * @description Sets allowed content types and the size limit
          * @enum {string}
          */
-        UploadPurpose: "roster-import";
+        UploadPurpose: "roster-import" | "declaration-attachment";
         /** @enum {string} */
-        UploadState: "awaiting-upload" | "clean" | "infected" | "rejected" | "expired";
+        UploadState: "awaiting-upload" | "clean" | "infected" | "rejected" | "expired" | "deleted";
         /**
          * @description Why a rejected upload was refused: `type` the bytes are not the declared type; `encoding` a CSV that is not UTF-8 text (save it as CSV UTF-8); `size` over the limit or not the declared size; `missing` nothing was uploaded; `timeout` the checks did not finish
          * @enum {string}
@@ -248,6 +308,28 @@ export interface components {
             fileName: string | null;
             /** @description Sniffed content type, e.g. text/csv or the XLSX type */
             detectedType: string;
+        };
+        InternalUpload: {
+            /** Format: uuid */
+            id: string;
+            purpose: components["schemas"]["UploadPurpose"];
+            state: components["schemas"]["UploadState"];
+            rejection: components["schemas"]["UploadRejection"] | null;
+            /** @description Declared type; detectedType is set after completion */
+            contentType: string;
+            detectedType: string | null;
+            declaredSize: number;
+            size: number | null;
+            /** @description Hex digest, set when clean */
+            sha256: string | null;
+            fileName: string | null;
+            /** Format: date-time */
+            createdAt: string;
+            completedAt: string | null;
+            /** @description Token subject (`sub`) of the caller who reserved the upload */
+            uploadedBy: string;
+            /** @description When the owning service linked it to its record; null while unlinked */
+            linkedAt: string | null;
         };
         ProblemDetails: {
             type: string;
@@ -499,6 +581,58 @@ export interface operations {
             };
         };
     };
+    getInternalUpload: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Tenant the calling service acts for; the resource must belong to it */
+                "X-Acting-Tenant": string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The upload */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InternalUpload"];
+                };
+            };
+            /** @description X-Acting-Tenant is missing or not a tenant key */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Requires a service token with scope documents:internal */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not found, or not the acting tenant's upload */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
     getUploadDownload: {
         parameters: {
             query?: never;
@@ -551,6 +685,115 @@ export interface operations {
             };
             /** @description Problem type `upload-not-clean`: the upload is not clean */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    markUploadLinked: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Tenant the calling service acts for; the resource must belong to it */
+                "X-Acting-Tenant": string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Link recorded */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description X-Acting-Tenant is missing or not a tenant key */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Requires a service token with scope documents:internal */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not found, or not the acting tenant's upload */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Problem type `upload-not-clean`: the upload is not clean */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    markUploadUnlinked: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Tenant the calling service acts for; the resource must belong to it */
+                "X-Acting-Tenant": string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Link taken back */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description X-Acting-Tenant is missing or not a tenant key */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Requires a service token with scope documents:internal */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not found, or not the acting tenant's upload */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };

@@ -1,10 +1,10 @@
+import { PLATFORM_TENANT } from '@adili/api-kit';
 import { randomUUID } from 'node:crypto';
 
 import { withTenant } from '@adili/data-access';
 import { eq, sql } from 'drizzle-orm';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
-import { PLATFORM_TENANT } from '../../src/commissions/access.js';
 import { commissions, reportingOfficerAssignments } from '../../src/db/schema.js';
 import { type DirectoryApi, startDirectoryApi } from '../support/directory-api.js';
 import { givenCommissions } from '../support/fixtures.js';

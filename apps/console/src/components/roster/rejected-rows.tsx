@@ -259,7 +259,7 @@ function RowsUnavailable({ failure, onRetry }: { failure: RowsFailure; onRetry: 
 
 function RowsSkeleton({ rows }: { rows: number }) {
   return (
-    <div aria-busy="true" aria-label={m.rowsLoading} className="divide-y">
+    <div role="status" aria-busy="true" aria-label={m.rowsLoading} className="divide-y">
       {Array.from({ length: rows }, (_, index) => (
         <div key={index} className="flex items-center gap-6 px-4 py-3.5">
           <Skeleton className="h-4 w-12" />

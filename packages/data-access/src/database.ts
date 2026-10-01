@@ -42,6 +42,12 @@ export interface TenantContext {
   subject: string;
 }
 
+export interface PersonContext {
+  /** The declarant's person, from the token's `person_id` claim (`Principal.personId`). */
+  personId: string;
+  subject: string;
+}
+
 type Transaction<TSchema extends Record<string, unknown>> = Parameters<
   Parameters<Database<TSchema>['transaction']>[0]
 >[0];
@@ -58,6 +64,27 @@ export async function withTenant<TSchema extends Record<string, unknown>, TResul
 ): Promise<TResult> {
   return db.transaction(async (tx) => {
     await switchTenant(tx, context);
+    return work(tx);
+  });
+}
+
+/**
+ * Runs `work` in a transaction scoped to one person, for a declarant's own data across
+ * Commissions (ADR-018). Person policies read `app.person` (and `app.subject`), reset when the transaction
+ * ends as with `withTenant`; `app.tenant` stays unset, so tenant policies admit nothing.
+ *
+ * A reset setting reads back as `''`, not null, on a connection that has had it: policies compare
+ * with `nullif(current_setting('app.person', true), '')::uuid` so they neither fail nor match then.
+ */
+export async function withPerson<TSchema extends Record<string, unknown>, TResult>(
+  db: Database<TSchema>,
+  context: PersonContext,
+  work: (tx: Transaction<TSchema>) => Promise<TResult>,
+): Promise<TResult> {
+  return db.transaction(async (tx) => {
+    await tx.execute(
+      sql`select set_config('app.person', ${context.personId}, true), set_config('app.subject', ${context.subject}, true)`,
+    );
     return work(tx);
   });
 }

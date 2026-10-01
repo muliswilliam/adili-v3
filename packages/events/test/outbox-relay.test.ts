@@ -1,103 +1,126 @@
-import 'reflect-metadata';
-
 import type { ClientProxy } from '@nestjs/microservices';
 import type { Database } from '@adili/data-access';
-import { Observable } from 'rxjs';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { from, NEVER, type Observable, of } from 'rxjs';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { OutboxRelay } from '../src/events.module.js';
+import { OutboxRelay, RELAY_PUBLISH_TIMEOUT_MS } from '../src/events.module.js';
 
-/** A query builder that resolves to `result` whichever chain of calls ends in `await`. */
-function query(result: unknown): unknown {
-  const builder: object = new Proxy(() => undefined, {
-    get: (_, key) =>
-      key === 'then'
-        ? (resolve: (value: unknown) => void) => {
-            resolve(result);
-          }
-        : () => builder,
-  });
-  return builder;
+interface Row {
+  id: string;
+  eventType: string;
+  envelope: object;
 }
 
-/** A database whose relay transaction claims `rows`, and reports when the transaction ends. */
-function fakeDatabase(rows: { id: string }[]) {
-  let ended!: () => void;
-  const transactionEnded = new Promise<void>((resolve) => (ended = resolve));
-  const tx = { select: () => query(rows), update: () => query(undefined) };
+/**
+ * A database whose transactions claim `rows` once and record each row update; `open` counts the
+ * transactions not yet ended.
+ */
+function fakeDatabase(rows: Row[]) {
+  const updates: Record<string, unknown>[] = [];
+  let claimed = false;
+  const state = { open: 0 };
+  const tx = {
+    select: () => ({
+      from: () => ({
+        where: () => ({
+          orderBy: () => ({
+            limit: () => ({
+              for: () => {
+                const batch = claimed ? [] : rows;
+                claimed = true;
+                return Promise.resolve(batch);
+              },
+            }),
+          }),
+        }),
+      }),
+    }),
+    update: () => ({
+      set: (values: Record<string, unknown>) => ({
+        where: () => {
+          updates.push(values);
+          return Promise.resolve();
+        },
+      }),
+    }),
+  };
   const db = {
-    transaction: async (work: (t: typeof tx) => Promise<unknown>) => {
+    transaction: async <T>(work: (t: typeof tx) => Promise<T>): Promise<T> => {
+      state.open += 1;
       try {
         return await work(tx);
       } finally {
-        ended();
+        state.open -= 1;
       }
     },
   };
-  return { db: db as unknown as Database, transactionEnded };
+  return { db: db as unknown as Database, updates, state };
 }
 
-/** A broker client whose publishes each wait for `release`. */
-function fakeClient() {
-  const pending: (() => void)[] = [];
-  const emit = vi.fn(
-    () =>
-      new Observable<void>((subscriber) => {
-        pending.push(() => {
-          subscriber.complete();
-        });
-      }),
-  );
-  return {
-    client: { emit } as unknown as ClientProxy,
-    emit,
-    release: () => pending.shift()?.(),
-  };
+function client(emit: (eventType: string) => Observable<unknown>): ClientProxy {
+  return { emit } as unknown as ClientProxy;
 }
 
-const rows = [{ id: 'a' }, { id: 'b' }, { id: 'c' }].map((row) => ({
-  ...row,
-  eventType: 'test.v1',
-  envelope: {},
-}));
+const row = (id: string): Row => ({ id, eventType: 'test.happened.v1', envelope: { id } });
 
 describe('OutboxRelay', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+
   afterEach(() => {
     vi.useRealTimers();
   });
 
-  it('waits for the publish in flight, then stops the batch before the next row', async () => {
-    vi.useFakeTimers();
-    const { db, transactionEnded } = fakeDatabase(rows);
-    const { client, emit, release } = fakeClient();
-    const relay = new OutboxRelay(db, client);
+  it('counts a publish the broker never confirms as failed, so shutdown ends its transaction', async () => {
+    const { db, updates, state } = fakeDatabase([row('a')]);
+    const relay = new OutboxRelay(
+      db,
+      client(() => NEVER),
+    );
 
     relay.onApplicationBootstrap();
     await vi.advanceTimersByTimeAsync(0);
-    expect(emit).toHaveBeenCalledTimes(1);
+    expect(state.open).toBe(1);
 
-    let shutDown = false;
-    const shutdown = relay.beforeApplicationShutdown().then(() => (shutDown = true));
-    await vi.advanceTimersByTimeAsync(0);
-    // The broker client and the pool close after this hook: it must outlast the open batch.
-    expect(shutDown).toBe(false);
-
-    release();
+    let closed = false;
+    const shutdown = relay.beforeApplicationShutdown().then(() => {
+      closed = true;
+    });
+    await vi.advanceTimersByTimeAsync(RELAY_PUBLISH_TIMEOUT_MS - 1);
+    expect(closed).toBe(false);
+    await vi.advanceTimersByTimeAsync(1);
     await shutdown;
-    await transactionEnded;
-    expect(emit).toHaveBeenCalledTimes(1);
+
+    expect(state.open).toBe(0);
+    expect(updates).toEqual([
+      expect.objectContaining({ lastError: expect.stringContaining('Timeout') as unknown }),
+    ]);
   });
 
-  it('gives up on a publish that never settles, ending the batch and its transaction', async () => {
-    vi.useFakeTimers();
-    const { db, transactionEnded } = fakeDatabase(rows);
-    const { client, emit } = fakeClient();
-    const relay = new OutboxRelay(db, client);
+  it('stops before the next row once shutting down, leaving the rest unpublished', async () => {
+    const { db, updates, state } = fakeDatabase([row('a'), row('b')]);
+    const emitted: string[] = [];
+    let release: () => void = () => undefined;
+    const confirmed = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const relay = new OutboxRelay(
+      db,
+      client((eventType) => {
+        emitted.push(eventType);
+        return emitted.length === 1 ? from(confirmed) : of(undefined);
+      }),
+    );
 
     relay.onApplicationBootstrap();
-    await vi.advanceTimersByTimeAsync(10_000);
-    await transactionEnded;
-    expect(emit).toHaveBeenCalledTimes(1);
-    await relay.beforeApplicationShutdown();
+    await vi.advanceTimersByTimeAsync(0);
+    const shutdown = relay.beforeApplicationShutdown();
+    release();
+    await shutdown;
+
+    expect(emitted).toHaveLength(1);
+    expect(updates).toEqual([{ publishedAt: expect.any(Date) as unknown }]);
+    expect(state.open).toBe(0);
   });
 });

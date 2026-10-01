@@ -1,19 +1,13 @@
 import { Controller, Get, Query, StreamableFile } from '@nestjs/common';
 import { ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { ApiProblemResponse, ApiQueryParameters, Roles, ZodValidationPipe } from '@adili/api-kit';
+import { COMMISSION_ROSTER_ROLES, NATIONAL_ROLES } from '@adili/roles';
 import { z } from 'zod';
 
-import { REPORTING_OFFICER_ROLE } from '../commissions/access.js';
 import { ROSTER_TEMPLATE_FORMATS, rosterTemplate } from './template.js';
 
 /** Roles that may download the roster template (spec 02 authorisation matrix). */
-export const ROSTER_TEMPLATE_ROLES = [
-  REPORTING_OFFICER_ROLE,
-  'commission-admin',
-  'platform-admin',
-  'eacc-analyst',
-  'eacc-supervisor',
-] as const;
+export const ROSTER_TEMPLATE_ROLES = [...COMMISSION_ROSTER_ROLES, ...NATIONAL_ROLES] as const;
 
 const rosterTemplateQuery = z.object({
   format: z.enum(ROSTER_TEMPLATE_FORMATS).meta({ description: 'File format of the template' }),

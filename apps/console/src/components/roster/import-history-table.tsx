@@ -1,5 +1,6 @@
 import {
   cn,
+  formatDateTime,
   Icon,
   Skeleton,
   Table,
@@ -14,7 +15,7 @@ import { ServerStack01Icon } from '@hugeicons/core-free-icons';
 import { Link } from '@tanstack/react-router';
 
 import type { RosterImport } from '../../server/directory/client';
-import { formatDateTime, formatNumber } from '../format';
+import { formatNumber } from '../format';
 import { ImportChannelBadge, ImportStateBadge } from './roster-badges';
 import { importProgress } from './import-progress';
 import { importRunning } from './import-report';

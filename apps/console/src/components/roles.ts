@@ -1,35 +1,50 @@
+import {
+  ACCESS_OFFICER,
+  AUDITOR,
+  COMMISSION_ADMIN,
+  DECLARANT,
+  EACC_ANALYST,
+  EACC_SUPERVISOR,
+  HELPDESK,
+  LAW_ENFORCEMENT,
+  PLATFORM_ADMIN,
+  REPORTING_OFFICER,
+  REVIEWER,
+  SUPERVISOR,
+} from '@adili/roles';
+
 /**
  * Realm roles as people read them (infra/compose/keycloak/adili-realm.json). The one place the
  * console turns a role into words; unknown roles fall back to their name in sentence case.
  */
 const ROLE_LABELS: Readonly<Record<string, string>> = {
-  declarant: 'Declarant',
-  'reporting-officer': 'Reporting officer',
-  reviewer: 'Reviewer',
-  supervisor: 'Supervisor',
-  'commission-admin': 'Commission administrator',
-  'access-officer': 'Access officer',
-  'eacc-analyst': 'EACC analyst',
-  'eacc-supervisor': 'EACC supervisor',
-  auditor: 'Auditor',
-  helpdesk: 'Helpdesk',
-  'platform-admin': 'Platform administrator',
-  'law-enforcement': 'Law enforcement',
+  [DECLARANT]: 'Declarant',
+  [REPORTING_OFFICER]: 'Reporting officer',
+  [REVIEWER]: 'Reviewer',
+  [SUPERVISOR]: 'Supervisor',
+  [COMMISSION_ADMIN]: 'Commission administrator',
+  [ACCESS_OFFICER]: 'Access officer',
+  [EACC_ANALYST]: 'EACC analyst',
+  [EACC_SUPERVISOR]: 'EACC supervisor',
+  [AUDITOR]: 'Auditor',
+  [HELPDESK]: 'Helpdesk',
+  [PLATFORM_ADMIN]: 'Platform administrator',
+  [LAW_ENFORCEMENT]: 'Law enforcement',
 };
 
 /** Console roles, most senior first, for naming a user by one role (sidebar footer). */
 const SENIORITY = [
-  'platform-admin',
-  'eacc-supervisor',
-  'eacc-analyst',
-  'commission-admin',
-  'supervisor',
-  'reviewer',
-  'reporting-officer',
-  'access-officer',
-  'law-enforcement',
-  'auditor',
-  'helpdesk',
+  PLATFORM_ADMIN,
+  EACC_SUPERVISOR,
+  EACC_ANALYST,
+  COMMISSION_ADMIN,
+  SUPERVISOR,
+  REVIEWER,
+  REPORTING_OFFICER,
+  ACCESS_OFFICER,
+  LAW_ENFORCEMENT,
+  AUDITOR,
+  HELPDESK,
 ] as const;
 
 /** The label of a user's most senior console role, or null when they hold none. */

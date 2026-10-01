@@ -13,9 +13,6 @@ import {
 } from './roster-uploads.js';
 import { uploadDownloadSchema } from './upload-download.js';
 
-/** The scope the directory's service token needs for documents' internal API (decision 2). */
-export const DOCUMENTS_INTERNAL_SCOPE = 'documents:internal';
-
 export interface HttpRosterUploadsOptions {
   /** Base URL of the documents service, e.g. `http://localhost:4006`. */
   documentsUrl: string;

@@ -311,6 +311,205 @@ paths:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/ProblemDetails'
+  /v1/commissions/{slug}/policy:
+    get:
+      tags:
+        - policy
+      summary: Current policy version and history for a Commission
+      description: Staff of the Commission; platform-admin, eacc-analyst and eacc-supervisor for every Commission. The console's policy card reads it.
+      operationId: getTenantPolicy
+      parameters:
+        - name: slug
+          required: true
+          in: path
+          schema:
+            $ref: '#/components/schemas/Slug'
+      responses:
+        '200':
+          description: Current version and previous versions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TenantPolicyHistory'
+        '403':
+          description: 'Requires one of the roles: platform-admin, eacc-analyst, eacc-supervisor, reporting-officer, reviewer, supervisor, commission-admin, access-officer, auditor, helpdesk'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: Not found, or not visible to the caller
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+  /v1/commissions/{slug}/policy/versions:
+    post:
+      tags:
+        - policy
+      summary: Create a new policy version (only obligationsStartDate is editable in this slice)
+      description: The commission-admin of the tenant, or a platform-admin. Other fields are copied from the current version; the new one is in force from now and `directory.policy.changed.v1` announces it. Idempotent per Idempotency-Key.
+      operationId: createTenantPolicyVersion
+      parameters:
+        - name: slug
+          required: true
+          in: path
+          schema:
+            $ref: '#/components/schemas/Slug'
+        - name: Idempotency-Key
+          in: header
+          description: Client-generated UUID, unique per logical request; reuse on retry
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateTenantPolicyVersion'
+      responses:
+        '201':
+          description: New version in force
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TenantPolicyVersion'
+        '400':
+          description: Request failed validation
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '403':
+          description: 'Requires one of the roles: commission-admin, platform-admin'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: Not found, or another Commission's
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '422':
+          description: Idempotency-Key reused with a different request body
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+  /internal/v1/commissions/{slug}/policy:
+    get:
+      tags:
+        - internal
+      summary: Current policy version for a Commission (services)
+      description: Service tokens with scope directory:internal, acting for the Commission in X-Acting-Tenant. Pull it again on `directory.policy.changed.v1`.
+      operationId: internalGetTenantPolicy
+      parameters:
+        - name: X-Acting-Tenant
+          in: header
+          description: Tenant the calling service acts for; the resource must belong to it
+          required: true
+          schema:
+            type: string
+            pattern: ^[a-z][a-z0-9]{1,19}$
+        - name: slug
+          required: true
+          in: path
+          schema:
+            $ref: '#/components/schemas/Slug'
+      responses:
+        '200':
+          description: Current version
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TenantPolicyVersion'
+        '400':
+          description: X-Acting-Tenant is missing or not a tenant key
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '403':
+          description: Requires a service token with scope directory:internal
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: Not found, or not the acting tenant
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+  /internal/v1/commissions/{slug}:
+    get:
+      tags:
+        - internal
+      summary: Slug, issuer code and name of a Commission (services)
+      description: Service tokens with scope directory:internal, acting for the Commission in X-Acting-Tenant. E.g. declarations names the Commission of each obligation.
+      operationId: internalGetCommission
+      parameters:
+        - name: X-Acting-Tenant
+          in: header
+          description: Tenant the calling service acts for; the resource must belong to it
+          required: true
+          schema:
+            type: string
+            pattern: ^[a-z][a-z0-9]{1,19}$
+        - name: slug
+          required: true
+          in: path
+          schema:
+            $ref: '#/components/schemas/Slug'
+      responses:
+        '200':
+          description: The Commission
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InternalCommission'
+        '400':
+          description: X-Acting-Tenant is missing or not a tenant key
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '403':
+          description: Requires a service token with scope directory:internal
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: Not found, or not the acting tenant
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+  /internal/v1/commissions:
+    get:
+      tags:
+        - internal
+      summary: Slug, issuer code and name of every Commission (services)
+      description: Service tokens with scope directory:internal; no X-Acting-Tenant (platform reference data, no personal data). E.g. declarations lists Commissions without a roster yet in the national obligations summary.
+      operationId: internalListCommissions
+      responses:
+        '200':
+          description: Every Commission, by slug
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InternalCommissionList'
+        '403':
+          description: 'Requires one of the scopes: directory:internal'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
   /v1/roster/template:
     get:
       tags:
@@ -1322,6 +1521,137 @@ paths:
                 $ref: '#/components/schemas/ProblemDetails'
       x-audited-read:
         action: roster.record.viewed
+        resource: roster-record
+  /internal/v1/commissions/{slug}/roster/records:
+    get:
+      tags:
+        - internal
+      summary: Roster records touched by an import or an exit batch (services)
+      description: Service tokens with scope directory:internal, acting for the Commission in X-Acting-Tenant; audited. Exactly one of importId and exitBatchId. Each record as it is now, up to 1,000 per page.
+      operationId: internalListRosterRecords
+      parameters:
+        - name: X-Acting-Tenant
+          in: header
+          description: Tenant the calling service acts for; the resource must belong to it
+          required: true
+          schema:
+            type: string
+            pattern: ^[a-z][a-z0-9]{1,19}$
+        - name: slug
+          required: true
+          in: path
+          schema:
+            $ref: '#/components/schemas/Slug'
+        - name: importId
+          required: false
+          in: query
+          description: The records the import had a row for (`roster.import.completed.v1`), in row order. Import rows are kept 30 days after the import ends.
+          schema:
+            type: string
+            format: uuid
+        - name: exitBatchId
+          required: false
+          in: query
+          description: The records the exit confirmation exited (`roster.exits.confirmed.v1` `batchId`), in id order
+          schema:
+            type: string
+            format: uuid
+        - name: cursor
+          required: false
+          in: query
+          description: '`nextCursor` of the previous page; omit for the first page'
+          schema:
+            type: string
+            maxLength: 500
+        - name: limit
+          required: false
+          in: query
+          schema:
+            default: 1000
+            type: integer
+            minimum: 1
+            maximum: 1000
+      responses:
+        '200':
+          description: Page of records
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InternalRosterRecordPage'
+        '400':
+          description: 'Query failed validation: not exactly one of importId and exitBatchId, or an unknown cursor'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '403':
+          description: Requires a service token with scope directory:internal
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: No such import or exit batch of the acting tenant's Commission
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+      x-audited-read:
+        action: roster.records.pulled
+        resource: roster-record
+  /internal/v1/commissions/{slug}/roster/records/{recordId}:
+    get:
+      tags:
+        - internal
+      summary: One roster record (services)
+      description: Service tokens with scope directory:internal, acting for the Commission in X-Acting-Tenant; audited. E.g. after `declarant.onboarded.v1`.
+      operationId: internalGetRosterRecord
+      parameters:
+        - name: X-Acting-Tenant
+          in: header
+          description: Tenant the calling service acts for; the resource must belong to it
+          required: true
+          schema:
+            type: string
+            pattern: ^[a-z][a-z0-9]{1,19}$
+        - name: slug
+          required: true
+          in: path
+          schema:
+            $ref: '#/components/schemas/Slug'
+        - name: recordId
+          required: true
+          in: path
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: The record
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InternalRosterRecord'
+        '400':
+          description: recordId is not a UUID
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '403':
+          description: Requires a service token with scope directory:internal
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: No such record in the acting tenant's Commission
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+      x-audited-read:
+        action: roster.record.pulled
         resource: roster-record
   /v1/commissions/{slug}/roster/exits:
     post:
@@ -2363,6 +2693,55 @@ paths:
       x-audited-read:
         action: person.looked-up
         resource: person
+  /internal/v1/persons/{personId}/contacts:
+    get:
+      tags:
+        - internal
+      summary: Verified contacts of a person (notifications)
+      description: Service tokens with scope directory:person-contacts (the notifications service only), acting for the tenant a message is sent for; audited. The email and phone verified at the latest onboarding, null where none. 404 when the person is unknown or not onboarded at that tenant.
+      operationId: internalGetPersonContacts
+      parameters:
+        - name: X-Acting-Tenant
+          in: header
+          description: Tenant the calling service acts for; the resource must belong to it
+          required: true
+          schema:
+            type: string
+            pattern: ^[a-z][a-z0-9]{1,19}$
+        - name: personId
+          required: true
+          in: path
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Contacts, null where none is verified
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PersonContacts'
+        '400':
+          description: personId is not a UUID
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '403':
+          description: Requires a service token with scope directory:person-contacts
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: No person has this id, or not one onboarded at the acting tenant
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+      x-audited-read:
+        action: person.contacts.read
+        resource: person
   /v1/onboarding/applicants:
     post:
       tags:
@@ -2539,200 +2918,6 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
-  /v1/commissions/{slug}/policy:
-    parameters:
-      - $ref: '#/components/parameters/Slug'
-    get:
-      tags:
-        - policy
-      summary: Current policy version and history for a Commission
-      operationId: getTenantPolicy
-      x-draft: true
-      responses:
-        '200':
-          description: Current version and previous versions
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/TenantPolicyHistory'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '404':
-          $ref: '#/components/responses/NotFound'
-  /v1/commissions/{slug}/policy/versions:
-    parameters:
-      - $ref: '#/components/parameters/Slug'
-    post:
-      tags:
-        - policy
-      summary: Create a new policy version (only obligationsStartDate is editable in this slice)
-      description: commission-admin of the tenant or platform-admin. Other fields are copied from the current version.
-      operationId: createTenantPolicyVersion
-      x-draft: true
-      parameters:
-        - $ref: '#/components/parameters/IdempotencyKey'
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required:
-                - obligationsStartDate
-              properties:
-                obligationsStartDate:
-                  type: string
-                  format: date
-      responses:
-        '201':
-          description: New version in force
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/TenantPolicyVersion'
-        '400':
-          $ref: '#/components/responses/ValidationProblem'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '404':
-          $ref: '#/components/responses/NotFound'
-  /internal/v1/commissions/{slug}/policy:
-    parameters:
-      - $ref: '#/components/parameters/Slug'
-    get:
-      tags:
-        - internal
-      summary: Current policy version for a Commission (services)
-      operationId: internalGetTenantPolicy
-      x-draft: true
-      responses:
-        '200':
-          description: Current version
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/TenantPolicyVersion'
-        '404':
-          $ref: '#/components/responses/NotFound'
-  /internal/v1/commissions/{slug}/roster/records:
-    parameters:
-      - $ref: '#/components/parameters/Slug'
-    get:
-      tags:
-        - internal
-      summary: Roster records touched by an import or an exit batch (services)
-      operationId: internalListRosterRecords
-      x-draft: true
-      parameters:
-        - name: importId
-          in: query
-          schema:
-            type: string
-            format: uuid
-        - name: exitBatchId
-          in: query
-          schema:
-            type: string
-            format: uuid
-        - name: state
-          in: query
-          schema:
-            $ref: '#/components/schemas/RosterRecordState'
-        - name: cursor
-          in: query
-          schema:
-            type: string
-        - name: limit
-          in: query
-          schema:
-            type: integer
-            minimum: 1
-            maximum: 1000
-            default: 1000
-      responses:
-        '200':
-          description: Page of full records
-          content:
-            application/json:
-              schema:
-                type: object
-                required:
-                  - items
-                  - nextCursor
-                properties:
-                  items:
-                    type: array
-                    items:
-                      $ref: '#/components/schemas/InternalRosterRecord'
-                  nextCursor:
-                    type:
-                      - string
-                      - 'null'
-        '404':
-          $ref: '#/components/responses/NotFound'
-  /internal/v1/commissions/{slug}/roster/records/{recordId}:
-    parameters:
-      - $ref: '#/components/parameters/Slug'
-      - name: recordId
-        in: path
-        required: true
-        schema:
-          type: string
-          format: uuid
-    get:
-      tags:
-        - internal
-      summary: One roster record (services)
-      operationId: internalGetRosterRecord
-      x-draft: true
-      responses:
-        '200':
-          description: The record
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/InternalRosterRecord'
-        '404':
-          $ref: '#/components/responses/NotFound'
-  /internal/v1/persons/{personId}/contacts:
-    parameters:
-      - name: personId
-        in: path
-        required: true
-        schema:
-          type: string
-          format: uuid
-    get:
-      tags:
-        - internal
-      summary: Verified contacts of a person (notifications)
-      operationId: internalGetPersonContacts
-      x-draft: true
-      responses:
-        '200':
-          description: Contacts, null where none is verified
-          content:
-            application/json:
-              schema:
-                type: object
-                required:
-                  - personId
-                  - email
-                  - phone
-                properties:
-                  personId:
-                    type: string
-                    format: uuid
-                  email:
-                    type:
-                      - string
-                      - 'null'
-                  phone:
-                    type:
-                      - string
-                      - 'null'
-        '404':
-          $ref: '#/components/responses/NotFound'
 components:
   securitySchemes:
     bearer:
@@ -2776,6 +2961,12 @@ components:
           type:
             - integer
             - 'null'
+        personId:
+          anyOf:
+            - type: string
+              format: uuid
+            - type: 'null'
+          description: Person the declarant account is linked to (`person_id`); null for staff
       required:
         - subject
         - tenant
@@ -2784,6 +2975,7 @@ components:
         - clientId
         - name
         - issuedAt
+        - personId
     Slug:
       type: string
       pattern: ^[a-z][a-z0-9]{1,19}$
@@ -3038,6 +3230,148 @@ components:
         - items
         - nextCursor
         - total
+    InternalCommission:
+      type: object
+      properties:
+        slug:
+          $ref: '#/components/schemas/Slug'
+        issuerCode:
+          type: string
+          description: slug upper-cased
+          examples:
+            - TSC
+        name:
+          type: string
+      required:
+        - slug
+        - issuerCode
+        - name
+    InternalCommissionList:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/InternalCommission'
+      required:
+        - items
+    TenantPolicyVersion:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        version:
+          type: integer
+          description: 1 when the Commission is provisioned, then one per change
+        effectiveFrom:
+          type: string
+          format: date-time
+          description: In force from its creation
+        obligationsStartDate:
+          type: string
+          format: date
+          description: Obligations of every type (initial, biennial, final) are created only for statement dates on or after this date; earlier ones are assumed declared outside Adili. Version 1's is the date the Commission was created (Africa/Nairobi).
+        initialDueAfterAppointmentDays:
+          type: integer
+          description: Initial declaration due this many days after appointment (Act s.34(1))
+        biennial:
+          type: object
+          properties:
+            statementDate:
+              type: string
+              pattern: ^\d{2}-\d{2}$
+              description: Month-day
+              examples:
+                - 11-01
+            dueDate:
+              type: string
+              pattern: ^\d{2}-\d{2}$
+              description: Month-day
+              examples:
+                - 12-31
+          required:
+            - statementDate
+            - dueDate
+          description: Biennial declaration statement and due dates (Act s.34(2))
+        finalDueAfterExitDays:
+          type: integer
+          description: Final declaration due this many days after leaving office (Act s.34(3))
+        reminderOffsetsDays:
+          type: array
+          items:
+            type: integer
+          description: Reminders go this many days before a due date
+          examples:
+            - - 30
+              - 14
+              - 7
+        clarification:
+          type: object
+          properties:
+            issueWindowMonths:
+              type: integer
+            replyWindowDays:
+              type: integer
+          required:
+            - issueWindowMonths
+            - replyWindowDays
+          description: Clarification issue window and the declarant's reply window (Act s.35)
+        formMDue:
+          type: string
+          pattern: ^\d{2}-\d{2}$
+          description: Form M compliance report due, month-day (Regs r.25(2))
+          examples:
+            - 07-31
+        createdBy:
+          type: string
+          description: '`sub` of who created the version'
+        createdByName:
+          description: Their display name at the time; null when unknown
+          type:
+            - string
+            - 'null'
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - version
+        - effectiveFrom
+        - obligationsStartDate
+        - initialDueAfterAppointmentDays
+        - biennial
+        - finalDueAfterExitDays
+        - reminderOffsetsDays
+        - clarification
+        - formMDue
+        - createdBy
+        - createdByName
+        - createdAt
+    TenantPolicyHistory:
+      type: object
+      properties:
+        current:
+          description: The version in force
+          $ref: '#/components/schemas/TenantPolicyVersion'
+        previous:
+          type: array
+          items:
+            $ref: '#/components/schemas/TenantPolicyVersion'
+          description: Earlier versions, newest first
+      required:
+        - current
+        - previous
+    CreateTenantPolicyVersion:
+      type: object
+      properties:
+        obligationsStartDate:
+          type: string
+          format: date
+          description: Obligations of every type are created only for statement dates on or after this date (appointments, biennial statement dates and exits). Earlier ones are assumed declared outside Adili.
+      required:
+        - obligationsStartDate
+      additionalProperties: false
     RosterApiCredential:
       type: object
       properties:
@@ -4069,6 +4403,94 @@ components:
       required:
         - items
         - nextCursor
+    InternalRosterRecord:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        tenant:
+          $ref: '#/components/schemas/Slug'
+        personnelFileNumber:
+          type: string
+        fullName:
+          type: string
+        designation:
+          type:
+            - string
+            - 'null'
+        jobGroup:
+          type:
+            - string
+            - 'null'
+        reportingEntity:
+          anyOf:
+            - $ref: '#/components/schemas/ReportingEntityRef'
+            - type: 'null'
+        state:
+          $ref: '#/components/schemas/RosterRecordState'
+        appointmentDate:
+          anyOf:
+            - type: string
+              format: date
+            - type: 'null'
+          description: Null when the roster gives none
+        exitDate:
+          anyOf:
+            - type: string
+              format: date
+            - type: 'null'
+          description: Set while the record is exited
+        personId:
+          anyOf:
+            - type: string
+              format: uuid
+            - type: 'null'
+          description: The declarant the record is onboarded as; kept when it exits
+        ofr:
+          anyOf:
+            - $ref: '#/components/schemas/Ofr'
+            - type: 'null'
+          description: The declarant's officer reference
+        onboardedAt:
+          anyOf:
+            - type: string
+              format: date-time
+            - type: 'null'
+        updatedAt:
+          type: string
+          format: date-time
+          description: Last change to the record
+      required:
+        - id
+        - tenant
+        - personnelFileNumber
+        - fullName
+        - designation
+        - jobGroup
+        - reportingEntity
+        - state
+        - appointmentDate
+        - exitDate
+        - personId
+        - ofr
+        - onboardedAt
+        - updatedAt
+    InternalRosterRecordPage:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/InternalRosterRecord'
+        nextCursor:
+          description: Pass as `cursor` for the next page; null on the last page
+          type:
+            - string
+            - 'null'
+      required:
+        - items
+        - nextCursor
     ConfirmExits:
       type: object
       properties:
@@ -4611,6 +5033,26 @@ components:
         - fullName
         - commissions
         - createdAt
+    PersonContacts:
+      type: object
+      properties:
+        personId:
+          type: string
+          format: uuid
+        email:
+          description: Verified at onboarding; null when none
+          type:
+            - string
+            - 'null'
+        phone:
+          description: E.164, verified at onboarding; null when none
+          type:
+            - string
+            - 'null'
+      required:
+        - personId
+        - email
+        - phone
     VerifyOnboardingOtp:
       type: object
       properties:
@@ -4738,117 +5180,7 @@ components:
             - string
             - 'null'
           format: date-time
-    TenantPolicyVersion:
-      type: object
-      required:
-        - id
-        - version
-        - effectiveFrom
-        - obligationsStartDate
-        - initialDueAfterAppointmentDays
-        - biennial
-        - finalDueAfterExitDays
-        - reminderOffsetsDays
-        - clarification
-        - formMDue
-        - createdBy
-        - createdAt
-      properties:
-        id:
-          type: string
-          format: uuid
-        version:
-          type: integer
-        effectiveFrom:
-          type: string
-          format: date-time
-        obligationsStartDate:
-          type: string
-          format: date
-          description: Initial-declaration obligations are created only for appointments on or after this date
-        initialDueAfterAppointmentDays:
-          type: integer
-        biennial:
-          type: object
-          required:
-            - statementDate
-            - dueDate
-          properties:
-            statementDate:
-              type: string
-              description: Month-day, e.g. 11-01
-            dueDate:
-              type: string
-              description: Month-day, e.g. 12-31
-        finalDueAfterExitDays:
-          type: integer
-        reminderOffsetsDays:
-          type: array
-          items:
-            type: integer
-        clarification:
-          type: object
-          required:
-            - issueWindowMonths
-            - replyWindowDays
-          properties:
-            issueWindowMonths:
-              type: integer
-            replyWindowDays:
-              type: integer
-        formMDue:
-          type: string
-          description: Month-day, e.g. 07-31
-        createdBy:
-          type: string
-        createdAt:
-          type: string
-          format: date-time
-    TenantPolicyHistory:
-      type: object
-      required:
-        - current
-        - previous
-      properties:
-        current:
-          $ref: '#/components/schemas/TenantPolicyVersion'
-        previous:
-          type: array
-          items:
-            $ref: '#/components/schemas/TenantPolicyVersion'
-    InternalRosterRecord:
-      allOf:
-        - $ref: '#/components/schemas/RosterRecord'
-        - type: object
-          required:
-            - tenant
-            - personId
-            - ofr
-            - onboardedAt
-          properties:
-            tenant:
-              $ref: '#/components/schemas/Slug'
-            personId:
-              type:
-                - string
-                - 'null'
-              format: uuid
-            ofr:
-              oneOf:
-                - $ref: '#/components/schemas/Ofr'
-                - type: 'null'
-            onboardedAt:
-              type:
-                - string
-                - 'null'
-              format: date-time
   parameters:
-    Slug:
-      name: slug
-      in: path
-      required: true
-      schema:
-        $ref: '#/components/schemas/Slug'
     IdempotencyKey:
       name: Idempotency-Key
       in: header

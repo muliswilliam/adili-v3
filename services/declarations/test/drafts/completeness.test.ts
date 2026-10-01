@@ -174,7 +174,77 @@ describe('changed-since-last flags (S9)', () => {
       'statement:officer /liabilities/0/change/explanation required',
     ]);
   });
+
+  it('says what each missing part is for, on the field', () => {
+    const item = { ...incomeItem(), change: { changed: true } };
+    const found =
+      assessSections(draft(({ statement: s }) => (s.income = [item]))).get('statement:officer')
+        ?.issues ?? [];
+
+    expect(found.map(({ path, message }) => [path, message])).toEqual([
+      ['/income/0/change/kind', 'Choose what changed since your last declaration.'],
+      ['/income/0/change/explanation', 'Explain what changed since your last declaration.'],
+    ]);
+  });
+
+  it('takes a blank explanation as missing', () => {
+    const item = { ...incomeItem(), change: { ...promoted(), explanation: '   ' } };
+
+    expect(issues(draft(({ statement: s }) => (s.income = [item])))).toEqual([
+      'statement:officer /income/0/change/explanation required',
+    ]);
+  });
 });
+
+describe('changed-since-last flags on registrable interests (S9)', () => {
+  it('needs a kind and an explanation for a directorship or membership flagged as changed', () => {
+    const sections = draft(({ other: o }) => {
+      o.registrableInterests.directorships = [
+        {
+          company: 'Lake Basin Holdings Ltd',
+          role: 'Director',
+          remunerated: true,
+          change: { changed: true },
+        },
+      ];
+      o.registrableInterests.memberships = [
+        {
+          entity: 'Kisumu Golf Club',
+          kind: 'club',
+          change: { changed: true, kind: 'acquisition', explanation: ' ' },
+        },
+      ];
+    });
+
+    expect(issues(sections)).toEqual([
+      'other /registrableInterests/directorships/0/change/kind required',
+      'other /registrableInterests/directorships/0/change/explanation required',
+      'other /registrableInterests/memberships/0/change/explanation required',
+    ]);
+  });
+
+  it('takes an explained or unflagged interest as complete', () => {
+    const sections = draft(({ other: o }) => {
+      o.registrableInterests.directorships = [
+        {
+          company: 'Lake Basin Holdings Ltd',
+          role: 'Director',
+          remunerated: true,
+          change: { changed: true, kind: 'acquisition', explanation: 'Appointed in 2026.' },
+        },
+      ];
+      o.registrableInterests.memberships = [
+        { entity: 'Kisumu Golf Club', kind: 'club', change: { changed: false } },
+      ];
+    });
+
+    expect(issues(sections)).toEqual([]);
+  });
+});
+
+function promoted() {
+  return { changed: true, kind: 'value-change', explanation: 'Promoted in 2026.' } as const;
+}
 
 describe('marital status and spouses (S6)', () => {
   it.each([

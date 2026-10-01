@@ -1,6 +1,6 @@
 import { Module } from '@nestjs/common';
-import { CoreModule, TcpReadinessCheck } from '@adili/api-kit';
-import { DatabaseModule, DatabaseReadinessCheck } from '@adili/data-access';
+import { CoreModule, IdempotencyModule, TcpReadinessCheck } from '@adili/api-kit';
+import { DATABASE, DatabaseModule, DatabaseReadinessCheck } from '@adili/data-access';
 import { EventsModule, RabbitMqReadinessCheck } from '@adili/events';
 import { TemporalModule, TemporalReadinessCheck } from '@adili/temporal';
 
@@ -29,6 +29,8 @@ import { MessagesModule } from './messages/messages.module.js';
       schema,
       applicationName: SERVICE_NAME,
     }),
+    // Sends take at most the 5 s budget, well inside the default claim timeout.
+    IdempotencyModule.forRoot({ database: DATABASE }),
     EventsModule.forRoot({ service: SERVICE_NAME, rabbitmqUrl: config.RABBITMQ_URL }),
     TemporalModule.forRoot({
       address: config.TEMPORAL_ADDRESS,

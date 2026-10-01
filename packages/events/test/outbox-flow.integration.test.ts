@@ -118,6 +118,24 @@ describe('outbox to consumer over RabbitMQ', () => {
     });
   });
 
+  it('delivers events recorded together, in order', async () => {
+    const envelopes = await db.transaction((tx) =>
+      publisher.recordAll(tx, [
+        { type: HAPPENED, tenant: 'psc', data: { n: 1 } },
+        { type: HAPPENED, tenant: 'psc', data: { n: 2 } },
+      ]),
+    );
+
+    expect(envelopes.map((envelope) => envelope.data)).toEqual([{ n: 1 }, { n: 2 }]);
+    await waitFor(() =>
+      envelopes.every((envelope) => received.some((event) => event.id === envelope.id)),
+    );
+    const order = received
+      .filter((event) => envelopes.some((envelope) => envelope.id === event.id))
+      .map((event) => event.data);
+    expect(order).toEqual([{ n: 1 }, { n: 2 }]);
+  });
+
   it('does not publish events from a rolled-back transaction', async () => {
     let recordedId = '';
     await expect(

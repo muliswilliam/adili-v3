@@ -5,7 +5,6 @@ import {
   discardDeclaration,
   linkAttachment,
   listDeclarations,
-  listObligations,
   loadDeclaration,
   loadSection,
   loadSummary,
@@ -145,16 +144,6 @@ describe('starting a declaration (S1, S3)', () => {
     expect(await startDeclaration(client(), crypto.randomUUID())).toEqual({
       status: 'not-found',
     });
-  });
-
-  it('lists the obligations grouped by Commission', async () => {
-    const result = await listObligations(client());
-    expect(result.status).toBe('ok');
-    if (result.status !== 'ok') return;
-    const statuses = result.obligations.groups.flatMap((group) =>
-      group.obligations.map((obligation) => obligation.status),
-    );
-    expect(statuses).toEqual(['upcoming', 'due', 'filed', 'cancelled']);
   });
 });
 

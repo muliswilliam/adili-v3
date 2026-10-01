@@ -7,6 +7,11 @@ import {
   type DirectoryResult,
 } from './directory/client';
 import {
+  createDeclarationsClient,
+  type DeclarationsClient,
+  type DeclarationsResult,
+} from './declarations/client';
+import {
   createDocumentsClient,
   type DocumentsClient,
   type DocumentsResult,
@@ -50,6 +55,16 @@ export function asDocumentsViewer<T>(
 ): Promise<DocumentsResult<T>> {
   return withViewerClient(
     (accessToken) => createDocumentsClient({ baseUrl: env().DOCUMENTS_API_URL, accessToken }),
+    work,
+  );
+}
+
+/** Runs `work` with a declarations client acting as the signed-in user. */
+export function asDeclarationsViewer<T>(
+  work: (client: DeclarationsClient) => Promise<DeclarationsResult<T>>,
+): Promise<DeclarationsResult<T>> {
+  return withViewerClient(
+    (accessToken) => createDeclarationsClient({ baseUrl: env().DECLARATIONS_API_URL, accessToken }),
     work,
   );
 }

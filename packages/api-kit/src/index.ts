@@ -3,6 +3,13 @@ export {
   auditedReadOf,
   type AuditedReadOptions,
 } from './audit/audited-read.decorator.js';
+export {
+  type AuditedResource,
+  CurrentReadAudit,
+  ReadAudit,
+  readAuditOf,
+} from './audit/read-audit.js';
+export { ActingTenant, InternalApi, PLATFORM_TENANT, TENANT_KEY } from './auth/acting-tenant.js';
 export { CurrentPrincipal } from './auth/current-principal.decorator.js';
 export { type AuthenticatedRequest, JwtAuthGuard } from './auth/jwt-auth.guard.js';
 export { callerOf, type Principal, principalSchema } from './auth/principal.js';
@@ -34,6 +41,7 @@ export { type TcpProbe, TcpReadinessCheck } from './health/tcp-readiness-check.j
 export {
   IDEMPOTENCY_KEY_HEADER,
   IDEMPOTENT_REPLAYED_HEADER,
+  AcceptIdempotencyKey,
   IdempotencyInterceptor,
   RequireIdempotencyKey,
   type RequireIdempotencyKeyOptions,

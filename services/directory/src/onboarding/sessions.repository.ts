@@ -1,12 +1,11 @@
 import { HttpStatus, Injectable } from '@nestjs/common';
-import { ProblemException } from '@adili/api-kit';
+import { ProblemException, PLATFORM_TENANT } from '@adili/api-kit';
 import { type Database, InjectDatabase, switchTenant } from '@adili/data-access';
 import { EventPublisher } from '@adili/events';
 import { type ContactChannel, maskContact } from '@adili/contacts';
 import { and, eq } from 'drizzle-orm';
 
 import { Clock } from '../clock.js';
-import { PLATFORM_TENANT } from '../commissions/access.js';
 import type { Transaction } from '../commissions/commissions.service.js';
 import type { DirectorySchema } from '../db/schema.js';
 import { persons } from '../persons/schema.js';

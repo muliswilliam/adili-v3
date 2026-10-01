@@ -169,6 +169,27 @@
       "when": 1790618993098,
       "tag": "0023_onboarding_rls",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1790619000000,
+      "tag": "0024_policy_start_date_roster_exits",
+      "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1790619007000,
+      "tag": "0025_roster_exits_rls",
+      "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1790629547220,
+      "tag": "0026_tenant_policy_versions_rls",
+      "breakpoints": true
     }
   ]
 }

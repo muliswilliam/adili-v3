@@ -1,10 +1,10 @@
+import { PLATFORM_TENANT } from '@adili/api-kit';
 import { randomUUID } from 'node:crypto';
 
 import { withTenant } from '@adili/data-access';
 import { asc, eq, inArray } from 'drizzle-orm';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
-import { PLATFORM_TENANT } from '../../src/commissions/access.js';
 import type { RosterSummary } from '../../src/commissions/representation.js';
 import { outbox, rosterImportRows, rosterRecords, rosterSummaries } from '../../src/db/schema.js';
 import type { ExitsResult, KeepResult } from '../../src/roster/exits/representation.js';

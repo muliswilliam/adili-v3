@@ -1,3 +1,4 @@
+import { PLATFORM_TENANT, TENANT_KEY } from '@adili/api-kit';
 import { z } from 'zod';
 
 import {
@@ -9,6 +10,12 @@ import {
   templateParams,
 } from './templates.js';
 
+/**
+ * Request bodies of the messages API (responses are in representation.ts). They are the contract:
+ * the OpenAPI document, packages/schemas/internal/notifications.yaml, is generated from them
+ * (`pnpm contracts`).
+ */
+
 // ITU-T E.164: a plus, a country code that never starts with 0, at most 15 digits.
 const E164 = /^\+[1-9]\d{7,14}$/;
 const email = z.email();
@@ -17,7 +24,7 @@ export const channelSchema = z.enum(CHANNELS);
 
 export const templateIdSchema = z
   .enum(TEMPLATE_IDS)
-  .meta({ description: 'Registered templates; each declares its params' });
+  .meta({ description: 'Registered templates; each declares its channel and params' });
 
 export const recipientSchema = z.discriminatedUnion('kind', [
   z.object({
@@ -33,7 +40,7 @@ export const recipientSchema = z.discriminatedUnion('kind', [
     kind: z.literal('person'),
     personId: z.uuid().meta({
       description:
-        'Contacts resolved through the directory. Not supported yet: rejected with 400 until the directory serves contacts',
+        "The person's verified contacts are resolved through the directory at the message's `tenant` (required for a person; cached for 10 minutes) and the one for the channel is used. None for the channel, or a person not onboarded at that tenant, is status failed with error no-contact; a directory that cannot answer is failed with error contact-lookup-failed (worth retrying).",
     }),
   }),
 ]);
@@ -43,12 +50,14 @@ export const sendMessageBody = z.object({
   channel: channelSchema,
   recipient: recipientSchema,
   template: templateIdSchema,
-  params: z
-    .record(z.string(), z.unknown())
-    .meta({ description: "Validated against the template's parameter schema" }),
+  params: z.record(z.string(), z.unknown()).meta({
+    description:
+      "Validated against the template's parameter schema. `obligation-reminder-sms` and `obligation-reminder-email` take exactly `type` (initial, biennial, final), `commissionName` (1 to 120 characters), `statementDate` and `dueDate` (`YYYY-MM-DD`, due on or after statement), `daysLeft` (integer 0 to 366) and `portalUrl` (http or https URL).",
+  }),
   locale: z.enum(LOCALES).default('en'),
-  tenant: z.string().min(1).max(64).optional().meta({
-    description: 'Tenant key for audit and per-tenant branding; optional for platform messages',
+  tenant: z.string().regex(TENANT_KEY).optional().meta({
+    description:
+      'Tenant key for audit and per-tenant branding. Required for a person recipient (whose contacts are read at that tenant); optional for platform messages to an address',
   }),
 });
 
@@ -61,25 +70,36 @@ export const sendMessageSchema = sendMessageBody
   // One pass, so a caller sees every recipient, template and params error in one response.
   .superRefine((body, ctx) => {
     const { channel, recipient, template, params } = body;
-    if (recipient.kind === 'person') {
-      // Needs the directory's contact lookup, which does not exist yet.
+    // A person's contacts come from the directory at send time, read at the message's tenant.
+    if (recipient.kind === 'person' && body.tenant === undefined) {
       ctx.addIssue({
         code: 'custom',
-        path: ['recipient', 'kind'],
-        message: 'person recipients are not supported yet; send an address',
+        path: ['tenant'],
+        message: 'is required for a person recipient',
       });
-    } else if (channel === 'email' && !email.safeParse(recipient.to).success) {
+    } else if (recipient.kind === 'person' && body.tenant === PLATFORM_TENANT) {
+      // The directory would refuse the lookup, and the retries would never end.
       ctx.addIssue({
         code: 'custom',
-        path: ['recipient', 'to'],
-        message: 'must be an email address on the email channel',
+        path: ['tenant'],
+        message: 'must name the Commission the person is onboarded at, not platform',
       });
-    } else if (channel === 'sms' && !E164.test(recipient.to)) {
-      ctx.addIssue({
-        code: 'custom',
-        path: ['recipient', 'to'],
-        message: 'must be an E.164 phone number such as +254712345678 on the sms channel',
-      });
+    }
+    // Only an address is checked here.
+    if (recipient.kind === 'address') {
+      if (channel === 'email' && !email.safeParse(recipient.to).success) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['recipient', 'to'],
+          message: 'must be an email address on the email channel',
+        });
+      } else if (channel === 'sms' && !E164.test(recipient.to)) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['recipient', 'to'],
+          message: 'must be an E.164 phone number such as +254712345678 on the sms channel',
+        });
+      }
     }
     if (!isTemplateId(template)) {
       ctx.addIssue({ code: 'custom', path: ['template'], message: 'unknown template' });

@@ -1,3 +1,4 @@
+import { PLATFORM_TENANT } from '@adili/api-kit';
 import { randomUUID } from 'node:crypto';
 
 import { withTenant } from '@adili/data-access';
@@ -5,7 +6,6 @@ import { allocateReference, OFR } from '@adili/numbering';
 import type { ContactChannel } from '@adili/contacts';
 import { eq, inArray } from 'drizzle-orm';
 
-import { PLATFORM_TENANT } from '../../src/commissions/access.js';
 import { config } from '../../src/config.js';
 import {
   onboardingOtps,

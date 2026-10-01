@@ -264,7 +264,7 @@ export function useSectionAutosave<T>(section: LoadedSection, etag: string): Sec
   // On load only; later issues come from saves.
   useEffect(() => {
     adoptEtag(etag, section.draftVersion);
-    setIssues(key, section.issues ?? []);
+    setIssues(key, section.issues);
   }, [adoptEtag, setIssues, etag, key, section]);
 
   // Leaving the screen sends its waiting edits at once.
@@ -290,6 +290,6 @@ export function useSectionAutosave<T>(section: LoadedSection, etag: string): Sec
     value,
     update,
     disabled: workspace.conflict,
-    issues: workspace.issues[key] ?? section.issues ?? [],
+    issues: workspace.issues[key] ?? section.issues,
   };
 }

@@ -173,7 +173,7 @@ flowchart TB
 | Service | Owns (data) | Key responsibilities | Temporal workflows hosted |
 |---|---|---|---|
 | **directory** | tenants, org_units (ltree), people, employments, rosters, delegations, category rules, policy versions, numbering registry, reference data | Declarant onboarding (roster match, OTPs, Keycloak account); roster import and validation; Commission provisioning | - |
-| **declarations** | filing obligations, drafts, declarations, versions (JSONB snapshots), household, statements, items, material changes | Obligation tracking; autosave (Valkey write-behind); submit as one transaction; cross-tenant comparison ("compare, don't show") | `FilingObligationWorkflow`, `DeclarationProcessingWorkflow` |
+| **declarations** | filing obligations, drafts, declarations, versions (JSONB snapshots), household, statements, items, material changes | Obligation tracking; autosave (Postgres per save, Valkey read cache; ADR-001 as amended); submit as one transaction; cross-tenant comparison ("compare, don't show") | `FilingObligationWorkflow`, `DeclarationProcessingWorkflow` |
 | **review** | review cases, risk flags, clarifications, determinations, administrative actions, referrals | Deterministic rules (completeness, ±25%, income vs assets, cross-checks); reviewer queues; separation of duties | `ClarificationWorkflow` |
 | **access** | access requests (Form K), LEA requests, representations, decisions, grants | Declarant notification and representations; decisions with Reg 24 grounds; watermarked packages | `AccessRequestWorkflow` |
 | **reporting** | Form M reports, national consolidation, read models, open-data aggregates | Auto-compiled Form M; EACC intake and consolidation; dashboards; open data with small-group suppression | `ComplianceReportWorkflow`, `NationalConsolidationWorkflow` |
@@ -207,6 +207,7 @@ flowchart TB
 - `cache`: Valkey client and readiness
 - `telemetry`: OpenTelemetry preload
 - `bff-auth`: OIDC sign-in and server-side sessions for the portal and console BFFs
+- `roles`: realm role names and the role groups a service enforces and an app shows (e.g. a Commission's staff, EACC), defined once
 - `schemas`: external-system contracts (OpenAPI)
 - `ui`: design system shared by the apps and the Keycloak theme
 - Added with the features that need them: `authz` (CASL policies), `audit-client`, `numbering`, `clients` (generated internal API clients)
@@ -267,10 +268,10 @@ sequenceDiagram
     O->>P: open obligation (DCB 2027)
     P->>DEC: GET draft (pre-filled from HR + previous declaration)
     loop every change (debounced)
-        P->>DEC: PATCH section
-        DEC->>VK: save draft section
+        P->>DEC: PUT section (If-Match)
+        DEC->>DEC: encrypt, store in Postgres with its audit event
+        DEC->>VK: cache the decrypted section
     end
-    DEC->>DEC: flush draft to Postgres every few minutes
     O->>P: attach title deed
     P->>DOC: request upload URL
     DOC-->>P: presigned URL (quarantine bucket)
@@ -425,7 +426,7 @@ sequenceDiagram
 | Store | Holds | Key design |
 |---|---|---|
 | **PostgreSQL** (ADR-001) | All structured data, one database per service | JSONB legal snapshot per declaration version + normalised items; partitioned by cycle; audit partitioned by month; RLS by tenant |
-| **Valkey** | Draft sections, sessions, rate limits, reference-data cache | Write-behind to Postgres; evicted after inactivity |
+| **Valkey** | Sessions, rate limits, reference-data cache, read cache of draft sections | Drafts are stored in Postgres on save (ADR-001 as amended); cached sections expire after 10 minutes |
 | **Object storage** (ADR-002) | Uploads, generated PDFs, exports, audit archives | Presigned uploads; quarantine → clean; versioning; object lock for legal records and audit archive |
 | **RabbitMQ** (ADR-005) | Domain events in transit | Outbox/inbox, CloudEvents, DLQ |
 | **Temporal** (ADR-003) | Workflow state and timers | Own Postgres DB; not the source of truth |
@@ -618,7 +619,7 @@ flowchart LR
 |---|---|---|---|
 | Submissions | 7.5/s | 75/s | Stateless services, short transactions, gapless counters per issuer |
 | Concurrent drafters | ~54k | 100-250k | Horizontal app scaling behind Traefik |
-| Autosaves | ~900/s | 1.7-4.2k/s | Valkey, write-behind |
+| Autosaves | ~900/s | 1.7-4.2k/s | Client debounce, one short Postgres transaction per save, Valkey read cache |
 | Uploads | ~300Mbps | ~3Gbps | Presigned direct-to-storage |
 | AI extraction | 37 docs/s peak (1.4/s avg) | - | Queue-buffered; Batch API; GPUs when self-hosted |
 | Audit events | ~1.5k/s | ~7k/s | Outbox → queue → batched COPY into partitioned audit DB |
@@ -707,7 +708,7 @@ Same container images and configuration model as the demo; Dokploy (Swarm) → K
 | RabbitMQ | Quorum queues on 3 nodes | Definitions exported; messages recoverable from outboxes | No message loss (outbox) |
 | Temporal | Clustered; persistence on Patroni Postgres | Via Postgres backups | Workflows resume after failover |
 | Keycloak | 2-3 nodes, clustered cache | Via Postgres backups | |
-| Valkey | Sentinel (3 nodes) | None needed (cache; drafts also flushed to Postgres) | |
+| Valkey | Sentinel (3 nodes) | None needed (cache; drafts are stored in Postgres) | |
 | OpenBao | HA (Raft, 3 nodes) | Encrypted snapshots, keys escrowed under dual control | Keys are critical: tested restore |
 | Audit | Its own cluster + object-locked Parquet archives + signed anchors | Archives are the backup | Tamper-evident |
 
@@ -778,6 +779,7 @@ adili-v3/
 │   ├── api-kit/  data-access/  events/  temporal/  numbering/  cache/  telemetry/  bff-auth/
 │   ├── schemas/             # JSON Schemas, OpenAPI, AsyncAPI (incl. external/ contracts)
 │   ├── forms/               # validators, generated types and Zod schemas for the form JSON Schemas (FE + BE)
+│   ├── roles/               # realm role groups checked by services and shown by apps (FE + BE)
 │   ├── tsconfig/  eslint-config/
 ├── mocks/                   # Django project (uv): iprs, kra, ntsa, brs, ardhisasa, hr, payroll, icms, sms
 ├── infra/                   # compose (local infra), docker (image builds), Dokploy config, seed data, runbooks
@@ -808,17 +810,19 @@ adili-v3/
 | [003](../adr/0003-temporal-as-workflow-engine.md) | Temporal as workflow engine |
 | [004](../adr/0004-identity-keycloak-self-registration.md) | Keycloak, Keycloakify UI (self-registration superseded by 014) |
 | [005](../adr/0005-message-queue-rabbitmq.md) | RabbitMQ with transactional outbox |
-| [006](../adr/0006-multi-tenancy-and-hierarchy.md) | Multi-tenancy and hierarchy (RLS, ltree, EACC not super-tenant) |
+| [006](../adr/0006-multi-tenancy-and-hierarchy.md) | Multi-tenancy and hierarchy (RLS, ltree, EACC not super-tenant; isolation partly superseded by 018) |
 | [007](../adr/0007-vendor-agnostic-ai-layer.md) | Vendor-agnostic AI layer (Anthropic now, self-hosted later) |
 | [008](../adr/0008-audit-trail.md) | Tamper-evident audit trail |
 | [009](../adr/0009-api-first-interoperability.md) | API-first for Commissions, employers and agencies |
 | [010](../adr/0010-verifiable-documents-qr.md) | Verifiable documents with QR codes |
 | [011](../adr/0011-human-readable-reference-numbers.md) | Human-readable reference numbers + glossary |
 | [012](../adr/0012-single-polyglot-monorepo.md) | One polyglot monorepo (TypeScript + Python) |
-| [013](../adr/0013-service-communication.md) | Service-to-service communication (REST · events · Temporal) |
+| [013](../adr/0013-service-communication.md) | Service-to-service communication (REST · events · Temporal; partly superseded for spec 04 by 017) |
 | [014](../adr/0014-roster-gated-declarant-onboarding.md) | Roster-gated declarant onboarding (EACC-provisioned Commissions, file-number match, email + phone OTP) |
 | [015](../adr/0015-java-for-keycloak-providers.md) | Java (Maven) for Keycloak providers only, e.g. the `adili-otp` authenticator |
 | [016](../adr/0016-azure-vm-demo-stand-in.md) | Azure VM as a credit-funded stand-in for the Dokploy demo host |
+| [017](../adr/0017-obligation-reminder-delivery.md) | Service calls for filing obligations: acting tenant on the directory's pulls, two hops for a reminder, longer timeouts |
+| [018](../adr/0018-person-scoped-row-level-security.md) | Person-scoped row-level security: a declarant reads their own rows across Commissions, and writes their own drafts |
 
 ---
 

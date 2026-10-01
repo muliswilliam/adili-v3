@@ -1,3 +1,4 @@
+import { PLATFORM_TENANT } from '@adili/api-kit';
 import {
   type CallHandler,
   type ExecutionContext,
@@ -10,9 +11,9 @@ import { type Database, InjectDatabase, withTenant } from '@adili/data-access';
 import { EventPublisher } from '@adili/events';
 import { and, eq, sql } from 'drizzle-orm';
 import { from, type Observable, switchMap } from 'rxjs';
+import { REPORTING_OFFICER } from '@adili/roles';
 
 import type { DirectorySchema } from '../db/schema.js';
-import { PLATFORM_TENANT, REPORTING_OFFICER_ROLE } from './access.js';
 import { ActivationLookups } from './activation-lookups.js';
 import { reportingOfficerActivated } from './events.js';
 import { reportingOfficerAssignments } from './schema.js';
@@ -45,7 +46,7 @@ export class ActivationObserver implements NestInterceptor {
       context.getType() === 'http'
         ? context.switchToHttp().getRequest<AuthenticatedRequest>().principal
         : undefined;
-    if (!principal?.roles.includes(REPORTING_OFFICER_ROLE)) return next.handle();
+    if (!principal?.roles.includes(REPORTING_OFFICER)) return next.handle();
     return from(this.observe(principal.subject)).pipe(switchMap(() => next.handle()));
   }
 

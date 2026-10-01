@@ -1,13 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import {
-  formatDate,
-  formatDateTime,
-  formatFileSize,
-  formatNumber,
-  formatRelativeDate,
-  formatRelativeTime,
-} from './format';
+import { formatFileSize, formatNumber, formatRelativeDate, formatRelativeTime } from './format';
 
 describe('formatFileSize', () => {
   it.each([
@@ -22,18 +15,6 @@ describe('formatFileSize', () => {
     [63.4 * 1024 * 1024, '63.4 MB'],
   ])('shows %d bytes as %s', (bytes, expected) => {
     expect(formatFileSize(bytes)).toBe(expected);
-  });
-});
-
-describe('formatDateTime', () => {
-  it('shows Kenyan time with a 24-hour clock', () => {
-    expect(formatDateTime('2026-09-21T09:40:00Z')).toBe('21 Sep 2026, 12:40');
-  });
-});
-
-describe('formatDate', () => {
-  it('uses the Kenyan calendar day', () => {
-    expect(formatDate('2026-09-21T22:30:00Z')).toBe('22 Sep 2026');
   });
 });
 

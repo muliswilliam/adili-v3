@@ -16,9 +16,6 @@ export const STAFF_REQUIRED_ACTIONS: readonly RequiredAction[] = [
   'CONFIGURE_TOTP',
 ];
 
-/** Realm role of declarants: officers who onboarded from a Commission's roster (spec 03). */
-export const DECLARANT_ROLE = 'declarant';
-
 /** What a new declarant account must do before first sign-in: set a password. */
 export const DECLARANT_REQUIRED_ACTIONS: readonly RequiredAction[] = ['UPDATE_PASSWORD'];
 
