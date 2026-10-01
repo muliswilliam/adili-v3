@@ -35,19 +35,19 @@ export const LOOKUP_RETRY_DELAYS = ['5 seconds', '10 seconds', '20 seconds'] as 
  * with backoff until they succeed, as the processing workflow's pulls are. A version that
  * disappeared fails at once (`version-missing`).
  */
-const { lookupRegistries, matchRegistries, registrySweepCandidates } =
+const { lookupRegistries, matchAndStoreRegistries, registrySweepCandidates } =
   proxyActivities<RegistryCheckActivities>({
     startToCloseTimeout: '5 minutes',
     retry: { initialInterval: '1 second', backoffCoefficient: 2, maximumInterval: '5 minutes' },
   });
 
 /**
- * `RegistryCheckWorkflow`: looks up everyone on the case's version with a national ID in KRA,
- * NTSA, BRS and ArdhiSasa (and the officer's companies against the employer's supplier list),
- * looks up again what a registry or the gateway gave no answer to (not what the gateway refused),
- * three times with backoff, then
- * matches the records against the declared items and stores the flags and statuses on the case.
- * A registry still without an answer is `unavailable` on the case; it never stops the check.
+ * `registryCheck` (the spec's RegistryCheckWorkflow): looks up everyone on the case's version
+ * with a national ID in KRA, NTSA, BRS and ArdhiSasa (and the officer's companies against the
+ * employer's supplier list), looks up again what a registry or the gateway gave no answer to (not
+ * what the gateway refused), three times with backoff, then matches the records against the
+ * declared items and stores the flags and statuses on the case. A registry still without an
+ * answer is `unavailable` on the case; it never stops the check.
  *
  * Run by `DeclarationProcessingWorkflow` once the case is created or amended; started on its own
  * for a case by a re-check (`POST /v1/review/cases/{caseId}/recheck`) and, as a child, by the
@@ -61,7 +61,7 @@ export async function registryCheck(request: RegistryCheckRequest): Promise<Regi
     lookups = await lookupRegistries({ check: request, previous: lookups });
   }
   if (lookups === null) return { outcome: 'stale' };
-  return matchRegistries({ check: request, lookups });
+  return matchAndStoreRegistries({ check: request, lookups });
 }
 
 /**
@@ -76,11 +76,11 @@ export function anyToLookUpAgain(lookups: RegistryLookups): boolean {
 }
 
 /**
- * `RegistryUnavailableSweep`, started hourly by the service's Temporal schedule: checks the
- * registries again for the open cases with a registry still unavailable, oldest check first, at
- * most `REGISTRY_SWEEP_BATCH` a run, one at a time and `SWEEP_SPACING` apart so a registry that
- * just came back is not flooded. Each check is a `registryCheck` child; one that fails leaves its
- * case for the next run.
+ * `registrySweep` (the spec's RegistryUnavailableSweep), started hourly by the service's Temporal
+ * schedule: checks the registries again for the open cases with a registry still unavailable,
+ * oldest check first, at most `REGISTRY_SWEEP_BATCH` a run, one at a time and `SWEEP_SPACING`
+ * apart so a registry that just came back is not flooded. Each check is a `registryCheck` child;
+ * one that fails leaves its case for the next run.
  */
 export async function registrySweep(): Promise<RegistrySweepResult> {
   const candidates = await registrySweepCandidates({ limit: REGISTRY_SWEEP_BATCH });

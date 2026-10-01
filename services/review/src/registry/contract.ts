@@ -4,8 +4,8 @@
  *
  * No national ID and no registry record passes through a workflow: they would sit in Temporal's
  * history, a second store. `lookupRegistries` reads the IDs where it uses them and hands on, per
- * person and registry, the outcome and the gateway's result id; `matchRegistries` reads the
- * records back from the gateway by result id. Person keys, outcomes, reasons, result ids and
+ * person and registry, the outcome and the gateway's result id; `matchAndStoreRegistries` reads
+ * the records back from the gateway by result id. Person keys, outcomes, reasons, result ids and
  * company registration numbers are all that is handed on.
  */
 import type { RegistryCheckStatus, RegistrySystem } from '../rules/index.js';
@@ -74,6 +74,14 @@ export interface LookupOutcome {
   checkedAt: string | null;
 }
 
+/** A lookup the gateway answered (found or not found), so it has a result id. */
+export type AnsweredLookup = LookupOutcome & { outcome: 'found' | 'not-found'; resultId: string };
+
+/** Whether the gateway answered the lookup (its own `unavailable` and no answer are not). */
+export function isAnswered<L extends LookupOutcome>(lookup: L): lookup is L & AnsweredLookup {
+  return lookup.outcome !== 'unavailable' && lookup.resultId !== null;
+}
+
 /** A supplier check of one of the officer's companies; `supplies` is null unless found. */
 export interface SupplierOutcome extends LookupOutcome {
   supplies: boolean | null;
@@ -95,6 +103,7 @@ export interface LookupRequest {
   previous: RegistryLookups | null;
 }
 
+/** What `matchAndStoreRegistries` is given: the check and its lookups. */
 export interface MatchRequest {
   check: RegistryCheckRequest;
   lookups: RegistryLookups;

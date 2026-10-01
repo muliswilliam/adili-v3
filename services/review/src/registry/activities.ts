@@ -28,6 +28,7 @@ import {
   householdIds,
   matchRegistries,
   type PersonRegistryResults,
+  type RegistryAnswer,
   REGISTRY_SYSTEMS,
   type RegistryRecords,
   type SupplierCheckResult,
@@ -35,9 +36,11 @@ import {
 } from '../rules/index.js';
 import { SYSTEM_SUBJECT, systemContext } from '../system-context.js';
 import {
+  type AnsweredLookup,
   DECLARATION_INVALID,
   GATEWAY_REJECTED,
   GATEWAY_UNAVAILABLE,
+  isAnswered,
   type LookupOutcome,
   type LookupRequest,
   lookUpAgain,
@@ -87,9 +90,7 @@ export class RegistryCheckActivities {
   async lookupRegistries({ check, previous }: LookupRequest): Promise<RegistryLookups | null> {
     const found = await caseAt(this.db, check);
     if (found === null) return null;
-    const { pulled, document } = await pullVersion(this.declarations, check);
-    const roster = await this.directory.getRosterRecord(check.tenant, pulled.rosterRecordId);
-    const ids = householdIds(document, roster?.nationalId ?? null);
+    const { roster, ids } = await household(this.declarations, this.directory, check);
     const context: RegistryContext = {
       tenant: check.tenant,
       legalBasis: PROCESSING_LEGAL_BASIS,
@@ -143,10 +144,9 @@ export class RegistryCheckActivities {
    * band with the registry flags, a timeline entry and `review.registry.checked.v1`. `stale` (and
    * nothing stored) when the case moved on to a later version.
    */
-  async matchRegistries({ check, lookups }: MatchRequest): Promise<RegistryCheckResult> {
+  async matchAndStoreRegistries({ check, lookups }: MatchRequest): Promise<RegistryCheckResult> {
     if ((await caseAt(this.db, check)) === null) return { outcome: 'stale' };
-    const { pulled, document } = await pullVersion(this.declarations, check);
-    const roster = await this.directory.getRosterRecord(check.tenant, pulled.rosterRecordId);
+    const { document, ids } = await household(this.declarations, this.directory, check);
 
     const results: Record<string, PersonRegistryResults> = {};
     for (const [personKey, systems] of Object.entries(lookups.persons)) {
@@ -159,26 +159,12 @@ export class RegistryCheckActivities {
     }
     const suppliers: Record<string, SupplierCheckResult | Unavailable> = {};
     for (const [registrationNumber, supplier] of Object.entries(lookups.suppliers)) {
-      suppliers[registrationNumber] =
-        supplier.outcome === 'unavailable'
-          ? unavailable(supplier.reason, supplier.resultId)
-          : {
-              resultId: supplier.resultId ?? '',
-              system: 'brs',
-              outcome: supplier.outcome,
-              reason: null,
-              cached: false,
-              checkedAt: supplier.checkedAt ?? new Date().toISOString(),
-              supplies: supplier.supplies,
-            };
+      suppliers[registrationNumber] = isAnswered(supplier)
+        ? { ...answerOf(supplier), supplies: supplier.supplies }
+        : unavailable(supplier.reason, supplier.resultId);
     }
 
-    const match = matchRegistries({
-      document,
-      householdIds: householdIds(document, roster?.nationalId ?? null),
-      results,
-      suppliers,
-    });
+    const match = matchRegistries({ document, householdIds: ids, results, suppliers });
     return storeRegistryCheck(this.db, this.events, check, match);
   }
 
@@ -222,6 +208,29 @@ function unavailable(reason: string | null, resultId: string | null): Unavailabl
   return { outcome: 'unavailable', reason, resultId };
 }
 
+/** An answered lookup as the matching module reads it. */
+function answerOf({ outcome, resultId }: AnsweredLookup): RegistryAnswer {
+  return { outcome, resultId };
+}
+
+/**
+ * A gateway result's envelope as the check hands it on (`LookupOutcome`): its reason only when
+ * unavailable.
+ */
+function outcomeOf(result: {
+  outcome: LookupOutcome['outcome'];
+  reason?: string | null;
+  resultId: string;
+  checkedAt: string;
+}): LookupOutcome {
+  return {
+    outcome: result.outcome,
+    reason: result.outcome === 'unavailable' ? (result.reason ?? null) : null,
+    resultId: result.resultId,
+    checkedAt: result.checkedAt,
+  };
+}
+
 /**
  * A lookup as the matching module takes it: a found one with its records read back from the
  * gateway, a not-found one with none, or `unavailable`. A result the gateway no longer has is
@@ -234,18 +243,9 @@ async function recordsOf(
   system: LookupSystem,
   lookup: LookupOutcome,
 ): Promise<NonNullable<PersonRegistryResults[LookupSystem]>> {
-  if (lookup.outcome === 'unavailable' || lookup.resultId === null) {
-    return unavailable(lookup.reason, lookup.resultId);
-  }
-  const envelope = {
-    resultId: lookup.resultId,
-    system,
-    outcome: lookup.outcome,
-    reason: null,
-    cached: false,
-    checkedAt: lookup.checkedAt ?? new Date().toISOString(),
-  };
-  if (lookup.outcome === 'not-found') return { ...envelope, ...NO_RECORDS[system] };
+  if (!isAnswered(lookup)) return unavailable(lookup.reason, lookup.resultId);
+  const answer = answerOf(lookup);
+  if (lookup.outcome === 'not-found') return { ...answer, ...NO_RECORDS[system] };
 
   let stored;
   try {
@@ -261,7 +261,7 @@ async function recordsOf(
   }
   const records = stored && REGISTRY_RECORDS[system].safeParse(stored.payload);
   if (!records?.success) return unavailable(RESULT_MISSING, lookup.resultId);
-  return { ...envelope, ...records.data };
+  return { ...answer, ...records.data };
 }
 
 /** The case's declarant, if the case still exists and is at the version being checked. */
@@ -276,6 +276,20 @@ async function caseAt(
       .where(eq(reviewCases.id, check.caseId)),
   );
   return found?.versionId === check.versionId ? { personId: found.personId } : null;
+}
+
+/**
+ * The version's document and the national ID of each of its people (the officer's from the
+ * roster record, others' as declared), with the roster record for the employer code.
+ */
+async function household(
+  declarations: DeclarationsClient,
+  directory: DirectoryClient,
+  check: RegistryCheckRequest,
+) {
+  const { pulled, document } = await pullVersion(declarations, check);
+  const roster = await directory.getRosterRecord(check.tenant, pulled.rosterRecordId);
+  return { document, roster, ids: householdIds(document, roster?.nationalId ?? null) };
 }
 
 /**
@@ -323,12 +337,7 @@ async function lookUp(
   try {
     const result = await gateway.lookupRegistry(system, nationalId, context);
     return {
-      outcome: {
-        outcome: result.outcome,
-        reason: result.outcome === 'unavailable' ? (result.reason ?? null) : null,
-        resultId: result.resultId,
-        checkedAt: result.checkedAt,
-      },
+      outcome: outcomeOf(result),
       ...('directorships' in result && result.outcome === 'found'
         ? { companies: [...new Set(result.directorships.map((d) => d.companyRegistrationNumber))] }
         : {}),
@@ -347,14 +356,11 @@ async function checkSupplier(
   try {
     const result = await gateway.checkSupplier(registrationNumber, employerCode, context);
     return {
-      outcome: result.outcome,
-      reason: result.outcome === 'unavailable' ? (result.reason ?? null) : null,
-      resultId: result.resultId,
-      checkedAt: result.checkedAt,
+      ...outcomeOf(result),
       supplies: result.outcome === 'found' ? result.supplies : null,
     };
   } catch (error) {
-    return { ...gatewayFailure(error, 'brs'), checkedAt: null, supplies: null };
+    return { ...gatewayFailure(error, 'hr-suppliers'), checkedAt: null, supplies: null };
   }
 }
 

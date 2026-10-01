@@ -24,6 +24,7 @@ export {
   type RegistryMatchInput,
   type RegistryNote,
   type RegistryNoteKind,
+  type RegistryAnswer,
   type RegistryRecords,
   type RegistryRelation,
   type RegistryRow,

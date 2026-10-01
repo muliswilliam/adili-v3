@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { type Principal } from '@adili/api-kit';
 import { type Database, InjectDatabase, withTenant } from '@adili/data-access';
-import type { DeclarationV1, PersonName, Statement } from '@adili/forms';
+import type { DeclarationV1, PersonName } from '@adili/forms';
 import { and, asc, eq, inArray } from 'drizzle-orm';
 
 import { caseTenant } from '../cases/access.js';
@@ -24,6 +24,7 @@ import { REGISTRY_RECORDS } from '../integration-gateway/registry-records.js';
 import { InternalApiRejected } from '../internal-api/rejected.js';
 import { declarationsUnavailable, upstreamUnavailable } from '../internal-api/upstream.js';
 import {
+  householdIds,
   REGISTRY_RULE_IDS,
   REGISTRY_SYSTEMS,
   type RegistryRecords,
@@ -95,6 +96,8 @@ export class RegistryViewService {
         )
         .map((flag) => flagView(flag, officer));
 
+    // The officer's ID is the roster's, not read here: before a check, the officer has one.
+    const declaredIds = householdIds(document, null);
     return {
       checkedAt: latestCheck(checks),
       persons: document.statements.map((statement) => {
@@ -102,7 +105,11 @@ export class RegistryViewService {
         return {
           personKey: statement.personKey,
           personName: fullName(statement.personName),
-          hasNationalId: hasNationalId(document, statement, own),
+          // As the latest check found (no-id everywhere when not), else as declared.
+          hasNationalId:
+            own.length > 0
+              ? own.some((check) => check.status !== 'no-id')
+              : statement.personKey === 'officer' || declaredIds[statement.personKey] !== null,
           systems: REGISTRY_SYSTEMS.map((system): RegistrySystemView => {
             const check = own.find((entry) => entry.system === system);
             const found = check && records.get(check.id);
@@ -163,13 +170,13 @@ export class RegistryViewService {
     checks: CheckRow[],
   ): Promise<Map<string, RegistryRecords[keyof RegistryRecords]>> {
     const answered = checks.filter(
-      (check) =>
+      (check): check is CheckRow & { resultId: string } =>
         check.resultId !== null && (check.status === 'matched' || check.status === 'mismatched'),
     );
     try {
       const read = await Promise.all(
         answered.map(async (check) => {
-          const stored = await this.gateway.getStoredResult(check.resultId ?? '', tenant);
+          const stored = await this.gateway.getStoredResult(check.resultId, tenant);
           const parsed =
             stored?.outcome === 'found'
               ? REGISTRY_RECORDS[check.system].safeParse(stored.payload)
@@ -194,20 +201,6 @@ interface CaseKeys {
   id: string;
   declarationId: string;
   currentVersion: number;
-}
-
-/**
- * Whether the person has a national ID to look up: as the latest check found (no-id everywhere
- * when not), or before any check, the officer always and the household as declared.
- */
-function hasNationalId(document: DeclarationV1, statement: Statement, checks: CheckRow[]): boolean {
-  if (checks.length > 0) return checks.some((check) => check.status !== 'no-id');
-  if (statement.personKey === 'officer') return true;
-  const declared = [
-    ...document.spouses.items.map((s) => ({ key: `spouse:${s.id}`, id: s.nationalId })),
-    ...document.children.items.map((c) => ({ key: `child:${c.id}`, id: c.nationalId })),
-  ];
-  return Boolean(declared.find((person) => person.key === statement.personKey)?.id?.trim());
 }
 
 function fullName({ firstName, otherNames, surname }: PersonName): string {

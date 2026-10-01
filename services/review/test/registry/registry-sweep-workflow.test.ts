@@ -67,7 +67,7 @@ describe('RegistryUnavailableSweep', () => {
   it('S10: checks each case with a registry unavailable as a child, oldest first, spaced out', async () => {
     const candidates = [caseRequest(1), caseRequest(2), caseRequest(3)];
     const matchedAt: number[] = [];
-    const matchRegistries = vi.fn<(request: MatchRequest) => Promise<RegistryCheckResult>>(
+    const matchAndStoreRegistries = vi.fn<(request: MatchRequest) => Promise<RegistryCheckResult>>(
       async () => {
         matchedAt.push(await env.env.currentTimeMs());
         return checked;
@@ -76,14 +76,14 @@ describe('RegistryUnavailableSweep', () => {
     const mocks: Activities = {
       registrySweepCandidates: vi.fn(() => Promise.resolve(candidates)),
       lookupRegistries: vi.fn(() => Promise.resolve<RegistryLookups | null>(answered)),
-      matchRegistries,
+      matchAndStoreRegistries,
     };
 
     const result = await env.execute(registrySweep, { workflowsPath, activities: mocks, args: [] });
 
     expect(result).toEqual({ checked: 3, stale: 0, failed: 0 });
     expect(mocks.registrySweepCandidates).toHaveBeenCalledWith({ limit: REGISTRY_SWEEP_BATCH });
-    expect(matchRegistries.mock.calls.map(([call]) => call.check)).toEqual(candidates);
+    expect(matchAndStoreRegistries.mock.calls.map(([call]) => call.check)).toEqual(candidates);
     // Ten seconds between cases, so a registry that just came back is not flooded.
     const gaps = matchedAt.slice(1).map((time, index) => time - (matchedAt[index] ?? 0));
     expect(gaps.every((gap) => gap >= 10_000)).toBe(true);
@@ -98,7 +98,7 @@ describe('RegistryUnavailableSweep', () => {
           check.caseId === candidates[2]?.caseId ? null : answered,
         ),
       ),
-      matchRegistries: vi.fn(({ check }: MatchRequest) =>
+      matchAndStoreRegistries: vi.fn(({ check }: MatchRequest) =>
         check.caseId === candidates[0]?.caseId
           ? Promise.reject(ApplicationFailure.nonRetryable('gone', 'version-missing'))
           : Promise.resolve(checked),
@@ -114,7 +114,7 @@ describe('RegistryUnavailableSweep', () => {
     const mocks: Activities = {
       registrySweepCandidates: vi.fn(() => Promise.resolve([])),
       lookupRegistries: vi.fn(() => Promise.resolve<RegistryLookups | null>(answered)),
-      matchRegistries: vi.fn(() => Promise.resolve(checked)),
+      matchAndStoreRegistries: vi.fn(() => Promise.resolve(checked)),
     };
 
     const result = await env.execute(registrySweep, { workflowsPath, activities: mocks, args: [] });

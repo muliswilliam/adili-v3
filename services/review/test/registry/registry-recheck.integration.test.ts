@@ -104,7 +104,7 @@ describe('registry re-checks and the sweep', () => {
   async function check(request: RegistryCheckRequest) {
     const lookups = await registry.lookupRegistries({ check: request, previous: null });
     if (!lookups) throw new Error('stale');
-    return registry.matchRegistries({ check: request, lookups });
+    return registry.matchAndStoreRegistries({ check: request, lookups });
   }
 
   const claim = async (caseId: string, caller = assignee) => {

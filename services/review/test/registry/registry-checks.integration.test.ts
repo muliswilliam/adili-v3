@@ -100,7 +100,7 @@ describe('registry checks', () => {
   async function check(request: RegistryCheckRequest, previous: RegistryLookups | null = null) {
     const lookups = await registry.lookupRegistries({ check: request, previous });
     if (!lookups) throw new Error('stale');
-    return { lookups, result: await registry.matchRegistries({ check: request, lookups }) };
+    return { lookups, result: await registry.matchAndStoreRegistries({ check: request, lookups }) };
   }
 
   const caseRow = async (caseId: string) => {
@@ -345,7 +345,7 @@ describe('registry checks', () => {
     if (!lookups) throw new Error('stale');
     api.gateway.refuseStoredResults();
 
-    const result = await registry.matchRegistries({ check: request, lookups });
+    const result = await registry.matchAndStoreRegistries({ check: request, lookups });
 
     expect(result.outcome).toBe('checked');
     expect(await checksOf(request.caseId)).toContain('officer ntsa unavailable gateway-rejected');
@@ -365,7 +365,7 @@ describe('registry checks', () => {
     );
     expect(reviewed.statusCode).toBe(200);
 
-    await registry.matchRegistries({ check: request, lookups });
+    await registry.matchAndStoreRegistries({ check: request, lookups });
 
     const flags = await flagsOf(request.caseId);
     expect(
@@ -390,7 +390,10 @@ describe('registry checks', () => {
 
     expect(await registry.lookupRegistries({ check: request, previous: null })).toBeNull();
     expect(
-      await registry.matchRegistries({ check: request, lookups: { persons: {}, suppliers: {} } }),
+      await registry.matchAndStoreRegistries({
+        check: request,
+        lookups: { persons: {}, suppliers: {} },
+      }),
     ).toEqual({ outcome: 'stale' });
     expect(api.gateway.lookups).toEqual([]);
     expect(await checksOf(request.caseId)).toEqual([]);

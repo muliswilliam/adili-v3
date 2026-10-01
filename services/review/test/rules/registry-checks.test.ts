@@ -687,11 +687,8 @@ describe('matchRegistries: household and statuses', () => {
         kra: undefined,
         ardhisasa: {
           resultId: '0192f1a0-7e57-7000-8000-0000000000ff',
-          system: 'ardhisasa',
           outcome: 'unavailable',
           reason: 'breaker-open',
-          cached: false,
-          checkedAt: '2027-11-15T08:00:00.000Z',
         },
         // The gateway could not be reached at all after the retries: no result id.
         ntsa: { outcome: 'unavailable', reason: 'upstream-error' },

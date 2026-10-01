@@ -1,17 +1,74 @@
 import type { AssetItem, DeclarationV1, Statement } from '@adili/forms';
 
-import type { components } from '../integration-gateway/integration-gateway-api.gen.js';
 import { normalise, statementSectionKey } from './match.js';
 import type { RuleId, Severity } from './registry.js';
 import { type Evidence, flag, type Flag, type ItemRef, ref } from './rules.js';
 
-type Schemas = components['schemas'];
-/** integration-gateway.yaml lookup results, as the gateway answers them. */
-export type KraResult = Schemas['KraResult'];
-export type NtsaResult = Schemas['NtsaResult'];
-export type BrsResult = Schemas['BrsResult'];
-export type ArdhisasaResult = Schemas['ArdhisasaResult'];
-export type SupplierCheckResult = Schemas['SupplierCheckResult'];
+/*
+ * The matching module's own inputs: what it reads of a registry's answer. The integration-gateway's
+ * results (integration-gateway.yaml) carry these fields and more; the caller hands them over, so
+ * the pure rules do not depend on the gateway's generated client.
+ */
+
+export interface KraTaxpayer {
+  pin: string;
+  registeredOn: string;
+  compliance: {
+    status: 'compliant' | 'non-compliant' | 'unknown';
+    certificateNumber: string | null;
+    validUntil: string | null;
+    /** KES cents. */
+    annualIncomeDeclaredCents: number | null;
+  };
+}
+
+export interface NtsaVehicle {
+  registrationNumber: string;
+  make: string;
+  model: string;
+  yearOfManufacture: number;
+  registeredOn: string;
+}
+
+export interface BrsDirectorship {
+  companyRegistrationNumber: string;
+  companyName: string;
+  companyStatus: string;
+  role: string;
+  shares: number | null;
+  appointedOn: string;
+}
+
+export interface ArdhisasaParcel {
+  parcelNumber: string;
+  county: string;
+  areaHectares: number;
+  tenure: string;
+  registeredOn: string;
+}
+
+/** The records of a found lookup, as the gateway stores them (`StoredResult.payload`). */
+export interface RegistryRecords {
+  kra: { taxpayers: KraTaxpayer[] };
+  ntsa: { vehicles: NtsaVehicle[] };
+  brs: { directorships: BrsDirectorship[] };
+  ardhisasa: { parcels: ArdhisasaParcel[] };
+}
+
+/** A registry's answer: found (with its records) or not, and the gateway's result id. */
+export interface RegistryAnswer {
+  outcome: 'found' | 'not-found';
+  resultId: string;
+}
+
+export type KraResult = RegistryAnswer & RegistryRecords['kra'];
+export type NtsaResult = RegistryAnswer & RegistryRecords['ntsa'];
+export type BrsResult = RegistryAnswer & RegistryRecords['brs'];
+export type ArdhisasaResult = RegistryAnswer & RegistryRecords['ardhisasa'];
+/** Whether one of the officer's companies is on the employer's supplier list. */
+export interface SupplierCheckResult extends RegistryAnswer {
+  supplies: boolean | null;
+}
 
 /** review.yaml `RegistrySystem`, in the order the Registry tab lists them. */
 export const REGISTRY_SYSTEMS = ['kra', 'ntsa', 'brs', 'ardhisasa'] as const;
@@ -384,7 +441,7 @@ function companies(
   return { flags, notes, ...(unavailable ? { unavailable } : {}) };
 }
 
-type Directorship = BrsResult['directorships'][number];
+type Directorship = BrsDirectorship;
 
 /** A declared company is the registry's when it carries its registration number or exact name. */
 function refersTo(company: DeclaredCompany, record: Directorship): boolean {
@@ -521,14 +578,6 @@ export function registrySystemOf(ruleId: string): RegistrySystem | null {
     : null;
 }
 
-/** The records of a found lookup, as the gateway stores them (`StoredResult.payload`). */
-export interface RegistryRecords {
-  kra: Pick<KraResult, 'taxpayers'>;
-  ntsa: Pick<NtsaResult, 'vehicles'>;
-  brs: Pick<BrsResult, 'directorships'>;
-  ardhisasa: Pick<ArdhisasaResult, 'parcels'>;
-}
-
 /** review.yaml `RegistryView` row relation. */
 export type RegistryRelation = 'matched' | 'not-declared' | 'not-in-registry';
 
@@ -583,7 +632,7 @@ export function registryRows<S extends RegistrySystem>(
   }
 }
 
-function identifierRows<R extends Record<string, unknown>>(
+function identifierRows<R extends object>(
   statement: Statement,
   rule: {
     types: AssetItem['type'][];
@@ -604,7 +653,7 @@ function identifierRows<R extends Record<string, unknown>>(
     ...registry.map((record): RegistryRow => {
       const match = declared.find((d) => sameIdentifier(d.identifier, rule.idOf(record)));
       return {
-        registryRecord: { ...record },
+        registryRecord: Object.fromEntries(Object.entries(record)),
         declaredItemId: match?.item.id ?? null,
         relation: match ? 'matched' : 'not-declared',
       };

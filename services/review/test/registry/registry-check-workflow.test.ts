@@ -20,7 +20,10 @@ import { registryCheck } from '../../src/registry/workflows.js';
  */
 const workflowsPath = fileURLToPath(new URL('../../src/processing/workflows.ts', import.meta.url));
 
-type CheckActivities = Pick<RegistryCheckActivities, 'lookupRegistries' | 'matchRegistries'>;
+type CheckActivities = Pick<
+  RegistryCheckActivities,
+  'lookupRegistries' | 'matchAndStoreRegistries'
+>;
 type Activities = { [K in keyof CheckActivities]: CheckActivities[K] };
 
 const request: RegistryCheckRequest = {
@@ -92,7 +95,7 @@ describe('RegistryCheckWorkflow', () => {
     );
     const mocks: Activities = {
       lookupRegistries,
-      matchRegistries: vi.fn(() => Promise.resolve(checked)),
+      matchAndStoreRegistries: vi.fn(() => Promise.resolve(checked)),
     };
 
     const result = await env.execute(registryCheck, {
@@ -117,7 +120,7 @@ describe('RegistryCheckWorkflow', () => {
     expect(waits[0]).toBeGreaterThanOrEqual(5_000);
     expect(waits[1]).toBeGreaterThanOrEqual(10_000);
     expect(waits[2]).toBeGreaterThanOrEqual(20_000);
-    expect(mocks.matchRegistries).toHaveBeenCalledWith({
+    expect(mocks.matchAndStoreRegistries).toHaveBeenCalledWith({
       check: request,
       lookups: officer(timedOut('r-4')),
     });
@@ -135,13 +138,13 @@ describe('RegistryCheckWorkflow', () => {
     );
     const mocks: Activities = {
       lookupRegistries,
-      matchRegistries: vi.fn(() => Promise.resolve(checked)),
+      matchAndStoreRegistries: vi.fn(() => Promise.resolve(checked)),
     };
 
     await env.execute(registryCheck, { workflowsPath, activities: mocks, args: [request] });
 
     expect(lookupRegistries).toHaveBeenCalledTimes(3);
-    expect(mocks.matchRegistries).toHaveBeenCalledWith({
+    expect(mocks.matchAndStoreRegistries).toHaveBeenCalledWith({
       check: request,
       lookups: officer(found('r-2'), answeredSupplier),
     });
@@ -157,13 +160,13 @@ describe('RegistryCheckWorkflow', () => {
     const { lookupRegistries } = lookupsAnswering(officer(refused));
     const mocks: Activities = {
       lookupRegistries,
-      matchRegistries: vi.fn(() => Promise.resolve(checked)),
+      matchAndStoreRegistries: vi.fn(() => Promise.resolve(checked)),
     };
 
     await env.execute(registryCheck, { workflowsPath, activities: mocks, args: [request] });
 
     expect(lookupRegistries).toHaveBeenCalledTimes(1);
-    expect(mocks.matchRegistries).toHaveBeenCalledWith({
+    expect(mocks.matchAndStoreRegistries).toHaveBeenCalledWith({
       check: request,
       lookups: officer(refused),
     });
@@ -173,19 +176,19 @@ describe('RegistryCheckWorkflow', () => {
     const { lookupRegistries } = lookupsAnswering(officer(found('r-1')));
     const mocks: Activities = {
       lookupRegistries,
-      matchRegistries: vi.fn(() => Promise.resolve(checked)),
+      matchAndStoreRegistries: vi.fn(() => Promise.resolve(checked)),
     };
 
     await env.execute(registryCheck, { workflowsPath, activities: mocks, args: [request] });
 
     expect(lookupRegistries).toHaveBeenCalledTimes(1);
-    expect(mocks.matchRegistries).toHaveBeenCalledTimes(1);
+    expect(mocks.matchAndStoreRegistries).toHaveBeenCalledTimes(1);
   }, 60_000);
 
   it('is stale, matching nothing, when the case moved on to a later version', async () => {
     const mocks: Activities = {
       lookupRegistries: vi.fn(() => Promise.resolve(null)),
-      matchRegistries: vi.fn(() => Promise.resolve(checked)),
+      matchAndStoreRegistries: vi.fn(() => Promise.resolve(checked)),
     };
 
     const result = await env.execute(registryCheck, {
@@ -195,6 +198,6 @@ describe('RegistryCheckWorkflow', () => {
     });
 
     expect(result).toEqual({ outcome: 'stale' });
-    expect(mocks.matchRegistries).not.toHaveBeenCalled();
+    expect(mocks.matchAndStoreRegistries).not.toHaveBeenCalled();
   }, 60_000);
 });
