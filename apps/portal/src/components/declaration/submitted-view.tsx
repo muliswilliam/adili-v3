@@ -76,7 +76,7 @@ export function SubmittedView({ declaration, version, slip, now }: SubmittedView
         <h1 className="text-[28px] leading-tight font-semibold tracking-[-0.02em]">
           {SUBMITTED_COPY.title}
         </h1>
-        <p className="mt-1.5 max-w-[480px] text-muted-foreground">
+        <p className="mt-1.5 max-w-[480px] text-pretty text-muted-foreground">
           {SUBMITTED_COPY.received(declaration.commission.name, version.version)}
         </p>
         <div className="mt-[18px]">
