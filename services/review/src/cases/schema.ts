@@ -165,6 +165,14 @@ export const reviewCases = pgTable(
      * (spec 07b): the queue's filter and icon. Kept with `registry_checks` in one transaction.
      */
     registryUnavailable: boolean().notNull().default(false),
+    /**
+     * Registry checks of the case are numbered as they start (re-check, sweep and processing run
+     * them on their own workflows): the last number handed out, and the number of the check whose
+     * statuses are stored. A check that started before the stored one is stale and stores nothing,
+     * so a slow check never overwrites a newer one.
+     */
+    registryCheckSequence: integer().notNull().default(0),
+    storedRegistryCheck: integer().notNull().default(0),
     openClarifications: integer().notNull().default(0),
     /** When the closure sweep diverted the case to review instead of proposing its closure. */
     sampledAt: timestamp({ withTimezone: true }),

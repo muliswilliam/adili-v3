@@ -30,7 +30,10 @@ export const SYSTEM_LABELS: Record<RegistrySystem, string> = {
 
 /**
  * Stores a registry check on the case, in one transaction under the case's lock, if the case is
- * still at the checked version (`stale` otherwise):
+ * still at the checked version and no check that started later (a higher `sequence`) is stored
+ * already (`stale` otherwise, storing nothing): re-checks, the sweep and processing run checks of
+ * a case on workflows of their own, so two may overlap, and the newer one wins whichever ends
+ * last.
  *
  * - the version's registry flags are reconciled with the match: a flag the match raises again is
  *   kept as it is (reviewed or not, and open again if a check before had superseded it), a new
@@ -49,6 +52,7 @@ export async function storeRegistryCheck(
   events: EventPublisher,
   check: RegistryCheckRequest,
   match: RegistryMatch,
+  sequence: number,
 ): Promise<RegistryCheckResult> {
   return withTenant(db, systemContext(check.tenant), async (tx) => {
     const [found] = await tx
@@ -57,6 +61,7 @@ export async function storeRegistryCheck(
       .where(eq(reviewCases.id, check.caseId))
       .for('update');
     if (found?.currentVersionId !== check.versionId) return { outcome: 'stale' };
+    if (sequence < found.storedRegistryCheck) return { outcome: 'stale' };
 
     const versionFlags = await tx
       .select()
@@ -166,6 +171,7 @@ export async function storeRegistryCheck(
         band: caseBand,
         openFlags: open?.count ?? 0,
         registryUnavailable: statuses.some((entry) => entry.status === 'unavailable'),
+        storedRegistryCheck: sequence,
       })
       .where(eq(reviewCases.id, found.id));
     await tx.insert(reviewTimeline).values({

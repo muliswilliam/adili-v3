@@ -392,7 +392,7 @@ describe('registry checks', () => {
     expect(
       await registry.matchAndStoreRegistries({
         check: request,
-        lookups: { persons: {}, suppliers: {} },
+        lookups: { sequence: 1, persons: {}, suppliers: {} },
       }),
     ).toEqual({ outcome: 'stale' });
     expect(api.gateway.lookups).toEqual([]);

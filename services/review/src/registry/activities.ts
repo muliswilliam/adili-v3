@@ -4,7 +4,7 @@ import { type Database, InjectDatabase, withTenant } from '@adili/data-access';
 import { EventPublisher } from '@adili/events';
 import type { DeclarationV1 } from '@adili/forms';
 import { ApplicationFailure } from '@temporalio/common';
-import { and, asc, eq, max, ne } from 'drizzle-orm';
+import { and, asc, eq, max, ne, sql } from 'drizzle-orm';
 
 import { reviewCases } from '../cases/schema.js';
 import type { ReviewSchema } from '../db/schema.js';
@@ -88,8 +88,10 @@ export class RegistryCheckActivities {
    * up).
    */
   async lookupRegistries({ check, previous }: LookupRequest): Promise<RegistryLookups | null> {
-    const found = await caseAt(this.db, check);
+    // A new check takes its number on the case; a further attempt keeps the check's.
+    const found = previous ? await caseAt(this.db, check) : await startCheck(this.db, check);
     if (found === null) return null;
+    const sequence = previous?.sequence ?? found.sequence;
     const { roster, ids } = await household(this.declarations, this.directory, check);
     const context: RegistryContext = {
       tenant: check.tenant,
@@ -97,7 +99,11 @@ export class RegistryCheckActivities {
       caseRef: check.caseId,
       subjectPersonId: found.personId,
     };
-    const lookups: RegistryLookups = { persons: {}, suppliers: { ...previous?.suppliers } };
+    const lookups: RegistryLookups = {
+      sequence,
+      persons: {},
+      suppliers: { ...previous?.suppliers },
+    };
     let officerCompanies: string[] | undefined;
 
     for (const [personKey, nationalId] of Object.entries(ids)) {
@@ -165,7 +171,7 @@ export class RegistryCheckActivities {
     }
 
     const match = matchRegistries({ document, householdIds: ids, results, suppliers });
-    return storeRegistryCheck(this.db, this.events, check, match);
+    return storeRegistryCheck(this.db, this.events, check, match, lookups.sequence);
   }
 
   /**
@@ -264,18 +270,40 @@ async function recordsOf(
   return { ...answer, ...records.data };
 }
 
-/** The case's declarant, if the case still exists and is at the version being checked. */
+/**
+ * The case's declarant and last check number, if the case still exists and is at the version
+ * being checked.
+ */
 async function caseAt(
   db: Database<ReviewSchema>,
   check: RegistryCheckRequest,
-): Promise<{ personId: string } | null> {
+): Promise<{ personId: string; sequence: number } | null> {
   const [found] = await withTenant(db, systemContext(check.tenant), (tx) =>
     tx
-      .select({ versionId: reviewCases.currentVersionId, personId: reviewCases.personId })
+      .select({ personId: reviewCases.personId, sequence: reviewCases.registryCheckSequence })
       .from(reviewCases)
-      .where(eq(reviewCases.id, check.caseId)),
+      .where(
+        and(eq(reviewCases.id, check.caseId), eq(reviewCases.currentVersionId, check.versionId)),
+      ),
   );
-  return found?.versionId === check.versionId ? { personId: found.personId } : null;
+  return found ?? null;
+}
+
+/** As `caseAt`, handing out the next check number of the case. */
+async function startCheck(
+  db: Database<ReviewSchema>,
+  check: RegistryCheckRequest,
+): Promise<{ personId: string; sequence: number } | null> {
+  const [started] = await withTenant(db, systemContext(check.tenant), (tx) =>
+    tx
+      .update(reviewCases)
+      .set({ registryCheckSequence: sql`${reviewCases.registryCheckSequence} + 1` })
+      .where(
+        and(eq(reviewCases.id, check.caseId), eq(reviewCases.currentVersionId, check.versionId)),
+      )
+      .returning({ personId: reviewCases.personId, sequence: reviewCases.registryCheckSequence }),
+  );
+  return started ?? null;
 }
 
 /**

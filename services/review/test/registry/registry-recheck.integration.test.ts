@@ -301,6 +301,27 @@ describe('registry re-checks and the sweep', () => {
     expect(await caseRow(request.caseId)).toMatchObject({ score: 17, openFlags: 4 });
   });
 
+  it('of two checks of a case that overlap, the one that started later is kept, whichever ends last', async () => {
+    const request = await checkedCase();
+    // A slow check (the sweep's, say) starts while NTSA still lists the sold vehicle...
+    const slow = await registry.lookupRegistries({ check: request, previous: null });
+    if (!slow) throw new Error('stale');
+    // ...then a re-check starts after the sale and is stored first.
+    seed(WANJIKU, { without: [SOLD_VEHICLE] });
+    await check(request);
+    expect((await flagOf(request.caseId, 'registry-vehicle-undeclared')).closedReason).toBe(
+      'superseded-by-recheck',
+    );
+
+    const late = await registry.matchAndStoreRegistries({ check: request, lookups: slow });
+
+    expect(late).toEqual({ outcome: 'stale' });
+    expect((await flagOf(request.caseId, 'registry-vehicle-undeclared')).closedReason).toBe(
+      'superseded-by-recheck',
+    );
+    expect(await eventsOf('review.registry.checked.v1')).toHaveLength(2);
+  });
+
   describe('S10: the sweep', () => {
     it('re-checks a case whose registry came back: statuses updated, new flags, review.registry.checked.v1', async () => {
       api.gateway.failRegistry('ardhisasa', { kind: 'unavailable', reason: 'timeout' });

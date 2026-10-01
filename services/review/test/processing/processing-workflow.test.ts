@@ -33,6 +33,7 @@ type Activities = { [K in keyof ProcessingActivities]: ProcessingActivities[K] }
 };
 
 const lookups: RegistryLookups = {
+  sequence: 1,
   persons: {
     officer: {
       kra: { outcome: 'found', reason: null, resultId: 'r-kra', checkedAt: '2027-12-10T09:00:00Z' },

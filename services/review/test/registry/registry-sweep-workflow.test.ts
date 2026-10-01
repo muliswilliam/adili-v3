@@ -34,6 +34,7 @@ const caseRequest = (n: number): RegistryCheckRequest => ({
 
 /** Every registry answered: the recovered ArdhiSasa among them. */
 const answered: RegistryLookups = {
+  sequence: 1,
   persons: {
     officer: {
       ardhisasa: {

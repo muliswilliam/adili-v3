@@ -93,6 +93,11 @@ export interface SupplierOutcome extends LookupOutcome {
  * companies against the officer's employer, by company registration number.
  */
 export interface RegistryLookups {
+  /**
+   * The check's number on the case, handed out when its first lookups start: of two checks of a
+   * case, the one that started later is stored and the other is stale.
+   */
+  sequence: number;
   persons: Record<string, Partial<Record<RegistrySystem, LookupOutcome>>>;
   suppliers: Record<string, SupplierOutcome>;
 }
@@ -119,7 +124,8 @@ export interface CheckStatus {
 
 /**
  * How a check ended: `checked` (statuses stored, flags merged into the case) or `stale` (the case
- * moved on to a later version or is gone, so nothing was looked up or stored).
+ * moved on to a later version or is gone, or a check that started later is already stored, so
+ * nothing was stored).
  */
 export type RegistryCheckResult =
   { outcome: 'checked'; flags: number; statuses: CheckStatus[] } | { outcome: 'stale' };

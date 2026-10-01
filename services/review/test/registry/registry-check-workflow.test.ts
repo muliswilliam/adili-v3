@@ -49,6 +49,7 @@ const timedOut = (resultId: string): LookupOutcome => ({
 
 /** The officer's lookups with ArdhiSasa answered as given. */
 const officer = (ardhisasa: LookupOutcome, suppliers: RegistryLookups['suppliers'] = {}) => ({
+  sequence: 1,
   persons: {
     officer: { kra: found('r-kra'), ntsa: found('r-ntsa'), brs: found('r-brs'), ardhisasa },
   },
