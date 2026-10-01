@@ -664,9 +664,39 @@ describe('Commission reference', () => {
     expect(contractErrors(okResponse('/internal/v1/commissions', 'get'), body)).toEqual([]);
     expect(body).toEqual({
       items: [
-        { slug: 'psc', issuerCode: 'PSC', name: 'Public Service Commission' },
-        { slug: 'tsc', issuerCode: 'TSC', name: 'Teachers Service Commission' },
+        {
+          slug: 'psc',
+          issuerCode: 'PSC',
+          name: 'Public Service Commission',
+          status: 'active',
+          obligationsStartDate: todayInNairobi(),
+        },
+        {
+          slug: 'tsc',
+          issuerCode: 'TSC',
+          name: 'Teachers Service Commission',
+          status: 'active',
+          obligationsStartDate: todayInNairobi(),
+        },
       ],
+    });
+  });
+
+  it("gives each Commission's earliest obligations-start date over its policy versions", async () => {
+    const admin: Caller = { sub: 'admin-1', tenant: 'platform', roles: ['platform-admin'] };
+    const moved = await api.post(
+      '/v1/commissions/psc/policy/versions',
+      { obligationsStartDate: '2031-07-01' },
+      admin,
+    );
+    expect(moved.statusCode, moved.body).toBe(201);
+
+    const response = await api.get('/internal/v1/commissions', DECLARATIONS);
+
+    expect(response.statusCode, response.body).toBe(200);
+    expect(response.json<{ items: unknown[] }>().items[0]).toMatchObject({
+      slug: 'psc',
+      obligationsStartDate: todayInNairobi(),
     });
   });
 

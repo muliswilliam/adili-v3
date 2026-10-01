@@ -69,9 +69,25 @@ export const internalCommissionSchema = z.object({
 });
 export type InternalCommission = z.infer<typeof internalCommissionSchema>;
 
+/**
+ * A Commission in the platform-wide list (internal): its reference, whether it is active and the
+ * earliest statement date declarations can be held for it on Adili, so a service can tell which
+ * Commissions and years a request can address without pulling every policy.
+ */
+export const internalCommissionListItemSchema = internalCommissionSchema.extend({
+  status: z.enum(['active']).meta({
+    description: 'Only active Commissions take declarations and requests; more states may follow',
+  }),
+  obligationsStartDate: z.iso.date().meta({
+    description:
+      'The earliest obligations-start date of any of its policy versions: no declaration on Adili has an earlier statement date',
+  }),
+});
+export type InternalCommissionListItem = z.infer<typeof internalCommissionListItemSchema>;
+
 /** Every Commission on the platform (internal), for services keeping a read model of them. */
 export const internalCommissionListSchema = z.object({
-  items: z.array(internalCommissionSchema),
+  items: z.array(internalCommissionListItemSchema),
 });
 export type InternalCommissionList = z.infer<typeof internalCommissionListSchema>;
 
