@@ -19,7 +19,7 @@ import {
 import { isUuid } from '../guards.js';
 import { personOf } from './access.js';
 import { attachmentFileName, hasItem, withAttachment, withoutAttachment } from './attachments.js';
-import { declarationAttachmentLinked, declarationAttachmentUnlinked } from './events.js';
+import { declarationAttachmentLinked } from './events.js';
 import {
   declarationNotDraft,
   sectionArchived,
@@ -28,6 +28,7 @@ import {
 } from './problems.js';
 import {
   type DeclarationRow,
+  deleteAttachments,
   liveDeclaration,
   sectionIs,
   type SectionRow,
@@ -235,7 +236,12 @@ export class AttachmentsService {
       .from(declarationSections)
       .where(sectionIs(declaration.id, attachment.sectionKey))
       .limit(1);
-    await tx.delete(declarationAttachments).where(eq(declarationAttachments.id, attachment.id));
+    await deleteAttachments(
+      tx,
+      this.events,
+      declaration,
+      eq(declarationAttachments.id, attachment.id),
+    );
     let contents: SectionContents | undefined;
     let draftVersion = declaration.draftVersion;
     if (section) {
@@ -245,13 +251,6 @@ export class AttachmentsService {
       );
       draftVersion = await this.store(tx, declaration, attachment.sectionKey, contents);
     }
-    await this.events.record(
-      tx,
-      declarationAttachmentUnlinked(declaration.tenant, {
-        declarationId: declaration.id,
-        uploadId: attachment.uploadId,
-      }),
-    );
     return { draftVersion, sectionKey: attachment.sectionKey, contents };
   }
 

@@ -25,7 +25,6 @@ import { itemIds, keepAttachments } from './attachments.js';
 import { assessSections, type DraftSections, type SectionAssessment } from './completeness.js';
 import { deriveHeader } from './derive.js';
 import {
-  declarationAttachmentUnlinked,
   declarationDraftDiscarded,
   declarationDraftStarted,
   declarationSectionSaved,
@@ -41,6 +40,7 @@ import {
 } from './problems.js';
 import {
   type DeclarationRow,
+  deleteAttachments,
   incomePeriodOf,
   inScheduleOrder,
   liveDeclaration,
@@ -347,10 +347,7 @@ export class DraftsService {
         await liveDeclaration(tx, declarationId, { lock: true }),
       );
       if (declaration.status !== 'draft') throw declarationNotDraft('discarded');
-      const unlinked = await tx
-        .delete(declarationAttachments)
-        .where(eq(declarationAttachments.declarationId, declaration.id))
-        .returning({ uploadId: declarationAttachments.uploadId });
+      await deleteAttachments(tx, this.events, declaration);
       await tx
         .delete(declarationSections)
         .where(eq(declarationSections.declarationId, declaration.id));
@@ -359,15 +356,6 @@ export class DraftsService {
         .set({ status: 'discarded' })
         .where(eq(declarations.id, declaration.id));
       await tx.delete(obligationDrafts).where(eq(obligationDrafts.declarationId, declaration.id));
-      for (const { uploadId } of unlinked) {
-        await this.events.record(
-          tx,
-          declarationAttachmentUnlinked(declaration.tenant, {
-            declarationId: declaration.id,
-            uploadId,
-          }),
-        );
-      }
       await this.events.record(
         tx,
         declarationDraftDiscarded(declaration.tenant, { declarationId: declaration.id }),
@@ -660,25 +648,15 @@ export class DraftsService {
     contents: SectionContents,
   ): Promise<void> {
     const kept = itemIds(contents).filter(isUuid);
-    const unlinked = await tx
-      .delete(declarationAttachments)
-      .where(
-        and(
-          eq(declarationAttachments.declarationId, declaration.id),
-          eq(declarationAttachments.sectionKey, key),
-          ...(kept.length > 0 ? [notInArray(declarationAttachments.itemId, kept)] : []),
-        ),
-      )
-      .returning({ uploadId: declarationAttachments.uploadId });
-    for (const { uploadId } of unlinked) {
-      await this.events.record(
-        tx,
-        declarationAttachmentUnlinked(declaration.tenant, {
-          declarationId: declaration.id,
-          uploadId,
-        }),
-      );
-    }
+    await deleteAttachments(
+      tx,
+      this.events,
+      declaration,
+      and(
+        eq(declarationAttachments.sectionKey, key),
+        ...(kept.length > 0 ? [notInArray(declarationAttachments.itemId, kept)] : []),
+      ),
+    );
   }
 
   /** Completeness of a section, and for bio and household of the other one too. */
