@@ -199,6 +199,22 @@ describe('verdictTerms', () => {
     ]);
   });
 
+  it('flags a term in the object of a denied finding or after an exception', () => {
+    expect(verdictTerms('This does not show anything other than fraud.')).toEqual(['fraud']);
+    expect(verdictTerms('This does not mean anything other than fraud.')).toEqual(['fraud']);
+    expect(verdictTerms('The declaration does not show the source of the illicit income.')).toEqual(
+      ['illicit'],
+    );
+    expect(
+      verdictTerms('The records do not establish the origin of the corrupt payments.'),
+    ).toEqual(['corrupt']);
+  });
+
+  it('lets a denied finding reach the term directly or over "that"', () => {
+    expect(verdictTerms('This does not show that the declarant is corrupt.')).toEqual([]);
+    expect(verdictTerms('This does not indicate any wrongdoing.')).toEqual([]);
+  });
+
   it('does not let a negation reach across a clause or sentence', () => {
     expect(verdictTerms('He has not declared the vehicle; non-compliant.')).toEqual([
       'non-compliant',

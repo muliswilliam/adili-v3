@@ -77,15 +77,24 @@ const READ_AS = String.raw`(?:(?:read|taken|seen|treated|interpreted|understood|
 
 /**
  * A word a denied inference may reach over to its term: a subject ("the declarant", "any"), not a
- * coordinator or a verb, which start a predicate of their own the denial does not govern.
+ * coordinator, a verb or an exception ("other than"), which start a predicate of their own or
+ * state what the denial leaves standing.
  */
-const INFERRED_WORD = String.raw`(?!(?:and|but|or|nor|yet|so|then|while|because|which|who|na|lakini|bali|ila|is|was|are|were|be|been|being|has|have|had|do|does|did|will|would|shall|should|may|might|must|can|could)\b)[\p{L}']+`;
+const INFERRED_WORD = String.raw`(?!(?:and|but|or|nor|yet|so|then|while|because|which|who|other|than|except|beyond|besides|na|lakini|bali|ila|is|was|are|were|be|been|being|has|have|had|do|does|did|will|would|shall|should|may|might|must|can|could)\b)[\p{L}']+`;
 
 /**
- * A denied inference: "does not mean", "not by itself suggest", "do not conclude", "nothing in the
- * flag itself suggests", "no part of this flag indicates", "haimaanishi".
+ * A denied inference whose verb takes a clause, so a subject may follow it without "that": "does
+ * not mean", "not by itself suggest", "do not conclude", "nothing in the flag itself suggests",
+ * "haimaanishi".
  */
-const DENIED_INFERENCE = String.raw`(?:${NEGATION}\s+${HEDGE}(?:mean|imply|suggest|indicate|show|prove|establish|constitute|amount to|point to|conclude|assume|infer)|(?:nothing|no part of)(?:\s+${INFERRED_WORD}){0,4}\s+(?:means|implies|suggests|indicates|shows|proves|establishes|constitutes|amounts to|points to)|haimaanishi)`;
+const DENIED_INFERENCE = String.raw`(?:${NEGATION}\s+${HEDGE}(?:mean|imply|suggest|conclude|assume|infer)|(?:nothing|no part of)(?:\s+${INFERRED_WORD}){0,4}\s+(?:means|implies|suggests)|haimaanishi)`;
+
+/**
+ * A denied inference whose verb takes an object, which reaches a subject only over "that": "does
+ * not show", "does not constitute", "not necessarily point to", "no part of this flag indicates".
+ * Its object is not denied: "does not show the source of the illicit income" states the term.
+ */
+const DENIED_FINDING = String.raw`(?:${NEGATION}\s+${HEDGE}(?:indicate|show|prove|establish|constitute|amount to|point to)|(?:nothing|no part of)(?:\s+${INFERRED_WORD}){0,4}\s+(?:indicates|shows|proves|establishes|constitutes|amounts to|points to))`;
 
 /** A subject and a copula a denial reaches over to the term: "the declarant is", "there was any". */
 const SUBJECT = String.raw`(?:\s+${INFERRED_WORD}){0,4}(?:\s+(?:is|was|are|were|be|(?:has|have|had) been)(?:\s+(?:a|an|any))?)?\s+$`;
@@ -96,21 +105,27 @@ const SOURCE = String.raw`(?:\s+from(?:\s+${INFERRED_WORD}){1,3})?`;
 /**
  * The end of a term's clause when a negation governs the term: right before it ("not corrupt",
  * "should not be sanctioned"), through a denied noun ("not a finding of any wrongdoing", "should
- * not be read as a finding of wrongdoing"), or as a denied inference or a denied noun with "that"
- * over a subject and a copula ("does not mean the declarant is non-compliant", "does not mean
- * there was any wrongdoing", "nothing in the flag itself suggests wrongdoing", "haimaanishi kuna
- * rushwa", "do not conclude from this flag alone that the declarant is non-compliant", "not
- * evidence that the declarant is dishonest"). A term joined by "or", "nor" or "and" to a denied
- * one is denied too ("not dishonest or corrupt"). A negation elsewhere in the clause does not
- * count: "did not disclose the illicit income", "there is no doubt the declarant is corrupt" and
- * "did not show the loan and is non-compliant" state the term.
+ * not be read as a finding of wrongdoing"), as a denied inference over a subject and a copula
+ * ("does not mean the declarant is non-compliant", "does not mean there was any wrongdoing",
+ * "nothing in the flag itself suggests wrongdoing", "haimaanishi kuna rushwa", "do not conclude
+ * from this flag alone that the declarant is non-compliant"), as the object of a denied finding
+ * ("does not constitute a breach of", "does not indicate any wrongdoing"), or as a denied finding
+ * or a denied noun with "that" over a subject and a copula ("does not show that the declarant is
+ * corrupt", "not evidence that the declarant is dishonest"). A term joined by "or", "nor" or
+ * "and" to a denied one is denied too ("not dishonest or corrupt"). A negation elsewhere in the
+ * clause does not count: "did not disclose the illicit income", "there is no doubt the declarant
+ * is corrupt", "does not show the source of the illicit income", "does not mean anything other
+ * than fraud" and "did not show the loan and is non-compliant" state the term.
  */
 const GOVERNED = [
   new RegExp(
     String.raw`(?:^|[^\p{L}'])${NEGATION}\s+${HEDGE}(?:(?:be|being|been)\s+)?${READ_AS}${DENIED_NOUN}$`,
     'u',
   ),
-  new RegExp(String.raw`(?:^|[^\p{L}'])${DENIED_INFERENCE}(?:${SOURCE}\s+that)?${SUBJECT}`, 'u'),
+  new RegExp(
+    String.raw`(?:^|[^\p{L}'])(?:${DENIED_INFERENCE}(?:${SOURCE}\s+that)?${SUBJECT}|${DENIED_FINDING}(?:${SOURCE}\s+that${SUBJECT}|(?:\s+(?:a|an|any))?\s+$))`,
+    'u',
+  ),
   new RegExp(
     String.raw`(?:^|[^\p{L}'])${NEGATION}\s+${HEDGE}(?:(?:a|an|the|any)\s+)?${DENIED_NOUNS}\s+that${SUBJECT}`,
     'u',
