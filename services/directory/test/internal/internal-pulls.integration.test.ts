@@ -610,6 +610,33 @@ describe('Commission staff by role (spec 09 reminders and chase)', () => {
     );
   });
 
+  it("lists the Commission's access officers, for access's officer reminders", async () => {
+    const officer = api.identity.seedUser({
+      email: 'access.officer@psc.go.ke',
+      tenant: 'psc',
+      roles: ['access-officer'],
+      emailVerified: true,
+    });
+    api.identity.seedUser({
+      email: 'access.officer@tsc.go.ke',
+      tenant: 'tsc',
+      roles: ['access-officer'],
+      emailVerified: true,
+    });
+    const access: Caller = {
+      sub: 'service-account-access',
+      azp: 'access',
+      scope: 'profile directory:internal',
+    };
+
+    const response = await staff('access-officer', access);
+
+    expect(response.statusCode, response.body).toBe(200);
+    expect(response.json()).toEqual({
+      items: [{ subject: officer, email: 'access.officer@psc.go.ke' }],
+    });
+  });
+
   it('takes the staff roles only; 404 for another Commission; refuses user tokens', async () => {
     expect((await staff('declarant')).statusCode).toBe(400);
     expect((await staff('supervisor', REPORTING, { 'x-acting-tenant': 'tsc' })).statusCode).toBe(

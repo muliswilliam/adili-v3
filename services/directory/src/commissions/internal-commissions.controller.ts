@@ -87,7 +87,7 @@ export class InternalCommissionsController {
     operationId: 'internalListCommissionStaff',
     summary: "A Commission's staff holding a role, with their emails (services)",
     description:
-      'Service tokens with scope directory:internal, acting for the Commission in X-Acting-Tenant; audited, naming the accounts read (it gives staff and their emails). Only enabled accounts with a verified email. The reporting service reminds supervisors and commission admins of the Form M deadlines, and chases reporting officers about a late report (spec 09).',
+      'Service tokens with scope directory:internal, acting for the Commission in X-Acting-Tenant; audited, naming the accounts read (it gives staff and their emails). Only enabled accounts with a verified email. The reporting service reminds supervisors and commission admins of the Form M deadlines, and chases reporting officers about a late report (spec 09); the access service reminds access officers of the requests awaiting them (spec 10).',
   })
   @ApiOkResponse({
     description: 'The staff holding the role',

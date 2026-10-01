@@ -12,6 +12,7 @@ import {
   type RosterRecordFacts,
   ROSTER_SEARCH_LIMIT,
   type StaffMember,
+  type StaffRole,
 } from './directory-client.js';
 
 /** How long a Commission is reused before it is pulled again. */
@@ -165,7 +166,7 @@ export class HttpDirectoryClient extends DirectoryClient {
     }));
   }
 
-  async staffWithRole(slug: string, role: string): Promise<StaffMember[]> {
+  async staffWithRole(slug: string, role: StaffRole): Promise<StaffMember[]> {
     const found = await this.directory.call(
       (api) =>
         api.GET('/internal/v1/commissions/{slug}/staff', {

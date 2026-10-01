@@ -178,3 +178,19 @@ describe('HttpDirectoryClient: roster search', () => {
     await expect(client.searchRoster('psc', 'Anne')).rejects.toBeInstanceOf(DirectoryUnavailable);
   });
 });
+
+describe('HttpDirectoryClient: staff by role', () => {
+  it("lists the Commission's access officers, acting for it", async () => {
+    const officer = { subject: 'officer-1', email: 'access.officer@psc.go.ke' };
+    const { client, sent } = clientAnswering(() => json({ items: [officer] }, 200));
+
+    await expect(client.staffWithRole('psc', 'access-officer')).resolves.toEqual([officer]);
+    expect(sent).toHaveLength(1);
+    expect(sent[0]?.method).toBe('GET');
+    expect(sent[0]?.url).toBe(
+      'http://directory.test/internal/v1/commissions/psc/staff?role=access-officer',
+    );
+    expect(sent[0]?.headers.get('x-acting-tenant')).toBe('psc');
+    expect(sent[0]?.headers.get('authorization')).toBe('Bearer reference-token');
+  });
+});

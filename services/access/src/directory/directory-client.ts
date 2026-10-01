@@ -1,3 +1,5 @@
+import type { ACCESS_OFFICER } from '@adili/roles';
+
 /** A Commission as requests name it (directory.yaml `InternalCommission`). */
 export interface CommissionFacts {
   slug: string;
@@ -55,6 +57,9 @@ export interface ApplicantVerificationInput {
   idempotencyKey: string;
 }
 
+/** The staff role access lists a Commission's accounts by: its access officers, for reminders. */
+export type StaffRole = typeof ACCESS_OFFICER;
+
 /** A staff account of a Commission holding a role (e.g. its access officers, for reminders). */
 export interface StaffMember {
   subject: string;
@@ -90,7 +95,7 @@ export abstract class DirectoryClient {
   abstract searchRoster(slug: string, search: string): Promise<RosterCandidateFacts[]>;
 
   /** The Commission's staff accounts holding `role`, with the email they sign in with. */
-  abstract staffWithRole(slug: string, role: string): Promise<StaffMember[]>;
+  abstract staffWithRole(slug: string, role: StaffRole): Promise<StaffMember[]>;
 
   /**
    * The applicant person `personId` as the directory holds them (identity status included: it

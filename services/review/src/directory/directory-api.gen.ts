@@ -217,7 +217,7 @@ export interface paths {
         };
         /**
          * A Commission's staff holding a role, with their emails (services)
-         * @description Service tokens with scope directory:internal, acting for the Commission in X-Acting-Tenant; audited, naming the accounts read (it gives staff and their emails). Only enabled accounts with a verified email. The reporting service reminds supervisors and commission admins of the Form M deadlines, and chases reporting officers about a late report (spec 09).
+         * @description Service tokens with scope directory:internal, acting for the Commission in X-Acting-Tenant; audited, naming the accounts read (it gives staff and their emails). Only enabled accounts with a verified email. The reporting service reminds supervisors and commission admins of the Form M deadlines, and chases reporting officers about a late report (spec 09); the access service reminds access officers of the requests awaiting them (spec 10).
          */
         get: operations["internalListCommissionStaff"];
         put?: never;
@@ -2834,7 +2834,7 @@ export interface operations {
     internalListCommissionStaff: {
         parameters: {
             query: {
-                role: "reporting-officer" | "supervisor" | "commission-admin";
+                role: "reporting-officer" | "supervisor" | "commission-admin" | "access-officer";
             };
             header: {
                 /** @description Tenant the calling service acts for; the resource must belong to it */

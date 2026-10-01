@@ -19,6 +19,7 @@ import {
   type RosterRecordFacts,
   ROSTER_SEARCH_LIMIT,
   type StaffMember,
+  type StaffRole,
 } from '../../src/directory/directory-client.js';
 import {
   type CleanUpload,
@@ -97,7 +98,7 @@ export class FakeDirectory extends DirectoryClient {
     return found;
   }
 
-  givenStaff(slug: string, role: string, ...members: StaffMember[]): void {
+  givenStaff(slug: string, role: StaffRole, ...members: StaffMember[]): void {
     this.staff.set(`${slug}:${role}`, members);
   }
 
@@ -170,7 +171,7 @@ export class FakeDirectory extends DirectoryClient {
     });
   }
 
-  staffWithRole(slug: string, role: string): Promise<StaffMember[]> {
+  staffWithRole(slug: string, role: StaffRole): Promise<StaffMember[]> {
     return this.answer('staffWithRole', slug, () => this.staff.get(`${slug}:${role}`) ?? []);
   }
 
