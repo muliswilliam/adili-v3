@@ -26,7 +26,8 @@ import {
 import { ClientRMQ, type MicroserviceOptions } from '@nestjs/microservices';
 import amqp from 'amqplib';
 import { lastValueFrom } from 'rxjs';
-import { TEMPORAL_CLIENT } from '@adili/temporal';
+import { TEMPORAL_CLIENT, TemporalWorkerReadinessCheck } from '@adili/temporal';
+import { untilWorkerPolling } from '@adili/temporal/testing';
 import type { Client } from '@temporalio/client';
 import { sql } from 'drizzle-orm';
 import { createLocalJWKSet, exportJWK, generateKeyPair, type JWK, SignJWT } from 'jose';
@@ -303,6 +304,8 @@ export async function startDeclarationsApi({
   }
   await app.init();
   await app.getHttpAdapter().getInstance().ready();
+  // Tests start once the worker polls, as traffic waits for readiness (see untilWorkerPolling).
+  await untilWorkerPolling(app.get(TemporalWorkerReadinessCheck));
 
   return {
     app,
