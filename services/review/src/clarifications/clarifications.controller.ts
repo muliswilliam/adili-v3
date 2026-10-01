@@ -7,6 +7,7 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import {
+  AcceptIdempotencyKey,
   ApiProblemResponse,
   CurrentPrincipal,
   type Principal,
@@ -43,6 +44,7 @@ export class ClarificationsController {
   constructor(private readonly clarifications: ClarificationsService) {}
 
   @Post('cases/:caseId/clarifications')
+  @AcceptIdempotencyKey()
   @ApiUuidParam('caseId')
   @ApiOperation({
     operationId: 'createClarificationDraft',
@@ -76,6 +78,7 @@ export class ClarificationsController {
   }
 
   @Put('clarifications/:clarificationId')
+  @AcceptIdempotencyKey()
   @ApiUuidParam('clarificationId')
   @ApiOperation({ operationId: 'updateClarificationDraft', summary: "Update a draft's items" })
   @ApiOkResponse({ description: 'Draft', schema: schemaRef('Clarification') })
@@ -114,6 +117,7 @@ export class ClarificationsController {
   }
 
   @Post('clarifications/:clarificationId/resolve')
+  @AcceptIdempotencyKey()
   @HttpCode(200)
   @ApiUuidParam('clarificationId')
   @ApiOperation({
@@ -134,6 +138,7 @@ export class ClarificationsController {
   }
 
   @Post('clarifications/:clarificationId/follow-up')
+  @AcceptIdempotencyKey()
   @ApiUuidParam('clarificationId')
   @ApiOperation({
     operationId: 'createFollowUpClarification',
@@ -154,6 +159,7 @@ export class ClarificationsController {
   }
 
   @Post('clarifications/:clarificationId/withdraw')
+  @AcceptIdempotencyKey()
   @HttpCode(200)
   @ApiUuidParam('clarificationId')
   @ApiOperation({

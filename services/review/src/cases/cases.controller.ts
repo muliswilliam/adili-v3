@@ -8,6 +8,7 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import {
+  AcceptIdempotencyKey,
   ApiProblemResponse,
   AuditedRead,
   CurrentPrincipal,
@@ -115,6 +116,7 @@ export class CasesController {
   }
 
   @Post('claim')
+  @AcceptIdempotencyKey()
   @HttpCode(200)
   @uuidParam('caseId')
   @ApiOperation({
@@ -133,6 +135,7 @@ export class CasesController {
   }
 
   @Post('release')
+  @AcceptIdempotencyKey()
   @HttpCode(200)
   @uuidParam('caseId')
   @ApiOperation({
@@ -151,6 +154,7 @@ export class CasesController {
   }
 
   @Put('assignment')
+  @AcceptIdempotencyKey()
   @uuidParam('caseId')
   @ApiOperation({
     operationId: 'reassignCase',
@@ -171,6 +175,7 @@ export class CasesController {
   }
 
   @Post('notes')
+  @AcceptIdempotencyKey()
   @uuidParam('caseId')
   @ApiOperation({
     operationId: 'addCaseNote',
@@ -190,6 +195,7 @@ export class CasesController {
   }
 
   @Post('flags/:flagId/reviewed')
+  @AcceptIdempotencyKey()
   @HttpCode(200)
   @uuidParam('caseId')
   @uuidParam('flagId')
