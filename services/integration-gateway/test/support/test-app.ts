@@ -2,17 +2,24 @@ import 'reflect-metadata';
 
 import { randomUUID } from 'node:crypto';
 
+import type { Type } from '@nestjs/common';
 import { FastifyAdapter, type NestFastifyApplication } from '@nestjs/platform-fastify';
 import { Test } from '@nestjs/testing';
 import { TokenVerifier } from '@adili/api-kit';
 import { createValkey, VALKEY } from '@adili/cache';
-import { createDatabase, DATABASE, type Database } from '@adili/data-access';
+import { createDatabase, DATABASE, type Database, FieldCipher } from '@adili/data-access';
+import { FakeCipher } from '@adili/data-access/testing';
 import { drizzle } from 'drizzle-orm/node-postgres';
 import { migrate } from 'drizzle-orm/node-postgres/migrator';
 import { createLocalJWKSet, exportJWK, generateKeyPair, SignJWT } from 'jose';
 import pg from 'pg';
 import { vi } from 'vitest';
 
+import {
+  SYSTEM_POLICIES,
+  type SystemPolicies,
+  type SystemPolicy,
+} from '../../src/adapter-kit/system-policies.js';
 import { AppModule } from '../../src/app.module.js';
 import { config } from '../../src/config.js';
 import { schema } from '../../src/db/schema.js';
@@ -37,10 +44,21 @@ export class Clock {
   }
 }
 
+export interface TestAppOptions extends Partial<IprsClientOptions> {
+  /** IPRS's timeout. */
+  timeoutMs?: number;
+  /** Policies of systems besides IPRS, e.g. for a stub adapter. */
+  policies?: SystemPolicies;
+  /** Extra controllers, e.g. one exercising a kit decorator. */
+  controllers?: Type[];
+}
+
 export interface TestApp {
   app: NestFastifyApplication;
   db: Database<typeof schema>;
   valkey: ReturnType<typeof createValkey>;
+  /** The field cipher, real AES-GCM under keys derived from the tenant slug. */
+  cipher: FakeCipher;
   clock: Clock;
   /** This app's cache keys, without the key prefix. */
   cacheKeys: () => Promise<string[]>;
@@ -53,9 +71,14 @@ export interface TestApp {
 
 /**
  * Boots the service against a fresh Postgres schema and Valkey key prefix, so parallel runs
- * never see each other's rows or cache entries, with the IPRS client options overridden by `iprs`.
+ * never see each other's rows or cache entries, with IPRS's base URL and timeout overridden.
  */
-export async function createTestApp(iprs: Partial<IprsClientOptions> = {}): Promise<TestApp> {
+export async function createTestApp({
+  baseUrl: iprsBaseUrl = config.IPRS_BASE_URL,
+  timeoutMs = config.IPRS_TIMEOUT_MS,
+  policies = {},
+  controllers = [],
+}: TestAppOptions = {}): Promise<TestApp> {
   const baseUrl = requireEnv('TEST_DATABASE_URL');
   const schemaName = `integration_gateway_test_${process.pid}_${Date.now()}`;
   const url = withSearchPath(baseUrl, schemaName);
@@ -78,21 +101,28 @@ export async function createTestApp(iprs: Partial<IprsClientOptions> = {}): Prom
     keyPrefix: `integration-gateway-test-${randomUUID()}:`,
   });
   const clock = new Clock();
+  const cipher = new FakeCipher();
+  const iprsPolicy: SystemPolicy = {
+    timeoutMs,
+    cacheTtlSeconds: config.IPRS_CACHE_TTL_SECONDS,
+    ratePerMinute: config.IPRS_RATE_LIMIT_PER_MINUTE,
+    maxQueueMs: config.RATE_LIMIT_MAX_WAIT_MS,
+  };
   const prefix = valkey.options.keyPrefix ?? '';
   // KEYS takes its pattern as given (the key prefix is not applied), so match the prefix here.
   const cacheKeys = async () =>
     (await valkey.keys(`${prefix}*`)).map((key) => key.slice(prefix.length));
-  const moduleRef = await Test.createTestingModule({ imports: [AppModule] })
+  const moduleRef = await Test.createTestingModule({ imports: [AppModule], controllers })
     .overrideProvider(DATABASE)
     .useValue(db)
     .overrideProvider(VALKEY)
     .useValue(valkey)
+    .overrideProvider(FieldCipher)
+    .useValue(cipher)
     .overrideProvider(IPRS_CLIENT_OPTIONS)
-    .useValue({
-      baseUrl: config.IPRS_BASE_URL,
-      timeoutMs: config.IPRS_TIMEOUT_MS,
-      ...iprs,
-    } satisfies IprsClientOptions)
+    .useValue({ baseUrl: iprsBaseUrl } satisfies IprsClientOptions)
+    .overrideProvider(SYSTEM_POLICIES)
+    .useValue({ iprs: iprsPolicy, ...policies } satisfies SystemPolicies)
     .overrideProvider(TokenVerifier)
     .useValue(
       new TokenVerifier(
@@ -111,6 +141,7 @@ export async function createTestApp(iprs: Partial<IprsClientOptions> = {}): Prom
     app,
     db,
     valkey,
+    cipher,
     clock,
     cacheKeys,
     clearCache: async () => {
