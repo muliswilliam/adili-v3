@@ -2,10 +2,10 @@
 // Checks that the Adili realm file still has the roles, BFF clients, authentication flows (with
 // the adili-otp authenticator), staff provisioning setup (directory service client, SMTP, email
 // theme, user profile attributes), declarant accounts (multi-valued tenants), service clients and
-// scopes (messages, iprs, directory:internal, directory:person-contacts and
-// directory:roster-national-id; the keycloak-extension, declarations and notifications clients) and API client setup (roster:write client scope; documents:internal and
-// the adili-api audience for the directory) specs 03, 04, 06 and 27 require. Demo users are optional (#371 seeds them). Portal and console tokens carry the
-// person_id claim (spec 04).
+// scopes (messages, iprs, directory:internal, directory:person-contacts,
+// directory:roster-national-id and directory:applicants; the keycloak-extension, declarations and notifications clients) and API client setup (roster:write client scope; documents:internal and
+// the adili-api audience for the directory) specs 03, 04, 06, 10 and 27 require. Demo users are optional (#371 seeds them). Portal and console tokens carry the
+// person_id claim (spec 04). Applicant accounts carry the identityStatus attribute (spec 10).
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -220,6 +220,7 @@ for (const name of [
   'directory:person-contacts',
   'declarations:internal',
   'directory:roster-national-id',
+  'directory:applicants',
   'reports:submit',
 ]) {
   const scope = scopes.get(name);
@@ -299,6 +300,10 @@ for (const client of realm.clients ?? []) {
   if (client.clientId !== 'review' && scopesOf.includes('directory:roster-national-id')) {
     fail(`${client.clientId} must not get directory:roster-national-id (review only)`);
   }
+  // Applicants' particulars likewise: only access reads them and records verifications (spec 10).
+  if (client.clientId !== 'access' && scopesOf.includes('directory:applicants')) {
+    fail(`${client.clientId} must not get directory:applicants (access only)`);
+  }
 }
 // API clients the directory creates get `basic` (the `sub` claim) with their own scope.
 if (!scopes.has('basic')) fail('missing client scope basic (API client tokens need sub)');
@@ -324,9 +329,10 @@ const profile = JSON.parse(profileProvider?.config?.['kc.user.profile.config']?.
 const attributes = new Map(
   (profile.attributes ?? []).map((attribute) => [attribute.name, attribute]),
 );
-// Staff provisioning (spec 01), declarant accounts (spec 03) and law-enforcement accounts (spec
-// 10). person_id is an access claim (spec 04): a user who could edit it could read another
-// person's data; so is agency, which names the agency an officer requests for.
+// Staff provisioning (spec 01), declarant accounts (spec 03), and law-enforcement and applicant
+// accounts (spec 10). person_id is an access claim (spec 04): a user who could edit it could read
+// another person's data; so is agency, which names the agency an officer requests for.
+// identityStatus is an access officer's verification of a passport applicant.
 for (const name of [
   'tenant',
   'phone',
@@ -336,6 +342,7 @@ for (const name of [
   'ofr',
   'person_id',
   'agency',
+  'identityStatus',
 ]) {
   const attribute = attributes.get(name);
   if (!attribute) {
