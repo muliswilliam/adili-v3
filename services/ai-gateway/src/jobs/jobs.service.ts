@@ -7,14 +7,17 @@ import { v7 as uuidv7 } from 'uuid';
 
 import { CACHE_KEY, type Job, jobs, type schema } from '../db/schema.js';
 import { hashJson } from '../hashing.js';
+import { Budgets } from '../policy/budgets.js';
+import { GatePolicies } from '../policy/gate-policies.js';
+import { GenAiTelemetry } from '../policy/telemetry.js';
+import { ProviderRegistry } from '../providers/providers.module.js';
 import { findTask } from '../tasks/registry.js';
-import { gateAdmits } from './classification-gate.js';
-import { jobFinished } from './events.js';
+import { recordJobEnded } from './job-ended.js';
 import { JobWorkflows } from './job-workflows.js';
-import { CACHEABLE_STATUSES, isTerminal } from './job-states.js';
+import { CACHEABLE_STATUSES, isTerminal, type JobReason } from './job-states.js';
 import { toJobView, type JobView } from './job-view.js';
-import { Routing } from './routing.js';
-import { taskRequestSchema } from './task-request.js';
+import { type Route, Routing } from './routing.js';
+import { type TaskRequest, taskRequestSchema } from './task-request.js';
 
 export interface RunTaskResult {
   job: JobView;
@@ -31,15 +34,23 @@ export class JobsService {
   constructor(
     @InjectDatabase() private readonly db: Database<typeof schema>,
     private readonly routing: Routing,
+    private readonly providers: ProviderRegistry,
+    private readonly gate: GatePolicies,
+    private readonly budgets: Budgets,
     private readonly workflows: JobWorkflows,
     private readonly events: EventPublisher,
+    private readonly telemetry: GenAiTelemetry,
   ) {}
 
   /**
    * Creates a job for a task call and starts it, unless the caller's Idempotency-Key names an
    * earlier job, or an equal request already has a live or succeeded job (the cache): then that
-   * job is returned. Waits up to `waitSeconds` for the job to end. A request the classification
-   * gate refuses is recorded as a `blocked` job (reason `policy`) that never reaches a provider.
+   * job is returned. Waits up to `waitSeconds` for the job to end.
+   *
+   * A new job counts against the tenant's per-minute limit (beyond it: 429, no job). A request
+   * the classification gate refuses, or from a tenant past its monthly budget, is recorded as a
+   * `blocked` job (reason `policy` or `budget`) that never reaches a provider; one routed to a
+   * provider this process cannot reach fails at once with `provider-unavailable`.
    *
    * A request served from the cache does not record its key. Should the cached job fail, a
    * retry with that key runs a new job rather than returning the failed one: the retry of a
@@ -70,7 +81,7 @@ export class JobsService {
         detail: `Task ${task.name} has prompt versions ${task.promptVersions.join(', ')}.`,
       });
     }
-    const route = this.routing.route();
+    const route = await this.routing.route(request.tenant, task.name);
     const fields: Pick<Job, (typeof CACHE_KEY)[number]> = {
       tenant: request.tenant,
       caller: callerOf(principal),
@@ -123,30 +134,54 @@ export class JobsService {
         return { job: await this.startAndWait(cached, request.waitSeconds), replayed: false };
       }
 
-      const admitted = gateAdmits(request.dataClass, route.providerClass);
+      const limit = await this.budgets.rateLimited(request.tenant);
+      if (limit.limited) {
+        throw ProblemException.fromCode('rate-limit-exceeded', {
+          detail: `Tenant ${request.tenant} has reached its per-minute limit of AI task calls.`,
+          extensions: { retryAfterSeconds: limit.retryAfterSeconds },
+        });
+      }
+      const ending = await this.admission(request, route);
       const created = await this.db.transaction(async (tx) => {
         const [job] = await tx
           .insert(jobs)
           .values({
             id: uuidv7(),
             ...fields,
+            params: route.params,
             idempotencyKey,
             requestHash,
-            ...(admitted
-              ? { input: request.input, status: 'queued' as const }
-              : { status: 'blocked' as const, reason: 'policy' as const, finishedAt: sql`now()` }),
+            ...(ending
+              ? { ...ending, finishedAt: sql`now()` }
+              : { input: request.input, status: 'queued' as const }),
           })
           // Lost a race on the key or the cache entry: the next attempt reads the winner.
           .onConflictDoNothing()
           .returning();
-        if (job?.status === 'blocked') await this.events.record(tx, jobFinished(job));
+        if (job && isTerminal(job.status)) await recordJobEnded(tx, this.events, job);
         return job;
       });
       if (created) {
+        if (isTerminal(created.status)) this.telemetry.jobFinished(created);
         return { job: await this.startAndWait(created, request.waitSeconds), replayed: false };
       }
     }
     throw new Error('Could not create or find the job under contention');
+  }
+
+  /** Why a new job must end at once, without reaching a provider; undefined when it may run. */
+  private async admission(
+    request: TaskRequest,
+    route: Route,
+  ): Promise<{ status: 'failed' | 'blocked'; reason: JobReason } | undefined> {
+    const provider = this.providers.get(route.provider);
+    if (!provider) return { status: 'failed', reason: 'provider-unavailable' };
+    if (!(await this.gate.admits(request.tenant, request.dataClass, provider.providerClass))) {
+      return { status: 'blocked', reason: 'policy' };
+    }
+    if (await this.budgets.exhausted(request.tenant))
+      return { status: 'blocked', reason: 'budget' };
+    return undefined;
   }
 
   /** A job is visible only to the caller that created it. */

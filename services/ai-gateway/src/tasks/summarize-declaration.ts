@@ -17,7 +17,7 @@ export const summarizeDeclaration = defineTask({
     kind: z.literal('summarize-declaration'),
     document: jsonObject.meta({
       description:
-        'declaration.v1 document. Identifiers will be minimised before any provider call once minimisation lands (spec 07c BE-3)',
+        'declaration.v1 document. The gateway replaces personal identifiers with tokens before any provider call and restores them in the output',
     }),
     previousDocument: jsonObject.nullable(),
     changes: z.array(changeInput),
