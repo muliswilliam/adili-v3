@@ -22,6 +22,8 @@ function notice(fields: Partial<DeclarantNotice> = {}): DeclarantNotice {
     commission: { slug: 'tsc', name: 'Teachers Service Commission' },
     status: 'awaiting-representations',
     applicantName: 'Wanjiru Kamau',
+    agency: null,
+    caseReference: null,
     purposeInGeneralTerms: 'Journalistic research',
     scope: {
       years: [2026],
@@ -208,12 +210,17 @@ describe('the history', () => {
     const lea = notice({
       kind: 'lea',
       applicantName: 'Asset Recovery Agency',
+      agency: { code: 'ARA', name: 'Asset Recovery Agency' },
+      caseReference: 'ARA/INV/2026/014',
       decision: { ...DECISION, outcome: 'grant', decidedAt: '2026-09-02T12:30:00Z' },
     });
     expect(historyOf(lea).map((entry) => entry.title)).toEqual([
       'Asset Recovery Agency was granted access',
     ]);
     expect(leaTitle(lea)).toBe(
+      'A law-enforcement agency was granted access on 2 Sep 2026 (Asset Recovery Agency, case ARA/INV/2026/014)',
+    );
+    expect(leaTitle({ ...lea, caseReference: null })).toBe(
       'A law-enforcement agency was granted access on 2 Sep 2026 (Asset Recovery Agency)',
     );
   });

@@ -109,6 +109,8 @@ function seed(now: number) {
     commission: TSC,
     status: 'under-decision',
     applicantName: 'Wanjiru Kamau',
+    agency: null,
+    caseReference: null,
     purposeInGeneralTerms: 'Journalistic research on school procurement in Nakuru County',
     scope: scope([2026], true, false, ['income', 'assets', 'liabilities']),
     notifiedAt,
@@ -215,6 +217,8 @@ function seed(now: number) {
       ...notice(ids.lea, 7, ago(26), {
         status: 'granted',
         applicantName: 'Asset Recovery Agency',
+        agency: { code: 'ARA', name: 'Asset Recovery Agency' },
+        caseReference: 'ARA/INV/2026/014',
         purposeInGeneralTerms:
           'Investigation under the Proceeds of Crime and Anti-Money Laundering Act',
         scope: scope([2026], true, true, ALL),

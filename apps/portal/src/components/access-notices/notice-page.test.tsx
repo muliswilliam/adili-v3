@@ -299,7 +299,7 @@ describe('after the window and the decision', () => {
     renderPage(await seededNotice(IDS.lea));
     expect(screen.getByRole('heading', { level: 1, name: 'Law-enforcement access' })).toBeTruthy();
     expect(banner()).toMatch(
-      /^A law-enforcement agency was granted access on 6 Sep 2026 \(Asset Recovery Agency\)\./,
+      /^A law-enforcement agency was granted access on 6 Sep 2026 \(Asset Recovery Agency, case ARA\/INV\/2026\/014\)\./,
     );
     expect(screen.getByText('Scope granted')).toBeTruthy();
     expect(screen.queryByRole('radiogroup')).toBeNull();

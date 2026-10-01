@@ -160,7 +160,7 @@ describe('Who accessed my declaration (S12)', () => {
     });
   });
 
-  describe('law enforcement requests (fixtures until #264)', () => {
+  describe('law enforcement requests (seeded rows)', () => {
     /** A DCI request about `personId`, verified by the PSC's access officer, not yet decided. */
     async function verifiedLeaRequest(
       personId: string,
@@ -174,9 +174,16 @@ describe('Who accessed my declaration (S12)', () => {
           commissionName: 'Public Service Commission',
           reference,
           officerSubject: 'lea-officer-peter',
+          officerPersonId: randomUUID(),
           officerName: 'Peter Mwangi',
           agencyCode: 'DCI',
           agencyName: 'Directorate of Criminal Investigations',
+          provenance: {
+            accountState: 'activated',
+            activatedAt: null,
+            agencyLegalBasis: 'National Police Service Act, 2011, s.35',
+            checkedAt: '2027-03-02T08:00:00.000Z',
+          },
           officerSought: { name: 'Anne Njeri Mutua' },
           reason: 'Investigation into procurement',
           caseReference: 'DCI/INV/118/2027',

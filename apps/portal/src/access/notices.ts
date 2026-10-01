@@ -97,12 +97,15 @@ export function leaGrantedAt(notice: DeclarantNotice): string {
 }
 
 /**
- * "A law-enforcement agency was granted access on 2 Sep 2026 (Asset Recovery Agency)". The
- * contract does not carry the agency's case reference yet (#264); `applicantName` names the
- * agency.
+ * "A law-enforcement agency was granted access on 2 Sep 2026 (Asset Recovery Agency, case
+ * ARA/INV/2026/014)": the agency and its case reference from the grant.
  */
 export function leaTitle(notice: DeclarantNotice): string {
-  return NOTICES_COPY.lea(formatDate(leaGrantedAt(notice)), notice.applicantName);
+  const date = formatDate(leaGrantedAt(notice));
+  const agency = notice.agency?.name ?? notice.applicantName;
+  return notice.caseReference
+    ? NOTICES_COPY.leaCase(date, agency, notice.caseReference)
+    : NOTICES_COPY.lea(date, agency);
 }
 
 /** Whose details a scope covers, in a few words: "You and spouse". */

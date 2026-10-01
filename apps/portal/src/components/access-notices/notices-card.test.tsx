@@ -76,7 +76,7 @@ describe('Access requests', () => {
       expect.stringContaining('Under decision'),
       expect.stringContaining('Under decision'),
       expect.stringContaining(
-        'A law-enforcement agency was granted access on 6 Sep 2026 (Asset Recovery Agency)',
+        'A law-enforcement agency was granted access on 6 Sep 2026 (Asset Recovery Agency, case ARA/INV/2026/014)',
       ),
       expect.stringContaining('Partially granted'),
       expect.stringContaining('Denied'),
