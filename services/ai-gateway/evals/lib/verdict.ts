@@ -67,13 +67,13 @@ const NEGATION = String.raw`(?:not|no|nothing|never|without|isn't|aren't|wasn't|
 const HEDGE = String.raw`(?:(?:by itself|on its own|alone|necessarily|in itself)\s+)?`;
 
 /** A noun a denial may put before the term: "not a finding of", "not evidence that". */
-const DENIED_NOUNS = String.raw`(?:finding|determination|sign|indication|indicator|evidence|proof|suggestion|allegation|case|ishara|dalili|ushahidi|uthibitisho)`;
+const DENIED_NOUNS = String.raw`(?:finding|determination|sign|indication|indicator|evidence|proof|suggestion|allegation|conclusion|accusation|judg(?:e)?ment|assessment|case|ishara|dalili|ushahidi|uthibitisho)`;
 
 /** What a denial may put between itself and the term: "not a finding of any", "si ishara ya". */
 const DENIED_NOUN = String.raw`(?:(?:a|an|the|any)\s+)?(?:${DENIED_NOUNS}\s+(?:of|ya|za|wa)\s+(?:(?:any|the)\s+)?)?`;
 
 /** How a denial may present the term: "should not be read as a finding of". */
-const READ_AS = String.raw`(?:(?:read|taken|seen|treated)\s+as\s+)?`;
+const READ_AS = String.raw`(?:(?:read|taken|seen|treated|interpreted|understood|regarded|considered)\s+as\s+)?`;
 
 /**
  * A word a denied inference may reach over to its term: a subject ("the declarant", "any"), not a
@@ -85,7 +85,7 @@ const INFERRED_WORD = String.raw`(?!(?:and|but|or|nor|yet|so|then|while|because|
  * A denied inference: "does not mean", "not by itself suggest", "do not conclude", "nothing in the
  * flag itself suggests", "no part of this flag indicates", "haimaanishi".
  */
-const DENIED_INFERENCE = String.raw`(?:${NEGATION}\s+${HEDGE}(?:mean|imply|suggest|indicate|show|prove|establish|constitute|amount to|conclude|assume|infer)|(?:nothing|no part of)(?:\s+${INFERRED_WORD}){0,4}\s+(?:means|implies|suggests|indicates|shows|proves|establishes|constitutes|amounts to)|haimaanishi)`;
+const DENIED_INFERENCE = String.raw`(?:${NEGATION}\s+${HEDGE}(?:mean|imply|suggest|indicate|show|prove|establish|constitute|amount to|point to|conclude|assume|infer)|(?:nothing|no part of)(?:\s+${INFERRED_WORD}){0,4}\s+(?:means|implies|suggests|indicates|shows|proves|establishes|constitutes|amounts to|points to)|haimaanishi)`;
 
 /** A subject and a copula a denial reaches over to the term: "the declarant is", "there was any". */
 const SUBJECT = String.raw`(?:\s+${INFERRED_WORD}){0,4}(?:\s+(?:is|was|are|were|be|(?:has|have|had) been)(?:\s+(?:a|an|any))?)?\s+$`;

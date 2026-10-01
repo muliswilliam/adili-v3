@@ -168,6 +168,15 @@ describe('verdictTerms', () => {
     ]);
   });
 
+  it('allows paraphrases of "not a finding of wrongdoing"', () => {
+    expect(verdictTerms('This should not be interpreted as a finding of wrongdoing.')).toEqual([]);
+    expect(verdictTerms('This does not necessarily point to wrongdoing.')).toEqual([]);
+    expect(verdictTerms('Nothing in the flag itself points to wrongdoing.')).toEqual([]);
+    expect(verdictTerms('This is not a conclusion of wrongdoing.')).toEqual([]);
+    expect(verdictTerms('This is not an accusation of wrongdoing.')).toEqual([]);
+    expect(verdictTerms('The flag is not a judgment of wrongdoing.')).toEqual([]);
+  });
+
   it('lets a denial reach over a hedge set off by commas', () => {
     expect(verdictTerms('This is not, by itself, evidence of wrongdoing.')).toEqual([]);
     expect(verdictTerms('It does not, on its own, suggest wrongdoing.')).toEqual([]);
