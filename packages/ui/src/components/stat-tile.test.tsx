@@ -17,6 +17,12 @@ describe('StatTile', () => {
     screen.getByText('48,345');
   });
 
+  it('prints the value its own way when given a format', () => {
+    render(<StatTile label="Cache hit rate" value={0.42} format={(v) => `${String(v * 100)}%`} />);
+
+    screen.getByText('42%');
+  });
+
   it('lists the breakdown on the tile, so it is reachable without hover', () => {
     render(<StatTile label="Upcoming" value={48345} breakdown={breakdown} />);
 

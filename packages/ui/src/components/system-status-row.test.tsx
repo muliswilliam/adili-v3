@@ -135,6 +135,24 @@ describe('SystemStatusRow', () => {
     expect(toggle.getAttribute('aria-expanded')).toBe('false');
   });
 
+  it('shows its metrics between the copy and the badge, outside the expand button', () => {
+    inList(
+      <SystemStatusRow
+        name="KRA iTax"
+        description="PIN, tax compliance and income declared to KRA"
+        badge={<span>Closed</span>}
+        metrics={<span>41,230 calls</span>}
+      >
+        <p>Breaker rule</p>
+      </SystemStatusRow>,
+    );
+
+    const metrics = screen.getByText('41,230 calls');
+    const badge = screen.getByText('Closed');
+    expect(screen.getByRole('button', { name: 'KRA iTax' }).contains(metrics)).toBe(false);
+    expect(metrics.compareDocumentPosition(badge) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
   it('says it is checking instead of its copy and badge', () => {
     inList(<SystemStatusRow name="NTSA" status="mismatched" count={2} checking />);
 
