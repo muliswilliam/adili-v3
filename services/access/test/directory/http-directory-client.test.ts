@@ -1,0 +1,124 @@
+import { describe, expect, it } from 'vitest';
+
+import { DirectoryUnavailable } from '../../src/directory/directory-client.js';
+import { HttpDirectoryClient } from '../../src/directory/http-directory-client.js';
+
+const PERSON = '7d3f9b2a-4c1e-4a8b-9f60-2e5d8c1b0a47';
+const KEY = '4b0f3c8e-5d6a-5e7f-8a9b-0c1d2e3f4a5b';
+
+const APPLICANT = {
+  personId: PERSON,
+  fullName: 'Daniel Otieno',
+  identityDocument: { kind: 'passport', number: 'AK123456', country: 'UG' },
+  identityStatus: 'pending-verification',
+  contacts: { email: 'd.otieno@example.org', phone: '+256772123456' },
+  identityVerifiedAt: null,
+  identityVerifiedBy: null,
+};
+
+const json = (body: unknown, status: number) =>
+  new Response(JSON.stringify(body), {
+    status,
+    headers: { 'content-type': 'application/json' },
+  });
+
+interface Sent {
+  url: string;
+  method: string;
+  headers: Headers;
+  body: string | null;
+}
+
+/** A client against a directory answering `answer`, recording what it was sent. */
+function clientAnswering(answer: () => Response) {
+  const sent: Sent[] = [];
+  const client = new HttpDirectoryClient({
+    directoryUrl: 'http://directory.test',
+    tokens: { token: () => Promise.resolve('reference-token'), invalidate: () => undefined },
+    applicantTokens: {
+      token: () => Promise.resolve('applicants-token'),
+      invalidate: () => undefined,
+    },
+    fetch: async (input: Request | string | URL, init?: RequestInit) => {
+      const request = new Request(input, init);
+      sent.push({
+        url: request.url,
+        method: request.method,
+        headers: request.headers,
+        body: request.body === null ? null : await request.text(),
+      });
+      return answer();
+    },
+  });
+  return { client, sent };
+}
+
+describe('HttpDirectoryClient: applicants', () => {
+  it("reads an applicant's identity status for the Commission, with the applicants token", async () => {
+    const { client, sent } = clientAnswering(() => json(APPLICANT, 200));
+
+    await expect(client.applicant(PERSON, 'psc')).resolves.toEqual({
+      personId: PERSON,
+      identityStatus: 'pending-verification',
+    });
+    expect(sent).toHaveLength(1);
+    expect(sent[0]?.method).toBe('GET');
+    expect(sent[0]?.url).toBe(`http://directory.test/internal/v1/applicants/${PERSON}`);
+    expect(sent[0]?.headers.get('x-acting-tenant')).toBe('psc');
+    expect(sent[0]?.headers.get('authorization')).toBe('Bearer applicants-token');
+  });
+
+  it('an unknown applicant is null', async () => {
+    const { client } = clientAnswering(() => json({ status: 404 }, 404));
+
+    await expect(client.applicant(PERSON, 'psc')).resolves.toBeNull();
+  });
+
+  it('records a verification with the officer, the Commission and the key', async () => {
+    const { client, sent } = clientAnswering(() =>
+      json({ ...APPLICANT, identityStatus: 'verified' }, 200),
+    );
+
+    await expect(
+      client.verifyApplicantIdentity({
+        personId: PERSON,
+        tenant: 'psc',
+        verifiedBy: 'officer-psc',
+        idempotencyKey: KEY,
+      }),
+    ).resolves.toEqual({ personId: PERSON, identityStatus: 'verified' });
+    expect(sent[0]?.method).toBe('POST');
+    expect(sent[0]?.url).toBe(
+      `http://directory.test/internal/v1/applicants/${PERSON}/identity-verification`,
+    );
+    expect(sent[0]?.headers.get('x-acting-tenant')).toBe('psc');
+    expect(sent[0]?.headers.get('idempotency-key')).toBe(KEY);
+    expect(sent[0]?.headers.get('authorization')).toBe('Bearer applicants-token');
+    expect(JSON.parse(sent[0]?.body ?? '')).toEqual({ verifiedBy: 'officer-psc' });
+  });
+
+  it('the account not changed (502 identity-unavailable) is an outage the caller retries', async () => {
+    const { client } = clientAnswering(() =>
+      json({ code: 'identity-unavailable', status: 502 }, 502),
+    );
+
+    await expect(
+      client.verifyApplicantIdentity({
+        personId: PERSON,
+        tenant: 'psc',
+        verifiedBy: 'officer-psc',
+        idempotencyKey: KEY,
+      }),
+    ).rejects.toBeInstanceOf(DirectoryUnavailable);
+  });
+
+  it('reference data still goes with the reference token', async () => {
+    const { client, sent } = clientAnswering(() =>
+      json({ slug: 'psc', issuerCode: 'PSC', name: 'Public Service Commission' }, 200),
+    );
+
+    await client.findCommission('psc');
+
+    expect(sent[0]?.headers.get('authorization')).toBe('Bearer reference-token');
+  });
+});

@@ -15,6 +15,7 @@ paths:
       tags:
         - applicant
       summary: Submit Form K (applicant); allocates the ARQ reference and acknowledges
+      description: The request is `submitted`, or `pending-applicant-verification` while the applicant's identity is pending in the directory (a passport holder no access officer has verified yet). The acknowledgement (email and SMS, with the reference) follows from the `access.request.received.v1` event.
       operationId: submitAccessRequest
       parameters:
         - name: Idempotency-Key
@@ -45,7 +46,7 @@ paths:
                 $ref: '#/components/schemas/ProblemDetails'
         '403':
           description: |-
-            Problem code `no-applicant-record`: the account has no person record
+            Problem code `no-applicant-record`: the account has no applicant person record
 
             Requires one of the roles: applicant
           content:
@@ -67,9 +68,9 @@ paths:
     get:
       tags:
         - applicant
-      summary: The applicant's requests
+      summary: The applicant's requests, latest first
+      description: Their own only. Each timeline leaves out the declarant's representations and names no actor but the applicant.
       operationId: listMyAccessRequests
-      x-draft: true
       responses:
         '200':
           description: Requests
@@ -79,6 +80,202 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/AccessRequest'
+        '403':
+          description: |-
+            Not an applicant, or problem code `no-applicant-record`
+
+            Requires one of the roles: applicant
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '503':
+          description: The key service cannot be reached
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+  /v1/access/requests/{requestId}:
+    get:
+      tags:
+        - applicant
+      summary: One request with decision and package status (applicant)
+      operationId: getMyAccessRequest
+      parameters:
+        - name: requestId
+          required: true
+          in: path
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccessRequest'
+        '400':
+          description: requestId is not a UUID
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '403':
+          description: |-
+            Not an applicant, or problem code `no-applicant-record`
+
+            Requires one of the roles: applicant
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: No such request of the applicant
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '503':
+          description: The key service cannot be reached
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+  /v1/access/requests/{requestId}/withdraw:
+    post:
+      tags:
+        - applicant
+      summary: Withdraw before a decision
+      description: Any status before a decision becomes `withdrawn`, recorded in the access register (`access.request.withdrawn.v1`).
+      operationId: withdrawAccessRequest
+      parameters:
+        - name: requestId
+          required: true
+          in: path
+          schema:
+            type: string
+            format: uuid
+        - name: Idempotency-Key
+          in: header
+          description: Optional. Client-generated UUID, unique per logical request; reuse on retry and the stored answer is replayed instead of acting twice
+          required: false
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Withdrawn
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccessRequest'
+        '400':
+          description: requestId is not a UUID
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '403':
+          description: |-
+            Not an applicant, or problem code `no-applicant-record`
+
+            Requires one of the roles: applicant
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: No such request of the applicant
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '409':
+          description: Problem code `request-decided` (a decision is final) or `request-closed` (withdrawn already, or the officer could not be identified)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '422':
+          description: Idempotency-Key reused with a different request body
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+  /v1/access/requests/{requestId}/verify-applicant:
+    post:
+      tags:
+        - officer
+      summary: Record manual verification of a passport applicant
+      description: "The access officer of the request's Commission checked the particulars a passport applicant entered. Verified: the directory records the applicant's identity as verified, and the request goes from `pending-applicant-verification` to `submitted` (`access.request.verified.v1`). Not verified: the check is recorded and the request stays held."
+      operationId: verifyApplicantIdentity
+      parameters:
+        - name: requestId
+          required: true
+          in: path
+          schema:
+            type: string
+            format: uuid
+        - name: Idempotency-Key
+          in: header
+          description: Optional. Client-generated UUID, unique per logical request; reuse on retry and the stored answer is replayed instead of acting twice
+          required: false
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VerifyApplicantIdentity'
+      responses:
+        '200':
+          description: Recorded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OfficerRequestView'
+        '400':
+          description: requestId is not a UUID, or the body failed validation
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '403':
+          description: |-
+            The Commission supervisor reads requests; only its access officer acts
+
+            Requires one of the roles: access-officer, supervisor
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: No such request at the Commission
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '409':
+          description: "Problem code `not-pending-verification`: the request is not waiting for the applicant's identity"
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '422':
+          description: Idempotency-Key reused with a different request body
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '503':
+          description: The directory cannot be reached; nothing was recorded
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
   /v1/access/commissions:
     get:
       tags:
@@ -108,48 +305,6 @@ paths:
                       type: array
                       items:
                         type: integer
-  /v1/access/requests/{requestId}:
-    parameters:
-      - $ref: '#/components/parameters/RequestId'
-    get:
-      tags:
-        - applicant
-      summary: One request with decision and package status (applicant)
-      operationId: getMyAccessRequest
-      x-draft: true
-      responses:
-        '200':
-          description: Request
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/AccessRequest'
-        '404':
-          $ref: '#/components/responses/NotFound'
-  /v1/access/requests/{requestId}/withdraw:
-    parameters:
-      - $ref: '#/components/parameters/RequestId'
-    post:
-      tags:
-        - applicant
-      summary: Withdraw before a decision
-      operationId: withdrawAccessRequest
-      x-draft: true
-      responses:
-        '200':
-          description: Withdrawn
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/AccessRequest'
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '409':
-          description: Already decided
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ProblemDetails'
   /v1/access/requests/{requestId}/package/download:
     parameters:
       - $ref: '#/components/parameters/RequestId'
@@ -358,41 +513,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/OfficerRequestView'
-        '404':
-          $ref: '#/components/responses/NotFound'
-  /v1/access/requests/{requestId}/verify-applicant:
-    parameters:
-      - $ref: '#/components/parameters/RequestId'
-    post:
-      tags:
-        - officer
-      summary: Record manual verification of a passport applicant
-      operationId: verifyApplicantIdentity
-      x-draft: true
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required:
-                - verified
-                - note
-              properties:
-                verified:
-                  type: boolean
-                note:
-                  type: string
-                  maxLength: 1000
-      responses:
-        '200':
-          description: Recorded
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/OfficerRequestView'
-        '403':
-          $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
   /v1/access/requests/{requestId}/resolve:
@@ -854,6 +974,131 @@ components:
         - actor
         - summary
         - reference
+    Representations:
+      type: object
+      properties:
+        stance:
+          type: string
+          enum:
+            - object
+            - consent
+            - context
+        text:
+          type: string
+        attachments:
+          type: array
+          items:
+            type: object
+            properties:
+              uploadId:
+                type: string
+                format: uuid
+              fileName:
+                type: string
+            required:
+              - uploadId
+              - fileName
+        submittedAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required:
+        - stance
+        - text
+        - attachments
+        - submittedAt
+        - updatedAt
+    OfficerRequestView:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        reference:
+          type: string
+          description: ARQ-<ISSUER>-<YEAR>-<seq>-<check>
+        commission:
+          type: object
+          properties:
+            slug:
+              type: string
+            name:
+              type: string
+          required:
+            - slug
+            - name
+        status:
+          $ref: '#/components/schemas/AccessRequestStatus'
+        formK:
+          description: The form-k.v1 document as submitted
+          $ref: '#/components/schemas/FormK'
+        submittedAt:
+          type: string
+          format: date-time
+        decisionDeadlineAt:
+          type: string
+          format: date-time
+        decision:
+          anyOf:
+            - $ref: '#/components/schemas/Decision'
+            - type: 'null'
+        package:
+          anyOf:
+            - $ref: '#/components/schemas/Package'
+            - type: 'null'
+        timeline:
+          type: array
+          items:
+            $ref: '#/components/schemas/RegisterEntry'
+        applicantIdentityStatus:
+          type: string
+          enum:
+            - verified
+            - pending-verification
+        resolvedRosterRecordId:
+          anyOf:
+            - type: string
+              format: uuid
+            - type: 'null'
+        representations:
+          anyOf:
+            - $ref: '#/components/schemas/Representations'
+            - type: 'null'
+        windowEndsAt:
+          anyOf:
+            - type: string
+              format: date-time
+            - type: 'null'
+      required:
+        - id
+        - reference
+        - commission
+        - status
+        - formK
+        - submittedAt
+        - decisionDeadlineAt
+        - decision
+        - package
+        - timeline
+        - applicantIdentityStatus
+        - resolvedRosterRecordId
+        - representations
+        - windowEndsAt
+    VerifyApplicantIdentity:
+      type: object
+      properties:
+        verified:
+          type: boolean
+        note:
+          type: string
+          minLength: 1
+          maxLength: 1000
+      required:
+        - verified
+        - note
+      additionalProperties: false
     ProblemDetails:
       type: object
       properties:
@@ -1000,42 +1245,6 @@ components:
           format: date-time
         late:
           type: boolean
-    Representations:
-      type: object
-      required:
-        - stance
-        - text
-        - attachments
-        - submittedAt
-        - updatedAt
-      properties:
-        stance:
-          type: string
-          enum:
-            - object
-            - consent
-            - context
-        text:
-          type: string
-        attachments:
-          type: array
-          items:
-            type: object
-            required:
-              - uploadId
-              - fileName
-            properties:
-              uploadId:
-                type: string
-                format: uuid
-              fileName:
-                type: string
-        submittedAt:
-          type: string
-          format: date-time
-        updatedAt:
-          type: string
-          format: date-time
     RepresentationsInput:
       type: object
       required:
@@ -1058,35 +1267,6 @@ components:
           items:
             type: string
             format: uuid
-    OfficerRequestView:
-      allOf:
-        - $ref: '#/components/schemas/AccessRequest'
-        - type: object
-          required:
-            - applicantIdentityStatus
-            - resolvedRosterRecordId
-            - representations
-            - windowEndsAt
-          properties:
-            applicantIdentityStatus:
-              type: string
-              enum:
-                - verified
-                - pending-verification
-            resolvedRosterRecordId:
-              type:
-                - string
-                - 'null'
-              format: uuid
-            representations:
-              oneOf:
-                - $ref: '#/components/schemas/Representations'
-                - type: 'null'
-            windowEndsAt:
-              type:
-                - string
-                - 'null'
-              format: date-time
     DeclarantNotice:
       type: object
       required:
