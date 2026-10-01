@@ -1,6 +1,7 @@
 /**
  * In-memory stand-in for the access service's applicant endpoints (access.yaml), used when
- * ACCESS_MOCK is set, to work on the portal without the service. Every signed-in caller
+ * ACCESS_MOCK is set, to work on the portal without the service (the declarant's
+ * `/v1/me/access-notices` go to `mock-notices.server.ts`). Every signed-in caller
  * shares one store, seeded relative to when it was first used with one request in each status:
  *
  * - submitted today, awaiting identity verification (a passport), officer being identified,
@@ -35,6 +36,7 @@ import { addDays } from '@adili/ui';
 import { ARQ, format } from '@adili/numbering/references';
 
 import { json, problem, readJson } from '../mock-http';
+import { mockNoticesFetch } from './mock-notices.server';
 import type { AccessCommission, AccessRequest, RegisterEntry } from './types';
 
 interface MockCommission extends AccessCommission {
@@ -609,8 +611,8 @@ function withdraw(id: string, key: string | null): Response {
   return json(200, found);
 }
 
-/** Whether the bearer token, unverified, carries the `applicant` realm role. */
-function isApplicant(request: Request): boolean {
+/** Whether the bearer token, unverified, carries the realm role. */
+function hasRole(request: Request, role: string): boolean {
   const token = /^Bearer (.+)$/.exec(request.headers.get('authorization') ?? '')?.[1];
   const payload = token?.split('.')[1];
   if (!payload) return false;
@@ -618,7 +620,7 @@ function isApplicant(request: Request): boolean {
     const claims = JSON.parse(Buffer.from(payload, 'base64url').toString('utf8')) as {
       realm_access?: { roles?: string[] };
     };
-    return claims.realm_access?.roles?.includes('applicant') ?? false;
+    return claims.realm_access?.roles?.includes(role) ?? false;
   } catch {
     return false;
   }
@@ -626,20 +628,23 @@ function isApplicant(request: Request): boolean {
 
 export async function mockAccessFetch(request: Request): Promise<Response> {
   if (!seeded) resetAccessMock();
-  if (!isApplicant(request)) {
+  const url = new URL(request.url);
+  const path = url.pathname;
+  // The declarant's side (`mock-notices.server.ts`): the requests about their declaration.
+  const role = path.startsWith('/v1/me/access-notices') ? 'declarant' : 'applicant';
+  if (!hasRole(request, role)) {
     return json(403, {
       type: 'about:blank',
       title: 'Forbidden',
       status: 403,
-      detail: 'Requires one of the roles: applicant',
+      detail: `Requires one of the roles: ${role}`,
     });
   }
   if (failNext) {
     failNext = false;
     return problem(503, 'The access service is unavailable');
   }
-  const url = new URL(request.url);
-  const path = url.pathname;
+  if (role === 'declarant') return mockNoticesFetch(request, path, settle);
 
   if (request.method === 'GET' && path === '/v1/access/commissions') {
     return json(

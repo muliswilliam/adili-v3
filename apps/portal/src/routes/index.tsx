@@ -22,6 +22,7 @@ import { DISCARDED_TOAST } from '../components/declaration/discard-dialog';
 import { SignOutButton } from '../components/sign-out-button';
 import { getMyDeclarations } from '../server/declarations';
 import type { DeclarationListResult } from '../server/declarations.server';
+import { getMyAccessNotices, type NoticesLoad } from '../server/access-notices';
 import { isSignedInApplicant } from '../server/access-requests';
 import { getMyObligations, getObligationDetail } from '../server/obligations';
 import type { MyObligationsResult } from '../server/obligations.server';
@@ -41,8 +42,10 @@ export const Route = createFileRoute('/')({
     // Not awaited: the dashboard renders with skeleton cards, and the obligations and the
     // declarations stream in, each on its own.
     const obligations = viewer ? orUnavailable(getMyObligations()) : null;
-    const declarations = viewer?.declarant.status === 'onboarded' ? loadDeclarations() : null;
-    return { viewer, obligations, declarations };
+    const onboarded = viewer?.declarant.status === 'onboarded';
+    const declarations = onboarded ? loadDeclarations() : null;
+    const accessNotices = onboarded ? loadAccessNotices() : null;
+    return { viewer, obligations, declarations, accessNotices };
   },
   component: Home,
 });
@@ -56,14 +59,22 @@ async function loadDeclarations(): Promise<DeclarationListResult> {
   return declarations.status === 'unauthenticated' ? { status: 'unavailable' } : declarations;
 }
 
+/** Requests to see the declaration; an ended session or a failed call reads as unavailable. */
+async function loadAccessNotices(): Promise<NoticesLoad> {
+  const now = new Date().toISOString();
+  const notices = await getMyAccessNotices().catch(() => ({ status: 'unavailable', now }) as const);
+  return notices.status === 'unauthenticated' ? { status: 'unavailable', now } : notices;
+}
+
 function Home() {
-  const { viewer, obligations, declarations } = Route.useLoaderData();
+  const { viewer, obligations, declarations, accessNotices } = Route.useLoaderData();
   const { auth_error, discarded } = Route.useSearch();
   return viewer && obligations ? (
     <Dashboard
       viewer={viewer}
       obligations={obligations}
       declarations={declarations}
+      accessNotices={accessNotices}
       discarded={discarded === true}
     />
   ) : (
@@ -129,11 +140,13 @@ function Dashboard({
   viewer,
   obligations,
   declarations,
+  accessNotices,
   discarded,
 }: {
   viewer: Viewer;
   obligations: Promise<MyObligationsResult>;
   declarations: Promise<DeclarationListResult> | null;
+  accessNotices: Promise<NoticesLoad> | null;
   discarded: boolean;
 }) {
   const firstName = viewer.user.name.split(' ')[0];
@@ -156,6 +169,7 @@ function Dashboard({
           <DashboardCards
             viewer={viewer}
             declarations={declarations}
+            accessNotices={accessNotices}
             obligations={
               <ObligationsSection
                 obligations={obligations}
