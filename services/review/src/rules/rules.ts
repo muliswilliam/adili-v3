@@ -4,6 +4,7 @@ import {
   CATEGORIES,
   compositeKey,
   type Category,
+  type Item,
   match,
   type MatchedPair,
   normalise,
@@ -124,7 +125,7 @@ function valueChange(pair: MatchedPair): Flag[] {
   const material = ratio >= 0.25;
   const { changed, kind } = pair.current.change;
   const markedAsNew = changed && kind === NEW_KIND[pair.category];
-  const refs = [ref({ personKey: pair.personKey, category: pair.category, item: pair.current })];
+  const refs = [ref({ personKey: pair.personKey, item: pair.current })];
   const flags: Flag[] = [];
   if (material) {
     const direction = after > before ? 'up' : 'down';
@@ -227,11 +228,18 @@ function jointShares(current: DeclarationV1): Flag[] {
   });
 }
 
-function flag(ruleId: RuleId, severity: Severity, evidence: Evidence, itemRefs: ItemRef[]): Flag {
+/** A flag of a rule, with the rule's shared wording. */
+export function flag(
+  ruleId: RuleId,
+  severity: Severity,
+  evidence: Evidence,
+  itemRefs: ItemRef[],
+): Flag {
   return { ruleId, severity, ...RULES[ruleId], evidence, itemRefs };
 }
 
-function ref({ personKey, item }: PlacedItem): ItemRef {
+/** A reference to an item in its person's statement. */
+export function ref({ personKey, item }: { personKey: string; item: Item }): ItemRef {
   return { personKey, itemId: item.id, sectionKey: statementSectionKey(personKey) };
 }
 
