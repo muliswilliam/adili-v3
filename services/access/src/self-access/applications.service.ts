@@ -257,7 +257,8 @@ export class SelfAccessApplicationsService {
       items: page.map((row) => toSelfAccessApplication(row, copyFor(copies, row), now)),
       nextCursor:
         rows.length > query.limit && last
-          ? encodeCursor({ at: last.deadlineAt, id: last.id })
+          ? // One ordering here (earliest deadline first): never the queue's closed tail.
+            encodeCursor({ closed: false, at: last.deadlineAt, id: last.id })
           : null,
     };
   }
