@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { callerOf, type Principal } from '@adili/api-kit';
 import { type Database, FieldCipher, InjectDatabase, type SealedField } from '@adili/data-access';
 import { EventPublisher } from '@adili/events';
+import { eq } from 'drizzle-orm';
 
 import {
   type LegalBasis,
@@ -28,6 +29,18 @@ export interface VerificationResult {
   tenant: string | null;
   /** The normalised answer, kept only when there is a tenant to encrypt it for. */
   payload: unknown;
+}
+
+/** A recorded lookup as a service of its tenant reads it back. */
+export interface StoredResult {
+  resultId: string;
+  system: System;
+  outcome: LookupOutcome;
+  checkedAt: string;
+  legalBasis: LegalBasis;
+  caseRef: string | null;
+  /** The normalised answer, decrypted; null unless the lookup found something. */
+  payload: Record<string, unknown> | null;
 }
 
 /**
@@ -80,6 +93,39 @@ export class VerificationResults {
         ),
       );
     });
+  }
+
+  /**
+   * The row `id` as `tenant`'s services may read it, payload decrypted; null when there is no
+   * such row or it belongs to another tenant (or to none: lookups for no tenant keep nothing),
+   * so the two look the same.
+   */
+  async read(id: string, tenant: string): Promise<StoredResult | null> {
+    const [row] = await this.db
+      .select()
+      .from(verificationResults)
+      .where(eq(verificationResults.id, id))
+      .limit(1);
+    if (row?.tenant !== tenant) return null;
+    let payload: Record<string, unknown> | null = null;
+    if (row.payloadCiphertext !== null && row.payloadEnvelope !== null) {
+      const plaintext = await this.cipher.decrypt({
+        tenant,
+        recordId: row.id,
+        ciphertext: row.payloadCiphertext,
+        envelope: row.payloadEnvelope,
+      });
+      payload = JSON.parse(plaintext.toString('utf8')) as Record<string, unknown>;
+    }
+    return {
+      resultId: row.id,
+      system: row.system,
+      outcome: row.outcome,
+      checkedAt: row.checkedAt.toISOString(),
+      legalBasis: row.legalBasis,
+      caseRef: row.caseRef,
+      payload,
+    };
   }
 
   private async seal(result: VerificationResult): Promise<SealedField | null> {

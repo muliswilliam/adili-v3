@@ -45,9 +45,41 @@ export const OPENBAO = { url: config.OPENBAO_ADDR, token: config.OPENBAO_TOKEN }
           ratePerMinute: config.IPRS_RATE_LIMIT_PER_MINUTE,
           maxQueueMs: config.RATE_LIMIT_MAX_WAIT_MS,
         },
+        kra: {
+          timeoutMs: config.KRA_TIMEOUT_MS,
+          cacheTtlSeconds: config.KRA_CACHE_TTL_SECONDS,
+          ratePerMinute: config.KRA_RATE_LIMIT_PER_MINUTE,
+          maxQueueMs: config.RATE_LIMIT_MAX_WAIT_MS,
+        },
+        ntsa: {
+          timeoutMs: config.NTSA_TIMEOUT_MS,
+          cacheTtlSeconds: config.NTSA_CACHE_TTL_SECONDS,
+          ratePerMinute: config.NTSA_RATE_LIMIT_PER_MINUTE,
+          maxQueueMs: config.RATE_LIMIT_MAX_WAIT_MS,
+        },
+        brs: {
+          timeoutMs: config.BRS_TIMEOUT_MS,
+          cacheTtlSeconds: config.BRS_CACHE_TTL_SECONDS,
+          ratePerMinute: config.BRS_RATE_LIMIT_PER_MINUTE,
+          maxQueueMs: config.RATE_LIMIT_MAX_WAIT_MS,
+        },
+        ardhisasa: {
+          timeoutMs: config.ARDHISASA_TIMEOUT_MS,
+          cacheTtlSeconds: config.ARDHISASA_CACHE_TTL_SECONDS,
+          ratePerMinute: config.ARDHISASA_RATE_LIMIT_PER_MINUTE,
+          maxQueueMs: config.RATE_LIMIT_MAX_WAIT_MS,
+        },
       } satisfies SystemPolicies,
     },
   ],
-  exports: [RegistryLookups, PauseFlags, CircuitBreakers],
+  exports: [
+    RegistryLookups,
+    PauseFlags,
+    CircuitBreakers,
+    VerificationResults,
+    FieldCipher,
+    SYSTEM_POLICIES,
+    BREAKER_OPTIONS,
+  ],
 })
 export class AdapterKitModule {}

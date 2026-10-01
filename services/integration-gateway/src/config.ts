@@ -5,6 +5,10 @@ export const SERVICE_NAME = 'integration-gateway';
 export const SERVICE_DESCRIPTION =
   'Adapters to IPRS, KRA, NTSA, BRS, ArdhiSasa, HR, payroll and ICMS with retries and circuit breakers.';
 
+const timeoutMs = z.coerce.number().int().positive().max(10_000).default(2_000);
+const cacheTtlSeconds = z.coerce.number().int().positive().default(86_400);
+const ratePerMinute = z.coerce.number().int().positive().default(600);
+
 export const envSchema = baseEnvSchema.extend({
   DATABASE_URL: z.url(),
   RABBITMQ_URL: z.url(),
@@ -21,6 +25,31 @@ export const envSchema = baseEnvSchema.extend({
   IPRS_CACHE_TTL_SECONDS: z.coerce.number().int().positive().default(86_400),
   /** Calls per minute IPRS is sent, across every instance; one second's worth may burst. */
   IPRS_RATE_LIMIT_PER_MINUTE: z.coerce.number().int().positive().default(1_200),
+  /** Registry base URLs, each ending before `/v1` (the mocks serve them under `/<system>`). */
+  KRA_BASE_URL: z.url(),
+  NTSA_BASE_URL: z.url(),
+  BRS_BASE_URL: z.url(),
+  ARDHISASA_BASE_URL: z.url(),
+  /** HR, for employers' supplier lists (the employer-supplier check, filed under BRS). */
+  HR_BASE_URL: z.url(),
+  /**
+   * Per registry: longest wait for one lookup (every call it makes), how long an answer (found
+   * or not found) is reused, and calls per minute across every instance. Rate defaults are sized
+   * from the database-sizing note (about 7.5M lookups a cycle, 10x burst headroom); tune them
+   * with each registry.
+   */
+  KRA_TIMEOUT_MS: timeoutMs,
+  KRA_CACHE_TTL_SECONDS: cacheTtlSeconds,
+  KRA_RATE_LIMIT_PER_MINUTE: ratePerMinute,
+  NTSA_TIMEOUT_MS: timeoutMs,
+  NTSA_CACHE_TTL_SECONDS: cacheTtlSeconds,
+  NTSA_RATE_LIMIT_PER_MINUTE: ratePerMinute,
+  BRS_TIMEOUT_MS: timeoutMs,
+  BRS_CACHE_TTL_SECONDS: cacheTtlSeconds,
+  BRS_RATE_LIMIT_PER_MINUTE: ratePerMinute,
+  ARDHISASA_TIMEOUT_MS: timeoutMs,
+  ARDHISASA_CACHE_TTL_SECONDS: cacheTtlSeconds,
+  ARDHISASA_RATE_LIMIT_PER_MINUTE: ratePerMinute,
   /**
    * Longest a lookup queues for its system's rate limit before it is answered unavailable
    * (`rate-limited`) instead.

@@ -72,164 +72,421 @@ paths:
                 $ref: '#/components/schemas/ProblemDetails'
       security:
         - bearer: []
-  /internal/v1/kra/taxpayers:
-    get:
+  /internal/v1/kra/taxpayer-lookups:
+    post:
       tags:
         - internal
-      summary: KRA PIN(s), taxpayer and compliance for a national ID
+      summary: KRA PINs of a national ID, each with its compliance and declared annual income
+      description: 'A read, posted so the national ID travels in the body rather than the URL (URLs end up in access logs, traces and problem details). Safe to repeat. Every lookup, answered or not, is recorded with its legal basis and case reference, the answer encrypted under the acting tenant, and emits registry.lookup.performed.v1. Answers (found and not found) are cached for 24 hours. A registry that gives no answer is outcome unavailable with a reason, never an error. not-found: KRA has no PIN for the national ID. Requires a service token with scope `registry` acting for the Commission.'
       operationId: lookupKraTaxpayer
-      x-draft: true
       parameters:
-        - $ref: '#/components/parameters/NationalIdQuery'
-        - $ref: '#/components/parameters/CaseRef'
-        - $ref: '#/components/parameters/LegalBasis'
+        - name: X-Acting-Tenant
+          in: header
+          description: Tenant the calling service acts for; the resource must belong to it
+          required: true
+          schema:
+            type: string
+            pattern: ^[a-z][a-z0-9]{1,19}$
+        - name: X-Legal-Basis
+          in: header
+          description: Why the registry is consulted, recorded on the result and the audit event. regs-r20-1-b, act-s35-5, adr-014-onboarding or declarant-request (lookups the declarant asked for while filing; DPA s.30(1)(a))
+          required: true
+          schema:
+            type: string
+            enum:
+              - regs-r20-1-b
+              - act-s35-5
+              - adr-014-onboarding
+              - declarant-request
+        - name: X-Case-Ref
+          in: header
+          description: Review case the lookup is for; recorded on the result and the audit event
+          required: false
+          schema:
+            type: string
+            pattern: ^[A-Za-z0-9][A-Za-z0-9._:-]{0,99}$
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegistryLookup'
       responses:
         '200':
-          description: Result (found, not-found or unavailable)
+          description: The lookup result
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/KraResult'
         '400':
-          $ref: '#/components/responses/MissingLegalBasis'
-  /internal/v1/ntsa/owners/{nationalId}/vehicles:
-    parameters:
-      - $ref: '#/components/parameters/NationalIdPath'
-      - $ref: '#/components/parameters/CaseRef'
-      - $ref: '#/components/parameters/LegalBasis'
-    get:
+          description: X-Legal-Basis missing or unknown, or X-Case-Ref malformed
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '403':
+          description: Requires a service token with scope registry
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '503':
+          description: 'Problem type `lookup-not-recorded`: the lookup could not be recorded (audit), so no answer is given; retry'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+      security:
+        - bearer: []
+  /internal/v1/ntsa/vehicle-lookups:
+    post:
       tags:
         - internal
       summary: Vehicles registered to a national ID
+      description: A read, posted so the national ID travels in the body rather than the URL (URLs end up in access logs, traces and problem details). Safe to repeat. Every lookup, answered or not, is recorded with its legal basis and case reference, the answer encrypted under the acting tenant, and emits registry.lookup.performed.v1. Answers (found and not found) are cached for 24 hours. A registry that gives no answer is outcome unavailable with a reason, never an error. No vehicles is found with none. Requires a service token with scope `registry` acting for the Commission.
       operationId: lookupNtsaVehicles
-      x-draft: true
+      parameters:
+        - name: X-Acting-Tenant
+          in: header
+          description: Tenant the calling service acts for; the resource must belong to it
+          required: true
+          schema:
+            type: string
+            pattern: ^[a-z][a-z0-9]{1,19}$
+        - name: X-Legal-Basis
+          in: header
+          description: Why the registry is consulted, recorded on the result and the audit event. regs-r20-1-b, act-s35-5, adr-014-onboarding or declarant-request (lookups the declarant asked for while filing; DPA s.30(1)(a))
+          required: true
+          schema:
+            type: string
+            enum:
+              - regs-r20-1-b
+              - act-s35-5
+              - adr-014-onboarding
+              - declarant-request
+        - name: X-Case-Ref
+          in: header
+          description: Review case the lookup is for; recorded on the result and the audit event
+          required: false
+          schema:
+            type: string
+            pattern: ^[A-Za-z0-9][A-Za-z0-9._:-]{0,99}$
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegistryLookup'
       responses:
         '200':
-          description: Result
+          description: The lookup result
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/NtsaResult'
         '400':
-          $ref: '#/components/responses/MissingLegalBasis'
-  /internal/v1/brs/persons/{nationalId}/directorships:
-    parameters:
-      - $ref: '#/components/parameters/NationalIdPath'
-      - $ref: '#/components/parameters/CaseRef'
-      - $ref: '#/components/parameters/LegalBasis'
-    get:
+          description: X-Legal-Basis missing or unknown, or X-Case-Ref malformed
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '403':
+          description: Requires a service token with scope registry
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '503':
+          description: 'Problem type `lookup-not-recorded`: the lookup could not be recorded (audit), so no answer is given; retry'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+      security:
+        - bearer: []
+  /internal/v1/brs/directorship-lookups:
+    post:
       tags:
         - internal
       summary: Directorships and shareholdings of a national ID
+      description: A read, posted so the national ID travels in the body rather than the URL (URLs end up in access logs, traces and problem details). Safe to repeat. Every lookup, answered or not, is recorded with its legal basis and case reference, the answer encrypted under the acting tenant, and emits registry.lookup.performed.v1. Answers (found and not found) are cached for 24 hours. A registry that gives no answer is outcome unavailable with a reason, never an error. No companies is found with none. Requires a service token with scope `registry` acting for the Commission.
       operationId: lookupBrsDirectorships
-      x-draft: true
+      parameters:
+        - name: X-Acting-Tenant
+          in: header
+          description: Tenant the calling service acts for; the resource must belong to it
+          required: true
+          schema:
+            type: string
+            pattern: ^[a-z][a-z0-9]{1,19}$
+        - name: X-Legal-Basis
+          in: header
+          description: Why the registry is consulted, recorded on the result and the audit event. regs-r20-1-b, act-s35-5, adr-014-onboarding or declarant-request (lookups the declarant asked for while filing; DPA s.30(1)(a))
+          required: true
+          schema:
+            type: string
+            enum:
+              - regs-r20-1-b
+              - act-s35-5
+              - adr-014-onboarding
+              - declarant-request
+        - name: X-Case-Ref
+          in: header
+          description: Review case the lookup is for; recorded on the result and the audit event
+          required: false
+          schema:
+            type: string
+            pattern: ^[A-Za-z0-9][A-Za-z0-9._:-]{0,99}$
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegistryLookup'
       responses:
         '200':
-          description: Result
+          description: The lookup result
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/BrsResult'
         '400':
-          $ref: '#/components/responses/MissingLegalBasis'
-  /internal/v1/brs/companies/{registrationNumber}/supplies:
-    parameters:
-      - name: registrationNumber
-        in: path
-        required: true
-        schema:
-          type: string
-      - name: employerCode
-        in: query
-        required: true
-        schema:
-          type: string
-      - $ref: '#/components/parameters/CaseRef'
-      - $ref: '#/components/parameters/LegalBasis'
-    get:
-      tags:
-        - internal
-      summary: Whether a company appears in an employer's supplier list (HR mock)
-      operationId: checkCompanySuppliesEmployer
-      x-draft: true
-      responses:
-        '200':
-          description: Result
+          description: X-Legal-Basis missing or unknown, or X-Case-Ref malformed
           content:
-            application/json:
+            application/problem+json:
               schema:
-                $ref: '#/components/schemas/SupplierCheckResult'
-        '400':
-          $ref: '#/components/responses/MissingLegalBasis'
-  /internal/v1/ardhisasa/owners/{nationalId}/parcels:
-    parameters:
-      - $ref: '#/components/parameters/NationalIdPath'
-      - $ref: '#/components/parameters/CaseRef'
-      - $ref: '#/components/parameters/LegalBasis'
-    get:
+                $ref: '#/components/schemas/ProblemDetails'
+        '403':
+          description: Requires a service token with scope registry
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '503':
+          description: 'Problem type `lookup-not-recorded`: the lookup could not be recorded (audit), so no answer is given; retry'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+      security:
+        - bearer: []
+  /internal/v1/ardhisasa/parcel-lookups:
+    post:
       tags:
         - internal
       summary: Land parcels registered to a national ID
+      description: A read, posted so the national ID travels in the body rather than the URL (URLs end up in access logs, traces and problem details). Safe to repeat. Every lookup, answered or not, is recorded with its legal basis and case reference, the answer encrypted under the acting tenant, and emits registry.lookup.performed.v1. Answers (found and not found) are cached for 24 hours. A registry that gives no answer is outcome unavailable with a reason, never an error. No parcels is found with none. Requires a service token with scope `registry` acting for the Commission.
       operationId: lookupArdhisasaParcels
-      x-draft: true
+      parameters:
+        - name: X-Acting-Tenant
+          in: header
+          description: Tenant the calling service acts for; the resource must belong to it
+          required: true
+          schema:
+            type: string
+            pattern: ^[a-z][a-z0-9]{1,19}$
+        - name: X-Legal-Basis
+          in: header
+          description: Why the registry is consulted, recorded on the result and the audit event. regs-r20-1-b, act-s35-5, adr-014-onboarding or declarant-request (lookups the declarant asked for while filing; DPA s.30(1)(a))
+          required: true
+          schema:
+            type: string
+            enum:
+              - regs-r20-1-b
+              - act-s35-5
+              - adr-014-onboarding
+              - declarant-request
+        - name: X-Case-Ref
+          in: header
+          description: Review case the lookup is for; recorded on the result and the audit event
+          required: false
+          schema:
+            type: string
+            pattern: ^[A-Za-z0-9][A-Za-z0-9._:-]{0,99}$
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegistryLookup'
       responses:
         '200':
-          description: Result
+          description: The lookup result
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ArdhisasaResult'
         '400':
-          $ref: '#/components/responses/MissingLegalBasis'
-  /internal/v1/verification-results/{resultId}:
-    parameters:
-      - name: resultId
-        in: path
-        required: true
-        schema:
-          type: string
-          format: uuid
+          description: X-Legal-Basis missing or unknown, or X-Case-Ref malformed
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '403':
+          description: Requires a service token with scope registry
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '503':
+          description: 'Problem type `lookup-not-recorded`: the lookup could not be recorded (audit), so no answer is given; retry'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+      security:
+        - bearer: []
+  /internal/v1/brs/companies/{registrationNumber}/supplies:
     get:
       tags:
         - internal
-      summary: A stored lookup result, decrypted for the requesting tenant's services (audited)
-      operationId: getVerificationResult
-      x-draft: true
+      summary: Whether a company is on an employer's supplier list (HR), for the BRS check
+      description: 'Every lookup, answered or not, is recorded with its legal basis and case reference, the answer encrypted under the acting tenant, and emits registry.lookup.performed.v1. Answers (found and not found) are cached for 24 hours. A registry that gives no answer is outcome unavailable with a reason, never an error. Filed under BRS. An employer HR does not know has no suppliers: false. Requires a service token with scope `registry` acting for the Commission.'
+      operationId: checkCompanySuppliesEmployer
+      parameters:
+        - name: X-Acting-Tenant
+          in: header
+          description: Tenant the calling service acts for; the resource must belong to it
+          required: true
+          schema:
+            type: string
+            pattern: ^[a-z][a-z0-9]{1,19}$
+        - name: registrationNumber
+          required: true
+          in: path
+          schema:
+            type: string
+            pattern: ^[A-Za-z0-9][A-Za-z0-9/-]{0,39}$
+        - name: employerCode
+          required: true
+          in: query
+          schema:
+            type: string
+            pattern: ^[A-Za-z0-9][A-Za-z0-9_-]{0,39}$
+        - name: X-Legal-Basis
+          in: header
+          description: Why the registry is consulted, recorded on the result and the audit event. regs-r20-1-b, act-s35-5, adr-014-onboarding or declarant-request (lookups the declarant asked for while filing; DPA s.30(1)(a))
+          required: true
+          schema:
+            type: string
+            enum:
+              - regs-r20-1-b
+              - act-s35-5
+              - adr-014-onboarding
+              - declarant-request
+        - name: X-Case-Ref
+          in: header
+          description: Review case the lookup is for; recorded on the result and the audit event
+          required: false
+          schema:
+            type: string
+            pattern: ^[A-Za-z0-9][A-Za-z0-9._:-]{0,99}$
       responses:
         '200':
-          description: Result
+          description: The check result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SupplierCheckResult'
+        '400':
+          description: X-Legal-Basis missing or unknown, or X-Case-Ref malformed
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '403':
+          description: Requires a service token with scope registry
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '503':
+          description: 'Problem type `lookup-not-recorded`: the lookup could not be recorded (audit), so no answer is given; retry'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+      security:
+        - bearer: []
+  /internal/v1/verification-results/{resultId}:
+    get:
+      tags:
+        - internal
+      summary: A stored lookup result, decrypted for the services of its tenant (audited)
+      description: The normalised records of a found lookup (payload), with its system, outcome, legal basis and case reference. Each read is audited (audit.read.v1). Requires a service token with scope `registry` acting for the tenant the lookup acted for.
+      operationId: getVerificationResult
+      parameters:
+        - name: X-Acting-Tenant
+          in: header
+          description: Tenant the calling service acts for; the resource must belong to it
+          required: true
+          schema:
+            type: string
+            pattern: ^[a-z][a-z0-9]{1,19}$
+        - name: resultId
+          required: true
+          in: path
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: The stored result
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/StoredResult'
-        '404':
-          description: Not found or other tenant
+        '400':
+          description: X-Acting-Tenant is missing or not a tenant key
           content:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/ProblemDetails'
+        '403':
+          description: Requires a service token with scope registry
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: No such result, or another tenant's
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '503':
+          description: 'Problem type `upstream-unavailable`: the key service could not decrypt the payload now'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+      security:
+        - bearer: []
+      x-audited-read:
+        action: verification-result.read
+        resource: verification-result
   /v1/integrations/coverage:
     get:
       tags:
         - integrations
-      summary: Per-system call volume, cache hit rate, breaker state, last success (platform-admin)
+      summary: Per-system call volume, cache hit rate, breaker state and last success
+      description: 'Every system with an adapter (IPRS, KRA, NTSA, BRS, ArdhiSasa): lookups and failed calls in the last 24 hours, cache hit rate, breaker state, last success, paused, and the configured rate limit, cache lifetime, timeout and breaker rule. Platform administrators only.'
       operationId: getIntegrationsCoverage
-      x-draft: true
       responses:
         '200':
-          description: Coverage
+          description: Coverage per system
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/SystemCoverage'
+                $ref: '#/components/schemas/Coverage'
         '403':
-          description: Forbidden
+          description: 'Requires one of the roles: platform-admin'
           content:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/ProblemDetails'
+      security:
+        - bearer: []
   /v1/integrations/{system}/pause:
     parameters:
       - $ref: '#/components/parameters/System'
@@ -445,6 +702,423 @@ components:
         - dateOfBirth
         - sex
       description: A person as IPRS holds them
+    System:
+      type: string
+      enum:
+        - iprs
+        - kra
+        - ntsa
+        - brs
+        - ardhisasa
+        - payroll
+        - icms
+    LookupOutcome:
+      type: string
+      enum:
+        - found
+        - not-found
+        - unavailable
+    UnavailableReason:
+      type: string
+      enum:
+        - timeout
+        - breaker-open
+        - paused
+        - rate-limited
+        - upstream-error
+      description: rate-limited when no slot of the system rate limit freed up within the max queue wait, or the registry refused the call for its own
+    RegistryLookup:
+      type: object
+      properties:
+        nationalId:
+          type: string
+          pattern: ^[0-9]{5,10}$
+      required:
+        - nationalId
+      additionalProperties: false
+      description: Whom to look up
+    ResultEnvelope:
+      type: object
+      properties:
+        resultId:
+          type: string
+          format: uuid
+        system:
+          $ref: '#/components/schemas/System'
+        outcome:
+          $ref: '#/components/schemas/LookupOutcome'
+        reason:
+          anyOf:
+            - $ref: '#/components/schemas/UnavailableReason'
+            - type: 'null'
+        cached:
+          type: boolean
+        checkedAt:
+          type: string
+          format: date-time
+      required:
+        - resultId
+        - system
+        - outcome
+        - reason
+        - cached
+        - checkedAt
+    KraResult:
+      type: object
+      properties:
+        resultId:
+          type: string
+          format: uuid
+        system:
+          $ref: '#/components/schemas/System'
+        outcome:
+          $ref: '#/components/schemas/LookupOutcome'
+        reason:
+          anyOf:
+            - $ref: '#/components/schemas/UnavailableReason'
+            - type: 'null'
+        cached:
+          type: boolean
+        checkedAt:
+          type: string
+          format: date-time
+        taxpayers:
+          type: array
+          items:
+            type: object
+            properties:
+              pin:
+                type: string
+              registeredOn:
+                type: string
+                format: date
+              compliance:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    enum:
+                      - compliant
+                      - non-compliant
+                      - unknown
+                  certificateNumber:
+                    type:
+                      - string
+                      - 'null'
+                  validUntil:
+                    anyOf:
+                      - type: string
+                        format: date
+                      - type: 'null'
+                  annualIncomeDeclaredCents:
+                    type:
+                      - integer
+                      - 'null'
+                required:
+                  - status
+                  - certificateNumber
+                  - validUntil
+                  - annualIncomeDeclaredCents
+            required:
+              - pin
+              - registeredOn
+              - compliance
+      required:
+        - resultId
+        - system
+        - outcome
+        - reason
+        - cached
+        - checkedAt
+        - taxpayers
+      description: 'KRA PINs with their compliance. not-found: no PIN for the national ID. taxpayers is empty unless found.'
+    NtsaResult:
+      type: object
+      properties:
+        resultId:
+          type: string
+          format: uuid
+        system:
+          $ref: '#/components/schemas/System'
+        outcome:
+          $ref: '#/components/schemas/LookupOutcome'
+        reason:
+          anyOf:
+            - $ref: '#/components/schemas/UnavailableReason'
+            - type: 'null'
+        cached:
+          type: boolean
+        checkedAt:
+          type: string
+          format: date-time
+        vehicles:
+          type: array
+          items:
+            type: object
+            properties:
+              registrationNumber:
+                type: string
+              make:
+                type: string
+              model:
+                type: string
+              yearOfManufacture:
+                type: integer
+              registeredOn:
+                type: string
+                format: date
+            required:
+              - registrationNumber
+              - make
+              - model
+              - yearOfManufacture
+              - registeredOn
+      required:
+        - resultId
+        - system
+        - outcome
+        - reason
+        - cached
+        - checkedAt
+        - vehicles
+      description: Vehicles registered to the national ID; empty unless found.
+    BrsResult:
+      type: object
+      properties:
+        resultId:
+          type: string
+          format: uuid
+        system:
+          $ref: '#/components/schemas/System'
+        outcome:
+          $ref: '#/components/schemas/LookupOutcome'
+        reason:
+          anyOf:
+            - $ref: '#/components/schemas/UnavailableReason'
+            - type: 'null'
+        cached:
+          type: boolean
+        checkedAt:
+          type: string
+          format: date-time
+        directorships:
+          type: array
+          items:
+            type: object
+            properties:
+              companyRegistrationNumber:
+                type: string
+              companyName:
+                type: string
+              companyStatus:
+                type: string
+              role:
+                type: string
+              shares:
+                type:
+                  - integer
+                  - 'null'
+              appointedOn:
+                type: string
+                format: date
+            required:
+              - companyRegistrationNumber
+              - companyName
+              - companyStatus
+              - role
+              - shares
+              - appointedOn
+      required:
+        - resultId
+        - system
+        - outcome
+        - reason
+        - cached
+        - checkedAt
+        - directorships
+      description: Directorships and shareholdings of the national ID; empty unless found.
+    ArdhisasaResult:
+      type: object
+      properties:
+        resultId:
+          type: string
+          format: uuid
+        system:
+          $ref: '#/components/schemas/System'
+        outcome:
+          $ref: '#/components/schemas/LookupOutcome'
+        reason:
+          anyOf:
+            - $ref: '#/components/schemas/UnavailableReason'
+            - type: 'null'
+        cached:
+          type: boolean
+        checkedAt:
+          type: string
+          format: date-time
+        parcels:
+          type: array
+          items:
+            type: object
+            properties:
+              parcelNumber:
+                type: string
+              county:
+                type: string
+              areaHectares:
+                type: number
+              tenure:
+                type: string
+              registeredOn:
+                type: string
+                format: date
+            required:
+              - parcelNumber
+              - county
+              - areaHectares
+              - tenure
+              - registeredOn
+      required:
+        - resultId
+        - system
+        - outcome
+        - reason
+        - cached
+        - checkedAt
+        - parcels
+      description: Land parcels registered to the national ID; empty unless found.
+    SupplierCheckResult:
+      type: object
+      properties:
+        resultId:
+          type: string
+          format: uuid
+        system:
+          $ref: '#/components/schemas/System'
+        outcome:
+          $ref: '#/components/schemas/LookupOutcome'
+        reason:
+          anyOf:
+            - $ref: '#/components/schemas/UnavailableReason'
+            - type: 'null'
+        cached:
+          type: boolean
+        checkedAt:
+          type: string
+          format: date-time
+        supplies:
+          type:
+            - boolean
+            - 'null'
+      required:
+        - resultId
+        - system
+        - outcome
+        - reason
+        - cached
+        - checkedAt
+        - supplies
+      description: Whether the company is on the employer's supplier list (HR). null when unavailable.
+    StoredResult:
+      type: object
+      properties:
+        resultId:
+          type: string
+          format: uuid
+        system:
+          $ref: '#/components/schemas/System'
+        outcome:
+          $ref: '#/components/schemas/LookupOutcome'
+        checkedAt:
+          type: string
+          format: date-time
+        legalBasis:
+          type: string
+        caseRef:
+          type:
+            - string
+            - 'null'
+        payload:
+          anyOf:
+            - type: object
+              propertyNames:
+                type: string
+              additionalProperties: {}
+            - type: 'null'
+          description: 'The normalised records the lookup answered (e.g. { vehicles: [...] }); null unless the outcome is found'
+      required:
+        - resultId
+        - system
+        - outcome
+        - checkedAt
+        - legalBasis
+        - caseRef
+        - payload
+      description: A stored lookup result, decrypted for a service of its tenant
+    SystemCoverage:
+      type: object
+      properties:
+        system:
+          $ref: '#/components/schemas/System'
+        calls24h:
+          type: integer
+          minimum: 0
+        cacheHitRate:
+          type: number
+          minimum: 0
+          maximum: 1
+          description: Share of the last 24 hours of answers (found or not found) served from the cache; 0 without answers
+        failures24h:
+          type: integer
+          minimum: 0
+        breaker:
+          type: string
+          enum:
+            - closed
+            - open
+            - half-open
+          description: The circuit as the answering instance sees it; open past its cool-down reads half-open
+        lastSuccessAt:
+          anyOf:
+            - type: string
+              format: date-time
+            - type: 'null'
+        paused:
+          type: boolean
+        rateLimitPerMinute:
+          type: integer
+          exclusiveMinimum: 0
+        cacheTtlSeconds:
+          type: integer
+          exclusiveMinimum: 0
+        timeoutMs:
+          type: integer
+          exclusiveMinimum: 0
+        breakerFailureThreshold:
+          type: integer
+          exclusiveMinimum: 0
+        breakerCooldownSeconds:
+          type: number
+          exclusiveMinimum: 0
+      required:
+        - system
+        - calls24h
+        - cacheHitRate
+        - failures24h
+        - breaker
+        - lastSuccessAt
+        - paused
+        - rateLimitPerMinute
+        - cacheTtlSeconds
+        - timeoutMs
+        - breakerFailureThreshold
+        - breakerCooldownSeconds
+      description: How one registry integration is behaving
+    Coverage:
+      type: array
+      items:
+        $ref: '#/components/schemas/SystemCoverage'
+      description: Every system with an adapter, in a fixed order
     ProblemDetails:
       type: object
       properties:
@@ -502,272 +1176,6 @@ components:
         - type
         - title
         - status
-    System:
-      type: string
-      enum:
-        - iprs
-        - kra
-        - ntsa
-        - brs
-        - ardhisasa
-        - payroll
-        - icms
-    LookupOutcome:
-      type: string
-      enum:
-        - found
-        - not-found
-        - unavailable
-    UnavailableReason:
-      type: string
-      description: rate-limited when no slot of the system's rate limit freed up within the max queue wait
-      enum:
-        - timeout
-        - breaker-open
-        - paused
-        - rate-limited
-        - upstream-error
-    ResultEnvelope:
-      type: object
-      required:
-        - resultId
-        - system
-        - outcome
-        - reason
-        - cached
-        - checkedAt
-      properties:
-        resultId:
-          type: string
-          format: uuid
-        system:
-          $ref: '#/components/schemas/System'
-        outcome:
-          $ref: '#/components/schemas/LookupOutcome'
-        reason:
-          oneOf:
-            - $ref: '#/components/schemas/UnavailableReason'
-            - type: 'null'
-        cached:
-          type: boolean
-        checkedAt:
-          type: string
-          format: date-time
-    KraResult:
-      allOf:
-        - $ref: '#/components/schemas/ResultEnvelope'
-        - type: object
-          required:
-            - taxpayers
-          properties:
-            taxpayers:
-              type: array
-              items:
-                type: object
-                required:
-                  - pin
-                  - registeredOn
-                  - compliance
-                properties:
-                  pin:
-                    type: string
-                  registeredOn:
-                    type: string
-                    format: date
-                  compliance:
-                    type: object
-                    required:
-                      - status
-                      - certificateNumber
-                      - validUntil
-                      - annualIncomeDeclaredCents
-                    properties:
-                      status:
-                        type: string
-                        enum:
-                          - compliant
-                          - non-compliant
-                          - unknown
-                      certificateNumber:
-                        type:
-                          - string
-                          - 'null'
-                      validUntil:
-                        type:
-                          - string
-                          - 'null'
-                        format: date
-                      annualIncomeDeclaredCents:
-                        type:
-                          - integer
-                          - 'null'
-    NtsaResult:
-      allOf:
-        - $ref: '#/components/schemas/ResultEnvelope'
-        - type: object
-          required:
-            - vehicles
-          properties:
-            vehicles:
-              type: array
-              items:
-                type: object
-                required:
-                  - registrationNumber
-                  - make
-                  - model
-                  - yearOfManufacture
-                  - registeredOn
-                properties:
-                  registrationNumber:
-                    type: string
-                  make:
-                    type: string
-                  model:
-                    type: string
-                  yearOfManufacture:
-                    type: integer
-                  registeredOn:
-                    type: string
-                    format: date
-    BrsResult:
-      allOf:
-        - $ref: '#/components/schemas/ResultEnvelope'
-        - type: object
-          required:
-            - directorships
-          properties:
-            directorships:
-              type: array
-              items:
-                type: object
-                required:
-                  - companyRegistrationNumber
-                  - companyName
-                  - companyStatus
-                  - role
-                  - shares
-                  - appointedOn
-                properties:
-                  companyRegistrationNumber:
-                    type: string
-                  companyName:
-                    type: string
-                  companyStatus:
-                    type: string
-                  role:
-                    type: string
-                  shares:
-                    type:
-                      - number
-                      - 'null'
-                  appointedOn:
-                    type: string
-                    format: date
-    SupplierCheckResult:
-      allOf:
-        - $ref: '#/components/schemas/ResultEnvelope'
-        - type: object
-          required:
-            - supplies
-          properties:
-            supplies:
-              type:
-                - boolean
-                - 'null'
-              description: null when unavailable
-    ArdhisasaResult:
-      allOf:
-        - $ref: '#/components/schemas/ResultEnvelope'
-        - type: object
-          required:
-            - parcels
-          properties:
-            parcels:
-              type: array
-              items:
-                type: object
-                required:
-                  - parcelNumber
-                  - county
-                  - areaHectares
-                  - tenure
-                  - registeredOn
-                properties:
-                  parcelNumber:
-                    type: string
-                  county:
-                    type: string
-                  areaHectares:
-                    type: number
-                  tenure:
-                    type: string
-                  registeredOn:
-                    type: string
-                    format: date
-    StoredResult:
-      type: object
-      required:
-        - resultId
-        - system
-        - outcome
-        - checkedAt
-        - legalBasis
-        - payload
-      properties:
-        resultId:
-          type: string
-          format: uuid
-        system:
-          $ref: '#/components/schemas/System'
-        outcome:
-          $ref: '#/components/schemas/LookupOutcome'
-        checkedAt:
-          type: string
-          format: date-time
-        legalBasis:
-          type: string
-        payload:
-          type: object
-          description: The normalised records as returned by the lookup
-          additionalProperties: true
-    SystemCoverage:
-      type: object
-      required:
-        - system
-        - calls24h
-        - cacheHitRate
-        - breaker
-        - lastSuccessAt
-        - paused
-        - rateLimitPerMinute
-        - cacheTtlSeconds
-      properties:
-        system:
-          $ref: '#/components/schemas/System'
-        calls24h:
-          type: integer
-        cacheHitRate:
-          type: number
-          minimum: 0
-          maximum: 1
-        breaker:
-          type: string
-          enum:
-            - closed
-            - open
-            - half-open
-        lastSuccessAt:
-          type:
-            - string
-            - 'null'
-          format: date-time
-        paused:
-          type: boolean
-        rateLimitPerMinute:
-          type: integer
-        cacheTtlSeconds:
-          type: integer
     PayrollAction:
       type: string
       enum:
@@ -888,20 +1296,6 @@ components:
           type: string
           format: date-time
   parameters:
-    NationalIdPath:
-      name: nationalId
-      in: path
-      required: true
-      schema:
-        type: string
-        pattern: ^[0-9]{5,10}$
-    NationalIdQuery:
-      name: nationalId
-      in: query
-      required: true
-      schema:
-        type: string
-        pattern: ^[0-9]{5,10}$
     CaseRef:
       name: X-Case-Ref
       in: header
