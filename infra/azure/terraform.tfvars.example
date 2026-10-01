@@ -1,0 +1,20 @@
+# Copy to terraform.tfvars (gitignored) and fill in.
+#   cp terraform.tfvars.example terraform.tfvars
+
+subscription_id = "00000000-0000-0000-0000-000000000000"
+name_prefix     = "adili-demo"
+location    = "southafricanorth"
+vm_size     = "Standard_E4s_v5"
+dns_label   = "adili-demo"
+
+admin_username = "adili"
+ssh_public_key = "ssh-ed25519 AAAA... your-key"
+
+# Restrict SSH to your current IP when you can.
+allowed_ssh_cidrs = ["0.0.0.0/0"]
+
+# Let's Encrypt account for Caddy on the cloudapp hostname (required for HTTPS).
+letsencrypt_email = "you@example.com"
+
+# Optional. A records for portal/console/verify/auth at the public IP. Empty = cloudapp FQDN.
+custom_domain = ""

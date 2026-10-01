@@ -2,7 +2,7 @@ import { createHash, randomUUID } from 'node:crypto';
 
 import { GetObjectCommand, HeadObjectCommand, PutObjectCommand } from '@aws-sdk/client-s3';
 import { withTenant } from '@adili/data-access';
-import { eq, sql } from 'drizzle-orm';
+import { asc, eq, sql } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { outbox, uploads } from '../../src/db/schema.js';
@@ -418,7 +418,12 @@ describe('internal download', () => {
 
     expect((await download(clean.id)).statusCode).toBe(200);
 
-    const audited = await api.db.select().from(outbox).where(eq(outbox.eventType, 'audit.read.v1'));
+    const audited = await api.db
+      .select()
+      .from(outbox)
+      .where(eq(outbox.eventType, 'audit.read.v1'))
+      // Latest last: a select without an order returns rows in any order.
+      .orderBy(asc(outbox.createdAt), asc(outbox.id));
     expect(audited.at(-1)?.envelope).toMatchObject({
       source: 'adili/documents',
       // The tenant the service acted for, whose document it read.

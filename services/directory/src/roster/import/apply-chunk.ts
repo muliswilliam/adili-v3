@@ -3,6 +3,7 @@ import { and, eq, inArray, isNull, sql } from 'drizzle-orm';
 
 import type { Transaction } from '../../commissions/commissions.service.js';
 import type { DirectorySchema } from '../../db/schema.js';
+import { fileNumberKey } from '../normalise.js';
 import type { NormalisedRosterRow, RowError, RowNote } from '../row-validation.js';
 import {
   type ImportChannel,
@@ -35,6 +36,8 @@ type ExistingRecord = RecordValues & {
   id: string;
   state: typeof rosterRecords.$inferSelect.state;
   stateBeforeExit: typeof rosterRecords.$inferSelect.stateBeforeExit;
+  emailSource: typeof rosterRecords.$inferSelect.emailSource;
+  phoneSource: typeof rosterRecords.$inferSelect.phoneSource;
 };
 
 /** What applying one row does to the roster. */
@@ -107,10 +110,11 @@ export async function applyChunk(
         row.normalised,
         entity ? requireId(entityIds, entityKey(entity)) : null,
       );
+      const record = existing.get(fileNumberKey(values.personnelFileNumber));
       return {
         rowNumber: row.rowNumber,
         nationalId: values.nationalId,
-        decision: decide(values, existing.get(fileNumberKey(values.personnelFileNumber))),
+        decision: decide(keepDeclarantContacts(values, record), record),
       };
     });
 
@@ -215,6 +219,23 @@ function decide(values: RecordValues, existing: ExistingRecord | undefined): Dec
     : { kind: 'update', recordId: existing.id, values, reactivates: null };
 }
 
+/**
+ * The row's values with the record's declarant-sourced contacts in place of the row's. A contact
+ * the declarant supplied and verified at onboarding (the roster had none) is theirs: an import
+ * does not overwrite or clear it, whatever the row says. Roster-sourced contacts follow the rows.
+ */
+function keepDeclarantContacts(
+  values: RecordValues,
+  existing: ExistingRecord | undefined,
+): RecordValues {
+  if (!existing) return values;
+  return {
+    ...values,
+    email: existing.emailSource === 'declarant' ? existing.email : values.email,
+    phone: existing.phoneSource === 'declarant' ? existing.phone : values.phone,
+  };
+}
+
 /** The record's state, or for an exited record the state a re-activation gives it back. */
 function activeState(record: ExistingRecord): 'not_onboarded' | 'onboarded' {
   if (record.state === 'exited') return record.stateBeforeExit ?? 'not_onboarded';
@@ -315,11 +336,6 @@ async function nationalIdsOnOtherRosters(
   return new Set(nationalIds.filter((_, index) => found[index] === true));
 }
 
-/** Personnel file numbers identify records case-insensitively. */
-function fileNumberKey(fileNumber: string): string {
-  return fileNumber.toLowerCase();
-}
-
 /** Reporting entities are identified by lower-cased, whitespace-collapsed name. */
 function entityKey(name: string): string {
   return name.toLowerCase().replace(/\s+/g, ' ').trim();
@@ -385,6 +401,8 @@ async function recordsByFileNumber(
       appointmentDate: rosterRecords.appointmentDate,
       email: rosterRecords.email,
       phone: rosterRecords.phone,
+      emailSource: rosterRecords.emailSource,
+      phoneSource: rosterRecords.phoneSource,
     })
     .from(rosterRecords)
     .where(

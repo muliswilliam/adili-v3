@@ -86,3 +86,26 @@ describe('SegmentedChoice', () => {
     }
   });
 });
+
+describe('SegmentedChoice track', () => {
+  it('keeps the legend for screen readers and marks the chosen option', () => {
+    const onValueChange = vi.fn();
+    render(
+      <SegmentedChoice
+        variant="track"
+        legend="Onboarded"
+        options={[
+          { value: 'any', label: 'Any' },
+          { value: 'yes', label: 'Onboarded' },
+        ]}
+        value="any"
+        onValueChange={onValueChange}
+      />,
+    );
+
+    expect(screen.getByText('Onboarded', { selector: 'legend' }).className).toContain('sr-only');
+    expect(screen.getByRole<HTMLInputElement>('radio', { name: 'Any' }).checked).toBe(true);
+    fireEvent.click(screen.getByRole('radio', { name: 'Onboarded' }));
+    expect(onValueChange).toHaveBeenCalledWith('yes');
+  });
+});

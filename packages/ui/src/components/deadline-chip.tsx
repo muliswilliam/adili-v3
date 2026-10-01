@@ -1,9 +1,10 @@
 import { Alert02Icon, Clock01Icon, Tick02Icon } from '@hugeicons/core-free-icons';
-import { type ComponentProps, useEffect, useState } from 'react';
+import type { ComponentProps } from 'react';
 
 import { cn } from '../lib/cn';
-import { formatCalendarDate, formatDate, msUntilKenyanMidnight } from '../lib/format-date';
+import { calendarDaysUntil, formatCalendarDate, formatDate } from '../lib/format-date';
 import type { Tone } from '../lib/tone';
+import { useToday } from '../lib/use-today';
 import { badgeVariants } from './badge';
 import { Icon } from './icon';
 
@@ -28,8 +29,6 @@ export const deadlineSoonDays = {
   download: 3,
 } as const;
 
-const DAY_MS = 86_400_000;
-
 /**
  * Where a deadline stands today, counted in whole calendar days in Kenyan time: due soon from
  * `soonDays` days before, and late once its day has passed or when the server says so (`late`,
@@ -39,37 +38,10 @@ export function deadlineStatus(
   due: string,
   { now = Date.now(), soonDays, late = false }: { now?: number; soonDays: number; late?: boolean },
 ): DeadlineStatus {
-  const days = Math.round(
-    (Date.parse(formatCalendarDate(due)) - Date.parse(formatCalendarDate(now))) / DAY_MS,
-  );
+  const days = calendarDaysUntil(due, now);
   const state =
     late || days < 0 ? 'late' : days === 0 ? 'today' : days <= soonDays ? 'soon' : 'due';
   return { state, days };
-}
-
-/**
- * Now, or `fixed` when given. Re-read after hydration (the server may have rendered on the
- * other side of midnight) and at each Kenyan midnight, so a page left open moves on a day.
- */
-function useNow(fixed: number | undefined): number {
-  const [now, setNow] = useState(() => fixed ?? Date.now());
-  useEffect(() => {
-    if (fixed !== undefined) return;
-    // Only a new calendar day changes what the chip shows, so keep the old time otherwise.
-    const refresh = () => {
-      setNow((previous) => {
-        const current = Date.now();
-        return formatCalendarDate(current) === formatCalendarDate(previous) ? previous : current;
-      });
-    };
-    const afterHydration = setTimeout(refresh, 0);
-    const atMidnight = setTimeout(refresh, msUntilKenyanMidnight(Date.now()) + 1000);
-    return () => {
-      clearTimeout(afterHydration);
-      clearTimeout(atMidnight);
-    };
-  }, [fixed, now]);
-  return fixed ?? now;
 }
 
 const stateTones: Record<DeadlineState | 'met', Tone> = {
@@ -128,7 +100,7 @@ export function DeadlineChip({
   className,
   ...props
 }: DeadlineChipProps) {
-  const today = useNow(now);
+  const today = useToday(now);
   const title = `${label} ${formatDate(due)}`;
 
   if (met) {
@@ -166,7 +138,7 @@ export function DeadlineChip({
       title={title}
       data-state={state}
       className={chipClassName(state, className)}
-      // The day can differ between server and browser around midnight; useNow corrects it.
+      // The day can differ between server and browser around midnight; useToday corrects it.
       suppressHydrationWarning
     >
       <Icon icon={state === 'late' ? Alert02Icon : Clock01Icon} strokeWidth={2.2} />

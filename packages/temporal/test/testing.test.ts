@@ -3,7 +3,7 @@ import { fileURLToPath } from 'node:url';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 
 import { WorkflowTestEnvironment } from '../src/testing.js';
-import { greet } from './fixtures/workflows.js';
+import { awaitNudge, greet, lastNudge, nudge } from './fixtures/workflows.js';
 
 // One spy for every importer: the factory may run once per module graph.
 const bundleWorkflowCode = vi.hoisted(() => vi.fn());
@@ -52,5 +52,25 @@ describe('WorkflowTestEnvironment', () => {
     expect(result).toBe('ok');
     // Bundling takes seconds; skipped timers and a cached bundle keep later runs near-instant.
     expect(bundleWorkflowCode.mock.calls.length).toBe(bundlesBefore);
+  });
+
+  it('drives a running workflow with signals, queries and skipped time', async () => {
+    const before = await env.now();
+
+    const result = await env.run(
+      awaitNudge,
+      { workflowsPath, activities: {}, args: [] },
+      async (handle) => {
+        await env.skipTime({ ms: 3 * 24 * 60 * 60 * 1000 });
+        expect(await handle.query(lastNudge)).toBeNull();
+        await handle.signal(nudge, 'wake up');
+        return handle.result();
+      },
+    );
+
+    expect(result).toBe('wake up');
+    expect((await env.now()).getTime() - before.getTime()).toBeGreaterThanOrEqual(
+      3 * 24 * 60 * 60 * 1000,
+    );
   });
 });

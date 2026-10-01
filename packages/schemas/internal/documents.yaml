@@ -540,6 +540,23 @@ components:
           type: string
         status:
           type: integer
+        code:
+          type: string
+          enum:
+            - rate-limit-exceeded
+            - no-match
+            - already-onboarded
+            - no-roster
+            - otp-invalid
+            - otp-expired
+            - resend-cooldown
+            - otp-send-failed
+            - wrong-step
+            - session-expired
+            - iprs-unavailable
+            - identity-unavailable
+            - email-in-use
+          description: Machine-readable cause, from the platform registry; clients map it to copy and never show `title` or `detail`
         detail:
           type: string
         instance:

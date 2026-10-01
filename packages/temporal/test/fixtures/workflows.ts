@@ -1,4 +1,11 @@
-import { proxyActivities, sleep } from '@temporalio/workflow';
+import {
+  condition,
+  defineQuery,
+  defineSignal,
+  proxyActivities,
+  setHandler,
+  sleep,
+} from '@temporalio/workflow';
 
 import type { GreetingActivities } from './greeting-activities.js';
 
@@ -15,4 +22,18 @@ export async function greet(name: string): Promise<string> {
 /** Asks an activity for the greeting straight away. */
 export async function greetNow(name: string): Promise<string> {
   return composeGreeting(name);
+}
+
+export const nudge = defineSignal<[string]>('nudge');
+export const lastNudge = defineQuery<string | null>('lastNudge');
+
+/** Waits for a `nudge` signal and returns its text; `lastNudge` reads it meanwhile. */
+export async function awaitNudge(): Promise<string> {
+  const received: { text: string | null } = { text: null };
+  setHandler(nudge, (value) => {
+    received.text = value;
+  });
+  setHandler(lastNudge, () => received.text);
+  await condition(() => received.text !== null);
+  return received.text ?? '';
 }

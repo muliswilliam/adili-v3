@@ -1,3 +1,12 @@
+export {
+  AI_PROVIDER_NAMES,
+  AI_TASK_NAMES,
+  AiLabel,
+  type AiLabelDetails,
+  type AiLabelMessages,
+  type AiLabelProps,
+  describeAiOutput,
+} from './components/ai-label';
 export { Alert, AlertDescription, AlertTitle, type AlertProps } from './components/alert';
 export {
   type AttachmentListItem,
@@ -26,6 +35,29 @@ export {
   type ChartValue,
 } from './components/chart';
 export {
+  CHAT_QUESTION_MAX_LENGTH,
+  ChatComposer,
+  type ChatComposerMessages,
+  type ChatComposerProps,
+} from './components/chat-composer';
+export {
+  AssistantMessage,
+  type AssistantMessageProps,
+  type AssistantMessageStatus,
+  type ChatMessageMessages,
+  nextAnnouncement,
+  type ReportingOfficer,
+  UserMessage,
+  type UserMessageProps,
+} from './components/chat-message';
+export {
+  ChatLog,
+  type ChatLogProps,
+  ChatPanel,
+  type ChatPanelMessages,
+  type ChatPanelProps,
+} from './components/chat-panel';
+export {
   Checkbox,
   CheckboxGroup,
   type CheckboxGroupProps,
@@ -33,6 +65,15 @@ export {
   type CheckboxItemProps,
   type CheckboxProps,
 } from './components/checkbox';
+export {
+  type Citation,
+  CitationChip,
+  type CitationChipProps,
+  CitationList,
+  type CitationListProps,
+  type CitationMessages,
+  type CitationSource,
+} from './components/citation-chip';
 export {
   CodeBlock,
   type CodeBlockProps,
@@ -68,6 +109,13 @@ export {
 } from './components/data-table';
 export { DateInput, type DateInputProps } from './components/date-input';
 export {
+  DateText,
+  type DateTextKind,
+  type DateTextProps,
+  type DateTextState,
+  duePhrase,
+} from './components/date-text';
+export {
   DeadlineChip,
   type DeadlineChipProps,
   deadlineSoonDays,
@@ -92,7 +140,30 @@ export {
   DialogTitle,
   DialogTrigger,
 } from './components/dialog';
+export {
+  Drawer,
+  DrawerBody,
+  DrawerClose,
+  DrawerContent,
+  type DrawerContentProps,
+  DrawerDescription,
+  DrawerFooter,
+  DrawerHeader,
+  DrawerTitle,
+  DrawerTrigger,
+  drawerVariants,
+} from './components/drawer';
 export { EmptyState, type EmptyStateProps } from './components/empty-state';
+export {
+  type Feedback,
+  FEEDBACK_NOTE_MAX_LENGTH,
+  FEEDBACK_REASONS,
+  FeedbackControl,
+  type FeedbackControlProps,
+  type FeedbackMessages,
+  type FeedbackRating,
+  type FeedbackReason,
+} from './components/feedback-control';
 export {
   FileDropZone,
   type FileDropZoneProps,
@@ -111,14 +182,9 @@ export { Icon, type IconProps } from './components/icon';
 export { controlClassName, Input } from './components/input';
 export { Label } from './components/label';
 export { Logo, LogoMark, LogoWordmark, type LogoProps } from './components/logo';
-export {
-  type ContactKind,
-  maskContact,
-  MaskedContact,
-  type MaskedContactProps,
-  maskEmail,
-  maskPhone,
-} from './components/masked-contact';
+export { MaskedContact, type MaskedContactProps } from './components/masked-contact';
+// The masking rules live in @adili/contacts (the services mask with them too).
+export { type ContactChannel, maskContact, maskEmail, maskPhone } from '@adili/contacts';
 export {
   Menu,
   MenuContent,
@@ -203,7 +269,43 @@ export {
   type SourceBadgeProps,
   type SourceKind,
 } from './components/source-badge';
+export {
+  type SourceRef,
+  SourceRefLink,
+  type SourceRefLinkMessages,
+  type SourceRefLinkProps,
+  type SourceRefTarget,
+  sourceRefTarget,
+} from './components/source-ref-link';
 export { Spinner } from './components/spinner';
+export {
+  StatTile,
+  type StatTileBreakdownItem,
+  type StatTileProps,
+  type StatTileTone,
+} from './components/stat-tile';
+export {
+  StatusBadge,
+  type StatusBadgeProps,
+  type StatusBadgeVariant,
+} from './components/status-badge';
+export {
+  ObligationStatusBadge,
+  type ObligationStatusBadgeProps,
+} from './components/obligation-status-badge';
+export {
+  hasCountdown,
+  ObligationCountdown,
+  type ObligationCountdownProps,
+  StatementDateTerm,
+  type StatementDateTermProps,
+} from './components/obligation-dates';
+export {
+  ReminderHistory,
+  type ReminderHistoryEntry,
+  type ReminderHistoryError,
+} from './components/reminder-history';
+export { ReminderOutcomeText } from './components/reminder-outcome';
 export {
   StatusMark,
   type StatusMarkProps,
@@ -211,6 +313,7 @@ export {
   statusMarkVariants,
 } from './components/status-mark';
 export { Stepper, type StepperProps, type StepperStep } from './components/stepper';
+export { SuggestedQuestions, type SuggestedQuestionsProps } from './components/suggested-questions';
 export {
   emptyFieldDiff,
   SUGGESTION_MESSAGES,
@@ -237,6 +340,16 @@ export { Tabs, TabsContent, TabsCount, TabsList, TabsTrigger } from './component
 export { Textarea } from './components/textarea';
 export { type ToastOptions, ToastProvider, type ToastUrgency, useToast } from './components/toast';
 export { Tooltip, type TooltipProps, TooltipProvider } from './components/tooltip';
+export {
+  formatTokenCount,
+  USAGE_HIGH_PERCENT,
+  UsageMeter,
+  type UsageLevel,
+  usageLevel,
+  type UsageMeterMessages,
+  type UsageMeterProps,
+  usagePercent,
+} from './components/usage-meter';
 export { cn } from './lib/cn';
 export { type Tone, toneClassNames } from './lib/tone';
 export {
@@ -246,7 +359,7 @@ export {
   useCountdown,
   useCountdownAnnouncement,
 } from './lib/countdown';
-export { focusRing, focusRingInset } from './lib/focus';
+export { focusRing, focusRingInset, focusRingWithin } from './lib/focus';
 export {
   daysInMonth,
   formatDayMonthYear,
@@ -255,12 +368,40 @@ export {
 } from './lib/date-input';
 export { addDays, daysBetween, plural } from './lib/calendar-days';
 export {
+  calendarDaysUntil,
+  formatMonthDay,
   formatCalendarDate,
   formatDate,
   formatDateTime,
+  formatLongDate,
   formatMonth,
   msUntilKenyanMidnight,
 } from './lib/format-date';
+export { useToday } from './lib/use-today';
+export {
+  obligationCycleLabel,
+  obligationMessages,
+  obligationMessagesSw,
+  type ObligationStatus,
+  obligationStatusLabel,
+  obligationStatusMeta,
+  type ObligationType,
+  obligationTypeLabel,
+  obligationTypeNames,
+  obligationTypeShortLabel,
+  type ReminderChannel,
+  reminderChannelsLabel,
+  reminderOffsetLabel,
+  type ReminderOutcome,
+  reminderOutcomeLabel,
+  reminderOutcomeMeta,
+  type ReminderOutcomeMeta,
+  remindersSentLabel,
+  type ObligationStatusMeta,
+  type MatchesObligationCopy,
+} from './lib/obligations';
+export type { Assert, Same } from './lib/type-checks';
+export { useObligationDetail } from './lib/use-obligation-detail';
 export { listNames } from './lib/list-names';
 export { formatNumber } from './lib/format-number';
 export {

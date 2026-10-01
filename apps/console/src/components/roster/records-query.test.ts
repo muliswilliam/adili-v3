@@ -67,7 +67,7 @@ describe('rosterRecordsQuery', () => {
   });
 
   it('asks for identityMismatch=true when the filter is on', () => {
-    expect(rosterRecordsQuery({ identityMismatch: true })).toEqual({ identityMismatch: true });
+    expect(rosterRecordsQuery({ identityMismatch: true })).toEqual({ identityMismatch: 'true' });
   });
 
   it('combines the filters with the page cursor and size', () => {

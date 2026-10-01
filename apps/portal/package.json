@@ -14,6 +14,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@adili/api-kit": "workspace:*",
     "@adili/bff-auth": "workspace:*",
     "@adili/ui": "workspace:*",
     "@hugeicons/core-free-icons": "^4.3.5",

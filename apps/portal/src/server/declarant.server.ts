@@ -24,7 +24,10 @@ export interface DeclarantAccount {
 
 export type DeclarantAccountResult =
   | { status: 'onboarded'; account: DeclarantAccount }
-  /** `GET /v1/me/declarant` answered 404: the signed-in person has no onboarded roster record. */
+  /**
+   * `GET /v1/me/declarant` answered 403 (the account has no declarant role) or 404 (it has, but
+   * no onboarded roster record): the signed-in person is not a declarant.
+   */
   | { status: 'not-declarant' }
   | { status: 'unavailable' };
 
@@ -56,7 +59,9 @@ export async function loadDeclarantAccount(
         },
       };
     }
-    return response.status === 404 ? { status: 'not-declarant' } : { status: 'unavailable' };
+    return response.status === 403 || response.status === 404
+      ? { status: 'not-declarant' }
+      : { status: 'unavailable' };
   } catch {
     return { status: 'unavailable' };
   }

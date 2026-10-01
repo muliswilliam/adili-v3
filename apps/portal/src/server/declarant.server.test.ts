@@ -107,13 +107,23 @@ describe('loadDeclarantAccount', () => {
     });
   });
 
-  it('reports not-declarant when the directory answers 404', async () => {
+  it('reports not-declarant when the directory answers 403 (no declarant role) or 404 (no person)', async () => {
     const reviewer = token({
       preferred_username: 'reviewer',
       realm_access: { roles: ['reviewer'] },
     });
+    const noPerson = () =>
+      Promise.resolve(
+        new Response(JSON.stringify({ type: 'about:blank', title: 'Not Found', status: 404 }), {
+          status: 404,
+          headers: { 'content-type': 'application/problem+json' },
+        }),
+      );
 
     expect(await loadDeclarantAccount(client(reviewer))).toEqual({ status: 'not-declarant' });
+    expect(await loadDeclarantAccount(client(declarant, noPerson))).toEqual({
+      status: 'not-declarant',
+    });
   });
 
   it('reports unavailable when the directory fails or cannot be reached', async () => {

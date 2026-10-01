@@ -54,6 +54,7 @@ function session(overrides: Partial<OnboardingSession['otp']> = {}): OnboardingS
     },
     outcome: null,
     ofr: null,
+    setPasswordEmail: null,
     expiresAt: '2099-01-01T00:00:00Z',
   };
 }

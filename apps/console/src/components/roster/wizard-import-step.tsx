@@ -169,7 +169,7 @@ export function FailureAlert({
 
 function ImportSkeleton() {
   return (
-    <WizardCard aria-busy="true" aria-label={m.loading}>
+    <WizardCard role="status" aria-busy="true" aria-label={m.loading}>
       <WizardSection className="grid gap-4">
         <Skeleton className="h-6 w-[140px]" />
         <Skeleton className="h-[68px] w-full rounded-xl" />

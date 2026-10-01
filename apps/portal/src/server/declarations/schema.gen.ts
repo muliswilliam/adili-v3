@@ -24,17 +24,18 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/obligations/{id}": {
+    "/v1/obligations/summary": {
         parameters: {
             query?: never;
             header?: never;
-            path: {
-                id: string;
-            };
+            path?: never;
             cookie?: never;
         };
-        /** One obligation with its reminder history */
-        get: operations["getObligation"];
+        /**
+         * Per-Commission counts for EACC and platform administrators
+         * @description Every Commission's counts for a cycle (the current one by default), with not-onboarded declarants due or overdue, the last roster import, and totals. No declarant data.
+         */
+        get: operations["getNationalObligationsSummary"];
         put?: never;
         post?: never;
         delete?: never;
@@ -43,15 +44,18 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/obligations/summary": {
+    "/v1/obligations/{id}": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        /** Per-Commission counts for EACC and platform administrators */
-        get: operations["getNationalObligationsSummary"];
+        /**
+         * One obligation with its reminder history
+         * @description The declarant's own (`declarant` null); staff of the obligation's Commission and platform admins (with `declarant`, whom it is for). Anyone else gets 404. Staff and platform admin reads are audited under the obligation's Commission; a declarant reading their own is not.
+         */
+        get: operations["getObligation"];
         put?: never;
         post?: never;
         delete?: never;
@@ -64,12 +68,13 @@ export interface paths {
         parameters: {
             query?: never;
             header?: never;
-            path: {
-                slug: components["parameters"]["Slug"];
-            };
+            path?: never;
             cookie?: never;
         };
-        /** Counts by type and status, and not-onboarded among due and overdue */
+        /**
+         * Counts by type and status, and not-onboarded among due and overdue
+         * @description A cycle's counts (the current cycle by default: the latest opened, or the next while none has): its biennials, open initial and final obligations, and those filed in the cycle's two years. Staff of the Commission, platform admins and EACC roles; staff of another Commission get 404.
+         */
         get: operations["getCommissionObligationsSummary"];
         put?: never;
         post?: never;
@@ -83,14 +88,12 @@ export interface paths {
         parameters: {
             query?: never;
             header?: never;
-            path: {
-                slug: components["parameters"]["Slug"];
-            };
+            path?: never;
             cookie?: never;
         };
         /**
-         * Officers and their obligations for a Commission
-         * @description Staff of the tenant and platform-admin. EACC roles get 403 (summaries only).
+         * Declarants and their obligations for a Commission
+         * @description Staff of the tenant and platform-admin. EACC roles get 403 (summaries only); staff of another Commission 404.
          */
         get: operations["listCommissionObligations"];
         put?: never;
@@ -774,6 +777,217 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** @enum {string} */
+        ObligationType: "initial" | "biennial" | "final";
+        /** @enum {string} */
+        ObligationStatus: "upcoming" | "due" | "overdue" | "filed" | "cancelled";
+        /** @enum {string} */
+        CancelReason: "exited-before-statement-date" | "exit-reversed" | "superseded" | "before-obligations-start-date";
+        /** @enum {string} */
+        ReminderOutcome: "sent" | "skipped-not-onboarded" | "skipped-no-contact" | "skipped-past-due-at-creation" | "skipped-missed" | "failed";
+        /** @enum {string} */
+        ReminderChannel: "sms" | "email";
+        CommissionRef: {
+            slug: string;
+            issuerCode: string;
+            name: string;
+        };
+        Obligation: {
+            /** Format: uuid */
+            id: string;
+            commission: components["schemas"]["CommissionRef"];
+            type: components["schemas"]["ObligationType"];
+            /**
+             * @description Unique per declarant among live obligations
+             * @example biennial:2027
+             * @example initial:2027-03-10
+             * @example final:2027-09-15
+             */
+            cycleKey: string;
+            /**
+             * Format: date
+             * @description The date the declaration is made as at
+             */
+            statementDate: string;
+            /** Format: date */
+            dueDate: string;
+            status: components["schemas"]["ObligationStatus"];
+            /** @description Set when cancelled */
+            cancelReason: components["schemas"]["CancelReason"] | null;
+            /** @description Reminders sent so far */
+            remindersSent: number;
+            /** @description The Commission's policy version the obligation was created under */
+            policyVersion: number;
+            /** Format: date-time */
+            createdAt: string;
+        };
+        Reminder: {
+            /** @description Days before the due date */
+            offsetDays: number;
+            /** Format: date-time */
+            scheduledAt: string;
+            /** @description Null unless sent */
+            sentAt: string | null;
+            /** @description The channels it went by */
+            channels: components["schemas"]["ReminderChannel"][];
+            outcome: components["schemas"]["ReminderOutcome"];
+        };
+        DeclarantRef: {
+            /** Format: uuid */
+            rosterRecordId: string;
+            personnelFileNumber: string;
+            fullName: string;
+            onboarded: boolean;
+            ofr: string | null;
+        };
+        ObligationDetail: {
+            /** Format: uuid */
+            id: string;
+            commission: components["schemas"]["CommissionRef"];
+            type: components["schemas"]["ObligationType"];
+            /**
+             * @description Unique per declarant among live obligations
+             * @example biennial:2027
+             * @example initial:2027-03-10
+             * @example final:2027-09-15
+             */
+            cycleKey: string;
+            /**
+             * Format: date
+             * @description The date the declaration is made as at
+             */
+            statementDate: string;
+            /** Format: date */
+            dueDate: string;
+            status: components["schemas"]["ObligationStatus"];
+            /** @description Set when cancelled */
+            cancelReason: components["schemas"]["CancelReason"] | null;
+            /** @description Reminders sent so far */
+            remindersSent: number;
+            /** @description The Commission's policy version the obligation was created under */
+            policyVersion: number;
+            /** Format: date-time */
+            createdAt: string;
+            /** @description Reminder history, by scheduled time */
+            reminders: components["schemas"]["Reminder"][];
+            /** @description Present for staff callers; null for the declarant's own view */
+            declarant: components["schemas"]["DeclarantRef"] | null;
+        };
+        MyObligations: {
+            /** @description One group per Commission, by name */
+            groups: {
+                commission: components["schemas"]["CommissionRef"];
+                /** @description Overdue first, then by due date; cancelled ones left out */
+                obligations: components["schemas"]["Obligation"][];
+            }[];
+        };
+        ObligationListItem: {
+            /** Format: uuid */
+            id: string;
+            commission: components["schemas"]["CommissionRef"];
+            type: components["schemas"]["ObligationType"];
+            /**
+             * @description Unique per declarant among live obligations
+             * @example biennial:2027
+             * @example initial:2027-03-10
+             * @example final:2027-09-15
+             */
+            cycleKey: string;
+            /**
+             * Format: date
+             * @description The date the declaration is made as at
+             */
+            statementDate: string;
+            /** Format: date */
+            dueDate: string;
+            status: components["schemas"]["ObligationStatus"];
+            /** @description Set when cancelled */
+            cancelReason: components["schemas"]["CancelReason"] | null;
+            /** @description Reminders sent so far */
+            remindersSent: number;
+            /** @description The Commission's policy version the obligation was created under */
+            policyVersion: number;
+            /** Format: date-time */
+            createdAt: string;
+            declarant: components["schemas"]["DeclarantRef"];
+            /** @description The obligation's latest reminder (by scheduled time); null before any */
+            lastReminder: components["schemas"]["Reminder"] | null;
+        };
+        ObligationPage: {
+            items: components["schemas"]["ObligationListItem"][];
+            /** @description Pass as `cursor` for the next page; null on the last */
+            nextCursor: string | null;
+        };
+        StatusCounts: {
+            upcoming: number;
+            due: number;
+            overdue: number;
+            filed: number;
+        };
+        SummaryCycle: {
+            /** @example biennial:2027 */
+            key: string;
+            /** Format: date */
+            statementDate: string;
+            /** Format: date */
+            dueDate: string;
+            /**
+             * Format: date
+             * @description The day the cycle's biennial obligations are created: the statement date less the calendar's opening lead
+             */
+            opensOn: string;
+            /** @description Whether the cycle has opened: its opening day has come (Africa/Nairobi), or its biennials were already created */
+            opened: boolean;
+        };
+        CommissionSummary: {
+            commission: components["schemas"]["CommissionRef"];
+            /** @description The cycle counted: the one asked for, or the current one (the latest opened, or the first while none has) */
+            cycle: components["schemas"]["SummaryCycle"];
+            /** @description Every cycle of the calendar under the Commission's policy, oldest first */
+            cycles: components["schemas"]["SummaryCycle"][];
+            total: components["schemas"]["StatusCounts"];
+            byType: {
+                initial: components["schemas"]["StatusCounts"];
+                biennial: components["schemas"]["StatusCounts"];
+                final: components["schemas"]["StatusCounts"];
+            };
+            /** @description Declarants with a due or overdue obligation who have not onboarded, each counted once under their worst status */
+            notOnboarded: {
+                due: number;
+                overdue: number;
+            };
+        };
+        NationalSummary: {
+            /** @description The cycle counted, under the statutory dates: the one asked for, or the current one */
+            cycle: components["schemas"]["SummaryCycle"];
+            /** @description Every Commission the service has had a roster event for, by name */
+            commissions: {
+                commission: components["schemas"]["CommissionRef"];
+                total: components["schemas"]["StatusCounts"];
+                /** @description Declarants with a due or overdue obligation who have not onboarded */
+                notOnboarded: number;
+                /** @description When the Commission's latest roster import completed; null before any */
+                lastRosterImportAt: string | null;
+            }[];
+            totals: components["schemas"]["StatusCounts"];
+        };
+        ProblemDetails: {
+            type: string;
+            title: string;
+            status: number;
+            /**
+             * @description Machine-readable cause, from the platform registry; clients map it to copy and never show `title` or `detail`
+             * @enum {string}
+             */
+            code?: "rate-limit-exceeded" | "no-match" | "already-onboarded" | "no-roster" | "otp-invalid" | "otp-expired" | "resend-cooldown" | "otp-send-failed" | "wrong-step" | "session-expired" | "iprs-unavailable" | "identity-unavailable" | "email-in-use";
+            detail?: string;
+            instance?: string;
+            /** @description Field-level errors; `path` is the dotted request field */
+            errors?: {
+                path: string;
+                message: string;
+            }[];
+        };
         DisclosureRequest: {
             /** Format: uuid */
             personId: string;
@@ -807,118 +1021,6 @@ export interface components {
                     [key: string]: unknown;
                 };
             }[];
-        };
-        /** @enum {string} */
-        ObligationType: "initial" | "biennial" | "final";
-        /** @enum {string} */
-        ObligationStatus: "upcoming" | "due" | "overdue" | "filed" | "cancelled";
-        /** @enum {string} */
-        CancelReason: "exited-before-statement-date" | "exit-reversed" | "superseded";
-        /** @enum {string} */
-        ReminderOutcome: "sent" | "skipped-not-onboarded" | "skipped-no-contact" | "skipped-past-due-at-creation" | "failed";
-        CommissionRef: {
-            slug: string;
-            issuerCode: string;
-            name: string;
-        };
-        Obligation: {
-            /** Format: uuid */
-            id: string;
-            commission: components["schemas"]["CommissionRef"];
-            type: components["schemas"]["ObligationType"];
-            /**
-             * @example biennial:2027
-             * @example initial:2027-03-10
-             * @example final:2027-09-15
-             */
-            cycleKey: string;
-            /** Format: date */
-            statementDate: string;
-            /** Format: date */
-            dueDate: string;
-            status: components["schemas"]["ObligationStatus"];
-            cancelReason: components["schemas"]["CancelReason"] | null;
-            remindersSent: number;
-            policyVersion: number;
-            /** Format: date-time */
-            createdAt: string;
-        };
-        Reminder: {
-            offsetDays: number;
-            /** Format: date-time */
-            scheduledAt: string;
-            /** Format: date-time */
-            sentAt: string | null;
-            channels: ("sms" | "email")[];
-            outcome: components["schemas"]["ReminderOutcome"];
-        };
-        ObligationDetail: components["schemas"]["Obligation"] & {
-            reminders: components["schemas"]["Reminder"][];
-            /** @description Present for staff callers; null for the declarant's own view */
-            officer: components["schemas"]["OfficerRef"] | null;
-        };
-        OfficerRef: {
-            /** Format: uuid */
-            rosterRecordId: string;
-            personnelFileNumber: string;
-            fullName: string;
-            onboarded: boolean;
-            ofr: string | null;
-        };
-        MyObligations: {
-            groups: {
-                commission: components["schemas"]["CommissionRef"];
-                obligations: components["schemas"]["Obligation"][];
-            }[];
-        };
-        ObligationListItem: components["schemas"]["Obligation"] & {
-            officer: components["schemas"]["OfficerRef"];
-        };
-        StatusCounts: {
-            upcoming: number;
-            due: number;
-            overdue: number;
-            filed: number;
-        };
-        CommissionSummary: {
-            commission: components["schemas"]["CommissionRef"];
-            cycle: {
-                key: string;
-                /** Format: date */
-                statementDate: string;
-                /** Format: date */
-                dueDate: string;
-            };
-            total: components["schemas"]["StatusCounts"];
-            byType: {
-                initial: components["schemas"]["StatusCounts"];
-                biennial: components["schemas"]["StatusCounts"];
-                final: components["schemas"]["StatusCounts"];
-            };
-            /** @description Officers with a due or overdue obligation who have not onboarded */
-            notOnboarded: {
-                due: number;
-                overdue: number;
-            };
-        };
-        NationalSummary: {
-            cycle: string;
-            commissions: {
-                commission: components["schemas"]["CommissionRef"];
-                total: components["schemas"]["StatusCounts"];
-                notOnboarded: number;
-                /** Format: date-time */
-                lastRosterImportAt: string | null;
-            }[];
-            totals: components["schemas"]["StatusCounts"];
-        };
-        ProblemDetails: {
-            type: string;
-            title: string;
-            status: number;
-            detail?: string;
-            instance?: string;
-            code?: string;
         };
         /** @description bio, household, other, or statement:<personKey> */
         SectionKey: string;
@@ -1323,7 +1425,60 @@ export interface operations {
                     "application/json": components["schemas"]["MyObligations"];
                 };
             };
-            404: components["responses"]["NotFound"];
+            /** @description Not found, or not visible to the caller */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    getNationalObligationsSummary: {
+        parameters: {
+            query?: {
+                /** @description A biennial cycle key, e.g. `biennial:2027`; the current cycle when omitted */
+                cycle?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Counts per Commission and totals */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NationalSummary"];
+                };
+            };
+            /** @description Query failed validation */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /**
+             * @description Only EACC roles and platform admins
+             *
+             *     Requires one of the roles: eacc-analyst, eacc-supervisor, platform-admin
+             */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
         };
     };
     getObligation: {
@@ -1346,40 +1501,26 @@ export interface operations {
                     "application/json": components["schemas"]["ObligationDetail"];
                 };
             };
-            404: components["responses"]["NotFound"];
-        };
-    };
-    getNationalObligationsSummary: {
-        parameters: {
-            query?: {
-                cycle?: string;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Counts per Commission and totals */
-            200: {
+            /** @description Not found, or not visible to the caller */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["NationalSummary"];
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
-            403: components["responses"]["Forbidden"];
         };
     };
     getCommissionObligationsSummary: {
         parameters: {
             query?: {
+                /** @description A biennial cycle key, e.g. `biennial:2027`; the current cycle when omitted */
                 cycle?: string;
             };
             header?: never;
             path: {
-                slug: components["parameters"]["Slug"];
+                slug: string;
             };
             cookie?: never;
         };
@@ -1394,25 +1535,58 @@ export interface operations {
                     "application/json": components["schemas"]["CommissionSummary"];
                 };
             };
-            403: components["responses"]["Forbidden"];
-            404: components["responses"]["NotFound"];
+            /** @description Query failed validation */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /**
+             * @description Not a Commission's staff, an EACC role or a platform admin
+             *
+             *     Requires one of the roles: reporting-officer, reviewer, supervisor, commission-admin, eacc-analyst, eacc-supervisor, platform-admin
+             */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not found, or not visible to the caller */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
         };
     };
     listCommissionObligations: {
         parameters: {
             query?: {
-                type?: components["schemas"]["ObligationType"];
-                status?: components["schemas"]["ObligationStatus"];
-                onboarded?: boolean;
+                type?: "initial" | "biennial" | "final";
+                /** @description Only obligations with this status; cancelled ones only when asked for */
+                status?: "upcoming" | "due" | "overdue" | "filed" | "cancelled";
+                /** @description Only declarants who have onboarded, or only those who have not */
+                onboarded?: "true" | "false";
+                /** @description Only obligations with this cycle key */
                 cycle?: string;
-                /** @description Personnel file number prefix or name fragment */
+                /** @description A personnel file number or its beginning, or part of a name (both case-insensitive); blank means no search */
                 search?: string;
+                /** @description `nextCursor` of the previous page; omit for the first page */
                 cursor?: string;
                 limit?: number;
             };
             header?: never;
             path: {
-                slug: components["parameters"]["Slug"];
+                slug: string;
             };
             cookie?: never;
         };
@@ -1424,14 +1598,40 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        items: components["schemas"]["ObligationListItem"][];
-                        nextCursor: string | null;
-                    };
+                    "application/json": components["schemas"]["ObligationPage"];
                 };
             };
-            403: components["responses"]["Forbidden"];
-            404: components["responses"]["NotFound"];
+            /** @description Query failed validation, or the cursor is unknown */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /**
+             * @description Not a Commission's staff or a platform admin (EACC sees counts only)
+             *
+             *     Requires one of the roles: reporting-officer, reviewer, supervisor, commission-admin, platform-admin
+             */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not found, or not visible to the caller */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
         };
     };
     startDeclaration: {

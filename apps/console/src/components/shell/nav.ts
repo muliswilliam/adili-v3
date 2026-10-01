@@ -1,5 +1,11 @@
 import type { IconProps } from '@adili/ui';
-import { Building03Icon, Key01Icon, UserGroupIcon } from '@hugeicons/core-free-icons';
+import {
+  Building03Icon,
+  Calendar03Icon,
+  ChartColumnIcon,
+  Key01Icon,
+  UserGroupIcon,
+} from '@hugeicons/core-free-icons';
 
 import { type WorkspaceHref, workspacesFor } from '../workspaces';
 
@@ -36,7 +42,13 @@ interface NavDefinition {
  * open it.
  */
 const NAV: { label: string; items: NavDefinition[] }[] = [
-  { label: 'Platform', items: [{ workspace: 'commissions', icon: Building03Icon }] },
+  {
+    label: 'Platform',
+    items: [
+      { workspace: 'commissions', icon: Building03Icon },
+      { workspace: 'national-obligations', icon: ChartColumnIcon },
+    ],
+  },
   {
     label: 'Commission',
     items: [
@@ -49,6 +61,7 @@ const NAV: { label: string; items: NavDefinition[] }[] = [
         to: '/roster/api-access',
         writeOnly: true,
       },
+      { workspace: 'obligations', icon: Calendar03Icon },
     ],
   },
 ];

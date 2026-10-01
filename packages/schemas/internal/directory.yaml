@@ -311,6 +311,205 @@ paths:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/ProblemDetails'
+  /v1/commissions/{slug}/policy:
+    get:
+      tags:
+        - policy
+      summary: Current policy version and history for a Commission
+      description: Staff of the Commission; platform-admin, eacc-analyst and eacc-supervisor for every Commission. The console's policy card reads it.
+      operationId: getTenantPolicy
+      parameters:
+        - name: slug
+          required: true
+          in: path
+          schema:
+            $ref: '#/components/schemas/Slug'
+      responses:
+        '200':
+          description: Current version and previous versions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TenantPolicyHistory'
+        '403':
+          description: 'Requires one of the roles: platform-admin, eacc-analyst, eacc-supervisor, reporting-officer, reviewer, supervisor, commission-admin, access-officer, auditor, helpdesk'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: Not found, or not visible to the caller
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+  /v1/commissions/{slug}/policy/versions:
+    post:
+      tags:
+        - policy
+      summary: Create a new policy version (only obligationsStartDate is editable in this slice)
+      description: The commission-admin of the tenant, or a platform-admin. Other fields are copied from the current version; the new one is in force from now and `directory.policy.changed.v1` announces it. Idempotent per Idempotency-Key.
+      operationId: createTenantPolicyVersion
+      parameters:
+        - name: slug
+          required: true
+          in: path
+          schema:
+            $ref: '#/components/schemas/Slug'
+        - name: Idempotency-Key
+          in: header
+          description: Client-generated UUID, unique per logical request; reuse on retry
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateTenantPolicyVersion'
+      responses:
+        '201':
+          description: New version in force
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TenantPolicyVersion'
+        '400':
+          description: Request failed validation
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '403':
+          description: 'Requires one of the roles: commission-admin, platform-admin'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: Not found, or another Commission's
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '422':
+          description: Idempotency-Key reused with a different request body
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+  /internal/v1/commissions/{slug}/policy:
+    get:
+      tags:
+        - internal
+      summary: Current policy version for a Commission (services)
+      description: Service tokens with scope directory:internal, acting for the Commission in X-Acting-Tenant. Pull it again on `directory.policy.changed.v1`.
+      operationId: internalGetTenantPolicy
+      parameters:
+        - name: X-Acting-Tenant
+          in: header
+          description: Tenant the calling service acts for; the resource must belong to it
+          required: true
+          schema:
+            type: string
+            pattern: ^[a-z][a-z0-9]{1,19}$
+        - name: slug
+          required: true
+          in: path
+          schema:
+            $ref: '#/components/schemas/Slug'
+      responses:
+        '200':
+          description: Current version
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TenantPolicyVersion'
+        '400':
+          description: X-Acting-Tenant is missing or not a tenant key
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '403':
+          description: Requires a service token with scope directory:internal
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: Not found, or not the acting tenant
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+  /internal/v1/commissions/{slug}:
+    get:
+      tags:
+        - internal
+      summary: Slug, issuer code and name of a Commission (services)
+      description: Service tokens with scope directory:internal, acting for the Commission in X-Acting-Tenant. E.g. declarations names the Commission of each obligation.
+      operationId: internalGetCommission
+      parameters:
+        - name: X-Acting-Tenant
+          in: header
+          description: Tenant the calling service acts for; the resource must belong to it
+          required: true
+          schema:
+            type: string
+            pattern: ^[a-z][a-z0-9]{1,19}$
+        - name: slug
+          required: true
+          in: path
+          schema:
+            $ref: '#/components/schemas/Slug'
+      responses:
+        '200':
+          description: The Commission
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InternalCommission'
+        '400':
+          description: X-Acting-Tenant is missing or not a tenant key
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '403':
+          description: Requires a service token with scope directory:internal
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: Not found, or not the acting tenant
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+  /internal/v1/commissions:
+    get:
+      tags:
+        - internal
+      summary: Slug, issuer code and name of every Commission (services)
+      description: Service tokens with scope directory:internal; no X-Acting-Tenant (platform reference data, no personal data). E.g. declarations lists Commissions without a roster yet in the national obligations summary.
+      operationId: internalListCommissions
+      responses:
+        '200':
+          description: Every Commission, by slug
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InternalCommissionList'
+        '403':
+          description: 'Requires one of the scopes: directory:internal'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
   /v1/roster/template:
     get:
       tags:
@@ -581,7 +780,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetails'
         '429':
-          description: 'Problem type `rate-limit-exceeded`: rate limit exceeded; retry after the seconds in Retry-After'
+          description: 'Problem code `rate-limit-exceeded`: rate limit exceeded; retry after the seconds in `retryAfterSeconds` and Retry-After'
           content:
             application/problem+json:
               schema:
@@ -690,7 +889,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetails'
         '429':
-          description: 'Problem type `rate-limit-exceeded`: rate limit exceeded; retry after the seconds in Retry-After'
+          description: 'Problem code `rate-limit-exceeded`: rate limit exceeded; retry after the seconds in `retryAfterSeconds` and Retry-After'
           content:
             application/problem+json:
               schema:
@@ -855,7 +1054,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetails'
         '429':
-          description: 'Problem type `rate-limit-exceeded`: rate limit exceeded; retry after the seconds in Retry-After'
+          description: 'Problem code `rate-limit-exceeded`: rate limit exceeded; retry after the seconds in `retryAfterSeconds` and Retry-After'
           content:
             application/problem+json:
               schema:
@@ -976,7 +1175,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetails'
         '429':
-          description: 'Problem type `rate-limit-exceeded`: rate limit exceeded; retry after the seconds in Retry-After'
+          description: 'Problem code `rate-limit-exceeded`: rate limit exceeded; retry after the seconds in `retryAfterSeconds` and Retry-After'
           content:
             application/problem+json:
               schema:
@@ -1076,7 +1275,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetails'
         '429':
-          description: 'Problem type `rate-limit-exceeded`: rate limit exceeded; retry after the seconds in Retry-After'
+          description: 'Problem code `rate-limit-exceeded`: rate limit exceeded; retry after the seconds in `retryAfterSeconds` and Retry-After'
           content:
             application/problem+json:
               schema:
@@ -1158,7 +1357,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetails'
         '429':
-          description: 'Problem type `rate-limit-exceeded`: rate limit exceeded; retry after the seconds in Retry-After'
+          description: 'Problem code `rate-limit-exceeded`: rate limit exceeded; retry after the seconds in `retryAfterSeconds` and Retry-After'
           content:
             application/problem+json:
               schema:
@@ -1219,6 +1418,15 @@ paths:
           required: false
           in: query
           description: Only records flagged as absent from the latest complete import, or only those not flagged
+          schema:
+            type: string
+            enum:
+              - 'true'
+              - 'false'
+        - name: identityMismatch
+          required: false
+          in: query
+          description: Only records on which an onboarding attempt found an identity mismatch, or only those without one
           schema:
             type: string
             enum:
@@ -1313,6 +1521,137 @@ paths:
                 $ref: '#/components/schemas/ProblemDetails'
       x-audited-read:
         action: roster.record.viewed
+        resource: roster-record
+  /internal/v1/commissions/{slug}/roster/records:
+    get:
+      tags:
+        - internal
+      summary: Roster records touched by an import or an exit batch (services)
+      description: Service tokens with scope directory:internal, acting for the Commission in X-Acting-Tenant; audited. Exactly one of importId and exitBatchId. Each record as it is now, up to 1,000 per page.
+      operationId: internalListRosterRecords
+      parameters:
+        - name: X-Acting-Tenant
+          in: header
+          description: Tenant the calling service acts for; the resource must belong to it
+          required: true
+          schema:
+            type: string
+            pattern: ^[a-z][a-z0-9]{1,19}$
+        - name: slug
+          required: true
+          in: path
+          schema:
+            $ref: '#/components/schemas/Slug'
+        - name: importId
+          required: false
+          in: query
+          description: The records the import had a row for (`roster.import.completed.v1`), in row order. Import rows are kept 30 days after the import ends.
+          schema:
+            type: string
+            format: uuid
+        - name: exitBatchId
+          required: false
+          in: query
+          description: The records the exit confirmation exited (`roster.exits.confirmed.v1` `batchId`), in id order
+          schema:
+            type: string
+            format: uuid
+        - name: cursor
+          required: false
+          in: query
+          description: '`nextCursor` of the previous page; omit for the first page'
+          schema:
+            type: string
+            maxLength: 500
+        - name: limit
+          required: false
+          in: query
+          schema:
+            default: 1000
+            type: integer
+            minimum: 1
+            maximum: 1000
+      responses:
+        '200':
+          description: Page of records
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InternalRosterRecordPage'
+        '400':
+          description: 'Query failed validation: not exactly one of importId and exitBatchId, or an unknown cursor'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '403':
+          description: Requires a service token with scope directory:internal
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: No such import or exit batch of the acting tenant's Commission
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+      x-audited-read:
+        action: roster.records.pulled
+        resource: roster-record
+  /internal/v1/commissions/{slug}/roster/records/{recordId}:
+    get:
+      tags:
+        - internal
+      summary: One roster record (services)
+      description: Service tokens with scope directory:internal, acting for the Commission in X-Acting-Tenant; audited. E.g. after `declarant.onboarded.v1`.
+      operationId: internalGetRosterRecord
+      parameters:
+        - name: X-Acting-Tenant
+          in: header
+          description: Tenant the calling service acts for; the resource must belong to it
+          required: true
+          schema:
+            type: string
+            pattern: ^[a-z][a-z0-9]{1,19}$
+        - name: slug
+          required: true
+          in: path
+          schema:
+            $ref: '#/components/schemas/Slug'
+        - name: recordId
+          required: true
+          in: path
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: The record
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InternalRosterRecord'
+        '400':
+          description: recordId is not a UUID
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '403':
+          description: Requires a service token with scope directory:internal
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: No such record in the acting tenant's Commission
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+      x-audited-read:
+        action: roster.record.pulled
         resource: roster-record
   /v1/commissions/{slug}/roster/exits:
     post:
@@ -1468,7 +1807,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetails'
         '429':
-          description: 'Problem type `rate-limit-exceeded`: rate limit exceeded; retry after the seconds in Retry-After'
+          description: 'Problem code `rate-limit-exceeded`: rate limit exceeded; retry after the seconds in `retryAfterSeconds` and Retry-After'
           content:
             application/problem+json:
               schema:
@@ -1557,17 +1896,32 @@ paths:
       tags:
         - onboarding
       summary: Active Responsible Commissions a declarant can choose from
+      description: Public, rate-limited per client IP. Ordered by name; may be up to a minute behind (cached).
       operationId: listOnboardingCommissions
-      x-draft: true
       parameters:
         - name: search
+          required: false
           in: query
+          description: Part of the name, or the issuer code, case-insensitive; blank means every Commission
           schema:
             type: string
             maxLength: 100
       responses:
         '200':
           description: Commissions with roster availability
+          headers:
+            RateLimit-Limit:
+              description: Requests the caller's budget holds when full
+              schema:
+                type: integer
+            RateLimit-Remaining:
+              description: Requests left in the budget after this one
+              schema:
+                type: integer
+            RateLimit-Reset:
+              description: Seconds until the budget is full again
+              schema:
+                type: integer
           content:
             application/json:
               schema:
@@ -1575,19 +1929,42 @@ paths:
                 items:
                   $ref: '#/components/schemas/OnboardingCommission'
         '400':
-          $ref: '#/components/responses/ValidationProblem'
+          description: Query failed validation
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '429':
+          description: 'Problem code `rate-limit-exceeded`: rate limit exceeded; retry after the seconds in `retryAfterSeconds` and Retry-After'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+          headers:
+            RateLimit-Limit:
+              description: Requests the caller's budget holds when full
+              schema:
+                type: integer
+            RateLimit-Remaining:
+              description: Requests left in the budget after this one
+              schema:
+                type: integer
+            RateLimit-Reset:
+              description: Seconds until the budget is full again
+              schema:
+                type: integer
+            Retry-After:
+              description: Seconds until the next request would be allowed
+              schema:
+                type: integer
       security: []
   /v1/onboarding/sessions:
     post:
       tags:
         - onboarding
       summary: Match personnel file number and national ID against a Commission's roster
-      description: |
-        Public, rate-limited per IP and per IP + Commission. Every non-match cause returns the
-        same `no-match` problem. On success the response carries the session and, once only,
-        the session secret the BFF stores in an httpOnly cookie.
+      description: Public, rate-limited per client IP and per client IP and Commission (a slug that is no active Commission with a roster uses up neither; a session of the client IP that ran out of codes or resends uses up a per client IP attempt). Every non-match cause returns the same `no-match` problem. On success the response carries the session and, once only, the session secret the BFF stores in an httpOnly cookie.
       operationId: identifyDeclarant
-      x-draft: true
       requestBody:
         required: true
         content:
@@ -1596,13 +1973,30 @@ paths:
               $ref: '#/components/schemas/IdentifyDeclarant'
       responses:
         '201':
-          description: Session created; first OTP sent or a contact is required
+          description: 'Session created: the first code sent to the roster email (`email-pending`), or an email is required (`email-contact-required`)'
+          headers:
+            RateLimit-Limit:
+              description: Requests the caller's budget holds when full
+              schema:
+                type: integer
+            RateLimit-Remaining:
+              description: Requests left in the budget after this one
+              schema:
+                type: integer
+            RateLimit-Reset:
+              description: Seconds until the budget is full again
+              schema:
+                type: integer
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/OnboardingSessionCreated'
         '400':
-          $ref: '#/components/responses/ValidationProblem'
+          description: Body failed validation
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
         '404':
           description: Problem code `no-match`
           content:
@@ -1610,227 +2004,744 @@ paths:
               schema:
                 $ref: '#/components/schemas/OnboardingProblem'
         '409':
-          description: Problem code `already-onboarded` or `no-roster`
+          description: 'Problem code `already-onboarded` (with `links`), or `no-roster`: no active Commission with that slug, or it has not imported a roster'
           content:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/OnboardingProblem'
         '429':
-          $ref: '#/components/responses/RateLimited'
+          description: 'Problem code `rate-limit-exceeded`: rate limit exceeded; retry after the seconds in `retryAfterSeconds` and Retry-After'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+          headers:
+            RateLimit-Limit:
+              description: Requests the caller's budget holds when full
+              schema:
+                type: integer
+            RateLimit-Remaining:
+              description: Requests left in the budget after this one
+              schema:
+                type: integer
+            RateLimit-Reset:
+              description: Seconds until the budget is full again
+              schema:
+                type: integer
+            Retry-After:
+              description: Seconds until the next request would be allowed
+              schema:
+                type: integer
+        '502':
+          description: 'Problem code `otp-send-failed`: the first code could not be sent; no session was created'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/OnboardingProblem'
       security: []
   /v1/onboarding/sessions/{sessionId}:
-    parameters:
-      - $ref: '#/components/parameters/SessionId'
-      - $ref: '#/components/parameters/OnboardingSecret'
     get:
       tags:
         - onboarding
       summary: Current step, masked contacts and roster details to confirm
+      description: Public, with the session secret; rate-limited per client IP.
       operationId: getOnboardingSession
-      x-draft: true
+      parameters:
+        - name: sessionId
+          required: true
+          in: path
+          schema:
+            type: string
+            format: uuid
+        - name: X-Onboarding-Secret
+          in: header
+          description: Session secret returned once at creation; held by the portal BFF in an httpOnly cookie
+          required: true
+          schema:
+            type: string
       responses:
         '200':
           description: The session
+          headers:
+            RateLimit-Limit:
+              description: Requests the caller's budget holds when full
+              schema:
+                type: integer
+            RateLimit-Remaining:
+              description: Requests left in the budget after this one
+              schema:
+                type: integer
+            RateLimit-Reset:
+              description: Seconds until the budget is full again
+              schema:
+                type: integer
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/OnboardingSession'
         '404':
-          $ref: '#/components/responses/NotFound'
+          description: No such session, or the secret is missing or wrong
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
         '410':
-          $ref: '#/components/responses/SessionEnded'
-      security: []
-  /v1/onboarding/sessions/{sessionId}/contacts:
-    parameters:
-      - $ref: '#/components/parameters/SessionId'
-      - $ref: '#/components/parameters/OnboardingSecret'
-    post:
-      tags:
-        - onboarding
-      summary: Supply an email or phone when the roster record has none
-      operationId: provideOnboardingContact
-      x-draft: true
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required:
-                - channel
-                - value
-              properties:
-                channel:
-                  $ref: '#/components/schemas/OtpChannel'
-                value:
-                  type: string
-                  maxLength: 254
-      responses:
-        '200':
-          description: Contact accepted and OTP sent
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/OnboardingSession'
-        '400':
-          $ref: '#/components/responses/ValidationProblem'
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '409':
-          description: Session is not waiting for this contact
+          description: 'Problem code `session-expired`: the session ended or ran out of time; the BFF clears its cookie'
           content:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/OnboardingProblem'
-        '410':
-          $ref: '#/components/responses/SessionEnded'
+        '429':
+          description: 'Problem code `rate-limit-exceeded`: rate limit exceeded; retry after the seconds in `retryAfterSeconds` and Retry-After'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+          headers:
+            RateLimit-Limit:
+              description: Requests the caller's budget holds when full
+              schema:
+                type: integer
+            RateLimit-Remaining:
+              description: Requests left in the budget after this one
+              schema:
+                type: integer
+            RateLimit-Reset:
+              description: Seconds until the budget is full again
+              schema:
+                type: integer
+            Retry-After:
+              description: Seconds until the next request would be allowed
+              schema:
+                type: integer
       security: []
   /v1/onboarding/sessions/{sessionId}/otp/{channel}/verify:
-    parameters:
-      - $ref: '#/components/parameters/SessionId'
-      - $ref: '#/components/parameters/OnboardingSecret'
-      - $ref: '#/components/parameters/OtpChannelParam'
     post:
       tags:
         - onboarding
       summary: Verify the 6-digit code for a channel
+      description: 'Public, with the session secret; rate-limited per client IP. The right code verifies the contact and moves the session on: after email to the phone (its code sent at once, or `phone-contact-required`), after phone to `phone-verified`. Five wrong codes end the session (410), which also uses up an identify attempt of the client IP.'
       operationId: verifyOnboardingOtp
-      x-draft: true
+      parameters:
+        - name: sessionId
+          required: true
+          in: path
+          schema:
+            type: string
+            format: uuid
+        - name: X-Onboarding-Secret
+          in: header
+          description: Session secret returned once at creation; held by the portal BFF in an httpOnly cookie
+          required: true
+          schema:
+            type: string
+        - name: channel
+          required: true
+          in: path
+          schema:
+            $ref: '#/components/schemas/OtpChannel'
+          description: email or phone
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              type: object
-              required:
-                - code
-              properties:
-                code:
-                  type: string
-                  pattern: ^[0-9]{6}$
+              $ref: '#/components/schemas/VerifyOnboardingOtp'
       responses:
         '200':
-          description: Verified; session advanced
+          description: Verified; the session moved on
+          headers:
+            RateLimit-Limit:
+              description: Requests the caller's budget holds when full
+              schema:
+                type: integer
+            RateLimit-Remaining:
+              description: Requests left in the budget after this one
+              schema:
+                type: integer
+            RateLimit-Reset:
+              description: Seconds until the budget is full again
+              schema:
+                type: integer
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/OnboardingSession'
         '400':
-          description: Problem code `otp-invalid` (with `attemptsLeft`) or `otp-expired`
+          description: Problem code `otp-invalid` (with `attemptsLeft`) or `otp-expired`; a body failing validation has no code
           content:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/OnboardingProblem'
         '404':
-          $ref: '#/components/responses/NotFound'
+          description: No such session, or the secret is missing or wrong
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
         '409':
-          description: Session is not waiting for this channel
+          description: "Problem code `wrong-step`: the session is not waiting for this channel's code; re-read it"
           content:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/OnboardingProblem'
         '410':
-          $ref: '#/components/responses/SessionEnded'
+          description: 'Problem code `session-expired`: the session ended or ran out of time; the BFF clears its cookie'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/OnboardingProblem'
+        '429':
+          description: 'Problem code `rate-limit-exceeded`: rate limit exceeded; retry after the seconds in `retryAfterSeconds` and Retry-After'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+          headers:
+            RateLimit-Limit:
+              description: Requests the caller's budget holds when full
+              schema:
+                type: integer
+            RateLimit-Remaining:
+              description: Requests left in the budget after this one
+              schema:
+                type: integer
+            RateLimit-Reset:
+              description: Seconds until the budget is full again
+              schema:
+                type: integer
+            Retry-After:
+              description: Seconds until the next request would be allowed
+              schema:
+                type: integer
+        '502':
+          description: 'Problem code `otp-send-failed`: the code could not be sent; nothing changed, try again'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/OnboardingProblem'
       security: []
   /v1/onboarding/sessions/{sessionId}/otp/{channel}/resend:
-    parameters:
-      - $ref: '#/components/parameters/SessionId'
-      - $ref: '#/components/parameters/OnboardingSecret'
-      - $ref: '#/components/parameters/OtpChannelParam'
     post:
       tags:
         - onboarding
       summary: Send a new code (60-second cooldown, at most 3 per channel)
+      description: Public, with the session secret; rate-limited per client IP. The new code replaces the old one. A fourth resend of a channel ends the session (410), which also uses up an identify attempt of the client IP. Re-read the session for the next `resendAvailableAt` and `resendsLeft`.
       operationId: resendOnboardingOtp
-      x-draft: true
+      parameters:
+        - name: sessionId
+          required: true
+          in: path
+          schema:
+            type: string
+            format: uuid
+        - name: X-Onboarding-Secret
+          in: header
+          description: Session secret returned once at creation; held by the portal BFF in an httpOnly cookie
+          required: true
+          schema:
+            type: string
+        - name: channel
+          required: true
+          in: path
+          schema:
+            $ref: '#/components/schemas/OtpChannel'
+          description: email or phone
       responses:
         '202':
           description: New code sent
+          headers:
+            RateLimit-Limit:
+              description: Requests the caller's budget holds when full
+              schema:
+                type: integer
+            RateLimit-Remaining:
+              description: Requests left in the budget after this one
+              schema:
+                type: integer
+            RateLimit-Reset:
+              description: Seconds until the budget is full again
+              schema:
+                type: integer
         '404':
-          $ref: '#/components/responses/NotFound'
+          description: No such session, or the secret is missing or wrong
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
         '409':
-          description: Session is not waiting for this channel
+          description: "Problem code `wrong-step`: the session is not waiting for this channel's code; re-read it"
           content:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/OnboardingProblem'
         '410':
-          $ref: '#/components/responses/SessionEnded'
+          description: 'Problem code `session-expired`: the session ended or ran out of time; the BFF clears its cookie'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/OnboardingProblem'
         '429':
-          description: Problem code `resend-cooldown` with `retryAfterSeconds`
+          description: Problem code `resend-cooldown` (with `retryAfterSeconds`) or `rate-limit-exceeded` (with `retryAfterSeconds` and Retry-After)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/OnboardingProblem'
+        '502':
+          description: 'Problem code `otp-send-failed`: the code could not be sent; nothing changed, try again'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/OnboardingProblem'
+      security: []
+  /v1/onboarding/sessions/{sessionId}/contacts:
+    post:
+      tags:
+        - onboarding
+      summary: Supply an email or phone when the roster record has none
+      description: Public, with the session secret; rate-limited per client IP. Only while the session waits for that contact (`*-contact-required`). The value is normalised (email lower-cased, phone to E.164) and its first code sent; once verified it is written to the roster record with source `declarant`.
+      operationId: provideOnboardingContact
+      parameters:
+        - name: sessionId
+          required: true
+          in: path
+          schema:
+            type: string
+            format: uuid
+        - name: X-Onboarding-Secret
+          in: header
+          description: Session secret returned once at creation; held by the portal BFF in an httpOnly cookie
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProvideOnboardingContact'
+      responses:
+        '200':
+          description: Contact accepted and its code sent
+          headers:
+            RateLimit-Limit:
+              description: Requests the caller's budget holds when full
+              schema:
+                type: integer
+            RateLimit-Remaining:
+              description: Requests left in the budget after this one
+              schema:
+                type: integer
+            RateLimit-Reset:
+              description: Seconds until the budget is full again
+              schema:
+                type: integer
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OnboardingSession'
+        '400':
+          description: Body failed validation (e.g. not a valid email or phone number)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: No such session, or the secret is missing or wrong
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '409':
+          description: 'Problem code `wrong-step`: the session is not waiting for this contact; re-read it'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/OnboardingProblem'
+        '410':
+          description: 'Problem code `session-expired`: the session ended or ran out of time; the BFF clears its cookie'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/OnboardingProblem'
+        '429':
+          description: 'Problem code `rate-limit-exceeded`: rate limit exceeded; retry after the seconds in `retryAfterSeconds` and Retry-After'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+          headers:
+            RateLimit-Limit:
+              description: Requests the caller's budget holds when full
+              schema:
+                type: integer
+            RateLimit-Remaining:
+              description: Requests left in the budget after this one
+              schema:
+                type: integer
+            RateLimit-Reset:
+              description: Seconds until the budget is full again
+              schema:
+                type: integer
+            Retry-After:
+              description: Seconds until the next request would be allowed
+              schema:
+                type: integer
+        '502':
+          description: 'Problem code `otp-send-failed`: the code could not be sent; nothing changed, try again'
           content:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/OnboardingProblem'
       security: []
   /v1/onboarding/sessions/{sessionId}/confirm:
-    parameters:
-      - $ref: '#/components/parameters/SessionId'
-      - $ref: '#/components/parameters/OnboardingSecret'
     post:
       tags:
         - onboarding
       summary: Confirm roster details, run the IPRS check and create or link the account
+      description: 'Public, with the session secret; rate-limited per client IP. From `phone-verified` only. An IPRS mismatch (or no IPRS record) is a 200 with outcome `identity-mismatch`: the session ends and the roster record is flagged for its reporting officer. A match creates the account and sends the set-password email (`account-created`), or links the record to the account the person already has from another Commission (`linked-existing-account`). Idempotent per Idempotency-Key: a retry gets the first answer back.'
       operationId: confirmOnboarding
-      x-draft: true
+      parameters:
+        - name: sessionId
+          required: true
+          in: path
+          schema:
+            type: string
+            format: uuid
+        - name: X-Onboarding-Secret
+          in: header
+          description: Session secret returned once at creation; held by the portal BFF in an httpOnly cookie
+          required: true
+          schema:
+            type: string
+        - name: Idempotency-Key
+          in: header
+          description: Client-generated UUID, unique per logical request; reuse on retry
+          required: true
+          schema:
+            type: string
+            format: uuid
       responses:
         '200':
-          description: Outcome of the confirmation
+          description: Outcome of the confirmation, with the session as it now is
+          headers:
+            RateLimit-Limit:
+              description: Requests the caller's budget holds when full
+              schema:
+                type: integer
+            RateLimit-Remaining:
+              description: Requests left in the budget after this one
+              schema:
+                type: integer
+            RateLimit-Reset:
+              description: Seconds until the budget is full again
+              schema:
+                type: integer
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/OnboardingConfirmResult'
         '404':
-          $ref: '#/components/responses/NotFound'
+          description: No such session, or the secret is missing or wrong
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
         '409':
-          description: Session is not at the confirm step
+          description: 'The session is not at the confirm step (the BFF re-reads it), or problem code `email-in-use`: the verified email belongs to another account; nothing changed'
           content:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/OnboardingProblem'
         '410':
-          $ref: '#/components/responses/SessionEnded'
+          description: 'Problem code `session-expired`: the session ended or ran out of time; the BFF clears its cookie'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/OnboardingProblem'
+        '422':
+          description: Idempotency-Key reused with a different request body
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '429':
+          description: 'Problem code `rate-limit-exceeded`: rate limit exceeded; retry after the seconds in `retryAfterSeconds` and Retry-After'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+          headers:
+            RateLimit-Limit:
+              description: Requests the caller's budget holds when full
+              schema:
+                type: integer
+            RateLimit-Remaining:
+              description: Requests left in the budget after this one
+              schema:
+                type: integer
+            RateLimit-Reset:
+              description: Seconds until the budget is full again
+              schema:
+                type: integer
+            Retry-After:
+              description: Seconds until the next request would be allowed
+              schema:
+                type: integer
         '502':
-          description: 'Problem code `identity-unavailable`: account could not be created; nothing changed'
+          description: 'Problem code `identity-unavailable`: the account could not be created or linked; nothing changed'
           content:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/OnboardingProblem'
         '503':
-          description: 'Problem code `iprs-unavailable`: try again later; session unchanged'
+          description: 'Problem code `iprs-unavailable`: IPRS could not be checked; try again later, the session is unchanged'
           content:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/OnboardingProblem'
       security: []
   /v1/onboarding/sessions/{sessionId}/resend-password-email:
-    parameters:
-      - $ref: '#/components/parameters/SessionId'
-      - $ref: '#/components/parameters/OnboardingSecret'
     post:
       tags:
         - onboarding
-      summary: Send the Keycloak set-password email again
+      summary: Send the set-password email again
+      description: 'Public, with the session secret; rate-limited per client IP. Only for a session confirmed with a new account (`account-created`), a minute after the last email, until 24 hours after confirm (the session `expiresAt`, then 410); the session then says when the next may be sent (`otp.resendAvailableAt`). Idempotent per Idempotency-Key: a retry sends no second email.'
       operationId: resendSetPasswordEmail
-      x-draft: true
+      parameters:
+        - name: sessionId
+          required: true
+          in: path
+          schema:
+            type: string
+            format: uuid
+        - name: X-Onboarding-Secret
+          in: header
+          description: Session secret returned once at creation; held by the portal BFF in an httpOnly cookie
+          required: true
+          schema:
+            type: string
+        - name: Idempotency-Key
+          in: header
+          description: Client-generated UUID, unique per logical request; reuse on retry
+          required: true
+          schema:
+            type: string
+            format: uuid
       responses:
         '202':
           description: Email requested
+          headers:
+            RateLimit-Limit:
+              description: Requests the caller's budget holds when full
+              schema:
+                type: integer
+            RateLimit-Remaining:
+              description: Requests left in the budget after this one
+              schema:
+                type: integer
+            RateLimit-Reset:
+              description: Seconds until the budget is full again
+              schema:
+                type: integer
         '404':
-          $ref: '#/components/responses/NotFound'
+          description: No such session, or the secret is missing or wrong
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
         '409':
-          description: Session is not in the confirmed state with a new account
+          description: The session is not confirmed with a new account (the BFF re-reads it)
           content:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/OnboardingProblem'
+        '410':
+          description: 'Problem code `session-expired`: the session ended or ran out of time; the BFF clears its cookie'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/OnboardingProblem'
+        '422':
+          description: Idempotency-Key reused with a different request body
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
         '429':
-          description: Problem code `resend-cooldown`
+          description: Problem code `resend-cooldown` with `retryAfterSeconds`
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/OnboardingProblem'
+        '502':
+          description: 'Problem code `identity-unavailable`: the email could not be sent; try again'
           content:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/OnboardingProblem'
       security: []
+  /v1/commissions/{slug}/roster/onboarding-failures:
+    get:
+      tags:
+        - roster
+      summary: Failed onboarding attempts against the Commission in the last 24 hours
+      description: "The Commission's reporting officer and commission admin; platform admin, EACC analyst and supervisor for every Commission. Counts only, no identifiers: many failures point to a stale roster or an attack (spec 03, story 30)."
+      operationId: getOnboardingFailures
+      parameters:
+        - name: slug
+          required: true
+          in: path
+          schema:
+            $ref: '#/components/schemas/Slug'
+      responses:
+        '200':
+          description: Failed attempts by hour
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OnboardingFailures'
+        '403':
+          description: 'Requires one of the roles: reporting-officer, commission-admin, platform-admin, eacc-analyst, eacc-supervisor'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: 'Not found: another Commission, or the Commission does not exist'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+  /v1/me/declarant:
+    get:
+      tags:
+        - me
+      summary: The signed-in declarant's person, OFR, Commissions and verified contacts
+      description: 'Declarants only, their own: the person is the one whose account is the token''s subject. The portal dashboard reads it, and takes 403 and 404 alike as "not a declarant".'
+      operationId: getMyDeclarantProfile
+      responses:
+        '200':
+          description: Profile
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeclarantProfile'
+        '401':
+          description: Missing, expired or invalid access token
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '403':
+          description: 'Requires one of the roles: declarant'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: The account has the declarant role but no onboarded person
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+  /v1/persons:
+    get:
+      tags:
+        - persons
+      summary: Look up account metadata by officer reference
+      description: 'Helpdesk and platform admins, audited. Account metadata only: who the person is and which Commissions they are onboarded at, never the contents of their roster records. The officer reference is validated with its check character, so a mistyped one is 400 rather than 404.'
+      operationId: findPersonByOfr
+      parameters:
+        - name: ofr
+          required: true
+          in: query
+          description: Officer reference (ADR-011), permanent and person-level
+          schema:
+            type: string
+            pattern: ^OFR-[0-9]{7}-[0-9A-Z]$
+            examples:
+              - OFR-0482913-L
+      responses:
+        '200':
+          description: Account metadata without roster contents
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PersonSummary'
+        '400':
+          description: 'Not an officer reference: wrong shape or check character'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '403':
+          description: |-
+            Only the helpdesk and platform admins look persons up
+
+            Requires one of the roles: platform-admin, helpdesk
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: No person has this officer reference
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+      x-audited-read:
+        action: person.looked-up
+        resource: person
+  /internal/v1/persons/{personId}/contacts:
+    get:
+      tags:
+        - internal
+      summary: Verified contacts of a person (notifications)
+      description: Service tokens with scope directory:person-contacts (the notifications service only), acting for the tenant a message is sent for; audited. The email and phone verified at the latest onboarding, null where none. 404 when the person is unknown or not onboarded at that tenant.
+      operationId: internalGetPersonContacts
+      parameters:
+        - name: X-Acting-Tenant
+          in: header
+          description: Tenant the calling service acts for; the resource must belong to it
+          required: true
+          schema:
+            type: string
+            pattern: ^[a-z][a-z0-9]{1,19}$
+        - name: personId
+          required: true
+          in: path
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Contacts, null where none is verified
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PersonContacts'
+        '400':
+          description: personId is not a UUID
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '403':
+          description: Requires a service token with scope directory:person-contacts
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: No person has this id, or not one onboarded at the acting tenant
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+      x-audited-read:
+        action: person.contacts.read
+        resource: person
   /v1/onboarding/applicants:
     post:
       tags:
@@ -1891,7 +2802,7 @@ paths:
         '400':
           $ref: '#/components/responses/ValidationProblem'
         '409':
-          description: Problem code `identity-mismatch` (IPRS) or `already-registered`
+          description: The identity document does not match IPRS, or belongs to an existing account
           content:
             application/problem+json:
               schema:
@@ -2007,262 +2918,6 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
-  /v1/me/declarant:
-    get:
-      tags:
-        - onboarding
-      summary: The signed-in declarant's person, OFR, Commissions and verified contacts
-      operationId: getMyDeclarantProfile
-      x-draft: true
-      responses:
-        '200':
-          description: Profile
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/DeclarantProfile'
-        '404':
-          description: The caller is not an onboarded declarant
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ProblemDetails'
-  /v1/persons:
-    get:
-      tags:
-        - onboarding
-      summary: Look up account metadata by officer reference (helpdesk, platform-admin)
-      operationId: findPersonByOfr
-      x-draft: true
-      parameters:
-        - name: ofr
-          in: query
-          required: true
-          schema:
-            $ref: '#/components/schemas/Ofr'
-      responses:
-        '200':
-          description: Account metadata without roster contents
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/PersonSummary'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '404':
-          $ref: '#/components/responses/NotFound'
-  /v1/commissions/{slug}/policy:
-    parameters:
-      - $ref: '#/components/parameters/Slug'
-    get:
-      tags:
-        - policy
-      summary: Current policy version and history for a Commission
-      operationId: getTenantPolicy
-      x-draft: true
-      responses:
-        '200':
-          description: Current version and previous versions
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/TenantPolicyHistory'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '404':
-          $ref: '#/components/responses/NotFound'
-  /v1/commissions/{slug}/policy/versions:
-    parameters:
-      - $ref: '#/components/parameters/Slug'
-    post:
-      tags:
-        - policy
-      summary: Create a new policy version (only obligationsStartDate is editable in this slice)
-      description: commission-admin of the tenant or platform-admin. Other fields are copied from the current version.
-      operationId: createTenantPolicyVersion
-      x-draft: true
-      parameters:
-        - $ref: '#/components/parameters/IdempotencyKey'
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required:
-                - obligationsStartDate
-              properties:
-                obligationsStartDate:
-                  type: string
-                  format: date
-      responses:
-        '201':
-          description: New version in force
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/TenantPolicyVersion'
-        '400':
-          $ref: '#/components/responses/ValidationProblem'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '404':
-          $ref: '#/components/responses/NotFound'
-  /internal/v1/commissions/{slug}:
-    parameters:
-      - $ref: '#/components/parameters/Slug'
-    get:
-      tags:
-        - internal
-      summary: A Commission's name and issuer code (services naming it in letters and messages)
-      operationId: internalGetCommission
-      x-draft: true
-      responses:
-        '200':
-          description: The Commission
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/InternalCommission'
-        '404':
-          $ref: '#/components/responses/NotFound'
-  /internal/v1/commissions/{slug}/policy:
-    parameters:
-      - $ref: '#/components/parameters/Slug'
-    get:
-      tags:
-        - internal
-      summary: Current policy version for a Commission (services)
-      operationId: internalGetTenantPolicy
-      x-draft: true
-      responses:
-        '200':
-          description: Current version
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/TenantPolicyVersion'
-        '404':
-          $ref: '#/components/responses/NotFound'
-  /internal/v1/commissions/{slug}/roster/records:
-    parameters:
-      - $ref: '#/components/parameters/Slug'
-    get:
-      tags:
-        - internal
-      summary: Roster records touched by an import or an exit batch (services)
-      operationId: internalListRosterRecords
-      x-draft: true
-      parameters:
-        - name: importId
-          in: query
-          schema:
-            type: string
-            format: uuid
-        - name: exitBatchId
-          in: query
-          schema:
-            type: string
-            format: uuid
-        - name: state
-          in: query
-          schema:
-            $ref: '#/components/schemas/RosterRecordState'
-        - name: cursor
-          in: query
-          schema:
-            type: string
-        - name: limit
-          in: query
-          schema:
-            type: integer
-            minimum: 1
-            maximum: 1000
-            default: 1000
-      responses:
-        '200':
-          description: Page of full records
-          content:
-            application/json:
-              schema:
-                type: object
-                required:
-                  - items
-                  - nextCursor
-                properties:
-                  items:
-                    type: array
-                    items:
-                      $ref: '#/components/schemas/InternalRosterRecord'
-                  nextCursor:
-                    type:
-                      - string
-                      - 'null'
-        '404':
-          $ref: '#/components/responses/NotFound'
-  /internal/v1/commissions/{slug}/roster/records/{recordId}:
-    parameters:
-      - $ref: '#/components/parameters/Slug'
-      - name: recordId
-        in: path
-        required: true
-        schema:
-          type: string
-          format: uuid
-    get:
-      tags:
-        - internal
-      summary: One roster record (services)
-      operationId: internalGetRosterRecord
-      x-draft: true
-      responses:
-        '200':
-          description: The record
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/InternalRosterRecord'
-        '404':
-          $ref: '#/components/responses/NotFound'
-  /internal/v1/persons/{personId}/contacts:
-    parameters:
-      - name: personId
-        in: path
-        required: true
-        schema:
-          type: string
-          format: uuid
-    get:
-      tags:
-        - internal
-      summary: Verified contacts of a person (notifications)
-      operationId: internalGetPersonContacts
-      x-draft: true
-      responses:
-        '200':
-          description: Contacts, null where none is verified
-          content:
-            application/json:
-              schema:
-                type: object
-                required:
-                  - personId
-                  - email
-                  - phone
-                properties:
-                  personId:
-                    type: string
-                    format: uuid
-                  email:
-                    type:
-                      - string
-                      - 'null'
-                  phone:
-                    type:
-                      - string
-                      - 'null'
-        '404':
-          $ref: '#/components/responses/NotFound'
 components:
   securitySchemes:
     bearer:
@@ -2306,6 +2961,12 @@ components:
           type:
             - integer
             - 'null'
+        personId:
+          anyOf:
+            - type: string
+              format: uuid
+            - type: 'null'
+          description: Person the declarant account is linked to (`person_id`); null for staff
       required:
         - subject
         - tenant
@@ -2314,6 +2975,7 @@ components:
         - clientId
         - name
         - issuedAt
+        - personId
     Slug:
       type: string
       pattern: ^[a-z][a-z0-9]{1,19}$
@@ -2568,6 +3230,148 @@ components:
         - items
         - nextCursor
         - total
+    InternalCommission:
+      type: object
+      properties:
+        slug:
+          $ref: '#/components/schemas/Slug'
+        issuerCode:
+          type: string
+          description: slug upper-cased
+          examples:
+            - TSC
+        name:
+          type: string
+      required:
+        - slug
+        - issuerCode
+        - name
+    InternalCommissionList:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/InternalCommission'
+      required:
+        - items
+    TenantPolicyVersion:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        version:
+          type: integer
+          description: 1 when the Commission is provisioned, then one per change
+        effectiveFrom:
+          type: string
+          format: date-time
+          description: In force from its creation
+        obligationsStartDate:
+          type: string
+          format: date
+          description: Obligations of every type (initial, biennial, final) are created only for statement dates on or after this date; earlier ones are assumed declared outside Adili. Version 1's is the date the Commission was created (Africa/Nairobi).
+        initialDueAfterAppointmentDays:
+          type: integer
+          description: Initial declaration due this many days after appointment (Act s.34(1))
+        biennial:
+          type: object
+          properties:
+            statementDate:
+              type: string
+              pattern: ^\d{2}-\d{2}$
+              description: Month-day
+              examples:
+                - 11-01
+            dueDate:
+              type: string
+              pattern: ^\d{2}-\d{2}$
+              description: Month-day
+              examples:
+                - 12-31
+          required:
+            - statementDate
+            - dueDate
+          description: Biennial declaration statement and due dates (Act s.34(2))
+        finalDueAfterExitDays:
+          type: integer
+          description: Final declaration due this many days after leaving office (Act s.34(3))
+        reminderOffsetsDays:
+          type: array
+          items:
+            type: integer
+          description: Reminders go this many days before a due date
+          examples:
+            - - 30
+              - 14
+              - 7
+        clarification:
+          type: object
+          properties:
+            issueWindowMonths:
+              type: integer
+            replyWindowDays:
+              type: integer
+          required:
+            - issueWindowMonths
+            - replyWindowDays
+          description: Clarification issue window and the declarant's reply window (Act s.35)
+        formMDue:
+          type: string
+          pattern: ^\d{2}-\d{2}$
+          description: Form M compliance report due, month-day (Regs r.25(2))
+          examples:
+            - 07-31
+        createdBy:
+          type: string
+          description: '`sub` of who created the version'
+        createdByName:
+          description: Their display name at the time; null when unknown
+          type:
+            - string
+            - 'null'
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - version
+        - effectiveFrom
+        - obligationsStartDate
+        - initialDueAfterAppointmentDays
+        - biennial
+        - finalDueAfterExitDays
+        - reminderOffsetsDays
+        - clarification
+        - formMDue
+        - createdBy
+        - createdByName
+        - createdAt
+    TenantPolicyHistory:
+      type: object
+      properties:
+        current:
+          description: The version in force
+          $ref: '#/components/schemas/TenantPolicyVersion'
+        previous:
+          type: array
+          items:
+            $ref: '#/components/schemas/TenantPolicyVersion'
+          description: Earlier versions, newest first
+      required:
+        - current
+        - previous
+    CreateTenantPolicyVersion:
+      type: object
+      properties:
+        obligationsStartDate:
+          type: string
+          format: date
+          description: Obligations of every type are created only for statement dates on or after this date (appointments, biennial statement dates and exits). Earlier ones are assumed declared outside Adili.
+      required:
+        - obligationsStartDate
+      additionalProperties: false
     RosterApiCredential:
       type: object
       properties:
@@ -3018,6 +3822,23 @@ components:
           type: string
         status:
           type: integer
+        code:
+          type: string
+          enum:
+            - rate-limit-exceeded
+            - no-match
+            - already-onboarded
+            - no-roster
+            - otp-invalid
+            - otp-expired
+            - resend-cooldown
+            - otp-send-failed
+            - wrong-step
+            - session-expired
+            - iprs-unavailable
+            - identity-unavailable
+            - email-in-use
+          description: Machine-readable cause, from the platform registry; clients map it to copy and never show `title` or `detail`
         detail:
           type: string
         instance:
@@ -3052,6 +3873,23 @@ components:
           type: string
         status:
           type: integer
+        code:
+          type: string
+          enum:
+            - rate-limit-exceeded
+            - no-match
+            - already-onboarded
+            - no-roster
+            - otp-invalid
+            - otp-expired
+            - resend-cooldown
+            - otp-send-failed
+            - wrong-step
+            - session-expired
+            - iprs-unavailable
+            - identity-unavailable
+            - email-in-use
+          description: Machine-readable cause, from the platform registry; clients map it to copy and never show `title` or `detail`
         detail:
           type: string
         instance:
@@ -3367,6 +4205,23 @@ components:
               format: date-time
             - type: 'null'
           description: When the record was flagged
+        ofr:
+          anyOf:
+            - $ref: '#/components/schemas/Ofr'
+            - type: 'null'
+          description: The declarant's officer reference once onboarded; null before
+        onboardedAt:
+          anyOf:
+            - type: string
+              format: date-time
+            - type: 'null'
+          description: When the declarant onboarded against the record; null before
+        identityMismatchAt:
+          anyOf:
+            - type: string
+              format: date-time
+            - type: 'null'
+          description: When an onboarding attempt found that IPRS does not confirm the record's name; null when none has
       required:
         - id
         - personnelFileNumber
@@ -3379,6 +4234,9 @@ components:
         - absentFromLatestImport
         - flaggedByImportId
         - flaggedAt
+        - ofr
+        - onboardedAt
+        - identityMismatchAt
     RosterRecordImport:
       type: object
       properties:
@@ -3444,6 +4302,23 @@ components:
               format: date-time
             - type: 'null'
           description: When the record was flagged
+        ofr:
+          anyOf:
+            - $ref: '#/components/schemas/Ofr'
+            - type: 'null'
+          description: The declarant's officer reference once onboarded; null before
+        onboardedAt:
+          anyOf:
+            - type: string
+              format: date-time
+            - type: 'null'
+          description: When the declarant onboarded against the record; null before
+        identityMismatchAt:
+          anyOf:
+            - type: string
+              format: date-time
+            - type: 'null'
+          description: When an onboarding attempt found that IPRS does not confirm the record's name; null when none has
         nationalId:
           type: string
           description: Full value, digits only; reads are audited
@@ -3499,6 +4374,9 @@ components:
         - absentFromLatestImport
         - flaggedByImportId
         - flaggedAt
+        - ofr
+        - onboardedAt
+        - identityMismatchAt
         - nationalId
         - appointmentDate
         - email
@@ -3517,6 +4395,94 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/RosterRecordListItem'
+        nextCursor:
+          description: Pass as `cursor` for the next page; null on the last page
+          type:
+            - string
+            - 'null'
+      required:
+        - items
+        - nextCursor
+    InternalRosterRecord:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        tenant:
+          $ref: '#/components/schemas/Slug'
+        personnelFileNumber:
+          type: string
+        fullName:
+          type: string
+        designation:
+          type:
+            - string
+            - 'null'
+        jobGroup:
+          type:
+            - string
+            - 'null'
+        reportingEntity:
+          anyOf:
+            - $ref: '#/components/schemas/ReportingEntityRef'
+            - type: 'null'
+        state:
+          $ref: '#/components/schemas/RosterRecordState'
+        appointmentDate:
+          anyOf:
+            - type: string
+              format: date
+            - type: 'null'
+          description: Null when the roster gives none
+        exitDate:
+          anyOf:
+            - type: string
+              format: date
+            - type: 'null'
+          description: Set while the record is exited
+        personId:
+          anyOf:
+            - type: string
+              format: uuid
+            - type: 'null'
+          description: The declarant the record is onboarded as; kept when it exits
+        ofr:
+          anyOf:
+            - $ref: '#/components/schemas/Ofr'
+            - type: 'null'
+          description: The declarant's officer reference
+        onboardedAt:
+          anyOf:
+            - type: string
+              format: date-time
+            - type: 'null'
+        updatedAt:
+          type: string
+          format: date-time
+          description: Last change to the record
+      required:
+        - id
+        - tenant
+        - personnelFileNumber
+        - fullName
+        - designation
+        - jobGroup
+        - reportingEntity
+        - state
+        - appointmentDate
+        - exitDate
+        - personId
+        - ofr
+        - onboardedAt
+        - updatedAt
+    InternalRosterRecordPage:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/InternalRosterRecord'
         nextCursor:
           description: Pass as `cursor` for the next page; null on the last page
           type:
@@ -3594,6 +4560,520 @@ components:
           description: Last day of employment; not in the future (Africa/Nairobi)
       required:
         - exitDate
+    Ofr:
+      type: string
+      pattern: ^OFR-[0-9]{7}-[0-9A-Z]$
+      description: Officer reference (ADR-011), permanent and person-level
+      examples:
+        - OFR-0482913-L
+    OtpChannel:
+      type: string
+      enum:
+        - email
+        - phone
+    OnboardingCommission:
+      type: object
+      properties:
+        slug:
+          $ref: '#/components/schemas/Slug'
+        issuerCode:
+          type: string
+          description: slug upper-cased
+          examples:
+            - TSC
+        name:
+          type: string
+        hasRoster:
+          type: boolean
+          description: Whether the Commission has imported a roster; identify needs one
+      required:
+        - slug
+        - issuerCode
+        - name
+        - hasRoster
+    IdentifyDeclarant:
+      type: object
+      properties:
+        commission:
+          $ref: '#/components/schemas/Slug'
+        personnelFileNumber:
+          type: string
+          minLength: 1
+          maxLength: 30
+          description: As on the payslip; compared trimmed and case-insensitively
+        nationalId:
+          type: string
+          pattern: ^[0-9 ]{5,12}$
+          description: Digits after stripping spaces, 5 to 10
+      required:
+        - commission
+        - personnelFileNumber
+        - nationalId
+    OnboardingState:
+      type: string
+      enum:
+        - identified
+        - email-contact-required
+        - email-pending
+        - email-verified
+        - phone-contact-required
+        - phone-pending
+        - phone-verified
+        - confirmed
+        - identity-mismatch
+        - expired
+    MaskedContact:
+      type: object
+      properties:
+        masked:
+          type: string
+          description: e.g. j***@moe.go.ke or 07** *** 123
+        source:
+          type: string
+          enum:
+            - roster
+            - declarant
+        verified:
+          type: boolean
+      required:
+        - masked
+        - source
+        - verified
+    OnboardingOutcome:
+      type: string
+      enum:
+        - account-created
+        - linked-existing-account
+        - identity-mismatch
+    OnboardingSession:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        state:
+          $ref: '#/components/schemas/OnboardingState'
+        commission:
+          $ref: '#/components/schemas/OnboardingCommission'
+        contacts:
+          type: object
+          properties:
+            email:
+              anyOf:
+                - $ref: '#/components/schemas/MaskedContact'
+                - type: 'null'
+            phone:
+              anyOf:
+                - $ref: '#/components/schemas/MaskedContact'
+                - type: 'null'
+          required:
+            - email
+            - phone
+        details:
+          anyOf:
+            - type: object
+              properties:
+                fullName:
+                  type: string
+                personnelFileNumber:
+                  type: string
+                designation:
+                  type:
+                    - string
+                    - 'null'
+                reportingEntity:
+                  type:
+                    - string
+                    - 'null'
+              required:
+                - fullName
+                - personnelFileNumber
+                - designation
+                - reportingEntity
+            - type: 'null'
+          description: Roster details shown at the confirm step; null before phone-verified
+        otp:
+          type: object
+          properties:
+            channel:
+              anyOf:
+                - $ref: '#/components/schemas/OtpChannel'
+                - type: 'null'
+            resendAvailableAt:
+              anyOf:
+                - type: string
+                  format: date-time
+                - type: 'null'
+            resendsLeft:
+              type: integer
+            attemptsLeft:
+              type: integer
+          required:
+            - channel
+            - resendAvailableAt
+            - resendsLeft
+            - attemptsLeft
+          description: 'Resend availability for the channel currently pending; once confirmed with a new account, `resendAvailableAt` is when the set-password email may be sent again (null: now)'
+        outcome:
+          description: Set when state is confirmed or identity-mismatch
+          anyOf:
+            - $ref: '#/components/schemas/OnboardingOutcome'
+            - type: 'null'
+        ofr:
+          anyOf:
+            - $ref: '#/components/schemas/Ofr'
+            - type: 'null'
+        setPasswordEmail:
+          anyOf:
+            - type: string
+              enum:
+                - sent
+                - failed
+            - type: 'null'
+          description: 'Once confirmed with a new account (`account-created`): `sent`, the set-password email went; `failed`, the account stands but the email could not be sent, so the portal offers resend-password-email at once. Null for every other session'
+        expiresAt:
+          type: string
+          format: date-time
+          description: 'When the session ends: 30 minutes after identify, 10 more per successful step, at most 60 minutes after identify. Once confirmed with a new account, 24 hours after confirm (the set-password link lifespan), so resend-password-email works while the link could lapse'
+      required:
+        - id
+        - state
+        - commission
+        - contacts
+        - details
+        - otp
+        - setPasswordEmail
+        - expiresAt
+    OnboardingSessionCreated:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        state:
+          $ref: '#/components/schemas/OnboardingState'
+        commission:
+          $ref: '#/components/schemas/OnboardingCommission'
+        contacts:
+          type: object
+          properties:
+            email:
+              anyOf:
+                - $ref: '#/components/schemas/MaskedContact'
+                - type: 'null'
+            phone:
+              anyOf:
+                - $ref: '#/components/schemas/MaskedContact'
+                - type: 'null'
+          required:
+            - email
+            - phone
+        details:
+          anyOf:
+            - type: object
+              properties:
+                fullName:
+                  type: string
+                personnelFileNumber:
+                  type: string
+                designation:
+                  type:
+                    - string
+                    - 'null'
+                reportingEntity:
+                  type:
+                    - string
+                    - 'null'
+              required:
+                - fullName
+                - personnelFileNumber
+                - designation
+                - reportingEntity
+            - type: 'null'
+          description: Roster details shown at the confirm step; null before phone-verified
+        otp:
+          type: object
+          properties:
+            channel:
+              anyOf:
+                - $ref: '#/components/schemas/OtpChannel'
+                - type: 'null'
+            resendAvailableAt:
+              anyOf:
+                - type: string
+                  format: date-time
+                - type: 'null'
+            resendsLeft:
+              type: integer
+            attemptsLeft:
+              type: integer
+          required:
+            - channel
+            - resendAvailableAt
+            - resendsLeft
+            - attemptsLeft
+          description: 'Resend availability for the channel currently pending; once confirmed with a new account, `resendAvailableAt` is when the set-password email may be sent again (null: now)'
+        outcome:
+          description: Set when state is confirmed or identity-mismatch
+          anyOf:
+            - $ref: '#/components/schemas/OnboardingOutcome'
+            - type: 'null'
+        ofr:
+          anyOf:
+            - $ref: '#/components/schemas/Ofr'
+            - type: 'null'
+        setPasswordEmail:
+          anyOf:
+            - type: string
+              enum:
+                - sent
+                - failed
+            - type: 'null'
+          description: 'Once confirmed with a new account (`account-created`): `sent`, the set-password email went; `failed`, the account stands but the email could not be sent, so the portal offers resend-password-email at once. Null for every other session'
+        expiresAt:
+          type: string
+          format: date-time
+          description: 'When the session ends: 30 minutes after identify, 10 more per successful step, at most 60 minutes after identify. Once confirmed with a new account, 24 hours after confirm (the set-password link lifespan), so resend-password-email works while the link could lapse'
+        secret:
+          type: string
+          description: Returned once; the BFF stores it in an httpOnly cookie and sends it back in X-Onboarding-Secret
+      required:
+        - id
+        - state
+        - commission
+        - contacts
+        - details
+        - otp
+        - setPasswordEmail
+        - expiresAt
+        - secret
+    OnboardingConfirmResult:
+      type: object
+      properties:
+        outcome:
+          $ref: '#/components/schemas/OnboardingOutcome'
+        session:
+          $ref: '#/components/schemas/OnboardingSession'
+      required:
+        - outcome
+        - session
+    OnboardingProblem:
+      type: object
+      properties:
+        type:
+          type: string
+        title:
+          type: string
+        status:
+          type: integer
+        code:
+          type: string
+          enum:
+            - no-match
+            - already-onboarded
+            - no-roster
+            - otp-invalid
+            - otp-expired
+            - otp-send-failed
+            - resend-cooldown
+            - session-expired
+            - iprs-unavailable
+            - identity-unavailable
+            - email-in-use
+            - rate-limit-exceeded
+            - wrong-step
+        detail:
+          type: string
+        instance:
+          type: string
+        errors:
+          description: Field-level errors; `path` is the dotted request field
+          type: array
+          items:
+            type: object
+            properties:
+              path:
+                type: string
+              message:
+                type: string
+            required:
+              - path
+              - message
+        attemptsLeft:
+          type: integer
+        retryAfterSeconds:
+          type: integer
+        links:
+          description: Present for already-onboarded
+          type: object
+          properties:
+            signIn:
+              type: string
+              format: uri
+            recoverAccess:
+              type: string
+              format: uri
+      required:
+        - type
+        - title
+        - status
+        - code
+    OnboardingFailures:
+      type: object
+      properties:
+        since:
+          type: string
+          format: date-time
+          description: 'Start of the earliest hour counted: the current hour and the 23 before it'
+        failedAttempts:
+          type: integer
+          description: 'Failed onboarding attempts against the Commission since `since`, by anyone: identify answered `no-match` (wrong or unknown identifiers, or an exited record), or a session ended because its codes or resends ran out'
+        hours:
+          type: array
+          items:
+            type: object
+            properties:
+              windowStart:
+                type: string
+                format: date-time
+              failedAttempts:
+                type: integer
+            required:
+              - windowStart
+              - failedAttempts
+          description: Hours with failed attempts, oldest first
+      required:
+        - since
+        - failedAttempts
+        - hours
+    DeclarantProfile:
+      type: object
+      properties:
+        personId:
+          type: string
+          format: uuid
+        ofr:
+          $ref: '#/components/schemas/Ofr'
+        fullName:
+          type: string
+          description: As confirmed at onboarding
+        contacts:
+          type: object
+          properties:
+            email:
+              type:
+                - string
+                - 'null'
+            phone:
+              description: E.164
+              type:
+                - string
+                - 'null'
+          required:
+            - email
+            - phone
+          description: The contacts verified at the latest onboarding
+        commissions:
+          type: array
+          items:
+            type: object
+            properties:
+              slug:
+                $ref: '#/components/schemas/Slug'
+              name:
+                type: string
+              personnelFileNumber:
+                type: string
+              rosterRecordId:
+                type: string
+                format: uuid
+              state:
+                $ref: '#/components/schemas/RosterRecordState'
+              onboardedAt:
+                anyOf:
+                  - type: string
+                    format: date-time
+                  - type: 'null'
+            required:
+              - slug
+              - name
+              - personnelFileNumber
+              - rosterRecordId
+              - state
+              - onboardedAt
+          description: The person's roster records, one per Commission, ordered by name
+      required:
+        - personId
+        - ofr
+        - fullName
+        - contacts
+        - commissions
+    PersonSummary:
+      type: object
+      properties:
+        personId:
+          type: string
+          format: uuid
+        ofr:
+          $ref: '#/components/schemas/Ofr'
+        fullName:
+          type: string
+        commissions:
+          type: array
+          items:
+            $ref: '#/components/schemas/Slug'
+          description: Commissions whose roster records the person is linked to
+        createdAt:
+          type: string
+          format: date-time
+          description: When the account was created
+      required:
+        - personId
+        - ofr
+        - fullName
+        - commissions
+        - createdAt
+    PersonContacts:
+      type: object
+      properties:
+        personId:
+          type: string
+          format: uuid
+        email:
+          description: Verified at onboarding; null when none
+          type:
+            - string
+            - 'null'
+        phone:
+          description: E.164, verified at onboarding; null when none
+          type:
+            - string
+            - 'null'
+      required:
+        - personId
+        - email
+        - phone
+    VerifyOnboardingOtp:
+      type: object
+      properties:
+        code:
+          type: string
+          pattern: ^[0-9]{6}$
+          description: The 6-digit code sent to the channel
+      required:
+        - code
+    ProvideOnboardingContact:
+      type: object
+      properties:
+        channel:
+          $ref: '#/components/schemas/OtpChannel'
+        value:
+          type: string
+          maxLength: 254
+          description: An email address, or a phone number (E.164, or a Kenyan number such as 0712345678)
+      required:
+        - channel
+        - value
     ProblemDetails:
       type: object
       properties:
@@ -3603,6 +5083,23 @@ components:
           type: string
         status:
           type: integer
+        code:
+          type: string
+          enum:
+            - rate-limit-exceeded
+            - no-match
+            - already-onboarded
+            - no-roster
+            - otp-invalid
+            - otp-expired
+            - resend-cooldown
+            - otp-send-failed
+            - wrong-step
+            - session-expired
+            - iprs-unavailable
+            - identity-unavailable
+            - email-in-use
+          description: Machine-readable cause, from the platform registry; clients map it to copy and never show `title` or `detail`
         detail:
           type: string
         instance:
@@ -3624,183 +5121,6 @@ components:
         - type
         - title
         - status
-    Ofr:
-      type: string
-      description: Officer reference (ADR-011), permanent and person-level
-      pattern: ^OFR-[0-9]{7}-[0-9A-Z]$
-      examples:
-        - OFR-0482913-L
-    OtpChannel:
-      type: string
-      enum:
-        - email
-        - phone
-    OnboardingCommission:
-      type: object
-      required:
-        - slug
-        - issuerCode
-        - name
-        - hasRoster
-      properties:
-        slug:
-          $ref: '#/components/schemas/Slug'
-        issuerCode:
-          type: string
-        name:
-          type: string
-        hasRoster:
-          type: boolean
-    InternalCommission:
-      type: object
-      required:
-        - slug
-        - issuerCode
-        - name
-      properties:
-        slug:
-          $ref: '#/components/schemas/Slug'
-        issuerCode:
-          type: string
-          description: Issuer segment of the Commission's reference numbers (ADR-011)
-        name:
-          type: string
-    IdentifyDeclarant:
-      type: object
-      required:
-        - commission
-        - personnelFileNumber
-        - nationalId
-      properties:
-        commission:
-          $ref: '#/components/schemas/Slug'
-        personnelFileNumber:
-          type: string
-          minLength: 1
-          maxLength: 30
-        nationalId:
-          type: string
-          description: Digits after stripping spaces, 5 to 10
-          pattern: ^[0-9 ]{5,12}$
-    OnboardingState:
-      type: string
-      enum:
-        - identified
-        - email-contact-required
-        - email-pending
-        - email-verified
-        - phone-contact-required
-        - phone-pending
-        - phone-verified
-        - confirmed
-        - identity-mismatch
-        - expired
-    MaskedContact:
-      type: object
-      required:
-        - masked
-        - source
-        - verified
-      properties:
-        masked:
-          type: string
-          description: e.g. j***@moe.go.ke or 07** *** 123
-        source:
-          type: string
-          enum:
-            - roster
-            - declarant
-        verified:
-          type: boolean
-    OnboardingSession:
-      type: object
-      required:
-        - id
-        - state
-        - commission
-        - contacts
-        - details
-        - otp
-        - expiresAt
-      properties:
-        id:
-          type: string
-          format: uuid
-        state:
-          $ref: '#/components/schemas/OnboardingState'
-        commission:
-          $ref: '#/components/schemas/OnboardingCommission'
-        contacts:
-          type: object
-          required:
-            - email
-            - phone
-          properties:
-            email:
-              oneOf:
-                - $ref: '#/components/schemas/MaskedContact'
-                - type: 'null'
-            phone:
-              oneOf:
-                - $ref: '#/components/schemas/MaskedContact'
-                - type: 'null'
-        details:
-          description: Roster details shown at the confirm step; null before phone-verified
-          oneOf:
-            - type: object
-              required:
-                - fullName
-                - personnelFileNumber
-                - designation
-                - reportingEntity
-              properties:
-                fullName:
-                  type: string
-                personnelFileNumber:
-                  type: string
-                designation:
-                  type:
-                    - string
-                    - 'null'
-                reportingEntity:
-                  type:
-                    - string
-                    - 'null'
-            - type: 'null'
-        otp:
-          type: object
-          description: Resend availability for the channel currently pending
-          required:
-            - channel
-            - resendAvailableAt
-            - resendsLeft
-            - attemptsLeft
-          properties:
-            channel:
-              oneOf:
-                - $ref: '#/components/schemas/OtpChannel'
-                - type: 'null'
-            resendAvailableAt:
-              type:
-                - string
-                - 'null'
-              format: date-time
-            resendsLeft:
-              type: integer
-            attemptsLeft:
-              type: integer
-        outcome:
-          description: Set when state is confirmed
-          oneOf:
-            - $ref: '#/components/schemas/OnboardingOutcome'
-            - type: 'null'
-        ofr:
-          oneOf:
-            - $ref: '#/components/schemas/Ofr'
-            - type: 'null'
-        expiresAt:
-          type: string
-          format: date-time
     Agency:
       type: object
       required:
@@ -3860,258 +5180,7 @@ components:
             - string
             - 'null'
           format: date-time
-    OnboardingSessionCreated:
-      allOf:
-        - $ref: '#/components/schemas/OnboardingSession'
-        - type: object
-          required:
-            - secret
-          properties:
-            secret:
-              type: string
-              description: Returned once; the BFF stores it in an httpOnly cookie and sends it back in X-Onboarding-Secret
-    OnboardingOutcome:
-      type: string
-      enum:
-        - account-created
-        - linked-existing-account
-        - identity-mismatch
-    OnboardingConfirmResult:
-      type: object
-      required:
-        - outcome
-        - session
-      properties:
-        outcome:
-          $ref: '#/components/schemas/OnboardingOutcome'
-        session:
-          $ref: '#/components/schemas/OnboardingSession'
-    OnboardingProblem:
-      allOf:
-        - $ref: '#/components/schemas/ProblemDetails'
-        - type: object
-          required:
-            - code
-          properties:
-            code:
-              type: string
-              enum:
-                - no-match
-                - already-onboarded
-                - no-roster
-                - otp-invalid
-                - otp-expired
-                - resend-cooldown
-                - session-expired
-                - iprs-unavailable
-                - identity-unavailable
-                - rate-limit-exceeded
-            attemptsLeft:
-              type: integer
-            retryAfterSeconds:
-              type: integer
-            links:
-              type: object
-              description: Present for already-onboarded
-              properties:
-                signIn:
-                  type: string
-                  format: uri
-                recoverAccess:
-                  type: string
-                  format: uri
-    DeclarantProfile:
-      type: object
-      required:
-        - personId
-        - ofr
-        - fullName
-        - contacts
-        - commissions
-      properties:
-        personId:
-          type: string
-          format: uuid
-        ofr:
-          $ref: '#/components/schemas/Ofr'
-        fullName:
-          type: string
-        contacts:
-          type: object
-          required:
-            - email
-            - phone
-          properties:
-            email:
-              type:
-                - string
-                - 'null'
-            phone:
-              type:
-                - string
-                - 'null'
-        commissions:
-          type: array
-          items:
-            type: object
-            required:
-              - slug
-              - name
-              - personnelFileNumber
-              - rosterRecordId
-              - state
-              - onboardedAt
-            properties:
-              slug:
-                $ref: '#/components/schemas/Slug'
-              name:
-                type: string
-              personnelFileNumber:
-                type: string
-              rosterRecordId:
-                type: string
-                format: uuid
-              state:
-                $ref: '#/components/schemas/RosterRecordState'
-              onboardedAt:
-                type:
-                  - string
-                  - 'null'
-                format: date-time
-    PersonSummary:
-      type: object
-      required:
-        - personId
-        - ofr
-        - fullName
-        - commissions
-        - createdAt
-      properties:
-        personId:
-          type: string
-          format: uuid
-        ofr:
-          $ref: '#/components/schemas/Ofr'
-        fullName:
-          type: string
-        commissions:
-          type: array
-          items:
-            $ref: '#/components/schemas/Slug'
-        createdAt:
-          type: string
-          format: date-time
-    TenantPolicyVersion:
-      type: object
-      required:
-        - id
-        - version
-        - effectiveFrom
-        - obligationsStartDate
-        - initialDueAfterAppointmentDays
-        - biennial
-        - finalDueAfterExitDays
-        - reminderOffsetsDays
-        - clarification
-        - formMDue
-        - createdBy
-        - createdAt
-      properties:
-        id:
-          type: string
-          format: uuid
-        version:
-          type: integer
-        effectiveFrom:
-          type: string
-          format: date-time
-        obligationsStartDate:
-          type: string
-          format: date
-          description: Initial-declaration obligations are created only for appointments on or after this date
-        initialDueAfterAppointmentDays:
-          type: integer
-        biennial:
-          type: object
-          required:
-            - statementDate
-            - dueDate
-          properties:
-            statementDate:
-              type: string
-              description: Month-day, e.g. 11-01
-            dueDate:
-              type: string
-              description: Month-day, e.g. 12-31
-        finalDueAfterExitDays:
-          type: integer
-        reminderOffsetsDays:
-          type: array
-          items:
-            type: integer
-        clarification:
-          type: object
-          required:
-            - issueWindowMonths
-            - replyWindowDays
-          properties:
-            issueWindowMonths:
-              type: integer
-            replyWindowDays:
-              type: integer
-        formMDue:
-          type: string
-          description: Month-day, e.g. 07-31
-        createdBy:
-          type: string
-        createdAt:
-          type: string
-          format: date-time
-    TenantPolicyHistory:
-      type: object
-      required:
-        - current
-        - previous
-      properties:
-        current:
-          $ref: '#/components/schemas/TenantPolicyVersion'
-        previous:
-          type: array
-          items:
-            $ref: '#/components/schemas/TenantPolicyVersion'
-    InternalRosterRecord:
-      allOf:
-        - $ref: '#/components/schemas/RosterRecord'
-        - type: object
-          required:
-            - tenant
-            - personId
-            - ofr
-            - onboardedAt
-          properties:
-            tenant:
-              $ref: '#/components/schemas/Slug'
-            personId:
-              type:
-                - string
-                - 'null'
-              format: uuid
-            ofr:
-              oneOf:
-                - $ref: '#/components/schemas/Ofr'
-                - type: 'null'
-            onboardedAt:
-              type:
-                - string
-                - 'null'
-              format: date-time
   parameters:
-    Slug:
-      name: slug
-      in: path
-      required: true
-      schema:
-        $ref: '#/components/schemas/Slug'
     IdempotencyKey:
       name: Idempotency-Key
       in: header
@@ -4134,12 +5203,6 @@ components:
       description: Session secret returned once at creation; held by the portal BFF in an httpOnly cookie
       schema:
         type: string
-    OtpChannelParam:
-      name: channel
-      in: path
-      required: true
-      schema:
-        $ref: '#/components/schemas/OtpChannel'
   responses:
     RateLimited:
       description: Problem code `rate-limit-exceeded`; RateLimit-* headers present

@@ -12,7 +12,7 @@ import {
 } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { HttpStatus, Inject, Injectable, Logger } from '@nestjs/common';
-import { type Principal, ProblemException } from '@adili/api-kit';
+import { PLATFORM_TENANT, type Principal, ProblemException } from '@adili/api-kit';
 import { type Database, InjectDatabase, withTenant } from '@adili/data-access';
 import { and, eq, inArray, isNull, lt, or, sql } from 'drizzle-orm';
 import { v7 as uuidv7 } from 'uuid';
@@ -43,8 +43,6 @@ const DOWNLOAD_URL_TTL_SECONDS = 5 * 60;
  * completion or the expiry sweep may take the upload over.
  */
 const STALE_COMPLETION = sql`now() - interval '2 minutes'`;
-/** RLS context of platform-wide work; never accepted as a caller's tenant. */
-const PLATFORM_TENANT = 'platform';
 
 type UploadRow = typeof uploads.$inferSelect;
 

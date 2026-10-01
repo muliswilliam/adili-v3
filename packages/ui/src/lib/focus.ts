@@ -15,3 +15,10 @@ export const focusRing =
  * tabs in a scrolling list, a button inside a field.
  */
 export const focusRingInset = `${focusRing} focus-visible:-outline-offset-2`;
+
+/**
+ * `focusRing` on an element for keyboard focus inside it: a label whose visually hidden radio or
+ * checkbox has focus.
+ */
+export const focusRingWithin =
+  'has-focus-visible:outline-2 has-focus-visible:outline-solid has-focus-visible:outline-offset-2 has-focus-visible:outline-ring';

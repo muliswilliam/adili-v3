@@ -1,0 +1,23 @@
+# Overlay for the Azure demo host. Same images and Keycloak realm as local.
+# Usage (on the VM, from the repo root):
+#   docker compose -f infra/compose/docker-compose.yml -f infra/compose/docker-compose.azure.yml up -d
+#
+# Public URLs come from /etc/adili/public.env (written by cloud-init / enable-https.sh).
+# Caddy terminates TLS on 443/3020/3030/8080; Keycloak is only on loopback.
+
+services:
+  keycloak:
+    ports: !override
+      - '127.0.0.1:18080:8080'
+    environment:
+      KC_HOSTNAME: ${KC_HOSTNAME}
+      KC_PROXY_HEADERS: xforwarded
+      KC_HTTP_ENABLED: 'true'
+      ADILI_CONSOLE_URL: ${ADILI_CONSOLE_URL}
+      ADILI_PORTAL_URL: ${ADILI_PORTAL_URL}
+      # Notifications run on the host via pnpm, same as local.
+      ADILI_NOTIFICATIONS_URL: http://host.docker.internal:4010
+    # Demo vault only. Replace the mount with a host secret dir before a public pitch.
+    volumes:
+      - ./keycloak/adili-realm.json:/opt/keycloak/data/import/adili-realm.json:ro
+      - ./keycloak/vault-dev:/opt/keycloak/vault:ro

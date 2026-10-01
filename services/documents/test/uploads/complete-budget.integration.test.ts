@@ -44,7 +44,11 @@ const silent: Scan = (_, signal) =>
   });
 
 const OFFICER: Caller = { sub: 'officer-1', tenant: 'psc', roles: ['reporting-officer'] };
-const BUDGET_MS = 500;
+/**
+ * Short enough for the timeout test to be quick, long enough that a completion which only has to
+ * stream the file and scan it for 200 ms stays inside it on a loaded CI runner.
+ */
+const BUDGET_MS = 2_000;
 
 const scanner = new ScriptedScanner();
 let api: DocumentsApi;

@@ -19,12 +19,10 @@ import {
   linkAttachment,
   type LinkResult,
   listDeclarations,
-  listObligations,
   listSuggestions,
   loadDeclaration,
   loadSection,
   loadSummary,
-  type ObligationsResult,
   type RegistryLookupsResult,
   requestLookups,
   type SaveOutcome,
@@ -50,10 +48,6 @@ function asDeclarant<T>(call: (client: DeclarationsClient) => Promise<T>) {
 const id = z.uuid();
 const sectionKey = z.string().refine(isSectionKey, 'Not a section key');
 const declarationInput = z.object({ declarationId: id });
-
-export const getMyObligations = createServerFn({ method: 'GET' }).handler(
-  (): Promise<ObligationsResult | Unauthenticated> => asDeclarant(listObligations),
-);
 
 export const startMyDeclaration = createServerFn({ method: 'POST' })
   .validator(z.object({ obligationId: id }))
