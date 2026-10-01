@@ -240,6 +240,15 @@ export function applyLockedFields(
   return { contents, changed };
 }
 
+/**
+ * The registrable interests of paragraph 9 that carry a change flag, the material-change kind
+ * each lists as, and the field that names an entry.
+ */
+export const FLAGGED_INTERESTS = [
+  { list: 'directorships', kind: 'directorship', name: 'company' },
+  { list: 'memberships', kind: 'membership', name: 'entity' },
+] as const;
+
 export const STATEMENT_CATEGORIES = [
   { list: 'income', nil: 'incomeNil' },
   { list: 'assets', nil: 'assetsNil' },

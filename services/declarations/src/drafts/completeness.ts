@@ -6,7 +6,7 @@ import {
 } from '@adili/forms';
 
 import { recordOf } from '../guards.js';
-import { statementKey } from './sections.js';
+import { FLAGGED_INTERESTS, statementKey } from './sections.js';
 
 /**
  * Pure completeness of a draft's capture sections (spec 05, BE-3): the `declaration.v1` schema's
@@ -151,7 +151,7 @@ function statementRules(key: DeclarationSectionKey, contents: unknown): Declarat
 /** A directorship or membership flagged as changed since the last declaration, as an item (S9). */
 function interestRules(contents: unknown): DeclarationIssue[] {
   const interests = recordOf(recordOf(contents).registrableInterests);
-  return (['directorships', 'memberships'] as const).flatMap((list) =>
+  return FLAGGED_INTERESTS.flatMap(({ list }) =>
     listOf(interests[list]).flatMap((interest, index) =>
       changeRules(
         'other',
