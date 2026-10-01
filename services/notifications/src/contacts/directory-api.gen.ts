@@ -500,6 +500,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/internal/v1/commissions/{slug}/roster/records/{recordId}/national-id": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * A roster record's national ID (review)
+         * @description Service tokens with scope directory:roster-national-id (the review service only), acting for the Commission in X-Acting-Tenant; audited. What payroll and the ICMS referral identify the officer by.
+         */
+        get: operations["internalGetRosterNationalId"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/commissions/{slug}/roster/exits": {
         parameters: {
             query?: never;
@@ -867,6 +887,26 @@ export interface paths {
         put?: never;
         /** Disable a law-enforcement officer account (platform-admin) */
         post: operations["revokeAgencyOfficer"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/internal/v1/commissions/{slug}/staff": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * A Commission's staff accounts holding a role, with the email they sign in with
+         * @description Service tokens with scope directory:internal, acting for the Commission in X-Acting-Tenant (ADR-013 §8.7). E.g. reporting emails Form M reminders to the supervisors and EACC's chase to the reporting officer and commission-admin (spec 09). Empty when nobody holds the role.
+         */
+        get: operations["internalListCommissionStaff"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -1547,6 +1587,13 @@ export interface components {
             /** @description Pass as `cursor` for the next page; null on the last page */
             nextCursor: string | null;
         };
+        RosterNationalId: {
+            /**
+             * @description As the roster gives it
+             * @example 27451863
+             */
+            nationalId: string;
+        };
         ConfirmExits: {
             /** @description Records to exit; each at most once, none already exited */
             records: {
@@ -1832,6 +1879,14 @@ export interface components {
             activatedAt: string | null;
             /** Format: date-time */
             revokedAt: string | null;
+        };
+        InternalStaffList: {
+            items: {
+                /** @description Keycloak user id (`sub`) */
+                subject: string;
+                /** Format: email */
+                email: string;
+            }[];
         };
     };
     responses: {
@@ -3583,6 +3638,59 @@ export interface operations {
             };
         };
     };
+    internalGetRosterNationalId: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Tenant the calling service acts for; the resource must belong to it */
+                "X-Acting-Tenant": string;
+            };
+            path: {
+                slug: components["schemas"]["Slug"];
+                recordId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The national ID */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RosterNationalId"];
+                };
+            };
+            /** @description recordId is not a UUID */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Requires a service token with scope directory:roster-national-id */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description No such record in the acting tenant's Commission */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
     confirmRosterExits: {
         parameters: {
             query?: never;
@@ -4846,6 +4954,37 @@ export interface operations {
                     "application/json": components["schemas"]["LeaOfficerAccount"];
                 };
             };
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    internalListCommissionStaff: {
+        parameters: {
+            query: {
+                /** @description Realm role, e.g. `supervisor`, `commission-admin`, `reporting-officer` */
+                role: string;
+            };
+            header: {
+                /** @description Tenant the calling service acts for; the resource must belong to it */
+                "X-Acting-Tenant": string;
+            };
+            path: {
+                slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The accounts holding the role */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InternalStaffList"];
+                };
+            };
+            400: components["responses"]["ValidationProblem"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
         };

@@ -98,7 +98,12 @@ export type TimelineKind =
   | 'clarification-follow-up'
   | 'clarification-overdue'
   | 'clarification-reminder-sent'
-  | 'status-changed';
+  | 'status-changed'
+  | 'determination-proposed'
+  | 'determination-approved'
+  | 'determination-returned'
+  | 'determination-withdrawn'
+  | 'sampled-for-review';
 
 const inList = (values: readonly string[]) => sql.raw(values.map((v) => `'${v}'`).join(', '));
 
@@ -136,8 +141,18 @@ export const reviewCases = pgTable(
     /** Read model for queue search: confidential, tenant-scoped. */
     declarantName: text().notNull(),
     personnelFileNumber: text().notNull(),
+    /**
+     * The roster record of the obligation the declaration was filed for, from the version: a
+     * clarification's ladder stops and resumes the salary on it. Null for cases processed before it
+     * was recorded.
+     */
+    rosterRecordId: uuid(),
+    /** That roster record's reporting entity: the bulk closure filter. */
+    reportingEntityId: uuid(),
     openFlags: integer().notNull().default(0),
     openClarifications: integer().notNull().default(0),
+    /** When the closure sweep diverted the case to review instead of proposing its closure. */
+    sampledAt: timestamp({ withTimezone: true }),
     ...timestamps,
   },
   (table) => [
@@ -156,6 +171,8 @@ export const reviewCases = pgTable(
       table.id,
     ),
     index('review_cases_tenant_assignee_idx').on(table.tenant, table.assignee),
+    // The closure sweep's eligibility: a cycle's low-band cases, by status.
+    index('review_cases_closure_idx').on(table.tenant, table.cycleYear, table.band, table.status),
     check('review_cases_type_check', sql`${table.type} in (${inList(DECLARATION_TYPES)})`),
     check('review_cases_band_check', sql`${table.band} in (${inList(PRIORITY_BANDS)})`),
     check('review_cases_status_check', sql`${table.status} in (${inList(CASE_STATUSES)})`),

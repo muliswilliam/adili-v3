@@ -5,6 +5,8 @@ import { EventPublisher } from '@adili/events';
 import { asc, eq, inArray } from 'drizzle-orm';
 
 import type { ReviewSchema } from '../db/schema.js';
+import { determinationView } from '../determinations/representation.js';
+import { determinations } from '../determinations/schema.js';
 import {
   DeclarationsClient,
   DeclarationsUnavailable,
@@ -181,6 +183,11 @@ async function caseData(
     .from(reviewCaseVersions)
     .where(eq(reviewCaseVersions.caseId, row.id))
     .orderBy(asc(reviewCaseVersions.version));
+  const determinationRows = await tx
+    .select()
+    .from(determinations)
+    .where(eq(determinations.caseId, row.id))
+    .orderBy(asc(determinations.proposedAt), asc(determinations.id));
   const assignments = await tx
     .select()
     .from(reviewAssignments)
@@ -234,6 +241,7 @@ async function caseData(
       amendment: version.amendment,
     })),
     reviewerHistory,
+    determinations: determinationRows.map(determinationView),
   };
 }
 

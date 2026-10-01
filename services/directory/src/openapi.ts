@@ -73,6 +73,7 @@ import {
 } from './roster/import/representation.js';
 import {
   internalRosterRecordPageSchema,
+  rosterNationalIdSchema,
   internalRosterRecordSchema,
   reportingEntityRefSchema,
   rosterRecordImportSchema,
@@ -136,6 +137,7 @@ export const OPENAPI_SCHEMAS: Record<string, z.ZodType> = {
   RosterRecordPage: rosterRecordPageSchema,
   InternalRosterRecord: internalRosterRecordSchema,
   InternalRosterRecordPage: internalRosterRecordPageSchema,
+  RosterNationalId: rosterNationalIdSchema,
   ConfirmExits: confirmExitsBody,
   ExitsResult: exitsResultSchema,
   KeepRosterRecords: keepRosterRecordsBody,

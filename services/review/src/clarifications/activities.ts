@@ -10,6 +10,7 @@ import { Clock, nairobiDate } from '../clock.js';
 import type { ReviewSchema } from '../db/schema.js';
 import { DirectoryClient } from '../directory/directory-client.js';
 import { DocumentsClient } from '../documents/documents-client.js';
+import { issueLetter } from '../documents/letters.js';
 import { InternalApiRejected } from '../internal-api/rejected.js';
 import { NotificationsClient } from '../notifications/notifications-client.js';
 import { SYSTEM_SUBJECT, systemContext } from '../system-context.js';
@@ -73,27 +74,15 @@ export class ClarificationActivities {
     if (found.reference === null || found.issuedAt === null) {
       throw new Error(`Clarification ${clarificationId} is issued without a reference`);
     }
-    let issued;
-    try {
-      issued = await this.documents.issue(
-        {
-          type: 'clarification-letter',
-          templateVersion: CLARIFICATION_LETTER_TEMPLATE_VERSION,
-          subjectRef: `clarification:${clarificationId}`,
-          subjectPersonId: found.personId,
-          payload: { clarificationId },
-        },
-        tenant,
-      );
-    } catch (error) {
-      if (error instanceof InternalApiRejected) {
-        throw ApplicationFailure.nonRetryable(
-          `Documents refused the letter of ${clarificationId} (${String(error.status)})`,
-          LETTER_REFUSED,
-        );
-      }
-      throw error;
-    }
+    const issued = await issueLetter(this.documents, {
+      type: 'clarification-letter',
+      payload: { clarificationId },
+      tenant,
+      templateVersion: CLARIFICATION_LETTER_TEMPLATE_VERSION,
+      subjectRef: `clarification:${clarificationId}`,
+      subjectPersonId: found.personId,
+      refused: LETTER_REFUSED,
+    });
     const [kept] = await withTenant(this.db, systemContext(tenant), (tx) =>
       tx
         .update(clarifications)

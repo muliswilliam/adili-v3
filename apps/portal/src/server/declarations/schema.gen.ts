@@ -668,6 +668,31 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/internal/v1/obligations/{obligationId}": {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Tenant the calling service acts for; the resource must belong to it */
+                "X-Acting-Tenant": components["parameters"]["ActingTenant"];
+            };
+            path: {
+                obligationId: string;
+            };
+            cookie?: never;
+        };
+        /**
+         * One filing obligation of the acting Commission (for the enforcement ladder)
+         * @description Service tokens with `declarations:internal`; the Commission in `X-Acting-Tenant`. The review service reads it when an obligation goes overdue (spec 08): whom the ladder addresses and what they failed to file. `personId` is null until the officer onboards.
+         */
+        get: operations["internalGetObligation"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/internal/v1/persons/{personId}/obligations": {
         parameters: {
             query?: never;
@@ -890,6 +915,26 @@ export interface paths {
         get: operations["getQuestionThemes"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/internal/v1/obligations/details": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * The officers behind a Commission's obligations, in a batch (spec 09 Form M non-filers)
+         * @description Service tokens with scope declarations:internal, acting for the Commission in X-Acting-Tenant (ADR-013 §8.7). At most 1,000 obligation ids; an obligation the Commission does not hold is left out. A read: it changes nothing, so it takes no Idempotency-Key and is safe to retry.
+         */
+        post: operations["internalObligationDetails"];
         delete?: never;
         options?: never;
         head?: never;
@@ -3428,12 +3473,53 @@ export interface operations {
             404: components["responses"]["NotFound"];
         };
     };
+    internalGetObligation: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Tenant the calling service acts for; the resource must belong to it */
+                "X-Acting-Tenant": components["parameters"]["ActingTenant"];
+            };
+            path: {
+                obligationId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The obligation */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** Format: uuid */
+                        obligationId: string;
+                        /** Format: uuid */
+                        rosterRecordId: string;
+                        /** Format: uuid */
+                        personId: string | null;
+                        type: components["schemas"]["ObligationType"];
+                        cycleKey: string;
+                        /** Format: date */
+                        dueDate: string;
+                        status: components["schemas"]["ObligationStatus"];
+                        declarantName: string;
+                        personnelFileNumber: string;
+                    };
+                };
+            };
+            404: components["responses"]["NotFound"];
+        };
+    };
     internalListPersonObligations: {
         parameters: {
-            query: {
-                tenant: string;
+            query?: never;
+            header: {
+                /** @description Tenant the calling service acts for; the resource must belong to it */
+                "X-Acting-Tenant": components["parameters"]["ActingTenant"];
             };
-            header?: never;
             path: {
                 personId: string;
             };
@@ -3882,6 +3968,50 @@ export interface operations {
                 };
             };
             404: components["responses"]["NotFound"];
+        };
+    };
+    internalObligationDetails: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Tenant the calling service acts for; the resource must belong to it */
+                "X-Acting-Tenant": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    obligationIds: string[];
+                };
+            };
+        };
+        responses: {
+            /** @description The officers, one per known obligation */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: {
+                            /** Format: uuid */
+                            obligationId: string;
+                            name: string;
+                            designation: string;
+                            /** @description Personnel file number, or another staff, ID or passport number */
+                            fileNumber: string;
+                            /** Format: date */
+                            appointmentDate: string | null;
+                            /** Format: date */
+                            exitDate: string | null;
+                        }[];
+                    };
+                };
+            };
+            400: components["responses"]["ValidationProblem"];
+            403: components["responses"]["Forbidden"];
         };
     };
 }

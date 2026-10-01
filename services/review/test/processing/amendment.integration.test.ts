@@ -119,6 +119,8 @@ describe('amendment re-processing', () => {
       assignee: 'reviewer-a',
       assigneeName: 'Reviewer A',
       declarantName: 'James Otieno Ouma',
+      rosterRecordId: second.rosterRecordId,
+      reportingEntityId: second.reportingEntityId,
       // value-change-25 medium (3) + change-flag-mismatch low (1) + foreign-holdings info (0).
       score: 4,
       band: 'medium',

@@ -7,6 +7,7 @@ import {
   DocumentsClient,
   DocumentsUnavailable,
   type IssuedDocument,
+  type IssuedDocumentFacts,
   type IssueDocumentRequest,
   type RevocationReason,
   type UploadDownload,
@@ -31,6 +32,12 @@ const downloadSchema = z.object({
 type IssueDocumentBody = components['schemas']['IssueDocument'];
 
 const issuedSchema = z.object({ id: z.uuid(), verificationId: z.string().min(1) });
+
+const documentFactsSchema = z.object({
+  id: z.uuid(),
+  type: z.string().min(1),
+  sha256: z.string().regex(/^[0-9a-f]{64}$/),
+});
 
 /**
  * Rendering and signing a document takes seconds. Issuing runs in a workflow activity, which
@@ -86,15 +93,27 @@ export class HttpDocumentsClient extends DocumentsClient {
       (api) =>
         api.POST('/internal/v1/documents/issue', {
           params: { header: { 'X-Acting-Tenant': tenant } },
-          // The clarification letter joins documents' contract with its template (#156); until
-          // then documents refuses it with 400 (InternalApiRejected), which the activity does not
-          // retry.
+          // Review's letters and the referral package join documents' contract with their
+          // templates (the clarification letter with #156); until then documents refuses them
+          // with 400 (InternalApiRejected), which the activities do not retry.
           body: request as unknown as IssueDocumentBody,
         }),
       // 200: issued before (one document per type and subject), answered again.
       { status: [200, 201], schema: issuedSchema, otherwise: { 400: rejectedBy('documents') } },
     );
     return { id: issued.id, verificationId: issued.verificationId };
+  }
+
+  async getIssuedDocument(documentId: string, tenant: string): Promise<IssuedDocumentFacts | null> {
+    const found = await this.documents.call(
+      (api) =>
+        api.GET('/internal/v1/documents/{documentId}', {
+          params: { path: { documentId }, header: { 'X-Acting-Tenant': tenant } },
+        }),
+      { status: 200, schema: documentFactsSchema, otherwise: { 404: () => null } },
+    );
+    if (found === null) return null;
+    return { id: found.id, type: found.type, sha256: found.sha256 };
   }
 
   async revoke(documentId: string, tenant: string, reason: RevocationReason): Promise<void> {

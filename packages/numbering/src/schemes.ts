@@ -118,6 +118,55 @@ export const CLR = defineScheme({
 });
 
 /**
+ * Compliance determination (spec 08): numbered by the Responsible Commission when a supervisor
+ * approves it, per Commission and calendar year of approval. `CMP-PSC-2027-0000001-7`.
+ */
+export const CMP = defineScheme({
+  code: 'CMP',
+  name: 'Compliance determination',
+  description:
+    "The Commission's decision on whether a declaration is compliant, non-compliant or needs further action.",
+  legalBasis: 'Act s.35; Regs r.20',
+  issuer: true,
+  period: true,
+  periodName: 'Year of approval',
+  sequenceDigits: 7,
+});
+
+/**
+ * Administrative action (spec 08, the enforcement ladder): a notice to comply, warning, salary
+ * stoppage or disciplinary referral, numbered by the Responsible Commission when an officer
+ * approves it, per Commission and calendar year of approval. `ADM-PSC-2027-0000001-4`.
+ */
+export const ADM = defineScheme({
+  code: 'ADM',
+  name: 'Administrative action',
+  description:
+    'Action for non-compliance: notice to comply, warning, salary stoppage pending compliance, disciplinary proceedings.',
+  legalBasis: 'Admin Mechanisms (2026)',
+  issuer: true,
+  period: true,
+  periodName: 'Year of approval',
+  sequenceDigits: 7,
+});
+
+/**
+ * Referral to EACC (spec 08, Regs r.20): numbered by the Responsible Commission when a supervisor
+ * approves it, per Commission and calendar year of approval. `RFL-PSC-2027-0000001-7`.
+ */
+export const RFL = defineScheme({
+  code: 'RFL',
+  name: 'Referral',
+  description:
+    'A matter sent to EACC for investigation, e.g. undeclared or unexplained assets, or two missed cycles.',
+  legalBasis: 'Regs r.20(1)(c), r.20(2)',
+  issuer: true,
+  period: true,
+  periodName: 'Year of approval',
+  sequenceDigits: 7,
+});
+
+/**
  * The kinds of declaration the Act requires (s.34): the one vocabulary for declaration and
  * obligation types across services, events, templates and front ends.
  */
@@ -130,13 +179,49 @@ export const declarationSchemes: Readonly<Record<DeclarationType, NumberingSchem
   { initial: DCI, biennial: DCB, final: DCF },
 );
 
-/** Schemes this package knows; later slices add theirs (CMP...) the same way. */
+/**
+ * Compliance report (Form M, Regs r.25(2)): numbered when the Responsible Commission submits it
+ * to EACC, per Commission and financial year, whose end year is the period (ADR-011 §2: 2027 is
+ * FY 2026/27). `RPT-PSC-2027-0000001-4`.
+ */
+export const RPT = defineScheme({
+  code: 'RPT',
+  name: 'Compliance report',
+  description: "A Commission's compliance report to EACC (Form M), due by 31 July.",
+  legalBasis: 'Regs r.25(2)',
+  issuer: true,
+  period: true,
+  periodName: 'Financial year end',
+  sequenceDigits: 7,
+});
+
+/**
+ * National consolidated report (spec 09): numbered when an EACC supervisor approves it, issued
+ * by EACC per financial year, whose end year is the period. `NCR-EACC-2027-0000001-Q`.
+ */
+export const NCR = defineScheme({
+  code: 'NCR',
+  name: 'National consolidated report',
+  description: "EACC's national report built from all Commissions' compliance reports.",
+  legalBasis: 'Act s.6; Users & Workflows US 21',
+  issuer: true,
+  period: true,
+  periodName: 'Financial year end',
+  sequenceDigits: 7,
+});
+
+/** Schemes this package knows; later slices add theirs (ARQ...) the same way. */
 export const numberingSchemes: readonly NumberingScheme[] = Object.freeze([
   OFR,
   DCI,
   DCB,
   DCF,
   CLR,
+  CMP,
+  ADM,
+  RFL,
+  RPT,
+  NCR,
 ]);
 
 /** The registered scheme with `code`, if any. */

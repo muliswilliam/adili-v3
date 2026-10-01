@@ -9,7 +9,7 @@
     "migrations"
   ],
   "scripts": {
-    "generate:api": "openapi-typescript node_modules/@adili/schemas/internal/declarations.yaml -o src/declarations/declarations-api.gen.ts && openapi-typescript node_modules/@adili/schemas/internal/directory.yaml -o src/directory/directory-api.gen.ts && openapi-typescript node_modules/@adili/schemas/internal/documents.yaml -o src/documents/documents-api.gen.ts && openapi-typescript node_modules/@adili/schemas/internal/notifications.yaml -o src/notifications/notifications-api.gen.ts",
+    "generate:api": "openapi-typescript node_modules/@adili/schemas/internal/declarations.yaml -o src/declarations/declarations-api.gen.ts && openapi-typescript node_modules/@adili/schemas/internal/directory.yaml -o src/directory/directory-api.gen.ts && openapi-typescript node_modules/@adili/schemas/internal/documents.yaml -o src/documents/documents-api.gen.ts && openapi-typescript node_modules/@adili/schemas/internal/notifications.yaml -o src/notifications/notifications-api.gen.ts && openapi-typescript node_modules/@adili/schemas/internal/integration-gateway.yaml -o src/integration-gateway/integration-gateway-api.gen.ts",
     "build": "pnpm generate:api && tsc -p tsconfig.build.json",
     "dev": "node --disable-warning=DEP0205 --env-file-if-exists=.env --import @swc-node/register/esm-register --watch-path=src --watch-preserve-output src/main.ts",
     "start": "node --import @adili/telemetry/register dist/main.js",

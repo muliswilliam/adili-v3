@@ -1,8 +1,11 @@
 import {
   type ClarificationPolicy,
   type CommissionFacts,
+  DEFAULT_LADDER_POLICY,
   DirectoryClient,
   DirectoryUnavailable,
+  type LadderPolicy,
+  type PayrollRosterFacts,
 } from '../../src/directory/directory-client.js';
 
 /** The platform defaults: six months to request clarification, thirty days to answer. */
@@ -17,16 +20,49 @@ const NAMES: Record<string, string> = {
   tsc: 'Teachers Service Commission',
 };
 
-/** The directory's policies for tests: every Commission given has the platform defaults. */
+/**
+ * The directory's policies for tests: every Commission given has the platform defaults, and the
+ * ladder windows spec 08 sets unless a test gives others; and the roster records tests give, with
+ * a record of each read of one (payroll's facts are read at send time).
+ */
 export class FakeDirectory extends DirectoryClient {
+  readonly rosterReads: { tenant: string; recordId: string }[] = [];
   private readonly policies = new Map<string, ClarificationPolicy>();
+  private readonly ladders = new Map<string, LadderPolicy>();
+  private readonly rosters = new Map<string, PayrollRosterFacts>();
 
   givenCommission(slug: string, policy: ClarificationPolicy = DEFAULT_CLARIFICATION_POLICY): void {
     this.policies.set(slug, policy);
   }
 
+  givenLadderPolicy(slug: string, policy: Partial<LadderPolicy>): void {
+    this.ladders.set(slug, { ...DEFAULT_LADDER_POLICY, ...policy });
+  }
+
+  /** A roster record of `tenant`, with the facts payroll needs. */
+  givenRosterRecord(tenant: string, recordId: string, facts: PayrollRosterFacts): void {
+    this.rosters.set(`${tenant}:${recordId}`, facts);
+  }
+
   reset(): void {
     this.policies.clear();
+    this.ladders.clear();
+    this.rosters.clear();
+    this.rosterReads.length = 0;
+  }
+
+  getRosterRecord(slug: string, recordId: string): Promise<PayrollRosterFacts | null> {
+    if (!this.policies.has(slug)) {
+      return Promise.reject(new DirectoryUnavailable(`No Commission ${slug}`));
+    }
+    this.rosterReads.push({ tenant: slug, recordId });
+    return Promise.resolve(this.rosters.get(`${slug}:${recordId}`) ?? null);
+  }
+
+  getLadderPolicy(slug: string): Promise<LadderPolicy> {
+    return this.policies.has(slug)
+      ? Promise.resolve(this.ladders.get(slug) ?? DEFAULT_LADDER_POLICY)
+      : Promise.reject(new DirectoryUnavailable(`No policy for ${slug}`));
   }
 
   getClarificationPolicy(slug: string): Promise<ClarificationPolicy> {

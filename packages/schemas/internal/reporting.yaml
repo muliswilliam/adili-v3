@@ -45,6 +45,12 @@ paths:
       tags: [form-m]
       operationId: getComplianceReport
       summary: The report for a financial year (draft or submitted) with its document
+      description: |
+        Each read is audited (`audit.read.v1`, action `compliance-report.viewed`, under the
+        Commission's tenant).
+      x-audited-read:
+        action: compliance-report.viewed
+        resource: compliance-report
       responses:
         '200':
           description: Report
@@ -54,6 +60,12 @@ paths:
                 $ref: '#/components/schemas/ComplianceReport'
         '404':
           $ref: '#/components/responses/NotFound'
+        '503':
+          description: 'Problem type `directory-unavailable`: the Commission could not be named; try again'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
   /v1/commissions/{slug}/compliance-reports/{fy}/compile:
     parameters:
       - $ref: '#/components/parameters/Slug'
@@ -70,7 +82,7 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
         '409':
-          description: Report already submitted, or preview not yet available
+          description: Problem code `report-submitted`, or `preview-not-available` before 1 April after the year
           content:
             application/problem+json:
               schema:
@@ -83,6 +95,9 @@ paths:
       tags: [form-m]
       operationId: updateReportRemarks
       summary: Edit remarks on non-filer rows (supervisor)
+      description: |
+        Remarks by obligation id, kept across recompiles. A blank remark returns the row to its
+        default, the label of the latest action step taken.
       requestBody:
         required: true
         content:
@@ -90,12 +105,16 @@ paths:
             schema:
               type: object
               required: [remarks]
+              additionalProperties: false
               properties:
                 remarks:
                   type: array
+                  minItems: 1
+                  maxItems: 1000
                   items:
                     type: object
                     required: [obligationId, remark]
+                    additionalProperties: false
                     properties:
                       obligationId:
                         type: string
@@ -110,12 +129,18 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ComplianceReport'
+        '400':
+          description: Validation failed, or an obligation the draft does not list (paths in errors)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
         '403':
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
         '409':
-          description: Not a draft
+          description: Problem code `report-compiling` while a compile runs, or `report-submitted`
           content:
             application/problem+json:
               schema:
@@ -128,6 +153,10 @@ paths:
       tags: [form-m]
       operationId: updateReportManualFields
       summary: Edit Part I contact details and Part B complaints (commission-admin)
+      description: |
+        Each field given replaces the draft's; null clears it; fields left out are kept. Kept
+        across recompiles. Part I contact details the commission-admin has not entered carry over
+        from the Commission's previous submitted report.
       requestBody:
         required: true
         content:
@@ -141,12 +170,18 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ComplianceReport'
+        '400':
+          description: Validation failed
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
         '403':
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
         '409':
-          description: Not a draft
+          description: Problem code `report-compiling` while a compile runs, or `report-submitted`
           content:
             application/problem+json:
               schema:
@@ -159,6 +194,9 @@ paths:
       tags: [form-m]
       operationId: markReportReviewed
       summary: Supervisor marks the draft reviewed (records Part III compiled-by)
+      description: |
+        Part III "Compiled by" names the supervisor (their name from the token, the designation
+        given) with today's date. A recompile returns the report to `draft` for review again.
       requestBody:
         required: true
         content:
@@ -166,9 +204,11 @@ paths:
             schema:
               type: object
               required: [designation]
+              additionalProperties: false
               properties:
                 designation:
                   type: string
+                  minLength: 1
                   maxLength: 100
       responses:
         '200':
@@ -177,10 +217,22 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ComplianceReport'
+        '400':
+          description: Validation failed
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
         '403':
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '409':
+          description: Problem code `report-compiling` while a compile runs, or `report-submitted`
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
   /v1/commissions/{slug}/compliance-reports/{fy}/confirm:
     parameters:
       - $ref: '#/components/parameters/Slug'
@@ -189,17 +241,40 @@ paths:
       tags: [form-m]
       operationId: confirmComplianceReport
       summary: Commission-admin confirms and submits to EACC (step-up token required)
+      description: |
+        Needs a token from the step-up re-authentication (`acr` `step-up`, `auth_time` at most
+        5 minutes old) and an Idempotency-Key. Part III "Confirmed by" names the commission-admin;
+        the document must then be complete against form-m.v1. Allocates
+        `RPT-<ISSUER>-<FY end>-<seq>-<check>`, freezes the document with its canonical SHA-256, marks
+        the report `submitted` (`late` after 31 July) and records EACC's receipt. The Restricted
+        Form M PDF and the signed receipt are issued through documents right after, and both
+        officers are told: `formMDocumentId` and `receiptDocumentId` are null until then. The
+        answer, kept for replays of the key, leaves `document` null: names live only in the
+        encrypted report; read the report as filed with getComplianceReport.
       parameters:
         - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                designation:
+                  type: string
+                  minLength: 1
+                  maxLength: 100
+                  description: The commission-admin's designation for Part III "Confirmed by"
       responses:
         '200':
-          description: Submitted with reference and receipt
+          description: Submitted with its reference; the PDF and receipt follow
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ComplianceReport'
         '400':
-          description: Draft incomplete (Part I missing, not reviewed)
+          description: Problem code `not-reviewed`, or `incomplete` with the paths in errors
           content:
             application/problem+json:
               schema:
@@ -213,7 +288,19 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
         '409':
-          description: Already submitted
+          description: Problem code `report-submitted` (already submitted) or `report-compiling`
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '422':
+          description: Idempotency-Key reused with a different request
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '503':
+          description: The Commission directory or the workflow engine could not be reached; nothing submitted
           content:
             application/problem+json:
               schema:
@@ -223,6 +310,22 @@ paths:
       tags: [federated]
       operationId: submitComplianceReport
       summary: Federated Commission submits a form-m.v1 document (reports:submit scope)
+      description: |
+        For a Commission running its own system: a client-credentials token with scope
+        `reports:submit` whose `tenant` claim is the Commission, and an Idempotency-Key. The
+        document is validated against form-m.v1 (`invalid-document`), must name the token's
+        Commission in Part I `issuerCode` (`tenant-mismatch`) and keep the business rules
+        (`inconsistent-document`): the period is the financial year it names, 1 July to 30 June,
+        open for reports (from 1 April of its last half); per section declared plus not declared
+        is expected and the non-filers listed are as many as not declared; access requests granted
+        plus declined are at most received and the decline reasons add up to declined; Part III
+        names who compiled and who confirmed, with dates. The report is then submitted as a hosted
+        confirm submits it, with `source` `federated`: `RPT-<ISSUER>-<FY end>-<seq>-<check>`, the
+        document frozen with its canonical SHA-256 (`meta.reference` and `meta.source` set by the
+        platform), `late` after 31 July, EACC's receipt, and right after the Restricted Form M
+        PDF, the signed receipt and the officers' emails (`formMDocumentId` and
+        `receiptDocumentId` are null until then). A draft compiled on the platform for the year is
+        superseded. The answer, kept for replays of the key, leaves `document` null.
       parameters:
         - $ref: '#/components/parameters/IdempotencyKey'
       requestBody:
@@ -235,25 +338,25 @@ paths:
               additionalProperties: true
       responses:
         '201':
-          description: Accepted with reference and receipt
+          description: Submitted with its reference; the PDF and receipt follow
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ComplianceReport'
         '400':
-          description: Schema or business-rule validation failed (paths in errors)
+          description: Problem code `invalid-document` (schema) or `inconsistent-document` (business rules), paths in errors; or the Idempotency-Key is missing
           content:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/ProblemDetails'
         '403':
-          description: Scope missing or Commission does not match the token tenant
+          description: Scope `reports:submit` missing, the token names no Commission, or problem code `tenant-mismatch` (the document names another Commission)
           content:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/ProblemDetails'
         '409':
-          description: A report for this financial year already exists
+          description: Problem code `report-submitted` - the Commission's report for this financial year is submitted already
           content:
             application/problem+json:
               schema:
@@ -264,17 +367,36 @@ paths:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/ProblemDetails'
+        '503':
+          description: The Commission directory or the workflow engine could not be reached; nothing submitted
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
   /v1/eacc/compliance-reports:
     get:
       tags: [eacc]
       operationId: getEaccIntake
       summary: Per-Commission report status, rates and outliers for a financial year (EACC roles)
+      description: |
+        eacc-analyst and eacc-supervisor (tenant `eacc`); anyone else 403. Every active
+        Commission the directory lists (and any other that filed), by name: `not-reported`, or
+        submitted on time or late (after 31 July) from EACC's receipt, with the report's
+        reference, the ids of its Form M PDF and receipt once issued, declared / expected per
+        section from the report's counts, outliers, and how often and when it was last chased.
+        Outliers: `low-<section>-rate` when officers were expected and the declared rate is below
+        the section's configured threshold (`INTAKE_MIN_<SECTION>_RATE`, 0.8 by default);
+        `section-missing` when a section's counts are absent, or no officer in service is
+        expected in a year with a biennial cycle. The totals cover the year whatever the filters;
+        `nationalDeclaredRate` is declared over expected across the submitted reports' sections.
       parameters:
         - name: fy
           in: query
           required: true
+          description: Financial year start year, e.g. 2027 for 1 July 2027 to 30 June 2028
           schema:
             type: integer
+            minimum: 2025
         - name: status
           in: query
           schema:
@@ -290,8 +412,20 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Intake'
+        '400':
+          description: Query failed validation (a year reports do not exist for, an unknown status)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
         '403':
           $ref: '#/components/responses/Forbidden'
+        '503':
+          description: The Commission directory could not be reached
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
   /v1/eacc/compliance-reports/{reportId}:
     parameters:
       - name: reportId
@@ -303,7 +437,18 @@ paths:
     get:
       tags: [eacc]
       operationId: getSubmittedReport
-      summary: A submitted report as filed, with PDF and receipt links (EACC roles)
+      summary: A submitted report as filed, with its PDF and receipt ids (report viewer)
+      description: |
+        eacc-analyst and eacc-supervisor (tenant `eacc`) read every Commission's submitted
+        report; a Commission's supervisor, commission-admin and reporting officer, and its own
+        system (`reports:submit`), read their own. Anyone else, another Commission's report, a
+        report not submitted and an unknown id are 404. The document is the frozen `form-m.v1`
+        as filed; the PDF and receipt download through documents by `formMDocumentId` and
+        `receiptDocumentId` (null until issued). Each read is audited (`audit.read.v1`, action
+        `compliance-report.viewed`) under the tenant of the Commission whose report it is.
+      x-audited-read:
+        action: compliance-report.viewed
+        resource: compliance-report
       responses:
         '200':
           description: Report
@@ -311,10 +456,20 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ComplianceReport'
-        '403':
-          $ref: '#/components/responses/Forbidden'
+        '400':
+          description: reportId is not a UUID
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
         '404':
           $ref: '#/components/responses/NotFound'
+        '503':
+          description: The Commission directory could not be reached
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
   /v1/eacc/national-reports/{fy}:
     parameters:
       - $ref: '#/components/parameters/FinancialYear'
@@ -322,6 +477,14 @@ paths:
       tags: [ncr]
       operationId: getNationalReport
       summary: The national consolidated report for a financial year
+      description: |
+        eacc-analyst and eacc-supervisor (tenant `eacc`); anyone else 403. 404 until the year's
+        report is first built. `aggregates` holds counts and rates only, each at a stable dot
+        path (`national.initial.rate`, `byCommission.psc.final.declared`) that narrative
+        paragraphs cite in `aggregateRefs`: `reporting` (Commissions reported on time, late, not
+        reported), `national` (per section expected, declared, not declared and rate, the three
+        together as `all`, clarifications, access requests) and `byCommission` (per Commission
+        slug: name, status, report id and reference, and its numbers once reported).
       responses:
         '200':
           description: NCR
@@ -340,6 +503,12 @@ paths:
       tags: [ncr]
       operationId: buildNationalReport
       summary: Build or rebuild aggregates from submitted reports (analyst); narrative preserved
+      description: |
+        eacc-analyst and eacc-supervisor; anyone else 403. Recomputes the aggregates from the
+        Commissions' submitted reports as filed and every active Commission the directory lists;
+        the narrative is kept. The first build makes the caller the author. Every build and
+        narrative save raises `version` and adds the caller to the report's contributors, who
+        cannot approve it. Emits `ncr.drafted.v1` (ids, year, version, status, reports included).
       responses:
         '200':
           description: Built
@@ -350,7 +519,13 @@ paths:
         '403':
           $ref: '#/components/responses/Forbidden'
         '409':
-          description: Already approved
+          description: 'No Commission has reported for the year (`no-submitted-reports`), or already approved (`ncr-approved`)'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '503':
+          description: The Commission directory could not be reached
           content:
             application/problem+json:
               schema:
@@ -362,6 +537,11 @@ paths:
       tags: [ncr]
       operationId: updateNationalReportNarrative
       summary: Save narrative sections (analyst)
+      description: |
+        eacc-analyst and eacc-supervisor; anyone else 403. Every section's full text, paragraphs
+        separated by a blank line; stored as `narrativeParagraphs`. A paragraph whose text is
+        unchanged keeps its id and labels; an edited one keeps its id and loses `aiDraft`; the
+        rest are new. The caller becomes a contributor. 404 before the first build.
       requestBody:
         required: true
         content:
@@ -375,10 +555,18 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/NationalReport'
+        '400':
+          description: Body failed validation
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
         '403':
           $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
         '409':
-          description: Already approved
+          description: Already approved (`ncr-approved`)
           content:
             application/problem+json:
               schema:
@@ -390,6 +578,14 @@ paths:
       tags: [ncr]
       operationId: approveNationalReport
       summary: EACC supervisor (not the author) approves; allocates NCR and issues the PDF
+      description: |
+        eacc-supervisor only; eacc-analyst and anyone else 403. The author, or anyone who built
+        the report or saved its narrative, gets 403 `separation-of-duties`. Allocates
+        `NCR-EACC-<FY end>-<seq>-<check>`, freezes the report and emits `ncr.approved.v1` (ids, year,
+        version, reference). The Restricted PDF follows (`documentId`, polled on the report), and
+        the year's chase of non-reporting Commissions ends. A retry with the same Idempotency-Key
+        replays the approval; another approval of an approved report is 409 `ncr-approved` and
+        allocates nothing.
       parameters:
         - $ref: '#/components/parameters/IdempotencyKey'
       responses:
@@ -399,6 +595,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/NationalReport'
+        '400':
+          description: Idempotency-Key missing
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
         '403':
           description: 'Role or `separation-of-duties`'
           content:
@@ -407,6 +609,18 @@ paths:
                 $ref: '#/components/schemas/ProblemDetails'
         '404':
           $ref: '#/components/responses/NotFound'
+        '409':
+          description: Already approved (`ncr-approved`)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '503':
+          description: The workflow engine could not be reached; nothing was approved
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
   /v1/eacc/national-reports/{fy}/candidates:
     parameters:
       - $ref: '#/components/parameters/FinancialYear'
@@ -693,6 +907,10 @@ paths:
       tags: [referrals-intake]
       operationId: listReferralIntake
       summary: Referrals sent by Commissions with ICMS status (EACC roles)
+      description: >-
+        EACC's intake of the referrals Commissions sent (`referral.sent.v1`), the latest sent
+        first, with the Confidential evidence package's document id (downloaded from the documents
+        service) and where the hand-off to ICMS stands. EACC analysts and supervisors only.
       parameters:
         - name: icmsStatus
           in: query
@@ -724,6 +942,12 @@ paths:
                       $ref: '#/components/schemas/ReferralIntakeItem'
                   nextCursor:
                     type: [string, 'null']
+        '400':
+          description: Query failed validation, or a cursor this list did not give
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
         '403':
           $ref: '#/components/responses/Forbidden'
   /v1/eacc/referrals/{referralId}/push:
@@ -738,21 +962,45 @@ paths:
       tags: [referrals-intake]
       operationId: pushReferralToIcms
       summary: Push a referral to ICMS and store the case number (analyst)
+      description: >-
+        EACC analysts and supervisors. Pulls the referral's ICMS payload from review (national ID,
+        full name, grounds, details) and registers it through the integration-gateway's ICMS
+        adapter (`submitIcmsReferral`), idempotent by the `RFL` reference; ICMS is retried with
+        backoff while unreachable. A case number is stored (`registered`) and
+        `referral.icms-registered.v1` published; a registration ICMS only accepted is `pushed` and
+        followed to its case number. A retry with the same Idempotency-Key replays the answer; a
+        registered referral is answered as it is and never sent again.
       parameters:
         - $ref: '#/components/parameters/IdempotencyKey'
       responses:
         '200':
-          description: Registered (or already registered)
+          description: Registered (or already registered), or pushed and awaiting the case number
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ReferralIntakeItem'
+        '400':
+          description: Idempotency-Key missing, or referralId is not a UUID
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
         '403':
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
         '502':
-          description: ICMS unavailable; status push-failed, retry later
+          description: >-
+            Problem code `icms-push-failed` with `error` (an `IcmsPushError`): the referral is left
+            push-failed; push it again to retry
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '503':
+          description: >-
+            ICMS accepted the referral but the workflow following its case number could not be
+            started; push it again shortly
           content:
             application/problem+json:
               schema:
@@ -819,6 +1067,26 @@ components:
     IcmsStatus:
       type: string
       enum: [not-pushed, pushed, registered, push-failed]
+      description: >-
+        not-pushed until EACC pushes it; pushed once ICMS accepted it without a case number yet;
+        registered with the case number; push-failed when the push could not be completed (push
+        again to retry)
+    IcmsPushError:
+      type: string
+      enum:
+        [
+          review-unavailable,
+          payload-not-found,
+          payload-refused,
+          icms-unavailable,
+          icms-rejected,
+          icms-failed,
+          icms-registration-timeout,
+        ]
+      description: Why the last push failed
+    ReferralGrounds:
+      type: string
+      enum: [undeclared-assets, unexplained-assets, two-missed-cycles, unanswered-clarification]
     Officer:
       type: object
       required: [subject, name]
@@ -849,6 +1117,7 @@ components:
           type: boolean
     ManualFields:
       type: object
+      additionalProperties: false
       properties:
         contactDetails:
           type: [string, 'null']
@@ -866,17 +1135,23 @@ components:
           items:
             type: object
             required: [name, designation, identifier, nature, status]
+            additionalProperties: false
             properties:
               name:
                 type: string
+                maxLength: 200
               designation:
                 type: string
+                maxLength: 100
               identifier:
                 type: string
+                maxLength: 100
               nature:
                 type: string
+                maxLength: 300
               status:
                 type: string
+                maxLength: 100
     ComplianceReport:
       type: object
       required:
@@ -935,12 +1210,12 @@ components:
           type: [boolean, 'null']
         reference:
           type: [string, 'null']
-          description: 'RPT-<ISSUER>-<FY>-<seq>-<check>'
+          description: 'RPT-<ISSUER>-<FY end>-<seq>-<check>'
         dueDate:
           type: string
           format: date
         document:
-          description: The form-m.v1 document (draft or frozen); null while compiling
+          description: The form-m.v1 document (draft or frozen); null while compiling, and in the answers to confirmComplianceReport and submitComplianceReport
           oneOf:
             - type: object
               additionalProperties: true
@@ -980,7 +1255,18 @@ components:
           items:
             type: object
             required:
-              [commission, status, reportId, reference, submittedAt, rates, outliers, chases]
+              [
+                commission,
+                status,
+                reportId,
+                reference,
+                submittedAt,
+                rates,
+                outliers,
+                chases,
+                formMDocumentId,
+                receiptDocumentId,
+              ]
             properties:
               commission:
                 type: object
@@ -1002,7 +1288,7 @@ components:
                 format: date-time
               rates:
                 type: object
-                description: Per section expected, declared and rate
+                description: Per section (`initial`, `biennial`, `final`) expected, declared and rate (declared / expected to four decimals, null when none expected); empty when not reported
                 additionalProperties:
                   type: object
                   required: [expected, declared, rate]
@@ -1017,16 +1303,10 @@ components:
                 type: array
                 items:
                   type: string
-                  enum:
-                    [
-                      low-initial-rate,
-                      low-biennial-rate,
-                      low-final-rate,
-                      zero-expected-with-declared,
-                      section-missing,
-                    ]
+                  enum: [low-initial-rate, low-biennial-rate, low-final-rate, section-missing]
               chases:
                 type: object
+                description: EACC's weekly chases from 1 August while not reported
                 required: [count, lastAt]
                 properties:
                   count:
@@ -1034,6 +1314,14 @@ components:
                   lastAt:
                     type: [string, 'null']
                     format: date-time
+              formMDocumentId:
+                type: [string, 'null']
+                format: uuid
+                description: The Restricted Form M PDF as filed, once issued
+              receiptDocumentId:
+                type: [string, 'null']
+                format: uuid
+                description: The signed acknowledgement receipt, once issued
     Narrative:
       type: object
       required: [overview, findings, recommendations]
@@ -1174,13 +1462,16 @@ components:
         [
           id,
           fy,
+          version,
           status,
           builtAt,
           reportsIncluded,
           aggregates,
           narrative,
+          narrativeParagraphs,
           author,
           approver,
+          approvedAt,
           reference,
           documentId,
         ]
@@ -1190,6 +1481,10 @@ components:
           format: uuid
         fy:
           type: integer
+        version:
+          type: integer
+          minimum: 1
+          description: The report's revision; goes up with every build, narrative save and the approval
         status:
           type: string
           enum: [draft, approved]
@@ -1205,7 +1500,7 @@ components:
           $ref: '#/components/schemas/Narrative'
         narrativeParagraphs:
           type: array
-          description: Structured paragraphs behind the narrative sections (spec 09b); AI drafts labelled until edited
+          description: The paragraphs behind the narrative sections, per section in position order; AI drafts (spec 09b) labelled until edited
           items:
             $ref: '#/components/schemas/NarrativeParagraph'
         author:
@@ -1216,9 +1511,12 @@ components:
           oneOf:
             - $ref: '#/components/schemas/Officer'
             - type: 'null'
+        approvedAt:
+          type: [string, 'null']
+          format: date-time
         reference:
           type: [string, 'null']
-          description: 'NCR-EACC-<FY>-<seq>-<check>'
+          description: 'NCR-EACC-<FY end>-<seq>-<check>'
         documentId:
           type: [string, 'null']
           format: uuid
@@ -1230,10 +1528,12 @@ components:
           commission,
           reference,
           grounds,
+          cycleYear,
           sentAt,
           packageDocumentId,
           icmsStatus,
           icmsCaseNumber,
+          icmsRegisteredAt,
           pushedAt,
           pushedBy,
           error,
@@ -1252,27 +1552,38 @@ components:
               type: string
         reference:
           type: string
+          description: The RFL reference
         grounds:
-          type: string
+          $ref: '#/components/schemas/ReferralGrounds'
+        cycleYear:
+          type: integer
+          description: The declaration cycle the referral is about
         sentAt:
           type: string
           format: date-time
         packageDocumentId:
           type: string
           format: uuid
+          description: The Confidential referral-package document (documents service)
         icmsStatus:
           $ref: '#/components/schemas/IcmsStatus'
         icmsCaseNumber:
           type: [string, 'null']
+        icmsRegisteredAt:
+          type: [string, 'null']
+          format: date-time
         pushedAt:
           type: [string, 'null']
           format: date-time
         pushedBy:
+          description: Who last pushed it
           oneOf:
             - $ref: '#/components/schemas/Officer'
             - type: 'null'
         error:
-          type: [string, 'null']
+          oneOf:
+            - $ref: '#/components/schemas/IcmsPushError'
+            - type: 'null'
     ProblemDetails:
       type: object
       required: [type, title, status]

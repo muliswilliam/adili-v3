@@ -377,10 +377,43 @@
         "basic",
         "declarations:internal",
         "directory:internal",
+        "directory:roster-national-id",
         "documents:internal",
         "messages"
       ],
       "optionalClientScopes": []
+    },
+    {
+      "clientId": "tsc-reports",
+      "name": "TSC reporting system (demo)",
+      "description": "Demo federated Commission: the Teachers Service Commission's own system, which files Form M through POST /v1/compliance-reports (spec 09) with client credentials",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "clientAuthenticatorType": "client-secret",
+      "secret": "tsc-reports-dev-secret",
+      "standardFlowEnabled": false,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": true,
+      "defaultClientScopes": ["basic", "reports:submit"],
+      "optionalClientScopes": [],
+      "protocolMappers": [
+        {
+          "name": "tenant",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-hardcoded-claim-mapper",
+          "config": {
+            "claim.name": "tenant",
+            "claim.value": "tsc",
+            "jsonType.label": "String",
+            "access.token.claim": "true",
+            "id.token.claim": "false",
+            "userinfo.token.claim": "false",
+            "introspection.token.claim": "true"
+          }
+        }
+      ]
     }
   ],
   "clientScopes": [
@@ -1136,6 +1169,28 @@
       ]
     },
     {
+      "name": "directory:roster-national-id",
+      "description": "Service tokens that may read a roster record's national ID from the directory: the review service only, for payroll's salary stoppage and the ICMS referral (spec 08)",
+      "protocol": "openid-connect",
+      "attributes": {
+        "include.in.token.scope": "true",
+        "display.on.consent.screen": "false"
+      },
+      "protocolMappers": [
+        {
+          "name": "adili-api audience",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "config": {
+            "included.custom.audience": "adili-api",
+            "access.token.claim": "true",
+            "id.token.claim": "false",
+            "introspection.token.claim": "true"
+          }
+        }
+      ]
+    },
+    {
       "name": "declarations:internal",
       "description": "Service tokens for the declarations service's internal API: a submitted version's acknowledgement slip payload (spec 06), and a submitted version's document and the version before it for review (spec 07a), acting for a tenant",
       "protocol": "openid-connect",
@@ -1160,6 +1215,28 @@
     {
       "name": "review:internal",
       "description": "Service tokens for the review service's internal API: letter payloads the documents service renders, acting for a tenant (spec 07a)",
+      "protocol": "openid-connect",
+      "attributes": {
+        "include.in.token.scope": "true",
+        "display.on.consent.screen": "false"
+      },
+      "protocolMappers": [
+        {
+          "name": "adili-api audience",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "config": {
+            "included.custom.audience": "adili-api",
+            "access.token.claim": "true",
+            "id.token.claim": "false",
+            "introspection.token.claim": "true"
+          }
+        }
+      ]
+    },
+    {
+      "name": "reports:submit",
+      "description": "A federated Commission's system submits its Form M (POST /v1/compliance-reports, spec 09)",
       "protocol": "openid-connect",
       "attributes": {
         "include.in.token.scope": "true",

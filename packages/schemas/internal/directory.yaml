@@ -1653,6 +1653,60 @@ paths:
       x-audited-read:
         action: roster.record.pulled
         resource: roster-record
+  /internal/v1/commissions/{slug}/roster/records/{recordId}/national-id:
+    get:
+      tags:
+        - internal
+      summary: A roster record's national ID (review)
+      description: Service tokens with scope directory:roster-national-id (the review service only), acting for the Commission in X-Acting-Tenant; audited. What payroll and the ICMS referral identify the officer by.
+      operationId: internalGetRosterNationalId
+      parameters:
+        - name: X-Acting-Tenant
+          in: header
+          description: Tenant the calling service acts for; the resource must belong to it
+          required: true
+          schema:
+            type: string
+            pattern: ^[a-z][a-z0-9]{1,19}$
+        - name: slug
+          required: true
+          in: path
+          schema:
+            $ref: '#/components/schemas/Slug'
+        - name: recordId
+          required: true
+          in: path
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: The national ID
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RosterNationalId'
+        '400':
+          description: recordId is not a UUID
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '403':
+          description: Requires a service token with scope directory:roster-national-id
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: No such record in the acting tenant's Commission
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+      x-audited-read:
+        action: roster.record.national-id.read
+        resource: roster-record
   /v1/commissions/{slug}/roster/exits:
     post:
       tags:
@@ -2914,6 +2968,48 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/LeaOfficerAccount'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /internal/v1/commissions/{slug}/staff:
+    get:
+      tags:
+        - internal
+      summary: A Commission's staff accounts holding a role, with the email they sign in with
+      description: Service tokens with scope directory:internal, acting for the Commission in X-Acting-Tenant (ADR-013 §8.7). E.g. reporting emails Form M reminders to the supervisors and EACC's chase to the reporting officer and commission-admin (spec 09). Empty when nobody holds the role.
+      operationId: internalListCommissionStaff
+      x-draft: true
+      parameters:
+        - name: X-Acting-Tenant
+          in: header
+          required: true
+          description: Tenant the calling service acts for; the resource must belong to it
+          schema:
+            type: string
+            pattern: ^[a-z][a-z0-9]{1,19}$
+        - name: slug
+          in: path
+          required: true
+          schema:
+            type: string
+            pattern: ^[a-z][a-z0-9]{1,19}$
+        - name: role
+          in: query
+          required: true
+          description: Realm role, e.g. `supervisor`, `commission-admin`, `reporting-officer`
+          schema:
+            type: string
+            pattern: ^[a-z][a-z-]{1,39}$
+      responses:
+        '200':
+          description: The accounts holding the role
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InternalStaffList'
+        '400':
+          $ref: '#/components/responses/ValidationProblem'
         '403':
           $ref: '#/components/responses/Forbidden'
         '404':
@@ -4529,6 +4625,16 @@ components:
       required:
         - items
         - nextCursor
+    RosterNationalId:
+      type: object
+      properties:
+        nationalId:
+          type: string
+          description: As the roster gives it
+          examples:
+            - '27451863'
+      required:
+        - nationalId
     ConfirmExits:
       type: object
       properties:
@@ -5228,6 +5334,25 @@ components:
             - string
             - 'null'
           format: date-time
+    InternalStaffList:
+      type: object
+      required:
+        - items
+      properties:
+        items:
+          type: array
+          items:
+            type: object
+            required:
+              - subject
+              - email
+            properties:
+              subject:
+                type: string
+                description: Keycloak user id (`sub`)
+              email:
+                type: string
+                format: email
   parameters:
     IdempotencyKey:
       name: Idempotency-Key

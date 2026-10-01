@@ -29,6 +29,8 @@ export function twoVersions(
     tenant: one.tenant,
     declarationId: one.declarationId,
     personId: one.personId,
+    rosterRecordId: one.rosterRecordId,
+    reportingEntityId: one.reportingEntityId,
     reference: one.reference,
     declarantName: one.declarantName,
     personnelFileNumber: one.personnelFileNumber,
