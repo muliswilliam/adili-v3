@@ -5,7 +5,8 @@
  */
 
 /** Why the copilot of a case is requested. */
-export type CopilotTrigger = 'case-created' | 'amendment' | 're-check' | 'refresh';
+export type CopilotTrigger =
+  'case-created' | 'amendment' | 're-check' | 'refresh' | 'policy-change';
 
 /** A request of the copilot by the service itself (the processing workflow, spec 07b's re-check). */
 export interface CopilotActivityRequest {
@@ -24,6 +25,19 @@ export interface CopilotJobFinished {
   tenant: string;
   caseId: string;
   jobId: string;
+}
+
+/** A gate policy of the Commission now admits a provider class: its not-enabled copilots ask again. */
+export interface CopilotPolicyChanged {
+  tenant: string;
+}
+
+/** Workflow type name of `copilotPolicyChanged`, for starting by name. */
+export const COPILOT_POLICY_CHANGED_WORKFLOW = 'copilotPolicyChanged';
+
+/** One workflow per `ai.policy.changed.v1` event. */
+export function copilotPolicyWorkflowId(eventId: string): string {
+  return `copilot-policy:${eventId}`;
 }
 
 /** Workflow type name of `copilotJobFinished`, for starting by name. */

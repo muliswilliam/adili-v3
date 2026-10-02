@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 
+import type { EventEnvelope } from '@adili/events';
 import { asc, eq, sql } from 'drizzle-orm';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -312,10 +313,62 @@ describe('review copilot', () => {
         explanations: null,
       });
 
+      // A refresh asks the gateway again, which still blocks the Commission.
       await assign(created.id, 'reviewer-t');
+      const calls = api.ai.calls.length;
       const refresh = await api.send('POST', refreshPath(created.id), tscReviewer);
-      expect(refresh.statusCode).toBe(409);
-      expect(refresh.json()).toMatchObject({ type: 'ai-not-enabled' });
+      expect(refresh.statusCode).toBe(202);
+      expect(refresh.json()).toMatchObject({ status: 'not-enabled' });
+      expect(api.ai.calls.length).toBeGreaterThan(calls);
+
+      // Once the gateway admits the Commission, a refresh requests the copilot anew.
+      api.ai.reset();
+      const enabled = await api.send('POST', refreshPath(created.id), tscReviewer);
+      expect(enabled.statusCode).toBe(202);
+      expect(enabled.json()).toMatchObject({ status: 'pending' });
+    });
+
+    it('a gate rule that now admits the Commission requests its not-enabled copilots again', async () => {
+      const version = submittedVersion({
+        tenant: 'tsc',
+        document: declaration([statement('officer', { assets: [land] })]),
+      });
+      api.declarations.given(version);
+      api.ai.blockEverything('policy');
+      const created = await processedFromInbox(api, version);
+      await untilStatus(created.id, 'not-enabled');
+      api.ai.reset();
+
+      const policyEvent = (tenant: string, allowed: boolean): EventEnvelope => ({
+        specversion: '1.0',
+        id: randomUUID(),
+        source: 'adili/ai-gateway',
+        type: 'ai.policy.changed.v1',
+        time: new Date().toISOString(),
+        subject: randomUUID(),
+        datacontenttype: 'application/json',
+        tenant,
+        data: {
+          action: 'ai.gate-policy.changed',
+          tenant,
+          actor: 'platform-admin-1',
+          approvalRef: 'DPO-2028-01',
+          before: {
+            dataClass: 'highly-confidential',
+            providerClass: 'self-hosted',
+            allowed: !allowed,
+          },
+          after: { dataClass: 'highly-confidential', providerClass: 'self-hosted', allowed },
+        },
+      });
+      // A rule that blocks, or another Commission's rule, asks nothing.
+      await api.aiPolicy.changed(policyEvent('tsc', false));
+      await api.aiPolicy.changed(policyEvent('psc', true));
+      expect(api.ai.calls).toEqual([]);
+
+      await api.aiPolicy.changed(policyEvent('tsc', true));
+      await untilStatus(created.id, 'pending');
+      expect(api.ai.jobsOf('summarize-declaration')).toHaveLength(1);
     });
 
     it('is not enabled when a blocked job is announced by event, and failed when a job fails', async () => {
@@ -326,7 +379,7 @@ describe('review copilot', () => {
       await deliver(api.ai.block(row.requestedSummaryJobId ?? ''));
       await untilStatus(caseId, 'not-enabled');
 
-      // The assignee cannot refresh a Commission without AI; reset the row to a fresh request.
+      // Reset the row to a fresh request.
       await api.asPlatform((tx) =>
         tx
           .update(reviewCopilots)

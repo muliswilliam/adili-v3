@@ -57,10 +57,7 @@ export class CopilotController {
   @ApiAcceptedResponse({ description: 'Requested', schema: schemaRef('CopilotView') })
   @ApiProblemResponse(403, 'The caller is neither the assignee nor a supervisor')
   @ApiProblemResponse(404, NOT_VISIBLE)
-  @ApiProblemResponse(
-    409,
-    'Problem type `copilot-pending` (already requested) or `ai-not-enabled` (AI not enabled for this Commission)',
-  )
+  @ApiProblemResponse(409, 'Problem type `copilot-pending` (already requested)')
   @ApiProblemResponse(502, 'Declarations unavailable')
   @ApiProblemResponse(503, 'The AI gateway is unavailable; nothing was requested')
   refresh(

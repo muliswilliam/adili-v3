@@ -11,7 +11,7 @@ import type { ProcessingInput, ProcessingResult } from './contract.js';
 // The worker bundles this module: every workflow of the review service is exported from it.
 export { clarification } from '../clarifications/workflows.js';
 export { closureNotices, closureSweep, closureSweeps } from '../closures/workflows.js';
-export { copilotJobFinished } from '../copilot/workflows.js';
+export { copilotJobFinished, copilotPolicyChanged } from '../copilot/workflows.js';
 export { determinationIssuance } from '../determinations/workflows.js';
 export { enforcement } from '../enforcement/workflows.js';
 export { referralSending, referralSweep, referralSweeps } from '../referrals/workflows.js';

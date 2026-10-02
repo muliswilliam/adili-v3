@@ -66,6 +66,7 @@ function activities(overrides: Partial<Activities> = {}): Activities {
     requestCopilot: vi.fn(() => Promise.resolve()),
     recordCopilotJob: vi.fn(() => Promise.resolve()),
     copilotUnavailable: vi.fn(() => Promise.resolve()),
+    notEnabledCopilots: vi.fn(() => Promise.resolve([])),
     ...overrides,
   };
 }

@@ -235,6 +235,18 @@ export class CopilotRequests {
     });
   }
 
+  /** The cases of the Commission whose copilot the classification gate blocked. */
+  async notEnabled(tenant: string): Promise<string[]> {
+    const rows = await withTenant(this.db, systemContext(tenant), (tx) =>
+      tx
+        .select({ caseId: reviewCopilots.caseId })
+        .from(reviewCopilots)
+        .where(and(eq(reviewCopilots.tenant, tenant), eq(reviewCopilots.status, 'not-enabled')))
+        .orderBy(asc(reviewCopilots.caseId)),
+    );
+    return rows.map((row) => row.caseId);
+  }
+
   private async record(tenant: string, caseId: string, job: AiJob): Promise<void> {
     if (!isFinished(job)) return;
     const sealed =

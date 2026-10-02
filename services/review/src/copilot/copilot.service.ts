@@ -10,7 +10,7 @@ import { DeclarationsUnavailable } from '../declarations/declarations-client.js'
 import { declarationsUnavailable } from '../internal-api/upstream.js';
 import { type CopilotRatingView, ratingsOf } from './copilot-feedback.js';
 import { copilotOf, copilotOutputRecordId, CopilotRequests } from './copilot-requests.js';
-import { aiGatewayUnavailable, aiNotEnabled } from './problems.js';
+import { aiGatewayUnavailable } from './problems.js';
 import type { CopilotRow, CopilotStatus } from './schema.js';
 
 /** review.yaml `CopilotView`. */
@@ -88,8 +88,9 @@ export class CopilotService {
 
   /**
    * Requests the copilot again (S11): the case's assignee or a supervisor of the Commission; any
-   * other reviewer gets 403. 409 while the outputs of a first request are still produced, and
-   * when AI assistance is not enabled for the Commission. The declaration is read for the caller.
+   * other reviewer gets 403. 409 while the outputs of a first request are still produced. A
+   * copilot that was not enabled is requested again: the gateway decides whether the Commission
+   * may use AI now. The declaration is read for the caller.
    */
   async refresh(principal: Principal, caseId: string): Promise<CopilotView> {
     const tenant = caseTenant(principal);
@@ -120,7 +121,6 @@ export class CopilotService {
         { code: 'copilot-pending' },
       );
     }
-    if (record?.status === 'not-enabled') throw aiNotEnabled();
 
     try {
       await this.requests.request({
