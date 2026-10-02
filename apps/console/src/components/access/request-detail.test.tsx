@@ -8,6 +8,7 @@ import {
   enterWrittenRepresentations,
   findRosterCandidates,
   getRepresentationAttachmentLink,
+  recordAccessDecisionWrittenNotice,
   recordAccessWrittenNotice,
   resolveRequestedOfficer,
   verifyApplicantIdentity,
@@ -15,6 +16,7 @@ import {
 import {
   enterRepresentations,
   loadRequest,
+  recordDecisionWrittenNotice,
   recordWrittenNotice,
   resolveOfficer,
   searchRoster,
@@ -59,6 +61,7 @@ vi.mock('../../server/access-requests', () => ({
   verifyApplicantIdentity: vi.fn(),
   getRepresentationAttachmentLink: vi.fn(),
   recordAccessWrittenNotice: vi.fn(),
+  recordAccessDecisionWrittenNotice: vi.fn(),
   enterWrittenRepresentations: vi.fn(),
   createRepresentationScanUpload: vi.fn(),
   completeRepresentationScan: vi.fn(),
@@ -109,6 +112,9 @@ beforeEach(() => {
   );
   vi.mocked(recordAccessWrittenNotice).mockImplementation(({ data }) =>
     recordWrittenNotice(client(), data.requestId, data.notifiedOn, data.idempotencyKey),
+  );
+  vi.mocked(recordAccessDecisionWrittenNotice).mockImplementation(({ data }) =>
+    recordDecisionWrittenNotice(client(), data.requestId, data.notifiedOn, data.idempotencyKey),
   );
   vi.mocked(enterWrittenRepresentations).mockImplementation(({ data }) =>
     enterRepresentations(client(), data.requestId, data.input, data.idempotencyKey),
@@ -335,12 +341,67 @@ describe('RequestDetailView (spec 10 FE-5)', () => {
     expect(vi.mocked(recordAccessWrittenNotice).mock.calls[2]?.[0].data.notifiedOn).toBe(yesterday);
   });
 
+  it('S1: a decision on a declarant with no account is told in writing, and recorded', async () => {
+    const view = await viewOf(R.decidedNoAccount);
+    renderDetail(view);
+    const card = within(side()).getByRole('region', { name: 'Tell the decision in writing' });
+    expect(card.textContent).toContain('Beatrice Achieng Otieno has no Adili account');
+    const field = within(card).getByRole('textbox', { name: /Day the notice was served/ });
+    fireEvent.change(field, { target: { value: '01/01/2020' } });
+    fireEvent.click(within(card).getByRole('button', { name: 'Record written notice' }));
+    expect(within(card).getByText(/cannot be before .*when the decision was taken/)).toBeTruthy();
+    expect(vi.mocked(recordAccessDecisionWrittenNotice)).not.toHaveBeenCalled();
+
+    fireEvent.change(field, { target: { value: typed(TODAY) } });
+    // No window opens: nothing to preview.
+    expect(within(card).queryByText(/Representations will close/)).toBeNull();
+    fireEvent.click(within(card).getByRole('button', { name: 'Record written notice' }));
+    await waitFor(() => {
+      expect(vi.mocked(recordAccessDecisionWrittenNotice)).toHaveBeenCalledWith({
+        data: {
+          requestId: R.decidedNoAccount,
+          notifiedOn: TODAY,
+          idempotencyKey: expect.any(String) as unknown,
+        },
+      });
+    });
+    expect(await screen.findByText('Written notice of the decision recorded.')).toBeTruthy();
+
+    cleanup();
+    renderDetail(await viewOf(R.decidedNoAccount));
+    expect(
+      within(side()).queryByRole('region', { name: 'Tell the decision in writing' }),
+    ).toBeNull();
+    const officer = within(side()).getByRole('region', { name: 'Officer identified' });
+    expect(officer.textContent).toContain('Told the decision');
+    expect(officer.textContent).toContain(`In writing, served ${formatDate(TODAY)}`);
+  });
+
+  it('S1: the supervisor waits for the decision to be served in writing', async () => {
+    renderDetail(await viewOf(R.decidedNoAccount), true);
+    expect(
+      within(side()).getByText(
+        'Waiting for the access officer to record the decision served in writing on the declarant.',
+      ),
+    ).toBeTruthy();
+    expect(within(side()).queryByRole('button', { name: 'Record written notice' })).toBeNull();
+  });
+
+  it('S1: a declarant with an account is told the decision online: no written step', async () => {
+    renderDetail(await viewOf(R.denied));
+    expect(
+      within(side()).queryByRole('region', { name: 'Tell the decision in writing' }),
+    ).toBeNull();
+  });
+
   it('decision 2: the supervisor waits for the written notice and takes no step', async () => {
     renderDetail(await viewOf(R.noAccount), true);
     expect(
       within(side()).getByText('Waiting for the access officer to record the written notice.'),
     ).toBeTruthy();
     expect(within(side()).queryByRole('button')).toBeNull();
+    // An untitled card is no landmark: its DOM id is not read out as a name.
+    expect(within(side()).queryByRole('region', { name: 'waiting' })).toBeNull();
   });
 
   it('decision 2: notified in writing, with the representations received in writing', async () => {
@@ -450,6 +511,41 @@ describe('RequestDetailView (spec 10 FE-5)', () => {
       });
     });
     expect(await screen.findByText('Applicant verified. Identify the officer next.')).toBeTruthy();
+  });
+
+  it('a verification retry keeps its Idempotency-Key, a corrected note gets a new one', async () => {
+    vi.mocked(verifyApplicantIdentity)
+      .mockClear()
+      .mockResolvedValue({
+        ok: false,
+        error: { kind: 'unavailable', detail: null },
+      });
+    renderDetail(await viewOf(R.verify));
+    const card = within(side()).getByRole('region', { name: 'Verify applicant identity' });
+    const keys = () =>
+      vi.mocked(verifyApplicantIdentity).mock.calls.map(([call]) => call.data.idempotencyKey);
+    const submit = () => {
+      fireEvent.click(within(card).getByRole('button', { name: 'Record verification' }));
+    };
+    fireEvent.click(within(card).getByRole('checkbox'));
+    fireEvent.change(within(card).getByRole('textbox'), { target: { value: 'Passport seen.' } });
+    submit();
+    await waitFor(() => {
+      expect(keys()).toHaveLength(1);
+    });
+    submit();
+    await waitFor(() => {
+      expect(keys()).toHaveLength(2);
+    });
+    expect(keys()[1]).toBe(keys()[0]);
+    fireEvent.change(within(card).getByRole('textbox'), {
+      target: { value: 'Passport copy seen by email.' },
+    });
+    submit();
+    await waitFor(() => {
+      expect(keys()).toHaveLength(3);
+    });
+    expect(keys()[2]).not.toBe(keys()[1]);
   });
 
   it('shows the representations: stance, text and attachments, each downloadable', async () => {

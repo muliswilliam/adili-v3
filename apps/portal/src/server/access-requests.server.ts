@@ -14,6 +14,7 @@ import {
   type AccessRequest,
   type AccessRequestStatus,
   type Decision,
+  type Package,
   readAccessRequest,
 } from './access/types';
 import type { DirectoryClient } from './directory/client.server';
@@ -183,6 +184,10 @@ export interface RequestSummary {
   closedAt: string | null;
   /** When the granted package's (or nil letter's) download window ends; null without one. */
   downloadExpiresAt: string | null;
+  /** The issued package (or nil letter) the applicant downloads from documents; null without. */
+  packageDocumentId: string | null;
+  /** What was issued: the package or the nil letter; null without one. */
+  packageKind: Package['kind'] | null;
   /** When issuing the package failed; null while it is prepared and once issued. */
   packageFailedAt: string | null;
   /** The decision's grounds and reasons, once decided. */
@@ -210,6 +215,8 @@ export function toSummary(request: AccessRequest): RequestSummary {
     decisionDeadlineAt: request.decisionDeadlineAt,
     closedAt: closedAt(request),
     downloadExpiresAt: request.package?.downloadExpiresAt ?? null,
+    packageDocumentId: request.package?.documentId ?? null,
+    packageKind: request.package?.kind ?? null,
     packageFailedAt: request.package ? null : request.packageFailedAt,
     decision: request.decision
       ? { grounds: request.decision.grounds, reasons: request.decision.reasons }

@@ -6,6 +6,7 @@ import {
   format,
   GRANT_REFERENCE_PATTERN,
   InvalidReferenceError,
+  grantLegalBasis,
   isGrantReference,
   issuerCode,
   parse,
@@ -351,5 +352,21 @@ describe('isGrantReference', () => {
     expect(isGrantReference(format(OFR, { sequence: 1 }))).toBe(false);
     expect(isGrantReference('ARQ-PSC-2028-12-X')).toBe(false);
     expect(isGrantReference('')).toBe(false);
+  });
+});
+
+describe('grantLegalBasis', () => {
+  it('reads Act s.36(1) off an ARQ reference and s.36(2) off an LEA reference', () => {
+    expect(grantLegalBasis(format(ARQ, { issuer: 'PSC', period: 2028, sequence: 12 }))).toBe(
+      'act-s36-1',
+    );
+    expect(grantLegalBasis(format(LEA, { issuer: 'PSC', period: 2028, sequence: 4 }))).toBe(
+      'act-s36-2',
+    );
+  });
+
+  it('has none for anything that is not a valid grant reference', () => {
+    expect(grantLegalBasis(format(OFR, { sequence: 1 }))).toBeUndefined();
+    expect(grantLegalBasis('ARQ-PSC-2028-0000012-0')).toBeUndefined();
   });
 });

@@ -15,6 +15,8 @@
  *   waiting for the access officer to record the written notice (spec 10 decision 2).
  * - `writtenNotice`: Beatrice Achieng Otieno, no account, served in writing two days ago; her
  *   objection received in writing, with a scan of her letter, entered by the access officer.
+ * - `decidedNoAccount`: Beatrice Achieng Otieno again, an older request served in writing and
+ *   denied yesterday: the decision waits to be served on her in writing too.
  * - `objection`: under decision, the declarant objected with two attachments; due in 3 days.
  * - `consent`: the declarant consented, which closed the window early.
  * - `late`: under decision with context, 7 days past its decision deadline.
@@ -99,6 +101,7 @@ export const MOCK_REQUEST_IDS = {
   noAccount: 'a11c0000-0000-4000-8000-000000000019',
   writtenNotice: 'a11c0000-0000-4000-8000-000000000020',
   failed: 'a11c0000-0000-4000-8000-000000000021',
+  decidedNoAccount: 'a11c0000-0000-4000-8000-000000000022',
 } as const;
 
 const PSC = { slug: 'psc', name: 'Public Service Commission' };
@@ -488,6 +491,7 @@ function build(seed: Seed, now: number): Stored {
       declarantOnboarded: record ? record.onboarded : null,
       declarantInvitedAt: record && !record.onboarded ? (resolvedAt ?? submittedAt) : null,
       notice,
+      decisionNotice: null,
     },
   };
 }
@@ -970,6 +974,31 @@ const SEEDS: Seed[] = [
       inWriting: true,
     },
   },
+  {
+    id: R.decidedNoAccount,
+    reference: referenceOf(137),
+    applicant: DENNIS,
+    sought: {
+      name: 'Beatrice Achieng Otieno',
+      entity: 'State Department for Public Works',
+      workStation: 'Works Building, Nairobi',
+    },
+    informationSought: 'Everything declared in 2026.',
+    reason: 'I want to know what she owns.',
+    scope: { ...SCOPE_2026_ASSETS, sections: ['assets', 'other'] },
+    receivedDaysAgo: 16,
+    status: 'denied',
+    resolved: K.beatrice,
+    resolvedAfterDays: 1,
+    notifiedAfterDays: 3,
+    noAccount: { served: true },
+    decision: {
+      outcome: 'deny',
+      afterDays: 15,
+      grounds: ['frivolous-vexatious', 'not-objectives'],
+      reasons: 'The application gives no reason connected to the officer’s public duties.',
+    },
+  },
 ];
 
 /** Ten minutes before the end of the Kenyan day of `now`, or five minutes on when that passed. */
@@ -1260,6 +1289,49 @@ async function writtenNotice(request: Request, stored: Stored, caller: Caller): 
     windowEndsAt,
     notice: { channel: 'written', notifiedAt, notifiedOn, recordedBy: caller.name },
     timeline: [...view.timeline, entry('notified', now, caller.name, view.reference, true)],
+  };
+  return json(200, stored.view);
+}
+
+/** `POST .../decision-written-notice`: as the access service rules (decision 2). */
+async function decisionWrittenNotice(
+  request: Request,
+  stored: Stored,
+  caller: Caller,
+): Promise<Response> {
+  const body = await readJson(request);
+  const notifiedOn = isRecord(body) && typeof body.notifiedOn === 'string' ? body.notifiedOn : '';
+  const { view } = stored;
+  if (!view.decision) {
+    return view.status === 'withdrawn' || view.status === 'cannot-identify'
+      ? problem(409, 'The request is closed', 'request-closed')
+      : problem(409, 'Not decided yet', 'not-under-decision');
+  }
+  if (view.decisionNotice) return problem(409, 'Told already', 'declarant-notified');
+  if (view.declarantOnboarded !== false) return problem(409, 'The declarant is told online');
+  const now = new Date().toISOString();
+  const badDay = (message: string) =>
+    json(400, {
+      type: 'about:blank',
+      title: 'Bad Request',
+      status: 400,
+      errors: [{ path: 'notifiedOn', message }],
+    });
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(notifiedOn)) return badDay('is not a date');
+  if (notifiedOn > nairobiDay(now)) return badDay('is in the future');
+  if (notifiedOn < nairobiDay(view.decision.decidedAt)) return badDay('is before the decision');
+  stored.view = {
+    ...view,
+    decisionNotice: {
+      channel: 'written',
+      notifiedAt: writtenWindow(notifiedOn).notifiedAt,
+      notifiedOn,
+      recordedBy: caller.name,
+    },
+    timeline: [
+      ...view.timeline,
+      entry('decision-notified', now, caller.name, view.reference, true),
+    ],
   };
   return json(200, stored.view);
 }
@@ -1558,6 +1630,10 @@ export async function mockAccessFetch(request: Request): Promise<Response> {
   if (method === 'POST' && action === 'written-notice') {
     await delay(500);
     return writtenNotice(request, stored, caller);
+  }
+  if (method === 'POST' && action === 'decision-written-notice') {
+    await delay(500);
+    return decisionWrittenNotice(request, stored, caller);
   }
   if (method === 'PUT' && action === 'representations') {
     await delay(600);

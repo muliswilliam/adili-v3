@@ -1,4 +1,5 @@
 import type { ReadLegalBasisCode } from '@adili/api-kit';
+import { GRANT_LEGAL_BASES } from '@adili/numbering/references';
 
 /**
  * Event contracts the access service publishes (spec 10, Act s.36, ADR-008 access register): one
@@ -15,8 +16,7 @@ import type { ReadLegalBasisCode } from '@adili/api-kit';
  * trail's reads use (api-kit `READ_LEGAL_BASES`, ADR-008).
  */
 export const ACCESS_LEGAL_BASES = [
-  'act-s36-1',
-  'act-s36-2',
+  ...GRANT_LEGAL_BASES,
   'self-access',
 ] as const satisfies readonly ReadLegalBasisCode[];
 export type AccessLegalBasis = (typeof ACCESS_LEGAL_BASES)[number];
@@ -37,6 +37,7 @@ export const ACCESS_REGISTER_KINDS = [
   'notified',
   'representations',
   'decided',
+  'decision-notified',
   'package-issued',
   'downloaded',
   'expired',
@@ -76,6 +77,7 @@ export const ACCESS_REQUEST_EVENTS = {
   notified: 'access.request.notified.v1',
   representations: 'access.request.representations.v1',
   decided: 'access.request.decided.v1',
+  'decision-notified': 'access.request.decision-notified.v1',
   'package-issued': 'access.request.package-issued.v1',
   downloaded: 'access.request.downloaded.v1',
   expired: 'access.request.expired.v1',
@@ -107,6 +109,7 @@ export const ACCESS_REQUEST_IDENTIFIED = ACCESS_REQUEST_EVENTS.identified;
 export const ACCESS_REQUEST_NOTIFIED = ACCESS_REQUEST_EVENTS.notified;
 export const ACCESS_REQUEST_REPRESENTATIONS = ACCESS_REQUEST_EVENTS.representations;
 export const ACCESS_REQUEST_DECIDED = ACCESS_REQUEST_EVENTS.decided;
+export const ACCESS_REQUEST_DECISION_NOTIFIED = ACCESS_REQUEST_EVENTS['decision-notified'];
 export const ACCESS_REQUEST_PACKAGE_ISSUED = ACCESS_REQUEST_EVENTS['package-issued'];
 export const ACCESS_REQUEST_DOWNLOADED = ACCESS_REQUEST_EVENTS.downloaded;
 export const ACCESS_REQUEST_EXPIRED = ACCESS_REQUEST_EVENTS.expired;
@@ -125,7 +128,11 @@ export const LEA_REQUEST_WITHDRAWN = LEA_REQUEST_EVENTS.withdrawn;
 /** A self-access step (a certified copy issued) publishes this. */
 export const ACCESS_CERTIFIED_COPY_ISSUED = 'access.certified-copy.issued.v1';
 
-/** Every event type the access service publishes. */
+/**
+ * Every event type an access-register entry publishes. The access service's writes that are not
+ * register steps (the window closing, a self-access application recorded) record their own audit
+ * events (ADR-008), which no other service reads.
+ */
 export const ACCESS_EVENT_TYPES = [
   ...Object.values(ACCESS_REQUEST_EVENTS),
   ...Object.values(LEA_REQUEST_EVENTS),
@@ -260,6 +267,17 @@ export interface AccessPackageDownloadedData extends AccessRegisterEventData {
 export interface AccessPackageExpiredData extends AccessRegisterEventData {
   kind: 'expired';
   documentId: string;
+}
+
+/**
+ * `access.request.decision-notified.v1`: the declarant, who has no account, was told the
+ * decision in writing (spec 10 decision 2, as their notice of the request): the access officer
+ * served it on `notifiedOn` and recorded it (the entry's actor). A declarant with an account is
+ * told online, by the decision's messages, and records no such entry.
+ */
+export interface AccessRequestDecisionNotifiedData
+  extends AccessRegisterEventData, DeclarantNoticeFacts {
+  kind: 'decision-notified';
 }
 
 /**

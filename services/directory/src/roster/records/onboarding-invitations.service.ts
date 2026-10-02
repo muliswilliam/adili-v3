@@ -3,18 +3,21 @@ import { createHash } from 'node:crypto';
 import { HttpStatus, Injectable, Logger } from '@nestjs/common';
 import { notFoundIfInvisible, type Principal, ProblemException } from '@adili/api-kit';
 import { type Database, InjectDatabase, withTenant } from '@adili/data-access';
+import { EventPublisher } from '@adili/events';
 import { and, eq } from 'drizzle-orm';
 
 import { Clock } from '../../clock.js';
 import { config } from '../../config.js';
 import { commissions, type DirectorySchema } from '../../db/schema.js';
 import { actingTenantContext } from '../../internal-api.js';
+import { eventActorOf, rosterActorOf } from '../actor.js';
 import { onboardingInvitations, rosterRecords } from '../schema.js';
 import {
   InvitationDelivery,
   InvitationDeliveryUnavailable,
   type InvitationMessage,
 } from './invitation-delivery.js';
+import { onboardingInvitationSent } from './events.js';
 import type { OnboardingInvitation } from './representation.js';
 
 /** The same message of the same invitation always carries the same key. */
@@ -40,6 +43,7 @@ export class OnboardingInvitationsService {
     @InjectDatabase() private readonly db: Database<DirectorySchema>,
     private readonly delivery: InvitationDelivery,
     private readonly clock: Clock,
+    private readonly events: EventPublisher,
   ) {}
 
   /**
@@ -47,7 +51,8 @@ export class OnboardingInvitationsService {
    * contacts (whichever it holds; none is an invitation on no channel). Once per
    * `idempotencyKey`: a retry returns the same invitation, and notifications sends each message
    * once. 404 when the Commission has no such record; 409 `already-onboarded` when it has
-   * onboarded.
+   * onboarded; 422 `idempotency-key-reused` when the key already invited another record (once
+   * the idempotency store has forgotten it, the invitation table still knows).
    */
   async invite(
     principal: Principal,
@@ -81,7 +86,8 @@ export class OnboardingInvitationsService {
       return { previous, record };
     });
     const record = notFoundIfInvisible(found.record);
-    if (found.previous?.rosterRecordId === record.id) {
+    if (found.previous !== undefined) {
+      if (found.previous.rosterRecordId !== record.id) throw keyReused();
       return toInvitation(found.previous);
     }
     if (record.personId !== null) throw ProblemException.fromCode('already-onboarded');
@@ -122,7 +128,18 @@ export class OnboardingInvitationsService {
           target: [onboardingInvitations.tenant, onboardingInvitations.idempotencyKey],
         })
         .returning();
-      if (inserted) return inserted;
+      if (inserted) {
+        await this.events.record(
+          tx,
+          onboardingInvitationSent(slug, {
+            invitationId: inserted.id,
+            rosterRecordId: inserted.rosterRecordId,
+            channels: inserted.channels,
+            actor: eventActorOf(rosterActorOf(principal)),
+          }),
+        );
+        return inserted;
+      }
       // A concurrent retry recorded it first.
       const [existing] = await tx
         .select()
@@ -134,6 +151,7 @@ export class OnboardingInvitationsService {
           ),
         );
       if (!existing) throw new Error('The invitation was not recorded');
+      if (existing.rosterRecordId !== record.id) throw keyReused();
       return existing;
     });
     return toInvitation(row);
@@ -153,6 +171,16 @@ export class OnboardingInvitationsService {
       });
     }
   }
+}
+
+/** The same 422 the idempotency interceptor answers for a key reused on another request. */
+function keyReused(): ProblemException {
+  return new ProblemException({
+    type: 'idempotency-key-reused',
+    title: 'Idempotency-Key reused',
+    status: HttpStatus.UNPROCESSABLE_ENTITY,
+    detail: 'This Idempotency-Key already invited the officer of another roster record.',
+  });
 }
 
 function toInvitation(row: InvitationRow): OnboardingInvitation {

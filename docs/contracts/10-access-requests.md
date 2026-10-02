@@ -29,6 +29,7 @@ Operations added (not in the draft):
 - `getRepresentationAttachmentDownload` (#254): the officer opens a declarant's representation attachment, as an audited read.
 - `getMyCertifiedCopy` (#267): the portal polls one copy until it is issued.
 - Self-access applications (#303, #304): `searchSelfAccessDeclarants`, `listSelfAccessDeclarantVersions`, `recordSelfAccessApplication`, `listSelfAccessApplications`, `getSelfAccessApplication`, `markSelfAccessDelivered`.
+- `recordDecisionWrittenNotice` (decision 2, review round 1): the access officer records the day the decision was served in writing on a declarant with no account (`OfficerRequestView.decisionNotice`, register kind `decision-notified`, `access.request.decision-notified.v1`).
 - Scope preview (decision 1): `getAccessRequestScopePreview` / `previewAccessRequestScope` and `getLeaRequestScopePreview` / `previewLeaRequestScope` return `ScopePreview`, audited counts of what the requested (GET) or a narrower (POST) scope holds, never content. Access officer and supervisor, once the officer named is identified (Form K) or the request verified (law enforcement), until the decision.
 
 Operations changed:
@@ -38,9 +39,9 @@ Operations changed:
 - `verifyApplicantIdentity`, `withdrawAccessRequest`, `submitRepresentations`, `verifyLeaRequest`: accept `Idempotency-Key` (ADR-013 §7.5). `decideAccessRequest`, `decideLeaRequest`, `submitLeaRequest`, `recordSelfAccessApplication` require it.
 - `verifyLeaRequest`: body gains `provenanceConfirmed: true` and `reasonConfirmed: true` (#264). The officer confirms the two checks the prototype shows.
 - `requestCertifiedCopy`: body gains `commission` (slug). A declarant token's `tenant` claim names only one Commission, and declarations needs the acting tenant (#267).
-- `getMyAccessHistory`: returns `AccessHistoryEntry` (a `RegisterEntry` plus subject, reference, Commission, requester, case reference, outcome, certified copy) instead of bare `RegisterEntry` (#267).
+- `getMyAccessHistory`: returns `AccessHistoryEntry` (a `RegisterEntry` plus subject, reference, Commission, requester, case reference, outcome, certified copy) instead of bare `RegisterEntry` (#267); Form K entries also carry `purposeInGeneralTerms` and `scope` (requested, then granted).
 - `listCommissionAccessRequests`: query gains `late` and `search`. Open requests come first by earliest deadline, then decided and closed ones by latest deadline. Response is the named `QueuePage` (#253, #254).
-- `listAccessCommissions`: named `AccessCommission`. `years` run from `max(2025, obligations start)` to the current year (#commissions). Law enforcement may call it too (#265).
+- `listAccessCommissions`: named `AccessCommission`. `years` run from `max(2025, obligations start)` to the current year (#commissions). Law enforcement may call it too (#265); `decisionDays` is the Commission's Form K decision period in force (decision 3).
 - Every operation documents its 400/403/404/409/503 problems; the draft listed few.
 
 Schemas changed:

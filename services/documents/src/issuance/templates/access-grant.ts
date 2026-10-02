@@ -1,4 +1,10 @@
-import { GRANT_REFERENCE_PATTERN, isGrantReference } from '@adili/numbering/references';
+import { FORM_K_SECTIONS, type FormKSection } from '@adili/forms';
+import {
+  GRANT_LEGAL_BASES,
+  GRANT_REFERENCE_PATTERN,
+  type GrantLegalBasis,
+  isGrantReference,
+} from '@adili/numbering/references';
 import { z } from 'zod';
 
 /**
@@ -6,14 +12,10 @@ import { z } from 'zod';
  * both name the grant's reference, legal basis, recipient, decision time and scope.
  */
 
-/** The provisions a grant rests on (declarations' `LegalBasis`). */
-export const LEGAL_BASES = ['act-s36-1', 'act-s36-2'] as const;
-export type LegalBasis = (typeof LEGAL_BASES)[number];
+/** The provision a grant rests on (numbering's `GRANT_LEGAL_BASES`). */
+export type LegalBasis = GrantLegalBasis;
 
-/** The sections a grant discloses (declarations' `DisclosureSection`). */
-export const DISCLOSURE_SECTIONS = ['bio', 'income', 'assets', 'liabilities', 'other'] as const;
-
-const SECTION_NAMES: Record<(typeof DISCLOSURE_SECTIONS)[number], string> = {
+const SECTION_NAMES: Record<FormKSection, string> = {
   bio: 'Biodata',
   income: 'Income',
   assets: 'Assets',
@@ -32,7 +34,7 @@ export const grantReferenceSchema = z
     examples: ['ARQ-PSC-2026-0000012-H'],
   });
 
-export const legalBasisSchema = z.enum(LEGAL_BASES).meta({
+export const legalBasisSchema = z.enum(GRANT_LEGAL_BASES).meta({
   description: 'act-s36-1: an access request (Form K); act-s36-2: a law-enforcement request',
 });
 
@@ -48,7 +50,7 @@ export const grantedScopeSchema = z.strictObject({
   years: z.array(z.int().min(2000).max(2100)).min(1),
   includeSpouses: z.boolean(),
   includeChildren: z.boolean(),
-  sections: z.array(z.enum(DISCLOSURE_SECTIONS)).min(1),
+  sections: z.array(z.enum(FORM_K_SECTIONS)).min(1),
   /** Form K only (Act s.36(1), Regulation 22(1)); never for a law-enforcement request. */
   includeClarifications: z.boolean(),
 });

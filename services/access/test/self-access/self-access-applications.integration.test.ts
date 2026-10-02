@@ -353,6 +353,25 @@ describe('Written self-access applications (#303)', () => {
     );
     expect(entry?.details).toMatchObject({ applicationId: recorded.id, representativeName: null });
     expect(api.documents.linked).toEqual([]);
+    // Recording it is a write: its audit record, in its transaction (ADR-008), ids only.
+    expect(await api.events('access.self-access-application.recorded.v1')).toEqual([
+      expect.objectContaining({
+        subject: recorded.id,
+        tenant: 'psc',
+        data: {
+          applicationId: recorded.id,
+          certifiedCopyId: issued.certifiedCopy.id,
+          tenant: 'psc',
+          personId: anne.personId,
+          deliveryMethod: 'dispatch',
+          actor: officer.sub,
+          at: expect.any(String) as unknown,
+          declarationId: recorded.declarationId,
+          version: 2,
+          byRepresentative: false,
+        },
+      }),
+    ]);
     // Declarations audits the read as handed to Anne herself, asked by the officer.
     expect(api.declarations.fullDocumentCalls).toEqual([
       expect.objectContaining({
@@ -390,6 +409,18 @@ describe('Written self-access applications (#303)', () => {
     const again = await deliver(recorded.id);
     expect(again.statusCode).toBe(409);
     expect(again.json<{ detail: string }>().detail).toContain('collected');
+    // Marking it delivered is a write: its audit record, once (ADR-008).
+    expect(await api.events('access.self-access-application.delivered.v1')).toEqual([
+      expect.objectContaining({
+        subject: recorded.id,
+        data: expect.objectContaining({
+          applicationId: recorded.id,
+          deliveryMethod: 'collection',
+          actor: officer.sub,
+          at: '2027-05-12T08:00:00.000Z',
+        }) as unknown,
+      }),
+    ]);
   });
 
   it('S13: the list shows each application with its 14-day deadline, earliest first, late only when not issued in time', async () => {
@@ -404,6 +435,7 @@ describe('Written self-access applications (#303)', () => {
 
     // Long after both deadlines: issued in time, so neither is late.
     api.clock.set('2027-07-01T00:00:00.000Z');
+    const before = (await api.events('audit.read.v1')).length;
     const response = await api.get('/v1/commissions/psc/access/self-access', supervisor);
 
     expect(response.statusCode, response.body).toBe(200);
@@ -414,6 +446,19 @@ describe('Written self-access applications (#303)', () => {
       [second.id, '2027-05-25T07:30:00.000Z', false],
     ]);
     expect(page.items[0]?.representative).not.toHaveProperty('idNumber');
+    // It returns declarant names: audited, naming the applications served (ADR-008).
+    expect((await api.events('audit.read.v1')).slice(before)).toEqual([
+      expect.objectContaining({
+        tenant: 'psc',
+        data: expect.objectContaining({
+          action: 'access.self-access.listed',
+          resource: expect.objectContaining({
+            type: 'self-access-application',
+            ids: [first.id, second.id],
+          }) as unknown,
+        }) as unknown,
+      }),
+    ]);
 
     const firstPage = await api.get('/v1/commissions/psc/access/self-access?limit=1', officer);
     const { nextCursor } = firstPage.json<SelfAccessPage>();

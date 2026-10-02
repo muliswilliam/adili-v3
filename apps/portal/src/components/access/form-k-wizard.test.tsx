@@ -22,8 +22,8 @@ const APPLICANT: Applicant = {
 };
 
 const COMMISSIONS: AccessCommission[] = [
-  { slug: 'cpsb022', name: 'Kiambu County Public Service Board', years: [] },
-  { slug: 'psc', name: 'Public Service Commission', years: [2025, 2026] },
+  { slug: 'cpsb022', name: 'Kiambu County Public Service Board', years: [], decisionDays: 30 },
+  { slug: 'psc', name: 'Public Service Commission', years: [2025, 2026], decisionDays: 21 },
 ];
 
 beforeEach(() => {
@@ -83,6 +83,14 @@ describe('FormKWizard (S17)', () => {
     next();
     expect(screen.getByText('Choose the Commission.')).toBeTruthy();
     expect(heading()).toBe('Which Commission?');
+  });
+
+  it("states the chosen Commission's decision period from its policy, not a fixed one", () => {
+    start();
+    expect(screen.queryByText(/^Decision within/)).toBeNull();
+    chooseCommission('Public Service Commission');
+    expect(screen.getByText('Decision within 21 days')).toBeTruthy();
+    expect(screen.queryByText('Decision within 30 days')).toBeNull();
   });
 
   it('stops at a Commission with no declarations yet', () => {

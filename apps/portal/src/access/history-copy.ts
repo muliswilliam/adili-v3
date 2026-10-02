@@ -23,6 +23,7 @@ export const TRANSPARENCY_COPY = english(TRANSPARENCY);
 
 const HISTORY = {
   title: en('Who accessed my declaration'),
+  loading: en('Loading who accessed your declaration'),
   listLabel: en('Who accessed my declaration'),
   filters: en('Show'),
   all: en('All'),
@@ -59,6 +60,7 @@ const HISTORY = {
   notifiedInWriting: en((commission: string) => `Notified in writing by ${commission}`),
   decided: en((commission: string, verb: string) => `${commission} ${verb}`),
   officerOf: en((commission: string) => `Access officer, ${commission}`),
+  toldDecisionInWriting: en('You were told the decision in writing'),
   agencyGranted: en((agency: string, verb: string) => `${agency} was ${verb}`),
   caseOf: en((caseReference: string) => `Case ${caseReference}`),
   packageIssued: en((who: string) => `Package issued to ${who}`),
@@ -116,6 +118,7 @@ export const HISTORY_COPY = english(HISTORY);
 
 const COPIES = {
   title: en('Certified copies'),
+  loading: en('Loading your certified copies'),
   listLabel: en('Your submitted versions'),
   emptyTitle: en('No submitted declarations'),
   emptyText: en('Once you submit a declaration, you can get a certified copy of it here.'),

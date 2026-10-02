@@ -1,24 +1,19 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
-import { errorType } from '@adili/api-kit';
 import { DATABASE, withTenant } from '@adili/data-access';
 import { consumeIdempotent, type EventEnvelope } from '@adili/events';
 import { eq } from 'drizzle-orm';
-import { v5 as uuidv5 } from 'uuid';
 
 import { nairobiDate } from '../clock.js';
 import type { AccessDatabase } from '../db/database.js';
-import { UpstreamRefused } from '../upstream-refusal.js';
 import { type AccessTemplate, NotificationsClient } from '../notifications/notifications-client.js';
 import { systemContext } from '../system-context.js';
 import { applicantRequestsUrl } from './links.js';
 import type { AccessRequestRow } from './representation.js';
 import { accessRequests } from './schema.js';
+import { CHANNELS, messageKey, send } from './workflow-support.js';
 
 /** Inbox consumer of the acknowledgement messages. */
 const ACKNOWLEDGED_CONSUMER = 'access.acknowledgement-sent';
-
-/** Namespace of the acknowledgement messages' idempotency keys (UUID v5). */
-const ACKNOWLEDGEMENT_KEY_NAMESPACE = '3b7e9d14-2c6a-4f80-b5d1-8e4a6c2f0b97';
 
 const TEMPLATES: Record<'email' | 'sms', AccessTemplate> = {
   email: 'access-acknowledgement-email',
@@ -69,46 +64,26 @@ export class AcknowledgementService {
         this.logger.warn({ requestId: data.subjectId }, 'Acknowledgement of an unknown request');
         return;
       }
-      for (const channel of ['email', 'sms'] as const) {
-        await this.send(row, channel);
+      for (const channel of CHANNELS) {
+        await this.acknowledge(row, channel);
       }
     });
   }
 
-  private async send(row: AccessRequestRow, channel: 'email' | 'sms'): Promise<void> {
-    try {
-      const sent = await this.notifications.send({
-        channel,
-        recipient: { kind: 'person', personId: row.applicantPersonId },
-        template: TEMPLATES[channel],
-        params: {
-          reference: row.reference,
-          commissionName: row.commissionName,
-          decideBy: nairobiDate(row.decisionDeadlineAt),
-          identityStatus: row.applicantIdentityStatus,
-          signInUrl: applicantRequestsUrl(),
-        },
-        tenant: row.tenant,
-        idempotencyKey: uuidv5(
-          `${row.id}:acknowledgement:${channel}`,
-          ACKNOWLEDGEMENT_KEY_NAMESPACE,
-        ),
-      });
-      if (sent.status === 'failed') {
-        this.logger.warn(
-          { requestId: row.id, channel, reason: sent.error },
-          'Acknowledgement not sent',
-        );
-      }
-    } catch (error) {
-      if (error instanceof UpstreamRefused) {
-        this.logger.error(
-          { requestId: row.id, channel, err: errorType(error) },
-          'Acknowledgement refused by notifications',
-        );
-        return;
-      }
-      throw error;
-    }
+  private async acknowledge(row: AccessRequestRow, channel: 'email' | 'sms'): Promise<void> {
+    await send(this.notifications, this.logger, row, {
+      channel,
+      recipient: { kind: 'person', personId: row.applicantPersonId },
+      template: TEMPLATES[channel],
+      params: {
+        reference: row.reference,
+        commissionName: row.commissionName,
+        decideBy: nairobiDate(row.decisionDeadlineAt),
+        identityStatus: row.applicantIdentityStatus,
+        signInUrl: applicantRequestsUrl(),
+      },
+      tenant: row.tenant,
+      idempotencyKey: messageKey(row.id, `acknowledgement:${channel}`),
+    });
   }
 }

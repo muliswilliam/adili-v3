@@ -64,23 +64,45 @@ interface MockCommission extends AccessCommission {
 }
 
 export const MOCK_ACCESS_COMMISSIONS: MockCommission[] = [
-  { slug: 'psc', issuerCode: 'PSC', name: 'Public Service Commission', years: [2025, 2026] },
-  { slug: 'tsc', issuerCode: 'TSC', name: 'Teachers Service Commission', years: [2025, 2026] },
-  { slug: 'jsc', issuerCode: 'JSC', name: 'Judicial Service Commission', years: [2026] },
+  {
+    slug: 'psc',
+    issuerCode: 'PSC',
+    name: 'Public Service Commission',
+    years: [2025, 2026],
+    decisionDays: 30,
+  },
+  {
+    slug: 'tsc',
+    issuerCode: 'TSC',
+    name: 'Teachers Service Commission',
+    years: [2025, 2026],
+    decisionDays: 30,
+  },
+  // A policy with a shorter decision period than the default.
+  {
+    slug: 'jsc',
+    issuerCode: 'JSC',
+    name: 'Judicial Service Commission',
+    years: [2026],
+    decisionDays: 21,
+  },
   {
     slug: 'npsc',
     issuerCode: 'NPSC',
     name: 'National Police Service Commission',
     years: [2025, 2026],
+    decisionDays: 30,
   },
   {
     slug: 'cpsb022',
     issuerCode: 'CPSB022',
     name: 'Kiambu County Public Service Board',
     years: [],
+    decisionDays: 30,
   },
 ];
 
+/** The default decision period of a Commission's policy (access.decisionDays). */
 const DECISION_DAYS = 30;
 /** The default download window of a Commission's policy (access.packageDownloadDays). */
 const PACKAGE_DAYS = 14;
@@ -630,7 +652,6 @@ function seedRequest(seed: Seed, id: string, now: number): AccessRequest {
         seed.decision.outcome === 'deny' ? null : (seed.decision.grantedScope ?? seed.scope),
       grounds: seed.decision.grounds,
       reasons: seed.decision.reasons,
-      decidedBy: { subject: 'access-officer', name: 'Access officer' },
       decidedAt,
     };
     timeline.push(entry('decided', decidedAt, reference, 'Decision made'));
@@ -785,7 +806,7 @@ async function submit(request: Request): Promise<Response> {
         : 'submitted',
     formK: { ...formK, meta: { reference, submittedAt } },
     submittedAt,
-    decisionDeadlineAt: addDays(submittedAt, DECISION_DAYS),
+    decisionDeadlineAt: addDays(submittedAt, commission.decisionDays),
     decision: null,
     package: null,
     packageFailedAt: null,
@@ -815,7 +836,6 @@ function withdraw(id: string, key: string | null): Response {
       grounds: ['prejudice-proceeding'],
       reasons:
         'The officer is the subject of an ongoing investigation, which access to the declarations may prejudice.',
-      decidedBy: { subject: 'access-officer', name: 'Access officer' },
       decidedAt,
     };
     found.timeline.push(entry('decided', decidedAt, found.reference, 'Decision made'));
@@ -944,7 +964,12 @@ export async function mockAccessFetch(request: Request): Promise<Response> {
   if (request.method === 'GET' && path === '/v1/access/commissions') {
     return json(
       200,
-      MOCK_ACCESS_COMMISSIONS.map(({ slug, name, years }) => ({ slug, name, years })),
+      MOCK_ACCESS_COMMISSIONS.map(({ slug, name, years, decisionDays }) => ({
+        slug,
+        name,
+        years,
+        decisionDays,
+      })),
     );
   }
   if (path === '/v1/access/requests') {

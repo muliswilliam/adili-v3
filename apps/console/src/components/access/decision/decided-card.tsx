@@ -3,7 +3,7 @@ import { CheckmarkCircle02Icon, UnavailableIcon } from '@hugeicons/core-free-ico
 import type { ReactNode } from 'react';
 
 import { OutcomeLine, SideCard } from '../side-cards';
-import type { Decision } from './decision-rules';
+import type { Decision, LeaDecision } from './decision-rules';
 import { messages as m } from './messages';
 import { scopeText } from '../format';
 
@@ -21,7 +21,7 @@ function Item({ term, children }: { term: string; children: ReactNode }) {
  * Regulation 24 grounds cited, the reasons, and who decided when. Form K and law enforcement
  * requests (#265) alike; the supervisor reads it too.
  */
-export function DecidedCard({ decision }: { decision: Decision }) {
+export function DecidedCard({ decision }: { decision: Decision | LeaDecision }) {
   const deny = decision.outcome === 'deny';
   return (
     <SideCard
@@ -53,9 +53,10 @@ export function DecidedCard({ decision }: { decision: Decision }) {
         <Item term={m.reasons}>
           <span className="whitespace-pre-line">{decision.reasons}</span>
         </Item>
-        <Item term={m.decidedBy}>
+        <Item term={decision.decidedBy ? m.decidedBy : m.decided}>
           <span className="font-medium">
-            {decision.decidedBy.name} · {formatDateTime(decision.decidedAt)}
+            {decision.decidedBy ? `${decision.decidedBy.name} · ` : null}
+            {formatDateTime(decision.decidedAt)}
           </span>
         </Item>
       </dl>

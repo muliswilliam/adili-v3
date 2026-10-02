@@ -321,7 +321,8 @@ function VerificationCard({ request }: { request: LeaRequest }) {
         <div>
           <dt className="text-[13px] text-muted-foreground">{m.verifiedLabel}</dt>
           <dd className="mt-0.5 font-medium">
-            {verification.by.name} · {formatDateTime(verification.at)}
+            {verification.by ? `${verification.by.name} · ` : null}
+            {formatDateTime(verification.at)}
           </dd>
           {verification.note ? (
             <dd className="mt-0.5 text-[13px] whitespace-pre-line text-muted-foreground">

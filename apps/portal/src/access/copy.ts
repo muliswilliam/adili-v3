@@ -72,7 +72,7 @@ const FORM_K = {
   newRequest: en('New request'),
   myRequests: en('My requests'),
   steps: en('Form K steps'),
-  decisionWithin: en('Decision within 30 days'),
+  decisionWithin: en((days: number) => `Decision within ${count(days)} days`),
   back: en('Back'),
   continue: en('Continue'),
   submit: en('Submit request'),
@@ -195,6 +195,15 @@ const REQUESTS = {
   expiresToday: en('Expires today'),
   downloadExpired: en('Download expired'),
   packageNotIssued: en('Package not issued'),
+  download: en('Download'),
+  downloadLetter: en('Download letter'),
+  downloadFor: en(
+    (what: 'package' | 'letter', reference: string, date: string) =>
+      `Download the ${what} for ${reference}, expires ${date}`,
+  ),
+  downloading: en('Starting download…'),
+  withdraw: en('Withdraw'),
+  withdrawFor: en((reference: string) => `Withdraw request ${reference}`),
 };
 
 export const REQUESTS_COPY = english(REQUESTS);

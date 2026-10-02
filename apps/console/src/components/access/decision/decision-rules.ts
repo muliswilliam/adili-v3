@@ -15,6 +15,8 @@ import { messages as m } from './messages';
 export type Outcome = components['schemas']['Outcome'];
 export type DecisionInput = components['schemas']['DecisionInput'];
 export type Decision = components['schemas']['Decision'];
+/** A law enforcement request's decision: `decidedBy` null for the agency's officer. */
+export type LeaDecision = components['schemas']['LeaDecision'];
 export type Package = components['schemas']['Package'];
 
 export const REASONS_MAX = DECISION_REASONS_MAX;

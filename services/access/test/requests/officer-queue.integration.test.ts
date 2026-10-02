@@ -189,6 +189,30 @@ describe("The Commission's queue and a request as its access officer reads it (S
     });
   });
 
+  it('audits the queue, a search above all, naming the requests it served (ADR-008)', async () => {
+    const { anne } = givenCommissions(api, NOW);
+    const [, second] = await received(2);
+    expect((await resolve(api, second ?? '', anne.id)).statusCode).toBe(200);
+    const before = (await api.events('audit.read.v1')).length;
+
+    expect((await queue('?search=PF-2011')).statusCode).toBe(200);
+
+    expect((await api.events('audit.read.v1')).slice(before)).toEqual([
+      expect.objectContaining({
+        tenant: 'psc',
+        data: expect.objectContaining({
+          action: 'access.requests.listed',
+          resource: expect.objectContaining({
+            type: 'access-request',
+            tenant: 'psc',
+            ids: [second],
+          }) as unknown,
+          actor: expect.objectContaining({ subject: officer.sub }) as unknown,
+        }) as unknown,
+      }),
+    ]);
+  });
+
   it('tells when a request closed: withdrawn or cannot identify', async () => {
     givenCommissions(api, NOW);
     const [cannot] = await received(1);

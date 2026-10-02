@@ -30,12 +30,7 @@ export class ClarificationDisclosureService {
     read: TenantContext,
     request: ClarificationDisclosureRequest,
   ): Promise<{ disclosure: ClarificationDisclosure; clarificationIds: string[] }> {
-    const rows = await issuedClarifications(this.db, read, request);
-
-    const disclosed = rows.flatMap((row) => {
-      const clarification = inScope(row, request);
-      return clarification === null ? [] : [{ id: row.id, clarification }];
-    });
+    const disclosed = inScopeOf(await issuedClarifications(this.db, read, request), request);
 
     return {
       disclosure: {
@@ -55,11 +50,7 @@ export class ClarificationDisclosureService {
     read: TenantContext,
     request: ClarificationCountsRequest,
   ): Promise<{ counts: ClarificationCounts; clarificationIds: string[] }> {
-    const rows = await issuedClarifications(this.db, read, request);
-    const counted = rows.flatMap((row) => {
-      const clarification = inScope(row, request);
-      return clarification === null ? [] : [{ id: row.id, clarification }];
-    });
+    const counted = inScopeOf(await issuedClarifications(this.db, read, request), request);
     return {
       counts: {
         counts: [...new Set(request.declarationReferences)].map((declarationReference) => ({
@@ -141,4 +132,12 @@ function inScope(row: IssuedRow, scope: ClarificationCountsRequest) {
     },
     scope,
   );
+}
+
+/** The rows a grant of the scope would disclose, each with its id (for the audit trail). */
+function inScopeOf(rows: IssuedRow[], scope: ClarificationCountsRequest) {
+  return rows.flatMap((row) => {
+    const clarification = inScope(row, scope);
+    return clarification === null ? [] : [{ id: row.id, clarification }];
+  });
 }

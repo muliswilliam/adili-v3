@@ -46,7 +46,10 @@ import {
 } from './request-view';
 import { WrittenRepresentationsDialog } from './written-representations-dialog';
 
-/** A side card: a title on a hairline header, then its body (the prototype's `.sec-h`/`.sec-b`). */
+/**
+ * A side card: a title on a hairline header, then its body (the prototype's `.sec-h`/`.sec-b`).
+ * A titled card is a region named by its title; an untitled one is no landmark.
+ */
 export function SideCard({
   id,
   title,
@@ -62,9 +65,8 @@ export function SideCard({
   return (
     <Card
       className="min-w-0 p-0 sm:p-0"
-      role="region"
+      role={title ? 'region' : undefined}
       aria-labelledby={title ? headingId : undefined}
-      aria-label={title ? undefined : id}
     >
       {title ? (
         <CardHeader className="flex-row items-center gap-2 border-b px-5 py-4">
@@ -244,6 +246,25 @@ export function OfficerCard({ view }: { view: OfficerRequestView }) {
             )}
           </dd>
         </div>
+        {view.decisionNotice?.notifiedOn ? (
+          <div>
+            <dt className="text-[13px] text-muted-foreground">{m.decisionToldTerm}</dt>
+            <dd className="mt-0.5 font-medium">
+              <span className="inline-flex items-center gap-1.5">
+                <Icon icon={File01Icon} className="size-3.5 text-muted-foreground" />
+                {m.notifiedInWriting(formatDay(view.decisionNotice.notifiedOn))}
+              </span>
+              {view.decisionNotice.recordedBy ? (
+                <span className="block text-[13px] font-normal text-muted-foreground">
+                  {m.recordedBy(
+                    view.decisionNotice.recordedBy,
+                    formatDateTime(lastEntry(view, 'decision-notified')?.at ?? ''),
+                  )}
+                </span>
+              ) : null}
+            </dd>
+          </div>
+        ) : null}
       </dl>
     </SideCard>
   );

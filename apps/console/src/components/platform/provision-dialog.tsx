@@ -15,6 +15,7 @@ import {
   Input,
   Select,
   SelectItem,
+  formatPhone,
 } from '@adili/ui';
 import {
   AlertCircleIcon,
@@ -37,7 +38,7 @@ import {
   checkAssignField,
   EMPTY_ASSIGN_DRAFT,
 } from '../commissions/assign-form';
-import { formatPhone, normalisePhone } from '../commissions/phone';
+import { normalisePhone } from '../commissions/phone';
 import { goToSignIn } from '../sign-in-redirect';
 import { messages as m } from './messages';
 import { type ProvisionAlert, provisionFailure } from './provision-form';

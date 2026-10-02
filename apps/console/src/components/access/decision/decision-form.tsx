@@ -14,6 +14,7 @@ import {
   type Scope,
   ScopePicker,
   Textarea,
+  useIdempotencyKey,
 } from '@adili/ui';
 import { AlertCircleIcon, Alert02Icon, JusticeScale01Icon } from '@hugeicons/core-free-icons';
 import { type ReactNode, useId, useRef, useState } from 'react';
@@ -118,7 +119,7 @@ export function DecisionForm({
   const [failure, setFailure] = useState<DecisionFailure | null>(null);
   const [confirming, setConfirming] = useState(false);
   const [busy, setBusy] = useState(false);
-  const attempt = useRef<{ key: string; body: string } | null>(null);
+  const idempotencyKey = useIdempotencyKey();
   const problemRef = useRef<HTMLDivElement>(null);
 
   const update = (next: Partial<DecisionDraft>, clear: (keyof DecisionErrors)[]) => {
@@ -148,11 +149,9 @@ export function DecisionForm({
   const record = async () => {
     if (!draft.outcome) return;
     const input = decisionInput({ ...draft, outcome: draft.outcome });
-    const body = JSON.stringify(input);
-    // A retry of the same decision replays; a changed one is a new request to the service.
-    if (attempt.current?.body !== body) attempt.current = { key: crypto.randomUUID(), body };
     setBusy(true);
-    const result = await submit(input, attempt.current.key).catch(
+    // A retry of the same decision replays; a changed one is a new request to the service.
+    const result = await submit(input, idempotencyKey.keyFor(input)).catch(
       (): ServiceResult<unknown, AccessProblem> => ({
         ok: false,
         error: { kind: 'unavailable', detail: null },

@@ -172,7 +172,8 @@ export class InternalDisclosureController {
       version,
       personId: request.personId,
     });
-    audit.resource({ tenant, subjectPersonId: request.personId });
+    // The version served, by id: investigators can tell exactly what left (ADR-008).
+    audit.resource({ tenant, subjectPersonId: request.personId, ids: [full.versionId] });
     audit.disclosure({ basis: SELF_ACCESS, reference: null, recipient: request.recipient });
     return full;
   }

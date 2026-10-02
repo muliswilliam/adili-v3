@@ -1,5 +1,6 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { DATABASE, withTenant } from '@adili/data-access';
+import { EventPublisher } from '@adili/events';
 import { ACCESS_OFFICER } from '@adili/roles';
 import { and, eq, inArray, isNull } from 'drizzle-orm';
 
@@ -20,6 +21,7 @@ import {
   type ResolutionOutcome,
   type WindowOutcome,
 } from './contract.js';
+import { accessRequestOfficerUnresolved, accessRequestWindowClosed } from './events.js';
 import { applicantRequestsUrl, declarantNoticesUrl, officerRequestUrl } from './links.js';
 import type { AccessRequestRow } from './representation.js';
 import { type AccessRequestStatus, accessRequests } from './schema.js';
@@ -59,6 +61,7 @@ export class AccessRequestActivities {
     private readonly notifications: NotificationsClient,
     private readonly register: AccessRegister,
     private readonly clock: Clock,
+    private readonly events: EventPublisher,
   ) {}
 
   /**
@@ -170,8 +173,26 @@ export class AccessRequestActivities {
             eq(accessRequests.status, 'awaiting-representations'),
           ),
         )
-        .returning({ id: accessRequests.id });
-      if (closed) return 'under-decision';
+        .returning({
+          id: accessRequests.id,
+          reference: accessRequests.reference,
+          personId: accessRequests.resolvedPersonId,
+        });
+      if (closed) {
+        // The status change's audit record, in its transaction (ADR-008).
+        await this.events.record(
+          tx,
+          accessRequestWindowClosed({
+            requestId: closed.id,
+            reference: closed.reference,
+            tenant,
+            personId: closed.personId,
+            status: 'under-decision',
+            at: this.clock.now().toISOString(),
+          }),
+        );
+        return 'under-decision';
+      }
       const [found] = await tx
         .select({ id: accessRequests.id })
         .from(accessRequests)
@@ -194,7 +215,7 @@ export class AccessRequestActivities {
   }: OfficerReminderRequest): Promise<OfficerReminderOutcome> {
     const found =
       day === IDENTIFY_REMINDER_DAY
-        ? await markUnresolved(this.db, tenant, requestId)
+        ? await markUnresolved(this.db, this.events, tenant, requestId, this.clock.now())
         : await load(this.db, tenant, requestId);
     if (!found) return 'missing';
     const held = found.status === HELD;
@@ -265,8 +286,10 @@ function stateOf(row: AccessRequestRow): RequestState {
 /** Day five: a request still `submitted` and unresolved is now `officer-unresolved`. */
 async function markUnresolved(
   db: AccessDatabase,
+  events: EventPublisher,
   tenant: string,
   requestId: string,
+  now: Date,
 ): Promise<AccessRequestRow | undefined> {
   return withTenant(db, systemContext(tenant), async (tx) => {
     const [marked] = await tx
@@ -280,7 +303,21 @@ async function markUnresolved(
         ),
       )
       .returning();
-    if (marked) return marked;
+    if (marked) {
+      // The status change's audit record, in its transaction (ADR-008).
+      await events.record(
+        tx,
+        accessRequestOfficerUnresolved({
+          requestId: marked.id,
+          reference: marked.reference,
+          tenant,
+          personId: marked.resolvedPersonId,
+          status: 'officer-unresolved',
+          at: now.toISOString(),
+        }),
+      );
+      return marked;
+    }
     const [found] = await tx.select().from(accessRequests).where(eq(accessRequests.id, requestId));
     return found;
   });

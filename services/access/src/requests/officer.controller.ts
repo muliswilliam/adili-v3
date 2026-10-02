@@ -61,23 +61,28 @@ export class OfficerController {
 
   @Get('v1/commissions/:slug/access/requests')
   @Roles(...OFFICER_ROUTE_ROLES)
+  @AuditedRead({ action: 'access.requests.listed', resource: 'access-request' })
   @ApiParam({ name: 'slug', schema: { type: 'string', pattern: TENANT_KEY.source } })
   @ApiOperation({
     operationId: 'listCommissionAccessRequests',
     summary: 'Queue of access requests with deadlines (access officer; supervisor reads)',
     description:
-      'Form K requests (30-day deadline) and law enforcement requests (14-day deadline) together, or one `kind`. Open requests first, earliest decision deadline first; then decided and closed ones, latest deadline first. `late`: past the deadline and neither decided nor closed (for a law enforcement request, the breach flag). Filters combine (`status`, `kind`, `late`, `search`).',
+      'Form K requests (30-day deadline) and law enforcement requests (14-day deadline) together, or one `kind`. Open requests first, earliest decision deadline first; then decided and closed ones, latest deadline first. `late`: past the deadline and neither decided nor closed (for a law enforcement request, the breach flag). Filters combine (`status`, `kind`, `late`, `search`). Audited (ADR-008: it returns declarant names, and a search finds them), naming the requests served.',
   })
   @ApiQueryParameters(queueQuery)
   @ApiOkResponse({ description: 'Page', schema: schemaRef('QueuePage') })
   @ApiProblemResponse(400, 'Query failed validation, or an unknown cursor')
   @ApiProblemResponse(404, "Not the caller's Commission")
-  queue(
+  async queue(
     @CurrentPrincipal() principal: Principal,
     @Param('slug') slug: string,
     @Query(new ZodValidationPipe(queueQuery)) query: QueueQuery,
+    @CurrentReadAudit() audit: ReadAudit,
   ): Promise<QueuePage> {
-    return this.officer.queue(principal, slug, query);
+    const page = await this.officer.queue(principal, slug, query);
+    // A batch read names the resources it served (ADR-008).
+    audit.resource({ tenant: slug, ids: page.items.map(({ id }) => id) });
+    return page;
   }
 
   @Get('v1/access/requests/:requestId/officer')
@@ -223,6 +228,37 @@ export class OfficerController {
     @Body(new ZodValidationPipe(writtenNoticeBody)) body: WrittenNoticeBody,
   ): Promise<OfficerRequestView> {
     return this.officer.recordWrittenNotice(principal, requestId, body);
+  }
+
+  @Post('v1/access/requests/:requestId/decision-written-notice')
+  @HttpCode(HttpStatus.OK)
+  @Roles(...OFFICER_ROUTE_ROLES)
+  @AcceptIdempotencyKey()
+  @ApiParam(REQUEST_ID)
+  @ApiOperation({
+    operationId: 'recordDecisionWrittenNotice',
+    summary: 'Record the decision served in writing on a declarant with no account',
+    description:
+      'Spec 10 decision 2: a declarant with no account cannot be told the decision online, so the access officer serves it in writing and records the day (not in the future, not before the decision): `decisionNotice` on the request, `access.request.decision-notified.v1`. The declarant who onboards later is also told the outcome online.',
+  })
+  @ApiBody({ required: true, schema: schemaRef('WrittenNotice') })
+  @ApiOkResponse({ description: 'Recorded', schema: schemaRef('OfficerRequestView') })
+  @ApiProblemResponse(
+    400,
+    'requestId is not a UUID, or the body failed validation: `notifiedOn` in the future or before the decision',
+  )
+  @ApiProblemResponse(403, 'The Commission supervisor reads requests; only its access officer acts')
+  @ApiProblemResponse(404, NOT_THE_COMMISSIONS)
+  @ApiProblemResponse(
+    409,
+    'Problem code `not-under-decision` (not decided yet), `declarant-notified` (recorded already) or `request-closed`; or the declarant has an account (told online)',
+  )
+  recordDecisionWrittenNotice(
+    @CurrentPrincipal() principal: Principal,
+    @Param('requestId', new ZodValidationPipe(z.uuid())) requestId: string,
+    @Body(new ZodValidationPipe(writtenNoticeBody)) body: WrittenNoticeBody,
+  ): Promise<OfficerRequestView> {
+    return this.officer.recordDecisionWrittenNotice(principal, requestId, body);
   }
 
   @Put('v1/access/requests/:requestId/representations')

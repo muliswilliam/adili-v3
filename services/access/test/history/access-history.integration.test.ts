@@ -13,6 +13,7 @@ import { type AccessApi, type Caller, startAccessApi } from '../support/access-a
 import { contractErrors, okResponse } from '../support/contract.js';
 import {
   callers,
+  COMPLETE,
   decide,
   declarantOf,
   givenCommissions,
@@ -25,6 +26,9 @@ import {
 
 const NOW = '2027-03-04T09:00:00.000Z';
 const DECIDED_AT = '2027-03-20T12:00:00.000Z';
+
+/** Why Mercy asks (Form K Part III's reason), as the notice told Anne. */
+const PURPOSE = (COMPLETE.partIII as { reason: string }).reason;
 
 /**
  * Who accessed my declaration (S12): the declarant sees a Form K request about them from the
@@ -104,6 +108,8 @@ describe('Who accessed my declaration (S12)', () => {
           commission: { slug: 'psc', name: 'Public Service Commission' },
           requester: 'Mercy Wanjiku Kamau',
           caseReference: null,
+          purposeInGeneralTerms: PURPOSE,
+          scope: row.scope,
           outcome: null,
           certifiedCopy: null,
           packageKind: null,
@@ -163,6 +169,56 @@ describe('Who accessed my declaration (S12)', () => {
       expect(byKind.get('downloaded')).toMatchObject({ actor: 'Mercy Wanjiku Kamau' });
       expect(JSON.stringify(entries)).not.toContain(callers.officer.name);
       expect(entries.every((entry) => entry.requester === 'Mercy Wanjiku Kamau')).toBe(true);
+    });
+
+    it('S12: each entry carries the purpose in general terms; the scope requested, then the scope granted', async () => {
+      const { anne } = givenCommissions(api, NOW);
+      const row = await underDecisionRequest(api, anne);
+      const granted = { ...row.scope, years: [2026], sections: ['assets'] };
+      api.clock.set(DECIDED_AT);
+      const decided = await decide(api, row.id, {
+        outcome: 'partial-grant',
+        grantedScope: granted,
+        grounds: ['public-interest'],
+        reasons: 'Only the 2026 assets bear on the tenders.',
+      });
+      expect(decided.statusCode, decided.body).toBe(200);
+      await api.eventually(async () => {
+        const found = await rowOf(api, row.id);
+        return found.packageDocumentId === null ? undefined : found;
+      });
+      await api.endWorkflows([accessRequestWorkflowId(row.id)]);
+
+      const entries = await historyOf(declarantOf(anne));
+
+      expect(entries.every((entry) => entry.purposeInGeneralTerms === PURPOSE)).toBe(true);
+      const byKind = new Map(entries.map((entry) => [entry.kind, entry]));
+      expect(byKind.get('notified')?.scope).toEqual(row.scope);
+      expect(byKind.get('representations')?.scope).toEqual(row.scope);
+      expect(byKind.get('decided')).toMatchObject({ outcome: 'partial-grant', scope: granted });
+      expect(byKind.get('package-issued')?.scope).toEqual(granted);
+      // The decision's reasons and grounds stay on the notice, not in the history.
+      expect(JSON.stringify(entries)).not.toContain('Only the 2026 assets');
+    });
+
+    it('S12: a denial carries no scope from the decision on', async () => {
+      const { anne } = givenCommissions(api, NOW);
+      const row = await underDecisionRequest(api, anne);
+      api.clock.set(DECIDED_AT);
+      const decided = await decide(api, row.id, {
+        outcome: 'deny',
+        grounds: ['frivolous-vexatious'],
+        reasons: 'The request is vexatious.',
+      });
+      expect(decided.statusCode, decided.body).toBe(200);
+      await api.endWorkflows([accessRequestWorkflowId(row.id)]);
+
+      const byKind = new Map(
+        (await historyOf(declarantOf(anne))).map((entry) => [entry.kind, entry]),
+      );
+
+      expect(byKind.get('decided')).toMatchObject({ outcome: 'deny', scope: null });
+      expect(byKind.get('notified')?.scope).toEqual(row.scope);
     });
 
     it('S12: a grant that found nothing in its scope reads as the nil letter, not a package (decision 1)', async () => {
@@ -334,6 +390,9 @@ describe('Who accessed my declaration (S12)', () => {
           requester: 'Directorate of Criminal Investigations',
           caseReference: 'DCI/INV/118/2027',
           actor: null,
+          // Decision 4: never the agency's reason, nor the scope.
+          purposeInGeneralTerms: null,
+          scope: null,
         });
       }
       expect(entries.at(-1)).toMatchObject({ outcome: 'grant' });
@@ -394,6 +453,8 @@ describe('Who accessed my declaration (S12)', () => {
           commission: { slug: 'psc', name: 'Public Service Commission' },
           requester: null,
           caseReference: null,
+          purposeInGeneralTerms: null,
+          scope: null,
           outcome: null,
           certifiedCopy: {
             id,

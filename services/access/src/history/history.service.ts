@@ -1,6 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common';
 import type { Principal } from '@adili/api-kit';
-import { DATABASE, withPerson } from '@adili/data-access';
+import { DATABASE, FieldCipher, withPerson } from '@adili/data-access';
 import { and, desc, eq, inArray, isNotNull, or } from 'drizzle-orm';
 
 import { declarantPersonId } from '../access.js';
@@ -9,6 +9,7 @@ import { leaRequests } from '../lea/schema.js';
 import type { RegisterRow } from '../register/access-register.js';
 import { inTimeline, type TimelineRow } from '../register/representation.js';
 import { accessRegister } from '../register/schema.js';
+import { openFormK } from '../requests/form-k.js';
 import { accessRequests } from '../requests/schema.js';
 import { certifiedCopies } from '../self-access/schema.js';
 import {
@@ -30,11 +31,33 @@ import {
  */
 @Injectable()
 export class HistoryService {
-  constructor(@Inject(DATABASE) private readonly db: AccessDatabase) {}
+  constructor(
+    @Inject(DATABASE) private readonly db: AccessDatabase,
+    private readonly cipher: FieldCipher,
+  ) {}
 
-  /** The declarant's history, newest first. */
+  /**
+   * The declarant's history, newest first. A Form K request's entries carry the purpose the
+   * notice told them (its Form K is opened after the transaction) and its scope.
+   */
   async list(principal: Principal): Promise<AccessHistoryEntry[]> {
     const personId = declarantPersonId(principal);
+    const { entries, formKRows } = await this.read(principal, personId);
+    const purposes = new Map(
+      await Promise.all(
+        formKRows.map(
+          async (row) => [row.id, (await openFormK(this.cipher, row)).partIII.reason] as const,
+        ),
+      ),
+    );
+    return entries.map((entry) =>
+      entry.subjectKind === 'access-request'
+        ? { ...entry, purposeInGeneralTerms: purposes.get(entry.subjectId) ?? null }
+        : entry,
+    );
+  }
+
+  private read(principal: Principal, personId: string) {
     return withPerson(this.db, { personId, subject: principal.subject }, async (tx) => {
       const formKAbout = tx
         .select({ id: accessRequests.id })
@@ -69,6 +92,7 @@ export class HistoryService {
       const copies = ids('self-access');
 
       const visible = new Map<string, HistorySubject & { from: Date | null }>();
+      const formKRows: (typeof accessRequests.$inferSelect)[] = [];
       if (formK.length > 0) {
         const rows = await tx
           .select()
@@ -87,9 +111,16 @@ export class HistoryService {
             commission: { slug: row.tenant, name: row.commissionName },
             requester: row.applicantName,
             caseReference: null,
+            purposeInGeneralTerms: null,
+            formKScope: {
+              requested: row.scope,
+              decided: row.decision !== null,
+              granted: row.decision?.grantedScope ?? null,
+            },
             packageKind: row.packageKind,
             from: row.notifiedAt,
           });
+          formKRows.push(row);
         }
       }
       if (lea.length > 0) {
@@ -110,6 +141,8 @@ export class HistoryService {
             commission: { slug: row.tenant, name: row.commissionName },
             requester: row.agencyName,
             caseReference: row.caseReference,
+            purposeInGeneralTerms: null,
+            formKScope: null,
             packageKind: row.packageKind,
             from: null,
           });
@@ -127,18 +160,22 @@ export class HistoryService {
             commission: { slug: row.tenant, name: row.commissionName },
             requester: null,
             caseReference: null,
+            purposeInGeneralTerms: null,
+            formKScope: null,
             packageKind: null,
             from: null,
           });
         }
       }
 
-      return entries.flatMap((row) => {
+      const shown = entries.flatMap((row) => {
         const subject = visible.get(row.subjectId);
         if (!subject || !shows(row)) return [];
         if (subject.from !== null && row.at.getTime() < subject.from.getTime()) return [];
         return [toAccessHistoryEntry(row, subject)];
       });
+      const shownFormK = new Set(shown.map((entry) => entry.subjectId));
+      return { entries: shown, formKRows: formKRows.filter((row) => shownFormK.has(row.id)) };
     });
   }
 }

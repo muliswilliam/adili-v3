@@ -1,9 +1,10 @@
 import type { FormKV1 } from '@adili/forms';
 import { z } from 'zod';
 
+import { decisionSchema } from '../decision.js';
 import { DirectoryClient, DirectoryUnavailable } from '../directory/directory-client.js';
 import type { RegisterEntry } from '../register/representation.js';
-import { noticeOf, noticeSchema } from '../written-notice.js';
+import { noticeOf, noticeSchema, startOfNairobiDay } from '../written-notice.js';
 import { type AccessRequestRow, accessRequestSchema, toAccessRequest } from './representation.js';
 import {
   APPLICANT_IDENTITY_STATUSES,
@@ -36,6 +37,8 @@ export type Representations = z.infer<typeof representationsSchema>;
  * was resolved to, the declarant's representations and their window.
  */
 export const officerRequestViewSchema = accessRequestSchema.extend({
+  /** With who took it, which the applicant is not told. */
+  decision: decisionSchema.nullable(),
   applicantIdentityStatus: z.enum(APPLICANT_IDENTITY_STATUSES),
   resolvedRosterRecordId: z.uuid().nullable(),
   /** The roster record's full name and personnel file number, as the roster had them then. */
@@ -56,6 +59,10 @@ export const officerRequestViewSchema = accessRequestSchema.extend({
   }),
   notice: noticeSchema.nullable().meta({
     description: 'How and when the declarant was notified; null before',
+  }),
+  decisionNotice: noticeSchema.nullable().meta({
+    description:
+      'The decision served in writing on a declarant with no account (spec 10 decision 2, `recordDecisionWrittenNotice`): always `written`; null until recorded, and for a declarant with an account (told the decision online)',
   }),
 });
 
@@ -108,6 +115,7 @@ export function toOfficerRequestView(
 ): OfficerRequestView {
   return {
     ...toAccessRequest(row, formK, timeline),
+    decision: row.decision,
     applicantIdentityStatus: row.applicantIdentityStatus,
     resolvedRosterRecordId: row.resolvedRosterRecordId,
     resolvedName: row.resolvedName,
@@ -118,5 +126,12 @@ export function toOfficerRequestView(
     declarantOnboarded: row.resolvedRosterRecordId === null ? null : row.resolvedPersonId !== null,
     declarantInvitedAt: row.declarantInvitedAt?.toISOString() ?? null,
     notice: noticeOf(row.notifiedAt, row.writtenNotice),
+    decisionNotice:
+      row.decisionWrittenNotice === null
+        ? null
+        : noticeOf(
+            startOfNairobiDay(row.decisionWrittenNotice.notifiedOn),
+            row.decisionWrittenNotice,
+          ),
   };
 }

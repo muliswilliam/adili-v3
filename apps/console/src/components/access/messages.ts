@@ -196,6 +196,20 @@ export const en = {
   noticeRecorded: 'Written notice recorded. The window for representations is open.',
   waitingNotice: 'Waiting for the access officer to record the written notice.',
 
+  // Written notice of the decision (officer with no account)
+  decisionNoticeTitle: 'Tell the decision in writing',
+  decisionNoticeIntro: (name: string) =>
+    `${name} has no Adili account, so they cannot be told the decision online. Serve the decision and its reasons on paper, then record the day it was served.`,
+  decisionNoticeDayEarly: (date: string) =>
+    `The day cannot be before ${date}, when the decision was taken.`,
+  decisionNoticeDayHint: 'Not in the future, nor before the decision.',
+  decisionInvitedOn: (date: string) =>
+    `Invited to onboard on ${date}. If they onboard, they are also told the decision online.`,
+  decisionNoticeRecorded: 'Written notice of the decision recorded.',
+  waitingDecisionNotice:
+    'Waiting for the access officer to record the decision served in writing on the declarant.',
+  decisionToldTerm: 'Told the decision',
+
   // Cannot identify dialog
   cannotTitle: 'Cannot identify the officer?',
   cannotCloses: 'The request closes as Cannot identify officer',

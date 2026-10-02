@@ -139,7 +139,8 @@ export class PreviewService {
         'The scope asks for a year, section, household member or clarifications the request did not.',
       );
     }
-    audit.resource({ tenant: target.tenant, subjectPersonId: target.personId });
+    // Named once counted: the declarations weighed, by reference (ADR-008 2026-10-02).
+    audit.resource({ tenant: target.tenant, subjectPersonId: target.personId, ids: [] });
     audit.disclosure({
       basis: target.legalBasis,
       reference: target.reference,
@@ -188,6 +189,7 @@ export class PreviewService {
       throw error;
     }
     const references = counted.years.flatMap((year) => year.declarationReferences);
+    audit.resource({ tenant: target.tenant, subjectPersonId: target.personId, ids: references });
     const clarificationsOf = new Map<string, number>();
     if (withClarifications && references.length > 0) {
       try {

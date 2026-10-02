@@ -7,10 +7,11 @@ import {
 import { hasValidCheckCharacter } from '@adili/numbering';
 import { APPLICANT, DECLARANT, LAW_ENFORCEMENT } from '@adili/roles';
 import { eq } from 'drizzle-orm';
-import { afterEach, beforeAll, describe, expect, it } from 'vitest';
+import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 
 import type { RosterCandidateFacts } from '../../src/directory/directory-client.js';
 import { accessRequests, leaRequests } from '../../src/db/schema.js';
+import { LeaRequestActivities } from '../../src/lea/activities.js';
 import { leaRequestWorkflowId } from '../../src/lea/contract.js';
 import type { LeaRequest } from '../../src/lea/representation.js';
 import type { QueuePage, RosterCandidates } from '../../src/requests/officer-representation.js';
@@ -653,6 +654,78 @@ describe('Law enforcement requests (S11)', () => {
       });
       expect(again.statusCode).toBe(409);
       expect(again.json()).toMatchObject({ code: 'request-decided' });
+    });
+
+    it("shows the agency's officer the verification and decision, never which of the Commission's staff made them", async () => {
+      given();
+      const { id } = await verified();
+      const decided = await decideLea(api, id, {
+        outcome: 'grant',
+        reasons: 'Investigation shown.',
+      });
+      expect(decided.statusCode, decided.body).toBe(200);
+      expect(decided.json<LeaRequest>().decision?.decidedBy).toEqual({
+        subject: officer.sub,
+        name: officer.name,
+      });
+
+      const response = await api.get(`/v1/lea/requests/${id}`, peter);
+
+      expect(response.statusCode, response.body).toBe(200);
+      expect(
+        contractErrors(okResponse('/v1/lea/requests/{leaRequestId}', 'get'), response.json()),
+      ).toEqual([]);
+      const mine = response.json<LeaRequest>();
+      expect(mine.decision).toMatchObject({ outcome: 'grant', decidedBy: null });
+      expect(mine.verification).toMatchObject({ by: null, at: VERIFIED_AT });
+      expect(response.body).not.toContain(officer.sub);
+      expect(response.body).not.toContain(officer.name);
+    });
+
+    it('an issue attempt that lost the race to record its package answers with the one recorded', async () => {
+      given();
+      const { id } = await verified();
+      const decided = await decideLea(api, id, {
+        outcome: 'grant',
+        reasons: 'Investigation shown.',
+      });
+      expect(decided.statusCode, decided.body).toBe(200);
+      const recordedExpiry = new Date('2027-02-01T12:00:00.000Z');
+      const issue = api.documents.issue.bind(api.documents);
+      const spy = vi.spyOn(api.documents, 'issue').mockImplementation(async (request) => {
+        const issued = await issue(request);
+        // Meanwhile another attempt of the activity records its package first.
+        await api.asPlatform((tx) =>
+          tx
+            .update(leaRequests)
+            .set({
+              packageKind: 'access-package',
+              packageDocumentId: randomUUID(),
+              packageVerificationId: 'ADL-OTHER',
+              packageIssuedAt: new Date('2027-01-18T12:00:00.000Z'),
+              downloadExpiresAt: recordedExpiry,
+            })
+            .where(eq(leaRequests.id, id)),
+        );
+        return issued;
+      });
+
+      try {
+        const outcome = await api.app.get(LeaRequestActivities).issueLeaPackage({
+          tenant: 'psc',
+          requestId: id,
+          receivedAt: NOW,
+          deadlineAt: DEADLINE,
+          transactionId: '0',
+        });
+
+        expect(outcome).toEqual({
+          outcome: 'issued',
+          downloadExpiresAt: recordedExpiry.toISOString(),
+        });
+      } finally {
+        spy.mockRestore();
+      }
     });
 
     it('applies the outcome rules and the roles as for Form K', async () => {

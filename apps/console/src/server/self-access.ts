@@ -5,7 +5,7 @@ import {
   PROOF_CONTENT_TYPES,
   PROOF_MAX_BYTES,
 } from '../components/access/self-access/proof-upload';
-import { selfAccessDocumentsClient } from './access/documents-client.server';
+import { accessDocumentsClient } from './access/documents-client.server';
 import type { RosterCandidates } from './access/types';
 import { asAccessViewer, withViewerClient } from './as-viewer.server';
 import { commissionSlug } from './commission-slug';
@@ -37,9 +37,9 @@ import {
 const id = z.uuid();
 
 function asDocumentsOfficer<T>(
-  work: (client: ReturnType<typeof selfAccessDocumentsClient>) => Promise<SelfAccessResult<T>>,
+  work: (client: ReturnType<typeof accessDocumentsClient>) => Promise<SelfAccessResult<T>>,
 ) {
-  return withViewerClient(selfAccessDocumentsClient, work);
+  return withViewerClient(accessDocumentsClient, work);
 }
 
 export const findDeclarants = createServerFn({ method: 'GET' })

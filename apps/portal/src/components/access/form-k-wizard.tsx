@@ -7,6 +7,7 @@ import {
   SectionNav,
   type SectionNavSection,
   Spinner,
+  useIdempotencyKey,
 } from '@adili/ui';
 import {
   AlertCircleIcon,
@@ -109,7 +110,7 @@ export function FormKWizard({
   const [failure, setFailure] = useState<Failure>(null);
   const [busy, setBusy] = useState(false);
   /** One key per body: a retry of the same form replays, an edited form is a new request. */
-  const attempt = useRef<{ key: string; body: string } | null>(null);
+  const idempotencyKey = useIdempotencyKey();
   const heading = useRef<HTMLHeadingElement>(null);
   const moved = useRef(false);
 
@@ -176,14 +177,13 @@ export function FormKWizard({
     }
     const parsed = formKDraftSchema.safeParse(draft);
     if (!parsed.success) return;
-    const body = JSON.stringify(parsed.data);
-    if (attempt.current?.body !== body) {
-      attempt.current = { key: crypto.randomUUID(), body };
-    }
     setBusy(true);
     setFailure(null);
     try {
-      const result = await submit({ draft: parsed.data, idempotencyKey: attempt.current.key });
+      const result = await submit({
+        draft: parsed.data,
+        idempotencyKey: idempotencyKey.keyFor(parsed.data),
+      });
       switch (result.status) {
         case 'submitted':
           onSubmitted({ id: result.id, reference: result.reference });
@@ -240,11 +240,15 @@ export function FormKWizard({
             }}
             footer={
               <>
-                {commission ? <span className="text-foreground">{commission.name}</span> : null}
-                <span className="flex items-center gap-2 [&_svg]:size-4">
-                  <Icon icon={Clock01Icon} />
-                  {COPY.decisionWithin}
-                </span>
+                {commission ? (
+                  <>
+                    <span className="text-foreground">{commission.name}</span>
+                    <span className="flex items-center gap-2 [&_svg]:size-4">
+                      <Icon icon={Clock01Icon} />
+                      {COPY.decisionWithin(commission.decisionDays)}
+                    </span>
+                  </>
+                ) : null}
               </>
             }
           />

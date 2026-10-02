@@ -135,8 +135,8 @@ export const en = {
   readOnlyTitle: 'Only the access officer decides',
   readOnlyText: 'Supervisors can read requests and decisions.',
   decidedTitle: 'Already decided',
-  decidedText: (name: string, date: string) =>
-    `Decided by ${name} on ${date}. Decisions are final.`,
+  decidedText: (name: string | null, date: string) =>
+    `Decided${name ? ` by ${name}` : ''} on ${date}. Decisions are final.`,
   backToRequest: 'Back to request',
   cancel: 'Cancel',
   verifyFirst:

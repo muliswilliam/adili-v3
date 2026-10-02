@@ -14,12 +14,12 @@ import {
   Label,
   ScopePicker,
   Textarea,
+  formatPhone,
 } from '@adili/ui';
 import { Alert02Icon, LockIcon, PencilEdit02Icon, Tick02Icon } from '@hugeicons/core-free-icons';
 import { type ReactNode, useId } from 'react';
 
 import { day, FORM_K_COPY as COPY, STEPS } from '../../access/copy';
-import { displayPhone } from '../../access/format';
 import {
   DECLARATION_TEXT,
   type FormKDraft,
@@ -137,7 +137,7 @@ export function AccountParticulars({ applicant }: { applicant: Applicant }) {
           </span>
         </AccountItem>
         <AccountItem term={COPY.telephone}>
-          {applicant.telephone ? displayPhone(applicant.telephone) : '-'}
+          {applicant.telephone ? formatPhone(applicant.telephone) : '-'}
         </AccountItem>
         <AccountItem term={COPY.email}>{applicant.email ?? '-'}</AccountItem>
       </dl>
@@ -451,7 +451,7 @@ export function DeclareStep({
             <PartRow term={COPY.postalAddress}>{draft.postalAddress.trim()}</PartRow>
             <PartRow term={COPY.physicalAddress}>{draft.physicalAddress.trim()}</PartRow>
             <PartRow term={COPY.telephone}>
-              {applicant.telephone ? displayPhone(applicant.telephone) : '-'}
+              {applicant.telephone ? formatPhone(applicant.telephone) : '-'}
             </PartRow>
             <PartRow term={COPY.email}>{applicant.email ?? '-'}</PartRow>
             <PartRow term={COPY.occupation}>{draft.occupation.trim()}</PartRow>

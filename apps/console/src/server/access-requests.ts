@@ -6,7 +6,7 @@ import {
   PROOF_CONTENT_TYPES,
   PROOF_MAX_BYTES,
 } from '../components/access/self-access/proof-upload';
-import { selfAccessDocumentsClient } from './access/documents-client.server';
+import { accessDocumentsClient } from './access/documents-client.server';
 import {
   decisionInputSchema,
   representationsInputSchema,
@@ -28,6 +28,7 @@ import {
   loadQueue,
   loadRequest,
   previewScope,
+  recordDecisionWrittenNotice,
   recordWrittenNotice,
   resolveOfficer,
   searchRoster,
@@ -110,6 +111,14 @@ export const recordAccessWrittenNotice = createServerFn({ method: 'POST' })
     ),
   );
 
+export const recordAccessDecisionWrittenNotice = createServerFn({ method: 'POST' })
+  .validator(writtenNoticeSchema.extend({ requestId: id, idempotencyKey: id }))
+  .handler(({ data }): Promise<AccessResult<OfficerRequestView>> =>
+    asAccessViewer((client) =>
+      recordDecisionWrittenNotice(client, data.requestId, data.notifiedOn, data.idempotencyKey),
+    ),
+  );
+
 export const enterWrittenRepresentations = createServerFn({ method: 'POST' })
   .validator(z.object({ requestId: id, input: representationsInputSchema, idempotencyKey: id }))
   .handler(({ data }): Promise<AccessResult<OfficerRequestView>> =>
@@ -132,7 +141,7 @@ export const createRepresentationScanUpload = createServerFn({ method: 'POST' })
     }),
   )
   .handler(({ data: { idempotencyKey, ...input } }): Promise<SelfAccessResult<UploadReservation>> =>
-    withViewerClient(selfAccessDocumentsClient, (client) =>
+    withViewerClient(accessDocumentsClient, (client) =>
       reserveProofUpload(client, input, idempotencyKey),
     ),
   );
@@ -140,7 +149,7 @@ export const createRepresentationScanUpload = createServerFn({ method: 'POST' })
 export const completeRepresentationScan = createServerFn({ method: 'POST' })
   .validator(z.object({ id, idempotencyKey: id }))
   .handler(({ data }): Promise<SelfAccessResult<Upload>> =>
-    withViewerClient(selfAccessDocumentsClient, (client) =>
+    withViewerClient(accessDocumentsClient, (client) =>
       completeProofUpload(client, data.id, data.idempotencyKey),
     ),
   );

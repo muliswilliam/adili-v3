@@ -150,6 +150,47 @@ describe('a law enforcement request, for the access officer (spec 10 FE-6, S11)'
     expect((await requestOf(L.received)).status).toBe('verified');
   });
 
+  it('S11: a retry keeps its Idempotency-Key; another roster record after a refusal gets a new one', async () => {
+    renderDetail(await requestOf(L.received));
+    const card = within(side()).getByRole('region', { name: 'Verify' });
+    vi.mocked(verifyLea)
+      .mockClear()
+      .mockResolvedValueOnce({ ok: false, error: { kind: 'unavailable', detail: null } })
+      .mockResolvedValueOnce({ ok: false, error: { kind: 'unavailable', detail: null } });
+    const keys = () => vi.mocked(verifyLea).mock.calls.map(([call]) => call.data.idempotencyKey);
+    const submit = () => {
+      fireEvent.click(within(card).getByRole('button', { name: 'Record verification' }));
+    };
+
+    fireEvent.click(await within(card).findByRole('radio', { name: /Grace Nyambura Kamau/ }));
+    fireEvent.click(within(card).getByRole('checkbox', { name: 'Agency and officer confirmed' }));
+    fireEvent.click(within(card).getByRole('checkbox', { name: 'Reason for access stated' }));
+    fireEvent.change(within(card).getByRole('textbox', { name: /Note/ }), {
+      target: { value: 'Provisioned DCI account; case reference stated.' },
+    });
+    submit();
+    await waitFor(() => {
+      expect(keys()).toHaveLength(1);
+    });
+    // Tried again as it was: the same key, so the service answers once.
+    submit();
+    await waitFor(() => {
+      expect(keys()).toHaveLength(2);
+    });
+    expect(keys()[1]).toBe(keys()[0]);
+    // Another record is another command: the service keeps the first answer under the old key.
+    const search = within(card).getByRole('searchbox');
+    fireEvent.change(search, { target: { value: 'Adhiambo' } });
+    const form = search.closest('form');
+    if (form) fireEvent.submit(form);
+    fireEvent.click(await within(card).findByRole('radio', { name: /Josephine Adhiambo Ouma/ }));
+    submit();
+    await waitFor(() => {
+      expect(keys()).toHaveLength(3);
+    });
+    expect(keys()[2]).not.toBe(keys()[1]);
+  });
+
   it('offers a denial for a request that cannot be verified', async () => {
     renderDetail(await requestOf(L.received));
     const link = within(side()).getByRole('link', { name: 'Deny the request' });

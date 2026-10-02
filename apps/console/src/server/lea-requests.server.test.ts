@@ -169,7 +169,8 @@ describe("the law enforcement officer's requests (S11)", () => {
     if (!result.ok) throw new Error('not ok');
     const actors = result.data.timeline.flatMap((entry) => (entry.actor ? [entry.actor] : []));
     expect(new Set(actors)).toEqual(new Set(['Suleiman Ali']));
-    expect(result.data.verification?.by.name).toBe('');
+    expect(result.data.verification?.by).toBeNull();
+    expect(result.data.decision?.decidedBy).toBeNull();
   });
 
   it("finds another officer's request not found", async () => {

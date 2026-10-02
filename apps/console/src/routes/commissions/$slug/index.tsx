@@ -8,6 +8,7 @@ import {
   formatDateTime,
   Icon,
   useToast,
+  formatPhone,
 } from '@adili/ui';
 import {
   AlertCircleIcon,
@@ -39,7 +40,6 @@ import {
   ReadOnlyBadge,
 } from '../../../components/commissions/badges';
 import { messages as m } from '../../../components/commissions/messages';
-import { formatPhone } from '../../../components/commissions/phone';
 import { resendOutcome } from '../../../components/commissions/resend';
 import { RosterCard } from '../../../components/commissions/roster-card';
 import { CursorPager } from '../../../components/cursor-pager';

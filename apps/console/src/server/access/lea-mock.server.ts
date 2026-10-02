@@ -67,9 +67,9 @@ const ACCESS_OFFICER_NAME = 'Lucy Wambui';
 const DEMO_OFFICER = { subject: 'mock-lea-officer', name: 'Suleiman Ali' };
 
 export const MOCK_COMMISSIONS: AccessCommission[] = [
-  { slug: 'jsc', name: 'Judicial Service Commission', years: [2025, 2026] },
-  { slug: 'psc', name: 'Public Service Commission', years: [2025, 2026] },
-  { slug: 'tsc', name: 'Teachers Service Commission', years: [2026] },
+  { slug: 'jsc', name: 'Judicial Service Commission', years: [2025, 2026], decisionDays: 30 },
+  { slug: 'psc', name: 'Public Service Commission', years: [2025, 2026], decisionDays: 30 },
+  { slug: 'tsc', name: 'Teachers Service Commission', years: [2026], decisionDays: 30 },
 ];
 
 const AGENCIES = {
@@ -640,9 +640,8 @@ function asOfficerView(request: LeaRequest): LeaRequest {
     declarantOnboarded: null,
     declarantInvitedAt: null,
     declarantNotice: null,
-    verification: request.verification
-      ? { ...request.verification, by: { subject: '', name: '' }, note: '' }
-      : null,
+    verification: request.verification ? { ...request.verification, by: null, note: '' } : null,
+    decision: request.decision ? { ...request.decision, decidedBy: null } : null,
     timeline: request.timeline.map((each) =>
       OWN_STEPS.includes(each.kind) ? each : { ...each, actor: null },
     ),
