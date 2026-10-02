@@ -83,7 +83,7 @@ Schemas changed:
 
 ## Notifications (`internal/notifications.yaml`)
 
-- `TemplateId` gained the access templates (email and SMS each). Spec 10 drafted `access-request-notified`, `access-decision-applicant`, `access-decision-declarant`, `access-package-ready`, `access-officer-reminder`, `lea-grant-notice`, `lea-decision`, `certified-copy-ready` (#258). `access-acknowledgement` was added for the receipt (#250).
+- `TemplateId` gained the access templates (email and SMS each). Spec 10 drafted `access-request-notified`, `access-decision-applicant`, `access-decision-declarant`, `access-package-ready`, `access-officer-reminder`, `lea-grant-notice`, `lea-decision`, `certified-copy-ready` (#258). `access-acknowledgement` was added for the receipt (#250). `access-nil-letter-ready` (same params as `access-package-ready`) announces a nil letter instead of a package: the Commission holds no declaration within the granted scope, so it carries no warning about sharing what it discloses.
 
 ## Reporting: access events for Form M section 5
 

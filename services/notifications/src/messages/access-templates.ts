@@ -13,8 +13,8 @@ import { define, email, longDate, NEVER_ASKS, paragraph, signInParagraph } from 
 /**
  * Templates of access to declarations (spec 10): to the declarant (a request was made, what was
  * decided, a law-enforcement grant), to the applicant (the acknowledgement of their Form K) or
- * law-enforcement officer (the decision, the package), to the access officer (reminders, a
- * law-enforcement request withdrawn) and the declarant's certified copy. They name
+ * law-enforcement officer (the decision, the package or the nil letter), to the access officer
+ * (reminders, a law-enforcement request withdrawn) and the declarant's certified copy. They name
  * the request and the Commission only: who asked, why, and what was disclosed stay behind
  * sign-in.
  */
@@ -261,6 +261,27 @@ function packageReadyEmail(params: PackageReadyParams) {
   ]);
 }
 
+/**
+ * A grant whose scope holds no declaration at the Commission: the recipient gets the signed letter
+ * saying so (the nil letter), on the same watermark, window and download path as a package. It
+ * discloses nothing, so there is no republication warning.
+ */
+function nilLetterReadyEmail(params: PackageReadyParams) {
+  return email(`Your letter for ${params.reference} is ready`, [
+    paragraph(
+      `${params.commissionName} holds no declaration within the access it granted on request ${params.reference}, so there is nothing to disclose. Its signed letter saying so is ready.`,
+    ),
+    paragraph(
+      `You can download the letter until ${longDate(params.downloadUntil)}; after that it can no longer be downloaded.`,
+    ),
+    signInParagraph(
+      params.signInUrl,
+      'to download it. It is not attached to this email, so that only you can open it.',
+    ),
+    paragraph(NEVER_ASKS),
+  ]);
+}
+
 // ---- To the access officer ----
 
 /**
@@ -446,6 +467,20 @@ export const accessTemplates = {
     copy: {
       en: (params) => ({
         text: `Adili: your access package for ${params.reference} is ready. Download it by ${longDate(params.downloadUntil)} at ${params.signInUrl}`,
+      }),
+    },
+  }),
+  'access-nil-letter-ready-email': define({
+    channel: 'email',
+    params: packageReadyParams,
+    copy: { en: nilLetterReadyEmail },
+  }),
+  'access-nil-letter-ready-sms': define({
+    channel: 'sms',
+    params: packageReadyParams,
+    copy: {
+      en: (params) => ({
+        text: `Adili: the Commission holds no declaration within the grant on ${params.reference}. Download its signed letter by ${longDate(params.downloadUntil)} at ${params.signInUrl}`,
       }),
     },
   }),

@@ -10,7 +10,7 @@ import { declarantAccount } from '../declarant-account.js';
 import { DeclarationsClient } from '../declarations/declarations-client.js';
 import { DirectoryClient } from '../directory/directory-client.js';
 import { DocumentsClient } from '../documents/documents-client.js';
-import { issueGrantDocument } from '../grant-documents.js';
+import { issueGrantDocument, readyTemplate } from '../grant-documents.js';
 import { NotificationsClient } from '../notifications/notifications-client.js';
 import { AccessRegister } from '../register/access-register.js';
 import { ReviewClient } from '../review/review-client.js';
@@ -390,8 +390,8 @@ export class LeaRequestActivities {
   }
 
   /**
-   * Tells the officer their package is ready, with the last day they can download it; the
-   * download itself is theirs, in the console, with their own token.
+   * Tells the officer their package (or nil letter) is ready, with the last day they can download
+   * it; the download itself is theirs, in the console, with their own token.
    */
   async leaPackageReady({
     tenant,
@@ -404,7 +404,7 @@ export class LeaRequestActivities {
       await send(this.notifications, this.logger, found, {
         channel,
         recipient: { kind: 'person', personId: found.officerPersonId },
-        template: `access-package-ready-${channel}`,
+        template: `${readyTemplate(found.packageKind)}-${channel}`,
         params: {
           reference: found.reference,
           commissionName: found.commissionName,

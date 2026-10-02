@@ -289,7 +289,7 @@ describe("A grant's package: downloads and expiry (S7)", () => {
       expect(failure).toMatchObject({ type: INVARIANT_BROKEN, nonRetryable: true });
     });
 
-    it('nothing of the declarant in the granted scope: the nil letter is issued as the package, and announced', async () => {
+    it('nothing of the declarant in the granted scope: the nil letter is issued as the package, and announced as a nil letter', async () => {
       const { input, row } = await granted({ disclose: false });
 
       const issued = await api.eventually(async () => {
@@ -330,14 +330,22 @@ describe("A grant's package: downloads and expiry (S7)", () => {
 
       const sent = await api.eventually(() => {
         const ready = api.notifications.sent.filter((m) =>
-          m.template.startsWith('access-package-ready'),
+          m.template.startsWith('access-nil-letter-ready'),
         );
         return ready.length === 2 ? ready : undefined;
       });
+      expect(sent.map((m) => m.template).sort()).toEqual([
+        'access-nil-letter-ready-email',
+        'access-nil-letter-ready-sms',
+      ]);
       expect(sent[0]).toMatchObject({
         recipient: { kind: 'person', personId: mercy.personId },
-        params: { reference: row.reference },
+        params: { reference: row.reference, downloadUntil: expect.any(String) as unknown },
       });
+      // Not announced as a package: it discloses nothing.
+      expect(api.notifications.sent.map((m) => m.template)).not.toContain(
+        'access-package-ready-email',
+      );
       const request = await mine(row.id);
       expect(contractErrors(okResponse('/v1/access/requests/{requestId}', 'get'), request)).toEqual(
         [],

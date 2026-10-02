@@ -62,6 +62,17 @@ export interface GrantDocumentDeps {
   logger: Logger;
 }
 
+/**
+ * The template that tells the recipient their grant's document is ready: a nil letter discloses
+ * nothing, so it is not announced as a package (no s.36(4) warning about sharing what it discloses).
+ * Null is a package issued before its kind was recorded (backfilled since, migration 0010).
+ */
+export function readyTemplate(
+  kind: PackageKind | null,
+): 'access-package-ready' | 'access-nil-letter-ready' {
+  return kind === 'nil-letter' ? 'access-nil-letter-ready' : 'access-package-ready';
+}
+
 /** The document a grant delivered, and which. */
 export interface GrantDocument {
   kind: PackageKind;

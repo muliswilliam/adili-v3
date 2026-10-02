@@ -139,6 +139,17 @@ describe('Law enforcement grants to an officer with no account: written notice',
         },
       },
     ]);
+    // The officer is told the letter is ready, not that a package is.
+    const ready = await api.eventually(() => {
+      const found = api.notifications.sent.filter((m) =>
+        m.template.startsWith('access-nil-letter-ready'),
+      );
+      return found.length === 2 ? found : undefined;
+    });
+    expect(ready[0]).toMatchObject({ params: { reference: issued.reference } });
+    expect(api.notifications.sent.map((message) => message.template)).not.toContain(
+      'access-package-ready-email',
+    );
 
     api.clock.set(RECORDED_AT);
     const response = await recordNotice(id, { notifiedOn: NOTIFIED_ON });
