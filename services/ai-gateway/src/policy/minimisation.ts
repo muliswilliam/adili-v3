@@ -307,22 +307,55 @@ function normalised(value: string, compact: boolean): string {
   return compact ? lower.replace(SEPARATORS, '') : lower;
 }
 
+/** A Kenyan number's country (+254, 254) or trunk (0) prefix, before its nine digits. */
+const KENYAN_PREFIX = /^(?:254|0)(?=\d{9}$)/u;
+
+/**
+ * A phone number as matched: its digits, a Kenyan one without its prefix, so `+254 712 345 678`,
+ * `254712345678` and `0712 345 678` are one number.
+ */
+function phoneDigits(value: string): string {
+  return value.replace(/\D/gu, '').replace(KENYAN_PREFIX, '');
+}
+
 /**
  * Finds the known value (as written in its field) and class behind a match of the known-values
- * pattern; the first value collected wins when two differ only in case or separators.
+ * pattern; the first value collected wins when two differ only in case, separators or (a phone
+ * number) its prefix.
  */
 function knownLookup(
   known: ReadonlyMap<string, IdentifierClass>,
 ): (match: string) => { value: string; cls: IdentifierClass } | undefined {
   const exact = new Map<string, { value: string; cls: IdentifierClass }>();
   const compact = new Map<string, { value: string; cls: IdentifierClass }>();
+  const phones = new Map<string, { value: string; cls: IdentifierClass }>();
   for (const [value, cls] of known) {
     const isCompact = COMPACT_CLASSES.has(cls);
-    const map = isCompact ? compact : exact;
-    const key = normalised(value, isCompact);
+    const [map, key] =
+      cls === 'PHONE' && /\d/u.test(value)
+        ? [phones, phoneDigits(value)]
+        : [isCompact ? compact : exact, normalised(value, isCompact)];
     if (!map.has(key)) map.set(key, { value, cls });
   }
-  return (match) => exact.get(normalised(match, false)) ?? compact.get(normalised(match, true));
+  return (match) =>
+    exact.get(normalised(match, false)) ??
+    compact.get(normalised(match, true)) ??
+    phones.get(phoneDigits(match));
+}
+
+/**
+ * The pattern of a known phone number: its digits with spaces or dashes between them, a Kenyan
+ * one after any of its prefixes (+254, 254, 0).
+ */
+function phoneAlternative(value: string): string {
+  const separated = (digits: string) => Array.from(digits).join(String.raw`[\s-]*`);
+  const digits = value.replace(/\D/gu, '');
+  const core = phoneDigits(value);
+  if (core === digits) {
+    // Not Kenyan: as written, with its + if any.
+    return (value.trim().startsWith('+') ? String.raw`\+[\s-]*` : '') + separated(digits);
+  }
+  return String.raw`(?:\+?[\s-]*${separated('254')}|0)[\s-]*` + separated(core);
 }
 
 /**
@@ -334,11 +367,14 @@ function alternation(known: ReadonlyMap<string, IdentifierClass>): RegExp | unde
   const sorted = [...known].sort(([a], [b]) => b.length - a.length || (a < b ? -1 : a > b ? 1 : 0));
   const escape = (text: string): string => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   const alternatives = sorted.map(([value, cls]) =>
-    COMPACT_CLASSES.has(cls)
-      ? Array.from(value.replace(SEPARATORS, ''))
-          .map(escape)
-          .join(String.raw`[\s-]*`)
-      : escape(value),
+    // A phone field without digits ("none") is matched as written.
+    cls === 'PHONE' && /\d/u.test(value)
+      ? phoneAlternative(value)
+      : COMPACT_CLASSES.has(cls)
+        ? Array.from(value.replace(SEPARATORS, ''))
+            .map(escape)
+            .join(String.raw`[\s-]*`)
+        : escape(value),
   );
   return new RegExp(`${EDGE_BEFORE}(?:${alternatives.join('|')})${EDGE_AFTER}`, 'giu');
 }

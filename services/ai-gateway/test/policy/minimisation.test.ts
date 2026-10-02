@@ -156,6 +156,29 @@ describe('minimise (spec 07c S3)', () => {
     expect(minimised.restore({ text: '[[ID_1]]' })).toEqual({ text: '28765432' });
   });
 
+  it('finds a known phone number written with +254 or 0, under the same token (review N18)', () => {
+    const minimised = minimise({
+      phone: '+254 712 345 678',
+      note: 'Call 0712 345 678, 0712-345678, +254712345678 or 254 712 345 678; not 0712 345 679.',
+    });
+
+    expect(minimised.input).toEqual({
+      phone: '[[PHONE_1]]',
+      note: 'Call [[PHONE_1]], [[PHONE_1]], [[PHONE_1]] or [[PHONE_1]]; not [[PHONE_2]].',
+    });
+    expect(minimised.restore({ text: '[[PHONE_1]]' })).toEqual({ text: '+254 712 345 678' });
+    // A phone field without digits stays a word, not a pattern that matches anything.
+    expect(minimise({ phone: 'none', note: 'Call none of 0712 345 678.' }).input).toEqual({
+      phone: '[[PHONE_1]]',
+      note: 'Call [[PHONE_1]] of [[PHONE_2]].',
+    });
+    // And the other way round: a field in the national form, text in the international one.
+    expect(minimise({ phone: '0712345678', note: 'On +254 712 345 678.' }).input).toEqual({
+      phone: '[[PHONE_1]]',
+      note: 'On [[PHONE_1]].',
+    });
+  });
+
   it('replaces dates and places of birth, and bank account numbers in free text (review Q14)', () => {
     const minimised = minimise({
       birth: { date: '1974-03-12', place: 'Kisumu' },
