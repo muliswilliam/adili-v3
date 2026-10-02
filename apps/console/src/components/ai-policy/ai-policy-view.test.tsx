@@ -574,6 +574,45 @@ describe('S16 AI policy: routing', () => {
     });
   });
 
+  it('N20 goes back to the edit step when the gateway refuses the approval reference', async () => {
+    // The gateway's 400 names the field that failed; the shared problem type doesn't carry it.
+    const problem = {
+      type: 'about:blank',
+      title: 'Bad Request',
+      status: 400,
+      errors: [{ path: '/approvalRef', message: 'Too long' }],
+    };
+    const removeRoute = vi
+      .fn<RemoveRoute>()
+      .mockResolvedValue({ ok: false, error: { kind: 'problem', problem } });
+    renderView({ search: { tab: 'routing' }, removeRoute });
+
+    fireEvent.click(
+      screen.getByRole('button', {
+        name: 'Edit route of draft-clarification for Public Service Commission',
+      }),
+    );
+    fireEvent.change(
+      within(screen.getByRole('dialog', { name: 'Edit route' })).getByLabelText(
+        /^Record the approval reference/,
+      ),
+      { target: { value: 'EACC/AI/2026/032' } },
+    );
+    fireEvent.click(
+      within(screen.getByRole('dialog', { name: 'Edit route' })).getByRole('button', {
+        name: 'Remove route',
+      }),
+    );
+    fireEvent.click(
+      within(screen.getByRole('dialog', { name: 'Remove this route?' })).getByRole('button', {
+        name: 'Remove route',
+      }),
+    );
+
+    const dialog = within(await screen.findByRole('dialog', { name: 'Edit route' }));
+    expect(dialog.getByText('Enter the approval reference.')).toBeTruthy();
+  });
+
   it('Q20 resets an edited default route to the configured provider, after a confirm', async () => {
     const removeRoute = vi.fn<RemoveRoute>().mockResolvedValue({ ok: true, data: null });
     renderView({ search: { tab: 'routing' }, removeRoute });

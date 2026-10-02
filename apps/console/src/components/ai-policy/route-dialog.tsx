@@ -120,8 +120,11 @@ export function RouteDialog(props: RouteDialogProps) {
     if (error.kind === 'problem' && error.problem.status === 400) {
       const paths = problemPaths(error.problem);
       if (paths.includes('provider')) setServerErrors({ provider: m.routeProviderUnknown });
-      else if (paths.includes('approvalRef'))
+      else if (paths.includes('approvalRef')) {
+        // The field lives on the edit step; a removal refused for it goes back there (N20).
         setServerErrors({ approvalRef: m.approvalRefRequired });
+        setStep('edit');
+      }
       setFailure(m.routeRejected);
       return;
     }
@@ -387,7 +390,7 @@ export function RouteDialog(props: RouteDialogProps) {
                       controlId={field('timeoutSeconds')}
                     >
                       <Input
-                        inputMode="numeric"
+                        inputMode="decimal"
                         autoComplete="off"
                         className="tabular-nums"
                         value={draft.timeoutSeconds}
