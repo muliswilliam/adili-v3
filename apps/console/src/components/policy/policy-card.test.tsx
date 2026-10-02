@@ -189,3 +189,44 @@ describe('S19 change dialog', () => {
     expect(dateInput().value).toBe('2026-08-03');
   });
 });
+
+describe('S16 AI status line', () => {
+  const renderWithStatus = (aiStatus: Parameters<typeof PolicyCard>[0]['aiStatus']) =>
+    render(
+      <ToastProvider>
+        <PolicyCard
+          history={{ current: v1, previous: [] }}
+          aiStatus={aiStatus}
+          onUnauthenticated={vi.fn()}
+        />
+      </ToastProvider>,
+    );
+  const aiRow = () => {
+    const term = screen.getByText('AI assistance');
+    return term.parentElement?.textContent;
+  };
+
+  it('says AI assistance is enabled and how, read only', () => {
+    renderWithStatus({
+      ok: true,
+      data: { enabled: true, providerClass: 'external', dataClasses: ['synthetic'] },
+    });
+    expect(aiRow()).toBe('AI assistanceEnabledExternal provider, synthetic data only');
+    expect(screen.queryByRole('button', { name: /edit|change/i })).toBeNull();
+  });
+
+  it('says it is not enabled and that no declaration data leaves', () => {
+    renderWithStatus({ ok: true, data: { enabled: false, providerClass: null, dataClasses: [] } });
+    expect(aiRow()).toBe('AI assistanceNot enabledNo declaration data is sent to an AI provider');
+  });
+
+  it('says when the status could not be checked', () => {
+    renderWithStatus({ ok: false, error: { kind: 'unavailable', detail: null } });
+    expect(aiRow()).toBe('AI assistanceCould not be checked. Reload the page to try again.');
+  });
+
+  it('has no AI row without a status (platform admins on a Commission page)', () => {
+    renderWithStatus(undefined);
+    expect(screen.queryByText('AI assistance')).toBeNull();
+  });
+});

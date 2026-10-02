@@ -20,6 +20,9 @@
  * clarification makes the case ready for determination. Downloads point at
  * `/api/mock-files/{id}` (`routes/api/mock-files.$id.ts`). The copilot endpoints (spec 07c),
  * and the flags and declaration document of the cases, come from `copilot-mock.server.ts`.
+ *
+ * A Commission's AI status (`GET /v1/commissions/{slug}/ai-status`, spec 07c) comes from the
+ * ai-gateway mock's store, as the service proxies the gateway; the mock does not check roles.
  */
 import { randomUUID } from 'node:crypto';
 
@@ -28,6 +31,7 @@ import { addDays } from '@adili/ui';
 import createClient from 'openapi-fetch';
 
 import { isOutstanding } from '../../clarification/labels';
+import { mockTenantAiStatus } from '../ai-gateway/mock.server';
 import { isRecord, json, problem, readJson } from '../mock-http';
 import type { paths } from './api.gen';
 import { copilotRoute, mockCaseContent, resetCopilotMock } from './copilot-mock.server';
@@ -365,6 +369,12 @@ async function route(request: Request): Promise<Response> {
   const { pathname } = new URL(request.url);
   const method = request.method;
   const caller = callerOf(request);
+
+  const aiStatus = /^\/v1\/commissions\/([^/]+)\/ai-status$/.exec(pathname);
+  if (method === 'GET' && aiStatus?.[1]) {
+    // The review service proxies the gateway's tenant status; so does the mock (spec 07c).
+    return json(200, mockTenantAiStatus(aiStatus[1]));
+  }
 
   const attachment = /^\/v1\/review\/cases\/([^/]+)\/attachments\/([^/]+)\/download$/.exec(
     pathname,
