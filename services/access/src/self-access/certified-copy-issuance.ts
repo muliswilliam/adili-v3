@@ -1,20 +1,17 @@
-import { Injectable, Logger, Module } from '@nestjs/common';
-import { errorType } from '@adili/api-kit';
+import { Injectable, Module } from '@nestjs/common';
 import { InjectTemporalClient } from '@adili/temporal';
-import { type Client, WorkflowExecutionAlreadyStartedError } from '@temporalio/client';
+import type { Client } from '@temporalio/client';
 import { and, eq, isNull } from 'drizzle-orm';
 import { v7 as uuidv7 } from 'uuid';
 
-import { config } from '../config.js';
 import type { AccessTransaction } from '../db/database.js';
-import { workflowUnavailable } from '../problems.js';
+import { currentTransactionId, startWorkflow } from '../workflow-control.js';
 import {
   CERTIFIED_COPY_WORKFLOW,
   type CertifiedCopyWorkflowInput,
   certifiedCopyWorkflowId,
 } from './contract.js';
 import { certifiedCopies } from './schema.js';
-import type { certifiedCopy } from './workflows.js';
 
 export type CertifiedCopyRow = typeof certifiedCopies.$inferSelect;
 
@@ -37,11 +34,12 @@ export interface CertifiedCopyOrder {
 /**
  * Orders certified copies (spec 10, Administrative Mechanism 32): the one way a copy comes to be,
  * whether the declarant asks in the portal or the access officer records a written application
- * (#303). The copy is recorded `pending` and `CertifiedCopyWorkflow` started as the last step of
- * the caller's transaction, which must run in the Commission's context: Temporal unreachable is
- * 503 and nothing is recorded. The workflow fetches the version in full from declarations, has
- * documents issue it as the declarant's Restricted `certified-copy` and registers it
- * `self-access` (`CertifiedCopyActivities`).
+ * (#303). The copy is recorded `pending` and `CertifiedCopyWorkflow` started in the caller's
+ * transaction, which must run in the Commission's context, before it commits: Temporal
+ * unreachable is 503 and nothing is recorded, and the workflow reads the copy only once that
+ * transaction has ended (workflow-control.ts). The workflow fetches the version in full from
+ * declarations, has documents issue it as the declarant's Restricted `certified-copy` and
+ * registers it `self-access` (`CertifiedCopyActivities`).
  *
  * One copy per version and way of asking (per application): ordering it again returns it as it
  * is (a pending one with its workflow started again should it have stopped), and a failed one is
@@ -49,13 +47,17 @@ export interface CertifiedCopyOrder {
  */
 @Injectable()
 export class CertifiedCopyIssuance {
-  private readonly logger = new Logger(CertifiedCopyIssuance.name);
-
   constructor(@InjectTemporalClient() private readonly temporal: Client) {}
 
   async order(tx: AccessTransaction, order: CertifiedCopyOrder): Promise<CertifiedCopyRow> {
     const copy = await this.record(tx, order);
-    if (copy.status === 'pending') await this.start({ tenant: copy.tenant, copyId: copy.id });
+    if (copy.status === 'pending') {
+      await this.start({
+        tenant: copy.tenant,
+        copyId: copy.id,
+        transactionId: await currentTransactionId(tx),
+      });
+    }
     return copy;
   }
 
@@ -116,25 +118,12 @@ export class CertifiedCopyIssuance {
   }
 
   private async start(input: CertifiedCopyWorkflowInput): Promise<void> {
-    try {
-      // By name: workflow code is loaded by the worker's bundler, not by this process.
-      await this.temporal.workflow.start<typeof certifiedCopy>(CERTIFIED_COPY_WORKFLOW, {
-        taskQueue: config.TEMPORAL_TASK_QUEUE,
-        workflowId: certifiedCopyWorkflowId(input.copyId),
-        args: [input],
-        workflowIdConflictPolicy: 'USE_EXISTING',
-        workflowIdReusePolicy: 'ALLOW_DUPLICATE',
-      });
-    } catch (error) {
-      if (error instanceof WorkflowExecutionAlreadyStartedError) return;
-      this.logger.error(
-        { copyId: input.copyId, err: errorType(error) },
-        'Could not start CertifiedCopyWorkflow',
-      );
-      throw workflowUnavailable(
-        'The certified copy cannot be prepared right now. Try again shortly.',
-      );
-    }
+    await startWorkflow(this.temporal, {
+      type: CERTIFIED_COPY_WORKFLOW,
+      workflowId: certifiedCopyWorkflowId(input.copyId),
+      args: [input],
+      unavailable: 'The certified copy cannot be prepared right now. Try again shortly.',
+    });
   }
 }
 

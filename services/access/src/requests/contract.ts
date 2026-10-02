@@ -9,35 +9,49 @@
 /** Workflow type name, for starting by name (the worker bundles the code, not the caller). */
 export const ACCESS_REQUEST_WORKFLOW = 'accessRequest';
 
-/** One workflow per access request that goes ahead (`submitted`). */
+/** One workflow per access request, from receipt. */
 export function accessRequestWorkflowId(requestId: string): string {
   return `access-request:${requestId}`;
 }
 
 /**
- * The request the workflow follows, from the transaction that made it `submitted` (receipt, or
- * the access officer's verification of a passport applicant). Its clock runs from receipt.
+ * The request the workflow follows, from the transaction that received it (`submitted`, or
+ * `pending-applicant-verification` for a passport applicant). Its clock runs from receipt.
  */
 export interface AccessRequestWorkflowInput {
   tenant: string;
   requestId: string;
   /** ISO 8601: received (the reminders count their days from it). */
   submittedAt: string;
+  /**
+   * The receiving transaction (Postgres `xid8`): the workflow reads the request only once it has
+   * ended (workflow-control.ts).
+   */
+  transactionId: string;
 }
 
 /**
  * The signals that tell the workflow the request changed, sent once the transaction that changed
- * it commits: the access officer resolved the officer named (or recorded that they cannot be
- * identified), the declarant consented, the applicant withdrew, the access officer decided. They
- * only save waiting: the activities read the request before acting.
+ * it commits: the access officer verified a passport applicant, resolved the officer named (or
+ * recorded that they cannot be identified), the declarant consented, the applicant withdrew, the
+ * access officer decided. They only save waiting: every wait also reads the request every
+ * `REQUEST_CHECK_INTERVAL` (`requestState`), and the activities read it before acting, so a lost
+ * signal delays the workflow, never stalls it.
  */
-export const ACCESS_REQUEST_SIGNALS = ['resolved', 'consented', 'withdrawn', 'decided'] as const;
+export const ACCESS_REQUEST_SIGNALS = [
+  'verified',
+  'resolved',
+  'consented',
+  'withdrawn',
+  'decided',
+] as const;
 export type AccessRequestSignal = (typeof ACCESS_REQUEST_SIGNALS)[number];
 
 /**
- * Days after receipt the access officer is reminded (spec 10): to identify the officer at day
- * five while they have not, and of the decision deadline (day thirty) at days twenty and
- * twenty-eight. Day five also marks the request `officer-unresolved`.
+ * Days after receipt the access officer is reminded (spec 10): to identify the officer (or first
+ * to verify a passport applicant) at day five while they have not, and of the decision deadline
+ * (day thirty) at days twenty and twenty-eight. Day five also marks a request going ahead
+ * `officer-unresolved`.
  */
 export const IDENTIFY_REMINDER_DAY = 5;
 export const DEADLINE_REMINDER_DAYS = [20, 28] as const;
@@ -51,7 +65,7 @@ export interface OfficerReminderRequest extends AccessRequestWorkflowInput {
 /**
  * What a reminder did: sent to the Commission's access officers, `skipped` because the request no
  * longer waits for them on that point (resolved before day five, decided or closed), or the
- * request is `missing` (its receipt rolled back after the workflow started).
+ * request is `missing`.
  */
 export type OfficerReminderOutcome = 'sent' | 'skipped' | 'missing';
 
@@ -72,18 +86,34 @@ export type ResolutionOutcome =
 export type WindowOutcome = 'under-decision' | 'unchanged' | 'missing';
 
 /**
- * Where the request stands while the workflow waits for the decision, read from the request
- * itself when no signal came: still `undecided`, `decided` (granted, partially granted or
- * denied), `withdrawn`, or `missing`. A signal lost after its transaction committed is made up
- * for this way.
+ * Where the request stands, read from the request itself (`requestState`): first, once the
+ * receiving transaction has ended, then whenever a wait has had no signal for
+ * `REQUEST_CHECK_INTERVAL`. A signal lost after its transaction committed is made up for this way.
+ *
+ * - `held`: waiting for the access officer to verify a passport applicant;
+ * - `unresolved`: going ahead, the officer named not yet resolved;
+ * - `resolved`: the officer resolved to a roster record, or recorded as unidentifiable
+ *   (`cannot-identify`), and the declarant (or applicant) still to be told;
+ * - `awaiting-representations`: the declarant notified, their window open;
+ * - `under-decision`: the window closed (or the declarant consented);
+ * - `decided`: granted, partially granted or denied;
+ * - `withdrawn`, or `missing`: the receiving transaction rolled back.
  */
-export type DecisionState = 'undecided' | 'decided' | 'withdrawn' | 'missing';
+export type RequestState =
+  | 'held'
+  | 'unresolved'
+  | 'resolved'
+  | 'awaiting-representations'
+  | 'under-decision'
+  | 'decided'
+  | 'withdrawn'
+  | 'missing';
 
 /**
- * How often the workflow reads the request while it waits for the decision, in case the
- * `decided` or `withdrawn` signal was lost: the package of a grant is late by at most this.
+ * How often a waiting workflow reads the request, in case a signal was lost (milliseconds, six
+ * hours): a step that follows one is late by at most this.
  */
-export const DECISION_CHECK_INTERVAL = '6 hours';
+export const REQUEST_CHECK_INTERVAL = 6 * 60 * 60 * 1000;
 
 /**
  * What the decision's notices found: a grant (full or partial), whose package follows, a
@@ -102,7 +132,7 @@ export type PackageOutcome =
 /**
  * How a run ended: the applicant withdrew, the access officer decided (a grant's package issued
  * and its download window over), the officer named could not be identified, or the request was
- * not there (its receipt rolled back).
+ * not there (its receipt rolled back after the workflow started).
  */
 export interface AccessRequestResult {
   outcome: 'withdrawn' | 'decided' | 'cannot-identify' | 'missing';

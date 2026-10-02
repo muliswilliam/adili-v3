@@ -110,7 +110,7 @@ export class DocumentsUnavailable extends Error {
  * attached to representations. A Nest token: the service uses `HttpDocumentsClient`, tests a fake.
  */
 export abstract class DocumentsClient {
-  /** Throws `InternalApiRejected` when documents refuses the request. */
+  /** Throws `UpstreamRefused` when documents refuses the request. */
   abstract issue(request: IssueDocumentRequest): Promise<IssuedDocument>;
 
   /** Throws `UploadNotFound` or `UploadNotClean`. */

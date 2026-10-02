@@ -1,21 +1,23 @@
 /**
- * Another service refused a request (a write with a 4xx its contract names, or a read in a state
- * that refuses it, e.g. a referral with no roster record): the request itself is wrong, so
- * sending it again changes nothing. Activities do not retry it.
+ * Another service refused a call (a write with a 4xx its contract names, or a read in a state
+ * that refuses it): the call itself is wrong, so sending it again changes nothing. HTTP routes
+ * answer it with their own problem; workflow activities turn it into a non-retryable failure
+ * (`rethrowAsActivityFailure` in activity-failures.ts), so Temporal does not send it again.
  */
-export class InternalApiRejected extends Error {
+export class UpstreamRefused extends Error {
   constructor(
     readonly service: string,
     readonly status: number,
   ) {
     super(`The ${service} service refused the request with ${String(status)}`);
-    this.name = 'InternalApiRejected';
+    this.name = 'UpstreamRefused';
   }
 }
 
 /**
- * `ServiceClient.call` handlers turning each of `statuses` into `InternalApiRejected`; any other
- * status the caller did not expect stays the client's "unavailable" error, which is retried.
+ * `ServiceClient.call` handlers turning each of `statuses` into `UpstreamRefused`; any other
+ * status the caller did not expect stays the client's "unavailable" error: an outage, which
+ * activities retry (with bounded attempts, activity-retry.ts).
  */
 export function refusedWith(
   service: string,
@@ -25,7 +27,7 @@ export function refusedWith(
     statuses.map((status) => [
       status,
       (): never => {
-        throw new InternalApiRejected(service, status);
+        throw new UpstreamRefused(service, status);
       },
     ]),
   );

@@ -22,7 +22,7 @@ import {
   submitLea,
   verifyLea,
 } from '../support/lea.js';
-import { callers, declarantOf, givenCommissions } from '../support/requests.js';
+import { callers, declarantOf, ENDED_TRANSACTION, givenCommissions } from '../support/requests.js';
 
 /** Monday 11 January 2027, 10:00 in Nairobi. */
 const NOW = '2027-01-11T07:00:00.000Z';
@@ -439,5 +439,11 @@ describe('LeaRequestWorkflow and its activities (S11)', () => {
 });
 
 function workflowInput(requestId: string): LeaRequestWorkflowInput {
-  return { tenant: 'psc', requestId, receivedAt: NOW, deadlineAt: DEADLINE };
+  return {
+    tenant: 'psc',
+    requestId,
+    receivedAt: NOW,
+    deadlineAt: DEADLINE,
+    transactionId: ENDED_TRANSACTION,
+  };
 }

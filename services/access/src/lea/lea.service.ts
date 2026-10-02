@@ -23,6 +23,7 @@ import { AccessRegister, type RegisterRow } from '../register/access-register.js
 import type { RosterCandidates } from '../requests/officer-representation.js';
 import { rosterCandidates } from '../requests/roster-candidates.js';
 import { applicantTimeline, officerTimeline, registerEntriesOf } from '../requests/timeline.js';
+import { currentTransactionId } from '../workflow-control.js';
 import { LeaRequestWorkflows } from './lea-workflows.js';
 import {
   type LeaRequest,
@@ -61,9 +62,11 @@ export class LeaService {
    * of an agency in the directory, the one the token was issued to (403 otherwise); the request
    * is stored with its `LEA` reference (allocated at receipt), the agency and the account's
    * provenance, its fourteen-day deadline, the `received` register entry and its event, in one
-   * transaction of the Commission's context. `LeaRequestWorkflow` starts as its last step (503
-   * `workflow-unavailable` and nothing stored when Temporal cannot be reached). Nobody is told:
-   * the declarant only after a grant.
+   * transaction of the Commission's context. `LeaRequestWorkflow` starts in it, before the
+   * reference is allocated, so the per-Commission reference counter is not locked across the call
+   * to Temporal (503 `workflow-unavailable` and nothing stored when Temporal cannot be reached;
+   * workflow-control.ts says why the start comes before the commit). Nobody is told: the declarant
+   * only after a grant.
    */
   async submit(principal: Principal, input: LeaRequestInput): Promise<LeaRequest> {
     const personId = leaOfficerPersonId(principal);
@@ -77,6 +80,13 @@ export class LeaService {
       this.db,
       { tenant: commission.slug, subject: principal.subject },
       async (tx) => {
+        await this.workflows.start({
+          tenant: commission.slug,
+          requestId: id,
+          receivedAt: now.toISOString(),
+          deadlineAt: deadlineAt.toISOString(),
+          transactionId: await currentTransactionId(tx),
+        });
         const reference = await allocateReference(tx, LEA, {
           issuer: commission.issuerCode,
           period: nairobiYear(now),
@@ -118,13 +128,6 @@ export class LeaService {
           at: now,
           details: { agencyCode: officer.agency.code },
           eventData,
-        });
-        // Last, inside the transaction: a request never runs without its fourteen-day clock.
-        await this.workflows.start({
-          tenant: commission.slug,
-          requestId: id,
-          receivedAt: now.toISOString(),
-          deadlineAt: deadlineAt.toISOString(),
         });
         return { row: inserted, entry: received };
       },

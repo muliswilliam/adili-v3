@@ -327,18 +327,19 @@ describe('Resolving the officer a request names (S3)', () => {
   });
 
   describe("the request's workflow", () => {
-    it('starts at receipt for a submitted request, not for one held for verification', async () => {
+    it('starts at receipt for every request, held for verification or not (its reminders count from receipt)', async () => {
       givenCommissions(api, NOW);
       const submitted = await submitRequest(api);
       api.directory.givenApplicant(mercy.personId, 'pending-verification');
       const held = await submitRequest(api, { ...COMPLETE, responsibleCommission: 'tsc' });
 
+      expect(held.status).toBe('pending-applicant-verification');
       expect((await workflowOf(submitted.id).describe()).status.name).toBe('RUNNING');
-      await expect(workflowOf(held.id).describe()).rejects.toThrow();
+      expect((await workflowOf(held.id).describe()).status.name).toBe('RUNNING');
     });
 
-    it("starts when the access officer verifies a passport applicant's request", async () => {
-      givenCommissions(api, NOW);
+    it("S2: a held request's workflow goes on once the access officer verifies the applicant: the officer named is resolved and the declarant notified", async () => {
+      const { anne } = givenCommissions(api, NOW);
       api.directory.givenApplicant(mercy.personId, 'pending-verification');
       const held = await submitRequest(api);
 
@@ -348,9 +349,13 @@ describe('Resolving the officer a request names (S3)', () => {
         officer,
         { verified: true, note: 'Passport particulars checked.' },
       );
-
       expect(verified.statusCode, verified.body).toBe(200);
-      expect((await workflowOf(held.id).describe()).status.name).toBe('RUNNING');
+      const resolved = await resolve(api, held.id, anne.id);
+      expect(resolved.statusCode, resolved.body).toBe(200);
+
+      expect(await untilNotified(api, held.id)).toMatchObject({
+        status: 'awaiting-representations',
+      });
     });
 
     it('S8: ends when the applicant withdraws', async () => {
