@@ -196,7 +196,7 @@ export function sourceRefResolver(document: Record<string, unknown> | null) {
 export const HIGHLIGHT_MS = 2_400;
 
 /**
- * Scrolls the declaration pane to a ref's target and highlights it (`data-highlight`,
+ * Scrolls the declaration pane to a ref's target and highlights it (`data-target-highlight`,
  * which `@adili/ui` styles), for `HIGHLIGHT_MS`. Returns false when the pane does not have the
  * element, for instance while it shows another version.
  */
@@ -204,11 +204,11 @@ export function highlightInDeclaration(anchorId: string, root: Document = docume
   const element = root.getElementById(anchorId);
   if (!element) return false;
   element.scrollIntoView({ behavior: 'smooth', block: 'center' });
-  element.setAttribute('data-highlight', '');
+  element.setAttribute('data-target-highlight', '');
   if (!element.hasAttribute('tabindex')) element.setAttribute('tabindex', '-1');
   element.focus({ preventScroll: true });
   setTimeout(() => {
-    element.removeAttribute('data-highlight');
+    element.removeAttribute('data-target-highlight');
   }, HIGHLIGHT_MS);
   return true;
 }

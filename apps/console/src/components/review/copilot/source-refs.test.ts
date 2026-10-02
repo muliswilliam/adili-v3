@@ -83,10 +83,10 @@ describe('highlightInDeclaration', () => {
     target.scrollIntoView = scroll;
     expect(highlightInDeclaration(id)).toBe(true);
     expect(scroll).toHaveBeenCalled();
-    expect(target.hasAttribute('data-highlight')).toBe(true);
+    expect(target.hasAttribute('data-target-highlight')).toBe(true);
     expect(document.activeElement).toBe(target);
     vi.advanceTimersByTime(HIGHLIGHT_MS);
-    expect(target.hasAttribute('data-highlight')).toBe(false);
+    expect(target.hasAttribute('data-target-highlight')).toBe(false);
   });
 
   it('does nothing when the pane does not show the target', () => {
