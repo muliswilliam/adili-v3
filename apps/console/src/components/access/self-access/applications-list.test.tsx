@@ -2,7 +2,7 @@
 import { ACCESS_OFFICER } from '@adili/roles';
 import { TooltipProvider } from '@adili/ui';
 import { render, screen, within } from '@testing-library/react';
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { mockAccessClient } from '../../../server/access/mock.server';
 import {
@@ -25,6 +25,9 @@ afterAll(() => {
 });
 beforeEach(() => {
   resetSelfAccessMock();
+});
+afterEach(() => {
+  vi.useRealTimers();
 });
 
 function renderList(result: SelfAccessResult<SelfAccessPage> | null, readOnly = false) {
@@ -78,6 +81,23 @@ describe('ApplicationsList (slice #302)', () => {
     expect(within(preparing).getByText('Version 1 · Dispatch')).toBeTruthy();
     expect(within(dispatched).getByText(/^Dispatched \d/)).toBeTruthy();
     expect(within(collected).getByText(/^Collected \d/)).toBeTruthy();
+  });
+
+  it('counts deadlines in Nairobi days between midnight and 03:00, when UTC is still on yesterday', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-10-03T01:00:00+03:00'));
+    resetSelfAccessMock();
+    renderList(await listApplications(mockAccessClient([ACCESS_OFFICER]), 'psc', undefined));
+    const table = screen.getByRole('table', {
+      name: 'Written self-access applications, earliest deadline first',
+    });
+    const rowOf = (name: string): HTMLElement => {
+      const row = within(table).getByText(name).closest('tr');
+      if (!row) throw new Error(`No row for ${name}`);
+      return row;
+    };
+    expect(within(rowOf('Hassan Abdi Noor')).getByText('14 days left')).toBeTruthy();
+    expect(within(rowOf('Alice Nekesa Wafula')).getByText('4 days late')).toBeTruthy();
   });
 
   it('says there are none yet, for the officer and the supervisor', () => {

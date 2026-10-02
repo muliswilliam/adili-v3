@@ -35,6 +35,8 @@ type Version = Schemas['DeclarantVersion'];
 
 const PSC = { slug: 'psc', name: 'Public Service Commission' };
 const DAY_MS = 24 * 60 * 60 * 1000;
+/** Nairobi is UTC+3 all year. */
+const NAIROBI_OFFSET_MS = 3 * 60 * 60 * 1000;
 const DEADLINE_DAYS = 14;
 /** How long the mock's workflow takes to issue a recorded application's copy. */
 const ISSUE_AFTER_MS = 3000;
@@ -363,11 +365,16 @@ const SEEDS: Seed[] = [
   },
 ];
 
-/** Seeded mornings, so the screens read like an office day whenever the mock starts. */
+/**
+ * Seeded mornings, so the screens read like an office day whenever the mock starts: 09:30 in
+ * Nairobi `daysAgo` Kenyan calendar days ago, as the screens count days. Today's is never later
+ * than now, nor before today's Kenyan midnight.
+ */
 function morningOf(now: number, daysAgo: number): number {
-  const day = new Date(now - daysAgo * DAY_MS);
-  day.setUTCHours(6, 30 + daysAgo * 7, 0, 0);
-  return Math.min(day.getTime(), now - 60_000);
+  const midnight =
+    Math.floor((now + NAIROBI_OFFSET_MS) / DAY_MS) * DAY_MS - NAIROBI_OFFSET_MS - daysAgo * DAY_MS;
+  const morning = midnight + (9 * 60 + 30 + daysAgo * 7) * 60_000;
+  return Math.min(morning, Math.max(midnight, now - 60_000));
 }
 
 function build(seed: Seed, now: number): Stored {

@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { ACCESS_OFFICER, SUPERVISOR } from '@adili/roles';
 import { ToastProvider, TooltipProvider } from '@adili/ui';
-import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { mockAccessClient } from '../../../server/access/mock.server';
@@ -125,6 +125,17 @@ describe('ApplicationDetailView (slice #302)', () => {
     expect(
       within(copyCard()).getByText('Could not issue the copy. Nothing was issued.'),
     ).toBeTruthy();
+    expect(screen.getByText('4 days late')).toBeTruthy();
+  });
+
+  it('counts the deadline in Nairobi days between midnight and 03:00, when UTC is still on yesterday', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-10-03T01:00:00+03:00'));
+    resetSelfAccessMock();
+    renderDetail(await applicationOf(A.preparing));
+    expect(screen.getByText('14 days left')).toBeTruthy();
+    cleanup();
+    renderDetail(await applicationOf(A.failed));
     expect(screen.getByText('4 days late')).toBeTruthy();
   });
 
