@@ -38,6 +38,15 @@ export interface CopilotJobFinished {
 /** A gate policy of the Commission now admits a provider class: its not-enabled copilots ask again. */
 export interface CopilotPolicyChanged {
   tenant: string;
+  /** The last case of the previous run's pages (a continuation); null or omitted starts over. */
+  after?: string | null;
+}
+
+/** A page of a Commission's not-enabled copilots, in case id order. */
+export interface NotEnabledPage {
+  caseIds: string[];
+  /** The cursor of the next page; null when this is the last. */
+  next: string | null;
 }
 
 /** Workflow type name of `copilotPolicyChanged`, for starting by name. */

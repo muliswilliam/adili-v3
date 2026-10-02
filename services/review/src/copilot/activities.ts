@@ -5,6 +5,7 @@ import type {
   CopilotActivityRequest,
   CopilotJobFinished,
   CopilotUnavailableReason,
+  NotEnabledPage,
 } from './contract.js';
 import { COPILOT_FAILURES, CopilotRequests } from './copilot-requests.js';
 
@@ -27,9 +28,13 @@ export class CopilotActivities {
     return this.requests.recordJob(tenant, caseId, jobId);
   }
 
-  /** The cases of the Commission whose copilot is `not-enabled`. */
-  notEnabledCopilots({ tenant }: { tenant: string }): Promise<string[]> {
-    return this.requests.notEnabled(tenant);
+  /** A page of the cases of the Commission whose copilot is `not-enabled`, after `after`. */
+  notEnabledCopilots(page: {
+    tenant: string;
+    after: string | null;
+    limit: number;
+  }): Promise<NotEnabledPage> {
+    return this.requests.notEnabled(page);
   }
 
   /**

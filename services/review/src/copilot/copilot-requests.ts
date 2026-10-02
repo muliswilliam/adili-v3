@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { type Database, FieldCipher, InjectDatabase, withTenant } from '@adili/data-access';
 import { EventPublisher } from '@adili/events';
 import type { DeclarationV1 } from '@adili/forms';
-import { and, asc, eq } from 'drizzle-orm';
+import { and, asc, eq, gt } from 'drizzle-orm';
 import { v5 as uuidv5 } from 'uuid';
 
 import {
@@ -25,7 +25,11 @@ import {
 } from '../declarations/declarations-client.js';
 import { InternalApiRejected } from '../internal-api/rejected.js';
 import { systemContext } from '../system-context.js';
-import { COPILOT_UNAVAILABLE, type CopilotActivityRequest } from './contract.js';
+import {
+  COPILOT_UNAVAILABLE,
+  type CopilotActivityRequest,
+  type NotEnabledPage,
+} from './contract.js';
 import { copilotInputs } from './copilot-inputs.js';
 import { COPILOT_PROMPT_VERSIONS } from './prompt-versions.js';
 import { caseSubjectRef, type CopilotUpdatedData, REVIEW_COPILOT_UPDATED } from './events.js';
@@ -246,16 +250,35 @@ export class CopilotRequests {
     });
   }
 
-  /** The cases of the Commission whose copilot the classification gate blocked. */
-  async notEnabled(tenant: string): Promise<string[]> {
+  /**
+   * A page of the cases of the Commission whose copilot the classification gate blocked: at most
+   * `limit`, after `after` in case id order, with the cursor of the next page.
+   */
+  async notEnabled({
+    tenant,
+    after,
+    limit,
+  }: {
+    tenant: string;
+    after: string | null;
+    limit: number;
+  }): Promise<NotEnabledPage> {
     const rows = await withTenant(this.db, systemContext(tenant), (tx) =>
       tx
         .select({ caseId: reviewCopilots.caseId })
         .from(reviewCopilots)
-        .where(and(eq(reviewCopilots.tenant, tenant), eq(reviewCopilots.status, 'not-enabled')))
-        .orderBy(asc(reviewCopilots.caseId)),
+        .where(
+          and(
+            eq(reviewCopilots.tenant, tenant),
+            eq(reviewCopilots.status, 'not-enabled'),
+            after === null ? undefined : gt(reviewCopilots.caseId, after),
+          ),
+        )
+        .orderBy(asc(reviewCopilots.caseId))
+        .limit(limit),
     );
-    return rows.map((row) => row.caseId);
+    const caseIds = rows.map((row) => row.caseId);
+    return { caseIds, next: caseIds.length < limit ? null : (caseIds.at(-1) ?? null) };
   }
 
   private async record(tenant: string, caseId: string, job: AiJob): Promise<void> {

@@ -2,7 +2,12 @@
  * The copilot's workflow steps (spec 07c). Bundled into Temporal's deterministic sandbox through
  * the processing workflows module: import only `@temporalio/workflow` and types.
  */
-import { ActivityFailure, ApplicationFailure, proxyActivities } from '@temporalio/workflow';
+import {
+  ActivityFailure,
+  ApplicationFailure,
+  continueAsNew,
+  proxyActivities,
+} from '@temporalio/workflow';
 
 import type { CopilotActivities } from './activities.js';
 import {
@@ -60,14 +65,32 @@ function unavailableOf(error: ActivityFailure): CopilotUnavailableReason {
     : COPILOT_UNAVAILABLE.aiGateway;
 }
 
+/** Not-enabled copilots one page of `copilotPolicyChanged` requests again. */
+export const COPILOT_POLICY_PAGE = 100;
+
+/** Pages one run of `copilotPolicyChanged` takes before continuing as new, to keep history short. */
+export const COPILOT_POLICY_PAGES_PER_RUN = 5;
+
 /**
  * Started by the `ai.policy.changed.v1` consumer when a gate rule of the Commission now admits a
  * provider class: each of its cases whose copilot was not enabled is requested again, one after
- * another, and the gateway decides anew. A case still blocked reads `not-enabled` again.
+ * another, and the gateway decides anew. A case still blocked reads `not-enabled` again. The
+ * cases are read a page at a time in case id order (`after`), and the run continues as new every
+ * few pages, so a Commission of any size fits in workflow history.
  */
-export async function copilotPolicyChanged({ tenant }: CopilotPolicyChanged): Promise<void> {
-  for (const caseId of await notEnabledCopilots({ tenant })) {
-    await requestCaseCopilot({ tenant, caseId, trigger: 'policy-change' });
+export async function copilotPolicyChanged(input: CopilotPolicyChanged): Promise<void> {
+  const { tenant } = input;
+  let after = input.after ?? null;
+  for (let pages = 0; ; pages += 1) {
+    if (pages >= COPILOT_POLICY_PAGES_PER_RUN) {
+      return continueAsNew<typeof copilotPolicyChanged>({ tenant, after });
+    }
+    const page = await notEnabledCopilots({ tenant, after, limit: COPILOT_POLICY_PAGE });
+    for (const caseId of page.caseIds) {
+      await requestCaseCopilot({ tenant, caseId, trigger: 'policy-change' });
+    }
+    after = page.next;
+    if (after === null) return;
   }
 }
 

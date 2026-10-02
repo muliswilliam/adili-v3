@@ -4,7 +4,12 @@ import { WorkflowTestEnvironment } from '@adili/temporal/testing';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 
 import type { CopilotActivities } from '../../src/copilot/activities.js';
-import { copilotJobFinished, copilotPolicyChanged } from '../../src/copilot/workflows.js';
+import {
+  COPILOT_POLICY_PAGE,
+  COPILOT_POLICY_PAGES_PER_RUN,
+  copilotJobFinished,
+  copilotPolicyChanged,
+} from '../../src/copilot/workflows.js';
 
 /** `copilotJobFinished` and `copilotPolicyChanged` against mocked activities in Temporal's time-skipping test environment. */
 const workflowsPath = fileURLToPath(new URL('../../src/processing/workflows.ts', import.meta.url));
@@ -22,7 +27,7 @@ function activities(overrides: Partial<Activities> = {}): Activities {
     requestCopilot: vi.fn(() => Promise.resolve()),
     recordCopilotJob: vi.fn(() => Promise.resolve()),
     copilotUnavailable: vi.fn(() => Promise.resolve()),
-    notEnabledCopilots: vi.fn(() => Promise.resolve([])),
+    notEnabledCopilots: vi.fn(() => Promise.resolve({ caseIds: [], next: null })),
     ...overrides,
   };
 }
@@ -69,7 +74,7 @@ describe('copilotPolicyChanged', () => {
   it('requests every not-enabled copilot of the Commission again, and a failed one is recorded as unavailable', async () => {
     const cases = ['0199b000-0000-7000-8000-0000000000c1', '0199b000-0000-7000-8000-0000000000c2'];
     const mocks = activities({
-      notEnabledCopilots: vi.fn(() => Promise.resolve(cases)),
+      notEnabledCopilots: vi.fn(() => Promise.resolve({ caseIds: cases, next: null })),
       requestCopilot: vi.fn((request: { caseId: string }) =>
         request.caseId === cases[1]
           ? Promise.reject(new Error('ai-gateway unreachable'))
@@ -81,7 +86,11 @@ describe('copilotPolicyChanged', () => {
       activities: mocks,
       args: [{ tenant: 'psc' }],
     });
-    expect(mocks.notEnabledCopilots).toHaveBeenCalledWith({ tenant: 'psc' });
+    expect(mocks.notEnabledCopilots).toHaveBeenCalledWith({
+      tenant: 'psc',
+      after: null,
+      limit: COPILOT_POLICY_PAGE,
+    });
     expect(mocks.requestCopilot).toHaveBeenCalledWith({
       tenant: 'psc',
       caseId: cases[0],
@@ -90,5 +99,37 @@ describe('copilotPolicyChanged', () => {
     expect(mocks.copilotUnavailable).toHaveBeenCalledWith(
       expect.objectContaining({ tenant: 'psc', caseId: cases[1] }),
     );
+  }, 120_000);
+
+  it('pages through the not-enabled copilots and continues as new, so a large Commission fits in history', async () => {
+    const total = COPILOT_POLICY_PAGE * COPILOT_POLICY_PAGES_PER_RUN + 3;
+    const cases = Array.from(
+      { length: total },
+      (_, i) => `0199b000-0000-7000-8000-${String(i).padStart(12, '0')}`,
+    );
+    const pages: (string | null)[] = [];
+    const mocks = activities({
+      notEnabledCopilots: vi.fn(
+        ({ after, limit }: { tenant: string; after: string | null; limit: number }) => {
+          pages.push(after);
+          const start = after === null ? 0 : cases.indexOf(after) + 1;
+          const caseIds = cases.slice(start, start + limit);
+          const next = start + limit < cases.length ? (caseIds.at(-1) ?? null) : null;
+          return Promise.resolve({ caseIds, next });
+        },
+      ),
+    });
+    const runIds = await env.run(
+      copilotPolicyChanged,
+      { workflowsPath, activities: mocks, args: [{ tenant: 'psc' }] },
+      async (handle) => {
+        await handle.result();
+        return { first: handle.firstExecutionRunId, last: (await handle.describe()).runId };
+      },
+    );
+    expect(mocks.requestCopilot).toHaveBeenCalledTimes(total);
+    expect(pages).toHaveLength(COPILOT_POLICY_PAGES_PER_RUN + 1);
+    // The last run is a continuation of the first.
+    expect(runIds.last).not.toBe(runIds.first);
   }, 120_000);
 });
