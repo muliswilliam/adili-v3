@@ -51,8 +51,8 @@ describe('Tabs', () => {
     fireEvent.scroll(list);
     expect(list.dataset.moreBefore).toBeUndefined();
     expect(list.dataset.moreAfter).toBe('true');
-    expect(list.style.maskImage).toContain('linear-gradient(to right, #000, #000 28px');
-    expect(list.style.maskImage).toContain('calc(100% - 28px), transparent)');
+    expect(list.style.maskImage).toContain('linear-gradient(to right, #000, #000 40px');
+    expect(list.style.maskImage).toContain('calc(100% - 40px), transparent)');
 
     scrollLeft = 100;
     fireEvent.scroll(list);
@@ -63,7 +63,7 @@ describe('Tabs', () => {
     fireEvent.scroll(list);
     expect(list.dataset.moreBefore).toBe('true');
     expect(list.dataset.moreAfter).toBeUndefined();
-    expect(list.style.maskImage).toContain('linear-gradient(to right, transparent, #000 28px');
+    expect(list.style.maskImage).toContain('linear-gradient(to right, transparent, #000 40px');
   });
 
   it('keeps a visible focus outline on tabs and panels', () => {

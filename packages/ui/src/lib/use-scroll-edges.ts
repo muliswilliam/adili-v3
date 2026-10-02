@@ -40,7 +40,7 @@ export function useScrollEdges<T extends HTMLElement>(): [RefCallback<T>, Scroll
 }
 
 /** How far the fade at a scrolling edge reaches, in pixels. */
-const FADE_PX = 28;
+const FADE_PX = 40;
 
 /**
  * A mask fading the content out at each edge with more past it, so a row that scrolls sideways
