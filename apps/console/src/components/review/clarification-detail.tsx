@@ -244,7 +244,12 @@ export function ClarificationDetailView({
         <p className="mt-1.5 flex flex-wrap gap-x-2 text-sm text-muted-foreground">
           {meta.map((part, index) => (
             <span key={index}>
-              {index > 0 ? '· ' : ''}
+              {/* As much space each side of the dot. */}
+              {index > 0 ? (
+                <span aria-hidden="true" className="mr-2">
+                  ·
+                </span>
+              ) : null}
               {part}
             </span>
           ))}

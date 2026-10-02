@@ -122,7 +122,7 @@ describe('ClarificationDetailView: states', () => {
       },
     });
     expect(screen.getAllByText('Draft')).toHaveLength(1);
-    expect(screen.getByText(/^· 2 items$/)).toBeTruthy();
+    expect(screen.getByText('2 items')).toBeTruthy();
   });
 
   it('shows a late response beside each item with its documents', async () => {
