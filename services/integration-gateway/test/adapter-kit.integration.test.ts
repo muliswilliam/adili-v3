@@ -12,6 +12,7 @@ import { RegistryLookups } from '../src/adapter-kit/registry-lookups.js';
 import type { SystemPolicy } from '../src/adapter-kit/system-policies.js';
 import { outbox, verificationResults } from '../src/db/schema.js';
 import { REGISTRY_LOOKUP_PERFORMED } from '../src/verification/lookup-events.js';
+import { SubjectHasher } from '../src/verification/subject-hasher.js';
 
 import { StubAdapter, type StubRecord } from './support/stub-adapter.js';
 import { createTestApp, type TestApp } from './support/test-app.js';
@@ -137,6 +138,24 @@ describe('adapter kit', () => {
 
       expect(result).toMatchObject({ outcome: 'found', data: RECORD, cached: false });
       expect(kra.calls).toBe(2);
+    });
+
+    it('Q7: keeps answers encrypted in the cache, bound to their key', async () => {
+      const hasher = t.app.get(SubjectHasher);
+      const keyOf = (subject: string) => `kra:records:${hasher.hash('kra', subject)}`;
+      await lookup(WANJIKU);
+      await lookup('30000009');
+      const raw = await t.valkey.get(keyOf(WANJIKU));
+
+      expect(raw).toMatch(/^v1\./u);
+      expect(raw).not.toContain('Wanjiku');
+      expect(raw).not.toContain('KDA 123A');
+
+      // An entry moved under another subject's key does not open there: a miss, not its answer.
+      await t.valkey.set(keyOf('30000009'), raw ?? '');
+      const callsBefore = kra.calls;
+      expect(await lookup('30000009')).toMatchObject({ outcome: 'not-found', cached: false });
+      expect(kra.calls).toBe(callsBefore + 1);
     });
 
     it('propagates an unexpected error after recording the lookup unavailable', async () => {
