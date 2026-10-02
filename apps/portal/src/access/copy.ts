@@ -330,6 +330,10 @@ const PACKAGE = {
   closedNext: en((date: string) => `The download window closed on ${date}.`),
   closedNowLead: en('The download window has closed.'),
   closedNowNext: en('The package can no longer be downloaded.'),
+  windowClosedFor: en(
+    (what: 'package' | 'letter', reference: string) =>
+      `The ${what} for ${reference} can no longer be downloaded.`,
+  ),
 
   stagePreparing: en('Package'),
   stagePreparingDetail: en('Being prepared'),

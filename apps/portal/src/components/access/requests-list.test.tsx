@@ -210,7 +210,7 @@ describe('RequestsList (S17)', () => {
     expect(downloads[0]?.getAttribute('aria-label')).toMatch(/^Download letter for /);
   });
 
-  it('reloads the list when the window closed meanwhile', async () => {
+  it('says the window closed meanwhile and reloads the list', async () => {
     const requests = (await rows()).filter((each) => each.id === IDS.granted);
     renderList(
       <RequestsList requests={requests} page={1} now={NOW} onPage={vi.fn()} actions={ACTIONS} />,
@@ -222,6 +222,12 @@ describe('RequestsList (S17)', () => {
     });
     expect(ACTIONS.onChanged).toHaveBeenCalled();
     expect(downloadFrom).not.toHaveBeenCalled();
+    expect(screen.getByText('The download window has closed.')).toBeTruthy();
+    expect(
+      screen.getByText(
+        `The package for ${requests[0]?.reference ?? ''} can no longer be downloaded.`,
+      ),
+    ).toBeTruthy();
   });
 
   it('sends the applicant to sign in when their session ended, with no failure toast', async () => {

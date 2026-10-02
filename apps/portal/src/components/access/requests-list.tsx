@@ -163,7 +163,7 @@ export interface RowActions {
 
 /**
  * Downloads a granted row's package (or nil letter) while its window is open, as the request
- * page does: each download is recorded; a window closed meanwhile reloads the list; a session
+ * page does: each download is recorded; a window closed meanwhile says so and reloads the list; a session
  * that ended goes to sign in.
  */
 function RowDownload({
@@ -189,6 +189,11 @@ function RowDownload({
       downloadFrom(link.downloadUrl);
       toast({ title: PACKAGE_COPY.downloadStarted });
     } else if (link?.status === 'window-closed') {
+      // Said, not only reloaded: the row's button just disappears otherwise.
+      toast({
+        title: PACKAGE_COPY.closedNowLead,
+        description: PACKAGE_COPY.windowClosedFor(letter ? 'letter' : 'package', request.reference),
+      });
       actions.onChanged();
     } else if (link?.status === 'unauthenticated') {
       signInAgain();
