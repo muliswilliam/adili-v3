@@ -75,7 +75,7 @@ describe('invitations to onboard (spec 10, decision 2)', () => {
     const invitation = response.json<OnboardingInvitation>();
     expect(contractErrors(okResponse(PATH, 'post'), invitation)).toEqual([]);
     expect(invitation).toEqual({
-      id: expect.any(String),
+      id: expect.any(String) as unknown,
       rosterRecordId: record('PSC/1'),
       channels: ['email', 'sms'],
       sentAt: NOW.toISOString(),
@@ -86,7 +86,7 @@ describe('invitations to onboard (spec 10, decision 2)', () => {
         channel: 'email',
         to: 'achieng@example.go.ke',
         commissionName: 'Public Service Commission',
-        getStartedUrl: expect.stringMatching(/\/get-started\?commission=psc$/),
+        getStartedUrl: expect.stringMatching(/\/get-started\?commission=psc$/) as unknown,
         tenant: 'psc',
       }),
       expect.objectContaining({ channel: 'sms', to: '+254711000001' }),

@@ -112,17 +112,17 @@ export class InMemoryInvitationDelivery extends InvitationDelivery {
   private unavailable = 0;
   private readonly refusedContacts = new Set<string>();
 
-  async send(message: InvitationMessage): Promise<'sent' | 'failed'> {
+  send(message: InvitationMessage): Promise<'sent' | 'failed'> {
     if (this.unavailable > 0) {
       this.unavailable -= 1;
-      throw new InvitationDeliveryUnavailable('unavailable on request');
+      return Promise.reject(new InvitationDeliveryUnavailable('unavailable on request'));
     }
-    if (this.refusedContacts.has(message.to)) return 'failed';
+    if (this.refusedContacts.has(message.to)) return Promise.resolve('failed');
     // Notifications sends a message once per key.
     if (!this.messages.some((sent) => sent.idempotencyKey === message.idempotencyKey)) {
       this.messages.push(message);
     }
-    return 'sent';
+    return Promise.resolve('sent');
   }
 
   /** Messages sent, oldest first. */

@@ -81,7 +81,7 @@ export class OnboardingInvitationsService {
       return { previous, record };
     });
     const record = notFoundIfInvisible(found.record);
-    if (found.previous && found.previous.rosterRecordId === record.id) {
+    if (found.previous?.rosterRecordId === record.id) {
       return toInvitation(found.previous);
     }
     if (record.personId !== null) throw ProblemException.fromCode('already-onboarded');
