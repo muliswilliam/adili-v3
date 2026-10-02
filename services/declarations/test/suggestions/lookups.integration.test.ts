@@ -320,7 +320,7 @@ describe('checking registries for the officer (S1)', () => {
           declarationId: draft.id,
           setId: set.id,
           source: set.source,
-          count: set.suggestions.length,
+          count: set.suggestions.filter((each) => each.status === 'new').length,
         }))
         .sort(bySetId),
     );

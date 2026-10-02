@@ -28,7 +28,10 @@ export function declarationLookupRequested(
 
 export const DECLARATION_SUGGESTIONS_READY = 'declaration.suggestions-ready.v1';
 
-/** A registry answered a lookup: the set is `ready` with `count` suggestions (maybe none). */
+/**
+ * A registry answered a lookup: the set is `ready`, offering `count` new suggestions (maybe none;
+ * what repeats a decision the declarant made, or arrives after a later check, is not counted).
+ */
 export interface DeclarationSuggestionsReadyData extends Record<string, unknown> {
   declarationId: string;
   setId: string;

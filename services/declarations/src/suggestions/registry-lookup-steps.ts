@@ -238,9 +238,9 @@ export class RegistryLookupSteps {
 
   /**
    * Records the set's outcome, if it is still pending: its status, its suggestions and, when
-   * `ready`, `declaration.suggestions-ready.v1`. A ready set supersedes the `new` suggestions of
-   * the person's earlier sets from the same registry; if a later set of theirs is ready already,
-   * this one's arrive superseded.
+   * `ready`, `declaration.suggestions-ready.v1` counting the ones stored `new`. A ready set
+   * supersedes the `new` suggestions of the person's earlier sets from the same registry; if a
+   * later set of theirs is ready already, this one's arrive superseded.
    */
   private async settle(
     ref: LookupRef & { setId: string },
@@ -259,7 +259,7 @@ export class RegistryLookupSteps {
       // Gone with its draft, or recorded already: nothing to record.
       if (set?.status !== 'pending') return;
       const now = this.clock.now();
-      const rows = outcome.rows ?? [];
+      let rows = outcome.rows ?? [];
       if (outcome.status === 'ready') {
         const sameRegistry = and(
           eq(suggestionSets.declarationId, set.declarationId),
@@ -286,11 +286,8 @@ export class RegistryLookupSteps {
             ),
           )
           .limit(1);
-        if (rows.length > 0) {
-          await tx
-            .insert(suggestions)
-            .values(later ? rows.map((row) => ({ ...row, status: 'superseded' as const })) : rows);
-        }
+        if (later) rows = rows.map((row) => ({ ...row, status: 'superseded' as const }));
+        if (rows.length > 0) await tx.insert(suggestions).values(rows);
       }
       await tx
         .update(suggestionSets)
@@ -307,7 +304,8 @@ export class RegistryLookupSteps {
             declarationId: set.declarationId,
             setId: set.id,
             source: set.source,
-            count: rows.length,
+            // What the declarant is offered: the suggestions stored `new`.
+            count: rows.filter((row) => row.status === 'new').length,
           }),
         );
       }

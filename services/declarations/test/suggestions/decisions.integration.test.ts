@@ -695,5 +695,10 @@ describe('dismissing, and checking again (S5)', () => {
       ['KDE 001M', 'new'],
     ]);
     expect(later('ardhisasa')?.suggestions.map((each) => each.status)).toEqual(['new', 'new']);
+    // Only what is offered as new is announced as ready.
+    const ready = await eventsOf('declaration.suggestions-ready.v1');
+    expect(ready.find((event) => event.data.setId === later('ntsa')?.id)?.data).toMatchObject({
+      count: 1,
+    });
   });
 });
