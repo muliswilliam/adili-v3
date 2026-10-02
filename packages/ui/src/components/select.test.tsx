@@ -2,7 +2,7 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import { beforeAll, describe, expect, it, vi } from 'vitest';
 
 import { FormField } from './form-field';
-import { Select, SelectItem } from './select';
+import { Select, SelectGroup, SelectItem } from './select';
 
 // jsdom lacks the pointer capture and scrolling APIs Radix Select calls.
 beforeAll(() => {
@@ -53,5 +53,35 @@ describe('Select', () => {
 
     expect(onValueChange).toHaveBeenCalledWith('onboarded');
     expect(screen.getByRole('combobox', { name: 'State' }).textContent).toContain('Onboarded');
+  });
+
+  it('lists grouped options under their headings', () => {
+    const onValueChange = vi.fn();
+    render(
+      <Select
+        aria-label="Add"
+        placeholder="Add a flag or item"
+        value=""
+        onValueChange={onValueChange}
+      >
+        <SelectGroup label="Flags">
+          <SelectItem value="f:1">Value changed</SelectItem>
+        </SelectGroup>
+        <SelectGroup label="Items">
+          <SelectItem value="i:1">Plot</SelectItem>
+        </SelectGroup>
+      </Select>,
+    );
+
+    fireEvent.keyDown(screen.getByRole('combobox', { name: 'Add' }), { key: 'Enter' });
+    const items = screen.getByRole('group', { name: 'Items' });
+    expect(items.textContent).toContain('Plot');
+    fireEvent.click(screen.getByRole('option', { name: 'Plot' }));
+
+    expect(onValueChange).toHaveBeenCalledWith('i:1');
+    // Controlled with an empty value, it shows the placeholder again: a picker, not a choice.
+    expect(screen.getByRole('combobox', { name: 'Add' }).textContent).toContain(
+      'Add a flag or item',
+    );
   });
 });

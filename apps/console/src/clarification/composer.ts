@@ -14,6 +14,9 @@ import { type ClarificationTarget, targetOf, type TargetRef } from './targets';
 /** review.yaml `ClarificationItemInput.text` limit. */
 export const ITEM_TEXT_MAX = 1000;
 
+/** review.yaml `ClarificationInput.opening` limit. */
+export const OPENING_TEXT_MAX = 800;
+
 export interface ComposerItem {
   /** Stable while the composer is open, for React keys and field ids. */
   key: string;
@@ -27,8 +30,8 @@ export interface ComposerItem {
 }
 
 /**
- * The letter's opening paragraph, which only Draft with AI proposes. review.yaml's
- * `ClarificationInput` has no field for it yet, so it shows in the preview but is not saved.
+ * The letter's opening paragraph, printed before the items: proposed by Draft with AI, or saved
+ * with a draft. Saved and issued with the items (review.yaml `ClarificationInput.opening`).
  */
 export interface ComposerOpening {
   text: string;
@@ -108,10 +111,19 @@ export function emptyComposer(): ComposerState {
 
 /** A saved draft (or a follow-up's pre-filled draft), its items on their targets. */
 export function draftComposer(
-  items: readonly ComposerSeed[],
+  { items, opening }: { items: readonly ComposerSeed[]; opening: string | null },
   targets: readonly ClarificationTarget[],
 ): ComposerState {
-  return seeded({ items: [], opening: null, next: 1 }, items, targets, null);
+  return seeded(
+    {
+      items: [],
+      opening: opening ? { text: opening, ai: null, edited: false } : null,
+      next: 1,
+    },
+    items,
+    targets,
+    null,
+  );
 }
 
 function update(
@@ -149,7 +161,10 @@ export function composerReducer(state: ComposerState, action: ComposerAction): C
       const kept =
         state.items.length === 1 && state.items[0] && isBlank(state.items[0]) ? [] : state.items;
       const inserted = seeded({ ...state, items: kept }, draft.items, targets, draft.label);
-      return draft.opening
+      // A new draft's opening replaces an earlier one only while nobody has written in it.
+      const replaceable =
+        state.opening === null || (state.opening.ai !== null && !state.opening.edited);
+      return draft.opening && replaceable
         ? { ...inserted, opening: { text: draft.opening, ai: draft.label, edited: false } }
         : inserted;
     }
@@ -172,6 +187,8 @@ export type ItemProblem = 'required' | 'too-long';
 export interface ComposerProblems {
   /** Issuing needs at least one item. */
   none: boolean;
+  /** The opening paragraph is over 800 characters. */
+  opening: 'too-long' | null;
   /** By item key; only items with a problem. */
   items: Record<string, { target?: ItemProblem; requirement?: ItemProblem; text?: ItemProblem }>;
   any: boolean;
@@ -194,14 +211,20 @@ export function composerProblems(state: ComposerState, intent: 'save' | 'issue')
     if (Object.keys(problems).length > 0) items[item.key] = problems;
   }
   const none = intent === 'issue' && state.items.length === 0;
-  return { none, items, any: none || Object.keys(items).length > 0 };
+  const opening = (state.opening?.text.trim().length ?? 0) > OPENING_TEXT_MAX ? 'too-long' : null;
+  return { none, opening, items, any: none || opening !== null || Object.keys(items).length > 0 };
 }
 
-/** review.yaml `ClarificationInput`, blank items left out. Check `composerProblems` first. */
+/**
+ * review.yaml `ClarificationInput`, blank items left out and a blank opening paragraph as none.
+ * Check `composerProblems` first.
+ */
 export function composerToInput(state: ComposerState): {
   items: (TargetRef & { requirement: Requirement; text: string })[];
+  opening: string | null;
 } {
   return {
+    opening: state.opening?.text.trim() ? state.opening.text.trim() : null,
     items: state.items.flatMap((item) =>
       isBlank(item) || !item.requirement
         ? []

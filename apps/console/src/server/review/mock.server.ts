@@ -52,6 +52,7 @@ import createClient from 'openapi-fetch';
 
 import { isOutstanding } from '../../clarification/labels';
 import { mockTenantAiStatus } from '../ai-gateway/mock.server';
+import { type Env, envSchema } from '../env.server';
 import { isRecord, json, problem, readJson } from '../mock-http';
 import type { paths } from './api.gen';
 import {
@@ -276,6 +277,7 @@ function clarification(
       status: 'issued',
     },
     followUpOf: null,
+    opening: null,
     response: null,
     ...overrides,
   };
@@ -447,7 +449,10 @@ export function mockReviewClient(subject: string, name: string) {
 }
 
 /** Seeds the fixtures with "now" at `now` (tests pass a fixed time). */
-export function resetReviewMock(now: number = Date.now()) {
+export function resetReviewMock(
+  now: number = Date.now(),
+  { copilot = 'ready' }: { copilot?: Env['REVIEW_MOCK_COPILOT'] } = {},
+) {
   cases.clear();
   clarifications.clear();
   letterReadyAt.clear();
@@ -662,14 +667,23 @@ export function resetReviewMock(now: number = Date.now()) {
     stored.timeline.sort((a, b) => a.at.localeCompare(b.at));
     refreshCase(stored);
   }
-  resetCopilotMock(now, [
-    { caseId: C.mine, state: 'ready' },
-    { caseId: C.windowClosed, state: 'pending', readyAfterMs: 8_000, declarant: DECLARANTS.grace },
-    { caseId: C.peters, state: 'ready', declarant: DECLARANTS.mary },
-    { caseId: C.unassigned, state: 'not-enabled' },
-    { caseId: C.contested, state: 'not-enabled' },
-    { caseId: C.unavailable, state: 'ready', declarant: DECLARANTS.gitau },
-  ]);
+  resetCopilotMock(
+    now,
+    [
+      { caseId: C.mine, state: 'ready' },
+      {
+        caseId: C.windowClosed,
+        state: 'pending',
+        readyAfterMs: 8_000,
+        declarant: DECLARANTS.grace,
+      },
+      { caseId: C.peters, state: 'ready', declarant: DECLARANTS.mary },
+      { caseId: C.unassigned, state: 'not-enabled' },
+      { caseId: C.contested, state: 'not-enabled' },
+      { caseId: C.unavailable, state: 'ready', declarant: DECLARANTS.gitau },
+    ],
+    { notEnabled: copilot === 'not-enabled' },
+  );
 }
 
 /** A bearer token the mock reads `sub` and `name` from (tests; unsigned). */
@@ -734,6 +748,7 @@ function draftOf(
     resolutionNote: null,
     letter: null,
     followUpOf,
+    opening: null,
     response: null,
   };
 }
@@ -790,7 +805,10 @@ async function textField(request: Request, field: string, max: number): Promise<
 }
 
 function ensureSeeded() {
-  if (cases.size === 0) resetReviewMock();
+  if (cases.size > 0) return;
+  // Read here, not through env(): the mock seeds itself in tests that set no service URLs.
+  const copilot = envSchema.shape.REVIEW_MOCK_COPILOT.parse(process.env.REVIEW_MOCK_COPILOT);
+  resetReviewMock(Date.now(), { copilot });
 }
 
 export function mockReviewFetch(request: Request): Promise<Response> {
@@ -1127,7 +1145,10 @@ async function act(
   }
 
   // follow-up
-  const draft = draftOf(randomUUID(), found.caseId, found.items, found.id);
+  const draft = {
+    ...draftOf(randomUUID(), found.caseId, found.items, found.id),
+    opening: found.opening,
+  };
   clarifications.set(draft.id, draft);
   return json(201, draft);
 }
@@ -1154,10 +1175,16 @@ async function once(request: Request, work: () => Promise<Response>): Promise<Re
 }
 
 /** review.yaml `ClarificationInput`, checked as the service does; null when invalid. */
-async function itemsOf(request: Request): Promise<Item[] | null> {
+async function contentOf(
+  request: Request,
+): Promise<{ items: Item[]; opening: string | null } | null> {
   const body = await readJson(request);
   const items = isRecord(body) ? body.items : null;
   if (!Array.isArray(items) || items.length > 50) return null;
+  const opening = isRecord(body) ? (body.opening ?? null) : null;
+  if (opening !== null && (typeof opening !== 'string' || opening.trim().length > 800)) {
+    return null;
+  }
   const valid: Item[] = [];
   const optional = (value: unknown) => (typeof value === 'string' ? value : null);
   for (const item of items) {
@@ -1173,7 +1200,8 @@ async function itemsOf(request: Request): Promise<Item[] | null> {
       text: text.trim(),
     });
   }
-  return valid;
+  const trimmed = opening?.trim() ?? '';
+  return { items: valid, opening: trimmed === '' ? null : trimmed };
 }
 
 async function createDraft(request: Request, caseId: string, caller: Assignee) {
@@ -1182,9 +1210,9 @@ async function createDraft(request: Request, caseId: string, caller: Assignee) {
   if (holderOf(stored, caller)?.subject !== caller.subject) {
     return problem(403, 'Only the officer holding the case can write its clarifications');
   }
-  const items = await itemsOf(request);
-  if (items === null) return problem(400, 'Items are not valid');
-  const draft = draftOf(randomUUID(), caseId, items, null);
+  const content = await contentOf(request);
+  if (content === null) return problem(400, 'Items are not valid');
+  const draft = { ...draftOf(randomUUID(), caseId, content.items, null), opening: content.opening };
   clarifications.set(draft.id, draft);
   return json(201, draft);
 }
@@ -1197,9 +1225,9 @@ async function updateDraft(request: Request, id: string, caller: Assignee) {
     return problem(403, 'Only the officer holding the case can write its clarifications');
   }
   if (found.status !== 'draft') return problem(409, 'Not a draft', 'not-a-draft');
-  const items = await itemsOf(request);
-  if (items === null) return problem(400, 'Items are not valid');
-  const updated = { ...found, items };
+  const content = await contentOf(request);
+  if (content === null) return problem(400, 'Items are not valid');
+  const updated = { ...found, ...content };
   clarifications.set(id, updated);
   return json(200, updated);
 }

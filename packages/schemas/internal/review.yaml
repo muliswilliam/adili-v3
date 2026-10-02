@@ -400,7 +400,7 @@ paths:
       operationId: updateClarificationDraft
       parameters:
         - $ref: '#/components/parameters/OptionalIdempotencyKey'
-      summary: Update a draft's items
+      summary: Update a draft's items and opening paragraph
       requestBody:
         required: true
         content:
@@ -2525,6 +2525,12 @@ components:
           maxItems: 50
           items:
             $ref: '#/components/schemas/ClarificationItemInput'
+        opening:
+          type: [string, 'null']
+          maxLength: 800
+          description: >-
+            The letter's opening paragraph, printed before the items (e.g. from Draft with AI).
+            Left out or null: the letter has none. A draft's update replaces it like the items.
     ClarificationResponseInput:
       type: object
       required: [items]
@@ -2568,6 +2574,7 @@ components:
         - letter
         - followUpOf
         - response
+        - opening
       properties:
         id:
           type: string
@@ -2623,6 +2630,9 @@ components:
         followUpOf:
           type: [string, 'null']
           format: uuid
+        opening:
+          type: [string, 'null']
+          description: The letter's opening paragraph, printed before the items; null when it has none
         response:
           oneOf:
             - type: object
@@ -2704,6 +2714,7 @@ components:
           commission,
           declarationReference,
           clarificationReference,
+          opening,
           items,
           issuedAt,
           dueAt,
@@ -2724,6 +2735,9 @@ components:
           type: string
         clarificationReference:
           type: string
+        opening:
+          type: [string, 'null']
+          description: Printed before the items; null when the letter has no opening paragraph
         items:
           type: array
           items:

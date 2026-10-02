@@ -43,13 +43,22 @@ function mockServer(): ComposerServer & {
 } {
   return {
     save: vi.fn((input: Parameters<ComposerServer['save']>[0]) =>
-      saveDraft(client(), input.caseId, input.clarificationId, input.items, input.draftKey),
+      saveDraft(
+        client(),
+        input.caseId,
+        input.clarificationId,
+        { items: input.items, opening: input.opening },
+        input.draftKey,
+      ),
     ),
     issue: vi.fn((input: Parameters<ComposerServer['issue']>[0]) =>
-      issueDraft(client(), input.caseId, input.clarificationId, input.items, {
-        draft: input.draftKey,
-        issue: input.issueKey,
-      }),
+      issueDraft(
+        client(),
+        input.caseId,
+        input.clarificationId,
+        { items: input.items, opening: input.opening },
+        { draft: input.draftKey, issue: input.issueKey },
+      ),
     ),
   };
 }

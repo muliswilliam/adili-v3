@@ -11,11 +11,23 @@
  * Refresh (the holder only, else 403; 409 while pending or stale, or when AI is not enabled)
  * starts new jobs that are ready 6 seconds later. Ratings (the holder only, else 403) are kept
  * per caller and job, and the view lists the caller's own. Tests put a case in any state with `setMockCopilot`.
+ * With `notEnabled` seeded (REVIEW_MOCK_COPILOT=not-enabled in dev), every case's is not enabled.
+ *
+ * Draft with AI (`POST .../copilot/drafts`, the holder only, else 403; 409 `ai-not-enabled` when
+ * the case's copilot is not enabled; 400 `selection-not-on-case` for a flag or item the case
+ * lacks or no selection): the answer comes after `MOCK_DRAFT_WAIT_MS`, ready for up to two picks,
+ * pending for three or more (ready `MOCK_DRAFT_DELAY_MS` after the request, polled with
+ * `GET /v1/review/copilot/drafts/{id}`, which only the requester reads), and failed
+ * (`provider-unavailable`) when the picks include the Holdings outside Kenya flag.
  */
 import { isRecord, json, problem, readJson } from '../mock-http';
 import type { Assignee, CopilotView, Flag } from './types';
 
 export const MOCK_COPILOT_DELAY_MS = 6_000;
+/** How long the drafts endpoint takes to answer (the service waits up to 10 s for the job). */
+export const MOCK_DRAFT_WAIT_MS = 1_500;
+/** When a pending draft is ready, after the request. */
+export const MOCK_DRAFT_DELAY_MS = 5_000;
 
 const OFFICER = 'officer';
 const SPOUSE = 'spouse:5b0e0000-0000-4000-8000-000000000201';
@@ -518,6 +530,18 @@ function about<T extends Record<string, unknown>>(output: T, declarant: MockDecl
 }
 
 const store = new Map<string, StoredCopilot>();
+
+interface StoredDraft {
+  caseId: string;
+  requester: string;
+  readyAt: number;
+  draft: Record<string, unknown> & { status: 'pending' | 'ready' | 'failed' };
+  ready: Record<string, unknown>;
+}
+
+const drafts = new Map<string, StoredDraft>();
+/** Drafts by `subject|case|Idempotency-Key`, so a retry answers the same draft. */
+const draftKeys = new Map<string, string>();
 let delayOnFirstRead: { caseId: string; ms: number } | null = null;
 
 function readyView(
@@ -550,11 +574,20 @@ export interface CopilotSeed {
  * Seeds the copilot of each mock case; the case's current version id is the case id, as in the
  * review mock. Ready outputs were generated 3 hours before `now`.
  */
-export function resetCopilotMock(now: number, seeds: CopilotSeed[]) {
+export function resetCopilotMock(
+  now: number,
+  seeds: CopilotSeed[],
+  { notEnabled = false }: { notEnabled?: boolean } = {},
+) {
   store.clear();
+  drafts.clear();
+  draftKeys.clear();
   delayOnFirstRead = null;
   const generatedAt = new Date(now - 3 * 3_600_000).toISOString();
-  for (const { caseId, state, readyAfterMs, declarant = null } of seeds) {
+  for (const seed of seeds) {
+    const { caseId, readyAfterMs, declarant = null } = seed;
+    // REVIEW_MOCK_COPILOT=not-enabled: no case's copilot is enabled.
+    const state = notEnabled ? 'not-enabled' : seed.state;
     const ready = readyView(caseId, generatedAt, declarant);
     const view: CopilotView =
       state === 'ready'
@@ -617,6 +650,198 @@ function forCaller(stored: StoredCopilot, view: CopilotView, caller: Assignee): 
   return { ...view, feedback: [...(stored.ratings.get(caller.subject)?.values() ?? [])] };
 }
 
+/** What a flag usually asks of the declarant, by rule (the gateway's draft picks its own). */
+const DRAFT_REQUIREMENT: Partial<Record<Flag['ruleId'], 'provide-omitted' | 'correct'>> = {
+  'acquisition-unflagged': 'provide-omitted',
+  'foreign-holdings': 'correct',
+};
+
+const DRAFT_TEXT = {
+  en: {
+    flag: (flag: Flag) =>
+      `${flag.indicator} Please explain this and attach any documents that support your explanation.`,
+    item: (description: string) =>
+      `Please explain the value declared for ${description} and attach supporting documents.`,
+    opening:
+      'Thank you for your biennial declaration. The points below relate to changes since your previous declaration.',
+  },
+  sw: {
+    flag: (flag: Flag) =>
+      `Tafadhali eleza jambo hili kuhusu ${flag.title.toLowerCase()} na uambatishe nyaraka zinazounga mkono maelezo yako.`,
+    item: (description: string) =>
+      `Tafadhali eleza thamani iliyotangazwa ya ${description} na uambatishe nyaraka zinazounga mkono.`,
+    opening:
+      'Asante kwa tamko lako. Mambo yaliyo hapa chini yanahusu mabadiliko tangu tamko lako lililopita.',
+  },
+} as const;
+
+interface DeclaredItem {
+  personKey: string;
+  description: string;
+}
+
+/** The mock declaration's items by id, with whose statement they are in. */
+function declaredItems(): Map<string, DeclaredItem> {
+  const found = new Map<string, DeclaredItem>();
+  const statements = MOCK_DECLARATION.statements as Record<string, unknown>[];
+  for (const statement of statements) {
+    for (const category of ['income', 'assets', 'liabilities']) {
+      for (const item of statement[category] as Record<string, unknown>[]) {
+        found.set(item.id as string, {
+          personKey: statement.personKey as string,
+          description: item.description as string,
+        });
+      }
+    }
+  }
+  return found;
+}
+
+const selectionNotOnCase = () =>
+  json(400, {
+    type: 'selection-not-on-case',
+    title: 'Bad Request',
+    status: 400,
+    detail: 'A selected flag or item is not on this case.',
+    code: 'selection-not-on-case',
+  });
+
+const wait = (ms: number) =>
+  new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
+
+/** The ready answer to a draft request: an item per flag, then per item, and an opening. */
+function draftFor(
+  caseId: string,
+  flagIds: string[],
+  itemIds: string[],
+  language: 'en' | 'sw',
+  now: number,
+): Record<string, unknown> | null {
+  const flags = mockFlags(caseId);
+  const items = declaredItems();
+  const text = DRAFT_TEXT[language];
+  const drafted: Record<string, unknown>[] = [];
+  for (const flagId of flagIds) {
+    const flag = flags.find((each) => each.id === flagId);
+    if (!flag) return null;
+    const ref = flag.itemRefs[0];
+    const personKey = ref?.personKey ?? OFFICER;
+    drafted.push({
+      sectionKey: `statement:${personKey}`,
+      personKey,
+      itemId: ref?.itemId ?? null,
+      requirement: DRAFT_REQUIREMENT[flag.ruleId] ?? 'explain-discrepancy',
+      text: text.flag(flag),
+    });
+  }
+  for (const itemId of itemIds) {
+    const item = items.get(itemId);
+    if (!item) return null;
+    drafted.push({
+      sectionKey: `statement:${item.personKey}`,
+      personKey: item.personKey,
+      itemId,
+      requirement: 'explain-discrepancy',
+      text: text.item(item.description),
+    });
+  }
+  return {
+    jobId: crypto.randomUUID(),
+    label: label('draft-clarification', 2, new Date(now).toISOString()),
+    opening: text.opening,
+    items: drafted,
+    failureReason: null,
+  };
+}
+
+function draftAnswer(stored: StoredDraft, now: number): Response {
+  if (stored.draft.status === 'pending' && now >= stored.readyAt) {
+    stored.draft = { ...stored.draft, ...stored.ready, status: 'ready' };
+  }
+  return json(stored.draft.status === 'pending' ? 202 : 200, stored.draft);
+}
+
+async function requestDraft(
+  request: Request,
+  caseId: string,
+  caller: Assignee,
+  held: boolean,
+): Promise<Response> {
+  if (!held) return problem(403, 'Only the officer holding the case drafts with AI');
+  const stored = store.get(caseId);
+  if (stored?.view.status === 'not-enabled') {
+    return json(409, {
+      type: 'ai-not-enabled',
+      title: 'Conflict',
+      status: 409,
+      detail: 'AI assistance is not enabled for this Commission.',
+      code: 'ai-not-enabled',
+    });
+  }
+  const key = request.headers.get('idempotency-key');
+  if (!key) return problem(400, 'Idempotency-Key required');
+  const replay = draftKeys.get(`${caller.subject}|${caseId}|${key}`);
+  const replayed = replay ? drafts.get(replay) : undefined;
+  if (replayed) return draftAnswer(replayed, Date.now());
+
+  const body = await readJson(request);
+  const flagIds = isRecord(body) && Array.isArray(body.flagIds) ? body.flagIds : null;
+  const itemRefs = isRecord(body) && Array.isArray(body.itemRefs) ? body.itemRefs : null;
+  const language = isRecord(body) ? body.language : null;
+  if (!flagIds || !itemRefs || (language !== 'en' && language !== 'sw')) {
+    return problem(400, 'Invalid draft request');
+  }
+  const itemIds = itemRefs.map((ref) => (isRecord(ref) ? ref.itemId : null));
+  if (
+    flagIds.length + itemIds.length === 0 ||
+    flagIds.length + itemIds.length > 50 ||
+    !flagIds.every((id) => typeof id === 'string') ||
+    !itemIds.every((id) => typeof id === 'string')
+  ) {
+    return selectionNotOnCase();
+  }
+  const ready = draftFor(caseId, flagIds, itemIds, language, Date.now());
+  if (!ready) return selectionNotOnCase();
+
+  await wait(MOCK_DRAFT_WAIT_MS);
+  const now = Date.now();
+  const id = crypto.randomUUID();
+  const picks = flagIds.length + itemIds.length;
+  const draft: StoredDraft['draft'] = flagIds.includes(F.foreign)
+    ? {
+        id,
+        status: 'failed',
+        jobId: ready.jobId,
+        label: null,
+        opening: null,
+        items: [],
+        failureReason: 'provider-unavailable',
+      }
+    : picks >= 3
+      ? {
+          id,
+          status: 'pending',
+          jobId: ready.jobId,
+          label: null,
+          opening: null,
+          items: [],
+          failureReason: null,
+        }
+      : { id, status: 'ready', ...ready };
+  const kept: StoredDraft = {
+    caseId,
+    requester: caller.subject,
+    readyAt: now + MOCK_DRAFT_DELAY_MS - MOCK_DRAFT_WAIT_MS,
+    draft,
+    ready,
+  };
+  drafts.set(id, kept);
+  draftKeys.set(`${caller.subject}|${caseId}|${key}`, id);
+  return draftAnswer(kept, now);
+}
+
 const RATINGS = new Set(['helpful', 'not-helpful']);
 const REASONS = new Set(['inaccurate', 'missed-something', 'unclear', 'too-long', 'other']);
 
@@ -632,6 +857,20 @@ export async function copilotRoute(
   const { pathname } = new URL(request.url);
   const method = request.method;
   const now = Date.now();
+
+  const draftRequest = /^\/v1\/review\/cases\/([^/]+)\/copilot\/drafts$/.exec(pathname);
+  if (draftRequest?.[1] && method === 'POST') {
+    const held = holds(draftRequest[1]);
+    if (held === null || !store.has(draftRequest[1])) return problem(404, 'Not found');
+    return requestDraft(request, draftRequest[1], caller, held);
+  }
+
+  const draftPoll = /^\/v1\/review\/copilot\/drafts\/([^/]+)$/.exec(pathname);
+  if (draftPoll?.[1] && method === 'GET') {
+    const stored = drafts.get(draftPoll[1]);
+    if (stored?.requester !== caller.subject) return problem(404, 'Not found');
+    return draftAnswer(stored, now);
+  }
 
   const view = /^\/v1\/review\/cases\/([^/]+)\/copilot(\/refresh)?$/.exec(pathname);
   if (view?.[1]) {

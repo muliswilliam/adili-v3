@@ -144,6 +144,8 @@ export interface ClarificationView {
     status: 'pending' | 'issued' | 'revoked';
   } | null;
   followUpOf: string | null;
+  /** The letter's opening paragraph, before the items; null when it has none. */
+  opening: string | null;
   response: {
     items: {
       index: number;

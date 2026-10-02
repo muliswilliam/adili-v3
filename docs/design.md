@@ -63,7 +63,7 @@ Status colours come in three steps: the solid colour (`text-success`, dots, bars
 | `warning` | `--warn` | `#9a5a00` | `#fdf4e2` | `#6b4000` |
 | `destructive` | `--danger` | `#c9291e` (hover `destructive-hover`, `#b3241a`) | `#fdeceb` | `#8a1c14` |
 | `info` | `.badge-info`, `.dot.info` | `#2f6fd1` | `#eaf1fb` | `#1f4f96` |
-| `ai` | `--ai` | `#6d4ae0` | `#f1edfd` | `#43299f` |
+| `ai` | `--ai` | `#6d4ae0` (text on it `ai-foreground`: white, `#150f2b` in the dark theme) | `#f1edfd` | `#43299f` |
 | `brand` | `--brand`, `--brand-soft`, `--brand-ink` | `#e95a24` | `#fdf0e9` | `#b8430f` |
 
 `brand-faint` (`--brand-softer`, `#fef7f3`) tints selected table rows and a drop zone while a file is dragged over it. `bg-stripes-brand` lays `brand-faint` and `brand-subtle` in 10px diagonal stripes for the acknowledgement slip's header band (`.slip-head` in `declarant-journey`).
@@ -113,7 +113,7 @@ The lockup and mark are always the `logo` orange. In Figma the mark carries an 8
 
 | Component | Kit | Notes |
 |---|---|---|
-| `Button` | `.btn` | Variants `default` (primary), `secondary`, `ghost`, `destructive`, `destructive-ghost`, `link`. Sizes `default` 44px, `sm` 34px, `xs` 28px, `icon` 36px square. Presses down 1px; disabled is 50% opacity, except primary, which turns `primary-disabled`. Full width is `className="w-full"`. |
+| `Button` | `.btn` | Variants `default` (primary), `secondary`, `ghost`, `destructive`, `destructive-ghost`, `ai` (`.btn-ai`: an action that asks an AI model, e.g. Draft with AI), `link`. Sizes `default` 44px, `sm` 34px, `xs` 28px, `icon` 36px square. Presses down 1px; disabled is 50% opacity, except primary, which turns `primary-disabled`. Full width is `className="w-full"`. |
 | `Input`, `Textarea` | `.input`, `.textarea` | 44px high (textarea 110px minimum), 12px padding, 15px text. Read-only (the `readonly` attribute) and disabled fill with `muted`; disabled text is dimmer. `controlClassName` carries these for other text controls. Error comes from `aria-invalid`, set by `FormField`. |
 | `Label` | `.label` | 14px medium in `secondary-foreground` |
 | `FormField` | `.field` | label, hint, control and error 6px apart. The hint sits under the label so it is read before the control; the error sits under the control with an icon and `role="alert"`. Two parts, a header (label, hint) and a body (control, error), so a parent grid can line up the controls of a row with `sm:row-span-2 sm:grid-rows-subgrid`. |
@@ -129,7 +129,7 @@ The lockup and mark are always the `logo` orange. In Figma the mark carries an 8
 | `EmptyState` | `.empty` | 30px icon tile, 15px title, 14px text up to 340px wide; no border, since it sits inside a card |
 | `Skeleton` | `.skeleton` | 12px bar with a shimmer (static when reduced motion is set) |
 | `Checkbox` | `.cbx` | native checkbox, 18px, `accent-color` primary |
-| `Select` | `.select`, `.menu` | trigger styled like `Input`; the list is a 12px-radius `shadow-pop` menu with 36px items. The trigger takes the id and aria attributes from `FormField`. |
+| `Select` | `.select`, `.menu` | trigger styled like `Input`; the list is a 12px-radius `shadow-pop` menu with 36px items. The trigger takes the id and aria attributes from `FormField`. `SelectGroup` puts options under a muted 12px heading. |
 | `Menu` | `.menu`, `.menu-note` | a button's dropdown of actions: 12px-radius `shadow-pop` panel, 200-300px wide, 6px padding; `MenuItem` rows are 36px, 14px text with an optional 16px muted icon (`tone`: `destructive` red, `ai` icon tint), `rounded-md`, `muted` when highlighted; disabled items are 50% opacity. `MenuNote` is a 13px muted entry, reachable but unavailable (`aria-disabled`), explaining an action that is not offered. `MenuTrigger` wraps the button; `MenuContent` aligns to its end by default. A picked item's `onSelect` runs once the menu has closed and focus is back on the trigger, so a dialog it opens returns focus there. `AttachmentList` uses it via `menuItems` behind a 36px ghost icon trigger (vertical ellipsis). |
 | `DataTable` | `.table` with `.cbx` | `Table` with a 36px checkbox column; selected rows tint `brand-faint`; select all covers the current page. The header checkbox is named by `selection.selectAllLabel` (default "Select all on page") |
 | `FileDropZone` | `.drop` | 1.5px dashed `input` border, 16px radius, 44px icon tile, 15px semibold label and 13.5px hint inside the zone. Hover and drag-over turn the border ink on `brand-faint`; an error softens it red and shows `FieldError` below; disabled is 55% opacity with a not-allowed cursor. `icon` replaces the upload arrow in the tile. A file rejected in the browser shows its message until the next file is accepted or `error` changes to a new value; clearing `error` does not hide it. |

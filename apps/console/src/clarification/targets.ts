@@ -24,7 +24,11 @@ export interface ClarificationTarget {
   label: string;
   kind: 'section' | 'statement' | 'item';
   ref: TargetRef;
+  /** An item's category and description in the declaration, for short labels (chips). */
+  item?: { category: ItemCategory; description: string };
 }
+
+export type ItemCategory = 'income' | 'assets' | 'liabilities';
 
 export const DECLARATION_GROUP = 'Declaration';
 /** Heading of a saved target the current version no longer has. */
@@ -99,6 +103,7 @@ export function clarificationTargets(
           label: [categoryLabel, description, name].filter(Boolean).join(' · '),
           kind: 'item',
           ref: { sectionKey, personKey, itemId: item.id },
+          item: { category, description },
         });
       }
     }

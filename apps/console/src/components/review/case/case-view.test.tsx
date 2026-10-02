@@ -308,7 +308,7 @@ describe('CaseView: the officer holding the case', () => {
     ).toBeTruthy();
   });
 
-  it('opens the composer with the flags picked in the copilot', async () => {
+  it("opens the composer with the flags picked in the copilot as Draft with AI's", async () => {
     await renderCase(CASES.mine);
     const flag = screen.getByRole('article', { name: /Value changed by 150%/ });
     fireEvent.click(within(flag).getByRole('button', { name: 'Explain' }));
@@ -318,7 +318,22 @@ describe('CaseView: the officer holding the case', () => {
     expect(screen.getByText('1 flag selected')).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'New clarification' }));
     const drawer = screen.getByRole('dialog', { name: 'New clarification' });
-    expect(within(drawer).getAllByText(/Plot Kisumu\/Manyatta\/1234/).length).toBeGreaterThan(0);
+    const drafting = within(drawer).getByRole('region', { name: 'Draft with AI' });
+    expect(
+      within(drafting).getByRole('button', {
+        name: 'Remove Value changed by 150% since the previous declaration',
+      }),
+    ).toBeTruthy();
+    // The composer starts as for any new clarification: one blank item.
+    expect(within(drawer).getAllByRole('region', { name: /^Item / })).toHaveLength(1);
+
+    // Removing the chip unpicks the flag in the copilot too.
+    fireEvent.click(
+      within(drafting).getByRole('button', {
+        name: 'Remove Value changed by 150% since the previous declaration',
+      }),
+    );
+    expect(screen.queryByText('1 flag selected')).toBeNull();
   });
 
   it('adds a note, and refuses an empty one', async () => {

@@ -121,6 +121,7 @@ describe('clarifications: drafts, issue, letter payload, declarant reads', () =>
       dueAt: null,
       letter: null,
       response: null,
+      opening: null,
       items: twoItems.items,
     });
   });
@@ -388,6 +389,71 @@ describe('clarifications: drafts, issue, letter payload, declarant reads', () =>
     expect(response.json()).toMatchObject({ code: 'clarification-has-no-items' });
   });
 
+  it("S12: a draft keeps the letter's opening paragraph; an update replaces it, and issuing prints it in the letter payload", async () => {
+    const caseId = await givenAssignedCase(api, version);
+    const opening =
+      'Thank you for your biennial declaration. The points below relate to registry records.';
+
+    const created = await draft(caseId, { ...twoItems, opening: `  ${opening}  ` });
+    expect(created.statusCode, created.body).toBe(201);
+    const { id, ...body } = created.json<ClarificationView>();
+    expect(body.opening).toBe(opening);
+    expect((await api.get(`/v1/review/clarifications/${id}`, reviewerA)).json()).toMatchObject({
+      opening,
+    });
+
+    // Up to 800 characters.
+    const tooLong = await api.send('PUT', `/v1/review/clarifications/${id}`, reviewerA, {
+      ...twoItems,
+      opening: 'x'.repeat(801),
+    });
+    expect(tooLong.statusCode).toBe(400);
+
+    // An update replaces the draft's content: left out (or blank), there is no opening.
+    const cleared = await api.send('PUT', `/v1/review/clarifications/${id}`, reviewerA, twoItems);
+    expect(cleared.statusCode, cleared.body).toBe(200);
+    expect(cleared.json<ClarificationView>().opening).toBeNull();
+    const blank = await api.send('PUT', `/v1/review/clarifications/${id}`, reviewerA, {
+      ...twoItems,
+      opening: '   ',
+    });
+    expect(blank.json<ClarificationView>().opening).toBeNull();
+    const updated = await api.send('PUT', `/v1/review/clarifications/${id}`, reviewerA, {
+      ...twoItems,
+      opening,
+    });
+    expect(
+      contractErrors(
+        okResponse('/v1/review/clarifications/{clarificationId}', 'put'),
+        updated.json(),
+      ),
+    ).toEqual([]);
+    expect(updated.json<ClarificationView>().opening).toBe(opening);
+
+    const issued = await issue(id);
+    expect(issued.statusCode, issued.body).toBe(200);
+    expect(issued.json<ClarificationView>().opening).toBe(opening);
+    await vi.waitFor(
+      () => {
+        expect(api.documents.issued).toHaveLength(1);
+      },
+      { timeout: 45_000, interval: 250 },
+    );
+    const payload = await api.get(
+      `/internal/v1/review/clarifications/${id}/letter-payload`,
+      documentsService,
+      { 'x-acting-tenant': 'psc' },
+    );
+    expect(payload.statusCode, payload.body).toBe(200);
+    expect(
+      contractErrors(
+        okResponse('/internal/v1/review/clarifications/{clarificationId}/letter-payload', 'get'),
+        payload.json(),
+      ),
+    ).toEqual([]);
+    expect(payload.json()).toMatchObject({ opening });
+  });
+
   it('S12: issuing needs an Idempotency-Key, and a retry with the same key replays the answer', async () => {
     const caseId = await givenAssignedCase(api, version);
     const { id } = (await draft(caseId)).json<ClarificationView>();
@@ -450,6 +516,7 @@ describe('clarifications: drafts, issue, letter payload, declarant reads', () =>
       commission: { name: 'Public Service Commission', issuerCode: 'PSC' },
       declarationReference: 'DCB-PSC-2027-0000042-7',
       clarificationReference: reference,
+      opening: null,
       items: [
         {
           label: 'Assets · Plot KSM/123 · James Otieno',

@@ -60,6 +60,7 @@ import {
   emptyComposer,
   ITEM_TEXT_MAX,
   type ItemProblem,
+  OPENING_TEXT_MAX,
 } from '../../../clarification/composer';
 import { REQUIREMENT_LABELS } from '../../../clarification/labels';
 import { type ClarificationTarget, clarificationTargets } from '../../../clarification/targets';
@@ -98,12 +99,11 @@ export interface ComposerServer {
   issue: (input: ComposedInput & { issueKey: string }) => Promise<IssueResult>;
 }
 
-interface ComposedInput {
+type ComposedInput = ReturnType<typeof composerToInput> & {
   caseId: string;
   clarificationId: string | null;
-  items: ReturnType<typeof composerToInput>['items'];
   draftKey: string;
-}
+};
 
 export const composerServer: ComposerServer = {
   save: (data) => saveClarificationDraft({ data }),
@@ -205,7 +205,7 @@ function ComposerBody({
   const { toast } = useToast();
   const targets = useMemo(() => clarificationTargets(document), [document]);
   const [state, dispatch] = useReducer(composerReducer, null, () => {
-    if (draft) return draftComposer(draft.items, targets);
+    if (draft) return draftComposer({ items: draft.items, opening: draft.opening }, targets);
     const start = emptyComposer();
     return seed ? composerReducer(start, { type: 'insert', draft: seed, targets }) : start;
   });
@@ -248,7 +248,7 @@ function ComposerBody({
     const result = await server.save({
       caseId: reviewCase.id,
       clarificationId,
-      items: composerToInput(state).items,
+      ...composerToInput(state),
       draftKey: keys.draft,
     });
     setBusy(null);
@@ -285,7 +285,7 @@ function ComposerBody({
     const result = await server.issue({
       caseId: reviewCase.id,
       clarificationId,
-      items: composerToInput(state).items,
+      ...composerToInput(state),
       draftKey: keys.draft,
       issueKey: keys.issue,
     });
@@ -356,6 +356,7 @@ function ComposerBody({
             {state.opening ? (
               <OpeningField
                 opening={state.opening}
+                tooLong={problems?.opening === 'too-long'}
                 onChange={(text) => {
                   dispatch({ type: 'opening', text });
                 }}
@@ -491,7 +492,7 @@ function ItemCard({
       aria-labelledby={`${id}-title`}
       className={cn(
         'grid gap-3.5 rounded-2xl bg-card px-4 pt-3.5 pb-4',
-        invalid ? 'shadow-control-error' : 'shadow-card',
+        invalid ? 'shadow-control-error' : item.ai ? AI_CARD : 'shadow-card',
       )}
     >
       <div className="flex min-h-8 items-center gap-2">
@@ -595,19 +596,30 @@ function ItemCard({
   );
 }
 
-/** The letter's opening paragraph from Draft with AI; editable, or discarded. */
+/** A drafted item's card: the card's shadow with the AI colour down its left edge. */
+const AI_CARD = 'shadow-[var(--elevation-card),inset_3px_0_0_var(--ai)]';
+
+/** The letter's opening paragraph (Draft with AI's, or a saved draft's); editable, or discarded. */
 function OpeningField({
   opening,
+  tooLong,
   onChange,
   onDiscard,
 }: {
   opening: NonNullable<ComposerState['opening']>;
+  tooLong: boolean;
   onChange: (text: string) => void;
   onDiscard: () => void;
 }) {
   const id = useId();
+  const over = opening.text.trim().length > OPENING_TEXT_MAX;
   return (
-    <section className="grid gap-1.5 rounded-2xl bg-card px-4 pt-3.5 pb-4 shadow-card">
+    <section
+      className={cn(
+        'grid gap-1.5 rounded-2xl bg-card px-4 pt-3.5 pb-4',
+        tooLong ? 'shadow-control-error' : opening.ai ? AI_CARD : 'shadow-card',
+      )}
+    >
       <div className="flex min-h-8 items-center gap-2">
         <Label htmlFor={id} className="text-[14.5px] font-semibold text-foreground">
           {t.openingLabel}
@@ -616,6 +628,14 @@ function OpeningField({
           <AiLabel details={opening.ai} text={t.aiDraft} edited={opening.edited} size="sm" />
         ) : null}
         <span className="flex-1" />
+        <span
+          className={cn(
+            'hidden text-[12.5px] whitespace-nowrap text-muted-foreground tabular-nums sm:inline',
+            over && 'font-semibold text-destructive',
+          )}
+        >
+          {t.counter(opening.text.length, OPENING_TEXT_MAX)}
+        </span>
         <Button variant="ghost" size="xs" aria-label={t.discardOpeningLabel} onClick={onDiscard}>
           <Icon icon={Delete02Icon} />
           {t.discardItem}
@@ -625,10 +645,13 @@ function OpeningField({
         id={id}
         rows={3}
         value={opening.text}
+        aria-invalid={tooLong ? true : undefined}
+        aria-describedby={tooLong ? `${id}-error` : undefined}
         onChange={(event) => {
           onChange(event.target.value);
         }}
       />
+      {tooLong ? <FieldError id={`${id}-error`}>{t.openingTooLong}</FieldError> : null}
     </section>
   );
 }
