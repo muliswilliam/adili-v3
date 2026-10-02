@@ -2393,6 +2393,15 @@ export interface operations {
                     "application/json": components["schemas"]["Clarification"];
                 };
             };
+            /** @description Body failed validation, or problem type `ai-draft-not-on-case`: an `aiJobId` or `openingAiJobId` that names no ready Draft with AI of the case */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
         };
@@ -2445,6 +2454,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Clarification"];
+                };
+            };
+            /** @description Body failed validation, or problem type `ai-draft-not-on-case`: an `aiJobId` or `openingAiJobId` that names no ready Draft with AI of the case */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
             404: components["responses"]["NotFound"];
