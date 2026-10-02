@@ -1,4 +1,4 @@
-import { COUNTIES, COUNTRIES, formatDate } from '@adili/ui';
+import { countryName, countyName, formatDate } from '@adili/ui';
 
 import {
   ASSET_TYPE_LABELS,
@@ -98,20 +98,6 @@ export function relationOf(personKey: string): Relation {
   if (personKey.startsWith('spouse:')) return 'spouse';
   if (personKey.startsWith('child:')) return 'child';
   return 'declarant';
-}
-
-const COUNTRY_NAMES = new Map(COUNTRIES.map((country) => [country.code, country.name]));
-
-/** A country by name, from its ISO code; the code when it is not one we know. */
-export function countryName(code: string): string {
-  return COUNTRY_NAMES.get(code) ?? code;
-}
-
-const COUNTY_NAMES = new Map(COUNTIES.map((county) => [county.code, county.name]));
-
-/** A Kenyan county by name, from its code (`022` is Kiambu); the code when it is not one we know. */
-export function countyName(code: string): string {
-  return COUNTY_NAMES.get(code) ?? code;
 }
 
 function placeOf(location: unknown): string {

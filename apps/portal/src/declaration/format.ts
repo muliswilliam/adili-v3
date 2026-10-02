@@ -1,5 +1,3 @@
-import { COUNTIES, COUNTRIES } from '@adili/ui';
-
 import type { Draft, PersonName } from './contents';
 
 /**
@@ -25,18 +23,6 @@ export function ageOn(birthDate: string, on: string): number {
   const [by = 0, bm = 0, bd = 0] = birthDate.split('-').map(Number);
   const [y = 0, m = 0, d = 0] = on.split('-').map(Number);
   return y - by - (m < bm || (m === bm && d < bd) ? 1 : 0);
-}
-
-/** A county's name from its code; undefined when there is no code. */
-export function countyName(code: string | undefined): string | undefined {
-  if (!code) return undefined;
-  return COUNTIES.find((county) => county.code === code)?.name ?? code;
-}
-
-/** A country's name from its ISO code; undefined when there is no code. */
-export function countryName(code: string | undefined): string | undefined {
-  if (!code) return undefined;
-  return COUNTRIES.find((country) => country.code === code)?.name ?? code;
 }
 
 /** How the summary shows a field the declarant has not answered. */
