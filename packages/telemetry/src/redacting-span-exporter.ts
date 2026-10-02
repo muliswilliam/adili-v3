@@ -1,13 +1,23 @@
 import type { Attributes } from '@opentelemetry/api';
 import type { tracing } from '@opentelemetry/sdk-node';
 
-import { redactUrl } from './url-redaction.js';
+import { redactTracedUrl } from './url-redaction.js';
 
-/** Span attributes that hold a request's URL, or its query alone (`url.query`). */
-const URL_ATTRIBUTES = ['url.full', 'url.original', 'http.url', 'http.target'] as const;
+/**
+ * Span attributes that hold a request's URL or path, or its query alone (`url.query`, which
+ * undici's instrumentation records with its `?` and the HTTP instrumentation without).
+ */
+const URL_ATTRIBUTES = ['url.full', 'url.original', 'url.path', 'http.url', 'http.target'] as const;
 const QUERY_ATTRIBUTES = ['url.query'] as const;
 
-/** `attributes` with free-text query values blanked; the same object when there were none. */
+/** A query alone, redacted as it would be in its URL, with or without its leading `?`. */
+const redactQuery = (query: string) =>
+  query.startsWith('?') ? redactTracedUrl(query) : redactTracedUrl(`?${query}`).slice(1);
+
+/**
+ * `attributes` with free-text query values and identifiers blanked in their URLs
+ * (`redactTracedUrl`); the same object when there were none.
+ */
 export function redactAttributes(attributes: Attributes): Attributes {
   let redacted: Attributes | undefined;
   const set = (key: string, value: string) => {
@@ -17,20 +27,22 @@ export function redactAttributes(attributes: Attributes): Attributes {
   };
   for (const key of URL_ATTRIBUTES) {
     const value = attributes[key];
-    if (typeof value === 'string') set(key, redactUrl(value));
+    if (typeof value === 'string') set(key, redactTracedUrl(value));
   }
   for (const key of QUERY_ATTRIBUTES) {
     const value = attributes[key];
-    if (typeof value === 'string') set(key, redactUrl(`?${value}`).slice(1));
+    if (typeof value === 'string') set(key, redactQuery(value));
   }
   return redacted ?? attributes;
 }
 
 /**
- * Exports spans through `exporter` with free-text query values (`search=`, `name=`, ...) blanked
- * in their URL attributes. HTTP auto-instrumentation records the full URL of every request a
- * service serves or sends, so a name in a query string would otherwise reach the trace store.
- * A safety net: endpoints take such text in a body.
+ * Exports spans through `exporter` with free-text query values (`search=`, `name=`, ...) and
+ * identifiers (`/v1/persons/22607781`, `?id_number=22607781`) blanked in their URL attributes.
+ * HTTP auto-instrumentation records the full URL of every request a service serves or sends, so
+ * a name in a query string, or a national ID, KRA PIN or personal number a registry takes in its
+ * path, would otherwise reach the trace store. Our own endpoints take such values in a body; the
+ * registries' wire protocols are theirs, so every service's spans are redacted here, centrally.
  */
 export class RedactingSpanExporter implements tracing.SpanExporter {
   constructor(private readonly exporter: tracing.SpanExporter) {}
