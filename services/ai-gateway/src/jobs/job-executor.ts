@@ -156,12 +156,12 @@ export class JobExecutor {
       params = parseParams(job.params, `job ${job.id}`);
       // The token map lives in `prompt` for this attempt only, and is never stored or logged.
       prompt = preparePrompt(task, job.promptVersion, job.input, job.model, params);
+      this.telemetry.identifiersMinimised(job, prompt.counts);
     } catch (error) {
       // No call was made: a probe this attempt claimed must not keep the breaker half-open.
       this.breaker.release(provider.name);
       throw error;
     }
-    this.telemetry.identifiersMinimised(job, prompt.counts);
     const startedAt = performance.now();
     const result = await this.call(job, provider, prompt, params.timeoutMs);
     const metrics: AttemptMetrics = {

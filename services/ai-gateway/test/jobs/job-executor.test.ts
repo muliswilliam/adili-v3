@@ -69,4 +69,31 @@ describe('JobExecutor', () => {
     // The probe is free again: the next attempt may call the provider.
     expect(breaker.tryAcquire('scripted')).toBe(true);
   });
+  it('releases the half-open probe when telemetry throws before the call (review Q18)', async () => {
+    let now = 0;
+    const breaker = new CircuitBreaker({ failureThreshold: 1, cooldownMs: 1000, now: () => now });
+    breaker.recordFailure('scripted');
+    now += 1000;
+    const provider = new ScriptedProvider(() => Promise.reject(new Error('never called')));
+    const admission = { refusal: () => Promise.resolve(undefined) } as unknown as Admission;
+    const telemetry = new GenAiTelemetry();
+    vi.spyOn(telemetry, 'identifiersMinimised').mockImplementation(() => {
+      throw new Error('metrics exporter down');
+    });
+    const executor = new JobExecutor(
+      startingDatabase({ ...job, params: {} }),
+      new ProviderRegistry([provider]),
+      admission,
+      breaker,
+      telemetry,
+      {} as EventPublisher,
+    );
+
+    await expect(executor.execute(job.id, Date.now() + 60_000)).rejects.toThrow(
+      /metrics exporter down/,
+    );
+
+    expect(provider.requests).toHaveLength(0);
+    expect(breaker.tryAcquire('scripted')).toBe(true);
+  });
 });
