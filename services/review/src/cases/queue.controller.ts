@@ -11,7 +11,7 @@ import {
   ZodValidationPipe,
 } from '@adili/api-kit';
 
-import { type QueueQuery, queueListQuery, queueSearchBody } from './queue-query.js';
+import { type QueueQuery, queueListInput, queueListQuery, queueSearchBody } from './queue-query.js';
 import { QueueService } from './queue.service.js';
 import type { CasePage, QueueSummary, ReviewerList } from './representation.js';
 import { ReviewersService } from './reviewers.service.js';
@@ -46,16 +46,19 @@ export class QueueController {
     operationId: 'listReviewQueue',
     summary: 'Cases of the Commission ordered by score then age',
     description:
-      "Reviewers and supervisors of the Commission. Anyone else, including another Commission's staff, gets 404. Filters only: search text is personal data, so it is never in a URL; send it to `searchReviewQueue`.",
+      "Reviewers and supervisors of the Commission. Anyone else, including another Commission's staff, gets 404. Filters only: search text is personal data, so it is never in a URL; send it to `searchReviewQueue`. A `search` parameter is refused with 400.",
   })
   @ApiQueryParameters(queueListQuery)
   @ApiOkResponse({ description: 'Page', schema: CASE_PAGE })
-  @ApiProblemResponse(400, 'Query failed validation, or the cursor is unknown')
+  @ApiProblemResponse(
+    400,
+    'Query failed validation (a `search` included), or the cursor is unknown',
+  )
   @ApiProblemResponse(404, NOT_VISIBLE)
   list(
     @CurrentPrincipal() principal: Principal,
     @Param('slug') slug: string,
-    @Query(new ZodValidationPipe(queueListQuery)) query: QueueQuery,
+    @Query(new ZodValidationPipe(queueListInput)) query: QueueQuery,
   ): Promise<CasePage> {
     return this.queue.list(principal, slug, query);
   }

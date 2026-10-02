@@ -15,7 +15,7 @@ paths:
       tags:
         - queue
       summary: Cases of the Commission ordered by score then age
-      description: "Reviewers and supervisors of the Commission. Anyone else, including another Commission's staff, gets 404. Filters only: search text is personal data, so it is never in a URL; send it to `searchReviewQueue`."
+      description: "Reviewers and supervisors of the Commission. Anyone else, including another Commission's staff, gets 404. Filters only: search text is personal data, so it is never in a URL; send it to `searchReviewQueue`. A `search` parameter is refused with 400."
       operationId: listReviewQueue
       parameters:
         - name: slug
@@ -134,7 +134,7 @@ paths:
                       - string
                       - 'null'
         '400':
-          description: Query failed validation, or the cursor is unknown
+          description: Query failed validation (a `search` included), or the cursor is unknown
           content:
             application/problem+json:
               schema:

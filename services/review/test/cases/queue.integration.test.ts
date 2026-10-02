@@ -263,8 +263,15 @@ describe('review queue and summary', () => {
     expect(ids(await search({ search: 'kamau', late: true, cycle: 2027, limit: 10 }))).toEqual([
       lateKamau,
     ]);
-    // The list's query has no search: a name sent there filters nothing.
-    expect(ids(await queue('?search=kamau'))).toHaveLength(3);
+    // The list's query has no search: a name sent there is refused, not silently dropped, so a
+    // stale caller never takes the whole queue for a match.
+    const inUrl = await api.get('/v1/commissions/psc/review/queue?search=kamau', reviewer);
+    expect(inUrl.statusCode).toBe(400);
+    expect(inUrl.headers['content-type']).toContain('application/problem+json');
+    const problem = inUrl.json<{ status: number; errors: { path: string; message: string }[] }>();
+    expect(problem.status).toBe(400);
+    expect(problem.errors.map(({ path }) => path)).toEqual(['search']);
+    expect(problem.errors[0]?.message).toContain('searchReviewQueue');
     const invalid = await api.send('POST', '/v1/commissions/psc/review/queue/search', reviewer, {
       late: 'true',
     });

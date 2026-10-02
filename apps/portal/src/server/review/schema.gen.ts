@@ -13,7 +13,7 @@ export interface paths {
         };
         /**
          * Cases of the Commission ordered by score then age
-         * @description Reviewers and supervisors of the Commission. Anyone else, including another Commission's staff, gets 404. Filters only: search text is personal data, so it is never in a URL; send it to `searchReviewQueue`.
+         * @description Reviewers and supervisors of the Commission. Anyone else, including another Commission's staff, gets 404. Filters only: search text is personal data, so it is never in a URL; send it to `searchReviewQueue`. A `search` parameter is refused with 400.
          */
         get: operations["listReviewQueue"];
         put?: never;
@@ -2018,7 +2018,7 @@ export interface operations {
                     };
                 };
             };
-            /** @description Query failed validation, or the cursor is unknown */
+            /** @description Query failed validation (a `search` included), or the cursor is unknown */
             400: {
                 headers: {
                     [name: string]: unknown;

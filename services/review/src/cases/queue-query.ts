@@ -44,7 +44,7 @@ const filters = <C extends z.ZodType>(cycle: C) => ({
  * Query of `GET /v1/commissions/{slug}/review/queue` (review.yaml `listReviewQueue`): the
  * filters without the search text, which is personal data (a name, say) and so is never in a
  * URL, where access logs and trace attributes would keep it. It goes in the body of
- * `searchReviewQueue`; a `search` here is ignored.
+ * `searchReviewQueue`; `queueListInput` refuses a `search` here.
  */
 export const queueListQuery = z.object({
   ...filters(
@@ -60,6 +60,16 @@ export const queueListQuery = z.object({
   openClarification: queryFlag(OPEN_CLARIFICATION),
   registryUnavailable: queryFlag(REGISTRY_UNAVAILABLE),
   limit: z.coerce.number().int().min(1).max(100).default(50),
+});
+
+/**
+ * What the list validates: `queueListQuery`, refusing a `search` (400) rather than dropping it,
+ * so a stale caller never takes the whole queue for its matches.
+ */
+export const queueListInput = queueListQuery.extend({
+  search: z
+    .never({ error: 'Search text is never in a URL; send it in the body of searchReviewQueue' })
+    .optional(),
 });
 
 /**
