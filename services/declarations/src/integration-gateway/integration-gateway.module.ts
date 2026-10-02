@@ -1,8 +1,9 @@
 import { Module } from '@nestjs/common';
 import { ServiceTokenClient } from '@adili/api-kit';
+import { REGISTRY_SCOPE } from '@adili/roles';
 
 import { config } from '../config.js';
-import { HttpIntegrationGatewayClient, REGISTRY_SCOPE } from './http-integration-gateway-client.js';
+import { HttpIntegrationGatewayClient } from './http-integration-gateway-client.js';
 import { IntegrationGatewayClient } from './integration-gateway-client.js';
 
 /** The integration-gateway's registry lookups, called with the service's own token (ADR-013). */

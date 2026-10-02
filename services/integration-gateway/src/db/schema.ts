@@ -52,6 +52,11 @@ export const LEGAL_BASES = [
   'act-s35-5',
   /** ADR-014: confirm a declarant's identity against the roster at onboarding. */
   'adr-014-onboarding',
+  /**
+   * Spec 05b: the declarant asks, with their consent recorded, for registries to be checked about
+   * themselves or their household, to pre-fill their own declaration.
+   */
+  'declarant-request',
 ] as const;
 export type LegalBasis = (typeof LEGAL_BASES)[number];
 

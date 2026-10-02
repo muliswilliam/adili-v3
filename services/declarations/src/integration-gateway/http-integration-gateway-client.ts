@@ -2,15 +2,12 @@ import { createServiceClient, type ServiceClient, type ServiceTokenClient } from
 import { z } from 'zod';
 
 import type { RegistryResult, RegistrySystem } from '../suggestions/registry-results.js';
+import type { paths } from './integration-gateway-api.gen.js';
 import {
   IntegrationGatewayClient,
   IntegrationGatewayUnavailable,
   type RegistryLookup,
 } from './integration-gateway-client.js';
-import { REGISTRY_SCOPE, type RegistryLookupPaths } from './registry-lookup-api.js';
-
-/** The scope the declarations service's token needs for the registry lookups. */
-export { REGISTRY_SCOPE };
 
 /**
  * How long a lookup may take: the gateway times each registry out at 2 s behind its breaker and
@@ -33,12 +30,7 @@ const envelope = <TSystem extends RegistrySystem>(system: TSystem) =>
     resultId: z.uuid(),
     system: z.literal(system),
     outcome: z.enum(['found', 'not-found', 'unavailable']),
-    // #461 adds `rate-limited`, which the committed contract's types lack until regenerated: the
-    // registry gave no answer either way, and only `outcome` matters to the suggestions.
-    reason: z
-      .enum(['timeout', 'breaker-open', 'paused', 'rate-limited', 'upstream-error'])
-      .nullable()
-      .transform((reason) => (reason === 'rate-limited' ? 'upstream-error' : reason)),
+    reason: z.enum(['timeout', 'breaker-open', 'paused', 'rate-limited', 'upstream-error']).nullable(),
     cached: z.boolean(),
     checkedAt: z.string(),
   });
@@ -96,9 +88,9 @@ const ardhisasaResultSchema = envelope('ardhisasa').extend({
 });
 
 /**
- * The integration-gateway's registry lookups (KRA, NTSA, BRS, ArdhiSasa) on api-kit's service
- * client, typed by `registry-lookup-api.ts` until the gateway's contract has them (#461): the
- * service's own token (`registry`), the national ID in the body, the Commission in
+ * The integration-gateway's registry lookups (KRA, NTSA, BRS, ArdhiSasa, spec 07b) through the
+ * client generated from its contract (packages/schemas/internal/integration-gateway.yaml →
+ * integration-gateway-api.gen.ts) on api-kit's service client: the service's own token (`registry`), the national ID in the body, the Commission in
  * `X-Acting-Tenant`, the legal basis in `X-Legal-Basis`, the declaration in `X-Case-Ref` and the
  * declarant in `X-Subject-Person`. Each answer is validated at the boundary; an unreachable
  * gateway, any other status (a refusal, or 503 `lookup-not-recorded`) or a body off contract is
@@ -106,11 +98,11 @@ const ardhisasaResultSchema = envelope('ardhisasa').extend({
  * rate-limited) is a 200 with outcome `unavailable`, passed on as it is.
  */
 export class HttpIntegrationGatewayClient extends IntegrationGatewayClient {
-  private readonly gateway: ServiceClient<RegistryLookupPaths>;
+  private readonly gateway: ServiceClient<paths>;
 
   constructor(options: HttpIntegrationGatewayClientOptions) {
     super();
-    this.gateway = createServiceClient<RegistryLookupPaths>({
+    this.gateway = createServiceClient<paths>({
       baseUrl: options.gatewayUrl,
       service: 'integration-gateway',
       tokens: options.tokens,

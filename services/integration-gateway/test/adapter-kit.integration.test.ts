@@ -525,11 +525,21 @@ describe('adapter kit', () => {
       expect(malformed.json()).toMatchObject({ errors: [{ path: 'X-Subject-Person' }] });
     });
 
+    it("takes the declarant's own request as a legal basis (spec 05b)", async () => {
+      const response = await echo({
+        'x-legal-basis': 'declarant-request',
+        'x-case-ref': '0190a3b2-7c4d-7e8f-9a0b-1c2d3e4f5a6b',
+      });
+
+      expect(response.json()).toMatchObject({
+        legalBasis: 'declarant-request',
+        caseRef: '0190a3b2-7c4d-7e8f-9a0b-1c2d3e4f5a6b',
+      });
+    });
+
     it.each([
       ['missing', {}],
       ['unknown', { 'x-legal-basis': 'curiosity' }],
-      // Spec 05b adds the declarant's own lookups; until then nothing may claim them.
-      ['declarant-request', { 'x-legal-basis': 'declarant-request' }],
     ])('answers 400 when the legal basis is %s', async (_, headers) => {
       const response = await echo(headers);
 

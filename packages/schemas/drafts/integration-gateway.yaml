@@ -136,7 +136,7 @@ components:
       name: X-Legal-Basis
       in: header
       required: true
-      description: e.g. regs-r20-1-b, act-s35-5, adr-014-onboarding
+      description: e.g. regs-r20-1-b, act-s35-5, adr-014-onboarding, declarant-request
       schema:
         type: string
   responses:

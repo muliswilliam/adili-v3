@@ -484,7 +484,7 @@ export interface components {
              * @description Machine-readable cause, from the platform registry; clients map it to copy and never show `title` or `detail`
              * @enum {string}
              */
-            code?: "database-unavailable" | "rate-limit-exceeded" | "no-match" | "already-onboarded" | "no-roster" | "otp-invalid" | "otp-expired" | "resend-cooldown" | "otp-send-failed" | "wrong-step" | "session-expired" | "iprs-unavailable" | "identity-unavailable" | "email-in-use" | "identity-mismatch" | "step-up-required" | "incomplete" | "before-statement-date" | "amendment-window-closed" | "not-a-draft" | "not-submitted" | "obligation-cancelled" | "acknowledgement-issued" | "acknowledgement-in-progress" | "no-applicant-record" | "request-decided" | "request-closed" | "officer-resolved" | "not-under-decision" | "not-pending-verification" | "lea-account-inactive" | "declarant-notified" | "representations-closed" | "download-window-closed" | "scope-exceeds-request" | "grounds-required";
+            code?: "database-unavailable" | "rate-limit-exceeded" | "no-match" | "already-onboarded" | "no-roster" | "otp-invalid" | "otp-expired" | "resend-cooldown" | "otp-send-failed" | "wrong-step" | "session-expired" | "iprs-unavailable" | "identity-unavailable" | "email-in-use" | "identity-mismatch" | "step-up-required" | "incomplete" | "before-statement-date" | "amendment-window-closed" | "not-a-draft" | "not-submitted" | "obligation-cancelled" | "acknowledgement-issued" | "acknowledgement-in-progress" | "consent-required" | "no-id" | "not-new" | "no-applicant-record" | "request-decided" | "request-closed" | "officer-resolved" | "not-under-decision" | "not-pending-verification" | "lea-account-inactive" | "declarant-notified" | "representations-closed" | "download-window-closed" | "scope-exceeds-request" | "grounds-required";
             detail?: string;
             instance?: string;
             /** @description Field-level errors; `path` is the dotted request field */
@@ -552,7 +552,7 @@ export interface components {
     parameters: {
         /** @description Review case the lookup is for; recorded on the result and the audit event */
         CaseRef: string;
-        /** @description e.g. regs-r20-1-b, act-s35-5, adr-014-onboarding */
+        /** @description e.g. regs-r20-1-b, act-s35-5, adr-014-onboarding, declarant-request */
         LegalBasis: string;
     };
     requestBodies: never;
@@ -631,8 +631,8 @@ export interface operations {
             header: {
                 /** @description Tenant the calling service acts for; the resource must belong to it */
                 "X-Acting-Tenant": string;
-                /** @description Why the registry is consulted, recorded on the result and the audit event. regs-r20-1-b, act-s35-5 or adr-014-onboarding */
-                "X-Legal-Basis": "regs-r20-1-b" | "act-s35-5" | "adr-014-onboarding";
+                /** @description Why the registry is consulted, recorded on the result and the audit event. regs-r20-1-b, act-s35-5, adr-014-onboarding or declarant-request */
+                "X-Legal-Basis": "regs-r20-1-b" | "act-s35-5" | "adr-014-onboarding" | "declarant-request";
                 /** @description Review case the lookup is for; recorded on the result and the audit event */
                 "X-Case-Ref": string;
                 /** @description Platform person the lookup is about (the case declarant); recorded on the result, so reads of it are audited as reads of their data */
@@ -691,8 +691,8 @@ export interface operations {
             header: {
                 /** @description Tenant the calling service acts for; the resource must belong to it */
                 "X-Acting-Tenant": string;
-                /** @description Why the registry is consulted, recorded on the result and the audit event. regs-r20-1-b, act-s35-5 or adr-014-onboarding */
-                "X-Legal-Basis": "regs-r20-1-b" | "act-s35-5" | "adr-014-onboarding";
+                /** @description Why the registry is consulted, recorded on the result and the audit event. regs-r20-1-b, act-s35-5, adr-014-onboarding or declarant-request */
+                "X-Legal-Basis": "regs-r20-1-b" | "act-s35-5" | "adr-014-onboarding" | "declarant-request";
                 /** @description Review case the lookup is for; recorded on the result and the audit event */
                 "X-Case-Ref": string;
                 /** @description Platform person the lookup is about (the case declarant); recorded on the result, so reads of it are audited as reads of their data */
@@ -751,8 +751,8 @@ export interface operations {
             header: {
                 /** @description Tenant the calling service acts for; the resource must belong to it */
                 "X-Acting-Tenant": string;
-                /** @description Why the registry is consulted, recorded on the result and the audit event. regs-r20-1-b, act-s35-5 or adr-014-onboarding */
-                "X-Legal-Basis": "regs-r20-1-b" | "act-s35-5" | "adr-014-onboarding";
+                /** @description Why the registry is consulted, recorded on the result and the audit event. regs-r20-1-b, act-s35-5, adr-014-onboarding or declarant-request */
+                "X-Legal-Basis": "regs-r20-1-b" | "act-s35-5" | "adr-014-onboarding" | "declarant-request";
                 /** @description Review case the lookup is for; recorded on the result and the audit event */
                 "X-Case-Ref": string;
                 /** @description Platform person the lookup is about (the case declarant); recorded on the result, so reads of it are audited as reads of their data */
@@ -811,8 +811,8 @@ export interface operations {
             header: {
                 /** @description Tenant the calling service acts for; the resource must belong to it */
                 "X-Acting-Tenant": string;
-                /** @description Why the registry is consulted, recorded on the result and the audit event. regs-r20-1-b, act-s35-5 or adr-014-onboarding */
-                "X-Legal-Basis": "regs-r20-1-b" | "act-s35-5" | "adr-014-onboarding";
+                /** @description Why the registry is consulted, recorded on the result and the audit event. regs-r20-1-b, act-s35-5, adr-014-onboarding or declarant-request */
+                "X-Legal-Basis": "regs-r20-1-b" | "act-s35-5" | "adr-014-onboarding" | "declarant-request";
                 /** @description Review case the lookup is for; recorded on the result and the audit event */
                 "X-Case-Ref": string;
                 /** @description Platform person the lookup is about (the case declarant); recorded on the result, so reads of it are audited as reads of their data */
@@ -873,8 +873,8 @@ export interface operations {
             header: {
                 /** @description Tenant the calling service acts for; the resource must belong to it */
                 "X-Acting-Tenant": string;
-                /** @description Why the registry is consulted, recorded on the result and the audit event. regs-r20-1-b, act-s35-5 or adr-014-onboarding */
-                "X-Legal-Basis": "regs-r20-1-b" | "act-s35-5" | "adr-014-onboarding";
+                /** @description Why the registry is consulted, recorded on the result and the audit event. regs-r20-1-b, act-s35-5, adr-014-onboarding or declarant-request */
+                "X-Legal-Basis": "regs-r20-1-b" | "act-s35-5" | "adr-014-onboarding" | "declarant-request";
                 /** @description Review case the lookup is for; recorded on the result and the audit event */
                 "X-Case-Ref": string;
                 /** @description Platform person the lookup is about (the case declarant); recorded on the result, so reads of it are audited as reads of their data */
@@ -1174,7 +1174,7 @@ export interface operations {
             header: {
                 /** @description Review case the lookup is for; recorded on the result and the audit event */
                 "X-Case-Ref"?: components["parameters"]["CaseRef"];
-                /** @description e.g. regs-r20-1-b, act-s35-5, adr-014-onboarding */
+                /** @description e.g. regs-r20-1-b, act-s35-5, adr-014-onboarding, declarant-request */
                 "X-Legal-Basis": components["parameters"]["LegalBasis"];
             };
             path?: never;
@@ -1253,7 +1253,7 @@ export interface operations {
             header: {
                 /** @description Review case the lookup is for; recorded on the result and the audit event */
                 "X-Case-Ref"?: components["parameters"]["CaseRef"];
-                /** @description e.g. regs-r20-1-b, act-s35-5, adr-014-onboarding */
+                /** @description e.g. regs-r20-1-b, act-s35-5, adr-014-onboarding, declarant-request */
                 "X-Legal-Basis": components["parameters"]["LegalBasis"];
             };
             path?: never;
