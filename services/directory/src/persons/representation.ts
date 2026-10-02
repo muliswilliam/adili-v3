@@ -63,3 +63,9 @@ export const personContactsSchema = z.object({
     .meta({ description: 'E.164, verified at onboarding; null when none' }),
 });
 export type PersonContacts = z.infer<typeof personContactsSchema>;
+
+/** The national ID a person was onboarded with, for their own registry lookups (spec 05b). */
+export const personNationalIdSchema = z.object({
+  nationalId: z.string().meta({ description: 'Digits only, as verified at onboarding' }),
+});
+export type PersonNationalId = z.infer<typeof personNationalIdSchema>;

@@ -315,7 +315,7 @@
     {
       "clientId": "declarations",
       "name": "Declarations service",
-      "description": "Service account the declarations service uses to pull roster records and policy from the directory (and the officer's national ID for a registry lookup they ask for), to send reminders through notifications and to link declaration attachments in documents",
+      "description": "Service account the declarations service uses to pull roster records and policy from the directory (and a declarant's national ID for their registry lookups), to send reminders through notifications and to link declaration attachments in documents",
       "enabled": true,
       "protocol": "openid-connect",
       "publicClient": false,
@@ -328,7 +328,7 @@
       "defaultClientScopes": [
         "basic",
         "directory:internal",
-        "directory:roster-national-id",
+        "directory:person-national-id",
         "messages",
         "documents:internal"
       ],
@@ -1175,8 +1175,30 @@
       ]
     },
     {
+      "name": "directory:person-national-id",
+      "description": "Read a person's national ID, as verified at onboarding, from the directory: the declarations service only, for the declarant's own registry lookups (spec 05b)",
+      "protocol": "openid-connect",
+      "attributes": {
+        "include.in.token.scope": "true",
+        "display.on.consent.screen": "false"
+      },
+      "protocolMappers": [
+        {
+          "name": "adili-api audience",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "config": {
+            "included.custom.audience": "adili-api",
+            "access.token.claim": "true",
+            "id.token.claim": "false",
+            "introspection.token.claim": "true"
+          }
+        }
+      ]
+    },
+    {
       "name": "directory:roster-national-id",
-      "description": "Service tokens that may read a roster record's national ID from the directory: the review service, for payroll's salary stoppage and the ICMS referral (spec 08), and the declarations service, for registry lookups the officer asks for (spec 05b)",
+      "description": "Service tokens that may read a roster record's national ID from the directory: the review service only, for payroll's salary stoppage and the ICMS referral (spec 08)",
       "protocol": "openid-connect",
       "attributes": {
         "include.in.token.scope": "true",

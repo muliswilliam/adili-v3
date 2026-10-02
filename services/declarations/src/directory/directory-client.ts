@@ -86,11 +86,11 @@ export abstract class DirectoryClient {
   abstract getRosterRecord(slug: string, recordId: string): Promise<PulledRosterRecord | null>;
 
   /**
-   * The record's national ID, the officer's for a registry lookup they asked for (spec 05b; an
-   * audited read in the directory); null when the Commission has no such record. Personal data:
-   * never logged, stored or put in an event or workflow history.
+   * The person's national ID as verified at onboarding, the declarant's for a registry lookup they
+   * asked for (spec 05b; an audited read in the directory); null when no such person is onboarded
+   * at the Commission. Personal data: never logged, stored or put in an event or workflow history.
    */
-  abstract getRosterNationalId(slug: string, recordId: string): Promise<string | null>;
+  abstract getPersonNationalId(slug: string, personId: string): Promise<string | null>;
 
   /** The policy version in force for the Commission. */
   abstract getPolicy(slug: string): Promise<PulledPolicy>;

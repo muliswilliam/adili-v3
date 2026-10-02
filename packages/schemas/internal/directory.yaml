@@ -2853,6 +2853,55 @@ paths:
       x-audited-read:
         action: person.contacts.read
         resource: person
+  /internal/v1/persons/{personId}/national-id:
+    get:
+      tags:
+        - internal
+      summary: A person's national ID (declarations)
+      description: Service tokens with scope directory:person-national-id (the declarations service only), acting for the Commission of the declaration; audited. The national ID verified at onboarding, for the declarant's own registry lookups. 404 when the person is unknown or not onboarded at that tenant.
+      operationId: internalGetPersonNationalId
+      parameters:
+        - name: X-Acting-Tenant
+          in: header
+          description: Tenant the calling service acts for; the resource must belong to it
+          required: true
+          schema:
+            type: string
+            pattern: ^[a-z][a-z0-9]{1,19}$
+        - name: personId
+          required: true
+          in: path
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: The national ID
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PersonNationalId'
+        '400':
+          description: personId is not a UUID
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '403':
+          description: Requires a service token with scope directory:person-national-id
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: No person has this id, or not one onboarded at the acting tenant
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+      x-audited-read:
+        action: person.national-id.read
+        resource: person
   /v1/onboarding/applicants:
     post:
       tags:
@@ -5287,6 +5336,14 @@ components:
         - personId
         - email
         - phone
+    PersonNationalId:
+      type: object
+      properties:
+        nationalId:
+          type: string
+          description: Digits only, as verified at onboarding
+      required:
+        - nationalId
     VerifyOnboardingOtp:
       type: object
       properties:

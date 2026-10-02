@@ -43,6 +43,7 @@ import {
 import {
   declarantProfileSchema,
   personContactsSchema,
+  personNationalIdSchema,
   personSummarySchema,
 } from './persons/representation.js';
 import {
@@ -160,6 +161,7 @@ export const OPENAPI_SCHEMAS: Record<string, z.ZodType> = {
   DeclarantProfile: declarantProfileSchema,
   PersonSummary: personSummarySchema,
   PersonContacts: personContactsSchema,
+  PersonNationalId: personNationalIdSchema,
   VerifyOnboardingOtp: verifyOnboardingOtpBody,
   ProvideOnboardingContact: provideOnboardingContactBody,
 };

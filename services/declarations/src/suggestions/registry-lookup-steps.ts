@@ -51,10 +51,10 @@ export class RegistryLookupSteps {
 
   async lookup(attempt: LookupAttempt): Promise<LookupAttemptOutcome> {
     const person = personContext(attempt);
-    const pending = await withPerson(this.db, person, (tx) => pendingSet(tx, attempt));
+    const pending = await withPerson(this.db, person, (tx) => isPending(tx, attempt));
     if (!pending) return 'recorded';
 
-    const nationalId = await this.nationalId(attempt, pending.rosterRecordId);
+    const nationalId = await this.nationalId(attempt);
     if (nationalId === null) {
       await this.settle(attempt, { status: 'no-id' });
       return 'recorded';
@@ -109,13 +109,13 @@ export class RegistryLookupSteps {
   }
 
   /**
-   * The person's national ID: the officer's from their roster record (an audited read in the
-   * directory), a spouse's or child's from Household as saved now. Null when there is none any
-   * more (the person was taken out, or their ID removed, since the request).
+   * The person's national ID: the officer's from their person record, as verified at onboarding
+   * (an audited read in the directory), a spouse's or child's from Household as saved now. Null
+   * when there is none any more (the person was taken out, or their ID removed, since the request).
    */
-  private async nationalId(ref: LookupRef, rosterRecordId: string): Promise<string | null> {
+  private async nationalId(ref: LookupRef): Promise<string | null> {
     if (isOfficer(ref.personKey)) {
-      return this.directory.getRosterNationalId(ref.tenant, rosterRecordId);
+      return this.directory.getPersonNationalId(ref.tenant, ref.personId);
     }
     const section = await withPerson(this.db, personContext(ref), async (tx) => {
       const [row] = await tx
@@ -316,13 +316,10 @@ function personContext(ref: Pick<LookupRef, 'personId' | 'subject'>): PersonCont
   return { personId: ref.personId, subject: ref.subject };
 }
 
-/** The set while it is pending on a live draft, with the declaration's roster record. */
-async function pendingSet(
-  tx: Transaction,
-  attempt: LookupAttempt,
-): Promise<{ rosterRecordId: string } | null> {
+/** Whether the set is still pending on a live draft. */
+async function isPending(tx: Transaction, attempt: LookupAttempt): Promise<boolean> {
   const [row] = await tx
-    .select({ status: suggestionSets.status, rosterRecordId: declarations.rosterRecordId })
+    .select({ status: suggestionSets.status })
     .from(suggestionSets)
     .innerJoin(declarations, eq(declarations.id, suggestionSets.declarationId))
     .where(
@@ -332,5 +329,5 @@ async function pendingSet(
         ne(declarations.status, 'discarded'),
       ),
     );
-  return row?.status === 'pending' ? { rosterRecordId: row.rosterRecordId } : null;
+  return row?.status === 'pending';
 }

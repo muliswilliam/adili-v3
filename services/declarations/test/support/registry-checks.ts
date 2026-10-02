@@ -27,12 +27,12 @@ export function registryCheckFixtures(api: () => DeclarationsApi) {
   ): Promise<void> {
     const [row] = await api().asPerson(personId, (tx) =>
       tx
-        .select({ rosterRecordId: declarations.rosterRecordId })
+        .select({ tenant: declarations.tenant })
         .from(declarations)
         .where(eq(declarations.id, declarationId)),
     );
     if (!row) throw new Error(`No declaration ${declarationId}`);
-    api().directory.givenNationalId(row.rosterRecordId, nationalId);
+    api().directory.givenNationalId(row.tenant, personId, nationalId);
   }
 
   function requestLookups(declarationId: string, body: unknown, caller: Caller) {

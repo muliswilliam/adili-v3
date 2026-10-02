@@ -29,7 +29,7 @@ export const envSchema = baseEnvSchema.extend({
   REMINDER_JITTER_HOURS: z.coerce.number().min(0).max(12).default(6),
   /**
    * The service's confidential Keycloak client (client credentials: `directory:internal`,
-   * `directory:roster-national-id`, `messages`, `documents:internal` and the registry scopes).
+   * `directory:person-national-id`, `messages`, `documents:internal` and the registry scopes).
    */
   KEYCLOAK_CLIENT_ID: z.string().min(1).default('declarations'),
   KEYCLOAK_CLIENT_SECRET: z.string().min(1),

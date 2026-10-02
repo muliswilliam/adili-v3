@@ -3,8 +3,14 @@ import { notFoundIfInvisible, PLATFORM_TENANT } from '@adili/api-kit';
 import { type Database, InjectDatabase, type TenantContext, withTenant } from '@adili/data-access';
 import { and, asc, eq, exists } from 'drizzle-orm';
 
+import type { Transaction } from '../commissions/commissions.service.js';
 import { commissions, type DirectorySchema, persons, rosterRecords } from '../db/schema.js';
-import type { DeclarantProfile, PersonContacts, PersonSummary } from './representation.js';
+import type {
+  DeclarantProfile,
+  PersonContacts,
+  PersonNationalId,
+  PersonSummary,
+} from './representation.js';
 
 /**
  * Reading persons (spec 03): a declarant's own profile, found by the subject of their token, and
@@ -84,25 +90,37 @@ export class PersonsService {
       tx
         .select({ personId: persons.id, email: persons.email, phone: persons.phone })
         .from(persons)
-        .where(
-          and(
-            eq(persons.id, personId),
-            // Onboarded at the acting tenant: its roster records are the only ones RLS shows.
-            exists(
-              tx
-                .select({ id: rosterRecords.id })
-                .from(rosterRecords)
-                .where(
-                  and(
-                    eq(rosterRecords.personId, persons.id),
-                    eq(rosterRecords.tenant, context.tenant),
-                  ),
-                ),
-            ),
-          ),
-        )
+        .where(onboardedAt(tx, context.tenant, personId))
         .limit(1),
     );
     return notFoundIfInvisible(person);
   }
+
+  /** The national ID the person was onboarded with; 404 if no person onboarded at the tenant. */
+  async nationalId(context: TenantContext, personId: string): Promise<PersonNationalId> {
+    const [person] = await withTenant(this.db, context, (tx) =>
+      tx
+        .select({ nationalId: persons.nationalId })
+        .from(persons)
+        .where(onboardedAt(tx, context.tenant, personId))
+        .limit(1),
+    );
+    return notFoundIfInvisible(person);
+  }
+}
+
+/**
+ * The person `personId`, if onboarded at the acting tenant: its roster records are the only ones
+ * RLS shows.
+ */
+function onboardedAt(tx: Transaction, tenant: string, personId: string) {
+  return and(
+    eq(persons.id, personId),
+    exists(
+      tx
+        .select({ id: rosterRecords.id })
+        .from(rosterRecords)
+        .where(and(eq(rosterRecords.personId, persons.id), eq(rosterRecords.tenant, tenant))),
+    ),
+  );
 }

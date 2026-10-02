@@ -72,7 +72,7 @@ beforeEach(async () => {
   );
 });
 
-/** A draft of the person's, its roster record giving the officer's national ID (or none). */
+/** A draft of the person's, the directory giving the officer's national ID (or none). */
 async function givenDraft(
   personId = ACHIENG,
   caller: Caller = achieng,
@@ -80,7 +80,7 @@ async function givenDraft(
 ): Promise<Declaration> {
   const record = rosterRecord('psc', { personId, fullName: 'Achieng Wambui Otieno' });
   api.directory.givenRecords([record]);
-  if (nationalId !== null) api.directory.givenNationalId(record.id, nationalId);
+  if (nationalId !== null) api.directory.givenNationalId('psc', personId, nationalId);
   const obligationId = randomUUID();
   await api.asPlatform(async (tx) => {
     await tx.insert(rosterSnapshots).values({
@@ -417,7 +417,7 @@ describe('who can be checked, and registries that do not answer (S2)', () => {
     expect(await api.asPerson(ACHIENG, (tx) => tx.select().from(suggestionConsents))).toEqual([]);
   });
 
-  it('marks every registry no-id for an officer whose roster record has no national ID', async () => {
+  it('marks every registry no-id for an officer the directory gives no national ID', async () => {
     const draft = await givenDraft(ACHIENG, achieng, { nationalId: null });
     givenOfficerRegistries();
 

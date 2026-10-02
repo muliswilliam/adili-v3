@@ -65,8 +65,9 @@ export class FakeDirectory extends DirectoryClient {
   private readonly records = new Map<string, PulledRosterRecord>();
   private readonly selections = new Map<string, string[]>();
   private failures: { page: number; remaining: number } | undefined;
+  /** By `<slug> <personId>`: a person's national ID, where they are onboarded. */
   private readonly nationalIds = new Map<string, string>();
-  /** Every national ID read, by record id: an audited read in the directory. */
+  /** Every national ID read, by person id: an audited read in the directory. */
   readonly nationalIdReads: string[] = [];
 
   givenCommission(slug: string, name: string, policy: PulledPolicy = policyVersion()): void {
@@ -93,9 +94,9 @@ export class FakeDirectory extends DirectoryClient {
     for (const record of records) this.records.set(record.id, record);
   }
 
-  /** The national ID the roster gives record `recordId`. */
-  givenNationalId(recordId: string, nationalId: string): void {
-    this.nationalIds.set(recordId, nationalId);
+  /** The national ID person `personId`, onboarded at Commission `slug`, was verified with. */
+  givenNationalId(slug: string, personId: string, nationalId: string): void {
+    this.nationalIds.set(`${slug} ${personId}`, nationalId);
   }
 
   /** The next pull of page `page` (0-based) fails, once. */
@@ -143,11 +144,9 @@ export class FakeDirectory extends DirectoryClient {
     return Promise.resolve(record?.tenant === slug ? record : null);
   }
 
-  getRosterNationalId(slug: string, recordId: string): Promise<string | null> {
-    this.nationalIdReads.push(recordId);
-    const record = this.records.get(recordId);
-    if (record?.tenant !== slug) return Promise.resolve(null);
-    return Promise.resolve(this.nationalIds.get(recordId) ?? null);
+  getPersonNationalId(slug: string, personId: string): Promise<string | null> {
+    this.nationalIdReads.push(personId);
+    return Promise.resolve(this.nationalIds.get(`${slug} ${personId}`) ?? null);
   }
 
   getPolicy(slug: string): Promise<PulledPolicy> {

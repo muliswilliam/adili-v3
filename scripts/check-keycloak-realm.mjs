@@ -3,7 +3,7 @@
 // the adili-otp authenticator), staff provisioning setup (directory service client, SMTP, email
 // theme, user profile attributes), declarant accounts (multi-valued tenants), service clients and
 // scopes (messages, iprs, directory:internal, directory:person-contacts and
-// directory:roster-national-id; the keycloak-extension, declarations and notifications clients) and API client setup (roster:write client scope; documents:internal and
+// directory:roster-national-id and directory:person-national-id; the keycloak-extension, declarations and notifications clients) and API client setup (roster:write client scope; documents:internal and
 // the adili-api audience for the directory) specs 03, 04, 06 and 27 require. Demo users are optional (#371 seeds them). Portal and console tokens carry the
 // person_id claim (spec 04).
 import { readFileSync } from 'node:fs';
@@ -213,6 +213,7 @@ for (const name of [
   'directory:person-contacts',
   'declarations:internal',
   'directory:roster-national-id',
+  'directory:person-national-id',
   'reports:submit',
 ]) {
   const scope = scopes.get(name);
@@ -259,11 +260,15 @@ if (directory) {
 }
 // Services pull from the directory's internal API (spec 04): declarations (roster records and
 // policy after roster events, reminders through notifications, and declaration attachments in
-// documents, spec 05) and notifications (a person's verified contacts).
+// documents, spec 05; the declarant's national ID for their registry lookups, spec 05b) and
+// notifications (a person's verified contacts).
 // The documents service pulls a submitted version's acknowledgement slip payload from
 // declarations (spec 06).
 for (const [id, needed] of [
-  ['declarations', ['directory:internal', 'messages', 'documents:internal']],
+  [
+    'declarations',
+    ['directory:internal', 'directory:person-national-id', 'messages', 'documents:internal'],
+  ],
   ['notifications', ['directory:person-contacts']],
   ['documents', ['declarations:internal']],
 ]) {
@@ -288,13 +293,14 @@ for (const client of realm.clients ?? []) {
   if (client.clientId !== 'notifications' && scopesOf.includes('directory:person-contacts')) {
     fail(`${client.clientId} must not get directory:person-contacts (notifications only)`);
   }
-  // A national ID likewise: review reads it, for payroll and the ICMS referral (spec 08), and
-  // declarations, for the registry lookups an officer asks for about themselves (spec 05b).
-  if (
-    !['review', 'declarations'].includes(client.clientId) &&
-    scopesOf.includes('directory:roster-national-id')
-  ) {
-    fail(`${client.clientId} must not get directory:roster-national-id (review and declarations)`);
+  // A national ID likewise: only review reads a roster record's, for payroll and the ICMS
+  // referral (spec 08), and only declarations a person's, for the declarant's own registry
+  // lookups (spec 05b).
+  if (client.clientId !== 'review' && scopesOf.includes('directory:roster-national-id')) {
+    fail(`${client.clientId} must not get directory:roster-national-id (review only)`);
+  }
+  if (client.clientId !== 'declarations' && scopesOf.includes('directory:person-national-id')) {
+    fail(`${client.clientId} must not get directory:person-national-id (declarations only)`);
   }
 }
 // API clients the directory creates get `basic` (the `sub` claim) with their own scope.

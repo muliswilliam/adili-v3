@@ -24,7 +24,7 @@ export interface HttpDirectoryClientOptions {
   directoryUrl: string;
   /**
    * Client credentials tokens of the declarations service carrying `directory:internal` and
-   * `directory:roster-national-id`.
+   * `directory:person-national-id`.
    */
   tokens: Pick<ServiceTokenClient, 'token' | 'invalidate'>;
   /** Per attempt. Default `DIRECTORY_PULL_TIMEOUT_MS`. */
@@ -79,14 +79,14 @@ const commissionSchema = z.object({
 
 const commissionListSchema = z.object({ items: z.array(commissionSchema) });
 
-const rosterNationalIdSchema = z.object({ nationalId: z.string().min(1) });
+const personNationalIdSchema = z.object({ nationalId: z.string().min(1) });
 
 /**
  * The directory's internal API through the client generated from its contract
  * (packages/schemas/internal/directory.yaml → directory-api.gen.ts via `pnpm generate:api`) on
  * api-kit's service client: the service's own token (client credentials, `directory:internal`,
- * and `directory:roster-national-id` for the officer's national ID; one retry after a 401), the Commission in `X-Acting-Tenant` (ADR-013 §8.1, ADR-017), answers
- * validated at the boundary. Anything else unexpected is `DirectoryUnavailable`.
+ * and `directory:person-national-id` for the declarant's national ID; one retry after a 401), the
+ * Commission in `X-Acting-Tenant` (ADR-013 §8.1, ADR-017), answers validated at the boundary. Anything else unexpected is `DirectoryUnavailable`.
  */
 export class HttpDirectoryClient extends DirectoryClient {
   private readonly directory: ServiceClient<paths>;
@@ -131,13 +131,13 @@ export class HttpDirectoryClient extends DirectoryClient {
     );
   }
 
-  async getRosterNationalId(slug: string, recordId: string): Promise<string | null> {
+  async getPersonNationalId(slug: string, personId: string): Promise<string | null> {
     const found = await this.directory.call(
       (api) =>
-        api.GET('/internal/v1/commissions/{slug}/roster/records/{recordId}/national-id', {
-          params: { path: { slug, recordId }, header: { 'X-Acting-Tenant': slug } },
+        api.GET('/internal/v1/persons/{personId}/national-id', {
+          params: { path: { personId }, header: { 'X-Acting-Tenant': slug } },
         }),
-      { status: 200, schema: rosterNationalIdSchema, otherwise: { 404: () => null } },
+      { status: 200, schema: personNationalIdSchema, otherwise: { 404: () => null } },
     );
     return found?.nationalId ?? null;
   }
