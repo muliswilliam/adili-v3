@@ -145,6 +145,16 @@ describe('ClarificationComposer', () => {
     expect(within(drawer()).getByText('Response due 28 Oct 2026')).toBeTruthy();
   });
 
+  it('calls a clarification on an earlier one a further clarification (CONTEXT.md, M6)', async () => {
+    await renderComposer({ followUpOf: { reference: 'CLR-TSC-2026-0000042-K' } });
+    expect(screen.getByRole('dialog', { name: 'Further clarification' })).toBeTruthy();
+    expect(
+      screen.getByText(
+        'Further clarification on CLR-TSC-2026-0000042-K. Remove any items that were answered.',
+      ),
+    ).toBeTruthy();
+  });
+
   it('offers the sections and items of the current version, searchable', async () => {
     await renderComposer();
     fireEvent.click(within(item(1)).getByRole('button', { name: /What is this about\?/ }));

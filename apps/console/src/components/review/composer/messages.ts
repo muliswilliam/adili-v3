@@ -7,10 +7,10 @@ import { formatDate, plural } from '@adili/ui';
 export const en = {
   newTitle: 'New clarification',
   draftTitle: 'Clarification draft',
-  followUpTitle: 'Follow-up clarification',
+  followUpTitle: 'Further clarification',
   to: (name: string, reference: string) => `To ${name} · re: ${reference}`,
   followUpOf: (reference: string) =>
-    `Follow-up to ${reference}. Remove any items that were answered.`,
+    `Further clarification on ${reference}. Remove any items that were answered.`,
   viewLegend: 'Composer view',
   viewItems: 'Items',
   viewPreview: 'Letter preview',
