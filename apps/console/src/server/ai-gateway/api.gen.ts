@@ -375,11 +375,8 @@ export interface components {
         FeedbackInput: {
             /** @description The reviewer rating the output, as the calling service knows them (token `sub`) */
             reviewerSubject: string;
-            /**
-             * @description The block rated: a summary's `overview`, `changes`, `sections` or `worth-attention`, or an explanation's `flag:<flagId>`. Null or left out: the output as a whole
-             * @default null
-             */
-            block: string | null;
+            /** @description The block rated: a summary's `overview`, `changes`, `sections` or `worth-attention`, or an explanation's `flag:<flagId>`. Null or left out: the output as a whole */
+            block?: string | null;
             /** @enum {string} */
             rating: "helpful" | "not-helpful";
             reason: ("inaccurate" | "missed-something" | "unclear" | "too-long" | "other") | null;
@@ -390,10 +387,7 @@ export interface components {
             jobId: string;
             /** @description The reviewer rating the output, as the calling service knows them (token `sub`) */
             reviewerSubject: string;
-            /**
-             * @description The block rated: a summary's `overview`, `changes`, `sections` or `worth-attention`, or an explanation's `flag:<flagId>`. Null or left out: the output as a whole
-             * @default null
-             */
+            /** @description The block rated; null for the output as a whole */
             block: string | null;
             /** @enum {string} */
             rating: "helpful" | "not-helpful";

@@ -21,7 +21,7 @@ export const feedbackInputSchema = z.object({
   reviewerSubject: z.string().min(1).max(255).meta({
     description: 'The reviewer rating the output, as the calling service knows them (token `sub`)',
   }),
-  block: z.string().max(64).regex(FEEDBACK_BLOCK).nullable().default(null).meta({
+  block: z.string().max(64).regex(FEEDBACK_BLOCK).nullable().optional().meta({
     description:
       "The block rated: a summary's `overview`, `changes`, `sections` or `worth-attention`, or an explanation's `flag:<flagId>`. Null or left out: the output as a whole",
   }),
@@ -35,6 +35,10 @@ export type FeedbackInput = z.infer<typeof feedbackInputSchema>;
 export const feedbackViewSchema = z.object({
   jobId: z.uuid(),
   ...feedbackInputSchema.shape,
+  block: z
+    .string()
+    .nullable()
+    .meta({ description: 'The block rated; null for the output as a whole' }),
   at: z.iso.datetime(),
 });
 export type FeedbackView = z.infer<typeof feedbackViewSchema>;
@@ -77,7 +81,13 @@ export class FeedbackService {
       if (!job) return undefined;
       const [row] = await tx
         .insert(feedback)
-        .values({ id: uuidv7(), jobId: job.id, ...input, at: new Date() })
+        .values({
+          id: uuidv7(),
+          jobId: job.id,
+          ...input,
+          block: input.block ?? null,
+          at: new Date(),
+        })
         .onConflictDoUpdate({
           target: [feedback.jobId, feedback.reviewerSubject, feedback.block],
           set: {

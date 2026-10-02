@@ -1035,7 +1035,6 @@ components:
           maxLength: 255
           description: The reviewer rating the output, as the calling service knows them (token `sub`)
         block:
-          default: null
           description: "The block rated: a summary's `overview`, `changes`, `sections` or `worth-attention`, or an explanation's `flag:<flagId>`. Null or left out: the output as a whole"
           anyOf:
             - type: string
@@ -1079,13 +1078,10 @@ components:
           maxLength: 255
           description: The reviewer rating the output, as the calling service knows them (token `sub`)
         block:
-          default: null
-          description: "The block rated: a summary's `overview`, `changes`, `sections` or `worth-attention`, or an explanation's `flag:<flagId>`. Null or left out: the output as a whole"
-          anyOf:
-            - type: string
-              maxLength: 64
-              pattern: ^(overview|changes|sections|worth-attention|flag:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$
-            - type: 'null'
+          description: The block rated; null for the output as a whole
+          type:
+            - string
+            - 'null'
         rating:
           type: string
           enum:
@@ -1112,6 +1108,7 @@ components:
       required:
         - jobId
         - reviewerSubject
+        - block
         - rating
         - reason
         - note
