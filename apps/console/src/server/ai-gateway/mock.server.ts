@@ -3,8 +3,9 @@
  * when AI_GATEWAY_MOCK is set, so the console runs without the gateway. One store for every
  * caller; only platform admins (the token's `realm_access.roles`) get past the 403, as the
  * contract has it. Seeded from the prototype (07c-copilot): the gateway's default gate (external
- * providers see synthetic data only), the demo tenant, PSC, JSC and the Nairobi City County
- * Public Service Board with recorded approvals for it, and TSC blocking it by resolution. JSC is
+ * providers see nothing), the demo tenant, PSC, JSC and the Nairobi City County Public Service
+ * Board with recorded approvals letting them see synthetic data, and TSC blocking it by
+ * resolution. JSC is
  * at 86% of its budget and Nairobi City has used its budget up; the local directory seed's
  * Example Commission (`ec`) is at 86% too. A tenant the store has not seen has the default gate
  * and budget, and no usage.
@@ -29,12 +30,12 @@ import type {
 const DATA_CLASSES: readonly DataClass[] = ['synthetic', 'restricted', 'highly-confidential'];
 const PROVIDER_CLASSES: readonly ProviderClass[] = ['external', 'self-hosted'];
 
-/** The gateway's default gate: self-hosted providers see everything, external synthetic only. */
+/** The gateway's default gate: self-hosted providers see everything, external nothing. */
 const DEFAULT_GATE: GateRuleInput[] = DATA_CLASSES.flatMap((dataClass) =>
   PROVIDER_CLASSES.map((providerClass) => ({
     dataClass,
     providerClass,
-    allowed: providerClass === 'self-hosted' || dataClass === 'synthetic',
+    allowed: providerClass === 'self-hosted',
   })),
 );
 

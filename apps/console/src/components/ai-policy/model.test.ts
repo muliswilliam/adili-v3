@@ -48,10 +48,10 @@ const BLOCKED: GateRuleInput[] = (
   })),
 );
 
-/** The gateway's default: self-hosted sees everything, external synthetic data only. */
+/** The gateway's default: self-hosted sees everything, external nothing. */
 const DEFAULTS: GateRuleInput[] = BLOCKED.map((cell) => ({
   ...cell,
-  allowed: cell.providerClass === 'self-hosted' || cell.dataClass === 'synthetic',
+  allowed: cell.providerClass === 'self-hosted',
 }));
 
 const gate = (rules: GateRule[], defaults = BLOCKED) => gateOf(defaults, rules);
@@ -109,11 +109,14 @@ describe('accessText', () => {
 
   it('leaves out provider classes nothing is routed to, and applies the default gate', () => {
     const defaults = { gate: gate([], DEFAULTS), routed: ['external' as const] };
-    expect(accessText(accessOf(defaults))).toBe('External provider, synthetic data only');
+    expect(accessOf(defaults)).toEqual([]);
+    expect(accessText(accessOf({ ...defaults, routed: ['self-hosted'] }))).toBe(
+      'Self-hosted provider, synthetic, restricted and highly confidential data',
+    );
     expect(accessOf({ ...defaults, routed: [] })).toEqual([]);
-    expect(
-      accessOf({ gate: gate([rule({ allowed: false })], DEFAULTS), routed: ['external'] }),
-    ).toEqual([]);
+    expect(accessText(accessOf({ gate: gate([rule()], DEFAULTS), routed: ['external'] }))).toBe(
+      'External provider, synthetic data only',
+    );
   });
 });
 

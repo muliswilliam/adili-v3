@@ -92,7 +92,7 @@ describe('S16 loadAiPolicyOverview', () => {
     expect(
       nacada?.gate.map((cell) => [cell.dataClass, cell.providerClass, cell.allowed, cell.rule]),
     ).toEqual([
-      ['synthetic', 'external', true, null],
+      ['synthetic', 'external', false, null],
       ['synthetic', 'self-hosted', true, null],
       ['restricted', 'external', false, null],
       ['restricted', 'self-hosted', true, null],
