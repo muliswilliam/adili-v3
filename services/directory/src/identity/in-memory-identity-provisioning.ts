@@ -213,7 +213,11 @@ export class InMemoryIdentityProvisioning extends IdentityProvisioning {
             user.emailVerified &&
             user.roles.includes(role),
         )
-        .map((user) => ({ subject: user.userId, email: user.email })),
+        .map((user) => ({
+          subject: user.userId,
+          email: user.email,
+          name: user.name ?? user.email,
+        })),
     );
   }
 

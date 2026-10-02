@@ -32,10 +32,12 @@ export interface IdentityUser {
   roles: string[];
 }
 
-/** A staff account a service may email: its subject (token `sub`) and verified email. */
+/** A staff account a service may email: its subject (token `sub`), verified email and name. */
 export interface StaffContact {
   subject: string;
   email: string;
+  /** Given and family names as on the account; the email when it has neither. */
+  name: string;
 }
 
 export interface CreateStaffUserInput {

@@ -370,6 +370,7 @@ describe('KeycloakIdentityProvisioning', () => {
   it("lists a Commission's staff with a role from the role's holders, a page at a time", async () => {
     const holder = (n: number, tenant: string) => ({
       id: `user-${String(n)}`,
+      ...(n === 100 ? { firstName: 'Asha', lastName: 'Wairimu' } : {}),
       email: `s${String(n)}@${tenant}.go.ke`,
       enabled: true,
       emailVerified: true,
@@ -386,8 +387,9 @@ describe('KeycloakIdentityProvisioning', () => {
     });
 
     await expect(adapter.listStaffWithRole('psc', 'supervisor')).resolves.toEqual([
-      { subject: 'user-7', email: 's7@psc.go.ke' },
-      { subject: 'user-100', email: 's100@psc.go.ke' },
+      // An account without names goes by its email.
+      { subject: 'user-7', email: 's7@psc.go.ke', name: 's7@psc.go.ke' },
+      { subject: 'user-100', email: 's100@psc.go.ke', name: 'Asha Wairimu' },
     ]);
     // Two reads for 101 holders, none per account.
     const reads = requests.filter((request) => request.url.pathname.startsWith(ADMIN));

@@ -216,8 +216,8 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * A Commission's staff holding a role, with their emails (services)
-         * @description Service tokens with scope directory:internal, acting for the Commission in X-Acting-Tenant; audited, naming the accounts read (it gives staff and their emails). Only enabled accounts with a verified email. The reporting service reminds supervisors and commission admins of the Form M deadlines, and chases reporting officers about a late report (spec 09).
+         * A Commission's staff holding a role, with their names and emails (services)
+         * @description Service tokens with scope directory:internal, acting for the Commission in X-Acting-Tenant; audited, naming the accounts read (it gives staff, their names and emails). Only enabled accounts with a verified email. The reporting service reminds supervisors and commission admins of the Form M deadlines, and chases reporting officers about a late report (spec 09); the review service lists the reviewers and supervisors a case can be assigned to (spec 07a).
          */
         get: operations["internalListCommissionStaff"];
         put?: never;
@@ -1062,6 +1062,8 @@ export interface components {
                 subject: string;
                 /** Format: email */
                 email: string;
+                /** @description The staff member's name as on their account; their email when it has none */
+                name: string;
             }[];
         };
         TenantPolicyVersion: {
@@ -2519,7 +2521,7 @@ export interface operations {
     internalListCommissionStaff: {
         parameters: {
             query: {
-                role: "reporting-officer" | "supervisor" | "commission-admin";
+                role: "reporting-officer" | "reviewer" | "supervisor" | "commission-admin";
             };
             header: {
                 /** @description Tenant the calling service acts for; the resource must belong to it */
@@ -2541,7 +2543,7 @@ export interface operations {
                     "application/json": components["schemas"]["InternalStaffList"];
                 };
             };
-            /** @description role is not reporting-officer, supervisor or commission-admin */
+            /** @description role is not reporting-officer, reviewer, supervisor or commission-admin */
             400: {
                 headers: {
                     [name: string]: unknown;

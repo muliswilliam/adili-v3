@@ -479,8 +479,16 @@ describe('Commission staff by role (spec 09 reminders and chase)', () => {
   it('lists the enabled accounts holding the role with a verified email, audited', async () => {
     const supervisor = api.identity.seedUser({
       email: 'supervisor@psc.go.ke',
+      name: 'Grace Akinyi',
       tenant: 'psc',
       roles: ['supervisor'],
+      emailVerified: true,
+    });
+    const reviewer = api.identity.seedUser({
+      email: 'reviewer@psc.go.ke',
+      name: 'Juma Mwangi',
+      tenant: 'psc',
+      roles: ['reviewer'],
       emailVerified: true,
     });
     api.identity.seedUser({
@@ -515,10 +523,14 @@ describe('Commission staff by role (spec 09 reminders and chase)', () => {
       contractErrors(okResponse('/internal/v1/commissions/{slug}/staff', 'get'), response.json()),
     ).toEqual([]);
     expect(response.json()).toEqual({
-      items: [{ subject: supervisor, email: 'supervisor@psc.go.ke' }],
+      items: [{ subject: supervisor, email: 'supervisor@psc.go.ke', name: 'Grace Akinyi' }],
     });
+    expect((await staff('reviewer')).json()).toEqual({
+      items: [{ subject: reviewer, email: 'reviewer@psc.go.ke', name: 'Juma Mwangi' }],
+    });
+    // An account without a name goes by its email.
     expect((await staff('commission-admin')).json()).toEqual({
-      items: [{ subject: admin, email: 'admin@psc.go.ke' }],
+      items: [{ subject: admin, email: 'admin@psc.go.ke', name: 'admin@psc.go.ke' }],
     });
     expect(await auditReads()).toContainEqual(
       expect.objectContaining({
