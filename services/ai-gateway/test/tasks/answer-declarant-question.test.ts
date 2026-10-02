@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
+import { preparePrompt } from '../../src/policy/prompt.js';
 import {
   type AnswerInput,
   type AnswerOutput,
@@ -58,16 +59,27 @@ describe('answer-declarant-question', () => {
     it('takes the rule ids and field paths the completeness check reports', () => {
       const residual = (ruleId: string, fieldPath: string) =>
         withResiduals([{ sectionKey: 'statement:officer', ruleId, fieldPath }]);
-      expect(
-        [
-          ['spouse-required', '/spouses'],
-          ['nil-or-items-required', '/assets'],
-          ['none-conflicts-with-items', '/children/none'],
-          ['required', '/assets/1/change/explanation'],
-          ['required', '/employment/designation'],
-          ['value-change-25', '/assets/10/value'],
-        ].map(([ruleId = '', fieldPath = '']) => residual(ruleId, fieldPath)),
-      ).toEqual([true, true, true, true, true, true]);
+      // Its own rules' kebab-case codes, and the schema's issues under their ajv keywords.
+      const reported = [
+        ['spouse-required', '/spouses'],
+        ['nil-or-items-required', '/assets'],
+        ['none-conflicts-with-items', '/children/none'],
+        ['required', '/assets/1/change/explanation'],
+        ['required', '/employment/designation'],
+        ['value-change-25', '/assets/10/value'],
+        ['minLength', '/assets/0/description'],
+        ['minLength', '/birth/place'],
+        ['minItems', '/income'],
+        ['maxItems', '/assets'],
+        ['exclusiveMinimum', '/assets/0/joint/sharePercent'],
+        ['additionalProperties', '/assets/0/ownership'],
+        ['required', '/registrableInterests/directorships/0/change/kind'],
+        ['required', '/spouses/items/0/separationDate'],
+        ['type', ''],
+      ];
+      expect(reported.map(([ruleId = '', fieldPath = '']) => residual(ruleId, fieldPath))).toEqual(
+        reported.map(() => true),
+      );
     });
 
     it('refuses rule ids and field paths that could carry a value', () => {
@@ -84,14 +96,25 @@ describe('answer-declarant-question', () => {
           ['Required for KDA 123X', '/assets'],
           ['required: 28765432', '/assets'],
           ['required_', '/assets'],
+          ['min Length', '/assets'],
+          ['minLength!', '/assets'],
+          ['25-percent-change', '/assets'],
+          ['MinLength', '/assets'],
         ].map(([ruleId = '', fieldPath = '']) => residual(ruleId, fieldPath)),
-      ).toEqual(Array.from({ length: 9 }, () => false));
+      ).toEqual(Array.from({ length: 13 }, () => false));
     });
   });
 
   it('streams answers and runs hints as jobs', () => {
     expect(task.streamed?.(answerInput)).toBe(true);
     expect(task.streamed?.(hintsInput)).toBe(false);
+  });
+
+  it('cuts an answer off at 2,048 output tokens, well inside the stream deadline, and hints at 8,192', () => {
+    const limit = (input: AnswerInput) =>
+      preparePrompt(task, task.currentPromptVersion, input, 'model').request.maxOutputTokens;
+    expect(limit(answerInput)).toBe(2048);
+    expect(limit(hintsInput)).toBe(8192);
   });
 
   describe('answer mode', () => {

@@ -5,6 +5,7 @@ import { eq } from 'drizzle-orm';
 import { beforeAll, describe, expect, it } from 'vitest';
 
 import { auditRecords, jobs } from '../../src/db/schema.js';
+import { TaskStreams } from '../../src/jobs/task-streams.js';
 import { Budgets } from '../../src/policy/budgets.js';
 import { ProviderError } from '../../src/providers/port.js';
 import type { AnswerInput } from '../../src/tasks/answer-declarant-question.js';
@@ -375,6 +376,52 @@ describe('answer-declarant-question stream', { timeout: 90_000 }, () => {
       const [job] = await t.db.select().from(jobs).where(eq(jobs.tenant, 'kcomm'));
       expect(job).toMatchObject({ status: 'blocked', reason: 'policy' });
     });
+  });
+
+  it('fails the job of a caller that left before it ran, with no provider call and no charge', async () => {
+    provider.scripts = [answered()];
+    const calls = provider.requests.length;
+    const budgets = t.app.get(Budgets);
+    const before = await budgets.usage('demo');
+    const key = randomUUID();
+    const opened = await t.app.get(TaskStreams).open(
+      'answer-declarant-question',
+      request(answerInput, key).payload,
+      'demo',
+      {
+        subject: randomUUID(),
+        tenant: null,
+        roles: [],
+        scopes: [],
+        clientId: 'declarations',
+        name: null,
+        issuedAt: null,
+        personId: null,
+        acr: null,
+        authTime: null,
+        tokenId: null,
+      },
+      key,
+    );
+    const caller = new AbortController();
+    caller.abort();
+
+    const sent = [];
+    for await (const frame of opened.frames(caller.signal)) sent.push(frame);
+
+    expect(sent).toEqual([]);
+    expect(provider.requests).toHaveLength(calls);
+    const [job] = await t.db.select().from(jobs).where(eq(jobs.idempotencyKey, key));
+    expect(job).toMatchObject({
+      status: 'failed',
+      reason: 'provider',
+      tokensIn: 0,
+      tokensOut: 0,
+      costMicros: 0,
+    });
+    const after = await budgets.usage('demo');
+    expect(after.tokensUsed).toBe(before.tokensUsed);
+    expect(after.costMicros).toBe(before.costMicros);
   });
 
   it('fails the job when the caller disconnects mid-stream, charging an estimate', async () => {

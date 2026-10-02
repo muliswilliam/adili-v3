@@ -12,15 +12,21 @@ const sectionKey = z
 const fieldPath = z.string().max(200).meta({ description: 'JSON pointer within the section' });
 
 /**
- * Why and where the completeness check reports a residual: a kebab-case rule id (as review.yaml's
- * `RuleId`s are), and a pointer of `declaration.v1` field names (camelCase) and array indexes.
- * Neither can carry a value, such as a registration or a name, which the context never holds.
+ * Why and where the declarations service's completeness check reports a residual: the code of a
+ * `CompletenessIssue` (declarations.yaml), which is one of its own rules' kebab-case codes or, for a
+ * `declaration.v1` schema issue, the ajv keyword that failed (camelCase: `minLength`,
+ * `exclusiveMinimum`); and its path, a pointer of `declaration.v1` field names (camelCase) and
+ * array indexes. Neither can carry a value, such as a registration or a name, which the context
+ * never holds.
  */
 const ruleId = z
   .string()
   .max(100)
-  .regex(/^[a-z0-9]+(-[a-z0-9]+)*$/)
-  .meta({ description: 'The completeness rule that reports it, e.g. nil-or-items-required' });
+  .regex(/^[a-z][A-Za-z0-9]*(-[a-z0-9]+)*$/)
+  .meta({
+    description:
+      'The completeness rule or schema keyword that reports it, e.g. nil-or-items-required, minLength',
+  });
 const residualPath = fieldPath.regex(/^(\/([a-z][A-Za-z0-9]*|0|[1-9][0-9]*))*$/).meta({
   description: 'JSON pointer within the section, field names and indexes: /assets/1/value',
 });
@@ -115,9 +121,11 @@ export const answerDeclarantQuestion = defineTask({
   input,
   output,
   promptVersions: [1],
-  // Twenty hints, the most a call writes: the golden hint sets take about 230 output tokens a hint in
-  // Swahili, 170 in English, plus up to 560 for the call (thinking included), so about 5,000.
-  maxOutputTokens: 8192,
+  // An answer is a few paragraphs: one that runs away is cut off and declined (ADR-019) well before
+  // the stream's deadline, rather than timing out. Twenty hints, the most a call writes: the golden
+  // hint sets take about 230 output tokens a hint in Swahili, 170 in English, plus up to 560 for the
+  // call (thinking included), so about 5,000.
+  maxOutputTokens: (each) => (each.mode === 'answer' ? 2048 : 8192),
   streamed: (each) => each.mode === 'answer',
   validate: (each, answer) =>
     each.mode === 'answer' ? answerViolations(each, answer) : hintViolations(each, answer),

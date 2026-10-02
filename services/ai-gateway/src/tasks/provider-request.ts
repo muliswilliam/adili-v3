@@ -1,7 +1,7 @@
 import { canonicalJson } from '@adili/api-kit';
 
 import type { Effort, StructuredRequest } from '../providers/port.js';
-import type { TaskDefinition } from './task.js';
+import { outputLimit, type TaskDefinition } from './task.js';
 
 /** Call parameters a route may set; anything unset falls back to the task's own. */
 export interface CallParams {
@@ -43,7 +43,7 @@ export function buildProviderRequest(
         content: `<untrusted-input>\n${escapeMarkup(canonicalJson(input))}\n</untrusted-input>`,
       },
     ],
-    maxOutputTokens: params.maxOutputTokens ?? task.maxOutputTokens,
+    maxOutputTokens: params.maxOutputTokens ?? outputLimit(task, input),
     ...(params.effort && { effort: params.effort }),
     schema: task.outputJsonSchema,
   };

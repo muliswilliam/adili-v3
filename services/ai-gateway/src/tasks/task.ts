@@ -61,8 +61,8 @@ interface TaskSpec<TInput extends z.ZodObject, TOutput extends z.ZodObject> {
   output: TOutput;
   /** Prompt versions with a file `prompts/<task>/v<N>.md`; the last one is current. */
   promptVersions: readonly [number, ...number[]];
-  /** Output limit of every call for this task. */
-  maxOutputTokens: number;
+  /** Output limit of every call for this task, or of a call for this input. */
+  maxOutputTokens: number | ((input: z.infer<TInput>) => number);
   /**
    * The task's own checks of an output against its input, beyond the schema and source refs. Any
    * violation fails the job with reason `validation`.
@@ -126,6 +126,15 @@ export function defineTask<TInput extends z.ZodObject, TOutput extends z.ZodObje
       return prompt;
     },
   };
+}
+
+/**
+ * The output limit of a call for `input`, the job's input as the task validated it (minimised or
+ * not: the limit never depends on an identifier).
+ */
+export function outputLimit(task: TaskDefinition, input: unknown): number {
+  const limit = task.maxOutputTokens;
+  return typeof limit === 'number' ? limit : limit(input as z.infer<z.ZodObject>);
 }
 
 const DISCLAIMERS: Record<Language, string> = {

@@ -127,6 +127,12 @@ export class TaskStreams {
     task: TaskDefinition,
     signal: AbortSignal,
   ): AsyncGenerator<StreamFrame> {
+    // Gone before the call: it would be paid for and its answer never read.
+    if (signal.aborted) {
+      this.logger.log({ jobId: job.id }, 'The caller left before the call; failing the job');
+      await this.executor.finish(job, { status: 'failed', reason: 'provider' }, NO_CALL);
+      return;
+    }
     const provider = this.providers.get(job.provider);
     if (!provider || !this.breaker.tryAcquire(provider.name)) {
       yield* this.end(job, { status: 'failed', reason: 'provider-unavailable' }, NO_CALL);
