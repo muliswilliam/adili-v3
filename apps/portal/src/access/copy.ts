@@ -197,9 +197,10 @@ const REQUESTS = {
   packageNotIssued: en('Package not issued'),
   download: en('Download'),
   downloadLetter: en('Download letter'),
+  // Starts with the button's visible words ("Download", "Download letter"), WCAG 2.5.3.
   downloadFor: en(
     (what: 'package' | 'letter', reference: string, date: string) =>
-      `Download the ${what} for ${reference}, expires ${date}`,
+      `Download ${what} for ${reference}, expires ${date}`,
   ),
   downloading: en('Starting download…'),
   withdraw: en('Withdraw'),
