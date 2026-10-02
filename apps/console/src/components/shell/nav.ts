@@ -53,7 +53,7 @@ const NAV: { label: string; items: NavDefinition[] }[] = [
     items: [
       { workspace: 'commissions', icon: Building03Icon },
       { workspace: 'national-obligations', icon: ChartColumnIcon },
-      { workspace: 'platform', icon: Shield01Icon, label: 'Law-enforcement accounts' },
+      { workspace: 'platform', icon: Shield01Icon, label: 'Law enforcement' },
     ],
   },
   {
