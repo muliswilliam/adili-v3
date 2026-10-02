@@ -272,11 +272,11 @@ describe('Certified copies (S13)', () => {
   });
 
   it('S13: a failed copy ordered again is issued, even when its workflow runs before the order commits', async () => {
-    api.clock.set(NOW);
-    api.directory.givenCommission('psc', 'Public Service Commission');
+    given();
+    api.declarations.withholdFullDocuments();
     const first = (await ask()).json<CertifiedCopy>();
     expect(await untilSettled(first.id)).toMatchObject({ status: 'failed' });
-    api.declarations.givenFullDocument(versionOne());
+    api.declarations.withholdFullDocuments(false);
 
     // The order of it again stays open while the new run's first activity runs: the copy is
     // still `failed` to every other transaction until it commits.
