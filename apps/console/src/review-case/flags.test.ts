@@ -166,7 +166,7 @@ describe('pinsByItem', () => {
       flag({ id: 'low', severity: 'low' }),
       flag({ id: 'high', severity: 'high' }),
       flag({ id: 'done', severity: 'high', reviewed }),
-      flag({ id: 'plot', itemRefs: [{ personKey: 'officer', itemId: PLOT }] }),
+      flag({ id: 'plot', itemRefs: [{ personKey: 'officer', itemId: PLOT, sectionKey: null }] }),
     ]);
 
     expect(pins.get(SALARY)).toEqual({ count: 2, severity: 'high', flagId: 'high' });

@@ -113,6 +113,7 @@ export function caseItem(overrides: Partial<CaseListItem> = {}): CaseListItem {
     status: 'unassigned',
     assignee: null,
     openFlags: 3,
+    registryUnavailable: false,
     clarification: { open: 0, status: null, dueAt: null },
     currentVersion: 1,
     ...overrides,
@@ -163,6 +164,8 @@ export function caseData(overrides: Partial<CaseData> = {}): CaseData {
       },
     ],
     reviewerHistory: [],
+    determinations: [],
+    registry: { checkedAt: null, checks: [] },
     ...overrides,
   };
 }

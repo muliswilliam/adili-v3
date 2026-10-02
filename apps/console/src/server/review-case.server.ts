@@ -46,7 +46,7 @@ function isCaseDetail(body: unknown): body is CaseDetail {
 
 function split(detail: CaseDetail): CaseLoad {
   const { document, flags, ...others } = detail;
-  const rest: CaseData = { ...others, flags: flags as CaseFlag[] };
+  const rest: CaseData = { ...others, flags: flags };
   if (document === null) return { detail: rest, document: null, documentUnavailable: true };
   const parsed = DeclarationSchema.safeParse(document);
   return parsed.success
@@ -136,7 +136,7 @@ export async function markFlagReviewed(
       body: { note },
     }),
   );
-  return result.ok ? { ok: true, data: result.data as CaseFlag } : result;
+  return result.ok ? { ok: true, data: result.data } : result;
 }
 
 /** An officer a supervisor can give the case to. */
