@@ -9,7 +9,7 @@ import { LookupPurposeHeaders, Purpose } from '../src/adapter-kit/lookup-purpose
 import { PauseFlags } from '../src/adapter-kit/pause-flags.js';
 import type { LookupContext, LookupPurpose } from '../src/adapter-kit/registry-adapter.js';
 import { RegistryLookups } from '../src/adapter-kit/registry-lookups.js';
-import type { SystemPolicy } from '../src/adapter-kit/system-policies.js';
+import { burstOf, type SystemPolicy } from '../src/adapter-kit/system-policies.js';
 import { outbox, verificationResults } from '../src/db/schema.js';
 import { REGISTRY_LOOKUP_PERFORMED } from '../src/verification/lookup-events.js';
 import { SubjectHasher } from '../src/verification/subject-hasher.js';
@@ -35,6 +35,7 @@ const KRA_POLICY: SystemPolicy = {
   timeoutMs: 2_000,
   cacheTtlSeconds: 86_400,
   ratePerMinute: 60_000,
+  burst: burstOf(60_000),
   maxQueueMs: 1_000,
 };
 /** One call a second, no burst, at most 1.5 s in the queue: the third queued call is refused. */
@@ -42,7 +43,19 @@ const NTSA_POLICY: SystemPolicy = {
   timeoutMs: 2_000,
   cacheTtlSeconds: 86_400,
   ratePerMinute: 60,
+  burst: 1,
   maxQueueMs: 1_500,
+};
+/**
+ * KRA's shape at one call a second: two calls a lookup, reserved together (a burst of two), a
+ * timeout shorter than the 2.5 s it may queue, so a wait that counted against it would show.
+ */
+const BRS_POLICY: SystemPolicy = {
+  timeoutMs: 500,
+  cacheTtlSeconds: 86_400,
+  ratePerMinute: 60,
+  burst: burstOf(60, 2),
+  maxQueueMs: 2_500,
 };
 
 /** S3 and the kit's recording rules, against Postgres, Valkey and a stub adapter. */
@@ -52,6 +65,7 @@ describe('adapter kit', () => {
   let pauses: PauseFlags;
   const kra = new StubAdapter('kra');
   const ntsa = new StubAdapter('ntsa');
+  const brs = new StubAdapter('brs');
 
   const caller: Principal = {
     subject: 'service-account-review',
@@ -74,7 +88,7 @@ describe('adapter kit', () => {
 
   beforeAll(async () => {
     t = await createTestApp({
-      policies: { kra: KRA_POLICY, ntsa: NTSA_POLICY },
+      policies: { kra: KRA_POLICY, ntsa: NTSA_POLICY, brs: BRS_POLICY },
       controllers: [PurposeEchoController],
     });
     // Unavailable registries and unrecorded results are logged by design; keep the run quiet.
@@ -87,6 +101,7 @@ describe('adapter kit', () => {
   beforeEach(async () => {
     kra.reset();
     ntsa.reset();
+    brs.reset();
     kra.records.set(WANJIKU, RECORD);
     t.cipher.unavailable = false;
     await t.clearCache();
@@ -419,29 +434,54 @@ describe('adapter kit', () => {
     });
   });
 
-  describe('M4: every call to the registry takes a slot', () => {
-    it("queues a lookup's further calls for the bucket too", async () => {
-      ntsa.furtherCalls = 1;
+  describe("M9: a lookup's calls are reserved together, outside its timeout", () => {
+    const breakerState = () => t.app.get(CircuitBreakers).of('brs').state;
+    const spread = (times: number[]) => Math.max(...times) - Math.min(...times);
 
-      const result = await lookup('30000003', forCase, ntsa);
+    it('sends a lookup with a second PIN at once when the bucket is idle, charging the extra call', async () => {
+      brs.callsPerLookup = 2;
+      brs.extraCalls = 1;
+
+      const result = await lookup('30000003', forCase, brs);
 
       expect(result).toMatchObject({ outcome: 'not-found' });
-      expect(ntsa.calls).toBe(2);
-      // One a second, as two lookups' calls would be.
-      const [first = 0, second = 0] = ntsa.callTimes;
-      expect(second - first).toBeGreaterThanOrEqual(990);
+      expect(brs.calls).toBe(3);
+      // None of the three queued for the rate limit.
+      expect(spread(brs.callTimes)).toBeLessThan(100);
     });
 
-    it('refuses a lookup rate-limited when a further call finds no slot, without tripping the breaker', async () => {
-      // With the kit's, three calls at once: the third would wait two seconds, past the 1.5 s.
-      ntsa.furtherCalls = 2;
+    it('answers two lookups at once, the second queueing for its slots before its timeout starts', async () => {
+      brs.callsPerLookup = 2;
 
-      const result = await lookup('30000004', forCase, ntsa);
+      const results = await Promise.all(
+        ['30000004', '30000005'].map((subject) => lookup(subject, forCase, brs)),
+      );
+
+      expect(results.map(({ outcome }) => outcome)).toEqual(['not-found', 'not-found']);
+      expect(brs.calls).toBe(4);
+      const [a = 0, b = 0, c = 0, d = 0] = brs.callTimes;
+      // Each lookup's two calls together; the second lookup's two seconds later, longer than
+      // the 500 ms timeout, which only started once its slots were free.
+      expect(b - a).toBeLessThan(100);
+      expect(d - c).toBeLessThan(100);
+      expect(c - a).toBeGreaterThanOrEqual(1_990);
+      expect(breakerState()).toBe(CircuitState.Closed);
+    });
+
+    it('refuses a lookup rate-limited before any of its calls when its slots are past the max wait, without tripping the breaker', async () => {
+      brs.callsPerLookup = 2;
+      brs.extraCalls = 1;
+      await lookup('30000006', forCase, brs);
+      brs.extraCalls = 0;
+
+      // Three calls charged at one a second: the next two would wait three seconds, past 2.5 s.
+      const result = await lookup('30000007', forCase, brs);
 
       expect(result).toMatchObject({ outcome: 'unavailable', reason: 'rate-limited' });
+      expect(brs.calls).toBe(3);
       // Our own limit is no registry failure.
-      expect(t.app.get(CircuitBreakers).of('ntsa').state).toBe(CircuitState.Closed);
-      const [row] = await rows();
+      expect(breakerState()).toBe(CircuitState.Closed);
+      const [, row] = await rows();
       expect(row).toMatchObject({ outcome: 'unavailable', reason: 'rate-limited' });
     });
   });

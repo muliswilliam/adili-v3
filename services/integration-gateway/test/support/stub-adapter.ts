@@ -28,8 +28,10 @@ export class StubAdapter implements RegistryAdapter<StubRecord> {
   behaviour: StubAdapterBehaviour = { kind: 'registry' };
   /** How long the last hanging call ran before its signal aborted; null until one did. */
   abortedAfterMs: number | null = null;
-  /** Calls a lookup makes to the registry after the first, at once, as KRA's compliance per PIN. */
-  furtherCalls = 0;
+  /** Calls a lookup reserves and makes at once, as KRA's PINs and one PIN's compliance. */
+  callsPerLookup = 1;
+  /** Calls a lookup makes beyond those it reserved, charged, as a second PIN's compliance. */
+  extraCalls = 0;
 
   constructor(readonly system: System) {}
 
@@ -42,7 +44,8 @@ export class StubAdapter implements RegistryAdapter<StubRecord> {
     this.callTimes.length = 0;
     this.behaviour = { kind: 'registry' };
     this.abortedAfterMs = null;
-    this.furtherCalls = 0;
+    this.callsPerLookup = 1;
+    this.extraCalls = 0;
   }
 
   async fetch(
@@ -50,13 +53,10 @@ export class StubAdapter implements RegistryAdapter<StubRecord> {
     signal: AbortSignal,
     calls: UpstreamCalls,
   ): Promise<StubRecord | null> {
-    this.callTimes.push(performance.now());
-    await Promise.all(
-      Array.from({ length: this.furtherCalls }, async () => {
-        await calls.another();
-        this.callTimes.push(performance.now());
-      }),
-    );
+    for (let call = 0; call < this.callsPerLookup; call += 1)
+      this.callTimes.push(performance.now());
+    await calls.charge(this.extraCalls);
+    for (let call = 0; call < this.extraCalls; call += 1) this.callTimes.push(performance.now());
     const behaviour = this.behaviour;
     switch (behaviour.kind) {
       case 'fail':

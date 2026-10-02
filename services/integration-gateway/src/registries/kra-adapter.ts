@@ -10,6 +10,9 @@ import {
 } from './registry-records.js';
 import { REGISTRY_URLS, type RegistryUrls } from './registry-urls.js';
 
+/** The PINs, then one PIN's compliance. */
+export const KRA_CALLS_PER_LOOKUP = 2;
+
 /** The compliance of a PIN KRA listed but holds no compliance record for. */
 const NO_COMPLIANCE: KraTaxpayers['taxpayers'][number]['compliance'] = {
   status: 'unknown',
@@ -21,14 +24,15 @@ const NO_COMPLIANCE: KraTaxpayers['taxpayers'][number]['compliance'] = {
 /**
  * KRA (external/kra.yaml): the PINs of a national ID (`findTaxpayersByIdNumber`), then each
  * PIN's compliance and declared annual income (`getTaxCompliance`), all within the one timeout
- * the kit gives the lookup. Each compliance call takes a rate-limit slot of its own, so a lookup
- * spends 1 + one per PIN of KRA's limit. No PIN is not found.
+ * the kit gives the lookup. A lookup spends 1 + one per PIN of KRA's rate limit: the kit
+ * reserves two (most IDs have one PIN), and a second PIN's call is charged. No PIN is not found.
  */
 @Injectable()
 export class KraAdapter implements RegistryAdapter<KraTaxpayers> {
   readonly system = 'kra';
   readonly operation = 'taxpayers';
   readonly schema = kraTaxpayersSchema;
+  readonly callsPerLookup = KRA_CALLS_PER_LOOKUP;
 
   constructor(@Inject(REGISTRY_URLS) private readonly urls: RegistryUrls) {}
 
@@ -45,9 +49,9 @@ export class KraAdapter implements RegistryAdapter<KraTaxpayers> {
       signal,
     );
     if (!pins || pins.length === 0) return null;
+    await calls.charge(pins.length - (KRA_CALLS_PER_LOOKUP - 1));
     const taxpayers = await Promise.all(
       pins.map(async ({ pin, registered_on }) => {
-        await calls.another();
         const compliance = await getFromRegistry(
           'KRA',
           `${base}/${segment(pin)}/compliance`,

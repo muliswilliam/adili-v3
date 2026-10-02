@@ -22,6 +22,8 @@ export const SEED = {
   kiprono: '22607781',
   /** Nobody any registry knows. */
   unknown: '99999999',
+  /** Not in the demo seed: a taxpayer KRA lists two PINs for, so a lookup makes three calls. */
+  twoPins: '31852207',
 } as const;
 
 const TAXPAYERS = [
@@ -61,6 +63,18 @@ const TAXPAYERS = [
       annual_income_declared: '2640000.00',
     },
   },
+  ...['A003185220P', 'P051852207Q'].map((pin) => ({
+    pin,
+    id_number: SEED.twoPins,
+    name: 'AMINA HASSAN WARSAME',
+    registered_on: '2012-04-02',
+    compliance: {
+      status: 'compliant',
+      certificate_number: `TCC${pin}`,
+      valid_until: '2027-06-30',
+      annual_income_declared: '960000.00',
+    },
+  })),
 ];
 
 const VEHICLES = [

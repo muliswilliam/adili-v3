@@ -16,6 +16,7 @@ import pg from 'pg';
 import { vi } from 'vitest';
 
 import {
+  burstOf,
   SYSTEM_POLICIES,
   type SystemPolicies,
   type SystemPolicy,
@@ -131,12 +132,14 @@ export async function createTestApp({
     timeoutMs,
     cacheTtlSeconds: config.IPRS_CACHE_TTL_SECONDS,
     ratePerMinute: config.IPRS_RATE_LIMIT_PER_MINUTE,
+    burst: burstOf(config.IPRS_RATE_LIMIT_PER_MINUTE),
     maxQueueMs: config.RATE_LIMIT_MAX_WAIT_MS,
   };
   const registryPolicy: SystemPolicy = {
     timeoutMs: 2_000,
     cacheTtlSeconds: 86_400,
     ratePerMinute: 60_000,
+    burst: burstOf(60_000),
     maxQueueMs: config.RATE_LIMIT_MAX_WAIT_MS,
   };
   const prefix = valkey.options.keyPrefix ?? '';

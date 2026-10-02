@@ -15,22 +15,28 @@ export interface RegistryAdapter<T, S = string> {
   /** The normalised answer. A cache entry that does not parse (an older shape) is a miss. */
   readonly schema: z.ZodType<T>;
   /**
+   * Calls a lookup usually makes to the registry (KRA: the PINs, then one PIN's compliance); 1
+   * when unset. The kit reserves their rate-limit slots together before the lookup's timeout
+   * starts, so no call queues for the rate limit once the lookup is under way.
+   */
+  readonly callsPerLookup?: number;
+  /**
    * Asks the registry about `subject` (e.g. a national ID). Resolves to the normalised answer,
    * or null when the registry has no record; anything else (network, 5xx, a body that breaks
    * the contract) rejects with an `UpstreamError`. Stops when `signal` aborts: the kit's timeout.
-   * The kit took the rate-limit slot of one call; an adapter that calls the registry more than
-   * once takes one for each further call from `calls` first.
+   * The kit reserved the rate-limit slots of `callsPerLookup` calls; an adapter that makes more
+   * (a second PIN's compliance) charges them through `calls`.
    */
   fetch(subject: S, signal: AbortSignal, calls: UpstreamCalls): Promise<T | null>;
 }
 
-/** The rate limit of an adapter's further calls to its registry, within one lookup. */
+/** The rate limit of an adapter's calls to its registry beyond those the kit reserved. */
 export interface UpstreamCalls {
   /**
-   * Waits for the system's rate-limit slot for one more call. Rejects with
-   * `RateLimitExhausted` when none frees up within the max wait (the lookup is `rate-limited`).
+   * Charges `count` more calls to the system's rate limit. Never waits or refuses: the lookup is
+   * under way, so later lookups queue for them instead.
    */
-  another(): Promise<void>;
+  charge(count: number): Promise<void>;
 }
 
 /**
