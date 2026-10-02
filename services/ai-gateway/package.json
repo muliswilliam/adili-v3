@@ -24,6 +24,7 @@
     "@adili/api-kit": "workspace:*",
     "@adili/data-access": "workspace:*",
     "@adili/events": "workspace:*",
+    "@adili/roles": "workspace:*",
     "@adili/telemetry": "workspace:*",
     "@adili/temporal": "workspace:*",
     "@anthropic-ai/sdk": "^0.128.0",

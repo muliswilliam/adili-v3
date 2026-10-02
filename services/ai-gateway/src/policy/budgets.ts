@@ -28,6 +28,15 @@ export interface TenantUsage extends BudgetLimits {
   failed: number;
 }
 
+/** Contract `UsageList`. */
+export interface UsageList {
+  month: string;
+  defaults: BudgetLimits;
+  tenants: TenantUsage[];
+}
+
+const NO_USAGE = { tokensUsed: 0, costMicros: 0, jobs: 0, blocked: 0, failed: 0 } as const;
+
 /** Budgets run by the calendar month in Kenya, where the Commissions are. */
 const TIME_ZONE = 'Africa/Nairobi';
 const MONTH = /^(\d{4})-(\d{2})$/;
@@ -87,29 +96,54 @@ export class Budgets {
 
   /** The tenant's budget and what its jobs used in `month` (`YYYY-MM`, default the current). */
   async usage(tenant: string, month: string = currentMonth()): Promise<TenantUsage> {
-    const [limits, [totals]] = await Promise.all([
-      this.limits(tenant),
+    const [limits, [totals]] = await Promise.all([this.limits(tenant), this.totals(month, tenant)]);
+    return { tenant, month, ...limits, ...(totals ?? NO_USAGE) };
+  }
+
+  /**
+   * Usage in `month` of every tenant with a budget of its own or a job in the month, by tenant,
+   * and the default budget of every other tenant (which has then used nothing).
+   */
+  async list(month: string = currentMonth()): Promise<UsageList> {
+    const [rows, totals] = await Promise.all([
       this.db
         .select({
-          tokensUsed: sum(sql`${jobs.tokensIn} + ${jobs.tokensOut}`).mapWith(Number),
-          costMicros: sum(jobs.costMicros).mapWith(Number),
-          jobs: count(),
-          blocked: count(sql`case when ${jobs.status} = 'blocked' then 1 end`),
-          failed: count(sql`case when ${jobs.status} = 'failed' then 1 end`),
+          tenant: budgets.tenant,
+          monthlyTokens: budgets.monthlyTokens,
+          perMinute: budgets.perMinute,
         })
-        .from(jobs)
-        .where(inMonth(tenant, month)),
+        .from(budgets),
+      this.totals(month),
     ]);
+    const limitsOf = new Map(rows.map(({ tenant, ...limits }) => [tenant, limits]));
+    const usedBy = new Map(totals.map(({ tenant, ...used }) => [tenant, used]));
+    const tenants = [...new Set([...limitsOf.keys(), ...usedBy.keys()])].sort();
     return {
-      tenant,
       month,
-      ...limits,
-      tokensUsed: totals?.tokensUsed ?? 0,
-      costMicros: totals?.costMicros ?? 0,
-      jobs: totals?.jobs ?? 0,
-      blocked: totals?.blocked ?? 0,
-      failed: totals?.failed ?? 0,
+      defaults: this.defaults,
+      tenants: tenants.map((tenant) => ({
+        tenant,
+        month,
+        ...(limitsOf.get(tenant) ?? this.defaults),
+        ...(usedBy.get(tenant) ?? NO_USAGE),
+      })),
     };
+  }
+
+  /** Tokens, cost and outcomes of jobs created in `month`, per tenant (or of one tenant). */
+  private totals(month: string, tenant?: string) {
+    return this.db
+      .select({
+        tenant: jobs.tenant,
+        tokensUsed: sql`coalesce(sum(${jobs.tokensIn} + ${jobs.tokensOut}), 0)`.mapWith(Number),
+        costMicros: sql`coalesce(sum(${jobs.costMicros}), 0)`.mapWith(Number),
+        jobs: count(),
+        blocked: count(sql`case when ${jobs.status} = 'blocked' then 1 end`),
+        failed: count(sql`case when ${jobs.status} = 'failed' then 1 end`),
+      })
+      .from(jobs)
+      .where(inMonth(month, tenant))
+      .groupBy(jobs.tenant);
   }
 
   /** Sets the tenant's budget; the change, its audit record and its event commit together. */
@@ -144,7 +178,7 @@ export class Budgets {
     const [row] = await this.db
       .select({ used: sum(sql`${jobs.tokensIn} + ${jobs.tokensOut}`).mapWith(Number) })
       .from(jobs)
-      .where(inMonth(tenant, month));
+      .where(inMonth(month, tenant));
     return row?.used ?? 0;
   }
 }
@@ -160,13 +194,13 @@ export function currentMonth(now: Date = new Date()): string {
   return `${part('year')}-${part('month')}`;
 }
 
-/** The tenant's jobs created in `month`, Nairobi time. */
-function inMonth(tenant: string, month: string) {
+/** Jobs created in `month`, Nairobi time: the tenant's, or every tenant's. */
+function inMonth(month: string, tenant?: string) {
   const match = MONTH.exec(month);
   if (!match) throw new Error(`Not a month: ${month}`);
   const start = `${month}-01 00:00:00`;
   return and(
-    eq(jobs.tenant, tenant),
+    tenant === undefined ? undefined : eq(jobs.tenant, tenant),
     gte(jobs.createdAt, sql`(${start}::timestamp at time zone ${TIME_ZONE})`),
     lt(jobs.createdAt, sql`((${start}::timestamp + interval '1 month') at time zone ${TIME_ZONE})`),
   );

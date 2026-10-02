@@ -29,6 +29,13 @@
       "when": 1790885221996,
       "tag": "0003_audit_records_append_only",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1790923450666,
+      "tag": "0004_gate_policy_changed_by_name",
+      "breakpoints": true
     }
   ]
 }

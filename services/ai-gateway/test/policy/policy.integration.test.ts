@@ -171,18 +171,18 @@ describe('policy', { timeout: 90_000 }, () => {
       const payload = { tenant: 'approved', dataClass: 'restricted', input: summarizeInput };
       expect((await run('summarize-declaration', payload)).status).toBe('blocked');
 
-      const rule = await gate.set(
+      const policy = await gate.set(
         'approved',
         {
-          dataClass: 'restricted',
-          providerClass: 'external',
-          allowed: true,
+          rules: [{ dataClass: 'restricted', providerClass: 'external', allowed: true }],
           approvalRef: 'EACC/AI/2026/014',
         },
-        'platform-admin-1',
+        { subject: 'platform-admin-1', name: 'Amina Platform' },
       );
 
-      expect(rule).toMatchObject({ allowed: true, changedBy: 'platform-admin-1' });
+      expect(policy.rules).toMatchObject([
+        { allowed: true, changedBy: 'platform-admin-1', changedByName: 'Amina Platform' },
+      ]);
       expect((await run('summarize-declaration', payload)).status).toBe('succeeded');
       const [change] = await t.db
         .select()
@@ -212,12 +212,10 @@ describe('policy', { timeout: 90_000 }, () => {
       await t.app.get(GatePolicies).set(
         'closed',
         {
-          dataClass: 'synthetic',
-          providerClass: 'external',
-          allowed: false,
+          rules: [{ dataClass: 'synthetic', providerClass: 'external', allowed: false }],
           approvalRef: 'Commission resolution 7/2026',
         },
-        'platform-admin-1',
+        { subject: 'platform-admin-1', name: null },
       );
 
       const job = await run('summarize-declaration', {

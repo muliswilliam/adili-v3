@@ -133,7 +133,10 @@ export const gatePolicies = pgTable(
     allowed: boolean().notNull(),
     /** The decision this rests on, e.g. a Commission resolution or an EACC approval number. */
     approvalRef: text().notNull(),
+    /** `sub` of the platform admin who made the change. */
     changedBy: text().notNull(),
+    /** Their display name at the time, for the policy page; null when the token had none. */
+    changedByName: text(),
     changedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [primaryKey({ columns: [table.tenant, table.dataClass, table.providerClass] })],

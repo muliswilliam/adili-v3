@@ -13,6 +13,7 @@ import {
 } from '@adili/temporal';
 
 import { config, SERVICE_NAME } from './config.js';
+import { AdminModule } from './admin/admin.module.js';
 import { schema } from './db/schema.js';
 import { JobActivities } from './jobs/job-activities.js';
 import { JobsModule } from './jobs/jobs.module.js';
@@ -53,6 +54,7 @@ const workflowsPath = fileURLToPath(
       activities: [JobActivities],
     }),
     JobsModule,
+    AdminModule,
   ],
 })
 export class AppModule {}
