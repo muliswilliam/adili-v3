@@ -5,6 +5,8 @@ import { asDeclarant as asDeclarantOf } from './bff.server';
 import {
   type ClarificationPageResult,
   loadClarificationPage,
+  loadMyClarifications,
+  type MyClarificationsResult,
   respondToClarification,
   type RespondResult,
 } from './clarifications.server';
@@ -19,6 +21,16 @@ function asDeclarant<T>(call: (client: ReviewClient) => Promise<T>) {
 
 /** The page, and the server's clock so the countdown reads the same on server and browser. */
 export type ClarificationPageLoad = (ClarificationPageResult | Unauthenticated) & { now: string };
+
+/** The list, and the server's clock so countdowns read the same on server and browser. */
+export type MyClarificationsLoad = (MyClarificationsResult | Unauthenticated) & { now: string };
+
+export const getMyClarifications = createServerFn({ method: 'GET' }).handler(
+  async (): Promise<MyClarificationsLoad> => ({
+    ...(await asDeclarant(loadMyClarifications)),
+    now: new Date().toISOString(),
+  }),
+);
 
 export const getMyClarification = createServerFn({ method: 'GET' })
   .validator(z.object({ clarificationId: z.uuid() }))
