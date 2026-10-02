@@ -435,6 +435,62 @@ export class OfficerService {
   }
 
   /**
+   * The access officer records the decision served in writing on a declarant who has no account
+   * (spec 10 decision 2, as the notice of the request was: the decision is communicated to both
+   * parties, and a declarant with no account cannot be told online): the day it was served, not
+   * in the future and not before the decision (400 at `notifiedOn`). Recorded on the request
+   * with the `decision-notified` register entry and event (channel `written`, the access officer
+   * its actor). Only on a decided request (409 `not-under-decision` before, `request-closed`
+   * for a withdrawn or unidentified one), once (409 `declarant-notified`), and not for a
+   * declarant with an account (409: told online).
+   */
+  async recordDecisionWrittenNotice(
+    principal: Principal,
+    requestId: string,
+    body: WrittenNoticeBody,
+  ): Promise<OfficerRequestView> {
+    const tenant = ownCommissionTenant(principal);
+    requireAccessOfficer(principal, 'record a written notice');
+    const now = this.clock.now();
+    const recorded = await withTenant(
+      this.db,
+      { tenant, subject: principal.subject },
+      async (tx) => {
+        const current = notFoundIfInvisible(await requestRow(tx, requestId, { lock: true }));
+        const decidedAt = requireDecisionAwaitingNotice(current);
+        requireNoticeDay(body.notifiedOn, { at: decidedAt, what: 'the decision' }, now);
+        const [updated] = await tx
+          .update(accessRequests)
+          .set({
+            decisionWrittenNotice: writtenNoticeOf(
+              body.notifiedOn,
+              { subject: principal.subject, name: accessOfficerName(principal) },
+              now,
+            ),
+          })
+          .where(eq(accessRequests.id, current.id))
+          .returning();
+        if (!updated) throw new Error('The written notice of the decision was not recorded');
+        const facts = { channel: 'written' as const, notifiedOn: body.notifiedOn };
+        await this.register.record(tx, {
+          tenant,
+          subjectKind: 'access-request',
+          subjectId: updated.id,
+          reference: updated.reference,
+          personId: updated.resolvedPersonId,
+          kind: 'decision-notified',
+          actor: { subject: principal.subject, name: principal.name },
+          at: now,
+          details: facts,
+          eventData: facts,
+        });
+        return notFoundIfInvisible(await officerRecord(tx, updated.id));
+      },
+    );
+    return this.view(recorded);
+  }
+
+  /**
    * The access officer enters the representations a declarant served in writing made on paper
    * (spec 10 decision 2), on their behalf: stance, text and the letter's scans (clean uploads
    * of purpose `access-representation` the officer made, or ones attached already; 400 at
@@ -674,6 +730,26 @@ function requireAwaitingNotice(row: AccessRequestRow): void {
   if (row.resolvedPersonId !== null) {
     throw conflict('The declarant has an account: they are notified online.');
   }
+}
+
+/**
+ * A decided request whose declarant has no account and has not been served the decision in
+ * writing yet: what a written notice of the decision is recorded on. Its decision's time.
+ */
+function requireDecisionAwaitingNotice(row: AccessRequestRow): Date {
+  if (row.status === 'withdrawn' || row.status === 'cannot-identify') {
+    throw problem('request-closed', 'The request is closed.');
+  }
+  if (row.decision === null) {
+    throw problem('not-under-decision', 'The request is not decided yet.');
+  }
+  if (row.decisionWrittenNotice !== null) {
+    throw problem('declarant-notified', 'The declarant is told this decision already.');
+  }
+  if (row.resolvedPersonId !== null) {
+    throw conflict('The declarant has an account: they are told the decision online.');
+  }
+  return new Date(row.decision.decidedAt);
 }
 
 /**

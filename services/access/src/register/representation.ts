@@ -41,6 +41,7 @@ const SUMMARIES: Record<TimelineKind, string> = {
   notified: 'Declarant notified',
   representations: 'Declarant made representations',
   decided: 'Decision taken',
+  'decision-notified': 'Declarant told the decision',
   'package-issued': 'Package issued',
   downloaded: 'Package downloaded',
   expired: 'Download window ended',
@@ -53,6 +54,7 @@ const SUMMARIES: Record<TimelineKind, string> = {
 const IN_WRITING_SUMMARIES: Partial<Record<TimelineKind, string>> = {
   notified: 'Declarant notified in writing',
   representations: 'Representations received in writing',
+  'decision-notified': 'Declarant told the decision in writing',
 };
 
 /** Whether the entry records a step done on paper (its `details.channel` or `receivedInWriting`). */

@@ -1,0 +1,1 @@
+ALTER TABLE "access_requests" ADD COLUMN "decision_written_notice" jsonb;

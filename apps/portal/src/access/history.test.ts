@@ -34,6 +34,14 @@ function entry(fields: Partial<AccessHistoryEntry>): AccessHistoryEntry {
 }
 
 describe('Who accessed in the declarant’s words', () => {
+  it('says the decision was served on them in writing, by the access officer (S1)', () => {
+    const told = entry({ kind: 'decision-notified', inWriting: true });
+    expect(toRegisterEntry(told, [told], [])).toMatchObject({
+      title: 'You were told the decision in writing',
+      actor: 'Access officer, Teachers Service Commission',
+    });
+  });
+
   it('says who asked and that the Commission notified them', () => {
     const notified = entry({});
     expect(toRegisterEntry(notified, [notified], [])).toMatchObject({

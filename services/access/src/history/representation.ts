@@ -26,6 +26,7 @@ export const FORM_K_VISIBLE_KINDS: readonly AccessRegisterKind[] = [
   'notified',
   'representations',
   'decided',
+  'decision-notified',
   'package-issued',
   'downloaded',
   'expired',

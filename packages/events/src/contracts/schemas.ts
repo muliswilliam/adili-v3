@@ -14,6 +14,7 @@ import {
   type AccessCertifiedCopyIssuedData,
   type AccessRegisterEventData,
   type AccessRequestCannotIdentifyData,
+  type AccessRequestDecisionNotifiedData,
   type AccessRequestIdentifiedData,
   type AccessRequestDecidedData,
   type AccessRequestNotifiedData,
@@ -149,6 +150,12 @@ export const leaRequestNotifiedDataSchema = accessRegisterEventDataSchema.extend
   kind: z.literal('notified'),
   ...declarantNoticeFacts,
 }) satisfies z.ZodType<LeaRequestNotifiedData>;
+
+/** `access.request.decision-notified.v1` data: the decision served on the declarant in writing. */
+export const accessRequestDecisionNotifiedDataSchema = accessRegisterEventDataSchema.extend({
+  kind: z.literal('decision-notified'),
+  ...declarantNoticeFacts,
+}) satisfies z.ZodType<AccessRequestDecisionNotifiedData>;
 
 /** `access.request.representations.v1` data: made online, or received in writing. */
 export const accessRequestRepresentationsDataSchema = accessRegisterEventDataSchema.extend({

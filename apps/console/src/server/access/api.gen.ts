@@ -208,6 +208,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/access/requests/{requestId}/decision-written-notice": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Record the decision served in writing on a declarant with no account
+         * @description Spec 10 decision 2: a declarant with no account cannot be told the decision online, so the access officer serves it in writing and records the day (not in the future, not before the decision): `decisionNotice` on the request, `access.request.decision-notified.v1`. The declarant who onboards later is also told the outcome online.
+         */
+        post: operations["recordDecisionWrittenNotice"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/access/requests/{requestId}/representations": {
         parameters: {
             query?: never;
@@ -791,7 +811,7 @@ export interface components {
             /** Format: uuid */
             id: string;
             /** @enum {string} */
-            kind: "received" | "verified" | "identified" | "notified" | "representations" | "decided" | "package-issued" | "downloaded" | "expired" | "withdrawn" | "cannot-identify" | "self-access";
+            kind: "received" | "verified" | "identified" | "notified" | "representations" | "decided" | "decision-notified" | "package-issued" | "downloaded" | "expired" | "withdrawn" | "cannot-identify" | "self-access";
             /** Format: date-time */
             at: string;
             actor: string | null;
@@ -853,6 +873,8 @@ export interface components {
             declarantInvitedAt: string | null;
             /** @description How and when the declarant was notified; null before */
             notice: components["schemas"]["Notice"] | null;
+            /** @description The decision served in writing on a declarant with no account (spec 10 decision 2, `recordDecisionWrittenNotice`): always `written`; null until recorded, and for a declarant with an account (told the decision online) */
+            decisionNotice: components["schemas"]["Notice"] | null;
         };
         VerifyApplicantIdentity: {
             verified: boolean;
@@ -1022,7 +1044,7 @@ export interface components {
             /** Format: uuid */
             id: string;
             /** @enum {string} */
-            kind: "received" | "verified" | "identified" | "notified" | "representations" | "decided" | "package-issued" | "downloaded" | "expired" | "withdrawn" | "cannot-identify" | "self-access";
+            kind: "received" | "verified" | "identified" | "notified" | "representations" | "decided" | "decision-notified" | "package-issued" | "downloaded" | "expired" | "withdrawn" | "cannot-identify" | "self-access";
             /** Format: date-time */
             at: string;
             actor: string | null;
@@ -2063,6 +2085,84 @@ export interface operations {
                 };
             };
             /** @description Problem code `declarant-notified` (notified already, online or in writing), `request-closed` or `request-decided`; or the officer is not identified yet, or has an account (notified online) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Idempotency-Key reused with a different request body */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    recordDecisionWrittenNotice: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Optional. Client-generated UUID, unique per logical request; reuse on retry and the stored answer is replayed instead of acting twice */
+                "Idempotency-Key"?: string;
+            };
+            path: {
+                requestId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WrittenNotice"];
+            };
+        };
+        responses: {
+            /** @description Recorded */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OfficerRequestView"];
+                };
+            };
+            /** @description requestId is not a UUID, or the body failed validation: `notifiedOn` in the future or before the decision */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /**
+             * @description The Commission supervisor reads requests; only its access officer acts
+             *
+             *     Requires one of the roles: access-officer, supervisor, eacc-analyst, eacc-supervisor
+             */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description No such request at the caller's Commission (another Commission's, EACC's or anyone else's view) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Problem code `not-under-decision` (not decided yet), `declarant-notified` (recorded already) or `request-closed`; or the declarant has an account (told online) */
             409: {
                 headers: {
                     [name: string]: unknown;

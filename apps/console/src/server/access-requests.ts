@@ -28,6 +28,7 @@ import {
   loadQueue,
   loadRequest,
   previewScope,
+  recordDecisionWrittenNotice,
   recordWrittenNotice,
   resolveOfficer,
   searchRoster,
@@ -107,6 +108,14 @@ export const recordAccessWrittenNotice = createServerFn({ method: 'POST' })
   .handler(({ data }): Promise<AccessResult<OfficerRequestView>> =>
     asAccessViewer((client) =>
       recordWrittenNotice(client, data.requestId, data.notifiedOn, data.idempotencyKey),
+    ),
+  );
+
+export const recordAccessDecisionWrittenNotice = createServerFn({ method: 'POST' })
+  .validator(writtenNoticeSchema.extend({ requestId: id, idempotencyKey: id }))
+  .handler(({ data }): Promise<AccessResult<OfficerRequestView>> =>
+    asAccessViewer((client) =>
+      recordDecisionWrittenNotice(client, data.requestId, data.notifiedOn, data.idempotencyKey),
     ),
   );
 

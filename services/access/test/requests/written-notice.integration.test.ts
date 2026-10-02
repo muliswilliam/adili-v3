@@ -2,11 +2,13 @@ import { randomUUID } from 'node:crypto';
 
 import { createEnvelope } from '@adili/events';
 import {
+  ACCESS_REQUEST_DECISION_NOTIFIED,
   ACCESS_REQUEST_IDENTIFIED,
   ACCESS_REQUEST_NOTIFIED,
   ACCESS_REQUEST_REPRESENTATIONS,
 } from '@adili/events/contracts';
 import {
+  accessRequestDecisionNotifiedDataSchema,
   accessRequestIdentifiedDataSchema,
   accessRequestNotifiedDataSchema,
   accessRequestRepresentationsDataSchema,
@@ -304,6 +306,138 @@ describe('An officer with no account: written notice and representations receive
       expect(early.statusCode).toBe(409);
       expect(notified.statusCode).toBe(409);
       expect(notified.json()).toMatchObject({ code: 'declarant-notified' });
+    });
+  });
+
+  describe('the decision served in writing (review round 1, S1)', () => {
+    /** Decided on 9 March, 12:00 in Nairobi; served on 10 March, recorded on 11 March. */
+    const DECIDED_AT = '2027-03-09T09:00:00.000Z';
+    const DECISION_SERVED_ON = '2027-03-10';
+    const DECISION_RECORDED_AT = '2027-03-11T09:00:00.000Z';
+
+    const recordDecisionNotice = (id: string, body: unknown, caller: Caller = officer) =>
+      api.send('POST', `/v1/access/requests/${id}/decision-written-notice`, caller, body);
+
+    /** Bwire's request, his consent received in writing, then denied (no package to wait on). */
+    async function decidedForBwire() {
+      const served = await noticeServed();
+      expect(
+        (await enter(served.id, { stance: 'consent', text: '', attachments: [] })).statusCode,
+      ).toBe(200);
+      api.clock.set(DECIDED_AT);
+      const decided = await decide(api, served.id, {
+        outcome: 'deny',
+        grounds: ['frivolous-vexatious'],
+        reasons: 'No reason connected to public duties.',
+      });
+      expect(decided.statusCode, decided.body).toBe(200);
+      await api.temporal.workflow.getHandle(accessRequestWorkflowId(served.id)).result();
+      return { ...served, view: decided.json<OfficerRequestView>() };
+    }
+
+    it('a declarant with no account is told the decision in writing: recorded with its register entry and event', async () => {
+      const { id, view } = await decidedForBwire();
+      // No account: the decision's messages reached the applicant alone, so the officer is
+      // asked to serve it in writing.
+      expect(
+        api.notifications.sent
+          .filter((message) => message.template.startsWith('access-decision-declarant-'))
+          .map((message) => message.template),
+      ).toEqual([]);
+      expect(view).toMatchObject({ declarantOnboarded: false, decisionNotice: null });
+
+      api.clock.set(DECISION_RECORDED_AT);
+      const response = await recordDecisionNotice(id, { notifiedOn: DECISION_SERVED_ON });
+
+      expect(response.statusCode, response.body).toBe(200);
+      const recorded = response.json<OfficerRequestView>();
+      expect(
+        contractErrors(
+          okResponse('/v1/access/requests/{requestId}/decision-written-notice', 'post'),
+          recorded,
+        ),
+      ).toEqual([]);
+      expect(recorded.decisionNotice).toEqual({
+        channel: 'written',
+        notifiedAt: '2027-03-09T21:00:00.000Z',
+        notifiedOn: DECISION_SERVED_ON,
+        recordedBy: 'Peter Access',
+      });
+      expect(recorded.timeline.at(-1)).toMatchObject({
+        kind: 'decision-notified',
+        actor: 'Peter Access',
+        summary: 'Declarant told the decision in writing',
+        inWriting: true,
+      });
+      expect((await rowOf(api, id)).decisionWrittenNotice).toEqual({
+        notifiedOn: DECISION_SERVED_ON,
+        by: officer.sub,
+        byName: 'Peter Access',
+        at: DECISION_RECORDED_AT,
+      });
+      const [event] = await api.events(ACCESS_REQUEST_DECISION_NOTIFIED);
+      expect(accessRequestDecisionNotifiedDataSchema.parse(event?.data)).toMatchObject({
+        kind: 'decision-notified',
+        channel: 'written',
+        notifiedOn: DECISION_SERVED_ON,
+        actor: officer.sub,
+        personId: null,
+      });
+    });
+
+    it('once only, on the decision day or after, and never in the future', async () => {
+      const { id } = await decidedForBwire();
+      api.clock.set(DECISION_RECORDED_AT);
+
+      const before = await recordDecisionNotice(id, { notifiedOn: '2027-03-08' });
+      const future = await recordDecisionNotice(id, { notifiedOn: '2027-03-12' });
+      for (const response of [before, future]) {
+        expect(response.statusCode, response.body).toBe(400);
+        expect(response.json()).toMatchObject({ errors: [{ path: 'notifiedOn' }] });
+      }
+      expect((await recordDecisionNotice(id, { notifiedOn: '2027-03-09' })).statusCode).toBe(200);
+      const again = await recordDecisionNotice(id, { notifiedOn: '2027-03-09' });
+      expect(again.statusCode).toBe(409);
+      expect(again.json()).toMatchObject({ code: 'declarant-notified' });
+    });
+
+    it('409 before the decision and for a declarant with an account; the access officer only', async () => {
+      const { id: undecided } = await noticeServed();
+      const early = await recordDecisionNotice(undecided, { notifiedOn: NOTIFIED_ON });
+      expect(early.statusCode).toBe(409);
+      expect(early.json()).toMatchObject({ code: 'not-under-decision' });
+
+      const { anne } = givenRoster();
+      const online = await notifiedRequest(api, anne);
+      await api.send(
+        'PUT',
+        `/v1/me/access-notices/${online.id}/representations`,
+        declarant(anne.personId ?? ''),
+        {
+          stance: 'consent',
+          text: '',
+          attachments: [],
+        },
+      );
+      api.clock.set(DECIDED_AT);
+      expect(
+        (
+          await decide(api, online.id, {
+            outcome: 'deny',
+            grounds: ['frivolous-vexatious'],
+            reasons: 'No.',
+          })
+        ).statusCode,
+      ).toBe(200);
+      const withAccount = await recordDecisionNotice(online.id, { notifiedOn: '2027-03-09' });
+      expect(withAccount.statusCode).toBe(409);
+
+      expect(
+        (await recordDecisionNotice(undecided, { notifiedOn: NOTIFIED_ON }, supervisor)).statusCode,
+      ).toBe(403);
+      expect(
+        (await recordDecisionNotice(undecided, { notifiedOn: NOTIFIED_ON }, tscOfficer)).statusCode,
+      ).toBe(404);
     });
   });
 

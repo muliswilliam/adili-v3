@@ -13,7 +13,10 @@ import type { OfficerRequestView } from '../../server/access/types';
 import { ReadOnlyBadge } from '../commissions/badges';
 import { Page } from '../page';
 import { usePollWhile } from '../use-poll-while';
-import { recordAccessWrittenNotice } from '../../server/access-requests';
+import {
+  recordAccessDecisionWrittenNotice,
+  recordAccessWrittenNotice,
+} from '../../server/access-requests';
 import { IdentifyOfficerCard, VerifyApplicantCard } from './action-cards';
 import { DecidedCard } from './decision/decided-card';
 import { PackageCard, usePackageState } from './decision/package-card';
@@ -166,11 +169,58 @@ function StepCard({
     case 'decide':
       return <DecisionCard view={view} readOnly={readOnly} windowEndsAt={null} />;
     case 'decided':
-      return view.decision ? <DecidedCard decision={view.decision} /> : null;
+      return view.decision ? (
+        <>
+          <DecidedCard decision={view.decision} />
+          <DecisionNotice
+            view={view}
+            decidedAt={view.decision.decidedAt}
+            readOnly={readOnly}
+            now={now}
+          />
+        </>
+      ) : null;
     case 'cannot-identify':
     case 'withdrawn':
       return <ClosedCard view={view} />;
   }
+}
+
+/**
+ * A decided request whose declarant has no account: the decision goes to them on paper (spec 10
+ * decision 2), and the access officer records the day it was served; the supervisor waits.
+ */
+function DecisionNotice({
+  view,
+  decidedAt,
+  readOnly,
+  now,
+}: {
+  view: OfficerRequestView;
+  decidedAt: string;
+  readOnly: boolean;
+  now: string;
+}) {
+  if (view.declarantOnboarded !== false || view.decisionNotice !== null) return null;
+  if (readOnly) return <WaitingCard text={m.waitingDecisionNotice} />;
+  return (
+    <WrittenNoticeCard
+      title={m.decisionNoticeTitle}
+      intro={m.decisionNoticeIntro(view.resolvedName ?? m.officerIdentified)}
+      invitedAt={view.declarantInvitedAt}
+      invitedOn={m.decisionInvitedOn}
+      earliest={nairobiDay(decidedAt)}
+      earliestMessage={m.decisionNoticeDayEarly}
+      hint={m.decisionNoticeDayHint}
+      now={now}
+      success={m.decisionNoticeRecorded}
+      record={(notifiedOn, idempotencyKey) =>
+        recordAccessDecisionWrittenNotice({
+          data: { requestId: view.id, notifiedOn, idempotencyKey },
+        })
+      }
+    />
+  );
 }
 
 /** When the officer was identified: the register's `identified` entry. */
