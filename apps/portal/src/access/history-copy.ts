@@ -100,6 +100,7 @@ const HISTORY = {
   timeline: en('Timeline'),
   respondBy: en((date: string) => `Respond by ${date}`),
   openRequest: en('Open access request'),
+  openLeaRequest: en('Open law-enforcement request'),
   declaration: en('Declaration'),
   versionOf: en((version: number) => `Version ${String(version)}`),
   issued: en('Issued'),

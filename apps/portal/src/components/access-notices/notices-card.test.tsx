@@ -108,6 +108,11 @@ describe('Access requests', () => {
         'Granted',
     );
     expect(partial?.textContent).toMatch(/· Notified 15 May 2026Partially granted$/);
+    expect(granted?.getAttribute('aria-label')).toBe(
+      'Open law-enforcement request LEA-TSC-2026-0000007-E',
+    );
+    const formK = rows.find((row) => row.getAttribute('href') === `/access/notices/${IDS.partial}`);
+    expect(formK?.getAttribute('aria-label')).toMatch(/^Open access request ARQ-/);
   });
 
   it('calls them all access requests when none is open, and says when there are none', async () => {

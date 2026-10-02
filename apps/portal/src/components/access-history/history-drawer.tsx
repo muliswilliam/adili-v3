@@ -143,7 +143,7 @@ function RequestContent({
           ) : (
             <Button asChild variant="secondary">
               <Link to="/access/notices/$id" params={{ id: notice.requestId }}>
-                {COPY.openRequest}
+                {lea ? COPY.openLeaRequest : COPY.openRequest}
               </Link>
             </Button>
           )}

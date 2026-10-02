@@ -69,7 +69,11 @@ export function NoticeRow({ notice, now }: { notice: DeclarantNotice; now: strin
       <Link
         to="/access/notices/$id"
         params={{ id: notice.requestId }}
-        aria-label={COPY.openRequest(notice.reference)}
+        aria-label={
+          notice.kind === 'lea'
+            ? COPY.openLeaRequest(notice.reference)
+            : COPY.openRequest(notice.reference)
+        }
         className={cn(focusRingInset, 'flex items-start gap-4 px-5 py-4 hover:bg-muted/60 sm:px-6')}
       >
         <IconTile tone={waiting ? 'warning' : meta.tone} aria-hidden="true">
