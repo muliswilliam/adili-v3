@@ -65,6 +65,9 @@ export class FakeDirectory extends DirectoryClient {
   private readonly records = new Map<string, PulledRosterRecord>();
   private readonly selections = new Map<string, string[]>();
   private failures: { page: number; remaining: number } | undefined;
+  private readonly nationalIds = new Map<string, string>();
+  /** Every national ID read, by record id: an audited read in the directory. */
+  readonly nationalIdReads: string[] = [];
 
   givenCommission(slug: string, name: string, policy: PulledPolicy = policyVersion()): void {
     this.commissions.set(slug, { slug, issuerCode: slug.toUpperCase(), name });
@@ -90,6 +93,11 @@ export class FakeDirectory extends DirectoryClient {
     for (const record of records) this.records.set(record.id, record);
   }
 
+  /** The national ID the roster gives record `recordId`. */
+  givenNationalId(recordId: string, nationalId: string): void {
+    this.nationalIds.set(recordId, nationalId);
+  }
+
   /** The next pull of page `page` (0-based) fails, once. */
   failPull(page: number): void {
     this.failures = { page, remaining: 1 };
@@ -103,6 +111,8 @@ export class FakeDirectory extends DirectoryClient {
     this.records.clear();
     this.selections.clear();
     this.failures = undefined;
+    this.nationalIds.clear();
+    this.nationalIdReads.length = 0;
   }
 
   listRosterRecords(
@@ -131,6 +141,13 @@ export class FakeDirectory extends DirectoryClient {
   getRosterRecord(slug: string, recordId: string): Promise<PulledRosterRecord | null> {
     const record = this.records.get(recordId);
     return Promise.resolve(record?.tenant === slug ? record : null);
+  }
+
+  getRosterNationalId(slug: string, recordId: string): Promise<string | null> {
+    this.nationalIdReads.push(recordId);
+    const record = this.records.get(recordId);
+    if (record?.tenant !== slug) return Promise.resolve(null);
+    return Promise.resolve(this.nationalIds.get(recordId) ?? null);
   }
 
   getPolicy(slug: string): Promise<PulledPolicy> {

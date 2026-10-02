@@ -20,23 +20,23 @@ import {
 } from './workflow/cycle-opening-schedules.js';
 import { ObligationWorkflowsModule } from './workflow/obligation-workflows.module.js';
 import { SweepSchedule } from './workflow/sweep.js';
+import { RegistryLookupsModule } from '../suggestions/registry-lookups.module.js';
+import { SuggestionActivities } from '../suggestions/workflow/activities.js';
 
 /**
- * The workflows module: `workflows.ts` when running from source (dev server, tests),
- * `workflows.js` in the build.
+ * The worker's workflows module, every workflow of the service (`src/workflows.ts`):
+ * `workflows.ts` when running from source (dev server, tests), `workflows.js` in the build.
  */
 const workflowsPath = fileURLToPath(
-  new URL(
-    `./workflow/workflows${import.meta.url.endsWith('.ts') ? '.ts' : '.js'}`,
-    import.meta.url,
-  ),
+  new URL(`../workflows${import.meta.url.endsWith('.ts') ? '.ts' : '.js'}`, import.meta.url),
 );
 
 /**
  * Filing obligations (spec 04): derived from roster events by the obligation engine, read by
  * declarants and staff, and driven through their dates and reminders by one
  * `FilingObligationWorkflow` each on the declarations worker. Each biennial cycle is opened per
- * Commission by `CycleOpeningWorkflow`, fired by the Commission's schedule.
+ * Commission by `CycleOpeningWorkflow`, fired by the Commission's schedule. The worker also hosts
+ * the registry lookup workflow of the suggestions (spec 05b) and its activities.
  */
 @Module({
   imports: [
@@ -48,8 +48,8 @@ const workflowsPath = fileURLToPath(
       namespace: config.TEMPORAL_NAMESPACE,
       taskQueue: config.TEMPORAL_TASK_QUEUE,
       workflowsPath,
-      activities: [ObligationActivities, CycleOpeningActivities],
-      imports: [ObligationWorkflowsModule],
+      activities: [ObligationActivities, CycleOpeningActivities, SuggestionActivities],
+      imports: [ObligationWorkflowsModule, RegistryLookupsModule],
     }),
   ],
   controllers: [ObligationsController, DirectoryEventsConsumer],

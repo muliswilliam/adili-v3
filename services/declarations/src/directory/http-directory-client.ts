@@ -22,7 +22,10 @@ export const DIRECTORY_PULL_TIMEOUT_MS = 10_000;
 export interface HttpDirectoryClientOptions {
   /** Base URL of the directory service, e.g. `http://localhost:4001`. */
   directoryUrl: string;
-  /** Client credentials tokens of the declarations service carrying `directory:internal`. */
+  /**
+   * Client credentials tokens of the declarations service carrying `directory:internal` and
+   * `directory:roster-national-id`.
+   */
   tokens: Pick<ServiceTokenClient, 'token' | 'invalidate'>;
   /** Per attempt. Default `DIRECTORY_PULL_TIMEOUT_MS`. */
   timeoutMs?: number;
@@ -76,11 +79,13 @@ const commissionSchema = z.object({
 
 const commissionListSchema = z.object({ items: z.array(commissionSchema) });
 
+const rosterNationalIdSchema = z.object({ nationalId: z.string().min(1) });
+
 /**
  * The directory's internal API through the client generated from its contract
  * (packages/schemas/internal/directory.yaml → directory-api.gen.ts via `pnpm generate:api`) on
  * api-kit's service client: the service's own token (client credentials, `directory:internal`,
- * one retry after a 401), the Commission in `X-Acting-Tenant` (ADR-013 §8.1, ADR-017), answers
+ * and `directory:roster-national-id` for the officer's national ID; one retry after a 401), the Commission in `X-Acting-Tenant` (ADR-013 §8.1, ADR-017), answers
  * validated at the boundary. Anything else unexpected is `DirectoryUnavailable`.
  */
 export class HttpDirectoryClient extends DirectoryClient {
@@ -124,6 +129,17 @@ export class HttpDirectoryClient extends DirectoryClient {
         }),
       { status: 200, schema: rosterRecordSchema, otherwise: { 404: () => null } },
     );
+  }
+
+  async getRosterNationalId(slug: string, recordId: string): Promise<string | null> {
+    const found = await this.directory.call(
+      (api) =>
+        api.GET('/internal/v1/commissions/{slug}/roster/records/{recordId}/national-id', {
+          params: { path: { slug, recordId }, header: { 'X-Acting-Tenant': slug } },
+        }),
+      { status: 200, schema: rosterNationalIdSchema, otherwise: { 404: () => null } },
+    );
+    return found?.nationalId ?? null;
   }
 
   getPolicy(slug: string): Promise<PulledPolicy> {

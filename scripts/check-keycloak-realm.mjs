@@ -288,9 +288,13 @@ for (const client of realm.clients ?? []) {
   if (client.clientId !== 'notifications' && scopesOf.includes('directory:person-contacts')) {
     fail(`${client.clientId} must not get directory:person-contacts (notifications only)`);
   }
-  // A national ID likewise: only review reads it, for payroll and the ICMS referral (spec 08).
-  if (client.clientId !== 'review' && scopesOf.includes('directory:roster-national-id')) {
-    fail(`${client.clientId} must not get directory:roster-national-id (review only)`);
+  // A national ID likewise: review reads it, for payroll and the ICMS referral (spec 08), and
+  // declarations, for the registry lookups an officer asks for about themselves (spec 05b).
+  if (
+    !['review', 'declarations'].includes(client.clientId) &&
+    scopesOf.includes('directory:roster-national-id')
+  ) {
+    fail(`${client.clientId} must not get directory:roster-national-id (review and declarations)`);
   }
 }
 // API clients the directory creates get `basic` (the `sub` claim) with their own scope.

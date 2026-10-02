@@ -1,6 +1,6 @@
 # ADR-013: Service-to-service communication
 
-- **Status:** Accepted; amended 2026-09-28 with the recorded exceptions in §8 (spec #27, spec 03), and 2026-10-01 with the reporting service's (§2 timeouts, §8.7; spec 09); the depth limit and default timeout in §2 and the acting-tenant uses in §8.1 partly superseded by [ADR-017](0017-obligation-reminder-delivery.md) for the declarations service's calls (spec 04)
+- **Status:** Accepted; amended 2026-09-28 with the recorded exceptions in §8 (spec #27, spec 03), 2026-10-01 with the reporting service's (§2 timeouts, §8.7; spec 09), and 2026-10-02 with the declarations service's registry lookups (§2 timeouts, §8.8; spec 05b); the depth limit and default timeout in §2 and the acting-tenant uses in §8.1 partly superseded by [ADR-017](0017-obligation-reminder-delivery.md) for the declarations service's calls (spec 04)
 - **Date:** 2026-09-24
 - **Deciders:** Adili V3 DIALs team
 - **Related:** [ADR-003](0003-temporal-as-workflow-engine.md), [ADR-004](0004-identity-keycloak-self-registration.md), [ADR-005](0005-message-queue-rabbitmq.md), [ADR-006](0006-multi-tenancy-and-hierarchy.md), [ADR-009](0009-api-first-interoperability.md), [ADR-012](0012-single-polyglot-monorepo.md)
@@ -61,6 +61,7 @@ flowchart LR
     - → declarations `POST /internal/v1/obligations/details` and → review `POST /internal/v1/review/clarifications/details`: 10 s, a page is up to 1,000 records; review's `GET /internal/v1/review/referrals/{referralId}/icms-payload` shares the budget.
     - → integration-gateway `POST /internal/v1/icms/referrals`: 15 s; the gateway's adapter kit times ICMS out within it, and registration is idempotent by the referral reference.
     - → documents `POST /internal/v1/documents/issue` (Form M, receipt and NCR PDFs): 30 s, rendering through Gotenberg and PAdES signing take seconds; a retry carries the same `Idempotency-Key`.
+  - declarations → integration-gateway `GET` KRA, NTSA, BRS and ArdhiSasa lookups (registry pre-fill, spec 05b): 5 s. The gateway times each registry out at 2 s behind its breaker, plus the hop and its cache and audit writes; lookups run in a workflow activity, which asks again with backoff while a registry does not answer (07b's rule) and then records it `unavailable`.
 - **Depth limit:** at most **one synchronous hop** from a service (BFF → service → one dependency). Deeper chains become events or Temporal.
 - **Hot reference data** (tenants, org tree, policies, numbering schemes, reference data from `directory`) is **cached locally**: Valkey plus in-process cache, invalidated by `directory.*.changed.v1` events. Services don't call `directory` on every request.
 
@@ -132,6 +133,10 @@ Token exchange (§5) replaces these with 8.1's.
 - declarations' `POST /internal/v1/obligations/details` (scope `declarations:internal`) and review's `POST /internal/v1/review/clarifications/details` (scope `review:internal`): batch reads naming the officers on Form M's non-filer and clarification rows;
 - documents' `POST /internal/v1/documents/issue` (8.5), for the Form M, receipt and NCR PDFs;
 - review's `GET /internal/v1/review/referrals/{referralId}/icms-payload` (scope `review:internal`), read when an EACC analyst pushes a referral to ICMS. It also names the analyst in `X-Acting-Subject`, as declarations' internal document reads name the officer for review: review's audit of the read records who caused it. The header is trusted on the same terms as the acting tenant (internal route, service scope, never a grant by itself) and only names; it widens nothing the token may read.
+
+**8.8 The officer's national ID and acting tenant on the declarations service's registry lookups (§5, spec 05b).** A declarant checking registries about themselves or their household runs a workflow, with no user token to exchange. The declarations service calls with its own client credentials token:
+- the directory's `GET /internal/v1/commissions/{slug}/roster/records/{recordId}/national-id`, for the officer's own lookups only (a spouse's or child's national ID comes from the household section). This widens 8.6's "held by review alone": `directory:roster-national-id` is now held by review and declarations. The ID is read in the activity at the moment of the lookup and passed to the gateway only; it never enters a log, event, table or workflow history;
+- the integration-gateway's KRA, NTSA, BRS and ArdhiSasa lookups (scope `registry`, the national ID in the body; spec 07b), naming the Commission in `X-Acting-Tenant` under every control of 8.1 (the stored verification result is the Commission's, and only its services read it back), with legal basis `declarant-request`, the declaration as `X-Case-Ref` and the declarant as `X-Subject-Person`, whoever of the household is looked up.
 
 Notifications' `POST /internal/v1/messages` and the gateway's ICMS routes take no acting tenant: the message carries its `tenant` for audit and branding, and ICMS registrations are keyed by the referral reference. Token exchange (§5) replaces these with 8.1's once system work carries an originating user or tenant claim.
 

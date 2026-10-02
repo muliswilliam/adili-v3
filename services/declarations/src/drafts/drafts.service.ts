@@ -83,6 +83,7 @@ import {
   statementKey,
   statementPersonKey,
 } from './sections.js';
+import { suggestionConsents, suggestionSets } from '../suggestions/schema.js';
 import { personNames, statementChanges, writeStatementChanges } from './statements.js';
 import { reviewDraft } from './summary.js';
 import {
@@ -312,8 +313,8 @@ export class DraftsService {
   }
 
   /**
-   * Discards the draft (S15): its sections and attachment rows are deleted, with an unlink event
-   * per attachment (the files are left to the documents orphan sweep), and the declaration is
+   * Discards the draft (S15): its sections, attachment rows and registry suggestions (spec 05b S7)
+   * are deleted, with an unlink event per attachment (the files are left to the documents orphan sweep), and the declaration is
    * marked `discarded`. The obligation is untouched, so a new start makes a fresh draft. 404 when
    * the draft is not the caller's or already discarded, 409 when it is no longer a draft.
    */
@@ -328,6 +329,11 @@ export class DraftsService {
       await tx
         .delete(declarationSections)
         .where(eq(declarationSections.declarationId, declaration.id));
+      // Registry suggestions go with the draft (spec 05b S7); their suggestions cascade.
+      await tx.delete(suggestionSets).where(eq(suggestionSets.declarationId, declaration.id));
+      await tx
+        .delete(suggestionConsents)
+        .where(eq(suggestionConsents.declarationId, declaration.id));
       await tx
         .update(declarations)
         .set({ status: 'discarded' })

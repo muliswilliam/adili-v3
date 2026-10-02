@@ -6,6 +6,7 @@ import { declarationSchema } from '../declaration/schema.js';
 import { draftsSchema } from '../drafts/schema.js';
 import { helpSchema } from '../help/schema.js';
 import { obligationsSchema } from '../obligations/schema.js';
+import { suggestionsSchema } from '../suggestions/schema.js';
 
 /** Drizzle schema of the declarations database. Only this service reads or writes it (ADR-013). */
 export const schema = {
@@ -16,6 +17,7 @@ export const schema = {
   ...declarationSchema,
   ...draftsSchema,
   ...helpSchema,
+  ...suggestionsSchema,
 };
 
 export type DeclarationsSchema = typeof schema;
@@ -27,3 +29,4 @@ export * from '../declaration/schema.js';
 export * from '../drafts/schema.js';
 export * from '../help/schema.js';
 export * from '../obligations/schema.js';
+export * from '../suggestions/schema.js';

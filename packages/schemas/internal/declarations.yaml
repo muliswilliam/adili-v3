@@ -1781,6 +1781,114 @@ paths:
       x-audited-read:
         action: obligation.officers.pulled
         resource: filing-obligation
+  /v1/declarations/{declarationId}/suggestions/lookups:
+    post:
+      tags:
+        - suggestions
+      summary: Check registries for a household person with recorded consent (declarant); results arrive as suggestions
+      description: 'The officer is looked up by the national ID on their roster record; a spouse or child by the one in Household. Records the consent (who, when, text version, registries) and answers one `pending` set per registry: the integration-gateway is asked for each with legal basis `declarant-request` and the declaration as case reference, retried with backoff while a registry does not answer, then `unavailable`. Poll `listSuggestions` until no set is `pending`. Records `declaration.lookup-requested.v1`, and `declaration.suggestions-ready.v1` per registry that answers. A registry checked again supersedes its earlier `new` suggestions for the person.'
+      operationId: requestRegistryLookups
+      parameters:
+        - name: declarationId
+          required: true
+          in: path
+          schema:
+            type: string
+            format: uuid
+        - name: Idempotency-Key
+          in: header
+          description: Client-generated UUID, unique per logical request; reuse on retry
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegistryLookupRequest'
+      responses:
+        '202':
+          description: Lookups started; one set per system
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/SuggestionSet'
+        '400':
+          description: The declarant did not request the check (`consent-required`), the spouse or child has no national ID in Household (`no-id`), or the request failed validation (an unknown registry, or a person not in the household)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: Not found, or not visible to the caller
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '409':
+          description: Not a draft (`declaration-not-draft`)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '422':
+          description: Idempotency-Key reused with a different request body
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+  /v1/declarations/{declarationId}/suggestions:
+    get:
+      tags:
+        - suggestions
+      summary: Suggestion sets and suggestions for the draft (declarant)
+      description: 'Oldest request first. Narrowed to a person, or to the suggestions of a section: a set with suggestions, none in the section, is left out; one with none yet is kept so a pending lookup can be polled.'
+      operationId: listSuggestions
+      parameters:
+        - name: declarationId
+          required: true
+          in: path
+          schema:
+            type: string
+            format: uuid
+        - name: personKey
+          required: false
+          in: query
+          description: Only the sets of this person
+          schema:
+            type: string
+        - name: sectionKey
+          required: false
+          in: query
+          description: Only the suggestions for this section (and sets with none yet)
+          schema:
+            type: string
+            pattern: ^(bio|household|other|statement:(officer|spouse:[0-9a-f-]{36}|child:[0-9a-f-]{36}))$
+      responses:
+        '200':
+          description: Sets with suggestions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/SuggestionSet'
+        '400':
+          description: Query failed validation
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: Not found, or not visible to the caller
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
   /internal/v1/declarations/disclosures:
     post:
       tags:
@@ -1836,96 +1944,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/InternalVersionDocument'
-        '404':
-          $ref: '#/components/responses/NotFound'
-  /v1/declarations/{declarationId}/suggestions/lookups:
-    parameters:
-      - $ref: '#/components/parameters/DeclarationId'
-    post:
-      tags:
-        - suggestions
-      summary: Check registries for a household person with recorded consent (declarant); results arrive as suggestions
-      operationId: requestRegistryLookups
-      x-draft: true
-      parameters:
-        - $ref: '#/components/parameters/IdempotencyKey'
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required:
-                - personKey
-                - systems
-                - consent
-              properties:
-                personKey:
-                  type: string
-                systems:
-                  type: array
-                  minItems: 1
-                  items:
-                    type: string
-                    enum:
-                      - kra
-                      - ntsa
-                      - brs
-                      - ardhisasa
-                consent:
-                  type: object
-                  required:
-                    - requested
-                    - textVersion
-                  properties:
-                    requested:
-                      const: true
-                    textVersion:
-                      type: string
-      responses:
-        '202':
-          description: Lookups started; one set per system
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/SuggestionSet'
-        '400':
-          description: Consent missing or person has no national ID (`no-id`)
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ProblemDetails'
-        '404':
-          $ref: '#/components/responses/NotFound'
-  /v1/declarations/{declarationId}/suggestions:
-    parameters:
-      - $ref: '#/components/parameters/DeclarationId'
-    get:
-      tags:
-        - suggestions
-      summary: Suggestion sets and suggestions for the draft (declarant)
-      operationId: listSuggestions
-      x-draft: true
-      parameters:
-        - name: personKey
-          in: query
-          schema:
-            type: string
-        - name: sectionKey
-          in: query
-          schema:
-            $ref: '#/components/schemas/SectionKey'
-      responses:
-        '200':
-          description: Sets with suggestions
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/SuggestionSet'
         '404':
           $ref: '#/components/responses/NotFound'
   /v1/declarations/{declarationId}/suggestions/{suggestionId}/accept:
@@ -4060,6 +4078,164 @@ components:
               - exitDate
       required:
         - items
+    SuggestionSource:
+      type: string
+      enum:
+        - kra
+        - ntsa
+        - brs
+        - ardhisasa
+        - document
+    Suggestion:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        setId:
+          type: string
+          format: uuid
+        personKey:
+          type: string
+        sectionKey:
+          $ref: '#/components/schemas/SectionKey'
+        itemType:
+          type: string
+          description: 'What the suggestion proposes: a Second Schedule item type from declaration.v1 (`vehicle` from NTSA, `land` from ArdhiSasa, `shareholding` from BRS), `directorship` (BRS, a paragraph 9 registrable interest of the officer, in `other`), `bio-tax` (KRA PIN and compliance, in `bio` for the officer or `household` for a spouse) or `income-hint` (KRA, a hint to check the salary item, never a value)'
+        fields:
+          type: object
+          propertyNames:
+            type: string
+          additionalProperties: {}
+          description: "Proposed fields, by item type: `vehicle` registration, make, model, year; `land` parcelNumber, size, location, county (a declaration.v1 county code); `shareholding` companyName, registrationNumber, role, shares; `directorship` companyName, role; `bio-tax` kraPin, complianceStatus; `income-hint` incomeType. Statement items also carry an editable `description`. Value fields are never set: valuing is the declarant's call"
+        sourceRef:
+          type: object
+          propertyNames:
+            type: string
+          additionalProperties: {}
+          description: "The registry's identifiers for the record (registration, parcel, company or KRA PIN number) and facts that do not become fields (registration date, tenure, company status, certificate); for `income-hint`, the declared income in KES cents. Documents: page and field"
+        confidence:
+          anyOf:
+            - type: number
+              minimum: 0
+              maximum: 1
+            - type: 'null'
+        matchItemId:
+          anyOf:
+            - type: string
+              format: uuid
+            - type: 'null'
+          description: 'The item already in the section whose identifier (registration, parcel, company) coincides: offer "Apply to this item" instead of a duplicate'
+        status:
+          type: string
+          enum:
+            - new
+            - accepted
+            - dismissed
+            - superseded
+        acceptedItemId:
+          anyOf:
+            - type: string
+              format: uuid
+            - type: 'null'
+      required:
+        - id
+        - setId
+        - personKey
+        - sectionKey
+        - itemType
+        - fields
+        - sourceRef
+        - confidence
+        - matchItemId
+        - status
+        - acceptedItemId
+    SuggestionSet:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        personKey:
+          type: string
+        source:
+          $ref: '#/components/schemas/SuggestionSource'
+        status:
+          type: string
+          enum:
+            - pending
+            - ready
+            - unavailable
+            - no-id
+            - not-enabled
+            - failed
+          description: '`pending` while the registry is being asked (retried with backoff); `ready` when it answered, with or without records; `unavailable` when it did not answer after the retries; `failed` when the check could not run. Poll `listSuggestions` until no set is `pending`'
+        requestedAt:
+          type: string
+          format: date-time
+        readyAt:
+          anyOf:
+            - type: string
+              format: date-time
+            - type: 'null'
+        verificationResultId:
+          anyOf:
+            - type: string
+              format: uuid
+            - type: 'null'
+        aiJobId:
+          anyOf:
+            - type: string
+              format: uuid
+            - type: 'null'
+        suggestions:
+          type: array
+          items:
+            $ref: '#/components/schemas/Suggestion'
+      required:
+        - id
+        - personKey
+        - source
+        - status
+        - requestedAt
+        - readyAt
+        - verificationResultId
+        - aiJobId
+        - suggestions
+    RegistryLookupRequest:
+      type: object
+      properties:
+        personKey:
+          type: string
+          description: '`officer`, or a spouse or child of the household (`spouse:<id>`, `child:<id>`)'
+        systems:
+          minItems: 1
+          type: array
+          items:
+            type: string
+            enum:
+              - kra
+              - ntsa
+              - brs
+              - ardhisasa
+        consent:
+          type: object
+          properties:
+            requested:
+              type: boolean
+              const: true
+              description: The declarant ticked "I request this check"
+            textVersion:
+              type: string
+              minLength: 1
+              description: The version of the consent text shown
+          required:
+            - requested
+            - textVersion
+      required:
+        - personKey
+        - systems
+        - consent
     ProblemDetails:
       type: object
       properties:
@@ -4095,6 +4271,8 @@ components:
             - obligation-cancelled
             - acknowledgement-issued
             - acknowledgement-in-progress
+            - consent-required
+            - no-id
           description: Machine-readable cause, from the platform registry; clients map it to copy and never show `title` or `detail`
         detail:
           type: string
@@ -4210,123 +4388,6 @@ components:
                 type: object
                 description: Subset of the declaration.v1 document limited to the granted persons and sections
                 additionalProperties: true
-    SuggestionSource:
-      type: string
-      enum:
-        - kra
-        - ntsa
-        - brs
-        - ardhisasa
-        - document
-    SuggestionSet:
-      type: object
-      required:
-        - id
-        - personKey
-        - source
-        - status
-        - requestedAt
-        - readyAt
-        - verificationResultId
-        - aiJobId
-        - suggestions
-      properties:
-        id:
-          type: string
-          format: uuid
-        personKey:
-          type: string
-        source:
-          $ref: '#/components/schemas/SuggestionSource'
-        status:
-          type: string
-          enum:
-            - pending
-            - ready
-            - unavailable
-            - no-id
-            - not-enabled
-            - failed
-        requestedAt:
-          type: string
-          format: date-time
-        readyAt:
-          type:
-            - string
-            - 'null'
-          format: date-time
-        verificationResultId:
-          type:
-            - string
-            - 'null'
-          format: uuid
-        aiJobId:
-          type:
-            - string
-            - 'null'
-          format: uuid
-        suggestions:
-          type: array
-          items:
-            $ref: '#/components/schemas/Suggestion'
-    Suggestion:
-      type: object
-      required:
-        - id
-        - setId
-        - personKey
-        - sectionKey
-        - itemType
-        - fields
-        - sourceRef
-        - confidence
-        - matchItemId
-        - status
-        - acceptedItemId
-      properties:
-        id:
-          type: string
-          format: uuid
-        setId:
-          type: string
-          format: uuid
-        personKey:
-          type: string
-        sectionKey:
-          $ref: '#/components/schemas/SectionKey'
-        itemType:
-          type: string
-          description: Second Schedule item type from declaration.v1, or `bio-tax` for KRA PIN and compliance
-        fields:
-          type: object
-          additionalProperties: true
-        sourceRef:
-          type: object
-          description: Registration, title or company number, or document page and field
-          additionalProperties: true
-        confidence:
-          type:
-            - number
-            - 'null'
-          minimum: 0
-          maximum: 1
-        matchItemId:
-          type:
-            - string
-            - 'null'
-          format: uuid
-        status:
-          type: string
-          enum:
-            - new
-            - accepted
-            - dismissed
-            - superseded
-        acceptedItemId:
-          type:
-            - string
-            - 'null'
-          format: uuid
     AssistantConversation:
       type: object
       required:
