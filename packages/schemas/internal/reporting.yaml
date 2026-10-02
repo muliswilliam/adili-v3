@@ -479,12 +479,13 @@ paths:
       summary: The national consolidated report for a financial year
       description: |
         eacc-analyst and eacc-supervisor (tenant `eacc`); anyone else 403. 404 until the year's
-        report is first built. `aggregates` holds counts and rates only, each at a stable dot
-        path (`national.initial.rate`, `byCommission.psc.final.declared`) that narrative
-        paragraphs cite in `aggregateRefs`: `reporting` (Commissions reported on time, late, not
-        reported), `national` (per section expected, declared, not declared and rate, the three
-        together as `all`, clarifications, access requests) and `byCommission` (per Commission
-        slug: name, status, report id and reference, and its numbers once reported).
+        report is first built. `aggregates` holds counts and rates only: `reporting` (Commissions
+        reported on time, late, not reported), `national` (per section expected, declared, not
+        declared and rate, the three together as `all`, clarifications, access requests) and
+        `byCommission` (per Commission slug: name, status, report id and reference, and its
+        numbers once reported). Narrative paragraphs cite figures in `aggregateRefs` by aggregate
+        key in the ai-gateway scheme, as `PatternCandidate.aggregateKeys` does, not by dot path
+        into `aggregates`. Building those keys from `aggregates` belongs to #326 and #334.
       responses:
         '200':
           description: NCR
@@ -1390,6 +1391,9 @@ components:
           description: True until the analyst edits the paragraph
         aggregateRefs:
           type: array
+          description: >-
+            Aggregate keys the paragraph cites, in the scheme of `PatternCandidate.aggregateKeys`;
+            empty for what an analyst types
           items:
             type: string
         candidateIds:
