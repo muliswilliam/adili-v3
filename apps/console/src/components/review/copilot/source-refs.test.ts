@@ -23,7 +23,7 @@ describe('sourceRefResolver', () => {
   it('names an item by its description and opens the item', () => {
     expect(resolve(ref({ personKey: 'officer', itemId: MOCK_ITEM_IDS.plot }))).toMatchObject({
       label: 'Plot Kisumu/Manyatta/1234',
-      targetLabel: 'Assets · Plot Kisumu/Manyatta/1234 · John Otieno',
+      targetLabel: 'Assets · Plot Kisumu/Manyatta/1234 · John Kennedy Otieno',
       anchorId: `decl-item-${MOCK_ITEM_IDS.plot}`,
       target: 'item',
     });
@@ -66,12 +66,12 @@ describe('sourceRefResolver', () => {
 
   it("opens a person's statement, by person key or a statement section key", () => {
     expect(resolve(ref({ sectionKey: `statement:${SPOUSE}` }))).toMatchObject({
-      label: 'Lilian Otieno · Spouse',
+      label: 'Lilian Akoth Otieno · Spouse',
       anchorId: `decl-statement-${SPOUSE}`,
       target: 'person',
     });
     expect(resolve(ref({ personKey: 'officer', sectionKey: 'assets' }))).toMatchObject({
-      label: 'Assets · John Otieno',
+      label: 'Assets · John Kennedy Otieno',
       anchorId: 'decl-statement-officer',
     });
   });
@@ -88,7 +88,7 @@ describe('sourceRefResolver', () => {
       target: 'field',
     });
     expect(resolve(ref({ fieldPath: '/statements/1/income/0' }))).toMatchObject({
-      label: 'Income · Lilian Otieno',
+      label: 'Income · Lilian Akoth Otieno',
       anchorId: `decl-statement-${SPOUSE}`,
       target: 'field',
     });

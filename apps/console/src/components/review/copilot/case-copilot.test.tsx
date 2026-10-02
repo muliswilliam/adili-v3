@@ -180,7 +180,7 @@ describe('CaseCopilot (S15)', () => {
     const changes = screen.getByRole('region', { name: 'Changes since previous version' });
     fireEvent.click(
       within(changes).getByRole('button', {
-        name: 'Open in the declaration: Assets · Plot Kisumu/Manyatta/1234 · John Otieno',
+        name: 'Open in the declaration: Assets · Plot Kisumu/Manyatta/1234 · John Kennedy Otieno',
       }),
     );
     const target = document.getElementById(`decl-item-${MOCK_ITEM_IDS.plot}`);

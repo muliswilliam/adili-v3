@@ -80,7 +80,8 @@ const isRecord = (value: unknown): value is Record<string, unknown> =>
 
 function nameOf(value: unknown): string {
   if (!isRecord(value)) return '';
-  return [value.firstName, value.surname]
+  // As the declaration pane names people (`personName`): first, other names, surname.
+  return [value.firstName, value.otherNames, value.surname]
     .filter((part): part is string => typeof part === 'string' && part.length > 0)
     .join(' ');
 }
