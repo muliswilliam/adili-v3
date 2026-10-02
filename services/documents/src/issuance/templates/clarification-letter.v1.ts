@@ -178,7 +178,7 @@ export const clarificationLetterV1: DocumentTemplate<ClarificationLetterPayload>
 <p>Dear ${esc(payload.declarantName)},</p>
 <p>Under section 35(2) of the Conflict of Interest Act, 2025, the Commission has reviewed your ${declaration} ${esc(payload.declarationReference)}. Please clarify ${itemsBelow(payload.items.length)}.</p>
 <ol class="items">${items}</ol>
-<div class="banner">${CALENDAR}<div>Respond by ${due}<span class="s">You have ${replyDays} day${replyDays === 1 ? '' : 's'} from the date of this letter to respond (section 35(3)).</span></div></div>
+<div class="banner">${CALENDAR}<div>Respond by ${due}<span class="s">You have ${replyDays} day${replyDays === 1 ? '' : 's'} from receipt of this letter to respond (section 35(3)).</span></div></div>
 <section class="close">
 <h2>How to respond</h2>
 <ol class="steps">

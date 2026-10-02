@@ -33,12 +33,12 @@ const render = (dueAt: string) =>
 describe('clarification-letter.v1', () => {
   it("Q9: gives the reply window the due date was set with, the Commission's policy", () => {
     expect(render('2026-10-14T06:20:00.000Z')).toContain(
-      'You have 30 days from the date of this letter to respond (section 35(3)).',
+      'You have 30 days from receipt of this letter to respond (section 35(3)).',
     );
     // A Commission whose policy gives 45 days.
     const longer = render('2026-10-29T06:20:00.000Z');
     expect(longer).toContain('Respond by 29 Oct 2026');
-    expect(longer).toContain('You have 45 days from the date of this letter');
+    expect(longer).toContain('You have 45 days from receipt of this letter');
     expect(longer).not.toContain('30 days');
   });
 });
