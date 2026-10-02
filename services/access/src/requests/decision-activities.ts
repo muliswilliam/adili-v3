@@ -9,10 +9,10 @@ import { DeclarationsClient } from '../declarations/declarations-client.js';
 import { DirectoryClient } from '../directory/directory-client.js';
 import { DocumentsClient } from '../documents/documents-client.js';
 import { issueGrantDocument, readyTemplate } from '../grant-documents.js';
+import { recordPackageExpired, recordPackageIssued } from '../grant-records.js';
 import { NotificationsClient } from '../notifications/notifications-client.js';
 import { AccessRegister } from '../register/access-register.js';
 import { ReviewClient } from '../review/review-client.js';
-import { accessRegister } from '../register/schema.js';
 import { systemContext } from '../system-context.js';
 import type {
   AccessRequestWorkflowInput,
@@ -173,21 +173,9 @@ export class DecisionActivities {
           .where(eq(accessRequests.id, requestId));
         return current?.downloadExpiresAt ?? null;
       }
-      await this.register.record(tx, {
-        tenant,
-        subjectKind: 'access-request',
-        subjectId: requestId,
-        reference: recorded.reference,
-        personId: recorded.resolvedPersonId,
-        kind: 'package-issued',
-        actor: null,
-        at: issued.issuedAt,
-        details: {
-          documentId: issued.id,
-          downloadExpiresAt: downloadExpiresAt.toISOString(),
-          packageKind: kind,
-        },
-        eventData: { documentId: issued.id, downloadExpiresAt: downloadExpiresAt.toISOString() },
+      await recordPackageIssued(tx, this.register, 'access-request', recorded, {
+        ...issued,
+        kind,
       });
       return downloadExpiresAt;
     });
@@ -254,31 +242,14 @@ export class DecisionActivities {
         .where(eq(accessRequests.id, requestId))
         .for('update');
       if (!found) return 'missing';
-      if (found.downloadExpiresAt === null || found.packageDocumentId === null) {
+      const { downloadExpiresAt, packageDocumentId } = found;
+      if (downloadExpiresAt === null || packageDocumentId === null) {
         throw invariantBroken('The request has no package');
       }
-      const [expired] = await tx
-        .select({ id: accessRegister.id })
-        .from(accessRegister)
-        .where(
-          and(
-            eq(accessRegister.subjectKind, 'access-request'),
-            eq(accessRegister.subjectId, requestId),
-            eq(accessRegister.kind, 'expired'),
-          ),
-        );
-      if (expired) return 'expired';
-      await this.register.record(tx, {
-        tenant,
-        subjectKind: 'access-request',
-        subjectId: requestId,
-        reference: found.reference,
-        personId: found.resolvedPersonId,
-        kind: 'expired',
-        actor: null,
-        at: found.downloadExpiresAt,
-        details: { documentId: found.packageDocumentId },
-        eventData: { documentId: found.packageDocumentId },
+      await recordPackageExpired(tx, this.register, 'access-request', {
+        ...found,
+        downloadExpiresAt,
+        packageDocumentId,
       });
       return 'expired';
     });
