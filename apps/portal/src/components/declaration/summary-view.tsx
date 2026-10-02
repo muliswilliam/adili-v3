@@ -39,6 +39,7 @@ import { DiscardDraftButton } from './discard-dialog';
 import { AffirmationDialog, StepUpFailedAlert, useSubmitFlow } from './submit-flow';
 import { type StepUpMarker, SUBMIT_COPY } from './submit';
 import { fullName, orUnanswered, UNANSWERED } from '../../declaration/format';
+import { issueText } from '../../declaration/issue-text';
 import { sourceDetails } from '../../declaration/item-source';
 import { OFFICER_KEY, statementSectionKey } from '../../declaration/section-key';
 import {
@@ -151,7 +152,7 @@ function BlockingPanel({
               {group.issues.map((issue) => (
                 <li key={`${issue.path}-${issue.code}-${issue.message}`} className="list-disc">
                   <ErrorsLink declarationId={declarationId} step={group.key}>
-                    {issue.message}
+                    {issueText(issue)}
                   </ErrorsLink>
                 </li>
               ))}

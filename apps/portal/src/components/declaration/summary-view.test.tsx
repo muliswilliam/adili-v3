@@ -432,6 +432,26 @@ describe('SummaryView', () => {
     expect(screen.getByText('Complete the 3 items listed above to submit.')).toBeTruthy();
   });
 
+  it('names the field of an issue the service words as a fragment ("is required")', () => {
+    const blocking: CompletenessIssue[] = [
+      { sectionKey: 'bio', path: '/birth/place', code: 'required', message: 'is required' },
+      {
+        sectionKey: 'household',
+        path: '/spouses/items/0/separationDate',
+        code: 'required',
+        message: 'is required',
+      },
+    ];
+    renderSummary(summaryOf({ blocking, valid: false, cannotSubmitReason: 'incomplete' }));
+
+    const panel = card('2 things to complete before you can submit');
+    expect(within(panel).getByRole('link', { name: 'Place of birth is required.' })).toBeTruthy();
+    expect(
+      within(panel).getByRole('link', { name: 'Spouse 1: date of separation is required.' }),
+    ).toBeTruthy();
+    expect(within(panel).queryByRole('link', { name: 'is required' })).toBeNull();
+  });
+
   it('shows at most twelve blocking issues and says how many more', () => {
     const blocking = Array.from({ length: 14 }, (_, index) =>
       issue('bio', `Issue ${String(index + 1)}.`),
