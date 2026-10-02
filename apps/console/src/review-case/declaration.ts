@@ -157,7 +157,10 @@ function itemOf(category: Category, raw: Record<string, unknown>): DeclaredItem 
   const amount =
     category === 'assets' ? raw.value : category === 'income' ? raw.amount : raw.outstanding;
   const detail = [
-    category === 'liabilities' ? text(raw.creditor) : '',
+    // The creditor, unless the description already names it.
+    category === 'liabilities' && !text(raw.description).includes(text(raw.creditor))
+      ? text(raw.creditor)
+      : '',
     placeOf(raw.location),
     category === 'assets' ? ownershipOf(raw.joint) : '',
   ]

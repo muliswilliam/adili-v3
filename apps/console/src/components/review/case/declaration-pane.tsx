@@ -155,9 +155,9 @@ export function DeclarationPane({
             {view.attachments.map((attachment) => (
               <li
                 key={attachment.uploadId}
-                className="flex items-center gap-3 rounded-xl px-3 py-2.5 shadow-card"
+                className="flex min-w-0 items-center gap-2.5 rounded-lg bg-control py-2 pr-1.5 pl-2.5 shadow-control"
               >
-                <span className="grid size-8 shrink-0 place-items-center rounded-[9px] bg-muted text-secondary-foreground">
+                <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-muted text-secondary-foreground">
                   <Icon icon={File02Icon} className="size-4" />
                 </span>
                 <div className="min-w-0 flex-1">
@@ -303,10 +303,11 @@ function Section({
   );
 }
 
+/** The kit's household avatars: the declarant in brand orange, spouses blue, children green. */
 const AVATAR_TONES: Record<Relation, string> = {
-  officer: 'bg-brand-subtle text-brand-subtle-foreground',
-  spouse: 'bg-info-subtle text-info-subtle-foreground',
-  child: 'bg-success-subtle text-success-subtle-foreground',
+  officer: 'from-[#f7b58d] to-brand',
+  spouse: 'from-[#a8c7f0] to-[#3a6fc4]',
+  child: 'from-[#b9e3c2] to-[#2f9656]',
 };
 
 /** A household member's initials, tinted by their place in the household. */
@@ -315,7 +316,7 @@ function PersonAvatar({ name, relation }: { name: string; relation: Relation }) 
     <span
       aria-hidden="true"
       className={cn(
-        'grid size-6 shrink-0 place-items-center rounded-full text-[10.5px] font-semibold',
+        'grid size-7 shrink-0 place-items-center rounded-full bg-linear-135 text-[11.5px] font-semibold text-white',
         AVATAR_TONES[relation],
       )}
     >
