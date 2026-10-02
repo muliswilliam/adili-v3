@@ -1,0 +1,191 @@
+// @vitest-environment jsdom
+import { ACCESS_OFFICER } from '@adili/roles';
+import { ToastProvider, TooltipProvider } from '@adili/ui';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import type { ReactNode } from 'react';
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+
+import { MOCK_LEA_IDS as L } from '../../../server/access/lea-mock.server';
+import {
+  mockAccessClient,
+  resetAccessMock,
+  setAccessMockLatency,
+} from '../../../server/access/mock.server';
+import type { LeaRequest } from '../../../server/access/types';
+import { findLeaRosterCandidates, verifyLea } from '../../../server/lea-requests';
+import {
+  loadLeaRequest,
+  searchLeaRoster,
+  verifyLeaRequest,
+} from '../../../server/lea-requests.server';
+import { LeaRequestDetail } from './lea-request-detail';
+
+const invalidate = vi.fn(() => Promise.resolve());
+
+vi.mock('@tanstack/react-router', () => ({
+  useRouter: () => ({ invalidate }),
+  Link: ({
+    to,
+    params,
+    children,
+    ...props
+  }: {
+    to: string;
+    params?: Record<string, string>;
+    children: ReactNode;
+  }) => (
+    <a
+      href={Object.entries(params ?? {}).reduce(
+        (path, [name, value]) => path.replace(`$${name}`, value),
+        to,
+      )}
+      {...props}
+    >
+      {children}
+    </a>
+  ),
+}));
+vi.mock('../../../server/access-requests', () => ({}));
+vi.mock('../../../server/lea-requests', () => ({
+  findLeaRosterCandidates: vi.fn(),
+  verifyLea: vi.fn(),
+}));
+
+const client = () => mockAccessClient([ACCESS_OFFICER]);
+const NOW = new Date().toISOString();
+
+async function requestOf(id: string): Promise<LeaRequest> {
+  const result = await loadLeaRequest(client(), id);
+  if (!result.ok) throw new Error(JSON.stringify(result.error));
+  return result.data;
+}
+
+function renderDetail(request: LeaRequest, readOnly = false) {
+  render(
+    <TooltipProvider>
+      <ToastProvider>
+        <LeaRequestDetail request={request} readOnly={readOnly} now={NOW} />
+      </ToastProvider>
+    </TooltipProvider>,
+  );
+}
+
+const side = () => screen.getByRole('complementary', { name: 'Where the request stands' });
+
+beforeAll(() => {
+  setAccessMockLatency(0);
+});
+afterAll(() => {
+  setAccessMockLatency(1);
+});
+beforeEach(() => {
+  resetAccessMock();
+  invalidate.mockClear();
+  vi.mocked(findLeaRosterCandidates).mockImplementation(({ data }) =>
+    searchLeaRoster(client(), data.requestId, data.q),
+  );
+  vi.mocked(verifyLea).mockImplementation(({ data }) =>
+    verifyLeaRequest(
+      client(),
+      data.requestId,
+      {
+        provenanceConfirmed: true,
+        reasonConfirmed: true,
+        rosterRecordId: data.rosterRecordId,
+        note: data.note,
+      },
+      data.idempotencyKey,
+    ),
+  );
+});
+
+describe('a law enforcement request, for the access officer (spec 10 FE-6, S11)', () => {
+  it('shows the written request, its 14-day deadline and who has been told', async () => {
+    renderDetail(await requestOf(L.received));
+    expect(screen.getByRole('heading', { level: 1 }).textContent).toMatch(/^LEA-PSC-2026-/);
+    expect(screen.getByText('Law enforcement')).toBeTruthy();
+    expect(screen.getByText('The declarant is told only after a grant.')).toBeTruthy();
+    const written = screen.getByRole('region', { name: 'Written request' });
+    expect(written.textContent).toContain('Directorate of Criminal Investigations');
+    expect(written.textContent).toContain('DCI/ECU/142/2026');
+    expect(written.textContent).toContain('Grace Nyambura Kamau');
+    expect(written.textContent).not.toContain('Clarifications');
+    const chip = document.querySelector('time[data-state]');
+    expect(chip?.textContent).toMatch(/1\d days left/);
+  });
+
+  it('S11: verifies: both confirmations, the officer on the roster and a note', async () => {
+    renderDetail(await requestOf(L.received));
+    const card = within(side()).getByRole('region', { name: 'Verify' });
+    expect(card.textContent).toContain('Sent from a provisioned DCI account: Suleiman Ali');
+    fireEvent.click(within(card).getByRole('button', { name: 'Record verification' }));
+    expect(card.textContent).toContain('Confirm the request comes from the agency account');
+    expect(card.textContent).toContain('Confirm the request states its reason.');
+    expect(card.textContent).toContain('Say what you checked.');
+    expect(verifyLea).not.toHaveBeenCalled();
+
+    // The file number Form K gave is searched at once.
+    const record = await within(card).findByRole('radio', { name: /Grace Nyambura Kamau/ });
+    fireEvent.click(within(card).getByRole('checkbox', { name: 'Agency and officer confirmed' }));
+    fireEvent.click(within(card).getByRole('checkbox', { name: 'Reason for access stated' }));
+    fireEvent.click(record);
+    fireEvent.change(within(card).getByRole('textbox', { name: /Note/ }), {
+      target: { value: 'Provisioned DCI account; case reference stated.' },
+    });
+    fireEvent.click(within(card).getByRole('button', { name: 'Record verification' }));
+    await waitFor(() => {
+      expect(invalidate).toHaveBeenCalled();
+    });
+    expect(verifyLea).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        note: 'Provisioned DCI account; case reference stated.',
+      }) as unknown,
+    });
+    expect((await requestOf(L.received)).status).toBe('verified');
+  });
+
+  it('offers a denial for a request that cannot be verified', async () => {
+    renderDetail(await requestOf(L.received));
+    const link = within(side()).getByRole('link', { name: 'Deny the request' });
+    expect(link.getAttribute('href')).toBe(`/access/lea-requests/${L.received}/decide`);
+  });
+
+  it('marks a request undecided past 14 days as breached', async () => {
+    renderDetail(await requestOf(L.breach));
+    expect(screen.getByText('14-day deadline breached')).toBeTruthy();
+  });
+
+  it('opens Decide once verified; the supervisor only reads', async () => {
+    renderDetail(await requestOf(L.verified));
+    expect(within(side()).getByRole('link', { name: 'Decide' }).getAttribute('href')).toBe(
+      `/access/lea-requests/${L.verified}/decide`,
+    );
+    // The verification: who, and the officer identified.
+    expect(side().textContent).toContain('Lucy Wambui');
+    expect(side().textContent).toContain('Peter Mwangi Kamau');
+  });
+
+  it('S11: after a grant, says the declarant was notified and shows the package', async () => {
+    renderDetail(await requestOf(L.granted));
+    expect(screen.getByText(/^Declarant notified after grant, on /)).toBeTruthy();
+    const pkg = within(side()).getByRole('region', { name: 'Package' });
+    expect(pkg.textContent).toContain('Suleiman Ali, DCI');
+    expect(pkg.textContent).toContain('Downloads1');
+    expect(within(side()).getByRole('region', { name: 'Decision' }).textContent).toContain(
+      'Granted',
+    );
+  });
+
+  it('after a denial, says the declarant was not told and the agency got the reasons', async () => {
+    renderDetail(await requestOf(L.denied));
+    expect(screen.getByText('The declarant was not told. DCI received the reasons.')).toBeTruthy();
+    expect(within(side()).queryByRole('region', { name: 'Package' })).toBeNull();
+  });
+
+  it('gives the supervisor where it stands instead of the forms', async () => {
+    renderDetail(await requestOf(L.received), true);
+    expect(within(side()).queryByRole('region', { name: 'Verify' })).toBeNull();
+    expect(side().textContent).toContain('Waiting for the access officer to verify.');
+    expect(screen.getByText('Read only')).toBeTruthy();
+  });
+});

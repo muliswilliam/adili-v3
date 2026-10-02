@@ -196,7 +196,16 @@ function badRequestMessage(problem: AccessProblem): string {
   return m.badRequest;
 }
 
-export function decisionFailure(error: ServiceError<AccessProblem>): DecisionFailure {
+/** Copy a kind of request words its own way (law enforcement: grant before verification). */
+export interface DecisionFailureCopy {
+  /** A 409 without a code the form knows: the request is not ready for this decision. */
+  notUnderDecision?: { title: string; message: string };
+}
+
+export function decisionFailure(
+  error: ServiceError<AccessProblem>,
+  copy: DecisionFailureCopy = {},
+): DecisionFailure {
   const failure = (
     title: string,
     message: string,
@@ -218,7 +227,11 @@ export function decisionFailure(error: ServiceError<AccessProblem>): DecisionFai
       return failure(m.alreadyDecidedTitle, m.alreadyDecided, { stale: true });
     }
     if (problem.code === 'request-closed') return failure(m.closedTitle, m.closed, { stale: true });
-    return failure(m.notUnderDecisionTitle, m.notUnderDecision, { stale: true });
+    const notReady = copy.notUnderDecision ?? {
+      title: m.notUnderDecisionTitle,
+      message: m.notUnderDecision,
+    };
+    return failure(notReady.title, notReady.message, { stale: true });
   }
   if (problem.status === 404) return failure(m.closedTitle, m.closed, { stale: true });
   return failure(m.notRecordedTitle, m.badRequest);

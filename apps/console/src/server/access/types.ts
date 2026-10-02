@@ -34,3 +34,17 @@ export interface AccessProblem {
   /** Fields at fault, by dotted path. */
   errors?: { path: string; message: string }[];
 }
+
+/** A law enforcement request (Regs r.23), as its officer or the Commission reads it. */
+export type LeaRequest = Schemas['LeaRequest'];
+export type LeaRequestStatus = Schemas['LeaRequestStatus'];
+export type LeaRequestInput = Schemas['LeaRequestInput'];
+export type VerifyLeaRequest = Schemas['VerifyLeaRequest'];
+export type LeaProvenance = Schemas['LeaProvenance'];
+/** A Commission a written request can address, with the declaration years it can ask for. */
+export type AccessCommission = Schemas['AccessCommission'];
+export type Decision = Schemas['Decision'];
+export type DecisionInput = Schemas['DecisionInput'];
+export type Outcome = Schemas['Outcome'];
+export type Ground = Schemas['Ground'];
+export type Package = Schemas['Package'];

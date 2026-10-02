@@ -1,7 +1,7 @@
 import { plural } from '@adili/ui';
 
-import type { QueueStatus } from '../../server/access/types';
-import type { QueueFilter } from './queue-query';
+import type { QueueItem, QueueStatus } from '../../server/access/types';
+import type { QueueFilter, QueueTab } from './queue-query';
 
 /**
  * Copy of the Access requests workspace (spec 10 FE-5), from the console prototype
@@ -18,6 +18,11 @@ export const en = {
   accessErrorDetail: 'Check your connection and try again.',
 
   // Queue
+  tabs: { all: 'All', 'form-k': 'Form K', lea: 'Law enforcement' } satisfies Record<
+    QueueTab,
+    string
+  >,
+  kinds: { 'form-k': 'Form K', lea: 'Law enforcement' } satisfies Record<QueueItem['kind'], string>,
   searchLabel: 'Search requests',
   searchPlaceholder: 'Reference, name or file number',
   filtersLabel: 'Show',
@@ -32,7 +37,11 @@ export const en = {
   queueCaption: 'Access requests, earliest deadline first',
   queueLoadingCaption: 'Loading access requests',
   columnReference: 'Reference',
-  columnApplicant: 'Applicant',
+  columnWho: {
+    all: 'Applicant or agency',
+    'form-k': 'Applicant',
+    lea: 'Agency',
+  } satisfies Record<QueueTab, string>,
   columnOfficer: 'Officer',
   columnStatus: 'Status',
   columnDeadline: 'Deadline',
@@ -50,7 +59,11 @@ export const en = {
   queueErrorTitle: 'We could not load the queue',
   queueErrorDetail: 'The access service did not answer. Try again in a moment.',
   emptyTitle: 'No requests yet',
-  emptyText: 'Form K requests to your Commission appear here.',
+  emptyText: {
+    all: 'Form K and law enforcement requests to your Commission appear here.',
+    'form-k': 'Form K requests to your Commission appear here.',
+    lea: 'Law enforcement requests to your Commission appear here.',
+  } satisfies Record<QueueTab, string>,
   noMatchesTitle: 'No matches',
   noMatchesText: 'No requests match these filters.',
   clearFilters: 'Clear filters',
@@ -225,8 +238,9 @@ export const STATUS: Record<
   denied: { label: 'Denied', tone: 'destructive' },
   'cannot-identify': { label: 'Cannot identify officer', tone: 'default' },
   withdrawn: { label: 'Withdrawn', tone: 'default' },
-  received: { label: 'Received', tone: 'info' },
-  verified: { label: 'Verified', tone: 'brand' },
+  // Law enforcement requests, as the access officer works them: verify, then decide.
+  received: { label: 'Verify', tone: 'warning' },
+  verified: { label: 'Under decision', tone: 'brand' },
 };
 
 export const messages = en;

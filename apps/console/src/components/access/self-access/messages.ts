@@ -9,7 +9,6 @@ export const en = {
   title: 'Certified copies',
   workspaceTitle: 'Access requests',
   tabsLabel: 'Request types',
-  tabRequests: 'Requests',
   tabCopies: 'Certified copies',
   tryAgain: 'Try again',
   readOnly: 'Read only',

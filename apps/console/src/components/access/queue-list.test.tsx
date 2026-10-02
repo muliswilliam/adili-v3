@@ -101,4 +101,23 @@ describe('QueueList (spec 10 FE-5)', () => {
     renderList({ ok: false, error: { kind: 'unavailable', detail: null } });
     expect(screen.getByText('We could not load the queue')).toBeTruthy();
   });
+
+  it('S11: lists law enforcement requests with the agency and their 14-day deadline', async () => {
+    const result = await loadQueue(mockAccessClient([ACCESS_OFFICER]), 'psc', { kind: 'lea' });
+    if (!result.ok) throw new Error('not ok');
+    renderList(result, { kind: 'lea' });
+    const table = screen.getByRole('table', { name: 'Access requests, earliest deadline first' });
+    expect(within(table).getByRole('columnheader', { name: 'Agency' })).toBeTruthy();
+    const rows = within(table).getAllByRole('row').slice(1);
+    const breach = rows[0];
+    if (!breach) throw new Error('no rows');
+    expect(breach.textContent).toMatch(/^LEA-PSC-2026-/);
+    expect(breach.textContent).toContain('Law enforcement ·');
+    expect(breach.textContent).toContain('Office of the Director of Public Prosecutions');
+    expect(breach.textContent).toContain('Verify');
+    expect(breach.querySelector('time')?.dataset.state).toBe('late');
+    // No window for representations on this tab.
+    const chips = screen.getByRole('group', { name: 'Show' });
+    expect(within(chips).queryByRole('button', { name: 'Awaiting representations' })).toBeNull();
+  });
 });

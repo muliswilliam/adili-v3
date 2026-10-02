@@ -38,14 +38,24 @@ import createClient from 'openapi-fetch';
 import { isRecord, json, problem, readJson } from '../mock-http';
 import type { paths } from './api.gen';
 import { mockSelfAccessFetch, mockSelfAccessFileTitle } from './self-access-mock.server';
+import {
+  leaQueueItems,
+  mockLeaFetch,
+  mockLeaFileTitle,
+  resetLeaMock,
+  setLeaMockLatency,
+} from './lea-mock.server';
+import { mockCallerOf, mockToken } from './mock-caller';
+import { MOCK_ROSTER, MOCK_ROSTER_IDS, searchMockRoster } from './mock-roster';
 import type {
   AccessRequestStatus,
   OfficerRequestView,
   QueueItem,
   QueueStatus,
   RegisterEntry,
-  RosterCandidate,
 } from './types';
+
+export { MOCK_ROSTER_IDS };
 
 export const MOCK_REQUEST_IDS = {
   verify: 'a11c0000-0000-4000-8000-000000000001',
@@ -66,17 +76,6 @@ export const MOCK_REQUEST_IDS = {
   preparing: 'a11c0000-0000-4000-8000-000000000016',
 } as const;
 
-export const MOCK_ROSTER_IDS = {
-  josephine: 'a11d0000-0000-4000-8000-000000000001',
-  peterOuma: 'a11d0000-0000-4000-8000-000000000002',
-  josephineAdhiambo: 'a11d0000-0000-4000-8000-000000000003',
-  grace: 'a11d0000-0000-4000-8000-000000000004',
-  peterKamau: 'a11d0000-0000-4000-8000-000000000005',
-  graceAtieno: 'a11d0000-0000-4000-8000-000000000006',
-  esther: 'a11d0000-0000-4000-8000-000000000007',
-  lilian: 'a11d0000-0000-4000-8000-000000000008',
-} as const;
-
 const PSC = { slug: 'psc', name: 'Public Service Commission' };
 const DECLARATION =
   'I declare that the information I have given above is true, complete and correct to the best of my knowledge.';
@@ -87,85 +86,6 @@ const NOTIFY_AFTER_MS = 2000;
 /** How long it takes to issue a grant's package after the decision. */
 const ISSUE_AFTER_MS = 4000;
 const DOWNLOAD_DAYS = 14;
-
-const ROSTER: RosterCandidate[] = [
-  candidate(
-    MOCK_ROSTER_IDS.josephine,
-    '20113458',
-    'Josephine Akinyi Ouma',
-    'Deputy Director, Contract Management',
-    'State Department for Public Works',
-  ),
-  candidate(
-    MOCK_ROSTER_IDS.peterOuma,
-    '20071190',
-    'Peter Omondi Ouma',
-    'Deputy Director, Procurement',
-    'Ministry of Health',
-  ),
-  candidate(
-    MOCK_ROSTER_IDS.josephineAdhiambo,
-    '20131175',
-    'Josephine Adhiambo Ouma',
-    'Housing Officer',
-    'State Department for Housing and Urban Development',
-    false,
-  ),
-  candidate(
-    MOCK_ROSTER_IDS.grace,
-    '20107725',
-    'Grace Nyambura Kamau',
-    'Principal Procurement Officer',
-    'State Department for Housing and Urban Development',
-  ),
-  candidate(
-    MOCK_ROSTER_IDS.peterKamau,
-    '20096631',
-    'Peter Mwangi Kamau',
-    'Director, Housing Development',
-    'State Department for Housing and Urban Development',
-  ),
-  candidate(
-    MOCK_ROSTER_IDS.graceAtieno,
-    'KRR/2011/0442',
-    'Grace Atieno Odhiambo',
-    'Deputy Director, Contracts',
-    'Kenya Rural Roads Authority',
-  ),
-  candidate(
-    MOCK_ROSTER_IDS.esther,
-    '20099314',
-    'Esther Wairimu Njoroge',
-    'Assistant Director, ICT',
-    'State Department for Public Service',
-  ),
-  candidate(
-    MOCK_ROSTER_IDS.lilian,
-    '20102284',
-    'Lilian Wairimu Njoroge',
-    'Senior Accountant',
-    'The National Treasury',
-  ),
-];
-
-function candidate(
-  id: string,
-  personnelFileNumber: string,
-  fullName: string,
-  designation: string,
-  reportingEntity: string,
-  onboarded = true,
-): RosterCandidate {
-  return {
-    id,
-    personnelFileNumber,
-    fullName,
-    designation,
-    reportingEntity,
-    state: onboarded ? 'onboarded' : 'not_onboarded',
-    onboarded,
-  };
-}
 
 interface Applicant {
   name: string;
@@ -349,7 +269,7 @@ function morningOf(now: number): number {
 function build(seed: Seed, now: number): Stored {
   const submittedAt = iso(morningOf(now), -seed.receivedDaysAgo);
   const deadline = iso(Date.parse(submittedAt), DECISION_DAYS);
-  const record = seed.resolved ? ROSTER.find((each) => each.id === seed.resolved) : undefined;
+  const record = seed.resolved ? MOCK_ROSTER.find((each) => each.id === seed.resolved) : undefined;
   const timeline: RegisterEntry[] = [
     entry('received', submittedAt, seed.applicant.name, seed.reference),
   ];
@@ -862,9 +782,9 @@ function endOfToday(now: number): number {
 
 /** Older decided requests, so the queue has a second page. */
 function fillers(): Seed[] {
-  const sought = ROSTER.filter((each) => each.onboarded);
+  const sought = MOCK_ROSTER.filter((each) => each.onboarded);
   return Array.from({ length: 14 }, (_, index) => {
-    const record = sought[index % sought.length] ?? ROSTER[0];
+    const record = sought[index % sought.length] ?? MOCK_ROSTER[0];
     const seq = 70 - index * 3;
     return {
       id: `a11c0000-0000-4000-8000-0000000001${String(index).padStart(2, '0')}`,
@@ -904,6 +824,7 @@ function referenceOf(seq: number): string {
 }
 
 export function resetAccessMock(now: number = Date.now()) {
+  resetLeaMock(now);
   requests.clear();
   for (const seed of [...SEEDS, ...fillers()]) requests.set(seed.id, build(seed, now));
 }
@@ -941,20 +862,8 @@ interface Caller {
 }
 
 function callerOf(request: Request): Caller {
-  const token = request.headers.get('authorization')?.replace(/^Bearer /, '') ?? '';
-  try {
-    const claims = JSON.parse(
-      Buffer.from(token.split('.')[1] ?? '', 'base64url').toString('utf8'),
-    ) as { sub?: unknown; name?: unknown; realm_access?: { roles?: unknown } };
-    const roles = Array.isArray(claims.realm_access?.roles) ? claims.realm_access.roles : [];
-    return {
-      subject: typeof claims.sub === 'string' ? claims.sub : 'unknown',
-      name: typeof claims.name === 'string' ? claims.name : 'You',
-      accessOfficer: roles.includes('access-officer'),
-    };
-  } catch {
-    return { subject: 'unknown', name: 'You', accessOfficer: true };
-  }
+  const { subject, name, roles } = mockCallerOf(request);
+  return { subject, name, accessOfficer: roles.includes('access-officer') };
 }
 
 const CLOSED: readonly QueueStatus[] = [
@@ -1000,20 +909,13 @@ let latency = 1;
 
 export function setAccessMockLatency(factor: number) {
   latency = factor;
+  setLeaMockLatency(factor);
 }
 
 const delay = (ms: number) =>
   new Promise((resolve) => {
     setTimeout(resolve, ms * latency);
   });
-
-/** A token the mock reads the caller from: subject, name and realm roles. */
-function mockToken(subject: string, name: string, roles: readonly string[]): string {
-  const payload = Buffer.from(
-    JSON.stringify({ sub: subject, name, realm_access: { roles } }),
-  ).toString('base64url');
-  return `mock.${payload}.signature`;
-}
 
 /** A client of the mock as `roles` (tests). */
 export function mockAccessClient(roles: readonly string[], name = 'Lucy Wambui') {
@@ -1033,11 +935,12 @@ async function queue(url: URL): Promise<Response> {
   if (search === 'offline') return problem(503, 'Service unavailable');
   const limit = Number(url.searchParams.get('limit') ?? '50');
   const offset = Number(/^at-(\d+)$/.exec(url.searchParams.get('cursor') ?? '')?.[1] ?? '0');
-  const items = [...requests.values()]
-    .map((stored) => {
-      advance(stored, now);
-      return queueItem(stored, now);
-    })
+  const kind = url.searchParams.get('kind');
+  const formK = [...requests.values()].map((stored) => {
+    advance(stored, now);
+    return queueItem(stored, now);
+  });
+  const items = [...(kind === 'lea' ? [] : formK), ...(kind === 'form-k' ? [] : leaQueueItems(now))]
     .filter((item) => (status ? status.includes(item.status) : true))
     .filter((item) => (late === null ? true : item.late === (late === 'true')))
     .filter((item) => (search && search !== 'slow' ? matches(item, search) : true))
@@ -1089,7 +992,7 @@ async function resolve(request: Request, stored: Stored, caller: Caller): Promis
     };
     return json(200, stored.view);
   }
-  const record = ROSTER.find((each) => each.id === rosterRecordId);
+  const record = MOCK_ROSTER.find((each) => each.id === rosterRecordId);
   if (!record?.onboarded) {
     return json(400, {
       type: 'about:blank',
@@ -1275,6 +1178,8 @@ export async function mockAccessFetch(request: Request): Promise<Response> {
   }
   // Written self-access applications (#304) have their own store.
   if (/\/self-access(\/|$)/.test(pathname)) return mockSelfAccessFetch(request);
+  const lea = await mockLeaFetch(request);
+  if (lea) return lea;
 
   const match = /^\/v1\/access\/requests\/([^/]+)\/(.+)$/.exec(pathname);
   const stored = match?.[1] ? requests.get(match[1]) : undefined;
@@ -1305,14 +1210,7 @@ export async function mockAccessFetch(request: Request): Promise<Response> {
     if (q.length < 2) return problem(400, 'A search of at least 2 characters is required');
     if (q === 'offline') return problem(503, 'The directory cannot be reached');
     await delay(250);
-    const items = ROSTER.filter(
-      (each) =>
-        each.personnelFileNumber.toLowerCase().startsWith(q) ||
-        each.fullName.toLowerCase().includes(q),
-    )
-      .sort((a, b) => a.fullName.localeCompare(b.fullName))
-      .slice(0, 20);
-    return json(200, { items });
+    return json(200, { items: searchMockRoster(q) });
   }
   if (method === 'POST' && action === 'resolve') {
     await delay(500);
@@ -1329,9 +1227,14 @@ export async function mockAccessFetch(request: Request): Promise<Response> {
   return problem(404, 'Not found');
 }
 
-/** What the placeholder file route names: an attachment of the declarant's representations. */
+/**
+ * What the placeholder file route names: an attachment of the declarant's representations, or a
+ * law enforcement package.
+ */
 export function mockAccessFileTitle(id: string): string | null {
   ensureSeeded();
+  const lea = mockLeaFileTitle(id);
+  if (lea) return lea;
   for (const stored of requests.values()) {
     const file = stored.view.representations?.attachments.find((each) => each.uploadId === id);
     if (file) return file.fileName;

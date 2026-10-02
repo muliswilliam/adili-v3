@@ -1,0 +1,170 @@
+import { plural } from '@adili/ui';
+
+import type { LeaRequestStatus } from '../../server/access/types';
+
+/**
+ * Copy of the law enforcement workspace (spec 10 FE-6), from the console prototype
+ * (`apps/console/prototype/10-access.prototype.html`, persona law-enforcement). English only, as
+ * the other console areas.
+ */
+export const en = {
+  title: 'Requests',
+  tryAgain: 'Try again',
+  backToOverview: 'Back to overview',
+  forbidden: 'You do not have access to law enforcement requests.',
+  accessErrorTitle: 'We could not load your access',
+  accessErrorDetail: 'Check your connection and try again.',
+  newRequest: 'New request',
+
+  // List
+  listCaption: 'Your requests, latest first',
+  listLoadingCaption: 'Loading your requests',
+  columnReference: 'Reference',
+  columnCommission: 'Commission',
+  columnOfficer: 'Officer sought',
+  columnCase: 'Case',
+  columnStatus: 'Status',
+  columnAction: 'Package or deadline',
+  emptyTitle: 'No requests yet',
+  emptyText: 'Send a written request to a Commission with your reason and case reference.',
+  listErrorTitle: 'We could not load your requests',
+  listErrorDetail: 'The access service did not answer. Try again in a moment.',
+  download: 'Download',
+  downloadPackage: 'Download package',
+  downloadOf: (reference: string) => `Download the package of ${reference}`,
+  until: (date: string) => `Until ${date}`,
+  windowClosedOn: (date: string) => `Window closed ${date}`,
+  decidedOn: (date: string) => `Decided ${date}`,
+  decisionDue: 'Decision due',
+  decisionDueOn: (date: string) => `Decision due ${date}`,
+  preparing: 'Preparing the package',
+  pagination: 'Your requests pages',
+  pageRange: (from: number, to: number) => `Showing ${String(from)}-${String(to)} requests`,
+  pageRows: (count: number) => `Showing ${plural(count, 'request')}`,
+  previousPage: 'Previous page',
+  nextPage: 'Next page',
+
+  // New request
+  newTitle: 'New request',
+  commission: 'Commission',
+  commissionPlaceholder: 'Choose the Responsible Commission',
+  commissionNone: 'No Commission matches.',
+  commissionsFailed: 'The Commissions could not be loaded. Try again.',
+  noYears: (name: string) =>
+    `${name} holds no declarations yet, so there is nothing to request from it.`,
+  officerSought: 'Officer sought',
+  name: 'Name',
+  namePlaceholder: 'Full name',
+  entity: 'Entity',
+  entityPlaceholder: 'Ministry, department or agency',
+  workStation: 'Work station',
+  personnelFileNumber: 'Personnel file number',
+  optional: 'Optional',
+  reasonAndCase: 'Reason and case',
+  reason: 'Reason for access',
+  reasonPlaceholder: 'What you are investigating and why you need the declaration',
+  caseReference: 'Case reference',
+  caseReferencePlaceholder: 'e.g. DCI/ECU/120/2026',
+  caseReferenceHint: 'One request per case.',
+  scope: 'Scope',
+  scopeHint: 'Ask only for what the investigation needs. The Commission may grant less.',
+  declarantToldAfter: 'The declarant is told only if access is granted.',
+  cancel: 'Cancel',
+  send: 'Send request',
+  sending: 'Sending',
+  count: (length: number, max: number) =>
+    `${length.toLocaleString('en-KE')} / ${max.toLocaleString('en-KE')}`,
+  commissionRequired: 'Choose the Commission.',
+  nameRequired: 'Enter the name of the officer, at least 2 characters.',
+  tooLong: (max: number) => `Keep it to ${max.toLocaleString('en-KE')} characters.`,
+  reasonRequired: 'State the reason for access.',
+  reasonTooLong: 'Keep the reason to 4,000 characters.',
+  caseReferenceRequired: 'Enter the case reference.',
+  caseReferenceTooLong: 'Keep the case reference to 100 characters.',
+  commissionInvalid: 'Choose a Commission from the list.',
+  checkField: 'Check this field.',
+  reasonInvalid: 'State the reason for access, up to 4,000 characters.',
+  caseReferenceInvalid: 'Check the case reference.',
+  yearsRequired: 'Choose at least one year.',
+  commissionFirst: 'Choose the Commission first: its years show here.',
+  sectionsRequired: 'Choose at least one section.',
+  rejectedTitle: 'Request not accepted',
+  rejectedText: 'Check the fields marked and send it again.',
+  sendFailed: 'We could not send the request. Nothing was sent. Try again.',
+  notAnOfficer:
+    'Your account is not an active law enforcement officer account. Contact EACC if you think this is wrong.',
+  sessionEnded: 'Your session has ended. Sign in again.',
+
+  // Sent
+  sentTitle: 'Request sent',
+  sentText: (date: string, commission: string, deadline: string) =>
+    `Received ${date}. ${commission} has 14 days to decide, by ${deadline}.`,
+  viewRequest: 'View request',
+  allRequests: 'All requests',
+
+  // My request
+  notFoundTitle: 'Request not found',
+  notFoundText: 'The link may be wrong, or the request is not yours.',
+  backToRequests: 'Back to your requests',
+  requestErrorTitle: 'We could not load this request',
+  requestErrorDetail: 'The access service did not answer. Try again in a moment.',
+  caseLine: 'case',
+  yourRequest: 'Your request',
+  reasonForAccess: 'Reason for access',
+  years: 'Years',
+  people: 'People',
+  sections: 'Sections',
+  notGiven: 'Not given',
+  progress: 'Progress',
+  received: 'Received',
+  verifiedByCommission: 'Verified by the Commission',
+  waiting: 'Waiting',
+  decision: 'Decision',
+  dueOn: (date: string) => `Due ${date}`,
+  decidedAt: (outcome: string, at: string) => `${outcome} · ${at}`,
+  decisionTitle: 'Decision',
+  verifiedNote: 'Verified by the Commission.',
+  dueNote: (date: string) => `Decision due ${date}.`,
+  grounds: 'Regulation 24 grounds',
+  reasons: 'Reasons',
+  decided: 'Decided',
+  outcome: { grant: 'Granted', 'partial-grant': 'Partially granted', deny: 'Denied' },
+  grantedScope: 'Granted scope',
+  packageTitle: 'Package',
+  confidential: 'Confidential',
+  downloadUntil: 'Download until',
+  endsToday: 'Ends today',
+  windowClosed: (date: string) => `The download window closed on ${date}.`,
+  issued: 'Issued',
+  yourDownloads: 'Your downloads',
+  watermarked: 'Watermarked with your name. Every download is recorded.',
+  packagePreparing:
+    'Preparing your package: the granted scope is rendered, watermarked and signed.',
+  noPackage:
+    'No package has been issued for this grant. Contact the Commission if you need the declaration.',
+  downloadFailed: 'The package could not be downloaded. Try again.',
+  windowClosedToast: 'The download window has closed.',
+  withdrawn: 'Withdrawn',
+
+  status: {
+    received: 'Received',
+    verified: 'Verified',
+    granted: 'Granted',
+    denied: 'Denied',
+    withdrawn: 'Withdrawn',
+  } satisfies Record<LeaRequestStatus, string>,
+};
+
+export const messages = en;
+
+/** The officer's status badge tones, as the prototype's `LS_MINE`. */
+export const MINE_TONE: Record<
+  LeaRequestStatus,
+  'default' | 'info' | 'brand' | 'success' | 'destructive'
+> = {
+  received: 'info',
+  verified: 'brand',
+  granted: 'success',
+  denied: 'destructive',
+  withdrawn: 'default',
+};

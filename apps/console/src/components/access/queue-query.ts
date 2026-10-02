@@ -11,10 +11,24 @@ export const QUEUE_FILTERS = ['all', 'action', 'window', 'late', 'decided', 'clo
 
 export type QueueFilter = (typeof QUEUE_FILTERS)[number];
 
+/**
+ * The queue's tabs: every request, Form K requests, or law enforcement requests (Regs r.23), the
+ * prototype's request types. All is the default and stays out of the URL.
+ */
+export const QUEUE_TABS = ['all', 'form-k', 'lea'] as const;
+
+export type QueueTab = (typeof QUEUE_TABS)[number];
+
+/** The filters a tab offers: law enforcement requests have no window for representations. */
+export function filtersFor(tab: QueueTab): readonly QueueFilter[] {
+  return tab === 'lea' ? QUEUE_FILTERS.filter((filter) => filter !== 'window') : QUEUE_FILTERS;
+}
+
 /** Requests per page of the queue. */
 export const QUEUE_PAGE_SIZE = 20;
 
 export const queueSearchSchema = z.object({
+  kind: z.enum(QUEUE_TABS).exclude(['all']).optional().catch(undefined),
   filter: z.enum(QUEUE_FILTERS).exclude(['all']).optional().catch(undefined),
   search: z
     .preprocess(
@@ -28,22 +42,29 @@ export const queueSearchSchema = z.object({
 
 export type QueueSearch = z.infer<typeof queueSearchSchema>;
 
-/** The statuses that need the access officer: verify, identify, decide. */
+/**
+ * The statuses that need the access officer: verify, identify, decide; for a law enforcement
+ * request, verify and decide.
+ */
 export const NEEDS_ACTION: readonly QueueStatus[] = [
   'submitted',
   'pending-applicant-verification',
   'officer-unresolved',
   'under-decision',
+  'received',
+  'verified',
 ];
 
 export const DECIDED: readonly QueueStatus[] = ['granted', 'partially-granted', 'denied'];
 
 export const CLOSED: readonly QueueStatus[] = ['cannot-identify', 'withdrawn'];
 
-/** The access service's query for a filter: statuses, or the late flag. */
+/**
+ * The access service's query for a tab and filter: the kind, statuses or the late flag. The
+ * service applies statuses to each kind, so one list serves both.
+ */
 export interface QueueServiceQuery {
-  /** Form K only: law enforcement requests have their own tab (#265). */
-  kind: 'form-k';
+  kind?: 'form-k' | 'lea';
   status?: string;
   late?: 'true';
   search?: string;
@@ -55,12 +76,14 @@ export function queueServiceQuery(
   search: QueueSearch,
   limit: number = QUEUE_PAGE_SIZE,
 ): QueueServiceQuery {
-  const query: QueueServiceQuery = { kind: 'form-k', limit };
+  const query: QueueServiceQuery = { limit };
+  if (search.kind) query.kind = search.kind;
   switch (search.filter) {
     case 'action':
       query.status = NEEDS_ACTION.join(',');
       break;
     case 'window':
+      // Form K's window for representations; a law enforcement request has none.
       query.status = 'awaiting-representations';
       break;
     case 'late':

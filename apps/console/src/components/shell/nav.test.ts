@@ -7,13 +7,22 @@ const labels = (roles: string[]) =>
 
 describe('navFor', () => {
   it('shows Commissions and National obligations under Platform to platform admins and EACC staff', () => {
-    for (const role of ['platform-admin', 'eacc-analyst', 'eacc-supervisor']) {
+    for (const role of ['eacc-analyst', 'eacc-supervisor']) {
       expect(labels([role])).toEqual([['Platform', ['Commissions', 'National obligations']]]);
     }
+    expect(labels(['platform-admin'])).toEqual([
+      ['Platform', ['Commissions', 'National obligations', 'Agency accounts']],
+    ]);
     expect(navFor(['platform-admin'])[0]?.items.map((item) => item.to)).toEqual([
       '/commissions',
       '/obligations/national',
+      '/platform/law-enforcement',
     ]);
+  });
+
+  it('shows law enforcement officers their Requests under Law enforcement (spec 10)', () => {
+    expect(labels(['law-enforcement'])).toEqual([['Law enforcement', ['Requests']]]);
+    expect(navFor(['law-enforcement'])[0]?.items[0]?.to).toBe('/lea/requests');
   });
 
   it('shows the Roster and API access under Commission to reporting officers', () => {
@@ -62,6 +71,8 @@ describe('activeNavHref', () => {
     ['/access/requests/0190f3a2-0000-7000-8000-000000000001', '/access/requests'],
     ['/access/certified-copies', '/access/requests'],
     ['/access/certified-copies/new', '/access/requests'],
+    ['/platform/law-enforcement/DCI', '/platform/law-enforcement'],
+    ['/access/lea-requests/0190f3a2-0000-7000-8000-000000000001', '/access/requests'],
     ['/rosters', null],
     ['/', null],
   ])('marks %s under %s', (pathname, expected) => {

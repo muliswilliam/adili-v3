@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import type { OfficerRequestView } from '../../server/access/types';
-import { hasQueueFilters, queueSearchSchema, queueServiceQuery } from './queue-query';
+import { filtersFor, hasQueueFilters, queueSearchSchema, queueServiceQuery } from './queue-query';
 import { actionFailure, requestStep, timelineOf, verifyNoteError } from './request-view';
 
 function view(over: Partial<OfficerRequestView>): OfficerRequestView {
@@ -24,18 +24,32 @@ describe('the queue filters', () => {
     expect(queueSearchSchema.parse({ filter: 'all', search: '', cursor: 7 })).toEqual({});
     expect(queueSearchSchema.parse({ filter: 'nonsense' })).toEqual({});
     expect(queueSearchSchema.parse({ search: 20113458 })).toEqual({ search: '20113458' });
+    expect(queueSearchSchema.parse({ kind: 'lea' })).toEqual({ kind: 'lea' });
+    expect(queueSearchSchema.parse({ kind: 'all' })).toEqual({});
+    expect(queueSearchSchema.parse({ kind: 'copies' })).toEqual({});
+  });
+
+  it("asks for every kind by default, or the tab's kind (S11: law enforcement requests in the queue)", () => {
+    expect(queueServiceQuery({ kind: 'lea' })).toEqual({ kind: 'lea', limit: 20 });
+    expect(queueServiceQuery({ kind: 'form-k', filter: 'decided' })).toEqual({
+      kind: 'form-k',
+      status: 'granted,partially-granted,denied',
+      limit: 20,
+    });
+    expect(filtersFor('lea')).not.toContain('window');
+    expect(filtersFor('all')).toContain('window');
   });
 
   it("maps each filter to the service's query", () => {
-    expect(queueServiceQuery({})).toEqual({ kind: 'form-k', limit: 20 });
+    expect(queueServiceQuery({})).toEqual({ limit: 20 });
     expect(queueServiceQuery({ filter: 'action' })).toMatchObject({
-      status: 'submitted,pending-applicant-verification,officer-unresolved,under-decision',
+      status:
+        'submitted,pending-applicant-verification,officer-unresolved,under-decision,received,verified',
     });
     expect(queueServiceQuery({ filter: 'window' })).toMatchObject({
       status: 'awaiting-representations',
     });
     expect(queueServiceQuery({ filter: 'late', search: 'x', cursor: 'c' })).toEqual({
-      kind: 'form-k',
       late: 'true',
       search: 'x',
       cursor: 'c',
