@@ -305,7 +305,11 @@ describe('CaseCopilot (S15)', () => {
 /** The panel in one state, as the hook would hand it over. */
 function renderState(
   view: Partial<CopilotView>,
-  { access = 'assignee', stopped = false }: { access?: CopilotAccess; stopped?: boolean } = {},
+  {
+    access = 'assignee',
+    stopped = false,
+    sessionEnded = false,
+  }: { access?: CopilotAccess; stopped?: boolean; sessionEnded?: boolean } = {},
   flags = mockFlags(CASE),
 ) {
   const at = '2026-10-01T06:00:00Z';
@@ -324,6 +328,7 @@ function renderState(
     copilot,
     error: null,
     stopped,
+    sessionEnded,
     refreshing: false,
     retry: vi.fn(),
     refresh: vi.fn(() => Promise.resolve(null)),
@@ -366,6 +371,18 @@ describe('CopilotPanel states (S15)', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Check again' }));
     expect(state.retry).toHaveBeenCalled();
   });
+
+  it.each(['pending', 'stale'] as const)(
+    '%s when the session ended: says so instead of preparing forever (Q8)',
+    (status) => {
+      renderState(status === 'pending' ? { status, ...nothing } : { status }, {
+        sessionEnded: true,
+      });
+      expect(screen.getByText('Your session has ended. Sign in again.')).toBeTruthy();
+      expect(screen.queryByText('Preparing summary…')).toBeNull();
+      expect(screen.queryByText('Declaration or registry results changed. Updating…')).toBeNull();
+    },
+  );
 
   it('stale: the old content greyed out under a banner', () => {
     renderState({ status: 'stale' });

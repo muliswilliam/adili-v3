@@ -10,6 +10,7 @@ import {
   TabsContent,
 } from '@adili/ui';
 import {
+  Alert02Icon,
   Clock01Icon,
   InformationCircleIcon,
   RefreshIcon,
@@ -103,6 +104,7 @@ export function TabContent({
   value,
   stale,
   stopped,
+  sessionEnded,
   onCheckAgain,
   children,
 }: {
@@ -110,13 +112,19 @@ export function TabContent({
   stale: boolean;
   /** Polling stopped while still stale. */
   stopped: boolean;
+  /** The session ended while stale: polling stopped for good. */
+  sessionEnded: boolean;
   onCheckAgain: () => void;
   children: ReactNode;
 }) {
   return (
     <TabsContent value={value} className="mt-0 rounded-none rounded-b-2xl">
       <PanelBody>
-        {stale && stopped ? (
+        {stale && sessionEnded ? (
+          <Callout tone="warning" icon={Alert02Icon}>
+            {t.sessionEnded}
+          </Callout>
+        ) : stale && stopped ? (
           <Callout
             tone="neutral"
             icon={Clock01Icon}

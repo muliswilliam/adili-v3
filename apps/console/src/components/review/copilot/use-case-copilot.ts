@@ -33,6 +33,8 @@ export interface CaseCopilot {
   error: 'unavailable' | 'unauthenticated' | 'not-found' | null;
   /** Polling stopped after two minutes while still pending or stale. */
   stopped: boolean;
+  /** A poll found the session ended: polling stopped, and only signing in again helps. */
+  sessionEnded: boolean;
   /** A refresh is on its way to the review service. */
   refreshing: boolean;
   /** Reads again: after a failed first read, or "Check again" once polling stopped. */
@@ -83,6 +85,7 @@ export function useCaseCopilot(caseId: string, api: CopilotApi, initial?: Copilo
   const [pollRound, setPollRound] = useState(0);
   // The polling round that ran out of time.
   const [stoppedRound, setStoppedRound] = useState<number | null>(null);
+  const [sessionEnded, setSessionEnded] = useState(false);
   // Ratings saved in this session, with their reason and note (the view carries ratings only).
   const [saved, setSaved] = useState<Record<string, Feedback>>({});
   const read = useEffectEvent((id: string) => settled(() => api.read(id)));
@@ -144,7 +147,8 @@ export function useCaseCopilot(caseId: string, api: CopilotApi, initial?: Copilo
         setCopilot(result.data);
         if (!isBusy(result.data)) return;
       } else if (result.error.kind === 'unauthenticated') {
-        // The panel keeps what it showed; a reload signs in again.
+        // Asking again cannot help: the panel says so, keeping what it showed.
+        setSessionEnded(true);
         return;
       }
       schedule();
@@ -168,6 +172,7 @@ export function useCaseCopilot(caseId: string, api: CopilotApi, initial?: Copilo
     copilot,
     error: copilot ? null : error,
     stopped: busy && stoppedRound === pollRound,
+    sessionEnded,
     refreshing,
     retry: () => {
       if (!copilot) {

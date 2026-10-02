@@ -100,6 +100,22 @@ describe('useCaseCopilot', () => {
     expect(result.current.copilot?.status).toBe('ready');
   });
 
+  it('stops polling and says the session ended when a poll is unauthenticated (Q8)', async () => {
+    const signedOut: ServiceResult<Copilot> = {
+      ok: false,
+      error: { kind: 'unauthenticated' },
+    };
+    const api = fakeApi([ok(copilot('pending')), signedOut]);
+    const { result } = renderHook(() => useCaseCopilot(CASE, api));
+    await settle();
+    expect(result.current.sessionEnded).toBe(false);
+    await wait(2000);
+    expect(result.current.sessionEnded).toBe(true);
+    const polls = api.read.mock.calls.length;
+    await wait(60_000);
+    expect(api.read).toHaveBeenCalledTimes(polls);
+  });
+
   it('says why the first read failed, and tries again', async () => {
     const api = fakeApi([down, ok(copilot('ready'))]);
     const { result } = renderHook(() => useCaseCopilot(CASE, api));

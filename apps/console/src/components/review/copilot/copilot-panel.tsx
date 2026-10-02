@@ -80,7 +80,7 @@ export function CopilotPanel({
   );
   const [pulse, setPulse] = useState<string | null>(null);
   const [whyOpen, setWhyOpen] = useState(false);
-  const { copilot, error, stopped, refreshing } = state;
+  const { copilot, error, stopped, sessionEnded, refreshing } = state;
   const status = copilot?.status ?? null;
   const busy = status === 'pending' || status === 'stale';
   // Not enabled may have changed since (the Commission's AI policy): a refresh asks again.
@@ -219,12 +219,18 @@ export function CopilotPanel({
       />
     );
   } else if (!content) {
-    body = <Waiting stopped={stopped} onCheckAgain={state.retry} />;
+    body = <Waiting stopped={stopped} sessionEnded={sessionEnded} onCheckAgain={state.retry} />;
   } else {
     const stale = status === 'stale';
     body = (
       <>
-        <TabContent value="summary" stale={stale} stopped={stopped} onCheckAgain={state.retry}>
+        <TabContent
+          value="summary"
+          stale={stale}
+          stopped={stopped}
+          sessionEnded={sessionEnded}
+          onCheckAgain={state.retry}
+        >
           <SummaryTab
             summary={content}
             flags={flags}
@@ -243,7 +249,13 @@ export function CopilotPanel({
             )}
           />
         </TabContent>
-        <TabContent value="flags" stale={stale} stopped={stopped} onCheckAgain={state.retry}>
+        <TabContent
+          value="flags"
+          stale={stale}
+          stopped={stopped}
+          sessionEnded={sessionEnded}
+          onCheckAgain={state.retry}
+        >
           <FlagsTab
             flags={flags}
             explanations={copilot.explanations?.explanations ?? []}
