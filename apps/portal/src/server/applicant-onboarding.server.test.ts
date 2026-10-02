@@ -16,7 +16,7 @@ import {
   endMockApplicantResendCooldown,
   expireMockApplicantSession,
   resetApplicantOnboardingMock,
-} from './directory/applicant-mock.server';
+} from './directory/applicant-onboarding-mock.server';
 import { mockDirectoryFetch } from './directory/mock.server';
 import type { paths } from './directory/schema.gen';
 import {
