@@ -6,6 +6,7 @@ import {
   blockingTitle,
   childDetails,
   childrenEmptyText,
+  issueText,
   itemFlags,
   paragraphCompleteness,
   spouseDetails,
@@ -13,6 +14,7 @@ import {
   statementTotals,
   SUBMIT_READY,
   submitNote,
+  type SummaryDocument,
 } from './summary';
 import { sections } from './testing';
 
@@ -177,5 +179,47 @@ describe('statement lines', () => {
     expect(itemFlags('income', { change: { changed: true, kind: 'value-change' } })).toEqual([
       'Changed: value changed',
     ]);
+  });
+});
+
+describe('issueText', () => {
+  const document = {
+    statements: [
+      {
+        personKey: 'officer',
+        assets: [{ description: 'One-bedroom apartment, Dubai Marina' }, {}],
+      },
+    ],
+  } as unknown as SummaryDocument;
+  const issue = (
+    sectionKey: CompletenessIssue['sectionKey'],
+    path: string,
+    message: string,
+  ): CompletenessIssue => ({
+    sectionKey,
+    path,
+    code: 'required',
+    message,
+  });
+
+  it('names the item and field of a schema check, not "is required / is required"', () => {
+    expect(issueText(issue('statement:officer', '/assets/0/value', 'is required'), document)).toBe(
+      'One-bedroom apartment, Dubai Marina: Value is required',
+    );
+    // An item with no description yet is named by its place; a value's amount by its field.
+    expect(
+      issueText(issue('statement:officer', '/assets/1/value/kesCents', 'is required'), document),
+    ).toBe('Asset 2: Value is required');
+    expect(
+      issueText(issue('household', '/spouses/items/0/separationDate', 'is required'), document),
+    ).toBe('Separation date is required');
+    expect(issueText(issue('bio', '/placeOfBirth', 'is required'), document)).toBe(
+      'Place of birth is required',
+    );
+  });
+
+  it('keeps the rules’ own sentences', () => {
+    const sentence = 'Add your dependent children or tick "No dependent children".';
+    expect(issueText(issue('household', '/children', sentence), document)).toBe(sentence);
   });
 });

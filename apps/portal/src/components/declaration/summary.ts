@@ -93,6 +93,72 @@ export function blockingGroups(
   return { groups, hidden: Math.max(0, blocking.length - limit) };
 }
 
+/** Field names as the section screens label them, for issues that name only the problem. */
+const FIELD_LABELS: Record<string, string> = {
+  value: 'Value',
+  type: 'Type',
+  description: 'Description',
+  location: 'Location',
+  county: 'County',
+  country: 'Country',
+  joint: 'Jointly held',
+  sharePercent: 'Share',
+  creditor: 'Creditor',
+  change: 'Changed since last declaration',
+  explanation: 'Explanation',
+  separationDate: 'Separation date',
+  dateOfBirth: 'Date of birth',
+  nationalId: 'National ID',
+  kraPin: 'KRA PIN',
+};
+
+/** Pointer parts that hold a field's value rather than name it (`/value/kesCents`). */
+const VALUE_PARTS = new Set(['kesCents', 'amount', 'currency']);
+
+const ITEM_NOUNS: Record<Category, string> = {
+  income: 'Income',
+  assets: 'Asset',
+  liabilities: 'Liability',
+};
+
+/** `acquisitionDate` → "Acquisition date": a field the list above does not name. */
+function humanize(field: string): string {
+  const words = field.replace(/([a-z0-9])([A-Z])/g, '$1 $2').toLowerCase();
+  return words.charAt(0).toUpperCase() + words.slice(1);
+}
+
+/**
+ * An issue as the summary lists it. The rules write whole sentences; schema checks write what is
+ * wrong with a field ("is required"), for the screen that shows it beside the field. Listed on
+ * their own those read "is required / is required", so they are named: the item (its description,
+ * or "Asset 2") and the field, "One-bedroom apartment: Value is required".
+ */
+export function issueText(issue: CompletenessIssue, document: SummaryDocument): string {
+  const { message } = issue;
+  if (!/^[a-z]/.test(message)) return message;
+  const parts = issue.path.split('/').slice(1);
+  const named = parts.filter((part) => !/^\d+$/.test(part) && !VALUE_PARTS.has(part));
+  const last = named.at(-1);
+  const field = last ? (FIELD_LABELS[last] ?? humanize(last)) : 'This answer';
+  const [category, index] = parts;
+  const personKey = issue.sectionKey.startsWith('statement:')
+    ? issue.sectionKey.slice('statement:'.length)
+    : null;
+  if (personKey && (category === 'income' || category === 'assets' || category === 'liabilities')) {
+    const position = Number(index);
+    if (Number.isInteger(position)) {
+      const statement = document.statements?.find((each) => each.personKey === personKey);
+      const description = statement?.[category]?.[position]?.description?.trim();
+      const item =
+        description !== undefined && description.length > 0
+          ? description
+          : `${ITEM_NOUNS[category]} ${String(position + 1)}`;
+      return last === category ? `${item}: ${message}` : `${item}: ${field} ${message}`;
+    }
+  }
+  return `${field} ${message}`;
+}
+
 export type ParagraphCompleteness = 'not-started' | 'incomplete' | 'complete';
 
 /** A card's badge: its sections' completeness; the statements card reads every statement. */
