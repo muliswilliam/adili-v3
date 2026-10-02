@@ -289,7 +289,7 @@ async function recordsOf(
 
   let stored;
   try {
-    stored = await gateway.getStoredResult(lookup.resultId, tenant);
+    stored = await gateway.getStoredResult(lookup.resultId, tenant, SYSTEM_SUBJECT);
   } catch (error) {
     if (error instanceof InternalApiRejected) {
       logger.error(

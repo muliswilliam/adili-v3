@@ -1,5 +1,12 @@
 import { Controller, Get, HttpStatus, Param } from '@nestjs/common';
-import { ApiBearerAuth, ApiOkResponse, ApiOperation, ApiParam, ApiTags } from '@nestjs/swagger';
+import {
+  ApiBearerAuth,
+  ApiHeader,
+  ApiOkResponse,
+  ApiOperation,
+  ApiParam,
+  ApiTags,
+} from '@nestjs/swagger';
 import {
   ActingTenant,
   ApiProblemResponse,
@@ -37,9 +44,16 @@ export class StoredResultsController {
   @ApiOperation({
     operationId: 'getVerificationResult',
     summary: 'A stored lookup result, decrypted for the services of its tenant (audited)',
-    description: `The normalised records of a found lookup (payload), with its system, outcome, legal basis and case reference. Each read is audited (audit.read.v1) under the tenant, naming the person the lookup was about (X-Subject-Person at lookup). Requires a service token with scope \`${REGISTRY_SCOPE}\` acting for the tenant the lookup acted for.`,
+    description: `The normalised records of a found lookup (payload), with its system, outcome, legal basis and case reference. Each read is audited (audit.read.v1) under the tenant, naming the person the lookup was about (X-Subject-Person at lookup) and whom the service read for (X-Acting-Subject). Requires a service token with scope \`${REGISTRY_SCOPE}\` acting for the tenant the lookup acted for.`,
   })
   @ApiParam({ name: 'resultId', schema: { type: 'string', format: 'uuid' } })
+  @ApiHeader({
+    name: 'X-Acting-Subject',
+    required: false,
+    description:
+      "The staff subject the service reads for (a reviewer opening the Registry tab), or the service's own system subject for workflow reads; recorded as the audit event's on-behalf-of, grants nothing (ADR-013 §8.6)",
+    schema: { type: 'string', maxLength: 255 },
+  })
   @ApiOkResponse({ description: 'The stored result', schema: schemaRef('StoredResult') })
   @ApiProblemResponse(HttpStatus.NOT_FOUND, "No such result, or another tenant's")
   @ApiProblemResponse(

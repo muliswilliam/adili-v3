@@ -468,9 +468,28 @@ describe('registry checks', () => {
         incomeDirection: expect.any(String) as string,
       });
 
-      // One read per answered result, for the Commission; the declaration read for the viewer.
+      // One read per answered result, for the Commission and the viewer (M3, ADR-013 §8.6); the
+      // check's own reads were the workflow's; the declaration read for the viewer.
       expect(api.gateway.storedReads.slice(readsBefore)).toHaveLength(16);
       expect(api.gateway.storedReads.every((read) => read.tenant === 'psc')).toBe(true);
+      expect(
+        new Set(api.gateway.storedReads.slice(readsBefore).map((read) => read.actingSubject)),
+      ).toEqual(new Set(['reviewer-a']));
+      expect(
+        new Set(api.gateway.storedReads.slice(0, readsBefore).map((read) => read.actingSubject)),
+      ).toEqual(new Set(['system:review']));
+      // M3: review's audit of the view names the declarant, as a read of their data (ADR-008).
+      const [audit] = (
+        await api.db.select().from(outbox).where(eq(outbox.eventType, 'audit.read.v1'))
+      ).map((event) => event.envelope);
+      expect(audit).toMatchObject({
+        tenant: 'psc',
+        data: {
+          action: 'review.case.registry.viewed',
+          resource: { subjectPersonId: (await caseRow(request.caseId)).personId },
+          actor: { subject: 'reviewer-a' },
+        },
+      });
       expect(api.declarations.reads.at(-1)).toMatchObject({
         actingSubject: 'reviewer-a',
         caseId: request.caseId,

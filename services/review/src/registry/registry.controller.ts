@@ -11,7 +11,9 @@ import {
   ApiProblemResponse,
   AuditedRead,
   CurrentPrincipal,
+  CurrentReadAudit,
   type Principal,
+  type ReadAudit,
   schemaRef,
 } from '@adili/api-kit';
 
@@ -44,8 +46,9 @@ export class RegistryController {
   view(
     @CurrentPrincipal() principal: Principal,
     @Param('caseId') caseId: string,
+    @CurrentReadAudit() audit: ReadAudit,
   ): Promise<RegistryView> {
-    return this.registry.view(principal, caseId);
+    return this.registry.view(principal, caseId, audit);
   }
 
   @Get('registry/status')

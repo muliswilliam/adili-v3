@@ -81,7 +81,7 @@ export class FakeIntegrationGateway extends IntegrationGatewayClient {
   /** Every registry lookup and supplier check, answered or not, in order. */
   readonly lookups: RecordedLookup[] = [];
   /** Every stored result read, by result id and tenant. */
-  readonly storedReads: { resultId: string; tenant: string }[] = [];
+  readonly storedReads: { resultId: string; tenant: string; actingSubject: string }[] = [];
   private readonly registry = new Map<string, RegistryPerson>();
   private readonly supplierLists = new Map<string, Set<string>>();
   private readonly failing = new Map<FakeSystem, { failure: RegistryFailure; times: number }>();
@@ -197,8 +197,12 @@ export class FakeIntegrationGateway extends IntegrationGatewayClient {
     ) as Promise<SupplierCheckResult>;
   }
 
-  getStoredResult(resultId: string, tenant: string): Promise<StoredResult | null> {
-    this.storedReads.push({ resultId, tenant });
+  getStoredResult(
+    resultId: string,
+    tenant: string,
+    actingSubject: string,
+  ): Promise<StoredResult | null> {
+    this.storedReads.push({ resultId, tenant, actingSubject });
     if (this.storedResultsDown) {
       return Promise.reject(new IntegrationGatewayUnavailable('The key service is unavailable'));
     }

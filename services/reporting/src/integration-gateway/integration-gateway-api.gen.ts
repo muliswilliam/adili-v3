@@ -153,7 +153,7 @@ export interface paths {
         };
         /**
          * A stored lookup result, decrypted for the services of its tenant (audited)
-         * @description The normalised records of a found lookup (payload), with its system, outcome, legal basis and case reference. Each read is audited (audit.read.v1) under the tenant, naming the person the lookup was about (X-Subject-Person at lookup). Requires a service token with scope `registry` acting for the tenant the lookup acted for.
+         * @description The normalised records of a found lookup (payload), with its system, outcome, legal basis and case reference. Each read is audited (audit.read.v1) under the tenant, naming the person the lookup was about (X-Subject-Person at lookup) and whom the service read for (X-Acting-Subject). Requires a service token with scope `registry` acting for the tenant the lookup acted for.
          */
         get: operations["getVerificationResult"];
         put?: never;
@@ -960,6 +960,8 @@ export interface operations {
             header: {
                 /** @description Tenant the calling service acts for; the resource must belong to it */
                 "X-Acting-Tenant": string;
+                /** @description The staff subject the service reads for (a reviewer opening the Registry tab), or the service's own system subject for workflow reads; recorded as the audit event's on-behalf-of, grants nothing (ADR-013 §8.6) */
+                "X-Acting-Subject"?: string;
             };
             path: {
                 resultId: string;

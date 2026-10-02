@@ -164,11 +164,18 @@ export class HttpIntegrationGatewayClient extends IntegrationGatewayClient {
     );
   }
 
-  getStoredResult(resultId: string, tenant: string): Promise<StoredResult | null> {
+  getStoredResult(
+    resultId: string,
+    tenant: string,
+    actingSubject: string,
+  ): Promise<StoredResult | null> {
     return this.registries.call(
       (api) =>
         api.GET('/internal/v1/verification-results/{resultId}', {
-          params: { path: { resultId }, header: { 'X-Acting-Tenant': tenant } },
+          params: {
+            path: { resultId },
+            header: { 'X-Acting-Tenant': tenant, 'X-Acting-Subject': actingSubject },
+          },
         }),
       { status: 200, schema: storedResultSchema, otherwise: { ...refused, 404: () => null } },
     );

@@ -224,7 +224,7 @@ describe('HttpIntegrationGatewayClient: registries', () => {
     expect(request.headers.get('x-legal-basis')).toBe('regs-r20-1-b');
   });
 
-  it('reads a stored result for the Commission; null when the gateway has none for it', async () => {
+  it('M3: reads a stored result for the Commission, naming whom it reads for; null when the gateway has none for it', async () => {
     const stored = {
       resultId: envelope.resultId,
       system: 'ntsa',
@@ -236,20 +236,28 @@ describe('HttpIntegrationGatewayClient: registries', () => {
     };
     const fetch = answering(stored);
 
-    expect(await client(fetch).getStoredResult(envelope.resultId, 'kemsa')).toEqual(stored);
+    expect(await client(fetch).getStoredResult(envelope.resultId, 'kemsa', 'reviewer-a')).toEqual(
+      stored,
+    );
     const request = fetch.mock.calls[0]?.[0] as Request;
     expect(request.url).toBe(
       `http://gateway.test/internal/v1/verification-results/${envelope.resultId}`,
     );
     expect(request.headers.get('x-acting-tenant')).toBe('kemsa');
+    expect(request.headers.get('x-acting-subject')).toBe('reviewer-a');
 
     expect(
-      await client(answering({ title: 'Not Found' }, 404)).getStoredResult(envelope.resultId, 'x'),
+      await client(answering({ title: 'Not Found' }, 404)).getStoredResult(
+        envelope.resultId,
+        'x',
+        'reviewer-a',
+      ),
     ).toBeNull();
     await expect(
       client(answering({ type: 'upstream-unavailable' }, 503)).getStoredResult(
         envelope.resultId,
         'kemsa',
+        'system:review',
       ),
     ).rejects.toBeInstanceOf(IntegrationGatewayUnavailable);
   });

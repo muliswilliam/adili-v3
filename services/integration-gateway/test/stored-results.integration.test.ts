@@ -59,11 +59,14 @@ describe('GET /internal/v1/verification-results/{resultId}', () => {
       })
     ).json<{ resultId: string } & Record<string, unknown>>();
 
-  const read = (resultId: string, tenant = 'psc') =>
+  const read = (resultId: string, tenant = 'psc', actingSubject?: string) =>
     t.app.inject({
       method: 'GET',
       url: `/internal/v1/verification-results/${resultId}`,
-      headers: headers(tenant),
+      headers: {
+        ...headers(tenant),
+        ...(actingSubject ? { 'x-acting-subject': actingSubject } : {}),
+      },
     });
 
   const audits = async () =>
@@ -148,10 +151,10 @@ describe('GET /internal/v1/verification-results/{resultId}', () => {
     ).resolves.toEqual([]);
   });
 
-  it('audits each read under the tenant, naming the result, the service and the person', async () => {
+  it('audits each read under the tenant, naming the result, the service, whom it read for and the person', async () => {
     const result = await lookup('ardhisasa/parcel-lookups', SEED.wanjiku);
 
-    await read(result.resultId);
+    await read(result.resultId, 'psc', 'reviewer-a');
 
     const [audit, ...more] = await audits();
     expect(more).toEqual([]);
@@ -167,7 +170,8 @@ describe('GET /internal/v1/verification-results/{resultId}', () => {
           // ADR-008: the declarant sees this read in "who accessed my data".
           subjectPersonId: DECLARANT,
         },
-        actor: { clientId: 'review' },
+        // M3, ADR-013 §8.6: the reviewer whose request read it.
+        actor: { clientId: 'review', onBehalfOf: 'reviewer-a' },
         outcome: 'success',
       },
     });
