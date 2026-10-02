@@ -4,8 +4,10 @@
   "include": [
     "src",
     "test",
+    "evals",
     "drizzle.config.ts",
     "vitest.config.ts",
-    "vitest.integration.config.ts"
+    "vitest.integration.config.ts",
+    "vitest.eval.config.ts"
   ]
 }

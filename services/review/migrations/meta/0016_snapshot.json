@@ -1,6 +1,6 @@
 {
-  "id": "06c047c4-0a4c-4124-9bef-e8eb93e66d25",
-  "prevId": "fd7d291d-18f4-40ba-968f-713cb8612643",
+  "id": "fd7d291d-18f4-40ba-968f-713cb8612643",
+  "prevId": "8ce7f284-1a23-4b88-8a64-e452f33350d4",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -970,6 +970,12 @@
           "primaryKey": false,
           "notNull": true
         },
+        "designation": {
+          "name": "designation",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
         "roster_record_id": {
           "name": "roster_record_id",
           "type": "uuid",
@@ -1641,109 +1647,6 @@
       "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.review_copilot_drafts": {
-      "name": "review_copilot_drafts",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "tenant": {
-          "name": "tenant",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "case_id": {
-          "name": "case_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "requested_by": {
-          "name": "requested_by",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "job_id": {
-          "name": "job_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "status": {
-          "name": "status",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "failure_reason": {
-          "name": "failure_reason",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "expires_at": {
-          "name": "expires_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true
-        }
-      },
-      "indexes": {
-        "review_copilot_drafts_expires_at_idx": {
-          "name": "review_copilot_drafts_expires_at_idx",
-          "columns": [
-            {
-              "expression": "expires_at",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "review_copilot_drafts_case_id_review_cases_id_fk": {
-          "name": "review_copilot_drafts_case_id_review_cases_id_fk",
-          "tableFrom": "review_copilot_drafts",
-          "tableTo": "review_cases",
-          "columnsFrom": [
-            "case_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {
-        "review_copilot_drafts_status_check": {
-          "name": "review_copilot_drafts_status_check",
-          "value": "\"review_copilot_drafts\".\"status\" in ('pending', 'ready', 'failed')"
-        }
-      },
       "isRLSEnabled": false
     },
     "public.review_copilot_ratings": {

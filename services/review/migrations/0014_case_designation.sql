@@ -1,0 +1,1 @@
+ALTER TABLE "review_cases" ADD COLUMN "designation" text;

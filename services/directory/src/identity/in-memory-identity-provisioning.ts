@@ -17,6 +17,7 @@ import {
   IdentityUserNotFound,
   type RequiredAction,
   type Restore,
+  type StaffContact,
   type StaffProfile,
   UsernameTaken,
 } from './identity-provisioning.js';
@@ -25,6 +26,7 @@ import {
 export type IdentityCall =
   | { operation: 'findByEmail'; email: string }
   | { operation: 'findById'; userId: string }
+  | { operation: 'listStaffWithRole'; tenant: string; role: string }
   | { operation: 'createStaffUser'; input: CreateStaffUserInput }
   | { operation: 'createDeclarantUser'; input: CreateDeclarantUserInput }
   | { operation: 'addTenantToUser'; userId: string; tenant: string }
@@ -92,6 +94,8 @@ export interface SeedUser {
   phone?: string;
   roles?: string[];
   enabled?: boolean;
+  /** False by default, as for an account that never activated. */
+  emailVerified?: boolean;
 }
 
 /**
@@ -116,7 +120,7 @@ export class InMemoryIdentityProvisioning extends IdentityProvisioning {
       userId,
       username: seed.username ?? normalise(seed.email),
       email: normalise(seed.email),
-      emailVerified: false,
+      emailVerified: seed.emailVerified ?? false,
       name: seed.name ?? null,
       phone: seed.phone ?? null,
       tenant: seed.tenant,
@@ -147,6 +151,13 @@ export class InMemoryIdentityProvisioning extends IdentityProvisioning {
   ): readonly Extract<IdentityCall, { operation: TOperation }>[];
   calls(operation?: IdentityOperation): readonly IdentityCall[] {
     return operation ? this.log.filter((call) => call.operation === operation) : [...this.log];
+  }
+
+  /** Marks the account's email verified, as its owner does when they activate. Not recorded. */
+  verifyEmail(userId: string): void {
+    const user = this.users.get(userId);
+    if (!user) throw new IdentityUserNotFound(userId);
+    user.emailVerified = true;
   }
 
   /** A snapshot of an account, or undefined. */
@@ -187,6 +198,23 @@ export class InMemoryIdentityProvisioning extends IdentityProvisioning {
     const failure = this.takeFailure('findById');
     if (failure) return Promise.reject(failure);
     return Promise.resolve(identityUser(this.users.get(userId)));
+  }
+
+  listStaffWithRole(tenant: string, role: string): Promise<StaffContact[]> {
+    this.log.push({ operation: 'listStaffWithRole', tenant, role });
+    const failure = this.takeFailure('listStaffWithRole');
+    if (failure) return Promise.reject(failure);
+    return Promise.resolve(
+      [...this.users.values()]
+        .filter(
+          (user) =>
+            user.tenant === tenant &&
+            user.enabled &&
+            user.emailVerified &&
+            user.roles.includes(role),
+        )
+        .map((user) => ({ subject: user.userId, email: user.email })),
+    );
   }
 
   createStaffUser(input: CreateStaffUserInput): Promise<string> {

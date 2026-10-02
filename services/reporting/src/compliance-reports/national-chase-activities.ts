@@ -89,7 +89,7 @@ export class NationalChaseActivities {
     if (submitted) return { outcome: 'submitted' };
 
     const staff = new Map<string, string>();
-    for (const role of [REPORTING_OFFICER, COMMISSION_ADMIN]) {
+    for (const role of [REPORTING_OFFICER, COMMISSION_ADMIN] as const) {
       for (const member of await this.directory.staffWithRole(tenant, role)) {
         staff.set(member.subject, member.email);
       }

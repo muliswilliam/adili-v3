@@ -117,6 +117,9 @@ identityProvisioningContract('KeycloakIdentityProvisioning', () => ({
     const principal = await verifier.verify(token);
     return { tenant: principal.tenant, scopes: principal.scopes, clientId: principal.clientId };
   },
+  verifyEmail: async (userId) => {
+    await admin('PUT', `/users/${userId}`, { emailVerified: true });
+  },
   cleanup: async (userIds) => {
     await Promise.all(userIds.map((userId) => admin('DELETE', `/users/${userId}`)));
   },

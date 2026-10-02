@@ -127,6 +127,13 @@
       "when": 1790861760262,
       "tag": "0018_help_articles_rls",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1790879944819,
+      "tag": "0019_roster_snapshot_designation",
+      "breakpoints": true
     }
   ]
 }
