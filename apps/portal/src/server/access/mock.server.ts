@@ -630,7 +630,6 @@ function seedRequest(seed: Seed, id: string, now: number): AccessRequest {
         seed.decision.outcome === 'deny' ? null : (seed.decision.grantedScope ?? seed.scope),
       grounds: seed.decision.grounds,
       reasons: seed.decision.reasons,
-      decidedBy: { subject: 'access-officer', name: 'Access officer' },
       decidedAt,
     };
     timeline.push(entry('decided', decidedAt, reference, 'Decision made'));
@@ -815,7 +814,6 @@ function withdraw(id: string, key: string | null): Response {
       grounds: ['prejudice-proceeding'],
       reasons:
         'The officer is the subject of an ongoing investigation, which access to the declarations may prejudice.',
-      decidedBy: { subject: 'access-officer', name: 'Access officer' },
       decidedAt,
     };
     found.timeline.push(entry('decided', decidedAt, found.reference, 'Decision made'));

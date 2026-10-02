@@ -703,6 +703,27 @@ export interface components {
             /** Format: date-time */
             decidedAt: string;
         };
+        PublicDecision: {
+            outcome: components["schemas"]["Outcome"];
+            grantedScope: components["schemas"]["Scope"] | null;
+            grounds: components["schemas"]["Ground"][];
+            reasons: string;
+            /** Format: date-time */
+            decidedAt: string;
+        };
+        LeaDecision: {
+            outcome: components["schemas"]["Outcome"];
+            grantedScope: components["schemas"]["Scope"] | null;
+            grounds: components["schemas"]["Ground"][];
+            reasons: string;
+            /** @description The access officer who decided; null for the agency's officer */
+            decidedBy: {
+                subject: string;
+                name: string;
+            } | null;
+            /** Format: date-time */
+            decidedAt: string;
+        };
         DecisionInput: {
             outcome: components["schemas"]["Outcome"];
             /** @description Required for partial-grant: narrower than the requested scope, never wider. A grant is of the requested scope (omit it, or send the requested scope); a denial has none */
@@ -781,7 +802,7 @@ export interface components {
             submittedAt: string;
             /** Format: date-time */
             decisionDeadlineAt: string;
-            decision: components["schemas"]["Decision"] | null;
+            decision: components["schemas"]["PublicDecision"] | null;
             package: components["schemas"]["Package"] | null;
             /** @description When issuing the grant's package or nil letter failed after its retries (an operator takes it up); null while it is prepared and once issued. A grant with no package and no failure is being prepared */
             packageFailedAt: string | null;
@@ -950,7 +971,7 @@ export interface components {
             windowEndsAt: string | null;
             canRespond: boolean;
             representations: components["schemas"]["Representations"] | null;
-            decision: components["schemas"]["Decision"] | null;
+            decision: components["schemas"]["PublicDecision"] | null;
         };
         LeaDeclarantNotice: {
             /** Format: uuid */
@@ -1108,10 +1129,11 @@ export interface components {
             checkedAt: string;
         };
         LeaVerification: {
+            /** @description The access officer who verified; null for the agency's officer */
             by: {
                 subject: string;
                 name: string;
-            };
+            } | null;
             /** Format: date-time */
             at: string;
             note: string;
@@ -1180,7 +1202,7 @@ export interface components {
             /** @description The roster record the officer sought was identified as */
             resolvedName: string | null;
             verification: components["schemas"]["LeaVerification"] | null;
-            decision: components["schemas"]["Decision"] | null;
+            decision: components["schemas"]["LeaDecision"] | null;
             /** @description When the declarant was told of the grant (only after a grant, r.23(2)) */
             declarantNotifiedAt: string | null;
             /** @description Whether the officer identified has a declarant account (told of a grant online); false: told in writing, and invited to onboard (spec 10 decision 2); null until verified, and for the agency's officer */

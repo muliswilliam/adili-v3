@@ -1,7 +1,13 @@
 import type { FormKV1 } from '@adili/forms';
 import { z } from 'zod';
 
-import { decisionSchema, type Package, packageFailedAtSchema, packageSchema } from '../decision.js';
+import {
+  type Package,
+  packageFailedAtSchema,
+  packageSchema,
+  publicDecision,
+  publicDecisionSchema,
+} from '../decision.js';
 import { type RegisterEntry, registerEntrySchema } from '../register/representation.js';
 import { ACCESS_REQUEST_STATUSES, type accessRequests } from './schema.js';
 
@@ -24,7 +30,7 @@ export const accessRequestSchema = z.object({
   formK: formKSchema.meta({ description: 'The form-k.v1 document as submitted' }),
   submittedAt: z.iso.datetime({ offset: true }),
   decisionDeadlineAt: z.iso.datetime({ offset: true }),
-  decision: decisionSchema.nullable(),
+  decision: publicDecisionSchema.nullable(),
   package: packageSchema.nullable(),
   packageFailedAt: packageFailedAtSchema,
   timeline: z.array(registerEntrySchema),
@@ -83,7 +89,7 @@ export function toAccessRequest(
     formK: formK as unknown as Record<string, unknown>,
     submittedAt: row.submittedAt.toISOString(),
     decisionDeadlineAt: row.decisionDeadlineAt.toISOString(),
-    decision: row.decision,
+    decision: publicDecision(row.decision),
     package: packageOf(row, downloads),
     packageFailedAt: row.packageFailedAt?.toISOString() ?? null,
     timeline: [...timeline],

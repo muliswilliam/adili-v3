@@ -2248,6 +2248,68 @@ components:
         - reasons
         - decidedBy
         - decidedAt
+    PublicDecision:
+      type: object
+      properties:
+        outcome:
+          $ref: '#/components/schemas/Outcome'
+        grantedScope:
+          anyOf:
+            - $ref: '#/components/schemas/Scope'
+            - type: 'null'
+        grounds:
+          type: array
+          items:
+            $ref: '#/components/schemas/Ground'
+        reasons:
+          type: string
+        decidedAt:
+          type: string
+          format: date-time
+      required:
+        - outcome
+        - grantedScope
+        - grounds
+        - reasons
+        - decidedAt
+    LeaDecision:
+      type: object
+      properties:
+        outcome:
+          $ref: '#/components/schemas/Outcome'
+        grantedScope:
+          anyOf:
+            - $ref: '#/components/schemas/Scope'
+            - type: 'null'
+        grounds:
+          type: array
+          items:
+            $ref: '#/components/schemas/Ground'
+        reasons:
+          type: string
+        decidedBy:
+          anyOf:
+            - type: object
+              properties:
+                subject:
+                  type: string
+                name:
+                  type: string
+              required:
+                - subject
+                - name
+            - type: 'null'
+          description: The access officer who decided; null for the agency's officer
+        decidedAt:
+          type: string
+          format: date-time
+      required:
+        - outcome
+        - grantedScope
+        - grounds
+        - reasons
+        - decidedBy
+        - decidedAt
     DecisionInput:
       type: object
       properties:
@@ -2429,7 +2491,7 @@ components:
           format: date-time
         decision:
           anyOf:
-            - $ref: '#/components/schemas/Decision'
+            - $ref: '#/components/schemas/PublicDecision'
             - type: 'null'
         package:
           anyOf:
@@ -2909,7 +2971,7 @@ components:
             - type: 'null'
         decision:
           anyOf:
-            - $ref: '#/components/schemas/Decision'
+            - $ref: '#/components/schemas/PublicDecision'
             - type: 'null'
       required:
         - requestId
@@ -3334,15 +3396,18 @@ components:
       type: object
       properties:
         by:
-          type: object
-          properties:
-            subject:
-              type: string
-            name:
-              type: string
-          required:
-            - subject
-            - name
+          anyOf:
+            - type: object
+              properties:
+                subject:
+                  type: string
+                name:
+                  type: string
+              required:
+                - subject
+                - name
+            - type: 'null'
+          description: The access officer who verified; null for the agency's officer
         at:
           type: string
           format: date-time
@@ -3481,7 +3546,7 @@ components:
             - type: 'null'
         decision:
           anyOf:
-            - $ref: '#/components/schemas/Decision'
+            - $ref: '#/components/schemas/LeaDecision'
             - type: 'null'
         declarantNotifiedAt:
           anyOf:

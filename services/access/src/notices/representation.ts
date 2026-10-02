@@ -1,7 +1,7 @@
 import type { FormKV1 } from '@adili/forms';
 import { z } from 'zod';
 
-import { decisionSchema } from '../decision.js';
+import { publicDecision, publicDecisionSchema } from '../decision.js';
 import type { LeaRequestRow } from '../lea/representation.js';
 import {
   representationsSchema,
@@ -87,7 +87,7 @@ export const formKDeclarantNoticeSchema = z.object({
   /** The window is open: representations can be made or changed now. */
   canRespond: z.boolean(),
   representations: representationsSchema.nullable(),
-  decision: decisionSchema.nullable(),
+  decision: publicDecisionSchema.nullable(),
 });
 
 export type FormKDeclarantNotice = z.infer<typeof formKDeclarantNoticeSchema>;
@@ -156,7 +156,7 @@ export function toDeclarantNotice(
     canRespond: windowOpen(row, now),
     representations:
       representationsRow === null ? null : toRepresentations(representationsRow, 'declarant'),
-    decision: row.decision,
+    decision: publicDecision(row.decision),
   };
 }
 

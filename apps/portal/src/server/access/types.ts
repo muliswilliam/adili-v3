@@ -11,7 +11,8 @@ export type AccessRequest = Omit<Schemas['AccessRequest'], 'formK'> & {
 };
 export type AccessCommission = Schemas['AccessCommission'];
 export type AccessRequestStatus = Schemas['AccessRequestStatus'];
-export type Decision = Schemas['Decision'];
+/** A decision as the applicant and the declarant are told it: never who on the staff took it. */
+export type Decision = Schemas['PublicDecision'];
 export type Ground = Schemas['Ground'];
 export type Outcome = Schemas['Outcome'];
 export type Package = Schemas['Package'];

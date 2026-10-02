@@ -655,6 +655,32 @@ describe('Law enforcement requests (S11)', () => {
       expect(again.json()).toMatchObject({ code: 'request-decided' });
     });
 
+    it("shows the agency's officer the verification and decision, never which of the Commission's staff made them", async () => {
+      given();
+      const { id } = await verified();
+      const decided = await decideLea(api, id, {
+        outcome: 'grant',
+        reasons: 'Investigation shown.',
+      });
+      expect(decided.statusCode, decided.body).toBe(200);
+      expect(decided.json<LeaRequest>().decision?.decidedBy).toEqual({
+        subject: officer.sub,
+        name: officer.name,
+      });
+
+      const response = await api.get(`/v1/lea/requests/${id}`, peter);
+
+      expect(response.statusCode, response.body).toBe(200);
+      expect(
+        contractErrors(okResponse('/v1/lea/requests/{leaRequestId}', 'get'), response.json()),
+      ).toEqual([]);
+      const mine = response.json<LeaRequest>();
+      expect(mine.decision).toMatchObject({ outcome: 'grant', decidedBy: null });
+      expect(mine.verification).toMatchObject({ by: null, at: VERIFIED_AT });
+      expect(response.body).not.toContain(officer.sub);
+      expect(response.body).not.toContain(officer.name);
+    });
+
     it('applies the outcome rules and the roles as for Form K', async () => {
       given();
       const { id } = await verified();

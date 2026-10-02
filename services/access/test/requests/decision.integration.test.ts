@@ -14,6 +14,7 @@ import { contractErrors, okResponse } from '../support/contract.js';
 import {
   callers,
   decide,
+  declarantOf,
   givenCommissions,
   notifiedRequest,
   rowOf,
@@ -406,6 +407,42 @@ describe('Deciding an access request (S6)', () => {
       });
       expect(api.declarations.disclosureCalls).toEqual([]);
       expect(api.documents.issued).toEqual([]);
+    });
+
+    it("tells the applicant and the declarant the decision, never which of the Commission's staff took it", async () => {
+      const { anne, id } = await underDecision();
+      const response = await decide(api, id, {
+        outcome: 'deny',
+        grounds: ['frivolous-vexatious'],
+        reasons: REASONS,
+      });
+      expect(response.statusCode, response.body).toBe(200);
+      const told = {
+        outcome: 'deny',
+        grantedScope: null,
+        grounds: ['frivolous-vexatious'],
+        reasons: REASONS,
+        decidedAt: DECIDED_AT,
+      };
+
+      const mine = await api.get(`/v1/access/requests/${id}`, mercy);
+      expect(mine.statusCode, mine.body).toBe(200);
+      expect(
+        contractErrors(okResponse('/v1/access/requests/{requestId}', 'get'), mine.json()),
+      ).toEqual([]);
+      expect(mine.json<AccessRequest>().decision).toEqual(told);
+
+      const notices = await api.get('/v1/me/access-notices', declarantOf(anne));
+      expect(notices.statusCode, notices.body).toBe(200);
+      expect(contractErrors(okResponse('/v1/me/access-notices', 'get'), notices.json())).toEqual(
+        [],
+      );
+      expect(notices.json<{ decision: unknown }[]>()[0]?.decision).toEqual(told);
+
+      for (const body of [mine.body, notices.body]) {
+        expect(body).not.toContain(officer.sub);
+        expect(body).not.toContain(officer.name);
+      }
     });
   });
 
