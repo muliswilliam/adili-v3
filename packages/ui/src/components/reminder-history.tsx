@@ -36,7 +36,7 @@ export interface ReminderHistoryError {
 
 // On phones each reminder becomes a short list of labelled facts with the outcome underneath.
 const phoneCell =
-  'max-sm:p-0 max-sm:first:pl-0 max-sm:last:pr-0 max-sm:before:mr-1 max-sm:before:text-muted-foreground max-sm:before:content-[attr(data-label)]';
+  'max-sm:p-0 max-sm:first:pl-0 max-sm:last:pr-0 max-sm:before:mr-1 max-sm:before:text-muted-foreground max-sm:before:content-data-label';
 
 /**
  * An obligation's reminder history (spec 04: the portal's and the console's drawers): when each

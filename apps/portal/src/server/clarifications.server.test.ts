@@ -1,7 +1,11 @@
 import createClient from 'openapi-fetch';
 import { beforeEach, describe, expect, it } from 'vitest';
 
-import { loadClarificationPage, respondToClarification } from './clarifications.server';
+import {
+  loadClarificationPage,
+  loadMyClarifications,
+  respondToClarification,
+} from './clarifications.server';
 import { mockDocumentsFetch, receiveMockUpload, resetDocumentsMock } from './documents/mock.server';
 import type { paths as DocumentsPaths } from './documents/schema.gen';
 import type { CreateUpload, UploadPurpose } from './documents/types';
@@ -90,6 +94,27 @@ describe('loadClarificationPage', () => {
     });
     const down = client(() => Promise.reject(new Error('offline')));
     expect(await loadClarificationPage(down, IDS.open)).toEqual({ status: 'unavailable' });
+  });
+});
+
+describe('loadMyClarifications', () => {
+  it('returns every clarification the declarant was sent, newest first', async () => {
+    const result = await loadMyClarifications(client());
+    if (result.status !== 'ok') throw new Error(result.status);
+    expect(result.clarifications.map((each) => each.id)).toContain(IDS.open);
+    expect(result.clarifications).toHaveLength(Object.keys(IDS).length);
+    expect(result.clarifications.some((each) => each.status === 'draft')).toBe(false);
+    const issued = result.clarifications.map((each) => each.issuedAt ?? '');
+    expect(issued).toEqual([...issued].sort().reverse());
+  });
+
+  it('is unavailable when the service is down or fails', async () => {
+    const down = client(() => Promise.reject(new Error('offline')));
+    expect(await loadMyClarifications(down)).toEqual({ status: 'unavailable' });
+    const failing = client(() =>
+      Promise.resolve(new Response(JSON.stringify({ title: 'Down' }), { status: 503 })),
+    );
+    expect(await loadMyClarifications(failing)).toEqual({ status: 'unavailable' });
   });
 });
 

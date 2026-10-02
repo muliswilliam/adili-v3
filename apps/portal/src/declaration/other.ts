@@ -1,7 +1,7 @@
-import { formatNumber } from '@adili/ui';
+import { countryName, formatNumber } from '@adili/ui';
 
 import type { Draft, MaterialChangeEntry, OtherInformation } from './contents';
-import { countryName, UNANSWERED } from './format';
+import { UNANSWERED } from './format';
 import { CHANGE_KIND_WORDS, MEMBERSHIP_KIND_LABELS } from './labels';
 
 /**
@@ -108,7 +108,7 @@ export function dualCitizenshipLine(dual: DraftDualCitizenship | undefined): str
     dual.holds === undefined
       ? UNANSWERED
       : dual.holds
-        ? `Yes, ${countryName(dual.country) ?? 'country not answered'}`
+        ? `Yes, ${dual.country ? countryName(dual.country) : 'country not answered'}`
         : 'No';
   return `${holds} · pending application: ${yesNo(dual.pendingApplication)}`;
 }

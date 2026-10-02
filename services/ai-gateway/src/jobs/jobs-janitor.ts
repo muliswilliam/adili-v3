@@ -5,10 +5,13 @@ import {
   type OnApplicationBootstrap,
   type OnApplicationShutdown,
 } from '@nestjs/common';
-import { type Database, InjectDatabase } from '@adili/data-access';
-import { and, asc, gt, inArray, isNotNull, lt, sql } from 'drizzle-orm';
+import { InjectDatabase } from '@adili/data-access';
+import { and, asc, eq, gt, inArray, isNotNull, lt, type SQL, sql } from 'drizzle-orm';
 
-import { type Job, jobs, type schema } from '../db/schema.js';
+import { asPlatform, type GatewayDatabase } from '../db/context.js';
+import { type Job, jobs } from '../db/schema.js';
+import { TASKS } from '../tasks/registry.js';
+import type { TaskName } from '../tasks/task.js';
 import { JobExecutor } from './job-executor.js';
 import { JobWorkflows } from './job-workflows.js';
 import { LIVE_STATUSES } from './job-states.js';
@@ -16,7 +19,7 @@ import { LIVE_STATUSES } from './job-states.js';
 export const JANITOR_OPTIONS = Symbol('JANITOR_OPTIONS');
 
 export interface JanitorOptions {
-  outputRetentionDays: number;
+  outputRetentionHours: number;
 }
 
 const SWEEP_INTERVAL_MS = 60_000;
@@ -28,8 +31,9 @@ const CONCURRENCY = 10;
 
 /**
  * Every minute: recovers live jobs whose workflow is not running (a start lost to a crash, a
- * workflow terminated or reset), and clears outputs past retention. Every replica runs it;
- * each step is idempotent, and one failing does not stop the other.
+ * workflow terminated or reset), and clears outputs past retention (the task's own, else the
+ * service's). Every replica runs it; each step is idempotent, and one failing does not stop the
+ * other.
  */
 @Injectable()
 export class JobsJanitor implements OnApplicationBootstrap, OnApplicationShutdown {
@@ -38,7 +42,7 @@ export class JobsJanitor implements OnApplicationBootstrap, OnApplicationShutdow
   private sweeping = false;
 
   constructor(
-    @InjectDatabase() private readonly db: Database<typeof schema>,
+    @InjectDatabase() private readonly db: GatewayDatabase,
     private readonly workflows: JobWorkflows,
     private readonly executor: JobExecutor,
     @Inject(JANITOR_OPTIONS) private readonly options: JanitorOptions,
@@ -75,18 +79,20 @@ export class JobsJanitor implements OnApplicationBootstrap, OnApplicationShutdow
   private async recoverLiveJobs(): Promise<void> {
     let after: string | undefined;
     for (;;) {
-      const page = await this.db
-        .select({ id: jobs.id, status: jobs.status })
-        .from(jobs)
-        .where(
-          and(
-            inArray(jobs.status, LIVE_STATUSES),
-            lt(jobs.createdAt, sql`now() - make_interval(secs => ${GRACE_SECONDS})`),
-            after === undefined ? undefined : gt(jobs.id, after),
-          ),
-        )
-        .orderBy(asc(jobs.id))
-        .limit(PAGE_SIZE);
+      const page = await asPlatform(this.db, (tx) =>
+        tx
+          .select({ id: jobs.id, status: jobs.status })
+          .from(jobs)
+          .where(
+            and(
+              inArray(jobs.status, LIVE_STATUSES),
+              lt(jobs.createdAt, sql`now() - make_interval(secs => ${GRACE_SECONDS})`),
+              after === undefined ? undefined : gt(jobs.id, after),
+            ),
+          )
+          .orderBy(asc(jobs.id))
+          .limit(PAGE_SIZE),
+      );
       for (let i = 0; i < page.length; i += CONCURRENCY) {
         await Promise.all(page.slice(i, i + CONCURRENCY).map((job) => this.recover(job)));
       }
@@ -112,19 +118,28 @@ export class JobsJanitor implements OnApplicationBootstrap, OnApplicationShutdow
     }
   }
 
-  /** Outputs past retention are cleared; the job keeps its hashes and counts. */
+  /**
+   * Outputs past retention are cleared; the job keeps its hashes and counts. A task with a
+   * shorter retention of its own (clarification drafts: 24 hours) is cleared after that.
+   */
   private async purgeOutputs(): Promise<void> {
-    await this.db
-      .update(jobs)
-      .set({ output: null, outputPurgedAt: sql`now()` })
-      .where(
-        and(
-          isNotNull(jobs.output),
-          lt(
-            jobs.finishedAt,
-            sql`now() - make_interval(days => ${this.options.outputRetentionDays})`,
+    const purge = (window: SQL, task?: TaskName) =>
+      asPlatform(this.db, (tx) =>
+        tx
+          .update(jobs)
+          .set({ output: null, outputPurgedAt: sql`now()` })
+          .where(
+            and(
+              isNotNull(jobs.output),
+              task === undefined ? undefined : eq(jobs.task, task),
+              lt(jobs.finishedAt, sql`now() - ${window}`),
+            ),
           ),
-        ),
       );
+    await purge(sql`make_interval(hours => ${this.options.outputRetentionHours})`);
+    for (const task of Object.values(TASKS)) {
+      if (task.outputRetentionHours === undefined) continue;
+      await purge(sql`make_interval(hours => ${task.outputRetentionHours})`, task.name);
+    }
   }
 }

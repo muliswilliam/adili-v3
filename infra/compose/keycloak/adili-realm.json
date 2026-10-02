@@ -379,7 +379,8 @@
         "directory:internal",
         "directory:roster-national-id",
         "documents:internal",
-        "messages"
+        "messages",
+        "ai:internal"
       ],
       "optionalClientScopes": []
     },
@@ -1352,6 +1353,28 @@
     {
       "name": "review:disclosures",
       "description": "Service tokens that may ask the review service for the clarifications an access grant discloses, read for a third party: the access service only (spec 10)",
+      "protocol": "openid-connect",
+      "attributes": {
+        "include.in.token.scope": "true",
+        "display.on.consent.screen": "false"
+      },
+      "protocolMappers": [
+        {
+          "name": "adili-api audience",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "config": {
+            "included.custom.audience": "adili-api",
+            "access.token.claim": "true",
+            "id.token.claim": "false",
+            "introspection.token.claim": "true"
+          }
+        }
+      ]
+    },
+    {
+      "name": "ai:internal",
+      "description": "Run AI tasks, read their jobs, rate their outputs and read a tenant's AI status through the ai-gateway (/internal/v1/tasks, /internal/v1/jobs, /internal/v1/jobs/{id}/feedback, /internal/v1/tenants/{tenant}/status, spec 07c)",
       "protocol": "openid-connect",
       "attributes": {
         "include.in.token.scope": "true",

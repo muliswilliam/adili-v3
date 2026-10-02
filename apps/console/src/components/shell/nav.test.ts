@@ -10,13 +10,17 @@ describe('navFor', () => {
     for (const role of ['eacc-analyst', 'eacc-supervisor']) {
       expect(labels([role])).toEqual([['Platform', ['Commissions', 'National obligations']]]);
     }
+  });
+
+  it('adds Law enforcement and AI policy under Platform for platform admins only (specs 10, 07c)', () => {
     expect(labels(['platform-admin'])).toEqual([
-      ['Platform', ['Commissions', 'National obligations', 'Law enforcement']],
+      ['Platform', ['Commissions', 'National obligations', 'Law enforcement', 'AI policy']],
     ]);
     expect(navFor(['platform-admin'])[0]?.items.map((item) => item.to)).toEqual([
       '/commissions',
       '/obligations/national',
       '/platform/law-enforcement',
+      '/ai-policy',
     ]);
   });
 

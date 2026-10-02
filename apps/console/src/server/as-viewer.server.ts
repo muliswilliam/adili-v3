@@ -18,6 +18,8 @@ import {
   type DocumentsResult,
 } from './documents/client';
 import { env } from './env.server';
+import { reviewClient, type ReviewClient } from './review/client.server';
+import type { ServiceResult } from './service-call';
 
 /** The answer for a request without a signed-in user; every service result type has it. */
 export interface Unauthenticated {
@@ -79,4 +81,29 @@ export function asDeclarationsViewer<T>(
     (accessToken) => createDeclarationsClient({ baseUrl: env().DECLARATIONS_API_URL, accessToken }),
     work,
   );
+}
+
+/** Who is signed in, as the review service's callers need it. */
+export interface SignedInReviewer {
+  subject: string;
+  name: string;
+  accessToken: string;
+}
+
+/**
+ * Runs `work` with a review client acting as the signed-in reviewer (or supervisor, or
+ * commission admin), and who that is; `unauthenticated` without calling it when there is no
+ * session.
+ */
+export async function asReviewer<T>(
+  work: (client: ReviewClient, viewer: SignedInReviewer) => Promise<ServiceResult<T>>,
+): Promise<ServiceResult<T>> {
+  const session = await getBff().getSession(getRequest());
+  if (!session) return { ok: false, error: { kind: 'unauthenticated' } };
+  const { accessToken } = session;
+  return work(reviewClient(accessToken), {
+    subject: session.user.subject,
+    name: session.user.name,
+    accessToken,
+  });
 }

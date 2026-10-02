@@ -1,33 +1,30 @@
 import {
+  AiLabel,
   Alert,
   AlertDescription,
   AlertTitle,
-  type AlertProps,
   Badge,
-  type BadgeProps,
   Button,
   Card,
   formatDate,
   Icon,
   plural,
+  Spinner,
   Tooltip,
   useToast,
 } from '@adili/ui';
 import {
-  Alert02Icon,
   CheckmarkCircle02Icon,
-  Clock01Icon,
   Download01Icon,
   File02Icon,
   InboxIcon,
-  InformationCircleIcon,
   PencilEdit02Icon,
   RefreshIcon,
   SquareLock02Icon,
   UnavailableIcon,
 } from '@hugeicons/core-free-icons';
 import { Link, useNavigate, useRouter } from '@tanstack/react-router';
-import { type ReactNode, useState } from 'react';
+import { type ReactNode, useEffect, useMemo, useState } from 'react';
 
 import {
   getLetterLink,
@@ -40,45 +37,29 @@ import type { ClarificationDetail } from '../../server/clarifications.server';
 import type { Clarification } from '../../server/review/types';
 import type { ServiceError } from '../../server/service-call';
 import { clarificationActions } from '../../clarification/actions';
-import { CLARIFICATION_STATUSES, REQUIREMENT_LABELS, type Tone } from '../../clarification/labels';
+import { reportingEntityOf } from '../../review-case/declaration';
+import { REQUIREMENT_LABELS } from '../../clarification/labels';
+import { clarificationTargets, labelOf } from '../../clarification/targets';
 import { historyOf, statusLine } from '../../clarification/view';
 import { Page, PageHead, SectionCard } from '../page';
 import { ResolveDialog, WithdrawDialog } from './clarification-dialogs';
+import { StatusBadge, TONES } from './status-badge';
+import { ClarificationComposer } from './composer/clarification-composer';
+import { useDraftWithAi } from './draft-with-ai/use-draft-with-ai';
+import { type LetterCommission, LetterPreview } from './composer/letter-preview';
 
 /**
  * One clarification on a review case (spec 07a FE-4, S15): each item beside the declarant's
- * answer and documents, the letter, where it stands, its history, and for the officer holding
+ * answer and documents, the letter, where it stands, its history, and for the reviewer holding
  * the case the actions: once the declarant has responded, Mark resolved (note) or Raise
  * follow-up (a draft with `followUpOf`); before that, Withdraw (reason; letter revoked).
  * Everyone else reads it.
  */
 
-/** One tone, two components: the badge variant and the callout variant and icon. */
-const TONES: Record<
-  Tone,
-  {
-    badge: BadgeProps['variant'];
-    alert: AlertProps['variant'];
-    icon: Parameters<typeof Icon>[0]['icon'];
-  }
-> = {
-  neutral: { badge: 'default', alert: 'neutral', icon: InformationCircleIcon },
-  info: { badge: 'info', alert: 'info', icon: Clock01Icon },
-  brand: { badge: 'brand', alert: 'brand', icon: InboxIcon },
-  success: { badge: 'success', alert: 'success', icon: CheckmarkCircle02Icon },
-  warning: { badge: 'warning', alert: 'warning', icon: Clock01Icon },
-  destructive: { badge: 'destructive', alert: 'destructive', icon: Alert02Icon },
-};
-
-export function StatusBadge({ status }: { status: Clarification['status'] }) {
-  const { label, tone } = CLARIFICATION_STATUSES[status];
-  return <Badge variant={TONES[tone].badge}>{label}</Badge>;
-}
-
 function failureText(error: ServiceError): string {
   if (error.kind === 'unauthenticated') return 'Your session has ended. Sign in again.';
   if (error.kind === 'problem' && error.problem.status === 403) {
-    return 'Only the officer holding the case can do this.';
+    return 'Only the reviewer holding the case can do this.';
   }
   if (error.kind === 'problem' && error.problem.status === 409) {
     return 'This clarification has changed. Reload to see it.';
@@ -95,17 +76,25 @@ export function ClarificationDetailView({
   detail,
   now,
   supervisor,
+  commission,
+  compose = false,
 }: {
   detail: ClarificationDetail;
   now: string;
   supervisor: boolean;
+  /** The letterhead of the letter preview. */
+  commission: LetterCommission;
+  /** Open a draft straight in the composer, as after Raise follow-up. */
+  compose?: boolean;
 }) {
-  const { clarification, mine, windowOpen, othersOpen, original, followUps } = detail;
+  const { clarification, mine, windowOpen, othersOpen, original, followUps, document } = detail;
   const reviewCase = detail.case;
+  const drafting = useDraftWithAi({ caseId: reviewCase.id, flags: detail.flags });
   const router = useRouter();
   const navigate = useNavigate();
   const { toast } = useToast();
   const [dialog, setDialog] = useState<'resolve' | 'withdraw' | null>(null);
+  const [composing, setComposing] = useState(compose && mine && clarification.status === 'draft');
   const [raising, setRaising] = useState(false);
   const actions = clarificationActions({ status: clarification.status, mine, windowOpen });
   const line = statusLine(clarification, now);
@@ -144,10 +133,26 @@ export function ClarificationDetailView({
     await navigate({
       to: '/review/cases/$caseId/clarifications/$clarificationId',
       params: { caseId: reviewCase.id, clarificationId: result.data.id },
+      // Straight into the composer with the pre-filled draft.
+      search: { compose: true },
     });
   }
 
   const buttons: ReactNode[] = [];
+  if (mine && clarification.status === 'draft') {
+    buttons.push(
+      <Button
+        key="continue"
+        size="sm"
+        onClick={() => {
+          setComposing(true);
+        }}
+      >
+        <Icon icon={PencilEdit02Icon} />
+        Continue draft
+      </Button>,
+    );
+  }
   if (actions.resolve) {
     buttons.push(
       <Button
@@ -282,14 +287,60 @@ export function ClarificationDetailView({
           </p>
         ))}
 
-        <ItemsAndResponses clarification={clarification} caseId={reviewCase.id} />
-        {clarification.letter ? <LetterCard letter={clarification.letter} /> : null}
+        <ItemsAndResponses
+          clarification={clarification}
+          caseId={reviewCase.id}
+          document={document}
+        />
+        {clarification.letter ? (
+          <LetterCard
+            letter={clarification.letter}
+            preview={
+              <LetterPreview
+                commission={commission}
+                reviewCase={reviewCase}
+                reportingEntity={reportingEntityOf(document)}
+                items={clarification.items.map((item) => ({
+                  label: labelOf(item, clarificationTargets(document), clarification.language),
+                  requirement: item.requirement,
+                  text: item.text,
+                }))}
+                language={clarification.language}
+                opening={clarification.opening}
+                aiAssisted={
+                  clarification.openingAiJobId !== null ||
+                  clarification.items.some((item) => item.aiJobId)
+                }
+                reference={clarification.reference}
+                verificationId={clarification.letter.verificationId}
+                date={clarification.issuedAt ?? now}
+                dueAt={clarification.dueAt ?? now}
+                revoked={clarification.letter.status === 'revoked'}
+              />
+            }
+          />
+        ) : null}
         <HistoryCard clarification={clarification} now={now} />
         <p className="text-xs text-muted-foreground">
           Your access to this declaration is recorded in the audit trail.
         </p>
       </div>
 
+      {clarification.status === 'draft' && mine ? (
+        <ClarificationComposer
+          open={composing}
+          onOpenChange={setComposing}
+          reviewCase={reviewCase}
+          document={document}
+          commission={commission}
+          draft={clarification}
+          followUpOf={original}
+          now={now}
+          tools={drafting.tools}
+          onSaved={() => void router.invalidate()}
+          onIssued={() => void router.invalidate()}
+        />
+      ) : null}
       <ResolveDialog
         open={dialog === 'resolve'}
         onOpenChange={(open) => {
@@ -337,11 +388,15 @@ function useDownload() {
 function ItemsAndResponses({
   clarification,
   caseId,
+  document,
 }: {
   clarification: Clarification;
   caseId: string;
+  document: Record<string, unknown> | null;
 }) {
   const download = useDownload();
+  // The review service sends no labels; name each item from the declaration as filed.
+  const targets = useMemo(() => clarificationTargets(document), [document]);
   const { items, response, status } = clarification;
   const none =
     status === 'withdrawn'
@@ -357,10 +412,23 @@ function ItemsAndResponses({
           <li key={index}>
             <Card className="grid gap-4 p-0 sm:p-0 min-[900px]:grid-cols-2 min-[900px]:gap-0">
               <div className="grid content-start gap-2 p-5">
-                <p className="text-xs font-medium text-muted-foreground">
+                <p className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
                   {index + 1}. What we asked
+                  {item.aiJobId ? (
+                    <AiLabel
+                      size="sm"
+                      text="AI-assisted"
+                      messages={{
+                        // Only an issued clarification has been approved by anyone.
+                        noDetails:
+                          status === 'draft'
+                            ? 'Drafted with AI; the reviewer checks it before issuing'
+                            : 'Drafted with AI, then approved by the reviewer who issued it',
+                      }}
+                    />
+                  ) : null}
                 </p>
-                {item.label ? <p className="font-medium">{item.label}</p> : null}
+                <p className="font-medium">{labelOf(item, targets)}</p>
                 <Badge variant="default">{REQUIREMENT_LABELS[item.requirement]}</Badge>
                 <p className="text-sm">{item.text}</p>
               </div>
@@ -419,25 +487,32 @@ function ItemsAndResponses({
   );
 }
 
-function LetterCard({ letter }: { letter: NonNullable<Clarification['letter']> }) {
+function LetterCard({
+  letter,
+  preview,
+}: {
+  letter: NonNullable<Clarification['letter']>;
+  /** The letter as the declarant reads it, shown on request. */
+  preview: ReactNode;
+}) {
   const download = useDownload();
+  const [shown, setShown] = useState(false);
+  const ready = letter.status !== 'pending';
+  useLetterRefresh(ready);
   return (
-    <SectionCard id="clarification-letter" icon={File02Icon} title="Clarification letter">
-      <div className="flex flex-wrap items-center gap-3 px-5 py-4 text-sm">
-        {letter.status === 'pending' ? (
-          <span className="text-muted-foreground">Producing the letter…</span>
-        ) : (
+    <SectionCard
+      id="clarification-letter"
+      icon={File02Icon}
+      title="Clarification letter"
+      actions={
+        ready ? (
           <>
             <Badge variant={letter.status === 'revoked' ? 'destructive' : 'success'}>
               {letter.status === 'revoked' ? 'Revoked' : 'Issued'}
             </Badge>
-            <span>
-              Verification code <b className="font-mono">{letter.verificationId}</b>
-            </span>
             <Button
               variant="secondary"
               size="sm"
-              className="ml-auto"
               onClick={() => {
                 void download(
                   getLetterLink({ data: { documentId: letter.documentId } }),
@@ -449,7 +524,33 @@ function LetterCard({ letter }: { letter: NonNullable<Clarification['letter']> }
               Download PDF
             </Button>
           </>
+        ) : undefined
+      }
+    >
+      <div className="grid gap-4 px-5 py-4 text-sm">
+        {ready ? (
+          <p className="flex flex-wrap items-center gap-x-3.5 gap-y-1">
+            <span>
+              Verification code <b className="font-mono">{letter.verificationId}</b>
+            </span>
+            <Button
+              variant="link"
+              size="sm"
+              aria-expanded={shown}
+              onClick={() => {
+                setShown((value) => !value);
+              }}
+            >
+              {shown ? 'Hide letter' : 'Show letter'}
+            </Button>
+          </p>
+        ) : (
+          <p className="flex items-center gap-2 text-muted-foreground">
+            <Spinner />
+            Producing the letter…
+          </p>
         )}
+        {ready && shown ? preview : null}
       </div>
     </SectionCard>
   );
@@ -470,4 +571,28 @@ function HistoryCard({ clarification, now }: { clarification: Clarification; now
       </ol>
     </SectionCard>
   );
+}
+
+/** How often, and how many times, the page looks again for a letter still being produced. */
+export const LETTER_REFRESH_MS = 3_000;
+const LETTER_REFRESHES = 20;
+
+/**
+ * Reloads the page while the documents service is still producing the letter, so its
+ * verification code and download appear without a manual reload; gives up after a minute.
+ */
+function useLetterRefresh(ready: boolean) {
+  const router = useRouter();
+  useEffect(() => {
+    if (ready) return;
+    let left = LETTER_REFRESHES;
+    const timer = setInterval(() => {
+      left -= 1;
+      if (left <= 0) clearInterval(timer);
+      void router.invalidate();
+    }, LETTER_REFRESH_MS);
+    return () => {
+      clearInterval(timer);
+    };
+  }, [ready, router]);
 }

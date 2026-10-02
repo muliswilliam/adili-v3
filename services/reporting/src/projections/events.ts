@@ -4,8 +4,9 @@ import { ACTION_STEPS, OBLIGATION_TYPES } from './schema.js';
 
 /**
  * The events the reporting service projects (spec 09 backend detail), and the identifiers it
- * reads from each. Producers: declarations (spec 04 obligations, spec 06 submission) and review
- * (spec 07a clarifications, spec 08 determinations, actions and referrals). Every event carries
+ * reads from each. Producers: declarations (spec 04 obligations, spec 06 submission), review
+ * (spec 07a clarifications, spec 07c copilot, spec 08 determinations, actions and referrals) and
+ * the ai-gateway (spec 07c ratings). Every event carries
  * the Commission in its `tenant` extension; the time an event happened is its envelope `time`.
  */
 
@@ -29,6 +30,9 @@ export const ACTION_CANCELLED = 'action.cancelled.v1';
 
 export const DETERMINATION_APPROVED = 'determination.approved.v1';
 export const REFERRAL_SENT = 'referral.sent.v1';
+
+export const COPILOT_UPDATED = 'review.copilot.updated.v1';
+export const AI_FEEDBACK_RECORDED = 'ai.feedback.recorded.v1';
 
 const civilDate = z.iso.date();
 
@@ -122,3 +126,34 @@ export const referralSentData = z.object({
   sentAt: z.iso.datetime({ offset: true }),
 });
 export type ReferralSentData = z.infer<typeof referralSentData>;
+
+/** `review.copilot.updated.v1` (review, spec 07c): the copilot of a case changed status. */
+export const copilotUpdatedData = z.object({
+  caseId: z.uuid(),
+  status: z.enum(['not-enabled', 'pending', 'ready', 'failed', 'stale']),
+});
+
+/** Why a reviewer rated an output as they did (`ai.feedback.recorded.v1` `reason`). */
+export const AI_FEEDBACK_REASONS = [
+  'inaccurate',
+  'missed-something',
+  'unclear',
+  'too-long',
+  'other',
+] as const;
+
+/**
+ * `ai.feedback.recorded.v1` (ai-gateway, spec 07c): a reviewer rated an output, or one block of
+ * it (`block`: a summary block, a flag's explanation; a rating counts the same either way). A
+ * rating changed later comes again under the same `feedbackId`. No note and no reviewer: nothing
+ * to keep out.
+ */
+export const aiFeedbackRecordedData = z.object({
+  feedbackId: z.uuid(),
+  jobId: z.uuid(),
+  task: z.string().min(1),
+  rating: z.enum(['helpful', 'not-helpful']),
+  reason: z.enum(AI_FEEDBACK_REASONS).nullable(),
+  block: z.string().max(64).nullish(),
+  recordedAt: z.iso.datetime({ offset: true }),
+});

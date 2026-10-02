@@ -86,7 +86,7 @@ export class DeclarantProfileController {
  * notifications service's token carries `directory:person-contacts`, and it names the tenant it
  * sends for in X-Acting-Tenant (ADR-013 §8.1, ADR-017); a declarant not onboarded there is 404.
  * Law-enforcement officers and applicants, who belong to no Commission, are reached for any
- * tenant (spec 10, ADR-013 §8.8).
+ * tenant (spec 10, ADR-013 §8.9).
  */
 @ApiTags('internal')
 @Controller('internal/v1/persons')

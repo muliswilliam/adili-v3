@@ -6,6 +6,8 @@ import { TemporalWorkerModule } from '@adili/temporal';
 import { ClarificationActivities } from '../clarifications/activities.js';
 import { ClockModule } from '../clock.module.js';
 import { ClosureActivities } from '../closures/activities.js';
+import { CopilotActivities } from '../copilot/activities.js';
+import { CopilotRequestsModule } from '../copilot/copilot-requests.module.js';
 import { DeterminationActivities } from '../determinations/activities.js';
 import { EnforcementActivities } from '../enforcement/activities.js';
 import { config } from '../config.js';
@@ -31,7 +33,7 @@ const workflowsPath = fileURLToPath(
  * Processing of submitted declarations (spec 07a): the `declaration.submitted.v1` consumer and the
  * review worker hosting `DeclarationProcessingWorkflow`, `ClarificationWorkflow`,
  * `DeterminationIssuanceWorkflow`, the bulk closure workflows, `EnforcementWorkflow`, the referral
- * workflows and their activities.
+ * workflows, the copilot's workflow and their activities.
  */
 @Module({
   imports: [
@@ -48,9 +50,11 @@ const workflowsPath = fileURLToPath(
         ClosureActivities,
         EnforcementActivities,
         ReferralActivities,
+        CopilotActivities,
       ],
       imports: [
         ClockModule,
+        CopilotRequestsModule,
         DeclarationsModule,
         DirectoryModule,
         DocumentsModule,

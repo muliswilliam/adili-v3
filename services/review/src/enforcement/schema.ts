@@ -13,6 +13,7 @@ import {
 } from 'drizzle-orm/pg-core';
 
 import { PROPOSER_KINDS } from '../approvals/schema.js';
+import { inList } from '../db/sql-list.js';
 
 /**
  * The enforcement ladder (spec 08, refines ADR-003): one ladder per overdue filing obligation or
@@ -105,8 +106,6 @@ export const LADDER_HISTORY_KINDS = [
   'payroll-instruction-acknowledged',
 ] as const;
 export type LadderHistoryKind = (typeof LADDER_HISTORY_KINDS)[number];
-
-const inList = (values: readonly string[]) => sql.raw(values.map((v) => `'${v}'`).join(', '));
 
 const timestamps = {
   createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),

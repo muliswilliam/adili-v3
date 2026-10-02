@@ -8,7 +8,7 @@ import { v7 as uuidv7 } from 'uuid';
 
 import { lockForDecision, requireProposed } from '../approvals/decisions.js';
 import { caseReviewersOfRecord } from '../approvals/separation-of-duties.js';
-import { caseTenant } from '../cases/access.js';
+import { caseTenant, notTheAssignee } from '../cases/access.js';
 import { type CaseRow, findCase, type ReviewTransaction, visibleId } from '../cases/case-lookup.js';
 import { changeCaseStatus } from '../cases/case-status.js';
 import { type CaseStatus, reviewTimeline, type TimelineKind } from '../cases/schema.js';
@@ -59,12 +59,7 @@ export class DeterminationsService {
     return withTenant(this.db, { tenant, subject: principal.subject }, async (tx) => {
       const reviewCase = await findCase(tx, tenant, caseId, { lock: true });
       if (reviewCase.assignee !== principal.subject) {
-        throw new ProblemException({
-          type: 'not-the-assignee',
-          title: 'Forbidden',
-          status: HttpStatus.FORBIDDEN,
-          detail: "Only the case's assignee can propose its determination.",
-        });
+        throw notTheAssignee("Only the case's assignee can propose its determination.");
       }
       if (reviewCase.openClarifications > 0) {
         throw new ProblemException(

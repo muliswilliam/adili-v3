@@ -67,6 +67,7 @@ import {
 import {
   type AnyItem,
   blockingGroups,
+  issueText,
   blockingTitle,
   childDetails,
   childrenEmptyText,
@@ -127,10 +128,13 @@ function BlockingPanel({
   declarationId,
   blocking,
   sections,
+  document,
 }: {
   declarationId: string;
   blocking: LoadedSummary['blocking'];
   sections: Sections;
+  /** Names the items the issues are on. */
+  document: SummaryDocument;
 }) {
   const headingId = useId();
   const { groups, hidden } = blockingGroups(blocking, sections);
@@ -148,7 +152,7 @@ function BlockingPanel({
               {group.issues.map((issue) => (
                 <li key={`${issue.path}-${issue.code}-${issue.message}`} className="list-disc">
                   <ErrorsLink declarationId={declarationId} step={group.key}>
-                    {issue.message}
+                    {issueText(issue, document)}
                   </ErrorsLink>
                 </li>
               ))}
@@ -761,6 +765,7 @@ export function SummaryView({ summary: loaded, stepUpMarker = null }: SummaryVie
           declarationId={declaration.id}
           blocking={blocking}
           sections={declaration.sections}
+          document={document}
         />
       ) : (
         <Alert variant="success">

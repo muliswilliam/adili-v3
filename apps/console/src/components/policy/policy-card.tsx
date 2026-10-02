@@ -20,7 +20,11 @@ import {
 import { useRouter } from '@tanstack/react-router';
 import { type ReactNode, useState } from 'react';
 
+import type { CommissionAiStatus } from '../../server/ai-status';
 import type { TenantPolicyHistory, TenantPolicyVersion } from '../../server/directory/client';
+import type { ServiceResult } from '../../server/service-call';
+import { AiStatusValue } from '../ai-policy/ai-status';
+import { messages as aiMessages } from '../ai-policy/messages';
 import { SectionCard } from '../page';
 import { messages as m } from './messages';
 import { PolicyDialogContent, type SavePolicyVersion } from './policy-dialog';
@@ -33,6 +37,8 @@ export interface PolicyCardProps {
    * tenant and platform admins); without it the card is read only.
    */
   save?: SavePolicyVersion;
+  /** Whether AI assistance is enabled for the Commission (spec 07c), for its own admins. */
+  aiStatus?: ServiceResult<CommissionAiStatus>;
   onUnauthenticated: () => void;
   className?: string;
 }
@@ -40,10 +46,17 @@ export interface PolicyCardProps {
 /**
  * The obligations policy of a Commission (spec 04 FE-4): statutory periods, reminder offsets, the
  * periods of access to declarations (spec 10, read only: each request's clock reads them as it
- * starts) and the obligations start date, which those who may change it do through a dialog that saves a new
- * version; then the version history, newest first.
+ * starts) and the obligations start date, which those who may change it do through a dialog that
+ * saves a new version; for the Commission's own admins whether AI assistance is enabled (spec 07c);
+ * then the version history, newest first.
  */
-export function PolicyCard({ history, save, onUnauthenticated, className }: PolicyCardProps) {
+export function PolicyCard({
+  history,
+  save,
+  aiStatus,
+  onUnauthenticated,
+  className,
+}: PolicyCardProps) {
   const router = useRouter();
   const { toast } = useToast();
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -132,6 +145,11 @@ export function PolicyCard({ history, save, onUnauthenticated, className }: Poli
             </Tooltip>
           </span>
         </PolicyRow>
+        {aiStatus ? (
+          <PolicyRow term={aiMessages.aiAssistance}>
+            <AiStatusValue status={aiStatus} />
+          </PolicyRow>
+        ) : null}
       </dl>
       <VersionHistory history={history} />
     </SectionCard>

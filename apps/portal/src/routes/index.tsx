@@ -22,6 +22,7 @@ import { orUnavailable } from '../components/dashboard/obligations';
 import { ObligationsSection } from '../components/dashboard/obligations-view';
 import { DISCARDED_TOAST } from '../components/declaration/discard-dialog';
 import { SignOutButton } from '../components/sign-out-button';
+import { getMyClarifications, type MyClarificationsLoad } from '../server/clarifications';
 import { getMyDeclarations } from '../server/declarations';
 import type { DeclarationListResult } from '../server/declarations.server';
 import { getMyAccessNotices, type NoticesLoad } from '../server/access-notices';
@@ -41,13 +42,14 @@ export const Route = createFileRoute('/')({
     if (viewer?.declarant.status === 'not-declarant' && (await isSignedInApplicant())) {
       throw redirect({ to: '/access/requests' });
     }
-    // Not awaited: the dashboard renders with skeleton cards, and the obligations and the
-    // declarations stream in, each on its own.
+    // Not awaited: the dashboard renders with skeleton cards, and the obligations, the
+    // declarations, the clarifications and the access notices stream in, each on its own.
     const obligations = viewer ? orUnavailable(getMyObligations()) : null;
     const onboarded = viewer?.declarant.status === 'onboarded';
     const declarations = onboarded ? loadDeclarations() : null;
+    const clarifications = onboarded ? loadClarifications() : null;
     const accessNotices = onboarded ? loadAccessNotices() : null;
-    return { viewer, obligations, declarations, accessNotices };
+    return { viewer, obligations, declarations, clarifications, accessNotices };
   },
   component: Home,
 });
@@ -68,8 +70,17 @@ async function loadAccessNotices(): Promise<NoticesLoad> {
   return notices.status === 'unauthenticated' ? { status: 'unavailable', now } : notices;
 }
 
+/** The declarant's clarifications; an ended session or a failed call reads as unavailable. */
+async function loadClarifications(): Promise<MyClarificationsLoad> {
+  const load = await getMyClarifications().catch(
+    () => ({ status: 'unavailable', now: new Date().toISOString() }) as const,
+  );
+  return load.status === 'unauthenticated' ? { status: 'unavailable', now: load.now } : load;
+}
+
 function Home() {
-  const { viewer, obligations, declarations, accessNotices } = Route.useLoaderData();
+  const { viewer, obligations, declarations, clarifications, accessNotices } =
+    Route.useLoaderData();
   const { auth_error, discarded } = Route.useSearch();
   return viewer && obligations ? (
     <Dashboard
@@ -77,6 +88,7 @@ function Home() {
       obligations={obligations}
       declarations={declarations}
       accessNotices={accessNotices}
+      clarifications={clarifications}
       discarded={discarded === true}
     />
   ) : (
@@ -140,12 +152,14 @@ function Dashboard({
   obligations,
   declarations,
   accessNotices,
+  clarifications,
   discarded,
 }: {
   viewer: Viewer;
   obligations: Promise<MyObligationsResult>;
   declarations: Promise<DeclarationListResult> | null;
   accessNotices: Promise<NoticesLoad> | null;
+  clarifications: Promise<MyClarificationsLoad> | null;
   discarded: boolean;
 }) {
   const firstName = viewer.user.name.split(' ')[0];
@@ -169,6 +183,7 @@ function Dashboard({
             viewer={viewer}
             declarations={declarations}
             accessNotices={accessNotices}
+            clarifications={clarifications}
             obligations={
               <ObligationsSection
                 obligations={obligations}

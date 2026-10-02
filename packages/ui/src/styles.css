@@ -40,6 +40,8 @@
   --warning: oklch(0.529 0.119 64.3); /* #9a5a00 */
   --warning-subtle: oklch(0.969 0.026 84.6); /* #fdf4e2 */
   --warning-subtle-foreground: oklch(0.413 0.091 67.8); /* #6b4000 */
+  /* A non-text warning mark, e.g. a medium severity stripe: brighter than --warning text. */
+  --warning-mark: oklch(0.699 0.152 69.6); /* #d98a00 */
   --success: oklch(0.511 0.128 151.3); /* #167a3e */
   --success-subtle: oklch(0.961 0.017 159.1); /* #e9f6ee */
   --success-subtle-foreground: oklch(0.412 0.102 151.5); /* #0f5a2d */
@@ -47,13 +49,35 @@
   --info-subtle: oklch(0.956 0.015 257.2); /* #eaf1fb */
   --info-subtle-foreground: oklch(0.436 0.128 258.5); /* #1f4f96 */
   --ai: oklch(0.536 0.215 287.5); /* #6d4ae0 */
+  --ai-foreground: oklch(1 0 0); /* #ffffff, text on --ai */
   --ai-subtle: oklch(0.954 0.022 297.4); /* #f1edfd */
   --ai-subtle-foreground: oklch(0.394 0.178 284.9); /* #43299f */
+  /* A hovered solid AI button (the kit's .btn-ai:hover). */
+  --ai-hover: color-mix(in oklch, var(--ai), black 12%);
   /* Brand orange for UI accents. The logo keeps its own colour, --logo. */
   --brand: oklch(0.648 0.188 39); /* #e95a24 */
   --brand-subtle: oklch(0.963 0.017 50.4); /* #fdf0e9 */
   --brand-subtle-foreground: oklch(0.539 0.162 40); /* #b8430f */
   --brand-faint: oklch(0.98 0.009 52.1); /* #fef7f3: selected rows, drag-over */
+  /* An officer's initials (AssigneeChip, NoteList); the signed-in officer's take the brand. */
+  --avatar: oklch(0.925 0.029 294.6); /* #e7e3f8 */
+  --avatar-foreground: oklch(0.425 0.152 285.9); /* #4b3a9c */
+  /* Household members' avatars in a declaration: the declarant warm, spouses blue, children
+     green (the kit's gradients, from the light stop to the solid one). */
+  --household-declarant: oklch(0.825 0.094 52.2); /* #f7b58d, to --brand */
+  --household-spouse: oklch(0.821 0.067 255.5); /* #a8c7f0 */
+  --household-spouse-solid: oklch(0.549 0.144 259.5); /* #3a6fc4 */
+  --household-child: oklch(0.877 0.063 151.4); /* #b9e3c2 */
+  --household-child-solid: oklch(0.598 0.135 152.2); /* #2f9656 */
+  /* A printed letter shown on screen (a clarification letter preview): white paper and near-black
+     ink in both themes, the Commission's seal, and a hairline with a soft lift. */
+  --paper: oklch(1 0 0); /* #ffffff */
+  --paper-foreground: oklch(0.252 0 0); /* #222222 */
+  --seal: oklch(0.322 0.042 160.2); /* #1f3a2c */
+  --seal-foreground: oklch(1 0 0);
+  /* An internal note (NoteList): warm paper with a hairline. */
+  --note: oklch(0.994 0.008 91.5); /* #fffdf7 */
+  --note-border: oklch(0.929 0.033 89.9); /* #f0e7cf */
   /* A highlighter mark on printed text, e.g. the verification code in a sample footer. */
   --highlight: oklch(0.966 0.066 98.2); /* #fff5c2 */
   --logo: oklch(0.669 0.189 40.8); /* #f06225: the Dials logo only */
@@ -99,6 +123,10 @@
     0 0 0 1.5px var(--destructive),
     0 0 0 4px color-mix(in oklch, var(--destructive) 12%, transparent);
   --elevation-card: 0 1px 2px rgb(20 20 20 / 0.04), 0 0 0 1px var(--border);
+  --elevation-paper: 0 1px 3px rgb(0 0 0 / 0.08), 0 0 0 1px var(--border);
+  /* A card holding AI content the reviewer is editing (a drafted clarification item): the card
+     hairline with an AI stripe down its left edge. */
+  --elevation-card-ai: var(--elevation-card), inset 3px 0 0 var(--ai);
   --elevation-card-editing: 0 0 0 1.5px var(--ring), 0 8px 24px -12px rgb(20 20 20 / 0.2);
   --elevation-pop: 0 12px 40px -8px rgb(20 20 20 / 0.22), 0 0 0 1px rgb(20 20 20 / 0.06);
   --elevation-button-primary: 0 1px 2px rgb(0 0 0 / 0.25), inset 0 1px 0 rgb(255 255 255 / 0.12);
@@ -132,6 +160,7 @@
     --warning: oklch(0.756 0.133 75.8); /* #e0a341 */
     --warning-subtle: oklch(0.272 0.045 78.4); /* #33240a */
     --warning-subtle-foreground: oklch(0.885 0.082 80.9); /* #f5d49b */
+    --warning-mark: var(--warning);
     --success: oklch(0.702 0.143 152.5); /* #4bb872 */
     --success-subtle: oklch(0.28 0.049 155.1); /* #12301e */
     --success-subtle-foreground: oklch(0.864 0.083 155.5); /* #a6e3bb */
@@ -139,6 +168,7 @@
     --info-subtle: oklch(0.26 0.052 259); /* #14243d */
     --info-subtle-foreground: oklch(0.848 0.06 257.8); /* #b5cff5 */
     --ai: oklch(0.705 0.152 293.4); /* #a58bf5 */
+    --ai-foreground: oklch(0.205 0.06 289); /* #150f2b */
     --ai-subtle: oklch(0.255 0.078 289.4); /* #231a45 */
     --ai-subtle-foreground: oklch(0.844 0.08 295.1); /* #cfc2fb */
     --brand: oklch(0.681 0.178 40.3); /* #f06a36 */
@@ -155,6 +185,10 @@
     --glow: oklch(0.35 0.05 45);
     --glow-soft: oklch(0.25 0.03 45);
     --highlight: var(--warning-subtle);
+    --avatar: oklch(0.281 0.051 292.7); /* #2a2440 */
+    --avatar-foreground: oklch(0.842 0.07 294); /* #cdc3f5 */
+    --note: oklch(0.24 0.01 88.8); /* #211f1a */
+    --note-border: oklch(0.327 0.025 87.5); /* #3a3426 */
 
     --elevation-control: 0 1px 2px rgb(0 0 0 / 0.3), 0 0 0 1px var(--border);
     --elevation-control-hover: 0 1px 2px rgb(0 0 0 / 0.3), 0 0 0 1px var(--input);
@@ -189,6 +223,7 @@
   --color-warning: var(--warning);
   --color-warning-subtle: var(--warning-subtle);
   --color-warning-subtle-foreground: var(--warning-subtle-foreground);
+  --color-warning-mark: var(--warning-mark);
   --color-success: var(--success);
   --color-success-subtle: var(--success-subtle);
   --color-success-subtle-foreground: var(--success-subtle-foreground);
@@ -196,13 +231,28 @@
   --color-info-subtle: var(--info-subtle);
   --color-info-subtle-foreground: var(--info-subtle-foreground);
   --color-ai: var(--ai);
+  --color-ai-foreground: var(--ai-foreground);
   --color-ai-subtle: var(--ai-subtle);
   --color-ai-subtle-foreground: var(--ai-subtle-foreground);
+  --color-ai-hover: var(--ai-hover);
   --color-brand: var(--brand);
   --color-brand-subtle: var(--brand-subtle);
   --color-brand-subtle-foreground: var(--brand-subtle-foreground);
   --color-brand-faint: var(--brand-faint);
   --color-highlight: var(--highlight);
+  --color-avatar: var(--avatar);
+  --color-avatar-foreground: var(--avatar-foreground);
+  --color-household-declarant: var(--household-declarant);
+  --color-household-spouse: var(--household-spouse);
+  --color-household-spouse-solid: var(--household-spouse-solid);
+  --color-household-child: var(--household-child);
+  --color-household-child-solid: var(--household-child-solid);
+  --color-paper: var(--paper);
+  --color-paper-foreground: var(--paper-foreground);
+  --color-seal: var(--seal);
+  --color-seal-foreground: var(--seal-foreground);
+  --color-note: var(--note);
+  --color-note-border: var(--note-border);
   --color-logo: var(--logo);
   --color-border: var(--border);
   --color-input: var(--input);
@@ -235,6 +285,8 @@
   --shadow-control-error-focus: var(--elevation-control-error-focus);
   --shadow-control-selected: var(--elevation-control-selected);
   --shadow-card: var(--elevation-card);
+  --shadow-paper: var(--elevation-paper);
+  --shadow-card-ai: var(--elevation-card-ai);
   --shadow-card-editing: var(--elevation-card-editing);
   --shadow-pop: var(--elevation-pop);
   --shadow-button-primary: var(--elevation-button-primary);
@@ -244,12 +296,34 @@
 
 /* Skeleton shimmer, the indeterminate progress sweep, the drawer's slide in and the chat's typing marks. */
 @theme {
+  /* Something just opened (a Copilot flag from "Worth attention"): a brand ring fading to the card's hairline. */
+  --animate-pulse-ring: pulse-ring 1.6s ease-out;
+  /* The `data-target-highlight` target fading from brand-subtle to brand-faint. */
+  --animate-highlight: highlight 1.6s ease-out;
   --animate-shimmer: shimmer 1.2s linear infinite;
   --animate-indeterminate: indeterminate 1.3s ease-in-out infinite;
   --animate-drawer-in: drawer-in 0.22s cubic-bezier(0.2, 0.9, 0.3, 1);
   /* A streaming answer's caret and the three dots while Adili is thinking. */
   --animate-caret: caret 1s steps(2) infinite;
   --animate-typing: typing 1.2s infinite;
+
+  @keyframes pulse-ring {
+    0% {
+      box-shadow: 0 0 0 3px var(--color-brand);
+    }
+    100% {
+      box-shadow: var(--shadow-card);
+    }
+  }
+
+  @keyframes highlight {
+    0% {
+      background-color: var(--color-brand-subtle);
+    }
+    100% {
+      background-color: var(--color-brand-faint);
+    }
+  }
 
   @keyframes caret {
     50% {
@@ -292,6 +366,37 @@
       transform: translateX(330%);
     }
   }
+}
+
+/*
+ * The target of a link into a long page (a Copilot source opened in the declaration pane), marked
+ * for a moment with a brand edge: the app sets `data-target-highlight` on it and takes it off
+ * again. Not Base UI's `data-highlighted` (the item under the pointer in a menu or select).
+ */
+@layer components {
+  [data-target-highlight] {
+    background-color: var(--color-brand-faint);
+    box-shadow: inset 3px 0 0 var(--color-brand);
+    animation: var(--animate-highlight);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    [data-target-highlight] {
+      animation: none;
+    }
+  }
+}
+
+/*
+ * A responsive table cell's heading on phones, read from its `data-label` (use as
+ * `max-sm:before:content-data-label`). The empty alternative text keeps screen readers from
+ * reading the heading twice; Safari before 17.4 rejects that syntax, so the plain `attr()` comes
+ * first as its fallback. A pair of `content-[...]` classes would not do: they set `--tw-content`,
+ * and a custom property never falls back.
+ */
+@utility content-data-label {
+  content: attr(data-label);
+  content: attr(data-label) / '';
 }
 
 /* The onboarding page background: the page colour with a warm glow rising from the bottom. */

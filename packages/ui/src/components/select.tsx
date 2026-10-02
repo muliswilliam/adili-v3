@@ -115,3 +115,20 @@ export function SelectItem({
     </SelectPrimitive.Item>
   );
 }
+
+/** Options under a heading, e.g. "Flags" and "Items" in one list. */
+export function SelectGroup({
+  label,
+  className,
+  children,
+  ...props
+}: ComponentProps<typeof SelectPrimitive.Group> & { label: ReactNode }) {
+  return (
+    <SelectPrimitive.Group className={cn('not-first:mt-1.5', className)} {...props}>
+      <SelectPrimitive.Label className="px-2.5 pt-1.5 pb-1 text-xs font-semibold text-muted-foreground">
+        {label}
+      </SelectPrimitive.Label>
+      {children}
+    </SelectPrimitive.Group>
+  );
+}

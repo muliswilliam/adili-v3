@@ -6,6 +6,7 @@ import {
   Key01Icon,
   Shield01Icon,
   SquareLock02Icon,
+  SparklesIcon,
   UserGroupIcon,
 } from '@hugeicons/core-free-icons';
 
@@ -54,6 +55,7 @@ const NAV: { label: string; items: NavDefinition[] }[] = [
       { workspace: 'commissions', icon: Building03Icon },
       { workspace: 'national-obligations', icon: ChartColumnIcon },
       { workspace: 'platform', icon: Shield01Icon, label: 'Law enforcement' },
+      { workspace: 'ai-policy', icon: SparklesIcon },
     ],
   },
   {

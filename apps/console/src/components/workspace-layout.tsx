@@ -24,6 +24,7 @@ const m = en;
  * The layout guard of a workspace's routes: the console shell around the page when the viewer
  * has the workspace; otherwise, under the workspace's title, a retry when their access could not
  * be loaded, that it is not theirs (with the way back), or that the account has no staff role.
+ * `open` renders the pages without the workspace too, for pages whose loaders refuse on their own.
  */
 export function WorkspaceLayout({
   viewer,
@@ -31,6 +32,7 @@ export function WorkspaceLayout({
   workspace,
   title,
   forbidden,
+  open = false,
   children,
 }: {
   viewer: Viewer;
@@ -40,12 +42,14 @@ export function WorkspaceLayout({
   title: string;
   /** Why the viewer cannot open it, e.g. "You do not have access to access requests." */
   forbidden: string;
+  /** Render the pages even without the workspace, e.g. a review case that reads as missing (S18). */
+  open?: boolean;
   /** The workspace's pages: the route's `Outlet`. */
   children: ReactNode;
 }) {
   return (
     <ConsoleShell userName={viewer.user.name} roles={roles}>
-      {viewer.directory.ok && workspace ? (
+      {viewer.directory.ok && (workspace || open) ? (
         children
       ) : (
         <Page narrow>

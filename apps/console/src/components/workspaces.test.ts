@@ -236,3 +236,24 @@ describe('S16 National obligations workspace', () => {
     },
   );
 });
+
+describe('S16 AI policy workspace', () => {
+  it('opens for platform admins', () => {
+    expect(workspaceFor(['platform-admin'], 'ai-policy')).toMatchObject({
+      href: '/ai-policy',
+      readOnly: false,
+    });
+  });
+
+  it.each([
+    'eacc-analyst',
+    'eacc-supervisor',
+    'commission-admin',
+    'supervisor',
+    'reviewer',
+    'reporting-officer',
+    'auditor',
+  ])('stays closed for %s', (role) => {
+    expect(workspaceFor([role], 'ai-policy')).toBeUndefined();
+  });
+});
