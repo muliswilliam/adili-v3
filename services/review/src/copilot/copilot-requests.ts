@@ -31,6 +31,7 @@ import {
   type NotEnabledPage,
 } from './contract.js';
 import { copilotInputs } from './copilot-inputs.js';
+import { isCopilotOutput } from './output-schema.js';
 import { COPILOT_PROMPT_VERSIONS } from './prompt-versions.js';
 import { caseSubjectRef, type CopilotUpdatedData, REVIEW_COPILOT_UPDATED } from './events.js';
 import { type CopilotRow, type CopilotStatus, reviewCopilots } from './schema.js';
@@ -180,6 +181,8 @@ export class CopilotRequests {
         requestedExplanationsJobId: explain?.id ?? null,
         requestedAt: new Date(),
         failureReason: null,
+        // A new request's outputs replace whatever an earlier one staged.
+        ...(inFlight ? {} : NO_STAGED_OUTPUTS),
       };
       // An upsert: two first requests at once (the workflow and a refresh) write in turn.
       await tx
@@ -210,6 +213,20 @@ export class CopilotRequests {
     if (!record || !isRequested(record, jobId)) return;
     const job = await this.gateway.getJob(tenant, jobId);
     if (job) await this.record(tenant, caseId, job);
+  }
+
+  /**
+   * Pulls the latest request's jobs from the gateway and records those that have ended: for a
+   * copilot still `pending` whose job events were lost (a consumer that could not start its
+   * workflow dead-letters the event), so a refresh never finds it stuck.
+   *
+   * Throws `AiGatewayUnavailable`.
+   */
+  async settle(tenant: string, caseId: string): Promise<void> {
+    const record = await withTenant(this.db, systemContext(tenant), (tx) => copilotOf(tx, caseId));
+    for (const jobId of [record?.requestedSummaryJobId, record?.requestedExplanationsJobId]) {
+      if (jobId) await this.recordJob(tenant, caseId, jobId);
+    }
   }
 
   /**
@@ -283,62 +300,68 @@ export class CopilotRequests {
 
   private async record(tenant: string, caseId: string, job: AiJob): Promise<void> {
     if (!isFinished(job)) return;
-    const sealed =
-      job.status === 'succeeded' && job.output !== null
-        ? await this.seal(tenant, caseId, job)
-        : null;
+    const slot = await withTenant(this.db, systemContext(tenant), async (tx) =>
+      slotOf(await copilotOf(tx, caseId), job.id),
+    );
+    if (slot === null) return;
+    // An output outside the contract (or none) fails the copilot as the gateway's validation would.
+    const valid = job.status === 'succeeded' && isCopilotOutput(slot, job.output);
+    const sealed = valid ? await this.seal(tenant, caseId, job) : null;
 
     await withTenant(this.db, systemContext(tenant), async (tx) => {
       const locked = await copilotOf(tx, caseId, { lock: true });
-      if (!locked || !isRequested(locked, job.id)) return;
+      if (!locked || slotOf(locked, job.id) !== slot) return;
       const next: Partial<typeof reviewCopilots.$inferInsert> = {};
       let status = locked.status;
+      const producing = status === 'pending' || status === 'stale';
 
       if (sealed) {
-        Object.assign(
-          next,
-          job.id === locked.requestedSummaryJobId
+        // An output of a request that already ended (ready, failed, not enabled) changes nothing.
+        if (!producing) return;
+        const staged =
+          slot === 'summary'
             ? {
-                summaryJobId: job.id,
-                summaryPromptVersion: job.promptVersion,
-                summaryCiphertext: sealed.ciphertext,
-                summaryEnvelope: sealed.envelope,
+                stagedSummaryPromptVersion: job.promptVersion,
+                stagedSummaryCiphertext: sealed.ciphertext,
+                stagedSummaryEnvelope: sealed.envelope,
               }
             : {
-                explanationsJobId: job.id,
-                explanationsPromptVersion: job.promptVersion,
-                explanationsCiphertext: sealed.ciphertext,
-                explanationsEnvelope: sealed.envelope,
-              },
-        );
-        const after = { ...locked, ...next };
+                stagedExplanationsPromptVersion: job.promptVersion,
+                stagedExplanationsCiphertext: sealed.ciphertext,
+                stagedExplanationsEnvelope: sealed.envelope,
+              };
+        const after = { ...locked, ...staged };
         const complete =
-          after.summaryJobId === locked.requestedSummaryJobId &&
+          after.stagedSummaryCiphertext !== null &&
           (locked.requestedExplanationsJobId === null ||
-            after.explanationsJobId === locked.requestedExplanationsJobId);
-        // A failed or blocked job of the same request keeps the record failed or not enabled.
-        if (complete && (status === 'pending' || status === 'stale')) {
+            after.stagedExplanationsCiphertext !== null);
+        if (complete) {
+          // Every output of the request has arrived: they replace the shown ones together.
           status = 'ready';
           Object.assign(next, {
             generatedForVersionId: locked.forVersionId,
             generatedAt: new Date(),
+            summaryJobId: locked.requestedSummaryJobId,
+            summaryPromptVersion: after.stagedSummaryPromptVersion,
+            summaryCiphertext: after.stagedSummaryCiphertext,
+            summaryEnvelope: after.stagedSummaryEnvelope,
             // A first version's request has no explanations to show.
-            ...(locked.requestedExplanationsJobId === null
-              ? {
-                  explanationsJobId: null,
-                  explanationsPromptVersion: null,
-                  explanationsCiphertext: null,
-                  explanationsEnvelope: null,
-                }
-              : {}),
+            explanationsJobId: locked.requestedExplanationsJobId,
+            explanationsPromptVersion: after.stagedExplanationsPromptVersion,
+            explanationsCiphertext: after.stagedExplanationsCiphertext,
+            explanationsEnvelope: after.stagedExplanationsEnvelope,
+            ...NO_STAGED_OUTPUTS,
           });
+        } else {
+          Object.assign(next, staged);
         }
       } else if (job.status === 'blocked' && job.reason === 'policy') {
         status = 'not-enabled';
         next.failureReason = 'policy';
-      } else if (job.status !== 'succeeded' && status !== 'not-enabled') {
+      } else if (status !== 'not-enabled' && status !== 'ready') {
+        // A failed or blocked job of the same request keeps the record failed or not enabled.
         status = 'failed';
-        next.failureReason = job.reason ?? 'provider';
+        next.failureReason = job.status === 'succeeded' ? 'validation' : (job.reason ?? 'provider');
       }
 
       next.status = status;
@@ -466,8 +489,25 @@ export async function copilotOf(
 }
 
 function isRequested(record: CopilotRow, jobId: string): boolean {
-  return record.requestedSummaryJobId === jobId || record.requestedExplanationsJobId === jobId;
+  return slotOf(record, jobId) !== null;
 }
+
+/** Which output of the latest request job `jobId` produces; null when it is not one of its jobs. */
+function slotOf(record: CopilotRow | undefined, jobId: string): 'summary' | 'explanations' | null {
+  if (record?.requestedSummaryJobId === jobId) return 'summary';
+  if (record?.requestedExplanationsJobId === jobId) return 'explanations';
+  return null;
+}
+
+/** The staged outputs cleared: a new request, or the request's outputs shown. */
+const NO_STAGED_OUTPUTS = {
+  stagedSummaryPromptVersion: null,
+  stagedSummaryCiphertext: null,
+  stagedSummaryEnvelope: null,
+  stagedExplanationsPromptVersion: null,
+  stagedExplanationsCiphertext: null,
+  stagedExplanationsEnvelope: null,
+} as const;
 
 function hasOutputs(record: CopilotRow | undefined): boolean {
   return record?.summaryCiphertext != null;

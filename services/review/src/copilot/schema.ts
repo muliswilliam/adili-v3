@@ -31,9 +31,10 @@ const inList = (values: readonly string[]) => sql.raw(values.map((v) => `'${v}'`
  * The outputs hold declaration content, so they are stored only encrypted under the Commission's
  * key (ADR-006), each bound to the case and to what it is; they never appear in events or logs.
  *
- * Two sets of job ids: the jobs of the latest request (`requestedSummaryJobId`, `requestedExplanationsJobId`) and the
- * jobs whose outputs are stored (`summaryJobId`, `explanationsJobId`). They agree once the
- * request's outputs have arrived; until then the stored ones are an earlier version's (`stale`).
+ * Two sets of job ids: the jobs of the latest request (`requestedSummaryJobId`,
+ * `requestedExplanationsJobId`, their outputs `staged*` as they arrive) and the jobs whose outputs
+ * are shown (`summaryJobId`, `explanationsJobId`). They agree once every output of the request has
+ * arrived; until then the shown ones are an earlier request's (`stale`).
  */
 export const reviewCopilots = pgTable(
   'review_copilots',
@@ -68,6 +69,17 @@ export const reviewCopilots = pgTable(
     /** Base64 AES-256-GCM ciphertext of the `ExplainFlagsOutput`. */
     explanationsCiphertext: text(),
     explanationsEnvelope: jsonb().$type<FieldEnvelope>(),
+    /**
+     * The outputs of the latest request's jobs that have arrived, held until every job of the
+     * request has its output: then they replace the stored ones together, so the panel never
+     * mixes one version's summary with another's explanations. Cleared by the next request.
+     */
+    stagedSummaryPromptVersion: integer(),
+    stagedSummaryCiphertext: text(),
+    stagedSummaryEnvelope: jsonb().$type<FieldEnvelope>(),
+    stagedExplanationsPromptVersion: integer(),
+    stagedExplanationsCiphertext: text(),
+    stagedExplanationsEnvelope: jsonb().$type<FieldEnvelope>(),
     updatedAt: timestamp({ withTimezone: true })
       .notNull()
       .defaultNow()

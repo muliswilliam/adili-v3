@@ -11,7 +11,8 @@ import { declarationsUnavailable } from '../internal-api/upstream.js';
 import { type CopilotRatingView, ratingsOf } from './copilot-feedback.js';
 import { copilotOf, CopilotRequests, openOutput } from './copilot-requests.js';
 import { aiGatewayUnavailable } from './problems.js';
-import type { CopilotStatus } from './schema.js';
+import { systemContext } from '../system-context.js';
+import type { CopilotRow, CopilotStatus } from './schema.js';
 
 /** review.yaml `CopilotView`. */
 export interface CopilotView {
@@ -88,7 +89,8 @@ export class CopilotService {
 
   /**
    * Requests the copilot again (S11): the case's assignee or a supervisor of the Commission; any
-   * other reviewer gets 403. 409 while the outputs of a first request are still produced. A
+   * other reviewer gets 403. 409 while the outputs of a first request are still produced (its jobs
+   * are pulled first, so a copilot whose job events were lost is recorded, not stuck). A
    * copilot that was not enabled is requested again: the gateway decides whether the Commission
    * may use AI now. The declaration is read for the caller.
    */
@@ -111,15 +113,10 @@ export class CopilotService {
       });
     }
     if (record?.status === 'pending') {
-      throw new ProblemException(
-        {
-          type: 'copilot-pending',
-          title: 'Copilot already requested',
-          status: HttpStatus.CONFLICT,
-          detail: 'The summary and explanations are being prepared.',
-        },
-        { code: 'copilot-pending' },
-      );
+      // The jobs may have ended with their events lost: pull them before refusing.
+      const settled = await this.settled(tenant, row.id);
+      if (settled?.status === 'ready') return this.view(principal, row.id);
+      if (settled?.status === 'pending') throw copilotPending();
     }
 
     try {
@@ -136,4 +133,28 @@ export class CopilotService {
     }
     return this.view(principal, row.id);
   }
+
+  /** The record after the latest request's ended jobs are pulled and recorded. */
+  private async settled(tenant: string, caseId: string): Promise<CopilotRow | undefined> {
+    try {
+      await this.requests.settle(tenant, caseId);
+    } catch (error) {
+      if (error instanceof AiGatewayUnavailable) throw aiGatewayUnavailable();
+      throw error;
+    }
+    return withTenant(this.db, systemContext(tenant), (tx) => copilotOf(tx, caseId));
+  }
+}
+
+/** 409: the outputs of a first request are still being produced. */
+function copilotPending(): ProblemException {
+  return new ProblemException(
+    {
+      type: 'copilot-pending',
+      title: 'Copilot already requested',
+      status: HttpStatus.CONFLICT,
+      detail: 'The summary and explanations are being prepared.',
+    },
+    { code: 'copilot-pending' },
+  );
 }

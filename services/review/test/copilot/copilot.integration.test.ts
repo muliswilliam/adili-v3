@@ -573,6 +573,95 @@ describe('review copilot', () => {
       expect((await copilotRow(caseId))?.attempt).toBe(3);
     });
 
+    it('refresh while pending pulls the jobs again, so a copilot whose job events were lost is not stuck', async () => {
+      const { first } = versions();
+      api.declarations.given(first);
+      const { caseId, row } = await createdCase(first);
+      await assign(caseId, 'reviewer-a');
+
+      // The jobs end, but their events never reach the workflow (dead-lettered).
+      api.ai.succeed(row.requestedSummaryJobId ?? '', summaryOutput());
+      api.ai.succeed(
+        row.requestedExplanationsJobId ?? '',
+        explanationsOutput(await flagIdsOf(caseId)),
+      );
+      const jobs = api.ai.created.length;
+
+      const refresh = await api.send('POST', refreshPath(caseId), reviewerA);
+      expect(refresh.statusCode).toBe(202);
+      expect(refresh.json<CopilotView>()).toMatchObject({
+        status: 'ready',
+        summary: { overview: OVERVIEW },
+      });
+      // The outputs were pulled, not asked for again.
+      expect(api.ai.created).toHaveLength(jobs);
+    });
+
+    it('a job that succeeded without a valid output fails the copilot as validation, storing nothing', async () => {
+      const { first } = versions();
+      api.declarations.given(first);
+      const { caseId, row } = await createdCase(first);
+
+      await deliver(
+        api.ai.succeed(row.requestedSummaryJobId ?? '', { label: label('summarize-declaration') }),
+      );
+      const failed = await untilStatus(caseId, 'failed');
+      expect(failed).toMatchObject({ failureReason: 'validation', summaryCiphertext: null });
+
+      // A job that succeeded with no output at all, the same.
+      await api.asPlatform((tx) =>
+        tx
+          .update(reviewCopilots)
+          .set({ status: 'pending', failureReason: null })
+          .where(eq(reviewCopilots.caseId, caseId)),
+      );
+      await deliver(
+        api.ai.succeed(
+          row.requestedExplanationsJobId ?? '',
+          null as unknown as Record<string, unknown>,
+        ),
+      );
+      expect(await untilStatus(caseId, 'failed')).toMatchObject({
+        failureReason: 'validation',
+        explanationsCiphertext: null,
+      });
+    });
+
+    it('outputs are shown together: a newer summary waits for its explanations while stale', async () => {
+      const { first, second } = versions();
+      api.declarations.given(first, second);
+      const { caseId } = await createdCase(first);
+      await completeJobs(caseId, 'Version 1 overview.');
+
+      await processedFromInbox(api, second);
+      const stale = await untilStatus(caseId, 'stale');
+      await deliver(
+        api.ai.succeed(stale.requestedSummaryJobId ?? '', summaryOutput('Version 2 overview.')),
+      );
+      await vi.waitFor(async () => {
+        const row = await copilotRow(caseId);
+        if (row?.stagedSummaryCiphertext == null) throw new Error('summary not staged yet');
+      });
+      // The summary shown is still version 1's, with version 1's explanations.
+      expect(await view(caseId)).toMatchObject({
+        status: 'stale',
+        forVersionId: first.versionId,
+        summary: { overview: 'Version 1 overview.' },
+      });
+
+      await completeJobs(caseId, 'Version 2 overview.');
+      expect(await view(caseId)).toMatchObject({
+        status: 'ready',
+        forVersionId: second.versionId,
+        summary: { overview: 'Version 2 overview.' },
+        jobs: { summarize: stale.requestedSummaryJobId, explain: stale.requestedExplanationsJobId },
+      });
+      expect(await copilotRow(caseId)).toMatchObject({
+        stagedSummaryCiphertext: null,
+        stagedExplanationsCiphertext: null,
+      });
+    });
+
     it('refresh with the gateway unreachable is 503 and changes nothing', async () => {
       const { first } = versions();
       api.declarations.given(first);
