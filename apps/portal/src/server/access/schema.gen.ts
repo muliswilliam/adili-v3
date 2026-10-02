@@ -509,7 +509,7 @@ export interface paths {
         };
         /**
          * Who accessed my declaration (register entries visible to the declarant)
-         * @description Newest first: Form K requests about the declarant from notification on (notified, representations, decision, package, downloads, expiry, withdrawal), law enforcement requests from the grant on (decision, package, downloads, expiry), and their certified copies. Staff and law enforcement officers are not named.
+         * @description Newest first: Form K requests about the declarant from notification on (notified, representations, decision, package, downloads, expiry, withdrawal), law enforcement requests from the grant on (decision, package, downloads, expiry), and their certified copies. Entries about a Form K request carry the applicant, the purpose the notice gave and the scope (requested before the decision, granted from it); those about a law enforcement request only the agency and case. Staff and law enforcement officers are not named.
          */
         get: operations["getMyAccessHistory"];
         put?: never;
@@ -1039,6 +1039,8 @@ export interface components {
             };
             requester: string | null;
             caseReference: string | null;
+            purposeInGeneralTerms: string | null;
+            scope: components["schemas"]["Scope"] | null;
             outcome: components["schemas"]["Outcome"] | null;
             certifiedCopy: components["schemas"]["HistoryCertifiedCopy"] | null;
             packageKind: ("access-package" | "nil-letter") | null;
@@ -3318,6 +3320,15 @@ export interface operations {
             };
             /** @description Not a declarant */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description The key service cannot be reached */
+            503: {
                 headers: {
                     [name: string]: unknown;
                 };

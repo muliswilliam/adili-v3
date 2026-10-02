@@ -14,6 +14,7 @@ import {
   toRegisterEntry,
 } from '../register/representation.js';
 import { commissionRefSchema } from '../requests/representation.js';
+import { type Scope, scopeSchema } from '../scope.js';
 
 /**
  * What the declarant sees of each kind of subject (spec 10 S12): a Form K request from the moment
@@ -65,6 +66,17 @@ export const accessHistoryEntrySchema = registerEntrySchema.extend({
   requester: z.string().nullable(),
   /** The agency's case reference (law enforcement); null otherwise. */
   caseReference: z.string().nullable(),
+  /**
+   * Why the applicant asked, as the notice told the declarant (Form K Part III's reason); null
+   * for a law enforcement request (its reason is never told, decision 4) and a certified copy.
+   */
+  purposeInGeneralTerms: z.string().nullable(),
+  /**
+   * What the Form K request reaches: the scope requested on steps before the decision, the scope
+   * granted on the decision and the steps after it (null after a denial); null for a law
+   * enforcement request (its scope is withheld, decision 4) and a certified copy.
+   */
+  scope: scopeSchema.nullable(),
   /** A `decided` entry's outcome; null for every other kind. */
   outcome: outcomeSchema.nullable(),
   /** A `self-access` entry's certified copy; null for every other kind. */
@@ -85,6 +97,10 @@ export interface HistorySubject {
   commission: { slug: string; name: string };
   requester: string | null;
   caseReference: string | null;
+  /** Form K only: the applicant's stated reason; null otherwise. */
+  purposeInGeneralTerms: string | null;
+  /** Form K only: the scope requested and, once decided, the scope granted (null on a denial). */
+  formKScope: { requested: Scope; decided: boolean; granted: Scope | null } | null;
   /** What the request's grant delivered; null before (or without) one, and for a certified copy. */
   packageKind: PackageKind | null;
 }
@@ -101,6 +117,9 @@ const NIL_LETTER_SUMMARIES: Partial<Record<AccessRegisterKind, string>> = {
   'package-issued': 'Nil letter issued',
   downloaded: 'Nil letter downloaded',
 };
+
+/** Register kinds from the decision on: their scope is the one granted. */
+const DECIDED_KINDS: readonly AccessRegisterKind[] = ['decided', ...PACKAGE_ENTRY_KINDS];
 
 /** Register kinds the applicant themselves acts on, named to the declarant (Form K only). */
 const APPLICANT_KINDS: readonly AccessRegisterKind[] = ['downloaded', 'withdrawn'];
@@ -123,6 +142,8 @@ export function toAccessHistoryEntry(
     commission: subject.commission,
     requester: subject.requester,
     caseReference: subject.caseReference,
+    purposeInGeneralTerms: subject.purposeInGeneralTerms,
+    scope: scopeOf(row.kind, subject.formKScope),
     actor:
       row.subjectKind === 'access-request' && APPLICANT_KINDS.includes(row.kind)
         ? (row.actorName ?? null)
@@ -140,6 +161,11 @@ export function toAccessHistoryEntry(
           }
         : null,
   };
+}
+
+function scopeOf(kind: AccessRegisterKind, formK: HistorySubject['formKScope']): Scope | null {
+  if (formK === null) return null;
+  return formK.decided && DECIDED_KINDS.includes(kind) ? formK.granted : formK.requested;
 }
 
 function outcomeOf(value: unknown): AccessOutcome | null {

@@ -23,6 +23,8 @@ function entry(fields: Partial<AccessHistoryEntry>): AccessHistoryEntry {
     commission: { slug: 'tsc', name: 'Teachers Service Commission' },
     requester: 'Wanjiru Kamau',
     caseReference: null,
+    purposeInGeneralTerms: 'To check the officer’s assets against tenders awarded.',
+    scope: null,
     outcome: null,
     certifiedCopy: null,
     inWriting: false,

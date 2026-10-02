@@ -233,8 +233,10 @@ function noticeEntries(notice: DeclarantNotice, now: number): AccessHistoryEntry
     commission: notice.commission,
     requester: notice.kind === 'lea' ? notice.agency.name : notice.applicantName,
     caseReference: notice.kind === 'lea' ? notice.caseReference : null,
+    purposeInGeneralTerms: notice.kind === 'form-k' ? notice.purposeInGeneralTerms : null,
     certifiedCopy: null,
   };
+  const askedScope = notice.kind === 'form-k' ? notice.scope : null;
   const entries: AccessHistoryEntry[] = [];
   const add = (
     kind: AccessHistoryEntry['kind'],
@@ -258,6 +260,7 @@ function noticeEntries(notice: DeclarantNotice, now: number): AccessHistoryEntry
       outcome: null,
       inWriting: inWriting ?? false,
       packageKind: null,
+      scope: askedScope,
       ...extra,
     });
   };
@@ -290,24 +293,39 @@ function noticeEntries(notice: DeclarantNotice, now: number): AccessHistoryEntry
       ? { outcome: notice.outcome, decidedAt: notice.decidedAt }
       : notice.decision;
   if (decided) {
-    add('decided', decided.decidedAt, 'Decision recorded', { outcome: decided.outcome });
+    // From the decision on, a Form K entry carries the scope granted (none after a denial).
+    const grantedScope =
+      notice.kind === 'form-k' && notice.decision
+        ? notice.decision.outcome === 'deny'
+          ? null
+          : (notice.decision.grantedScope ?? notice.scope)
+        : null;
+    add('decided', decided.decidedAt, 'Decision recorded', {
+      outcome: decided.outcome,
+      scope: grantedScope,
+    });
     if (decided.outcome !== 'deny') {
       const nil = NIL_LETTER_NOTICES.has(notice.requestId);
       const packageKind = nil ? ('nil-letter' as const) : ('access-package' as const);
       const what = nil ? 'Nil letter' : 'Package';
       const issuedAt = Date.parse(decided.decidedAt) + 4 * MINUTE;
-      add('package-issued', new Date(issuedAt).toISOString(), `${what} issued`, { packageKind });
+      add('package-issued', new Date(issuedAt).toISOString(), `${what} issued`, {
+        packageKind,
+        scope: grantedScope,
+      });
       const downloadedAt = issuedAt + DAY - 3 * HOUR;
       if (downloadedAt < now) {
         add('downloaded', new Date(downloadedAt).toISOString(), `${what} downloaded`, {
           actor: notice.kind === 'lea' ? null : notice.applicantName,
           packageKind,
+          scope: grantedScope,
         });
       }
       const expiresAt = issuedAt + PACKAGE_DAYS * DAY;
       if (expiresAt < now)
         add('expired', new Date(expiresAt).toISOString(), 'Download window closed', {
           packageKind,
+          scope: grantedScope,
         });
     }
   }
@@ -329,6 +347,8 @@ function copyEntry(copy: MockCopy): AccessHistoryEntry | null {
     commission: copy.commission,
     requester: null,
     caseReference: null,
+    purposeInGeneralTerms: null,
+    scope: null,
     outcome: null,
     packageKind: null,
     certifiedCopy: {
