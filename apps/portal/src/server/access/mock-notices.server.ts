@@ -65,7 +65,8 @@ const scope = (
   includeSpouses: boolean,
   includeChildren: boolean,
   sections: Scope['sections'],
-): Scope => ({ years, includeSpouses, includeChildren, sections });
+  includeClarifications = false,
+): Scope => ({ years, includeSpouses, includeChildren, sections, includeClarifications });
 
 const OBJECTION =
   'The plot is the subject of a pending case at the Environment and Land Court in Nakuru. Releasing my land and loan details now could affect that case. My income is already public through the TSC salary scales.';
@@ -144,6 +145,7 @@ function seed(now: number) {
     notice(ids.awaiting, 52, ago(2, 3), {
       status: 'awaiting-representations',
       canRespond: true,
+      scope: scope([2026], true, false, ['income', 'assets', 'liabilities'], true),
     }),
     notice(ids.closing, 50, ago(WINDOW_DAYS, -3), {
       status: 'awaiting-representations',
@@ -172,7 +174,7 @@ function seed(now: number) {
       status: 'partially-granted',
       applicantName: 'Joseph Maina Kariuki',
       purposeInGeneralTerms: 'Suspected conflict of interest in a supplies contract',
-      scope: scope([2025, 2026], true, true, ALL),
+      scope: scope([2025, 2026], true, true, ALL, true),
       representations: sent(
         'object',
         'I had no role in the supplies contract. It was awarded by the county education office.',

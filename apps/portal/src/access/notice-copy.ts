@@ -109,6 +109,8 @@ const NOTICE = {
   years: en('Declaration year'),
   people: en('People'),
   sections: en('Sections'),
+  clarifications: en('Clarifications'),
+  included: en('Included'),
   you: en('You'),
   spouse: en('Spouse'),
   children: en('Children'),

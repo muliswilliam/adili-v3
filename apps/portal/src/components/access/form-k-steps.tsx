@@ -377,6 +377,7 @@ export function ScopeStep({ draft, update, errors, years }: StepProps & { years:
         name="form-k-scope"
         value={draft.scope}
         years={years}
+        clarifications
         errors={{ years: errors['scope.years'], sections: errors['scope.sections'] }}
         onChange={(scope) => {
           update((current) => ({ ...current, scope }));

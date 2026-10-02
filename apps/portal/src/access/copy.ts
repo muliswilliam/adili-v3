@@ -145,6 +145,8 @@ const FORM_K = {
   spouses: en('Spouses'),
   children: en('Children'),
   sections: en('Sections'),
+  clarifications: en('Clarifications'),
+  included: en('Included'),
   declaredBy: en((date: string, name: string) => `${date} · ${name}`),
   declareMissing: en('Tick the declaration to submit your request.'),
 

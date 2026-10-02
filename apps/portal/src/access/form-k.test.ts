@@ -45,6 +45,7 @@ function complete(): FormKDraft {
       includeSpouses: true,
       includeChildren: false,
       sections: ['assets', 'liabilities'],
+      includeClarifications: false,
     },
     declared: true,
   };

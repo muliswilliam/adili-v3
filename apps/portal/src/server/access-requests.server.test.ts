@@ -77,6 +77,7 @@ const DRAFT: FormKDraft = {
     includeSpouses: false,
     includeChildren: false,
     sections: ['assets'],
+    includeClarifications: false,
   },
   declared: true,
 };

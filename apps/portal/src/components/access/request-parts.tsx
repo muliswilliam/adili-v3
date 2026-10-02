@@ -56,7 +56,7 @@ export function GroundsList({ grounds }: { grounds: readonly Ground[] }) {
   );
 }
 
-/** A Form K scope as rows of chips: years, people and sections. */
+/** A Form K scope as rows of chips: years, people, sections and, when asked, clarifications. */
 export function ScopeRows({ scope }: { scope: Scope }) {
   const chips = scopeChips(scope);
   return (
@@ -70,6 +70,11 @@ export function ScopeRows({ scope }: { scope: Scope }) {
       <PartRow term={COPY.sections}>
         <Chips values={chips.sections} />
       </PartRow>
+      {chips.clarifications ? (
+        <PartRow term={COPY.clarifications}>
+          <Chips values={[COPY.included]} />
+        </PartRow>
+      ) : null}
     </PartRows>
   );
 }
