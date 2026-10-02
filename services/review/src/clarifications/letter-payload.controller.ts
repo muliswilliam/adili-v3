@@ -10,7 +10,8 @@ import {
 import { REVIEW_INTERNAL_SCOPE } from '@adili/roles';
 
 import { uuidParam } from './clarification-input.js';
-import { type ClarificationLetterPayload, LetterPayloadService } from './letter-payload.service.js';
+import { LetterPayloadService } from './letter-payload.service.js';
+import type { ClarificationLetterPayload } from './representation.js';
 
 /**
  * Internal: not routed by the public entrypoint. The documents service pulls a clarification

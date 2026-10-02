@@ -6,6 +6,7 @@ import type { Client } from '@temporalio/client';
 import { asc, eq } from 'drizzle-orm';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import type { CaseDetail } from '../../src/cases/representation.js';
 import { clarificationWorkflowId } from '../../src/clarifications/contract.js';
 import type {
   ClarificationView,
@@ -485,6 +486,42 @@ describe('clarifications: drafts, issue, letter payload, declarant reads', () =>
     // Declarations unreachable: the issued letter is served all the same.
     api.declarations.failReads(1);
     expect((await api.get(payloadUrl, documentsService, psc)).statusCode).toBe(200);
+  });
+
+  it("an issued clarification's items carry the labels its letter names; a draft's carry none", async () => {
+    const caseId = await givenAssignedCase(api, version);
+    const { id } = (await draft(caseId)).json<ClarificationView>();
+    const itemsOf = async () => {
+      const read = await api.get(`/v1/review/clarifications/${id}`, reviewerA);
+      const detail = await api.get(`/v1/review/cases/${caseId}`, reviewerA);
+      expect(
+        contractErrors(
+          okResponse('/v1/review/clarifications/{clarificationId}', 'get'),
+          read.json(),
+        ),
+      ).toEqual([]);
+      const listed = detail.json<CaseDetail>().clarifications.find((each) => each.id === id);
+      return { read: read.json<ClarificationView>().items, listed: listed?.items };
+    };
+
+    const drafted = await itemsOf();
+    expect(drafted.read.map((item) => item.label)).toEqual([undefined, undefined]);
+    expect(drafted.listed).toEqual(drafted.read);
+
+    expect((await issue(id)).statusCode).toBe(200);
+    await vi.waitFor(
+      () => {
+        expect(api.documents.issued).toHaveLength(1);
+      },
+      { timeout: 45_000, interval: 250 },
+    );
+
+    const issued = await itemsOf();
+    expect(issued.read).toEqual([
+      { ...twoItems.items[0], label: 'Assets · Plot KSM/123 · James Otieno' },
+      { ...twoItems.items[1], label: 'Assets · Toyota KDA 123A · Grace Otieno' },
+    ]);
+    expect(issued.listed).toEqual(issued.read);
   });
 
   it('issuing while declarations is unreachable is a 502 and issues nothing', async () => {

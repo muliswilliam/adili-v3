@@ -8,18 +8,8 @@ import type { ReviewSchema } from '../db/schema.js';
 import { DirectoryClient } from '../directory/directory-client.js';
 import { withUpstream } from '../internal-api/upstream.js';
 import { systemContext } from '../system-context.js';
-import { type DeterminationOutcome, determinations } from './schema.js';
-
-/** review.yaml `DeclarantDecision`. */
-export interface DeclarantDecisionView {
-  determinationId: string;
-  declarationReference: string;
-  commission: { slug: string; name: string };
-  outcome: DeterminationOutcome;
-  decidedAt: string;
-  reference: string;
-  letterAvailable: boolean;
-}
+import type { DeclarantDecisionView } from './representation.js';
+import { determinations } from './schema.js';
 
 /**
  * The declarant's decisions across Commissions (spec 08): approved determinations only, read under

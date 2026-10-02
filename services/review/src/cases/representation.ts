@@ -1,58 +1,75 @@
-import type { DeterminationView } from '../determinations/representation.js';
-import type {
-  Evidence,
-  ItemRef,
-  RegistryCheckStatus,
-  RegistrySystem,
-  Severity,
+import { z } from 'zod';
+
+import {
+  clarificationSchema,
+  clarificationStatusSchema,
+} from '../clarifications/representation.js';
+import { determinationSchema } from '../determinations/representation.js';
+import {
+  type Evidence,
+  type ItemRef,
+  REGISTRY_CHECK_STATUSES,
+  REGISTRY_SYSTEMS,
+  RULES,
+  type RuleId,
+  SEVERITIES,
 } from '../rules/index.js';
-import type {
-  CaseStatus,
-  ClarificationItem,
-  ClarificationStatus,
-  DeclarationType,
-  FlagClosedReason,
-  reviewCases,
-  reviewFlags,
+import { type Assignee, assigneeSchema } from './assignee.js';
+import {
+  CASE_STATUSES,
+  type ClarificationStatus,
+  DECLARATION_TYPES,
+  FLAG_CLOSED_REASONS,
+  PRIORITY_BANDS,
+  type reviewCases,
+  type reviewFlags,
 } from './schema.js';
 
-/** review.yaml `Assignee`. */
-export interface Assignee {
-  subject: string;
-  name: string;
-}
+export { type Assignee, assigneeSchema, officer } from './assignee.js';
+export type { ClarificationView } from '../clarifications/representation.js';
 
-/** An officer as a view names them: the name their token gave, else their subject. */
-export function officer(subject: string | null, name: string | null): Assignee | null {
-  return subject === null ? null : { subject, name: name ?? subject };
-}
+/**
+ * Bodies of the queue and case API (spec 07a, 07b). They are the contract: the OpenAPI document,
+ * packages/schemas/internal/review.yaml, is generated from them (`pnpm contracts`).
+ */
+
+export const declarationTypeSchema = z.enum(DECLARATION_TYPES);
+export const caseStatusSchema = z.enum(CASE_STATUSES);
+export const priorityBandSchema = z.enum(PRIORITY_BANDS);
+export const severitySchema = z.enum(SEVERITIES);
+export const ruleIdSchema = z.enum(Object.keys(RULES) as [RuleId, ...RuleId[]]);
+export const registrySystemSchema = z.enum(REGISTRY_SYSTEMS);
+export const registryCheckStatusSchema = z.enum(REGISTRY_CHECK_STATUSES);
 
 /** review.yaml `CaseListItem`: a row of the queue. */
-export interface CaseListItem {
-  id: string;
-  reference: string;
-  declarantName: string;
-  personnelFileNumber: string;
-  type: DeclarationType;
-  cycleYear: number;
-  receivedAt: string;
-  windowEndsAt: string;
-  late: boolean;
-  band: 'low' | 'medium' | 'high';
-  status: CaseStatus;
-  assignee: Assignee | null;
-  openFlags: number;
-  /** A registry could not be checked for someone on the case at its latest check (spec 07b). */
-  registryUnavailable: boolean;
-  clarification: {
-    /** Clarifications the declarant still has to answer. */
-    open: number;
-    /** The status of the latest clarification issued; null when none was. */
-    status: ClarificationStatus | null;
-    dueAt: string | null;
-  };
-  currentVersion: number;
-}
+export const caseListItemSchema = z.object({
+  id: z.uuid(),
+  reference: z.string(),
+  declarantName: z.string(),
+  personnelFileNumber: z.string(),
+  type: declarationTypeSchema,
+  cycleYear: z.int(),
+  receivedAt: z.iso.datetime(),
+  windowEndsAt: z.iso.datetime(),
+  late: z.boolean(),
+  band: priorityBandSchema,
+  status: caseStatusSchema,
+  assignee: assigneeSchema.nullable(),
+  openFlags: z.int(),
+  registryUnavailable: z.boolean().meta({
+    description:
+      "A registry could not be checked for someone on the case at its latest registry check (the queue's icon)",
+  }),
+  clarification: z.object({
+    open: z.int().meta({ description: 'Clarifications the declarant still has to answer' }),
+    status: clarificationStatusSchema
+      .nullable()
+      .meta({ description: 'The status of the latest clarification issued; null when none was' }),
+    dueAt: z.iso.datetime().nullable(),
+  }),
+  currentVersion: z.int(),
+});
+export type CaseListItem = z.infer<typeof caseListItemSchema>;
 
 export interface CasePage {
   items: CaseListItem[];
@@ -60,11 +77,142 @@ export interface CasePage {
 }
 
 /** review.yaml `QueueSummary`. */
-export interface QueueSummary {
-  byStatus: Record<string, number>;
-  byBand: Record<string, number>;
-  overdueClarifications: number;
-}
+export const queueSummarySchema = z.object({
+  byStatus: z.record(z.string(), z.int()),
+  byBand: z.record(z.string(), z.int()),
+  overdueClarifications: z.int(),
+});
+export type QueueSummary = z.infer<typeof queueSummarySchema>;
+
+/** Clear facts only (rules' `Evidence`): percentages, counts, dates, references. */
+const evidenceSchema = z
+  .record(z.string(), z.union([z.string(), z.number(), z.boolean(), z.null(), z.array(z.string())]))
+  .meta({
+    description:
+      'Clear facts only (percentages, counts, dates, references); no amounts or descriptions',
+  }) satisfies z.ZodType<Evidence>;
+
+const itemRefSchema = z.object({
+  personKey: z.string(),
+  itemId: z.uuid().nullable().meta({
+    description: 'The item concerned, or null when the flag is about a whole category or statement',
+  }),
+  sectionKey: z.string().nullable(),
+}) satisfies z.ZodType<ItemRef>;
+
+/** review.yaml `Flag`. */
+export const flagSchema = z.object({
+  id: z.uuid(),
+  versionId: z.uuid(),
+  ruleId: ruleIdSchema,
+  severity: severitySchema,
+  title: z.string(),
+  indicator: z.string().meta({ description: 'Plain-language indicator text; never a finding' }),
+  evidence: evidenceSchema,
+  itemRefs: z.array(itemRefSchema),
+  closedReason: z.enum(FLAG_CLOSED_REASONS).nullable().meta({
+    description:
+      'Why the flag no longer counts toward the score and the open flags: a registry re-check no longer raised it. A reviewed flag keeps its note. Null while it counts.',
+  }),
+  reviewed: z.object({ at: z.iso.datetime(), by: assigneeSchema, note: z.string() }).nullable(),
+  recomputed: z.boolean(),
+});
+export type FlagView = z.infer<typeof flagSchema>;
+
+/** review.yaml `Note`. */
+export const noteSchema = z.object({
+  id: z.uuid(),
+  author: assigneeSchema,
+  text: z.string(),
+  at: z.iso.datetime(),
+});
+export type NoteView = z.infer<typeof noteSchema>;
+
+/** review.yaml `TimelineEntry`; the actor is null for the service's own work. */
+export const timelineEntrySchema = z.object({
+  id: z.uuid(),
+  kind: z.string(),
+  actor: assigneeSchema.nullable(),
+  at: z.iso.datetime(),
+  summary: z.string(),
+  ref: z.string().nullable(),
+});
+export type TimelineEntryView = z.infer<typeof timelineEntrySchema>;
+
+/** review.yaml `RegistryCheck`: one person's status in one registry at the latest check. */
+export const registryCheckSchema = z
+  .object({
+    personKey: z.string(),
+    system: registrySystemSchema,
+    status: registryCheckStatusSchema,
+    reason: z.string().nullable().meta({
+      description:
+        "Why the registry is unavailable: the gateway's reason (timeout, breaker-open, paused, rate-limited, upstream-error), gateway-unavailable or gateway-rejected when the gateway gave no answer, supplier-check-unavailable when BRS answered but the employer supplier check did not, result-missing when the stored result could not be read back",
+    }),
+    checkedAt: z.iso.datetime(),
+    resultId: z.uuid().nullable().meta({
+      description:
+        "The integration-gateway's stored result, from which the Registry tab pulls the records",
+    }),
+  })
+  .meta({
+    description: "One person's status in one registry at the case's latest registry check",
+  });
+export type RegistryCheckView = z.infer<typeof registryCheckSchema>;
+
+/**
+ * review.yaml `RegistrySummary`: the statuses of the latest registry check, per person and
+ * registry; none before the first check (every registry `not-checked`).
+ */
+export const registrySummarySchema = z
+  .object({ checkedAt: z.iso.datetime().nullable(), checks: z.array(registryCheckSchema) })
+  .meta({
+    description:
+      "The case's latest registry check, per person with an entry per registry; empty with checkedAt null before the first check (every registry not checked)",
+  });
+export type RegistrySummary = z.infer<typeof registrySummarySchema>;
+
+/** review.yaml `CaseDetail`; `document` is null when declarations could not be read. */
+export const caseDetailSchema = z.object({
+  case: caseListItemSchema,
+  flags: z.array(flagSchema),
+  clarifications: z.array(clarificationSchema),
+  notes: z.array(noteSchema),
+  timeline: z.array(timelineEntrySchema),
+  document: z.record(z.string(), z.unknown()).nullable().meta({
+    description:
+      "The current version's declaration.v1 document, pulled from the declarations service (null when unavailable)",
+  }),
+  versions: z
+    .array(
+      z.object({
+        versionId: z.uuid(),
+        version: z.int(),
+        submittedAt: z.iso.datetime(),
+        late: z.boolean(),
+        amendment: z
+          .boolean()
+          .meta({ description: 'The version amended an earlier one of the same declaration' }),
+      }),
+    )
+    .meta({
+      description:
+        "Every version the case has processed, from the review service's own records; only the current one's document is pulled",
+    }),
+  reviewerHistory: z.array(assigneeSchema),
+  determinations: z.array(determinationSchema).meta({
+    description: 'Every determination of the case, oldest first; the current one is last',
+  }),
+  registry: registrySummarySchema,
+});
+export type CaseDetail = z.infer<typeof caseDetailSchema>;
+
+/** A short-lived link to an attachment of the declaration under review. */
+export const attachmentDownloadSchema = z.object({
+  downloadUrl: z.url(),
+  expiresAt: z.iso.datetime(),
+});
+export type AttachmentDownload = z.infer<typeof attachmentDownloadSchema>;
 
 type CaseRow = typeof reviewCases.$inferSelect;
 
@@ -101,119 +249,6 @@ export function caseListItem(row: CaseRow, latest: LatestClarification | undefin
     },
     currentVersion: row.currentVersion,
   };
-}
-
-/** review.yaml `Flag`. */
-export interface FlagView {
-  id: string;
-  versionId: string;
-  ruleId: string;
-  severity: Severity;
-  title: string;
-  indicator: string;
-  evidence: Evidence;
-  itemRefs: ItemRef[];
-  /** Why the flag no longer counts (a registry re-check no longer raises it); null while it does. */
-  closedReason: FlagClosedReason | null;
-  reviewed: { at: string; by: Assignee; note: string } | null;
-  recomputed: boolean;
-}
-
-/** review.yaml `Note`. */
-export interface NoteView {
-  id: string;
-  author: Assignee;
-  text: string;
-  at: string;
-}
-
-/** review.yaml `TimelineEntry`; the actor is null for the service's own work. */
-export interface TimelineEntryView {
-  id: string;
-  kind: string;
-  actor: Assignee | null;
-  at: string;
-  summary: string;
-  ref: string | null;
-}
-
-/** review.yaml `Clarification`, as the case view lists it. */
-export interface ClarificationView {
-  id: string;
-  caseId: string;
-  reference: string | null;
-  status: ClarificationStatus;
-  items: Omit<ClarificationItem, 'id'>[];
-  issuedAt: string | null;
-  dueAt: string | null;
-  respondedAt: string | null;
-  responseLate: boolean;
-  resolvedAt: string | null;
-  resolutionNote: string | null;
-  letter: {
-    documentId: string;
-    verificationId: string;
-    status: 'pending' | 'issued' | 'revoked';
-  } | null;
-  followUpOf: string | null;
-  response: {
-    items: {
-      index: number;
-      text: string;
-      attachments: { uploadId: string; fileName: string; sha256: string }[];
-    }[];
-    submittedAt: string;
-  } | null;
-}
-
-/** A version the case has processed, from the review service's own records. */
-export interface CaseVersionView {
-  versionId: string;
-  version: number;
-  submittedAt: string;
-  late: boolean;
-  amendment: boolean;
-}
-
-/** review.yaml `CaseDetail`; `document` is null when declarations could not be read. */
-export interface CaseDetail {
-  case: CaseListItem;
-  flags: FlagView[];
-  clarifications: ClarificationView[];
-  notes: NoteView[];
-  timeline: TimelineEntryView[];
-  document: Record<string, unknown> | null;
-  versions: CaseVersionView[];
-  reviewerHistory: Assignee[];
-  /** Every determination of the case, oldest first: the current one last (spec 08). */
-  determinations: DeterminationView[];
-  /** The latest registry check of the case (spec 07b). */
-  registry: RegistrySummary;
-}
-
-/** review.yaml `RegistryCheck`: one person's status in one registry at the latest check. */
-export interface RegistryCheckView {
-  personKey: string;
-  system: RegistrySystem;
-  status: RegistryCheckStatus;
-  reason: string | null;
-  checkedAt: string;
-  resultId: string | null;
-}
-
-/**
- * review.yaml `RegistrySummary`: the statuses of the latest registry check, per person and
- * registry; none before the first check (every registry `not-checked`).
- */
-export interface RegistrySummary {
-  checkedAt: string | null;
-  checks: RegistryCheckView[];
-}
-
-/** A short-lived link to an attachment of the declaration under review. */
-export interface AttachmentDownload {
-  downloadUrl: string;
-  expiresAt: string;
 }
 
 /** A flag row as the case view shows it; `officer` names the reviewer. */

@@ -7,18 +7,7 @@ import { clarifications, reviewCases } from '../cases/schema.js';
 import type { ReviewSchema } from '../db/schema.js';
 import { systemContext } from '../system-context.js';
 import { portalClarificationUrl } from './links.js';
-
-/** review.yaml `ClarificationLetterPayload`: the fields `clarification-letter.v1` renders. */
-export interface ClarificationLetterPayload {
-  declarantName: string;
-  commission: { name: string; issuerCode: string };
-  declarationReference: string;
-  clarificationReference: string;
-  items: { label: string; requirementLabel: string; text: string }[];
-  issuedAt: string;
-  dueAt: string;
-  portalUrl: string;
-}
+import type { ClarificationLetterPayload } from './representation.js';
 
 /**
  * The letter payload the documents service pulls when it renders a clarification letter

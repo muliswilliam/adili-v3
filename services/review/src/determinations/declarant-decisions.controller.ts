@@ -3,10 +3,8 @@ import { ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { ApiProblemResponse, schemaRef } from '@adili/api-kit';
 
 import { DeclarantPerson } from '../clarifications/access.js';
-import {
-  DeclarantDecisionsService,
-  type DeclarantDecisionView,
-} from './declarant-decisions.service.js';
+import { DeclarantDecisionsService } from './declarant-decisions.service.js';
+import type { DeclarantDecisionView } from './representation.js';
 
 /**
  * The declarant's decisions (spec 08), authorised by the `person_id` claim: tokens without it get

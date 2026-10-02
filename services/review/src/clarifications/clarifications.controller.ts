@@ -1,5 +1,6 @@
 import { Body, Controller, Get, HttpCode, Param, Post, Put } from '@nestjs/common';
 import {
+  ApiBody,
   ApiCreatedResponse,
   ApiOkResponse,
   ApiOperation,
@@ -8,6 +9,7 @@ import {
 } from '@nestjs/swagger';
 import {
   AcceptIdempotencyKey,
+  ApiJsonBody,
   ApiProblemResponse,
   CurrentPrincipal,
   type Principal,
@@ -46,6 +48,7 @@ export class ClarificationsController {
   @Post('cases/:caseId/clarifications')
   @AcceptIdempotencyKey()
   @ApiUuidParam('caseId')
+  @ApiBody({ required: true, schema: schemaRef('ClarificationInput') })
   @ApiOperation({
     operationId: 'createClarificationDraft',
     summary: 'Create a clarification draft (assignee only)',
@@ -80,6 +83,7 @@ export class ClarificationsController {
   @Put('clarifications/:clarificationId')
   @AcceptIdempotencyKey()
   @ApiUuidParam('clarificationId')
+  @ApiBody({ required: true, schema: schemaRef('ClarificationInput') })
   @ApiOperation({ operationId: 'updateClarificationDraft', summary: "Update a draft's items" })
   @ApiOkResponse({ description: 'Draft', schema: schemaRef('Clarification') })
   @ApiProblemResponse(400, 'Body failed validation')
@@ -121,6 +125,7 @@ export class ClarificationsController {
   @AcceptIdempotencyKey()
   @HttpCode(200)
   @ApiUuidParam('clarificationId')
+  @ApiJsonBody(resolutionInput)
   @ApiOperation({
     operationId: 'resolveClarification',
     summary: 'Mark the clarification resolved with a note',
@@ -163,6 +168,7 @@ export class ClarificationsController {
   @AcceptIdempotencyKey()
   @HttpCode(200)
   @ApiUuidParam('clarificationId')
+  @ApiJsonBody(withdrawalInput)
   @ApiOperation({
     operationId: 'withdrawClarification',
     summary: 'Withdraw an issued clarification (letter revoked as issued in error)',

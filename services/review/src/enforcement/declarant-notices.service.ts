@@ -15,14 +15,8 @@ import { InternalApiRejected } from '../internal-api/rejected.js';
 import { withUpstream } from '../internal-api/upstream.js';
 import { ACTION_RESPONDED } from './events.js';
 import { type ActionRow, recordAction, REVIEW_STAFF_STEPS, whatToDo } from './ladder-records.js';
-import { responseView } from './representation.js';
-import {
-  type ActionResponse,
-  type ActionStatus,
-  type ActionStep,
-  administrativeActions,
-  ISSUED_ACTION_STATUSES,
-} from './schema.js';
+import { type DeclarantNoticeView, responseView } from './representation.js';
+import { type ActionResponse, administrativeActions, ISSUED_ACTION_STATUSES } from './schema.js';
 
 /** review.yaml `respondToNotice` body. */
 export const noticeResponseInput = z.object({
@@ -39,22 +33,6 @@ export const NOTICE_ATTACHMENT_PURPOSES: readonly string[] = [
   'clarification-attachment',
   'action-response',
 ];
-
-/** review.yaml `DeclarantNotice`. */
-export interface DeclarantNoticeView {
-  actionId: string;
-  commission: { slug: string; name: string };
-  step: ActionStep;
-  status: ActionStatus;
-  issuedAt: string;
-  actBy: string | null;
-  whatToDo: 'file-declaration' | 'respond-to-clarification';
-  reference: string;
-  letterDownloadUrl: string | null;
-  response: ReturnType<typeof responseView>;
-  salaryStoppedAt: string | null;
-  salaryReinstatedAt: string | null;
-}
 
 /**
  * The declarant's notices across Commissions (spec 08): the ladder's steps issued to them, read

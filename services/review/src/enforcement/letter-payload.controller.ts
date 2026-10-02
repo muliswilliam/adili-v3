@@ -10,7 +10,8 @@ import {
 import { REVIEW_INTERNAL_SCOPE } from '@adili/roles';
 import { z } from 'zod';
 
-import { type ActionLetterPayload, ActionLetterPayloadService } from './letter-payload.service.js';
+import { ActionLetterPayloadService } from './letter-payload.service.js';
+import type { ActionLetterPayload } from './representation.js';
 
 /**
  * Internal: not routed by the public entrypoint. The documents service pulls a ladder step's

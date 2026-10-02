@@ -11,7 +11,8 @@ import {
 import { REVIEW_INTERNAL_SCOPE } from '@adili/roles';
 import { z } from 'zod';
 
-import { type ReferralIcmsPayload, ReferralIcmsPayloadService } from './icms-payload.service.js';
+import { ReferralIcmsPayloadService } from './icms-payload.service.js';
+import type { ReferralIcmsPayload } from './representation.js';
 
 /**
  * Internal: not routed by the public entrypoint. The reporting service pulls what ICMS needs of a

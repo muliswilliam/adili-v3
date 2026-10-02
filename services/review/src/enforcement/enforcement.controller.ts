@@ -1,5 +1,5 @@
 import { Body, Controller, Get, HttpCode, Param, Post, Query } from '@nestjs/common';
-import { ApiOkResponse, ApiOperation, ApiParam, ApiTags } from '@nestjs/swagger';
+import { ApiBody, ApiOkResponse, ApiOperation, ApiParam, ApiTags } from '@nestjs/swagger';
 import {
   AcceptIdempotencyKey,
   ApiProblemResponse,
@@ -113,6 +113,7 @@ export class EnforcementController {
   @HttpCode(200)
   @ApiUuidParam('actionId')
   @AcceptIdempotencyKey()
+  @ApiBody({ required: true, schema: schemaRef('ReasonInput') })
   @ApiOperation({
     operationId: 'declineAction',
     summary: 'Decline a proposed step with a note (ends the ladder)',

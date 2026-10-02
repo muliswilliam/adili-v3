@@ -107,6 +107,7 @@ function caseItem(
     status: 'awaiting-clarification',
     assignee: null,
     openFlags: 2,
+    registryUnavailable: false,
     clarification: { open: 0, status: null, dueAt: null },
     currentVersion: 1,
   };
@@ -416,6 +417,8 @@ function detail(stored: StoredCase, caller: Assignee): CaseDetail {
       },
     ],
     reviewerHistory: [holder],
+    determinations: [],
+    registry: { checkedAt: null, checks: [] },
   };
 }
 
