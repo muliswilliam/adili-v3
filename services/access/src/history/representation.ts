@@ -124,7 +124,11 @@ const NIL_LETTER_SUMMARIES: Partial<Record<AccessRegisterKind, string>> = {
 };
 
 /** Register kinds from the decision on: their scope is the one granted. */
-const DECIDED_KINDS: readonly AccessRegisterKind[] = ['decided', ...PACKAGE_ENTRY_KINDS];
+const DECIDED_KINDS: readonly AccessRegisterKind[] = [
+  'decided',
+  'decision-notified',
+  ...PACKAGE_ENTRY_KINDS,
+];
 
 /** Register kinds the applicant themselves acts on, named to the declarant (Form K only). */
 const APPLICANT_KINDS: readonly AccessRegisterKind[] = ['downloaded', 'withdrawn'];

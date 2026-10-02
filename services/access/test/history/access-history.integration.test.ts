@@ -189,6 +189,20 @@ describe('Who accessed my declaration (S12)', () => {
         return found.packageDocumentId === null ? undefined : found;
       });
       await api.endWorkflows([accessRequestWorkflowId(row.id)]);
+      // The decision served in writing (decision 2): it tells the scope granted, not the one
+      // requested.
+      const facts = { channel: 'written' as const, notifiedOn: '2027-03-21' };
+      await record({
+        subjectKind: 'access-request',
+        subjectId: row.id,
+        reference: row.reference,
+        personId: anne.personId,
+        kind: 'decision-notified',
+        actor: { subject: callers.officer.sub, name: callers.officer.name },
+        at: new Date('2027-03-21T09:00:00.000Z'),
+        details: facts,
+        eventData: facts,
+      });
 
       const entries = await historyOf(declarantOf(anne));
 
@@ -198,6 +212,7 @@ describe('Who accessed my declaration (S12)', () => {
       expect(byKind.get('representations')?.scope).toEqual(row.scope);
       expect(byKind.get('decided')).toMatchObject({ outcome: 'partial-grant', scope: granted });
       expect(byKind.get('package-issued')?.scope).toEqual(granted);
+      expect(byKind.get('decision-notified')?.scope).toEqual(granted);
       // The decision's reasons and grounds stay on the notice, not in the history.
       expect(JSON.stringify(entries)).not.toContain('Only the 2026 assets');
     });
