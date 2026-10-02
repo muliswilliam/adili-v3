@@ -115,22 +115,29 @@ interface Mention {
   decimals: number;
   percent: boolean;
   /**
-   * A unit carried back from the end of a range ("8.2 to 16.4%"). It is a second reading, not a
-   * replacement: "670 – 8.2%" may be a count next to a share, so the number is stated if the input
-   * holds it as written or as a percentage.
+   * A unit carried back from the end of a range or list ("8.2 to 16.4%"). It is a second reading,
+   * not a replacement: "670 – 8.2%" or "Of 960, 16.4%" may be a count next to a share, so the
+   * number is stated if the input holds it as written or as a percentage.
    */
   carried: boolean;
   /** Four digits, no separator, no decimals or unit: a year. */
   year: boolean;
 }
 
-/** What joins the two ends of a range, "8.2 to 16.4%", "between 8.2 and 16.4%" or "8.2–16.4%". */
-const RANGE_JOIN = /^\s*(?:to|and|[-–—])\s*$/iu;
+/** Stands in for an FY label taken out of the text, so a range can step over it. */
+const LABEL_GAP = '\uE000';
 
 /**
- * The numbers in `text`. A unit written once, after a range's last number, is carried to the
- * numbers before it: "from 8.2 to 16.4 per cent" may state two percentages. A year is not part of
- * a range of figures ("in FY2024 to 35.3% in FY2025").
+ * What joins two numbers of one range or list, "8.2 to 16.4%", "between 8.2 and 16.4%",
+ * "8.2–16.4%" or "5.1, 8.2 and 16.4%", with at most an FY label before the join ("8.2 in
+ * FY2024/25 to 16.4%"). Nothing else: a unit does not carry across other words or a sentence.
+ */
+const RANGE_JOIN = /^\s*(?:(?:in\s+)?\uE000\s*)?(?:to|and|,(?:\s*(?:and|to)\b)?|[-–—])\s*$/iu;
+
+/**
+ * The numbers in `text`. A unit written once, after the last number of a range or list, is carried
+ * to the numbers before it: "from 8.2 to 16.4 per cent" and "5.1, 8.2 and 16.4%" may state only
+ * percentages. A year is not part of a range of figures ("in FY2024 to 35.3% in FY2025").
  */
 function mentions(text: string): Mention[] {
   const matches = [...text.matchAll(NUMBER)];
@@ -239,7 +246,7 @@ function foreignNumbers(text: string, known: InputNumbers, years: ReadonlySet<nu
       carried: false,
       year: true,
     }));
-  const rest = text.replaceAll(FY_LABEL, ' ');
+  const rest = text.replaceAll(FY_LABEL, ` ${LABEL_GAP} `);
   return [...foreignLabels, ...mentions(rest).filter((mention) => !stated(mention, known, years))];
 }
 

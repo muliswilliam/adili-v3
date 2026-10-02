@@ -99,11 +99,26 @@ describe('narrative validation', () => {
       expect(foreign('It rose from 8.2% in 2025 to 16.4% in 2026.')).toEqual([]);
     });
 
+    it('carries a unit written once along a list, and over an FY label in a range', () => {
+      expect(foreign('Its non-filer rates were 5.1, 8.2 and 16.4 per cent.')).toEqual([]);
+      expect(foreign('Rates of 8.2, 16.4%.')).toEqual([]);
+      expect(foreign('It rose from 8.2 in FY2024/25 to 16.4 per cent in FY2025/26.')).toEqual([]);
+    });
+
     it('still fails a foreign number at either end of a range', () => {
       expect(foreign('The rate rose from 8.3 to 16.4 per cent.')).toEqual(['foreign-number']);
       expect(foreign('The rate was 8.2–16.5%.')).toEqual(['foreign-number']);
-      // A unit carries only across a range, so a count before a percentage is still a count.
+      // A carried unit is a second reading, so a count before a percentage is still a count.
       expect(foreign('Of 960, 16.4% were late.')).toEqual([]);
+    });
+
+    it('still fails a foreign number in a list, and does not carry across other words', () => {
+      expect(foreign('Its non-filer rates were 5.1, 7.9 and 16.4 per cent.')).toEqual([
+        'foreign-number',
+      ]);
+      // Across a sentence or other words, 8.2 is a bare decimal, not 8.2%.
+      expect(foreign('The figure was 8.2. In all, 16.4% were late.')).toEqual(['foreign-number']);
+      expect(foreign('It was 8.2 at most, then 16.4%.')).toEqual(['foreign-number']);
     });
 
     it('reads a number before a carried unit as written or as a percentage, never neither', () => {
