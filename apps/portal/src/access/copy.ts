@@ -296,7 +296,7 @@ const PACKAGE = {
   downloadFailed: en('We could not start the download. Try again.'),
   downloadStarted: en('Download started. Each download is recorded.'),
   preparingTitle: en('Preparing your documents…'),
-  preparingText: en('Usually a few minutes. We will SMS and email you when it is ready.'),
+  preparingText: en('Usually a few minutes. We will SMS and email you when they are ready.'),
 
   readyNext: en((at: string) => `Download your package by ${at}.`),
   readyTodayNext: en((time: string) => `Download your package today, by ${time}.`),
