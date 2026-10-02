@@ -1,7 +1,6 @@
 import 'reflect-metadata';
 
 import { randomUUID } from 'node:crypto';
-import { readFileSync } from 'node:fs';
 
 import { FastifyAdapter, type NestFastifyApplication } from '@nestjs/platform-fastify';
 import { Test } from '@nestjs/testing';
@@ -49,11 +48,11 @@ import { FakeDeclarations } from './fake-declarations.js';
 import { FakeDirectory } from './fake-directory.js';
 import { FakeDocuments } from './fake-documents.js';
 import { FakeIntegrationGateway } from './fake-integration-gateway.js';
+import { applyMigrations } from './migrations.js';
 import { FakeNotifications } from './fake-notifications.js';
 
 const ISSUER = 'http://keycloak.test/realms/adili';
 const AUDIENCE = 'adili-api';
-const MIGRATIONS = new URL('../../migrations/', import.meta.url);
 
 export interface Caller {
   sub?: string;
@@ -335,22 +334,6 @@ export function submittedEvent(
       late: false,
     },
   };
-}
-
-async function applyMigrations(db: Database<ReviewSchema>): Promise<void> {
-  const journal = JSON.parse(readFileSync(new URL('meta/_journal.json', MIGRATIONS), 'utf8')) as {
-    entries: { tag: string }[];
-  };
-  for (const { tag } of journal.entries) {
-    // drizzle-kit qualifies foreign key targets with "public"; resolve them in the test schema.
-    const migration = readFileSync(new URL(`${tag}.sql`, MIGRATIONS), 'utf8').replaceAll(
-      '"public".',
-      '',
-    );
-    for (const statement of migration.split('--> statement-breakpoint')) {
-      if (statement.trim()) await db.execute(sql.raw(statement));
-    }
-  }
 }
 
 async function tokenSigner(): Promise<{ signer: (caller: Caller) => Promise<string>; jwk: JWK }> {
