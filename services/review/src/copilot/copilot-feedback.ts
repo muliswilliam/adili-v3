@@ -19,7 +19,6 @@ import { InternalApiRejected } from '../internal-api/rejected.js';
 import { aiGatewayUnavailable } from './problems.js';
 import {
   COPILOT_RATINGS,
-  type CopilotRating,
   type CopilotRow,
   reviewCopilotRatings,
   reviewCopilots,
@@ -35,11 +34,20 @@ const SUMMARY_BLOCKS = {
 
 const FLAG_BLOCK = /^flag:([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/;
 
+/** A summary's block or an explanation's (`flag:<flagId>`), as the contract's pattern names them. */
+const COPILOT_BLOCK =
+  /^(overview|changes|sections|worth-attention|flag:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/;
+
 /** review.yaml `CopilotBlock`. */
-const copilotBlock = z
+export const copilotBlockSchema = z
   .string()
   .max(64)
-  .refine((block) => block in SUMMARY_BLOCKS || FLAG_BLOCK.test(block), 'Not a copilot block');
+  .regex(COPILOT_BLOCK, 'Not a copilot block')
+  .nullable()
+  .meta({
+    description:
+      "The block of an output a rating is for: a summary's `overview`, `changes`, `sections` or `worth-attention`, or an explanation's `flag:<flagId>`. Null: the output as a whole (a clarification draft).",
+  });
 
 /** Why a reviewer found an output unhelpful: the ai-gateway's `FeedbackInput.reason`, forwarded. */
 const FEEDBACK_REASONS = [
@@ -50,21 +58,25 @@ const FEEDBACK_REASONS = [
   'other',
 ] as const satisfies readonly NonNullable<FeedbackInput['reason']>[];
 
+/** A reviewer's rating of an output block. */
+const copilotRatingSchema = z.enum(COPILOT_RATINGS);
+
 /** review.yaml `CopilotFeedbackInput`. */
 export const copilotFeedbackInput = z.object({
-  block: copilotBlock.nullish().transform((block) => block ?? null),
-  rating: z.enum(COPILOT_RATINGS),
+  block: copilotBlockSchema.optional().transform((block) => block ?? null),
+  rating: copilotRatingSchema,
   reason: z.enum(FEEDBACK_REASONS).nullable(),
   note: z.string().max(1000).nullable(),
 });
 export type CopilotFeedbackInput = z.infer<typeof copilotFeedbackInput>;
 
 /** An entry of review.yaml `CopilotView.feedback`. */
-export interface CopilotRatingView {
-  jobId: string;
-  block: string | null;
-  rating: CopilotRating;
-}
+export const copilotRatingViewSchema = z.object({
+  jobId: z.uuid(),
+  block: copilotBlockSchema,
+  rating: copilotRatingSchema,
+});
+export type CopilotRatingView = z.infer<typeof copilotRatingViewSchema>;
 
 /** Which output of a case a job's is: its summary, its explanations, or a clarification draft. */
 type ShownOutput =

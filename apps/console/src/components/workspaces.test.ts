@@ -64,8 +64,8 @@ describe('S18 Commissions workspace', () => {
   });
 
   it('leaves workspaces that are not built yet without a link', () => {
-    expect(workspaceFor(['reviewer'], 'review')).toMatchObject({ readOnly: false });
-    expect(workspaceFor(['reviewer'], 'review')?.href).toBeUndefined();
+    expect(workspaceFor(['supervisor'], 'approvals')).toMatchObject({ readOnly: false });
+    expect(workspaceFor(['supervisor'], 'approvals')?.href).toBeUndefined();
   });
 });
 

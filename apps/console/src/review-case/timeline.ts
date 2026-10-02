@@ -41,6 +41,8 @@ const MARKS: Record<string, Mark> = {
   'flag-reviewed': { icon: CheckmarkCircle02Icon, tone: 'success' },
   'status-changed': { icon: Clock01Icon },
   'sampled-for-review': { icon: Shield01Icon, tone: 'info' },
+  'registry-checked': { icon: Shield01Icon },
+  'registry-rechecked': { icon: Shield01Icon, tone: 'info' },
   'clarification-issued': { icon: SentIcon, tone: 'info' },
   'clarification-follow-up': { icon: SentIcon, tone: 'info' },
   'clarification-reminder-sent': { icon: Message01Icon },

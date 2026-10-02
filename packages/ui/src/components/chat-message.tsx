@@ -244,7 +244,7 @@ function AssistantBody({
           {status === 'streaming' ? (
             <span
               aria-hidden="true"
-              className="ml-0.5 inline-block h-[15px] w-[7px] animate-caret rounded-[2px] bg-ai align-[-2px] motion-reduce:animate-none"
+              className="ml-0.5 inline-block h-[15px] w-[7px] animate-caret rounded-xs bg-ai align-[-2px] motion-reduce:animate-none"
             />
           ) : null}
         </p>

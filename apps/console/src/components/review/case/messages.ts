@@ -3,6 +3,12 @@
  * prototype word it. English now; Swahili slots stay empty until translated.
  */
 
+/** "medium severity" for one indicator; "highest severity: high" for several. */
+function pinnedSeverity(count: number, severity: string): string {
+  const label = severity.toLowerCase();
+  return count === 1 ? `${label} severity` : `highest severity: ${label}`;
+}
+
 export const en = {
   title: 'Case',
   fileNumber: (value: string) => `File no. ${value}`,
@@ -27,39 +33,7 @@ export const en = {
     assign: 'Assign to a reviewer',
     unassign: 'Unassign',
   },
-  dialogs: {
-    claimTitle: 'Claim this case?',
-    claimBody: (reference: string, name: string) => `You will hold ${reference} for ${name}.`,
-    claimSupervisor:
-      'You become a reviewer of record. Another supervisor, who has never held this case, must approve its determination.',
-    claimConfirm: 'Claim case',
-    releaseTitle: 'Release this case?',
-    releaseBody: (reference: string) =>
-      `${reference} returns to the queue unassigned. Your notes and reviewed flags stay, and you remain a reviewer of record.`,
-    releaseKeep: 'Keep it',
-    releaseConfirm: 'Release case',
-    reassignTitle: 'Reassign case',
-    assignTitle: 'Assign case',
-    currentlyHeld: (name: string) => `Currently held by ${name}.`,
-    assignTo: 'Assign to',
-    you: 'You',
-    ofRecord: 'Already a reviewer of record',
-    reviewerOfRecordNote:
-      'Only reviewers who have worked this case are listed until the review service lists a Commission’s reviewers.',
-    noReviewers: 'There is nobody else to hand this case to yet.',
-    unassignTitle: 'Unassign this case?',
-    unassignBody: (reference: string, name: string) =>
-      `${reference} returns to the queue unassigned. ${name} remains a reviewer of record; their notes stay.`,
-    cancel: 'Cancel',
-  },
   toasts: {
-    claimed: 'Case claimed. You hold it now.',
-    claimConflict: (name: string | null) =>
-      name ? `Already claimed by ${name}` : 'Another reviewer claimed this case first',
-    released: 'Case released to the queue',
-    reassigned: (name: string) => `Reassigned to ${name}`,
-    assigned: (name: string) => `Assigned to ${name}`,
-    unassigned: 'Case unassigned',
     reviewed: 'Marked reviewed',
     noteAdded: 'Note added',
     linkFailed: 'The attachment could not be downloaded. Try again.',
@@ -100,8 +74,10 @@ export const en = {
     declared: (when: string, version: number) =>
       `Solemn declaration made online on ${when} (version ${String(version)}).`,
     pins: (count: number) => `${String(count)} indicator${count === 1 ? '' : 's'}`,
-    pinsLabel: (count: number) =>
-      `${String(count)} indicator${count === 1 ? '' : 's'} on this item. Show in flags.`,
+    pinsLabel: (count: number, severity: string) =>
+      `${String(count)} indicator${count === 1 ? '' : 's'} on this item, ${pinnedSeverity(count, severity)}. Show in flags.`,
+    sectionPinsLabel: (count: number, severity: string) =>
+      `${String(count)} indicator${count === 1 ? '' : 's'} on this section, ${pinnedSeverity(count, severity)}. Show in flags.`,
     unavailableTitle: 'The declaration could not be loaded.',
     unavailableBody: 'Flags, notes and clarifications are still available.',
     unreadableTitle: 'This declaration cannot be shown here.',
@@ -112,6 +88,7 @@ export const en = {
   tabs: {
     label: 'Case review',
     flags: 'Flags',
+    registry: 'Registry',
     clarifications: 'Clarifications',
     notes: 'Notes',
     timeline: 'Timeline',

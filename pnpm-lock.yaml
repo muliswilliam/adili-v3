@@ -33,6 +33,9 @@ importers:
       '@adili/bff-auth':
         specifier: workspace:*
         version: link:../../packages/bff-auth
+      '@adili/forms':
+        specifier: workspace:*
+        version: link:../../packages/forms
       '@adili/roles':
         specifier: workspace:*
         version: link:../../packages/roles
@@ -64,9 +67,6 @@ importers:
       '@adili/eslint-config':
         specifier: workspace:*
         version: link:../../packages/eslint-config
-      '@adili/forms':
-        specifier: workspace:*
-        version: link:../../packages/forms
       '@adili/schemas':
         specifier: workspace:*
         version: link:../../packages/schemas
@@ -399,6 +399,9 @@ importers:
 
   packages/api-kit:
     dependencies:
+      '@adili/telemetry':
+        specifier: workspace:*
+        version: link:../telemetry
       '@fastify/helmet':
         specifier: ^13.1.1
         version: 13.1.1
@@ -884,6 +887,9 @@ importers:
       typescript:
         specifier: ~6.0.3
         version: 6.0.3
+      vitest:
+        specifier: ^5.0.1
+        version: 5.0.1(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(jsdom@30.1.1)(vite@8.3.1)
 
   packages/temporal:
     dependencies:
@@ -1857,6 +1863,9 @@ importers:
       '@adili/events':
         specifier: workspace:*
         version: link:../../packages/events
+      '@adili/roles':
+        specifier: workspace:*
+        version: link:../../packages/roles
       '@adili/telemetry':
         specifier: workspace:*
         version: link:../../packages/telemetry

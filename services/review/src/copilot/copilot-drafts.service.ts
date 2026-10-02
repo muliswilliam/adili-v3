@@ -6,6 +6,7 @@ import { type Database, FieldCipher, InjectDatabase, withTenant } from '@adili/d
 import type { DeclarationV1 } from '@adili/forms';
 import { and, asc, eq, gt, sql } from 'drizzle-orm';
 import { v5 as uuidv5 } from 'uuid';
+import { z } from 'zod';
 
 import {
   type AiJob,
@@ -18,6 +19,7 @@ import { caseTenant } from '../cases/access.js';
 import { findCase } from '../cases/case-lookup.js';
 import { reviewCases, reviewFlags } from '../cases/schema.js';
 import { requireAssignee } from '../clarifications/access.js';
+import { clarificationItemInput } from '../clarifications/clarification-input.js';
 import type { ReviewSchema } from '../db/schema.js';
 import {
   DeclarationsClient,
@@ -28,6 +30,7 @@ import { InternalApiRejected } from '../internal-api/rejected.js';
 import { declarationsUnavailable, withUpstream } from '../internal-api/upstream.js';
 import { COPILOT_FAILURES, dataClassOf, succeededWithout } from './copilot-requests.js';
 import {
+  COPILOT_DRAFT_STATUSES,
   COPILOT_DRAFT_TTL_HOURS,
   type CopilotDraftRow,
   type CopilotDraftStatus,
@@ -46,17 +49,29 @@ import { aiGatewayUnavailable as gatewayUnavailable, aiNotEnabled } from './prob
 import { COPILOT_PROMPT_VERSIONS } from './prompt-versions.js';
 
 /** review.yaml `CopilotDraft`. */
-export interface CopilotDraft {
-  id: string;
-  status: CopilotDraftStatus;
-  jobId: string | null;
-  /** ai-gateway `AiLabel`; null until ready. */
-  label: Record<string, unknown> | null;
-  opening: string | null;
-  /** Each item names the job that drafted it (`aiJobId`), which the composer keeps. */
+export const copilotDraftSchema = z.object({
+  id: z.uuid(),
+  status: z.enum(COPILOT_DRAFT_STATUSES),
+  jobId: z.uuid().nullable(),
+  label: z
+    .record(z.string(), z.unknown())
+    .nullable()
+    .meta({ description: 'ai-gateway AiLabel; null until ready' }),
+  opening: z.string().nullable(),
+  items: z.array(clarificationItemInput).meta({
+    description:
+      'Empty until ready. Each item names the job that drafted it (`aiJobId`), which the composer keeps',
+  }),
+  failureReason: z.string().nullable().meta({
+    description:
+      "The ai-gateway's job reason (`validation`, `budget`, `provider`, ...), `output-purged` when the job succeeded but its output was purged before it was read, or `rejected` when the gateway refused the request",
+  }),
+});
+
+/** A draft as the service answers it: each item names the job that drafted it. */
+export type CopilotDraft = Omit<z.infer<typeof copilotDraftSchema>, 'items'> & {
   items: (DraftItem & { aiJobId: string })[];
-  failureReason: string | null;
-}
+};
 
 /** How long the reviewer's request waits for the draft before answering a pending one to poll. */
 export const DRAFT_WAIT_SECONDS = MAX_TASK_WAIT_SECONDS;

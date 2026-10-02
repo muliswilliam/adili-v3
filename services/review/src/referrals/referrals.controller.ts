@@ -1,5 +1,6 @@
 import { Body, Controller, Get, HttpCode, Param, Post, Query } from '@nestjs/common';
 import {
+  ApiBody,
   ApiCreatedResponse,
   ApiOkResponse,
   ApiOperation,
@@ -52,6 +53,7 @@ export class ReferralsController {
   @Post('review/cases/:caseId/referrals')
   @ApiUuidParam('caseId')
   @AcceptIdempotencyKey()
+  @ApiBody({ required: true, schema: schemaRef('ReferralInput') })
   @ApiOperation({
     operationId: 'proposeReferral',
     summary: 'Propose a referral to EACC from a case (assignee)',
@@ -140,6 +142,7 @@ export class ReferralsController {
   @HttpCode(200)
   @ApiUuidParam('referralId')
   @AcceptIdempotencyKey()
+  @ApiBody({ required: true, schema: schemaRef('ReasonInput') })
   @ApiOperation({ operationId: 'declineReferral', summary: 'Decline with a note' })
   @ApiOkResponse({ description: 'Declined', schema: schemaRef('Referral') })
   @ApiProblemResponse(400, 'Body failed validation')

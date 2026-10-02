@@ -1,4 +1,4 @@
-import { Badge, Button, cn, focusRing, Icon, LogoWordmark, SiteFooter } from '@adili/ui';
+import { Avatar, Badge, Button, cn, focusRing, Icon, LogoWordmark, SiteFooter } from '@adili/ui';
 import { Logout01Icon, Menu01Icon } from '@hugeicons/core-free-icons';
 import { Link, useLocation } from '@tanstack/react-router';
 import { type ReactNode, useEffect, useRef } from 'react';
@@ -6,7 +6,7 @@ import { type ReactNode, useEffect, useRef } from 'react';
 import { Breadcrumbs } from './breadcrumbs';
 import { seniorRoleLabel } from '../roles';
 import { formatNumber } from '../format';
-import { activeNavHref, initials, type NavHref, navFor } from './nav';
+import { activeNavHref, type NavHref, navFor } from './nav';
 
 /** A count on a sidebar entry, e.g. flagged officers on Roster; `label` reads it out. */
 export interface NavCount {
@@ -150,12 +150,7 @@ function Sidebar({
         </div>
       ))}
       <div className="mt-auto flex items-center gap-2.5 border-t pt-3 text-[13px]">
-        <span
-          aria-hidden="true"
-          className="grid size-7 shrink-0 place-items-center rounded-full bg-linear-to-br from-brand/45 to-brand text-[11.5px] font-semibold text-primary-foreground"
-        >
-          {initials(userName)}
-        </span>
+        <Avatar name={userName} current className="size-7 text-[11.5px] font-semibold" />
         <div className="min-w-0 flex-1">
           <p className="truncate font-medium">{userName}</p>
           {role ? <p className="truncate text-xs text-muted-foreground">{role}</p> : null}

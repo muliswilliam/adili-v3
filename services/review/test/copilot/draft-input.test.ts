@@ -43,6 +43,7 @@ describe('draftClarificationInput', () => {
     reviewedBy: null,
     reviewNote: null,
     recomputed: false,
+    closedReason: null,
     createdAt: new Date('2028-01-20T08:00:00.000Z'),
   });
   const landFlag = flag('0199b000-0000-7000-8000-0000000000f1', [land.id]);

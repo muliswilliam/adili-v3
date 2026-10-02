@@ -48,6 +48,7 @@ import {
   type Relation,
 } from '../../../review-case/declaration';
 import { topSeverity } from '../../../review-case/flags';
+import { SEVERITY_LABELS } from '../../../review-case/labels';
 import { declarationAnchorId } from '../copilot/source-refs';
 import { messages as t } from './messages';
 
@@ -66,6 +67,11 @@ export interface DeclarationPaneProps {
   versionNumber: number;
   /** Open flags by item id, for the pins. */
   pins: Map<string, CaseFlag[]>;
+  /**
+   * Open flags on a section as a whole, by section key (`bio`, `household`, `other`,
+   * `statement:<personKey>`), for the pins on the section headings.
+   */
+  sectionPins?: Map<string, CaseFlag[]>;
   onOpenFlag: (flagId: string) => void;
   onDownload: (uploadId: string, fileName: string) => void;
   /** Uploads whose link is on its way. */
@@ -79,10 +85,14 @@ export function DeclarationPane({
   version,
   versionNumber,
   pins,
+  sectionPins = new Map(),
   onOpenFlag,
   onDownload,
   downloading,
 }: DeclarationPaneProps) {
+  const sectionPin = (key: string) => (
+    <FlagPin flags={sectionPins.get(key) ?? []} section onOpenFlag={onOpenFlag} />
+  );
   return (
     <DeclarationCard version={version}>
       {view.statements.length > 0 ? <Totals view={view} /> : null}
@@ -90,6 +100,7 @@ export function DeclarationPane({
         id={declarationAnchorId({ kind: 'section', section: 'personal' })}
         no="1-5"
         title={t.declaration.personal}
+        pin={sectionPin('bio')}
       >
         <dl className="grid grid-cols-1 gap-x-5 gap-y-3.5 min-[560px]:grid-cols-3">
           {view.personal.map((field) => (
@@ -104,6 +115,7 @@ export function DeclarationPane({
         id={declarationAnchorId({ kind: 'section', section: 'spouses' })}
         no="6"
         title={t.declaration.spouses}
+        pin={sectionPin('household')}
       >
         <People people={view.spouses} relation="spouse" />
       </Section>
@@ -126,6 +138,7 @@ export function DeclarationPane({
               statement={statement}
               view={view}
               pins={pins}
+              pin={sectionPin(`statement:${statement.personKey}`)}
               onOpenFlag={onOpenFlag}
               onDownload={onDownload}
               downloading={downloading}
@@ -137,6 +150,7 @@ export function DeclarationPane({
         id={declarationAnchorId({ kind: 'section', section: 'other' })}
         no="9"
         title={t.declaration.other}
+        pin={sectionPin('other')}
       >
         {view.otherInformation.length > 0 ? (
           <ul className="grid gap-1.5 text-sm">
@@ -274,12 +288,15 @@ function Section({
   no,
   title,
   aside,
+  pin,
   children,
 }: {
   id?: string;
   no?: string;
   title: string;
   aside?: ReactNode;
+  /** The pin of open flags on the section as a whole. */
+  pin?: ReactNode;
   children: ReactNode;
 }) {
   return (
@@ -298,6 +315,7 @@ function Section({
         {aside ? (
           <span className="text-[13px] font-normal text-muted-foreground">{aside}</span>
         ) : null}
+        {pin ? <span className="ml-auto">{pin}</span> : null}
       </h3>
       {children}
     </section>
@@ -447,12 +465,15 @@ function StatementCard({
   statement,
   view,
   pins,
+  pin,
   onOpenFlag,
   onDownload,
   downloading,
 }: {
   statement: DeclaredStatement;
   view: DeclarationView;
+  /** The pin of open flags on the person's statement as a whole. */
+  pin: ReactNode;
 } & Pick<DeclarationPaneProps, 'pins' | 'onOpenFlag' | 'onDownload' | 'downloading'>) {
   const headings: Record<Category, { title: string; aside: string | null }> = {
     income: {
@@ -478,6 +499,7 @@ function StatementCard({
           </div>
           <div className="text-[13px] text-muted-foreground">{statement.relationLabel}</div>
         </div>
+        <div className="ml-auto">{pin}</div>
       </div>
       {CATEGORIES.map((category) => (
         <div key={category}>
@@ -547,7 +569,6 @@ function ItemRow({
   flags: CaseFlag[];
 } & Pick<DeclarationPaneProps, 'onOpenFlag' | 'onDownload' | 'downloading'>) {
   const line = [item.description, item.detail].filter(Boolean).join(' · ');
-  const severity = flags.length > 0 ? topSeverity(flags) : null;
   const tags = item.changeMark !== null || item.attachments.length > 0 || flags.length > 0;
   return (
     <li
@@ -593,23 +614,7 @@ function ItemRow({
                 <span className="truncate">{attachment.fileName}</span>
               </button>
             ))}
-            {severity && flags[0] ? (
-              <button
-                type="button"
-                aria-label={t.declaration.pinsLabel(flags.length)}
-                onClick={() => {
-                  if (flags[0]) onOpenFlag(flags[0].id);
-                }}
-                className={cn(
-                  focusRing,
-                  'inline-flex h-6 cursor-pointer items-center gap-[5px] rounded-full px-2 text-xs font-semibold',
-                  PIN_TONES[severity],
-                )}
-              >
-                <Icon icon={Flag01Icon} className="size-3" strokeWidth={2.2} />
-                {t.declaration.pins(flags.length)}
-              </button>
-            ) : null}
+            <FlagPin flags={flags} onOpenFlag={onOpenFlag} />
           </div>
         ) : null}
       </div>
@@ -617,5 +622,41 @@ function ItemRow({
         KES {kes(item.kesCents)}
       </div>
     </li>
+  );
+}
+
+/**
+ * How many open flags an item (or, with `section`, a section as a whole) has, tinted by the
+ * highest severity and named with it; opens the first of them in the Flags tab.
+ */
+function FlagPin({
+  flags,
+  section = false,
+  onOpenFlag,
+}: {
+  flags: CaseFlag[];
+  section?: boolean;
+  onOpenFlag: (flagId: string) => void;
+}) {
+  const first = flags[0];
+  if (!first) return null;
+  const severity = topSeverity(flags);
+  const label = section ? t.declaration.sectionPinsLabel : t.declaration.pinsLabel;
+  return (
+    <button
+      type="button"
+      aria-label={label(flags.length, SEVERITY_LABELS[severity])}
+      onClick={() => {
+        onOpenFlag(first.id);
+      }}
+      className={cn(
+        focusRing,
+        'inline-flex h-6 cursor-pointer items-center gap-[5px] rounded-full px-2 text-xs font-semibold',
+        PIN_TONES[severity],
+      )}
+    >
+      <Icon icon={Flag01Icon} className="size-3" strokeWidth={2.2} />
+      {t.declaration.pins(flags.length)}
+    </button>
   );
 }

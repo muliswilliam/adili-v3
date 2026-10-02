@@ -114,9 +114,11 @@ describe('POST /internal/v1/iprs/person-lookups', () => {
     await lookup('23456789');
 
     const keys = await t.cacheKeys();
-    expect(keys).toHaveLength(1);
-    expect(keys[0]).toMatch(/^iprs:person:[0-9a-f]{64}$/);
-    const ttl = await t.valkey.ttl(keys[0] ?? '');
+    expect(keys.join('\n')).not.toContain('23456789');
+    // Besides the answer, the kit keeps IPRS's rate limit state.
+    const answers = keys.filter((key) => key.startsWith('iprs:person:'));
+    expect(answers).toEqual([expect.stringMatching(/^iprs:person:[0-9a-f]{64}$/)]);
+    const ttl = await t.valkey.ttl(answers[0] ?? '');
     expect(ttl).toBeGreaterThan(86_400 - 5);
     expect(ttl).toBeLessThanOrEqual(86_400);
   });

@@ -1,16 +1,9 @@
 import { asc, eq } from 'drizzle-orm';
-import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
-import {
-  inbox,
-  outbox,
-  reviewCases,
-  reviewCopilots,
-  reviewFlags,
-  reviewTimeline,
-} from '../../src/db/schema.js';
+import { inbox, outbox, reviewCases, reviewFlags, reviewTimeline } from '../../src/db/schema.js';
 import { asset, declaration, income, statement } from '../fixtures/declarations.js';
-import { processedFromInbox } from '../support/cases.js';
+import { processedFromInbox, untilProcessed } from '../support/cases.js';
 import { submittedVersion } from '../support/fake-declarations.js';
 import { type ReviewApi, startReviewApi, submittedEvent } from '../support/review-api.js';
 
@@ -98,8 +91,10 @@ describe('declaration.submitted.v1 consumer and processing', () => {
     const timeline = await api.asPlatform((tx) =>
       tx.select().from(reviewTimeline).where(eq(reviewTimeline.caseId, caseId)),
     );
+    // Then its registries are checked (spec 07b): no roster record here, so no national ID.
     expect(timeline).toMatchObject([
       { kind: 'case-created', ref: version.versionId, actor: 'system:review' },
+      { kind: 'registry-checked', ref: version.versionId, actor: 'system:review' },
     ]);
 
     // The previous-version lookup found none; the content was read as the system, per version.
@@ -113,9 +108,10 @@ describe('declaration.submitted.v1 consumer and processing', () => {
 
     // S21: identifiers and states only.
     const events = await api.db.select().from(outbox).orderBy(asc(outbox.createdAt));
-    // The case, then its copilot requested (spec 07c).
+    // The case, its registry check, then its copilot requested (spec 07c).
     expect(events.map((event) => event.eventType)).toEqual([
       'review.case.created.v1',
+      'review.registry.checked.v1',
       'review.copilot.updated.v1',
     ]);
     expect(events[0]?.envelope).toMatchObject({
@@ -144,21 +140,7 @@ describe('declaration.submitted.v1 consumer and processing', () => {
     const event = submittedEvent('psc', version);
 
     await api.consumer.submitted(event);
-    // Until the workflow's last step: the copilot requested.
-    await vi.waitFor(
-      async () => {
-        const [found] = await casesOf(version.declarationId);
-        expect(found).toBeDefined();
-        const copilots = await api.asPlatform((tx) =>
-          tx
-            .select()
-            .from(reviewCopilots)
-            .where(eq(reviewCopilots.caseId, found?.id ?? '')),
-        );
-        expect(copilots).toHaveLength(1);
-      },
-      { timeout: 45_000, interval: 250 },
-    );
+    await untilProcessed(api, version);
     const readsAfterFirst = api.declarations.reads.length;
     const eventsAfterFirst = (await api.db.select().from(outbox)).length;
 
@@ -172,6 +154,7 @@ describe('declaration.submitted.v1 consumer and processing', () => {
     expect(await casesOf(version.declarationId)).toHaveLength(1);
     expect(api.declarations.reads).toHaveLength(readsAfterFirst);
     const events = await api.db.select().from(outbox);
+    // The case, its registry check and its copilot request, once.
     expect(events).toHaveLength(eventsAfterFirst);
     const handled = await api.db.select().from(inbox);
     expect(handled.map((row) => row.eventId).sort()).toHaveLength(2);
@@ -217,11 +200,13 @@ describe('declaration.submitted.v1 consumer and processing', () => {
   it('retries pulls while declarations is unavailable, then creates the case', async () => {
     const version = firstDeclaration();
     api.declarations.given(version);
-    api.declarations.failReads(2);
+    // This version's reads only: a workflow of an earlier test still running cannot take them.
+    api.declarations.failDocumentReads(version.declarationId, 2);
 
     await processedFromInbox(api, version);
 
     expect(await casesOf(version.declarationId)).toHaveLength(1);
+    expect(api.declarations.failedReads).toEqual([version.declarationId, version.declarationId]);
   });
 
   it('rejects an event without a tenant, and one for a version it cannot name', async () => {

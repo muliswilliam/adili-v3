@@ -53,6 +53,7 @@ import { Route as DeclarationsIdOtherRouteImport } from './routes/declarations/$
 import { Route as DeclarationsIdSummaryRouteImport } from './routes/declarations/$id/summary'
 import { Route as DeclarationsIdSubmittedRouteImport } from './routes/declarations/$id_.submitted'
 import { Route as AccessRequestsIdSubmittedRouteImport } from './routes/access/requests/$id_.submitted'
+import { Route as ApiDocumentsDocumentIdDownloadRouteImport } from './routes/api/documents.$documentId.download'
 import { Route as DeclarationsIdStatementsPersonKeyRouteImport } from './routes/declarations/$id/statements/$personKey'
 
 const IndexRoute = IndexRouteImport.update({
@@ -279,6 +280,12 @@ const AccessRequestsIdSubmittedRoute =
     path: '/access/requests/$id/submitted',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiDocumentsDocumentIdDownloadRoute =
+  ApiDocumentsDocumentIdDownloadRouteImport.update({
+    id: '/api/documents/$documentId/download',
+    path: '/api/documents/$documentId/download',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const DeclarationsIdStatementsPersonKeyRoute =
   DeclarationsIdStatementsPersonKeyRouteImport.update({
     id: '/statements/$personKey',
@@ -331,6 +338,7 @@ export interface FileRoutesByFullPath {
   '/access/requests/': typeof AccessRequestsIndexRoute
   '/declarations/$id/': typeof DeclarationsIdIndexRoute
   '/access/requests/$id/submitted': typeof AccessRequestsIdSubmittedRoute
+  '/api/documents/$documentId/download': typeof ApiDocumentsDocumentIdDownloadRoute
   '/declarations/$id/statements/$personKey': typeof DeclarationsIdStatementsPersonKeyRoute
 }
 export interface FileRoutesByTo {
@@ -375,6 +383,7 @@ export interface FileRoutesByTo {
   '/access/requests': typeof AccessRequestsIndexRoute
   '/declarations/$id': typeof DeclarationsIdIndexRoute
   '/access/requests/$id/submitted': typeof AccessRequestsIdSubmittedRoute
+  '/api/documents/$documentId/download': typeof ApiDocumentsDocumentIdDownloadRoute
   '/declarations/$id/statements/$personKey': typeof DeclarationsIdStatementsPersonKeyRoute
 }
 export interface FileRoutesById {
@@ -423,6 +432,7 @@ export interface FileRoutesById {
   '/access/requests/': typeof AccessRequestsIndexRoute
   '/declarations/$id/': typeof DeclarationsIdIndexRoute
   '/access/requests/$id_/submitted': typeof AccessRequestsIdSubmittedRoute
+  '/api/documents/$documentId/download': typeof ApiDocumentsDocumentIdDownloadRoute
   '/declarations/$id/statements/$personKey': typeof DeclarationsIdStatementsPersonKeyRoute
 }
 export interface FileRouteTypes {
@@ -472,6 +482,7 @@ export interface FileRouteTypes {
     | '/access/requests/'
     | '/declarations/$id/'
     | '/access/requests/$id/submitted'
+    | '/api/documents/$documentId/download'
     | '/declarations/$id/statements/$personKey'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -516,6 +527,7 @@ export interface FileRouteTypes {
     | '/access/requests'
     | '/declarations/$id'
     | '/access/requests/$id/submitted'
+    | '/api/documents/$documentId/download'
     | '/declarations/$id/statements/$personKey'
   id:
     | '__root__'
@@ -563,6 +575,7 @@ export interface FileRouteTypes {
     | '/access/requests/'
     | '/declarations/$id/'
     | '/access/requests/$id_/submitted'
+    | '/api/documents/$documentId/download'
     | '/declarations/$id/statements/$personKey'
   fileRoutesById: FileRoutesById
 }
@@ -593,6 +606,7 @@ export interface RootRouteChildren {
   AccessNoticesIndexRoute: typeof AccessNoticesIndexRoute
   AccessRequestsIndexRoute: typeof AccessRequestsIndexRoute
   AccessRequestsIdSubmittedRoute: typeof AccessRequestsIdSubmittedRoute
+  ApiDocumentsDocumentIdDownloadRoute: typeof ApiDocumentsDocumentIdDownloadRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -905,6 +919,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AccessRequestsIdSubmittedRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/documents/$documentId/download': {
+      id: '/api/documents/$documentId/download'
+      path: '/api/documents/$documentId/download'
+      fullPath: '/api/documents/$documentId/download'
+      preLoaderRoute: typeof ApiDocumentsDocumentIdDownloadRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/declarations/$id/statements/$personKey': {
       id: '/declarations/$id/statements/$personKey'
       path: '/statements/$personKey'
@@ -1011,6 +1032,7 @@ const rootRouteChildren: RootRouteChildren = {
   AccessNoticesIndexRoute: AccessNoticesIndexRoute,
   AccessRequestsIndexRoute: AccessRequestsIndexRoute,
   AccessRequestsIdSubmittedRoute: AccessRequestsIdSubmittedRoute,
+  ApiDocumentsDocumentIdDownloadRoute: ApiDocumentsDocumentIdDownloadRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

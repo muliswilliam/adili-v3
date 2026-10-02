@@ -7,8 +7,8 @@
  *
  * Every text pair meets WCAG 2.2 AA (4.5:1) in both themes: foreground, muted-foreground and
  * secondary-foreground on the page, card and muted fills; each -foreground on its solid; each
- * -subtle-foreground on its -subtle fill; and the solid status colours that badges use on their
- * -subtle fill. The dark placeholder meets it on the card and on muted (read-only controls). Two
+ * -subtle-foreground on its -subtle fill; avatar-foreground on avatar; and the solid status
+ * colours that badges use on their -subtle fill. The dark placeholder meets it on the card and on muted (read-only controls). Two
  * exceptions, both deliberate: the light placeholder (#8f8d89, 3.3:1 on card and 3.0:1 on muted,
  * taken from the kit and open with design) and disabled buttons, which WCAG exempts. The solid
  * info and brand colours miss 4.5:1 on their light -subtle fills, so text on those fills uses
@@ -128,12 +128,18 @@
      hairline with an AI stripe down its left edge. */
   --elevation-card-ai: var(--elevation-card), inset 3px 0 0 var(--ai);
   --elevation-card-editing: 0 0 0 1.5px var(--ring), 0 8px 24px -12px rgb(20 20 20 / 0.2);
+  /* A settled card on a muted fill (a reviewed or closed flag): the hairline without the lift. */
+  --elevation-card-flat: 0 0 0 1px var(--border);
+  /* A hovered card that is a link as a whole (the console's workspace cards): ring and lift. */
+  --elevation-card-hover: 0 0 0 1px var(--input), 0 6px 20px -8px rgb(20 20 20 / 0.15);
   --elevation-pop: 0 12px 40px -8px rgb(20 20 20 / 0.22), 0 0 0 1px rgb(20 20 20 / 0.06);
   --elevation-button-primary: 0 1px 2px rgb(0 0 0 / 0.25), inset 0 1px 0 rgb(255 255 255 / 0.12);
   --elevation-button-destructive:
     0 1px 2px rgb(150 20 10 / 0.3), inset 0 1px 0 rgb(255 255 255 / 0.15);
   /* A frosted list card on the photo panel (the kit's .art-item). */
   --elevation-art-item: 0 1px 2px rgb(0 0 0 / 0.06);
+  /* The brand edge of a highlighted row, e.g. the item a flag points at in the declaration. */
+  --elevation-highlight: inset 3px 0 0 var(--brand);
 }
 
 /* Dark theme: not in the prototypes yet, derived from the same warm neutrals and hues. */
@@ -194,6 +200,7 @@
     --elevation-control-hover: 0 1px 2px rgb(0 0 0 / 0.3), 0 0 0 1px var(--input);
     --elevation-card: 0 1px 2px rgb(0 0 0 / 0.3), 0 0 0 1px var(--border);
     --elevation-card-editing: 0 0 0 1.5px var(--ring), 0 8px 24px -12px rgb(0 0 0 / 0.6);
+    --elevation-card-hover: 0 0 0 1px var(--input), 0 6px 20px -8px rgb(0 0 0 / 0.6);
     --elevation-pop: 0 12px 40px -8px rgb(0 0 0 / 0.6), 0 0 0 1px rgb(255 255 255 / 0.08);
     --elevation-button-primary: 0 1px 2px rgb(0 0 0 / 0.4), inset 0 1px 0 rgb(255 255 255 / 0.3);
     --elevation-button-destructive:
@@ -270,13 +277,19 @@
   --color-art-lift: var(--art-lift);
   --color-art-item: var(--art-item);
   --color-art-tile: var(--art-tile);
-  /* 6, 8, 10, 12, 14, 16 and 24px. The kit's --r-sm, --r and --r-lg are md, lg and 2xl. */
+  /* 6, 7, 8, 9, 10, 12, 14, 16, 20, 22 and 24px. The kit's --r-sm, --r and --r-lg are md, lg and
+     2xl. */
   --radius-sm: calc(var(--radius) - 4px);
+  --radius-chip: calc(var(--radius) - 3px);
   --radius-md: calc(var(--radius) - 2px);
+  --radius-tile: calc(var(--radius) - 1px);
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 2px);
   --radius-item: calc(var(--radius) + 4px);
   --radius-2xl: calc(var(--radius) + 6px);
+  /* The dialog panel, and the top of the phone sheet a dialog or the chat panel becomes. */
+  --radius-dialog: calc(var(--radius) + 10px);
+  --radius-sheet: calc(var(--radius) + 12px);
   --radius-3xl: calc(var(--radius) + 14px);
   --shadow-control: var(--elevation-control);
   --shadow-control-hover: var(--elevation-control-hover);
@@ -288,13 +301,17 @@
   --shadow-paper: var(--elevation-paper);
   --shadow-card-ai: var(--elevation-card-ai);
   --shadow-card-editing: var(--elevation-card-editing);
+  --shadow-card-flat: var(--elevation-card-flat);
+  --shadow-card-hover: var(--elevation-card-hover);
   --shadow-pop: var(--elevation-pop);
   --shadow-button-primary: var(--elevation-button-primary);
   --shadow-button-destructive: var(--elevation-button-destructive);
   --shadow-art-item: var(--elevation-art-item);
+  --shadow-highlight: var(--elevation-highlight);
 }
 
-/* Skeleton shimmer, the indeterminate progress sweep, the drawer's slide in and the chat's typing marks. */
+/* Skeleton shimmer, the indeterminate progress sweep, the drawer's slide in, the chat's typing marks
+   and the highlight on a row a reviewer jumped to. */
 @theme {
   /* Something just opened (a Copilot flag from "Worth attention"): a brand ring fading to the card's hairline. */
   --animate-pulse-ring: pulse-ring 1.6s ease-out;
@@ -306,6 +323,22 @@
   /* A streaming answer's caret and the three dots while Adili is thinking. */
   --animate-caret: caret 1s steps(2) infinite;
   --animate-typing: typing 1.2s infinite;
+  /* A row a reviewer was sent to ("Go to item"), and a card they came back to: one pulse that
+     settles on the row's tint (the kit's .ditem.hl hlpulse and .flag.pulse flagpulse). */
+  --animate-highlight: highlight 1.6s ease-out;
+  --animate-ring-pulse: ring-pulse 1.6s ease-out;
+
+  @keyframes highlight {
+    from {
+      background-color: var(--brand-subtle);
+    }
+  }
+
+  @keyframes ring-pulse {
+    from {
+      box-shadow: 0 0 0 3px var(--brand);
+    }
+  }
 
   @keyframes pulse-ring {
     0% {

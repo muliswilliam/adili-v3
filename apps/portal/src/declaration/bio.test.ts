@@ -11,11 +11,11 @@ const complete = {
 
 describe('bio rules', () => {
   it('passes a complete bio', () => {
-    expect(bioIssues(complete, '2027-11-01')).toEqual({});
+    expect(bioIssues(complete, '2027-11-01', 'biennial')).toEqual({});
   });
 
   it('asks for every missing answer with the spec copy', () => {
-    const issues = bioIssues({}, '2027-11-01');
+    const issues = bioIssues({}, '2027-11-01', 'biennial');
     expect(
       Object.fromEntries(Object.entries(issues).map(([key, value]) => [key, value.message])),
     ).toEqual({
@@ -31,15 +31,25 @@ describe('bio rules', () => {
 
   it('needs an age of 18 to 100 on the statement date', () => {
     expect(
-      bioIssues({ ...complete, birth: { ...complete.birth, date: '2009-11-02' } }, '2027-11-01')
-        .birthDate,
+      bioIssues(
+        { ...complete, birth: { ...complete.birth, date: '2009-11-02' } },
+        '2027-11-01',
+        'biennial',
+      ).birthDate,
     ).toEqual({ kind: 'invalid', message: BIO_MESSAGES.birthDateAge });
     expect(
-      bioIssues({ ...complete, birth: { ...complete.birth, date: '1926-01-01' } }, '2027-11-01')
-        .birthDate,
+      bioIssues(
+        { ...complete, birth: { ...complete.birth, date: '1926-01-01' } },
+        '2027-11-01',
+        'biennial',
+      ).birthDate,
     ).toEqual({ kind: 'invalid', message: BIO_MESSAGES.birthDateAge });
     expect(
-      bioIssues({ ...complete, birth: { ...complete.birth, date: '2009-11-01' } }, '2027-11-01'),
+      bioIssues(
+        { ...complete, birth: { ...complete.birth, date: '2009-11-01' } },
+        '2027-11-01',
+        'biennial',
+      ),
     ).toEqual({});
   });
 
@@ -51,9 +61,19 @@ describe('bio rules', () => {
         employment: { nature: 'other' },
       },
       '2027-11-01',
+      'biennial',
     );
     expect(issues.maritalChange?.message).toBe(BIO_MESSAGES.maritalChange);
     expect(issues.natureOther?.message).toBe(BIO_MESSAGES.natureOther);
+  });
+
+  it('N11: skips the marital change on an initial declaration, which does not ask it', () => {
+    // An old draft may still hold the flag; the field is hidden, so it cannot be fixed there.
+    const stale = { ...complete, maritalStatusChange: { changed: true } };
+    expect(bioIssues(stale, '2027-11-01', 'initial')).toEqual({});
+    expect(bioIssues(stale, '2027-11-01', 'final').maritalChange?.message).toBe(
+      BIO_MESSAGES.maritalChange,
+    );
   });
 
   it('holds addresses to at least 3 characters and place of birth to 2', () => {
@@ -64,6 +84,7 @@ describe('bio rules', () => {
         address: { postal: 'ab', physical: 'abc' },
       },
       '2027-11-01',
+      'biennial',
     );
     expect(Object.keys(issues)).toEqual(['birthPlace', 'postal']);
   });

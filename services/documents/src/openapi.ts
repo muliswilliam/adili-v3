@@ -2,6 +2,7 @@ import { DeclarationSchema } from '@adili/forms';
 import type { z } from 'zod';
 
 import {
+  clarificationLetterSource,
   disclosureLevelSchema,
   documentDownloadSchema,
   documentStatusSchema,
@@ -44,6 +45,7 @@ export const OPENAPI_SCHEMAS: Record<string, z.ZodType> = {
   DisclosureLevel: disclosureLevelSchema,
   DocumentStatus: documentStatusSchema,
   IssueDocument: issueDocumentBody,
+  ClarificationLetterSource: clarificationLetterSource,
   SupersedeDocument: supersedeDocumentBody,
   IssuedDocument: issuedDocumentSchema,
   DocumentDownload: documentDownloadSchema,

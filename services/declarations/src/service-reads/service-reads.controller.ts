@@ -9,16 +9,10 @@ import {
   Post,
   Query,
 } from '@nestjs/common';
-import {
-  ApiBody,
-  ApiHeader,
-  ApiOkResponse,
-  ApiOperation,
-  ApiParam,
-  ApiTags,
-} from '@nestjs/swagger';
+import { ApiHeader, ApiOkResponse, ApiOperation, ApiParam, ApiTags } from '@nestjs/swagger';
 import {
   ActingTenant,
+  ApiJsonBody,
   ApiProblemResponse,
   ApiQueryParameters,
   AuditedRead,
@@ -206,7 +200,7 @@ export class InternalObligationsController {
   @Post('obligations/details')
   @HttpCode(200)
   @AuditedRead({ action: 'obligation.officers.pulled', resource: 'filing-obligation' })
-  @ApiBody({ schema: z.toJSONSchema(obligationDetailsRequest) as object })
+  @ApiJsonBody(obligationDetailsRequest)
   @ApiOperation({
     operationId: 'internalObligationDetails',
     summary:

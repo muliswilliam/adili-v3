@@ -28,24 +28,39 @@ export const closureFilter = z.object({
 export type ClosureFilter = z.infer<typeof closureFilter>;
 
 /** review.yaml `ClosureSummary`. */
-export interface ClosureSummaryView {
-  cycleYear: number;
-  eligibleProposed: number;
-  sampled: number;
-  approved: number;
-  sampleRate: number;
-  windowClosedAt: string | null;
-  lastSweptAt: string | null;
-}
+export const closureSummarySchema = z.object({
+  cycleYear: z.int(),
+  eligibleProposed: z
+    .int()
+    .meta({ description: 'System `compliant-no-issues` proposals waiting for approval' }),
+  sampled: z
+    .int()
+    .meta({ description: 'Cases the sweep diverted to review instead of proposing their closure' }),
+  approved: z.int(),
+  sampleRate: z
+    .number()
+    .meta({ description: 'Fraction of eligible cases diverted to review, e.g. 0.02 for 2%' }),
+  windowClosedAt: z.iso.datetime().nullable().meta({
+    description:
+      'When the last low-band case of the cycle and filters leaves its clarification window',
+  }),
+  lastSweptAt: z.iso.datetime().nullable().meta({
+    description: 'When the closure sweep last ran for the cycle; null before the first sweep',
+  }),
+});
+export type ClosureSummaryView = z.infer<typeof closureSummarySchema>;
 
 /** review.yaml `BulkApprovalResult`. */
-export interface BulkApprovalResultView {
-  approved: number;
-  skipped: number;
-  firstReference: string | null;
-  lastReference: string | null;
-  chunks: number;
-}
+export const bulkApprovalResultSchema = z.object({
+  approved: z.int(),
+  skipped: z.int().meta({
+    description: 'Waiting closures of cases the caller once held, left for another supervisor',
+  }),
+  firstReference: z.string().nullable(),
+  lastReference: z.string().nullable(),
+  chunks: z.int(),
+});
+export type BulkApprovalResultView = z.infer<typeof bulkApprovalResultSchema>;
 
 /** Closures approved per transaction: each allocates its `CMP` numbers in order. */
 export const APPROVAL_CHUNK = 100;

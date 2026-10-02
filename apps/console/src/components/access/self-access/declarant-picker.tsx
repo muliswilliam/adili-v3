@@ -1,8 +1,7 @@
-import { Button, FieldError } from '@adili/ui';
+import { Button, FieldError, initials } from '@adili/ui';
 
 import type { RosterCandidate } from '../../../server/access/types';
 import { findDeclarants } from '../../../server/self-access';
-import { initials } from '../../shell/nav';
 import { RosterCandidatePicker } from '../roster-candidate-picker';
 import { messages as m } from './messages';
 

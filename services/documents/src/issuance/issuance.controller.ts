@@ -2,6 +2,7 @@ import { Body, Controller, Get, HttpCode, HttpStatus, Param, Post, Res } from '@
 import {
   ApiBody,
   ApiCreatedResponse,
+  ApiHeader,
   ApiOkResponse,
   ApiOperation,
   ApiParam,
@@ -48,7 +49,9 @@ interface Reply {
  * officer they were issued to) and the issuing Commission's staff the issuer named as additional
  * downloaders (the access officer handing over an in-person certified copy): metadata and a
  * short-lived download within the document's download window. Anyone else gets 404, as if the
- * document did not exist.
+ * document did not exist. Other staff read a document through the service that owns the record it
+ * is about (a reviewer a clarification letter through the review service, which checks the case),
+ * which asks the internal download below.
  */
 @ApiTags('documents')
 @Controller('v1/documents')
@@ -125,7 +128,7 @@ export class InternalDocumentsController {
     operationId: 'issueDocument',
     summary: 'Render, sign and register a document (services)',
     description:
-      "Service tokens with scope documents:internal, issuing for the tenant in X-Acting-Tenant. Renders the type's versioned template to PDF through Gotenberg with the verification code and QR in the footer of every page and the watermark, when given, across every page, PAdES-signs it with the documents signing certificate, stores its SHA-256 in an Ed25519-signed verification record, stores the PDF and emits `document.issued.v1`. The disclosure level and public payload are the template's. `downloadWindowDays` limits the subject person's downloads to that many days from issue. An access-package and an access-nil-letter require a watermark, a download window and a subject person; a certified-copy a subject person. One document per type and subject: issuing again returns it with 200.",
+      "Service tokens with scope documents:internal, issuing for the tenant in X-Acting-Tenant. Renders the type's versioned template to PDF through Gotenberg with the verification code and QR in the footer of every page and the watermark, when given, across every page, PAdES-signs it with the documents signing certificate, stores its SHA-256 in an Ed25519-signed verification record, stores the PDF and emits `document.issued.v1`. The disclosure level and public payload are the template's. `downloadWindowDays` limits the subject person's downloads to that many days from issue. An access-package and an access-nil-letter require a watermark, a download window and a subject person; a certified-copy a subject person. A clarification letter names its clarification; its fields are pulled from the review service (internalGetClarificationLetterPayload) for the same tenant. One document per type and subject: issuing again returns it with 200.",
   })
   @ApiBody({ required: true, schema: schemaRef('IssueDocument') })
   @ApiCreatedResponse({ description: 'Issued', schema: schemaRef('IssuedDocument') })
@@ -135,11 +138,11 @@ export class InternalDocumentsController {
   })
   @ApiProblemResponse(
     400,
-    "Request failed validation, the payload is not the template's, or the request lacks what the type requires",
+    "Request failed validation, the payload (or the one pulled) is not the template's, the request lacks what the type requires, or the review service holds no issued clarification with the id for the tenant",
   )
   @ApiProblemResponse(
     502,
-    'Problem type `renderer-unavailable`, `signer-unavailable` or `storage-unavailable`: nothing was issued; retry',
+    'Problem type `renderer-unavailable`, `signer-unavailable`, `storage-unavailable` or `review-unavailable`: nothing was issued; retry',
   )
   async issue(
     @CurrentPrincipal() principal: Principal,
@@ -154,6 +157,42 @@ export class InternalDocumentsController {
     });
     reply.status(created ? HttpStatus.CREATED : HttpStatus.OK);
     return document;
+  }
+
+  @Get(':documentId/download')
+  @AuditedRead({ action: 'document.downloaded', resource: 'issued-document' })
+  @ApiDocumentIdParam()
+  @ApiOperation({
+    operationId: 'internalGetDocumentDownload',
+    summary: 'Short-lived presigned download of an issued PDF (services)',
+    description:
+      "Service tokens with scope documents:internal, acting for the tenant in X-Acting-Tenant: the issuing tenant's documents only. The service owning the record a document is about asks it for its staff (the review service for a reviewer opening a clarification letter), after checking the staff member may see that record; it audits that read with the staff member and the person. This read is audited too, under the issuing tenant, naming the person the document is about and the staff member the service reads for (X-Acting-Subject).",
+  })
+  @ApiHeader({
+    name: 'X-Acting-Subject',
+    required: false,
+    description:
+      "The staff subject the service reads for (a reviewer downloading a clarification letter); recorded as the audit event's on-behalf-of, grants nothing (ADR-013 §8.6)",
+    schema: { type: 'string', maxLength: 255 },
+  })
+  @ApiOkResponse({
+    description: 'Download URL valid for five minutes',
+    schema: schemaRef('DocumentDownload'),
+  })
+  @ApiProblemResponse(404, "Not found, or not the acting tenant's document")
+  async download(
+    @CurrentPrincipal() principal: Principal,
+    @ActingTenant() tenant: string,
+    @Param('documentId', documentId) id: string,
+    @CurrentReadAudit() audit: ReadAudit,
+  ): Promise<DocumentDownload> {
+    const { download, document } = await this.issuance.downloadForTenant(
+      tenant,
+      principal.subject,
+      id,
+    );
+    audit.resource({ tenant: document.tenant, subjectPersonId: document.subjectPersonId });
+    return download;
   }
 
   @Post(':documentId/supersede')

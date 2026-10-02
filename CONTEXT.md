@@ -107,6 +107,18 @@ _Avoid_: reference number, document ID, serial
 
 ### Review
 
+**Registry check**:
+The comparison of a declaration's items with what KRA, NTSA, BRS and ArdhiSasa hold for each person whose national ID is known (Regs r.20(1)(b)), run when the declaration is processed. Each person has a status per registry: matched, mismatched, unavailable, not checked, or no ID. Mismatches are flags: indicators, never findings.
+_Avoid_: verification (that is the gateway's stored lookup), registry audit
+
+**Re-check**:
+A registry check run again for a case: asked for by its assignee or a supervisor (at most every ten minutes), or by the hourly sweep of cases with a registry unavailable. A flag the re-check no longer raises is closed as superseded by the re-check; a reviewed one keeps its note.
+_Avoid_: refresh, re-verification
+
+**Paused registry**:
+A registry a platform administrator stopped the gateway from calling during a known outage: its lookups are unavailable (reason paused) until it is resumed, answers already cached still serve.
+_Avoid_: disabled, switched off
+
 **Clarification**:
 A Responsible Commission's request that a declarant explain or complete a declaration (Act s.35).
 _Avoid_: query, question, follow-up

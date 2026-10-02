@@ -60,7 +60,7 @@ export const COPY = {
   back: 'Clarifications',
   allClarifications: 'All clarifications',
   title: (followUp: boolean) => (followUp ? 'Further clarification' : 'Clarification'),
-  declaration: (reference: string) => `Declaration ${reference}`,
+  declaration: 'Declaration',
   askedOpen: 'What your Commission asks',
   aiAssisted:
     'Parts of this clarification were drafted with AI assistance, then checked and approved by a reviewer at your Commission.',

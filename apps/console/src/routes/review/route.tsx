@@ -8,11 +8,18 @@ import { getViewer } from '../../server/viewer';
 
 const TITLE = 'Review queue';
 
+/** Whether a match's route context opens the review workspace. */
+function opensWorkspace(context: unknown): boolean {
+  return typeof context === 'object' && context !== null && 'workspace' in context
+    ? Boolean(context.workspace)
+    : false;
+}
+
 /**
- * The review workspace: reviewers and supervisors of a Commission (spec 07a). The queue itself
- * (`/review`) is not built yet, so this layout names no crumb of its own. Anyone else is told
- * they have no access to the queue, but a case or clarification reads as missing for them
- * (S18): those pages' loaders answer 404 without the workspace.
+ * The review workspace: reviewers and supervisors of a Commission (spec 07a), the queue at
+ * `/review` and its cases under it. Anyone else is told they have no access to the queue, but a
+ * case or clarification reads as missing for them (S18): those pages' loaders answer 404 without
+ * the workspace.
  */
 export const Route = createFileRoute('/review')({
   beforeLoad: async ({ location }) => {
@@ -25,6 +32,10 @@ export const Route = createFileRoute('/review')({
       workspace: workspaceFor(roles, 'review') ?? null,
       supervisor: roles.includes(SUPERVISOR),
     };
+  },
+  staticData: {
+    // Staff without the workspace get no trail back to a page they cannot open.
+    crumb: ({ context, isLeaf }) => (isLeaf || opensWorkspace(context) ? TITLE : null),
   },
   component: ReviewLayout,
 });

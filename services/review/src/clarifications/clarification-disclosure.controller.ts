@@ -10,6 +10,7 @@ import {
   InternalApi,
   type Principal,
   type ReadAudit,
+  schemaRef,
   ZodValidationPipe,
 } from '@adili/api-kit';
 import { REVIEW_DISCLOSURES_SCOPE } from '@adili/roles';
@@ -47,12 +48,17 @@ export class ClarificationDisclosureController {
     description: 'The access officer who decided the grant; recorded in the audit event',
     schema: { type: 'string', minLength: 1, maxLength: 255 },
   })
-  @ApiBody({ schema: z.toJSONSchema(clarificationDisclosureRequest) as object })
+  @ApiBody({ required: true, schema: schemaRef('ClarificationDisclosureRequest') })
   @ApiOperation({
     operationId: 'internalDiscloseClarifications',
     summary: 'The clarifications an access grant discloses with the declarations (audited)',
+    description:
+      "Service tokens with scope review:disclosures (the access service only), acting for the Commission in X-Acting-Tenant. A Form K grant that includes clarifications (Act s.36(1), Regulation 22(1)) discloses those issued on the declarations it disclosed: every clarification issued on each named declaration of the person at the Commission (never a draft or a withdrawn one), oldest issued first, each item as its letter put it with the declarant's answer (text and the names of the files attached; not the files), cut to the granted household members and sections. An item goes out only when everything it can concern is granted: a spouse's or child's needs them included; `bio` needs bio, `household` bio with spouses and children, `other` other information, a financial statement's income, assets and liabilities, the declaration as a whole every section and both household members. A clarification with no item in the scope is left out; the reviewer's resolution note never goes out. Audited (`audit.read.v1`, action `clarification.disclosed`) with the legal basis, the grant reference, the recipient and the clarifications served. A read: no Idempotency-Key, safe to retry.",
   })
-  @ApiOkResponse({ description: 'The clarifications in the granted scope, oldest issued first' })
+  @ApiOkResponse({
+    description: 'The clarifications in the granted scope, oldest issued first',
+    schema: schemaRef('ClarificationDisclosure'),
+  })
   @ApiProblemResponse(
     400,
     'Body failed validation, a legal basis that does not go with the grant reference, or no X-Acting-Subject',
@@ -89,12 +95,17 @@ export class ClarificationDisclosureController {
       'The access officer (or supervisor) weighing the scope before the decision; recorded in the audit event as the actor and the recipient of the counts',
     schema: { type: 'string', minLength: 1, maxLength: 255 },
   })
-  @ApiBody({ schema: z.toJSONSchema(clarificationCountsRequest) as object })
+  @ApiBody({ required: true, schema: schemaRef('ClarificationCountsRequest') })
   @ApiOperation({
     operationId: 'internalCountClarificationDisclosure',
     summary: 'How many clarifications a scope would disclose (audited, no content)',
+    description:
+      'Service tokens with scope review:disclosures (the access service only), acting for the Commission in X-Acting-Tenant. Before deciding a Form K request, the access officer sees what the scope holds: per declaration named, how many clarifications a grant of the scope would disclose with it, cut as `internalDiscloseClarifications` cuts them (zero for one with none). Counts only, never content. Audited (`audit.read.v1`, action `clarification.disclosure-counted`) with the legal basis, the request reference, the officer as recipient and the clarifications counted. A read: no Idempotency-Key.',
   })
-  @ApiOkResponse({ description: 'Per declaration named, the clarifications in the scope' })
+  @ApiOkResponse({
+    description: 'Per declaration named, the clarifications in the scope',
+    schema: schemaRef('ClarificationCounts'),
+  })
   @ApiProblemResponse(
     400,
     'Body failed validation, a legal basis that does not go with the request reference, or no X-Acting-Subject',

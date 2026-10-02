@@ -1,6 +1,7 @@
 import { z } from 'zod';
 
-import { LETTER_LANGUAGES, REQUIREMENTS } from '../cases/schema.js';
+import { REQUIREMENTS } from '../cases/schema.js';
+import { letterLanguageSchema } from './representation.js';
 
 /** `bio`, `household`, `other` or `statement:<person key>` (declarations' section keys). */
 const SECTION_KEY =
@@ -15,7 +16,10 @@ export const clarificationItemInput = z.object({
   requirement: z.enum(REQUIREMENTS),
   text: z.string().trim().min(1).max(1000),
   /** The Draft with AI job that drafted the item (ADR-007), kept through the reviewer's edits. */
-  aiJobId: z.uuid().nullish(),
+  aiJobId: z.uuid().nullish().meta({
+    description:
+      'The Draft with AI job (`CopilotDraft.jobId`) that drafted the item, kept when the reviewer edits it (ADR-007: AI-assisted content stays labelled). Left out or null: written by the reviewer.',
+  }),
 });
 
 /**
@@ -33,12 +37,23 @@ export const clarificationInput = z
       .nullish()
       .transform((opening) =>
         opening === undefined || opening === null || opening === '' ? null : opening,
-      ),
-    openingAiJobId: z.uuid().nullish(),
-    language: z.enum(LETTER_LANGUAGES).default('en'),
+      )
+      .meta({
+        description:
+          "The letter's opening paragraph, printed before the items (e.g. from Draft with AI). Left out or null: the letter has none. A draft's update replaces it like the items.",
+      }),
+    openingAiJobId: z.uuid().nullish().meta({
+      description:
+        'The Draft with AI job that drafted the opening paragraph, kept when the reviewer edits it. Left out or null: written by the reviewer (or no opening).',
+    }),
+    language: letterLanguageSchema.optional().meta({
+      description:
+        "The letter's language. Left out: English. A draft's update replaces it like the items; a follow-up starts in the language of the clarification it follows.",
+    }),
   })
   .transform((input) => ({
     ...input,
+    language: input.language ?? 'en',
     openingAiJobId: input.opening === null ? null : (input.openingAiJobId ?? null),
   }));
 

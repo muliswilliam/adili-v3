@@ -1,4 +1,10 @@
-import { ACCESS_OFFICER, COMMISSION_ADMIN, REPORTING_OFFICER, SUPERVISOR } from '@adili/roles';
+import {
+  ACCESS_OFFICER,
+  COMMISSION_ADMIN,
+  REPORTING_OFFICER,
+  REVIEWER,
+  SUPERVISOR,
+} from '@adili/roles';
 import { z } from 'zod';
 
 import {
@@ -93,10 +99,12 @@ export type InternalCommissionList = z.infer<typeof internalCommissionListSchema
 
 /**
  * The roles services list a Commission's staff by: spec 09's reminders and chase, and the
- * access service's reminders to the access officers deciding requests (spec 10).
+ * reviewers and supervisors review offers to assign a case to (spec 07a), and the access service's
+ * reminders to the access officers deciding requests (spec 10).
  */
 export const STAFF_ROLES = [
   REPORTING_OFFICER,
+  REVIEWER,
   SUPERVISOR,
   COMMISSION_ADMIN,
   ACCESS_OFFICER,
@@ -112,6 +120,9 @@ export const internalCommissionStaffSchema = z.object({
     z.object({
       subject: z.string().meta({ description: "The staff member's account (token `sub`)" }),
       email: z.email(),
+      name: z.string().meta({
+        description: "The staff member's name as on their account; their email when it has none",
+      }),
     }),
   ),
 });

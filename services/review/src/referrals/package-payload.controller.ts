@@ -11,10 +11,8 @@ import {
 import { REVIEW_INTERNAL_SCOPE } from '@adili/roles';
 import { z } from 'zod';
 
-import {
-  type ReferralPackagePayload,
-  ReferralPackagePayloadService,
-} from './package-payload.service.js';
+import { ReferralPackagePayloadService } from './package-payload.service.js';
+import type { ReferralPackagePayload } from './representation.js';
 
 /**
  * Internal: not routed by the public entrypoint. The documents service pulls a referral package's

@@ -9,21 +9,8 @@ import { DirectoryClient } from '../directory/directory-client.js';
 import { withUpstream } from '../internal-api/upstream.js';
 import { systemContext } from '../system-context.js';
 import { portalDecisionUrl } from './activities.js';
-import { OUTCOME_LABELS } from './representation.js';
-import { type DeterminationOutcome, determinations } from './schema.js';
-
-/** review.yaml `DeterminationLetterPayload`: the fields `decision-letter.v1` renders. */
-export interface DeterminationLetterPayload {
-  declarantName: string;
-  commission: { name: string; issuerCode: string };
-  declarationReference: string;
-  determinationReference: string;
-  outcome: DeterminationOutcome;
-  outcomeLabel: string;
-  reasons: string;
-  decidedAt: string;
-  portalUrl: string;
-}
+import { type DeterminationLetterPayload, OUTCOME_LABELS } from './representation.js';
+import { determinations } from './schema.js';
 
 /**
  * The letter payload the documents service pulls when it renders a decision letter

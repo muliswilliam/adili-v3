@@ -1,5 +1,6 @@
 import { Body, Controller, Get, Param, Post } from '@nestjs/common';
 import {
+  ApiBody,
   ApiCreatedResponse,
   ApiOkResponse,
   ApiOperation,
@@ -61,6 +62,7 @@ export class DeclarantClarificationsController {
   @Post(':clarificationId/response')
   @RequireIdempotencyKey()
   @ApiParam({ name: 'clarificationId', schema: { type: 'string', format: 'uuid' } })
+  @ApiBody({ required: true, schema: schemaRef('ClarificationResponseInput') })
   @ApiOperation({
     operationId: 'respondToClarification',
     summary: 'Submit the response once (accepted after the due date, marked late)',

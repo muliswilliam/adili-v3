@@ -39,6 +39,16 @@ export const watermarkSchema = z
       'Printed across every page as `Issued to <recipientName> · <reference> · <date>` (ADR-010 §6), so a leaked copy traces to its recipient. Required for access-package and access-nil-letter',
   });
 
+/**
+ * The clarification a letter is for: the documents service pulls the fields the template renders
+ * from the review service (`internalGetClarificationLetterPayload`, acting for the same tenant),
+ * so no personal data travels in the request.
+ */
+export const clarificationLetterSource = z.object({ clarificationId: z.uuid() }).meta({
+  description:
+    "A clarification-letter's payload: the clarification whose letter this is; the fields the template renders are pulled from the review service's letter payload endpoint",
+});
+
 export const issueDocumentBody = z.object({
   type: documentTypeSchema,
   templateVersion: z.int().min(1),
@@ -70,11 +80,13 @@ export const issueDocumentBody = z.object({
     }),
   /**
    * The fields the template renders, never stored beyond the PDF. One schema per template; the
-   * service checks the payload against the template of `type` and `templateVersion`.
+   * service checks the payload against the template of `type` and `templateVersion`. A
+   * clarification letter names its clarification instead, and its fields are pulled.
    */
   payload: z
     .union([
       acknowledgementSlipPayload,
+      clarificationLetterSource,
       accessPackagePayload,
       accessNilLetterPayload,
       certifiedCopyPayload,

@@ -1,45 +1,53 @@
 import type { DeclarationV1, PersonName } from '@adili/forms';
+import { z } from 'zod';
 
-import { type Category, match, type PlacedItem, valueOf } from '../rules/match.js';
+import { CATEGORIES, match, type PlacedItem, valueOf } from '../rules/match.js';
 
-/** review.yaml `VersionComparison`: the reviewer's diff of two versions. */
-export interface VersionComparison {
-  previousVersion: number;
-  currentVersion: number;
-  statements: StatementComparison[];
-}
-
-export interface StatementComparison {
-  personKey: string;
-  personName: string;
-  matched: MatchedItem[];
-  onlyPrevious: UnmatchedItem[];
-  onlyCurrent: UnmatchedItem[];
-}
+const categorySchema = z.enum(CATEGORIES as ['income', 'assets', 'liabilities']);
 
 /** An item of both versions, with the change in its declared value. */
-export interface MatchedItem {
-  category: Category;
-  type: string;
-  description: string;
-  previousCents: number;
-  currentCents: number;
-  deltaCents: number;
-  /** Whole percent of the previous value, signed; null when the previous value was nothing. */
-  deltaPercent: number | null;
-  /** Whether the declarant marked the current item as changed. */
-  flaggedByDeclarant: boolean;
-}
+const matchedItemSchema = z.object({
+  category: categorySchema,
+  type: z.string(),
+  description: z.string(),
+  previousCents: z.int(),
+  currentCents: z.int(),
+  deltaCents: z.int(),
+  deltaPercent: z.int().nullable().meta({
+    description:
+      'Whole percent of the previous value, signed; null when the previous value was nothing',
+  }),
+  flaggedByDeclarant: z
+    .boolean()
+    .meta({ description: 'Whether the declarant marked the current item as changed' }),
+});
 
 /** An item of only one of the versions. */
-export interface UnmatchedItem {
-  itemId: string;
-  category: Category;
-  type: string;
-  description: string;
-  valueCents: number;
-  flaggedByDeclarant: boolean;
-}
+const unmatchedItemSchema = z.object({
+  itemId: z.uuid(),
+  category: categorySchema,
+  type: z.string(),
+  description: z.string(),
+  valueCents: z.int(),
+  flaggedByDeclarant: z.boolean(),
+});
+type UnmatchedItem = z.infer<typeof unmatchedItemSchema>;
+
+/** review.yaml `VersionComparison`: the reviewer's diff of two versions. */
+export const versionComparisonSchema = z.object({
+  previousVersion: z.int(),
+  currentVersion: z.int(),
+  statements: z.array(
+    z.object({
+      personKey: z.string(),
+      personName: z.string(),
+      matched: z.array(matchedItemSchema),
+      onlyPrevious: z.array(unmatchedItemSchema),
+      onlyCurrent: z.array(unmatchedItemSchema),
+    }),
+  ),
+});
+export type VersionComparison = z.infer<typeof versionComparisonSchema>;
 
 /**
  * Compares two versions statement by statement with the rules engine's matcher (spec 07a), so the

@@ -33,6 +33,7 @@ const record = (state: string, overrides: Record<string, unknown> = {}) => ({
   designation: 'Legal Officer',
   jobGroup: 'K',
   reportingEntity: null,
+  employerCode: null,
   state,
   appointmentDate: '2018-01-08',
   exitDate: null,

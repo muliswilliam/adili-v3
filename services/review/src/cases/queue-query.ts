@@ -2,25 +2,30 @@ import { z } from 'zod';
 
 import { CASE_STATUSES, DECLARATION_TYPES, PRIORITY_BANDS } from './schema.js';
 
-const flag = (description: string) =>
+const LATE = 'Only cases filed late, or only those filed on time';
+const OPEN_CLARIFICATION = 'Only cases with an open clarification, or only those without';
+const REGISTRY_UNAVAILABLE =
+  'Only cases where a registry could not be checked at the latest registry check, or only the others';
+
+/** A switch in the query string: `true` or `false`. */
+const queryFlag = (description: string) =>
   z
     .enum(['true', 'false'])
     .optional()
     .transform((value) => (value === undefined ? undefined : value === 'true'))
     .meta({ description });
 
-/** Query of `GET /v1/commissions/{slug}/review/queue` (review.yaml `listReviewQueue`). */
-export const queueQuery = z.object({
+const bodyFlag = (description: string) => z.boolean().optional().meta({ description });
+
+/**
+ * The filters both ways of reading the queue share, with the cycle as each reads it (a query
+ * string's is text).
+ */
+const filters = <C extends z.ZodType>(cycle: C) => ({
   status: z.enum(CASE_STATUSES).optional(),
   band: z.enum(PRIORITY_BANDS).optional(),
   type: z.enum(DECLARATION_TYPES).optional(),
-  cycle: z.coerce
-    .number()
-    .int()
-    .min(2000)
-    .max(2999)
-    .optional()
-    .meta({ description: "The statement date's year" }),
+  cycle,
   assignee: z
     .string()
     .trim()
@@ -28,8 +33,56 @@ export const queueQuery = z.object({
     .max(200)
     .optional()
     .meta({ description: '`mine`, `unassigned`, `any` (the default), or a subject id' }),
-  late: flag('Only cases filed late, or only those filed on time'),
-  openClarification: flag('Only cases with an open clarification, or only those without'),
+  cursor: z
+    .string()
+    .max(500)
+    .optional()
+    .meta({ description: '`nextCursor` of the previous page; omit for the first page' }),
+});
+
+/**
+ * Query of `GET /v1/commissions/{slug}/review/queue` (review.yaml `listReviewQueue`): the
+ * filters without the search text, which is personal data (a name, say) and so is never in a
+ * URL, where access logs and trace attributes would keep it. It goes in the body of
+ * `searchReviewQueue`; `queueListInput` refuses a `search` here.
+ */
+export const queueListQuery = z.object({
+  ...filters(
+    z.coerce
+      .number()
+      .int()
+      .min(2000)
+      .max(2999)
+      .optional()
+      .meta({ description: "The statement date's year" }),
+  ),
+  late: queryFlag(LATE),
+  openClarification: queryFlag(OPEN_CLARIFICATION),
+  registryUnavailable: queryFlag(REGISTRY_UNAVAILABLE),
+  limit: z.coerce.number().int().min(1).max(100).default(50),
+});
+
+/**
+ * What the list validates: `queueListQuery`, refusing a `search` (400) rather than dropping it,
+ * so a stale caller never takes the whole queue for its matches.
+ */
+export const queueListInput = queueListQuery.extend({
+  search: z
+    .never({ error: 'Search text is never in a URL; send it in the body of searchReviewQueue' })
+    .optional(),
+});
+
+/**
+ * Body of `POST /v1/commissions/{slug}/review/queue/search` (review.yaml `searchReviewQueue`):
+ * every filter of the queue with the search text.
+ */
+export const queueSearchBody = z.object({
+  ...filters(
+    z.int().min(2000).max(2999).optional().meta({ description: "The statement date's year" }),
+  ),
+  late: bodyFlag(LATE),
+  openClarification: bodyFlag(OPEN_CLARIFICATION),
+  registryUnavailable: bodyFlag(REGISTRY_UNAVAILABLE),
   search: z
     .string()
     .trim()
@@ -40,15 +93,11 @@ export const queueQuery = z.object({
       description:
         'A reference or personnel file number or their beginning, or part of a name (case-insensitive)',
     }),
-  cursor: z
-    .string()
-    .max(500)
-    .optional()
-    .meta({ description: '`nextCursor` of the previous page; omit for the first page' }),
-  limit: z.coerce.number().int().min(1).max(100).default(50),
+  limit: z.int().min(1).max(100).default(50),
 });
 
-export type QueueQuery = z.infer<typeof queueQuery>;
+/** The queue's filters, search text and page, read from either. */
+export type QueueQuery = z.infer<typeof queueSearchBody>;
 
 /**
  * Position after the last case of a page, in the queue's order: score descending, then received

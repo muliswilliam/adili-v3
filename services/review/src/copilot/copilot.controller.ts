@@ -53,13 +53,21 @@ export class CopilotController {
   @ApiOperation({
     operationId: 'refreshCaseCopilot',
     summary: 'Re-request the summary and explanations (assignee or supervisor)',
+    description:
+      "A copilot that is `not-enabled` is requested again too: the ai-gateway decides whether the Commission may use it now. The console offers no Refresh there, as a change of the Commission's AI policy or route already requests not-enabled copilots again; the API keeps it on purpose, for a request made right after such a change and for tooling.",
   })
   @ApiAcceptedResponse({ description: 'Requested', schema: schemaRef('CopilotView') })
   @ApiProblemResponse(403, 'The caller is neither the assignee nor a supervisor')
   @ApiProblemResponse(404, NOT_VISIBLE)
-  @ApiProblemResponse(409, 'Problem type `copilot-pending` (already requested)')
-  @ApiProblemResponse(502, 'Declarations unavailable')
-  @ApiProblemResponse(503, 'The AI gateway is unavailable; nothing was requested')
+  @ApiProblemResponse(409, 'Already pending (problem type `copilot-pending`)')
+  @ApiProblemResponse(
+    502,
+    'The declarations service could not give the declaration; nothing was requested',
+  )
+  @ApiProblemResponse(
+    503,
+    'The ai-gateway cannot be reached (problem type `ai-gateway-unavailable`); nothing was requested',
+  )
   refresh(
     @CurrentPrincipal() principal: Principal,
     @Param('caseId') caseId: string,

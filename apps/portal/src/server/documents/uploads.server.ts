@@ -58,8 +58,7 @@ export function reserveAttachmentUpload(
     };
     const { data, error, response } = await client.POST('/v1/uploads', {
       params: { header: { 'Idempotency-Key': crypto.randomUUID() } },
-      // The contract gains the attachment purposes with #113 and spec 07a; see `UploadPurpose`.
-      body: body as never,
+      body,
     });
     if (data) return { status: 'reserved', reservation: data };
     if (response.status === 400) {

@@ -492,8 +492,8 @@ paths:
     get:
       tags:
         - internal
-      summary: A Commission's staff holding a role, with their emails (services)
-      description: Service tokens with scope directory:internal, acting for the Commission in X-Acting-Tenant; audited, naming the accounts read (it gives staff and their emails). Only enabled accounts with a verified email. The reporting service reminds supervisors and commission admins of the Form M deadlines, and chases reporting officers about a late report (spec 09); the access service reminds access officers of the requests awaiting them (spec 10).
+      summary: A Commission's staff holding a role, with their names and emails (services)
+      description: Service tokens with scope directory:internal, acting for the Commission in X-Acting-Tenant; audited, naming the accounts read (it gives staff, their names and emails). Only enabled accounts with a verified email. The reporting service reminds supervisors and commission admins of the Form M deadlines, and chases reporting officers about a late report (spec 09); the review service lists the reviewers and supervisors a case can be assigned to (spec 07a); the access service reminds access officers of the requests awaiting them (spec 10).
       operationId: internalListCommissionStaff
       parameters:
         - name: X-Acting-Tenant
@@ -515,6 +515,7 @@ paths:
             type: string
             enum:
               - reporting-officer
+              - reviewer
               - supervisor
               - commission-admin
               - access-officer
@@ -526,7 +527,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/InternalStaffList'
         '400':
-          description: role is not reporting-officer, supervisor or commission-admin
+          description: role is not reporting-officer, reviewer, supervisor or commission-admin
           content:
             application/problem+json:
               schema:
@@ -571,7 +572,7 @@ paths:
       tags:
         - roster
       summary: Roster template with column notes and a sample row
-      description: reporting-officer, commission-admin, platform-admin, eacc-analyst and eacc-supervisor. The nine roster columns as headers and a sample row, generated from the same column definitions the import parser uses. The XLSX has a `Roster` sheet (file number, national ID and phone columns formatted as text) and a `Notes` sheet documenting each column. Sent as an attachment (`Content-Disposition`).
+      description: reporting-officer, commission-admin, platform-admin, eacc-analyst and eacc-supervisor. The ten roster columns as headers and a sample row, generated from the same column definitions the import parser uses. The XLSX has a `Roster` sheet (file number, national ID, phone and employer code columns formatted as text) and a `Notes` sheet documenting each column. Sent as an attachment (`Content-Disposition`).
       operationId: getRosterTemplate
       parameters:
         - name: format
@@ -1266,7 +1267,7 @@ paths:
       tags:
         - roster
       summary: Rejected rows as CSV with reason columns appended
-      description: "Same callers as `listRosterImportRows`. One line per rejected row, in row order: the nine template columns with the values as sent, then `row_number`, `error_fields`, `error_codes` and `error_messages` (several errors joined by `; `). UTF-8 with a byte order mark; values that a spreadsheet would run as a formula are prefixed with `'`. The fixed file can be uploaded again as it is: the reason columns are ignored. Streamed, and sent as an attachment (`Content-Disposition`)."
+      description: "Same callers as `listRosterImportRows`. One line per rejected row, in row order: the template columns with the values as sent, then `row_number`, `error_fields`, `error_codes` and `error_messages` (several errors joined by `; `). UTF-8 with a byte order mark; values that a spreadsheet would run as a formula are prefixed with `'`. The fixed file can be uploaded again as it is: the reason columns are ignored. Streamed, and sent as an attachment (`Content-Disposition`)."
       operationId: getRosterImportReportCsv
       parameters:
         - name: slug
@@ -4226,9 +4227,13 @@ components:
               email:
                 type: string
                 format: email
+              name:
+                type: string
+                description: The staff member's name as on their account; their email when it has none
             required:
               - subject
               - email
+              - name
       required:
         - items
     TenantPolicyVersion:
@@ -4543,6 +4548,7 @@ components:
                   - appointment_date
                   - email
                   - phone
+                  - employer_code
                 description: Template column it matched
             required:
               - source
@@ -4567,6 +4573,7 @@ components:
               - appointment_date
               - email
               - phone
+              - employer_code
           description: Optional template columns not present
       required:
         - matched
@@ -4798,6 +4805,13 @@ components:
           type:
             - string
             - 'null'
+        employerCode:
+          description: Up to 40 letters, digits, _ or -, starting with a letter or digit.
+          examples:
+            - TSC
+          type:
+            - string
+            - 'null'
       description: "One officer, by template field. Values are checked like a roster file's cells when the import runs: a row breaking a rule is rejected in the report with its errors, and the others are applied. Unknown properties are ignored."
     StartBatchImport:
       type: object
@@ -5007,6 +5021,7 @@ components:
               - appointment_date
               - email
               - phone
+              - employer_code
           description: Required template columns the file lacks; the import would fail while any are
         estimatedRows:
           description: 'Data rows: exact for smaller files, estimated from the file size for large CSV files, null for large XLSX files'
@@ -5051,6 +5066,7 @@ components:
             - appointmentDate
             - email
             - phone
+            - employerCode
           description: The roster field at fault
         code:
           type: string
@@ -5118,6 +5134,10 @@ components:
               type:
                 - string
                 - 'null'
+            employerCode:
+              type:
+                - string
+                - 'null'
           description: The values as sent, by field; only the columns the file had
         errors:
           type: array
@@ -5141,6 +5161,7 @@ components:
                   - appointmentDate
                   - email
                   - phone
+                  - employerCode
                 description: The roster field the note is about
               code:
                 type: string
@@ -5479,6 +5500,13 @@ components:
           anyOf:
             - $ref: '#/components/schemas/ReportingEntityRef'
             - type: 'null'
+        employerCode:
+          description: The HR and payroll systems' code for the employer, as the roster gives it; null when it gives none
+          examples:
+            - KEMSA
+          type:
+            - string
+            - 'null'
         state:
           $ref: '#/components/schemas/RosterRecordState'
         appointmentDate:
@@ -5521,6 +5549,7 @@ components:
         - designation
         - jobGroup
         - reportingEntity
+        - employerCode
         - state
         - appointmentDate
         - exitDate

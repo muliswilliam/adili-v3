@@ -13,15 +13,8 @@ import { DocumentsClient } from '../documents/documents-client.js';
 import { upstreamUnavailable, withUpstream } from '../internal-api/upstream.js';
 import { DECISION_LETTER_REFUSED } from './contract.js';
 import { issueDecisionLetter } from './decision-letter.js';
+import type { LetterDownloadView } from './representation.js';
 import { determinations } from './schema.js';
-
-/** review.yaml `LetterDownload`. */
-export interface LetterDownloadView {
-  documentId: string;
-  verificationId: string;
-  /** The portal's owner download for the declarant; null for staff (by document id). */
-  downloadUrl: string | null;
-}
 
 /**
  * A determination's decision letter (`getDeterminationLetter`, spec 08). An individual

@@ -3,6 +3,15 @@ import { ZodError } from 'zod';
 
 import { renderTemplate } from './templates.js';
 
+function clarificationParams() {
+  return {
+    reference: 'CLR-PSC-2028-0000451-1',
+    commissionName: 'Public Service Commission',
+    dueDate: '2028-09-30',
+    portalUrl: 'https://portal.adili.go.ke/clarifications/1',
+  };
+}
+
 describe('renderTemplate', () => {
   it('escapes params in the HTML body but not in the text body', () => {
     const rendered = renderTemplate('onboarding-otp-email', 'en', {
@@ -71,6 +80,31 @@ describe('renderTemplate', () => {
       renderTemplate('login-otp-sms', 'en', params),
     );
   });
+
+  it.each([
+    ['clarification-issued-sms', clarificationParams()],
+    ['clarification-reminder-email', { ...clarificationParams(), daysLeft: 3 }],
+  ] as const)(
+    'refuses an http portal link in %s where links must be https, and takes it otherwise',
+    (id, params) => {
+      const http = { ...params, portalUrl: 'http://portal.adili.go.ke/clarifications/1' };
+
+      expect(() => renderTemplate(id, 'en', http, { httpsLinksOnly: true })).toThrow(
+        'must be an https URL',
+      );
+      try {
+        renderTemplate(id, 'en', http, { httpsLinksOnly: true });
+      } catch (error) {
+        expect((error as ZodError).issues.map((issue) => issue.path.join('.'))).toEqual([
+          'params.portalUrl',
+        ]);
+      }
+      expect(renderTemplate(id, 'en', params, { httpsLinksOnly: true }).text).toContain(
+        params.portalUrl,
+      );
+      expect(renderTemplate(id, 'en', http).text).toContain(http.portalUrl);
+    },
+  );
 
   it('reports invalid params with paths under params', () => {
     expect(() => renderTemplate('login-otp-sms', 'en', { code: 'abc' })).toThrow(ZodError);
@@ -393,6 +427,196 @@ describe('acknowledgement templates', () => {
         'params.type',
         'params.verificationCode',
         'params.version',
+      ]);
+    }
+  });
+});
+
+describe('clarification templates', () => {
+  const portalUrl =
+    'https://portal.adili.go.ke/clarifications/0199a8f0-5555-7000-8000-000000000001';
+  const issued = {
+    reference: 'CLR-PSC-2028-0000451-1',
+    commissionName: 'Public Service Commission',
+    dueDate: '2028-09-30',
+    portalUrl,
+  };
+  const reminder = { ...issued, daysLeft: 10 };
+  const CASES = [
+    ['clarification-issued-sms', issued],
+    ['clarification-issued-email', issued],
+    ['clarification-reminder-sms', reminder],
+    ['clarification-reminder-email', reminder],
+  ] as const;
+
+  it('renders the issued SMS with the Commission, reference, due date and portal link', () => {
+    expect(renderTemplate('clarification-issued-sms', 'en', issued).text).toBe(
+      `Adili: Public Service Commission has sent you clarification request CLR-PSC-2028-0000451-1. Respond by 30 September 2028 at ${portalUrl}`,
+    );
+  });
+
+  it('renders the issued email with every param in subject, text and HTML, and no attachment', () => {
+    const rendered = renderTemplate('clarification-issued-email', 'en', issued);
+
+    expect(rendered.subject).toBe('Clarification request CLR-PSC-2028-0000451-1');
+    expect(rendered.text).toBe(
+      [
+        'Public Service Commission has sent you a clarification request about your declaration. Its reference number is CLR-PSC-2028-0000451-1.',
+        'Please respond by 30 September 2028. You can still respond after that date, but your response will be recorded as late.',
+        `Sign in to Adili Online at ${portalUrl} to read the letter and respond. It is not attached to this email, so that only you can open it.`,
+        'If you have questions about this request, contact your Commission. Adili Online will never ask you for your password or sign-in code.',
+      ].join('\n\n'),
+    );
+    expect(rendered.html).toContain(`<a href="${portalUrl}">${portalUrl}</a>`);
+    expect(rendered.html).toContain('CLR-PSC-2028-0000451-1');
+    expect(rendered.html).toContain('30 September 2028');
+    expect(Object.keys(rendered).sort()).toEqual(['html', 'subject', 'text']);
+  });
+
+  it('renders the reminder SMS with the reference, due date, days left and portal link', () => {
+    expect(renderTemplate('clarification-reminder-sms', 'en', reminder).text).toBe(
+      `Adili: clarification request CLR-PSC-2028-0000451-1 is due on 30 September 2028 (10 days). Respond at ${portalUrl}`,
+    );
+  });
+
+  it.each([
+    [1, '(1 day)'],
+    [0, '(today)'],
+  ])('says %i days left in the reminder SMS as %s', (daysLeft, phrase) => {
+    const text = renderTemplate('clarification-reminder-sms', 'en', { ...reminder, daysLeft }).text;
+
+    expect(text).toContain(`is due on 30 September 2028 ${phrase}.`);
+  });
+
+  it('renders the reminder email with every param in subject, text and HTML', () => {
+    const rendered = renderTemplate('clarification-reminder-email', 'en', reminder);
+
+    expect(rendered.subject).toBe(
+      'Reminder: clarification request CLR-PSC-2028-0000451-1 is due on 30 September 2028',
+    );
+    expect(rendered.text).toBe(
+      [
+        'You have not yet responded to clarification request CLR-PSC-2028-0000451-1 from Public Service Commission. Your response is due on 30 September 2028, in 10 days. You can still respond after that date, but your response will be recorded as late.',
+        `Sign in to Adili Online at ${portalUrl} to read the letter and respond.`,
+        'If you have questions about this request, contact your Commission. Adili Online will never ask you for your password or sign-in code.',
+      ].join('\n\n'),
+    );
+    expect(rendered.html).toContain(`<a href="${portalUrl}">${portalUrl}</a>`);
+  });
+
+  it('says due today in the reminder email when no days are left', () => {
+    const rendered = renderTemplate('clarification-reminder-email', 'en', {
+      ...reminder,
+      daysLeft: 0,
+    });
+
+    expect(rendered.subject).toBe(
+      'Reminder: clarification request CLR-PSC-2028-0000451-1 is due today',
+    );
+    expect(rendered.text).toContain('Your response is due today, 30 September 2028.');
+  });
+
+  it('keeps each SMS to two GSM segments with the longest issuer and a long Commission', () => {
+    const long = {
+      reference: 'CLR-ABCDEFGHIJKLMNOPQRST-2028-9999999-7',
+      commissionName: 'Ethics and Anti-Corruption Commission',
+    };
+    for (const [template, params] of [
+      ['clarification-issued-sms', { ...issued, ...long }],
+      ['clarification-reminder-sms', { ...reminder, ...long, daysLeft: 366 }],
+    ] as const) {
+      const { text } = renderTemplate(template, 'en', params);
+      // Two concatenated GSM-7 segments carry 153 characters each; plain ASCII stays GSM-7.
+      expect(text.length).toBeLessThanOrEqual(306);
+      expect(text).toMatch(/^[\x20-\x7e]+$/);
+    }
+  });
+
+  it('escapes the Commission name and portal link in the HTML bodies', () => {
+    for (const [template, params] of CASES.filter(([id]) => id.endsWith('-email'))) {
+      const rendered = renderTemplate(template, 'en', {
+        ...params,
+        commissionName: 'Teachers <Service> & Co',
+        portalUrl: 'https://portal.adili.go.ke/?a=1&b="2"',
+      });
+
+      expect(rendered.html).toContain('Teachers &lt;Service&gt; &amp; Co');
+      expect(rendered.html).toContain('href="https://portal.adili.go.ke/?a=1&amp;b=&quot;2&quot;"');
+      expect(rendered.html).not.toContain('<Service>');
+    }
+  });
+
+  it('falls back to English for Swahili', () => {
+    for (const [template, params] of CASES) {
+      expect(renderTemplate(template, 'sw', params)).toEqual(
+        renderTemplate(template, 'en', params),
+      );
+    }
+  });
+
+  it.each([
+    ['a declaration reference', { reference: 'DCB-PSC-2027-0000001-1' }, ['params.reference']],
+    [
+      'a reference with a bad check character',
+      { reference: 'CLR-PSC-2028-0000451-2' },
+      ['params.reference'],
+    ],
+    ['a lower-case reference', { reference: 'clr-psc-2028-0000451-1' }, ['params.reference']],
+    ['a date that is not a calendar date', { dueDate: '2028-02-30' }, ['params.dueDate']],
+    ['a date with a time', { dueDate: '2028-09-30T00:00:00Z' }, ['params.dueDate']],
+    [
+      'a portal link that is not http(s)',
+      { portalUrl: 'javascript:alert(1)' },
+      ['params.portalUrl'],
+    ],
+    ['an empty Commission name', { commissionName: ' ' }, ['params.commissionName']],
+    ['an unexpected param', { declarantName: 'Wanjiku' }, ['params']],
+  ])('rejects %s', (_case, change, paths) => {
+    for (const [template, params] of CASES) {
+      try {
+        renderTemplate(template, 'en', { ...params, ...change });
+        expect.unreachable('params should be rejected');
+      } catch (error) {
+        expect(error).toBeInstanceOf(ZodError);
+        expect((error as ZodError).issues.map((issue) => issue.path.join('.'))).toEqual(paths);
+      }
+    }
+  });
+
+  it.each([
+    ['negative days left', -1],
+    ['fractional days left', 1.5],
+    ['days left as a string', '10'],
+  ])('rejects %s in the reminder', (_case, daysLeft) => {
+    for (const [template, params] of CASES.filter(([id]) => id.includes('-reminder-'))) {
+      try {
+        renderTemplate(template, 'en', { ...params, daysLeft });
+        expect.unreachable('params should be rejected');
+      } catch (error) {
+        expect((error as ZodError).issues.map((issue) => issue.path.join('.'))).toEqual([
+          'params.daysLeft',
+        ]);
+      }
+    }
+  });
+
+  it('takes days left only in the reminder', () => {
+    for (const [template] of CASES.filter(([id]) => id.includes('-issued-'))) {
+      expect(() => renderTemplate(template, 'en', reminder)).toThrow(ZodError);
+    }
+  });
+
+  it('rejects missing params', () => {
+    try {
+      renderTemplate('clarification-reminder-email', 'en', {});
+      expect.unreachable('params should be rejected');
+    } catch (error) {
+      expect((error as ZodError).issues.map((issue) => issue.path.join('.')).sort()).toEqual([
+        'params.commissionName',
+        'params.daysLeft',
+        'params.dueDate',
+        'params.portalUrl',
+        'params.reference',
       ]);
     }
   });

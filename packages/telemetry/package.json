@@ -14,13 +14,18 @@
     "./register": {
       "types": "./dist/register.d.ts",
       "default": "./dist/register.js"
+    },
+    "./url-redaction": {
+      "types": "./dist/url-redaction.d.ts",
+      "default": "./dist/url-redaction.js"
     }
   },
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "dev": "tsc -p tsconfig.build.json --watch --preserveWatchOutput",
     "lint": "eslint .",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
   },
   "dependencies": {
     "@opentelemetry/api": "^1.9.0",
@@ -38,6 +43,7 @@
     "@adili/tsconfig": "workspace:*",
     "@types/node": "^24.0.0",
     "eslint": "^10.11.0",
-    "typescript": "~6.0.3"
+    "typescript": "~6.0.3",
+    "vitest": "^5.0.1"
   }
 }

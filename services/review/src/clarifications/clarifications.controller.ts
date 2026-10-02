@@ -1,5 +1,6 @@
 import { Body, Controller, Get, HttpCode, Param, Post, Put } from '@nestjs/common';
 import {
+  ApiBody,
   ApiCreatedResponse,
   ApiOkResponse,
   ApiOperation,
@@ -8,9 +9,13 @@ import {
 } from '@nestjs/swagger';
 import {
   AcceptIdempotencyKey,
+  ApiJsonBody,
   ApiProblemResponse,
+  AuditedRead,
   CurrentPrincipal,
+  CurrentReadAudit,
   type Principal,
+  type ReadAudit,
   RequireIdempotencyKey,
   schemaRef,
   ZodValidationPipe,
@@ -30,6 +35,9 @@ import type { ClarificationView } from './representation.js';
 
 const NOT_VISIBLE = 'Not found, or not visible to the caller';
 const NOT_ASSIGNEE = 'Caller is not the assignee of the case';
+/** A draft's save names a Draft with AI job (ADR-007) that is not the caller's on the case. */
+const AI_DRAFT_NOT_ON_CASE =
+  'Body failed validation, or problem type `ai-draft-not-on-case`: an `aiJobId` or `openingAiJobId` the clarification does not already name that names no ready Draft with AI the caller asked for on the case (one whose 24 hours are over still counts: only its text is purged)';
 
 const ApiUuidParam = (name: string) =>
   ApiParam({ name, schema: { type: 'string', format: 'uuid' } });
@@ -46,12 +54,13 @@ export class ClarificationsController {
   @Post('cases/:caseId/clarifications')
   @AcceptIdempotencyKey()
   @ApiUuidParam('caseId')
+  @ApiBody({ required: true, schema: schemaRef('ClarificationInput') })
   @ApiOperation({
     operationId: 'createClarificationDraft',
     summary: 'Create a clarification draft (assignee only)',
   })
   @ApiCreatedResponse({ description: 'Draft', schema: schemaRef('Clarification') })
-  @ApiProblemResponse(400, 'Body failed validation')
+  @ApiProblemResponse(400, AI_DRAFT_NOT_ON_CASE)
   @ApiProblemResponse(403, NOT_ASSIGNEE)
   @ApiProblemResponse(404, NOT_VISIBLE)
   createDraft(
@@ -77,12 +86,51 @@ export class ClarificationsController {
     return this.clarifications.get(principal, clarificationId);
   }
 
+  @Get('clarifications/:clarificationId/letter/download')
+  @AuditedRead({ action: 'review.clarification.letter.downloaded', resource: 'clarification' })
+  @ApiUuidParam('clarificationId')
+  @ApiOperation({
+    operationId: 'getClarificationLetterDownload',
+    summary: "Short-lived download link for an issued clarification's letter (audited)",
+    description:
+      "The Commission's reviewers and supervisors, as for the clarification. The documents service hands the link out for the Commission (internalGetDocumentDownload); the read is audited naming the declarant. 404 while the letter is still being produced.",
+  })
+  @ApiOkResponse({
+    description: 'Link valid for five minutes',
+    schema: {
+      type: 'object',
+      required: ['downloadUrl', 'expiresAt'],
+      properties: {
+        downloadUrl: { type: 'string', format: 'uri' },
+        expiresAt: { type: 'string', format: 'date-time' },
+      },
+    },
+  })
+  @ApiProblemResponse(404, `${NOT_VISIBLE}, or its letter is not issued yet`)
+  @ApiProblemResponse(502, 'Documents unavailable')
+  async letterDownload(
+    @CurrentPrincipal() principal: Principal,
+    @Param('clarificationId', new ZodValidationPipe(uuidParam)) clarificationId: string,
+    @CurrentReadAudit() audit: ReadAudit,
+  ): Promise<{ downloadUrl: string; expiresAt: string }> {
+    const { download, tenant, personId } = await this.clarifications.letterDownload(
+      principal,
+      clarificationId,
+    );
+    audit.resource({ tenant, subjectPersonId: personId });
+    return { downloadUrl: download.downloadUrl, expiresAt: download.expiresAt };
+  }
+
   @Put('clarifications/:clarificationId')
   @AcceptIdempotencyKey()
   @ApiUuidParam('clarificationId')
-  @ApiOperation({ operationId: 'updateClarificationDraft', summary: "Update a draft's items" })
+  @ApiBody({ required: true, schema: schemaRef('ClarificationInput') })
+  @ApiOperation({
+    operationId: 'updateClarificationDraft',
+    summary: "Update a draft's items and opening paragraph",
+  })
   @ApiOkResponse({ description: 'Draft', schema: schemaRef('Clarification') })
-  @ApiProblemResponse(400, 'Body failed validation')
+  @ApiProblemResponse(400, AI_DRAFT_NOT_ON_CASE)
   @ApiProblemResponse(403, NOT_ASSIGNEE)
   @ApiProblemResponse(404, NOT_VISIBLE)
   @ApiProblemResponse(409, 'Problem code `not-a-draft`')
@@ -121,6 +169,7 @@ export class ClarificationsController {
   @AcceptIdempotencyKey()
   @HttpCode(200)
   @ApiUuidParam('clarificationId')
+  @ApiJsonBody(resolutionInput)
   @ApiOperation({
     operationId: 'resolveClarification',
     summary: 'Mark the clarification resolved with a note',
@@ -163,6 +212,7 @@ export class ClarificationsController {
   @AcceptIdempotencyKey()
   @HttpCode(200)
   @ApiUuidParam('clarificationId')
+  @ApiJsonBody(withdrawalInput)
   @ApiOperation({
     operationId: 'withdrawClarification',
     summary: 'Withdraw an issued clarification (letter revoked as issued in error)',

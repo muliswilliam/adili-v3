@@ -230,6 +230,13 @@ describe('issueText', () => {
     expect(issueText(issue('bio', '/placeOfBirth', 'is required'), document)).toBe(
       'Place of birth is required',
     );
+    // A last part that is ambiguous alone is named by the end of its path.
+    expect(issueText(issue('bio', '/birth/place', 'is required'), document)).toBe(
+      'Place of birth is required',
+    );
+    expect(issueText(issue('bio', '/address/postal', 'is required'), document)).toBe(
+      'Postal address is required',
+    );
   });
 
   it('names a field as its screen labels it (Q33)', () => {

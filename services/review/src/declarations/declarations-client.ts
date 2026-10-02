@@ -1,3 +1,5 @@
+import { type DeclarationV1, DeclarationSchema } from '@adili/forms';
+
 /**
  * A submitted version as the declarations service's internal document endpoint gives it
  * (declarations.yaml `InternalVersionDocument`, `internalGetVersionDocument`): the decrypted
@@ -97,6 +99,33 @@ export interface ReadContext {
  * The declarations service is unreachable, refused the service's token, or answered something
  * outside its contract. Workflow activities let it propagate so the pull is retried.
  */
+/**
+ * A pulled document that is not a declaration.v1 document (`DeclarationSchema`): declarations
+ * answered outside its contract. Retrying reads the same immutable version, so it never helps.
+ */
+export class DeclarationOutsideContract extends Error {
+  constructor(message: string, options?: ErrorOptions) {
+    super(message, options);
+    this.name = 'DeclarationOutsideContract';
+  }
+}
+
+/**
+ * The version's document checked against declaration.v1 at the boundary (ADR-013 §2) before
+ * anything reads it as one. Throws `DeclarationOutsideContract` naming the first wrong path
+ * (never a value: documents are personal data).
+ */
+export function declarationOf(pulled: PulledVersion): DeclarationV1 {
+  const parsed = DeclarationSchema.safeParse(pulled.document);
+  if (!parsed.success) {
+    const path = parsed.error.issues[0]?.path.join('.') ?? '';
+    throw new DeclarationOutsideContract(
+      `Version ${String(pulled.version)} of ${pulled.declarationId} is not a declaration.v1 document (at ${path || 'the root'})`,
+    );
+  }
+  return parsed.data;
+}
+
 export class DeclarationsUnavailable extends Error {
   constructor(message: string, options?: ErrorOptions) {
     super(message, options);

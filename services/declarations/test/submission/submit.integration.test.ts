@@ -3,6 +3,7 @@ import { createHash, randomUUID } from 'node:crypto';
 import { canonicalJson } from '@adili/api-kit';
 import { hasValidCheckCharacter, parse } from '@adili/numbering/references';
 import { DCB } from '@adili/numbering';
+import type { DeclarationSectionKey } from '@adili/forms';
 import { and, eq, sql } from 'drizzle-orm';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -17,7 +18,10 @@ import {
   obligationDrafts,
   outbox,
 } from '../../src/db/schema.js';
-import type { DeclarationSummary } from '../../src/drafts/representation.js';
+import type { Declaration, DeclarationSummary } from '../../src/drafts/representation.js';
+import { storeSection } from '../../src/drafts/repository.js';
+import { SectionCipher } from '../../src/drafts/section-cipher.js';
+import type { SectionContents } from '../../src/drafts/sections.js';
 import type { SubmissionResult } from '../../src/submission/representation.js';
 import { contractErrors, responseBody } from '../support/contract.js';
 import {
@@ -964,5 +968,146 @@ describe('the declarant only reads their versions and items (ADR-018)', () => {
     );
     while (cause instanceof Error && cause.cause) cause = cause.cause;
     expect(cause instanceof Error ? cause.message : cause).toContain('row-level security');
+  });
+});
+
+describe('changes since the last declaration, of which an initial has none', () => {
+  /** A "changed" flag the portal no longer shows on an initial: no kind, no explanation. */
+  const STALE = { changed: true };
+  const DIRECTORSHIP = { company: 'Kitengela Farmers Ltd', role: 'Director', remunerated: false };
+
+  /**
+   * Stores sections as an older portal left them, past the save's rules, each as the draft's next
+   * version (so no cached copy of the one before is read).
+   */
+  async function storedAsBefore(id: string, sections: [DeclarationSectionKey, object][]) {
+    const declaration = await declarationRow(id);
+    if (!declaration) throw new Error('no declaration');
+    const cipher = api.app.get(SectionCipher);
+    for (const [key, contents] of sections) {
+      await api.asPerson(ACHIENG, (tx) =>
+        storeSection(tx, cipher, declaration, key, contents as SectionContents, {
+          now: api.clock.now(),
+        }),
+      );
+    }
+  }
+
+  function initialDraft() {
+    return givenObligation(ACHIENG, { type: 'initial' }).then((obligationId) =>
+      completeDraft(ACHIENG, obligationId),
+    );
+  }
+
+  /** An initial draft holding change flags an older portal let the declarant set. */
+  async function staleInitialDraft() {
+    const draft = await initialDraft();
+    const bio = await section(ACHIENG, draft.id, 'bio');
+    const officer = await section(ACHIENG, draft.id, 'statement:officer');
+    const other = await section(ACHIENG, draft.id, 'other');
+    await storedAsBefore(draft.id, [
+      ['bio', { ...bio, maritalStatusChange: STALE }],
+      ['statement:officer', { ...officer, income: [{ ...INCOME, change: STALE }] }],
+      [
+        'other',
+        {
+          ...other,
+          registrableInterests: {
+            ...(other.registrableInterests as object),
+            directorships: [
+              {
+                ...DIRECTORSHIP,
+                change: { changed: true, kind: 'acquisition', explanation: 'Joined the board' },
+              },
+            ],
+          },
+        },
+      ],
+    ]);
+    return draft;
+  }
+
+  it('leaves the flags of an old initial draft out: complete, and submitted without them', async () => {
+    const draft = await staleInitialDraft();
+
+    const found = (await summary(draft.id, ACHIENG)).json<DeclarationSummary>();
+    expect(found).toMatchObject({ valid: true, canSubmit: true, blocking: [] });
+    expect(found.document).toMatchObject({
+      type: 'initial',
+      otherInformation: { materialChanges: [] },
+    });
+    expect(found.document.officer).not.toHaveProperty('maritalStatusChange');
+    expect(await section(ACHIENG, draft.id, 'bio')).not.toHaveProperty('maritalStatusChange');
+    expect(await section(ACHIENG, draft.id, 'other')).toMatchObject({ materialChanges: [] });
+
+    const response = await submit(draft.id, steppedUp(ACHIENG));
+
+    expect(response.statusCode).toBe(201);
+    const [version] = await versionsOf(draft.id);
+    if (!version) throw new Error('no version');
+    const document = JSON.parse(
+      await decrypt(
+        `declaration-version:${version.id}`,
+        version.snapshotCiphertext,
+        version.envelope,
+      ),
+    ) as Record<string, unknown>;
+    expect(document).toMatchObject({
+      type: 'initial',
+      statements: [
+        {
+          income: [{ ...INCOME, change: { changed: false } }],
+          liabilities: [{ ...LIABILITY, change: { changed: false } }],
+        },
+      ],
+      otherInformation: {
+        materialChanges: [],
+        registrableInterests: { directorships: [DIRECTORSHIP] },
+      },
+    });
+    expect(document.officer).not.toHaveProperty('maritalStatusChange');
+  });
+
+  it('does not store them when an initial draft is saved with them', async () => {
+    // The draft's income and loan were saved flagged as changed.
+    const draft = await initialDraft();
+    const bio = await section(ACHIENG, draft.id, 'bio');
+
+    await save(ACHIENG, draft.id, 'bio', { ...bio, maritalStatusChange: STALE });
+
+    expect(await section(ACHIENG, draft.id, 'bio')).not.toHaveProperty('maritalStatusChange');
+    expect(await section(ACHIENG, draft.id, 'statement:officer')).toMatchObject({
+      income: [{ ...INCOME, change: { changed: false } }],
+      liabilities: [{ ...LIABILITY, change: { changed: false } }],
+    });
+    const read = await api.request('GET', `/v1/declarations/${draft.id}`, declarant(ACHIENG));
+    expect(read.json<Declaration>().sections.map((found) => found.completeness)).toEqual([
+      'complete',
+      'complete',
+      'complete',
+      'complete',
+    ]);
+  });
+
+  it('still has a biennial explain a marital status change, and lists its changed items', async () => {
+    const draft = await completeDraft(ACHIENG);
+    const bio = await section(ACHIENG, draft.id, 'bio');
+    await save(ACHIENG, draft.id, 'bio', { ...bio, maritalStatusChange: STALE });
+
+    const found = (await summary(draft.id, ACHIENG)).json<DeclarationSummary>();
+
+    expect(found).toMatchObject({ valid: false, canSubmit: false });
+    expect(found.blocking).toContainEqual(
+      expect.objectContaining({ sectionKey: 'bio', path: '/maritalStatusChange/explanation' }),
+    );
+    expect(found.document.otherInformation).toMatchObject({
+      materialChanges: [
+        { personKey: 'officer', kind: 'value-change', explanation: INCOME.change.explanation },
+        { personKey: 'officer', kind: 'acquisition', explanation: LIABILITY.change.explanation },
+      ],
+    });
+    const response = await submit(draft.id, steppedUp(ACHIENG));
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toMatchObject({ code: 'incomplete' });
   });
 });

@@ -1,5 +1,5 @@
 /**
- * The nine roster template columns: the single source for the roster file parser (header
+ * The ten roster template columns: the single source for the roster file parser (header
  * matching, validation limits) and the template generator (headers, sample row, notes sheet,
  * cell formats). Order is the template's column order.
  */
@@ -83,6 +83,15 @@ export const ROSTER_COLUMNS = [
     format: 'Kenyan mobile (07…, 01…) or international (+…)',
     example: '0712345678',
     note: 'Where the officer receives onboarding codes by SMS. Stored in international format (+254…).',
+    textCell: true,
+  },
+  {
+    name: 'employer_code',
+    field: 'employerCode',
+    required: false,
+    format: 'Up to 40 letters, digits, _ or -, starting with a letter or digit',
+    example: 'TSC',
+    note: "The code your HR and payroll systems use for the officer's employer. Review checks the officer's companies against that employer's supplier list.",
     textCell: true,
   },
 ] as const satisfies readonly RosterColumn[];

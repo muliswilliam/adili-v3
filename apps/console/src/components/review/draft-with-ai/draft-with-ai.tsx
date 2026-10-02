@@ -6,6 +6,7 @@ import {
   Select,
   SelectGroup,
   SelectItem,
+  SeverityBadge,
   Spinner,
   Tooltip,
   useToast,
@@ -37,7 +38,6 @@ import type { CopilotDraftInput } from '../../../server/review/types';
 import type { ServiceError, ServiceResult } from '../../../server/service-call';
 import type { ComposerApi } from '../composer/clarification-composer';
 import { LANGUAGE_NAMES } from '../composer/messages';
-import { SeverityBadge } from '../copilot/severity-badge';
 import { POLL_STOP_AFTER_MS, pollDelay } from '../copilot/use-case-copilot';
 import { messages as t } from './messages';
 

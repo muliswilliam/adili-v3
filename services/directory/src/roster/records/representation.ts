@@ -108,6 +108,14 @@ export const internalRosterRecordSchema = z.object({
   designation: z.string().nullable(),
   jobGroup: z.string().nullable(),
   reportingEntity: reportingEntityRefSchema.nullable(),
+  employerCode: z
+    .string()
+    .nullable()
+    .meta({
+      description:
+        "The HR and payroll systems' code for the employer, as the roster gives it; null when it gives none",
+      examples: ['KEMSA'],
+    }),
   state: rosterRecordStateSchema,
   appointmentDate: z.iso.date().nullable().meta({ description: 'Null when the roster gives none' }),
   exitDate: z.iso.date().nullable().meta({ description: 'Set while the record is exited' }),

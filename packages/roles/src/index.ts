@@ -129,6 +129,13 @@ export const MESSAGES_SCOPE = 'messages';
 export const REVIEW_INTERNAL_SCOPE = 'review:internal';
 
 /**
+ * The integration-gateway's registry lookups (KRA, NTSA, BRS, ArdhiSasa and the employer-supplier
+ * check) and stored result reads, acting for the Commission: registry data on officers and their
+ * households, so a scope of its own, held by the review client (spec 07b).
+ */
+export const REGISTRY_SCOPE = 'registry';
+
+/**
  * The review service's disclosures to third parties (spec 10): the clarifications an access grant
  * discloses with the declarations. A scope of its own, held by the access client alone, like
  * `declarations:disclosures`.

@@ -84,6 +84,7 @@ export {
   ACCESS_PACKAGE,
   ACKNOWLEDGEMENT_SLIP,
   CERTIFIED_COPY,
+  CLARIFICATION_LETTER,
   DOCUMENT_TYPES,
   type DocumentType,
   newVerificationId,

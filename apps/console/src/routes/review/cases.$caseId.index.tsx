@@ -76,7 +76,7 @@ export const Route = createFileRoute('/review/cases/$caseId/')({
 
 function CaseRoute() {
   const load = Route.useLoaderData();
-  const { supervisor } = Route.useRouteContext();
+  const { viewer, supervisor } = Route.useRouteContext();
   if (!load) return null;
   if (!load.ok) {
     return (
@@ -96,6 +96,7 @@ function CaseRoute() {
       load={load.data}
       now={load.now}
       supervisor={supervisor}
+      slug={viewer.directory.ok ? viewer.directory.principal.tenant : null}
       commission={load.commission}
     />
   );

@@ -1,6 +1,6 @@
 /**
  * In-memory stand-in for the review service's case and clarification endpoints (review.yaml)
- * and the documents service's letter download, used when REVIEW_MOCK is set until the review
+ * (the clarification letter's download included), used when REVIEW_MOCK is set until the review
  * service implements spec 07a (#174). One store for every caller. Dated relative to when the
  * store was seeded:
  *
@@ -136,6 +136,8 @@ const PLOT: Item = {
   requirement: 'explain-discrepancy',
   text: 'The value of this plot is 150% higher than in your 2024 declaration, but no acquisition or improvement is recorded. Explain the change.',
   label: 'Assets · Plot Kisumu/Manyatta/1234 · John Kennedy',
+  aiJobId: null,
+  aiLanguage: null,
 };
 const SACCO: Item = {
   sectionKey: 'statement:officer',
@@ -144,6 +146,8 @@ const SACCO: Item = {
   requirement: 'provide-omitted',
   text: 'Your payslip shows a monthly deduction to Mwalimu National SACCO, but no SACCO loan is declared. Provide the loan details.',
   label: 'Liabilities · John Kennedy',
+  aiJobId: null,
+  aiLanguage: null,
 };
 
 interface StoredNote {
@@ -159,7 +163,7 @@ interface StoredEntry extends Omit<TimelineEntry, 'actor'> {
 
 interface StoredCase {
   item: CaseListItem;
-  /** CALLER, a fixed officer, or nobody. */
+  /** CALLER, a fixed reviewer, or nobody. */
   holder: Officer | null;
   /** Everyone who held the case, first first. */
   history: Officer[];
@@ -211,6 +215,7 @@ function caseItem(
     status: 'awaiting-clarification',
     assignee: null,
     openFlags: 0,
+    registryUnavailable: false,
     clarification: { open: 0, status: null, dueAt: null },
     currentVersion: 1,
   };
@@ -835,24 +840,6 @@ export function mockReviewFetch(request: Request): Promise<Response> {
   return route(request);
 }
 
-/** The documents service's `GET /v1/documents/{id}/download`, for clarification letters. */
-export function mockDocumentsFetch(request: Request): Promise<Response> {
-  ensureSeeded();
-  const { pathname } = new URL(request.url);
-  const match = /^\/v1\/documents\/([^/]+)\/download$/.exec(pathname);
-  const known = [...clarifications.values()].some((each) => each.letter?.documentId === match?.[1]);
-  if (request.method !== 'GET' || !match?.[1] || !known) {
-    return Promise.resolve(problem(404, 'Not found'));
-  }
-  return Promise.resolve(
-    json(200, {
-      downloadUrl: `/api/mock-files/${match[1]}`,
-      expiresAt: new Date(Date.now() + 5 * 60_000).toISOString(),
-      sha256: 'b5d4045c3f466fa91fe2cc6abe79232a1a57cdf104f7a26e716e0a1e2789df78',
-    }),
-  );
-}
-
 /** The uploads a declaration document attaches to its items, by upload id. */
 function documentAttachments(document: Record<string, unknown> | null): Map<string, string> {
   const files = new Map<string, string>();
@@ -922,6 +909,16 @@ async function route(request: Request): Promise<Response> {
     if (!known) return problem(404, 'Not found');
     return json(200, {
       downloadUrl: `/api/mock-files/${attachment[2]}`,
+      expiresAt: new Date(Date.now() + 5 * 60_000).toISOString(),
+    });
+  }
+
+  const letter = /^\/v1\/review\/clarifications\/([^/]+)\/letter\/download$/.exec(pathname);
+  if (method === 'GET' && letter?.[1]) {
+    const documentId = clarifications.get(letter[1])?.letter?.documentId;
+    if (!documentId) return problem(404, 'Not found');
+    return json(200, {
+      downloadUrl: `/api/mock-files/${documentId}`,
       expiresAt: new Date(Date.now() + 5 * 60_000).toISOString(),
     });
   }
@@ -1021,6 +1018,8 @@ function detail(stored: StoredCase, caller: Assignee): CaseDetail {
     })),
     versions: stored.versions,
     reviewerHistory: history,
+    determinations: [],
+    registry: { checkedAt: null, checks: [], recheckAvailableAt: null },
   };
 }
 
@@ -1065,7 +1064,7 @@ async function assignmentOrNote(
   }
   if (action === 'release' && request.method === 'POST') {
     if (holder?.subject !== caller.subject) {
-      return problem(403, 'Only the officer who holds a case can release it.');
+      return problem(403, 'Only the reviewer who holds a case can release it.');
     }
     return hand(null, 'Released to the queue');
   }

@@ -109,6 +109,8 @@ export const rosterRecords = pgTable(
     designation: text(),
     jobGroup: text(),
     reportingEntityId: uuid().references(() => reportingEntities.id),
+    /** The HR and payroll systems' code for the employer; review's supplier check takes it. */
+    employerCode: text(),
     appointmentDate: date({ mode: 'string' }),
     email: text(),
     /** E.164. */

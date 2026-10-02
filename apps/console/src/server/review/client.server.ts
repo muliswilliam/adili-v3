@@ -4,13 +4,17 @@ import { env } from '../env.server';
 import type { paths } from './api.gen';
 
 /**
- * How long the console waits for the review service, by kind of call. Most calls are quick.
- * Drafting a clarification with AI holds the request while review pulls the declaration and waits
- * up to 10 s for the ai-gateway (which itself allows the call 12 s), so the console allows it
- * well past that: giving up first would show "AI service unavailable" for a draft still being
- * written. A retry after a timeout reuses the Idempotency-Key, so it answers the same draft.
+ * How long the console waits for the review service, by kind of call. Review bounds its own reads
+ * of other services so that it always answers first, the case without its declaration or the
+ * Registry tab's 502 with the last statuses, within 8 seconds at worst
+ * (`services/review/src/internal-api/view-budget.ts`, ADR-013 §2); waiting less than that turned a
+ * slow declarations service into "could not load this case". Drafting a clarification with AI
+ * holds the request while review pulls the declaration and waits up to 10 s for the ai-gateway
+ * (which itself allows the call 12 s), so the console allows it well past that: giving up first
+ * would show "AI service unavailable" for a draft still being written. A retry after a timeout
+ * reuses the Idempotency-Key, so it answers the same draft.
  */
-export const REVIEW_TIMEOUTS_MS = { default: 10_000, aiDraft: 25_000 } as const;
+export const REVIEW_TIMEOUTS_MS = { default: 15_000, aiDraft: 25_000 } as const;
 
 /** The timeout of one review call, from its method and path. */
 export function reviewTimeoutMs(method: string, path: string): number {

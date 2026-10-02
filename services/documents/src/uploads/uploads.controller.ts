@@ -2,6 +2,7 @@ import { Body, Controller, Get, HttpCode, HttpStatus, Param, Post } from '@nestj
 import {
   ApiBody,
   ApiCreatedResponse,
+  ApiHeader,
   ApiNoContentResponse,
   ApiOkResponse,
   ApiOperation,
@@ -38,7 +39,7 @@ const ApiUploadIdParam = () => ApiParam({ name: 'id', schema: { type: 'string', 
 
 /**
  * Uploads for the caller's tenant. Who may upload is decided per purpose (roster-import:
- * reporting-officer; declaration-attachment: declarant), so the service checks roles rather than
+ * reporting-officer; declaration-attachment and clarification-attachment: declarant), so the service checks roles rather than
  * a controller-level `@Roles`.
  */
 @ApiTags('uploads')
@@ -52,7 +53,7 @@ export class UploadsController {
     operationId: 'createUpload',
     summary: 'Reserve an upload and get a presigned PUT to quarantine',
     description:
-      "The purpose's roles only (roster-import: reporting-officer; declaration-attachment: declarant). The PUT URL is valid for 15 minutes and accepts exactly the declared Content-Type and size.",
+      "The purpose's roles only (roster-import: reporting-officer; declaration-attachment and clarification-attachment: declarant). The PUT URL is valid for 15 minutes and accepts exactly the declared Content-Type and size.",
   })
   @ApiBody({ required: true, schema: schemaRef('CreateUpload') })
   @ApiCreatedResponse({
@@ -145,7 +146,14 @@ export class InternalUploadsController {
     operationId: 'getUploadDownload',
     summary: 'Short-lived presigned GET on a clean object, for services',
     description:
-      'Service tokens with scope documents:internal, acting for the tenant in X-Acting-Tenant. The URL is valid for 5 minutes.',
+      'Service tokens with scope documents:internal, acting for the tenant in X-Acting-Tenant. The URL is valid for 5 minutes. Audited under the tenant, naming whom the service reads for (X-Acting-Subject).',
+  })
+  @ApiHeader({
+    name: 'X-Acting-Subject',
+    required: false,
+    description:
+      "The subject the service reads for (a reviewer opening an attachment, or the declarant whose response attaches it); recorded as the audit event's on-behalf-of, grants nothing (ADR-013 §8.6)",
+    schema: { type: 'string', maxLength: 255 },
   })
   @ApiOkResponse({
     description: 'Download URL valid for a few minutes',

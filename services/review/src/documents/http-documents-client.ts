@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { rejectedBy } from '../internal-api/rejected.js';
 import type { components, paths } from './documents-api.gen.js';
 import {
+  type DocumentDownload,
   DocumentsClient,
   DocumentsUnavailable,
   type IssuedDocument,
@@ -28,6 +29,12 @@ const downloadSchema = z.object({
   fileName: z.string().nullable(),
   sha256: z.string().min(1),
 }) satisfies z.ZodType<UploadDownload>;
+
+const documentDownloadSchema = z.object({
+  downloadUrl: z.url(),
+  expiresAt: z.iso.datetime({ offset: true }),
+  sha256: z.string().regex(/^[0-9a-f]{64}$/),
+}) satisfies z.ZodType<DocumentDownload>;
 
 type IssueDocumentBody = components['schemas']['IssueDocument'];
 
@@ -71,11 +78,18 @@ export class HttpDocumentsClient extends DocumentsClient {
     this.issuance = client(ISSUE_TIMEOUT_MS);
   }
 
-  async getUploadDownload(uploadId: string, tenant: string): Promise<UploadDownload | null> {
+  async getUploadDownload(
+    uploadId: string,
+    tenant: string,
+    actingSubject: string,
+  ): Promise<UploadDownload | null> {
     const found = await this.documents.call(
       (api) =>
         api.GET('/internal/v1/uploads/{id}/download', {
-          params: { path: { id: uploadId }, header: { 'X-Acting-Tenant': tenant } },
+          params: {
+            path: { id: uploadId },
+            header: { 'X-Acting-Tenant': tenant, 'X-Acting-Subject': actingSubject },
+          },
         }),
       {
         status: 200,
@@ -88,14 +102,33 @@ export class HttpDocumentsClient extends DocumentsClient {
     return { downloadUrl, expiresAt, purpose, fileName, sha256 };
   }
 
+  async getIssuedDocumentDownload(
+    documentId: string,
+    tenant: string,
+    actingSubject: string,
+  ): Promise<DocumentDownload | null> {
+    const found = await this.documents.call(
+      (api) =>
+        api.GET('/internal/v1/documents/{documentId}/download', {
+          params: {
+            path: { documentId },
+            header: { 'X-Acting-Tenant': tenant, 'X-Acting-Subject': actingSubject },
+          },
+        }),
+      { status: 200, schema: documentDownloadSchema, otherwise: { 404: () => null } },
+    );
+    if (found === null) return null;
+    return { downloadUrl: found.downloadUrl, expiresAt: found.expiresAt, sha256: found.sha256 };
+  }
+
   async issue(request: IssueDocumentRequest, tenant: string): Promise<IssuedDocument> {
     const issued = await this.issuance.call(
       (api) =>
         api.POST('/internal/v1/documents/issue', {
           params: { header: { 'X-Acting-Tenant': tenant } },
-          // Review's letters and the referral package join documents' contract with their
-          // templates (the clarification letter with #156); until then documents refuses them
-          // with 400 (InternalApiRejected), which the activities do not retry.
+          // The clarification letter is in documents' contract (#156); the decision and action
+          // letters and the referral package join it with their templates. Until then documents
+          // refuses them with 400 (InternalApiRejected), which the activities do not retry.
           body: request as unknown as IssueDocumentBody,
         }),
       // 200: issued before (one document per type and subject), answered again.

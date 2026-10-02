@@ -7,18 +7,11 @@ import { LoadError } from '../../components/load-error';
 import { Page, PageHead } from '../../components/page';
 import { ClarificationDetailView } from '../../components/review/clarification-detail';
 import { signInRedirect } from '../../components/sign-in-redirect';
+import { clarificationCrumb } from '../../clarification/view';
 import { getClarificationDetail } from '../../server/clarifications';
 import { getCommission } from '../../server/commissions';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
-
-/** The crumb: the clarification's reference, "Draft", or nothing while it cannot be named. */
-function crumbOf(loaderData: unknown): string | null {
-  if (typeof loaderData !== 'object' || loaderData === null || !('ok' in loaderData)) return null;
-  if (!loaderData.ok || !('data' in loaderData)) return 'Clarification';
-  const data = loaderData.data as { clarification?: { reference?: string | null } };
-  return data.clarification?.reference ?? 'Draft';
-}
 
 /** A clarification on a review case, with its response and actions (spec 07a FE-4, S15). */
 export const Route = createFileRoute('/review/cases/$caseId/clarifications/$clarificationId')({
@@ -48,7 +41,7 @@ export const Route = createFileRoute('/review/cases/$caseId/clarifications/$clar
     };
     return { ...result, commission: letterhead };
   },
-  staticData: { crumb: ({ loaderData }) => crumbOf(loaderData) },
+  staticData: { crumb: ({ loaderData }) => clarificationCrumb(loaderData) },
   head: () => ({ meta: [{ title: 'Clarification · Adili Online Console' }] }),
   component: ClarificationRoute,
   notFoundComponent: () => (

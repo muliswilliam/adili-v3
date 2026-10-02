@@ -13,7 +13,16 @@ import {
 
 const NOW = '2026-09-28T09:00:00Z';
 
-const ITEM = { requirement: 'correct', text: 'Correct it.', label: 'Assets' } as const;
+const ITEM = {
+  sectionKey: null,
+  personKey: null,
+  itemId: null,
+  requirement: 'correct',
+  text: 'Correct it.',
+  label: 'Assets',
+  aiJobId: null,
+  aiLanguage: null,
+} as const;
 
 function clarification(overrides: Partial<DeclarantClarification> = {}): DeclarantClarification {
   return {

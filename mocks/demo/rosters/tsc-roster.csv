@@ -1,15 +1,15 @@
-personnel_file_number,full_name,national_id,designation,job_group,reporting_entity,appointment_date,email,phone
-TSC/004512,Achieng Mary Otieno,23456781,Senior Teacher,C3,"Moi Girls High School, Eldoret",2009-01-07,mary.otieno@tsc.go.ke,+254712000101
-TSC/2011/KAKAMEGA/PRIMARY/00219,Makokha Janet Nafula,28340917,Teacher,C2,Kakamega Primary School,,,
-TSC/017733,Kamau Peter Njoroge,26113094,Deputy Principal,D2,Alliance High School,2007-05-02,peter.njoroge@tsc.go.ke,+254712000102
-TSC/052871,Kiplagat Moses Kiprotich,23456781,Teacher,C1,Kapsabet Boys High School,,,
-TSC/052209,Chebet Faith Jerono,31270458,Teacher,C1,Kapsabet Boys High School,2016-01-11,faith.jerono@tsc.go.ke,+254712000103
-TSC/039002,Auma Beatrice Anyango,29981354,Senior Teacher,C3,Kisumu Day High School,31/02/2015,,
-TSC/008841,Mwangi John Kariuki,24890317,Principal,D5,Maseno School,2003-09-01,john.kariuki@tsc.go.ke,+254712000104
-TSC/061744,Ndungu Samuel Kimani,4471,Teacher,C1,Alliance High School,,,
-TSC/064120,Wafula Grace Nekesa,33058726,Teacher,C2,Kakamega Primary School,2019-05-06,grace.nekesa@tsc.go.ke,+254712000105
-TSC/022589,Mohamed Fatuma Halima,27719043,Deputy Principal,D1 (SENIOR),Garissa High School,,,
-TSC/031456,Omondi Brian Ouma,29467183,Senior Teacher,C4,Kisumu Day High School,2012-01-09,brian.ouma@tsc.go.ke,+254712000106
-TSC/058163,Wanjala Edwin Simiyu,32906718,Teacher,C2,Maseno School,,edwin.simiyu@tsc,
-TSC/045987,Njeri Esther Wambui,30815642,Curriculum Support Officer,C5,TSC County Office Kiambu,2014-07-01,esther.wambui@tsc.go.ke,+254712000107
-TSC/070318,Hassan Ali Abdi,35102967,Teacher,C1,Garissa High School,2021-01-04,ali.abdi@tsc.go.ke,+254712000108
+personnel_file_number,full_name,national_id,designation,job_group,reporting_entity,appointment_date,email,phone,employer_code
+TSC/004512,Achieng Mary Otieno,23456781,Senior Teacher,C3,"Moi Girls High School, Eldoret",2009-01-07,mary.otieno@tsc.go.ke,+254712000101,TSC
+TSC/2011/KAKAMEGA/PRIMARY/00219,Makokha Janet Nafula,28340917,Teacher,C2,Kakamega Primary School,,,,
+TSC/017733,Kamau Peter Njoroge,26113094,Deputy Principal,D2,Alliance High School,2007-05-02,peter.njoroge@tsc.go.ke,+254712000102,TSC
+TSC/052871,Kiplagat Moses Kiprotich,23456781,Teacher,C1,Kapsabet Boys High School,,,,
+TSC/052209,Chebet Faith Jerono,31270458,Teacher,C1,Kapsabet Boys High School,2016-01-11,faith.jerono@tsc.go.ke,+254712000103,TSC
+TSC/039002,Auma Beatrice Anyango,29981354,Senior Teacher,C3,Kisumu Day High School,31/02/2015,,,
+TSC/008841,Mwangi John Kariuki,24890317,Principal,D5,Maseno School,2003-09-01,john.kariuki@tsc.go.ke,+254712000104,TSC
+TSC/061744,Ndungu Samuel Kimani,4471,Teacher,C1,Alliance High School,,,,
+TSC/064120,Wafula Grace Nekesa,33058726,Teacher,C2,Kakamega Primary School,2019-05-06,grace.nekesa@tsc.go.ke,+254712000105,TSC
+TSC/022589,Mohamed Fatuma Halima,27719043,Deputy Principal,D1 (SENIOR),Garissa High School,,,,
+TSC/031456,Omondi Brian Ouma,29467183,Senior Teacher,C4,Kisumu Day High School,2012-01-09,brian.ouma@tsc.go.ke,+254712000106,TSC
+TSC/058163,Wanjala Edwin Simiyu,32906718,Teacher,C2,Maseno School,,edwin.simiyu@tsc,,
+TSC/045987,Njeri Esther Wambui,30815642,Curriculum Support Officer,C5,TSC County Office Kiambu,2014-07-01,esther.wambui@tsc.go.ke,+254712000107,TSC
+TSC/070318,Hassan Ali Abdi,35102967,Teacher,C1,Garissa High School,2021-01-04,ali.abdi@tsc.go.ke,+254712000108,TSC

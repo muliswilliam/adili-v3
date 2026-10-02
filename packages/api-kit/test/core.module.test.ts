@@ -134,6 +134,13 @@ describe('CoreModule', () => {
     expect(response.json()).toMatchObject({ status: 401, instance: '/v1/me' });
   });
 
+  it('keeps free-text search out of the problem instance', async () => {
+    const response = await app.inject({ method: 'GET', url: '/v1/me?search=Wanjiku&page=2' });
+
+    expect(response.statusCode).toBe(401);
+    expect(response.json()).toMatchObject({ instance: '/v1/me?search=[redacted]&page=2' });
+  });
+
   it('rejects tokens issued for another audience', async () => {
     const token = await signToken({}, 'another-api');
     const response = await app.inject({

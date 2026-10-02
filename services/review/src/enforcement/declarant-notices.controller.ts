@@ -7,6 +7,7 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import {
+  ApiJsonBody,
   ApiProblemResponse,
   RequireIdempotencyKey,
   schemaRef,
@@ -16,11 +17,11 @@ import { z } from 'zod';
 
 import { DeclarantPerson } from '../clarifications/access.js';
 import {
-  type DeclarantNoticeView,
   DeclarantNoticesService,
   type NoticeResponseInput,
   noticeResponseInput,
 } from './declarant-notices.service.js';
+import type { DeclarantNoticeView } from './representation.js';
 
 const NOT_VISIBLE = 'Not found, or not visible to the caller';
 
@@ -50,6 +51,7 @@ export class DeclarantNoticesController {
   @Post(':actionId/response')
   @RequireIdempotencyKey()
   @ApiParam({ name: 'actionId', schema: { type: 'string', format: 'uuid' } })
+  @ApiJsonBody(noticeResponseInput)
   @ApiOperation({
     operationId: 'respondToNotice',
     summary: 'Respond once to a notice or warning with text and attachments',

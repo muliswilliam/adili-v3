@@ -3,7 +3,9 @@ import {
   Building03Icon,
   Calendar03Icon,
   ChartColumnIcon,
+  CheckListIcon,
   Key01Icon,
+  PlugSocketIcon,
   Shield01Icon,
   SquareLock02Icon,
   SparklesIcon,
@@ -15,7 +17,7 @@ import { type WorkspaceHref, workspacesFor } from '../workspaces';
 type NavIcon = IconProps['icon'];
 
 /** Sidebar destinations: workspaces, and pages inside one that get their own entry. */
-export type NavHref = WorkspaceHref | '/roster/api-access';
+export type NavHref = WorkspaceHref | '/roster/api-access' | '/platform/integrations';
 
 export interface NavItem {
   label: string;
@@ -55,6 +57,12 @@ const NAV: { label: string; items: NavDefinition[] }[] = [
       { workspace: 'commissions', icon: Building03Icon },
       { workspace: 'national-obligations', icon: ChartColumnIcon },
       { workspace: 'platform', icon: Shield01Icon, label: 'Law enforcement' },
+      {
+        workspace: 'platform',
+        icon: PlugSocketIcon,
+        label: 'Integrations',
+        to: '/platform/integrations',
+      },
       { workspace: 'ai-policy', icon: SparklesIcon },
     ],
   },
@@ -81,6 +89,10 @@ const NAV: { label: string; items: NavDefinition[] }[] = [
       },
       { workspace: 'obligations', icon: Calendar03Icon },
     ],
+  },
+  {
+    label: 'Review',
+    items: [{ workspace: 'review', icon: CheckListIcon }],
   },
 ];
 
@@ -128,14 +140,4 @@ export function activeNavHref(groups: NavGroup[], pathname: string): NavHref | n
     }
   }
   return active?.to ?? null;
-}
-
-/** Up to two initials for the avatar, e.g. "Juma Omondi" gives "JO". */
-export function initials(name: string): string {
-  return name
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((part) => part[0]?.toUpperCase())
-    .join('');
 }

@@ -14,8 +14,8 @@ describe('TEMPLATE_COLUMNS', () => {
     expect(new Set(names).size).toBe(names.length);
   });
 
-  it('has nine columns, three of them required', () => {
-    expect(TEMPLATE_COLUMNS).toHaveLength(9);
+  it('has ten columns, three of them required', () => {
+    expect(TEMPLATE_COLUMNS).toHaveLength(10);
     expect(REQUIRED_COLUMNS).toEqual(['personnel_file_number', 'full_name', 'national_id']);
   });
 

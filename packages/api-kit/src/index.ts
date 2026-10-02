@@ -134,6 +134,7 @@ export {
 } from './rate-limit/rate-limit.store.js';
 export { type ContractExportOptions, exportContract } from './contract.js';
 export {
+  ApiJsonBody,
   ApiProblemResponse,
   ApiQueryParameters,
   createOpenApiDocument,

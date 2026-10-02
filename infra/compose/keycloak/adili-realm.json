@@ -363,7 +363,7 @@
     {
       "clientId": "review",
       "name": "Review service",
-      "description": "Service account the review service uses to read submitted versions from declarations, policy and Commission references from the directory, attachments and letters from documents, and to send messages through notifications",
+      "description": "Review service account: reads declarations, the directory and documents, sends messages through notifications, and calls registries and payroll through the integration-gateway",
       "enabled": true,
       "protocol": "openid-connect",
       "publicClient": false,
@@ -380,7 +380,9 @@
         "directory:roster-national-id",
         "documents:internal",
         "messages",
-        "ai:internal"
+        "ai:internal",
+        "registry",
+        "payroll"
       ],
       "optionalClientScopes": []
     },
@@ -445,7 +447,7 @@
     {
       "clientId": "reporting",
       "name": "Reporting service",
-      "description": "Service account the reporting service uses for Form M: Commissions and staff from the directory, officer details from declarations, clarifications and ICMS payloads from review, its PDFs from documents, emails through notifications",
+      "description": "Reporting service account for Form M: directory Commissions and staff, declarations officer details, review clarifications and ICMS payloads, documents PDFs, notifications emails, and ICMS referrals through the integration-gateway",
       "enabled": true,
       "protocol": "openid-connect",
       "publicClient": false,
@@ -461,7 +463,8 @@
         "directory:internal",
         "documents:internal",
         "review:internal",
-        "messages"
+        "messages",
+        "icms"
       ],
       "optionalClientScopes": []
     }
@@ -1331,6 +1334,72 @@
     {
       "name": "review:internal",
       "description": "Service tokens for the review service's internal API: letter payloads the documents service renders, acting for a tenant (spec 07a)",
+      "protocol": "openid-connect",
+      "attributes": {
+        "include.in.token.scope": "true",
+        "display.on.consent.screen": "false"
+      },
+      "protocolMappers": [
+        {
+          "name": "adili-api audience",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "config": {
+            "included.custom.audience": "adili-api",
+            "access.token.claim": "true",
+            "id.token.claim": "false",
+            "introspection.token.claim": "true"
+          }
+        }
+      ]
+    },
+    {
+      "name": "registry",
+      "description": "Registry lookups through the integration-gateway (KRA, NTSA, BRS, ArdhiSasa, the employer-supplier check) and stored result reads, acting for a tenant (spec 07b)",
+      "protocol": "openid-connect",
+      "attributes": {
+        "include.in.token.scope": "true",
+        "display.on.consent.screen": "false"
+      },
+      "protocolMappers": [
+        {
+          "name": "adili-api audience",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "config": {
+            "included.custom.audience": "adili-api",
+            "access.token.claim": "true",
+            "id.token.claim": "false",
+            "introspection.token.claim": "true"
+          }
+        }
+      ]
+    },
+    {
+      "name": "payroll",
+      "description": "Payroll instructions through the integration-gateway (salary stoppage and its lifting under the Administrative Mechanisms, spec 08)",
+      "protocol": "openid-connect",
+      "attributes": {
+        "include.in.token.scope": "true",
+        "display.on.consent.screen": "false"
+      },
+      "protocolMappers": [
+        {
+          "name": "adili-api audience",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "config": {
+            "included.custom.audience": "adili-api",
+            "access.token.claim": "true",
+            "id.token.claim": "false",
+            "introspection.token.claim": "true"
+          }
+        }
+      ]
+    },
+    {
+      "name": "icms",
+      "description": "Referral registration with EACC's ICMS through the integration-gateway (spec 09)",
       "protocol": "openid-connect",
       "attributes": {
         "include.in.token.scope": "true",

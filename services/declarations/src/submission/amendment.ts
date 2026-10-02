@@ -10,6 +10,7 @@ import {
   statementKey,
   type StatementKey,
 } from '../drafts/sections.js';
+import { asDeclaredFor } from '../drafts/since-last.js';
 
 /**
  * Amendments (spec 06), pure: a submitted version's `declaration.v1` document back as the
@@ -28,7 +29,8 @@ export interface SectionFromVersion {
 /**
  * The capture sections of a submitted document, in First Schedule order: bio is the declarant
  * (`officer` in declaration.v1), household the spouses and children, one statement per person,
- * other the paragraph 9 information. Each is assessed as a save would (a submitted document is
+ * other the paragraph 9 information, as the declaration's type holds them (an initial's changes
+ * since the last declaration left out). Each is assessed as a save would (a submitted document is
  * complete, unless a rule has changed since), with the clear metadata a save derives; the bio
  * keeps the fields the roster locked (`lockedFields`, from the draft that was submitted).
  */
@@ -36,16 +38,19 @@ export function sectionsOfVersion(
   document: DeclarationV1,
   { lockedFields }: { lockedFields: string[] },
 ): SectionFromVersion[] {
-  const bio = document.officer as unknown as SectionContents;
+  // As the declaration's type holds them, as a save would store them.
+  const declared = (key: string, contents: unknown) =>
+    asDeclaredFor(document.type, key, contents as SectionContents);
+  const bio = declared('bio', document.officer);
   const household: SectionContents = { spouses: document.spouses, children: document.children };
   const statements = new Map<PersonKey, SectionContents>(
     document.statements.map((statement) => [
       // declaration.v1 keys each statement by one person, as its section is.
       statement.personKey as PersonKey,
-      statement as unknown as SectionContents,
+      declared(statementKey(statement.personKey as PersonKey), statement),
     ]),
   );
-  const other = document.otherInformation as unknown as SectionContents;
+  const other = declared('other', document.otherInformation);
   const assessed = assessSections({ bio, household, statements, other });
   const section = (
     key: DeclarationSectionKey,

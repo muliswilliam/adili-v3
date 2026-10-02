@@ -1,7 +1,7 @@
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
-import { StatTile } from './stat-tile';
+import { StatTile, StatTileSkeleton } from './stat-tile';
 
 const breakdown = [
   { label: 'Initial', value: 41 },
@@ -15,6 +15,12 @@ describe('StatTile', () => {
 
     screen.getByText('Upcoming');
     screen.getByText('48,345');
+  });
+
+  it('prints the value its own way when given a format', () => {
+    render(<StatTile label="Cache hit rate" value={0.42} format={(v) => `${String(v * 100)}%`} />);
+
+    screen.getByText('42%');
   });
 
   it('lists the breakdown on the tile, so it is reachable without hover', () => {
@@ -104,5 +110,16 @@ describe('StatTile', () => {
     const { container } = render(<StatTile label="Not onboarded" value={48} tone="warning" />);
 
     expect(container.firstElementChild?.getAttribute('data-tone')).toBe('warning');
+  });
+});
+
+describe('StatTileSkeleton', () => {
+  it('is a hidden placeholder tile with a line per description line', () => {
+    const { container } = render(<StatTileSkeleton lines={2} />);
+
+    const tile = container.firstElementChild as HTMLElement;
+    expect(tile.getAttribute('aria-hidden')).toBe('true');
+    expect(tile.className).toContain('shadow-card');
+    expect(tile.children).toHaveLength(4);
   });
 });

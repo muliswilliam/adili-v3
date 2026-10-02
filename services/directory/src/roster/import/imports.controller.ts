@@ -234,7 +234,7 @@ export class RosterImportsController {
     operationId: 'getRosterImportReportCsv',
     summary: 'Rejected rows as CSV with reason columns appended',
     description:
-      "Same callers as `listRosterImportRows`. One line per rejected row, in row order: the nine template columns with the values as sent, then `row_number`, `error_fields`, `error_codes` and `error_messages` (several errors joined by `; `). UTF-8 with a byte order mark; values that a spreadsheet would run as a formula are prefixed with `'`. The fixed file can be uploaded again as it is: the reason columns are ignored. Streamed, and sent as an attachment (`Content-Disposition`).",
+      "Same callers as `listRosterImportRows`. One line per rejected row, in row order: the template columns with the values as sent, then `row_number`, `error_fields`, `error_codes` and `error_messages` (several errors joined by `; `). UTF-8 with a byte order mark; values that a spreadsheet would run as a formula are prefixed with `'`. The fixed file can be uploaded again as it is: the reason columns are ignored. Streamed, and sent as an attachment (`Content-Disposition`).",
   })
   @ApiOkResponse({
     description: 'The rejected rows',

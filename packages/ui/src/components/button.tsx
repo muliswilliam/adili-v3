@@ -26,7 +26,7 @@ export const buttonVariants = cva(
         link: 'text-foreground underline decoration-input underline-offset-3 hover:decoration-foreground active:translate-y-0',
       },
       size: {
-        xs: 'h-7 rounded-[7px] px-2.5 text-[13px] [&_svg]:size-3.5',
+        xs: 'h-7 rounded-chip px-2.5 text-[13px] [&_svg]:size-3.5',
         sm: 'h-[34px] rounded-md px-3 text-sm [&_svg]:size-4',
         default: 'h-11 rounded-lg px-[18px] text-[15px] [&_svg]:size-[18px]',
         icon: 'size-9 rounded-md [&_svg]:size-[18px]',

@@ -10,6 +10,7 @@ import {
   DirectoryUnavailable,
   type LadderPolicy,
   type PayrollRosterFacts,
+  type StaffMember,
 } from './directory-client.js';
 
 /** How long a Commission's policy is reused before it is pulled again. */
@@ -57,13 +58,18 @@ const commissionSchema = z.object({
 });
 
 /**
- * The roster record's fields payroll needs. `employerCode` is optional: the directory's record
- * does not carry it yet.
+ * The roster record's fields payroll and the registry check need. `employerCode` is null when the
+ * roster gives none.
  */
 const rosterRecordSchema = z.object({
   personnelFileNumber: z.string().min(1),
-  employerCode: z.string().min(1).nullish(),
+  employerCode: z.string().min(1).nullable(),
   reportingEntity: z.object({ id: z.uuid() }).nullish(),
+});
+
+/** The staff holding a role; their emails are not kept. */
+const staffSchema = z.object({
+  items: z.array(z.object({ subject: z.string().min(1), name: z.string().min(1) })),
 });
 
 /** The record's national ID, which the directory serves on its own route and scope. */
@@ -166,8 +172,19 @@ export class HttpDirectoryClient extends DirectoryClient {
     return {
       personalNumber: found.personnelFileNumber,
       nationalId: identity.nationalId,
-      employerCode: found.employerCode ?? null,
+      employerCode: found.employerCode,
       reportingEntityId: found.reportingEntity?.id ?? null,
     };
+  }
+
+  async listStaff(slug: string, role: 'reviewer' | 'supervisor'): Promise<StaffMember[]> {
+    const found = await this.directory.call(
+      (api) =>
+        api.GET('/internal/v1/commissions/{slug}/staff', {
+          params: { path: { slug }, query: { role }, header: { 'X-Acting-Tenant': slug } },
+        }),
+      { status: 200, schema: staffSchema },
+    );
+    return found.items.map(({ subject, name }) => ({ subject, name }));
   }
 }

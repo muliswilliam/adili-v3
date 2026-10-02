@@ -1,5 +1,6 @@
 import { VERIFICATION_ID_PATTERN } from '@adili/events/contracts';
 import {
+  CLR,
   DECLARATION_TYPES,
   declarationSchemes,
   InvalidReferenceError,
@@ -132,22 +133,26 @@ function reminderEmail(params: ReminderParams): RenderedEmail {
 /** Declaration reference schemes (ADR-011): `DCB-TSC-2027-0012345-K`. */
 const DECLARATION_SCHEMES = Object.values(declarationSchemes);
 
+/** A reference of one of `schemes` with a valid check character; `expected` names them. */
+const referenceOf = (schemes: Parameters<typeof parse>[1], expected: string) =>
+  z.string().superRefine((reference, ctx) => {
+    try {
+      parse(reference, schemes);
+    } catch (error) {
+      if (!(error instanceof InvalidReferenceError)) throw error;
+      ctx.addIssue({
+        code: 'custom',
+        message:
+          error.reason === 'bad-check-character'
+            ? 'has a wrong check character'
+            : `must be ${expected}`,
+      });
+    }
+  });
+
 const acknowledgementParams = z
   .strictObject({
-    reference: z.string().superRefine((reference, ctx) => {
-      try {
-        parse(reference, DECLARATION_SCHEMES);
-      } catch (error) {
-        if (!(error instanceof InvalidReferenceError)) throw error;
-        ctx.addIssue({
-          code: 'custom',
-          message:
-            error.reason === 'bad-check-character'
-              ? 'has a wrong check character'
-              : 'must be a DCI, DCB or DCF declaration reference',
-        });
-      }
-    }),
+    reference: referenceOf(DECLARATION_SCHEMES, 'a DCI, DCB or DCF declaration reference'),
     type: z.enum(DECLARATION_TYPES),
     /** The submitted version the slip is for; above 1 is an amendment, same reference. */
     version: z.number().int().min(1).max(99),
@@ -202,13 +207,69 @@ function acknowledgementEmail(params: AcknowledgementParams): RenderedEmail {
   ]);
 }
 
+const clarificationFields = {
+  /** The clarification request's reference (ADR-011): `CLR-PSC-2028-0000451-1`. */
+  reference: referenceOf([CLR], 'a CLR clarification reference'),
+  commissionName: z.string().trim().min(1).max(120),
+  /** Civil date `YYYY-MM-DD`: the last day to respond, in Nairobi time. */
+  dueDate: z.iso.date(),
+  /** The portal page where the declarant reads the letter and responds. */
+  portalUrl: z.url({ protocol: /^https?$/ }).max(200),
+};
+
+const clarificationIssuedParams = z.strictObject(clarificationFields);
+type ClarificationIssuedParams = z.infer<typeof clarificationIssuedParams>;
+
+const clarificationReminderParams = z.strictObject({
+  ...clarificationFields,
+  /** Whole days from the send to the due date; the caller computes it in Nairobi time. */
+  daysLeft: z.number().int().min(0).max(366),
+});
+type ClarificationReminderParams = z.infer<typeof clarificationReminderParams>;
+
+const LATE_RESPONSE =
+  'You can still respond after that date, but your response will be recorded as late.';
+
+const CLARIFICATION_QUESTIONS = `If you have questions about this request, contact your Commission. ${NEVER_ASKS}`;
+
+function clarificationIssuedEmail(params: ClarificationIssuedParams): RenderedEmail {
+  return email(`Clarification request ${params.reference}`, [
+    paragraph(
+      `${params.commissionName} has sent you a clarification request about your declaration. Its reference number is ${params.reference}.`,
+    ),
+    paragraph(`Please respond by ${longDate(params.dueDate)}. ${LATE_RESPONSE}`),
+    // The letter names the declarant and the items asked about, so it stays behind sign-in.
+    signInParagraph(
+      params.portalUrl,
+      'to read the letter and respond. It is not attached to this email, so that only you can open it.',
+    ),
+    paragraph(CLARIFICATION_QUESTIONS),
+  ]);
+}
+
+function clarificationReminderEmail(params: ClarificationReminderParams): RenderedEmail {
+  const due = longDate(params.dueDate);
+  const when = params.daysLeft === 0 ? `today, ${due}` : `on ${due}, in ${days(params.daysLeft)}`;
+  return email(
+    params.daysLeft === 0
+      ? `Reminder: clarification request ${params.reference} is due today`
+      : `Reminder: clarification request ${params.reference} is due on ${due}`,
+    [
+      paragraph(
+        `You have not yet responded to clarification request ${params.reference} from ${params.commissionName}. Your response is due ${when}. ${LATE_RESPONSE}`,
+      ),
+      signInParagraph(params.portalUrl, 'to read the letter and respond.'),
+      paragraph(CLARIFICATION_QUESTIONS),
+    ],
+  );
+}
+
 /**
  * Every message the service can send, by template id. Params are validated before rendering.
  *
- * Later specs add theirs here, which widens the contract's `TemplateId` enum: 07a clarifications
- * (issued, reminder), 08 decisions, notices, salary stopped and reinstated, 09 Form M (draft
- * ready, reminder, chase, receipt). Spec 10's access templates, the Form K acknowledgement
- * among them, are in access-templates.ts.
+ * Later specs add theirs here, which widens the contract's `TemplateId` enum: 08 decisions,
+ * notices, salary stopped and reinstated, 09 Form M (draft ready, reminder, chase, receipt).
+ * Spec 10's access templates, the Form K acknowledgement among them, are in access-templates.ts.
  */
 export const templates = {
   'onboarding-otp-email': define({
@@ -294,6 +355,34 @@ export const templates = {
       }),
     },
   }),
+  'clarification-issued-email': define({
+    channel: 'email',
+    params: clarificationIssuedParams,
+    copy: { en: clarificationIssuedEmail },
+  }),
+  'clarification-issued-sms': define({
+    channel: 'sms',
+    params: clarificationIssuedParams,
+    copy: {
+      en: (params) => ({
+        text: `Adili: ${params.commissionName} has sent you clarification request ${params.reference}. Respond by ${longDate(params.dueDate)} at ${params.portalUrl}`,
+      }),
+    },
+  }),
+  'clarification-reminder-email': define({
+    channel: 'email',
+    params: clarificationReminderParams,
+    copy: { en: clarificationReminderEmail },
+  }),
+  'clarification-reminder-sms': define({
+    channel: 'sms',
+    params: clarificationReminderParams,
+    copy: {
+      en: (params) => ({
+        text: `Adili: clarification request ${params.reference} is due on ${longDate(params.dueDate)} (${params.daysLeft === 0 ? 'today' : days(params.daysLeft)}). Respond at ${params.portalUrl}`,
+      }),
+    },
+  }),
   ...accessTemplates,
 } as const;
 
@@ -317,6 +406,15 @@ export function templateParams(id: TemplateId): z.ZodType {
 
 type RenderFn = (params: unknown) => RenderedEmail | RenderedSms;
 
+export interface RenderOptions {
+  /**
+   * Refuse a `portalUrl` that is not https: a link a declarant follows to sign in must not go out
+   * in the clear. On outside development and test (`NODE_ENV=production`), where the portal runs
+   * on plain http locally.
+   */
+  httpsLinksOnly?: boolean;
+}
+
 /**
  * Validates `params` against the template's schema and renders it in `locale`, falling back
  * to English. Throws a `ZodError` whose paths start at `params`.
@@ -325,6 +423,7 @@ export function renderTemplate(
   id: TemplateId,
   locale: Locale,
   params: unknown,
+  { httpsLinksOnly = false }: RenderOptions = {},
 ): Partial<RenderedEmail> & { text: string } {
   const template = templates[id] as unknown as {
     params: z.ZodType;
@@ -335,6 +434,17 @@ export function renderTemplate(
     throw new z.ZodError(
       parsed.error.issues.map((issue) => ({ ...issue, path: ['params', ...issue.path] })),
     );
+  }
+  const portalUrl = (parsed.data as { portalUrl?: unknown }).portalUrl;
+  if (httpsLinksOnly && typeof portalUrl === 'string' && !portalUrl.startsWith('https:')) {
+    throw new z.ZodError([
+      {
+        code: 'custom',
+        path: ['params', 'portalUrl'],
+        message: 'must be an https URL',
+        input: portalUrl,
+      },
+    ]);
   }
   return (template.copy[locale] ?? template.copy.en)(parsed.data);
 }

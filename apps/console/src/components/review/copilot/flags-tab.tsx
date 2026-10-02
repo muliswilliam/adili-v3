@@ -1,4 +1,4 @@
-import { AiLabel, Button, cn, EmptyState, focusRingInset, Icon } from '@adili/ui';
+import { AiLabel, Button, cn, EmptyState, focusRingInset, Icon, SeverityBadge } from '@adili/ui';
 import {
   ArrowDown01Icon,
   Flag02Icon,
@@ -20,7 +20,6 @@ import {
   type ResolveRef,
 } from './panel-parts';
 import { messages as t } from './messages';
-import { SeverityBadge } from './severity-badge';
 
 export const flagAnchor = (flagId: string) => `copilot-flag-${flagId}`;
 

@@ -89,10 +89,18 @@ export const clarificationCountsRequest = z
   );
 export type ClarificationCountsRequest = z.infer<typeof clarificationCountsRequest>;
 
-/** review.yaml `ClarificationCounts`: per declaration named, the clarifications a grant would disclose. */
-export interface ClarificationCounts {
-  counts: { declarationReference: string; clarifications: number }[];
-}
+/** Per declaration named, the clarifications a grant of the scope would disclose. */
+export const clarificationCountsSchema = z.object({
+  counts: z
+    .array(
+      z.object({
+        declarationReference: z.string(),
+        clarifications: z.int().min(0),
+      }),
+    )
+    .meta({ description: 'One per declaration named, in the order named' }),
+});
+export type ClarificationCounts = z.infer<typeof clarificationCountsSchema>;
 
 /** The household members and sections a grant allows. */
 export type DisclosureScope = Pick<
@@ -100,35 +108,43 @@ export type DisclosureScope = Pick<
   'includeSpouses' | 'includeChildren' | 'sections'
 >;
 
-/** review.yaml `DisclosedClarificationItem`: one item as its letter put it, and its answer. */
-export interface DisclosedClarificationItem {
-  label: string;
-  requirementLabel: string;
-  text: string;
-  /** The declarant's answer, null when they have not answered. */
-  response: { text: string; attachmentNames: string[] } | null;
-}
+/** One item as its letter put it, and its answer. */
+export const disclosedClarificationItemSchema = z.object({
+  label: z.string().meta({ description: 'What the item concerns, as the letter put it' }),
+  requirementLabel: z.string().meta({ description: 'What Act s.35(4) required of the declarant' }),
+  text: z.string().meta({ description: "The reviewer's request" }),
+  response: z
+    .object({
+      text: z.string(),
+      attachmentNames: z.array(z.string()).meta({
+        description: 'Names of the files attached to the answer; the files are not disclosed',
+      }),
+    })
+    .nullable()
+    .meta({ description: "The declarant's answer; null when not answered" }),
+});
+export type DisclosedClarificationItem = z.infer<typeof disclosedClarificationItemSchema>;
 
-/** review.yaml `DisclosedClarification`. */
-export interface DisclosedClarification {
-  /** The declaration it was issued on. */
-  declarationReference: string;
-  reference: string;
-  status: DisclosedStatus;
-  issuedAt: string;
-  dueAt: string;
-  respondedAt: string | null;
-  responseLate: boolean;
-  resolvedAt: string | null;
-  items: DisclosedClarificationItem[];
-}
+export const disclosedClarificationSchema = z.object({
+  declarationReference: z.string().meta({ description: 'The declaration it was issued on' }),
+  reference: z.string().meta({ description: '`CLR-...`' }),
+  status: z.enum(DISCLOSED_STATUSES),
+  issuedAt: z.iso.datetime(),
+  dueAt: z.iso.datetime(),
+  respondedAt: z.iso.datetime().nullable(),
+  responseLate: z.boolean(),
+  resolvedAt: z.iso.datetime().nullable(),
+  items: z.array(disclosedClarificationItemSchema).min(1),
+});
+export type DisclosedClarification = z.infer<typeof disclosedClarificationSchema>;
 
-/** review.yaml `ClarificationDisclosure`. */
-export interface ClarificationDisclosure {
-  grantReference: string;
-  /** Oldest issued first; empty when none was issued, or none is in the scope. */
-  clarifications: DisclosedClarification[];
-}
+export const clarificationDisclosureSchema = z.object({
+  grantReference: z.string(),
+  clarifications: z.array(disclosedClarificationSchema).meta({
+    description: 'Oldest issued first; empty when none was issued or none is in the scope',
+  }),
+});
+export type ClarificationDisclosure = z.infer<typeof clarificationDisclosureSchema>;
 
 /** An issued clarification as stored, with its declaration and the declarant's response. */
 export interface IssuedClarification {

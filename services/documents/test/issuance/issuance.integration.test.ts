@@ -50,6 +50,12 @@ const DECLARATIONS: Caller = {
   azp: 'declarations',
   scope: 'documents:internal',
 };
+/** The review service's account, downloading a letter for a reviewer of the Commission. */
+const REVIEW: Caller = {
+  sub: 'service-account-review',
+  azp: 'review',
+  scope: 'documents:internal',
+};
 const DECLARANT_PERSON = randomUUID();
 const DECLARANT: Caller = { sub: 'declarant-1', personId: DECLARANT_PERSON, roles: ['declarant'] };
 const OTHER_DECLARANT: Caller = {
@@ -618,6 +624,53 @@ describe('S13 downloading', () => {
       tx.select().from(outbox).where(eq(outbox.eventType, 'audit.read.v1')),
     );
     expect(audits.filter((row) => JSON.stringify(row.envelope).includes(document.id))).toEqual([]);
+  });
+
+  it("hands the issuing tenant's service a presigned URL for its staff, audited with the person and the staff member", async () => {
+    const document = await issued();
+    const response = await api.get(`/internal/v1/documents/${document.id}/download`, REVIEW, {
+      'x-acting-tenant': 'psc',
+      'x-acting-subject': 'reviewer-a',
+    });
+    expect(response.statusCode, response.body).toBe(200);
+    const body = response.json<DocumentDownload>();
+    expect(
+      contractErrors(okResponse('/internal/v1/documents/{documentId}/download', 'get'), body),
+    ).toEqual([]);
+    expect(body.sha256).toBe(document.sha256);
+    const fetched = await fetch(body.downloadUrl);
+    expect(fetched.status).toBe(200);
+    expect(sha256(new Uint8Array(await fetched.arrayBuffer()))).toBe(document.sha256);
+
+    const audits = (
+      await withTenant(api.db, { tenant: 'platform', subject: 'test' }, (tx) =>
+        tx.select().from(outbox).where(eq(outbox.eventType, 'audit.read.v1')),
+      )
+    ).filter((row) => JSON.stringify(row.envelope).includes(document.id));
+    expect(audits).toHaveLength(1);
+    expect(audits[0]?.envelope).toMatchObject({
+      tenant: 'psc',
+      data: {
+        action: 'document.downloaded',
+        resource: {
+          type: 'issued-document',
+          params: { documentId: document.id },
+          tenant: 'psc',
+          subjectPersonId: DECLARANT_PERSON,
+        },
+        // M13: the reviewer the service read for (ADR-013 §8.6).
+        actor: { subject: REVIEW.sub, onBehalfOf: 'reviewer-a' },
+      },
+    });
+  });
+
+  it('answers 404 to a service acting for another tenant, and 403 to staff tokens', async () => {
+    const document = await issued();
+    const path = `/internal/v1/documents/${document.id}/download`;
+    expect((await api.get(path, REVIEW, { 'x-acting-tenant': 'tsc' })).statusCode).toBe(404);
+    const unknown = `/internal/v1/documents/${randomUUID()}/download`;
+    expect((await api.get(unknown, REVIEW, { 'x-acting-tenant': 'psc' })).statusCode).toBe(404);
+    expect((await api.get(path, OFFICER, { 'x-acting-tenant': 'psc' })).statusCode).toBe(403);
   });
 
   it("shows the declarant the document's metadata", async () => {

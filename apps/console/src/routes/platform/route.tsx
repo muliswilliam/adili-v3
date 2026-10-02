@@ -7,8 +7,9 @@ import { workspaceFor } from '../../components/workspaces';
 import { getViewer } from '../../server/viewer';
 
 /**
- * Platform settings (the platform administrator's workspace): law-enforcement accounts so far
- * (spec 10 FE-6). Anyone else is told they cannot, as the directory answers them 403.
+ * Platform settings (the platform administrator's workspace): law-enforcement accounts (spec 10
+ * FE-6) and registry integrations (spec 07b FE-3). Anyone else is told they cannot, as the
+ * directory answers them 403.
  */
 export const Route = createFileRoute('/platform')({
   beforeLoad: async ({ location }) => {

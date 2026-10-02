@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { activeNavHref, initials, navFor } from './nav';
+import { activeNavHref, navFor } from './nav';
 
 const labels = (roles: string[]) =>
   navFor(roles).map((group) => [group.label, group.items.map((item) => item.label)]);
@@ -12,14 +12,18 @@ describe('navFor', () => {
     }
   });
 
-  it('adds Law enforcement and AI policy under Platform for platform admins only (specs 10, 07c)', () => {
+  it('adds Law enforcement, Integrations and AI policy under Platform for platform admins only (specs 10, 07b, 07c)', () => {
     expect(labels(['platform-admin'])).toEqual([
-      ['Platform', ['Commissions', 'National obligations', 'Law enforcement', 'AI policy']],
+      [
+        'Platform',
+        ['Commissions', 'National obligations', 'Law enforcement', 'Integrations', 'AI policy'],
+      ],
     ]);
     expect(navFor(['platform-admin'])[0]?.items.map((item) => item.to)).toEqual([
       '/commissions',
       '/obligations/national',
       '/platform/law-enforcement',
+      '/platform/integrations',
       '/ai-policy',
     ]);
   });
@@ -47,8 +51,11 @@ describe('navFor', () => {
     ]);
   });
 
-  it('shows reviewers Obligations only, leaving out what is not built yet', () => {
-    expect(labels(['reviewer'])).toEqual([['Commission', ['Obligations']]]);
+  it('shows reviewers Obligations and the review queue, leaving out what is not built yet', () => {
+    expect(labels(['reviewer'])).toEqual([
+      ['Commission', ['Obligations']],
+      ['Review', ['Review queue']],
+    ]);
   });
 
   it('shows access officers and supervisors Access requests under Access (spec 10)', () => {
@@ -56,6 +63,7 @@ describe('navFor', () => {
     expect(labels(['supervisor'])).toEqual([
       ['Access', ['Access requests']],
       ['Commission', ['Obligations']],
+      ['Review', ['Review queue']],
     ]);
     expect(navFor(['access-officer'])[0]?.items[0]?.to).toBe('/access/requests');
   });
@@ -72,6 +80,7 @@ describe('activeNavHref', () => {
     ['/obligations/policy', '/obligations'],
     ['/obligations/national', '/obligations/national'],
     ['/commissions/psc', '/commissions'],
+    ['/platform/integrations', '/platform/integrations'],
     ['/access/requests/0190f3a2-0000-7000-8000-000000000001', '/access/requests'],
     ['/access/certified-copies', '/access/requests'],
     ['/access/certified-copies/new', '/access/requests'],
@@ -82,12 +91,12 @@ describe('activeNavHref', () => {
   ])('marks %s under %s', (pathname, expected) => {
     expect(activeNavHref(groups, pathname)).toBe(expected);
   });
-});
 
-describe('initials', () => {
-  it('takes the first letter of the first two names', () => {
-    expect(initials('Juma Omondi')).toBe('JO');
-    expect(initials('  amina  ')).toBe('A');
-    expect(initials('Dr. Paul Odhiambo')).toBe('DP');
+  it('marks a review case under the review queue', () => {
+    const review = navFor(['reviewer']);
+    expect(activeNavHref(review, '/review')).toBe('/review');
+    expect(activeNavHref(review, '/review/cases/ca5e0000-0000-4000-8000-000000000001')).toBe(
+      '/review',
+    );
   });
 });

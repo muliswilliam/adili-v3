@@ -22,7 +22,7 @@ export interface PriorityBadgeMessages {
 /** What the priority indicator is, as the queue's column header and the flags banner say it. */
 export const PRIORITY_NOTE = 'Indicator for ordering only. Not a finding.';
 
-const DEFAULT_MESSAGES: PriorityBadgeMessages = {
+export const PRIORITY_BADGE_MESSAGES: PriorityBadgeMessages = {
   bands: { low: 'Low', medium: 'Medium', high: 'High' },
   label: (band) => `${band} priority`,
   note: PRIORITY_NOTE,
@@ -34,8 +34,8 @@ const LOOK: Record<PriorityBand, { tone: 'default' | 'warning' | 'destructive'; 
   high: { tone: 'destructive', bars: 3 },
 };
 
-/** Three rising bars, the first `lit` solid and the rest faint. */
-function Bars({ lit }: { lit: number }) {
+/** Three rising bars, the first `lit` solid and the rest faint, like a signal meter. Decorative. */
+export function SignalBars({ lit }: { lit: number }) {
   return (
     <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true" className="shrink-0">
       <rect x="0.5" y="7" width="3" height="4.5" rx="1" fill="currentColor" />
@@ -85,7 +85,7 @@ export function PriorityBadge({
   className,
   ...props
 }: PriorityBadgeProps) {
-  const copy = { ...DEFAULT_MESSAGES, ...messages };
+  const copy = { ...PRIORITY_BADGE_MESSAGES, ...messages };
   const look = LOOK[band];
   const text = copy.bands[band];
 
@@ -103,7 +103,7 @@ export function PriorityBadge({
       )}
       {...props}
     >
-      <Bars lit={look.bars} />
+      <SignalBars lit={look.bars} />
       {text}
     </Badge>
   );

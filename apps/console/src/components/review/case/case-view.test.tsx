@@ -71,7 +71,8 @@ vi.mock('@tanstack/react-router', () => ({
 // The server functions, answered by the review mock as the signed-in officer.
 vi.mock('../../../server/review-case', async () => {
   const server = await import('../../../server/review-case.server');
-  const { mockReviewClient } = await import('../../../server/review/mock.server');
+  const { MOCK_OFFICERS: officers, mockReviewClient } =
+    await import('../../../server/review/mock.server');
   const client = () => mockReviewClient('a1b2c3d4-0000-4000-8000-000000000001', 'Faith Achieng');
   interface Data<T> {
     data: T;
@@ -94,6 +95,24 @@ vi.mock('../../../server/review-case', async () => {
     getCaseAttachmentLink: vi.fn(({ data }: Data<{ caseId: string; uploadId: string }>) =>
       server.attachmentLink(client(), data.caseId, data.uploadId),
     ),
+    // The Commission's reviewers (the review mock has no reviewer list): two besides the holder.
+    getReviewers: vi.fn(() =>
+      Promise.resolve({
+        ok: true,
+        data: [
+          { subject: officers.mercy.subject, name: 'Mercy Wambui', open: 2, ofRecord: true },
+          {
+            subject: 'a1b2c3d4-0000-4000-8000-000000000001',
+            name: 'Faith Achieng',
+            open: 1,
+            ofRecord: false,
+          },
+        ],
+      }),
+    ),
+    getCaseRegistry: vi.fn(() => new Promise(() => undefined)),
+    getCaseRegistryStatus: vi.fn(),
+    recheckCaseRegistries: vi.fn(),
   };
 });
 vi.mock('../../../server/copilot', async () => {
@@ -134,6 +153,7 @@ function Harness({ initial, supervisor }: { initial: CaseViewData; supervisor: b
       load={load}
       now={NOW}
       supervisor={supervisor}
+      slug="tsc"
       commission={{ name: 'Teachers Service Commission', issuerCode: 'TSC' }}
     />
   );
@@ -300,7 +320,9 @@ describe('CaseView: the reviewer holding the case', () => {
     const plot = document.getElementById(`decl-item-${I.plot}`);
     if (!plot) throw new Error('no plot');
     fireEvent.click(
-      within(plot).getByRole('button', { name: '1 indicator on this item. Show in flags.' }),
+      within(plot).getByRole('button', {
+        name: /^1 indicator on this item, \w+ severity\. Show in flags\.$/,
+      }),
     );
     expect(document.activeElement?.id).toBe(`flag-${F.valueChange}`);
   });
@@ -405,7 +427,7 @@ describe('CaseView: the reviewer holding the case', () => {
   });
 });
 
-describe('CaseView: other officers', () => {
+describe('CaseView: other reviewers', () => {
   it('reads another reviewer’s case read-only', async () => {
     await renderCase(CASES.peters);
     expect(screen.getByText('Read-only. Peter Mwangi holds this case.')).toBeTruthy();
@@ -443,8 +465,9 @@ describe('CaseView: a supervisor', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Reassign' }));
     const dialog = screen.getByRole('dialog', { name: 'Reassign case' });
     expect(within(dialog).getByText('Currently held by Peter Mwangi.')).toBeTruthy();
-    const options = within(dialog).getAllByRole('radio');
+    const options = await within(dialog).findAllByRole('radio');
     expect(options).toHaveLength(2);
+    fireEvent.click(within(dialog).getByRole('radio', { name: /Mercy Wambui/ }));
     await clickAndSettle(() => {
       fireEvent.click(within(dialog).getByRole('button', { name: 'Reassign' }));
     });

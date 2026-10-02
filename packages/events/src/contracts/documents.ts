@@ -11,6 +11,7 @@
  */
 export const DOCUMENT_TYPES = [
   'acknowledgement-slip',
+  'clarification-letter',
   'access-package',
   'access-nil-letter',
   'certified-copy',
@@ -19,6 +20,9 @@ export type DocumentType = (typeof DOCUMENT_TYPES)[number];
 
 /** A declaration version's acknowledgement slip (spec 06). */
 export const ACKNOWLEDGEMENT_SLIP = 'acknowledgement-slip' satisfies DocumentType;
+
+/** A Commission's request for clarification of a declaration (spec 07a, Act s.35). */
+export const CLARIFICATION_LETTER = 'clarification-letter' satisfies DocumentType;
 
 /**
  * The scoped disclosure granted on an access request or a law-enforcement request (spec 10):

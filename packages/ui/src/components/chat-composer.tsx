@@ -101,7 +101,7 @@ export function ChatComposer({
         size="icon"
         disabled={disabled}
         aria-disabled={busy || undefined}
-        className="rounded-[10px] aria-disabled:cursor-not-allowed aria-disabled:bg-primary-disabled aria-disabled:bg-none aria-disabled:text-primary-disabled-foreground aria-disabled:shadow-none aria-disabled:active:translate-y-0 [&_svg]:size-4"
+        className="rounded-lg aria-disabled:cursor-not-allowed aria-disabled:bg-primary-disabled aria-disabled:bg-none aria-disabled:text-primary-disabled-foreground aria-disabled:shadow-none aria-disabled:active:translate-y-0 [&_svg]:size-4"
       >
         <Icon icon={SentIcon} />
         <span className="sr-only">{copy.send}</span>

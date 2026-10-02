@@ -85,15 +85,18 @@ export class InternalCommissionsController {
   @ApiQueryParameters(staffQuery)
   @ApiOperation({
     operationId: 'internalListCommissionStaff',
-    summary: "A Commission's staff holding a role, with their emails (services)",
+    summary: "A Commission's staff holding a role, with their names and emails (services)",
     description:
-      'Service tokens with scope directory:internal, acting for the Commission in X-Acting-Tenant; audited, naming the accounts read (it gives staff and their emails). Only enabled accounts with a verified email. The reporting service reminds supervisors and commission admins of the Form M deadlines, and chases reporting officers about a late report (spec 09); the access service reminds access officers of the requests awaiting them (spec 10).',
+      'Service tokens with scope directory:internal, acting for the Commission in X-Acting-Tenant; audited, naming the accounts read (it gives staff, their names and emails). Only enabled accounts with a verified email. The reporting service reminds supervisors and commission admins of the Form M deadlines, and chases reporting officers about a late report (spec 09); the review service lists the reviewers and supervisors a case can be assigned to (spec 07a); the access service reminds access officers of the requests awaiting them (spec 10).',
   })
   @ApiOkResponse({
     description: 'The staff holding the role',
     schema: schemaRef('InternalStaffList'),
   })
-  @ApiProblemResponse(400, 'role is not reporting-officer, supervisor or commission-admin')
+  @ApiProblemResponse(
+    400,
+    'role is not reporting-officer, reviewer, supervisor or commission-admin',
+  )
   @ApiProblemResponse(404, 'Not found, or not the acting tenant')
   async staff(
     @CurrentPrincipal() principal: Principal,

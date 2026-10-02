@@ -9,7 +9,8 @@
         "$TURBO_ROOT$/packages/schemas/internal/declarations.yaml",
         "$TURBO_ROOT$/packages/schemas/internal/documents.yaml",
         "$TURBO_ROOT$/packages/schemas/internal/review.yaml",
-        "$TURBO_ROOT$/packages/schemas/internal/access.yaml"
+        "$TURBO_ROOT$/packages/schemas/internal/access.yaml",
+        "$TURBO_ROOT$/packages/schemas/forms/declaration.v1.json"
       ]
     },
     "typecheck": {
@@ -19,7 +20,8 @@
         "$TURBO_ROOT$/packages/schemas/internal/declarations.yaml",
         "$TURBO_ROOT$/packages/schemas/internal/documents.yaml",
         "$TURBO_ROOT$/packages/schemas/internal/review.yaml",
-        "$TURBO_ROOT$/packages/schemas/internal/access.yaml"
+        "$TURBO_ROOT$/packages/schemas/internal/access.yaml",
+        "$TURBO_ROOT$/packages/schemas/forms/declaration.v1.json"
       ]
     }
   }

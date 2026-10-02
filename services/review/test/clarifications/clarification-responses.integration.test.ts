@@ -266,10 +266,12 @@ describe('clarifications: responses, clock, resolve, follow-up, withdraw', () =>
           ],
         },
       });
-      // Each attachment was checked with documents for the Commission.
+      // Each attachment was checked with documents for the Commission, read for the declarant
+      // (M13, ADR-013 §8.6).
+      const actingSubject = `person:${version.personId}`;
       expect(api.documents.downloads).toEqual([
-        { uploadId: receipt, tenant: 'psc' },
-        { uploadId: logbook, tenant: 'psc' },
+        { uploadId: receipt, tenant: 'psc', actingSubject },
+        { uploadId: logbook, tenant: 'psc', actingSubject },
       ]);
 
       expect(await events('clarification.responded.v1')).toMatchObject([
@@ -718,11 +720,13 @@ describe('clarifications: responses, clock, resolve, follow-up, withdraw', () =>
           channel: 'email',
           personId: version.personId,
           template: 'clarification-reminder-email',
-          params: expect.objectContaining({
+          params: {
+            commissionName: 'Public Service Commission',
             reference: clarification.reference,
             dueDate: '2028-01-19',
             daysLeft: 10,
-          }) as unknown,
+            portalUrl: `http://localhost:3010/clarifications/${clarification.id}`,
+          },
         }),
         expect.objectContaining({ channel: 'sms', template: 'clarification-reminder-sms' }),
       ]);

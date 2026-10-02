@@ -56,7 +56,6 @@ const ROW = {
   kiprono: 'PSC/0002,Kiprono Kipchumba,23456789,Officer,',
   wanjiru: 'PSC/0003,Wanjiru Kamau,34567890,Senior Officer,2019-07-01',
 };
-const csv = (rows: string[]) => [HEADER, ...rows].join('\n') + '\n';
 
 let api: DirectoryApi;
 
@@ -74,8 +73,13 @@ beforeEach(async () => {
 });
 
 /** Imports `rows` for psc through the import endpoints and waits for the import to complete. */
-async function importRoster(rows: string[], declaredComplete = false): Promise<RosterImport> {
-  const uploadId = api.uploads.add('psc', { bytes: csv(rows), fileName: 'psc.csv' });
+async function importRoster(
+  rows: string[],
+  declaredComplete = false,
+  header = HEADER,
+): Promise<RosterImport> {
+  const bytes = [header, ...rows].join('\n') + '\n';
+  const uploadId = api.uploads.add('psc', { bytes, fileName: 'psc.csv' });
   const started = await api.post(
     `${PSC_ROSTER}/imports`,
     { channel: 'file', uploadId, declaredComplete },
@@ -164,6 +168,7 @@ describe('S18 records touched by an import', () => {
       designation: 'Officer',
       jobGroup: null,
       reportingEntity: null,
+      employerCode: null,
       state: 'not_onboarded',
       appointmentDate: '2025-03-10',
       exitDate: null,
@@ -452,6 +457,21 @@ describe('S18 one record', () => {
     });
   });
 
+  it('gives the employer code the roster has, which a later import changes', async () => {
+    const header = 'personnel_file_number,full_name,national_id,employer_code';
+    const employerCode = async () => {
+      const id = idOf(await recordIds(), 'KEMSA/2011/0457');
+      const response = await api.get(`${INTERNAL_RECORDS}/${id}`, REVIEW, ACTING_PSC);
+      expect(response.statusCode, response.body).toBe(200);
+      return response.json<InternalRosterRecord>().employerCode;
+    };
+
+    await importRoster(['KEMSA/2011/0457,Wanjiku Njoki Kamau,27451863,KEMSA'], false, header);
+    expect(await employerCode()).toBe('KEMSA');
+    await importRoster(['KEMSA/2011/0457,Wanjiku Njoki Kamau,27451863,'], false, header);
+    expect(await employerCode()).toBeNull();
+  });
+
   it("answers 404 for another Commission's record, and when acting for another tenant", async () => {
     const tscIds = await givenRoster(api, 'tsc', [
       { personnelFileNumber: 'TSC/1', fullName: 'Otieno Ouma', nationalId: '56789012' },
@@ -574,8 +594,16 @@ describe('Commission staff by role (spec 09 reminders and chase)', () => {
   it('lists the enabled accounts holding the role with a verified email, audited', async () => {
     const supervisor = api.identity.seedUser({
       email: 'supervisor@psc.go.ke',
+      name: 'Grace Akinyi',
       tenant: 'psc',
       roles: ['supervisor'],
+      emailVerified: true,
+    });
+    const reviewer = api.identity.seedUser({
+      email: 'reviewer@psc.go.ke',
+      name: 'Juma Mwangi',
+      tenant: 'psc',
+      roles: ['reviewer'],
       emailVerified: true,
     });
     api.identity.seedUser({
@@ -610,10 +638,14 @@ describe('Commission staff by role (spec 09 reminders and chase)', () => {
       contractErrors(okResponse('/internal/v1/commissions/{slug}/staff', 'get'), response.json()),
     ).toEqual([]);
     expect(response.json()).toEqual({
-      items: [{ subject: supervisor, email: 'supervisor@psc.go.ke' }],
+      items: [{ subject: supervisor, email: 'supervisor@psc.go.ke', name: 'Grace Akinyi' }],
     });
+    expect((await staff('reviewer')).json()).toEqual({
+      items: [{ subject: reviewer, email: 'reviewer@psc.go.ke', name: 'Juma Mwangi' }],
+    });
+    // An account without a name goes by its email.
     expect((await staff('commission-admin')).json()).toEqual({
-      items: [{ subject: admin, email: 'admin@psc.go.ke' }],
+      items: [{ subject: admin, email: 'admin@psc.go.ke', name: 'admin@psc.go.ke' }],
     });
     expect(await auditReads()).toContainEqual(
       expect.objectContaining({
@@ -646,7 +678,9 @@ describe('Commission staff by role (spec 09 reminders and chase)', () => {
 
     expect(response.statusCode, response.body).toBe(200);
     expect(response.json()).toEqual({
-      items: [{ subject: officer, email: 'access.officer@psc.go.ke' }],
+      items: [
+        { subject: officer, email: 'access.officer@psc.go.ke', name: 'access.officer@psc.go.ke' },
+      ],
     });
   });
 

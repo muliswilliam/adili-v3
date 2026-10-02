@@ -1,6 +1,7 @@
 import { HttpStatus, Injectable, Logger } from '@nestjs/common';
 import { type Principal, ProblemException } from '@adili/api-kit';
 import { type Database, FieldCipher, InjectDatabase, withTenant } from '@adili/data-access';
+import { z } from 'zod';
 
 import { AiGatewayUnavailable } from '../ai-gateway/ai-gateway-client.js';
 import { caseTenant, isSupervisor, notTheAssignee } from '../cases/access.js';
@@ -8,27 +9,44 @@ import { findCase } from '../cases/case-lookup.js';
 import type { ReviewSchema } from '../db/schema.js';
 import { DeclarationsUnavailable } from '../declarations/declarations-client.js';
 import { declarationsUnavailable } from '../internal-api/upstream.js';
-import { type CopilotRatingView, ratingsOf } from './copilot-feedback.js';
+import { copilotRatingViewSchema, ratingsOf } from './copilot-feedback.js';
 import { copilotOf, CopilotRequests, openOutput } from './copilot-requests.js';
 import { aiGatewayUnavailable } from './problems.js';
 import { systemContext } from '../system-context.js';
-import type { CopilotRow, CopilotStatus } from './schema.js';
+import { COPILOT_STATUSES, type CopilotRow } from './schema.js';
+
+/** review.yaml `CopilotStatus`. */
+export const copilotStatusSchema = z.enum(COPILOT_STATUSES);
 
 /** review.yaml `CopilotView`. */
-export interface CopilotView {
-  status: CopilotStatus;
-  forVersionId: string | null;
-  generatedAt: string | null;
-  failureReason: string | null;
-  /** ai-gateway `SummarizeDeclarationOutput`. */
-  summary: Record<string, unknown> | null;
-  /** ai-gateway `ExplainFlagsOutput`. */
-  explanations: Record<string, unknown> | null;
-  /** The jobs of the outputs shown, which reviewers rate. */
-  jobs: { summarize: string | null; explain: string | null };
-  /** The case assignee's ratings of the outputs shown (the assignee rates; others read). */
-  feedback: CopilotRatingView[];
-}
+export const copilotViewSchema = z.object({
+  status: copilotStatusSchema,
+  forVersionId: z.uuid().nullable().meta({
+    description:
+      'The version the outputs shown are for (while `stale`, an earlier one); the version requested while there are none',
+  }),
+  generatedAt: z.iso.datetime().nullable(),
+  failureReason: z.string().nullable().meta({
+    description:
+      "The ai-gateway's job reason (`validation`, `budget`, `provider`, ...; `validation` also when an output breaks the task's contract), `output-purged` when a job succeeded but its output was purged before it was read, `policy` when not enabled, `rejected` / `ai-gateway-unavailable`, `declarations-unavailable` when the declaration could not be read, `key-service-unavailable` when an output could not be encrypted, or `internal-error`",
+  }),
+  summary: z.record(z.string(), z.unknown()).nullable().meta({
+    description:
+      'ai-gateway SummarizeDeclarationOutput (label, overview, changesSincePrevious, sections, worthAttention)',
+  }),
+  explanations: z
+    .record(z.string(), z.unknown())
+    .nullable()
+    .meta({ description: 'ai-gateway ExplainFlagsOutput (label, explanations)' }),
+  jobs: z
+    .object({ summarize: z.uuid().nullable(), explain: z.uuid().nullable() })
+    .meta({ description: 'The jobs of the outputs shown, which the assignee rates' }),
+  feedback: z.array(copilotRatingViewSchema).meta({
+    description:
+      "The ratings of the outputs shown (`jobs`) by the case's assignee, who rates them; read-only to the Commission's supervisors. Empty for anyone else, and while the case has no assignee",
+  }),
+});
+export type CopilotView = z.infer<typeof copilotViewSchema>;
 
 /**
  * The copilot panel of a case (spec 07c): the AI-assisted summary and flag explanations, read by

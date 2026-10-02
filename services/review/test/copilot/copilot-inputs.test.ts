@@ -42,6 +42,7 @@ describe('copilotInputs', () => {
     reviewedBy: null,
     reviewNote: null,
     recomputed: false,
+    closedReason: null,
     createdAt: new Date('2028-01-20T08:00:00.000Z'),
   });
 

@@ -6,6 +6,8 @@ export const envSchema = bffEnvSchema.extend({
   REVIEW_API_URL: z.url(),
   DOCUMENTS_API_URL: z.url(),
   DECLARATIONS_API_URL: z.url(),
+  /** The integration-gateway's public routes: registry coverage for platform admins (spec 07b). */
+  INTEGRATION_GATEWAY_API_URL: z.url(),
   ACCESS_API_URL: z.url(),
   /** The ai-gateway: AI policy, routing and usage for platform admins (spec 07c). */
   AI_GATEWAY_API_URL: z.url(),

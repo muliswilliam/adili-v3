@@ -15,7 +15,7 @@ export interface paths {
         put?: never;
         /**
          * Reserve an upload and get a presigned PUT to quarantine
-         * @description The purpose's roles only (roster-import: reporting-officer; declaration-attachment: declarant). The PUT URL is valid for 15 minutes and accepts exactly the declared Content-Type and size.
+         * @description The purpose's roles only (roster-import: reporting-officer; declaration-attachment and clarification-attachment: declarant). The PUT URL is valid for 15 minutes and accepts exactly the declared Content-Type and size.
          */
         post: operations["createUpload"];
         delete?: never;
@@ -93,7 +93,7 @@ export interface paths {
         };
         /**
          * Short-lived presigned GET on a clean object, for services
-         * @description Service tokens with scope documents:internal, acting for the tenant in X-Acting-Tenant. The URL is valid for 5 minutes.
+         * @description Service tokens with scope documents:internal, acting for the tenant in X-Acting-Tenant. The URL is valid for 5 minutes. Audited under the tenant, naming whom the service reads for (X-Acting-Subject).
          */
         get: operations["getUploadDownload"];
         put?: never;
@@ -195,9 +195,29 @@ export interface paths {
         put?: never;
         /**
          * Render, sign and register a document (services)
-         * @description Service tokens with scope documents:internal, issuing for the tenant in X-Acting-Tenant. Renders the type's versioned template to PDF through Gotenberg with the verification code and QR in the footer of every page and the watermark, when given, across every page, PAdES-signs it with the documents signing certificate, stores its SHA-256 in an Ed25519-signed verification record, stores the PDF and emits `document.issued.v1`. The disclosure level and public payload are the template's. `downloadWindowDays` limits the subject person's downloads to that many days from issue. An access-package and an access-nil-letter require a watermark, a download window and a subject person; a certified-copy a subject person. One document per type and subject: issuing again returns it with 200.
+         * @description Service tokens with scope documents:internal, issuing for the tenant in X-Acting-Tenant. Renders the type's versioned template to PDF through Gotenberg with the verification code and QR in the footer of every page and the watermark, when given, across every page, PAdES-signs it with the documents signing certificate, stores its SHA-256 in an Ed25519-signed verification record, stores the PDF and emits `document.issued.v1`. The disclosure level and public payload are the template's. `downloadWindowDays` limits the subject person's downloads to that many days from issue. An access-package and an access-nil-letter require a watermark, a download window and a subject person; a certified-copy a subject person. A clarification letter names its clarification; its fields are pulled from the review service (internalGetClarificationLetterPayload) for the same tenant. One document per type and subject: issuing again returns it with 200.
          */
         post: operations["issueDocument"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/internal/v1/documents/{documentId}/download": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Short-lived presigned download of an issued PDF (services)
+         * @description Service tokens with scope documents:internal, acting for the tenant in X-Acting-Tenant: the issuing tenant's documents only. The service owning the record a document is about asks it for its staff (the review service for a reviewer opening a clarification letter), after checking the staff member may see that record; it audits that read with the staff member and the person. This read is audited too, under the issuing tenant, naming the person the document is about and the staff member the service reads for (X-Acting-Subject).
+         */
+        get: operations["internalGetDocumentDownload"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -288,7 +308,7 @@ export interface components {
          * @description Sets allowed content types and the size limit
          * @enum {string}
          */
-        UploadPurpose: "roster-import" | "declaration-attachment" | "access-representation";
+        UploadPurpose: "roster-import" | "declaration-attachment" | "clarification-attachment" | "access-representation";
         /** @enum {string} */
         UploadState: "awaiting-upload" | "clean" | "infected" | "rejected" | "expired" | "deleted";
         /**
@@ -360,7 +380,7 @@ export interface components {
          * @description Document types with a template; later specs add theirs
          * @enum {string}
          */
-        DocumentType: "acknowledgement-slip" | "access-package" | "access-nil-letter" | "certified-copy";
+        DocumentType: "acknowledgement-slip" | "clarification-letter" | "access-package" | "access-nil-letter" | "certified-copy";
         /**
          * @description What the public verify page shows: public (content), restricted (reference, type, Commission, date), confidential (validity only). Fixed by the document type's template
          * @enum {string}
@@ -384,7 +404,12 @@ export interface components {
             /** @description Token subjects (`sub`) of the issuing Commission's staff who may download the document besides its subject person, with a token of that Commission, within the same window and audited the same way: the access officer who recorded an in-person self-access application, to print the certified copy they hand over. None: the subject person only */
             additionalDownloaders?: string[];
             /** @description The template's payload: the schema named after `type` */
-            payload: components["schemas"]["AcknowledgementSlipPayload"] | components["schemas"]["AccessPackagePayload"] | components["schemas"]["AccessNilLetterPayload"] | components["schemas"]["CertifiedCopyPayload"];
+            payload: components["schemas"]["AcknowledgementSlipPayload"] | components["schemas"]["ClarificationLetterSource"] | components["schemas"]["AccessPackagePayload"] | components["schemas"]["AccessNilLetterPayload"] | components["schemas"]["CertifiedCopyPayload"];
+        };
+        /** @description A clarification-letter's payload: the clarification whose letter this is; the fields the template renders are pulled from the review service's letter payload endpoint */
+        ClarificationLetterSource: {
+            /** Format: uuid */
+            clarificationId: string;
         };
         SupersedeDocument: {
             /**
@@ -1211,6 +1236,8 @@ export interface operations {
             header: {
                 /** @description Tenant the calling service acts for; the resource must belong to it */
                 "X-Acting-Tenant": string;
+                /** @description The subject the service reads for (a reviewer opening an attachment, or the declarant whose response attaches it); recorded as the audit event's on-behalf-of, grants nothing (ADR-013 §8.6) */
+                "X-Acting-Subject"?: string;
             };
             path: {
                 id: string;
@@ -1493,7 +1520,7 @@ export interface operations {
                     "application/json": components["schemas"]["IssuedDocument"];
                 };
             };
-            /** @description Request failed validation, the payload is not the template's, or the request lacks what the type requires */
+            /** @description Request failed validation, the payload (or the one pulled) is not the template's, the request lacks what the type requires, or the review service holds no issued clarification with the id for the tenant */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -1520,8 +1547,62 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
-            /** @description Problem type `renderer-unavailable`, `signer-unavailable` or `storage-unavailable`: nothing was issued; retry */
+            /** @description Problem type `renderer-unavailable`, `signer-unavailable`, `storage-unavailable` or `review-unavailable`: nothing was issued; retry */
             502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    internalGetDocumentDownload: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Tenant the calling service acts for; the resource must belong to it */
+                "X-Acting-Tenant": string;
+                /** @description The staff subject the service reads for (a reviewer downloading a clarification letter); recorded as the audit event's on-behalf-of, grants nothing (ADR-013 §8.6) */
+                "X-Acting-Subject"?: string;
+            };
+            path: {
+                documentId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Download URL valid for five minutes */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DocumentDownload"];
+                };
+            };
+            /** @description X-Acting-Tenant is missing or not a tenant key */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Requires a service token with scope documents:internal */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not found, or not the acting tenant's document */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };

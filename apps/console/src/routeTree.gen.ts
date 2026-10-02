@@ -35,7 +35,9 @@ import { Route as ObligationsIndexRouteImport } from './routes/obligations/index
 import { Route as ObligationsPolicyRouteImport } from './routes/obligations/policy'
 import { Route as ObligationsNationalRouteRouteImport } from './routes/obligations_/national/route'
 import { Route as PlatformIndexRouteImport } from './routes/platform/index'
+import { Route as PlatformIntegrationsRouteImport } from './routes/platform/integrations'
 import { Route as PlatformLawEnforcementRouteRouteImport } from './routes/platform/law-enforcement/route'
+import { Route as ReviewQueueRouteImport } from './routes/review/_queue'
 import { Route as RosterIndexRouteImport } from './routes/roster/index'
 import { Route as RosterApiAccessRouteRouteImport } from './routes/roster/api-access/route'
 import { Route as RosterFlaggedRouteImport } from './routes/roster/flagged'
@@ -61,6 +63,7 @@ import { Route as LeaRequestsNewRouteImport } from './routes/lea/requests/new'
 import { Route as ObligationsNationalIndexRouteImport } from './routes/obligations_/national/index'
 import { Route as PlatformLawEnforcementIndexRouteImport } from './routes/platform/law-enforcement/index'
 import { Route as PlatformLawEnforcementAgencyCodeRouteImport } from './routes/platform/law-enforcement/$agencyCode'
+import { Route as ReviewQueueIndexRouteImport } from './routes/review/_queue/index'
 import { Route as RosterApiAccessIndexRouteImport } from './routes/roster/api-access/index'
 import { Route as RosterApiAccessDocsRouteImport } from './routes/roster/api-access/docs'
 import { Route as RosterImportsIndexRouteImport } from './routes/roster/imports/index'
@@ -212,12 +215,21 @@ const PlatformIndexRoute = PlatformIndexRouteImport.update({
   path: '/',
   getParentRoute: () => PlatformRouteRoute,
 } as any)
+const PlatformIntegrationsRoute = PlatformIntegrationsRouteImport.update({
+  id: '/integrations',
+  path: '/integrations',
+  getParentRoute: () => PlatformRouteRoute,
+} as any)
 const PlatformLawEnforcementRouteRoute =
   PlatformLawEnforcementRouteRouteImport.update({
     id: '/law-enforcement',
     path: '/law-enforcement',
     getParentRoute: () => PlatformRouteRoute,
   } as any)
+const ReviewQueueRoute = ReviewQueueRouteImport.update({
+  id: '/_queue',
+  getParentRoute: () => ReviewRouteRoute,
+} as any)
 const RosterIndexRoute = RosterIndexRouteImport.update({
   id: '/',
   path: '/',
@@ -353,6 +365,11 @@ const PlatformLawEnforcementAgencyCodeRoute =
     path: '/$agencyCode',
     getParentRoute: () => PlatformLawEnforcementRouteRoute,
   } as any)
+const ReviewQueueIndexRoute = ReviewQueueIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => ReviewQueueRoute,
+} as any)
 const RosterApiAccessIndexRoute = RosterApiAccessIndexRouteImport.update({
   id: '/',
   path: '/',
@@ -481,6 +498,7 @@ export interface FileRoutesByFullPath {
   '/auth/logout': typeof AuthLogoutRoute
   '/commissions/new': typeof CommissionsNewRoute
   '/obligations/policy': typeof ObligationsPolicyRoute
+  '/platform/integrations': typeof PlatformIntegrationsRoute
   '/roster/flagged': typeof RosterFlaggedRoute
   '/roster/import': typeof RosterImportRoute
   '/roster/template': typeof RosterTemplateRoute
@@ -511,6 +529,7 @@ export interface FileRoutesByFullPath {
   '/lea/requests/': typeof LeaRequestsIndexRoute
   '/obligations/national/': typeof ObligationsNationalIndexRoute
   '/platform/law-enforcement/': typeof PlatformLawEnforcementIndexRoute
+  '/review/': typeof ReviewQueueIndexRoute
   '/roster/api-access/': typeof RosterApiAccessIndexRoute
   '/roster/imports/': typeof RosterImportsIndexRoute
   '/roster/records/': typeof RosterRecordsIndexRoute
@@ -530,12 +549,13 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/review': typeof ReviewRouteRouteWithChildren
+  '/review': typeof ReviewQueueIndexRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/auth/login': typeof AuthLoginRoute
   '/auth/logout': typeof AuthLogoutRoute
   '/commissions/new': typeof CommissionsNewRoute
   '/obligations/policy': typeof ObligationsPolicyRoute
+  '/platform/integrations': typeof PlatformIntegrationsRoute
   '/roster/flagged': typeof RosterFlaggedRoute
   '/roster/import': typeof RosterImportRoute
   '/roster/template': typeof RosterTemplateRoute
@@ -605,6 +625,8 @@ export interface FileRoutesById {
   '/auth/logout': typeof AuthLogoutRoute
   '/commissions/new': typeof CommissionsNewRoute
   '/obligations/policy': typeof ObligationsPolicyRoute
+  '/platform/integrations': typeof PlatformIntegrationsRoute
+  '/review/_queue': typeof ReviewQueueRouteWithChildren
   '/roster/flagged': typeof RosterFlaggedRoute
   '/roster/import': typeof RosterImportRoute
   '/roster/template': typeof RosterTemplateRoute
@@ -635,6 +657,7 @@ export interface FileRoutesById {
   '/lea/requests/': typeof LeaRequestsIndexRoute
   '/obligations_/national/': typeof ObligationsNationalIndexRoute
   '/platform/law-enforcement/': typeof PlatformLawEnforcementIndexRoute
+  '/review/_queue/': typeof ReviewQueueIndexRoute
   '/roster/api-access/': typeof RosterApiAccessIndexRoute
   '/roster/imports/': typeof RosterImportsIndexRoute
   '/roster/records/': typeof RosterRecordsIndexRoute
@@ -679,6 +702,7 @@ export interface FileRouteTypes {
     | '/auth/logout'
     | '/commissions/new'
     | '/obligations/policy'
+    | '/platform/integrations'
     | '/roster/flagged'
     | '/roster/import'
     | '/roster/template'
@@ -709,6 +733,7 @@ export interface FileRouteTypes {
     | '/lea/requests/'
     | '/obligations/national/'
     | '/platform/law-enforcement/'
+    | '/review/'
     | '/roster/api-access/'
     | '/roster/imports/'
     | '/roster/records/'
@@ -734,6 +759,7 @@ export interface FileRouteTypes {
     | '/auth/logout'
     | '/commissions/new'
     | '/obligations/policy'
+    | '/platform/integrations'
     | '/roster/flagged'
     | '/roster/import'
     | '/roster/template'
@@ -802,6 +828,8 @@ export interface FileRouteTypes {
     | '/auth/logout'
     | '/commissions/new'
     | '/obligations/policy'
+    | '/platform/integrations'
+    | '/review/_queue'
     | '/roster/flagged'
     | '/roster/import'
     | '/roster/template'
@@ -832,6 +860,7 @@ export interface FileRouteTypes {
     | '/lea/requests/'
     | '/obligations_/national/'
     | '/platform/law-enforcement/'
+    | '/review/_queue/'
     | '/roster/api-access/'
     | '/roster/imports/'
     | '/roster/records/'
@@ -1052,12 +1081,26 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PlatformIndexRouteImport
       parentRoute: typeof PlatformRouteRoute
     }
+    '/platform/integrations': {
+      id: '/platform/integrations'
+      path: '/integrations'
+      fullPath: '/platform/integrations'
+      preLoaderRoute: typeof PlatformIntegrationsRouteImport
+      parentRoute: typeof PlatformRouteRoute
+    }
     '/platform/law-enforcement': {
       id: '/platform/law-enforcement'
       path: '/law-enforcement'
       fullPath: '/platform/law-enforcement'
       preLoaderRoute: typeof PlatformLawEnforcementRouteRouteImport
       parentRoute: typeof PlatformRouteRoute
+    }
+    '/review/_queue': {
+      id: '/review/_queue'
+      path: ''
+      fullPath: '/review'
+      preLoaderRoute: typeof ReviewQueueRouteImport
+      parentRoute: typeof ReviewRouteRoute
     }
     '/roster/': {
       id: '/roster/'
@@ -1233,6 +1276,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/platform/law-enforcement/$agencyCode'
       preLoaderRoute: typeof PlatformLawEnforcementAgencyCodeRouteImport
       parentRoute: typeof PlatformLawEnforcementRouteRoute
+    }
+    '/review/_queue/': {
+      id: '/review/_queue/'
+      path: '/'
+      fullPath: '/review/'
+      preLoaderRoute: typeof ReviewQueueIndexRouteImport
+      parentRoute: typeof ReviewQueueRoute
     }
     '/roster/api-access/': {
       id: '/roster/api-access/'
@@ -1606,12 +1656,14 @@ const PlatformLawEnforcementRouteRouteWithChildren =
 
 interface PlatformRouteRouteChildren {
   PlatformLawEnforcementRouteRoute: typeof PlatformLawEnforcementRouteRouteWithChildren
+  PlatformIntegrationsRoute: typeof PlatformIntegrationsRoute
   PlatformIndexRoute: typeof PlatformIndexRoute
 }
 
 const PlatformRouteRouteChildren: PlatformRouteRouteChildren = {
   PlatformLawEnforcementRouteRoute:
     PlatformLawEnforcementRouteRouteWithChildren,
+  PlatformIntegrationsRoute: PlatformIntegrationsRoute,
   PlatformIndexRoute: PlatformIndexRoute,
 }
 
@@ -1619,12 +1671,26 @@ const PlatformRouteRouteWithChildren = PlatformRouteRoute._addFileChildren(
   PlatformRouteRouteChildren,
 )
 
+interface ReviewQueueRouteChildren {
+  ReviewQueueIndexRoute: typeof ReviewQueueIndexRoute
+}
+
+const ReviewQueueRouteChildren: ReviewQueueRouteChildren = {
+  ReviewQueueIndexRoute: ReviewQueueIndexRoute,
+}
+
+const ReviewQueueRouteWithChildren = ReviewQueueRoute._addFileChildren(
+  ReviewQueueRouteChildren,
+)
+
 interface ReviewRouteRouteChildren {
+  ReviewQueueRoute: typeof ReviewQueueRouteWithChildren
   ReviewCasesCaseIdIndexRoute: typeof ReviewCasesCaseIdIndexRoute
   ReviewCasesCaseIdClarificationsClarificationIdRoute: typeof ReviewCasesCaseIdClarificationsClarificationIdRoute
 }
 
 const ReviewRouteRouteChildren: ReviewRouteRouteChildren = {
+  ReviewQueueRoute: ReviewQueueRouteWithChildren,
   ReviewCasesCaseIdIndexRoute: ReviewCasesCaseIdIndexRoute,
   ReviewCasesCaseIdClarificationsClarificationIdRoute:
     ReviewCasesCaseIdClarificationsClarificationIdRoute,
