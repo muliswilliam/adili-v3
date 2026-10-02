@@ -1820,6 +1820,11 @@ paths:
       tags: [copilot]
       operationId: getCommissionAiStatus
       summary: Whether AI assistance is enabled for the Commission (commission-admin, supervisor)
+      description: |
+        The commission-admin and supervisors of the Commission; anyone else gets 404. Reads the
+        ai-gateway's tenant status (its routes and classification gate). `enabled` says whether
+        the copilot may run on this Commission's cases: the data class its declarations are sent
+        as is among `dataClasses`.
       responses:
         '200':
           description: Status
@@ -1834,12 +1839,21 @@ paths:
                   providerClass:
                     type: [string, 'null']
                     enum: [external, self-hosted, null]
+                    description: The provider class the Commission's AI tasks are routed to
                   dataClasses:
                     type: array
+                    description: Data classes that provider class may process for the Commission
                     items:
                       type: string
+                      enum: [synthetic, restricted, highly-confidential]
         '404':
           $ref: '#/components/responses/NotFound'
+        '502':
+          description: Problem type `ai-gateway-unavailable`; the status could not be read
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
 components:
   securitySchemes:
     bearer:

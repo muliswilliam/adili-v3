@@ -142,4 +142,24 @@ describe('HttpAiGatewayClient', () => {
       ).rejects.toBeInstanceOf(AiGatewayUnavailable);
     }
   });
+
+  it("reads a tenant's AI status; an answer outside the contract is unavailable", async () => {
+    const status = {
+      tenant: 'psc',
+      enabled: true,
+      providerClass: 'external',
+      dataClasses: ['synthetic'],
+    };
+    const fetch = vi.fn<typeof globalThis.fetch>(() => Promise.resolve(Response.json(status)));
+
+    expect(await client(fetch).tenantStatus('psc')).toEqual(status);
+    expect((fetch.mock.calls[0]?.[0] as Request).url).toBe(
+      'http://ai.test/internal/v1/tenants/psc/status',
+    );
+
+    const broken = vi.fn<typeof globalThis.fetch>(() =>
+      Promise.resolve(Response.json({ ...status, providerClass: 'cloud' })),
+    );
+    await expect(client(broken).tenantStatus('psc')).rejects.toBeInstanceOf(AiGatewayUnavailable);
+  });
 });

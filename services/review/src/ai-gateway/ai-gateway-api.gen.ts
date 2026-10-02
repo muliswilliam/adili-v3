@@ -87,7 +87,13 @@ export interface paths {
             };
             cookie?: never;
         };
-        /** Whether AI assistance is enabled for a tenant and with which provider class (for the Commission status line) */
+        /**
+         * Whether AI assistance is enabled for a tenant and with which provider class (services with the `ai` scope; review proxies it for the Commission status line)
+         * @description Derived from the tenant's routes and its classification gate (explicit rules, else the
+         *     default): the provider classes the tenant's tasks are routed to, and the data classes
+         *     every one of them may process. With routes on more than one provider class,
+         *     `providerClass` is `external`.
+         */
         get: operations["getTenantAiStatus"];
         put?: never;
         post?: never;
@@ -104,7 +110,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Classification gate policy per tenant (platform-admin) */
+        /** Classification gate per tenant with explicit rules, and the default for every other pair (platform-admin) */
         get: operations["listGatePolicies"];
         put?: never;
         post?: never;
@@ -124,7 +130,11 @@ export interface paths {
             cookie?: never;
         };
         get?: never;
-        /** Allow or block a provider class for a data class (platform-admin; audited with approval reference) */
+        /**
+         * Allow or block provider classes per data class, all or none (platform-admin; audited with approval reference)
+         * @description The rules apply in one transaction: every rule is stored, or none is. Each rule gets
+         *     its own audit record and `ai.policy.changed.v1` event, all with the approval reference.
+         */
         put: operations["setGatePolicy"];
         post?: never;
         delete?: never;
@@ -150,6 +160,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/ai/usage": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** This month's budget and usage of every tenant with a budget or a job this month, and the default budget of the others (platform-admin) */
+        get: operations["listTenantUsage"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/ai/tenants/{tenant}/usage": {
         parameters: {
             query?: never;
@@ -161,7 +188,7 @@ export interface paths {
         };
         /** Budget, tokens and cost this month, blocked and failed counts (platform-admin) */
         get: operations["getTenantUsage"];
-        /** Set the monthly token budget and per-minute limit (platform-admin) */
+        /** Set the monthly token budget and per-minute limit (platform-admin; audited) */
         put: operations["setTenantBudget"];
         post?: never;
         delete?: never;
@@ -214,6 +241,7 @@ export interface components {
             usage: {
                 tokensIn: number;
                 tokensOut: number;
+                /** @description Estimated cost in micro US dollars at provider list price */
                 costMicros: number;
                 latencyMs: number;
             };
@@ -492,23 +520,55 @@ export interface components {
         };
         TenantAiStatus: {
             tenant: string;
+            /** @description Some data class may be sent to the tenant's routed provider class */
             enabled: boolean;
+            /** @description null when no route names a provider this gateway can reach */
             providerClass: components["schemas"]["ProviderClass"] | null;
+            /** @description Data classes the routed provider class may process, in DataClass order */
             dataClasses: components["schemas"]["DataClass"][];
         };
-        GatePolicyInput: {
+        GateRuleInput: {
             dataClass: components["schemas"]["DataClass"];
             providerClass: components["schemas"]["ProviderClass"];
             allowed: boolean;
+        };
+        GatePolicyInput: {
+            /** @description At most one rule per data class and provider class */
+            rules: components["schemas"]["GateRuleInput"][];
+            /** @description The decision the change rests on, e.g. an EACC approval number */
             approvalRef: string;
+        };
+        /** @description An explicit rule of a tenant's gate, with who decided it and on which approval */
+        GateRule: components["schemas"]["GateRuleInput"] & {
+            approvalRef: string;
+            /** @description `sub` of the platform admin who made the change */
+            changedBy: string;
+            /** @description Their display name at the time; null when unknown */
+            changedByName: string | null;
+            /** Format: date-time */
+            changedAt: string;
         };
         TenantPolicy: {
             tenant: string;
-            rules: (components["schemas"]["GatePolicyInput"] & {
-                changedBy: string;
-                /** Format: date-time */
-                changedAt: string;
-            })[];
+            /**
+             * @description Explicit rules, allowing or blocking, in DataClass then ProviderClass order. A pair
+             *     without one follows `GatePolicyList.defaults`.
+             */
+            rules: components["schemas"]["GateRule"][];
+        };
+        GatePolicyList: {
+            /** @description The gate of every (data class, provider class) pair a tenant has no rule for */
+            defaults: components["schemas"]["GateRuleInput"][];
+            /** @description Tenants with at least one explicit rule, by tenant */
+            tenants: components["schemas"]["TenantPolicy"][];
+        };
+        /** @description Call parameters; an unset one falls back to the task's own */
+        RouteParams: {
+            maxOutputTokens?: number;
+            /** @enum {string} */
+            effort?: "low" | "medium" | "high";
+            /** @description Longest one provider call may take */
+            timeoutMs?: number;
         };
         Route: {
             /** @description null is the default route */
@@ -516,24 +576,34 @@ export interface components {
             task: components["schemas"]["TaskName"];
             provider: string;
             model: string;
-            params: {
-                [key: string]: unknown;
-            };
+            params: components["schemas"]["RouteParams"];
         };
         BudgetInput: {
+            /** @description Tokens (in and out) per calendar month, Africa/Nairobi */
             monthlyTokens: number;
+            /** @description Jobs created per minute */
             perMinute: number;
         };
         TenantUsage: {
             tenant: string;
+            /** @description Calendar month, Africa/Nairobi */
             month: string;
             monthlyTokens: number;
             perMinute: number;
             tokensUsed: number;
+            /** @description Estimated cost in micro US dollars (USD 1 = 1,000,000) at provider list price */
             costMicros: number;
             jobs: number;
             blocked: number;
             failed: number;
+        };
+        UsageList: {
+            /** @description Calendar month, Africa/Nairobi */
+            month: string;
+            /** @description The budget of a tenant without one of its own; such a tenant without jobs this month has used nothing */
+            defaults: components["schemas"]["BudgetInput"];
+            /** @description Tenants with a budget of their own or a job this month, by tenant */
+            tenants: components["schemas"]["TenantUsage"][];
         };
         ProblemDetails: {
             type: string;
@@ -742,6 +812,8 @@ export interface operations {
                     "application/json": components["schemas"]["TenantAiStatus"];
                 };
             };
+            400: components["responses"]["ValidationProblem"];
+            403: components["responses"]["Forbidden"];
         };
     };
     listGatePolicies: {
@@ -759,7 +831,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["TenantPolicy"][];
+                    "application/json": components["schemas"]["GatePolicyList"];
                 };
             };
             403: components["responses"]["Forbidden"];
@@ -814,6 +886,27 @@ export interface operations {
             403: components["responses"]["Forbidden"];
         };
     };
+    listTenantUsage: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Usage */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UsageList"];
+                };
+            };
+            403: components["responses"]["Forbidden"];
+        };
+    };
     getTenantUsage: {
         parameters: {
             query?: never;
@@ -834,6 +927,7 @@ export interface operations {
                     "application/json": components["schemas"]["TenantUsage"];
                 };
             };
+            400: components["responses"]["ValidationProblem"];
             403: components["responses"]["Forbidden"];
         };
     };
@@ -861,6 +955,7 @@ export interface operations {
                     "application/json": components["schemas"]["TenantUsage"];
                 };
             };
+            400: components["responses"]["ValidationProblem"];
             403: components["responses"]["Forbidden"];
         };
     };

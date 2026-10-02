@@ -23,6 +23,9 @@ export type DataClass = Schemas['DataClass'];
 export type AiJobStatus = Schemas['JobStatus'];
 export type AiJobReason = Schemas['JobReason'];
 
+/** ai-gateway.yaml `TenantAiStatus`: the tenant's routed provider class and what it may see. */
+export type TenantAiStatus = Schemas['TenantAiStatus'];
+
 /** The inputs of the tasks the review service runs. */
 export type ReviewTaskInput = SummarizeDeclarationInput | ExplainFlagsInput;
 
@@ -83,4 +86,7 @@ export abstract class AiGatewayClient {
 
   /** `getJob`: the job with its output once succeeded; null when the gateway has no such job. */
   abstract getJob(jobId: string): Promise<AiJob | null>;
+
+  /** `getTenantAiStatus`: whether AI assistance is enabled for the tenant, and for which data. */
+  abstract tenantStatus(tenant: string): Promise<TenantAiStatus>;
 }

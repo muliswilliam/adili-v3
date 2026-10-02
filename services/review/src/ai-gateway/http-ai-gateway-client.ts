@@ -9,6 +9,7 @@ import {
   AiGatewayUnavailable,
   type ReviewTask,
   type TaskRequest,
+  type TenantAiStatus,
 } from './ai-gateway-client.js';
 
 /** The scope the review service's token needs for the gateway's tasks and jobs. */
@@ -40,6 +41,15 @@ const jobSchema = z.object({
   promptVersion: z.int(),
   output: z.record(z.string(), z.unknown()).nullable(),
   finishedAt: z.string().nullable(),
+});
+
+const DATA_CLASS = z.enum(['synthetic', 'restricted', 'highly-confidential']);
+
+const tenantStatusSchema = z.object({
+  tenant: z.string(),
+  enabled: z.boolean(),
+  providerClass: z.enum(['external', 'self-hosted']).nullable(),
+  dataClasses: z.array(DATA_CLASS),
 });
 
 /**
@@ -83,6 +93,13 @@ export class HttpAiGatewayClient extends AiGatewayClient {
     return this.gateway.call(
       (api) => api.GET('/internal/v1/jobs/{jobId}', { params: { path: { jobId } } }),
       { status: 200, schema: jobSchema, otherwise: { 404: () => null } },
+    );
+  }
+
+  tenantStatus(tenant: string): Promise<TenantAiStatus> {
+    return this.gateway.call(
+      (api) => api.GET('/internal/v1/tenants/{tenant}/status', { params: { path: { tenant } } }),
+      { status: 200, schema: tenantStatusSchema },
     );
   }
 }
