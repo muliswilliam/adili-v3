@@ -459,7 +459,7 @@ export interface paths {
         };
         /**
          * The Commission's written self-access applications with their deadlines
-         * @description Earliest deadline first. `late`: the certified copy was not issued by the deadline (14 days from receipt).
+         * @description Those still to collect or dispatch first, earliest deadline first; then the delivered ones, latest deadline first. `late`: the certified copy was not issued by the deadline (14 days from receipt).
          */
         get: operations["listSelfAccessApplications"];
         put?: never;

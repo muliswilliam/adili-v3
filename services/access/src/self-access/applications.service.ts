@@ -1,7 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { notFoundIfInvisible, type Principal } from '@adili/api-kit';
 import { DATABASE, FieldCipher, FieldCipherError, withTenant } from '@adili/data-access';
-import { and, asc, eq, inArray, sql } from 'drizzle-orm';
+import { and, eq, inArray, sql } from 'drizzle-orm';
 import { v7 as uuidv7 } from 'uuid';
 
 import { commissionTenant, ownCommissionTenant, requireAccessOfficer } from '../access.js';
@@ -26,7 +26,13 @@ import {
   UploadNotClean,
   UploadNotFound,
 } from '../documents/documents-client.js';
-import { decodeCursor, encodeCursor } from '../paging.js';
+import {
+  afterPosition,
+  decodeCursor,
+  encodeCursor,
+  queueOrder,
+  type QueueColumns,
+} from '../paging.js';
 import {
   badRequest,
   conflict,
@@ -72,6 +78,13 @@ export function selfAccessRecordId(applicationId: string): string {
  * collected or dispatched. The access officer acts; the supervisor reads (403 on acting); anyone
  * else, another Commission or EACC, gets 404.
  */
+/** Applications as the list orders and pages them: delivered ones are done. */
+const APPLICATIONS: QueueColumns = {
+  closed: sql<boolean>`(${selfAccessApplications.status} = 'delivered')`,
+  deadline: selfAccessApplications.deadlineAt,
+  id: selfAccessApplications.id,
+};
+
 @Injectable()
 export class SelfAccessApplicationsService {
   constructor(
@@ -218,8 +231,9 @@ export class SelfAccessApplicationsService {
   }
 
   /**
-   * One page of the Commission's applications, earliest deadline first (then by id), each with
-   * its certified copy and whether it is late.
+   * One page of the Commission's applications: those still to hand over by earliest deadline,
+   * then the delivered ones by latest (each then by id), as the queue orders its requests. Each
+   * comes with its certified copy and whether it is late.
    */
   async list(
     principal: Principal,
@@ -241,12 +255,10 @@ export class SelfAccessApplicationsService {
               query.status === undefined
                 ? undefined
                 : eq(selfAccessApplications.status, query.status),
-              after === undefined
-                ? undefined
-                : sql`(${selfAccessApplications.deadlineAt}, ${selfAccessApplications.id}) > (${after.at.toISOString()}::timestamptz, ${after.id}::uuid)`,
+              after === undefined ? undefined : afterPosition(APPLICATIONS, after),
             ),
           )
-          .orderBy(asc(selfAccessApplications.deadlineAt), asc(selfAccessApplications.id))
+          .orderBy(...queueOrder(APPLICATIONS))
           .limit(query.limit + 1);
         return { rows, copies: await copiesOf(tx, rows) };
       },
@@ -258,8 +270,7 @@ export class SelfAccessApplicationsService {
       items: page.map((row) => toSelfAccessApplication(row, copyFor(copies, row), now)),
       nextCursor:
         rows.length > query.limit && last
-          ? // One ordering here (earliest deadline first): never the queue's closed tail.
-            encodeCursor({ closed: false, at: last.deadlineAt, id: last.id })
+          ? encodeCursor({ closed: last.status === 'delivered', at: last.deadlineAt, id: last.id })
           : null,
     };
   }

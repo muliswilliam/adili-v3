@@ -418,6 +418,46 @@ describe('Written self-access applications (#303)', () => {
     expect(issued.json<SelfAccessPage>().items).toEqual([]);
   });
 
+  it('S13: the list puts applications still to hand over first, earliest deadline first, then the delivered ones, latest deadline first', async () => {
+    given();
+    const recordOn = async (at: string) => {
+      api.clock.set(at);
+      const recorded = (
+        await record(application({ representative: null }))
+      ).json<SelfAccessApplicationDetail>();
+      await untilIssued(recorded.id);
+      return recorded.id;
+    };
+    const oldest = await recordOn('2027-05-10T07:30:00.000Z');
+    const older = await recordOn('2027-05-11T07:30:00.000Z');
+    const newer = await recordOn('2027-05-12T07:30:00.000Z');
+    const newest = await recordOn('2027-05-13T07:30:00.000Z');
+    expect((await deliver(oldest)).statusCode).toBe(200);
+    expect((await deliver(newer)).statusCode).toBe(200);
+
+    const all = await api.get('/v1/commissions/psc/access/self-access', officer);
+    expect(all.json<SelfAccessPage>().items.map((item) => item.id)).toEqual([
+      older,
+      newest,
+      newer,
+      oldest,
+    ]);
+
+    // Page by page, across the open and the delivered ones.
+    const seen: string[] = [];
+    let cursor: string | null = '';
+    while (cursor !== null) {
+      const response = await api.get(
+        `/v1/commissions/psc/access/self-access?limit=1${cursor ? `&cursor=${cursor}` : ''}`,
+        officer,
+      );
+      const page: SelfAccessPage = response.json<SelfAccessPage>();
+      seen.push(...page.items.map((item) => item.id));
+      cursor = page.nextCursor;
+    }
+    expect(seen).toEqual([older, newest, newer, oldest]);
+  });
+
   describe('refusals', () => {
     it('400 for a roster record the Commission does not have or that has not onboarded', async () => {
       given();
