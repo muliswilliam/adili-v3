@@ -1,7 +1,8 @@
 import { Body, Controller, HttpCode, HttpStatus, Param, Put } from '@nestjs/common';
-import { ApiOkResponse, ApiOperation, ApiParam, ApiTags } from '@nestjs/swagger';
+import { ApiBody, ApiOkResponse, ApiOperation, ApiParam, ApiTags } from '@nestjs/swagger';
 import {
   ApiProblemResponse,
+  schemaRef,
   CurrentPrincipal,
   type Principal,
   ZodValidationPipe,
@@ -27,6 +28,7 @@ export class CopilotFeedbackController {
     summary:
       "Rate a copilot output shown on a case as helpful or not (the case's assignee); one rating per reviewer per output",
   })
+  @ApiBody({ required: true, schema: schemaRef('CopilotFeedbackInput') })
   @ApiOkResponse({ description: 'Recorded' })
   @ApiProblemResponse(400, 'Request failed validation')
   @ApiProblemResponse(403, "The caller is not the case's assignee (`not-the-assignee`)")

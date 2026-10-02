@@ -5,6 +5,7 @@ import {
   CurrentPrincipal,
   notFoundIfInvisible,
   type Principal,
+  schemaRef,
   TENANT_KEY,
 } from '@adili/api-kit';
 import { COMMISSION_ADMIN, SUPERVISOR } from '@adili/roles';
@@ -13,7 +14,7 @@ import { AiGatewayClient, AiGatewayUnavailable } from '../ai-gateway/ai-gateway-
 import { upstreamUnavailable } from '../internal-api/upstream.js';
 import { dataClassOf } from './copilot-requests.js';
 
-/** review.yaml `getCommissionAiStatus`. */
+/** review.yaml `CommissionAiStatus`. */
 export interface CommissionAiStatus {
   enabled: boolean;
   providerClass: 'external' | 'self-hosted' | null;
@@ -38,7 +39,7 @@ export class AiStatusController {
     operationId: 'getCommissionAiStatus',
     summary: 'Whether AI assistance is enabled for the Commission (commission-admin, supervisor)',
   })
-  @ApiOkResponse({ description: 'Status' })
+  @ApiOkResponse({ description: 'Status', schema: schemaRef('CommissionAiStatus') })
   @ApiProblemResponse(404, 'Not found, or not visible to the caller')
   @ApiProblemResponse(502, 'Problem type `ai-gateway-unavailable`')
   async status(
