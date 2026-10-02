@@ -56,6 +56,8 @@
   --brand-faint: oklch(0.98 0.009 52.1); /* #fef7f3: selected rows, drag-over */
   /* A highlighter mark on printed text, e.g. the verification code in a sample footer. */
   --highlight: oklch(0.966 0.066 98.2); /* #fff5c2 */
+  --note: oklch(0.994 0.008 91.5); /* #fffdf7: internal notes, rows only in one version */
+  --note-border: oklch(0.929 0.033 89.9); /* #f0e7cf */
   --logo: oklch(0.669 0.189 40.8); /* #f06225: the Dials logo only */
   --border: oklch(0.926 0.005 78.3); /* #e8e6e3 */
   --input: oklch(0.88 0.006 84.6); /* #d9d7d3: dashed zones, checkbox and step rings */
@@ -155,6 +157,8 @@
     --glow: oklch(0.35 0.05 45);
     --glow-soft: oklch(0.25 0.03 45);
     --highlight: var(--warning-subtle);
+    --note: oklch(0.231 0.012 91.8); /* #1f1d17 */
+    --note-border: oklch(0.327 0.03 88.2); /* #3b3423 */
 
     --elevation-control: 0 1px 2px rgb(0 0 0 / 0.3), 0 0 0 1px var(--border);
     --elevation-control-hover: 0 1px 2px rgb(0 0 0 / 0.3), 0 0 0 1px var(--input);
@@ -203,6 +207,8 @@
   --color-brand-subtle-foreground: var(--brand-subtle-foreground);
   --color-brand-faint: var(--brand-faint);
   --color-highlight: var(--highlight);
+  --color-note: var(--note);
+  --color-note-border: var(--note-border);
   --color-logo: var(--logo);
   --color-border: var(--border);
   --color-input: var(--input);

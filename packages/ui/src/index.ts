@@ -9,6 +9,12 @@ export {
 } from './components/ai-label';
 export { Alert, AlertDescription, AlertTitle, type AlertProps } from './components/alert';
 export {
+  ASSIGNEE_CHIP_MESSAGES,
+  AssigneeChip,
+  type AssigneeChipMessages,
+  type AssigneeChipProps,
+} from './components/assignee-chip';
+export {
   type AttachmentListItem,
   AttachmentList,
   type AttachmentListProps,
@@ -16,6 +22,7 @@ export {
   type AttachmentStatus,
   formatFileSize,
 } from './components/attachment-list';
+export { Avatar, type AvatarProps } from './components/avatar';
 export { Badge, type BadgeProps, badgeVariants } from './components/badge';
 export {
   BREAKER_BADGE_MESSAGES,
@@ -149,6 +156,16 @@ export {
   DialogTrigger,
 } from './components/dialog';
 export {
+  DIFF_MATCHES,
+  DIFF_TABLE_MESSAGES,
+  type DiffMatch,
+  DiffTable,
+  type DiffTableGroup,
+  type DiffTableMessages,
+  type DiffTableProps,
+  type DiffTableRow,
+} from './components/diff-table';
+export {
   Drawer,
   DrawerBody,
   DrawerClose,
@@ -223,9 +240,18 @@ export {
 } from './components/menu';
 export { Meter, type MeterProps } from './components/meter';
 export { MoneyInput, type MoneyInputProps } from './components/money-input';
+export { type Note, NoteList, type NoteListProps } from './components/note-list';
 export { OtpInput, type OtpInputProps } from './components/otp-input';
 export { OfficerReference } from './components/officer-reference';
 export { PercentInput, type PercentInputProps } from './components/percent-input';
+export {
+  type Priority,
+  PRIORITIES,
+  PRIORITY_BADGE_MESSAGES,
+  PriorityBadge,
+  type PriorityBadgeMessages,
+  type PriorityBadgeProps,
+} from './components/priority-badge';
 export { ProgressBar, type ProgressBarProps } from './components/progress-bar';
 export { QrCode, qrCodePath, type QrCodeProps } from './components/qr-code';
 export {
@@ -318,6 +344,7 @@ export {
   sourceRefTarget,
 } from './components/source-ref-link';
 export { Spinner } from './components/spinner';
+export { SplitPane, type SplitPaneProps } from './components/split-pane';
 export {
   StatTile,
   type StatTileBreakdownItem,
@@ -390,6 +417,17 @@ export {
 } from './components/system-status-row';
 export { Tabs, TabsContent, TabsCount, TabsList, TabsTrigger } from './components/tabs';
 export { Textarea } from './components/textarea';
+export {
+  TIMELINE_MESSAGES,
+  Timeline,
+  type TimelineEntry,
+  TimelineIcon,
+  type TimelineIconProps,
+  TimelineItem,
+  type TimelineItemProps,
+  type TimelineMessages,
+  type TimelineProps,
+} from './components/timeline';
 export { type ToastOptions, ToastProvider, type ToastUrgency, useToast } from './components/toast';
 export { Tooltip, type TooltipProps, TooltipProvider } from './components/tooltip';
 export {
@@ -462,6 +500,7 @@ export {
 } from './lib/obligations';
 export type { Assert, Same } from './lib/type-checks';
 export { useObligationDetail } from './lib/use-obligation-detail';
+export { initials } from './lib/initials';
 export { listNames } from './lib/list-names';
 export {
   formatDigest,

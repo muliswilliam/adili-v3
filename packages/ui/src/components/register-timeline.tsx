@@ -15,8 +15,11 @@ import { type ReactNode, useId } from 'react';
 
 import { cn } from '../lib/cn';
 import { formatDate, formatDateTime, formatMonth } from '../lib/format-date';
-import { type Tone, toneClassNames } from '../lib/tone';
-import { Icon, type IconProps } from './icon';
+import type { Tone } from '../lib/tone';
+import type { IconProps } from './icon';
+import { type HeadingLevel, TimelineIcon, TimelineItem } from './timeline';
+
+export type { HeadingLevel } from './timeline';
 
 /** The kinds of access register entry (access.yaml `RegisterEntry.kind`). */
 export const REGISTER_KINDS = [
@@ -109,18 +112,7 @@ const newestFirst = (entries: RegisterEntry[]) =>
 
 function EntryIcon({ entry, size }: { entry: RegisterEntry; size: 'sm' | 'md' }) {
   const { icon, tone } = display(entry);
-  return (
-    <span
-      data-tone={tone}
-      className={cn(
-        'grid shrink-0 place-items-center rounded-full',
-        toneClassNames[tone],
-        size === 'sm' ? 'size-7' : 'size-8',
-      )}
-    >
-      <Icon icon={icon} className={size === 'sm' ? 'size-3.5' : undefined} strokeWidth={2} />
-    </span>
-  );
+  return <TimelineIcon icon={icon} tone={tone} size={size} />;
 }
 
 export interface RegisterTimelineProps {
@@ -143,33 +135,24 @@ export function RegisterTimeline({
   return (
     <ol aria-label={label} className={cn('grid', className)}>
       {newestFirst(entries).map((entry) => (
-        <li
+        <TimelineItem
           key={entry.id}
           data-kind={entry.kind}
-          className="relative grid grid-cols-[28px_minmax(0,1fr)] gap-2.5 pb-4 before:absolute before:top-[26px] before:bottom-0 before:left-[13px] before:w-[1.5px] before:bg-border last:pb-0 last:before:hidden"
-        >
-          <EntryIcon entry={entry} size="sm" />
-          <div className="min-w-0">
-            <div className="pt-1 text-sm leading-[1.35] font-medium">{display(entry).title}</div>
-            <div className="mt-px text-[12.5px] text-muted-foreground">
+          {...display(entry)}
+          meta={
+            <>
               {entry.actor ? `${entry.actor} · ` : null}
               <time dateTime={entry.at} className="whitespace-nowrap">
                 {formatDateTime(entry.at)}
               </time>
-            </div>
-            {entry.summary ? (
-              <div className="mt-[3px] text-[13.5px] text-secondary-foreground">
-                {entry.summary}
-              </div>
-            ) : null}
-          </div>
-        </li>
+            </>
+          }
+          summary={entry.summary}
+        />
       ))}
     </ol>
   );
 }
-
-export type HeadingLevel = 2 | 3 | 4;
 
 export interface RegisterListProps extends RegisterTimelineProps {
   /** Level of the month headings, to fit the page's outline. */
