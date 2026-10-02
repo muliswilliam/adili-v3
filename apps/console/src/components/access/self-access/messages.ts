@@ -63,17 +63,8 @@ export const en = {
   formIntro:
     'For a declarant who applies in writing at the Commission, in person or through someone they authorised.',
   declarantTitle: 'Declarant',
-  rosterSearchLabel: 'Search the roster by name or file number',
-  rosterSearchPlaceholder: 'Name or file number',
-  searching: 'Searching the roster…',
-  rosterSearchFailed: 'We could not search the roster. Try again in a moment.',
-  noRosterMatch: 'No roster record matches.',
-  rosterResults: 'Roster records',
-  select: 'Select',
-  selectRecord: (name: string) => `Select ${name}`,
   change: 'Change',
   changeDeclarant: 'Change the declarant',
-  notOnboarded: 'Not onboarded',
   notOnboardedHint: 'Has no declarant account, so no declaration to copy.',
   declarantRequired: 'Find the declarant on the roster.',
 

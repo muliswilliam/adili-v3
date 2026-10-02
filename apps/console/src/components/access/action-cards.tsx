@@ -1,7 +1,6 @@
 import {
   Alert,
   AlertDescription,
-  Badge,
   Button,
   CheckboxItem,
   FieldError,
@@ -13,7 +12,7 @@ import {
 } from '@adili/ui';
 import { AlertCircleIcon, UserCheck01Icon, UserRemove01Icon } from '@hugeicons/core-free-icons';
 import { useRouter } from '@tanstack/react-router';
-import { useEffect, useEffectEvent, useId, useRef, useState } from 'react';
+import { useId, useState } from 'react';
 
 import {
   findRosterCandidates,
@@ -21,17 +20,13 @@ import {
   verifyApplicantIdentity,
 } from '../../server/access-requests';
 import type { AccessResult } from '../../server/access-requests.server';
-import type {
-  OfficerRequestView,
-  RosterCandidate,
-  RosterCandidates,
-} from '../../server/access/types';
-import { SearchBox } from '../search-box';
+import type { OfficerRequestView, RosterCandidate } from '../../server/access/types';
 import { goToSignIn } from '../sign-in-redirect';
 import { formatPhone, formKOf } from './form-k-card';
 import { messages as m } from './messages';
 import { actionFailure, verifyNoteError } from './request-view';
 import { CannotIdentifyDialog, ResolveDialog } from './resolve-dialogs';
+import { RosterCandidatePicker } from './roster-candidate-picker';
 import { Muted, SideCard } from './side-cards';
 
 /**
@@ -177,12 +172,6 @@ export function VerifyApplicantCard({ view }: { view: OfficerRequestView }) {
     </SideCard>
   );
 }
-
-type Search =
-  | { state: 'idle' }
-  | { state: 'searching'; q: string }
-  | { state: 'done'; q: string; result: AccessResult<RosterCandidates> };
-
 /**
  * "Identify officer" (S3): the access officer searches the Commission's roster by name or
  * personnel file number and selects the record the officer Form K names is, or records that
@@ -193,53 +182,11 @@ export function IdentifyOfficerCard({ view, now }: { view: OfficerRequestView; n
   const { partII } = formKOf(view);
   // A file number Form K gives is searched for at once.
   const prefill = (partII.personnelFileNumber ?? '').trim();
-  const [query, setQuery] = useState(prefill);
-  const [search, setSearch] = useState<Search>(() =>
-    prefill.length >= 2 ? { state: 'searching', q: prefill } : { state: 'idle' },
-  );
   const [selected, setSelected] = useState<RosterCandidate | null>(null);
   const [cannot, setCannot] = useState(false);
   // One key per decision: kept across retries of the same dialog, new when it opens again.
   const [key, setKey] = useState(() => crypto.randomUUID());
   const command = useCommand();
-  // Only the latest search's answer is shown.
-  const latest = useRef(0);
-
-  const fetchCandidates = (q: string) => {
-    const ticket = ++latest.current;
-    void findRosterCandidates({ data: { requestId: view.id, q } })
-      .catch((): AccessResult<RosterCandidates> => ({
-        ok: false,
-        error: { kind: 'unavailable', detail: null },
-      }))
-      .then((result) => {
-        if (ticket !== latest.current) return;
-        if (!result.ok && result.error.kind === 'unauthenticated') {
-          goToSignIn();
-          return;
-        }
-        setSearch({ state: 'done', q, result });
-      });
-  };
-  const searchPrefill = useEffectEvent(() => {
-    if (prefill.length >= 2) fetchCandidates(prefill);
-  });
-  useEffect(() => {
-    searchPrefill();
-  }, []);
-
-  const runSearch = (value: string) => {
-    const q = value.trim();
-    setQuery(q);
-    if (q.length < 2) {
-      latest.current += 1;
-      setSearch({ state: 'idle' });
-      return;
-    }
-    setSearch({ state: 'searching', q });
-    fetchCandidates(q);
-  };
-
   const openDialog = (next: { record?: RosterCandidate; cannot?: boolean }) => {
     setKey(crypto.randomUUID());
     command.setError(null);
@@ -270,20 +217,18 @@ export function IdentifyOfficerCard({ view, now }: { view: OfficerRequestView; n
         {named ? `, ${named}` : ''}
         {partII.personnelFileNumber ? `, ${m.fileNumberInline(partII.personnelFileNumber)}` : ''}.
       </Muted>
-      <SearchBox
+      <RosterCandidatePicker
         id={`${id}-search`}
-        label={m.rosterSearchLabel}
-        placeholder={m.rosterSearchPlaceholder}
-        maxLength={200}
-        applied={query}
-        className="max-w-none min-w-0"
-        onSearch={runSearch}
-      />
-      <Results
-        search={search}
-        onSelect={(record) => {
-          openDialog({ record });
+        find={(q) => findRosterCandidates({ data: { requestId: view.id, q } })}
+        prefill={prefill}
+        choice={{
+          kind: 'select',
+          onSelect: (record) => {
+            openDialog({ record });
+          },
         }}
+        notOnboardedHint={m.notOnboardedHint}
+        withEntity
       />
       <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
         <span className="text-[13.5px] text-muted-foreground">{m.notOnTheRoster}</span>
@@ -322,81 +267,5 @@ export function IdentifyOfficerCard({ view, now }: { view: OfficerRequestView; n
         onConfirm={() => void resolve(null, m.closed)}
       />
     </SideCard>
-  );
-}
-
-function Results({
-  search,
-  onSelect,
-}: {
-  search: Search;
-  onSelect: (record: RosterCandidate) => void;
-}) {
-  if (search.state === 'idle') return null;
-  if (search.state === 'searching') {
-    return (
-      <p role="status" className="flex items-center gap-2 text-sm text-muted-foreground">
-        <Spinner className="size-4" />
-        {m.searching}
-      </p>
-    );
-  }
-  const { result } = search;
-  if (!result.ok) {
-    return (
-      <Alert variant="destructive" role="status">
-        <Icon icon={AlertCircleIcon} />
-        <AlertDescription>{m.rosterSearchFailed}</AlertDescription>
-      </Alert>
-    );
-  }
-  if (result.data.items.length === 0) {
-    return (
-      <div role="status">
-        <Muted>{m.noRosterMatch}</Muted>
-      </div>
-    );
-  }
-  return (
-    <ul className="grid grid-cols-[minmax(0,1fr)] gap-2" aria-label={m.rosterResults}>
-      {result.data.items.map((record) => (
-        <li key={record.id} className="flex items-center gap-3 rounded-lg border px-3.5 py-3">
-          <div className="min-w-0 flex-1">
-            <div className="text-[14.5px] font-medium">{record.fullName}</div>
-            <div className="text-[13px] text-muted-foreground">
-              {[m.fileNumber(record.personnelFileNumber), record.designation]
-                .filter(Boolean)
-                .join(' · ')}
-            </div>
-            {record.reportingEntity ? (
-              <div
-                className="truncate text-[13px] text-muted-foreground"
-                title={record.reportingEntity}
-              >
-                {record.reportingEntity}
-              </div>
-            ) : null}
-            {!record.onboarded ? (
-              <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-                <Badge variant="warning">{m.notOnboarded}</Badge>
-                <span className="text-xs text-muted-foreground">{m.notOnboardedHint}</span>
-              </div>
-            ) : null}
-          </div>
-          {record.onboarded ? (
-            <Button
-              variant="secondary"
-              size="sm"
-              aria-label={m.selectRecord(record.fullName)}
-              onClick={() => {
-                onSelect(record);
-              }}
-            >
-              {m.select}
-            </Button>
-          ) : null}
-        </li>
-      ))}
-    </ul>
   );
 }

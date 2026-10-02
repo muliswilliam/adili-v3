@@ -34,6 +34,7 @@ import type { OfficerRequestView, Representations } from '../../server/access/ty
 import { downloadFrom } from '../download';
 import { goToSignIn } from '../sign-in-redirect';
 import { messages as m } from './messages';
+import { Muted } from './muted';
 import { lastEntry } from './request-view';
 
 /** A side card: a title on a hairline header, then its body (the prototype's `.sec-h`/`.sec-b`). */
@@ -67,14 +68,7 @@ export function SideCard({
   );
 }
 
-/** Text on a muted panel: where a step stands, or nothing yet. */
-export function Muted({ children }: { children: ReactNode }) {
-  return (
-    <div className="rounded-lg bg-muted px-3.5 py-3 text-sm text-secondary-foreground">
-      {children}
-    </div>
-  );
-}
+export { Muted } from './muted';
 
 /** Where a step only the access officer takes stands, for the supervisor. */
 export function WaitingCard({ text }: { text: string }) {
