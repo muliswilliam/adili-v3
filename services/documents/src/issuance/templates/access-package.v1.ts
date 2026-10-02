@@ -1,11 +1,16 @@
-import {
-  declarationSchemes,
-  GRANT_REFERENCE_PATTERN,
-  isGrantReference,
-} from '@adili/numbering/references';
+import { declarationSchemes } from '@adili/numbering/references';
 import { ACCESS_PACKAGE } from '@adili/events/contracts';
 import { z } from 'zod';
 
+import {
+  grantedScopeSchema,
+  grantRecipientSchema,
+  grantReferenceSchema,
+  issuedTo,
+  LEGAL_BASIS_TEXT,
+  legalBasisSchema,
+  scopeText,
+} from './access-grant.js';
 import {
   attestation,
   CONTENT_STYLES,
@@ -26,19 +31,6 @@ import {
 } from './page.js';
 import { commissionRefSchema, DECLARATION_TYPES, isDeclarationReference } from './references.js';
 import type { DocumentTemplate } from './template.js';
-
-/** The provisions a grant rests on (declarations' `LegalBasis`). */
-const LEGAL_BASES = ['act-s36-1', 'act-s36-2'] as const;
-/** The sections a grant discloses (declarations' `DisclosureSection`). */
-const DISCLOSURE_SECTIONS = ['bio', 'income', 'assets', 'liabilities', 'other'] as const;
-
-const SECTION_NAMES: Record<(typeof DISCLOSURE_SECTIONS)[number], string> = {
-  bio: 'Biodata',
-  income: 'Income',
-  assets: 'Assets',
-  liabilities: 'Liabilities',
-  other: 'Other information',
-};
 
 const CLARIFICATION_STATUSES = ['issued', 'overdue', 'responded', 'resolved'] as const;
 
@@ -85,16 +77,7 @@ export const accessPackagePayload = z
   .object({
     disclosure: z.strictObject({
       schemaVersion: z.literal('disclosure.v1'),
-      grantReference: z
-        .string()
-        .regex(GRANT_REFERENCE_PATTERN)
-        .refine(isGrantReference, {
-          message: 'Must be an ARQ or LEA reference number with a valid check character',
-        })
-        .meta({
-          description: 'The access request (ARQ) or law-enforcement request (LEA) reference',
-          examples: ['ARQ-PSC-2026-0000012-H'],
-        }),
+      grantReference: grantReferenceSchema,
       personName: z.string().trim().min(1).max(200),
       commission: commissionRefSchema,
       versions: z
@@ -112,24 +95,11 @@ export const accessPackagePayload = z
         )
         .min(1),
     }),
-    legalBasis: z.enum(LEGAL_BASES).meta({
-      description: 'act-s36-1: an access request (Form K); act-s36-2: a law-enforcement request',
-    }),
-    recipient: z.strictObject({
-      name: z.string().trim().min(1).max(200),
-      /** The law-enforcement agency, for a law-enforcement request. */
-      organisation: z.string().trim().min(1).max(200).nullable(),
-    }),
+    legalBasis: legalBasisSchema,
+    recipient: grantRecipientSchema,
     grantedAt: z.iso.datetime({ offset: true }),
     /** The scope granted, printed on the package. */
-    scope: z.strictObject({
-      years: z.array(z.int().min(2000).max(2100)).min(1),
-      includeSpouses: z.boolean(),
-      includeChildren: z.boolean(),
-      sections: z.array(z.enum(DISCLOSURE_SECTIONS)).min(1),
-      /** Form K only (Act s.36(1), Regulation 22(1)); never for a law-enforcement request. */
-      includeClarifications: z.boolean(),
-    }),
+    scope: grantedScopeSchema,
     clarifications: z.array(disclosedClarificationSchema).max(1000).nullable().meta({
       description:
         'The clarifications of the disclosed declarations, as the review service disclosed them for the grant (oldest issued first; empty when none was issued in the scope); null when the grant does not include clarifications',
@@ -170,26 +140,6 @@ const STYLES = `${LETTERHEAD_STYLES}${CONTENT_STYLES}${DECLARATION_DOCUMENT_STYL
 .version .vh .t{font-size:12.5pt;font-weight:700}
 .clar{margin:4mm 0 0;break-inside:avoid-page}
 .clar .cl{font-weight:600;margin:3mm 0 1mm;break-after:avoid}`;
-
-const LEGAL_BASIS: Record<AccessPackagePayload['legalBasis'], string> = {
-  'act-s36-1': 'Access request under section 36(1) of the Act (Form K)',
-  'act-s36-2': 'Law-enforcement request under section 36(2) of the Act (Regulation 23)',
-};
-
-function scopeText(scope: AccessPackagePayload['scope']): string[] {
-  const years = [...scope.years].sort((a, b) => a - b).join(', ');
-  const household = [
-    'the declarant',
-    ...(scope.includeSpouses ? ['spouses'] : []),
-    ...(scope.includeChildren ? ['children'] : []),
-  ].join(', ');
-  return [
-    `Declarations of ${years}`,
-    `Persons: ${household}`,
-    `Sections: ${scope.sections.map((section) => SECTION_NAMES[section]).join(', ')}`,
-    ...(scope.includeClarifications ? ['Clarifications the declarant gave'] : []),
-  ];
-}
 
 /** Where a clarification stands, as the package prints it under its reference. */
 function clarificationState(clarification: DisclosedClarification): string {
@@ -275,9 +225,6 @@ export const accessPackageV1: DocumentTemplate<AccessPackagePayload> = {
 
   render(payload, { verificationId, issuedAt, signerName }) {
     const { disclosure, recipient } = payload;
-    const issuedTo = recipient.organisation
-      ? `${recipient.name}, ${recipient.organisation}`
-      : recipient.name;
     const versions = disclosure.versions
       .map((entry) => {
         const scheme = declarationSchemes[entry.type];
@@ -288,10 +235,10 @@ export const accessPackageV1: DocumentTemplate<AccessPackagePayload> = {
 <div class="doc-h"><div class="t1" role="heading" aria-level="1">Access package</div><div class="doc-sub">Disclosure of declarations of income, assets and liabilities</div></div>
 <div class="ref"><div><div class="lbl">Request reference</div><div class="big mono nw">${esc(disclosure.grantReference)}</div></div><div class="cpill">CONFIDENTIAL</div></div>
 <dl class="skv">
-<dt>Issued to</dt><dd>${esc(issuedTo)}</dd>
+<dt>Issued to</dt><dd>${esc(issuedTo(recipient))}</dd>
 <dt>Declarant</dt><dd>${esc(disclosure.personName)}</dd>
 <dt>Responsible Commission</dt><dd>${esc(disclosure.commission.name)} (${esc(disclosure.commission.issuerCode)})</dd>
-<dt>Legal basis</dt><dd>${esc(LEGAL_BASIS[payload.legalBasis])}</dd>
+<dt>Legal basis</dt><dd>${esc(LEGAL_BASIS_TEXT[payload.legalBasis])}</dd>
 <dt>Granted</dt><dd>${esc(formatDateTime(payload.grantedAt))}</dd>
 <dt>Scope granted</dt><dd>${scopeText(payload.scope).map(esc).join('<br />')}</dd>
 </dl>

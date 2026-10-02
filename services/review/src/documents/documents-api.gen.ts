@@ -195,7 +195,7 @@ export interface paths {
         put?: never;
         /**
          * Render, sign and register a document (services)
-         * @description Service tokens with scope documents:internal, issuing for the tenant in X-Acting-Tenant. Renders the type's versioned template to PDF through Gotenberg with the verification code and QR in the footer of every page and the watermark, when given, across every page, PAdES-signs it with the documents signing certificate, stores its SHA-256 in an Ed25519-signed verification record, stores the PDF and emits `document.issued.v1`. The disclosure level and public payload are the template's. `downloadWindowDays` limits the subject person's downloads to that many days from issue. An access-package requires a watermark, a download window and a subject person; a certified-copy a subject person. One document per type and subject: issuing again returns it with 200.
+         * @description Service tokens with scope documents:internal, issuing for the tenant in X-Acting-Tenant. Renders the type's versioned template to PDF through Gotenberg with the verification code and QR in the footer of every page and the watermark, when given, across every page, PAdES-signs it with the documents signing certificate, stores its SHA-256 in an Ed25519-signed verification record, stores the PDF and emits `document.issued.v1`. The disclosure level and public payload are the template's. `downloadWindowDays` limits the subject person's downloads to that many days from issue. An access-package and an access-nil-letter require a watermark, a download window and a subject person; a certified-copy a subject person. One document per type and subject: issuing again returns it with 200.
          */
         post: operations["issueDocument"];
         delete?: never;
@@ -360,7 +360,7 @@ export interface components {
          * @description Document types with a template; later specs add theirs
          * @enum {string}
          */
-        DocumentType: "acknowledgement-slip" | "access-package" | "certified-copy";
+        DocumentType: "acknowledgement-slip" | "access-package" | "access-nil-letter" | "certified-copy";
         /**
          * @description What the public verify page shows: public (content), restricted (reference, type, Commission, date), confidential (validity only). Fixed by the document type's template
          * @enum {string}
@@ -376,15 +376,15 @@ export interface components {
              * @example declaration-version:0192f0c4-8a51-7cc2-9d1e-3b3f2a7e4c10
              */
             subjectRef: string;
-            /** @description The only person who may download the document: the declarant, the applicant or the law-enforcement officer (their token carries it as `person_id`); null for none. Required for access-package and certified-copy */
+            /** @description The only person who may download the document: the declarant, the applicant or the law-enforcement officer (their token carries it as `person_id`); null for none. Required for access-package, access-nil-letter and certified-copy */
             subjectPersonId: string | null;
             watermark?: components["schemas"]["Watermark"];
-            /** @description Days from issue during which the subject person may download the document; afterwards a download is refused with 410 `download-window-closed`. None: no window. Required for access-package */
+            /** @description Days from issue during which the subject person may download the document; afterwards a download is refused with 410 `download-window-closed`. None: no window. Required for access-package and access-nil-letter */
             downloadWindowDays?: number;
             /** @description Token subjects (`sub`) of the issuing Commission's staff who may download the document besides its subject person, with a token of that Commission, within the same window and audited the same way: the access officer who recorded an in-person self-access application, to print the certified copy they hand over. None: the subject person only */
             additionalDownloaders?: string[];
             /** @description The template's payload: the schema named after `type` */
-            payload: components["schemas"]["AcknowledgementSlipPayload"] | components["schemas"]["AccessPackagePayload"] | components["schemas"]["CertifiedCopyPayload"];
+            payload: components["schemas"]["AcknowledgementSlipPayload"] | components["schemas"]["AccessPackagePayload"] | components["schemas"]["AccessNilLetterPayload"] | components["schemas"]["CertifiedCopyPayload"];
         };
         SupersedeDocument: {
             /**
@@ -429,7 +429,7 @@ export interface components {
             expiresAt: string;
             sha256: string;
         };
-        /** @description Printed across every page as `Issued to <recipientName> · <reference> · <date>` (ADR-010 §6), so a leaked copy traces to its recipient. Required for access-package */
+        /** @description Printed across every page as `Issued to <recipientName> · <reference> · <date>` (ADR-010 §6), so a leaked copy traces to its recipient. Required for access-package and access-nil-letter */
         Watermark: {
             recipientName: string;
             /** @example ARQ-PSC-2026-0000012-H */
@@ -526,6 +526,35 @@ export interface components {
                     } | null;
                 }[];
             }[] | null;
+        };
+        /** @description Payload of access-nil-letter v1: a grant whose scope holds no declaration at the Commission, and whom the letter saying so is issued to */
+        AccessNilLetterPayload: {
+            /**
+             * @description The access request (ARQ) or law-enforcement request (LEA) reference
+             * @example ARQ-PSC-2026-0000012-H
+             */
+            grantReference: string;
+            commission: components["schemas"]["CommissionRef"];
+            /** @description The declarant the request is about, as the Commission identified them */
+            declarantName: string;
+            /**
+             * @description act-s36-1: an access request (Form K); act-s36-2: a law-enforcement request
+             * @enum {string}
+             */
+            legalBasis: "act-s36-1" | "act-s36-2";
+            recipient: {
+                name: string;
+                organisation: string | null;
+            };
+            /** Format: date-time */
+            grantedAt: string;
+            scope: {
+                years: number[];
+                includeSpouses: boolean;
+                includeChildren: boolean;
+                sections: ("bio" | "income" | "assets" | "liabilities" | "other")[];
+                includeClarifications: boolean;
+            };
         };
         /** @description Payload of certified-copy v1: the declarations service's full document of a submitted version (FullVersionDocument without its identifiers and hash) */
         CertifiedCopyPayload: {

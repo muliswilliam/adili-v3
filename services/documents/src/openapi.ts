@@ -11,6 +11,7 @@ import {
   supersedeDocumentBody,
   watermarkSchema,
 } from './issuance/representation.js';
+import { accessNilLetterPayload } from './issuance/templates/access-nil-letter.v1.js';
 import { accessPackagePayload } from './issuance/templates/access-package.v1.js';
 import { acknowledgementSlipPayload } from './issuance/templates/acknowledgement-slip.v1.js';
 import { certifiedCopyPayload } from './issuance/templates/certified-copy.v1.js';
@@ -50,6 +51,7 @@ export const OPENAPI_SCHEMAS: Record<string, z.ZodType> = {
   CommissionRef: commissionRefSchema,
   AcknowledgementSlipPayload: acknowledgementSlipPayload,
   AccessPackagePayload: accessPackagePayload,
+  AccessNilLetterPayload: accessNilLetterPayload,
   CertifiedCopyPayload: certifiedCopyPayload,
   DisclosedDeclaration: disclosedDeclarationSchema,
   DeclarationV1: DeclarationSchema,
