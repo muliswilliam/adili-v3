@@ -1,10 +1,13 @@
 import type { z } from 'zod';
 
 import {
+  clarificationLetterSource,
   disclosureLevelSchema,
   documentDownloadSchema,
   documentStatusSchema,
   documentTypeSchema,
+  issueAcknowledgementSlipBody,
+  issueClarificationLetterBody,
   issueDocumentBody,
   issuedDocumentSchema,
   supersedeDocumentBody,
@@ -34,6 +37,9 @@ export const OPENAPI_SCHEMAS: Record<string, z.ZodType> = {
   DisclosureLevel: disclosureLevelSchema,
   DocumentStatus: documentStatusSchema,
   IssueDocument: issueDocumentBody,
+  IssueAcknowledgementSlip: issueAcknowledgementSlipBody,
+  IssueClarificationLetter: issueClarificationLetterBody,
+  ClarificationLetterSource: clarificationLetterSource,
   SupersedeDocument: supersedeDocumentBody,
   IssuedDocument: issuedDocumentSchema,
   DocumentDownload: documentDownloadSchema,

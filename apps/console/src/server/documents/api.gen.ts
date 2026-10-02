@@ -15,7 +15,7 @@ export interface paths {
         put?: never;
         /**
          * Reserve an upload and get a presigned PUT to quarantine
-         * @description The purpose's roles only (roster-import: reporting-officer; declaration-attachment: declarant). The PUT URL is valid for 15 minutes and accepts exactly the declared Content-Type and size.
+         * @description The purpose's roles only (roster-import: reporting-officer; declaration-attachment and clarification-attachment: declarant). The PUT URL is valid for 15 minutes and accepts exactly the declared Content-Type and size.
          */
         post: operations["createUpload"];
         delete?: never;
@@ -195,7 +195,7 @@ export interface paths {
         put?: never;
         /**
          * Render, sign and register a document (services)
-         * @description Service tokens with scope documents:internal, issuing for the tenant in X-Acting-Tenant. Renders the type's versioned template to PDF through Gotenberg with the verification code and QR in the footer of every page, PAdES-signs it with the documents signing certificate, stores its SHA-256 in an Ed25519-signed verification record, stores the PDF and emits `document.issued.v1`. The disclosure level and public payload are the template's. One document per type and subject: issuing again returns it with 200.
+         * @description Service tokens with scope documents:internal, issuing for the tenant in X-Acting-Tenant. Renders the type's versioned template to PDF through Gotenberg with the verification code and QR in the footer of every page, PAdES-signs it with the documents signing certificate, stores its SHA-256 in an Ed25519-signed verification record, stores the PDF and emits `document.issued.v1`. The disclosure level and public payload are the template's. A clarification letter names its clarification; its fields are pulled from the review service (internalGetClarificationLetterPayload) for the same tenant. One document per type and subject: issuing again returns it with 200.
          */
         post: operations["issueDocument"];
         delete?: never;
@@ -288,7 +288,7 @@ export interface components {
          * @description Sets allowed content types and the size limit
          * @enum {string}
          */
-        UploadPurpose: "roster-import" | "declaration-attachment";
+        UploadPurpose: "roster-import" | "declaration-attachment" | "clarification-attachment";
         /** @enum {string} */
         UploadState: "awaiting-upload" | "clean" | "infected" | "rejected" | "expired" | "deleted";
         /**
@@ -360,7 +360,7 @@ export interface components {
          * @description Document types with a template; later specs add theirs
          * @enum {string}
          */
-        DocumentType: "acknowledgement-slip";
+        DocumentType: "acknowledgement-slip" | "clarification-letter";
         /**
          * @description What the public verify page shows: public (content), restricted (reference, type, Commission, date), confidential (validity only). Fixed by the document type's template
          * @enum {string}
@@ -368,8 +368,10 @@ export interface components {
         DisclosureLevel: "public" | "restricted" | "confidential";
         /** @enum {string} */
         DocumentStatus: "valid" | "superseded" | "revoked" | "expired";
-        IssueDocument: {
-            type: components["schemas"]["DocumentType"];
+        IssueDocument: components["schemas"]["IssueAcknowledgementSlip"] | components["schemas"]["IssueClarificationLetter"];
+        IssueAcknowledgementSlip: {
+            /** @constant */
+            type: "acknowledgement-slip";
             templateVersion: number;
             /**
              * @description The record the document is about; one document per type and subject. Issuing again returns it
@@ -379,6 +381,24 @@ export interface components {
             /** @description The person who may download the document (the declarant); null for none */
             subjectPersonId: string | null;
             payload: components["schemas"]["AcknowledgementSlipPayload"];
+        };
+        IssueClarificationLetter: {
+            /** @constant */
+            type: "clarification-letter";
+            templateVersion: number;
+            /**
+             * @description The record the document is about; one document per type and subject. Issuing again returns it
+             * @example declaration-version:0192f0c4-8a51-7cc2-9d1e-3b3f2a7e4c10
+             */
+            subjectRef: string;
+            /** @description The person who may download the document (the declarant); null for none */
+            subjectPersonId: string | null;
+            payload: components["schemas"]["ClarificationLetterSource"];
+        };
+        /** @description The clarification whose letter this is; the fields the template renders are pulled from the review service's letter payload endpoint */
+        ClarificationLetterSource: {
+            /** Format: uuid */
+            clarificationId: string;
         };
         SupersedeDocument: {
             /**
@@ -976,7 +996,7 @@ export interface operations {
                     "application/json": components["schemas"]["IssuedDocument"];
                 };
             };
-            /** @description Request failed validation, or the payload is not the template's */
+            /** @description Request failed validation, the payload (or the one pulled) is not the template's, or the review service holds no issued clarification with the id for the tenant */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -1003,7 +1023,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
-            /** @description Problem type `renderer-unavailable`, `signer-unavailable` or `storage-unavailable`: nothing was issued; retry */
+            /** @description Problem type `renderer-unavailable`, `signer-unavailable`, `storage-unavailable` or `review-unavailable`: nothing was issued; retry */
             502: {
                 headers: {
                     [name: string]: unknown;

@@ -9,11 +9,14 @@
  * Document types the documents service issues, each with its templates (ADR-010 registry); later
  * specs add theirs.
  */
-export const DOCUMENT_TYPES = ['acknowledgement-slip'] as const;
+export const DOCUMENT_TYPES = ['acknowledgement-slip', 'clarification-letter'] as const;
 export type DocumentType = (typeof DOCUMENT_TYPES)[number];
 
 /** A declaration version's acknowledgement slip (spec 06). */
 export const ACKNOWLEDGEMENT_SLIP = 'acknowledgement-slip' satisfies DocumentType;
+
+/** A Commission's request for clarification of a declaration (spec 07a, Act s.35). */
+export const CLARIFICATION_LETTER = 'clarification-letter' satisfies DocumentType;
 
 /** How much of a document the public verify page may show; fixed per document type. */
 export const DISCLOSURE_LEVELS = ['public', 'restricted', 'confidential'] as const;

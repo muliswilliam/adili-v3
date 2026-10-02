@@ -1,4 +1,10 @@
-import { DISCLOSURE_LEVELS, DOCUMENT_STATUSES, DOCUMENT_TYPES } from '@adili/events/contracts';
+import {
+  ACKNOWLEDGEMENT_SLIP,
+  CLARIFICATION_LETTER,
+  DISCLOSURE_LEVELS,
+  DOCUMENT_STATUSES,
+  DOCUMENT_TYPES,
+} from '@adili/events/contracts';
 import { z } from 'zod';
 
 import { acknowledgementSlipPayload } from './templates/acknowledgement-slip.v1.js';
@@ -17,8 +23,7 @@ export const disclosureLevelSchema = z.enum(DISCLOSURE_LEVELS).meta({
 });
 export const documentStatusSchema = z.enum(DOCUMENT_STATUSES);
 
-export const issueDocumentBody = z.object({
-  type: documentTypeSchema,
+const issueDocumentFields = {
   templateVersion: z.int().min(1),
   subjectRef: z
     .string()
@@ -31,12 +36,40 @@ export const issueDocumentBody = z.object({
   subjectPersonId: z.uuid().nullable().meta({
     description: 'The person who may download the document (the declarant); null for none',
   }),
-  /**
-   * The fields the template renders, never stored beyond the PDF. One schema per template; the
-   * service checks the payload against the template of `type` and `templateVersion`.
-   */
+};
+
+/** An acknowledgement slip: its caller sends the fields the template renders, never stored. */
+export const issueAcknowledgementSlipBody = z.object({
+  type: z.literal(ACKNOWLEDGEMENT_SLIP),
+  ...issueDocumentFields,
   payload: acknowledgementSlipPayload,
 });
+
+/**
+ * The clarification a letter is for: the documents service pulls the fields the template renders
+ * from the review service (`internalGetClarificationLetterPayload`, acting for the same tenant),
+ * so no personal data travels in the request.
+ */
+export const clarificationLetterSource = z.object({ clarificationId: z.uuid() }).meta({
+  description:
+    "The clarification whose letter this is; the fields the template renders are pulled from the review service's letter payload endpoint",
+});
+
+/** A clarification letter of the review service (spec 07a), its fields pulled. */
+export const issueClarificationLetterBody = z.object({
+  type: z.literal(CLARIFICATION_LETTER),
+  ...issueDocumentFields,
+  payload: clarificationLetterSource,
+});
+
+/**
+ * One request shape per document type; the service checks the fields against the template of
+ * `type` and `templateVersion`.
+ */
+export const issueDocumentBody = z.discriminatedUnion('type', [
+  issueAcknowledgementSlipBody,
+  issueClarificationLetterBody,
+]);
 export type IssueDocumentBody = z.infer<typeof issueDocumentBody>;
 
 export const supersedeDocumentBody = z.object({
