@@ -406,27 +406,31 @@ export function CaseView({ load, viewer, slug, now, tab, onTab }: CaseViewProps)
       }}
       className="rounded-2xl bg-card shadow-card"
     >
-      <TabsList
-        aria-label={CASE_COPY.tabsLabel}
-        // Five tabs with counts and the registry's attention icon fit the pane at its default
-        // width: no gaps between them, tight padding.
-        className="sticky top-0 z-[3] gap-0 rounded-t-2xl bg-card px-2"
-      >
-        {CASE_TABS.map((key) => {
-          const count = tabCount(key, detail);
-          return (
-            <TabsTrigger key={key} value={key} className="gap-[5px] px-[6px] text-[13.5px]">
-              {CASE_TAB_LABELS[key]}
-              {count ? <TabsCount>{count}</TabsCount> : null}
-              {key === 'registry' && registryNeedsAttention(detail) ? (
-                <span role="img" aria-label={REGISTRY_COPY.attention} className="inline-flex">
-                  <Icon icon={Alert02Icon} strokeWidth={2.2} className="size-3.5 text-warning" />
-                </span>
-              ) : null}
-            </TabsTrigger>
-          );
-        })}
-      </TabsList>
+      {/* The card behind the sticky tabs, so their edge fade (when they scroll sideways, on
+          narrow screens) shows the card, not the panel scrolling under them. */}
+      <div className="sticky top-0 z-[3] rounded-t-2xl bg-card">
+        <TabsList
+          aria-label={CASE_COPY.tabsLabel}
+          // Five tabs with counts and the registry's attention icon fit the pane at its default
+          // width: no gaps between them, tight padding.
+          className="gap-0 px-2"
+        >
+          {CASE_TABS.map((key) => {
+            const count = tabCount(key, detail);
+            return (
+              <TabsTrigger key={key} value={key} className="gap-[5px] px-[6px] text-[13.5px]">
+                {CASE_TAB_LABELS[key]}
+                {count ? <TabsCount>{count}</TabsCount> : null}
+                {key === 'registry' && registryNeedsAttention(detail) ? (
+                  <span role="img" aria-label={REGISTRY_COPY.attention} className="inline-flex">
+                    <Icon icon={Alert02Icon} strokeWidth={2.2} className="size-3.5 text-warning" />
+                  </span>
+                ) : null}
+              </TabsTrigger>
+            );
+          })}
+        </TabsList>
+      </div>
       {CASE_TABS.map((key) => (
         <TabsContent key={key} value={key} className="mt-0 rounded-b-2xl p-4">
           {panels[key]}

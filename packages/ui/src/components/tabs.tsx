@@ -1,8 +1,9 @@
 import * as TabsPrimitive from '@radix-ui/react-tabs';
-import type { ComponentProps } from 'react';
+import { type ComponentProps, useCallback } from 'react';
 
 import { cn } from '../lib/cn';
 import { focusRing, focusRingInset } from '../lib/focus';
+import { scrollEdgeFade, useScrollEdges } from '../lib/use-scroll-edges';
 
 /**
  * Tabs switch between panels on one page. Arrow keys move between tabs and Tab moves into the
@@ -10,14 +11,40 @@ import { focusRing, focusRingInset } from '../lib/focus';
  */
 export const Tabs = TabsPrimitive.Root;
 
-/** An underlined row of tabs that scrolls sideways when it does not fit. */
-export function TabsList({ className, ...props }: ComponentProps<typeof TabsPrimitive.List>) {
+/**
+ * An underlined row of tabs that scrolls sideways when it does not fit, fading out at an edge
+ * with more tabs past it (the scrollbar is hidden, so the fade is what says there are more).
+ */
+export function TabsList({
+  className,
+  style,
+  ref,
+  ...props
+}: ComponentProps<typeof TabsPrimitive.List>) {
+  const [measure, edges] = useScrollEdges<HTMLDivElement>();
+  const attach = useCallback(
+    (element: HTMLDivElement | null) => {
+      const cleanup = measure(element);
+      if (typeof ref === 'function') ref(element);
+      else if (ref) ref.current = element;
+      return () => {
+        cleanup?.();
+        if (typeof ref === 'function') ref(null);
+        else if (ref) ref.current = null;
+      };
+    },
+    [measure, ref],
+  );
   return (
     <TabsPrimitive.List
+      ref={attach}
+      data-more-before={edges.start || undefined}
+      data-more-after={edges.end || undefined}
       className={cn(
         'flex gap-0.5 overflow-x-auto border-b [scrollbar-width:none] [&::-webkit-scrollbar]:hidden',
         className,
       )}
+      style={{ ...scrollEdgeFade(edges), ...style }}
       {...props}
     />
   );
