@@ -634,7 +634,7 @@ export interface operations {
                 /** @description Why the registry is consulted, recorded on the result and the audit event. regs-r20-1-b, act-s35-5 or adr-014-onboarding */
                 "X-Legal-Basis": "regs-r20-1-b" | "act-s35-5" | "adr-014-onboarding";
                 /** @description Review case the lookup is for; recorded on the result and the audit event */
-                "X-Case-Ref"?: string;
+                "X-Case-Ref": string;
                 /** @description Platform person the lookup is about (the case declarant); recorded on the result, so reads of it are audited as reads of their data */
                 "X-Subject-Person"?: string;
             };
@@ -656,7 +656,7 @@ export interface operations {
                     "application/json": components["schemas"]["KraResult"];
                 };
             };
-            /** @description X-Legal-Basis missing or unknown, or X-Case-Ref or X-Subject-Person malformed */
+            /** @description X-Legal-Basis or X-Case-Ref missing, X-Legal-Basis unknown, or X-Case-Ref or X-Subject-Person malformed */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -694,7 +694,7 @@ export interface operations {
                 /** @description Why the registry is consulted, recorded on the result and the audit event. regs-r20-1-b, act-s35-5 or adr-014-onboarding */
                 "X-Legal-Basis": "regs-r20-1-b" | "act-s35-5" | "adr-014-onboarding";
                 /** @description Review case the lookup is for; recorded on the result and the audit event */
-                "X-Case-Ref"?: string;
+                "X-Case-Ref": string;
                 /** @description Platform person the lookup is about (the case declarant); recorded on the result, so reads of it are audited as reads of their data */
                 "X-Subject-Person"?: string;
             };
@@ -716,7 +716,7 @@ export interface operations {
                     "application/json": components["schemas"]["NtsaResult"];
                 };
             };
-            /** @description X-Legal-Basis missing or unknown, or X-Case-Ref or X-Subject-Person malformed */
+            /** @description X-Legal-Basis or X-Case-Ref missing, X-Legal-Basis unknown, or X-Case-Ref or X-Subject-Person malformed */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -754,7 +754,7 @@ export interface operations {
                 /** @description Why the registry is consulted, recorded on the result and the audit event. regs-r20-1-b, act-s35-5 or adr-014-onboarding */
                 "X-Legal-Basis": "regs-r20-1-b" | "act-s35-5" | "adr-014-onboarding";
                 /** @description Review case the lookup is for; recorded on the result and the audit event */
-                "X-Case-Ref"?: string;
+                "X-Case-Ref": string;
                 /** @description Platform person the lookup is about (the case declarant); recorded on the result, so reads of it are audited as reads of their data */
                 "X-Subject-Person"?: string;
             };
@@ -776,7 +776,7 @@ export interface operations {
                     "application/json": components["schemas"]["BrsResult"];
                 };
             };
-            /** @description X-Legal-Basis missing or unknown, or X-Case-Ref or X-Subject-Person malformed */
+            /** @description X-Legal-Basis or X-Case-Ref missing, X-Legal-Basis unknown, or X-Case-Ref or X-Subject-Person malformed */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -814,7 +814,7 @@ export interface operations {
                 /** @description Why the registry is consulted, recorded on the result and the audit event. regs-r20-1-b, act-s35-5 or adr-014-onboarding */
                 "X-Legal-Basis": "regs-r20-1-b" | "act-s35-5" | "adr-014-onboarding";
                 /** @description Review case the lookup is for; recorded on the result and the audit event */
-                "X-Case-Ref"?: string;
+                "X-Case-Ref": string;
                 /** @description Platform person the lookup is about (the case declarant); recorded on the result, so reads of it are audited as reads of their data */
                 "X-Subject-Person"?: string;
             };
@@ -836,7 +836,7 @@ export interface operations {
                     "application/json": components["schemas"]["ArdhisasaResult"];
                 };
             };
-            /** @description X-Legal-Basis missing or unknown, or X-Case-Ref or X-Subject-Person malformed */
+            /** @description X-Legal-Basis or X-Case-Ref missing, X-Legal-Basis unknown, or X-Case-Ref or X-Subject-Person malformed */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -876,7 +876,7 @@ export interface operations {
                 /** @description Why the registry is consulted, recorded on the result and the audit event. regs-r20-1-b, act-s35-5 or adr-014-onboarding */
                 "X-Legal-Basis": "regs-r20-1-b" | "act-s35-5" | "adr-014-onboarding";
                 /** @description Review case the lookup is for; recorded on the result and the audit event */
-                "X-Case-Ref"?: string;
+                "X-Case-Ref": string;
                 /** @description Platform person the lookup is about (the case declarant); recorded on the result, so reads of it are audited as reads of their data */
                 "X-Subject-Person"?: string;
             };
@@ -896,7 +896,7 @@ export interface operations {
                     "application/json": components["schemas"]["SupplierCheckResult"];
                 };
             };
-            /** @description X-Legal-Basis missing or unknown, or X-Case-Ref or X-Subject-Person malformed */
+            /** @description X-Legal-Basis or X-Case-Ref missing, X-Legal-Basis unknown, or X-Case-Ref or X-Subject-Person malformed */
             400: {
                 headers: {
                     [name: string]: unknown;

@@ -92,7 +92,7 @@ const LookupRoute = (system: LookupSystem) => {
   return applyDecorators(
     Post(lookup.path),
     HttpCode(HttpStatus.OK),
-    LookupPurposeHeaders(),
+    LookupPurposeHeaders({ caseRef: 'required' }),
     ApiOperation({
       operationId: lookup.operationId,
       summary: lookup.summary,
@@ -163,7 +163,7 @@ export class RegistriesController {
   }
 
   @Get('brs/companies/:registrationNumber/supplies')
-  @LookupPurposeHeaders()
+  @LookupPurposeHeaders({ caseRef: 'required' })
   @ApiOperation({
     operationId: 'checkCompanySuppliesEmployer',
     summary: "Whether a company is on an employer's supplier list (HR), for the BRS check",

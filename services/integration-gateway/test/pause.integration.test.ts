@@ -32,6 +32,7 @@ describe('POST /v1/integrations/{system}/pause and /resume', () => {
       authorization: `Bearer ${await t.token({ clientId: 'review', scope: 'registry' })}`,
       'x-acting-tenant': 'psc',
       'x-legal-basis': 'regs-r20-1-b',
+      'x-case-ref': 'case-0001',
     };
     return async () => {
       await t.close();

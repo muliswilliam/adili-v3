@@ -448,6 +448,22 @@ describe('registry lookups', () => {
       expect(await rows()).toEqual([]);
     });
 
+    it('Q3: requires the case the lookup is for, without calling the registry', async () => {
+      const headers = without(review, 'x-case-ref');
+
+      const lookupWithout = await lookup('kra/taxpayer-lookups', SEED.wanjiku, headers);
+      const supplierWithout = await supplies('PVT-9XYZ2L4Q', 'KEMSA', headers);
+
+      for (const response of [lookupWithout, supplierWithout]) {
+        expect(response.statusCode).toBe(400);
+        expect(response.json<Body>().errors).toEqual([
+          { path: 'X-Case-Ref', message: anyString() },
+        ]);
+      }
+      expect(registries.calls.kra + registries.calls.hr).toBe(0);
+      expect(await rows()).toEqual([]);
+    });
+
     it('rejects a malformed national ID', async () => {
       const response = await lookup('ardhisasa/parcel-lookups', '12ab');
 
