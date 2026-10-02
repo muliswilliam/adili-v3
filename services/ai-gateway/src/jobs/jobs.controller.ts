@@ -21,7 +21,9 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import {
+  ActingTenant,
   ApiProblemResponse,
+  InternalApi,
   PROBLEM_CONTENT_TYPE,
   schemaRef,
   CurrentPrincipal,
@@ -29,12 +31,12 @@ import {
   IDEMPOTENT_REPLAYED_HEADER,
   type Principal,
   ProblemException,
-  Scopes,
   ZodValidationPipe,
 } from '@adili/api-kit';
 import type { FastifyReply } from 'fastify';
 import { z } from 'zod';
 
+import { AI_SCOPE } from '../internal-api.js';
 import { isTerminal } from './job-states.js';
 import type { JobView } from './job-view.js';
 import { JobsService } from './jobs.service.js';
@@ -54,11 +56,12 @@ const REPLAYED_HEADER = {
  * Idempotency is the job's, not `@RequireIdempotencyKey()`'s: the job row holds the key, so a
  * replay returns the job as it is now (finished, perhaps) rather than the first response.
  * Keys are scoped per calling service, like the jobs. Callers are domain services with the `ai`
- * scope; each sees only its own jobs.
+ * scope, acting for the tenant in `X-Acting-Tenant` (ADR-013 §8.8); each sees only its own jobs
+ * of that tenant.
  */
 @ApiTags('internal')
 @ApiBearerAuth()
-@Scopes('ai')
+@InternalApi(AI_SCOPE)
 @Controller('internal/v1')
 export class JobsController {
   constructor(private readonly jobs: JobsService) {}
@@ -91,7 +94,10 @@ export class JobsController {
     schema: schemaRef('Job'),
     headers: REPLAYED_HEADER,
   })
-  @ApiProblemResponse(400, 'Request failed validation, or Idempotency-Key missing or not a UUID')
+  @ApiProblemResponse(
+    400,
+    'Request failed validation, Idempotency-Key missing or not a UUID, or X-Acting-Tenant missing',
+  )
   @ApiProblemResponse(404, 'Unknown task')
   @ApiProblemResponse(422, 'Idempotency-Key reused with a different request')
   @ApiResponse({
@@ -110,11 +116,12 @@ export class JobsController {
     @Param('task') task: string,
     @Body() body: unknown,
     @Headers(IDEMPOTENCY_KEY_HEADER) key: string | undefined,
+    @ActingTenant() tenant: string,
     @CurrentPrincipal() caller: Principal,
     @Res({ passthrough: true }) reply: FastifyReply,
   ): Promise<JobView> {
     const { job, replayed } = await this.jobs
-      .run(task, body, caller, readKey(key))
+      .run(task, body, tenant, caller, readKey(key))
       .catch((error: unknown) => {
         if (ProblemException.hasCode(error, ['rate-limit-exceeded'])) {
           const retryAfter = error.extensions.retryAfterSeconds;
@@ -130,18 +137,19 @@ export class JobsController {
   @Get('jobs/:jobId')
   @ApiOperation({
     operationId: 'getJob',
-    summary: 'Job state and validated output (caller service only)',
+    summary: 'Job state and validated output (caller service only, for the tenant it acts for)',
   })
   @ApiParam({ name: 'jobId', schema: { type: 'string', format: 'uuid' } })
   @ApiOkResponse({ description: 'The job', schema: schemaRef('Job') })
-  @ApiProblemResponse(400, 'The id is not a UUID')
-  @ApiProblemResponse(404, 'Not found, or not visible to the caller')
+  @ApiProblemResponse(400, 'The id is not a UUID, or X-Acting-Tenant is missing')
+  @ApiProblemResponse(404, "Not found, another caller's job, or another tenant's")
   async getJob(
     @Param('jobId', new ZodValidationPipe(z.uuid())) jobId: string,
+    @ActingTenant() tenant: string,
     @CurrentPrincipal() caller: Principal,
   ): Promise<JobView> {
-    // Another caller's job is indistinguishable from a missing one.
-    const job = await this.jobs.get(jobId, caller);
+    // Another caller's or another tenant's job is indistinguishable from a missing one.
+    const job = await this.jobs.get(jobId, tenant, caller);
     if (!job) {
       throw new NotFoundException('No job with this id');
     }

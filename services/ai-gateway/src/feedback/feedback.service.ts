@@ -42,12 +42,13 @@ export class FeedbackService {
 
   /**
    * Records `input` for job `jobId`; undefined when the caller has no succeeded job with that id
-   * (another caller's job is indistinguishable from a missing one, and only a succeeded job has
-   * an output to rate).
+   * for `tenant` (another caller's or another tenant's job is indistinguishable from a missing
+   * one, and only a succeeded job has an output to rate).
    */
   async record(
     jobId: string,
     input: FeedbackInput,
+    tenant: string,
     principal: Principal,
   ): Promise<FeedbackView | undefined> {
     return this.db.transaction(async (tx) => {
@@ -57,6 +58,7 @@ export class FeedbackService {
         .where(
           and(
             eq(jobs.id, jobId),
+            eq(jobs.tenant, tenant),
             eq(jobs.caller, callerOf(principal)),
             eq(jobs.status, 'succeeded'),
           ),

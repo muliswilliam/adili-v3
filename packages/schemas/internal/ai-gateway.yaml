@@ -18,6 +18,13 @@ paths:
       description: 'The Idempotency-Key names the job: a retry with the same key returns the first job. An equal request with a live or succeeded job returns that job (the cache). Completion is announced by ai.job.* events; a job already finished is returned with 200.'
       operationId: runTask
       parameters:
+        - name: X-Acting-Tenant
+          in: header
+          description: Tenant the calling service acts for; the resource must belong to it
+          required: true
+          schema:
+            type: string
+            pattern: ^[a-z][a-z0-9]{1,19}$
         - name: task
           required: true
           in: path
@@ -64,13 +71,13 @@ paths:
               schema:
                 $ref: '#/components/schemas/Job'
         '400':
-          description: Request failed validation, or Idempotency-Key missing or not a UUID
+          description: Request failed validation, Idempotency-Key missing or not a UUID, or X-Acting-Tenant missing
           content:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/ProblemDetails'
         '403':
-          description: 'Requires one of the scopes: ai'
+          description: Requires a service token with scope ai
           content:
             application/problem+json:
               schema:
@@ -104,9 +111,16 @@ paths:
     get:
       tags:
         - internal
-      summary: Job state and validated output (caller service only)
+      summary: Job state and validated output (caller service only, for the tenant it acts for)
       operationId: getJob
       parameters:
+        - name: X-Acting-Tenant
+          in: header
+          description: Tenant the calling service acts for; the resource must belong to it
+          required: true
+          schema:
+            type: string
+            pattern: ^[a-z][a-z0-9]{1,19}$
         - name: jobId
           required: true
           in: path
@@ -121,19 +135,19 @@ paths:
               schema:
                 $ref: '#/components/schemas/Job'
         '400':
-          description: The id is not a UUID
+          description: The id is not a UUID, or X-Acting-Tenant is missing
           content:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/ProblemDetails'
         '403':
-          description: 'Requires one of the scopes: ai'
+          description: Requires a service token with scope ai
           content:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/ProblemDetails'
         '404':
-          description: Not found, or not visible to the caller
+          description: Not found, another caller's job, or another tenant's
           content:
             application/problem+json:
               schema:
@@ -148,6 +162,13 @@ paths:
       description: 'One rating per reviewer per job: a second rating by the same reviewer replaces the first. Each rating announces ai.feedback.recorded.v1 (no note, no reviewer).'
       operationId: recordFeedback
       parameters:
+        - name: X-Acting-Tenant
+          in: header
+          description: Tenant the calling service acts for; the resource must belong to it
+          required: true
+          schema:
+            type: string
+            pattern: ^[a-z][a-z0-9]{1,19}$
         - name: jobId
           required: true
           in: path
@@ -168,19 +189,19 @@ paths:
               schema:
                 $ref: '#/components/schemas/Feedback'
         '400':
-          description: Request failed validation
+          description: Request failed validation, or X-Acting-Tenant is missing
           content:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/ProblemDetails'
         '403':
-          description: 'Requires one of the scopes: ai'
+          description: Requires a service token with scope ai
           content:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/ProblemDetails'
         '404':
-          description: No succeeded job with this id visible to the caller
+          description: No succeeded job with this id of the caller, for the tenant it acts for
           content:
             application/problem+json:
               schema:
@@ -374,6 +395,13 @@ paths:
       description: "Derived from the tenant's routes and its classification gate (explicit rules, else the default): the provider classes the tenant's tasks are routed to, and the data classes every one of them may process."
       operationId: getTenantAiStatus
       parameters:
+        - name: X-Acting-Tenant
+          in: header
+          description: Tenant the calling service acts for; the resource must belong to it
+          required: true
+          schema:
+            type: string
+            pattern: ^[a-z][a-z0-9]{1,19}$
         - name: tenant
           required: true
           in: path
@@ -388,13 +416,19 @@ paths:
               schema:
                 $ref: '#/components/schemas/TenantAiStatus'
         '400':
-          description: Request failed validation
+          description: Request failed validation, or X-Acting-Tenant is missing
           content:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/ProblemDetails'
         '403':
-          description: Caller lacks the ai scope
+          description: Requires a service token with scope ai
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: The tenant is not the one the caller acts for
           content:
             application/problem+json:
               schema:
@@ -486,9 +520,6 @@ components:
     TaskRequest:
       type: object
       properties:
-        tenant:
-          type: string
-          pattern: ^[a-z][a-z0-9]{1,19}$
         dataClass:
           $ref: '#/components/schemas/DataClass'
         subjectRef:
@@ -515,7 +546,6 @@ components:
             - $ref: '#/components/schemas/DraftClarificationInput'
           description: The task's input; its `kind` is the task name
       required:
-        - tenant
         - dataClass
         - subjectRef
         - input

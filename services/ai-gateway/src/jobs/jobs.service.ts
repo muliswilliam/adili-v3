@@ -57,6 +57,7 @@ export class JobsService {
   async run(
     taskName: string,
     body: unknown,
+    tenant: string,
     principal: Principal,
     idempotencyKey: string,
   ): Promise<RunTaskResult> {
@@ -79,9 +80,9 @@ export class JobsService {
         detail: `Task ${task.name} has prompt versions ${task.promptVersions.join(', ')}.`,
       });
     }
-    const route = await this.routing.route(request.tenant, task.name);
+    const route = await this.routing.route(tenant, task.name);
     const fields: Pick<Job, (typeof CACHE_KEY)[number]> = {
-      tenant: request.tenant,
+      tenant,
       caller: callerOf(principal),
       subjectRef: request.subjectRef,
       dataClass: request.dataClass,
@@ -94,7 +95,7 @@ export class JobsService {
     // What the caller asked for; the wait is not part of it, so a retry may wait differently.
     const requestHash = hashJson({
       task: task.name,
-      tenant: request.tenant,
+      tenant,
       dataClass: request.dataClass,
       subjectRef: request.subjectRef,
       promptVersion: request.promptVersion,
@@ -132,18 +133,14 @@ export class JobsService {
         return { job: await this.startAndWait(cached, request.waitSeconds), replayed: false };
       }
 
-      const limit = await this.budgets.rateLimited(request.tenant);
+      const limit = await this.budgets.rateLimited(tenant);
       if (limit.limited) {
         throw ProblemException.fromCode('rate-limit-exceeded', {
-          detail: `Tenant ${request.tenant} has reached its per-minute limit of AI task calls.`,
+          detail: `Tenant ${tenant} has reached its per-minute limit of AI task calls.`,
           extensions: { retryAfterSeconds: limit.retryAfterSeconds },
         });
       }
-      const ending = await this.admission.refusal(
-        request.tenant,
-        request.dataClass,
-        route.provider,
-      );
+      const ending = await this.admission.refusal(tenant, request.dataClass, route.provider);
       const created = await this.db.transaction(async (tx) => {
         const [job] = await tx
           .insert(jobs)
@@ -171,10 +168,10 @@ export class JobsService {
     throw new Error('Could not create or find the job under contention');
   }
 
-  /** A job is visible only to the caller that created it. */
-  async get(id: string, principal: Principal): Promise<JobView | undefined> {
+  /** A job is visible only to the caller that created it, acting for the job's tenant. */
+  async get(id: string, tenant: string, principal: Principal): Promise<JobView | undefined> {
     const job = await this.find(id, callerOf(principal));
-    return job && toJobView(job);
+    return job?.tenant === tenant ? toJobView(job) : undefined;
   }
 
   /**

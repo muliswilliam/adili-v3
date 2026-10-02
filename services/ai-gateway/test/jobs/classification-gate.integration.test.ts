@@ -6,7 +6,14 @@ import { beforeAll, describe, expect, it } from 'vitest';
 import { jobs } from '../../src/db/schema.js';
 import { JobsJanitor } from '../../src/jobs/jobs-janitor.js';
 import { contractErrors } from '../support/contract.js';
-import { summarizeInput, summarizeOutput, taskRequest, usage } from '../support/inputs.js';
+import {
+  actingFor,
+  summarizeInput,
+  summarizeOutput,
+  taskCall,
+  taskRequest,
+  usage,
+} from '../support/inputs.js';
 import { ScriptedProvider } from '../support/scripted-provider.js';
 import { createTestApp, type TestApp } from '../support/test-app.js';
 
@@ -41,13 +48,15 @@ describe('classification gate', () => {
     return () => t.close();
   });
 
-  const runTask = (payload: object) =>
-    t.app.inject({
+  const runTask = (payload: object) => {
+    const call = taskCall(payload);
+    return t.app.inject({
       method: 'POST',
       url: '/internal/v1/tasks/summarize-declaration',
-      headers: { ...auth, 'idempotency-key': randomUUID() },
-      payload,
+      headers: { ...auth, ...call.headers, 'idempotency-key': randomUUID() },
+      payload: call.body,
     });
+  };
 
   it.each(['restricted', 'highly-confidential'])(
     'blocks %s data for an external provider without contacting it',
@@ -120,7 +129,11 @@ describe('classification gate', () => {
     do {
       await new Promise((resolve) => setTimeout(resolve, 100));
       job = (
-        await t.app.inject({ method: 'GET', url: `/internal/v1/jobs/${id}`, headers: auth })
+        await t.app.inject({
+          method: 'GET',
+          url: `/internal/v1/jobs/${id}`,
+          headers: { ...auth, ...actingFor() },
+        })
       ).json<Job>();
     } while (['queued', 'running'].includes(job.status) && Date.now() < deadline);
     expect(job).toMatchObject({ status: 'blocked', reason: 'policy' });

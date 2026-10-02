@@ -24,10 +24,12 @@ import { GatePolicies } from '../../src/policy/gate-policies.js';
 import type { StructuredRequest, StructuredResult } from '../../src/providers/port.js';
 import { contractErrors } from '../support/contract.js';
 import {
+  actingFor,
   explainInput,
   FLAG_ID,
   summarizeInput,
   summarizeOutput,
+  taskCall,
   usage,
 } from '../support/inputs.js';
 import { ScriptedProvider } from '../support/scripted-provider.js';
@@ -117,16 +119,18 @@ describe('policy', { timeout: 90_000 }, () => {
     answer = () => completed(summarizeOutput);
   });
 
-  const runTask = (task: string, payload: object) =>
-    t.app.inject({
+  const runTask = (task: string, payload: object) => {
+    const call = taskCall(payload);
+    return t.app.inject({
       method: 'POST',
       url: `/internal/v1/tasks/${task}`,
-      headers: { ...auth, 'idempotency-key': randomUUID() },
-      payload: { subjectRef: `review-case:${randomUUID()}`, waitSeconds: 10, ...payload },
+      headers: { ...auth, ...call.headers, 'idempotency-key': randomUUID() },
+      payload: { subjectRef: `review-case:${randomUUID()}`, waitSeconds: 10, ...call.body },
     });
+  };
 
   /** Runs a task to its end: the response once it finished, else the job polled until it has. */
-  const run = async (task: string, payload: object) => {
+  const run = async (task: string, payload: { tenant: string } & Record<string, unknown>) => {
     const response = await runTask(task, payload);
     expect([200, 202]).toContain(response.statusCode);
     let job = response.json<Job>();
@@ -135,7 +139,11 @@ describe('policy', { timeout: 90_000 }, () => {
       if (Date.now() > deadline) throw new Error(`job ${job.id} still ${job.status}`);
       await new Promise((resolve) => setTimeout(resolve, 100));
       job = (
-        await t.app.inject({ method: 'GET', url: `/internal/v1/jobs/${job.id}`, headers: auth })
+        await t.app.inject({
+          method: 'GET',
+          url: `/internal/v1/jobs/${job.id}`,
+          headers: { ...auth, ...actingFor(payload.tenant) },
+        })
       ).json<Job>();
     }
     return job;

@@ -1,4 +1,3 @@
-import { TENANT_KEY } from '@adili/api-kit';
 import { z } from 'zod';
 
 import { TASKS } from '../tasks/registry.js';
@@ -11,8 +10,8 @@ export const DATA_CLASSES = ['synthetic', 'restricted', 'highly-confidential'] a
 export type DataClass = (typeof DATA_CLASSES)[number];
 export const dataClassSchema = z.enum(DATA_CLASSES);
 
+/** The tenant is not in the body: it is the one the caller acts for (`X-Acting-Tenant`). */
 const requestFields = {
-  tenant: z.string().regex(TENANT_KEY),
   dataClass: dataClassSchema,
   subjectRef: z.string().min(1).max(200).meta({
     description: 'Owning record, e.g. review-case:<uuid>; appears in audit and events',
