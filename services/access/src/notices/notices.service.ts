@@ -139,28 +139,21 @@ export class NoticesService {
 
     const { row, saved, released } = await withPerson(this.db, person, async (tx) => {
       const own = notFoundIfInvisible(await noticeRow(tx, personId, requestId));
-      // The request and its register belong to the Commission: lock it there, so the window
-      // cannot close (nor the request be withdrawn) between the check and the save.
-      await switchTenant(tx, { tenant: own.tenant, subject: principal.subject });
-      const [locked] = await tx
-        .select()
-        .from(accessRequests)
-        .where(eq(accessRequests.id, own.id))
-        .for('update');
-      const current = notFoundIfInvisible(locked);
       const now = this.clock.now();
-      requireOpen(current, now);
-
+      // The representations are the declarant's own write: made under their person context, so
+      // the person policy (their own, on a request about them they were told of) admits it,
+      // not the Commission's (decisions.md #250, ADR-018).
       const [previous] = await tx
         .select()
         .from(representations)
-        .where(eq(representations.requestId, current.id));
+        .where(eq(representations.requestId, own.id))
+        .for('update');
       const values = { stance: input.stance, text: input.text, attachments };
       const [saved] = await tx
         .insert(representations)
         .values({
-          requestId: current.id,
-          tenant: current.tenant,
+          requestId: own.id,
+          tenant: own.tenant,
           personId,
           ...values,
           submittedAt: now,
@@ -171,6 +164,18 @@ export class NoticesService {
         })
         .returning();
       if (!saved) throw new Error('The representations were not saved');
+
+      // The request and its register belong to the Commission: lock it there, so the window
+      // cannot close (nor the request be withdrawn) before this commits. Closed meanwhile: the
+      // 409 rolls the save back with everything else.
+      await switchTenant(tx, { tenant: own.tenant, subject: principal.subject });
+      const [locked] = await tx
+        .select()
+        .from(accessRequests)
+        .where(eq(accessRequests.id, own.id))
+        .for('update');
+      const current = notFoundIfInvisible(locked);
+      requireOpen(current, now);
 
       const row = input.stance === 'consent' ? await consent(tx, current.id) : current;
       await this.register.record(tx, {

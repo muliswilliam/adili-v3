@@ -116,7 +116,7 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Full request for the access officer (Form K, representations, register)
+         * Full request for the access officer (Form K, representations, register; audited)
          * @description The Commission's access officer and supervisor read it; another Commission's request, and EACC, get 404. The timeline is the request's whole access register, actors named.
          */
         get: operations["getAccessRequestForOfficer"];
@@ -156,7 +156,7 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Search the Commission's roster for the officer a request names (access officer)
+         * Search the Commission's roster for the officer a request names (access officer; audited)
          * @description By personnel file number (its beginning) or part of the name, at most 20 records by full name. Only an `onboarded` record can be chosen: its declarant is notified.
          */
         get: operations["listRosterCandidates"];
@@ -260,7 +260,7 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * One request (the officer who filed it, or the Commission's access officer)
+         * One request (the officer who filed it, or the Commission's access officer; audited)
          * @description The officer who filed it sees it with only their own name on the timeline; the Commission's access officer and supervisor see it whole. The package (`package.documentId`) is downloaded by the filing officer from documents until `package.downloadExpiresAt`.
          */
         get: operations["getLeaRequest"];
@@ -280,7 +280,7 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Search the Commission's roster for the officer a law enforcement request names
+         * Search the Commission's roster for the officer a law enforcement request names (audited)
          * @description As for Form K: by personnel file number (its beginning) or part of the name, at most 20 records by full name. Only an `onboarded` record can be chosen when verifying: its declarant is told after a grant.
          */
         get: operations["listLeaRosterCandidates"];
@@ -560,7 +560,6 @@ export interface components {
             includeSpouses: boolean;
             includeChildren: boolean;
             sections: components["schemas"]["Section"][];
-            includeClarifications: boolean;
         };
         Decision: {
             outcome: components["schemas"]["Outcome"];
@@ -1866,7 +1865,7 @@ export interface operations {
             /**
              * @description The Commission supervisor reads requests; only its access officer acts
              *
-             *     Requires one of the roles: access-officer, supervisor
+             *     Requires one of the roles: access-officer, supervisor, eacc-analyst, eacc-supervisor
              */
             403: {
                 headers: {
@@ -1876,7 +1875,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
-            /** @description No such request at the Commission */
+            /** @description No such request at the caller's Commission (another Commission's, EACC's or anyone else's view) */
             404: {
                 headers: {
                     [name: string]: unknown;

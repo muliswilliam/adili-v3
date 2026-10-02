@@ -1,10 +1,15 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { notFoundIfInvisible, type Principal } from '@adili/api-kit';
+import { notFoundIfInvisible, type Principal, type ReadAudit } from '@adili/api-kit';
 import { DATABASE, FieldCipher, FieldCipherError, withTenant } from '@adili/data-access';
 import { and, eq, inArray, sql } from 'drizzle-orm';
 import { v7 as uuidv7 } from 'uuid';
 
-import { commissionTenant, ownCommissionTenant, requireAccessOfficer } from '../access.js';
+import {
+  accessOfficerName,
+  commissionTenant,
+  ownCommissionTenant,
+  requireAccessOfficer,
+} from '../access.js';
 import { addDays, Clock } from '../clock.js';
 import { config } from '../config.js';
 import type { AccessDatabase, AccessTransaction } from '../db/database.js';
@@ -44,6 +49,7 @@ import {
   type ProblemError,
 } from '../problems.js';
 import type { RosterCandidates } from '../requests/officer-representation.js';
+import { rosterCandidates } from '../requests/roster-candidates.js';
 import {
   type DeclarantVersions,
   type SelfAccessApplicationDetail,
@@ -98,21 +104,15 @@ export class SelfAccessApplicationsService {
   ) {}
 
   /** The Commission's roster records matching a search, as the officer looks for the declarant. */
-  async declarants(principal: Principal, slug: string, search: string): Promise<RosterCandidates> {
+  async declarants(
+    principal: Principal,
+    slug: string,
+    search: string,
+    audit: ReadAudit,
+  ): Promise<RosterCandidates> {
     const tenant = commissionTenant(principal, slug);
     requireAccessOfficer(principal, 'record a self-access application');
-    const found = await this.fromDirectory(() => this.directory.searchRoster(tenant, search));
-    return {
-      items: found.map((record) => ({
-        id: record.id,
-        personnelFileNumber: record.personnelFileNumber,
-        fullName: record.fullName,
-        designation: record.designation,
-        reportingEntity: record.reportingEntityName,
-        state: record.state,
-        onboarded: record.personId !== null,
-      })),
-    };
+    return rosterCandidates(this.directory, tenant, search, audit);
   }
 
   /**
@@ -124,6 +124,7 @@ export class SelfAccessApplicationsService {
     principal: Principal,
     slug: string,
     rosterRecordId: string,
+    audit: ReadAudit,
   ): Promise<DeclarantVersions> {
     const tenant = commissionTenant(principal, slug);
     requireAccessOfficer(principal, 'record a self-access application');
@@ -132,6 +133,7 @@ export class SelfAccessApplicationsService {
     );
     if (record === null) throw notFound('No such roster record of the Commission.');
     const versions = record.personId === null ? [] : await this.versionsOf(tenant, record.personId);
+    audit.resource({ tenant, subjectPersonId: record.personId });
     return {
       declarant: {
         rosterRecordId: record.id,
@@ -202,7 +204,7 @@ export class SelfAccessApplicationsService {
             deliveryMethod: input.deliveryMethod,
             deadlineAt: addDays(now, config.SELF_ACCESS_DAYS),
             recordedBy: principal.subject,
-            recordedByName: principal.name ?? principal.subject,
+            recordedByName: accessOfficerName(principal),
             receivedAt: now,
           })
           .returning();
@@ -276,13 +278,18 @@ export class SelfAccessApplicationsService {
   }
 
   /** One application of the caller's Commission, with the representative's ID number. */
-  async get(principal: Principal, applicationId: string): Promise<SelfAccessApplicationDetail> {
+  async get(
+    principal: Principal,
+    applicationId: string,
+    audit: ReadAudit,
+  ): Promise<SelfAccessApplicationDetail> {
     const tenant = ownCommissionTenant(principal);
     const found = notFoundIfInvisible(
       await withTenant(this.db, { tenant, subject: principal.subject }, (tx) =>
         applicationWithCopy(tx, applicationId),
       ),
     );
+    audit.resource({ tenant, subjectPersonId: found.row.personId });
     return this.detail(principal, found.row, found.copy);
   }
 

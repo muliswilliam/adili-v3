@@ -1,5 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { notFoundIfInvisible, PLATFORM_TENANT, type Principal } from '@adili/api-kit';
+import { notFoundIfInvisible, type Principal } from '@adili/api-kit';
 import { DATABASE, FieldCipher, switchTenant, withPerson, withTenant } from '@adili/data-access';
 import type { AccessRequestReceivedData } from '@adili/events/contracts';
 import { validateFormK } from '@adili/forms';
@@ -11,16 +11,16 @@ import { applicantPersonId } from '../access.js';
 import { addDays, Clock, nairobiYear } from '../clock.js';
 import { config } from '../config.js';
 import type { AccessDatabase, AccessTransaction } from '../db/database.js';
+import { responsibleCommission } from '../commissions/responsible-commission.js';
 import {
-  type ApplicantIdentityStatus,
-  type CommissionFacts,
+  type ApplicantFacts,
   DirectoryClient,
   DirectoryUnavailable,
 } from '../directory/directory-client.js';
 import { badRequest, directoryUnavailable, problem } from '../problems.js';
 import { AccessRegister, type RegisterRow } from '../register/access-register.js';
 import { currentTransactionId } from '../workflow-control.js';
-import { openFormK, sealFormK, withoutMeta } from './form-k.js';
+import { openFormK, sealFormK, withApplicantParticulars, withoutMeta } from './form-k.js';
 import { AccessRequestWorkflows } from './request-workflows.js';
 import { type AccessRequest, type AccessRequestRow, toAccessRequest } from './representation.js';
 import { type AccessRequestStatus, accessRequests } from './schema.js';
@@ -56,6 +56,7 @@ export class RequestsService {
 
   /**
    * Receives a Form K (S2): validates it against `form-k.v1` (400 with the paths at fault),
+   * fills Part I's particulars from the applicant's directory record (`withApplicantParticulars`),
    * allocates its `ARQ` reference at receipt (the acknowledgement is the legal act of receipt)
    * and stores it with the encrypted document, the `received` register entry and its event, all
    * in one transaction of the Commission's context. The request is `submitted`, or
@@ -73,9 +74,17 @@ export class RequestsService {
     if (!validated.ok) {
       throw badRequest('The document is not a valid Form K.', validated.errors);
     }
-    const formK = withoutMeta(validated.value);
-    const commission = await this.commission(formK.responsibleCommission);
-    const identityStatus = await this.identityStatus(personId, commission.slug);
+    const commission = await responsibleCommission(
+      this.directory,
+      validated.value.responsibleCommission,
+      () =>
+        badRequest('The document is not a valid Form K.', [
+          { path: 'responsibleCommission', message: 'is not a Responsible Commission' },
+        ]),
+    );
+    const applicantRecord = await this.applicant(personId, commission.slug);
+    const identityStatus = applicantRecord.identityStatus;
+    const formK = withApplicantParticulars(withoutMeta(validated.value), applicantRecord);
 
     const id = uuidv7();
     const now = this.clock.now();
@@ -255,29 +264,12 @@ export class RequestsService {
     return toAccessRequest(row, formK, applicantTimeline(entries, row.applicantSubject));
   }
 
-  /** The Responsible Commission Form K names; 400 at `responsibleCommission` when there is none. */
-  private async commission(slug: string): Promise<CommissionFacts> {
-    const unknown = () =>
-      badRequest('The document is not a valid Form K.', [
-        { path: 'responsibleCommission', message: 'is not a Responsible Commission' },
-      ]);
-    if (slug === PLATFORM_TENANT) throw unknown();
-    try {
-      const commission = await this.directory.findCommission(slug);
-      if (commission === null) throw unknown();
-      return commission;
-    } catch (error) {
-      if (error instanceof DirectoryUnavailable) throw directoryUnavailable();
-      throw error;
-    }
-  }
-
   /**
-   * The applicant's identity status as the directory holds it now (not as the token says: a
-   * verification counts at once). An account with no applicant person behind it has not
-   * finished onboarding: 403 `no-applicant-record`.
+   * The applicant as the directory holds them now: their particulars, and their identity status
+   * (not as the token says: a verification counts at once). An account with no applicant person
+   * behind it has not finished onboarding: 403 `no-applicant-record`.
    */
-  private async identityStatus(personId: string, tenant: string): Promise<ApplicantIdentityStatus> {
+  private async applicant(personId: string, tenant: string): Promise<ApplicantFacts> {
     let applicant;
     try {
       applicant = await this.directory.applicant(personId, tenant);
@@ -288,7 +280,7 @@ export class RequestsService {
     if (applicant === null) {
       throw problem('no-applicant-record', 'The account has no applicant record.');
     }
-    return applicant.identityStatus;
+    return applicant;
   }
 }
 

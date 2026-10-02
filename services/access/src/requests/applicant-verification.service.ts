@@ -5,9 +5,9 @@ import { eq } from 'drizzle-orm';
 import { v5 as uuidv5 } from 'uuid';
 import { z } from 'zod';
 
-import { ownCommissionTenant, requireAccessOfficer } from '../access.js';
+import { accessOfficerName, ownCommissionTenant, requireAccessOfficer } from '../access.js';
 import { Clock } from '../clock.js';
-import type { AccessDatabase, AccessTransaction } from '../db/database.js';
+import type { AccessDatabase } from '../db/database.js';
 import { DirectoryClient, DirectoryUnavailable } from '../directory/directory-client.js';
 import { directoryUnavailable, problem } from '../problems.js';
 import { AccessRegister } from '../register/access-register.js';
@@ -16,6 +16,7 @@ import { type OfficerRequestView, toOfficerRequestView } from './officer-view.js
 import { AccessRequestWorkflows } from './request-workflows.js';
 import type { AccessRequestRow } from './representation.js';
 import { accessRequests, type ApplicantVerification, representations } from './schema.js';
+import { requestRow } from './request-row.js';
 import { officerTimeline, registerEntriesOf } from './timeline.js';
 
 /** Body of `verifyApplicantIdentity`. */
@@ -86,7 +87,7 @@ export class ApplicantVerificationService {
       verified: body.verified,
       note: body.note,
       by: principal.subject,
-      byName: principal.name ?? principal.subject,
+      byName: accessOfficerName(principal),
       at: now.toISOString(),
     };
     const { row, entries, representationsRow } = await withTenant(this.db, context, async (tx) => {
@@ -160,16 +161,6 @@ export class ApplicantVerificationService {
       throw new Error(`The applicant of request ${requestId} is unknown to the directory`);
     }
   }
-}
-
-async function requestRow(
-  tx: AccessTransaction,
-  requestId: string,
-  { lock = false }: { lock?: boolean } = {},
-): Promise<AccessRequestRow | undefined> {
-  const query = tx.select().from(accessRequests).where(eq(accessRequests.id, requestId));
-  const [row] = lock ? await query.for('update') : await query;
-  return row;
 }
 
 function requirePending(row: AccessRequestRow): void {

@@ -51,10 +51,27 @@ export const ROSTER_SEARCH_LIMIT = 20;
  */
 export type ApplicantIdentityStatus = 'verified' | 'pending-verification';
 
-/** What a request needs of its applicant's person record (directory.yaml `InternalApplicant`). */
+/** The identity document an applicant onboarded with (directory.yaml `ApplicantIdentityDocument`). */
+export interface ApplicantIdentityDocument {
+  kind: 'national-id' | 'passport';
+  /** National ID digits, or the passport number upper-cased without spaces. */
+  number: string;
+  /** A passport's issuing country (ISO 3166-1 alpha-2); null for a national ID. */
+  country: string | null;
+}
+
+/**
+ * What a request needs of its applicant's person record (directory.yaml `InternalApplicant`): their
+ * identity status, and the particulars Form K Part I is filled from (the directory's, never the
+ * request body's, so a request always traces to the account that filed it).
+ */
 export interface ApplicantFacts {
   personId: string;
   identityStatus: ApplicantIdentityStatus;
+  fullName: string;
+  identityDocument: ApplicantIdentityDocument;
+  /** Null when the directory holds none (the applicant's own entry in Part I is kept then). */
+  contacts: { email: string | null; phone: string | null };
 }
 
 /** An access officer's verification of a passport applicant, recorded in the directory. */

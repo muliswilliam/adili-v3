@@ -1,0 +1,31 @@
+import { PLATFORM_TENANT } from '@adili/api-kit';
+
+import {
+  type CommissionFacts,
+  DirectoryClient,
+  DirectoryUnavailable,
+} from '../directory/directory-client.js';
+import { directoryUnavailable } from '../problems.js';
+
+/**
+ * The active Commission `slug` names, as the directory holds it: what a request or a certified
+ * copy is addressed to. `unknown()` (the caller's problem: 400 at its field, or 404) when the
+ * directory has no such Commission, or for `platform`, which is no Commission; 503
+ * `directory-unavailable` when the directory cannot be reached.
+ */
+export async function responsibleCommission(
+  directory: DirectoryClient,
+  slug: string,
+  unknown: () => Error,
+): Promise<CommissionFacts> {
+  if (slug === PLATFORM_TENANT) throw unknown();
+  let commission;
+  try {
+    commission = await directory.findCommission(slug);
+  } catch (error) {
+    if (error instanceof DirectoryUnavailable) throw directoryUnavailable();
+    throw error;
+  }
+  if (commission === null) throw unknown();
+  return commission;
+}

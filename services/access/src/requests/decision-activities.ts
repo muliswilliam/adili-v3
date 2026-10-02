@@ -254,7 +254,9 @@ export class DecisionActivities {
         .where(eq(accessRequests.id, requestId))
         .for('update');
       if (!found) return 'missing';
-      if (found.downloadExpiresAt === null) throw invariantBroken('The request has no package');
+      if (found.downloadExpiresAt === null || found.packageDocumentId === null) {
+        throw invariantBroken('The request has no package');
+      }
       const [expired] = await tx
         .select({ id: accessRegister.id })
         .from(accessRegister)
