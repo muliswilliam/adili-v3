@@ -25,7 +25,7 @@ export const Route = createFileRoute('/access/certified-copies')({
   head: () => ({ meta: [{ title: 'Certified copies · Adili Online' }] }),
   pendingComponent: () => (
     <TransparencyFrame title={COPY.title} active="/access/certified-copies">
-      <TransparencySkeleton />
+      <TransparencySkeleton label={COPY.loading} />
     </TransparencyFrame>
   ),
   component: CertifiedCopiesRoute,

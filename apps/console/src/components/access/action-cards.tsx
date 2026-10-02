@@ -8,7 +8,9 @@ import {
   Icon,
   Spinner,
   Textarea,
+  useIdempotencyKey,
   useToast,
+  formatPhone,
 } from '@adili/ui';
 import { AlertCircleIcon, UserCheck01Icon, UserRemove01Icon } from '@hugeicons/core-free-icons';
 import { useRouter } from '@tanstack/react-router';
@@ -22,7 +24,7 @@ import {
 import type { AccessResult } from '../../server/access-requests.server';
 import type { OfficerRequestView, RosterCandidate } from '../../server/access/types';
 import { goToSignIn } from '../sign-in-redirect';
-import { formatPhone, formKOf } from './form-k-card';
+import { formKOf } from './form-k-card';
 import { messages as m } from './messages';
 import { actionFailure, verifyNoteError } from './request-view';
 import { CannotIdentifyDialog, ResolveDialog } from './resolve-dialogs';
@@ -84,7 +86,7 @@ export function VerifyApplicantCard({ view }: { view: OfficerRequestView }) {
   const [checked, setChecked] = useState(false);
   const [note, setNote] = useState('');
   const [errors, setErrors] = useState<{ checked?: string; note?: string }>({});
-  const [key] = useState(() => crypto.randomUUID());
+  const idempotencyKey = useIdempotencyKey();
   const command = useCommand();
 
   const submit = () => {
@@ -94,11 +96,10 @@ export function VerifyApplicantCard({ view }: { view: OfficerRequestView }) {
     };
     setErrors(next);
     if (next.checked || next.note) return;
+    const body = { requestId: view.id, note: note.trim() };
     void command.run(
       () =>
-        verifyApplicantIdentity({
-          data: { requestId: view.id, note: note.trim(), idempotencyKey: key },
-        }),
+        verifyApplicantIdentity({ data: { ...body, idempotencyKey: idempotencyKey.keyFor(body) } }),
       m.verified,
       { onDone: () => undefined },
     );

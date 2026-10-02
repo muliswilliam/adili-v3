@@ -17,6 +17,7 @@ import {
   SelectItem,
   Spinner,
   useToast,
+  useIdempotencyKey,
 } from '@adili/ui';
 import { AlertCircleIcon } from '@hugeicons/core-free-icons';
 import { useNavigate } from '@tanstack/react-router';
@@ -179,14 +180,13 @@ export function RecordApplicationForm({
   const [versions, setVersions] = useState<VersionsLoad | null>(null);
   const [busy, setBusy] = useState(false);
   const [failure, setFailure] = useState<string | null>(null);
-  // One key per submission attempt of the same form: a retry after an outage records once.
-  const [key, setKey] = useState(() => crypto.randomUUID());
+  // One key per body: a retry after an outage records once, a changed form is a new request.
+  const idempotencyKey = useIdempotencyKey();
   const latestVersions = useRef(0);
   const summaryRef = useRef<HTMLDivElement>(null);
 
   const change = (next: Partial<RecordForm>, cleared: RecordField[] = []) => {
     setForm((current) => ({ ...current, ...next }));
-    setKey(crypto.randomUUID());
     if (cleared.some((field) => errors[field])) {
       setErrors((current) =>
         Object.fromEntries(
@@ -241,7 +241,7 @@ export function RecordApplicationForm({
     }
     setBusy(true);
     const result = await recordSelfAccessApplication({
-      data: { slug, input, idempotencyKey: key },
+      data: { slug, input, idempotencyKey: idempotencyKey.keyFor(input) },
     }).catch((): Awaited<ReturnType<typeof recordSelfAccessApplication>> => ({
       ok: false,
       error: { kind: 'unavailable', detail: null },

@@ -1,4 +1,4 @@
-import { cn, focusRingInset } from '@adili/ui';
+import { TabsLink, TabsNav } from '@adili/ui';
 import { Link } from '@tanstack/react-router';
 
 import { messages as m } from './messages';
@@ -23,29 +23,18 @@ const TABS: {
 /**
  * The underlined row of the workspace's request types (the prototype's tabs over the queue):
  * every request, Form K, law enforcement, certified copies. Links between pages (the queue's
- * kind is in its URL), styled as `TabsTrigger`, the current one marked for assistive technology.
+ * kind is in its URL), as a `TabsNav`, the current one marked for assistive technology.
  */
 export function AccessTabs({ current }: { current: AccessTab }) {
   return (
-    <nav aria-label={s.tabsLabel} className="mb-4">
-      <ul className="flex gap-0.5 overflow-x-auto border-b [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-        {TABS.map(({ tab, to, search, label }) => (
-          <li key={tab}>
-            <Link
-              to={to}
-              search={search}
-              aria-current={tab === current ? 'page' : undefined}
-              className={cn(
-                focusRingInset,
-                '-mb-px inline-flex h-10 shrink-0 items-center gap-2 rounded-t-md border-b-2 border-transparent px-3 text-sm font-medium whitespace-nowrap text-muted-foreground transition-colors hover:text-foreground',
-                tab === current && 'border-foreground text-foreground',
-              )}
-            >
-              {label}
-            </Link>
-          </li>
-        ))}
-      </ul>
-    </nav>
+    <TabsNav aria-label={s.tabsLabel} className="mb-4">
+      {TABS.map(({ tab, to, search, label }) => (
+        <TabsLink key={tab} asChild current={tab === current}>
+          <Link to={to} search={search}>
+            {label}
+          </Link>
+        </TabsLink>
+      ))}
+    </TabsNav>
   );
 }

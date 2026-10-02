@@ -19,6 +19,7 @@ import {
   Spinner,
   Textarea,
   useToast,
+  useIdempotencyKey,
 } from '@adili/ui';
 import { File01Icon } from '@hugeicons/core-free-icons';
 import { useRouter } from '@tanstack/react-router';
@@ -108,7 +109,7 @@ export function WrittenRepresentationsDialog({
   const [busy, setBusy] = useState(false);
   // One key per entry sent: kept across retries of it, a new one once the entry changes (the
   // service keeps a refusal under its key, so a corrected entry needs its own).
-  const attempt = useRef<{ key: string; body: string } | null>(null);
+  const idempotencyKey = useIdempotencyKey();
   const removed = useRef(new Set<string>());
 
   const update = (scanKey: string, patch: Partial<Scan>) => {
@@ -170,10 +171,8 @@ export function WrittenRepresentationsDialog({
       text: text.trim(),
       attachments: scans.flatMap((scan) => (scan.uploadId ? [scan.uploadId] : [])),
     };
-    const body = JSON.stringify(input);
-    if (attempt.current?.body !== body) attempt.current = { key: crypto.randomUUID(), body };
     const result = await enterWrittenRepresentations({
-      data: { requestId: view.id, input, idempotencyKey: attempt.current.key },
+      data: { requestId: view.id, input, idempotencyKey: idempotencyKey.keyFor(input) },
     }).catch((): AccessResult<OfficerRequestView> => ({
       ok: false,
       error: { kind: 'unavailable', detail: null },

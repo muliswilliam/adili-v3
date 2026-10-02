@@ -193,8 +193,14 @@ export { Label } from './components/label';
 export { LateBadge, type LateBadgeProps } from './components/late-badge';
 export { Logo, LogoMark, LogoWordmark, type LogoProps } from './components/logo';
 export { MaskedContact, type MaskedContactProps } from './components/masked-contact';
-// The masking rules live in @adili/contacts (the services mask with them too).
-export { type ContactChannel, maskContact, maskEmail, maskPhone } from '@adili/contacts';
+// The masking and display rules live in @adili/contacts (the services mask with them too).
+export {
+  type ContactChannel,
+  formatPhone,
+  maskContact,
+  maskEmail,
+  maskPhone,
+} from '@adili/contacts';
 export {
   Menu,
   MenuContent,
@@ -362,7 +368,15 @@ export {
   TableRowLink,
   type TableRowLinkProps,
 } from './components/table';
-export { Tabs, TabsContent, TabsCount, TabsList, TabsTrigger } from './components/tabs';
+export {
+  Tabs,
+  TabsContent,
+  TabsCount,
+  TabsLink,
+  TabsList,
+  TabsNav,
+  TabsTrigger,
+} from './components/tabs';
 export { Textarea } from './components/textarea';
 export { type ToastOptions, ToastProvider, type ToastUrgency, useToast } from './components/toast';
 export { Tooltip, type TooltipProps, TooltipProvider } from './components/tooltip';
@@ -429,6 +443,7 @@ export {
   formatTime,
   msUntilKenyanMidnight,
 } from './lib/format-date';
+export { type IdempotencyKeys, useIdempotencyKey } from './lib/use-idempotency-key';
 export { useToday } from './lib/use-today';
 export {
   obligationCycleLabel,

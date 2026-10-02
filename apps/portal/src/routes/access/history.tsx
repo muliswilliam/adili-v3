@@ -26,7 +26,7 @@ export const Route = createFileRoute('/access/history')({
   head: () => ({ meta: [{ title: 'Who accessed my declaration · Adili Online' }] }),
   pendingComponent: () => (
     <TransparencyFrame title={COPY.title} active="/access/history">
-      <TransparencySkeleton />
+      <TransparencySkeleton label={COPY.loading} />
     </TransparencyFrame>
   ),
   component: HistoryRoute,

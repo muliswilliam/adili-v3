@@ -336,6 +336,38 @@ describe('a new written request (S11)', () => {
     expect(screen.getByText(/^LEA-PSC-2026-/)).toBeTruthy();
   });
 
+  it('a retry keeps its Idempotency-Key; a request changed after an outage gets a new one', async () => {
+    vi.mocked(sendLeaRequest)
+      .mockClear()
+      .mockResolvedValueOnce({ ok: false, error: { kind: 'unavailable', detail: null } })
+      .mockResolvedValueOnce({ ok: false, error: { kind: 'unavailable', detail: null } })
+      .mockResolvedValueOnce({ ok: false, error: { kind: 'unavailable', detail: null } });
+    const keys = () =>
+      vi.mocked(sendLeaRequest).mock.calls.map(([call]) => call.data.idempotencyKey);
+    const send = () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Send request' }));
+    };
+    wrap(<NewRequestForm commissions={MOCK_COMMISSIONS} />);
+    fillIn();
+    send();
+    await waitFor(() => {
+      expect(keys()).toHaveLength(1);
+    });
+    send();
+    await waitFor(() => {
+      expect(keys()).toHaveLength(2);
+    });
+    expect(keys()[1]).toBe(keys()[0]);
+    fireEvent.change(screen.getByRole('textbox', { name: /Case reference/ }), {
+      target: { value: 'DCI/ECU/151/2026' },
+    });
+    send();
+    await waitFor(() => {
+      expect(keys()).toHaveLength(3);
+    });
+    expect(keys()[2]).not.toBe(keys()[1]);
+  });
+
   it("shows the service's refusal and keeps what was typed", async () => {
     wrap(<NewRequestForm commissions={MOCK_COMMISSIONS} />);
     fillIn();
