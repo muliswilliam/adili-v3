@@ -462,6 +462,31 @@ describe('Draft with AI in the composer (spec 07c FE-3, S12)', () => {
     ).not.toHaveLength(0);
   });
 
+  it('turns itself on again once the copilot is no longer not-enabled (Q9)', async () => {
+    const { setCopilotStatus } = renderHost({
+      copilotStatus: 'ready',
+      server: fakeDraftServer({
+        request: {
+          ok: false,
+          error: {
+            kind: 'problem',
+            problem: { type: 'ai-not-enabled', title: 'Conflict', status: 409 },
+          },
+        },
+      }),
+    });
+    pick('Value changed by 150% since the previous declaration');
+    fireEvent.click(draftButton());
+    await settle();
+    expect(draftButton().hasAttribute('disabled')).toBe(true);
+
+    // A refresh found the Commission not enabled, then (after an admin enabled it) ready.
+    setCopilotStatus('not-enabled');
+    setCopilotStatus('ready');
+    expect(within(drafting()).queryByText('Not enabled for this Commission')).toBeNull();
+    expect(draftButton().hasAttribute('disabled')).toBe(false);
+  });
+
   it('is off from the start when the copilot is not enabled for the Commission', () => {
     renderHost({ copilotStatus: 'not-enabled' });
     expect(within(drafting()).getByText('Not enabled for this Commission')).toBeTruthy();
