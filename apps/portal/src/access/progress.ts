@@ -135,6 +135,13 @@ export function requestStages(request: AccessRequest, now: number, windowClosed 
       detail: PACKAGE.stagePreparingDetail,
       state: 'current',
     });
+  } else if (pkg?.state === 'missing') {
+    stages.push({
+      id: 'package',
+      title: PACKAGE.stagePreparing,
+      detail: PACKAGE.stageMissingDetail,
+      state: 'stopped',
+    });
   } else if (pkg?.state === 'ready') {
     stages.push({
       id: 'package',

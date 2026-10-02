@@ -31,11 +31,11 @@ import {
   STATUS_BANNERS,
   STATUSES,
 } from '../../access/copy';
-import { packageView, type PackageView } from '../../access/package';
+import { packageView, type PackageView, preparingEndsAt } from '../../access/package';
 import { accessReferenceParts } from '../../access/reference';
 import { decisionClock, requestStages, type Stage, WITHDRAWABLE } from '../../access/progress';
 import type { AccessRequest } from '../../server/access/types';
-import { PackageCard, usePackageClock } from './package-card';
+import { PackageCard, usePackageClock, useWakeAt } from './package-card';
 import { GroundsList, PartRow, PartRows, ScopeRows } from './request-parts';
 import { RequestStatusBadge } from './request-status';
 
@@ -65,6 +65,7 @@ function bannerDate(request: AccessRequest): string {
 /** What comes after a grant's lead: download by when, being prepared, or the window closed. */
 function packageNext(request: AccessRequest, pkg: PackageView): string {
   if (pkg.state === 'preparing') return PACKAGE.preparingNext;
+  if (pkg.state === 'missing') return PACKAGE.missingNext;
   if (pkg.state === 'expired') return PACKAGE.closedNext(day(pkg.package.downloadExpiresAt));
   const at = pkg.package.downloadExpiresAt;
   const partial = request.status === 'partially-granted';
@@ -326,7 +327,9 @@ export function RequestPage({
   onDownloaded: () => void;
 }) {
   const withdrawable = WITHDRAWABLE.has(request.status);
-  const now = usePackageClock(serverNow, request.package?.downloadExpiresAt ?? null);
+  const clock = usePackageClock(serverNow, request.package?.downloadExpiresAt ?? null);
+  // A package not issued an hour after the grant stops reading as being prepared.
+  const now = useWakeAt(clock, preparingEndsAt(request));
   const [windowClosed, setWindowClosed] = useState(false);
   const pkg = packageView(request, now, windowClosed);
   return (

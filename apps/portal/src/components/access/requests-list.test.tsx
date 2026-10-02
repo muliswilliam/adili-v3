@@ -49,7 +49,7 @@ describe('RequestsList (S17)', () => {
   });
 
   it('shows the decision clock only while a request is open', async () => {
-    const requests = await rows();
+    const requests = (await rows()).filter((each) => [IDS.late, IDS.withdrawn].includes(each.id));
     render(<RequestsList requests={requests} page={1} now={NOW} onPage={vi.fn()} />);
     expect(screen.getByText(/^\d+ days late$/)).toBeTruthy();
     const withdrawn = requests.find((each) => each.status === 'withdrawn');
@@ -124,7 +124,7 @@ describe('RequestsList (S17)', () => {
     const onPage = vi.fn();
     render(<RequestsList requests={requests} page={1} now={NOW} onPage={onPage} />);
     expect(screen.getAllByRole('listitem')).toHaveLength(10);
-    expect(screen.getByText('1-10 of 14')).toBeTruthy();
+    expect(screen.getByText('1-10 of 15')).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Next page' }));
     expect(onPage).toHaveBeenCalledWith(2);
   });

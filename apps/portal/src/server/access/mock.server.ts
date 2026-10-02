@@ -10,7 +10,8 @@
  *   (package for 13 more days), partially granted (2 more days), denied, cannot identify
  *   officer, withdrawn;
  * - granted with the package's window ending in about five hours, granted with the window
- *   closed (downloaded twice), and granted today with the package still being prepared.
+ *   closed (downloaded twice), granted today with the package still being prepared, and granted
+ *   three days ago with no package issued.
  *
  * Commissions: the Public Service Commission (2025, 2026), the Teachers Service Commission,
  * the National Police Service Commission, the Judicial Service Commission (2026) and the Kiambu
@@ -164,7 +165,8 @@ type SeedKey =
   | 'withdrawn'
   | 'expiring'
   | 'expired'
-  | 'preparing';
+  | 'preparing'
+  | 'unissued';
 
 interface Seed {
   key: SeedKey;
@@ -485,6 +487,31 @@ const SEEDS: Seed[] = [
       grounds: [],
       reasons:
         'The applicant shows a legitimate interest in the handling of court fees, and access to the liabilities declared promotes the objectives of the Act.',
+    },
+    package: { preparing: true },
+  },
+  {
+    // Granted days ago and no package was issued (nothing to disclose, or issuing failed).
+    key: 'unissued',
+    commission: 'psc',
+    status: 'granted',
+    submittedDaysAgo: 24,
+    notified: 22,
+    decided: 3,
+    officer: {
+      name: 'Daniel Kiprotich Rotich',
+      entity: 'Kenya Forest Service',
+      workStation: 'Karura, Nairobi',
+    },
+    informationSought: 'Other information in the 2025 declaration.',
+    reason:
+      'Forest land was allocated to private developers while the officer led the station. The declaration shows whether the officer declared an interest in the developers.',
+    scope: scope([2025], ['other']),
+    decision: {
+      outcome: 'grant',
+      grounds: [],
+      reasons:
+        'The applicant shows a legitimate interest in the allocation of public forest land, which promotes the objectives of the Act.',
     },
     package: { preparing: true },
   },

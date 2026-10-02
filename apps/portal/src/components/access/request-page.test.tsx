@@ -241,6 +241,26 @@ describe('RequestPage package (#261, S7)', () => {
     expect(screen.getByText(/Your package is being prepared\./)).toBeTruthy();
   });
 
+  it('says no package was issued once an hour has passed since the grant without one', async () => {
+    show(await seededRequest(IDS.unissued));
+    expect(
+      screen.getByText('No package has been issued for this grant.', { selector: 'p' }),
+    ).toBeTruthy();
+    expect(
+      screen.getByText(/Contact Public Service Commission if you still need it\./),
+    ).toBeTruthy();
+    expect(screen.queryByText('Preparing your package…')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Download' })).toBeNull();
+    expect(stage('Package, stopped')).toBeTruthy();
+  });
+
+  it('describes Download by when the window ends', async () => {
+    show(await seededRequest(IDS.granted));
+    const button = screen.getByRole('button', { name: 'Download' });
+    const described = document.getElementById(button.getAttribute('aria-describedby') ?? '');
+    expect(described?.textContent).toMatch(/^Expires \d+ Oct 2026, \d\d:\d\d · 13 days left$/);
+  });
+
   it('shows no package for a denial', async () => {
     show(await seededRequest(IDS.denied));
     expect(screen.queryByRole('heading', { name: 'Package' })).toBeNull();

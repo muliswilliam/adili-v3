@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { IDS, NOW, seededRequest } from '../components/access/testing';
-import { countdownSpoken, countdownText, packageView } from './package';
+import { countdownSpoken, countdownText, packageView, preparingEndsAt } from './package';
 
 const HOUR = 3_600_000;
 
@@ -41,6 +41,16 @@ describe('packageView (#261)', () => {
 
   it('is being prepared for a grant without a package yet', async () => {
     expect(packageView(await seededRequest(IDS.preparing), NOW)).toEqual({ state: 'preparing' });
+  });
+
+  it('is missing an hour after the grant without a package, as in the console', async () => {
+    const request = await seededRequest(IDS.preparing);
+    const decided = Date.parse(request.decision?.decidedAt ?? '');
+    expect(packageView(request, decided + HOUR - 1)?.state).toBe('preparing');
+    expect(packageView(request, decided + HOUR)).toEqual({ state: 'missing' });
+    expect(packageView(await seededRequest(IDS.unissued), NOW)).toEqual({ state: 'missing' });
+    expect(preparingEndsAt(request)).toBe(new Date(decided + HOUR).toISOString());
+    expect(preparingEndsAt(await seededRequest(IDS.granted))).toBeNull();
   });
 
   it('is absent for any status but a grant', async () => {
