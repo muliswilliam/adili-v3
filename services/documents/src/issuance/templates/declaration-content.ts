@@ -118,7 +118,8 @@ table.items td{padding:1.4mm 1.5mm;border-bottom:0.25mm solid ${LINE};vertical-a
 table.items tr{break-inside:avoid}
 table.items .num{text-align:right;white-space:nowrap}
 .note{color:${SOFT};font-size:7.8pt;margin-top:0.6mm}
-.nil{color:${SOFT};font-style:italic;margin:0 0 1mm}`;
+.nil{color:${SOFT};font-style:italic;margin:0 0 1mm}
+.attest{break-inside:avoid}`;
 
 const INCOME_TYPES: Record<IncomeItem['type'], string> = {
   'salary-emoluments': 'Salary and emoluments',
@@ -458,5 +459,5 @@ export function attestation(content: Pick<DeclarationV1, 'attestation'>): string
   const declared = content.attestation.declaredAt
     ? `<p class="note">Declared ${esc(formatDateTime(content.attestation.declaredAt))}.</p>`
     : '';
-  return `<section class="sec"><h2>Declaration</h2><p>${esc(content.attestation.text)}</p>${declared}</section>`;
+  return `<section class="sec attest"><h2>Declaration</h2><p>${esc(content.attestation.text)}</p>${declared}</section>`;
 }
