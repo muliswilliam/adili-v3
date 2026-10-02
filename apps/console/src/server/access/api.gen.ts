@@ -97,7 +97,7 @@ export interface paths {
         };
         /**
          * Queue of access requests with deadlines (access officer; supervisor reads)
-         * @description Form K requests (30-day deadline) and law enforcement requests (14-day deadline) together, or one `kind`. Open requests first, earliest decision deadline first; then decided and closed ones, latest deadline first. `late`: past the deadline and neither decided nor closed (for a law enforcement request, the breach flag). Filters combine (`status`, `kind`, `late`, `search`).
+         * @description Form K requests (30-day deadline) and law enforcement requests (14-day deadline) together, or one `kind`. Open requests first, earliest decision deadline first; then decided and closed ones, latest deadline first. `late`: past the deadline and neither decided nor closed (for a law enforcement request, the breach flag). Filters combine (`status`, `kind`, `late`, `search`). Audited (ADR-008: it returns declarant names, and a search finds them), naming the requests served.
          */
         get: operations["listCommissionAccessRequests"];
         put?: never;
@@ -613,7 +613,7 @@ export interface paths {
         };
         /**
          * The Commission's written self-access applications with their deadlines
-         * @description Those still to collect or dispatch first, earliest deadline first; then the delivered ones, latest deadline first. `late`: the certified copy was not issued by the deadline (14 days from receipt).
+         * @description Those still to collect or dispatch first, earliest deadline first; then the delivered ones, latest deadline first. `late`: the certified copy was not issued by the deadline (14 days from receipt). Audited (ADR-008: it returns declarant names), naming the applications served.
          */
         get: operations["listSelfAccessApplications"];
         put?: never;

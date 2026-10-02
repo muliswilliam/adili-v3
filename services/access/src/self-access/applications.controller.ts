@@ -149,23 +149,28 @@ export class SelfAccessApplicationsController {
 
   @Get('v1/commissions/:slug/access/self-access')
   @Roles(...OFFICER_ROUTE_ROLES)
+  @AuditedRead({ action: 'access.self-access.listed', resource: 'self-access-application' })
   @ApiParam(SLUG)
   @ApiOperation({
     operationId: 'listSelfAccessApplications',
     summary: "The Commission's written self-access applications with their deadlines",
     description:
-      'Those still to collect or dispatch first, earliest deadline first; then the delivered ones, latest deadline first. `late`: the certified copy was not issued by the deadline (14 days from receipt).',
+      'Those still to collect or dispatch first, earliest deadline first; then the delivered ones, latest deadline first. `late`: the certified copy was not issued by the deadline (14 days from receipt). Audited (ADR-008: it returns declarant names), naming the applications served.',
   })
   @ApiQueryParameters(selfAccessListQuery)
   @ApiOkResponse({ description: 'Page', schema: schemaRef('SelfAccessPage') })
   @ApiProblemResponse(400, 'Query failed validation, or an unknown cursor')
   @ApiProblemResponse(404, NOT_THE_COMMISSIONS)
-  list(
+  async list(
     @CurrentPrincipal() principal: Principal,
     @Param('slug') slug: string,
     @Query(new ZodValidationPipe(selfAccessListQuery)) query: SelfAccessListQuery,
+    @CurrentReadAudit() audit: ReadAudit,
   ): Promise<SelfAccessPage> {
-    return this.applications.list(principal, slug, query);
+    const page = await this.applications.list(principal, slug, query);
+    // A batch read names the resources it served (ADR-008).
+    audit.resource({ tenant: slug, ids: page.items.map(({ id }) => id) });
+    return page;
   }
 
   @Get('v1/access/self-access/:applicationId')

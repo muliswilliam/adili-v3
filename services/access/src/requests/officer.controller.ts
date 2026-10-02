@@ -61,23 +61,28 @@ export class OfficerController {
 
   @Get('v1/commissions/:slug/access/requests')
   @Roles(...OFFICER_ROUTE_ROLES)
+  @AuditedRead({ action: 'access.requests.listed', resource: 'access-request' })
   @ApiParam({ name: 'slug', schema: { type: 'string', pattern: TENANT_KEY.source } })
   @ApiOperation({
     operationId: 'listCommissionAccessRequests',
     summary: 'Queue of access requests with deadlines (access officer; supervisor reads)',
     description:
-      'Form K requests (30-day deadline) and law enforcement requests (14-day deadline) together, or one `kind`. Open requests first, earliest decision deadline first; then decided and closed ones, latest deadline first. `late`: past the deadline and neither decided nor closed (for a law enforcement request, the breach flag). Filters combine (`status`, `kind`, `late`, `search`).',
+      'Form K requests (30-day deadline) and law enforcement requests (14-day deadline) together, or one `kind`. Open requests first, earliest decision deadline first; then decided and closed ones, latest deadline first. `late`: past the deadline and neither decided nor closed (for a law enforcement request, the breach flag). Filters combine (`status`, `kind`, `late`, `search`). Audited (ADR-008: it returns declarant names, and a search finds them), naming the requests served.',
   })
   @ApiQueryParameters(queueQuery)
   @ApiOkResponse({ description: 'Page', schema: schemaRef('QueuePage') })
   @ApiProblemResponse(400, 'Query failed validation, or an unknown cursor')
   @ApiProblemResponse(404, "Not the caller's Commission")
-  queue(
+  async queue(
     @CurrentPrincipal() principal: Principal,
     @Param('slug') slug: string,
     @Query(new ZodValidationPipe(queueQuery)) query: QueueQuery,
+    @CurrentReadAudit() audit: ReadAudit,
   ): Promise<QueuePage> {
-    return this.officer.queue(principal, slug, query);
+    const page = await this.officer.queue(principal, slug, query);
+    // A batch read names the resources it served (ADR-008).
+    audit.resource({ tenant: slug, ids: page.items.map(({ id }) => id) });
+    return page;
   }
 
   @Get('v1/access/requests/:requestId/officer')

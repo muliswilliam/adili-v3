@@ -435,6 +435,7 @@ describe('Written self-access applications (#303)', () => {
 
     // Long after both deadlines: issued in time, so neither is late.
     api.clock.set('2027-07-01T00:00:00.000Z');
+    const before = (await api.events('audit.read.v1')).length;
     const response = await api.get('/v1/commissions/psc/access/self-access', supervisor);
 
     expect(response.statusCode, response.body).toBe(200);
@@ -445,6 +446,19 @@ describe('Written self-access applications (#303)', () => {
       [second.id, '2027-05-25T07:30:00.000Z', false],
     ]);
     expect(page.items[0]?.representative).not.toHaveProperty('idNumber');
+    // It returns declarant names: audited, naming the applications served (ADR-008).
+    expect((await api.events('audit.read.v1')).slice(before)).toEqual([
+      expect.objectContaining({
+        tenant: 'psc',
+        data: expect.objectContaining({
+          action: 'access.self-access.listed',
+          resource: expect.objectContaining({
+            type: 'self-access-application',
+            ids: [first.id, second.id],
+          }) as unknown,
+        }) as unknown,
+      }),
+    ]);
 
     const firstPage = await api.get('/v1/commissions/psc/access/self-access?limit=1', officer);
     const { nextCursor } = firstPage.json<SelfAccessPage>();
