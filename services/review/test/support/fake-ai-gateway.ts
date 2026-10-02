@@ -170,8 +170,13 @@ export class FakeAiGateway extends AiGatewayClient {
     const status =
       this.statuses.get(tenant) ??
       (tenant === 'psc'
-        ? { enabled: true, providerClass: 'external', dataClasses: ['synthetic'] }
-        : { enabled: false, providerClass: 'external', dataClasses: [] });
+        ? {
+            enabled: true,
+            providerClass: 'external',
+            provider: 'anthropic',
+            dataClasses: ['synthetic'],
+          }
+        : { enabled: false, providerClass: 'external', provider: 'anthropic', dataClasses: [] });
     return Promise.resolve({ tenant, ...structuredClone(status) });
   }
 

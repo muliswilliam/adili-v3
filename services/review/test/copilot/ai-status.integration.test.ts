@@ -42,6 +42,7 @@ describe('Commission AI status', () => {
     expect(response.json()).toEqual({
       enabled: true,
       providerClass: 'external',
+      provider: 'anthropic',
       dataClasses: ['synthetic'],
     });
   });
@@ -60,6 +61,7 @@ describe('Commission AI status', () => {
     api.ai.givenTenantStatus('tsc', {
       enabled: true,
       providerClass: 'external',
+      provider: 'anthropic',
       dataClasses: ['synthetic'],
     });
     expect((await api.get(path('tsc'), tscAdmin)).json()).toMatchObject({ enabled: false });
@@ -67,6 +69,7 @@ describe('Commission AI status', () => {
     api.ai.givenTenantStatus('tsc', {
       enabled: true,
       providerClass: 'self-hosted',
+      provider: 'local',
       dataClasses: ['synthetic', 'restricted', 'highly-confidential'],
     });
     expect((await api.get(path('tsc'), tscAdmin)).json()).toMatchObject({

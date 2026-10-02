@@ -61,6 +61,7 @@ const tenantStatusSchema = z.object({
   tenant: z.string(),
   enabled: z.boolean(),
   providerClass: z.enum(['external', 'self-hosted']).nullable(),
+  provider: z.string().nullable(),
   dataClasses: z.array(DATA_CLASS),
 });
 
