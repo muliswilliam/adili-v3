@@ -24,7 +24,7 @@ import { Route as ObligationsIndexRouteImport } from './routes/obligations/index
 import { Route as ObligationsPolicyRouteImport } from './routes/obligations/policy'
 import { Route as ObligationsNationalRouteRouteImport } from './routes/obligations_/national/route'
 import { Route as PlatformIntegrationsRouteImport } from './routes/platform/integrations'
-import { Route as ReviewIndexRouteImport } from './routes/review/index'
+import { Route as ReviewQueueRouteImport } from './routes/review/_queue'
 import { Route as RosterIndexRouteImport } from './routes/roster/index'
 import { Route as RosterApiAccessRouteRouteImport } from './routes/roster/api-access/route'
 import { Route as RosterFlaggedRouteImport } from './routes/roster/flagged'
@@ -37,6 +37,7 @@ import { Route as CommissionsSlugIndexRouteImport } from './routes/commissions/$
 import { Route as CommissionsSlugObligationsRouteRouteImport } from './routes/commissions/$slug/obligations/route'
 import { Route as CommissionsSlugRecordsRouteRouteImport } from './routes/commissions/$slug/records/route'
 import { Route as ObligationsNationalIndexRouteImport } from './routes/obligations_/national/index'
+import { Route as ReviewQueueIndexRouteImport } from './routes/review/_queue/index'
 import { Route as RosterApiAccessIndexRouteImport } from './routes/roster/api-access/index'
 import { Route as RosterApiAccessDocsRouteImport } from './routes/roster/api-access/docs'
 import { Route as RosterImportsIndexRouteImport } from './routes/roster/imports/index'
@@ -128,9 +129,8 @@ const PlatformIntegrationsRoute = PlatformIntegrationsRouteImport.update({
   path: '/platform/integrations',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ReviewIndexRoute = ReviewIndexRouteImport.update({
-  id: '/',
-  path: '/',
+const ReviewQueueRoute = ReviewQueueRouteImport.update({
+  id: '/_queue',
   getParentRoute: () => ReviewRouteRoute,
 } as any)
 const RosterIndexRoute = RosterIndexRouteImport.update({
@@ -196,6 +196,11 @@ const ObligationsNationalIndexRoute =
     path: '/',
     getParentRoute: () => ObligationsNationalRouteRoute,
   } as any)
+const ReviewQueueIndexRoute = ReviewQueueIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => ReviewQueueRoute,
+} as any)
 const RosterApiAccessIndexRoute = RosterApiAccessIndexRouteImport.update({
   id: '/',
   path: '/',
@@ -297,7 +302,6 @@ export interface FileRoutesByFullPath {
   '/roster/template': typeof RosterTemplateRoute
   '/commissions/': typeof CommissionsIndexRoute
   '/obligations/': typeof ObligationsIndexRoute
-  '/review/': typeof ReviewIndexRoute
   '/roster/': typeof RosterIndexRoute
   '/commissions/$slug/obligations': typeof CommissionsSlugObligationsRouteRouteWithChildren
   '/commissions/$slug/records': typeof CommissionsSlugRecordsRouteRouteWithChildren
@@ -306,6 +310,7 @@ export interface FileRoutesByFullPath {
   '/roster/records/$recordId': typeof RosterRecordsRecordIdRoute
   '/commissions/$slug/': typeof CommissionsSlugIndexRoute
   '/obligations/national/': typeof ObligationsNationalIndexRoute
+  '/review/': typeof ReviewQueueIndexRoute
   '/roster/api-access/': typeof RosterApiAccessIndexRoute
   '/roster/imports/': typeof RosterImportsIndexRoute
   '/roster/records/': typeof RosterRecordsIndexRoute
@@ -321,6 +326,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/review': typeof ReviewQueueIndexRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/auth/login': typeof AuthLoginRoute
   '/auth/logout': typeof AuthLogoutRoute
@@ -332,7 +338,6 @@ export interface FileRoutesByTo {
   '/roster/template': typeof RosterTemplateRoute
   '/commissions': typeof CommissionsIndexRoute
   '/obligations': typeof ObligationsIndexRoute
-  '/review': typeof ReviewIndexRoute
   '/roster': typeof RosterIndexRoute
   '/api/mock-files/$id': typeof ApiMockFilesIdRoute
   '/roster/api-access/docs': typeof RosterApiAccessDocsRoute
@@ -370,12 +375,12 @@ export interface FileRoutesById {
   '/commissions/new': typeof CommissionsNewRoute
   '/obligations/policy': typeof ObligationsPolicyRoute
   '/platform/integrations': typeof PlatformIntegrationsRoute
+  '/review/_queue': typeof ReviewQueueRouteWithChildren
   '/roster/flagged': typeof RosterFlaggedRoute
   '/roster/import': typeof RosterImportRoute
   '/roster/template': typeof RosterTemplateRoute
   '/commissions/': typeof CommissionsIndexRoute
   '/obligations/': typeof ObligationsIndexRoute
-  '/review/': typeof ReviewIndexRoute
   '/roster/': typeof RosterIndexRoute
   '/commissions/$slug/obligations': typeof CommissionsSlugObligationsRouteRouteWithChildren
   '/commissions/$slug/records': typeof CommissionsSlugRecordsRouteRouteWithChildren
@@ -384,6 +389,7 @@ export interface FileRoutesById {
   '/roster/records/$recordId': typeof RosterRecordsRecordIdRoute
   '/commissions/$slug/': typeof CommissionsSlugIndexRoute
   '/obligations_/national/': typeof ObligationsNationalIndexRoute
+  '/review/_queue/': typeof ReviewQueueIndexRoute
   '/roster/api-access/': typeof RosterApiAccessIndexRoute
   '/roster/imports/': typeof RosterImportsIndexRoute
   '/roster/records/': typeof RosterRecordsIndexRoute
@@ -421,7 +427,6 @@ export interface FileRouteTypes {
     | '/roster/template'
     | '/commissions/'
     | '/obligations/'
-    | '/review/'
     | '/roster/'
     | '/commissions/$slug/obligations'
     | '/commissions/$slug/records'
@@ -430,6 +435,7 @@ export interface FileRouteTypes {
     | '/roster/records/$recordId'
     | '/commissions/$slug/'
     | '/obligations/national/'
+    | '/review/'
     | '/roster/api-access/'
     | '/roster/imports/'
     | '/roster/records/'
@@ -445,6 +451,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/review'
     | '/auth/callback'
     | '/auth/login'
     | '/auth/logout'
@@ -456,7 +463,6 @@ export interface FileRouteTypes {
     | '/roster/template'
     | '/commissions'
     | '/obligations'
-    | '/review'
     | '/roster'
     | '/api/mock-files/$id'
     | '/roster/api-access/docs'
@@ -493,12 +499,12 @@ export interface FileRouteTypes {
     | '/commissions/new'
     | '/obligations/policy'
     | '/platform/integrations'
+    | '/review/_queue'
     | '/roster/flagged'
     | '/roster/import'
     | '/roster/template'
     | '/commissions/'
     | '/obligations/'
-    | '/review/'
     | '/roster/'
     | '/commissions/$slug/obligations'
     | '/commissions/$slug/records'
@@ -507,6 +513,7 @@ export interface FileRouteTypes {
     | '/roster/records/$recordId'
     | '/commissions/$slug/'
     | '/obligations_/national/'
+    | '/review/_queue/'
     | '/roster/api-access/'
     | '/roster/imports/'
     | '/roster/records/'
@@ -642,11 +649,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PlatformIntegrationsRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/review/': {
-      id: '/review/'
-      path: '/'
-      fullPath: '/review/'
-      preLoaderRoute: typeof ReviewIndexRouteImport
+    '/review/_queue': {
+      id: '/review/_queue'
+      path: ''
+      fullPath: '/review'
+      preLoaderRoute: typeof ReviewQueueRouteImport
       parentRoute: typeof ReviewRouteRoute
     }
     '/roster/': {
@@ -732,6 +739,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/obligations/national/'
       preLoaderRoute: typeof ObligationsNationalIndexRouteImport
       parentRoute: typeof ObligationsNationalRouteRoute
+    }
+    '/review/_queue/': {
+      id: '/review/_queue/'
+      path: '/'
+      fullPath: '/review/'
+      preLoaderRoute: typeof ReviewQueueIndexRouteImport
+      parentRoute: typeof ReviewQueueRoute
     }
     '/roster/api-access/': {
       id: '/roster/api-access/'
@@ -915,14 +929,26 @@ const ObligationsRouteRouteChildren: ObligationsRouteRouteChildren = {
 const ObligationsRouteRouteWithChildren =
   ObligationsRouteRoute._addFileChildren(ObligationsRouteRouteChildren)
 
+interface ReviewQueueRouteChildren {
+  ReviewQueueIndexRoute: typeof ReviewQueueIndexRoute
+}
+
+const ReviewQueueRouteChildren: ReviewQueueRouteChildren = {
+  ReviewQueueIndexRoute: ReviewQueueIndexRoute,
+}
+
+const ReviewQueueRouteWithChildren = ReviewQueueRoute._addFileChildren(
+  ReviewQueueRouteChildren,
+)
+
 interface ReviewRouteRouteChildren {
-  ReviewIndexRoute: typeof ReviewIndexRoute
+  ReviewQueueRoute: typeof ReviewQueueRouteWithChildren
   ReviewCasesCaseIdIndexRoute: typeof ReviewCasesCaseIdIndexRoute
   ReviewCasesCaseIdClarificationsClarificationIdRoute: typeof ReviewCasesCaseIdClarificationsClarificationIdRoute
 }
 
 const ReviewRouteRouteChildren: ReviewRouteRouteChildren = {
-  ReviewIndexRoute: ReviewIndexRoute,
+  ReviewQueueRoute: ReviewQueueRouteWithChildren,
   ReviewCasesCaseIdIndexRoute: ReviewCasesCaseIdIndexRoute,
   ReviewCasesCaseIdClarificationsClarificationIdRoute:
     ReviewCasesCaseIdClarificationsClarificationIdRoute,
