@@ -145,7 +145,7 @@ export async function createTestApp(options: TestAppOptions = {}): Promise<TestA
     app,
     db,
     serviceDb,
-    token: ({ clientId = 'review', scope = 'profile ai' } = {}) =>
+    token: ({ clientId = 'review', scope = 'profile ai:internal' } = {}) =>
       new SignJWT({ azp: clientId, scope })
         .setProtectedHeader({ alg: 'RS256', kid: 'test' })
         .setIssuer(config.OIDC_ISSUER_URL)

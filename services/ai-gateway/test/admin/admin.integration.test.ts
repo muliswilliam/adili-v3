@@ -128,7 +128,7 @@ describe('admin API', { timeout: 90_000 }, () => {
       expect(await t.db.select().from(routes)).toEqual([]);
     });
 
-    it('serves the tenant status to services with the ai scope, for the tenant they act for', async () => {
+    it('serves the tenant status to services with the ai:internal scope, for the tenant they act for', async () => {
       const status = (path: string, headers: Record<string, string>) =>
         request('GET', `/internal/v1/tenants/${path}/status`, headers);
       expect((await status('kcomm', { ...admin, ...actingFor('kcomm') })).statusCode).toBe(403);

@@ -19,7 +19,7 @@ import {
  * The scope the review service's token needs for the gateway's internal API; every call names
  * the Commission it acts for in `X-Acting-Tenant` (ADR-013 §8.8).
  */
-export const AI_SCOPE = 'ai';
+export const AI_SCOPE = 'ai:internal';
 
 /** A task call that waits: the wait plus the default budget for the hop (ADR-013 §2). */
 export const WAITING_TASK_TIMEOUT_MS = MAX_TASK_WAIT_SECONDS * 1000 + 2_000;

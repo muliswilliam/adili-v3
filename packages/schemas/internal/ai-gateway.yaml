@@ -77,7 +77,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetails'
         '403':
-          description: Requires a service token with scope ai
+          description: Requires a service token with scope ai:internal
           content:
             application/problem+json:
               schema:
@@ -141,7 +141,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetails'
         '403':
-          description: Requires a service token with scope ai
+          description: Requires a service token with scope ai:internal
           content:
             application/problem+json:
               schema:
@@ -195,7 +195,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetails'
         '403':
-          description: Requires a service token with scope ai
+          description: Requires a service token with scope ai:internal
           content:
             application/problem+json:
               schema:
@@ -614,7 +614,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetails'
         '403':
-          description: Requires a service token with scope ai
+          description: Requires a service token with scope ai:internal
           content:
             application/problem+json:
               schema:

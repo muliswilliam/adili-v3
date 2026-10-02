@@ -501,15 +501,18 @@ describe('task jobs', () => {
       expect(job?.tenant).toBe('kcomm');
     });
 
-    it('refuses callers without the ai scope', async () => {
-      const unscoped = { authorization: `Bearer ${await t.token({ scope: 'profile' })}` };
+    it.each(['profile', 'profile ai'])(
+      'refuses callers without the ai:internal scope (%s)',
+      async (scope) => {
+        const unscoped = { authorization: `Bearer ${await t.token({ scope })}` };
 
-      const response = await runTask('summarize-declaration', taskRequest(freshInput()), {
-        headers: unscoped,
-      });
+        const response = await runTask('summarize-declaration', taskRequest(freshInput()), {
+          headers: unscoped,
+        });
 
-      expect(response.statusCode).toBe(403);
-    });
+        expect(response.statusCode).toBe(403);
+      },
+    );
   });
 
   describe('janitor', () => {

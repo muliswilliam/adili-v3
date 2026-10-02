@@ -733,7 +733,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
-            /** @description Requires a service token with scope ai */
+            /** @description Requires a service token with scope ai:internal */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -805,7 +805,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
-            /** @description Requires a service token with scope ai */
+            /** @description Requires a service token with scope ai:internal */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -861,7 +861,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
-            /** @description Requires a service token with scope ai */
+            /** @description Requires a service token with scope ai:internal */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -1318,7 +1318,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
-            /** @description Requires a service token with scope ai */
+            /** @description Requires a service token with scope ai:internal */
             403: {
                 headers: {
                     [name: string]: unknown;

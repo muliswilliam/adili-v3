@@ -206,7 +206,7 @@ describe('feedback', () => {
     expect(await announced(failed.id)).toEqual([]);
   }, 60_000);
 
-  it('refuses an invalid rating and a caller without the ai scope', async () => {
+  it('refuses an invalid rating and a caller without the ai:internal scope', async () => {
     const invalid = [
       { reviewerSubject: '', rating: 'helpful', reason: null, note: null },
       { reviewerSubject: 'reviewer-a', rating: 'meh', reason: null, note: null },
