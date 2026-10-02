@@ -92,7 +92,7 @@ export function aggregateKeys(input: NarrateInput): Set<string> {
   );
 }
 
-/** A financial year label, "2025/26", "2025-26" or "FY2025/2026", by the year it ends in. */
+/** A financial year label, "2025/26", "2025-26" or "FY2025/2026", or a range of years, "2024–2026". */
 const FY_LABEL = /\b(?:FY\s?)?(\d{4})[/\-–](\d{2}|\d{4})\b/giu;
 
 /** A bare four-digit whole number in this range reads as a year, not a count ("in 2025"). */
@@ -180,7 +180,10 @@ function stated(
   return known.some((each) => same(round(each, decimals), value));
 }
 
-/** The mentions in `text` the input does not state; a year or FY label counts when it is an input FY. */
+/**
+ * The mentions in `text` the input does not state; a year or FY label counts when it is an input
+ * FY, and a range of years ("2024–2026") when both its years are.
+ */
 function foreignNumbers(
   text: string,
   known: readonly number[],
@@ -188,14 +191,20 @@ function foreignNumbers(
 ): Mention[] {
   const labels = [...text.matchAll(FY_LABEL)];
   const foreignLabels = labels
-    .filter(([, start = '', end = '']) => !years.has(fyEnd(Number(start), end)))
+    .filter(
+      ([, start = '', end = '']) =>
+        !labelYears(Number(start), end).every((year) => years.has(year)),
+    )
     .map((): Mention => ({ value: Number.NaN, decimals: 0, percent: false, year: true }));
   const rest = text.replaceAll(FY_LABEL, ' ');
   return [...foreignLabels, ...mentions(rest).filter((mention) => !stated(mention, known, years))];
 }
 
-/** The year an FY label ends in; NaN when its years are not consecutive ("2025/27"). */
-function fyEnd(start: number, end: string): number {
+/**
+ * The years a label names: the one an FY ends in ("2025/26" is 2026), or both ends of a range
+ * whose years are not consecutive ("2024–2026", "2025/27").
+ */
+function labelYears(start: number, end: string): number[] {
   const year = end.length === 2 ? Math.floor(start / 100) * 100 + Number(end) : Number(end);
-  return year === start + 1 ? year : Number.NaN;
+  return year === start + 1 ? [year] : [start, year];
 }

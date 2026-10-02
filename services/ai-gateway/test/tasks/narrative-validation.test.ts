@@ -82,6 +82,25 @@ describe('narrative validation', () => {
       expect(foreign('In 2022-23.')).toEqual(['foreign-number']);
     });
 
+    it('reads a range of years as its two years, each an input FY', () => {
+      const threeYears = {
+        ...input,
+        priorYears: [
+          ...input.priorYears,
+          ...input.priorYears.map((year) => ({ ...year, fy: 2024 })),
+        ],
+      };
+      const ranged = (text: string) =>
+        narrativeViolations(threeYears, withParagraph(0, { text })).map((each) => each.kind);
+
+      expect(ranged('Late every year 2024–2026, and in FY2024-2026.')).toEqual([]);
+      expect(ranged('Late every year 2023–2026.')).toEqual(['foreign-number']);
+      expect(ranged('Late every year 2024–2027, or 2024/27.')).toEqual([
+        'foreign-number',
+        'foreign-number',
+      ]);
+    });
+
     it('fails a derived figure, unless it happens to equal an input figure', () => {
       expect(foreign('Filings fell by 146.')).toEqual(['foreign-number']);
       // 8.2 points equals the prior-year rate of 8.2%: a coincidence the check cannot tell apart.
