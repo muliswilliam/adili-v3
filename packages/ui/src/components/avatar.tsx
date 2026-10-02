@@ -11,7 +11,7 @@ export type AvatarProps = Omit<ComponentProps<'span'>, 'children'> & {
 };
 
 /**
- * A person's initials in a 24px circle (resize with `className`): lilac for other people, the
+ * A person's initials in a 24px circle (resize with `className`): lilac (the `avatar` token) for other people, the
  * brand gradient for the signed-in user. Decorative: always show the name beside it.
  */
 export function Avatar({ name, current = false, className, ...props }: AvatarProps) {
@@ -23,7 +23,7 @@ export function Avatar({ name, current = false, className, ...props }: AvatarPro
         'grid size-6 shrink-0 place-items-center rounded-full text-[10px] leading-none font-bold',
         current
           ? 'bg-linear-to-br from-brand/45 to-brand text-primary-foreground'
-          : 'bg-ai-subtle text-ai-subtle-foreground',
+          : 'bg-avatar text-avatar-foreground',
         className,
       )}
       {...props}
