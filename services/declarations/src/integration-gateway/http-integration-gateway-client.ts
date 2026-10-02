@@ -30,7 +30,9 @@ const envelope = <TSystem extends RegistrySystem>(system: TSystem) =>
     resultId: z.uuid(),
     system: z.literal(system),
     outcome: z.enum(['found', 'not-found', 'unavailable']),
-    reason: z.enum(['timeout', 'breaker-open', 'paused', 'rate-limited', 'upstream-error']).nullable(),
+    reason: z
+      .enum(['timeout', 'breaker-open', 'paused', 'rate-limited', 'upstream-error'])
+      .nullable(),
     cached: z.boolean(),
     checkedAt: z.string(),
   });
