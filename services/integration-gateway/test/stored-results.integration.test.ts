@@ -1,9 +1,10 @@
 import { randomUUID } from 'node:crypto';
 
+import { DATABASE, type Database, withTenant } from '@adili/data-access';
 import { asc, eq } from 'drizzle-orm';
 import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
-import { outbox, verificationResults } from '../src/db/schema.js';
+import { outbox, type schema, verificationResults } from '../src/db/schema.js';
 
 import { SEED, StubRegistries } from './support/stub-registries.js';
 import { createTestApp, type TestApp } from './support/test-app.js';
@@ -111,6 +112,40 @@ describe('GET /internal/v1/verification-results/{resultId}', () => {
     expect((await read(randomUUID())).statusCode).toBe(404);
     expect((await read(result.resultId)).statusCode).toBe(404);
     expect(await audits()).toEqual([]);
+  });
+
+  it('M2: the database itself keeps each tenant to its own results (row-level security)', async () => {
+    const own = await lookup('kra/taxpayer-lookups', SEED.wanjiku);
+    const onboarding = await lookup('ntsa/vehicle-lookups', SEED.wanjiku);
+    await t.db
+      .update(verificationResults)
+      .set({ tenant: null })
+      .where(eq(verificationResults.id, onboarding.resultId));
+    // The service's own connection, as its code uses it.
+    const db = t.app.get<Database<typeof schema>>(DATABASE);
+    const idsAs = async (tenant: string | null) => {
+      const select = (tx: Pick<Database<typeof schema>, 'select'>) =>
+        tx.select({ id: verificationResults.id }).from(verificationResults);
+      const rows =
+        tenant === null
+          ? await select(db)
+          : await withTenant(db, { tenant, subject: 'test' }, (tx) => select(tx));
+      return rows.map((row) => row.id).sort();
+    };
+
+    expect(await idsAs(null)).toEqual([]);
+    expect(await idsAs('jsc')).toEqual([]);
+    expect(await idsAs('psc')).toEqual([own.resultId]);
+    expect(await idsAs('platform')).toEqual([own.resultId, onboarding.resultId].sort());
+    await expect(
+      withTenant(db, { tenant: 'jsc', subject: 'test' }, (tx) =>
+        tx
+          .update(verificationResults)
+          .set({ tenant: 'jsc' })
+          .where(eq(verificationResults.id, own.resultId))
+          .returning({ id: verificationResults.id }),
+      ),
+    ).resolves.toEqual([]);
   });
 
   it('audits each read under the tenant, naming the result, the service and the person', async () => {

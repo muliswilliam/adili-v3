@@ -43,6 +43,13 @@
       "when": 1790895382464,
       "tag": "0005_idempotency_keys",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1790944599384,
+      "tag": "0006_verification_results_rls",
+      "breakpoints": true
     }
   ]
 }

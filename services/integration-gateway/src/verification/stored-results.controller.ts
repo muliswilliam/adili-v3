@@ -4,10 +4,13 @@ import {
   ActingTenant,
   ApiProblemResponse,
   AuditedRead,
+  callerOf,
+  CurrentPrincipal,
   CurrentReadAudit,
   InternalApi,
   notFoundIfInvisible,
   ProblemException,
+  type Principal,
   type ReadAudit,
   schemaRef,
   ZodValidationPipe,
@@ -47,10 +50,11 @@ export class StoredResultsController {
     @Param('resultId', new ZodValidationPipe(z.uuid())) resultId: string,
     @ActingTenant() tenant: string,
     @CurrentReadAudit() audit: ReadAudit,
+    @CurrentPrincipal() principal: Principal,
   ): Promise<StoredResult> {
     try {
       const { result, subjectPersonId } = notFoundIfInvisible(
-        await this.results.read(resultId, tenant),
+        await this.results.read(resultId, tenant, callerOf(principal)),
       );
       // ADR-008: "who accessed my data" lists this read under the person the lookup was about.
       audit.resource({ tenant, subjectPersonId });

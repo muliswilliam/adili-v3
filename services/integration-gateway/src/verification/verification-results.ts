@@ -1,6 +1,12 @@
 import { Injectable } from '@nestjs/common';
-import { callerOf, type Principal } from '@adili/api-kit';
-import { type Database, FieldCipher, InjectDatabase, type SealedField } from '@adili/data-access';
+import { callerOf, PLATFORM_TENANT, type Principal } from '@adili/api-kit';
+import {
+  type Database,
+  FieldCipher,
+  InjectDatabase,
+  type SealedField,
+  withTenant,
+} from '@adili/data-access';
 import { EventPublisher } from '@adili/events';
 import { eq } from 'drizzle-orm';
 
@@ -47,7 +53,8 @@ export interface StoredResult {
 /**
  * Writes the verification-results row every registry lookup leaves behind, with the payload
  * encrypted under the tenant's key (bound to the row id), and its `registry.lookup.performed.v1`
- * in the same transaction.
+ * in the same transaction. Rows are tenant data under row-level security (ADR-006 §5.3): written
+ * and read in the tenant's context, a lookup for no tenant in the platform's.
  */
 @Injectable()
 export class VerificationResults {
@@ -60,7 +67,8 @@ export class VerificationResults {
   async record(result: VerificationResult): Promise<void> {
     const sealed = await this.seal(result);
     const requestedBy = callerOf(result.caller);
-    await this.db.transaction(async (tx) => {
+    const context = { tenant: result.tenant ?? PLATFORM_TENANT, subject: requestedBy };
+    await withTenant(this.db, context, async (tx) => {
       await tx.insert(verificationResults).values({
         id: result.id,
         system: result.system,
@@ -98,19 +106,20 @@ export class VerificationResults {
   }
 
   /**
-   * The row `id` as `tenant`'s services may read it, payload decrypted, with the person it is
-   * about; null when there is no such row or it belongs to another tenant (or to none: lookups
-   * for no tenant keep nothing), so the two look the same.
+   * The row `id` as `tenant`'s services may read it (`reader` the service reading), payload
+   * decrypted, with the person it is about; null when there is no such row or it belongs to
+   * another tenant (or to none: lookups for no tenant keep nothing), so the two look the same.
    */
   async read(
     id: string,
     tenant: string,
+    reader: string,
   ): Promise<{ result: StoredResult; subjectPersonId: string | null } | null> {
-    const [row] = await this.db
-      .select()
-      .from(verificationResults)
-      .where(eq(verificationResults.id, id))
-      .limit(1);
+    const [row] = await withTenant(this.db, { tenant, subject: reader }, (tx) =>
+      tx.select().from(verificationResults).where(eq(verificationResults.id, id)).limit(1),
+    );
+    // Row-level security admits the tenant's rows; the platform's context (a service acting for
+    // `platform`) admits every row, and its services keep no tenant's answers.
     if (row?.tenant !== tenant) return null;
     let payload: Record<string, unknown> | null = null;
     if (row.payloadCiphertext !== null && row.payloadEnvelope !== null) {
