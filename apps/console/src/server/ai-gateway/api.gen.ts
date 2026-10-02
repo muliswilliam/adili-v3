@@ -254,7 +254,7 @@ export interface components {
             model: string;
             /** Format: date-time */
             generatedAt: string;
-            /** @description Fixed text: indicators, not findings; a named officer decides */
+            /** @description Fixed text: indicators, not findings; a named reviewer decides */
             disclaimer: string;
         };
         SourceRef: {

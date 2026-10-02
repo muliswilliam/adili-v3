@@ -650,7 +650,7 @@ components:
           format: date-time
         disclaimer:
           type: string
-          description: 'Fixed text: indicators, not findings; a named officer decides'
+          description: 'Fixed text: indicators, not findings; a named reviewer decides'
       required:
         - aiAssisted
         - task

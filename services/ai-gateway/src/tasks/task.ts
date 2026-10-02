@@ -25,7 +25,7 @@ export const aiLabelSchema = z
     generatedAt: z.iso.datetime(),
     disclaimer: z
       .string()
-      .meta({ description: 'Fixed text: indicators, not findings; a named officer decides' }),
+      .meta({ description: 'Fixed text: indicators, not findings; a named reviewer decides' }),
   })
   .meta({ description: 'Present on every output' });
 export type AiLabel = z.infer<typeof aiLabelSchema>;
@@ -94,8 +94,8 @@ export function defineTask<TInput extends z.ZodObject, TOutput extends z.ZodObje
 }
 
 const DISCLAIMERS: Record<Language, string> = {
-  en: 'AI-assisted. These are indicators, not findings: a named officer reviews the record and decides.',
-  sw: 'Imesaidiwa na AI. Hivi ni viashiria, si matokeo: afisa aliyetajwa hukagua rekodi na kuamua.',
+  en: 'AI-assisted. These are indicators, not findings: a named reviewer examines the record and decides.',
+  sw: 'Imesaidiwa na AI. Hivi ni viashiria, si matokeo: mkaguzi aliyetajwa huchunguza rekodi na kuamua.',
 };
 
 export function aiLabel(
