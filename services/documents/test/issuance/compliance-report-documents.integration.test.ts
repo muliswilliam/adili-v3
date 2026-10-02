@@ -79,10 +79,7 @@ afterAll(async () => {
   await api.close();
 });
 
-/**
- * The request reporting's `issueSubmissionDocuments` sends (ReportActivities): the shared fields,
- * the type's payload and the public payload it proposes, which the template decides instead.
- */
+/** The request reporting's `issueSubmissionDocuments` sends (ReportActivities), for the PSC. */
 function reportRequest(
   reportId: string,
   type: 'form-m' | 'compliance-report-receipt',
@@ -90,18 +87,10 @@ function reportRequest(
 ) {
   return {
     templateVersion: 1,
-    disclosureLevel: 'restricted',
-    issuerTenant: 'psc',
     subjectRef: `compliance-report:${reportId}`,
     subjectPersonId: null,
     type,
     payload,
-    publicPayload: {
-      reference: RPT_REFERENCE,
-      type,
-      issuer: 'PSC',
-      issuedAt: '2028-07-15T08:30:00.000Z',
-    },
   };
 }
 
@@ -153,8 +142,6 @@ function ncrRequest(nationalReportId: string, overrides: Record<string, unknown>
   return {
     type: 'ncr',
     templateVersion: 1,
-    disclosureLevel: 'restricted',
-    issuerTenant: 'eacc',
     subjectRef: `national-report:${nationalReportId}`,
     subjectPersonId: null,
     payload: {
@@ -205,24 +192,21 @@ function ncrRequest(nationalReportId: string, overrides: Record<string, unknown>
       approvedAt: '2028-09-25T13:40:00.000Z',
       ...overrides,
     },
-    publicPayload: {
-      reference: NCR_REFERENCE,
-      type: 'ncr',
-      issuer: 'EACC',
-      issuedAt: '2028-09-25T13:40:00.000Z',
-    },
   };
 }
 
-/** As reporting's client sends it: the issuer in X-Acting-Tenant and an Idempotency-Key. */
-const issue = (body: { issuerTenant: string }) =>
+/**
+ * As reporting's client sends it: the issuer in X-Acting-Tenant (EACC for the national report,
+ * the PSC for its own report) and an Idempotency-Key.
+ */
+const issue = (body: { type: string }) =>
   api.post('/internal/v1/documents/issue', body, REPORTING, {
     idempotencyKey: randomUUID(),
-    headers: { 'x-acting-tenant': body.issuerTenant },
+    headers: { 'x-acting-tenant': body.type === 'ncr' ? 'eacc' : 'psc' },
   });
 
 async function issued(body: {
-  issuerTenant: string;
+  type: string;
 }): Promise<{ document: IssuedDocument; texts: string[] }> {
   const response = await issue(body);
   expect(response.statusCode, response.body).toBe(201);

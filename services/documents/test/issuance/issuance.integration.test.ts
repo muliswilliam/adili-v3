@@ -421,6 +421,21 @@ describe('issuing: validation and callers', () => {
     expect(rows).toEqual([]);
   });
 
+  it.each([
+    ['disclosureLevel', 'public'],
+    ['issuerTenant', 'psc'],
+    ['publicPayload', { reference: 'DCB-PSC-2027-0000001-Y' }],
+  ])(
+    'refuses a field the request does not take, %s (the template or X-Acting-Tenant decides it), with 400',
+    async (field, value) => {
+      const response = await issue({ ...issueBody(), [field]: value });
+      expect(response.statusCode, response.body).toBe(400);
+      expect(response.json<Problem>().errors).toEqual([
+        expect.objectContaining({ message: expect.stringContaining(field) as string }),
+      ]);
+    },
+  );
+
   it('refuses a template version that does not exist with 400', async () => {
     const response = await issue({ ...issueBody(), templateVersion: 99 });
     expect(response.statusCode).toBe(400);

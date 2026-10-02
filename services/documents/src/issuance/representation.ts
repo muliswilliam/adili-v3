@@ -48,7 +48,11 @@ export const watermarkSchema = z
       'Printed across every page as `Issued to <recipientName> · <reference> · <date>` (ADR-010 §6), so a leaked copy traces to its recipient. Required for access-package and access-nil-letter',
   });
 
-export const issueDocumentBody = z.object({
+/**
+ * Strict, so a caller sending a field the service does not read (a disclosure level, an issuer or
+ * a public payload, which the template and X-Acting-Tenant decide) is refused, not ignored.
+ */
+export const issueDocumentBody = z.strictObject({
   type: documentTypeSchema,
   templateVersion: z.int().min(1),
   subjectRef: z

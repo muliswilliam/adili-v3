@@ -961,6 +961,7 @@ components:
         - subjectRef
         - subjectPersonId
         - payload
+      additionalProperties: false
     ClarificationLetterSource:
       type: object
       properties:
