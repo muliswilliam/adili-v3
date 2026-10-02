@@ -26,7 +26,7 @@ export interface CopilotView {
   explanations: Record<string, unknown> | null;
   /** The jobs of the outputs shown, which reviewers rate. */
   jobs: { summarize: string | null; explain: string | null };
-  /** The caller's own ratings of the outputs shown. */
+  /** The case assignee's ratings of the outputs shown (the assignee rates; others read). */
   feedback: CopilotRatingView[];
 }
 
@@ -61,7 +61,8 @@ export class CopilotService {
         return {
           row: found,
           record: copilot,
-          feedback: await ratingsOf(tx, principal.subject, shown),
+          // The assignee rates; everyone else who reads the panel sees their ratings, read-only.
+          feedback: found.assignee === null ? [] : await ratingsOf(tx, found.assignee, shown),
         };
       },
     );

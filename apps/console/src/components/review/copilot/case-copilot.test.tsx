@@ -246,7 +246,7 @@ describe('CaseCopilot (S15)', () => {
   });
 
   it('shows a supervisor the rating read-only, with refresh', async () => {
-    // The supervisor rated it earlier; the view lists the caller's own ratings.
+    // The reviewer holding the case rated it; the view lists the assignee's ratings to everyone.
     const client = mockReviewClient(ME, 'Grace Wanjiru');
     const loaded = await loadCopilot(client, CASE);
     if (!loaded.ok) throw new Error('not ok');

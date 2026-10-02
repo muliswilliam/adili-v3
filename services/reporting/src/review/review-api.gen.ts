@@ -1176,7 +1176,7 @@ export interface components {
             forVersionId: string | null;
             /** Format: date-time */
             generatedAt: string | null;
-            /** @description The ai-gateway's job reason (`validation`, `budget`, `provider`, ...), `policy` when not enabled, `rejected` / `ai-gateway-unavailable`, or `declarations-unavailable` when the declaration could not be read */
+            /** @description The ai-gateway's job reason (`validation`, `budget`, `provider`, ...; `validation` also when an output breaks the task's contract), `policy` when not enabled, `rejected` / `ai-gateway-unavailable`, `declarations-unavailable` when the declaration could not be read, `key-service-unavailable` when an output could not be encrypted, or `internal-error` */
             failureReason: string | null;
             /** @description ai-gateway SummarizeDeclarationOutput (label, overview, changesSincePrevious, sections, worthAttention) */
             summary: {
@@ -1192,7 +1192,7 @@ export interface components {
                 /** Format: uuid */
                 explain: string | null;
             };
-            /** @description The caller's own ratings of the outputs shown (`jobs`) */
+            /** @description The ratings of the outputs shown (`jobs`) by the case's assignee, who rates them; read-only to the Commission's other reviewers and supervisors. Empty while the case has no assignee */
             feedback: {
                 /** Format: uuid */
                 jobId: string;

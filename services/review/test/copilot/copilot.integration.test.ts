@@ -782,8 +782,12 @@ describe('review copilot', () => {
           { jobId: explanations, block: null, rating: 'helpful' },
         ]),
       );
-      // The feedback in the view is the caller's own: others see none of it.
-      expect((await view(caseId, reviewerB)).feedback).toEqual([]);
+      // The feedback in the view is the assignee's, who rates: a supervisor (and any other
+      // reviewer) reads it, read-only.
+      expect((await view(caseId, supervisor)).feedback).toEqual(mine);
+      expect((await view(caseId, reviewerB)).feedback).toEqual(mine);
+      // Once the case is someone else's, theirs: the earlier assignee's ratings are not shown.
+      await assign(caseId, 'reviewer-b');
       expect((await view(caseId, supervisor)).feedback).toEqual([]);
       // The note stays with the gateway.
       const [stored] = await api

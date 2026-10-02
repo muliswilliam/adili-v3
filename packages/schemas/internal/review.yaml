@@ -2205,7 +2205,7 @@ components:
               format: uuid
         feedback:
           type: array
-          description: "The caller's own ratings of the outputs shown (`jobs`)"
+          description: "The ratings of the outputs shown (`jobs`) by the case's assignee, who rates them; read-only to the Commission's other reviewers and supervisors. Empty while the case has no assignee"
           items:
             type: object
             required: [jobId, block, rating]

@@ -504,8 +504,11 @@ interface StoredCopilot {
   view: CopilotView;
   /** When a pending or stale copilot turns ready on its next read; null keeps it as it is. */
   readyAt: number | null;
-  /** Ratings by caller subject, then job id. */
-  ratings: Map<string, Map<string, CopilotView['feedback'][number]>>;
+  /**
+   * The ratings of the reviewer holding the case (the only one who rates), by job and block:
+   * everyone reading the panel sees them, as review.yaml `CopilotView.feedback` has it.
+   */
+  ratings: Map<string, CopilotView['feedback'][number]>;
   /** Whose declaration the outputs are about. */
   declarant: MockDeclarant | null;
 }
@@ -655,8 +658,8 @@ function current(caseId: string, stored: StoredCopilot, now: number): CopilotVie
   return stored.view;
 }
 
-function forCaller(stored: StoredCopilot, view: CopilotView, caller: Assignee): CopilotView {
-  return { ...view, feedback: [...(stored.ratings.get(caller.subject)?.values() ?? [])] };
+function forCaller(stored: StoredCopilot, view: CopilotView): CopilotView {
+  return { ...view, feedback: [...stored.ratings.values()] };
 }
 
 /** What a flag usually asks of the declarant, by rule (the gateway's draft picks its own). */
@@ -889,7 +892,7 @@ export async function copilotRoute(
     const held = holds(caseId);
     if (!stored || held === null) return problem(404, 'Not found');
     if (method === 'GET' && !view[2]) {
-      return json(200, forCaller(stored, current(caseId, stored, now), caller));
+      return json(200, forCaller(stored, current(caseId, stored, now)));
     }
     if (method === 'POST' && view[2]) {
       if (!held) return problem(403, 'Only the reviewer holding the case or a supervisor');
@@ -897,8 +900,7 @@ export async function copilotRoute(
       if (status === 'pending' || status === 'stale') return problem(409, 'Already pending');
       // Not enabled is asked again: the gateway decides. While AI is still off for the
       // Commission, the new jobs are blocked at once and the view stays not enabled.
-      if (status === 'not-enabled' && aiOff)
-        return json(202, forCaller(stored, stored.view, caller));
+      if (status === 'not-enabled' && aiOff) return json(202, forCaller(stored, stored.view));
       stored.view = {
         ...stored.view,
         status: 'pending',
@@ -908,7 +910,7 @@ export async function copilotRoute(
         jobs: { summarize: crypto.randomUUID(), explain: crypto.randomUUID() },
       };
       stored.readyAt = now + MOCK_COPILOT_DELAY_MS;
-      return json(202, forCaller(stored, stored.view, caller));
+      return json(202, forCaller(stored, stored.view));
     }
     return null;
   }
@@ -947,14 +949,11 @@ export async function copilotRoute(
         ? block !== null && SUMMARY_BLOCKS.has(block)
         : block !== null && explained.has(block);
     if (!known) return problem(400, 'The output has no such block', 'unknown-block');
-    const mine =
-      stored.ratings.get(caller.subject) ?? new Map<string, CopilotView['feedback'][number]>();
-    mine.set(`${jobId} ${block}`, {
+    stored.ratings.set(`${jobId} ${block}`, {
       jobId,
       block,
       rating: body.rating as 'helpful' | 'not-helpful',
     });
-    stored.ratings.set(caller.subject, mine);
     return new Response(null, { status: 200 });
   }
   return null;
