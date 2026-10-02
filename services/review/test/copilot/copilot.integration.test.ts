@@ -662,15 +662,18 @@ describe('review copilot', () => {
           jobId: summary,
           feedback: {
             reviewerSubject: 'reviewer-a',
+            block: null,
             rating: 'not-helpful',
             reason: 'missed-something',
             note: 'No plot.',
           },
         },
       ]);
-      expect((await view(caseId)).feedback).toEqual([{ jobId: summary, rating: 'not-helpful' }]);
+      expect((await view(caseId)).feedback).toEqual([
+        { jobId: summary, block: null, rating: 'not-helpful' },
+      ]);
 
-      // Rated again: the gateway gets the new rating; one rating per output for the officer.
+      // Rated again: the gateway gets the new rating; one rating per output for the reviewer.
       expect((await api.send('PUT', feedbackPath(summary), reviewerA, helpful)).statusCode).toBe(
         200,
       );
@@ -686,8 +689,8 @@ describe('review copilot', () => {
       expect(mine).toHaveLength(2);
       expect(mine).toEqual(
         expect.arrayContaining([
-          { jobId: summary, rating: 'helpful' },
-          { jobId: explanations, rating: 'helpful' },
+          { jobId: summary, block: null, rating: 'helpful' },
+          { jobId: explanations, block: null, rating: 'helpful' },
         ]),
       );
       // The feedback in the view is the caller's own: others see none of it.
@@ -700,6 +703,48 @@ describe('review copilot', () => {
         )
         .then((result) => result.rows);
       expect(stored?.row).not.toContain('No plot');
+    });
+
+    it('rates each block on its own: a summary block, a flag explanation; a block the output lacks is 400', async () => {
+      const { caseId, summary, explanations } = await readyCase();
+      const [flagId] = await flagIdsOf(caseId);
+      if (!flagId) throw new Error('no flag');
+
+      const rate = (jobId: string, block: unknown, body: object = helpful) =>
+        api.send('PUT', feedbackPath(jobId), reviewerA, { ...body, block });
+      expect((await rate(summary, 'overview', notHelpful)).statusCode).toBe(200);
+      expect((await rate(summary, 'sections')).statusCode).toBe(200);
+      expect((await rate(explanations, `flag:${flagId}`)).statusCode).toBe(200);
+      // Rated again: replaces that block's rating only.
+      expect((await rate(summary, 'overview')).statusCode).toBe(200);
+
+      // `block` joins the gateway's FeedbackInput (ai-gateway.yaml).
+      const blockOf = (feedback: object) => (feedback as { block?: unknown }).block;
+      expect(api.ai.feedback.map((call) => [call.jobId, blockOf(call.feedback)])).toEqual([
+        [summary, 'overview'],
+        [summary, 'sections'],
+        [explanations, `flag:${flagId}`],
+        [summary, 'overview'],
+      ]);
+      expect((await view(caseId)).feedback).toEqual(
+        expect.arrayContaining([
+          { jobId: summary, block: 'overview', rating: 'helpful' },
+          { jobId: summary, block: 'sections', rating: 'helpful' },
+          { jobId: explanations, block: `flag:${flagId}`, rating: 'helpful' },
+        ]),
+      );
+      expect((await view(caseId)).feedback).toHaveLength(3);
+
+      // A flag the explanations do not cover, a summary block on the explanations, a malformed one.
+      for (const [jobId, block] of [
+        [explanations, `flag:${randomUUID()}`],
+        [explanations, 'overview'],
+        [summary, `flag:${flagId}`],
+        [summary, 'everything'],
+      ] as const) {
+        expect((await rate(jobId, block)).statusCode, block).toBe(400);
+      }
+      expect(api.ai.feedback).toHaveLength(4);
     });
 
     it('a supervisor and another reviewer get 403, other tenants and outsiders 404, nothing forwarded', async () => {

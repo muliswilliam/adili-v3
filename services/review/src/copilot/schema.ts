@@ -6,9 +6,9 @@ import {
   integer,
   jsonb,
   pgTable,
-  primaryKey,
   text,
   timestamp,
+  unique,
   uuid,
 } from 'drizzle-orm/pg-core';
 
@@ -88,7 +88,8 @@ export const COPILOT_RATINGS = ['helpful', 'not-helpful'] as const;
 export type CopilotRating = (typeof COPILOT_RATINGS)[number];
 
 /**
- * A reviewer's rating of a copilot output (spec 07c S13), one per reviewer per output (job). The
+ * A reviewer's rating of a copilot output (spec 07c S13), one per reviewer per block of an output
+ * (job): a summary's section, a flag's explanation, or (`block` null) the output as a whole. The
  * ai-gateway holds the rating of record, with the reason and note, and announces it for
  * reporting; the review service keeps the rating so the copilot view can show the reviewer their
  * own.
@@ -98,6 +99,8 @@ export const reviewCopilotRatings = pgTable(
   {
     jobId: uuid().notNull(),
     reviewerSubject: text().notNull(),
+    /** review.yaml `CopilotBlock`; null for the output as a whole (a clarification draft). */
+    block: text(),
     tenant: text().notNull(),
     caseId: uuid()
       .notNull()
@@ -106,7 +109,9 @@ export const reviewCopilotRatings = pgTable(
     ratedAt: timestamp({ withTimezone: true }).notNull(),
   },
   (table) => [
-    primaryKey({ columns: [table.jobId, table.reviewerSubject] }),
+    unique('review_copilot_ratings_job_reviewer_block_key')
+      .on(table.jobId, table.reviewerSubject, table.block)
+      .nullsNotDistinct(),
     check(
       'review_copilot_ratings_rating_check',
       sql`${table.rating} in (${inList(COPILOT_RATINGS)})`,

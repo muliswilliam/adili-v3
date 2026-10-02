@@ -9,9 +9,9 @@ import type { ReviewSchema } from '../db/schema.js';
 import { DeclarationsUnavailable } from '../declarations/declarations-client.js';
 import { declarationsUnavailable } from '../internal-api/upstream.js';
 import { type CopilotRatingView, ratingsOf } from './copilot-feedback.js';
-import { copilotOf, copilotOutputRecordId, CopilotRequests } from './copilot-requests.js';
+import { copilotOf, CopilotRequests, openOutput } from './copilot-requests.js';
 import { aiGatewayUnavailable } from './problems.js';
-import type { CopilotRow, CopilotStatus } from './schema.js';
+import type { CopilotStatus } from './schema.js';
 
 /** review.yaml `CopilotView`. */
 export interface CopilotView {
@@ -79,8 +79,8 @@ export class CopilotService {
       forVersionId: record.generatedForVersionId ?? record.forVersionId,
       generatedAt: record.generatedAt?.toISOString() ?? null,
       failureReason: record.failureReason,
-      summary: await this.open(tenant, record, 'summary'),
-      explanations: await this.open(tenant, record, 'explanations'),
+      summary: await openOutput(this.cipher, record, 'summary'),
+      explanations: await openOutput(this.cipher, record, 'explanations'),
       jobs: { summarize: record.summaryJobId, explain: record.explanationsJobId },
       feedback,
     };
@@ -135,24 +135,5 @@ export class CopilotService {
       throw error;
     }
     return this.view(principal, row.id);
-  }
-
-  private async open(
-    tenant: string,
-    record: CopilotRow,
-    output: 'summary' | 'explanations',
-  ): Promise<Record<string, unknown> | null> {
-    const [jobId, ciphertext, envelope] =
-      output === 'summary'
-        ? [record.summaryJobId, record.summaryCiphertext, record.summaryEnvelope]
-        : [record.explanationsJobId, record.explanationsCiphertext, record.explanationsEnvelope];
-    if (jobId === null || ciphertext === null || envelope === null) return null;
-    const plaintext = await this.cipher.decrypt({
-      tenant,
-      recordId: copilotOutputRecordId(record.caseId, jobId),
-      ciphertext,
-      envelope,
-    });
-    return JSON.parse(plaintext.toString('utf8')) as Record<string, unknown>;
   }
 }

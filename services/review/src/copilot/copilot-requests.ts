@@ -397,6 +397,26 @@ export function copilotOutputRecordId(caseId: string, jobId: string): string {
   return `review-copilot:${caseId}:${jobId}`;
 }
 
+/** A stored output of the copilot record, decrypted; null when it has none. */
+export async function openOutput(
+  cipher: FieldCipher,
+  record: CopilotRow,
+  output: 'summary' | 'explanations',
+): Promise<Record<string, unknown> | null> {
+  const [jobId, ciphertext, envelope] =
+    output === 'summary'
+      ? [record.summaryJobId, record.summaryCiphertext, record.summaryEnvelope]
+      : [record.explanationsJobId, record.explanationsCiphertext, record.explanationsEnvelope];
+  if (jobId === null || ciphertext === null || envelope === null) return null;
+  const plaintext = await cipher.decrypt({
+    tenant: record.tenant,
+    recordId: copilotOutputRecordId(record.caseId, jobId),
+    ciphertext,
+    envelope,
+  });
+  return JSON.parse(plaintext.toString('utf8')) as Record<string, unknown>;
+}
+
 /** How sensitive a Commission's declarations are, as the gateway's gate reads it. */
 export function dataClassOf(tenant: string): DataClass {
   return config.AI_SYNTHETIC_DATA_TENANTS.includes(tenant) ? 'synthetic' : 'highly-confidential';
