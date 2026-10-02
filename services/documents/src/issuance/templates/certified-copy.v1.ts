@@ -118,7 +118,7 @@ ${fileNumber}
 <dt>Submitted</dt><dd>${esc(formatDateTime(payload.submittedAt))}</dd>
 </dl>
 <div class="certify">Certified a true copy of version ${payload.version} of this declaration as submitted through Adili Online and held by the ${esc(commission.name)}, issued to the declarant on ${esc(formatDate(issuedAt))}.</div>
-${declarationContent(payload.document, { householdIdentifiers: true })}
+${declarationContent(payload.document, { householdIdentifiers: true, commission })}
 ${attestation(payload.document)}
 ${verificationPanel('copy', verificationId, 'The check shows only the reference, type, Commission and date.')}
 <div class="signed">${signatureNote(signerName, issuedAt)}</div>`;

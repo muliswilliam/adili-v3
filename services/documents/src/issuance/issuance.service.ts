@@ -48,6 +48,18 @@ const DOWNLOAD_URL_TTL_SECONDS = 5 * 60;
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
+/** The saved file's name: the document type and its reference, e.g. `certified-copy-DCI-PSC-2026-0000001-Y.pdf`. */
+export function downloadFileName(document: {
+  type: string;
+  reference: string | null;
+  id: string;
+}): string {
+  return `${document.type}-${document.reference ?? document.id}.pdf`.replace(
+    /[^A-Za-z0-9.-]/g,
+    '-',
+  );
+}
+
 type DocumentRow = typeof issuedDocuments.$inferSelect;
 type RecordRow = typeof verificationRecords.$inferSelect;
 type Tx = Parameters<Parameters<Database<DocumentsSchema>['transaction']>[0]>[0];
@@ -420,7 +432,12 @@ export class IssuanceService {
     }
     const downloadUrl = await getSignedUrl(
       this.publicS3,
-      new GetObjectCommand({ Bucket: config.S3_BUCKET_ISSUED, Key: document.objectKey }),
+      new GetObjectCommand({
+        Bucket: config.S3_BUCKET_ISSUED,
+        Key: document.objectKey,
+        // An attachment, so the browser saves the PDF and the page that asked stays open.
+        ResponseContentDisposition: `attachment; filename="${downloadFileName(document)}"`,
+      }),
       { expiresIn: DOWNLOAD_URL_TTL_SECONDS },
     );
     const expiresAt = new Date(now.getTime() + DOWNLOAD_URL_TTL_SECONDS * 1000);

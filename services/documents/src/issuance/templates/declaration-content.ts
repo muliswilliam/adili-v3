@@ -92,6 +92,11 @@ export interface ContentOptions {
    * never on a disclosure to someone else.
    */
   householdIdentifiers: boolean;
+  /**
+   * The Commission that holds the declaration. The biodata names it, rather than by the tenant
+   * key the declaration stores (`responsibleCommission`, e.g. `psc`).
+   */
+  commission: { slug: string; name: string; issuerCode: string };
 }
 
 /** Styles of the rendered content, for the template's stylesheet. */
@@ -100,6 +105,7 @@ export const CONTENT_STYLES = `
 .sec h2{font-size:11.5pt;font-weight:700;margin:0 0 2mm;padding-bottom:1.2mm;border-bottom:0.35mm solid ${INK};break-after:avoid}
 .sec h3{font-size:10pt;font-weight:700;margin:4mm 0 1.5mm;break-after:avoid}
 .sec h4{font-size:8.6pt;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;color:${MUTED};margin:3mm 0 1mm;break-after:avoid}
+.person{break-inside:avoid;break-after:avoid}
 .kv{display:grid;grid-template-columns:44mm 1fr;margin:0}
 .kv dt,.kv dd{margin:0;padding:1.3mm 0;border-bottom:0.25mm solid ${LINE}}
 .kv dt{color:${MUTED}}
@@ -113,7 +119,8 @@ table.items td{padding:1.4mm 1.5mm;border-bottom:0.25mm solid ${LINE};vertical-a
 table.items tr{break-inside:avoid}
 table.items .num{text-align:right;white-space:nowrap}
 .note{color:${SOFT};font-size:7.8pt;margin-top:0.6mm}
-.nil{color:${SOFT};font-style:italic;margin:0 0 1mm}`;
+.nil{color:${SOFT};font-style:italic;margin:0 0 1mm}
+.attest{break-inside:avoid}`;
 
 const INCOME_TYPES: Record<IncomeItem['type'], string> = {
   'salary-emoluments': 'Salary and emoluments',
@@ -251,8 +258,13 @@ function rows(entries: [string, string | undefined | null][]): string {
     .join('');
 }
 
-function bio(officer: DeclarationV1['officer']): string {
+function bio(officer: DeclarationV1['officer'], options: ContentOptions): string {
   const { employment } = officer;
+  const { commission } = options;
+  const responsibleCommission =
+    employment.responsibleCommission === commission.slug
+      ? `${commission.name} (${commission.issuerCode})`
+      : employment.responsibleCommission;
   const nature =
     employment.nature === 'other' && employment.natureOther
       ? employment.natureOther
@@ -274,7 +286,7 @@ function bio(officer: DeclarationV1['officer']): string {
     ['Job group', employment.jobGroup],
     ['Date of appointment', employment.appointmentDate && formatDate(employment.appointmentDate)],
     ['Work station', employment.workStation],
-    ['Responsible Commission', employment.responsibleCommission],
+    ['Responsible Commission', responsibleCommission],
   ])}</dl></section>`;
 }
 
@@ -385,7 +397,9 @@ function statementOf(entry: DisclosedStatement | Statement): string {
     ? `<p class="note">To the best of the declarant's knowledge: ${esc(entry.knowledgeLimitation)}</p>`
     : '';
   const period = `Statement date ${esc(formatDate(entry.statementDate))}. Income from ${esc(formatDate(entry.incomePeriod.from))} to ${esc(formatDate(entry.incomePeriod.to))}.`;
-  return `<h3>${esc(fullName(entry.personName))}</h3><p class="note">${period}</p>${income}${assets}${liabilities}${limitation}`;
+  // The person's name and dates stay with the start of their statement, never alone at the
+  // foot of a page.
+  return `<div class="person"><h3>${esc(fullName(entry.personName))}</h3><p class="note">${period}</p></div>${income}${assets}${liabilities}${limitation}`;
 }
 
 /** `Income, assets and liabilities`, or the part of it the statements carry. */
@@ -436,7 +450,7 @@ export function declarationContent(
   options: ContentOptions,
 ): string {
   return [
-    content.officer ? bio(content.officer) : '',
+    content.officer ? bio(content.officer, options) : '',
     household(content.spouses, content.children, options),
     statements(content.statements ?? []),
     otherInformation(content.otherInformation),
@@ -448,5 +462,5 @@ export function attestation(content: Pick<DeclarationV1, 'attestation'>): string
   const declared = content.attestation.declaredAt
     ? `<p class="note">Declared ${esc(formatDateTime(content.attestation.declaredAt))}.</p>`
     : '';
-  return `<section class="sec"><h2>Declaration</h2><p>${esc(content.attestation.text)}</p>${declared}</section>`;
+  return `<section class="sec attest"><h2>Declaration</h2><p>${esc(content.attestation.text)}</p>${declared}</section>`;
 }

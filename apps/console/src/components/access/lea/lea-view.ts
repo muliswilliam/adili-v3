@@ -3,7 +3,7 @@ import type { RegisterEntry as TimelineEntry } from '@adili/ui';
 import type { AccessProblem, LeaRequest } from '../../../server/access/types';
 import type { ServiceError } from '../../../server/service-call';
 import { packageTitleOf } from '../request-view';
-import { messages as m, type ReceivedDeclarant } from './messages';
+import { messages as m } from './messages';
 
 /**
  * What a law enforcement request's page shows beside the written request (spec 10 FE-6), from
@@ -70,7 +70,11 @@ export function officerOf(request: Pick<LeaRequest, 'officer' | 'agency'>): stri
   return `${request.officer.name} (${request.agency.code})`;
 }
 
-/** The access register as the timeline primitive draws it, in the prototype's words. */
+/**
+ * The access register as the timeline primitive draws it, in the prototype's words. Each entry
+ * reads as it did when it was recorded, not by where the request stands now: what happened
+ * since has entries of its own.
+ */
 export function leaTimelineOf(request: LeaRequest): TimelineEntry[] {
   return request.timeline.map((entry): TimelineEntry => {
     const base = { id: entry.id, kind: entry.kind, at: entry.at, actor: entry.actor };
@@ -79,7 +83,7 @@ export function leaTimelineOf(request: LeaRequest): TimelineEntry[] {
         return {
           ...base,
           actor: entry.actor ? officerOf(request) : null,
-          summary: m.receivedSummary(request.caseReference, receivedDeclarant(request)),
+          summary: m.receivedSummary(request.caseReference),
         };
       case 'verified':
         return {
@@ -114,14 +118,6 @@ export function leaTimelineOf(request: LeaRequest): TimelineEntry[] {
         return base;
     }
   });
-}
-
-/** Where the declarant stands now, for the register's received entry. */
-function receivedDeclarant(request: LeaRequest): ReceivedDeclarant {
-  if (request.declarantNotifiedAt !== null) {
-    return request.declarantNotice?.channel === 'written' ? 'notified-in-writing' : 'notified';
-  }
-  return request.status === 'denied' || request.status === 'withdrawn' ? 'never' : 'not-yet';
 }
 
 function withTitle(entry: TimelineEntry, title: string | undefined): TimelineEntry {

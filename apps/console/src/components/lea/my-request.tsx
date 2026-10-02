@@ -1,5 +1,6 @@
 import {
   accessOutcomeLabels,
+  accessOutcomeTones,
   Alert,
   AlertDescription,
   Badge,
@@ -299,7 +300,7 @@ function Side({ request, now, state }: { request: LeaRequest; now: string; state
           ) : null}
         </SideCard>
         <SideCard id="decision" title={m.decisionTitle}>
-          <OutcomeLine icon={CheckmarkCircle02Icon} tone="success">
+          <OutcomeLine icon={CheckmarkCircle02Icon} tone={accessOutcomeTones[decision.outcome]}>
             {accessOutcomeLabels[decision.outcome]}
           </OutcomeLine>
           <dl className="grid gap-3 text-sm">

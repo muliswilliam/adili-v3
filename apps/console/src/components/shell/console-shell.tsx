@@ -135,7 +135,7 @@ function Sidebar({
                     aria-current={item.to === active ? 'page' : undefined}
                     className={cn(
                       focusRing,
-                      'group flex h-9 items-center gap-2.5 rounded-md px-2.5 text-sm font-medium text-secondary-foreground hover:bg-muted hover:text-foreground',
+                      'group flex min-h-9 items-center gap-2.5 rounded-md px-2.5 py-2 text-sm font-medium text-secondary-foreground hover:bg-muted hover:text-foreground',
                       'aria-[current=page]:bg-card aria-[current=page]:text-foreground aria-[current=page]:shadow-card',
                     )}
                   >

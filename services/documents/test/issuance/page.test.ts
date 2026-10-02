@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
 
-import { kes, originalAmount } from '../../src/issuance/templates/declaration-content.js';
+import {
+  attestation,
+  CONTENT_STYLES,
+  kes,
+  originalAmount,
+} from '../../src/issuance/templates/declaration-content.js';
 import {
   esc,
   formatDate,
@@ -88,5 +93,18 @@ describe('verificationPanel', () => {
     expect(panel).toContain('Check that this package is genuine');
     expect(panel).toContain('<div class="vcode mono nw">ADL-7Q4K-M2XR</div>');
     expect(panel).toContain('The check shows only whether the package is valid.');
+  });
+});
+
+describe('attestation', () => {
+  it('keeps the solemn declaration and when it was made on one page', () => {
+    const html = attestation({
+      attestation: {
+        text: 'I solemnly declare that the information I have given in this declaration is, to the best of my knowledge, true and complete.',
+        declaredAt: '2026-10-02T14:23:00.000Z',
+      },
+    });
+    expect(html).toMatch(/^<section class="sec attest">/);
+    expect(CONTENT_STYLES).toContain('.attest{break-inside:avoid}');
   });
 });

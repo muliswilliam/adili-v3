@@ -95,13 +95,19 @@ export function requestStages(request: AccessRequest, now: number, windowClosed 
       state: stateOf(1, reached),
     });
   }
+  const identified = at(timeline, 'identified');
   const notified = at(timeline, 'notified');
   const officerState = stateOf(2, reached);
   stages.push({
     id: 'identified',
     title: COPY.officerIdentified,
-    // The register records no entry of its own for the identification: notifying follows it.
-    detail: officerState === 'current' ? COPY.officerChecking(commission.name) : null,
+    // Done: the day the register recorded the identification.
+    detail:
+      officerState === 'current'
+        ? COPY.officerChecking(commission.name)
+        : identified
+          ? formatDate(identified)
+          : null,
     state: officerState,
   });
   const notifiedState = stateOf(3, reached);

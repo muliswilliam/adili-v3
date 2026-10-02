@@ -51,6 +51,33 @@ describe('decisionClock', () => {
 });
 
 describe('requestStages', () => {
+  it('dates the officer identified by its register entry', async () => {
+    const request = await seededRequest(IDS.deciding);
+    const identifiedAt = '2026-09-21T07:30:00Z';
+    const stages = requestStages(
+      {
+        ...request,
+        timeline: [
+          ...request.timeline.filter((entry) => entry.kind !== 'identified'),
+          {
+            id: 'identified-1',
+            kind: 'identified',
+            at: identifiedAt,
+            actor: null,
+            summary: 'Officer identified',
+            reference: request.reference,
+            inWriting: false,
+          },
+        ],
+      },
+      Date.now(),
+    );
+    expect(stages.find((stage) => stage.id === 'identified')).toMatchObject({
+      state: 'done',
+      detail: '21 Sep 2026',
+    });
+  });
+
   it('names no fixed window before the officer is notified', async () => {
     const request = await seededRequest(IDS.submitted);
     const notified = requestStages(request, Date.parse(request.submittedAt)).find(

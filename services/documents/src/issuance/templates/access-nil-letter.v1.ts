@@ -50,10 +50,14 @@ export type AccessNilLetterPayload = z.infer<typeof accessNilLetterPayload>;
 
 const STYLES = `${LETTERHEAD_STYLES}${DECLARATION_DOCUMENT_STYLES}
 .cpill{flex:none;padding:1.2mm 3.2mm;border-radius:999px;background:${INK};color:#fff;font-weight:700;font-size:8pt;letter-spacing:0.14em}
-.nil-statement{padding:5mm;border-radius:2mm;border:0.35mm solid ${INK};margin:5mm 0;font-size:10pt;line-height:1.5}
+.nil-statement{padding:4.5mm 5mm;border-radius:2mm;border:0.35mm solid ${INK};margin:4mm 0;font-size:10pt;line-height:1.5}
 .nil-statement .t{font-size:11pt;font-weight:700;margin-bottom:1.5mm}
-.warn{padding:4mm 5mm;border-radius:2mm;background:#fdf3ec;border:0.3mm solid #f1c3a6;margin:4mm 0}
-.warn .t{font-weight:700;margin-bottom:1mm}`;
+.nil-statement p:last-child{margin-bottom:0}
+.warn{padding:3.5mm 5mm;border-radius:2mm;background:#fdf3ec;border:0.3mm solid #f1c3a6;margin:4mm 0}
+.warn .t{font-weight:700;margin-bottom:1mm}
+.close{display:flex;align-items:flex-end;gap:4mm;margin:5mm 0 0;break-inside:avoid}
+.close .vpanel{flex:1;margin:0}
+.close .signed{flex:none}`;
 
 /**
  * The nil letter (spec 10): a grant on an access request or a law-enforcement request whose
@@ -105,8 +109,7 @@ export const accessNilLetterV1: DocumentTemplate<AccessNilLetterPayload> = {
 </dl>
 <div class="nil-statement"><div class="t">No declarations held within the granted scope</div><p>The ${esc(commission.name)} granted the request above. It holds no declaration of income, assets and liabilities by ${esc(payload.declarantName)} within the scope granted, so there is nothing to disclose.</p><p>This letter is issued in place of an access package. It discloses no content of any declaration.</p></div>
 <div class="warn"><div class="t">For the recipient named above only</div><div>Every page carries the recipient's name, the request reference and the date of issue.</div></div>
-${verificationPanel('letter', verificationId, 'The check shows only whether the letter is valid, never its contents or who it was issued to.')}
-<div class="signed">${signatureNote(signerName, issuedAt)}</div>`;
+<div class="close">${verificationPanel('letter', verificationId, 'The check shows only whether the letter is valid, never its contents or who it was issued to.')}<div class="signed">${signatureNote(signerName, issuedAt)}</div></div>`;
     return htmlDocument(`Nil letter ${payload.grantReference}`, STYLES, body);
   },
 };

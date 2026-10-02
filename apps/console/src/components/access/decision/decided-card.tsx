@@ -1,4 +1,4 @@
-import { accessOutcomeLabels, formatDateTime, groundMeta } from '@adili/ui';
+import { accessOutcomeLabels, accessOutcomeTones, formatDateTime, groundMeta } from '@adili/ui';
 import { CheckmarkCircle02Icon, UnavailableIcon } from '@hugeicons/core-free-icons';
 import type { ReactNode } from 'react';
 
@@ -31,7 +31,7 @@ export function DecidedCard({ decision }: { decision: Decision | LeaDecision }) 
     >
       <OutcomeLine
         icon={deny ? UnavailableIcon : CheckmarkCircle02Icon}
-        tone={deny ? 'destructive' : 'success'}
+        tone={accessOutcomeTones[decision.outcome]}
       >
         {accessOutcomeLabels[decision.outcome]}
       </OutcomeLine>

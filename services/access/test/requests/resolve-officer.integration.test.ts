@@ -171,6 +171,13 @@ describe('Resolving the officer a request names (S3)', () => {
         personId: anne.personId,
         rosterRecordId: anne.id,
       });
+      // The applicant's timeline dates the step too, without naming who took it.
+      const own = await api.get(`/v1/access/requests/${id}`, mercy);
+      expect(
+        own
+          .json<{ timeline: { kind: string; at: string; actor: string | null }[] }>()
+          .timeline.find((entry) => entry.kind === 'identified'),
+      ).toMatchObject({ at: RESOLVED_AT, actor: null });
       // The notice that follows is the workflow's, as before.
       await untilNotified(api, id);
       expect(

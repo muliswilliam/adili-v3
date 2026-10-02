@@ -133,6 +133,8 @@ describe("The declarant's notices and representations (S4)", () => {
           text: OBJECTION,
           attachments: [{ uploadId: upload.id, fileName: 'title-deed.pdf' }],
           submittedAt: '2027-03-07T10:00:00.000Z',
+          // First made, not edited: the portal and console tell the two apart by these.
+          updatedAt: '2027-03-07T10:00:00.000Z',
         },
       });
       expect(api.documents.linked).toEqual([upload.id]);
@@ -187,6 +189,7 @@ describe("The declarant's notices and representations (S4)", () => {
         text: 'Further context.',
         attachments: [{ uploadId: second.id }],
         submittedAt: '2027-03-07T10:00:00.000Z',
+        updatedAt: '2027-03-11T10:00:00.000Z',
       });
       expect(api.documents.unlinked).toEqual([first.id]);
       const stored = await api.asPlatform((tx) =>

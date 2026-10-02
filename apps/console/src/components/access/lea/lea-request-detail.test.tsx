@@ -233,10 +233,10 @@ describe('a law enforcement request, for the access officer (spec 10 FE-6, S11)'
   it('S11: after a grant, says the declarant was notified and shows the package', async () => {
     renderDetail(await requestOf(L.granted));
     expect(screen.getByText(/^Declarant notified after grant, on /)).toBeTruthy();
-    // The register's received entry reads where the declarant stands now, not at receipt.
+    // The register's received entry reads as it did at receipt; the notice has its own entry.
     const register = screen.getByRole('list', { name: 'Access register' });
-    expect(register.textContent).toContain('Declarant notified after grant.');
-    expect(register.textContent).not.toContain('Declarant not told yet');
+    expect(register.textContent).toContain('Declarant not told yet.');
+    expect(register.textContent).toContain('Declarant notified after grant');
     const pkg = within(side()).getByRole('region', { name: 'Package' });
     expect(pkg.textContent).toContain('Suleiman Ali, DCI');
     expect(pkg.textContent).toContain('Downloads1');
@@ -249,8 +249,7 @@ describe('a law enforcement request, for the access officer (spec 10 FE-6, S11)'
     renderDetail(await requestOf(L.denied));
     expect(screen.getByText('The declarant was not told. DCI received the reasons.')).toBeTruthy();
     const register = screen.getByRole('list', { name: 'Access register' });
-    expect(register.textContent).toContain('Declarant not told.');
-    expect(register.textContent).not.toContain('not told yet');
+    expect(register.textContent).toMatch(/Case [^.]+\. Declarant not told yet\./);
     expect(within(side()).queryByRole('region', { name: 'Package' })).toBeNull();
   });
 

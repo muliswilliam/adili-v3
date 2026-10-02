@@ -438,6 +438,9 @@ describe('S10 an access package of the bio section only', () => {
     const all = (await pageTexts(await storedPdf(document.id))).join(' ');
     expect(all).toContain('Biodata');
     expect(all).toContain(DECLARATION.officer.birth.place);
+    // The biodata names the Commission, not its tenant key.
+    expect(all).not.toMatch(/Responsible Commission\s*psc\b/);
+    expect(all.split('Public Service Commission (PSC)').length - 1).toBe(2);
     expect(all).not.toContain('INCOME');
     expect(all).not.toContain('Household');
     for (const spouse of DECLARATION.spouses.items)
@@ -659,6 +662,8 @@ describe('S10 issuing a nil letter for a grant with nothing to disclose', () => 
     expect(texts[0]).toContain('Sections: Income, Assets');
     expect(texts[0]).toContain('Clarifications the declarant gave');
     expect(texts[0]).toContain('section 36(1) of the Act (Form K)');
+    // A one-page letter: the signature does not spill onto a page of its own.
+    expect(texts).toHaveLength(1);
     for (const text of texts) {
       expect(text).toContain(WATERMARK);
       expect(compact(text)).toContain('CONFIDENTIAL');
@@ -798,6 +803,41 @@ describe('S13 issuing a certified copy', () => {
     expect(response.json<Problem>().errors).toEqual([
       expect.objectContaining({ path: 'subjectPersonId' }),
     ]);
+  });
+});
+
+describe('S13 a certified copy keeps each person with their statement', () => {
+  it('never leaves a name and its dates alone at the foot of a page', async () => {
+    // One more income line pushes Faith Otieno's name to the foot of page 3 when the heading
+    // breaks from the statement under it.
+    const payload = copyPayload();
+    const document = structuredClone(payload.document);
+    const [officer] = document.statements;
+    if (!officer?.income[0]) throw new Error('the fixture officer declares income');
+    officer.income.push(officer.income[0]);
+    const issuedCopy = await issued({
+      type: 'certified-copy',
+      templateVersion: 1,
+      subjectRef: `certified-copy:${randomUUID()}`,
+      subjectPersonId: DECLARANT_PERSON,
+      payload: { ...payload, document },
+    });
+    const texts = await pageTexts(await storedPdf(issuedCopy.id));
+    for (const statement of document.statements) {
+      const name = [
+        statement.personName.firstName,
+        statement.personName.otherNames,
+        statement.personName.surname,
+      ]
+        .filter(Boolean)
+        .join(' ');
+      const page = texts.find((text) => text.includes(`${name} Statement date`));
+      expect(page, name).toBeDefined();
+      // The first section of the statement follows on the same page.
+      expect(page).toMatch(
+        new RegExp(`${name} Statement date [^.]+\\. Income from [^.]+\\. INCOME`),
+      );
+    }
   });
 });
 

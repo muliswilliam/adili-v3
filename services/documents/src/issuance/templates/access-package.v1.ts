@@ -228,7 +228,7 @@ export const accessPackageV1: DocumentTemplate<AccessPackagePayload> = {
     const versions = disclosure.versions
       .map((entry) => {
         const scheme = declarationSchemes[entry.type];
-        return `<section class="version"><div class="vh"><div class="t">${esc(scheme.name)}, ${esc(formatDate(entry.statementDate))}</div><div class="mono nw">${esc(entry.reference)} · Version ${entry.version}</div></div><p class="note">Submitted ${esc(formatDateTime(entry.submittedAt))}.</p>${declarationContent(entry.content, { householdIdentifiers: false })}${attestation(entry.content)}${clarificationsOf(entry.reference, payload.clarifications)}</section>`;
+        return `<section class="version"><div class="vh"><div class="t">${esc(scheme.name)}, ${esc(formatDate(entry.statementDate))}</div><div class="mono nw">${esc(entry.reference)} · Version ${entry.version}</div></div><p class="note">Submitted ${esc(formatDateTime(entry.submittedAt))}.</p>${declarationContent(entry.content, { householdIdentifiers: false, commission: disclosure.commission })}${attestation(entry.content)}${clarificationsOf(entry.reference, payload.clarifications)}</section>`;
       })
       .join('');
     const body = `${letterhead({ name: disclosure.commission.name, code: disclosure.commission.issuerCode })}

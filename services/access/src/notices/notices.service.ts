@@ -187,7 +187,9 @@ export class NoticesService {
           tenant: own.tenant,
           personId,
           ...values,
+          // Both from the clock: a first response reads as made, not edited.
           submittedAt: now,
+          updatedAt: now,
         })
         .onConflictDoUpdate({
           target: representations.requestId,
