@@ -122,6 +122,32 @@ export class LeaController {
     return this.lea.get(principal, requestId, audit);
   }
 
+  @Post(':leaRequestId/withdraw')
+  @HttpCode(HttpStatus.OK)
+  @Roles(LAW_ENFORCEMENT)
+  @RequireIdempotencyKey()
+  @ApiParam(LEA_REQUEST_ID)
+  @ApiOperation({
+    operationId: 'withdrawLeaRequest',
+    summary: 'The filing officer withdraws their request before a decision',
+    description:
+      "Only the officer who filed it, while it is `received` or `verified`. It becomes `withdrawn` (`lea.request.withdrawn.v1`, in the access register) and the Commission's access officers are told by email; the declarant is never told. Idempotent per Idempotency-Key.",
+  })
+  @ApiOkResponse({ description: 'Withdrawn', schema: schemaRef('LeaRequest') })
+  @ApiProblemResponse(400, 'leaRequestId is not a UUID')
+  @ApiProblemResponse(403, 'Not a law enforcement officer account')
+  @ApiProblemResponse(404, NOT_VISIBLE)
+  @ApiProblemResponse(
+    409,
+    'Problem code `request-decided` (a decision is final) or `request-closed` (withdrawn already)',
+  )
+  withdraw(
+    @CurrentPrincipal() principal: Principal,
+    @Param('leaRequestId', new ZodValidationPipe(z.uuid())) requestId: string,
+  ): Promise<LeaRequest> {
+    return this.lea.withdraw(principal, requestId);
+  }
+
   @Get(':leaRequestId/roster-candidates')
   @Roles(...OFFICER_ROUTE_ROLES)
   @AuditedRead({ action: 'lea.roster-candidates.listed', resource: 'roster-record' })

@@ -55,6 +55,9 @@ export const LEA_REMINDER_DAYS_BEFORE_DEADLINE = 4;
 export type LeaReminderOutcome = 'sent' | 'skipped' | 'missing';
 export type LeaBreachOutcome = 'flagged' | 'skipped' | 'missing';
 
+/** What the withdrawal notice did: `sent` to the access officers, `skipped`, or `missing`. */
+export type LeaWithdrawnNoticeOutcome = 'sent' | 'skipped' | 'missing';
+
 /**
  * Where the request stands, read from the request itself (`leaRequestState`): first, once the
  * receiving transaction has ended, then whenever the wait for the decision has had no signal for

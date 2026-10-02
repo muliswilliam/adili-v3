@@ -816,6 +816,67 @@ paths:
       x-audited-read:
         action: lea.request.viewed
         resource: lea-request
+  /v1/lea/requests/{leaRequestId}/withdraw:
+    post:
+      tags:
+        - lea
+      summary: The filing officer withdraws their request before a decision
+      description: Only the officer who filed it, while it is `received` or `verified`. It becomes `withdrawn` (`lea.request.withdrawn.v1`, in the access register) and the Commission's access officers are told by email; the declarant is never told. Idempotent per Idempotency-Key.
+      operationId: withdrawLeaRequest
+      parameters:
+        - name: leaRequestId
+          required: true
+          in: path
+          schema:
+            type: string
+            format: uuid
+        - name: Idempotency-Key
+          in: header
+          description: Client-generated UUID, unique per logical request; reuse on retry
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Withdrawn
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LeaRequest'
+        '400':
+          description: leaRequestId is not a UUID
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '403':
+          description: |-
+            Not a law enforcement officer account
+
+            Requires one of the roles: law-enforcement
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: No such request of the caller's (another officer's, another Commission's, EACC's or anyone else's view)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '409':
+          description: Problem code `request-decided` (a decision is final) or `request-closed` (withdrawn already)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '422':
+          description: Idempotency-Key reused with a different request body
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
   /v1/lea/requests/{leaRequestId}/roster-candidates:
     get:
       tags:
@@ -1023,7 +1084,7 @@ paths:
       tags:
         - declarant
       summary: Requests the declarant has been notified about, with windows and outcomes
-      description: 'Their own only, latest notified first: Form K requests from notification on; law enforcement requests (kind `lea`, with `agency` and `caseReference`, no representations) only once granted and the declarant told (r.23(2)).'
+      description: "Their own only, latest notified first: Form K requests from notification on; law enforcement requests (kind `lea`: the agency, its case reference, the outcome and the dates only, never the agency's reason or the decision's reasons or grounds; no representations) only once granted and the declarant told (r.23(2)). Form K notices carry the applicant's reason verbatim."
       operationId: listMyAccessNotices
       responses:
         '200':
@@ -1085,7 +1146,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/DeclarantNotice'
+                $ref: '#/components/schemas/FormKDeclarantNotice'
         '400':
           description: requestId is not a UUID, the body failed validation, or an attachment is not a clean `access-representation` upload of the declarant
           content:
@@ -2198,7 +2259,7 @@ components:
         - text
         - attachments
       additionalProperties: false
-    DeclarantNotice:
+    FormKDeclarantNotice:
       type: object
       properties:
         requestId:
@@ -2208,9 +2269,7 @@ components:
           type: string
         kind:
           type: string
-          enum:
-            - form-k
-            - lea
+          const: form-k
         commission:
           type: object
           properties:
@@ -2227,24 +2286,6 @@ components:
           type: string
         purposeInGeneralTerms:
           type: string
-        agency:
-          anyOf:
-            - type: object
-              properties:
-                code:
-                  type: string
-                name:
-                  type: string
-              required:
-                - code
-                - name
-            - type: 'null'
-          description: The agency of a law enforcement request (from its grant); null for Form K
-        caseReference:
-          description: The agency's case reference of a law enforcement request (from its grant); null for Form K
-          type:
-            - string
-            - 'null'
         scope:
           $ref: '#/components/schemas/Scope'
         notifiedAt:
@@ -2273,14 +2314,76 @@ components:
         - status
         - applicantName
         - purposeInGeneralTerms
-        - agency
-        - caseReference
         - scope
         - notifiedAt
         - windowEndsAt
         - canRespond
         - representations
         - decision
+    LeaDeclarantNotice:
+      type: object
+      properties:
+        requestId:
+          type: string
+          format: uuid
+        reference:
+          type: string
+        kind:
+          type: string
+          const: lea
+        commission:
+          type: object
+          properties:
+            slug:
+              type: string
+            name:
+              type: string
+          required:
+            - slug
+            - name
+        status:
+          type: string
+          const: granted
+        agency:
+          type: object
+          properties:
+            code:
+              type: string
+            name:
+              type: string
+          required:
+            - code
+            - name
+        caseReference:
+          type: string
+          description: The agency's case reference
+        outcome:
+          type: string
+          enum:
+            - grant
+            - partial-grant
+          description: Granted in full or in part (the scope disclosed is not shown)
+        decidedAt:
+          type: string
+          format: date-time
+        notifiedAt:
+          type: string
+          format: date-time
+      required:
+        - requestId
+        - reference
+        - kind
+        - commission
+        - status
+        - agency
+        - caseReference
+        - outcome
+        - decidedAt
+        - notifiedAt
+    DeclarantNotice:
+      oneOf:
+        - $ref: '#/components/schemas/FormKDeclarantNotice'
+        - $ref: '#/components/schemas/LeaDeclarantNotice'
     AccessCommission:
       type: object
       properties:

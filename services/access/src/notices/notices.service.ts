@@ -26,6 +26,7 @@ import {
 } from '../requests/schema.js';
 import {
   type DeclarantNotice,
+  type FormKDeclarantNotice,
   type RepresentationsInput,
   toDeclarantNotice,
   toLeaDeclarantNotice,
@@ -127,7 +128,7 @@ export class NoticesService {
     principal: Principal,
     requestId: string,
     input: RepresentationsInput,
-  ): Promise<DeclarantNotice> {
+  ): Promise<FormKDeclarantNotice> {
     const personId = declarantPersonId(principal);
     const person = { personId, subject: principal.subject };
     const notice = notFoundIfInvisible(

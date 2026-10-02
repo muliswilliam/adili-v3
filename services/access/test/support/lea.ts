@@ -102,6 +102,14 @@ export const decideLea = (
     'idempotency-key': randomUUID(),
   });
 
+/** The filing officer withdraws the request, with `key` (fresh unless given) as Idempotency-Key. */
+export const withdrawLea = (
+  api: AccessApi,
+  id: string,
+  caller: Caller = leaCallers.peter,
+  key: string = randomUUID(),
+) => api.send('POST', `/v1/lea/requests/${id}/withdraw`, caller, {}, { 'idempotency-key': key });
+
 /** The request's row, as the service stores it. */
 export async function leaRowOf(api: AccessApi, id: string): Promise<LeaRequestRow> {
   const [row] = await api.asPlatform((tx) =>

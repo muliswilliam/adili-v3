@@ -500,7 +500,7 @@ function leaQueueItem(row: LeaRequestRow, now: Date): QueueItem {
     deadlineAt: row.deadlineAt.toISOString(),
     windowEndsAt: null,
     late: !isLeaClosed(row.status) && now.getTime() > row.deadlineAt.getTime(),
-    closedAt: row.decision?.decidedAt ?? null,
+    closedAt: row.decision?.decidedAt ?? row.closedAt?.toISOString() ?? null,
   };
 }
 

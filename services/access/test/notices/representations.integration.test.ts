@@ -5,7 +5,7 @@ import { eq } from 'drizzle-orm';
 import { afterEach, beforeAll, describe, expect, it } from 'vitest';
 
 import { representations } from '../../src/db/schema.js';
-import type { DeclarantNotice } from '../../src/notices/representation.js';
+import type { FormKDeclarantNotice as DeclarantNotice } from '../../src/notices/representation.js';
 import { accessRequestWorkflowId } from '../../src/requests/contract.js';
 import type { OfficerRequestView } from '../../src/requests/officer-view.js';
 import type { AccessRequest } from '../../src/requests/representation.js';
@@ -69,8 +69,6 @@ describe("The declarant's notices and representations (S4)", () => {
           applicantName: 'Mercy Wanjiku Kamau',
           purposeInGeneralTerms:
             "Reporting on land allocations approved by the officer's department, where a conflict of interest has been alleged.",
-          agency: null,
-          caseReference: null,
           scope: {
             years: [2025, 2026],
             includeSpouses: true,

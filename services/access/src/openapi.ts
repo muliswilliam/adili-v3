@@ -17,7 +17,12 @@ import {
   leaVerificationSchema,
   verifyLeaRequestBody,
 } from './lea/representation.js';
-import { declarantNoticeSchema, representationsInputSchema } from './notices/representation.js';
+import {
+  declarantNoticeSchema,
+  formKDeclarantNoticeSchema,
+  leaDeclarantNoticeSchema,
+  representationsInputSchema,
+} from './notices/representation.js';
 import { registerEntrySchema } from './register/representation.js';
 import { verifyApplicantBody } from './requests/applicant-verification.service.js';
 import {
@@ -72,6 +77,8 @@ export const OPENAPI_SCHEMAS: Record<string, z.ZodType> = {
   RosterCandidates: rosterCandidatesSchema,
   AttachmentDownload: attachmentDownloadSchema,
   RepresentationsInput: representationsInputSchema,
+  FormKDeclarantNotice: formKDeclarantNoticeSchema,
+  LeaDeclarantNotice: leaDeclarantNoticeSchema,
   DeclarantNotice: declarantNoticeSchema,
   AccessCommission: accessCommissionSchema,
   AccessHistoryEntry: accessHistoryEntrySchema,

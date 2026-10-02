@@ -110,6 +110,8 @@ export const leaRequests = pgTable(
     downloadExpiresAt: timestamp({ withTimezone: true }),
     /** When the declarant was told of the grant (r.23(2): only after it). */
     declarantNotifiedAt: timestamp({ withTimezone: true }),
+    /** When it closed without a decision: withdrawn by its officer. */
+    closedAt: timestamp({ withTimezone: true }),
     createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp({ withTimezone: true })
       .notNull()

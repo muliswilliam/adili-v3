@@ -142,6 +142,10 @@ describe('LeaRequestWorkflow', () => {
         await record('expire-package');
         return 'expired' as const;
       }),
+      leaWithdrawnNotice: vi.fn(async () => {
+        await record('withdrawn-notice');
+        return 'sent' as const;
+      }),
     };
     return { mocks, recorded: { calls, at } };
   }
@@ -187,7 +191,7 @@ describe('LeaRequestWorkflow', () => {
 
     await env.execute(leaRequest, options(mocks, input));
 
-    expect(recorded.calls).toEqual(['remind', 'breach']);
+    expect(recorded.calls).toEqual(['remind', 'breach', 'withdrawn-notice']);
     expect(dayOf(input, recorded, 'remind')).toBe(6);
     expect(dayOf(input, recorded, 'breach')).toBe(10);
   }, 60_000);
@@ -277,7 +281,7 @@ describe('LeaRequestWorkflow', () => {
     const result = await env.execute(leaRequest, options(mocks, input));
 
     expect(result).toEqual({ outcome: 'withdrawn' });
-    expect(recorded.calls).toEqual([]);
+    expect(recorded.calls).toEqual(['withdrawn-notice']);
     expect(mocks.leaRequestState).toHaveBeenCalledTimes(2);
   }, 60_000);
 
@@ -313,7 +317,7 @@ describe('LeaRequestWorkflow', () => {
     const result = await env.execute(leaRequest, options(mocks, input));
 
     expect(result).toEqual({ outcome: 'withdrawn' });
-    expect(recorded.calls).toEqual(['remind', 'breach']);
+    expect(recorded.calls).toEqual(['remind', 'breach', 'withdrawn-notice']);
     expect(dayOf(input, recorded, 'breach')).toBe(14);
   }, 60_000);
 
@@ -330,9 +334,9 @@ describe('LeaRequestWorkflow', () => {
     expect(mocks.issueLeaPackage).toHaveBeenCalledTimes(1);
   }, 60_000);
 
-  it('withdrawn ends the run with no reminder', async () => {
+  it('withdrawn: the access officers are told and the run ends, with no reminder', async () => {
     const input = await inputReceived();
-    const { mocks } = activities();
+    const { mocks, recorded } = activities();
 
     const result = await env.run(leaRequest, options(mocks, input), async (handle) => {
       await handle.signal('withdrawn');
@@ -340,8 +344,20 @@ describe('LeaRequestWorkflow', () => {
     });
 
     expect(result).toEqual({ outcome: 'withdrawn' });
+    expect(recorded.calls).toEqual(['withdrawn-notice']);
+    expect(mocks.leaWithdrawnNotice).toHaveBeenCalledWith(input);
     expect(mocks.remindLeaOfficers).not.toHaveBeenCalled();
     expect(mocks.leaDecisionNotice).not.toHaveBeenCalled();
+  }, 60_000);
+
+  it('withdrawn, the notice failing after its retries: logged, the run still ends', async () => {
+    const input = await inputReceived(3);
+    const { mocks } = activities({ states: ['withdrawn'], fail: ['withdrawn-notice'] });
+
+    const result = await env.execute(leaRequest, options(mocks, input));
+
+    expect(result).toEqual({ outcome: 'withdrawn' });
+    expect(mocks.leaWithdrawnNotice).toHaveBeenCalledTimes(1);
   }, 60_000);
 
   it('ends when a reminder finds the request not there', async () => {
@@ -363,7 +379,7 @@ describe('LeaRequestWorkflow', () => {
     const result = await env.execute(leaRequest, options(mocks, input));
 
     expect(result).toEqual({ outcome: 'withdrawn' });
-    expect(recorded.calls).toEqual(['remind', 'breach']);
+    expect(recorded.calls).toEqual(['remind', 'breach', 'withdrawn-notice']);
     expect(dayOf(input, recorded, 'remind')).toBe(12);
     expect(dayOf(input, recorded, 'breach')).toBe(14);
   }, 60_000);
@@ -377,7 +393,7 @@ describe('LeaRequestWorkflow', () => {
     const result = await env.execute(leaRequest, options(mocks, input));
 
     expect(result).toEqual({ outcome: 'withdrawn' });
-    expect(recorded.calls).toEqual(['breach']);
+    expect(recorded.calls).toEqual(['breach', 'withdrawn-notice']);
     expect(dayOf(input, recorded, 'breach')).toBe(15);
   }, 60_000);
 });

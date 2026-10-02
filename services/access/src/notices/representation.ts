@@ -60,28 +60,20 @@ export const representationsInputSchema = z
 export type RepresentationsInput = z.infer<typeof representationsInputSchema>;
 
 /**
- * access.yaml `DeclarantNotice`: a request about the declarant they have been notified of, with
- * who asked, why, for what, until when they may respond, what they said and what was decided. A
- * law enforcement request appears once granted and the declarant told (r.23(2)), with its agency
- * and case reference; it takes no representations.
+ * access.yaml `FormKDeclarantNotice`: a Form K request about the declarant they have been notified
+ * of, with who asked, why (the applicant's reason, verbatim), for what, until when they may
+ * respond, what they said and what was decided.
  */
-export const declarantNoticeSchema = z.object({
+export const formKDeclarantNoticeSchema = z.object({
   requestId: z.uuid(),
   reference: z.string(),
-  kind: z.enum(['form-k', 'lea']),
+  kind: z.literal('form-k'),
   commission: commissionRefSchema,
   status: accessRequestStatusSchema,
-  /** The applicant's name (Form K Part I); the agency of a law enforcement request, once granted. */
+  /** The applicant's name (Form K Part I). */
   applicantName: z.string(),
-  /** Why the applicant asks (Form K Part III reason); for law enforcement, in general terms only. */
+  /** Why the applicant asks: Form K Part III's reason, verbatim. */
   purposeInGeneralTerms: z.string(),
-  agency: z.object({ code: z.string(), name: z.string() }).nullable().meta({
-    description: 'The agency of a law enforcement request (from its grant); null for Form K',
-  }),
-  caseReference: z.string().nullable().meta({
-    description:
-      "The agency's case reference of a law enforcement request (from its grant); null for Form K",
-  }),
   scope: scopeSchema,
   notifiedAt: z.iso.datetime({ offset: true }),
   windowEndsAt: z.iso.datetime({ offset: true }).nullable(),
@@ -90,6 +82,38 @@ export const declarantNoticeSchema = z.object({
   representations: representationsSchema.nullable(),
   decision: decisionSchema.nullable(),
 });
+
+export type FormKDeclarantNotice = z.infer<typeof formKDeclarantNoticeSchema>;
+
+/**
+ * access.yaml `LeaDeclarantNotice`: a law enforcement request about the declarant, once granted and
+ * they are told (r.23(2)). The agency, its case reference, the outcome and the dates only: never
+ * the agency's stated reason, nor the decision's reasons or grounds, whose telling could
+ * prejudice the investigation (Reg 24(b)). It takes no representations.
+ */
+export const leaDeclarantNoticeSchema = z.object({
+  requestId: z.uuid(),
+  reference: z.string(),
+  kind: z.literal('lea'),
+  commission: commissionRefSchema,
+  status: z.literal('granted'),
+  agency: z.object({ code: z.string(), name: z.string() }),
+  caseReference: z.string().meta({ description: "The agency's case reference" }),
+  outcome: z.enum(['grant', 'partial-grant']).meta({
+    description: 'Granted in full or in part (the scope disclosed is not shown)',
+  }),
+  decidedAt: z.iso.datetime({ offset: true }),
+  /** When the declarant was told of the grant. */
+  notifiedAt: z.iso.datetime({ offset: true }),
+});
+
+export type LeaDeclarantNotice = z.infer<typeof leaDeclarantNoticeSchema>;
+
+/** access.yaml `DeclarantNotice`: a Form K or a law enforcement request, by `kind`. */
+export const declarantNoticeSchema = z.discriminatedUnion('kind', [
+  formKDeclarantNoticeSchema,
+  leaDeclarantNoticeSchema,
+]);
 
 export type DeclarantNotice = z.infer<typeof declarantNoticeSchema>;
 
@@ -107,7 +131,7 @@ export function toDeclarantNotice(
   formK: FormKV1,
   representationsRow: RepresentationsRow | null,
   now: Date,
-): DeclarantNotice {
+): FormKDeclarantNotice {
   if (row.notifiedAt === null) throw new Error(`Request ${row.id} is not notified`);
   return {
     requestId: row.id,
@@ -117,8 +141,6 @@ export function toDeclarantNotice(
     status: row.status,
     applicantName: row.applicantName,
     purposeInGeneralTerms: formK.partIII.reason,
-    agency: null,
-    caseReference: null,
     scope: row.scope,
     notifiedAt: row.notifiedAt.toISOString(),
     windowEndsAt: row.windowEndsAt?.toISOString() ?? null,
@@ -128,31 +150,23 @@ export function toDeclarantNotice(
   };
 }
 
-/**
- * The purpose of a law enforcement request in general terms: the reason the agency gave stays
- * between it and the Commission, as telling it could prejudice the investigation (Reg 24(b)).
- */
-export const LEA_PURPOSE_IN_GENERAL_TERMS =
-  'An investigation by a law enforcement agency (Conflict of Interest Act, s.36(2))';
-
 /** A granted law enforcement request the declarant has been told of (r.23(2)). */
-export function toLeaDeclarantNotice(row: LeaRequestRow): DeclarantNotice {
-  if (row.declarantNotifiedAt === null) throw new Error(`Request ${row.id} is not notified`);
+export function toLeaDeclarantNotice(row: LeaRequestRow): LeaDeclarantNotice {
+  const { declarantNotifiedAt, decision } = row;
+  if (declarantNotifiedAt === null) throw new Error(`Request ${row.id} is not notified`);
+  if (decision === null || decision.outcome === 'deny') {
+    throw new Error(`Request ${row.id} is not granted`);
+  }
   return {
     requestId: row.id,
     reference: row.reference,
     kind: 'lea',
     commission: { slug: row.tenant, name: row.commissionName },
     status: 'granted',
-    applicantName: row.agencyName,
-    purposeInGeneralTerms: LEA_PURPOSE_IN_GENERAL_TERMS,
     agency: { code: row.agencyCode, name: row.agencyName },
     caseReference: row.caseReference,
-    scope: row.scope,
-    notifiedAt: row.declarantNotifiedAt.toISOString(),
-    windowEndsAt: null,
-    canRespond: false,
-    representations: null,
-    decision: row.decision,
+    outcome: decision.outcome,
+    decidedAt: decision.decidedAt,
+    notifiedAt: declarantNotifiedAt.toISOString(),
   };
 }

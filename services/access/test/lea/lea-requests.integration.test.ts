@@ -25,6 +25,7 @@ import {
   submitLea,
   submitLeaResponse,
   verifyLea,
+  withdrawLea,
 } from '../support/lea.js';
 import { callers, declarantOf, givenCommissions, submitRequest } from '../support/requests.js';
 
@@ -675,6 +676,95 @@ describe('Law enforcement requests (S11)', () => {
         (await api.send('POST', `/v1/lea/requests/${id}/decision`, officer, body)).statusCode,
       ).toBe(400);
       expect((await leaRowOf(api, id)).status).toBe('verified');
+    });
+  });
+
+  describe('withdraw', () => {
+    it('the filing officer withdraws a received request: withdrawn, a register entry and event, the workflow told', async () => {
+      given();
+      const request = await submitLea(api);
+
+      const response = await withdrawLea(api, request.id);
+
+      expect(response.statusCode, response.body).toBe(200);
+      expect(
+        contractErrors(
+          okResponse('/v1/lea/requests/{leaRequestId}/withdraw', 'post'),
+          response.json(),
+        ),
+      ).toEqual([]);
+      expect(response.json<LeaRequest>()).toMatchObject({
+        status: 'withdrawn',
+        timeline: [
+          { kind: 'received', actor: 'Peter Mwangi' },
+          { kind: 'withdrawn', actor: 'Peter Mwangi' },
+        ],
+      });
+      expect((await leaRowOf(api, request.id)).status).toBe('withdrawn');
+      const [event] = await api.events('lea.request.withdrawn.v1');
+      expect(event).toMatchObject({ subject: request.id, tenant: 'psc' });
+      // The workflow ends on the signal, once it has told the access officers.
+      const handle = api.temporal.workflow.getHandle(leaRequestWorkflowId(request.id));
+      await expect(handle.result()).resolves.toEqual({ outcome: 'withdrawn' });
+    });
+
+    it('withdraws a verified request too; the queue shows it closed', async () => {
+      given();
+      const { id } = await verified();
+
+      expect((await withdrawLea(api, id)).statusCode).toBe(200);
+      const queue = await api.get('/v1/commissions/psc/access/requests?kind=lea', officer);
+      expect(queue.json<QueuePage>().items).toEqual([
+        expect.objectContaining({ id, status: 'withdrawn', late: false, closedAt: VERIFIED_AT }),
+      ]);
+    });
+
+    it('after a decision 409 request-decided; withdrawn already 409 request-closed', async () => {
+      given();
+      const decided = await received();
+      await decideLea(api, decided.id, {
+        outcome: 'deny',
+        grounds: ['not-objectives'],
+        reasons: 'The officer sought cannot be identified on the roster.',
+      });
+      const withdrawn = await received();
+      expect((await withdrawLea(api, withdrawn.id)).statusCode).toBe(200);
+
+      const afterDecision = await withdrawLea(api, decided.id);
+      const again = await withdrawLea(api, withdrawn.id);
+
+      expect(afterDecision.statusCode).toBe(409);
+      expect(afterDecision.json()).toMatchObject({ code: 'request-decided' });
+      expect((await leaRowOf(api, decided.id)).status).toBe('denied');
+      expect(again.statusCode).toBe(409);
+      expect(again.json()).toMatchObject({ code: 'request-closed' });
+      expect(await api.events('lea.request.withdrawn.v1')).toHaveLength(1);
+    });
+
+    it('a retry with the same Idempotency-Key replays the withdrawal; none is refused', async () => {
+      given();
+      const { id } = await received();
+      const key = randomUUID();
+
+      const first = await withdrawLea(api, id, peter, key);
+      const retry = await withdrawLea(api, id, peter, key);
+
+      expect(retry.statusCode).toBe(200);
+      expect(retry.json()).toEqual(first.json());
+      expect(await api.events('lea.request.withdrawn.v1')).toHaveLength(1);
+      const keyless = await api.send('POST', `/v1/lea/requests/${id}/withdraw`, peter, {});
+      expect(keyless.statusCode).toBe(400);
+    });
+
+    it("only the officer who filed it: another officer 404, the Commission's staff 403", async () => {
+      given();
+      const { id } = await received();
+
+      expect((await withdrawLea(api, id, collins)).statusCode).toBe(404);
+      expect((await withdrawLea(api, id, officer)).statusCode).toBe(403);
+      expect((await withdrawLea(api, id, supervisor)).statusCode).toBe(403);
+      expect((await withdrawLea(api, randomUUID())).statusCode).toBe(404);
+      expect((await leaRowOf(api, id)).status).toBe('received');
     });
   });
 

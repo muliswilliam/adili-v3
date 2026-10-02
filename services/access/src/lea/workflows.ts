@@ -28,6 +28,7 @@ import {
 const {
   leaRequestState,
   remindLeaOfficers,
+  leaWithdrawnNotice,
   flagLeaBreach,
   leaDecisionNotice,
   notifyDeclarantOfLeaGrant,
@@ -61,7 +62,8 @@ interface RunState {
  * (full or partial) is then told to the declarant (only now, r.23(2)), its scoped disclosure is
  * issued as the officer's Confidential, watermarked package, the officer is told it is ready,
  * and it expires at the end of its download window. A denial is told to the officer only, with
- * its reasons behind sign-in; the declarant never hears of it.
+ * its reasons behind sign-in; the declarant never hears of it. The filing officer may withdraw
+ * it before the decision: the run tells the access officers and ends.
  *
  * The wait for the decision recovers from a lost signal by reading the request every
  * `LEA_REQUEST_CHECK_INTERVAL`. A reminder or breach flag that fails after its retries is logged
@@ -84,6 +86,11 @@ export async function leaRequest(input: LeaRequestWorkflowInput): Promise<LeaReq
     const received = await untilRecorded(input);
     if (received !== 'undecided') state.stop ??= received;
     const [stop] = await Promise.all([untilDecided(input, state), clock(input, state)]);
+    if (stop === 'withdrawn') {
+      // The access officers are told; one that cannot be is logged, and the run still ends.
+      await passOver(input, leaWithdrawnNotice);
+      return { outcome: stop };
+    }
     if (stop !== 'decided') return { outcome: stop };
     return { outcome: await afterDecision(input) };
   } catch (error) {
@@ -173,7 +180,7 @@ async function passOver<T>(
     return await step(input);
   } catch (error) {
     if (!(error instanceof ActivityFailure)) throw error;
-    log.warn('A step of the law enforcement request clock failed', {
+    log.warn('A step of the law enforcement request workflow failed', {
       requestId: input.requestId,
       activity: error.activityType,
     });

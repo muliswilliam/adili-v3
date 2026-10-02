@@ -50,6 +50,13 @@
       "when": 1790896988704,
       "tag": "0006_self_access_applications",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1790925028684,
+      "tag": "0007_lea_closed_at",
+      "breakpoints": true
     }
   ]
 }
