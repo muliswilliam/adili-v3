@@ -31,7 +31,7 @@ const inList = (values: readonly string[]) => sql.raw(values.map((v) => `'${v}'`
  * The outputs hold declaration content, so they are stored only encrypted under the Commission's
  * key (ADR-006), each bound to the case and to what it is; they never appear in events or logs.
  *
- * Two sets of job ids: the jobs of the latest request (`summarizeJobId`, `explainJobId`) and the
+ * Two sets of job ids: the jobs of the latest request (`requestedSummaryJobId`, `requestedExplanationsJobId`) and the
  * jobs whose outputs are stored (`summaryJobId`, `explanationsJobId`). They agree once the
  * request's outputs have arrived; until then the stored ones are an earlier version's (`stale`).
  */
@@ -49,9 +49,9 @@ export const reviewCopilots = pgTable(
     registryCheckedAt: timestamp({ withTimezone: true }),
     /** Requests so far: part of each request's idempotency keys, so a refresh asks anew. */
     attempt: integer().notNull(),
-    summarizeJobId: uuid(),
+    requestedSummaryJobId: uuid(),
     /** Null when the version raised no flags: nothing to explain. */
-    explainJobId: uuid(),
+    requestedExplanationsJobId: uuid(),
     requestedAt: timestamp({ withTimezone: true }).notNull(),
     /** Why the latest request produced nothing: the gateway's job reason, or the review service's. */
     failureReason: text(),

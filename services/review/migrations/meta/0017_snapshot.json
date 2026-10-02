@@ -1868,14 +1868,14 @@
           "primaryKey": false,
           "notNull": true
         },
-        "summarize_job_id": {
-          "name": "summarize_job_id",
+        "requested_summary_job_id": {
+          "name": "requested_summary_job_id",
           "type": "uuid",
           "primaryKey": false,
           "notNull": false
         },
-        "explain_job_id": {
-          "name": "explain_job_id",
+        "requested_explanations_job_id": {
+          "name": "requested_explanations_job_id",
           "type": "uuid",
           "primaryKey": false,
           "notNull": false

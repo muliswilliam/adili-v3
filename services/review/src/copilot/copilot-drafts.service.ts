@@ -265,4 +265,3 @@ function outcomeOf(job: AiJob): Outcome {
   if (isFinished(job)) return { status: 'failed', reason: job.reason ?? 'provider' };
   return { status: 'pending', reason: null };
 }
-

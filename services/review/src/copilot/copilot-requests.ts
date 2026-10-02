@@ -161,8 +161,8 @@ export class CopilotRequests {
         forVersionId: row.currentVersionId,
         registryCheckedAt: registryCheckedAt === null ? null : new Date(registryCheckedAt),
         attempt,
-        summarizeJobId: summarize?.id ?? null,
-        explainJobId: explain?.id ?? null,
+        requestedSummaryJobId: summarize?.id ?? null,
+        requestedExplanationsJobId: explain?.id ?? null,
         requestedAt: new Date(),
         failureReason: null,
       };
@@ -251,7 +251,7 @@ export class CopilotRequests {
       if (sealed) {
         Object.assign(
           next,
-          job.id === locked.summarizeJobId
+          job.id === locked.requestedSummaryJobId
             ? {
                 summaryJobId: job.id,
                 summaryPromptVersion: job.promptVersion,
@@ -267,8 +267,9 @@ export class CopilotRequests {
         );
         const after = { ...locked, ...next };
         const complete =
-          after.summaryJobId === locked.summarizeJobId &&
-          (locked.explainJobId === null || after.explanationsJobId === locked.explainJobId);
+          after.summaryJobId === locked.requestedSummaryJobId &&
+          (locked.requestedExplanationsJobId === null ||
+            after.explanationsJobId === locked.requestedExplanationsJobId);
         // A failed or blocked job of the same request keeps the record failed or not enabled.
         if (complete && (status === 'pending' || status === 'stale')) {
           status = 'ready';
@@ -276,7 +277,7 @@ export class CopilotRequests {
             generatedForVersionId: locked.forVersionId,
             generatedAt: new Date(),
             // A first version's request has no explanations to show.
-            ...(locked.explainJobId === null
+            ...(locked.requestedExplanationsJobId === null
               ? {
                   explanationsJobId: null,
                   explanationsPromptVersion: null,
@@ -374,7 +375,7 @@ export async function copilotOf(
 }
 
 function isRequested(record: CopilotRow, jobId: string): boolean {
-  return record.summarizeJobId === jobId || record.explainJobId === jobId;
+  return record.requestedSummaryJobId === jobId || record.requestedExplanationsJobId === jobId;
 }
 
 function hasOutputs(record: CopilotRow | undefined): boolean {

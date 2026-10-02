@@ -166,10 +166,12 @@ describe('review copilot', () => {
   /** Completes the latest request's jobs and waits for the copilot to be ready. */
   const completeJobs = async (caseId: string, overview = OVERVIEW) => {
     const row = await copilotRow(caseId);
-    if (!row?.summarizeJobId) throw new Error('no summarize job');
-    await deliver(api.ai.succeed(row.summarizeJobId, summaryOutput(overview)));
-    if (row.explainJobId) {
-      await deliver(api.ai.succeed(row.explainJobId, explanationsOutput(await flagIdsOf(caseId))));
+    if (!row?.requestedSummaryJobId) throw new Error('no summarize job');
+    await deliver(api.ai.succeed(row.requestedSummaryJobId, summaryOutput(overview)));
+    if (row.requestedExplanationsJobId) {
+      await deliver(
+        api.ai.succeed(row.requestedExplanationsJobId, explanationsOutput(await flagIdsOf(caseId))),
+      );
     }
     return untilStatus(caseId, 'ready');
   };
@@ -194,8 +196,8 @@ describe('review copilot', () => {
         status: 'pending',
         forVersionId: first.versionId,
         attempt: 1,
-        summarizeJobId: api.ai.jobsOf('summarize-declaration')[0]?.id,
-        explainJobId: api.ai.jobsOf('explain-flags')[0]?.id,
+        requestedSummaryJobId: api.ai.jobsOf('summarize-declaration')[0]?.id,
+        requestedExplanationsJobId: api.ai.jobsOf('explain-flags')[0]?.id,
       });
 
       // The inputs: the version's document, the case's flags by id, the synthetic demo tenant.
@@ -246,7 +248,7 @@ describe('review copilot', () => {
         failureReason: null,
         summary: summaryOutput(),
         explanations: explanationsOutput(flagIds),
-        jobs: { summarize: row.summarizeJobId, explain: row.explainJobId },
+        jobs: { summarize: row.requestedSummaryJobId, explain: row.requestedExplanationsJobId },
         feedback: [],
       });
 
@@ -321,7 +323,7 @@ describe('review copilot', () => {
       api.declarations.given(first);
 
       const { caseId, row } = await createdCase(first);
-      await deliver(api.ai.block(row.summarizeJobId ?? ''));
+      await deliver(api.ai.block(row.requestedSummaryJobId ?? ''));
       await untilStatus(caseId, 'not-enabled');
 
       // The assignee cannot refresh a Commission without AI; reset the row to a fresh request.
@@ -331,7 +333,7 @@ describe('review copilot', () => {
           .set({ status: 'pending' })
           .where(eq(reviewCopilots.caseId, caseId)),
       );
-      await deliver(api.ai.fail(row.explainJobId ?? '', 'validation'));
+      await deliver(api.ai.fail(row.requestedExplanationsJobId ?? '', 'validation'));
       const failed = await untilStatus(caseId, 'failed');
       expect(failed.failureReason).toBe('validation');
       expect((await view(caseId)).failureReason).toBe('validation');
@@ -342,21 +344,21 @@ describe('review copilot', () => {
       api.declarations.given(first);
       const { caseId, row } = await createdCase(first);
       await assign(caseId, 'reviewer-a');
-      await deliver(api.ai.fail(row.summarizeJobId ?? ''));
+      await deliver(api.ai.fail(row.requestedSummaryJobId ?? ''));
       await untilStatus(caseId, 'failed');
 
       const refresh = await api.send('POST', refreshPath(caseId), reviewerA);
       expect(refresh.statusCode).toBe(202);
       const second = await copilotRow(caseId);
       expect(second?.status).toBe('pending');
-      expect(second?.summarizeJobId).not.toBe(row.summarizeJobId);
+      expect(second?.requestedSummaryJobId).not.toBe(row.requestedSummaryJobId);
 
       // The first request's other job ends: nothing changes.
-      const earlier = api.ai.succeed(row.explainJobId ?? '', explanationsOutput([]));
+      const earlier = api.ai.succeed(row.requestedExplanationsJobId ?? '', explanationsOutput([]));
       await deliver(earlier);
       // A job of another service's, for the same tenant.
       const foreign = {
-        ...api.ai.eventOf(second?.summarizeJobId ?? ''),
+        ...api.ai.eventOf(second?.requestedSummaryJobId ?? ''),
         id: randomUUID(),
         data: { jobId: randomUUID(), subjectRef: `declaration-draft:${randomUUID()}` },
       };
@@ -364,7 +366,7 @@ describe('review copilot', () => {
 
       await completeJobs(caseId);
       const ready = await copilotRow(caseId);
-      expect(ready?.explanationsJobId).toBe(second?.explainJobId);
+      expect(ready?.explanationsJobId).toBe(second?.requestedExplanationsJobId);
     });
 
     it('records a job that ended before the request was recorded (a cached result)', async () => {
@@ -395,7 +397,7 @@ describe('review copilot', () => {
         status: 'ready',
         summary: { overview: 'Refreshed overview.' },
       });
-      expect((await copilotRow(caseId))?.summaryJobId).not.toBe(row.summarizeJobId);
+      expect((await copilotRow(caseId))?.summaryJobId).not.toBe(row.requestedSummaryJobId);
     });
   });
 
@@ -471,8 +473,8 @@ describe('review copilot', () => {
       expect(await copilotRow(caseId)).toMatchObject({
         status: 'stale',
         attempt: 2,
-        summarizeJobId: stale?.summarizeJobId,
-        explainJobId: stale?.explainJobId,
+        requestedSummaryJobId: stale?.requestedSummaryJobId,
+        requestedExplanationsJobId: stale?.requestedExplanationsJobId,
       });
       const statuses = (await eventsOf('review.copilot.updated.v1')).map(
         (event) => (event.data as { status: string }).status,
