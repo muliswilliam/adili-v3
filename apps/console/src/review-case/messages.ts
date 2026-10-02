@@ -196,6 +196,11 @@ export const REGISTRY_COPY = {
   rows: {
     matched: (count: number) => `${plural(count, 'record')}, all declared`,
     allDeclared: 'All records declared',
+    /** A registry that answered with notes (info flags): its records, not "all declared". */
+    records: (count: number) => plural(count, 'record'),
+    noIndicators: 'No indicators',
+    supplierCheckNotRun: 'supplier check not run',
+    notes: (count: number) => plural(count, 'note'),
     noRecords: 'No records found',
     kraMatched: 'PIN on record, compliant, income within 25%',
     kraMatchedNoIncome: 'PIN on record, compliant',

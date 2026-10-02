@@ -194,9 +194,33 @@ export const SUPPLIER_FLAG = flag({
   itemRefs: [{ personKey: 'officer', itemId: null, sectionKey: 'statement:officer' }],
 });
 
+/** BRS could not compare Wanjiku's companies with a supplier list: her roster names no employer. */
+export const SUPPLIER_NOT_RUN_FLAG = flag({
+  id: '0192f1a0-0000-7000-8000-0000000f0103',
+  ruleId: 'registry-supplier-check-not-run',
+  severity: 'info',
+  title: "Companies not compared with the employer's suppliers",
+  indicator:
+    "The declarant's roster record names no employer, so the companies BRS lists for them could not be compared with an employer's supplier list.",
+  evidence: { companies: 1 },
+  itemRefs: [{ personKey: 'officer', itemId: null, sectionKey: 'statement:officer' }],
+});
+
+/** A company Wanjiku declared that BRS lists as dissolved. */
+export const DISSOLVED_FLAG = flag({
+  id: '0192f1a0-0000-7000-8000-0000000f0104',
+  ruleId: 'registry-company-dissolved',
+  severity: 'info',
+  title: 'Declared company dissolved at BRS',
+  indicator:
+    'BRS lists this declared company as dissolved. A holding declared before the dissolution was registered can explain this.',
+  evidence: { companyRegistrationNumber: 'PVT-3KLM8R2T' },
+  itemRefs: [{ personKey: 'officer', itemId: null, sectionKey: 'statement:officer' }],
+});
+
 type RegistrySystemEntry = CaseRegistryView['persons'][number]['systems'][number];
 
-function registrySystem(overrides: Partial<RegistrySystemEntry>): RegistrySystemEntry {
+export function registrySystem(overrides: Partial<RegistrySystemEntry>): RegistrySystemEntry {
   return {
     system: 'kra',
     status: 'matched',

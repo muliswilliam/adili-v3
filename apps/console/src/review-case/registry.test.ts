@@ -4,12 +4,14 @@ import {
   caseData,
   caseItem,
   CHECKED_AT,
+  DISSOLVED_FLAG,
   DOCUMENT,
   flag,
   ME,
   PLOT,
   registryView,
   SUPPLIER_FLAG,
+  SUPPLIER_NOT_RUN_FLAG,
   VEHICLE_FLAG,
   WAFULA,
 } from './fixtures';
@@ -69,6 +71,37 @@ describe('statusDescription', () => {
     expect(
       statusDescription('ntsa', 'no-id', { records: null, indicators: 0, personName: 'Imani' }),
     ).toBe('Registries cannot be checked for Imani without an ID.');
+  });
+
+  it('S6: names open notes after the status, and never reads "all declared" beside them', () => {
+    const notRun = { supplierCheckNotRun: true, others: 0 };
+    expect(statusDescription('brs', 'matched', { records: 1, indicators: 0, notes: notRun })).toBe(
+      '1 record, supplier check not run',
+    );
+    expect(
+      statusDescription('brs', 'matched', {
+        records: 2,
+        indicators: 0,
+        notes: { supplierCheckNotRun: true, others: 1 },
+      }),
+    ).toBe('2 records, supplier check not run, 1 note');
+    expect(
+      statusDescription('brs', 'matched', { records: null, indicators: 0, notes: notRun }),
+    ).toBe('No indicators, supplier check not run');
+    expect(
+      statusDescription('ardhisasa', 'matched', {
+        records: 0,
+        indicators: 0,
+        notes: { supplierCheckNotRun: false, others: 2 },
+      }),
+    ).toBe('No records found, 2 notes');
+    expect(
+      statusDescription('brs', 'mismatched', {
+        records: 1,
+        indicators: 1,
+        notes: { supplierCheckNotRun: false, others: 1 },
+      }),
+    ).toBe('1 indicator, 1 note');
   });
 });
 
@@ -144,6 +177,32 @@ describe('registryLayout', () => {
     view.persons = view.persons.filter((person) => !person.hasNationalId);
 
     expect(registryLayout(view, [], true).noIds).toBe(true);
+  });
+});
+
+describe('registryLayout: notes', () => {
+  it('S6: counts info flags as notes on the collapsed row, not as indicators', () => {
+    const view = registryView();
+    const [officer] = view.persons;
+    const brs = officer?.systems.find((entry) => entry.system === 'brs');
+    if (!brs) throw new Error('no BRS row');
+    brs.status = 'matched';
+    brs.flags = [
+      SUPPLIER_NOT_RUN_FLAG,
+      DISSOLVED_FLAG,
+      { ...DISSOLVED_FLAG, id: 'x', closedReason: 'superseded-by-recheck' },
+    ];
+
+    for (const loaded of [true, false]) {
+      const row = registryLayout(view, [], loaded).persons[0]?.systems.find(
+        (each) => each.system === 'brs',
+      );
+      expect(row?.description).toBe(
+        loaded
+          ? '1 record, supplier check not run, 1 note'
+          : 'No indicators, supplier check not run, 1 note',
+      );
+    }
   });
 });
 

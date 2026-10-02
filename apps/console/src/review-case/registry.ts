@@ -106,16 +106,36 @@ function current(flag: CaseFlag, latest: ReadonlyMap<string, CaseFlag>): CaseFla
   return latest.get(flag.id) ?? flag;
 }
 
+/** A registry's open notes (info flags), as its collapsed row names them. */
+export interface RegistryNotes {
+  /** `registry-supplier-check-not-run`: the employer-supplier check could not run. */
+  supplierCheckNotRun: boolean;
+  /** Other notes, e.g. land declared without its parcel number, a dissolved company. */
+  others: number;
+}
+
+const NO_NOTES: RegistryNotes = { supplierCheckNotRun: false, others: 0 };
+
+/** The notes among a registry's flags: info flags a re-check has not closed. */
+export function registryNotes(flags: readonly CaseFlag[]): RegistryNotes {
+  const open = flags.filter((flag) => flag.severity === 'info' && !flag.closedReason);
+  const notRun = open.filter((flag) => flag.ruleId === 'registry-supplier-check-not-run');
+  return { supplierCheckNotRun: notRun.length > 0, others: open.length - notRun.length };
+}
+
 /**
  * The words under a registry's name: how many records, all declared, or how many indicators;
- * that it could not be reached; or that checks have not run yet.
+ * that it could not be reached; or that checks have not run yet. Notes (info flags) follow, so
+ * they show without opening the row, and a registry with notes never reads "all declared".
  */
 export function statusDescription(
   system: RegistrySystem,
   status: SystemCheckStatus,
   counts: {
     records: number | null;
+    /** Open indicators, info flags (notes) aside. */
     indicators: number;
+    notes?: RegistryNotes;
     /** KRA: the income declared to KRA was compared (false when it could not be). */
     incomeCompared?: boolean;
     /** The person checked, by first name, for the no-ID copy. */
@@ -123,15 +143,29 @@ export function statusDescription(
   },
 ): string {
   const copy = REGISTRY_COPY.rows;
+  const notes = counts.notes ?? NO_NOTES;
+  const noted = [
+    ...(notes.supplierCheckNotRun ? [copy.supplierCheckNotRun] : []),
+    ...(notes.others > 0 ? [copy.notes(notes.others)] : []),
+  ];
+  const withNotes = (text: string) => [text, ...noted].join(', ');
   switch (status) {
     case 'matched':
       if (system === 'kra') {
-        return counts.incomeCompared === false ? copy.kraMatchedNoIncome : copy.kraMatched;
+        return withNotes(
+          counts.incomeCompared === false ? copy.kraMatchedNoIncome : copy.kraMatched,
+        );
+      }
+      if (noted.length > 0) {
+        if (counts.records === null) return withNotes(copy.noIndicators);
+        return withNotes(counts.records === 0 ? copy.noRecords : copy.records(counts.records));
       }
       if (counts.records === null) return copy.allDeclared;
       return counts.records === 0 ? copy.noRecords : copy.matched(counts.records);
     case 'mismatched':
-      return counts.indicators === 0 ? copy.mismatchedNoCount : copy.mismatched(counts.indicators);
+      return withNotes(
+        counts.indicators === 0 ? copy.mismatchedNoCount : copy.mismatched(counts.indicators),
+      );
     case 'unavailable':
       return copy.unavailable(SYSTEM_NAMES[system]);
     case 'not-checked':
@@ -162,7 +196,8 @@ function systemRow(
     status: entry.status,
     description: statusDescription(entry.system, entry.status, {
       records: context.recordsLoaded ? entry.rows.length : null,
-      indicators: flags.filter((flag) => !flag.closedReason).length,
+      indicators: flags.filter((flag) => flag.severity !== 'info' && !flag.closedReason).length,
+      notes: registryNotes(flags),
       incomeCompared:
         context.recordsLoaded && entry.system === 'kra'
           ? entry.rows.some((row) => typeof row.registryRecord.incomeDifferencePercent === 'number')
