@@ -315,10 +315,12 @@ export const MaterialChangeEntrySchema = z.strictObject({
 export const RegistrableInterestsSchema = z.strictObject({
   directorships: z.array(
     z.strictObject({
+      id: z.guid().optional(),
       company: z.string().max(200),
       role: z.string().max(100),
       remunerated: z.boolean(),
       change: ChangeFlagSchema.optional(),
+      source: ItemSourceSchema.optional(),
     }),
   ),
   memberships: z.array(

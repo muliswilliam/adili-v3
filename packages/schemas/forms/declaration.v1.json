@@ -512,10 +512,16 @@
             "required": ["company", "role", "remunerated"],
             "additionalProperties": false,
             "properties": {
+              "id": {
+                "type": "string",
+                "format": "uuid",
+                "description": "Set when the directorship was added from a registry suggestion (spec 05b), which `source` names"
+              },
               "company": { "type": "string", "maxLength": 200 },
               "role": { "type": "string", "maxLength": 100 },
               "remunerated": { "type": "boolean" },
-              "change": { "$ref": "#/$defs/ChangeFlag" }
+              "change": { "$ref": "#/$defs/ChangeFlag" },
+              "source": { "$ref": "#/$defs/ItemSource" }
             }
           }
         },

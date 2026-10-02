@@ -293,10 +293,15 @@ export interface MaterialChangeEntry {
  */
 export interface RegistrableInterests {
   directorships: {
+    /**
+     * Set when the directorship was added from a registry suggestion (spec 05b), which `source` names
+     */
+    id?: string;
     company: string;
     role: string;
     remunerated: boolean;
     change?: ChangeFlag;
+    source?: ItemSource;
   }[];
   memberships: {
     entity: string;
