@@ -10,7 +10,7 @@ import {
 } from '@adili/ui';
 import { AlertCircleIcon, File01Icon, Mail01Icon } from '@hugeicons/core-free-icons';
 import { useRouter } from '@tanstack/react-router';
-import { useId, useState } from 'react';
+import { useId, useRef, useState } from 'react';
 
 import type { AccessResult } from '../../server/access-requests.server';
 import { goToSignIn } from '../sign-in-redirect';
@@ -64,8 +64,9 @@ export function WrittenNoticeCard({
   const [error, setError] = useState<string | null>(null);
   const [failure, setFailure] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  // One key per notice: kept across retries.
-  const [key] = useState(() => crypto.randomUUID());
+  // One key per day sent: kept across retries of it, a new one once the day changes (the
+  // service keeps a refusal under its key, so a corrected day needs its own).
+  const attempt = useRef<{ key: string; day: string } | null>(null);
   const bounds = { today, earliest, earliestMessage };
 
   const closesOn = day && windowDays !== undefined ? dayAfter(day, windowDays) : null;
@@ -82,7 +83,8 @@ export function WrittenNoticeCard({
     if (problem || !day) return;
     setBusy(true);
     setFailure(null);
-    const result = await record(day, key).catch((): AccessResult<unknown> => ({
+    if (attempt.current?.day !== day) attempt.current = { key: crypto.randomUUID(), day };
+    const result = await record(day, attempt.current.key).catch((): AccessResult<unknown> => ({
       ok: false,
       error: { kind: 'unavailable', detail: null },
     }));

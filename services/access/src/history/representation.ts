@@ -6,7 +6,7 @@ import {
 } from '@adili/events/contracts';
 import { z } from 'zod';
 
-import { outcomeSchema } from '../decision.js';
+import { outcomeSchema, PACKAGE_KINDS, type PackageKind } from '../decision.js';
 
 import {
   registerEntrySchema,
@@ -69,6 +69,12 @@ export const accessHistoryEntrySchema = registerEntrySchema.extend({
   outcome: outcomeSchema.nullable(),
   /** A `self-access` entry's certified copy; null for every other kind. */
   certifiedCopy: historyCertifiedCopySchema.nullable(),
+  /**
+   * What the grant delivered, on a `package-issued`, `downloaded` or `expired` entry: the access
+   * package, or the nil letter saying the Commission holds no declaration within the granted
+   * scope (decision 1); null for every other kind.
+   */
+  packageKind: z.enum(PACKAGE_KINDS).nullable(),
 });
 
 export type AccessHistoryEntry = z.infer<typeof accessHistoryEntrySchema>;
@@ -79,7 +85,22 @@ export interface HistorySubject {
   commission: { slug: string; name: string };
   requester: string | null;
   caseReference: string | null;
+  /** What the request's grant delivered; null before (or without) one, and for a certified copy. */
+  packageKind: PackageKind | null;
 }
+
+/** Register kinds about the grant's package (or nil letter). */
+const PACKAGE_ENTRY_KINDS: readonly AccessRegisterKind[] = [
+  'package-issued',
+  'downloaded',
+  'expired',
+];
+
+/** The plain-language line of a step about a nil letter rather than a package. */
+const NIL_LETTER_SUMMARIES: Partial<Record<AccessRegisterKind, string>> = {
+  'package-issued': 'Nil letter issued',
+  downloaded: 'Nil letter downloaded',
+};
 
 /** Register kinds the applicant themselves acts on, named to the declarant (Form K only). */
 const APPLICANT_KINDS: readonly AccessRegisterKind[] = ['downloaded', 'withdrawn'];
@@ -89,8 +110,13 @@ export function toAccessHistoryEntry(
   subject: HistorySubject,
 ): AccessHistoryEntry {
   const details = row.details;
+  const entry = toRegisterEntry(row);
+  const packageKind = PACKAGE_ENTRY_KINDS.includes(row.kind) ? subject.packageKind : null;
   return {
-    ...toRegisterEntry(row),
+    ...entry,
+    summary:
+      (packageKind === 'nil-letter' ? NIL_LETTER_SUMMARIES[row.kind] : undefined) ?? entry.summary,
+    packageKind,
     subjectKind: row.subjectKind,
     subjectId: row.subjectId,
     reference: subject.reference,

@@ -1,7 +1,6 @@
 import 'reflect-metadata';
 
 import { randomUUID } from 'node:crypto';
-import { readFileSync } from 'node:fs';
 
 import { FastifyAdapter, type NestFastifyApplication } from '@nestjs/platform-fastify';
 import { Test } from '@nestjs/testing';
@@ -32,6 +31,7 @@ import { ReviewClient } from '../../src/review/review-client.js';
 import { DirectoryClient } from '../../src/directory/directory-client.js';
 import { DocumentsClient } from '../../src/documents/documents-client.js';
 import { leaRequestWorkflowId } from '../../src/lea/contract.js';
+import { onboardedNoticeWorkflowId } from '../../src/onboarded-notices/contract.js';
 import { accessRequestWorkflowId } from '../../src/requests/contract.js';
 import { certifiedCopyWorkflowId } from '../../src/self-access/contract.js';
 import { NotificationsClient } from '../../src/notifications/notifications-client.js';
@@ -43,10 +43,10 @@ import {
   FakeNotifications,
   FakeReview,
 } from './fakes.js';
+import { applyMigrations } from './migrations.js';
 
 const ISSUER = 'http://keycloak.test/realms/adili';
 const AUDIENCE = 'adili-api';
-const MIGRATIONS = new URL('../../migrations/', import.meta.url);
 
 export interface Caller {
   sub?: string;
@@ -248,6 +248,7 @@ export async function startAccessApi(): Promise<AccessApi> {
         ...requests.map(({ id }) => accessRequestWorkflowId(id)),
         ...copies.map(({ id }) => certifiedCopyWorkflowId(id)),
         ...leaRows.map(({ id }) => leaRequestWorkflowId(id)),
+        ...[...requests, ...leaRows].map(({ id }) => onboardedNoticeWorkflowId(id)),
       ];
       for (const id of workflowIds) {
         try {
@@ -275,22 +276,6 @@ export async function startAccessApi(): Promise<AccessApi> {
       await app.close();
     },
   };
-}
-
-async function applyMigrations(db: AccessDatabase): Promise<void> {
-  const journal = JSON.parse(readFileSync(new URL('meta/_journal.json', MIGRATIONS), 'utf8')) as {
-    entries: { tag: string }[];
-  };
-  for (const { tag } of journal.entries) {
-    // drizzle-kit qualifies foreign key targets with "public"; resolve them in the test schema.
-    const migration = readFileSync(new URL(`${tag}.sql`, MIGRATIONS), 'utf8').replaceAll(
-      '"public".',
-      '',
-    );
-    for (const statement of migration.split('--> statement-breakpoint')) {
-      if (statement.trim()) await db.execute(sql.raw(statement));
-    }
-  }
 }
 
 async function tokenSigner(): Promise<{ signer: (caller: Caller) => Promise<string>; jwk: JWK }> {

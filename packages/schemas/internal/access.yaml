@@ -3122,6 +3122,13 @@ components:
           anyOf:
             - $ref: '#/components/schemas/HistoryCertifiedCopy'
             - type: 'null'
+        packageKind:
+          anyOf:
+            - type: string
+              enum:
+                - access-package
+                - nil-letter
+            - type: 'null'
       required:
         - id
         - kind
@@ -3137,6 +3144,7 @@ components:
         - caseReference
         - outcome
         - certifiedCopy
+        - packageKind
     HistoryCertifiedCopy:
       type: object
       properties:

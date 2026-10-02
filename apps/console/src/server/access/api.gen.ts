@@ -1039,6 +1039,7 @@ export interface components {
             caseReference: string | null;
             outcome: components["schemas"]["Outcome"] | null;
             certifiedCopy: components["schemas"]["HistoryCertifiedCopy"] | null;
+            packageKind: ("access-package" | "nil-letter") | null;
         };
         HistoryCertifiedCopy: {
             /** Format: uuid */

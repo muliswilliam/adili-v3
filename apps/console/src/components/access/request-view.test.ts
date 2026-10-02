@@ -136,6 +136,25 @@ describe('timelineOf', () => {
       ['Lucy', 'deny'],
     ]);
   });
+
+  it('reads the steps of a nil letter as the letter, not a package (decision 1)', () => {
+    const entry = (kind: string) => ({ id: kind, kind, at: '2026-10-01T09:00:00.000Z' });
+    const timeline = [
+      entry('package-issued'),
+      entry('downloaded'),
+      entry('expired'),
+    ] as OfficerRequestView['timeline'];
+    const titles = (pkg: { kind: string } | null) =>
+      timelineOf(view({ timeline, package: pkg as OfficerRequestView['package'] })).map(
+        (each) => each.title,
+      );
+    expect(titles({ kind: 'nil-letter' })).toEqual([
+      'Nil letter issued',
+      'Nil letter downloaded',
+      undefined,
+    ]);
+    expect(titles({ kind: 'access-package' })).toEqual([undefined, undefined, undefined]);
+  });
 });
 
 describe('actionFailure', () => {

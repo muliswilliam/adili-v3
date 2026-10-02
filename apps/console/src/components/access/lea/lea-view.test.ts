@@ -101,6 +101,28 @@ describe('leaTimelineOf', () => {
     expect(entries[2]).toMatchObject({ outcome: 'deny', summary: 'DCI told with reasons.' });
     expect(entries[3]).toMatchObject({ title: 'Declarant notified after grant' });
   });
+
+  it('reads the steps of a nil letter as the letter, not a package (decision 1)', () => {
+    const step = (kind: 'package-issued' | 'downloaded', actor: string | null) => ({
+      id: kind,
+      kind,
+      at: NOW,
+      actor,
+      summary: '',
+      reference: 'x',
+      inWriting: false,
+    });
+    const timeline = [step('package-issued', null), step('downloaded', 'Suleiman Ali')];
+    const nil = leaTimelineOf(
+      request({ timeline, package: { kind: 'nil-letter' } as LeaRequest['package'] }),
+    );
+    expect(nil.map((each) => each.title)).toEqual(['Nil letter issued', 'Nil letter downloaded']);
+    expect(nil[1]).toMatchObject({ actor: 'Suleiman Ali (DCI)' });
+    const packaged = leaTimelineOf(
+      request({ timeline, package: { kind: 'access-package' } as LeaRequest['package'] }),
+    );
+    expect(packaged.map((each) => each.title)).toEqual([undefined, undefined]);
+  });
 });
 
 describe('leaActionFailure', () => {

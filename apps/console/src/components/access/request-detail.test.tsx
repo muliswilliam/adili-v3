@@ -118,6 +118,8 @@ beforeEach(() => {
 /** Today in Nairobi, `YYYY-MM-DD`, and as the date field takes it. */
 const TODAY = new Intl.DateTimeFormat('en-CA', { timeZone: 'Africa/Nairobi' }).format(new Date());
 const typed = (iso: string) => iso.split('-').reverse().join('/');
+const dayBefore = (iso: string) =>
+  new Date(Date.parse(`${iso}T12:00:00Z`) - 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
 
 describe('RequestDetailView (spec 10 FE-5)', () => {
   it('renders Form K by part, with how the applicant was identified', async () => {
@@ -284,6 +286,52 @@ describe('RequestDetailView (spec 10 FE-5)', () => {
     expect(
       await screen.findByText('Written notice recorded. The window for representations is open.'),
     ).toBeTruthy();
+  });
+
+  it('decision 2: a retry keeps its Idempotency-Key, a corrected day gets a new one', async () => {
+    renderDetail(await viewOf(R.noAccount));
+    const card = within(side()).getByRole('region', { name: 'Notify in writing' });
+    const field = within(card).getByRole('textbox', { name: /Day the notice was served/ });
+    const submit = () =>
+      fireEvent.click(within(card).getByRole('button', { name: 'Record written notice' }));
+    vi.mocked(recordAccessWrittenNotice)
+      .mockResolvedValueOnce({ ok: false, error: { kind: 'unavailable', detail: null } })
+      .mockResolvedValueOnce({
+        ok: false,
+        error: {
+          kind: 'problem',
+          problem: {
+            type: 'about:blank',
+            title: 'Bad Request',
+            status: 400,
+            errors: [{ path: 'notifiedOn', message: 'after the Nairobi day' }],
+          },
+        },
+      });
+    const keys = () =>
+      vi.mocked(recordAccessWrittenNotice).mock.calls.map(([call]) => call.data.idempotencyKey);
+
+    fireEvent.change(field, { target: { value: typed(TODAY) } });
+    submit();
+    await waitFor(() => {
+      expect(keys()).toHaveLength(1);
+    });
+    // Tried again as it was: the same key, so the service answers once.
+    submit();
+    await waitFor(() => {
+      expect(keys()).toHaveLength(2);
+    });
+    expect(keys()[1]).toBe(keys()[0]);
+    // Refused at the day: the service keeps that answer under the key, so the corrected day
+    // goes with a new one.
+    const yesterday = dayBefore(TODAY);
+    fireEvent.change(field, { target: { value: typed(yesterday) } });
+    submit();
+    await waitFor(() => {
+      expect(keys()).toHaveLength(3);
+    });
+    expect(keys()[2]).not.toBe(keys()[1]);
+    expect(vi.mocked(recordAccessWrittenNotice).mock.calls[2]?.[0].data.notifiedOn).toBe(yesterday);
   });
 
   it('decision 2: the supervisor waits for the written notice and takes no step', async () => {

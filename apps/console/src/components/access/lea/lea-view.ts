@@ -2,6 +2,7 @@ import type { RegisterEntry as TimelineEntry } from '@adili/ui';
 
 import type { AccessProblem, LeaRequest } from '../../../server/access/types';
 import type { ServiceError } from '../../../server/service-call';
+import { packageTitleOf } from '../request-view';
 import { messages as m } from './messages';
 
 /**
@@ -102,12 +103,21 @@ export function leaTimelineOf(request: LeaRequest): TimelineEntry[] {
           ...base,
           title: entry.inWriting ? m.notifiedAfterGrantInWriting : m.notifiedAfterGrant,
         };
+      case 'package-issued':
+        return withTitle(base, packageTitleOf(entry, request.package));
       case 'downloaded':
-        return { ...base, actor: entry.actor ? officerOf(request) : null };
+        return withTitle(
+          { ...base, actor: entry.actor ? officerOf(request) : null },
+          packageTitleOf(entry, request.package),
+        );
       default:
         return base;
     }
   });
+}
+
+function withTitle(entry: TimelineEntry, title: string | undefined): TimelineEntry {
+  return title ? { ...entry, title } : entry;
 }
 
 /** What a failed verification says, and whether the page is out of date (reload, do not retry). */

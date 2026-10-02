@@ -36,7 +36,10 @@ interface Sent {
 }
 
 /** A client against a directory answering `answer`, recording what it was sent. */
-function clientAnswering(answer: () => Response, options: { now?: () => number } = {}) {
+function clientAnswering(
+  answer: () => Response | Promise<Response>,
+  options: { now?: () => number; timeoutMs?: number; invitationTimeoutMs?: number } = {},
+) {
   const sent: Sent[] = [];
   const client = new HttpDirectoryClient({
     ...options,
@@ -326,5 +329,29 @@ describe('HttpDirectoryClient: law enforcement officers', () => {
     await expect(broken.client.leaOfficer(PERSON, 'psc')).rejects.toBeInstanceOf(
       DirectoryUnavailable,
     );
+  });
+});
+
+describe('HttpDirectoryClient: onboarding invitations', () => {
+  const RECORD = '0199c000-0000-7000-8000-0000000000e1';
+  const invitation = { channels: ['email', 'sms'], sentAt: '2027-03-05T07:00:00.000Z' };
+  /** Answers after `ms`, as the directory does once notifications has sent both messages. */
+  const slow = (ms: number) => () =>
+    new Promise<Response>((resolve) =>
+      setTimeout(() => {
+        resolve(json(invitation, 200));
+      }, ms),
+    );
+
+  it('waits for the email and SMS to go out, longer than the default budget of other calls', async () => {
+    const { client, sent } = clientAnswering(slow(60), { timeoutMs: 20, invitationTimeoutMs: 500 });
+
+    await expect(client.inviteToOnboard('psc', RECORD, KEY)).resolves.toEqual({
+      channels: ['email', 'sms'],
+      sentAt: new Date('2027-03-05T07:00:00.000Z'),
+    });
+    expect(sent[0]?.headers.get('idempotency-key')).toBe(KEY);
+    // The same answer time is an outage for a call on the default budget.
+    await expect(client.rosterRecord('psc', RECORD)).rejects.toBeInstanceOf(DirectoryUnavailable);
   });
 });

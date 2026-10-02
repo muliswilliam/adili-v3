@@ -106,8 +106,9 @@ export function WrittenRepresentationsDialog({
   const [errors, setErrors] = useState<{ stance?: string; text?: string; scans?: string }>({});
   const [failure, setFailure] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  // One key per entry: kept across retries of this dialog.
-  const [key] = useState(() => crypto.randomUUID());
+  // One key per entry sent: kept across retries of it, a new one once the entry changes (the
+  // service keeps a refusal under its key, so a corrected entry needs its own).
+  const attempt = useRef<{ key: string; body: string } | null>(null);
   const removed = useRef(new Set<string>());
 
   const update = (scanKey: string, patch: Partial<Scan>) => {
@@ -164,16 +165,15 @@ export function WrittenRepresentationsDialog({
     if (next.stance || next.text || next.scans || !stance) return;
     setBusy(true);
     setFailure(null);
+    const input = {
+      stance,
+      text: text.trim(),
+      attachments: scans.flatMap((scan) => (scan.uploadId ? [scan.uploadId] : [])),
+    };
+    const body = JSON.stringify(input);
+    if (attempt.current?.body !== body) attempt.current = { key: crypto.randomUUID(), body };
     const result = await enterWrittenRepresentations({
-      data: {
-        requestId: view.id,
-        input: {
-          stance,
-          text: text.trim(),
-          attachments: scans.flatMap((scan) => (scan.uploadId ? [scan.uploadId] : [])),
-        },
-        idempotencyKey: key,
-      },
+      data: { requestId: view.id, input, idempotencyKey: attempt.current.key },
     }).catch((): AccessResult<OfficerRequestView> => ({
       ok: false,
       error: { kind: 'unavailable', detail: null },

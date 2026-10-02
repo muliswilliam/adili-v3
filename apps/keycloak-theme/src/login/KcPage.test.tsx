@@ -1,8 +1,9 @@
-import { render, screen } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { act, render, screen } from '@testing-library/react';
+import { describe, expect, it, vi } from 'vitest';
 
 import KcPage from './KcPage';
 import { getKcContextMock } from './mock';
+import { stories } from './stories';
 
 describe('login theme', () => {
   it('renders the branded sign-in form', async () => {
@@ -32,5 +33,20 @@ describe('login theme', () => {
     const error = await screen.findByText('Invalid username or password.');
     expect(error.id).toBe('input-error');
     expect(screen.getByLabelText('Password').getAttribute('aria-invalid')).toBe('true');
+  });
+
+  // Regression: the authenticator set-up page could stay blank. Each page was a script loaded on
+  // demand, and one that failed or hung left nothing on screen. Pages now come with the theme.
+  it('renders a page without loading another script first', async () => {
+    // A fresh module graph, as on a real page load: nothing loaded by an earlier test.
+    vi.resetModules();
+    const { default: FreshKcPage } = await import('./KcPage');
+
+    render(<FreshKcPage kcContext={stories['configure-totp']()} />);
+    await act(() => Promise.resolve());
+
+    expect(
+      screen.getByRole('heading', { level: 1, name: 'Set up your authenticator app' }),
+    ).toBeTruthy();
   });
 });

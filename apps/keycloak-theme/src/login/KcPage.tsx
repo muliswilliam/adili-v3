@@ -5,18 +5,21 @@ import '../styles.css';
 import { classes } from './classes';
 import { useI18n } from './i18n';
 import type { KcContext } from './KcContext';
+import AdiliOtp from './pages/AdiliOtp';
+import ErrorPage from './pages/Error';
+import Info from './pages/Info';
+import Login from './pages/Login';
+import LoginConfigTotp from './pages/LoginConfigTotp';
+import LoginOtp from './pages/LoginOtp';
+import LogoutConfirm from './pages/LogoutConfirm';
+import PageExpired from './pages/PageExpired';
+import ResetPassword from './pages/ResetPassword';
+import UpdatePassword from './pages/UpdatePassword';
 import Template from './Template';
 
-const Login = lazy(() => import('./pages/Login'));
-const AdiliOtp = lazy(() => import('./pages/AdiliOtp'));
-const LoginConfigTotp = lazy(() => import('./pages/LoginConfigTotp'));
-const LoginOtp = lazy(() => import('./pages/LoginOtp'));
-const UpdatePassword = lazy(() => import('./pages/UpdatePassword'));
-const Info = lazy(() => import('./pages/Info'));
-const ErrorPage = lazy(() => import('./pages/Error'));
-const PageExpired = lazy(() => import('./pages/PageExpired'));
-const ResetPassword = lazy(() => import('./pages/ResetPassword'));
-const LogoutConfirm = lazy(() => import('./pages/LogoutConfirm'));
+// The Adili pages ship in the entry bundle. Loaded on demand, each was one more request a sign-in
+// needed after the page itself, and a request that failed or hung left the page blank. Only
+// Keycloakify's unstyled fallback pages still load on demand.
 const UserProfileFormFields = lazy(() => import('keycloakify/login/UserProfileFormFields'));
 
 export default function KcPage({ kcContext }: { kcContext: KcContext }) {
