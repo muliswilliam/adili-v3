@@ -1736,6 +1736,13 @@ paths:
       tags: [copilot]
       operationId: draftClarificationWithAi
       summary: Draft clarification items from selected flags and items (assignee); nothing is issued
+      description: >-
+        Builds the ai-gateway `draft-clarification` input from the case's current version (item
+        context) and flags, in the requested language, and waits up to 10 seconds for the job. A
+        draft not ready by then answers 202 and is polled with `getCopilotDraft`. Drafts are kept
+        for 24 hours and never become clarifications: the console inserts the items into the
+        composer, and the clarification endpoints issue them. A retry with the same
+        Idempotency-Key answers the same draft. Audited read (`review.copilot.drafted`).
       parameters:
         - $ref: '#/components/parameters/IdempotencyKey'
       requestBody:
@@ -1746,7 +1753,7 @@ paths:
               $ref: '#/components/schemas/CopilotDraftInput'
       responses:
         '200':
-          description: Draft ready
+          description: Draft ready, or failed (`failureReason`)
           content:
             application/json:
               schema:
@@ -1758,13 +1765,29 @@ paths:
               schema:
                 $ref: '#/components/schemas/CopilotDraft'
         '400':
-          $ref: '#/components/responses/ValidationProblem'
+          description: 'Body failed validation, or problem type `selection-not-on-case`: a flag the case does not have, an item or section its current version lacks, no selection, or more than 50 items'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
         '403':
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
         '409':
-          description: AI not enabled for this Commission
+          description: AI not enabled for this Commission (problem type `ai-not-enabled`)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '502':
+          description: The declarations service could not give the declaration; nothing was requested
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '503':
+          description: 'The ai-gateway (problem type `ai-gateway-unavailable`) or the Commission directory cannot be reached; nothing was requested'
           content:
             application/problem+json:
               schema:
@@ -1781,6 +1804,7 @@ paths:
       tags: [copilot]
       operationId: getCopilotDraft
       summary: Poll a pending draft (assignee)
+      description: Only the assignee who asked for it, for 24 hours; anyone else, or later, 404. Audited read (`review.copilot.draft-viewed`).
       responses:
         '200':
           description: Draft
@@ -1790,6 +1814,12 @@ paths:
                 $ref: '#/components/schemas/CopilotDraft'
         '404':
           $ref: '#/components/responses/NotFound'
+        '503':
+          description: The ai-gateway cannot be reached (problem type `ai-gateway-unavailable`)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
   /v1/review/copilot/outputs/{jobId}/feedback:
     parameters:
       - name: jobId
@@ -2154,11 +2184,13 @@ components:
       properties:
         flagIds:
           type: array
+          maxItems: 50
           items:
             type: string
             format: uuid
         itemRefs:
           type: array
+          maxItems: 50
           items:
             type: object
             required: [personKey, itemId, sectionKey, requirement]
@@ -2198,10 +2230,12 @@ components:
           type: [string, 'null']
         items:
           type: array
+          description: Empty until ready
           items:
             $ref: '#/components/schemas/ClarificationItemInput'
         failureReason:
           type: [string, 'null']
+          description: "The ai-gateway's job reason (`validation`, `budget`, `provider`, ...), or `rejected` when the gateway refused the request"
     CopilotFeedbackInput:
       type: object
       required: [rating, reason, note]
