@@ -19,6 +19,8 @@ export const scopeSchema = z.strictObject({
     .array(z.enum(SCOPE_SECTIONS as [ScopeSection, ...ScopeSection[]]))
     .min(1)
     .max(SCOPE_SECTIONS.length),
+  /** Form K only; always false for a law enforcement request. */
+  includeClarifications: z.boolean(),
 });
 
 /** Regulation 24's grounds, each at most once. */

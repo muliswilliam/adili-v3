@@ -16,6 +16,7 @@ const requested: Scope = {
   includeSpouses: true,
   includeChildren: true,
   sections: ['income', 'liabilities'],
+  includeClarifications: true,
 };
 const narrower: Scope = { ...requested, years: [2026], includeChildren: false };
 
@@ -82,9 +83,12 @@ describe('decisionErrors (as the access service decisionOf, S6)', () => {
       includeSpouses: false,
       includeChildren: false,
       sections: ['assets'],
+      includeClarifications: false,
     };
     expect(canNarrow(requested)).toBe(true);
     expect(canNarrow({ ...minimal, includeSpouses: true })).toBe(true);
+    // Clarifications asked for can be left out.
+    expect(canNarrow({ ...minimal, includeClarifications: true })).toBe(true);
     expect(canNarrow(minimal)).toBe(false);
   });
 

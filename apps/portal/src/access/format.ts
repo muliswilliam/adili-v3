@@ -14,6 +14,7 @@ export function scopeChips(scope: Scope): {
   years: string[];
   people: string[];
   sections: string[];
+  clarifications: boolean;
 } {
   return {
     years: [...scope.years].sort((a, b) => a - b).map(String),
@@ -25,5 +26,6 @@ export function scopeChips(scope: Scope): {
     sections: SCOPE_SECTIONS.filter((section) => scope.sections.includes(section)).map(
       (section) => scopeSectionLabels[section],
     ),
+    clarifications: scope.includeClarifications,
   };
 }

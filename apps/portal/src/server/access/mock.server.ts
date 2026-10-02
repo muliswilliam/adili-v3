@@ -209,12 +209,13 @@ const ALL_SECTIONS: FormKV1['scope']['sections'] = [
 const scope = (
   years: number[],
   sections: FormKV1['scope']['sections'],
-  people: { spouses?: boolean; children?: boolean } = {},
+  people: { spouses?: boolean; children?: boolean; clarifications?: boolean } = {},
 ): FormKV1['scope'] => ({
   years,
   includeSpouses: people.spouses ?? false,
   includeChildren: people.children ?? false,
   sections,
+  includeClarifications: people.clarifications ?? false,
 });
 
 const SEEDS: Seed[] = [
@@ -278,6 +279,7 @@ const SEEDS: Seed[] = [
     otherInformation: 'My press card number is KMC-2024-11873 (Media Council of Kenya).',
     scope: scope([2025, 2026], ['assets', 'liabilities', 'other'], {
       spouses: true,
+      clarifications: true,
     }),
   },
   {
@@ -355,6 +357,7 @@ const SEEDS: Seed[] = [
     scope: scope([2025, 2026], ['income', 'assets', 'liabilities'], {
       spouses: true,
       children: true,
+      clarifications: true,
     }),
     decision: {
       outcome: 'partial-grant',

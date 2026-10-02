@@ -49,6 +49,7 @@ const INPUT: LeaRequestInput = {
     includeSpouses: false,
     includeChildren: false,
     sections: ['assets'],
+    includeClarifications: false,
   },
 };
 

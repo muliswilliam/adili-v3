@@ -157,10 +157,35 @@ function packagePayload(overrides: Partial<AccessPackagePayload> = {}): AccessPa
       includeSpouses: true,
       includeChildren: false,
       sections: ['bio', 'income', 'assets'],
+      includeClarifications: false,
     },
+    clarifications: null,
     ...overrides,
   };
 }
+
+/** A clarification of the 2027 declaration, answered late with a file, as review discloses it. */
+const ANSWERED_CLARIFICATION: NonNullable<AccessPackagePayload['clarifications']>[number] = {
+  declarationReference: 'DCB-PSC-2027-0000001-1',
+  reference: 'CLR-PSC-2028-0000003-4',
+  status: 'responded',
+  issuedAt: '2028-01-10T09:00:00.000Z',
+  dueAt: '2028-02-09T09:00:00.000Z',
+  respondedAt: '2028-02-12T09:00:00.000Z',
+  responseLate: true,
+  resolvedAt: null,
+  items: [
+    {
+      label: 'Assets · Plot KSM/123 · James Ochieng Otieno',
+      requirementLabel: 'Explain the discrepancy or inconsistency',
+      text: 'Explain the increase in the value of the plot since your last declaration.',
+      response: {
+        text: 'The plot was revalued by a registered valuer in 2027.',
+        attachmentNames: ['valuation-report.pdf'],
+      },
+    },
+  ],
+};
 
 function packageBody(overrides: Record<string, unknown> = {}) {
   return {
@@ -279,6 +304,8 @@ describe('S10 issuing an access package', () => {
     expect(all).not.toContain('LIABILITIES');
     expect(all).not.toContain('OUTSTANDING');
     expect(all).not.toContain(SPOUSE_STATEMENT?.liabilities[0]?.creditor);
+    // Nor the clarifications.
+    expect(all).not.toContain('Clarification');
     for (const spouse of DECLARATION.spouses.items) {
       if (spouse.nationalId) expect(all).not.toContain(spouse.nationalId);
     }
@@ -395,7 +422,13 @@ describe('S10 an access package of the bio section only', () => {
       attestation: DECLARATION.attestation,
     };
     const payload = packagePayload({
-      scope: { years: [2027], includeSpouses: false, includeChildren: false, sections: ['bio'] },
+      scope: {
+        years: [2027],
+        includeSpouses: false,
+        includeChildren: false,
+        sections: ['bio'],
+        includeClarifications: false,
+      },
     });
     const [, version] = payload.disclosure.versions;
     if (!version) throw new Error('the payload has two versions');
@@ -408,6 +441,60 @@ describe('S10 an access package of the bio section only', () => {
     expect(all).not.toContain('Household');
     for (const spouse of DECLARATION.spouses.items)
       expect(all).not.toContain(spouse.name.firstName);
+  });
+});
+
+describe('S10 an access package with the clarifications a Form K grant includes', () => {
+  it("prints each declaration's clarifications, as lettered and answered, and says when it has none", async () => {
+    const payload = packagePayload({
+      scope: { ...packagePayload().scope, includeClarifications: true },
+      clarifications: [ANSWERED_CLARIFICATION],
+    });
+    const document = await issued(packageBody({ payload }));
+    const texts = await pageTexts(await storedPdf(document.id));
+    const all = texts.join(' ');
+
+    expect(texts[0]).toContain('Clarifications the declarant gave');
+    expect(all).toContain('CLR-PSC-2028-0000003-4');
+    expect(all).toContain('Issued 10 Jan 2028; answered 12 Feb 2028, after the due date.');
+    expect(all).toContain('Assets · Plot KSM/123 · James Ochieng Otieno');
+    expect(all).toContain(
+      'Explain the increase in the value of the plot since your last declaration.',
+    );
+    expect(all).toContain('The plot was revalued by a registered valuer in 2027.');
+    expect(all).toContain('valuation-report.pdf');
+    expect(all).toContain('The attached files are not part of this package.');
+    // The 2025 declaration had none.
+    expect(all).toContain(
+      'No clarification within the granted scope was issued on this declaration.',
+    );
+  });
+
+  it.each([
+    [
+      'clarifications the scope does not include',
+      { clarifications: [ANSWERED_CLARIFICATION] },
+      'payload.clarifications',
+    ],
+    [
+      'a scope including clarifications without them',
+      { scope: { ...packagePayload().scope, includeClarifications: true } },
+      'payload.clarifications',
+    ],
+    [
+      'a clarification of a declaration not disclosed',
+      {
+        scope: { ...packagePayload().scope, includeClarifications: true },
+        clarifications: [
+          { ...ANSWERED_CLARIFICATION, declarationReference: 'DCB-PSC-2023-0000009-4' },
+        ],
+      },
+      'payload.clarifications.0.declarationReference',
+    ],
+  ])('refuses %s with 400', async (_, overrides, path) => {
+    const response = await issue(packageBody({ payload: packagePayload(overrides) }));
+    expect(response.statusCode, response.body).toBe(400);
+    expect(response.json<Problem>().errors).toEqual([expect.objectContaining({ path })]);
   });
 });
 

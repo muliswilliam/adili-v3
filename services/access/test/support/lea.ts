@@ -44,6 +44,7 @@ export const LEA_INPUT = {
     includeSpouses: true,
     includeChildren: false,
     sections: ['income', 'assets'],
+    includeClarifications: false,
   },
 };
 

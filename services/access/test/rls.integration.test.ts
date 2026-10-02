@@ -35,6 +35,7 @@ describe('access row-level security', () => {
     includeSpouses: false,
     includeChildren: false,
     sections: ['assets' as const],
+    includeClarifications: false,
   };
   let sequence = 0;
 

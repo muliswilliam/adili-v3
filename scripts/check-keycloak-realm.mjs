@@ -227,6 +227,7 @@ for (const name of [
   'directory:applicants',
   'directory:law-enforcement',
   'declarations:disclosures',
+  'review:disclosures',
   'reports:submit',
 ]) {
   const scope = scopes.get(name);
@@ -301,6 +302,7 @@ for (const [id, needed] of [
       'directory:law-enforcement',
       'declarations:internal',
       'declarations:disclosures',
+      'review:disclosures',
       'documents:internal',
       'messages',
     ],
@@ -343,6 +345,10 @@ for (const client of realm.clients ?? []) {
   // copies; nothing else in the platform does (spec 10).
   if (client.clientId !== 'access' && scopesOf.includes('declarations:disclosures')) {
     fail(`${client.clientId} must not get declarations:disclosures (access only)`);
+  }
+  // A declarant's clarifications read for a third party likewise: only access, for a grant.
+  if (client.clientId !== 'access' && scopesOf.includes('review:disclosures')) {
+    fail(`${client.clientId} must not get review:disclosures (access only)`);
   }
 }
 // API clients the directory creates get `basic` (the `sub` claim) with their own scope.

@@ -28,6 +28,7 @@ import { Clock } from '../../src/clock.js';
 import type { AccessDatabase, AccessTransaction } from '../../src/db/database.js';
 import { schema } from '../../src/db/schema.js';
 import { DeclarationsClient } from '../../src/declarations/declarations-client.js';
+import { ReviewClient } from '../../src/review/review-client.js';
 import { DirectoryClient } from '../../src/directory/directory-client.js';
 import { DocumentsClient } from '../../src/documents/documents-client.js';
 import { leaRequestWorkflowId } from '../../src/lea/contract.js';
@@ -35,7 +36,13 @@ import { accessRequestWorkflowId } from '../../src/requests/contract.js';
 import { certifiedCopyWorkflowId } from '../../src/self-access/contract.js';
 import { NotificationsClient } from '../../src/notifications/notifications-client.js';
 import { FakeClock } from './fake-clock.js';
-import { FakeDeclarations, FakeDirectory, FakeDocuments, FakeNotifications } from './fakes.js';
+import {
+  FakeDeclarations,
+  FakeDirectory,
+  FakeDocuments,
+  FakeNotifications,
+  FakeReview,
+} from './fakes.js';
 
 const ISSUER = 'http://keycloak.test/realms/adili';
 const AUDIENCE = 'adili-api';
@@ -74,6 +81,7 @@ export interface AccessApi {
   asPerson<T>(personId: string, work: (tx: AccessTransaction) => Promise<T>): Promise<T>;
   directory: FakeDirectory;
   declarations: FakeDeclarations;
+  review: FakeReview;
   documents: FakeDocuments;
   notifications: FakeNotifications;
   cipher: FakeCipher;
@@ -108,8 +116,8 @@ export interface AccessApi {
 
 /**
  * The access service over HTTP, against a real Postgres (`TEST_DATABASE_URL`) with a private
- * schema per suite and the committed migrations applied. The directory, declarations, documents
- * and notifications are fakes, the cipher is the in-memory one, tokens are signed locally and the
+ * schema per suite and the committed migrations applied. The directory, declarations, review,
+ * documents and notifications are fakes, the cipher is the in-memory one, tokens are signed locally and the
  * outbox relay is off (events stay in the outbox for assertions). Workflows run on the compose
  * Temporal through the service's own worker, polling the suite's own task queue
  * (test/support/temporal-task-queue.ts). The test role owns the tables, so FORCE row-level
@@ -131,6 +139,7 @@ export async function startAccessApi(): Promise<AccessApi> {
   const { signer, jwk } = await tokenSigner();
   const directory = new FakeDirectory();
   const declarations = new FakeDeclarations();
+  const review = new FakeReview();
   const clock = new FakeClock();
   const documents = new FakeDocuments(() => clock.now());
   const notifications = new FakeNotifications();
@@ -144,6 +153,8 @@ export async function startAccessApi(): Promise<AccessApi> {
     .useValue(directory)
     .overrideProvider(DeclarationsClient)
     .useValue(declarations)
+    .overrideProvider(ReviewClient)
+    .useValue(review)
     .overrideProvider(DocumentsClient)
     .useValue(documents)
     .overrideProvider(NotificationsClient)
@@ -175,6 +186,7 @@ export async function startAccessApi(): Promise<AccessApi> {
     asPerson: (personId, work) => withPerson(db, { personId, subject: 'test' }, work),
     directory,
     declarations,
+    review,
     documents,
     notifications,
     cipher,
@@ -250,6 +262,7 @@ export async function startAccessApi(): Promise<AccessApi> {
       );
       directory.reset();
       declarations.reset();
+      review.reset();
       documents.reset();
       notifications.reset();
       cipher.calls.length = 0;

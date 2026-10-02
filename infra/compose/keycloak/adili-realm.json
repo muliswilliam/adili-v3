@@ -386,7 +386,7 @@
     {
       "clientId": "access",
       "name": "Access service",
-      "description": "Service account the access service uses for Commissions, roster records, staff, applicants and officers from the directory, disclosures and full documents from declarations, packages, copies and attachments in documents, and messages",
+      "description": "Service account the access service uses for Commissions, roster records, staff, applicants and officers (directory), disclosures and full documents (declarations), granted clarifications (review), packages, copies and attachments (documents), and messages",
       "enabled": true,
       "protocol": "openid-connect",
       "publicClient": false,
@@ -404,6 +404,7 @@
         "documents:internal",
         "directory:applicants",
         "directory:law-enforcement",
+        "review:disclosures",
         "messages"
       ],
       "optionalClientScopes": []
@@ -1329,6 +1330,28 @@
     {
       "name": "review:internal",
       "description": "Service tokens for the review service's internal API: letter payloads the documents service renders, acting for a tenant (spec 07a)",
+      "protocol": "openid-connect",
+      "attributes": {
+        "include.in.token.scope": "true",
+        "display.on.consent.screen": "false"
+      },
+      "protocolMappers": [
+        {
+          "name": "adili-api audience",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "config": {
+            "included.custom.audience": "adili-api",
+            "access.token.claim": "true",
+            "id.token.claim": "false",
+            "introspection.token.claim": "true"
+          }
+        }
+      ]
+    },
+    {
+      "name": "review:disclosures",
+      "description": "Service tokens that may ask the review service for the clarifications an access grant discloses, read for a third party: the access service only (spec 10)",
       "protocol": "openid-connect",
       "attributes": {
         "include.in.token.scope": "true",

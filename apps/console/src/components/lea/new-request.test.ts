@@ -23,6 +23,7 @@ const DRAFT: LeaDraft = {
     includeSpouses: true,
     includeChildren: false,
     sections: ['assets'],
+    includeClarifications: false,
   },
 };
 

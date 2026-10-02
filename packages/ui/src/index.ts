@@ -263,6 +263,7 @@ export {
   isSameScope,
   isScopeWithin,
   type Scope,
+  SCOPE_CLARIFICATIONS_LABEL,
   SCOPE_SECTIONS,
   ScopePicker,
   type ScopePickerProps,

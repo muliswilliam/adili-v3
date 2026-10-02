@@ -7,6 +7,7 @@ const requested: Scope = {
   includeSpouses: true,
   includeChildren: false,
   sections: ['income', 'assets', 'liabilities'],
+  includeClarifications: true,
 };
 
 describe('isWithinScope', () => {
@@ -19,6 +20,7 @@ describe('isWithinScope', () => {
           includeSpouses: false,
           includeChildren: false,
           sections: ['assets'],
+          includeClarifications: false,
         },
         requested,
       ),
@@ -33,18 +35,23 @@ describe('isWithinScope', () => {
     expect(isWithinScope({ ...requested, ...widening }, requested)).toBe(false);
   });
 
-  it('refuses spouses a request left out', () => {
-    const narrow = { ...requested, includeSpouses: false };
+  it('refuses clarifications or spouses a request left out', () => {
+    const narrow = { ...requested, includeSpouses: false, includeClarifications: false };
     expect(isWithinScope({ ...narrow, includeSpouses: true }, narrow)).toBe(false);
+    expect(isWithinScope({ ...narrow, includeClarifications: true }, narrow)).toBe(false);
   });
 });
 
 describe('scopeSchema', () => {
-  it('has no clarifications: a scope asking for them is invalid at the scope', () => {
-    const result = scopeSchema.safeParse({ ...requested, includeClarifications: false });
-    expect(result.success).toBe(false);
-    expect(result.error?.issues).toEqual([
-      expect.objectContaining({ code: 'unrecognized_keys', keys: ['includeClarifications'] }),
+  it('needs clarifications said yes or no, and takes no other field', () => {
+    const withoutClarifications: Partial<Scope> = { ...requested };
+    delete withoutClarifications.includeClarifications;
+    expect(scopeSchema.safeParse(requested).success).toBe(true);
+    expect(scopeSchema.safeParse(withoutClarifications).error?.issues).toEqual([
+      expect.objectContaining({ path: ['includeClarifications'] }),
+    ]);
+    expect(scopeSchema.safeParse({ ...requested, clarifications: true }).error?.issues).toEqual([
+      expect.objectContaining({ code: 'unrecognized_keys', keys: ['clarifications'] }),
     ]);
   });
 });

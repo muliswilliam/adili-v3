@@ -74,6 +74,7 @@ describe("The declarant's notices and representations (S4)", () => {
             includeSpouses: true,
             includeChildren: false,
             sections: ['income', 'assets', 'liabilities'],
+            includeClarifications: true,
           },
           notifiedAt: NOTIFIED_AT,
           windowEndsAt: '2027-03-12T09:00:00.000Z',

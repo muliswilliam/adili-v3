@@ -34,6 +34,7 @@ export function emptyScope(): Scope {
     includeSpouses: false,
     includeChildren: false,
     sections: [],
+    includeClarifications: false,
   };
 }
 
@@ -66,7 +67,8 @@ export function canNarrow(requested: Scope): boolean {
     requested.years.length > 1 ||
     requested.sections.length > 1 ||
     requested.includeSpouses ||
-    requested.includeChildren
+    requested.includeChildren ||
+    requested.includeClarifications
   );
 }
 

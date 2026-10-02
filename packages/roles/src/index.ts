@@ -127,3 +127,10 @@ export const MESSAGES_SCOPE = 'messages';
 
 /** The review service's internal API: letter payloads the documents service renders (spec 07a). */
 export const REVIEW_INTERNAL_SCOPE = 'review:internal';
+
+/**
+ * The review service's disclosures to third parties (spec 10): the clarifications an access grant
+ * discloses with the declarations. A scope of its own, held by the access client alone, like
+ * `declarations:disclosures`.
+ */
+export const REVIEW_DISCLOSURES_SCOPE = 'review:disclosures';

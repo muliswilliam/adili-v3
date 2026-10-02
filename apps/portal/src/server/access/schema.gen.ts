@@ -580,6 +580,8 @@ export interface components {
             includeSpouses: boolean;
             includeChildren: boolean;
             sections: components["schemas"]["Section"][];
+            /** @description The clarifications the declarant gave on the disclosed declarations (Act s.36(1), Regulation 22(1)): Form K only, always false for a law enforcement request */
+            includeClarifications: boolean;
         };
         Decision: {
             outcome: components["schemas"]["Outcome"];

@@ -324,7 +324,9 @@ describe('RequestDetailView (spec 10 FE-5)', () => {
     const decision = within(side()).getByRole('region', { name: 'Decision' });
     expect(within(decision).getByText('Partially granted')).toBeTruthy();
     expect(
-      within(decision).getByText('2026 · Officer and spouses · Assets, liabilities'),
+      within(decision).getByText(
+        '2026 · Officer and spouses · Assets, liabilities, clarifications',
+      ),
     ).toBeTruthy();
     expect(within(decision).getByText('Against public interest')).toBeTruthy();
     const pkg = within(side()).getByRole('region', { name: 'Package' });

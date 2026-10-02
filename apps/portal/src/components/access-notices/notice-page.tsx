@@ -440,6 +440,16 @@ function ScopeView({ scope, granted }: { scope: Scope; granted: Scope | null }) 
             ))}
           </ul>
         </Row>
+        {scope.includeClarifications ? (
+          <Row term={COPY.clarifications}>
+            <ul className="flex flex-wrap gap-1.5">
+              <ScopeChip
+                label={COPY.yourClarifications}
+                state={asked(true, granted?.includeClarifications)}
+              />
+            </ul>
+          </Row>
+        ) : null}
       </Rows>
       {granted ? (
         <div

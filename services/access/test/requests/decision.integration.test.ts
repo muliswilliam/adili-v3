@@ -7,6 +7,7 @@ import type { DisclosureDocument } from '../../src/declarations/declarations-cli
 import type { RosterCandidateFacts } from '../../src/directory/directory-client.js';
 import type { OfficerRequestView } from '../../src/requests/officer-view.js';
 import type { AccessRequest } from '../../src/requests/representation.js';
+import type { DisclosedClarification } from '../../src/review/review-client.js';
 import type { Scope } from '../../src/scope.js';
 import { type AccessApi, type Caller, startAccessApi } from '../support/access-api.js';
 import { contractErrors, okResponse } from '../support/contract.js';
@@ -30,6 +31,7 @@ const REQUESTED: Scope = {
   includeSpouses: true,
   includeChildren: false,
   sections: ['income', 'assets', 'liabilities'],
+  includeClarifications: true,
 };
 
 /** Narrowed: 2026 only, the officer's own statement, assets and liabilities. */
@@ -38,9 +40,30 @@ const NARROWED: Scope = {
   includeSpouses: false,
   includeChildren: false,
   sections: ['assets', 'liabilities'],
+  includeClarifications: false,
 };
 
 const REASONS = 'The applicant shows a legitimate interest in the officer’s land holdings.';
+
+/** A clarification of the disclosed 2026 declaration, as review discloses it. */
+const CLARIFICATION: DisclosedClarification = {
+  declarationReference: 'DCB-PSC-2026-0000001-1',
+  reference: 'CLR-PSC-2027-0000004-6',
+  status: 'responded',
+  issuedAt: '2027-02-01T09:00:00.000Z',
+  dueAt: '2027-03-03T09:00:00.000Z',
+  respondedAt: '2027-02-20T09:00:00.000Z',
+  responseLate: false,
+  resolvedAt: null,
+  items: [
+    {
+      label: 'Assets · Plot LR 209/1234 · Anne Njeri Mutua',
+      requirementLabel: 'Explain the discrepancy or inconsistency',
+      text: 'Explain the value of the plot.',
+      response: { text: 'It was revalued in 2026.', attachmentNames: ['valuation.pdf'] },
+    },
+  ],
+};
 
 function disclosureOf(reference: string): DisclosureDocument {
   return {
@@ -148,6 +171,8 @@ describe('Deciding an access request (S6)', () => {
           sections: ['assets', 'liabilities'],
         },
       ]);
+      // The narrowed grant leaves the clarifications out: review is not asked.
+      expect(api.review.calls).toEqual([]);
       expect(api.documents.issued).toEqual([
         {
           tenant: 'psc',
@@ -165,7 +190,9 @@ describe('Deciding an access request (S6)', () => {
               includeSpouses: false,
               includeChildren: false,
               sections: ['assets', 'liabilities'],
+              includeClarifications: false,
             },
+            clarifications: null,
           },
           watermark: { recipientName: 'Mercy Wanjiku Kamau', reference, date: '2027-03-20' },
           downloadWindowDays: 14,
@@ -266,8 +293,13 @@ describe('Deciding an access request (S6)', () => {
       expect(forOfficer.json<OfficerRequestView>().package).toEqual(request.package);
     });
 
-    it('S6: a grant is of the requested scope, with no grounds', async () => {
-      const { id } = await underDecision();
+    it('S6: a grant is of the requested scope, with no grounds, and its package carries the clarifications review discloses for it', async () => {
+      const { anne, id, reference } = await underDecision();
+      api.review.givenClarifications(anne.personId ?? '', [
+        CLARIFICATION,
+        // Of a declaration the grant did not disclose: never asked for, never packaged.
+        { ...CLARIFICATION, declarationReference: 'DCB-PSC-2024-0000007-2' },
+      ]);
 
       const response = await decide(api, id, { outcome: 'grant', reasons: REASONS });
 
@@ -282,6 +314,26 @@ describe('Deciding an access request (S6)', () => {
         includeSpouses: true,
         includeChildren: false,
         sections: ['income', 'assets', 'liabilities'],
+      });
+      // Declarations has no clarifications: the grant's scope is never sent with them.
+      expect(api.declarations.disclosureCalls[0]).not.toHaveProperty('includeClarifications');
+      expect(api.review.calls).toEqual([
+        {
+          personId: anne.personId,
+          tenant: 'psc',
+          officerSubject: officer.sub,
+          grantReference: reference,
+          legalBasis: 'act-s36-1',
+          recipientSubject: mercy.sub,
+          declarationReferences: ['DCB-PSC-2026-0000001-1'],
+          includeSpouses: true,
+          includeChildren: false,
+          sections: ['income', 'assets', 'liabilities'],
+        },
+      ]);
+      expect(api.documents.issued[0]?.payload).toMatchObject({
+        scope: { includeClarifications: true },
+        clarifications: [CLARIFICATION],
       });
       const [decided] = await api.events('access.request.decided.v1');
       expect(decided?.data).toMatchObject({ outcome: 'grant', grounds: [] });

@@ -1757,11 +1757,15 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/Section'
+        includeClarifications:
+          type: boolean
+          description: 'The clarifications the declarant gave on the disclosed declarations (Act s.36(1), Regulation 22(1)): Form K only, always false for a law enforcement request'
       required:
         - years
         - includeSpouses
         - includeChildren
         - sections
+        - includeClarifications
       additionalProperties: false
     Decision:
       type: object

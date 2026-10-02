@@ -795,6 +795,56 @@ paths:
           $ref: '#/components/responses/ValidationProblem'
         '403':
           $ref: '#/components/responses/Forbidden'
+  /internal/v1/review/clarifications/disclosures:
+    post:
+      tags: [internal]
+      operationId: internalDiscloseClarifications
+      x-audited-read:
+        action: clarification.disclosed
+        resource: clarification
+      summary: The clarifications an access grant discloses with the declarations (access, spec 10)
+      description: >-
+        Service tokens with scope review:disclosures (the access service only), acting for the
+        Commission in X-Acting-Tenant. A Form K grant that includes clarifications (Act s.36(1),
+        Regulation 22(1)) discloses those issued on the declarations it disclosed: every
+        clarification issued on each named declaration of the person at the Commission (never a
+        draft or a withdrawn one), oldest issued first, each item as its letter put it with the
+        declarant's answer (text and the names of the files attached; not the files), cut to the
+        granted household members and sections. An item goes out only when everything it can
+        concern is granted: a spouse's or child's needs them included; `bio` needs bio,
+        `household` bio with spouses and children, `other` other information, a financial
+        statement's income, assets and liabilities, the declaration as a whole every section and
+        both household members. A clarification with no item in the scope is left out; the
+        reviewer's resolution note never goes out. Audited (`audit.read.v1`, action
+        `clarification.disclosed`) with the legal basis, the grant reference, the recipient and
+        the clarifications served. A read: no Idempotency-Key, safe to retry.
+      parameters:
+        - $ref: '#/components/parameters/ActingTenant'
+        - name: X-Acting-Subject
+          in: header
+          required: true
+          description: The access officer who decided the grant; recorded in the audit event
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 255
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ClarificationDisclosureRequest'
+      responses:
+        '200':
+          description: The clarifications in the granted scope, oldest issued first
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClarificationDisclosure'
+        '400':
+          $ref: '#/components/responses/ValidationProblem'
+        '403':
+          $ref: '#/components/responses/Forbidden'
   /internal/v1/review/referrals/{referralId}/icms-payload:
     parameters:
       - $ref: '#/components/parameters/ReferralId'
@@ -2597,6 +2647,139 @@ components:
             letterDownloadUrl:
               type: [string, 'null']
               format: uri
+    ClarificationDisclosureRequest:
+      type: object
+      additionalProperties: false
+      required:
+        [
+          personId,
+          grantReference,
+          legalBasis,
+          recipientSubject,
+          declarationReferences,
+          includeSpouses,
+          includeChildren,
+          sections,
+        ]
+      properties:
+        personId:
+          type: string
+          format: uuid
+          description: The declarant whose clarifications are disclosed
+        grantReference:
+          type: string
+          description: "ADR-011: the grant's ARQ (Form K) or LEA reference, with a valid check character"
+          pattern: '^(ARQ|LEA)-[A-Z][A-Z0-9]{1,19}-[0-9]{4}-[0-9]{7}-[0-9A-Z]$'
+        legalBasis:
+          type: string
+          enum: [act-s36-1, act-s36-2]
+          description: act-s36-1 goes with an ARQ reference, act-s36-2 with an LEA reference
+        recipientSubject:
+          type: string
+          minLength: 1
+          maxLength: 255
+          description: The account the clarifications are handed to (the applicant); recorded in the audit event
+        declarationReferences:
+          type: array
+          minItems: 1
+          maxItems: 200
+          description: The declarations the grant disclosed (declarations' `disclosure.v1` versions)
+          items:
+            type: string
+            minLength: 1
+            maxLength: 64
+        includeSpouses:
+          type: boolean
+        includeChildren:
+          type: boolean
+        sections:
+          type: array
+          minItems: 1
+          maxItems: 5
+          items:
+            type: string
+            enum: [bio, income, assets, liabilities, other]
+    ClarificationDisclosure:
+      type: object
+      required: [grantReference, clarifications]
+      properties:
+        grantReference:
+          type: string
+        clarifications:
+          type: array
+          description: Oldest issued first; empty when none was issued or none is in the scope
+          items:
+            $ref: '#/components/schemas/DisclosedClarification'
+    DisclosedClarification:
+      type: object
+      required:
+        [
+          declarationReference,
+          reference,
+          status,
+          issuedAt,
+          dueAt,
+          respondedAt,
+          responseLate,
+          resolvedAt,
+          items,
+        ]
+      properties:
+        declarationReference:
+          type: string
+          description: The declaration it was issued on
+        reference:
+          type: string
+          description: '`CLR-...`'
+        status:
+          type: string
+          enum: [issued, overdue, responded, resolved]
+        issuedAt:
+          type: string
+          format: date-time
+        dueAt:
+          type: string
+          format: date-time
+        respondedAt:
+          type: [string, 'null']
+          format: date-time
+        responseLate:
+          type: boolean
+        resolvedAt:
+          type: [string, 'null']
+          format: date-time
+        items:
+          type: array
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/DisclosedClarificationItem'
+    DisclosedClarificationItem:
+      type: object
+      required: [label, requirementLabel, text, response]
+      properties:
+        label:
+          type: string
+          description: What the item concerns, as the letter put it
+        requirementLabel:
+          type: string
+          description: What Act s.35(4) required of the declarant
+        text:
+          type: string
+          description: "The reviewer's request"
+        response:
+          description: "The declarant's answer; null when not answered"
+          oneOf:
+            - type: 'null'
+            - type: object
+              required: [text, attachmentNames]
+              properties:
+                text:
+                  type: string
+                attachmentNames:
+                  type: array
+                  description: Names of the files attached to the answer; the files are not disclosed
+                  items:
+                    type: string
     InternalClarificationDetails:
       type: object
       required: [clarificationId, reference, name, designation, identifier, requirementLabels]

@@ -116,6 +116,7 @@ const SCOPE_ASSETS: Scope = {
   includeSpouses: true,
   includeChildren: false,
   sections: ['income', 'assets', 'liabilities'],
+  includeClarifications: false,
 };
 
 const KAMAU_SOUGHT = {

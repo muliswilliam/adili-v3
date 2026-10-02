@@ -29,7 +29,8 @@
     "years": [2025, 2026],
     "includeSpouses": true,
     "includeChildren": false,
-    "sections": ["income", "assets", "liabilities"]
+    "sections": ["income", "assets", "liabilities"],
+    "includeClarifications": true
   },
   "meta": {
     "reference": "ARQ-PSC-2026-0000001-7",

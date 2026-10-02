@@ -149,6 +149,7 @@ describe('LeaRequestWorkflow and its activities (S11)', () => {
         sections: ['income', 'assets'],
       },
     ]);
+    expect(api.review.calls).toEqual([]);
     expect(api.documents.issued).toEqual([
       expect.objectContaining({
         tenant: 'psc',
@@ -169,7 +170,10 @@ describe('LeaRequestWorkflow and its activities (S11)', () => {
             includeSpouses: true,
             includeChildren: false,
             sections: ['income', 'assets'],
+            includeClarifications: false,
           },
+          // Law enforcement grants never carry clarifications.
+          clarifications: null,
         },
         watermark: { recipientName: 'Peter Mwangi, DCI', reference, date: '2027-01-18' },
         downloadWindowDays: 14,

@@ -461,7 +461,7 @@ export interface components {
             statementCount: number;
             itemCount: number;
         };
-        /** @description Payload of access-package v1: the declarations service's scoped disclosure for the grant and what the grant decided */
+        /** @description Payload of access-package v1: the declarations service's scoped disclosure for the grant, the clarifications disclosed with it, and what the grant decided */
         AccessPackagePayload: {
             disclosure: {
                 /** @constant */
@@ -501,7 +501,31 @@ export interface components {
                 includeSpouses: boolean;
                 includeChildren: boolean;
                 sections: ("bio" | "income" | "assets" | "liabilities" | "other")[];
+                includeClarifications: boolean;
             };
+            /** @description The clarifications of the disclosed declarations, as the review service disclosed them for the grant (oldest issued first; empty when none was issued in the scope); null when the grant does not include clarifications */
+            clarifications: {
+                declarationReference: string;
+                reference: string;
+                /** @enum {string} */
+                status: "issued" | "overdue" | "responded" | "resolved";
+                /** Format: date-time */
+                issuedAt: string;
+                /** Format: date-time */
+                dueAt: string;
+                respondedAt: string | null;
+                responseLate: boolean;
+                resolvedAt: string | null;
+                items: {
+                    label: string;
+                    requirementLabel: string;
+                    text: string;
+                    response: {
+                        text: string;
+                        attachmentNames: string[];
+                    } | null;
+                }[];
+            }[] | null;
         };
         /** @description Payload of certified-copy v1: the declarations service's full document of a submitted version (FullVersionDocument without its identifiers and hash) */
         CertifiedCopyPayload: {

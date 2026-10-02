@@ -237,13 +237,12 @@ describe('Form K submission (S2)', () => {
     await expectNothingStored();
   });
 
-  it('S2: a scope asking for clarifications is 400 at the field: no access covers them', async () => {
+  it('S2: a scope that does not say whether it asks for clarifications is 400 at the field', async () => {
     given();
+    const scope = { ...(COMPLETE.scope as Record<string, unknown>) };
+    delete scope.includeClarifications;
 
-    const response = await submit({
-      ...COMPLETE,
-      scope: { ...(COMPLETE.scope as object), includeClarifications: true },
-    });
+    const response = await submit({ ...COMPLETE, scope });
 
     expect(response.statusCode).toBe(400);
     const problem = response.json<{ errors: { path: string }[] }>();
