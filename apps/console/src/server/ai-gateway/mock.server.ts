@@ -328,6 +328,7 @@ const TASKS: readonly Route['task'][] = [
   'summarize-declaration',
   'explain-flags',
   'draft-clarification',
+  'narrate-compliance-report',
 ];
 
 /** Sets the route of a task for every tenant (null) or one, as `PUT .../routing/{task}`. */

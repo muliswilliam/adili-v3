@@ -87,7 +87,12 @@ export const setTenantBudget = createServerFn({ method: 'POST' })
     ),
   );
 
-const taskName = z.enum(['summarize-declaration', 'explain-flags', 'draft-clarification']);
+const taskName = z.enum([
+  'summarize-declaration',
+  'explain-flags',
+  'draft-clarification',
+  'narrate-compliance-report',
+]);
 // Bounds as the contract has them; the gateway validates and its 400 maps back to the field.
 const approvalRef = z.string().max(200);
 

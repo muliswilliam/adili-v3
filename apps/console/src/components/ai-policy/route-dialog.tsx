@@ -33,6 +33,7 @@ import type { RouteRow } from '../../server/ai-policy.server';
 import type { ServiceResult } from '../../server/service-call';
 import { messages as m } from './messages';
 import {
+  COMMISSION_TASKS,
   EFFORTS,
   type RouteDraft,
   routeDraft,
@@ -40,7 +41,6 @@ import {
   routeErrors,
   routeInput,
   type RouteTask,
-  TASK_NAMES,
 } from './model';
 
 /** Routes a task for every Commission (tenant null) or one; the page passes the server function. */
@@ -296,10 +296,10 @@ export function RouteDialog(props: RouteDialogProps) {
                         value={task}
                         className="font-mono text-[12.5px]"
                         onValueChange={(value) => {
-                          setTask(TASK_NAMES.find((each) => each === value) ?? task);
+                          setTask(COMMISSION_TASKS.find((each) => each === value) ?? task);
                         }}
                       >
-                        {TASK_NAMES.map((each) => (
+                        {COMMISSION_TASKS.map((each) => (
                           <SelectItem key={each} value={each} className="font-mono text-[12.5px]">
                             {each}
                           </SelectItem>

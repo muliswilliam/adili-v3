@@ -5,6 +5,7 @@ import type {
   DataClass,
   GateRule,
   ProviderClass,
+  TaskName,
   TenantUsage,
 } from '../../server/ai-gateway/types';
 import type {
@@ -322,12 +323,16 @@ export function belowUsage(monthlyTokens: string, usage: TenantUsage): boolean {
 
 // --- The route dialog ---
 
-export const TASK_NAMES = [
+/**
+ * The tasks a Commission's own route may be added for. EACC's narrate-compliance-report has only a
+ * default route (ADR-007); it is edited from its row like any other.
+ */
+export const COMMISSION_TASKS = [
   'summarize-declaration',
   'explain-flags',
   'draft-clarification',
-] as const;
-export type RouteTask = (typeof TASK_NAMES)[number];
+] as const satisfies readonly TaskName[];
+export type RouteTask = TaskName;
 export const EFFORTS = ['low', 'medium', 'high'] as const;
 
 /** The route dialog's fields as typed: numbers as text, effort `''` for the task's own. */
