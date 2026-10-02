@@ -1,5 +1,10 @@
 import { formatDate, formatMoney, plural } from '@adili/ui';
 
+import {
+  DETAIL_FIELD_LABELS,
+  ITEM_FIELD_LABELS,
+  PERSON_FIELD_LABELS,
+} from '../../declaration/field-labels';
 import type { JsonObject, LoadedSummary } from '../../server/declarations.server';
 import type {
   CompletenessIssue,
@@ -93,23 +98,18 @@ export function blockingGroups(
   return { groups, hidden: Math.max(0, blocking.length - limit) };
 }
 
-/** Field names as the section screens label them, for issues that name only the problem. */
+/**
+ * Field names as the section screens label them (`field-labels.ts`), for issues that name only
+ * the problem. `value`, `type` and the share have long or per-person labels on their screens
+ * ("Approximate value as at the statement date", "Mary's share"); the summary names them short.
+ */
 const FIELD_LABELS: Record<string, string> = {
+  ...ITEM_FIELD_LABELS,
+  ...DETAIL_FIELD_LABELS,
+  ...PERSON_FIELD_LABELS,
   value: 'Value',
   type: 'Type',
-  description: 'Description',
-  location: 'Location',
-  county: 'County',
-  country: 'Country',
-  joint: 'Jointly held',
   sharePercent: 'Share',
-  creditor: 'Creditor',
-  change: 'Changed since last declaration',
-  explanation: 'Explanation',
-  separationDate: 'Separation date',
-  dateOfBirth: 'Date of birth',
-  nationalId: 'National ID',
-  kraPin: 'KRA PIN',
 };
 
 /** Pointer parts that hold a field's value rather than name it (`/value/kesCents`). */

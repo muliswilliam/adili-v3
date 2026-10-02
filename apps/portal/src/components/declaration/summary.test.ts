@@ -212,10 +212,19 @@ describe('issueText', () => {
     ).toBe('Asset 2: Value is required');
     expect(
       issueText(issue('household', '/spouses/items/0/separationDate', 'is required'), document),
-    ).toBe('Separation date is required');
+    ).toBe('Date of separation is required');
     expect(issueText(issue('bio', '/placeOfBirth', 'is required'), document)).toBe(
       'Place of birth is required',
     );
+  });
+
+  it('names a field as its screen labels it (Q33)', () => {
+    expect(
+      issueText(
+        issue('statement:officer', '/assets/0/details/parcelNumber', 'is required'),
+        document,
+      ),
+    ).toBe('One-bedroom apartment, Dubai Marina: Parcel or plot number is required');
   });
 
   it('keeps the rules’ own sentences', () => {
