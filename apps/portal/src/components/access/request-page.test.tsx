@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { getMyPackageDownload } from '../../server/access-requests';
 import type { AccessRequest, AccessRequestStatus } from '../../server/access/types';
 import { downloadFrom } from '../download';
+import { signInAgain } from '../sign-in';
 import { RequestPage } from './request-page';
 import { IDS, NOW, seededRequest } from './testing';
 
@@ -14,6 +15,7 @@ vi.mock('@tanstack/react-router', async () =>
 );
 vi.mock('../../server/access-requests', () => ({ getMyPackageDownload: vi.fn() }));
 vi.mock('../download', async () => (await import('../declaration/testing-mocks')).downloadMock());
+vi.mock('../sign-in', () => ({ signInAgain: vi.fn() }));
 
 const packageDownload = vi.mocked(getMyPackageDownload);
 
@@ -316,6 +318,18 @@ describe('RequestPage package (#261, S7)', () => {
     expect(failed.getAttribute('role')).toBe('alert');
     expect(downloadFrom).not.toHaveBeenCalled();
     expect(screen.getByRole('button', { name: 'Download' })).toBeTruthy();
+  });
+
+  it('sends the applicant to sign in when their session ended', async () => {
+    packageDownload.mockResolvedValue({ status: 'unauthenticated' });
+    show(await seededRequest(IDS.granted));
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Download' }));
+      await Promise.resolve();
+    });
+    expect(signInAgain).toHaveBeenCalledOnce();
+    expect(screen.queryByText('We could not start the download. Try again.')).toBeNull();
+    expect(downloadFrom).not.toHaveBeenCalled();
   });
 
   it('closes the window on the page when documents answers 410', async () => {
