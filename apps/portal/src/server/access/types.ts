@@ -1,4 +1,5 @@
 import type { FormKV1 } from '@adili/forms';
+import type { Assert, MatchesAccessCopy } from '@adili/ui';
 
 import type { components } from './schema.gen';
 
@@ -14,6 +15,15 @@ export type Decision = Schemas['Decision'];
 export type Ground = Schemas['Ground'];
 export type Outcome = Schemas['Outcome'];
 export type Package = Schemas['Package'];
+
+/** Fails to compile when the contract and the shared access words in @adili/ui drift apart. */
+export type ContractMatchesSharedCopy = Assert<
+  MatchesAccessCopy<{
+    status: AccessRequestStatus;
+    leaStatus: Schemas['LeaRequestStatus'];
+    outcome: Outcome;
+  }>
+>;
 export type ProblemDetails = Schemas['ProblemDetails'];
 export type RegisterEntry = Schemas['RegisterEntry'];
 

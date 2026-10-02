@@ -142,10 +142,9 @@ describe('RequestPage (S17)', () => {
 
   it('cites a denial’s grounds from Regulation 24 and the court relief', async () => {
     show(await seededRequest(IDS.denied));
-    expect(screen.getByText('Frivolous, vexatious or scandalous (Regulation 24(c))')).toBeTruthy();
-    expect(
-      screen.getByText('Does not promote the objectives of the Act (Regulation 24(d))'),
-    ).toBeTruthy();
+    expect(screen.getByText('Frivolous, vexatious or scandalous')).toBeTruthy();
+    expect(screen.getByText('(c) the request is frivolous, vexatious or scandalous;')).toBeTruthy();
+    expect(screen.getByText('Does not promote the objectives of the Act')).toBeTruthy();
     expect(
       screen.getByText('If you disagree with the decision, you may seek relief from the court.'),
     ).toBeTruthy();
@@ -154,7 +153,7 @@ describe('RequestPage (S17)', () => {
 
   it('shows what a partial grant covers', async () => {
     show(await seededRequest(IDS.partial));
-    expect(screen.getByText('Against the public interest (Regulation 24(a))')).toBeTruthy();
+    expect(screen.getByText('Against public interest')).toBeTruthy();
     expect(screen.getByText('Granted')).toBeTruthy();
   });
 

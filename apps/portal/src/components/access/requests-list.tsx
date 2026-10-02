@@ -5,9 +5,14 @@ import {
   cn,
   DeadlineChip,
   deadlineSoonDays,
+  deadlineStatus,
+  DECIDED_ACCESS_STATUSES,
   EmptyState,
   focusRingInset,
+  GRANTED_ACCESS_STATUSES,
+  groundMeta,
   Icon,
+  OPEN_ACCESS_STATUSES,
 } from '@adili/ui';
 import {
   Add01Icon,
@@ -20,24 +25,15 @@ import {
 import { Link } from '@tanstack/react-router';
 
 import { day, REQUESTS_COPY as COPY } from '../../access/copy';
-import { GRANTED_STATUSES } from '../../access/package';
 import type { RequestSummary } from '../../server/access-requests.server';
 import { RequestStatusBadge, RequestStatusTile } from './request-status';
 
 export const REQUESTS_PAGE_SIZE = 10;
 
-const DECIDED = new Set(['granted', 'partially-granted', 'denied']);
-const OPEN = new Set([
-  'submitted',
-  'pending-applicant-verification',
-  'officer-unresolved',
-  'awaiting-representations',
-  'under-decision',
-]);
-
 /** The line under a row's reference: when it was submitted, decided, withdrawn or closed. */
 function dateLine(request: RequestSummary): string {
-  if (request.closedAt && DECIDED.has(request.status)) return COPY.decidedOn(day(request.closedAt));
+  if (request.closedAt && DECIDED_ACCESS_STATUSES.has(request.status))
+    return COPY.decidedOn(day(request.closedAt));
   if (request.closedAt && request.status === 'withdrawn') {
     return COPY.withdrawnOn(day(request.closedAt));
   }
@@ -47,31 +43,61 @@ function dateLine(request: RequestSummary): string {
   return COPY.submittedOn(day(request.submittedAt));
 }
 
-/** The decision clock while the request is open: due date, then due soon or late from day 20. */
+/**
+ * A clock's chip with what it counts down to written beside it ("Download by 14 Oct 2026"), so
+ * "12 days left" never reads as another clock. The chip says it all to screen readers.
+ */
+function LabelledClock({
+  label,
+  due,
+  soonDays,
+  todayText,
+  now,
+}: {
+  label: string;
+  due: string;
+  soonDays: number;
+  todayText?: string;
+  now: number;
+}) {
+  return (
+    <span className="inline-flex items-center gap-1.5">
+      <span aria-hidden="true" className="text-[13px] text-secondary-foreground">
+        {`${label} ${day(due)}`}
+      </span>
+      <DeadlineChip due={due} soonDays={soonDays} label={label} todayText={todayText} now={now} />
+    </span>
+  );
+}
+
+/**
+ * The decision clock while the request is open: the due date, then from day 20 (due soon) the
+ * days left or late beside it, counted in Kenyan calendar days.
+ */
 function DecisionDue({ request, now }: { request: RequestSummary; now: number }) {
-  if (!OPEN.has(request.status)) return null;
-  const daysLeft = Math.ceil((Date.parse(request.decisionDeadlineAt) - now) / 86_400_000);
-  if (daysLeft > deadlineSoonDays.decision) {
+  if (!OPEN_ACCESS_STATUSES.has(request.status)) return null;
+  const due = request.decisionDeadlineAt;
+  if (deadlineStatus(due, { now, soonDays: deadlineSoonDays.decision }).state === 'due') {
     return (
       <Badge variant="default">
         <Icon icon={Calendar03Icon} strokeWidth={2.2} />
-        {COPY.dueOn(day(request.decisionDeadlineAt))}
+        {COPY.dueOn(day(due))}
       </Badge>
     );
   }
   return (
-    <DeadlineChip
-      due={request.decisionDeadlineAt}
-      soonDays={deadlineSoonDays.decision}
+    <LabelledClock
       label={COPY.decisionDue}
+      due={due}
+      soonDays={deadlineSoonDays.decision}
       now={now}
     />
   );
 }
 
-/** A granted package's download window: days left, due soon from 3 days, or expired. */
+/** A granted package's download window: by when, days left (soon from 3 days), or expired. */
 function DownloadBy({ request, now }: { request: RequestSummary; now: number }) {
-  if (!GRANTED_STATUSES.has(request.status) || !request.downloadExpiresAt) return null;
+  if (!GRANTED_ACCESS_STATUSES.has(request.status) || !request.downloadExpiresAt) return null;
   if (Date.parse(request.downloadExpiresAt) <= now) {
     return (
       <Badge variant="default">
@@ -81,13 +107,28 @@ function DownloadBy({ request, now }: { request: RequestSummary; now: number }) 
     );
   }
   return (
-    <DeadlineChip
+    <LabelledClock
+      label={COPY.downloadBy}
       due={request.downloadExpiresAt}
       soonDays={deadlineSoonDays.download}
-      label={COPY.downloadBy}
       todayText={COPY.expiresToday}
       now={now}
     />
+  );
+}
+
+/** A decided row's grounds and the start of its reasons; the request's page has the rest. */
+function DecisionSummary({ decision }: { decision: NonNullable<RequestSummary['decision']> }) {
+  return (
+    <span className="mt-2 grid gap-0.5 text-[13px]">
+      {decision.grounds.length > 0 ? (
+        <span className="text-secondary-foreground">
+          <span className="font-medium">{COPY.grounds}</span>{' '}
+          {decision.grounds.map((ground) => groundMeta[ground].label).join('; ')}
+        </span>
+      ) : null}
+      <span className="line-clamp-2 text-muted-foreground">{decision.reasons}</span>
+    </span>
   );
 }
 
@@ -112,6 +153,7 @@ function RequestRow({ request, now }: { request: RequestSummary; now: number }) 
             <DecisionDue request={request} now={now} />
             <DownloadBy request={request} now={now} />
           </span>
+          {request.decision ? <DecisionSummary decision={request.decision} /> : null}
         </span>
         <Icon
           icon={ArrowRight01Icon}
@@ -209,7 +251,8 @@ export function NewRequestButton() {
 /**
  * My requests (spec 10 FE-3): the applicant's Form K requests, latest first, ten to a page,
  * each with its officer, reference, Commission, status and, while open, the decision clock;
- * once granted, the package's download window.
+ * once decided, the grounds and the start of the reasons, and once granted, the package's
+ * download window. Withdrawing is on the request's page.
  */
 export function RequestsList({
   requests,

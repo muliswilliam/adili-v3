@@ -106,7 +106,7 @@ describe('Who accessed my declaration', () => {
     expect(drawer.textContent).toContain('You objected');
     expect(drawer.textContent).toContain('Partially granted');
     expect(drawer.textContent).toContain('2026 · You only · Income, assets');
-    expect(drawer.textContent).toContain('Regulation 24(d)');
+    expect(drawer.textContent).toContain('(d) the reason for the access');
     const timeline = within(drawer).getByRole('list', { name: 'Timeline' });
     expect(within(timeline).getAllByRole('listitem').length).toBeGreaterThanOrEqual(5);
     expect(within(drawer).getByRole('link', { name: 'Open access request' })).toBeDefined();

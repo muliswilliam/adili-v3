@@ -1,4 +1,4 @@
-import { cn, type Scope } from '@adili/ui';
+import { cn, type Ground, groundMeta, type Scope } from '@adili/ui';
 import type { ReactNode } from 'react';
 
 import { FORM_K_COPY as COPY } from '../../access/copy';
@@ -31,6 +31,25 @@ function Chips({ values }: { values: string[] }) {
           className="rounded-md bg-muted px-2 py-0.5 text-[13px] font-medium text-secondary-foreground"
         >
           {value}
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+/**
+ * A decision's Regulation 24 grounds: each ground's short label, then the regulation's own words
+ * quoted under it (the console's `GroundsSelect` cites the same text, from `groundMeta`).
+ */
+export function GroundsList({ grounds }: { grounds: readonly Ground[] }) {
+  return (
+    <ul className="grid gap-2">
+      {grounds.map((ground) => (
+        <li key={ground} className="grid gap-0.5">
+          <span className="font-medium">{groundMeta[ground].label}</span>
+          <q className="text-[13.5px] font-normal text-muted-foreground">
+            {groundMeta[ground].text}
+          </q>
         </li>
       ))}
     </ul>

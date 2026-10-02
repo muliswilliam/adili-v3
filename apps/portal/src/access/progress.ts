@@ -1,4 +1,13 @@
-import { formatDate, formatDateTime } from '@adili/ui';
+import {
+  daysBetween,
+  DECIDED_ACCESS_STATUSES as DECIDED,
+  type DeadlineState,
+  deadlineSoonDays,
+  deadlineStatus,
+  formatDate,
+  formatDateTime,
+  OPEN_ACCESS_STATUSES,
+} from '@adili/ui';
 
 import type { AccessRequest, RegisterEntry } from '../server/access/types';
 import { REQUEST_COPY as COPY, PACKAGE_COPY as PACKAGE } from './copy';
@@ -21,16 +30,8 @@ export interface Stage {
   state: StageState;
 }
 
-const DECIDED = new Set(['granted', 'partially-granted', 'denied']);
-
 /** Requests the applicant can still withdraw: any before a decision or closure. */
-export const WITHDRAWABLE = new Set<AccessRequest['status']>([
-  'submitted',
-  'pending-applicant-verification',
-  'officer-unresolved',
-  'awaiting-representations',
-  'under-decision',
-]);
+export const WITHDRAWABLE = OPEN_ACCESS_STATUSES;
 
 function at(timeline: RegisterEntry[], kind: RegisterEntry['kind']): string | null {
   return timeline.filter((entry) => entry.kind === kind).at(-1)?.at ?? null;
@@ -152,16 +153,21 @@ export function requestStages(request: AccessRequest, now: number, windowClosed 
   return stages;
 }
 
-/** Where the 30-day decision clock stands, for an open request; null once it has stopped. */
+/**
+ * Where the 30-day decision clock stands, for an open request; null once it has stopped. Days
+ * count in Kenyan calendar days, as the deadline chips do, so the clock moves on at midnight.
+ */
 export function decisionClock(
   request: AccessRequest,
   now: number,
-): { day: number; of: number; daysLeft: number } | null {
+): { day: number; of: number; daysLeft: number; state: DeadlineState } | null {
   if (!WITHDRAWABLE.has(request.status)) return null;
-  const start = Date.parse(request.submittedAt);
-  const end = Date.parse(request.decisionDeadlineAt);
-  const of = Math.round((end - start) / 86_400_000);
-  const day = Math.max(0, Math.floor((now - start) / 86_400_000));
-  const daysLeft = Math.ceil((end - now) / 86_400_000);
-  return { day: Math.min(day, of), of, daysLeft };
+  const today = new Date(now).toISOString();
+  const of = daysBetween(request.submittedAt, request.decisionDeadlineAt);
+  const day = Math.max(0, daysBetween(request.submittedAt, today));
+  const { state, days } = deadlineStatus(request.decisionDeadlineAt, {
+    now,
+    soonDays: deadlineSoonDays.decision,
+  });
+  return { day: Math.min(day, of), of, daysLeft: days, state };
 }

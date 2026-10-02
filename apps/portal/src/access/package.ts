@@ -1,6 +1,6 @@
-import { calendarDaysUntil } from '@adili/ui';
+import { calendarDaysUntil, GRANTED_ACCESS_STATUSES } from '@adili/ui';
 
-import type { AccessRequest, AccessRequestStatus, Package } from '../server/access/types';
+import type { AccessRequest, Package } from '../server/access/types';
 import { PACKAGE_COPY as COPY } from './copy';
 
 /**
@@ -8,8 +8,6 @@ import { PACKAGE_COPY as COPY } from './copy';
  * prepared, ready to download until its window ends, or past its window. Pure, from the request
  * and a clock, so the page, the list and the progress agree.
  */
-
-export const GRANTED_STATUSES = new Set<AccessRequestStatus>(['granted', 'partially-granted']);
 
 /** From this long before the window ends, the page counts down in hours and minutes. */
 export const COUNTDOWN_FROM_MS = 24 * 3_600_000;
@@ -39,7 +37,7 @@ export function packageView(
   now: number,
   windowClosed = false,
 ): PackageView | null {
-  if (!GRANTED_STATUSES.has(request.status)) return null;
+  if (!GRANTED_ACCESS_STATUSES.has(request.status)) return null;
   const pkg = request.package;
   if (!pkg) return { state: 'preparing' };
   const lastDownloadAt =

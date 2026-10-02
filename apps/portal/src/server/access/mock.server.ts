@@ -43,7 +43,7 @@
  * (`failNextAccessCall`).
  */
 import { validateFormK, type FormKV1 } from '@adili/forms';
-import { addDays } from '@adili/ui';
+import { addDays, DECIDED_ACCESS_STATUSES } from '@adili/ui';
 import { ARQ, format } from '@adili/numbering/references';
 
 import { json, problem, readJson } from '../mock-http';
@@ -701,7 +701,6 @@ async function submit(request: Request): Promise<Response> {
   return json(201, created);
 }
 
-const DECIDED = new Set(['granted', 'partially-granted', 'denied']);
 const CLOSED = new Set(['withdrawn', 'cannot-identify']);
 
 function withdraw(id: string, key: string | null): Response {
@@ -726,7 +725,8 @@ function withdraw(id: string, key: string | null): Response {
     };
     found.timeline.push(entry('decided', decidedAt, found.reference, 'Decision made'));
   }
-  if (DECIDED.has(found.status)) return problem(409, 'A decision is final', 'request-decided');
+  if (DECIDED_ACCESS_STATUSES.has(found.status))
+    return problem(409, 'A decision is final', 'request-decided');
   if (CLOSED.has(found.status)) return problem(409, 'The request is closed', 'request-closed');
   const at = new Date().toISOString();
   found.status = 'withdrawn';

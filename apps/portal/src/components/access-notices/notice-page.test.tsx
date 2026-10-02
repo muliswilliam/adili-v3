@@ -271,9 +271,7 @@ describe('after the window and the decision', () => {
     expect(banner()).toBe(
       'Teachers Service Commission partially granted access on 2 Sep 2026. Only part of what was asked was released.',
     );
-    expect(
-      screen.getByText('Does not promote the objectives of the Act (Regulation 24(d))'),
-    ).toBeTruthy();
+    expect(screen.getByText('Does not promote the objectives of the Act')).toBeTruthy();
     expect(screen.getByText('Scope asked and granted')).toBeTruthy();
     expect(screen.getByText('Liabilities').closest('li')?.textContent).toContain('(not released)');
     expect(screen.getByText('Income').closest('li')?.textContent).not.toContain('(');
@@ -285,7 +283,7 @@ describe('after the window and the decision', () => {
     expect(banner()).toBe(
       'Teachers Service Commission denied access on 30 Jul 2026. Nothing was released.',
     );
-    expect(screen.getByText('Frivolous, vexatious or scandalous (Regulation 24(c))')).toBeTruthy();
+    expect(screen.getByText('Frivolous, vexatious or scandalous')).toBeTruthy();
   });
 
   it('says the applicant withdrew', async () => {

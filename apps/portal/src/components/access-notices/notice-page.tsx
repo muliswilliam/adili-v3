@@ -34,7 +34,6 @@ import {
 import { Link, useRouter } from '@tanstack/react-router';
 import { type ReactNode, type RefObject, useRef, useState } from 'react';
 
-import { GROUNDS } from '../../access/copy';
 import { NOTICE_COPY as COPY, OUTCOMES, RESPONSE_COPY } from '../../access/notice-copy';
 import {
   historyOf,
@@ -49,6 +48,7 @@ import { checkRepresentations } from '../../access/representation-form';
 import { submitMyRepresentations } from '../../server/access-notices';
 import type { DeclarantNotice, Scope } from '../../server/access/types';
 import { loginHref } from '../sign-in';
+import { GroundsList } from '../access/request-parts';
 import { NoticeStateBadge } from './notice-parts';
 import {
   ConsentDialog,
@@ -330,11 +330,7 @@ function DecisionCard({ notice }: { notice: DeclarantNotice }) {
       <Rows>
         {decision.grounds.length > 0 ? (
           <Row term={COPY.grounds}>
-            <ul className="grid gap-1">
-              {decision.grounds.map((ground) => (
-                <li key={ground}>{GROUNDS[ground].en}</li>
-              ))}
-            </ul>
+            <GroundsList grounds={decision.grounds} />
           </Row>
         ) : null}
         <Row term={COPY.reasons}>{decision.reasons}</Row>
