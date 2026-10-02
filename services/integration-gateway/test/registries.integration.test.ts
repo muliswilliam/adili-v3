@@ -2,8 +2,9 @@ import { asc, eq, sql } from 'drizzle-orm';
 import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
 import { outbox, verificationResults } from '../src/db/schema.js';
-import { burstOf } from '../src/adapter-kit/system-policies.js';
-import { KRA_CALLS_PER_LOOKUP, KraAdapter } from '../src/registries/kra-adapter.js';
+import { SYSTEM_POLICY_CONFIG } from '../src/adapter-kit/adapter-kit.module.js';
+import { config } from '../src/config.js';
+import { KraAdapter } from '../src/registries/kra-adapter.js';
 import { REGISTRY_LOOKUP_PERFORMED } from '../src/verification/lookup-events.js';
 
 import { SEED, StubRegistries } from './support/stub-registries.js';
@@ -557,11 +558,12 @@ describe('registry lookups', () => {
 });
 
 /**
- * M9: KRA at one call a second, its slowest likely limit. A lookup reserves the PINs' and one
- * compliance call together (a burst of two) before its timeout starts; a second PIN's call is
- * charged without waiting.
+ * M9: KRA at its configured policy (.env.example: one call a second, the mocks' limit, and a
+ * one-second max wait). A lookup reserves the PINs' and one compliance call together before its
+ * timeout starts, and the burst fits a household's two lookups; a second PIN's call is charged
+ * without waiting.
  */
-describe('KRA lookups at one call a second', () => {
+describe('KRA lookups at the configured rate limit', () => {
   let registries: StubRegistries;
   let t: TestApp;
   let review: Record<string, string>;
@@ -570,16 +572,7 @@ describe('KRA lookups at one call a second', () => {
     registries = await StubRegistries.start();
     t = await createTestApp({
       registryUrls: registries.urls,
-      policies: {
-        kra: {
-          timeoutMs: 2_000,
-          cacheTtlSeconds: 86_400,
-          ratePerMinute: 60,
-          burst: burstOf(60, KRA_CALLS_PER_LOOKUP),
-          // Room for a second lookup's two slots behind the first's.
-          maxQueueMs: 2_000,
-        },
-      },
+      policies: { kra: SYSTEM_POLICY_CONFIG.kra },
     });
     t.app.useLogger(false);
     const token = await t.token({ clientId: 'review', scope: 'registry' });
@@ -610,6 +603,15 @@ describe('KRA lookups at one call a second', () => {
       payload: { nationalId },
     });
 
+  it('runs at the slowest defaults: one call a second, a one-second max wait', () => {
+    expect(SYSTEM_POLICY_CONFIG.kra).toMatchObject({
+      ratePerMinute: 60,
+      burst: 4,
+      maxQueueMs: config.RATE_LIMIT_MAX_WAIT_MS,
+    });
+    expect(config.RATE_LIMIT_MAX_WAIT_MS).toBe(1_000);
+  });
+
   it('answers a taxpayer with two PINs when the bucket is idle', async () => {
     const response = await lookup(SEED.twoPins);
 
@@ -621,10 +623,17 @@ describe('KRA lookups at one call a second', () => {
     expect(registries.calls.kra).toBe(3);
   });
 
-  it('answers two lookups at once, neither refused part-way', async () => {
+  it("answers a declarant's and a spouse's lookups at once", async () => {
     const responses = await Promise.all([lookup(SEED.wanjiku), lookup(SEED.peter)]);
 
     expect(responses.map((response) => response.json<Body>().outcome)).toEqual(['found', 'found']);
     expect(registries.calls.kra).toBe(4);
+  });
+
+  it('answers a household at once when one of them has two PINs', async () => {
+    const responses = await Promise.all([lookup(SEED.twoPins), lookup(SEED.peter)]);
+
+    expect(responses.map((response) => response.json<Body>().outcome)).toEqual(['found', 'found']);
+    expect(registries.calls.kra).toBe(5);
   });
 });

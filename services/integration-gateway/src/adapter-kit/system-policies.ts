@@ -12,7 +12,8 @@ export interface SystemPolicy {
   ratePerMinute: number;
   /**
    * Calls that may go out at once on an idle bucket (`burstOf`): at least a lookup's reserved
-   * calls (`RegistryAdapter.callsPerLookup`), so they never queue behind each other.
+   * calls (`RegistryAdapter.callsPerLookup`), so they never queue behind each other, and for
+   * KRA those of a household's lookups at once (`KRA_BURST`).
    */
   burst: number;
   /** Longest a lookup queues for the rate limit before it is answered `rate-limited`. */
@@ -28,7 +29,7 @@ export function policyOf(policies: SystemPolicies, system: System): SystemPolicy
   return policy;
 }
 
-/** One second's worth of `ratePerMinute`, and at least the `callsPerLookup` of one lookup. */
-export function burstOf(ratePerMinute: number, callsPerLookup = 1): number {
-  return Math.max(callsPerLookup, Math.ceil(ratePerMinute / 60));
+/** One second's worth of `ratePerMinute`, and at least `minimum` calls. */
+export function burstOf(ratePerMinute: number, minimum = 1): number {
+  return Math.max(minimum, Math.ceil(ratePerMinute / 60));
 }

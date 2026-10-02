@@ -13,6 +13,18 @@ import { REGISTRY_URLS, type RegistryUrls } from './registry-urls.js';
 /** The PINs, then one PIN's compliance. */
 export const KRA_CALLS_PER_LOOKUP = 2;
 
+/**
+ * Lookups a case's registry check sends KRA at once: the declarant's and their spouse's, the
+ * common household (children are rarely of an age to hold a national ID).
+ */
+export const KRA_CONCURRENT_LOOKUPS = 2;
+
+/**
+ * KRA's least burst: a household's lookups go out together, none queueing for the rate limit,
+ * whatever the rate (at 60 a minute, one second's worth would be a single call).
+ */
+export const KRA_BURST = KRA_CALLS_PER_LOOKUP * KRA_CONCURRENT_LOOKUPS;
+
 /** The compliance of a PIN KRA listed but holds no compliance record for. */
 const NO_COMPLIANCE: KraTaxpayers['taxpayers'][number]['compliance'] = {
   status: 'unknown',
