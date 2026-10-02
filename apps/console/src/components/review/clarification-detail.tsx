@@ -223,7 +223,8 @@ export function ClarificationDetailView({
       re: <span className="font-mono">{reviewCase.reference}</span>
     </span>,
     plural(clarification.items.length, 'item'),
-    clarification.issuedAt ? `Issued ${formatDate(clarification.issuedAt)}` : 'Draft',
+    // A draft says so in its badge.
+    clarification.issuedAt ? `Issued ${formatDate(clarification.issuedAt)}` : null,
     clarification.dueAt ? `Due ${formatDate(clarification.dueAt)}` : null,
   ].filter(Boolean);
 

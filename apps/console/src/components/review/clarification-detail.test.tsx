@@ -108,6 +108,23 @@ describe('ClarificationDetailView: states', () => {
     ).toBeTruthy();
   });
 
+  it('says Draft once on a draft, in its badge, not again in the line under it', async () => {
+    const detail = await detailOf(CASES.mine, K.issued);
+    renderDetail({
+      ...detail,
+      clarification: {
+        ...detail.clarification,
+        status: 'draft',
+        reference: null,
+        issuedAt: null,
+        dueAt: null,
+        letter: null,
+      },
+    });
+    expect(screen.getAllByText('Draft')).toHaveLength(1);
+    expect(screen.getByText(/^· 2 items$/)).toBeTruthy();
+  });
+
   it('shows a late response beside each item with its documents', async () => {
     renderDetail(await detailOf(CASES.mine, K.late));
     expect(screen.getByText('Responded 3 days late')).toBeTruthy();

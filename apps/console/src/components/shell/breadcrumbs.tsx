@@ -11,10 +11,19 @@ export interface CrumbMatch {
   isLeaf: boolean;
 }
 
+/**
+ * A route's crumb with links to the pages above it that the route tree does not nest it under,
+ * e.g. a clarification's case (`/review/cases/$caseId` is a sibling of its clarifications).
+ */
+export interface CrumbTrail {
+  before: { label: string; to: string }[];
+  label: string;
+}
+
 declare module '@tanstack/react-router' {
   interface StaticDataRouteOption {
     /** Breadcrumb label in the console top bar; null leaves the route out of the trail. */
-    crumb?: string | ((match: CrumbMatch) => string | null);
+    crumb?: string | ((match: CrumbMatch) => string | CrumbTrail | null);
   }
 }
 
@@ -39,7 +48,12 @@ function useCrumbs(): Crumb[] {
             isLeaf: index === named.length - 1,
           })
         : crumb;
-    return label ? [{ id: match.id, label, to: match.pathname }] : [];
+    if (!label) return [];
+    if (typeof label === 'string') return [{ id: match.id, label, to: match.pathname }];
+    return [
+      ...label.before.map((link) => ({ id: `${match.id}:${link.to}`, ...link })),
+      { id: match.id, label: label.label, to: match.pathname },
+    ];
   });
 }
 
