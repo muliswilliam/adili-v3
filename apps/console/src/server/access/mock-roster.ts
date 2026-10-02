@@ -1,7 +1,8 @@
 /**
  * The PSC roster the access mocks search (Form K and law enforcement requests alike), by name or
  * personnel file number as the access service does: names "Ouma" and "Kamau" have several
- * records, one of them not onboarded.
+ * records, one of them not onboarded; Samuel Kiprotich Rotich and Beatrice Achieng Otieno have
+ * not onboarded either (requests resolved to them are served in writing).
  */
 import type { RosterCandidate } from './types';
 
@@ -14,6 +15,8 @@ export const MOCK_ROSTER_IDS = {
   graceAtieno: 'a11d0000-0000-4000-8000-000000000006',
   esther: 'a11d0000-0000-4000-8000-000000000007',
   lilian: 'a11d0000-0000-4000-8000-000000000008',
+  samuel: 'a11d0000-0000-4000-8000-000000000009',
+  beatrice: 'a11d0000-0000-4000-8000-000000000010',
 } as const;
 
 /** The PSC's roster records the access officer finds when identifying an officer. */
@@ -74,6 +77,22 @@ export const MOCK_ROSTER: RosterCandidate[] = [
     'Lilian Wairimu Njoroge',
     'Senior Accountant',
     'The National Treasury',
+  ),
+  candidate(
+    MOCK_ROSTER_IDS.samuel,
+    '20118802',
+    'Samuel Kiprotich Rotich',
+    'Assistant Director, Land Valuation',
+    'Ministry of Lands and Physical Planning',
+    false,
+  ),
+  candidate(
+    MOCK_ROSTER_IDS.beatrice,
+    '20125517',
+    'Beatrice Achieng Otieno',
+    'Senior Procurement Officer',
+    'State Department for Public Works',
+    false,
   ),
 ];
 

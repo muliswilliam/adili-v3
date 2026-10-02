@@ -13,13 +13,14 @@ import type { OfficerRequestView } from '../../server/access/types';
 import { ReadOnlyBadge } from '../commissions/badges';
 import { Page } from '../page';
 import { usePollWhile } from '../use-poll-while';
+import { recordAccessWrittenNotice } from '../../server/access-requests';
 import { IdentifyOfficerCard, VerifyApplicantCard } from './action-cards';
 import { DecidedCard } from './decision/decided-card';
 import { PackageCard, usePackageState } from './decision/package-card';
 import { FormKCard, formKOf } from './form-k-card';
 import { messages as m } from './messages';
 import { StatusBadge } from './queue-list';
-import { isOpen, requestStep, timelineOf } from './request-view';
+import { isOpen, nairobiDay, requestStep, timelineOf } from './request-view';
 import {
   ClosedCard,
   DecisionCard,
@@ -27,6 +28,7 @@ import {
   RepresentationsCard,
   WaitingCard,
 } from './side-cards';
+import { WrittenNoticeCard } from './written-notice-card';
 
 /** How often, and how many times, the page looks again while the declarant is being notified. */
 const NOTIFY_POLL_MS = 2000;
@@ -115,7 +117,7 @@ export function RequestDetailView({
             <PackageCard state={pkg} recipientName={form.partI.name} reference={view.reference} />
           ) : null}
           <OfficerCard view={view} />
-          <RepresentationsCard view={view} />
+          <RepresentationsCard view={view} readOnly={readOnly} />
         </aside>
       </div>
     </Page>
@@ -142,6 +144,22 @@ function StepCard({
       return <WaitingCard text={step.text} />;
     case 'notifying':
       return null;
+    case 'notice':
+      return (
+        <WrittenNoticeCard
+          intro={m.noticeIntro(view.resolvedName ?? m.officerIdentified)}
+          invitedAt={view.declarantInvitedAt}
+          earliest={nairobiDay(lastResolvedAt(view) ?? view.submittedAt)}
+          earliestMessage={m.noticeDayEarly}
+          hint={m.noticeDayHint}
+          windowDays={view.representationWindowDays ?? undefined}
+          now={now}
+          success={m.noticeRecorded}
+          record={(notifiedOn, idempotencyKey) =>
+            recordAccessWrittenNotice({ data: { requestId: view.id, notifiedOn, idempotencyKey } })
+          }
+        />
+      );
     case 'window':
       return <DecisionCard view={view} readOnly={readOnly} windowEndsAt={step.windowEndsAt} />;
     case 'decide':
@@ -152,4 +170,9 @@ function StepCard({
     case 'withdrawn':
       return <ClosedCard view={view} />;
   }
+}
+
+/** When the officer was identified: the register's `identified` entry. */
+function lastResolvedAt(view: OfficerRequestView): string | null {
+  return view.timeline.filter((entry) => entry.kind === 'identified').at(-1)?.at ?? null;
 }

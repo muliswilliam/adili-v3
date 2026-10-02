@@ -157,7 +157,7 @@ describe('actionFailure', () => {
   it('keeps the dialog open to retry or choose again', () => {
     expect(
       actionFailure(problem(400, { errors: [{ path: 'rosterRecordId', message: 'x' }] })),
-    ).toMatchObject({ stale: false, message: expect.stringContaining('not onboarded') as unknown });
+    ).toMatchObject({ stale: false, message: expect.stringContaining('roster') as unknown });
     expect(
       actionFailure({ kind: 'unavailable', detail: null, problemType: 'directory-unavailable' }),
     ).toMatchObject({ stale: false, message: expect.stringContaining('roster') as unknown });

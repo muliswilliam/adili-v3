@@ -150,3 +150,43 @@ export function attachmentLink(
     }),
   );
 }
+
+/**
+ * `POST .../written-notice`: the day the written notice was served on a declarant who has no
+ * account (r.22(2)); their window runs from it. The key makes a retry safe.
+ */
+export function recordWrittenNotice(
+  client: AccessClient,
+  requestId: string,
+  notifiedOn: string,
+  idempotencyKey: string,
+): Promise<AccessResult<OfficerRequestView>> {
+  return asOfficerView(
+    callService(() =>
+      client.POST('/v1/access/requests/{requestId}/written-notice', {
+        params: { path: { requestId }, header: { 'Idempotency-Key': idempotencyKey } },
+        body: { notifiedOn },
+      }),
+    ),
+  );
+}
+
+/**
+ * `PUT .../representations`: the representations a declarant served in writing made on paper,
+ * entered by the access officer on their behalf (stance, text, the letter's scans).
+ */
+export function enterRepresentations(
+  client: AccessClient,
+  requestId: string,
+  input: Schemas['RepresentationsInput'],
+  idempotencyKey: string,
+): Promise<AccessResult<OfficerRequestView>> {
+  return asOfficerView(
+    callService(() =>
+      client.PUT('/v1/access/requests/{requestId}/representations', {
+        params: { path: { requestId }, header: { 'Idempotency-Key': idempotencyKey } },
+        body: input,
+      }),
+    ),
+  );
+}

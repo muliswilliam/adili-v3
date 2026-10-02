@@ -44,8 +44,13 @@ export interface RosterCandidatePickerProps {
   /** Searched for at once, e.g. the file number the request gives. */
   prefill?: string;
   choice: Choice;
-  /** Why a record that has not onboarded cannot be chosen, in this screen's words. */
+  /** What a record that has not onboarded means on this screen, in its words. */
   notOnboardedHint: string;
+  /**
+   * A record that has not onboarded can be chosen too (spec 10 decision 2: its officer is told
+   * in writing); otherwise it is marked and cannot be chosen.
+   */
+  allowNotOnboarded?: boolean;
   /** Show the record's reporting entity under its file number. */
   withEntity?: boolean;
 }
@@ -54,7 +59,8 @@ export interface RosterCandidatePickerProps {
  * Finds an officer on the Commission's roster by name or personnel file number (spec 10: the
  * officer Form K names, the officer a law enforcement request seeks, the declarant applying for
  * a certified copy). Only the latest search's answer shows; searching, no match and a failed
- * search are said; a record that has not onboarded is marked and cannot be chosen.
+ * search are said; a record that has not onboarded is marked, and cannot be chosen unless
+ * `allowNotOnboarded`.
  */
 export function RosterCandidatePicker({
   id,
@@ -62,6 +68,7 @@ export function RosterCandidatePicker({
   prefill = '',
   choice,
   notOnboardedHint,
+  allowNotOnboarded = false,
   withEntity = false,
 }: RosterCandidatePickerProps) {
   const initial = prefill.trim();
@@ -118,6 +125,7 @@ export function RosterCandidatePicker({
         search={search}
         choice={choice}
         notOnboardedHint={notOnboardedHint}
+        allowNotOnboarded={allowNotOnboarded}
         withEntity={withEntity}
       />
       {/* With no records to choose from, a missing choice is said under the search. */}
@@ -136,11 +144,13 @@ function Results({
   search,
   choice,
   notOnboardedHint,
+  allowNotOnboarded,
   withEntity,
 }: {
   search: Search;
   choice: Choice;
   notOnboardedHint: string;
+  allowNotOnboarded: boolean;
   withEntity: boolean;
 }) {
   if (search.state === 'idle') return null;
@@ -197,7 +207,7 @@ function Results({
             label={record.fullName}
             description={details(record)}
             checked={choice.selected === record.id}
-            disabled={!record.onboarded}
+            disabled={!record.onboarded && !allowNotOnboarded}
             onChange={() => {
               choice.onSelect(record);
             }}
@@ -215,7 +225,7 @@ function Results({
             <div className="text-[14.5px] font-medium">{record.fullName}</div>
             {details(record)}
           </div>
-          {record.onboarded ? (
+          {record.onboarded || allowNotOnboarded ? (
             <Button
               variant="secondary"
               size="sm"

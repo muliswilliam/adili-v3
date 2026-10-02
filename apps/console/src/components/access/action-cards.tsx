@@ -175,7 +175,8 @@ export function VerifyApplicantCard({ view }: { view: OfficerRequestView }) {
 /**
  * "Identify officer" (S3): the access officer searches the Commission's roster by name or
  * personnel file number and selects the record the officer Form K names is, or records that
- * they cannot be identified. Only an onboarded record can be chosen: its declarant is notified.
+ * they cannot be identified. Any record can be chosen: an onboarded one's declarant is notified
+ * online; the officer of one not onboarded is invited to onboard and served in writing.
  */
 export function IdentifyOfficerCard({ view, now }: { view: OfficerRequestView; now: string }) {
   const id = useId();
@@ -228,6 +229,7 @@ export function IdentifyOfficerCard({ view, now }: { view: OfficerRequestView; n
           },
         }}
         notOnboardedHint={m.notOnboardedHint}
+        allowNotOnboarded
         withEntity
       />
       <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
@@ -255,7 +257,14 @@ export function IdentifyOfficerCard({ view, now }: { view: OfficerRequestView; n
           if (!open) closeDialogs();
         }}
         onConfirm={() => {
-          if (selected) void resolve(selected.id, m.identified(selected.fullName));
+          if (selected) {
+            void resolve(
+              selected.id,
+              selected.onboarded
+                ? m.identified(selected.fullName)
+                : m.identifiedNoAccount(selected.fullName),
+            );
+          }
         }}
       />
       <CannotIdentifyDialog

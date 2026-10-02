@@ -144,7 +144,7 @@ export const en = {
   select: 'Select',
   selectRecord: (name: string) => `Select ${name}`,
   notOnboarded: 'Not onboarded',
-  notOnboardedHint: 'Has no declarant account to be notified on yet.',
+  notOnboardedHint: 'No account yet: you serve the notice in writing.',
   notOnTheRoster: 'Not on the roster?',
   cannotIdentify: 'Cannot identify',
   waitingIdentify: 'Waiting for the access officer to identify the officer.',
@@ -161,9 +161,37 @@ export const en = {
   resolveWindowUnknown:
     "As long as the Commission's policy sets, or until they consent. The closing date shows once they are notified.",
   resolveFinal: 'This cannot be changed',
+  resolveInvited: 'They are invited to onboard',
+  resolveInvitedText: 'By email and SMS, to the contacts on the roster.',
+  resolveServeWritten: 'You serve the notice in writing',
+  resolveServeWrittenText: 'Regulation 22(2). Their window runs from the day it was served.',
   cancel: 'Cancel',
   identifyAndNotify: 'Identify and notify',
+  identifyOnly: 'Identify',
   identified: (name: string) => `${name} identified. The declarant is being notified.`,
+  identifiedNoAccount: (name: string) => `${name} identified. Serve the notice in writing next.`,
+
+  // Written notice (officer with no account)
+  noticeTitle: 'Notify in writing',
+  noticeIntro: (name: string) =>
+    `${name} has no Adili account, so the notice goes on paper (Regulation 22(2)). Serve it with the purpose in general terms and the scope requested, then record the day it was served.`,
+  invitedOn: (date: string) =>
+    `Invited to onboard on ${date}. If they onboard first, they are notified online instead.`,
+  invitePending: 'Being invited to onboard.',
+  noticeDay: 'Day the notice was served',
+  noticeDayPicker: 'Choose the day the notice was served',
+  noticeDayHint: 'Not in the future, nor before the officer was identified.',
+  noticeDayRequired: 'Enter the day the notice was served.',
+  noticeDayInvalid: 'Enter a real date, as DD/MM/YYYY.',
+  noticeDayFuture: 'The day cannot be in the future.',
+  noticeDayEarly: (date: string) =>
+    `The day cannot be before ${date}, when the officer was identified.`,
+  noticeWindowPreview: (date: string) => `Representations will close at the end of ${date}.`,
+  noticeWindowPassed: (date: string) =>
+    `Representations closed at the end of ${date}: the request goes under decision at once.`,
+  recordNotice: 'Record written notice',
+  noticeRecorded: 'Written notice recorded. The window for representations is open.',
+  waitingNotice: 'Waiting for the access officer to record the written notice.',
 
   // Cannot identify dialog
   cannotTitle: 'Cannot identify the officer?',
@@ -179,6 +207,12 @@ export const en = {
   officerIdentified: 'Officer identified',
   notified: 'Notified',
   notifying: 'Notifying the declarant…',
+  declarantAccount: 'Declarant account',
+  accountNone: 'Not onboarded',
+  accountInvited: (date: string) => `Invited to onboard ${date}`,
+  awaitingNotice: 'Awaiting written notice',
+  notifiedInWriting: (date: string) => `In writing, served ${date}`,
+  recordedBy: (name: string, at: string) => `Recorded by ${name} · ${at}`,
 
   // Decision side card
   decisionTitle: 'Decision',
@@ -202,6 +236,30 @@ export const en = {
   noneYet: (date: string) => `No representations yet. The window closes ${date}.`,
   noneReceived: (date: string) => `None received. The window closed ${date}.`,
   consentClosedEarly: 'Consent closed the window early.',
+  receivedInWriting: 'Received in writing',
+  enteredBy: (name: string) => `Entered by ${name}`,
+  enterWritten: 'Enter representations received in writing',
+  updateWritten: 'Update from a new letter',
+  writtenTitle: 'Representations received in writing',
+  writtenIntro:
+    'Enter what the declarant answered on paper, with scans of the letter. They show as received in writing, with you as who entered them.',
+  stanceLegend: 'The declarant',
+  stanceHint: {
+    object: 'Objects to the disclosure.',
+    consent: 'Consents: the request goes under decision at once.',
+    context: 'Adds context for the decision.',
+  },
+  writtenText: 'Representations',
+  writtenTextHint: 'As the letter puts them. Optional with consent.',
+  writtenTextRequired: 'Enter the representations, or choose Consent.',
+  writtenTextTooLong: 'Keep the representations to 8,000 characters.',
+  writtenScans: 'Scans of the letter',
+  addScan: 'Add a scan',
+  scansPending: 'Wait for the scans to finish uploading, or remove the ones that failed.',
+  stanceRequired: 'Choose what the declarant says.',
+  saveWritten: 'Save representations',
+  writtenSaved: 'Representations saved as received in writing.',
+  writtenReplaces: 'These replace the representations shown now.',
   attachmentsLabel: 'Attachments',
   attachmentActions: (name: string) => `Actions for ${name}`,
   download: 'Download',
@@ -217,8 +275,9 @@ export const en = {
   requestClosed: 'The request is closed. The page shows it now.',
   requestDecided: 'The request is decided. The page shows it now.',
   notPendingVerification: 'The applicant is verified already. The page shows it now.',
-  notOnboardedProblem:
-    'The officer has not onboarded, so they cannot be notified. Choose an onboarded record or close the request.',
+  declarantNotified: 'The declarant is notified already. The page shows it now.',
+  representationsClosed: 'The window for representations has closed. The page shows it now.',
+  rosterRecordProblem: "That record is not on the Commission's roster. Search again.",
   directoryUnavailable: 'The roster cannot be reached right now. Nothing was recorded. Try again.',
   saveFailed: 'We could not save this. Try again.',
 };

@@ -129,7 +129,7 @@ export function DecidePage({ view, readOnly }: { view: OfficerRequestView; readO
         />
         <aside className="grid min-w-0 gap-4" aria-label={d.contextLabel}>
           <RequestContext view={view} />
-          <RepresentationsCard view={view} />
+          <RepresentationsCard view={view} readOnly />
         </aside>
       </div>
     </Page>

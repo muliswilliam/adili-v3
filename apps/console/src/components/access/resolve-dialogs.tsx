@@ -20,6 +20,7 @@ import {
   Cancel01Icon,
   ChartColumnIcon,
   Clock01Icon,
+  File01Icon,
   Mail01Icon,
   Notification03Icon,
   SquareLock02Icon,
@@ -110,6 +111,8 @@ function Footer({
  * "Identify as …?" (S3): the officer Form K names is this roster record. The declarant is then
  * notified and has the Commission's window for representations (`windowDays`, from its policy in
  * force; the closing date is left out when the policy could not be read); it cannot be changed.
+ * An officer with no account is invited to onboard, and the access officer serves the notice in
+ * writing.
  */
 export function ResolveDialog({
   record,
@@ -141,27 +144,43 @@ export function ResolveDialog({
             </DialogDescription>
           ) : null}
           <Consequences
-            items={[
-              {
-                icon: Notification03Icon,
-                title: m.resolveDeclarantNotified,
-                text: m.resolveDeclarantNotifiedText,
-              },
-              windowDays === null
-                ? { icon: Clock01Icon, title: m.resolveWindowOpens, text: m.resolveWindowUnknown }
-                : {
-                    icon: Clock01Icon,
-                    title: m.resolveWindow(formatDate(addDays(now, windowDays))),
-                    text: m.resolveWindowText(windowDays),
-                  },
-              { icon: SquareLock02Icon, title: m.resolveFinal },
-            ]}
+            items={
+              record?.onboarded === false
+                ? [
+                    { icon: Mail01Icon, title: m.resolveInvited, text: m.resolveInvitedText },
+                    {
+                      icon: File01Icon,
+                      title: m.resolveServeWritten,
+                      text: m.resolveServeWrittenText,
+                    },
+                    { icon: SquareLock02Icon, title: m.resolveFinal },
+                  ]
+                : [
+                    {
+                      icon: Notification03Icon,
+                      title: m.resolveDeclarantNotified,
+                      text: m.resolveDeclarantNotifiedText,
+                    },
+                    windowDays === null
+                      ? {
+                          icon: Clock01Icon,
+                          title: m.resolveWindowOpens,
+                          text: m.resolveWindowUnknown,
+                        }
+                      : {
+                          icon: Clock01Icon,
+                          title: m.resolveWindow(formatDate(addDays(now, windowDays))),
+                          text: m.resolveWindowText(windowDays),
+                        },
+                    { icon: SquareLock02Icon, title: m.resolveFinal },
+                  ]
+            }
           />
           <Problem error={props.error} />
         </DialogBody>
         <Footer
           busy={props.busy}
-          confirm={m.identifyAndNotify}
+          confirm={record?.onboarded === false ? m.identifyOnly : m.identifyAndNotify}
           variant="default"
           onCancel={() => {
             props.onOpenChange(false);

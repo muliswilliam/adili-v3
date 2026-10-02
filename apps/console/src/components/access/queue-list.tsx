@@ -34,6 +34,7 @@ import {
   type QueueSearch,
   type QueueTab,
 } from './queue-query';
+import { lastInstantOf } from './request-view';
 
 export interface QueueListProps {
   /** The page for `search`; null while it loads. */
@@ -245,7 +246,7 @@ export function QueueDeadline({ item }: { item: QueueItem }) {
           soonDays={deadlineSoonDays.representations}
           label={m.representationsClose}
         />
-        <Sub>{m.closesOn(shortDate(windowEndsAt))}</Sub>
+        <Sub>{m.closesOn(shortDate(lastInstantOf(windowEndsAt)))}</Sub>
       </>
     );
   }
@@ -258,7 +259,9 @@ export function QueueDeadline({ item }: { item: QueueItem }) {
         late={item.late}
       />
       <Sub>
-        {windowEndsAt ? m.closesOn(shortDate(windowEndsAt)) : m.dueOn(shortDate(item.deadlineAt))}
+        {windowEndsAt
+          ? m.closesOn(shortDate(lastInstantOf(windowEndsAt)))
+          : m.dueOn(shortDate(item.deadlineAt))}
       </Sub>
     </>
   );
