@@ -123,6 +123,7 @@ export const clarificationLetterV1: DocumentTemplate<ClarificationLetterPayload>
       issuerName: payload.commission.name,
       reference: payload.clarificationReference,
       version: null,
+      mark: 'RESTRICTED',
     };
   },
 
