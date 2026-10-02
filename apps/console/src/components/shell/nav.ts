@@ -19,6 +19,8 @@ export interface NavItem {
   label: string;
   icon: NavIcon;
   to: NavHref;
+  /** The paths the entry stands for when wider than `to`, e.g. every tab of a workspace. */
+  section?: string;
 }
 
 export interface NavGroup {
@@ -35,6 +37,8 @@ interface NavDefinition {
   to?: NavHref;
   /** Listed only to users who may change things in the workspace. */
   writeOnly?: boolean;
+  /** The paths the entry stands for when wider than where it links. */
+  section?: string;
 }
 
 /**
@@ -52,7 +56,8 @@ const NAV: { label: string; items: NavDefinition[] }[] = [
   },
   {
     label: 'Access',
-    items: [{ workspace: 'access', icon: SquareLock02Icon }],
+    // Its tabs (requests, certified copies) all sit under /access.
+    items: [{ workspace: 'access', icon: SquareLock02Icon, section: '/access' }],
   },
   {
     label: 'Commission',
@@ -79,11 +84,20 @@ export function navFor(roles: readonly string[]): NavGroup[] {
     ),
   );
   return NAV.flatMap((group) => {
-    const items = group.items.flatMap(({ workspace, icon, label, to, writeOnly }): NavItem[] => {
-      const entry = open.get(workspace);
-      if (!entry || (writeOnly && entry.readOnly)) return [];
-      return [{ label: label ?? entry.title, icon, to: to ?? entry.href }];
-    });
+    const items = group.items.flatMap(
+      ({ workspace, icon, label, to, writeOnly, section }): NavItem[] => {
+        const entry = open.get(workspace);
+        if (!entry || (writeOnly && entry.readOnly)) return [];
+        return [
+          {
+            label: label ?? entry.title,
+            icon,
+            to: to ?? entry.href,
+            ...(section ? { section } : {}),
+          },
+        ];
+      },
+    );
     return items.length > 0 ? [{ label: group.label, items }] : [];
   });
 }
@@ -93,12 +107,19 @@ export function navFor(roles: readonly string[]): NavGroup[] {
  * a workspace with its own entry (API access) marks that entry, not the workspace's.
  */
 export function activeNavHref(groups: NavGroup[], pathname: string): NavHref | null {
-  let active: NavHref | null = null;
+  let active: { to: NavHref; depth: number } | null = null;
   for (const item of groups.flatMap((group) => group.items)) {
-    const contains = pathname === item.to || pathname.startsWith(`${item.to}/`);
-    if (contains && (active === null || item.to.length > active.length)) active = item.to;
+    const within = (path: string) => pathname === path || pathname.startsWith(`${path}/`);
+    const path = within(item.to)
+      ? item.to
+      : item.section && within(item.section)
+        ? item.section
+        : null;
+    if (path !== null && (active === null || path.length > active.depth)) {
+      active = { to: item.to, depth: path.length };
+    }
   }
-  return active;
+  return active?.to ?? null;
 }
 
 /** Up to two initials for the avatar, e.g. "Juma Omondi" gives "JO". */

@@ -60,6 +60,8 @@ describe('activeNavHref', () => {
     ['/obligations/national', '/obligations/national'],
     ['/commissions/psc', '/commissions'],
     ['/access/requests/0190f3a2-0000-7000-8000-000000000001', '/access/requests'],
+    ['/access/certified-copies', '/access/requests'],
+    ['/access/certified-copies/new', '/access/requests'],
     ['/rosters', null],
     ['/', null],
   ])('marks %s under %s', (pathname, expected) => {
