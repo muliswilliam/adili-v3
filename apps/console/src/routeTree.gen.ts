@@ -24,6 +24,7 @@ import { Route as ObligationsIndexRouteImport } from './routes/obligations/index
 import { Route as ObligationsPolicyRouteImport } from './routes/obligations/policy'
 import { Route as ObligationsNationalRouteRouteImport } from './routes/obligations_/national/route'
 import { Route as PlatformIntegrationsRouteImport } from './routes/platform/integrations'
+import { Route as ReviewIndexRouteImport } from './routes/review/index'
 import { Route as RosterIndexRouteImport } from './routes/roster/index'
 import { Route as RosterApiAccessRouteRouteImport } from './routes/roster/api-access/route'
 import { Route as RosterFlaggedRouteImport } from './routes/roster/flagged'
@@ -126,6 +127,11 @@ const PlatformIntegrationsRoute = PlatformIntegrationsRouteImport.update({
   id: '/platform/integrations',
   path: '/platform/integrations',
   getParentRoute: () => rootRouteImport,
+} as any)
+const ReviewIndexRoute = ReviewIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => ReviewRouteRoute,
 } as any)
 const RosterIndexRoute = RosterIndexRouteImport.update({
   id: '/',
@@ -291,6 +297,7 @@ export interface FileRoutesByFullPath {
   '/roster/template': typeof RosterTemplateRoute
   '/commissions/': typeof CommissionsIndexRoute
   '/obligations/': typeof ObligationsIndexRoute
+  '/review/': typeof ReviewIndexRoute
   '/roster/': typeof RosterIndexRoute
   '/commissions/$slug/obligations': typeof CommissionsSlugObligationsRouteRouteWithChildren
   '/commissions/$slug/records': typeof CommissionsSlugRecordsRouteRouteWithChildren
@@ -314,7 +321,6 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/review': typeof ReviewRouteRouteWithChildren
   '/auth/callback': typeof AuthCallbackRoute
   '/auth/login': typeof AuthLoginRoute
   '/auth/logout': typeof AuthLogoutRoute
@@ -326,6 +332,7 @@ export interface FileRoutesByTo {
   '/roster/template': typeof RosterTemplateRoute
   '/commissions': typeof CommissionsIndexRoute
   '/obligations': typeof ObligationsIndexRoute
+  '/review': typeof ReviewIndexRoute
   '/roster': typeof RosterIndexRoute
   '/api/mock-files/$id': typeof ApiMockFilesIdRoute
   '/roster/api-access/docs': typeof RosterApiAccessDocsRoute
@@ -368,6 +375,7 @@ export interface FileRoutesById {
   '/roster/template': typeof RosterTemplateRoute
   '/commissions/': typeof CommissionsIndexRoute
   '/obligations/': typeof ObligationsIndexRoute
+  '/review/': typeof ReviewIndexRoute
   '/roster/': typeof RosterIndexRoute
   '/commissions/$slug/obligations': typeof CommissionsSlugObligationsRouteRouteWithChildren
   '/commissions/$slug/records': typeof CommissionsSlugRecordsRouteRouteWithChildren
@@ -413,6 +421,7 @@ export interface FileRouteTypes {
     | '/roster/template'
     | '/commissions/'
     | '/obligations/'
+    | '/review/'
     | '/roster/'
     | '/commissions/$slug/obligations'
     | '/commissions/$slug/records'
@@ -436,7 +445,6 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
-    | '/review'
     | '/auth/callback'
     | '/auth/login'
     | '/auth/logout'
@@ -448,6 +456,7 @@ export interface FileRouteTypes {
     | '/roster/template'
     | '/commissions'
     | '/obligations'
+    | '/review'
     | '/roster'
     | '/api/mock-files/$id'
     | '/roster/api-access/docs'
@@ -489,6 +498,7 @@ export interface FileRouteTypes {
     | '/roster/template'
     | '/commissions/'
     | '/obligations/'
+    | '/review/'
     | '/roster/'
     | '/commissions/$slug/obligations'
     | '/commissions/$slug/records'
@@ -631,6 +641,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/platform/integrations'
       preLoaderRoute: typeof PlatformIntegrationsRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/review/': {
+      id: '/review/'
+      path: '/'
+      fullPath: '/review/'
+      preLoaderRoute: typeof ReviewIndexRouteImport
+      parentRoute: typeof ReviewRouteRoute
     }
     '/roster/': {
       id: '/roster/'
@@ -899,11 +916,13 @@ const ObligationsRouteRouteWithChildren =
   ObligationsRouteRoute._addFileChildren(ObligationsRouteRouteChildren)
 
 interface ReviewRouteRouteChildren {
+  ReviewIndexRoute: typeof ReviewIndexRoute
   ReviewCasesCaseIdIndexRoute: typeof ReviewCasesCaseIdIndexRoute
   ReviewCasesCaseIdClarificationsClarificationIdRoute: typeof ReviewCasesCaseIdClarificationsClarificationIdRoute
 }
 
 const ReviewRouteRouteChildren: ReviewRouteRouteChildren = {
+  ReviewIndexRoute: ReviewIndexRoute,
   ReviewCasesCaseIdIndexRoute: ReviewCasesCaseIdIndexRoute,
   ReviewCasesCaseIdClarificationsClarificationIdRoute:
     ReviewCasesCaseIdClarificationsClarificationIdRoute,

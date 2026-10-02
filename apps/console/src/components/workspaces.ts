@@ -25,7 +25,12 @@ export interface Workspace {
 
 /** Routes of workspaces that exist so far. */
 export type WorkspaceHref =
-  '/commissions' | '/roster' | '/obligations' | '/obligations/national' | '/platform/integrations';
+  | '/commissions'
+  | '/roster'
+  | '/obligations'
+  | '/obligations/national'
+  | '/review'
+  | '/platform/integrations';
 
 interface WorkspaceDefinition {
   id: string;
@@ -93,6 +98,7 @@ const WORKSPACES: WorkspaceDefinition[] = [
     id: 'review',
     title: 'Review queue',
     description: 'Analyse declarations, raise clarifications and propose determinations.',
+    href: '/review',
     roles: [REVIEWER, SUPERVISOR],
   },
   {

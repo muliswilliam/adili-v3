@@ -1,0 +1,97 @@
+import { formatDate, plural } from '@adili/ui';
+
+/**
+ * Copy of the review queue (spec 07a FE-2, spec 07b's registry filter and icon). English; the
+ * Swahili slots come with the i18n pass. The assignment dialogs' words are the case view's
+ * (`CASE_COPY`), as the dialogs are shared.
+ */
+export const QUEUE_COPY = {
+  title: 'Review queue',
+
+  tilesLabel: 'Cases by status',
+  tiles: {
+    unassigned: 'Unassigned',
+    mine: 'Mine',
+    'awaiting-clarification': 'Awaiting clarification',
+    'ready-for-determination': 'Ready for determination',
+  },
+  byPriority: (tile: string) => `${tile} by priority`,
+  overdue: (count: number) => `${plural(count, 'clarification')} overdue`,
+
+  searchLabel: 'Search by reference, file number or name',
+  searchPlaceholder: 'Search reference, file number or name',
+  statusLabel: 'Status',
+  statusAll: 'All statuses',
+  priorityLabel: 'Priority',
+  priorityAll: 'All priorities',
+  typeLabel: 'Declaration type',
+  typeAll: 'All types',
+  cycleLabel: 'Cycle',
+  cycleAll: 'All cycles',
+  assigneeLabel: 'Assignee',
+  assigneeAny: 'Anyone',
+  assigneeMine: 'Mine',
+  assigneeUnassigned: 'Unassigned',
+  assigneeOther: 'Another officer',
+  officersLabel: 'Officers',
+  late: 'Late filing',
+  openClarification: 'Open clarification',
+  registryUnavailable: 'Registry unavailable',
+  clear: 'Clear filters',
+  copyLink: 'Copy link',
+  copyLinkHint: 'Filters are kept in the link',
+  linkCopied: 'Link copied',
+
+  caption: 'Review cases, highest priority first, then oldest',
+  loadingCaption: 'Loading review cases',
+  columns: {
+    reference: 'Reference',
+    declarant: 'Declarant',
+    received: 'Received',
+    priority: 'Priority',
+    flags: 'Flags',
+    assignee: 'Assignee',
+    clarification: 'Clarification',
+    actions: 'Actions',
+  },
+  priorityTip: 'Indicator for ordering only. Not a finding. Highest first, then oldest.',
+  priorityTipLabel: 'About priority',
+  typeCycle: (type: string, cycle: number) => `${type} · cycle ${String(cycle)}`,
+  typeCycleShort: (type: string, cycle: number) => `${type} ${String(cycle)}`,
+  fileNumber: (number: string) => `File no. ${number}`,
+  receivedOn: (at: string) => `Received ${formatDate(at)}`,
+  lateFiling: 'Late filing',
+  lateShort: 'Late',
+  flagCount: (count: number) => plural(count, 'flag'),
+  clarificationShort: 'Clarification:',
+  clarification: {
+    none: 'None',
+    draft: 'Draft only',
+    overdue: 'Overdue',
+    responded: 'Responded',
+    open: (due: string) => `Open until ${formatDate(due)}`,
+    openUndated: 'Open',
+  },
+  registryIcon: 'One or more registries could not be checked',
+
+  claim: 'Claim',
+  open: 'Open',
+  view: 'View',
+  moreActions: (name: string) => `More actions for ${name}`,
+
+  shown: (count: number) => `Showing the first ${plural(count, 'case')}`,
+  allShown: (count: number) => `Showing all ${plural(count, 'case')}`,
+  loadMore: 'Load more',
+  loadingMore: 'Loading…',
+  loadMoreError: 'More cases could not be loaded. Try again.',
+
+  emptyTitle: 'No cases yet',
+  emptyText: 'Cases appear here as declarations are submitted.',
+  noMatchesTitle: 'No matches',
+  noMatchesText: 'No cases match these filters or this search.',
+  errorTitle: 'The review queue could not be loaded',
+  errorDetail: 'Check your connection and try again.',
+  retry: 'Try again',
+  summaryErrorTitle: 'The case counts could not be loaded',
+  noAccess: 'You do not have access to the review queue.',
+};
