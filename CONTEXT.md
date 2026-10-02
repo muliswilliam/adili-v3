@@ -134,5 +134,5 @@ Form M, a Commission's report to EACC.
 _Avoid_: return, submission
 
 **Reference number**:
-The human-readable identifier of a record, e.g. `DCB-TSC-2027-0012345-K`.
+The human-readable identifier of a record, e.g. `DCB-TSC-2027-0012345-A`.
 _Avoid_: ID, code, ticket number

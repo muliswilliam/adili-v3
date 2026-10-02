@@ -546,7 +546,7 @@
           type: 'Compliance certificate',
           issuer: 'Public Service Commission',
           issuerCode: 'PSC',
-          ref: 'CRT-PSC-2025-0000217-Q',
+          ref: 'CRT-PSC-2025-0000217-D',
           version: 1,
           issuedAt: '2025-03-03T11:20:00',
           expiredOn: '2026-01-01',
@@ -882,7 +882,7 @@
     <section class="card card-pad"><h3>QrCode</h3><p class="small muted">Rendered from a string; alt text includes the verification code, and the code is always printed as text too.</p>
       <div class="demo"><div class="qr-box" style="padding:8px;border-radius:12px;background:#fff;box-shadow:var(--shadow-card);line-height:0">${QrCode(V2, 104, 11)}</div><div class="small"><div class="muted">alt</div><div class="mono">QR code. Verification code ${V2}</div></div></div></section>
     <section class="card card-pad"><h3>ReferenceChip</h3><p class="small muted">Click for the breakdown from the numbering scheme registry names.</p>
-      <div class="demo">${ReferenceChip('DCI-TSC-2026-0012345-8', 'ref-a')}${ReferenceChip('DCB-TSC-2027-0012345-K', 'ref-b')}</div></section>
+      <div class="demo">${ReferenceChip('DCI-TSC-2026-0012345-8', 'ref-a')}${ReferenceChip('DCB-TSC-2027-0012345-A', 'ref-b')}</div></section>
     <section class="card card-pad"><h3>VersionBadge</h3><div class="demo">${VersionBadge(2, 'current')}${VersionBadge(1, 'superseded')}${VersionBadge(3, '')}</div></section>
     <section class="card card-pad"><h3>HashDropZone</h3><p class="small muted">Reads the file with Web Crypto (SHA-256). Makes no network request. Live demo against the issued slip:</p><div style="margin-top:12px">${HashDropZone(DOCS[V2])}</div></section>
   </div>
