@@ -1,5 +1,6 @@
-import { fireEvent, render, screen } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { useState } from 'react';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './tabs';
 
@@ -15,6 +16,10 @@ function RosterTabs() {
     </Tabs>
   );
 }
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
 
 describe('Tabs', () => {
   it('links each tab to its panel', () => {
@@ -75,6 +80,60 @@ describe('Tabs', () => {
     fireEvent.scroll(list);
     expect(list.dataset.moreBefore).toBeUndefined();
     expect(list.dataset.moreAfter).toBe('true');
+  });
+
+  it('N12: measures again when a tab is added later, and watches its size', async () => {
+    const observed = new Set<Element>();
+    vi.stubGlobal(
+      'ResizeObserver',
+      class {
+        observe(target: Element) {
+          observed.add(target);
+        }
+        unobserve(target: Element) {
+          observed.delete(target);
+        }
+        disconnect() {
+          observed.clear();
+        }
+      },
+    );
+    function GrowingTabs() {
+      const [registry, setRegistry] = useState(false);
+      return (
+        <>
+          <Tabs defaultValue="records">
+            <TabsList aria-label="Case sections">
+              <TabsTrigger value="records">Records</TabsTrigger>
+              <TabsTrigger value="imports">Imports</TabsTrigger>
+              {registry ? <TabsTrigger value="registry">Registry</TabsTrigger> : null}
+            </TabsList>
+          </Tabs>
+          <button
+            type="button"
+            onClick={() => {
+              setRegistry(true);
+            }}
+          >
+            Load registry
+          </button>
+        </>
+      );
+    }
+    render(<GrowingTabs />);
+    const list = screen.getByRole('tablist');
+    // Each tab is 150px of a 358px-wide list: two fit, a third runs past the right edge.
+    Object.defineProperty(list, 'clientWidth', { value: 358 });
+    Object.defineProperty(list, 'scrollWidth', { get: () => list.children.length * 150 });
+    Object.defineProperty(list, 'scrollLeft', { value: 0 });
+    expect(list.dataset.moreAfter).toBeUndefined();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Load registry' }));
+    // No scroll and no resize of what was observed: the added tab alone brings the fade.
+    await waitFor(() => {
+      expect(list.dataset.moreAfter).toBe('true');
+    });
+    expect(observed.has(screen.getByRole('tab', { name: 'Registry' }))).toBe(true);
   });
 
   it('keeps a visible focus outline on tabs and panels', () => {

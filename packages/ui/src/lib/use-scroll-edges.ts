@@ -11,8 +11,9 @@ export interface ScrollEdges {
 const NONE: ScrollEdges = { start: false, end: false };
 
 /**
- * Tracks whether a sideways-scrolling element has more to see at either end, as it scrolls and
- * as it or its children change size. Give the ref to the scrolling element.
+ * Tracks whether a sideways-scrolling element has more to see at either end, as it scrolls, as
+ * it or its children change size, and as children are added or removed. Give the ref to the
+ * scrolling element.
  */
 export function useScrollEdges<T extends HTMLElement>(): [RefCallback<T>, ScrollEdges] {
   const [edges, setEdges] = useState<ScrollEdges>(NONE);
@@ -38,9 +39,24 @@ export function useScrollEdges<T extends HTMLElement>(): [RefCallback<T>, Scroll
     const resized = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(measure);
     resized?.observe(element);
     for (const child of element.children) resized?.observe(child);
+    // Children added later (a tab that appears once its data loads) change the width too: watch
+    // them from then on, and measure again for the ones added or taken away.
+    const changed =
+      typeof MutationObserver === 'undefined'
+        ? null
+        : new MutationObserver((mutations) => {
+            for (const { addedNodes, removedNodes } of mutations) {
+              for (const node of addedNodes) if (node instanceof Element) resized?.observe(node);
+              for (const node of removedNodes)
+                if (node instanceof Element) resized?.unobserve(node);
+            }
+            measure();
+          });
+    changed?.observe(element, { childList: true });
     return () => {
       element.removeEventListener('scroll', measure);
       resized?.disconnect();
+      changed?.disconnect();
     };
   }, []);
   return [ref, edges];
