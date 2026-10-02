@@ -300,6 +300,8 @@ describe('after the window and the decision', () => {
       /^A law-enforcement agency was granted access on 6 Sep 2026 \(Asset Recovery Agency, case ARA\/INV\/2026\/014\)\./,
     );
     expect(screen.getByText('Scope granted')).toBeTruthy();
+    expect(screen.getByText('Case reference')).toBeTruthy();
+    expect(screen.getAllByText('ARA/INV/2026/014', { selector: 'span' })).not.toHaveLength(0);
     expect(screen.queryByRole('radiogroup')).toBeNull();
     expect(screen.queryByText('Your response')).toBeNull();
   });

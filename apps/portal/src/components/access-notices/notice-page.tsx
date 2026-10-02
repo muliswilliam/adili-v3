@@ -36,6 +36,7 @@ import { type ReactNode, type RefObject, useRef, useState } from 'react';
 
 import { NOTICE_COPY as COPY, OUTCOMES, RESPONSE_COPY } from '../../access/notice-copy';
 import {
+  agencyName,
   historyOf,
   leaGrantedAt,
   leaTitle,
@@ -439,7 +440,12 @@ function RequestCard({ notice }: { notice: DeclarantNotice }) {
       <div className="grid gap-5 px-5 py-5 sm:px-6">
         {lea ? (
           <Rows>
-            <Row term={COPY.agency}>{notice.applicantName}</Row>
+            <Row term={COPY.agency}>{agencyName(notice)}</Row>
+            {notice.caseReference ? (
+              <Row term={COPY.caseReference}>
+                <span className="font-mono">{notice.caseReference}</span>
+              </Row>
+            ) : null}
             <Row term={COPY.commission}>{notice.commission.name}</Row>
           </Rows>
         ) : (

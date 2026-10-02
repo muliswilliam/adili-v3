@@ -85,6 +85,8 @@ describe('Access requests', () => {
     ]);
     expect(earlier[3]?.getAttribute('href')).toBe(`/access/notices/${IDS.partial}`);
     expect(earlier[3]?.textContent).toContain('Decided 2 Sep 2026');
+    // A decided row keeps what was asked for, as an open one shows it.
+    expect(earlier[3]?.textContent).toMatch(/\d{4}(, \d{4})* · You[^·]* · [A-Z]/);
   });
 
   it('calls them all access requests when none is open, and says when there are none', async () => {

@@ -101,6 +101,7 @@ const NOTICE = {
   request: en('Request'),
   applicant: en('Applicant'),
   agency: en('Agency'),
+  caseReference: en('Case reference'),
   commission: en('Commission'),
   purpose: en('Purpose'),
   scopeAsked: en('Scope asked'),
@@ -142,6 +143,10 @@ const NOTICE = {
   youEdited: en('You · edited'),
   officerOf: en((commission: string) => `Access officer, ${commission}`),
   agencyGranted: en((agency: string) => `${agency} was granted access`),
+  agencyGrantedCase: en(
+    (agency: string, caseReference: string) =>
+      `${agency} was granted access (case ${caseReference})`,
+  ),
 
   notFoundTitle: en('Access request not found'),
   notFoundText: en('The link may be wrong, or it is not about your declaration.'),

@@ -102,10 +102,15 @@ export function leaGrantedAt(notice: DeclarantNotice): string {
  */
 export function leaTitle(notice: DeclarantNotice): string {
   const date = formatDate(leaGrantedAt(notice));
-  const agency = notice.agency?.name ?? notice.applicantName;
+  const agency = agencyName(notice);
   return notice.caseReference
     ? NOTICES_COPY.leaCase(date, agency, notice.caseReference)
     : NOTICES_COPY.lea(date, agency);
+}
+
+/** The agency a law enforcement notice names: its name, or the applicant name it was sent as. */
+export function agencyName(notice: DeclarantNotice): string {
+  return notice.agency?.name ?? notice.applicantName;
 }
 
 /** Whose details a scope covers, in a few words: "You and spouse". */
@@ -191,7 +196,9 @@ export function historyOf(notice: DeclarantNotice): RegisterEntry[] {
         kind: 'decided',
         at: leaGrantedAt(notice),
         outcome: 'grant',
-        title: NOTICE_COPY.agencyGranted(notice.applicantName),
+        title: notice.caseReference
+          ? NOTICE_COPY.agencyGrantedCase(agencyName(notice), notice.caseReference)
+          : NOTICE_COPY.agencyGranted(agencyName(notice)),
         actor: NOTICE_COPY.officerOf(code),
       },
     ];

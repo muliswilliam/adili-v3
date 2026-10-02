@@ -207,14 +207,17 @@ describe('the history', () => {
   it('shows a law-enforcement grant only', () => {
     const lea = notice({
       kind: 'lea',
-      applicantName: 'Asset Recovery Agency',
+      applicantName: 'ARA',
       agency: { code: 'ARA', name: 'Asset Recovery Agency' },
       caseReference: 'ARA/INV/2026/014',
       decision: { ...DECISION, outcome: 'grant', decidedAt: '2026-09-02T12:30:00Z' },
     });
     expect(historyOf(lea).map((entry) => entry.title)).toEqual([
-      'Asset Recovery Agency was granted access',
+      'Asset Recovery Agency was granted access (case ARA/INV/2026/014)',
     ]);
+    expect(historyOf({ ...lea, caseReference: null })[0]?.title).toBe(
+      'Asset Recovery Agency was granted access',
+    );
     expect(leaTitle(lea)).toBe(
       'A law-enforcement agency was granted access on 2 Sep 2026 (Asset Recovery Agency, case ARA/INV/2026/014)',
     );

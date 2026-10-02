@@ -77,12 +77,12 @@ export function NoticeRow({ notice, now }: { notice: DeclarantNotice; now: strin
             {notice.kind === 'form-k' && !open ? ` · ${dateLine(notice)}` : null}
           </span>
           {notice.kind === 'form-k' && open ? (
-            <>
-              <span className="text-[13px] break-words text-secondary-foreground">
-                {notice.purposeInGeneralTerms}
-              </span>
-              <span className="text-[13px] text-muted-foreground">{scopeLine(notice.scope)}</span>
-            </>
+            <span className="text-[13px] break-words text-secondary-foreground">
+              {notice.purposeInGeneralTerms}
+            </span>
+          ) : null}
+          {notice.kind === 'form-k' ? (
+            <span className="text-[13px] text-muted-foreground">{scopeLine(notice.scope)}</span>
           ) : null}
           <span className="mt-1.5 flex flex-wrap items-center gap-1.5">
             {open && !notice.representations ? null : <NoticeStateBadge state={state} />}
