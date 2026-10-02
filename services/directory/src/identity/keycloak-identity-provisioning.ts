@@ -10,14 +10,15 @@ import {
   type CreateStaffUserInput,
   DECLARANT_REQUIRED_ACTIONS,
   EmailTaken,
-  UsernameTaken,
   type ExecuteActionsEmailOptions,
   IdentityProvisioning,
   IdentityUnavailable,
   type IdentityUser,
   IdentityUserNotFound,
   type Restore,
+  type StaffContact,
   type StaffProfile,
+  UsernameTaken,
 } from './identity-provisioning.js';
 
 export interface KeycloakIdentityOptions {
@@ -44,6 +45,7 @@ interface UserRepresentation {
   firstName?: string;
   lastName?: string;
   enabled?: boolean;
+  emailVerified?: boolean;
   attributes?: Record<string, string[]>;
   [field: string]: unknown;
 }
@@ -95,8 +97,12 @@ const BASIC_CLIENT_SCOPE = 'basic';
 /**
  * Keycloak Admin REST adapter. Authenticates with client credentials as the `directory`
  * service client; the realm import grants its service account `manage-users`,
- * `view-users`, `query-users`, `manage-clients`, `view-clients` and `query-clients`.
+ * `view-users`, `query-users`, `manage-clients`, `view-clients`, `query-clients` and
+ * `view-realm`.
  */
+/** Accounts read per page when listing a Commission's staff. */
+const STAFF_PAGE = 100;
+
 export class KeycloakIdentityProvisioning extends IdentityProvisioning {
   private readonly adminUrl: string;
   /** The realm's composite default role, which every account holds (`default-roles-<realm>`). */
@@ -138,6 +144,30 @@ export class KeycloakIdentityProvisioning extends IdentityProvisioning {
       if (error instanceof IdentityUserNotFound) return null;
       throw error;
     }
+  }
+
+  async listStaffWithRole(tenant: string, role: string): Promise<StaffContact[]> {
+    // The role's holders across the realm (view-realm), then those at the Commission. Staff
+    // roles are granted directly, never through groups or composites, so the role's own user
+    // list holds them all; declarants never hold one, so the read stays as small as the staff.
+    const staff: StaffContact[] = [];
+    for (let first = 0; ; first += STAFF_PAGE) {
+      const response = await this.request('GET', `/roles/${encodeURIComponent(role)}/users`, {
+        query: { briefRepresentation: 'false', first: String(first), max: String(STAFF_PAGE) },
+      });
+      const page = (await response.json()) as UserRepresentation[];
+      for (const user of page) {
+        const email = user.email;
+        const reachable =
+          user.enabled !== false &&
+          user.emailVerified === true &&
+          email !== undefined &&
+          user.attributes?.tenant?.[0] === tenant;
+        if (reachable) staff.push({ subject: user.id, email });
+      }
+      if (page.length < STAFF_PAGE) break;
+    }
+    return staff;
   }
 
   async createStaffUser(input: CreateStaffUserInput): Promise<string> {
@@ -432,7 +462,7 @@ export class KeycloakIdentityProvisioning extends IdentityProvisioning {
   }
 
   private async grantRealmRole(userId: string, role: string): Promise<void> {
-    // Roles are looked up per user: reading `/roles` would need `view-realm` as well.
+    // The roles the account can still be given carry the representation the mapping needs.
     const available = await this.realmRoles(userId, 'available');
     const representation = available.find((candidate) => candidate.name === role);
     if (representation) {

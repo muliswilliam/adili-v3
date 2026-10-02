@@ -1,3 +1,5 @@
+import type { COMMISSION_ADMIN, REPORTING_OFFICER, SUPERVISOR } from '../access.js';
+
 /** A Commission as Form M Part I names it (directory.yaml `InternalCommission`). */
 export interface CommissionFacts {
   slug: string;
@@ -5,6 +7,9 @@ export interface CommissionFacts {
   issuerCode: string;
   name: string;
 }
+
+/** The roles the directory lists a Commission's staff by (directory.yaml `internalListCommissionStaff`). */
+export type StaffRole = typeof REPORTING_OFFICER | typeof SUPERVISOR | typeof COMMISSION_ADMIN;
 
 /** A staff account of a Commission holding a role (BE-5 staff by role). */
 export interface StaffMember {
@@ -29,7 +34,7 @@ export abstract class DirectoryClient {
   abstract getCommission(slug: string): Promise<CommissionFacts>;
 
   /** The Commission's staff accounts holding `role`, with the email they sign in with. */
-  abstract staffWithRole(slug: string, role: string): Promise<StaffMember[]>;
+  abstract staffWithRole(slug: string, role: StaffRole): Promise<StaffMember[]>;
 
   /**
    * Every active Responsible Commission, as EACC's intake lists them and its chase goes through

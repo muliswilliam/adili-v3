@@ -1,5 +1,5 @@
-# Drafted operations of the directory API not implemented yet: public applicant onboarding,
-# law-enforcement agencies and a Commission's staff by role (spec 09). `pnpm --filter @adili/directory contracts`
+# Drafted operations of the directory API not implemented yet: public applicant onboarding
+# and law-enforcement agencies. `pnpm --filter @adili/directory contracts`
 # merges them into packages/schemas/internal/directory.yaml, where they may reference the
 # implemented components (e.g. `#/components/schemas/Commission`). When an operation or component
 # is implemented, delete it here: the export fails while both define it.
@@ -158,49 +158,6 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
-  /internal/v1/commissions/{slug}/staff:
-    get:
-      tags: [internal]
-      operationId: internalListCommissionStaff
-      summary: A Commission's staff accounts holding a role, with the email they sign in with
-      description: >-
-        Service tokens with scope directory:internal, acting for the Commission in X-Acting-Tenant
-        (ADR-013 §8.7). E.g. reporting emails Form M reminders to the supervisors and EACC's chase
-        to the reporting officer and commission-admin (spec 09). Empty when nobody holds the role.
-      parameters:
-        - name: X-Acting-Tenant
-          in: header
-          required: true
-          description: Tenant the calling service acts for; the resource must belong to it
-          schema:
-            type: string
-            pattern: '^[a-z][a-z0-9]{1,19}$'
-        - name: slug
-          in: path
-          required: true
-          schema:
-            type: string
-            pattern: '^[a-z][a-z0-9]{1,19}$'
-        - name: role
-          in: query
-          required: true
-          description: Realm role, e.g. `supervisor`, `commission-admin`, `reporting-officer`
-          schema:
-            type: string
-            pattern: '^[a-z][a-z-]{1,39}$'
-      responses:
-        '200':
-          description: The accounts holding the role
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/InternalStaffList'
-        '400':
-          $ref: '#/components/responses/ValidationProblem'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '404':
-          $ref: '#/components/responses/NotFound'
 components:
   parameters:
     IdempotencyKey:
@@ -294,19 +251,3 @@ components:
         revokedAt:
           type: [string, 'null']
           format: date-time
-    InternalStaffList:
-      type: object
-      required: [items]
-      properties:
-        items:
-          type: array
-          items:
-            type: object
-            required: [subject, email]
-            properties:
-              subject:
-                type: string
-                description: Keycloak user id (`sub`)
-              email:
-                type: string
-                format: email

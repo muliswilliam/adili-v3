@@ -7,6 +7,7 @@ import {
   DirectoryClient,
   DirectoryUnavailable,
   type StaffMember,
+  type StaffRole,
 } from './directory-client.js';
 
 /** The scope the reporting service's token needs for the directory's internal API. */
@@ -85,7 +86,7 @@ export class HttpDirectoryClient extends DirectoryClient {
     return commission;
   }
 
-  async staffWithRole(slug: string, role: string): Promise<StaffMember[]> {
+  async staffWithRole(slug: string, role: StaffRole): Promise<StaffMember[]> {
     const found = await this.directory.call(
       (api) =>
         api.GET('/internal/v1/commissions/{slug}/staff', {

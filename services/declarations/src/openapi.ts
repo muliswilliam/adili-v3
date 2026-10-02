@@ -5,6 +5,13 @@ import {
   acknowledgementSlipSchema,
 } from './acknowledgement/representation.js';
 import {
+  internalObligationDetailsSchema,
+  internalObligationSchema,
+  internalPersonObligationSchema,
+  internalPreviousVersionSchema,
+  internalVersionDocumentSchema,
+} from './service-reads/representation.js';
+import {
   attachmentLinkSchema,
   completenessIssueSchema,
   declarationAttachmentSchema,
@@ -113,4 +120,9 @@ export const OPENAPI_SCHEMAS: Record<string, z.ZodType> = {
   HelpArticle: helpArticleSchema,
   CorpusPassage: corpusPassageSchema,
   CorpusImportResult: corpusImportResultSchema,
+  InternalVersionDocument: internalVersionDocumentSchema,
+  InternalPreviousVersion: internalPreviousVersionSchema,
+  InternalObligation: internalObligationSchema,
+  InternalPersonObligation: internalPersonObligationSchema,
+  InternalObligationDetails: internalObligationDetailsSchema,
 };

@@ -4,6 +4,7 @@ import { APP_INTERCEPTOR } from '@nestjs/core';
 import { Clock, SystemClock } from '../clock.js';
 import { ActivationLookups, ValkeyActivationLookups } from './activation-lookups.js';
 import { ActivationObserver } from './activation-observer.js';
+import { CommissionStaffService } from './commission-staff.service.js';
 import { CommissionsController, ReferenceController } from './commissions.controller.js';
 import { CommissionsService } from './commissions.service.js';
 import {
@@ -29,6 +30,7 @@ import { ReportingOfficersService } from './reporting-officers.service.js';
   ],
   providers: [
     CommissionsService,
+    CommissionStaffService,
     PolicyService,
     { provide: Clock, useClass: SystemClock },
     ReportingOfficersService,
