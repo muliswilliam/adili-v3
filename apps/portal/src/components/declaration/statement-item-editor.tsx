@@ -175,6 +175,11 @@ export interface ItemEditorProps {
   /** "My share", or "Mary's share" on someone else's statement. */
   shareLabel: string;
   disabled: boolean;
+  /**
+   * The declaration follows an earlier one, so an item can have changed since it ("Changed since
+   * last declaration"); not on an initial declaration.
+   */
+  sinceLastDeclaration: boolean;
   renderAttachments?: RenderAttachments | undefined;
 }
 
@@ -193,6 +198,7 @@ export function ItemEditor({
   onMoneyText,
   shareLabel,
   disabled,
+  sinceLastDeclaration,
   renderAttachments,
 }: ItemEditorProps) {
   const anyItem = item as AnyItem;
@@ -534,64 +540,66 @@ export function ItemEditor({
         </div>
       ) : null}
 
-      <div className="grid gap-3">
-        <CheckboxItem
-          label="Changed since last declaration"
-          hint="Value up or down 25% or more, acquired, disposed of or settled."
-          checked={anyItem.change?.changed === true}
-          onChange={(event) => {
-            const changed = event.target.checked;
-            set((current) => ({
-              ...current,
-              change: changed ? { ...current.change, changed } : { changed: false },
-            }));
-          }}
-        />
-        {anyItem.change?.changed ? (
-          <div className="ml-7 grid gap-4 rounded-lg bg-muted p-4">
-            <SegmentedChoice
-              id={fid('changeKind')}
-              legend="What changed?"
-              options={CHANGE_KIND_OPTIONS[category]}
-              value={anyItem.change.kind ?? null}
-              error={errorFor('changeKind')}
-              onValueChange={(kind) => {
-                onTouch('changeKind');
-                set((current) => ({
-                  ...current,
-                  change: {
-                    ...current.change,
-                    changed: true,
-                    kind: kind as NonNullable<AnyItem['change']>['kind'],
-                  },
-                }));
-              }}
-            />
-            <FormField
-              label="Explanation"
-              error={errorFor('explanation')}
-              controlId={fid('explanation')}
-            >
-              <Textarea
-                rows={3}
-                maxLength={1000}
-                placeholder="e.g. Bought in January 2026 with savings and a SACCO loan."
-                value={anyItem.change.explanation ?? ''}
-                onBlur={() => {
-                  onTouch('explanation');
-                }}
-                onChange={(event) => {
-                  const explanation = event.target.value;
+      {sinceLastDeclaration ? (
+        <div className="grid gap-3">
+          <CheckboxItem
+            label="Changed since last declaration"
+            hint="Value up or down 25% or more, acquired, disposed of or settled."
+            checked={anyItem.change?.changed === true}
+            onChange={(event) => {
+              const changed = event.target.checked;
+              set((current) => ({
+                ...current,
+                change: changed ? { ...current.change, changed } : { changed: false },
+              }));
+            }}
+          />
+          {anyItem.change?.changed ? (
+            <div className="ml-7 grid gap-4 rounded-lg bg-muted p-4">
+              <SegmentedChoice
+                id={fid('changeKind')}
+                legend="What changed?"
+                options={CHANGE_KIND_OPTIONS[category]}
+                value={anyItem.change.kind ?? null}
+                error={errorFor('changeKind')}
+                onValueChange={(kind) => {
+                  onTouch('changeKind');
                   set((current) => ({
                     ...current,
-                    change: { ...current.change, changed: true, explanation },
+                    change: {
+                      ...current.change,
+                      changed: true,
+                      kind: kind as NonNullable<AnyItem['change']>['kind'],
+                    },
                   }));
                 }}
               />
-            </FormField>
-          </div>
-        ) : null}
-      </div>
+              <FormField
+                label="Explanation"
+                error={errorFor('explanation')}
+                controlId={fid('explanation')}
+              >
+                <Textarea
+                  rows={3}
+                  maxLength={1000}
+                  placeholder="e.g. Bought in January 2026 with savings and a SACCO loan."
+                  value={anyItem.change.explanation ?? ''}
+                  onBlur={() => {
+                    onTouch('explanation');
+                  }}
+                  onChange={(event) => {
+                    const explanation = event.target.value;
+                    set((current) => ({
+                      ...current,
+                      change: { ...current.change, changed: true, explanation },
+                    }));
+                  }}
+                />
+              </FormField>
+            </div>
+          ) : null}
+        </div>
+      ) : null}
 
       {category !== 'income' && renderAttachments
         ? renderAttachments({
