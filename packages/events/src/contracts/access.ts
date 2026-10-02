@@ -18,10 +18,16 @@ export type AccessLegalBasis = (typeof ACCESS_LEGAL_BASES)[number];
 export const ACCESS_SUBJECT_KINDS = ['access-request', 'lea-request', 'self-access'] as const;
 export type AccessSubjectKind = (typeof ACCESS_SUBJECT_KINDS)[number];
 
-/** The steps the access register records (access.yaml `RegisterEntry.kind`). */
+/**
+ * The steps the access register records. All but `identified` show in request timelines
+ * (access.yaml `RegisterEntry.kind`); `identified` (the access officer resolved the officer a
+ * Form K names to a roster record) is recorded and published, but kept out of timelines until the
+ * front ends show it.
+ */
 export const ACCESS_REGISTER_KINDS = [
   'received',
   'verified',
+  'identified',
   'notified',
   'representations',
   'decided',
@@ -55,6 +61,7 @@ export const CANNOT_IDENTIFY_DECLINE_REASON = 'other';
 
 export const ACCESS_REQUEST_RECEIVED = 'access.request.received.v1';
 export const ACCESS_REQUEST_VERIFIED = 'access.request.verified.v1';
+export const ACCESS_REQUEST_IDENTIFIED = 'access.request.identified.v1';
 export const ACCESS_REQUEST_NOTIFIED = 'access.request.notified.v1';
 export const ACCESS_REQUEST_REPRESENTATIONS = 'access.request.representations.v1';
 export const ACCESS_REQUEST_DECIDED = 'access.request.decided.v1';
@@ -115,6 +122,15 @@ export interface AccessRequestDecidedData extends AccessRegisterEventData {
   kind: 'decided';
   outcome: AccessOutcome;
   grounds: AccessGround[];
+}
+
+/**
+ * `access.request.identified.v1`: the access officer (the actor) resolved the officer named in
+ * Form K to a roster record of the Commission, whose person is now the entry's `personId`.
+ */
+export interface AccessRequestIdentifiedData extends AccessRegisterEventData {
+  kind: 'identified';
+  rosterRecordId: string;
 }
 
 /**

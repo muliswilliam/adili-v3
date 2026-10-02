@@ -231,7 +231,11 @@ function packageReadyEmail(params: PackageReadyParams) {
 
 // ---- To the access officer ----
 
-const OFFICER_TASKS = ['identify-officer', 'decide'] as const;
+/**
+ * What the access officer is reminded to do: verify a passport applicant (a request held until
+ * they do), identify the officer a request names, or decide.
+ */
+const OFFICER_TASKS = ['verify-applicant', 'identify-officer', 'decide'] as const;
 
 const officerReminderParams = z.strictObject({
   reference: requestReference,
@@ -249,14 +253,17 @@ const daysLeft = (n: number) => (n === 0 ? 'today' : n === 1 ? 'in 1 day' : `in 
 
 function officerReminderEmail(params: OfficerReminderParams) {
   const due = `${longDate(params.dueDate)}, ${daysLeft(params.daysLeft)}`;
-  const task =
-    params.task === 'identify-officer'
-      ? `Request ${params.reference} to ${params.commissionName} is waiting for you to identify the officer it names. The declarant cannot be notified, nor the request decided, until you do.`
-      : `Request ${params.reference} to ${params.commissionName} is waiting for your decision.`;
+  const task = {
+    'verify-applicant': `Request ${params.reference} to ${params.commissionName} is waiting for you to verify the applicant's identity. The officer it names cannot be identified, nor the request decided, until you do.`,
+    'identify-officer': `Request ${params.reference} to ${params.commissionName} is waiting for you to identify the officer it names. The declarant cannot be notified, nor the request decided, until you do.`,
+    decide: `Request ${params.reference} to ${params.commissionName} is waiting for your decision.`,
+  }[params.task];
   return email(
-    params.task === 'identify-officer'
-      ? `Reminder: identify the officer for ${params.reference}`
-      : `Reminder: decide ${params.reference} by ${longDate(params.dueDate)}`,
+    {
+      'verify-applicant': `Reminder: verify the applicant for ${params.reference}`,
+      'identify-officer': `Reminder: identify the officer for ${params.reference}`,
+      decide: `Reminder: decide ${params.reference} by ${longDate(params.dueDate)}`,
+    }[params.task],
     [
       paragraph(task),
       paragraph(`The decision is due on ${due}.`),
@@ -417,10 +424,11 @@ export const accessTemplates = {
     params: officerReminderParams,
     copy: {
       en: (params) => ({
-        text:
-          params.task === 'identify-officer'
-            ? `Adili: identify the officer for request ${params.reference}. Decision due ${longDate(params.dueDate)}.`
-            : `Adili: decide request ${params.reference} by ${longDate(params.dueDate)} (${daysLeft(params.daysLeft)}).`,
+        text: {
+          'verify-applicant': `Adili: verify the applicant for request ${params.reference}. Decision due ${longDate(params.dueDate)}.`,
+          'identify-officer': `Adili: identify the officer for request ${params.reference}. Decision due ${longDate(params.dueDate)}.`,
+          decide: `Adili: decide request ${params.reference} by ${longDate(params.dueDate)} (${daysLeft(params.daysLeft)}).`,
+        }[params.task],
       }),
     },
   }),

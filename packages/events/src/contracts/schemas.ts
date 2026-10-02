@@ -14,6 +14,7 @@ import {
   type AccessCertifiedCopyIssuedData,
   type AccessRegisterEventData,
   type AccessRequestCannotIdentifyData,
+  type AccessRequestIdentifiedData,
   type AccessRequestDecidedData,
   type AccessRequestReceivedData,
   CANNOT_IDENTIFY_DECLINE_REASON,
@@ -120,6 +121,12 @@ export const accessRequestDecidedDataSchema = accessRegisterEventDataSchema.exte
   outcome: z.enum(ACCESS_OUTCOMES),
   grounds: z.array(z.enum(ACCESS_GROUNDS)),
 }) satisfies z.ZodType<AccessRequestDecidedData>;
+
+/** `access.request.identified.v1` data: who identified the declarant, and as which record. */
+export const accessRequestIdentifiedDataSchema = accessRegisterEventDataSchema.extend({
+  kind: z.literal('identified'),
+  rosterRecordId: z.uuid(),
+}) satisfies z.ZodType<AccessRequestIdentifiedData>;
 
 /**
  * `access.request.cannot-identify.v1` data: Form M section 5 counts the request declined for

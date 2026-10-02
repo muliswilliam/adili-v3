@@ -49,6 +49,6 @@ export class NotificationsUnavailable extends Error {
  * token: the service uses `HttpNotificationsClient`, tests a fake.
  */
 export abstract class NotificationsClient {
-  /** Throws `InternalApiRejected` when notifications refuses the message. */
+  /** Throws `UpstreamRefused` when notifications refuses the message. */
   abstract send(message: AccessMessage): Promise<SentMessage>;
 }

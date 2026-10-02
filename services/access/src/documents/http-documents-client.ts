@@ -1,7 +1,7 @@
 import { createServiceClient, type ServiceClient, type ServiceTokenClient } from '@adili/api-kit';
 import { z } from 'zod';
 
-import { refusedWith } from '../internal-api/internal-api.js';
+import { refusedWith } from '../upstream-refusal.js';
 import type { paths } from './documents-api.gen.js';
 import {
   type CleanUpload,

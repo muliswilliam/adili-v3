@@ -3,6 +3,7 @@ import { DATABASE, withTenant } from '@adili/data-access';
 import { ACCESS_OFFICER } from '@adili/roles';
 import { and, eq, inArray, isNull } from 'drizzle-orm';
 
+import { requireTransactionEnded } from '../activity-failures.js';
 import { addDays, Clock, nairobiDate } from '../clock.js';
 import { config } from '../config.js';
 import type { AccessDatabase } from '../db/database.js';
@@ -15,6 +16,7 @@ import {
   IDENTIFY_REMINDER_DAY,
   type OfficerReminderOutcome,
   type OfficerReminderRequest,
+  type RequestState,
   type ResolutionOutcome,
   type WindowOutcome,
 } from './contract.js';
@@ -26,8 +28,12 @@ import { CHANNELS, load, messageKey, send } from './workflow-support.js';
 /** Statuses of a request waiting for the officer named in it to be resolved. */
 const AWAITING_RESOLUTION: readonly AccessRequestStatus[] = ['submitted', 'officer-unresolved'];
 
-/** Statuses of a request waiting for the access officer's decision. */
+/** Held for the access officer to verify a passport applicant. */
+const HELD: AccessRequestStatus = 'pending-applicant-verification';
+
+/** Statuses of a request waiting for the access officer's decision (or a step before it). */
 const AWAITING_DECISION: readonly AccessRequestStatus[] = [
+  HELD,
   ...AWAITING_RESOLUTION,
   'awaiting-representations',
   'under-decision',
@@ -39,9 +45,9 @@ const DAY_MS = 24 * 60 * 60 * 1000;
  * The activities of `AccessRequestWorkflow`, hosted by the access worker. Every public method is
  * an activity named after it (keep helpers out of this class: the worker registers every method
  * of the prototype); each is safe to retry, and reads the request before acting, so a late or
- * repeated run changes nothing twice. An unreachable directory or notifications service
- * propagates, so Temporal retries; a message notifications refuses, or cannot deliver, is logged
- * and not retried.
+ * repeated run changes nothing twice. An unreachable database, directory or notifications
+ * service propagates, so Temporal retries (activity-retry.ts); a message notifications refuses,
+ * or cannot deliver, is logged and not retried.
  */
 @Injectable()
 export class AccessRequestActivities {
@@ -54,6 +60,21 @@ export class AccessRequestActivities {
     private readonly register: AccessRegister,
     private readonly clock: Clock,
   ) {}
+
+  /**
+   * Where the request stands (`RequestState`), once the transaction that received it has ended
+   * (retried while it is open, activity-failures.ts): the workflow's first step, and its check
+   * for lost signals while it waits.
+   */
+  async requestState({
+    tenant,
+    requestId,
+    transactionId,
+  }: AccessRequestWorkflowInput): Promise<RequestState> {
+    await requireTransactionEnded(this.db, transactionId);
+    const found = await load(this.db, tenant, requestId);
+    return found ? stateOf(found) : 'missing';
+  }
 
   /**
    * After the access officer resolved the officer named (S3). Resolved to a roster record: the
@@ -137,8 +158,9 @@ export class AccessRequestActivities {
 
   /**
    * Reminds the Commission's access officers by email (S5). Day five, while the officer named is
-   * unidentified: to identify them, and the request becomes `officer-unresolved`. Days twenty and
-   * twenty-eight, while undecided: of the decision deadline, to identify the officer or to decide.
+   * unidentified: to identify them (first verifying a passport applicant, for a held request),
+   * and a request going ahead becomes `officer-unresolved`. Days twenty and twenty-eight, while
+   * undecided: of the decision deadline, to verify the applicant, identify the officer or decide.
    * A decided or closed request, or one resolved by day five, gets none.
    */
   async remindOfficer({
@@ -151,10 +173,11 @@ export class AccessRequestActivities {
         ? await markUnresolved(this.db, tenant, requestId)
         : await load(this.db, tenant, requestId);
     if (!found) return 'missing';
+    const held = found.status === HELD;
     const unresolved = found.resolvedRosterRecordId === null;
     const waiting =
       day === IDENTIFY_REMINDER_DAY
-        ? unresolved && AWAITING_RESOLUTION.includes(found.status)
+        ? unresolved && (held || AWAITING_RESOLUTION.includes(found.status))
         : AWAITING_DECISION.includes(found.status);
     if (!waiting) return 'skipped';
 
@@ -172,7 +195,7 @@ export class AccessRequestActivities {
         params: {
           reference: found.reference,
           commissionName: found.commissionName,
-          task: unresolved ? 'identify-officer' : 'decide',
+          task: held ? 'verify-applicant' : unresolved ? 'identify-officer' : 'decide',
           dueDate: nairobiDate(found.decisionDeadlineAt),
           daysLeft,
           signInUrl: officerRequestUrl(requestId),
@@ -182,6 +205,27 @@ export class AccessRequestActivities {
       });
     }
     return 'sent';
+  }
+}
+
+/** Where `row` stands, for the workflow (`RequestState`). */
+function stateOf(row: AccessRequestRow): RequestState {
+  switch (row.status) {
+    case 'pending-applicant-verification':
+      return 'held';
+    case 'submitted':
+    case 'officer-unresolved':
+      return row.resolvedRosterRecordId === null ? 'unresolved' : 'resolved';
+    case 'cannot-identify':
+      return 'resolved';
+    case 'awaiting-representations':
+    case 'under-decision':
+    case 'withdrawn':
+      return row.status;
+    case 'granted':
+    case 'partially-granted':
+    case 'denied':
+      return 'decided';
   }
 }
 
