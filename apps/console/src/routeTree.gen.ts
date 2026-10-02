@@ -44,6 +44,7 @@ import { Route as RosterRecordsRecordIdRouteImport } from './routes/roster/recor
 import { Route as CommissionsSlugObligationsIndexRouteImport } from './routes/commissions/$slug/obligations/index'
 import { Route as CommissionsSlugRecordsIndexRouteImport } from './routes/commissions/$slug/records/index'
 import { Route as CommissionsSlugRecordsRecordIdRouteImport } from './routes/commissions/$slug/records/$recordId'
+import { Route as ReviewCasesCaseIdIndexRouteImport } from './routes/review/cases.$caseId.index'
 import { Route as RosterImportsImportIdIndexRouteImport } from './routes/roster/imports/$importId/index'
 import { Route as RosterImportsImportIdReportDotcsvRouteImport } from './routes/roster/imports/$importId/report[.]csv'
 import { Route as CommissionsSlugImportsImportIdIndexRouteImport } from './routes/commissions/$slug/imports/$importId/index'
@@ -232,6 +233,11 @@ const CommissionsSlugRecordsRecordIdRoute =
     path: '/$recordId',
     getParentRoute: () => CommissionsSlugRecordsRouteRoute,
   } as any)
+const ReviewCasesCaseIdIndexRoute = ReviewCasesCaseIdIndexRouteImport.update({
+  id: '/cases/$caseId/',
+  path: '/cases/$caseId/',
+  getParentRoute: () => ReviewRouteRoute,
+} as any)
 const RosterImportsImportIdIndexRoute =
   RosterImportsImportIdIndexRouteImport.update({
     id: '/$importId/',
@@ -300,6 +306,7 @@ export interface FileRoutesByFullPath {
   '/roster/imports/$importId/report.csv': typeof RosterImportsImportIdReportDotcsvRoute
   '/commissions/$slug/obligations/': typeof CommissionsSlugObligationsIndexRoute
   '/commissions/$slug/records/': typeof CommissionsSlugRecordsIndexRoute
+  '/review/cases/$caseId/': typeof ReviewCasesCaseIdIndexRoute
   '/roster/imports/$importId/': typeof RosterImportsImportIdIndexRoute
   '/commissions/$slug/imports/$importId/report.csv': typeof CommissionsSlugImportsImportIdReportDotcsvRoute
   '/review/cases/$caseId/clarifications/$clarificationId': typeof ReviewCasesCaseIdClarificationsClarificationIdRoute
@@ -332,6 +339,7 @@ export interface FileRoutesByTo {
   '/roster/imports/$importId/report.csv': typeof RosterImportsImportIdReportDotcsvRoute
   '/commissions/$slug/obligations': typeof CommissionsSlugObligationsIndexRoute
   '/commissions/$slug/records': typeof CommissionsSlugRecordsIndexRoute
+  '/review/cases/$caseId': typeof ReviewCasesCaseIdIndexRoute
   '/roster/imports/$importId': typeof RosterImportsImportIdIndexRoute
   '/commissions/$slug/imports/$importId/report.csv': typeof CommissionsSlugImportsImportIdReportDotcsvRoute
   '/review/cases/$caseId/clarifications/$clarificationId': typeof ReviewCasesCaseIdClarificationsClarificationIdRoute
@@ -375,6 +383,7 @@ export interface FileRoutesById {
   '/roster/imports/$importId/report.csv': typeof RosterImportsImportIdReportDotcsvRoute
   '/commissions/$slug/obligations/': typeof CommissionsSlugObligationsIndexRoute
   '/commissions/$slug/records/': typeof CommissionsSlugRecordsIndexRoute
+  '/review/cases/$caseId/': typeof ReviewCasesCaseIdIndexRoute
   '/roster/imports/$importId/': typeof RosterImportsImportIdIndexRoute
   '/commissions/$slug/imports/$importId/report.csv': typeof CommissionsSlugImportsImportIdReportDotcsvRoute
   '/review/cases/$caseId/clarifications/$clarificationId': typeof ReviewCasesCaseIdClarificationsClarificationIdRoute
@@ -419,6 +428,7 @@ export interface FileRouteTypes {
     | '/roster/imports/$importId/report.csv'
     | '/commissions/$slug/obligations/'
     | '/commissions/$slug/records/'
+    | '/review/cases/$caseId/'
     | '/roster/imports/$importId/'
     | '/commissions/$slug/imports/$importId/report.csv'
     | '/review/cases/$caseId/clarifications/$clarificationId'
@@ -451,6 +461,7 @@ export interface FileRouteTypes {
     | '/roster/imports/$importId/report.csv'
     | '/commissions/$slug/obligations'
     | '/commissions/$slug/records'
+    | '/review/cases/$caseId'
     | '/roster/imports/$importId'
     | '/commissions/$slug/imports/$importId/report.csv'
     | '/review/cases/$caseId/clarifications/$clarificationId'
@@ -493,6 +504,7 @@ export interface FileRouteTypes {
     | '/roster/imports/$importId/report.csv'
     | '/commissions/$slug/obligations/'
     | '/commissions/$slug/records/'
+    | '/review/cases/$caseId/'
     | '/roster/imports/$importId/'
     | '/commissions/$slug/imports/$importId/report.csv'
     | '/review/cases/$caseId/clarifications/$clarificationId'
@@ -760,6 +772,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CommissionsSlugRecordsRecordIdRouteImport
       parentRoute: typeof CommissionsSlugRecordsRouteRoute
     }
+    '/review/cases/$caseId/': {
+      id: '/review/cases/$caseId/'
+      path: '/cases/$caseId'
+      fullPath: '/review/cases/$caseId/'
+      preLoaderRoute: typeof ReviewCasesCaseIdIndexRouteImport
+      parentRoute: typeof ReviewRouteRoute
+    }
     '/roster/imports/$importId/': {
       id: '/roster/imports/$importId/'
       path: '/$importId'
@@ -880,10 +899,12 @@ const ObligationsRouteRouteWithChildren =
   ObligationsRouteRoute._addFileChildren(ObligationsRouteRouteChildren)
 
 interface ReviewRouteRouteChildren {
+  ReviewCasesCaseIdIndexRoute: typeof ReviewCasesCaseIdIndexRoute
   ReviewCasesCaseIdClarificationsClarificationIdRoute: typeof ReviewCasesCaseIdClarificationsClarificationIdRoute
 }
 
 const ReviewRouteRouteChildren: ReviewRouteRouteChildren = {
+  ReviewCasesCaseIdIndexRoute: ReviewCasesCaseIdIndexRoute,
   ReviewCasesCaseIdClarificationsClarificationIdRoute:
     ReviewCasesCaseIdClarificationsClarificationIdRoute,
 }
