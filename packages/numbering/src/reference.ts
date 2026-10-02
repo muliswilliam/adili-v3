@@ -1,5 +1,5 @@
 import { checkCharacter, hasValidCheckCharacter } from './check-character.js';
-import { findScheme, type NumberingScheme, numberingSchemes } from './schemes.js';
+import { ARQ, findScheme, LEA, type NumberingScheme, numberingSchemes } from './schemes.js';
 
 export interface ReferenceParts {
   issuer?: string;
@@ -123,4 +123,28 @@ export function parse(
 
 function isSequence(value: number, scheme: NumberingScheme): boolean {
   return Number.isInteger(value) && value >= 1 && value < 10 ** scheme.sequenceDigits;
+}
+
+/**
+ * ADR-011: the shape of an access grant's reference, a Form K request's (`ARQ`) or a
+ * law-enforcement request's (`LEA`), e.g. `ARQ-PSC-2028-0000012-N`: the pattern contracts
+ * publish. `isGrantReference` also verifies the check character.
+ */
+export const GRANT_REFERENCE_PATTERN = /^(ARQ|LEA)-[A-Z][A-Z0-9]{1,19}-[0-9]{4}-[0-9]{7}-[0-9A-Z]$/;
+
+/** The schemes an access grant is numbered in: Form K (`ARQ`) and law enforcement (`LEA`). */
+export const GRANT_SCHEMES: readonly NumberingScheme[] = [ARQ, LEA];
+
+/**
+ * Whether `reference` is a valid access grant reference: an `ARQ` or `LEA` number of the right
+ * shape whose check character verifies.
+ */
+export function isGrantReference(reference: string): boolean {
+  try {
+    parse(reference, GRANT_SCHEMES);
+    return true;
+  } catch (error) {
+    if (error instanceof InvalidReferenceError) return false;
+    throw error;
+  }
 }

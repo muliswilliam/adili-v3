@@ -1,4 +1,4 @@
-import { ARQ, LEA, parse } from '@adili/numbering/references';
+import { ARQ, GRANT_REFERENCE_PATTERN, isGrantReference, LEA } from '@adili/numbering/references';
 import { z } from 'zod';
 
 import { declarationReferenceSchema } from '../declaration/reference.js';
@@ -12,22 +12,9 @@ import { DISCLOSURE_SECTIONS } from './scope.js';
  * packages/schemas/internal/declarations.yaml, is generated from them (`pnpm contracts`).
  */
 
-/**
- * ADR-011: the shape of a Form K (`ARQ`) or law-enforcement (`LEA`) access request's reference,
- * published as the contract's pattern. `grantReferenceSchema` also verifies it against the
- * numbering schemes, check character included.
- */
-export const GRANT_REFERENCE = /^(ARQ|LEA)-[A-Z][A-Z0-9]{1,19}-[0-9]{4}-[0-9]{7}-[0-9A-Z]$/;
-
-const GRANT_SCHEMES = [ARQ, LEA];
-
 /** The grant's scheme code (`ARQ`, `LEA`), or undefined when it is not a valid reference. */
 function grantScheme(reference: string): string | undefined {
-  try {
-    return parse(reference, GRANT_SCHEMES).scheme;
-  } catch {
-    return undefined;
-  }
+  return isGrantReference(reference) ? reference.slice(0, 3) : undefined;
 }
 
 /**
@@ -56,8 +43,8 @@ export const legalBasisSchema = z.enum(LEGAL_BASES).meta({
 
 export const grantReferenceSchema = z
   .string()
-  .regex(GRANT_REFERENCE)
-  .refine((reference) => grantScheme(reference) !== undefined, {
+  .regex(GRANT_REFERENCE_PATTERN)
+  .refine(isGrantReference, {
     message: 'not a valid ARQ or LEA reference (check character)',
   })
   .meta({

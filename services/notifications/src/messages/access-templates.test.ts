@@ -6,13 +6,13 @@ import { renderTemplate, type TemplateId } from './templates.js';
 const PORTAL = 'https://portal.adili.go.ke';
 const CONSOLE = 'https://console.adili.go.ke';
 const PSC = 'Public Service Commission';
-const ARQ = 'ARQ-PSC-2026-0000012-5';
-const LEA = 'LEA-PSC-2026-0000004-M';
+const ARQ = 'ARQ-PSC-2026-0000012-H';
+const LEA = 'LEA-PSC-2026-0000004-3';
 
 /** The longest values each template accepts, for the one-segment SMS checks. */
 const LONG_COMMISSION = 'C'.repeat(120);
 const LONG_ARQ = 'ARQ-ABCDEFGHIJKLMNOPQRST-2026-9999999-Z';
-const LONG_LEA = 'LEA-ABCDEFGHIJKLMNOPQRST-2026-9999999-Z';
+const LONG_LEA = 'LEA-ABCDEFGHIJKLMNOPQRST-2026-9999999-3';
 
 function issuesOf(template: TemplateId, params: unknown): string[] {
   try {
@@ -200,6 +200,28 @@ describe('access templates', () => {
     expect(issuesOf('lea-decision-sms', { ...ACCESS_TEMPLATES[7]?.[1], reference: ARQ })).toEqual([
       'params.reference',
     ]);
+  });
+
+  it('refuses an ARQ or LEA reference whose check character does not verify', () => {
+    const ready = ACCESS_TEMPLATES[4]?.[1];
+    expect(
+      issuesOf('access-package-ready-sms', { ...ready, reference: 'ARQ-PSC-2026-0000012-5' }),
+    ).toEqual(['params.reference']);
+    expect(
+      issuesOf('access-package-ready-sms', { ...ready, reference: 'LEA-PSC-2026-0000004-M' }),
+    ).toEqual(['params.reference']);
+    expect(
+      issuesOf('lea-decision-sms', {
+        ...ACCESS_TEMPLATES[7]?.[1],
+        reference: 'LEA-PSC-2026-0000004-M',
+      }),
+    ).toEqual(['params.reference']);
+    expect(() =>
+      renderTemplate('access-acknowledgement-sms', 'en', {
+        ...ACCESS_TEMPLATES[0]?.[1],
+        reference: 'ARQ-PSC-2026-0000012-5',
+      }),
+    ).toThrow('has a wrong check character');
   });
 
   it('reminds the access officer to identify the officer, or to decide by the deadline', () => {

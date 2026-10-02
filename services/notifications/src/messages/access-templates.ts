@@ -1,5 +1,11 @@
 import { VERIFICATION_ID_PATTERN } from '@adili/events/contracts';
-import { declarationSchemes, InvalidReferenceError, parse } from '@adili/numbering/references';
+import {
+  declarationSchemes,
+  GRANT_REFERENCE_PATTERN,
+  InvalidReferenceError,
+  isGrantReference,
+  parse,
+} from '@adili/numbering/references';
 import { z } from 'zod';
 
 import { define, email, longDate, NEVER_ASKS, paragraph, signInParagraph } from './template-kit.js';
@@ -12,29 +18,36 @@ import { define, email, longDate, NEVER_ASKS, paragraph, signInParagraph } from 
  * sign-in.
  */
 
-/** `ARQ-PSC-2026-0000012-5`: an access request (Form K). */
-const ACCESS_REQUEST_REFERENCE = /^ARQ-[A-Z0-9]{2,20}-\d{4}-\d{7}-[0-9A-Z]$/;
-/** `LEA-PSC-2026-0000004-M`: a law-enforcement request. */
-const LEA_REQUEST_REFERENCE = /^LEA-[A-Z0-9]{2,20}-\d{4}-\d{7}-[0-9A-Z]$/;
+/**
+ * An access grant's reference (ADR-011) of the schemes given, its check character verified:
+ * `ARQ` for a Form K request, `LEA` for a law-enforcement request.
+ */
+function grantReference(schemes: readonly ('ARQ' | 'LEA')[], expected: string) {
+  return z.string().superRefine((reference, ctx) => {
+    const ofScheme = schemes.some((scheme) => reference.startsWith(`${scheme}-`));
+    if (ofScheme && isGrantReference(reference)) return;
+    ctx.addIssue({
+      code: 'custom',
+      message:
+        ofScheme && GRANT_REFERENCE_PATTERN.test(reference)
+          ? 'has a wrong check character'
+          : `must be ${expected}`,
+    });
+  });
+}
 
-const accessReference = z
-  .string()
-  .regex(
-    ACCESS_REQUEST_REFERENCE,
-    'must be an access request reference such as ARQ-PSC-2026-0000012-5',
-  );
-const leaReference = z
-  .string()
-  .regex(
-    LEA_REQUEST_REFERENCE,
-    'must be a law-enforcement request reference such as LEA-PSC-2026-0000004-M',
-  );
-const requestReference = z
-  .string()
-  .regex(
-    new RegExp(`${ACCESS_REQUEST_REFERENCE.source}|${LEA_REQUEST_REFERENCE.source}`),
-    'must be an ARQ or LEA request reference such as ARQ-PSC-2026-0000012-5',
-  );
+const accessReference = grantReference(
+  ['ARQ'],
+  'an access request reference such as ARQ-PSC-2026-0000012-H',
+);
+const leaReference = grantReference(
+  ['LEA'],
+  'a law-enforcement request reference such as LEA-PSC-2026-0000004-3',
+);
+const requestReference = grantReference(
+  ['ARQ', 'LEA'],
+  'an ARQ or LEA request reference such as ARQ-PSC-2026-0000012-H',
+);
 
 const commissionName = z.string().trim().min(1).max(120);
 /** Where the recipient signs in: the portal for applicants and declarants, the console for officers. */

@@ -1,4 +1,8 @@
-import { ARQ, declarationSchemes, LEA, parse } from '@adili/numbering/references';
+import {
+  declarationSchemes,
+  GRANT_REFERENCE_PATTERN,
+  isGrantReference,
+} from '@adili/numbering/references';
 import { ACCESS_PACKAGE } from '@adili/events/contracts';
 import { z } from 'zod';
 
@@ -24,27 +28,10 @@ import {
 import { commissionRefSchema, DECLARATION_TYPES, isDeclarationReference } from './references.js';
 import type { DocumentTemplate } from './template.js';
 
-/**
- * ADR-011: the shape of an access request (`ARQ`) or law-enforcement request (`LEA`) reference,
- * e.g. `ARQ-PSC-2026-0000012-H`, published as the contract's pattern. `isGrantReference` also
- * verifies it against the numbering schemes, check character included.
- */
-const GRANT_REFERENCE = /^(ARQ|LEA)-[A-Z][A-Z0-9]{1,19}-[0-9]{4}-[0-9]{7}-[0-9A-Z]$/;
-
-const GRANT_SCHEMES = [ARQ, LEA];
-
-/** A valid ARQ or LEA reference, check character included. */
-function isGrantReference(reference: string): boolean {
-  try {
-    parse(reference, GRANT_SCHEMES);
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-export const LEGAL_BASES = ['act-s36-1', 'act-s36-2'] as const;
-export const DISCLOSURE_SECTIONS = ['bio', 'income', 'assets', 'liabilities', 'other'] as const;
+/** The provisions a grant rests on (declarations' `LegalBasis`). */
+const LEGAL_BASES = ['act-s36-1', 'act-s36-2'] as const;
+/** The sections a grant discloses (declarations' `DisclosureSection`). */
+const DISCLOSURE_SECTIONS = ['bio', 'income', 'assets', 'liabilities', 'other'] as const;
 
 const SECTION_NAMES: Record<(typeof DISCLOSURE_SECTIONS)[number], string> = {
   bio: 'Biodata',
@@ -65,7 +52,7 @@ export const accessPackagePayload = z
       schemaVersion: z.literal('disclosure.v1'),
       grantReference: z
         .string()
-        .regex(GRANT_REFERENCE)
+        .regex(GRANT_REFERENCE_PATTERN)
         .refine(isGrantReference, {
           message: 'Must be an ARQ or LEA reference number with a valid check character',
         })
