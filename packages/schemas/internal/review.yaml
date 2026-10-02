@@ -178,6 +178,45 @@ paths:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/ProblemDetails'
+  /v1/commissions/{slug}/review/queue/reviewers:
+    get:
+      tags:
+        - queue
+      summary: Reviewers and supervisors a case can be given to, with the cases they hold
+      description: Supervisors of the Commission (a reviewer gets 403 `supervisor-required`; anyone else 404). The Commission's enabled reviewer and supervisor accounts as the directory has them, by name, each with the cases of the Commission they hold that are not determined. For the reassign dialog and the queue's assignee filter.
+      operationId: listCommissionReviewers
+      parameters:
+        - name: slug
+          required: true
+          in: path
+          schema:
+            type: string
+            pattern: ^[a-z][a-z0-9]{1,19}$
+      responses:
+        '200':
+          description: Reviewers
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReviewerList'
+        '403':
+          description: Problem type `supervisor-required`
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: Not found, or not visible to the caller
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '502':
+          description: Directory unavailable
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
   /v1/review/cases/{caseId}/compare:
     get:
       tags:
@@ -3242,6 +3281,32 @@ components:
         - byStatusAndBand
         - mine
         - overdueClarifications
+    ReviewerList:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            type: object
+            properties:
+              subject:
+                type: string
+                description: The staff member's account (token `sub`)
+              name:
+                type: string
+              supervisor:
+                type: boolean
+                description: Holds the supervisor role
+              openCases:
+                type: integer
+                description: Cases of the Commission they hold, not determined
+            required:
+              - subject
+              - name
+              - supervisor
+              - openCases
+      required:
+        - items
     Flag:
       type: object
       properties:

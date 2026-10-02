@@ -93,6 +93,19 @@ export const queueSummarySchema = z.object({
 });
 export type QueueSummary = z.infer<typeof queueSummarySchema>;
 
+/** review.yaml `ReviewerList`: whom a supervisor can give a case to. */
+export const reviewerListSchema = z.object({
+  items: z.array(
+    z.object({
+      subject: z.string().meta({ description: "The staff member's account (token `sub`)" }),
+      name: z.string(),
+      supervisor: z.boolean().meta({ description: 'Holds the supervisor role' }),
+      openCases: z.int().meta({ description: 'Cases of the Commission they hold, not determined' }),
+    }),
+  ),
+});
+export type ReviewerList = z.infer<typeof reviewerListSchema>;
+
 /** Clear facts only (rules' `Evidence`): percentages, counts, dates, references. */
 const evidenceSchema = z
   .record(z.string(), z.union([z.string(), z.number(), z.boolean(), z.null(), z.array(z.string())]))
