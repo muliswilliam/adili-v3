@@ -363,7 +363,7 @@
     {
       "clientId": "review",
       "name": "Review service",
-      "description": "Service account the review service uses to read submitted versions from declarations, policy, Commission references and roster records from the directory, attachments and letters from documents, to send messages through notifications, and to look up registries and send payroll instructions through the integration-gateway",
+      "description": "Review service account: reads declarations, the directory and documents, sends messages through notifications, and calls registries and payroll through the integration-gateway",
       "enabled": true,
       "protocol": "openid-connect",
       "publicClient": false,
@@ -388,7 +388,7 @@
     {
       "clientId": "reporting",
       "name": "Reporting service",
-      "description": "Service account the reporting service uses to read officer details from declarations, clarifications and referral payloads from review, the Commission and its staff from the directory, to send emails through notifications, to file reports in documents and to register referrals with ICMS through the integration-gateway",
+      "description": "Reporting service account: reads declarations, review and the directory, sends emails through notifications, files reports in documents and registers referrals with ICMS through the integration-gateway",
       "enabled": true,
       "protocol": "openid-connect",
       "publicClient": false,

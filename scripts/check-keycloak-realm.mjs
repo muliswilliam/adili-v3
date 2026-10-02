@@ -149,6 +149,16 @@ if (!hasAuthenticator('adili applicant otp', 'conditional-user-role')) {
   fail('adili applicant otp must be gated on the applicant role');
 }
 
+// Keycloak stores descriptions in VARCHAR(255) and refuses to import a realm with a longer one.
+for (const entry of [...(realm.clients ?? []), ...(realm.clientScopes ?? [])]) {
+  const length = entry.description?.length ?? 0;
+  if (length > 255) {
+    fail(
+      `${entry.clientId ?? entry.name} description is ${length} characters; Keycloak allows 255`,
+    );
+  }
+}
+
 const actions = new Set((realm.requiredActions ?? []).map((action) => action.alias));
 if (!actions.has('webauthn-register')) fail('passkeys require webauthn-register');
 if (!actions.has('CONFIGURE_TOTP')) fail('staff TOTP enrolment requires CONFIGURE_TOTP');
