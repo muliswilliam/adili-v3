@@ -42,7 +42,7 @@ const SYSTEM_INFO: Partial<Record<IntegrationSystem, SystemInfo>> = {
   'hr-suppliers': {
     name: 'HR supplier lists',
     owner: 'Employers (HR systems)',
-    use: "Whether an officer's company supplies their employer",
+    use: "Whether a declarant's company supplies their employer",
   },
 };
 
