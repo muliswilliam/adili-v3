@@ -496,7 +496,7 @@ describe('CopilotPanel states (S15)', () => {
     expect(screen.queryByRole('button', { name: 'Try again' })).toBeNull();
   });
 
-  it('not enabled: says so, explains why, and offers a refresh, which asks again', () => {
+  it('not enabled: says so, explains why, and offers no refresh', () => {
     renderState({ status: 'not-enabled', ...nothing });
     expect(screen.getByText('AI assistance is not enabled for this Commission.')).toBeTruthy();
     // Refresh could only end blocked again; a policy change asks again by itself (e2e 37).
