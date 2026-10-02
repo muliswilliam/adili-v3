@@ -482,6 +482,7 @@ components:
             - acknowledgement-in-progress
             - consent-required
             - no-id
+            - not-new
           description: Machine-readable cause, from the platform registry; clients map it to copy and never show `title` or `detail`
         detail:
           type: string

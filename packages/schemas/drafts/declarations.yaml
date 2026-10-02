@@ -1,6 +1,6 @@
 # Drafted operations of the declarations API for specs not implemented yet: 07a (internal reads
-# for review), 08 (person obligation history) and 09 (Form M officer details), with suggestions,
-# the assistant and help. `pnpm --filter @adili/declarations contracts` merges them into
+# for review), 08 (person obligation history) and 09 (Form M officer details), with document
+# extraction, the assistant and help. `pnpm --filter @adili/declarations contracts` merges them into
 # packages/schemas/internal/declarations.yaml, where they may reference the implemented
 # components (e.g. `#/components/schemas/Obligation`, `CommissionRef`, `ObligationType`,
 # `ProblemDetails`). When an operation or component is implemented, delete it here: the export
@@ -59,100 +59,6 @@ paths:
                 $ref: '#/components/schemas/InternalVersionDocument'
         '404':
           $ref: '#/components/responses/NotFound'
-  /v1/declarations/{declarationId}/suggestions/{suggestionId}/accept:
-    parameters:
-      - $ref: '#/components/parameters/DeclarationId'
-      - $ref: '#/components/parameters/SuggestionId'
-    post:
-      tags: [suggestions]
-      operationId: acceptSuggestion
-      summary: Create an item from the suggestion, or apply it to an existing item (declarant); uses the section save path
-      parameters:
-        - name: If-Match
-          in: header
-          required: true
-          schema:
-            type: string
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [fields, applyToItemId]
-              properties:
-                fields:
-                  type: object
-                  description: Final fields after the declarant's edits
-                  additionalProperties: true
-                applyToItemId:
-                  type: [string, 'null']
-                  format: uuid
-                overwrite:
-                  type: boolean
-                  default: false
-                  description: When applying to an existing item, overwrite non-empty fields
-      responses:
-        '200':
-          description: Item created or updated
-          content:
-            application/json:
-              schema:
-                type: object
-                required: [suggestion, itemId, etag]
-                properties:
-                  suggestion:
-                    $ref: '#/components/schemas/Suggestion'
-                  itemId:
-                    type: string
-                    format: uuid
-                  etag:
-                    type: string
-        '400':
-          $ref: '#/components/responses/ValidationProblem'
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '409':
-          description: Suggestion not `new`, or section ETag mismatch
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ProblemDetails'
-        '412':
-          description: If-Match failed
-  /v1/declarations/{declarationId}/suggestions/{suggestionId}/dismiss:
-    parameters:
-      - $ref: '#/components/parameters/DeclarationId'
-      - $ref: '#/components/parameters/SuggestionId'
-    post:
-      tags: [suggestions]
-      operationId: dismissSuggestion
-      summary: Dismiss a suggestion for this draft (declarant)
-      requestBody:
-        required: false
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                reason:
-                  type: string
-                  maxLength: 200
-      responses:
-        '200':
-          description: Dismissed
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Suggestion'
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '409':
-          description: Suggestion already accepted
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ProblemDetails'
   /v1/declarations/{declarationId}/attachments/{attachmentId}/extract:
     parameters:
       - $ref: '#/components/parameters/DeclarationId'
@@ -425,13 +331,6 @@ components:
       schema:
         type: integer
         minimum: 1
-    SuggestionId:
-      name: suggestionId
-      in: path
-      required: true
-      schema:
-        type: string
-        format: uuid
     ConversationId:
       name: conversationId
       in: path

@@ -83,6 +83,8 @@ export const PROBLEM_CODES = {
   'consent-required': { status: HttpStatus.BAD_REQUEST, title: 'Consent required' },
   /** Registry lookups: the person has no national ID in Household to be looked up by. */
   'no-id': { status: HttpStatus.BAD_REQUEST, title: 'No national ID' },
+  /** Registry suggestions: it was accepted, dismissed or superseded already; read the list again. */
+  'not-new': { status: HttpStatus.CONFLICT, title: 'Suggestion already decided' },
 } as const satisfies Record<string, { status: HttpStatus; title: string }>;
 
 export type ProblemCode = keyof typeof PROBLEM_CODES;

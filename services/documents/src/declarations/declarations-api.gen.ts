@@ -693,7 +693,7 @@ export interface paths {
         put?: never;
         /**
          * Check registries for a household person with recorded consent (declarant); results arrive as suggestions
-         * @description The officer is looked up by the national ID on their roster record; a spouse or child by the one in Household. Records the consent (who, when, text version, registries) and answers one `pending` set per registry: the integration-gateway is asked for each with legal basis `declarant-request` and the declaration as case reference, retried with backoff while a registry does not answer, then `unavailable`. Poll `listSuggestions` until no set is `pending`. Records `declaration.lookup-requested.v1`, and `declaration.suggestions-ready.v1` per registry that answers. A registry checked again supersedes its earlier `new` suggestions for the person.
+         * @description The officer is looked up by the national ID on their roster record; a spouse or child by the one in Household. Records the consent (who, when, text version, registries) and answers one `pending` set per registry: the integration-gateway is asked for each with legal basis `declarant-request` and the declaration as case reference, retried with backoff while a registry does not answer, then `unavailable`. Poll `listSuggestions` until no set is `pending`. Records `declaration.lookup-requested.v1`, and `declaration.suggestions-ready.v1` per registry that answers. A registry checked again supersedes its earlier `new` suggestions for the person, keeping accepted and dismissed ones; what it suggests again that the declarant has accepted or dismissed (same item type and identifier: registration, parcel, company or KRA PIN; for the income hint, the same section) arrives `superseded`, not `new`.
          */
         post: operations["requestRegistryLookups"];
         delete?: never;
@@ -716,6 +716,46 @@ export interface paths {
         get: operations["listSuggestions"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/declarations/{declarationId}/suggestions/{suggestionId}/accept": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Add the suggestion as an item, or apply it to an existing item (declarant); through the section save
+         * @description A read-modify-write of the suggestion's section on the declarant's behalf, as a section save with `If-Match`: a new item carries the suggestion as its `source` (declaration.v1 `ItemSource`); applied to an item (`applyToItemId`), only the fields the item leaves empty are filled unless `overwrite`, and the item takes the `source` if it has none. Values are never filled. Where each type lands: `vehicle`, `land`, `shareholding` an asset of the person's statement; `income-hint` a salary income with no amount; `directorship` a registrable interest in `other`; a spouse's `bio-tax` their KRA PIN in `household` (the officer's has no field, 400). The suggestion becomes `accepted` with the item; the save records `declaration.section-saved.v1` and `declaration.suggestion-accepted.v1`.
+         */
+        post: operations["acceptSuggestion"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/declarations/{declarationId}/suggestions/{suggestionId}/dismiss": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Set a suggestion aside, with an optional reason (declarant)
+         * @description The suggestion becomes `dismissed`, with the reason if given; the draft is untouched. Dismissing it again changes nothing. Records `declaration.suggestion-dismissed.v1` (identifiers only). A later check of the registry does not offer it as new again.
+         */
+        post: operations["dismissSuggestion"];
         delete?: never;
         options?: never;
         head?: never;
@@ -759,46 +799,6 @@ export interface paths {
         get: operations["internalGetFullDocumentForCertifiedCopy"];
         put?: never;
         post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/declarations/{declarationId}/suggestions/{suggestionId}/accept": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                declarationId: components["parameters"]["DeclarationId"];
-                suggestionId: components["parameters"]["SuggestionId"];
-            };
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Create an item from the suggestion, or apply it to an existing item (declarant); uses the section save path */
-        post: operations["acceptSuggestion"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/declarations/{declarationId}/suggestions/{suggestionId}/dismiss": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                declarationId: components["parameters"]["DeclarationId"];
-                suggestionId: components["parameters"]["SuggestionId"];
-            };
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Dismiss a suggestion for this draft (declarant) */
-        post: operations["dismissSuggestion"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1710,6 +1710,30 @@ export interface components {
                 textVersion: string;
             };
         };
+        AcceptSuggestionRequest: {
+            /** @description The suggestion's fields as the declarant accepts them, after any edits (`Suggestion.fields` names). Value fields are not taken: the declarant enters values on the item */
+            fields: {
+                [key: string]: unknown;
+            };
+            /** @description The item to fill instead of adding one: usually the suggestion's `matchItemId`, of the same type in the same section (for `directorship`, a directorship's `id`). Null adds a new item */
+            applyToItemId: string | null;
+            /** @description When applying to an existing item, also replace the fields it already has; without it (false), only empty ones are filled */
+            overwrite?: boolean;
+        };
+        SuggestionAcceptance: {
+            suggestion: components["schemas"]["Suggestion"];
+            /**
+             * Format: uuid
+             * @description The item added or filled: an asset or income of the person's statement, a directorship in `other`, or the spouse in `household` (for a spouse's KRA PIN)
+             */
+            itemId: string;
+            /** @description The new draft version, as in the `ETag` header */
+            etag: string;
+        };
+        DismissSuggestionRequest: {
+            /** @description Why the declarant set it aside, if they said */
+            reason?: string;
+        };
         ProblemDetails: {
             type: string;
             title: string;
@@ -1718,7 +1742,7 @@ export interface components {
              * @description Machine-readable cause, from the platform registry; clients map it to copy and never show `title` or `detail`
              * @enum {string}
              */
-            code?: "database-unavailable" | "rate-limit-exceeded" | "no-match" | "already-onboarded" | "no-roster" | "otp-invalid" | "otp-expired" | "resend-cooldown" | "otp-send-failed" | "wrong-step" | "session-expired" | "iprs-unavailable" | "identity-unavailable" | "email-in-use" | "step-up-required" | "incomplete" | "before-statement-date" | "amendment-window-closed" | "not-a-draft" | "not-submitted" | "obligation-cancelled" | "acknowledgement-issued" | "acknowledgement-in-progress" | "consent-required" | "no-id";
+            code?: "database-unavailable" | "rate-limit-exceeded" | "no-match" | "already-onboarded" | "no-roster" | "otp-invalid" | "otp-expired" | "resend-cooldown" | "otp-send-failed" | "wrong-step" | "session-expired" | "iprs-unavailable" | "identity-unavailable" | "email-in-use" | "step-up-required" | "incomplete" | "before-statement-date" | "amendment-window-closed" | "not-a-draft" | "not-submitted" | "obligation-cancelled" | "acknowledgement-issued" | "acknowledgement-in-progress" | "consent-required" | "no-id" | "not-new";
             detail?: string;
             instance?: string;
             /** @description Field-level errors; `path` is the dotted request field */
@@ -1827,7 +1851,6 @@ export interface components {
         Slug: string;
         DeclarationId: string;
         VersionNumber: number;
-        SuggestionId: string;
         ConversationId: string;
         /** @description Tenant the calling service acts for; the resource must belong to it */
         ActingTenant: string;
@@ -3797,6 +3820,128 @@ export interface operations {
             };
         };
     };
+    acceptSuggestion: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The draft version read (its ETag) */
+                "If-Match": string;
+            };
+            path: {
+                declarationId: string;
+                suggestionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AcceptSuggestionRequest"];
+            };
+        };
+        responses: {
+            /** @description Item added or filled; new draft version in ETag */
+            200: {
+                headers: {
+                    /** @description The draft version; send it as If-Match on section saves */
+                    ETag?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SuggestionAcceptance"];
+                };
+            };
+            /** @description Validation failed: the fields do not fit the item, `applyToItemId` is not an item of the suggestion's type in its section, or the suggestion has no place in the declaration (the officer's KRA PIN) */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not found, or not visible to the caller */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description The suggestion is not `new` (`not-new`), the draft changed since If-Match (`draft-version-mismatch`; read the section and try again), not a draft (`declaration-not-draft`), or the statement is archived (`section-archived`) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description If-Match header missing (`if-match-required`) */
+            428: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    dismissSuggestion: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                declarationId: string;
+                suggestionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["DismissSuggestionRequest"];
+            };
+        };
+        responses: {
+            /** @description Dismissed */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Suggestion"];
+                };
+            };
+            /** @description Validation failed (a reason over 200 characters) */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not found, or not visible to the caller */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Accepted, or replaced by a later check (`not-new`), or not a draft (`declaration-not-draft`) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
     internalRenderDisclosure: {
         parameters: {
             query?: never;
@@ -3849,109 +3994,6 @@ export interface operations {
                 };
             };
             404: components["responses"]["NotFound"];
-        };
-    };
-    acceptSuggestion: {
-        parameters: {
-            query?: never;
-            header: {
-                "If-Match": string;
-            };
-            path: {
-                declarationId: components["parameters"]["DeclarationId"];
-                suggestionId: components["parameters"]["SuggestionId"];
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": {
-                    /** @description Final fields after the declarant's edits */
-                    fields: {
-                        [key: string]: unknown;
-                    };
-                    /** Format: uuid */
-                    applyToItemId: string | null;
-                    /**
-                     * @description When applying to an existing item, overwrite non-empty fields
-                     * @default false
-                     */
-                    overwrite?: boolean;
-                };
-            };
-        };
-        responses: {
-            /** @description Item created or updated */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        suggestion: components["schemas"]["Suggestion"];
-                        /** Format: uuid */
-                        itemId: string;
-                        etag: string;
-                    };
-                };
-            };
-            400: components["responses"]["ValidationProblem"];
-            404: components["responses"]["NotFound"];
-            /** @description Suggestion not `new`, or section ETag mismatch */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetails"];
-                };
-            };
-            /** @description If-Match failed */
-            412: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    dismissSuggestion: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                declarationId: components["parameters"]["DeclarationId"];
-                suggestionId: components["parameters"]["SuggestionId"];
-            };
-            cookie?: never;
-        };
-        requestBody?: {
-            content: {
-                "application/json": {
-                    reason?: string;
-                };
-            };
-        };
-        responses: {
-            /** @description Dismissed */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Suggestion"];
-                };
-            };
-            404: components["responses"]["NotFound"];
-            /** @description Suggestion already accepted */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetails"];
-                };
-            };
         };
     };
     extractAttachment: {
