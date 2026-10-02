@@ -37,7 +37,7 @@ import { Link } from '@tanstack/react-router';
 import { useState } from 'react';
 
 import { CASE_COPY } from '../../../review-case/messages';
-import type { AssignmentAction, CaseViewer } from '../../../review-case/view';
+import type { AssignmentAction, CaseViewer } from '../../../review-case/case';
 import { QUEUE_COPY as m } from '../../../review-queue/messages';
 import { hasQueueFilters, type QueueSearch } from '../../../review-queue/query';
 import { clarificationCell, rowAction, rowMenu } from '../../../review-queue/rows';
@@ -357,15 +357,11 @@ function QueueTable(props: RowsProps) {
               ) : null}
             </TableCell>
             <TableCell>
-              <PriorityBadge priority={item.band} className="relative z-10" />
+              <PriorityBadge band={item.band} className="relative z-10" />
             </TableCell>
             <TableCell className="text-right tabular-nums">{item.openFlags}</TableCell>
             <TableCell className="whitespace-nowrap">
-              <AssigneeChip
-                compact
-                name={item.assignee?.name ?? null}
-                current={item.assignee?.subject === viewer.subject}
-              />
+              <AssigneeChip compact assignee={item.assignee} viewerSubject={viewer.subject} />
             </TableCell>
             <TableCell>
               <Clarification item={item} />
@@ -395,7 +391,7 @@ function QueueCards(props: RowsProps) {
               <CaseLink item={item} />
               <RegistryIcon item={item} />
             </span>
-            <PriorityBadge priority={item.band} className="relative z-10 ml-auto" />
+            <PriorityBadge band={item.band} className="relative z-10 ml-auto" />
           </div>
           <div>
             <p className="font-semibold">{item.declarantName}</p>
@@ -407,11 +403,7 @@ function QueueCards(props: RowsProps) {
             </p>
           </div>
           <div className="flex items-center gap-2 text-[13px]">
-            <AssigneeChip
-              compact
-              name={item.assignee?.name ?? null}
-              current={item.assignee?.subject === viewer.subject}
-            />
+            <AssigneeChip compact assignee={item.assignee} viewerSubject={viewer.subject} />
             <span className="text-muted-foreground">· {m.flagCount(item.openFlags)}</span>
           </div>
           <div className="flex items-center gap-2 text-[13px]">

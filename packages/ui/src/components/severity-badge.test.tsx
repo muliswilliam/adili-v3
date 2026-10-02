@@ -29,7 +29,7 @@ describe('SeverityBadge', () => {
 
     const [medium, info] = Array.from(container.querySelectorAll('[data-severity]'));
     const lit = Array.from(medium?.querySelectorAll('rect') ?? []).filter(
-      (bar) => bar.getAttribute('opacity') === '1',
+      (bar) => bar.getAttribute('opacity') !== '0.25',
     );
     expect(lit).toHaveLength(2);
     expect(info?.querySelectorAll('rect')).toHaveLength(0);

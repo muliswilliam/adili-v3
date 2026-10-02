@@ -1,7 +1,7 @@
 import { Card } from '@adili/ui';
 import { useState } from 'react';
 
-import type { CaseViewer } from '../../../review-case/view';
+import type { CaseViewer } from '../../../review-case/case';
 import { QUEUE_COPY as m } from '../../../review-queue/messages';
 import type { QueueSearch } from '../../../review-queue/query';
 import type { QueueSummary } from '../../../review-queue/rows';

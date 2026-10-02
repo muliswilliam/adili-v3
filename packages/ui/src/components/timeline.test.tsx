@@ -1,143 +1,108 @@
-import {
-  EyeIcon,
-  PencilEdit02Icon,
-  UserCheck01Icon,
-  WorkflowSquare03Icon,
-} from '@hugeicons/core-free-icons';
+import { CheckmarkCircle02Icon } from '@hugeicons/core-free-icons';
 import { render, screen, within } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 
-import { Timeline, type TimelineEntry } from './timeline';
+import { Timeline, type TimelineEvent } from './timeline';
 
-const entries: TimelineEntry[] = [
+// 25 Sep 2026, 18:00 in Nairobi.
+const NOW = Date.parse('2026-09-25T15:00:00Z');
+
+const events: TimelineEvent[] = [
   {
     id: '1',
-    kind: 'claimed',
-    at: '2026-09-18T05:47:00Z',
-    actor: 'Faith Achieng',
-    title: 'Claimed by Faith Achieng',
-    icon: UserCheck01Icon,
-    tone: 'info',
+    at: '2026-09-02T11:30:00Z',
+    title: 'Version 2 processed',
+    actor: null,
+    tone: 'warning',
   },
   {
     id: '2',
-    kind: 'note-added',
     at: '2026-09-25T12:05:00Z',
-    actor: 'Faith Achieng',
     title: 'Note added',
-    icon: PencilEdit02Icon,
+    actor: 'Faith Achieng',
   },
   {
     id: '3',
-    kind: 'version-processed',
-    at: '2026-09-18T05:30:00Z',
+    at: '2026-09-02T11:31:00Z',
+    title: 'Registries checked',
     actor: null,
-    title: 'Version 1 processed',
-    icon: WorkflowSquare03Icon,
-    summary: '4 flags raised',
+    detail: '5 mismatched, 1 unavailable',
   },
   {
     id: '4',
-    kind: 'viewed',
-    at: '2026-09-25T12:06:00Z',
+    at: '2026-09-25T05:47:00Z',
+    title: 'Indicator reviewed',
     actor: 'Faith Achieng',
-    title: 'Viewed 2 times by Faith Achieng',
-    icon: EyeIcon,
+    icon: CheckmarkCircle02Icon,
+    tone: 'success',
   },
 ];
 
-// 30 Sep 2026, noon in Nairobi.
-const NOW = Date.parse('2026-09-30T09:00:00Z');
-
 describe('Timeline', () => {
-  it('groups entries by Kenyan day under headings, newest day and entry first', () => {
-    render(<Timeline entries={entries} now={NOW} />);
+  it('lists events newest first, a list per day under its heading', () => {
+    render(<Timeline events={events} now={NOW} />);
 
-    const group = screen.getByRole('group', { name: 'Timeline' });
-    expect(
-      within(group)
-        .getAllByRole('heading', { level: 3 })
-        .map((heading) => heading.textContent),
-    ).toEqual(['25 Sep 2026', '18 Sep 2026']);
-    const lists = within(group).getAllByRole('list');
-    expect(lists.map((list) => list.getAttribute('aria-label'))).toEqual([
-      'Events on 25 Sep 2026',
-      'Events on 18 Sep 2026',
-    ]);
-    expect(
-      lists.map((list) =>
-        within(list)
-          .getAllByRole('listitem')
-          .map((item) => item.dataset.kind),
-      ),
-    ).toEqual([
-      ['viewed', 'note-added'],
-      ['claimed', 'version-processed'],
-    ]);
-  });
-
-  it('shows the time as text in a time element, then who acted', () => {
-    render(<Timeline entries={entries} now={NOW} />);
-
-    const item = screen.getByText('Claimed by Faith Achieng').closest('li') as HTMLElement;
-    const time = item.querySelector('time');
-    expect(time?.textContent).toBe('08:47');
-    expect(time?.getAttribute('dateTime')).toBe('2026-09-18T05:47:00Z');
-    expect(item.textContent).toContain('08:47 · Faith Achieng');
-  });
-
-  it('names the system when nobody acted, with the summary under it', () => {
-    render(<Timeline entries={entries} now={NOW} />);
-
-    const item = screen.getByText('Version 1 processed').closest('li') as HTMLElement;
-    expect(item.textContent).toContain('08:30 · System');
-    expect(item.textContent).toContain('4 flags raised');
-  });
-
-  it('heads the current day "Today"', () => {
-    render(<Timeline entries={entries} now={Date.parse('2026-09-25T15:00:00Z')} />);
-
-    expect(screen.getAllByRole('heading').map((heading) => heading.textContent)).toEqual([
+    expect(screen.getAllByRole('heading', { level: 3 }).map((h) => h.textContent)).toEqual([
       'Today',
-      '18 Sep 2026',
+      '2 Sep 2026',
+    ]);
+    const today = screen.getByRole('list', { name: 'Events on 25 Sep 2026' });
+    expect(
+      within(today)
+        .getAllByRole('listitem')
+        .map((li) => li.textContent),
+    ).toEqual(['Note added15:05 · Faith Achieng', 'Indicator reviewed08:47 · Faith Achieng']);
+    const earlier = screen.getByRole('list', { name: 'Events on 2 Sep 2026' });
+    expect(
+      within(earlier)
+        .getAllByRole('listitem')
+        .map((li) => li.textContent),
+    ).toEqual([
+      'Registries checked14:31 · System5 mismatched, 1 unavailable',
+      'Version 2 processed14:30 · System',
     ]);
   });
 
-  it('puts an entry after 21:00 UTC on the next Kenyan day', () => {
+  it('groups by the day in Kenya, not in UTC', () => {
     render(
       <Timeline
         now={NOW}
-        entries={[{ ...entries[0], id: 'late', at: '2026-09-18T21:30:00Z' } as TimelineEntry]}
+        events={[
+          { id: 'a', at: '2026-09-01T21:30:00Z', title: 'Late at night', actor: null },
+          { id: 'b', at: '2026-09-02T05:00:00Z', title: 'Next morning', actor: null },
+        ]}
       />,
     );
 
-    expect(screen.getByRole('heading').textContent).toBe('19 Sep 2026');
-    expect(screen.getByText(/00:30/)).toBeTruthy();
+    expect(screen.getAllByRole('heading').map((h) => h.textContent)).toEqual(['2 Sep 2026']);
   });
 
-  it('tints the icon by tone', () => {
-    render(<Timeline entries={entries} now={NOW} />);
+  it('gives each event a machine-readable time and its tint', () => {
+    const { container } = render(<Timeline events={events} now={NOW} />);
 
-    const item = screen.getByText('Claimed by Faith Achieng').closest('li') as HTMLElement;
-    expect(item.querySelector('[data-tone]')?.getAttribute('data-tone')).toBe('info');
+    expect(container.querySelector('time')?.getAttribute('dateTime')).toBe('2026-09-25T12:05:00Z');
+    expect(
+      [...container.querySelectorAll('[data-tone]')].map((el) => el.getAttribute('data-tone')),
+    ).toEqual(['default', 'success', 'default', 'warning']);
   });
 
-  it('takes a heading level, a label and other wording', () => {
+  it('takes the heading level and other copy', () => {
     render(
       <Timeline
-        entries={entries}
+        events={events.slice(0, 1)}
         now={NOW}
-        label="Case timeline"
         headingLevel={4}
-        messages={{ system: 'Mfumo', day: (date) => `Matukio ${date}` }}
+        messages={{ system: 'Mfumo', dayLabel: (day) => `Matukio ${day}` }}
       />,
     );
 
-    expect(screen.getByRole('group', { name: 'Case timeline' })).toBeTruthy();
-    expect(screen.getAllByRole('heading', { level: 4 })).toHaveLength(2);
-    expect(screen.getByRole('list', { name: 'Matukio 18 Sep 2026' })).toBeTruthy();
-    expect(screen.getByText('Version 1 processed').closest('li')?.textContent).toContain(
-      '08:30 · Mfumo',
-    );
+    expect(screen.getByRole('heading', { level: 4 }).textContent).toBe('2 Sep 2026');
+    expect(screen.getByRole('list', { name: 'Matukio 2 Sep 2026' }).textContent).toContain('Mfumo');
+  });
+
+  it('renders no days for no events', () => {
+    render(<Timeline events={[]} now={NOW} />);
+
+    expect(screen.queryByRole('list')).toBeNull();
   });
 });

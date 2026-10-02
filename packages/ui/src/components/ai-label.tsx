@@ -48,6 +48,8 @@ export interface AiLabelMessages {
   promptVersion: (version: number) => string;
   /** The formatted time → "generated 2 Sep 2026, 14:33". */
   generatedAt: (time: string) => string;
+  /** The tooltip when the output's details were not kept, e.g. a saved draft's AI items. */
+  noDetails: string;
 }
 
 const DEFAULT_MESSAGES: AiLabelMessages = {
@@ -55,6 +57,7 @@ const DEFAULT_MESSAGES: AiLabelMessages = {
   providerNames: AI_PROVIDER_NAMES,
   promptVersion: (version) => `prompt v${String(version)}`,
   generatedAt: (time) => `generated ${time}`,
+  noDetails: 'Drafted with AI and approved by a named reviewer',
 };
 
 /**
@@ -78,7 +81,11 @@ export function describeAiOutput(
 }
 
 export type AiLabelProps = Omit<ComponentProps<'span'>, 'children'> & {
-  details: AiLabelDetails;
+  /**
+   * Where the output came from. Leave out only where they were not kept (a saved clarification
+   * keeps which job drafted an item, not its label): the tooltip then says it was drafted with AI.
+   */
+  details?: AiLabelDetails;
   /**
    * The label's text, e.g. "AI-assisted · generated 3 hours ago for version 2" in a panel header
    * or "AI draft" on a drafted item. Defaults to "AI-assisted".
@@ -111,7 +118,9 @@ export function AiLabel({
   className,
   ...props
 }: AiLabelProps) {
-  const sentence = describeAiOutput(details, messages);
+  const sentence = details
+    ? describeAiOutput(details, messages)
+    : (messages?.noDetails ?? DEFAULT_MESSAGES.noDetails);
   const shown = edited ? editedText : text;
 
   return (

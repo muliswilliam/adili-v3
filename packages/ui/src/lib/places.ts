@@ -301,3 +301,16 @@ export const COUNTIES: readonly { code: string; name: string }[] = [
   { code: '046', name: 'Nyamira' },
   { code: '047', name: 'Nairobi City' },
 ];
+
+const COUNTRY_NAMES = new Map(COUNTRIES.map((country) => [country.code, country.name]));
+const COUNTY_NAMES = new Map(COUNTIES.map((county) => [county.code, county.name]));
+
+/** A country by name, from its ISO code; the code when it is not one we know. */
+export function countryName(code: string): string {
+  return COUNTRY_NAMES.get(code) ?? code;
+}
+
+/** A Kenyan county by name, from its code (`022` is Kiambu); the code when it is not one we know. */
+export function countyName(code: string): string {
+  return COUNTY_NAMES.get(code) ?? code;
+}

@@ -49,7 +49,12 @@ export class LetterPayloadService {
       commission: letter.commission,
       declarationReference,
       clarificationReference: reference,
-      items: letter.items,
+      // Letters issued before the language was recorded are English.
+      language: letter.language ?? 'en',
+      opening: letter.opening ?? null,
+      // Letters issued before the label was recorded had no AI-drafted text to mark.
+      aiAssisted: letter.aiAssisted ?? false,
+      items: letter.items.map((item) => ({ ...item, aiAssisted: item.aiAssisted ?? false })),
       issuedAt: issuedAt.toISOString(),
       dueAt: dueAt.toISOString(),
       portalUrl: portalClarificationUrl(clarificationId),

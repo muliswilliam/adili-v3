@@ -2,10 +2,13 @@ import type { Meta, StoryObj } from '@storybook/react-vite';
 
 import { AssigneeChip } from './assignee-chip';
 
+const FAITH = { subject: 'faith', name: 'Faith Achieng' };
+const PETER = { subject: 'peter', name: 'Peter Mwangi' };
+
 const meta = {
   title: 'Review/AssigneeChip',
   component: AssigneeChip,
-  args: { name: 'Peter Mwangi' },
+  args: { assignee: PETER, viewerSubject: FAITH.subject },
 } satisfies Meta<typeof AssigneeChip>;
 
 export default meta;
@@ -13,22 +16,22 @@ type Story = StoryObj<typeof meta>;
 
 export const AnotherOfficer: Story = {};
 
-export const CurrentUser: Story = { args: { name: 'Faith Achieng', current: true } };
+/** The signed-in officer: brand initials and "(you)". */
+export const Me: Story = { args: { assignee: FAITH } };
 
-/** In a queue table cell. */
-export const CurrentUserCompact: Story = {
-  args: { name: 'Faith Achieng', current: true, compact: true },
-};
+/** In a queue row or card. */
+export const MeCompact: Story = { args: { assignee: FAITH, compact: true } };
 
-export const Unassigned: Story = { args: { name: null } };
+export const Unassigned: Story = { args: { assignee: null } };
 
-export const EveryState: Story = {
-  render: () => (
-    <div className="flex flex-wrap items-center gap-4">
-      <AssigneeChip name="Faith Achieng" current />
-      <AssigneeChip name="Peter Mwangi" />
-      <AssigneeChip name={null} />
-      <AssigneeChip name="Faith Achieng" current compact />
-    </div>
-  ),
+/** Cut with an ellipsis in a narrow cell. */
+export const Narrow: Story = {
+  args: { assignee: { subject: 'h', name: 'Halima Abdullahi Mohamed Hassan' } },
+  decorators: [
+    (Story) => (
+      <div className="w-[180px]">
+        <Story />
+      </div>
+    ),
+  ],
 };

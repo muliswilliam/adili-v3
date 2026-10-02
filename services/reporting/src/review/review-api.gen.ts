@@ -267,7 +267,7 @@ export interface paths {
         };
         /** Clarification with items, letter and response */
         get: operations["getClarification"];
-        /** Update a draft's items */
+        /** Update a draft's items and opening paragraph */
         put: operations["updateClarificationDraft"];
         post?: never;
         delete?: never;
@@ -898,6 +898,126 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/review/cases/{caseId}/copilot": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * AI-assisted summary and flag explanations for the case (reviewer, supervisor; audited read)
+         * @description Reviewers and supervisors of the case's Commission; anyone else gets 404. Indicators, not findings: a named reviewer decides.
+         */
+        get: operations["getCaseCopilot"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/review/cases/{caseId}/copilot/refresh": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Re-request the summary and explanations (assignee or supervisor)
+         * @description A copilot that is `not-enabled` is requested again too: the ai-gateway decides whether the Commission may use it now. The console offers no Refresh there, as a change of the Commission's AI policy or route already requests not-enabled copilots again; the API keeps it on purpose, for a request made right after such a change and for tooling.
+         */
+        post: operations["refreshCaseCopilot"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/review/cases/{caseId}/copilot/drafts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Draft clarification items from selected flags and items (assignee); nothing is issued
+         * @description Builds the ai-gateway `draft-clarification` input from the case's current version (item context) and flags, in the requested language, and waits up to 10 seconds for the job. A draft not ready by then answers 202 and is polled with `getCopilotDraft`. Drafts are kept for 24 hours and never become clarifications: the console inserts the items into the composer, and the clarification endpoints issue them. A retry with the same Idempotency-Key answers the same draft as it is now (never a stored replay: the drafted text is kept only encrypted), and 409 `draft-expired` once its 24 hours are over. Audited read (`review.copilot.drafted`).
+         */
+        post: operations["draftClarificationWithAi"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/review/copilot/drafts/{draftId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Poll a pending draft (assignee)
+         * @description Only the assignee who asked for it, for 24 hours; anyone else, or later, 404. Audited read (`review.copilot.draft-viewed`).
+         */
+        get: operations["getCopilotDraft"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/review/copilot/outputs/{jobId}/feedback": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Rate a copilot output shown on a case as helpful or not (the case's assignee); one rating per reviewer per output block
+         * @description The output is named by its job: a summary or explanations shown on the case (`CopilotView.jobs`), or a ready clarification draft within its 24 hours (`CopilotDraft.jobId`); `block` names the block rated (a summary's section, a flag's explanation), null the output as a whole. A second rating by the same reviewer of the same block replaces the first. A block the output does not have is 400. The rating is forwarded to the ai-gateway, which announces it for reporting. Supervisors and other reviewers of the Commission read the copilot but do not rate it (403); anyone else, or a job that is not such an output (a pending draft's, say), gets 404.
+         */
+        put: operations["rateCopilotOutput"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/commissions/{slug}/ai-status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Whether AI assistance is enabled for the Commission (commission-admin)
+         * @description The commission-admin of the Commission; anyone else gets 404. Reads the ai-gateway's tenant status (its routes and classification gate). `enabled` says whether the copilot may run on this Commission's cases: the data class its declarations are sent as is among `dataClasses`.
+         */
+        get: operations["getCommissionAiStatus"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/review/cases/{caseId}/registry": {
         parameters: {
             query?: never;
@@ -952,120 +1072,6 @@ export interface paths {
          * @description The case's assignee or a supervisor of its Commission; another reviewer gets 403 `not-the-assignee`, anyone else 404. Starts the registry check of the case's current version and records review.case.rechecked.v1; review.registry.checked.v1 follows once the check is stored. Flags it no longer raises are closed `superseded-by-recheck` (reviewed ones keep their note). Once per case every 10 minutes: 429 `recheck-cooldown` with `retryAfterSeconds`.
          */
         post: operations["recheckCaseRegistries"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/review/cases/{caseId}/copilot": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                caseId: components["parameters"]["CaseId"];
-            };
-            cookie?: never;
-        };
-        /** AI-assisted summary and flag explanations for the case (reviewer, supervisor; audited read) */
-        get: operations["getCaseCopilot"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/review/cases/{caseId}/copilot/refresh": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                caseId: components["parameters"]["CaseId"];
-            };
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Re-request the summary and explanations (assignee or supervisor) */
-        post: operations["refreshCaseCopilot"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/review/cases/{caseId}/copilot/drafts": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                caseId: components["parameters"]["CaseId"];
-            };
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Draft clarification items from selected flags and items (assignee); nothing is issued */
-        post: operations["draftClarificationWithAi"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/review/copilot/drafts/{draftId}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                draftId: string;
-            };
-            cookie?: never;
-        };
-        /** Poll a pending draft (assignee) */
-        get: operations["getCopilotDraft"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/review/copilot/outputs/{jobId}/feedback": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                jobId: string;
-            };
-            cookie?: never;
-        };
-        get?: never;
-        /** Rate an AI output as helpful or not (reviewer, supervisor); one rating per reviewer per output */
-        put: operations["rateCopilotOutput"];
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/commissions/{slug}/ai-status": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                slug: components["parameters"]["Slug"];
-            };
-            cookie?: never;
-        };
-        /** Whether AI assistance is enabled for the Commission (commission-admin, supervisor) */
-        get: operations["getCommissionAiStatus"];
-        put?: never;
-        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -1159,6 +1165,82 @@ export interface components {
                 openCases: number;
             }[];
         };
+        /** @enum {string} */
+        CopilotStatus: "not-enabled" | "pending" | "ready" | "failed" | "stale";
+        CopilotView: {
+            status: components["schemas"]["CopilotStatus"];
+            /** @description The version the outputs shown are for (while `stale`, an earlier one); the version requested while there are none */
+            forVersionId: string | null;
+            generatedAt: string | null;
+            /** @description The ai-gateway's job reason (`validation`, `budget`, `provider`, ...; `validation` also when an output breaks the task's contract), `output-purged` when a job succeeded but its output was purged before it was read, `policy` when not enabled, `rejected` / `ai-gateway-unavailable`, `declarations-unavailable` when the declaration could not be read, `key-service-unavailable` when an output could not be encrypted, or `internal-error` */
+            failureReason: string | null;
+            /** @description ai-gateway SummarizeDeclarationOutput (label, overview, changesSincePrevious, sections, worthAttention) */
+            summary: {
+                [key: string]: unknown;
+            } | null;
+            /** @description ai-gateway ExplainFlagsOutput (label, explanations) */
+            explanations: {
+                [key: string]: unknown;
+            } | null;
+            /** @description The jobs of the outputs shown, which the assignee rates */
+            jobs: {
+                summarize: string | null;
+                explain: string | null;
+            };
+            /** @description The ratings of the outputs shown (`jobs`) by the case's assignee, who rates them; read-only to the Commission's supervisors. Empty for anyone else, and while the case has no assignee */
+            feedback: {
+                /** Format: uuid */
+                jobId: string;
+                block: components["schemas"]["CopilotBlock"];
+                /** @enum {string} */
+                rating: "helpful" | "not-helpful";
+            }[];
+        };
+        CopilotDraftInput: {
+            flagIds: string[];
+            itemRefs: {
+                personKey: string | null;
+                itemId: string | null;
+                sectionKey: string | null;
+                requirement: components["schemas"]["Requirement"] | null;
+            }[];
+            language: components["schemas"]["LetterLanguage"];
+        };
+        CopilotDraft: {
+            /** Format: uuid */
+            id: string;
+            /** @enum {string} */
+            status: "pending" | "ready" | "failed";
+            jobId: string | null;
+            /** @description ai-gateway AiLabel; null until ready */
+            label: {
+                [key: string]: unknown;
+            } | null;
+            opening: string | null;
+            /** @description Empty until ready. Each item names the job that drafted it (`aiJobId`), which the composer keeps */
+            items: components["schemas"]["ClarificationItemInput"][];
+            /** @description The ai-gateway's job reason (`validation`, `budget`, `provider`, ...), `output-purged` when the job succeeded but its output was purged before it was read, or `rejected` when the gateway refused the request */
+            failureReason: string | null;
+        };
+        CommissionAiStatus: {
+            /** @description The copilot may run on the Commission's cases: the data class they are sent as is among `dataClasses` */
+            enabled: boolean;
+            /** @description The provider class the Commission's AI tasks are routed to; null when no route names a provider the ai-gateway can reach */
+            providerClass: ("external" | "self-hosted") | null;
+            /** @description The provider the Commission's AI tasks are routed to (`anthropic`...), of `providerClass`; null when `providerClass` is */
+            provider: string | null;
+            /** @description Data classes that provider class may process for the Commission */
+            dataClasses: ("synthetic" | "restricted" | "highly-confidential")[];
+        };
+        /** @description The block of an output a rating is for: a summary's `overview`, `changes`, `sections` or `worth-attention`, or an explanation's `flag:<flagId>`. Null: the output as a whole (a clarification draft). */
+        CopilotBlock: string | null;
+        CopilotFeedbackInput: {
+            block?: components["schemas"]["CopilotBlock"];
+            /** @enum {string} */
+            rating: "helpful" | "not-helpful";
+            reason: ("inaccurate" | "missed-something" | "unclear" | "too-long" | "other") | null;
+            note: string | null;
+        };
         Flag: {
             /** Format: uuid */
             id: string;
@@ -1227,6 +1309,8 @@ export interface components {
                 late: boolean;
                 /** @description The version amended an earlier one of the same declaration */
                 amendment: boolean;
+                /** @description The rules found no earlier declaration on Adili to compare the version with (`no-previous-version`), kept after an amendment replaces that flag */
+                firstOnAdili: boolean;
             }[];
             reviewerHistory: components["schemas"]["Assignee"][];
             /** @description Every determination of the case, oldest first; the current one is last */
@@ -1281,9 +1365,22 @@ export interface components {
             /** @enum {string} */
             requirement: "provide-omitted" | "explain-discrepancy" | "correct";
             text: string;
+            /** @description The Draft with AI job (`CopilotDraft.jobId`) that drafted the item, kept when the reviewer edits it (ADR-007: AI-assisted content stays labelled). Left out or null: written by the reviewer. */
+            aiJobId?: string | null;
         };
+        /**
+         * @description The language of a clarification letter: English (`en`) or Swahili (`sw`). The letter's own text (heading, introduction, item labels, requirements, how to respond) is printed in it; the reviewer's text is printed as written.
+         * @enum {string}
+         */
+        LetterLanguage: "en" | "sw";
         ClarificationInput: {
             items: components["schemas"]["ClarificationItemInput"][];
+            /** @description The letter's opening paragraph, printed before the items (e.g. from Draft with AI). Left out or null: the letter has none. A draft's update replaces it like the items. */
+            opening?: string | null;
+            /** @description The Draft with AI job that drafted the opening paragraph, kept when the reviewer edits it. Left out or null: written by the reviewer (or no opening). */
+            openingAiJobId?: string | null;
+            /** @description The letter's language. Left out: English. A draft's update replaces it like the items; a follow-up starts in the language of the clarification it follows. */
+            language?: components["schemas"]["LetterLanguage"];
         };
         ClarificationResponseInput: {
             items: {
@@ -1306,6 +1403,10 @@ export interface components {
                 itemId: string | null;
                 requirement: components["schemas"]["Requirement"];
                 text: string;
+                /** @description The Draft with AI job (`CopilotDraft.jobId`) that drafted the item, kept when the reviewer edits it (ADR-007: AI-assisted content stays labelled); null when the reviewer wrote it */
+                aiJobId: string | null;
+                /** @description The language the item's Draft with AI job (`aiJobId`) drafted in, recorded on save; it may differ from the letter's `language` when that changed after. Null when the reviewer wrote the item. */
+                aiLanguage: components["schemas"]["LetterLanguage"] | null;
                 /** @description Human label of the target (e.g. "Assets · Plot KSM/123 · Grace Otieno"), as the letter names it; absent while a draft */
                 label?: string;
             }[];
@@ -1323,6 +1424,13 @@ export interface components {
                 status: "pending" | "issued" | "revoked";
             } | null;
             followUpOf: string | null;
+            /** @description The letter's opening paragraph, printed before the items; null when it has none */
+            opening: string | null;
+            /** @description The Draft with AI job that drafted the opening paragraph; null when written by the reviewer */
+            openingAiJobId: string | null;
+            /** @description The language the opening's Draft with AI job drafted in; it may differ from the letter's `language` when that changed after. Null when written by the reviewer. */
+            openingAiLanguage: components["schemas"]["LetterLanguage"] | null;
+            language: components["schemas"]["LetterLanguage"];
             response: {
                 items: {
                     index: number;
@@ -1352,6 +1460,10 @@ export interface components {
                 itemId: string | null;
                 requirement: components["schemas"]["Requirement"];
                 text: string;
+                /** @description The Draft with AI job (`CopilotDraft.jobId`) that drafted the item, kept when the reviewer edits it (ADR-007: AI-assisted content stays labelled); null when the reviewer wrote it */
+                aiJobId: string | null;
+                /** @description The language the item's Draft with AI job (`aiJobId`) drafted in, recorded on save; it may differ from the letter's `language` when that changed after. Null when the reviewer wrote the item. */
+                aiLanguage: components["schemas"]["LetterLanguage"] | null;
                 /** @description Human label of the target (e.g. "Assets · Plot KSM/123 · Grace Otieno"), as the letter names it; absent while a draft */
                 label?: string;
             }[];
@@ -1369,6 +1481,13 @@ export interface components {
                 status: "pending" | "issued" | "revoked";
             } | null;
             followUpOf: string | null;
+            /** @description The letter's opening paragraph, printed before the items; null when it has none */
+            opening: string | null;
+            /** @description The Draft with AI job that drafted the opening paragraph; null when written by the reviewer */
+            openingAiJobId: string | null;
+            /** @description The language the opening's Draft with AI job drafted in; it may differ from the letter's `language` when that changed after. Null when written by the reviewer. */
+            openingAiLanguage: components["schemas"]["LetterLanguage"] | null;
+            language: components["schemas"]["LetterLanguage"];
             response: {
                 items: {
                     index: number;
@@ -1415,10 +1534,18 @@ export interface components {
             };
             declarationReference: string;
             clarificationReference: string;
+            /** @description The template prints its own text (heading, introduction, how to respond, sign-off, the AI note and the verification lines) in this language. `items[].label` and `items[].requirementLabel` already are; the opening and the items' text are the reviewer's, printed as written. Letters issued before it was recorded are `en`. */
+            language: components["schemas"]["LetterLanguage"];
+            /** @description Printed before the items; null when the letter has no opening paragraph */
+            opening: string | null;
+            /** @description Some of the letter's text (its opening or an item) was drafted with AI and approved by the reviewer who issued it (ADR-007); the letter says so. Once a save of the clarification names a Draft with AI job, it stays true, even if a later save leaves the job out. */
+            aiAssisted: boolean;
             items: {
                 label: string;
                 requirementLabel: string;
                 text: string;
+                /** @description The item was drafted with AI (and possibly edited) before the reviewer issued it */
+                aiAssisted: boolean;
             }[];
             /** Format: date-time */
             issuedAt: string;
@@ -1894,106 +2021,9 @@ export interface components {
                 message: string;
             }[];
         };
-        /** @enum {string} */
-        CopilotStatus: "not-enabled" | "pending" | "ready" | "failed" | "stale";
-        CopilotView: {
-            status: components["schemas"]["CopilotStatus"];
-            /** Format: uuid */
-            forVersionId: string | null;
-            /** Format: date-time */
-            generatedAt: string | null;
-            failureReason: string | null;
-            /** @description ai-gateway SummarizeDeclarationOutput (label, overview, changesSincePrevious, sections, worthAttention) */
-            summary: {
-                [key: string]: unknown;
-            } | null;
-            /** @description ai-gateway ExplainFlagsOutput (label, explanations) */
-            explanations: {
-                [key: string]: unknown;
-            } | null;
-            jobs: {
-                /** Format: uuid */
-                summarize: string | null;
-                /** Format: uuid */
-                explain: string | null;
-            };
-            /** @description The caller's own ratings */
-            feedback: {
-                /** Format: uuid */
-                jobId: string;
-                /** @enum {string} */
-                rating: "helpful" | "not-helpful";
-            }[];
-        };
-        CopilotDraftInput: {
-            flagIds: string[];
-            itemRefs: {
-                personKey: string | null;
-                /** Format: uuid */
-                itemId: string | null;
-                sectionKey: string | null;
-                requirement: components["schemas"]["Requirement"] | null;
-            }[];
-            /** @enum {string} */
-            language: "en" | "sw";
-        };
-        CopilotDraft: {
-            /** Format: uuid */
-            id: string;
-            /** @enum {string} */
-            status: "pending" | "ready" | "failed";
-            /** Format: uuid */
-            jobId: string | null;
-            /** @description ai-gateway AiLabel */
-            label: {
-                [key: string]: unknown;
-            } | null;
-            opening: string | null;
-            items: components["schemas"]["ClarificationItemInput"][];
-            failureReason: string | null;
-        };
-        CopilotFeedbackInput: {
-            /** @enum {string} */
-            rating: "helpful" | "not-helpful";
-            /** @enum {string|null} */
-            reason: "inaccurate" | "missed-something" | "unclear" | "too-long" | "other" | null;
-            note: string | null;
-        };
     };
-    responses: {
-        /** @description Not found, or not visible to the caller */
-        NotFound: {
-            headers: {
-                [name: string]: unknown;
-            };
-            content: {
-                "application/problem+json": components["schemas"]["ProblemDetails"];
-            };
-        };
-        /** @description Caller lacks the required role or is not the assignee */
-        Forbidden: {
-            headers: {
-                [name: string]: unknown;
-            };
-            content: {
-                "application/problem+json": components["schemas"]["ProblemDetails"];
-            };
-        };
-        /** @description Request failed validation */
-        ValidationProblem: {
-            headers: {
-                [name: string]: unknown;
-            };
-            content: {
-                "application/problem+json": components["schemas"]["ProblemDetails"];
-            };
-        };
-    };
-    parameters: {
-        Slug: string;
-        CaseId: string;
-        IdempotencyKey: string;
-    };
+    responses: never;
+    parameters: never;
     requestBodies: never;
     headers: never;
     pathItems: never;
@@ -2670,7 +2700,7 @@ export interface operations {
                     "application/json": components["schemas"]["Clarification"];
                 };
             };
-            /** @description Body failed validation */
+            /** @description Body failed validation, or problem type `ai-draft-not-on-case`: an `aiJobId` or `openingAiJobId` the clarification does not already name that names no ready Draft with AI the caller asked for on the case (one whose 24 hours are over still counts: only its text is purged) */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -2766,7 +2796,7 @@ export interface operations {
                     "application/json": components["schemas"]["Clarification"];
                 };
             };
-            /** @description Body failed validation */
+            /** @description Body failed validation, or problem type `ai-draft-not-on-case`: an `aiJobId` or `openingAiJobId` the clarification does not already name that names no ready Draft with AI the caller asked for on the case (one whose 24 hours are over still counts: only its text is purged) */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -5017,6 +5047,354 @@ export interface operations {
             };
         };
     };
+    getCaseCopilot: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                caseId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Copilot view */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CopilotView"];
+                };
+            };
+            /** @description Not found, or not visible to the caller */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    refreshCaseCopilot: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                caseId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Requested */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CopilotView"];
+                };
+            };
+            /** @description The caller is neither the assignee nor a supervisor */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not found, or not visible to the caller */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Already pending (problem type `copilot-pending`) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description The declarations service could not give the declaration; nothing was requested */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description The ai-gateway cannot be reached (problem type `ai-gateway-unavailable`); nothing was requested */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    draftClarificationWithAi: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Client-generated UUID, unique per logical request; reuse on retry */
+                "Idempotency-Key": string;
+            };
+            path: {
+                caseId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CopilotDraftInput"];
+            };
+        };
+        responses: {
+            /** @description Draft ready, or failed (`failureReason`) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CopilotDraft"];
+                };
+            };
+            /** @description Still drafting; poll the draft */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CopilotDraft"];
+                };
+            };
+            /** @description Body failed validation, or problem type `selection-not-on-case`: a flag the case does not have, an item or section its current version lacks, no selection, or more than 50 items */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description The caller is not the assignee of the case */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not found, or not visible to the caller */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description AI not enabled for this Commission (problem type `ai-not-enabled`), a request with the same Idempotency-Key is still running (`idempotency-key-in-use`), or the draft of that key is past its 24 hours (`draft-expired`) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Idempotency-Key reused with a different request body */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description The declarations service could not give the declaration; nothing was requested */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description The ai-gateway (problem type `ai-gateway-unavailable`) or the Commission directory cannot be reached; nothing was requested */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    getCopilotDraft: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                draftId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Draft */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CopilotDraft"];
+                };
+            };
+            /** @description The id is not a UUID */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not found, or not visible to the caller, or past its 24 hours */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description The ai-gateway cannot be reached (problem type `ai-gateway-unavailable`) */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    rateCopilotOutput: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                jobId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CopilotFeedbackInput"];
+            };
+        };
+        responses: {
+            /** @description Recorded */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Request failed validation, or problem type `block-not-in-output`: the output has no such block, or `feedback-rejected`: the AI gateway refused the rating */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description The caller is not the case's assignee (problem type `not-the-assignee`) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not found, or not visible to the caller */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description The ai-gateway cannot be reached (problem type `ai-gateway-unavailable`); nothing was recorded */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    getCommissionAiStatus: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Status */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CommissionAiStatus"];
+                };
+            };
+            /** @description Not found, or not visible to the caller */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Problem type `ai-gateway-unavailable`; the status could not be read */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
     getCaseRegistryChecks: {
         parameters: {
             query?: never;
@@ -5154,187 +5532,6 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
-        };
-    };
-    getCaseCopilot: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                caseId: components["parameters"]["CaseId"];
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Copilot view */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["CopilotView"];
-                };
-            };
-            404: components["responses"]["NotFound"];
-        };
-    };
-    refreshCaseCopilot: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                caseId: components["parameters"]["CaseId"];
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Requested */
-            202: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["CopilotView"];
-                };
-            };
-            403: components["responses"]["Forbidden"];
-            404: components["responses"]["NotFound"];
-            /** @description Already pending, or AI not enabled for this Commission */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetails"];
-                };
-            };
-        };
-    };
-    draftClarificationWithAi: {
-        parameters: {
-            query?: never;
-            header: {
-                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
-            };
-            path: {
-                caseId: components["parameters"]["CaseId"];
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["CopilotDraftInput"];
-            };
-        };
-        responses: {
-            /** @description Draft ready */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["CopilotDraft"];
-                };
-            };
-            /** @description Still drafting; poll the draft */
-            202: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["CopilotDraft"];
-                };
-            };
-            400: components["responses"]["ValidationProblem"];
-            403: components["responses"]["Forbidden"];
-            404: components["responses"]["NotFound"];
-            /** @description AI not enabled for this Commission */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetails"];
-                };
-            };
-        };
-    };
-    getCopilotDraft: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                draftId: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Draft */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["CopilotDraft"];
-                };
-            };
-            404: components["responses"]["NotFound"];
-        };
-    };
-    rateCopilotOutput: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                jobId: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["CopilotFeedbackInput"];
-            };
-        };
-        responses: {
-            /** @description Recorded */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            404: components["responses"]["NotFound"];
-        };
-    };
-    getCommissionAiStatus: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                slug: components["parameters"]["Slug"];
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Status */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        enabled: boolean;
-                        /** @enum {string|null} */
-                        providerClass: "external" | "self-hosted" | null;
-                        dataClasses: string[];
-                    };
-                };
-            };
-            404: components["responses"]["NotFound"];
         };
     };
 }

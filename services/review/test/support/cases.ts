@@ -1,7 +1,7 @@
 import { and, eq } from 'drizzle-orm';
 import { vi } from 'vitest';
 
-import { reviewCases, reviewTimeline } from '../../src/db/schema.js';
+import { reviewCases, reviewCopilots, reviewTimeline } from '../../src/db/schema.js';
 import type { ProcessingInput } from '../../src/processing/contract.js';
 import { type StoredVersion, submittedVersion, type VersionFixture } from './fake-declarations.js';
 import { type ReviewApi, submittedEvent } from './review-api.js';
@@ -60,18 +60,20 @@ export async function processed(api: ReviewApi, version: StoredVersion): Promise
 
 /**
  * Delivers `declaration.submitted.v1` for a version to the inbox and waits until the workflow on
- * Temporal has brought its case to that version and checked its registries; returns the case row.
+ * Temporal has brought its case to that version, checked its registries and requested its
+ * copilot; returns the case row.
  */
 export async function processedFromInbox(api: ReviewApi, version: StoredVersion) {
   await api.consumer.submitted(submittedEvent(version.tenant, version));
-  return untilRegistryChecked(api, version);
+  return untilProcessed(api, version);
 }
 
 /**
- * Waits until the processing workflow has brought the version's case to it and stored its
- * registry check (the workflow's last step); returns the case row.
+ * Waits until the processing workflow has brought the version's case to it, stored its registry
+ * check and requested its copilot (the workflow's last step); returns the case row as the check
+ * left it.
  */
-export async function untilRegistryChecked(api: ReviewApi, version: StoredVersion) {
+export async function untilProcessed(api: ReviewApi, version: StoredVersion) {
   return vi.waitFor(
     async () => {
       const [found] = await api.asPlatform((tx) =>
@@ -91,6 +93,10 @@ export async function untilRegistryChecked(api: ReviewApi, version: StoredVersio
           ),
       );
       if (!checked) throw new Error('registries not checked yet');
+      const [copilot] = await api.asPlatform((tx) =>
+        tx.select().from(reviewCopilots).where(eq(reviewCopilots.caseId, found.id)),
+      );
+      if (copilot?.forVersionId !== version.versionId) throw new Error('copilot not requested');
       // The row as the check left it (score, band and open flags with the registry flags).
       const [row] = await api.asPlatform((tx) =>
         tx.select().from(reviewCases).where(eq(reviewCases.id, found.id)),

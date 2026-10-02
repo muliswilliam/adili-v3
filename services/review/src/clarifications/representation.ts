@@ -5,6 +5,7 @@ import {
   type ClarificationItem,
   type clarificationResponses,
   type clarifications,
+  LETTER_LANGUAGES,
   REQUIREMENTS,
 } from '../cases/schema.js';
 
@@ -45,6 +46,12 @@ export const clarificationStatusSchema = z.enum(CLARIFICATION_STATUSES);
 /** review.yaml `Requirement`. */
 export const requirementSchema = z.enum(REQUIREMENTS).meta({ description: 'Act s.35(4)' });
 
+/** review.yaml `LetterLanguage`. */
+export const letterLanguageSchema = z.enum(LETTER_LANGUAGES).meta({
+  description:
+    "The language of a clarification letter: English (`en`) or Swahili (`sw`). The letter's own text (heading, introduction, item labels, requirements, how to respond) is printed in it; the reviewer's text is printed as written.",
+});
+
 /** An item of a clarification as it shows it: what it concerns and what s.35(4) requires. */
 export const clarificationItemSchema = z.object({
   sectionKey: z.string().nullable(),
@@ -52,6 +59,14 @@ export const clarificationItemSchema = z.object({
   itemId: z.uuid().nullable(),
   requirement: requirementSchema,
   text: z.string(),
+  aiJobId: z.uuid().nullable().meta({
+    description:
+      'The Draft with AI job (`CopilotDraft.jobId`) that drafted the item, kept when the reviewer edits it (ADR-007: AI-assisted content stays labelled); null when the reviewer wrote it',
+  }),
+  aiLanguage: letterLanguageSchema.nullable().meta({
+    description:
+      "The language the item's Draft with AI job (`aiJobId`) drafted in, recorded on save; it may differ from the letter's `language` when that changed after. Null when the reviewer wrote the item.",
+  }),
   label: z.string().optional().meta({
     description:
       'Human label of the target (e.g. "Assets · Plot KSM/123 · Grace Otieno"), as the letter names it; absent while a draft',
@@ -83,6 +98,18 @@ export const clarificationSchema = z.object({
     })
     .nullable(),
   followUpOf: z.uuid().nullable(),
+  opening: z.string().nullable().meta({
+    description: "The letter's opening paragraph, printed before the items; null when it has none",
+  }),
+  openingAiJobId: z.uuid().nullable().meta({
+    description:
+      'The Draft with AI job that drafted the opening paragraph; null when written by the reviewer',
+  }),
+  openingAiLanguage: letterLanguageSchema.nullable().meta({
+    description:
+      "The language the opening's Draft with AI job drafted in; it may differ from the letter's `language` when that changed after. Null when written by the reviewer.",
+  }),
+  language: letterLanguageSchema,
   response: z
     .object({
       items: z.array(
@@ -118,7 +145,28 @@ export const clarificationLetterPayloadSchema = z.object({
   commission: z.object({ name: z.string(), issuerCode: z.string() }),
   declarationReference: z.string(),
   clarificationReference: z.string(),
-  items: z.array(z.object({ label: z.string(), requirementLabel: z.string(), text: z.string() })),
+  language: letterLanguageSchema.meta({
+    description:
+      "The template prints its own text (heading, introduction, how to respond, sign-off, the AI note and the verification lines) in this language. `items[].label` and `items[].requirementLabel` already are; the opening and the items' text are the reviewer's, printed as written. Letters issued before it was recorded are `en`.",
+  }),
+  opening: z.string().nullable().meta({
+    description: 'Printed before the items; null when the letter has no opening paragraph',
+  }),
+  aiAssisted: z.boolean().meta({
+    description:
+      "Some of the letter's text (its opening or an item) was drafted with AI and approved by the reviewer who issued it (ADR-007); the letter says so. Once a save of the clarification names a Draft with AI job, it stays true, even if a later save leaves the job out.",
+  }),
+  items: z.array(
+    z.object({
+      label: z.string(),
+      requirementLabel: z.string(),
+      text: z.string(),
+      aiAssisted: z.boolean().meta({
+        description:
+          'The item was drafted with AI (and possibly edited) before the reviewer issued it',
+      }),
+    }),
+  ),
   issuedAt: z.iso.datetime(),
   dueAt: z.iso.datetime(),
   portalUrl: z.url(),
@@ -151,6 +199,10 @@ export function clarificationView(
             status: row.status === 'withdrawn' ? 'revoked' : 'issued',
           },
     followUpOf: row.followUpOf,
+    opening: row.opening,
+    openingAiJobId: row.openingAiJobId,
+    openingAiLanguage: row.openingAiLanguage,
+    language: row.language,
     response: response === null ? null : responseView(row.items, response),
   };
 }
@@ -168,6 +220,8 @@ export function clarificationItems(row: ClarificationRow): ClarificationItemView
       itemId: item.itemId,
       requirement: item.requirement,
       text: item.text,
+      aiJobId: item.aiJobId ?? null,
+      aiLanguage: item.aiLanguage ?? null,
       ...(label === undefined ? {} : { label }),
     };
   });

@@ -1,37 +1,13 @@
-import { formatDate, formatDateTime, plural, type Severity, SEVERITY_LABELS } from '@adili/ui';
+import { formatDateTime, plural } from '@adili/ui';
 
 /**
- * Copy of the case view (spec 07a FE-3): the header, the assignment actions and their dialogs,
- * the declaration pane, the flags, notes and timeline tabs. English; the Swahili slots come
- * with the i18n pass.
+ * Copy of the assignment actions and their dialogs, shared by the queue's rows and the case view
+ * (spec 07a FE-2, FE-3), and of the case view's Registry tab and Re-check (spec 07b FE-2). The
+ * rest of the case view's copy is `components/review/case/messages.ts`. English; the Swahili
+ * slots come with the i18n pass.
  */
-/** "medium severity" for one indicator; "highest severity: high" for several. */
-function pinnedSeverity(count: number, severity: Severity): string {
-  const label = SEVERITY_LABELS[severity].toLowerCase();
-  return count === 1 ? `${label} severity` : `highest severity: ${label}`;
-}
-
 export const CASE_COPY = {
-  title: 'Review case',
   type: { initial: 'Initial', biennial: 'Biennial', final: 'Final' },
-  typeCycle: (type: string, cycle: number) => `${type}, cycle ${String(cycle)}`,
-  fileNumber: (number: string) => `File no. ${number}`,
-  received: (at: string) => `Received ${formatDate(at)}`,
-  lateFiling: 'Late filing',
-  version: (n: number, of: number) => `Version ${String(n)} of ${String(of)}`,
-  versionNote: (amendedAt: string, previous: number) =>
-    `Amended ${formatDate(amendedAt)}. Indicators were recomputed against version ${String(previous)}; reviewed indicators kept their notes.`,
-  aboutVersion: 'About this version',
-  windowOpen: (closes: string, daysLeft: number) =>
-    `Clarification window closes ${formatDate(closes)} · ${daysLeft === 0 ? 'today' : `${plural(daysLeft, 'day')} left`}`,
-  windowClosed: (closed: string) => `Clarification window closed ${formatDate(closed)}`,
-  assignedTo: 'Assigned to',
-  reviewersOfRecord: (count: number) => `${plural(count, 'reviewer')} of record`,
-  reviewersOfRecordTip: (names: string) =>
-    `Reviewers of record: ${names}. The supervisor who approves the determination must not be one of them.`,
-  readOnly: (holder: string) => `Read-only. ${holder} holds this case.`,
-  separation: 'You are a reviewer of record, so another supervisor must approve the determination.',
-  audit: 'Your access to this declaration is recorded in the audit trail.',
 
   claim: 'Claim',
   release: 'Release',
@@ -84,103 +60,8 @@ export const CASE_COPY = {
   },
   cancel: 'Cancel',
   retry: 'Try again',
+};
 
-  declaration: {
-    title: 'Declaration as filed',
-    unavailableTitle: 'The declaration could not be loaded.',
-    unavailableBody: 'Flags, notes and clarifications are still available.',
-    downloadFailed: 'The document could not be downloaded. Try again.',
-    pinned: (count: number) => plural(count, 'indicator'),
-    sectionPinnedLabel: (count: number, severity: Severity) =>
-      `${plural(count, 'indicator')} on this section, ${pinnedSeverity(count, severity)}. Show in flags.`,
-    pinnedLabel: (count: number, severity: Severity) =>
-      `${plural(count, 'indicator')} on this item, ${pinnedSeverity(count, severity)}. Show in flags.`,
-  },
-
-  tabsLabel: 'Case review',
-  views: { label: 'Show', declaration: 'Declaration', review: 'Flags and review' },
-  resizeLabel: 'Resize review panel',
-
-  flags: {
-    banner: 'Flags are indicators to guide your review. They are not findings.',
-    counts: (open: number, reviewed: number, closed: number) =>
-      [
-        `${String(open)} open`,
-        `${String(reviewed)} reviewed`,
-        closed ? `${String(closed)} closed` : '',
-      ]
-        .filter(Boolean)
-        .join(' · '),
-    howPriority: 'How priority is set',
-    howPriorityTip:
-      'Severity points: info 0, low 1, medium 3, high 7. Total below 3 is low priority, 3 to 9 medium, 10 or more high. Indicator for ordering only. Not a finding.',
-    severity: { high: 'High', medium: 'Medium', low: 'Low', info: 'Info' },
-    reviewedGroup: 'Reviewed',
-    closedGroup: 'Closed by re-check',
-    emptyTitle: 'No indicators',
-    emptyBody: 'The checks found nothing to point out.',
-    aboutIndicator: 'About this indicator',
-    evidence: 'Evidence: ',
-    recomputed: 'Recomputed',
-    recomputedTip: (version: number) =>
-      `Kept after version ${String(version)} was processed. The note stays with it.`,
-    goToItem: 'Go to item',
-    markReviewed: 'Mark reviewed',
-    noteLabel: 'What did you conclude?',
-    notePlaceholder: 'For example: the valuation report attached explains the increase',
-    noteRequired: 'Add a note to record what you concluded.',
-    noteTooLong: 'Notes can be up to 1,000 characters.',
-    reviewedBy: (name: string, at: string) => `Reviewed by ${name} on ${formatDate(at)}`,
-    closedNote: 'Closed by re-check: the registry no longer shows this.',
-    marked: 'Marked reviewed',
-    alreadyReviewed: 'Someone marked this flag reviewed first. It now shows their note.',
-    holderOnly: 'Only the reviewer holding the case marks flags reviewed.',
-  },
-
-  clarifications: {
-    emptyTitle: 'No clarifications yet',
-    emptyBody: 'None issued for this case.',
-    draft: 'Draft (no reference yet)',
-    issued: (at: string) => `Issued ${formatDate(at)}`,
-    due: (at: string) => `due ${formatDate(at)}`,
-    responded: (at: string) => `responded ${formatDate(at)}`,
-    resolved: (at: string) => `resolved ${formatDate(at)}`,
-    late: 'Late',
-  },
-
-  notes: {
-    label: 'Add note',
-    placeholder: 'What you checked and what is left',
-    hint: 'Notes are internal to your Commission. The declarant never sees them.',
-    add: 'Add note',
-    added: 'Note added',
-    required: 'Write a note first.',
-    tooLong: 'Notes can be up to 2,000 characters.',
-    emptyTitle: 'No notes yet',
-    emptyBody: 'Notes help a colleague pick up this case.',
-    max: 2000,
-  },
-
-  timeline: {
-    label: 'Case timeline',
-    emptyTitle: 'Nothing recorded yet',
-    emptyBody: 'Events on this case appear here.',
-  },
-
-  loadFailedTitle: 'We could not load this case',
-  loadFailedBody: 'The review service did not answer. Try again in a moment.',
-  notFoundTitle: 'Case not found',
-  notFoundBody: 'The link may be wrong, or the case belongs to another Commission.',
-  backToOverview: 'Back to overview',
-} as const;
-
-/** A flag's review note, as the service takes it. */
-export const FLAG_NOTE_MAX = 1000;
-
-/**
- * Copy of the Registry tab and the registry Re-check (spec 07b FE-2). English; the Swahili
- * slots come with the i18n pass. Registry names are the registries' own.
- */
 export const REGISTRY_COPY = {
   tab: 'Registry',
   attention: 'A registry could not be checked',

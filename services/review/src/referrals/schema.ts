@@ -12,6 +12,7 @@ import {
 } from 'drizzle-orm/pg-core';
 
 import { PROPOSER_KINDS } from '../approvals/schema.js';
+import { inList } from '../db/sql-list.js';
 
 /**
  * Referrals to EACC (spec 08, Regs r.20). Tenant data under the same row-level security as every
@@ -73,8 +74,6 @@ export interface ManifestItem {
   sha256: string;
   documentId: string | null;
 }
-
-const inList = (values: readonly string[]) => sql.raw(values.map((v) => `'${v}'`).join(', '));
 
 /**
  * A referral to EACC: proposed by a reviewer from a case, or by the referral sweep (`system`);

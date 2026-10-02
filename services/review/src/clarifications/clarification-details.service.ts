@@ -41,7 +41,9 @@ export class ClarificationDetailsService {
       items: rows.map(({ items, designation, ...row }) => ({
         ...row,
         designation: designation ?? '',
-        requirementLabels: [...new Set(items.map((item) => REQUIREMENT_LABELS[item.requirement]))],
+        requirementLabels: [
+          ...new Set(items.map((item) => REQUIREMENT_LABELS.en[item.requirement])),
+        ],
       })),
     };
   }

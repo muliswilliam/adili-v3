@@ -21,28 +21,30 @@ function item(target: Partial<ClarificationItem>): ClarificationItem {
 
 describe('itemLabel', () => {
   it('names a declared item by category, description and person', () => {
-    expect(itemLabel(item({ personKey: 'officer', itemId: plot.id }), document)).toBe(
+    expect(itemLabel(item({ personKey: 'officer', itemId: plot.id }), document, 'en')).toBe(
       'Assets · Plot in Kisumu · James Otieno',
     );
   });
 
   it("names a person's financial statement", () => {
-    expect(itemLabel(item({ sectionKey: 'statement:officer' }), document)).toBe(
+    expect(itemLabel(item({ sectionKey: 'statement:officer' }), document, 'en')).toBe(
       'Financial statement · James Otieno',
     );
-    expect(itemLabel(item({ personKey: 'officer' }), document)).toBe(
+    expect(itemLabel(item({ personKey: 'officer' }), document, 'en')).toBe(
       'Financial statement · James Otieno',
     );
   });
 
   it('names a section that is not a statement, even with the person it concerns', () => {
-    expect(itemLabel(item({ sectionKey: 'other', personKey: 'officer' }), document)).toBe(
+    expect(itemLabel(item({ sectionKey: 'other', personKey: 'officer' }), document, 'en')).toBe(
       'Other information',
     );
-    expect(itemLabel(item({ sectionKey: 'household' }), document)).toBe('Spouses and children');
+    expect(itemLabel(item({ sectionKey: 'household' }), document, 'en')).toBe(
+      'Spouses and children',
+    );
   });
 
   it('falls back to the declaration as a whole', () => {
-    expect(itemLabel(item({}), document)).toBe('Declaration');
+    expect(itemLabel(item({}), document, 'en')).toBe('Declaration');
   });
 });

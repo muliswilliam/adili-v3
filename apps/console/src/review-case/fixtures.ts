@@ -1,6 +1,6 @@
 import type { DeclarationV1 } from '@adili/forms';
 
-import type { CaseData, CaseFlag, CaseRegistryView } from '../server/review-case.server';
+import type { CaseFlag, CaseRegistryView, CaseViewDetail } from '../server/review-case.server';
 import type { CaseListItem } from '../server/review/types';
 
 /** A review case for tests of the case view: Wanjiku Kamau's declaration, three flags. */
@@ -120,6 +120,9 @@ export function caseItem(overrides: Partial<CaseListItem> = {}): CaseListItem {
   };
 }
 
+/** The case detail without its document (`DOCUMENT` is the declaration as filed). */
+export type CaseData = Omit<CaseViewDetail, 'document'>;
+
 export function caseData(overrides: Partial<CaseData> = {}): CaseData {
   return {
     case: caseItem(),
@@ -161,10 +164,10 @@ export function caseData(overrides: Partial<CaseData> = {}): CaseData {
         version: 1,
         submittedAt: '2026-09-21T13:05:00Z',
         late: true,
+        firstOnAdili: true,
       },
     ],
     reviewerHistory: [],
-    determinations: [],
     registry: { checkedAt: null, checks: [], recheckAvailableAt: null },
     ...overrides,
   };

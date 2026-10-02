@@ -5,7 +5,7 @@ import { queueSearchSchema } from '../review-queue/query';
 import type { QueueSummary } from '../review-queue/rows';
 import { SLUG_PATTERN } from './directory/contract';
 import { loadQueuePage, type QueuePage } from './review-queue.server';
-import { asStaffMember } from './review/as-staff-member.server';
+import { asReviewer } from './as-viewer.server';
 import { callService, type ServiceResult } from './service-call';
 
 export type { QueuePage };
@@ -31,7 +31,7 @@ export const getReviewQueue = createServerFn({ method: 'POST' })
     }),
   )
   .handler(({ data }): Promise<ServiceResult<QueuePage>> =>
-    asStaffMember((client) =>
+    asReviewer((client) =>
       loadQueuePage(client, data.slug, data.filters, { cursor: data.cursor, limit: data.limit }),
     ),
   );
@@ -40,7 +40,7 @@ export const getReviewQueue = createServerFn({ method: 'POST' })
 export const getReviewQueueSummary = createServerFn({ method: 'GET' })
   .validator(z.object({ slug }))
   .handler(({ data }): Promise<ServiceResult<QueueSummary>> =>
-    asStaffMember((client) =>
+    asReviewer((client) =>
       callService(() =>
         client.GET('/v1/commissions/{slug}/review/queue/summary', {
           params: { path: { slug: data.slug } },

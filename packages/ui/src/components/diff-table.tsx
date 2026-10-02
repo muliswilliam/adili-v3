@@ -4,307 +4,347 @@ import { cn } from '../lib/cn';
 import { focusRing } from '../lib/focus';
 import { formatMoney } from '../lib/money';
 import { Badge } from './badge';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './table';
 import { Tooltip } from './tooltip';
 
+/** Matched changes of this share or more are shaded (the `value-change-25` rule's threshold). */
+export const DIFF_HIGHLIGHT_PERCENT = 25;
+
 /**
- * How an item pairs across two versions. `matched`: the same item is in both. `only-current`:
- * new in the current version. `only-previous`: in the previous version, not in the current one.
+ * One item compared across two versions. An item in both versions is matched; one with a null
+ * side is unmatched (only in the current version, or no longer declared).
  */
-export type DiffMatch = 'matched' | 'only-current' | 'only-previous';
-
-export const DIFF_MATCHES: readonly DiffMatch[] = ['matched', 'only-current', 'only-previous'];
-
-export interface DiffTableRow {
-  /** A stable key. */
+export interface DiffRow {
   id: string;
-  /** The row header, e.g. the item's type ("Building"). */
-  item: ReactNode;
-  /** Under the item, e.g. its description. */
-  detail?: ReactNode;
-  match: DiffMatch;
-  /** Value in the previous version, in cents; null when the item is only in the current one. */
+  /** The item's type: "Building". */
+  label: string;
+  /** "4-bedroom house on LR 12715/482". */
+  description?: string;
+  /** In integer cents; null when the previous version does not have the item. */
   previousCents: number | null;
-  /** Value in the current version, in cents; null when the item is only in the previous one. */
+  /** In integer cents; null when the current version does not have the item. */
   currentCents: number | null;
   /**
-   * Change as a percentage of the previous value, e.g. 40.83; null when the previous value was
-   * zero. Worked out from the values when left out.
+   * The change as a percentage of the previous value, as the review service computed it; null
+   * when the previous value was zero. Computed when left out.
    */
   deltaPercent?: number | null;
-  /** Under the match label, e.g. "Marked as changed". */
+  /** A short line under the match label: "Marked as changed", "marked as acquired". */
   note?: ReactNode;
 }
 
-export interface DiffTableGroup {
-  /** A stable key, e.g. the category. */
+/** A category of items, e.g. Assets, under its own heading row. */
+export interface DiffGroup {
   id: string;
-  /** The group's heading row, e.g. "Assets". */
-  label: ReactNode;
-  rows: DiffTableRow[];
+  /** Leave out for a table with a single unnamed group. */
+  label?: string;
+  rows: DiffRow[];
+}
+
+export type DiffKind = 'matched' | 'only-current' | 'only-previous';
+
+/** What a row is: in both versions, or in only one. */
+export function diffKind({ previousCents, currentCents }: DiffRow): DiffKind {
+  if (previousCents === null) return 'only-current';
+  if (currentCents === null) return 'only-previous';
+  return 'matched';
+}
+
+/** The change in cents, counting a missing side as zero. */
+export function diffDelta({ previousCents, currentCents }: DiffRow): number {
+  return (currentCents ?? 0) - (previousCents ?? 0);
+}
+
+/**
+ * A matched row's change as a percentage: the row's own `deltaPercent` when given, else computed;
+ * null when the previous value was zero or the row is unmatched.
+ */
+export function diffPercent(row: DiffRow): number | null {
+  if (diffKind(row) !== 'matched') return null;
+  if (row.deltaPercent !== undefined) return row.deltaPercent;
+  return row.previousCents ? (diffDelta(row) / row.previousCents) * 100 : null;
 }
 
 export interface DiffTableMessages {
   item: string;
-  version: (version: number, currency: string) => string;
-  change: (currency: string) => string;
+  /** A version's column: `2` → "Version 2 (KES)". */
+  versionColumn: (version: number) => string;
+  change: string;
   percent: string;
   match: string;
   matched: string;
   unmatched: string;
-  /** Under "Unmatched" on a row only in the current version. */
-  onlyCurrent: (version: number) => string;
-  /** Under "Unmatched" on a row only in the previous version. */
-  onlyPrevious: string;
-  /** Read for an empty value cell, shown as "-". */
-  noValue: string;
-  /** Read for a matched row's change. */
-  noChange: string;
-  increase: (amount: string, percent: string | null) => string;
-  decrease: (amount: string, percent: string | null) => string;
-  added: (amount: string) => string;
-  removed: (amount: string) => string;
-  /** Tooltip and accessible name of "n/a" when the previous value was zero. */
-  noPercent: string;
-  /** Read for "n/a" on an unmatched row. */
+  /** Under an unmatched row's label. */
+  onlyInCurrent: (version: number) => string;
+  notInCurrent: string;
+  /** An empty amount cell, for screen readers (the cell shows a dash). */
+  none: string;
+  /** "n/a" in the percentage column. */
   notApplicable: string;
-  /** Shown instead of the table when no group has rows. */
-  empty: string;
+  /** Why a matched row has no percentage: tooltip and screen reader text. */
+  noPercentReason: string;
+  /** Why an unmatched row has no percentage, for screen readers. */
+  unmatchedPercentReason: string;
+  /** The change cell, for screen readers. Amounts are formatted, e.g. "KES 4,900,000". */
+  increase: (amount: string) => string;
+  decrease: (amount: string) => string;
+  noChange: string;
+  newItem: (amount: string) => string;
+  removedItem: (amount: string) => string;
+  /** The percentage cell, for screen readers: "40.8" → "Up 40.8 percent". */
+  percentUp: (percent: string) => string;
+  percentDown: (percent: string) => string;
+  /** A change too small for one decimal: "0.1" → "less than 0.1" (shown as "+<0.1%"). */
+  lessThan: (percent: string) => string;
 }
 
-export const DIFF_TABLE_MESSAGES: DiffTableMessages = {
+const DEFAULT_MESSAGES: DiffTableMessages = {
   item: 'Item',
-  version: (version, currency) => `Version ${String(version)} (${currency})`,
-  change: (currency) => `Change (${currency})`,
+  versionColumn: (version) => `Version ${String(version)} (KES)`,
+  change: 'Change (KES)',
   percent: '%',
   match: 'Match',
   matched: 'Matched',
   unmatched: 'Unmatched',
-  onlyCurrent: (version) => `Only in version ${String(version)}`,
-  onlyPrevious: 'Not in current version',
-  noValue: 'None',
-  noChange: 'No change.',
-  increase: (amount, percent) =>
-    `Increase of ${amount}, ${percent === null ? 'no percentage because the previous value was zero' : `${percent} percent`}.`,
-  decrease: (amount, percent) =>
-    `Decrease of ${amount}, ${percent === null ? 'no percentage because the previous value was zero' : `${percent} percent`}.`,
-  added: (amount) => `New item worth ${amount}.`,
-  removed: (amount) => `Item no longer declared, previously ${amount}.`,
-  noPercent: 'No percentage: the previous value was zero',
-  notApplicable: 'Not applicable',
-  empty: 'Nil declared in both versions',
+  onlyInCurrent: (version) => `Only in version ${String(version)}`,
+  notInCurrent: 'Not in current version',
+  none: 'None',
+  notApplicable: 'n/a',
+  noPercentReason: 'No percentage: the previous value was zero',
+  unmatchedPercentReason: 'No percentage: the item is in one version only',
+  increase: (amount) => `Increase of ${amount}`,
+  decrease: (amount) => `Decrease of ${amount}`,
+  noChange: 'No change',
+  newItem: (amount) => `New item worth ${amount}`,
+  removedItem: (amount) => `No longer declared, previously ${amount}`,
+  percentUp: (percent) => `Up ${percent} percent`,
+  percentDown: (percent) => `Down ${percent} percent`,
+  lessThan: (percent) => `less than ${percent}`,
 };
 
-export type DiffTableProps = Omit<ComponentProps<'div'>, 'children'> & {
-  groups: DiffTableGroup[];
-  previousVersion: number;
-  currentVersion: number;
-  /** Names the table for screen readers, e.g. "Changes for Wanjiku Kamau between version 1 and version 2". */
-  caption: string;
-  /** Shown in the column headers and read with each change. Defaults to "KES". */
-  currency?: string;
-  /** A matched row whose change is at least this percent, up or down, has its % cell tinted. */
-  highlightPercent?: number;
-  /** Replaces any of the default copy. */
-  messages?: Partial<DiffTableMessages>;
-};
-
+// A true minus sign, so negative amounts line up with positive ones in tabular figures.
 const MINUS = '−';
 
-type Direction = 'up' | 'down' | 'zero';
+const signed = (cents: number) =>
+  `${cents > 0 ? '+' : cents < 0 ? MINUS : ''}${formatMoney(Math.abs(cents))}`;
 
-const directionClass: Record<Direction, string> = {
+const kes = (cents: number) => formatMoney(Math.abs(cents), { currency: 'KES' });
+
+/** `40.8333` → `40.8`, `-11.27` → `11.3`: one decimal, no sign. */
+const percentDigits = (percent: number) => (Math.round(Math.abs(percent) * 10) / 10).toFixed(1);
+
+const direction = (cents: number) => (cents > 0 ? 'up' : cents < 0 ? 'down' : 'zero');
+
+const DIRECTION_TEXT = {
   up: 'font-semibold text-warning',
   down: 'font-semibold text-info-subtle-foreground',
   zero: 'text-muted-foreground',
-};
+} as const;
 
-const roundPercent = (percent: number) => (Math.round(percent * 10) / 10).toFixed(1);
-
-/** Text shown, hidden from screen readers, with what they read instead. */
-function Spoken({ shown, read }: { shown: ReactNode; read: string }) {
+/** Visible text for sighted readers and a sentence for screen readers. */
+function Spoken({ shown, said }: { shown: ReactNode; said: string }) {
   return (
     <>
       <span aria-hidden="true">{shown}</span>
-      <span className="sr-only">{read}</span>
+      <span className="sr-only">{said}</span>
     </>
   );
 }
 
-const cell = 'px-2 py-[9px] text-right align-top whitespace-nowrap tabular-nums last:pr-2';
+export type DiffTableProps = Omit<ComponentProps<'table'>, 'children'> & {
+  /** Names the table for screen readers: "Changes for Wanjiku Kamau between version 1 and 2". */
+  caption: string;
+  previousVersion: number;
+  currentVersion: number;
+  groups: DiffGroup[];
+  /** Matched changes of this many percent or more are shaded. */
+  highlightPercent?: number;
+  messages?: Partial<DiffTableMessages>;
+};
 
 /**
- * Two versions of a statement side by side: per item the previous and current values, the
- * change and the percentage, and whether the item matched across versions. Items only in one
- * version are "Unmatched", on a faint fill, with where they are. Increases are amber, decreases
- * blue; a change of `highlightPercent` or more tints its % cell. Each change is also read out
- * in words ("Increase of KES 4,900,000, 40.8 percent."); a percentage that cannot be worked out
- * (previous value zero) shows "n/a" with the reason in a tooltip and the accessible name.
+ * Items compared between two versions of a declaration: before, after, the change and the
+ * percentage, and whether the item matched across versions. Each item is a row header. The change
+ * is read out in words ("Increase of KES 4,900,000"); a matched item whose previous value was zero
+ * shows "n/a" with a tooltip saying why. Matched changes of 25% or more are shaded; unmatched
+ * items sit on a warm fill with "Only in version 2" or "Not in current version".
  */
 export function DiffTable({
-  groups,
+  caption,
   previousVersion,
   currentVersion,
-  caption,
-  currency = 'KES',
-  highlightPercent = 25,
-  messages: overrides,
+  groups,
+  highlightPercent = DIFF_HIGHLIGHT_PERCENT,
+  messages,
   className,
   ...props
 }: DiffTableProps) {
-  const messages = { ...DIFF_TABLE_MESSAGES, ...overrides };
-  const filled = groups.filter((group) => group.rows.length > 0);
-
-  if (filled.length === 0) {
-    return (
-      <p className={cn('text-[13px] text-muted-foreground', className)} {...props}>
-        {messages.empty}
-      </p>
-    );
-  }
-
-  const amount = (cents: number) => formatMoney(cents);
-  const spokenAmount = (cents: number) => formatMoney(cents, { currency });
-  const signed = (cents: number) =>
-    `${cents > 0 ? '+' : cents < 0 ? MINUS : ''}${amount(Math.abs(cents))}`;
-  const none = <Spoken shown="-" read={messages.noValue} />;
-  const notApplicable = <Spoken shown="n/a" read={messages.notApplicable} />;
-  const columns = 6;
-
-  function renderRow(row: DiffTableRow) {
-    const header = (
-      <TableHead
-        scope="row"
-        className="min-w-[150px] px-2 py-[9px] align-top font-medium first:pl-2"
+  const copy = { ...DEFAULT_MESSAGES, ...messages };
+  const head = 'bg-background/60 px-2 py-[9px] text-xs font-medium whitespace-nowrap';
+  return (
+    <div className="relative w-full overflow-x-auto">
+      <table
+        className={cn('w-full border-collapse text-[13.5px] tabular-nums', className)}
+        {...props}
       >
-        {row.item}
-        {row.detail ? (
-          <div className="mt-px text-[12.5px] font-normal text-muted-foreground">{row.detail}</div>
-        ) : null}
-      </TableHead>
-    );
-    const note = row.note ? (
-      <div className="mt-[3px] text-xs text-muted-foreground">{row.note}</div>
-    ) : null;
-
-    if (row.match === 'matched') {
-      const previous = row.previousCents ?? 0;
-      const current = row.currentCents ?? 0;
-      const delta = current - previous;
-      const percent =
-        row.deltaPercent !== undefined
-          ? row.deltaPercent
-          : previous === 0
-            ? null
-            : (delta / previous) * 100;
-      const direction: Direction = delta > 0 ? 'up' : delta < 0 ? 'down' : 'zero';
-      const percentText = percent === null ? null : roundPercent(Math.abs(percent));
-      const big = percent !== null && Math.abs(percent) >= highlightPercent;
-      const read =
-        delta === 0
-          ? messages.noChange
-          : (delta > 0 ? messages.increase : messages.decrease)(
-              spokenAmount(Math.abs(delta)),
-              percentText,
-            );
-      return (
-        <TableRow key={row.id} data-match={row.match} data-highlight={big || undefined}>
-          {header}
-          <TableCell className={cell}>{amount(previous)}</TableCell>
-          <TableCell className={cell}>{amount(current)}</TableCell>
-          <TableCell className={cn(cell, directionClass[direction])}>
-            <Spoken shown={signed(delta)} read={read} />
-          </TableCell>
-          <TableCell
-            className={cn(cell, directionClass[direction], big && 'bg-warning-subtle')}
-            data-percent={percent === null ? 'none' : undefined}
-          >
-            {percent === null ? (
-              <Tooltip content={messages.noPercent}>
-                <span
-                  role="img"
-                  tabIndex={0}
-                  aria-label={messages.noPercent}
-                  className={cn('rounded-sm', focusRing)}
+        <caption className="sr-only">{caption}</caption>
+        <thead className="text-muted-foreground">
+          <tr className="border-b">
+            <th scope="col" className={cn(head, 'text-left')}>
+              {copy.item}
+            </th>
+            <th scope="col" className={cn(head, 'text-right')}>
+              {copy.versionColumn(previousVersion)}
+            </th>
+            <th scope="col" className={cn(head, 'text-right')}>
+              {copy.versionColumn(currentVersion)}
+            </th>
+            <th scope="col" className={cn(head, 'text-right')}>
+              {copy.change}
+            </th>
+            <th scope="col" className={cn(head, 'text-right')}>
+              {copy.percent}
+            </th>
+            <th scope="col" className={cn(head, 'text-left')}>
+              {copy.match}
+            </th>
+          </tr>
+        </thead>
+        {groups.map((group) => (
+          <tbody key={group.id}>
+            {group.label ? (
+              <tr className="border-b">
+                <th
+                  scope="rowgroup"
+                  colSpan={6}
+                  className="bg-muted/50 px-2.5 py-1.5 text-left text-xs font-semibold tracking-[0.02em] text-muted-foreground"
                 >
-                  n/a
-                </span>
-              </Tooltip>
-            ) : (
-              `${percent > 0 ? '+' : percent < 0 ? MINUS : ''}${roundPercent(Math.abs(percent))}%`
-            )}
-          </TableCell>
-          <TableCell className="min-w-[104px] px-2 py-[9px] align-top last:pr-2">
-            <Badge variant="success">{messages.matched}</Badge>
-            {note}
-          </TableCell>
-        </TableRow>
-      );
-    }
+                  {group.label}
+                </th>
+              </tr>
+            ) : null}
+            {group.rows.map((row) => (
+              <DiffTableRow
+                key={row.id}
+                row={row}
+                currentVersion={currentVersion}
+                highlightPercent={highlightPercent}
+                copy={copy}
+              />
+            ))}
+          </tbody>
+        ))}
+      </table>
+    </div>
+  );
+}
 
-    const onlyCurrent = row.match === 'only-current';
-    const value = (onlyCurrent ? row.currentCents : row.previousCents) ?? 0;
-    return (
-      <TableRow key={row.id} data-match={row.match} className="bg-note">
-        {header}
-        <TableCell className={cn(cell, onlyCurrent && 'text-muted-foreground')}>
-          {onlyCurrent ? none : amount(value)}
-        </TableCell>
-        <TableCell className={cn(cell, !onlyCurrent && 'text-muted-foreground')}>
-          {onlyCurrent ? amount(value) : none}
-        </TableCell>
-        <TableCell className={cn(cell, directionClass[onlyCurrent ? 'up' : 'down'])}>
-          <Spoken
-            shown={signed(onlyCurrent ? value : -value)}
-            read={(onlyCurrent ? messages.added : messages.removed)(spokenAmount(value))}
-          />
-        </TableCell>
-        <TableCell className={cn(cell, 'text-muted-foreground')}>{notApplicable}</TableCell>
-        <TableCell className="max-w-[160px] min-w-[104px] px-2 py-[9px] align-top last:pr-2">
-          <Badge variant="warning">{messages.unmatched}</Badge>
-          <div className="mt-[3px] text-xs whitespace-normal text-muted-foreground">
-            {onlyCurrent ? messages.onlyCurrent(currentVersion) : messages.onlyPrevious}
-            {row.note ? <> · {row.note}</> : null}
-          </div>
-        </TableCell>
-      </TableRow>
+function DiffTableRow({
+  row,
+  currentVersion,
+  highlightPercent,
+  copy,
+}: {
+  row: DiffRow;
+  currentVersion: number;
+  highlightPercent: number;
+  copy: DiffTableMessages;
+}) {
+  const kind = diffKind(row);
+  const delta = diffDelta(row);
+  const percent = diffPercent(row);
+  const dir = direction(delta);
+  const big = percent !== null && Math.abs(percent) >= highlightPercent;
+  const cell = 'border-b px-2 py-[9px] text-right align-top whitespace-nowrap';
+
+  const amount = (cents: number | null) =>
+    cents === null ? (
+      <td className={cn(cell, 'text-muted-foreground')}>
+        <Spoken shown="-" said={copy.none} />
+      </td>
+    ) : (
+      <td className={cell}>{formatMoney(cents)}</td>
+    );
+
+  let deltaSaid: string;
+  if (kind === 'only-current') deltaSaid = copy.newItem(kes(delta));
+  else if (kind === 'only-previous') deltaSaid = copy.removedItem(kes(delta));
+  else if (delta > 0) deltaSaid = copy.increase(kes(delta));
+  else if (delta < 0) deltaSaid = copy.decrease(kes(delta));
+  else deltaSaid = copy.noChange;
+
+  let percentCell: ReactNode;
+  if (kind !== 'matched') {
+    percentCell = <Spoken shown={copy.notApplicable} said={copy.unmatchedPercentReason} />;
+  } else if (percent === null) {
+    percentCell = (
+      <Tooltip content={copy.noPercentReason}>
+        <span tabIndex={0} className={cn(focusRing, 'cursor-help rounded-xs')}>
+          <Spoken shown={copy.notApplicable} said={copy.noPercentReason} />
+        </span>
+      </Tooltip>
+    );
+  } else if (delta === 0) {
+    percentCell = <Spoken shown="0.0%" said={copy.noChange} />;
+  } else {
+    // Under 0.05% one decimal rounds to 0.0, which would read as no change.
+    const tiny = percentDigits(percent) === '0.0';
+    const digits = tiny ? '0.1' : percentDigits(percent);
+    const said = tiny ? copy.lessThan(digits) : digits;
+    percentCell = (
+      <Spoken
+        shown={`${percent > 0 ? '+' : MINUS}${tiny ? '<' : ''}${digits}%`}
+        said={percent > 0 ? copy.percentUp(said) : copy.percentDown(said)}
+      />
     );
   }
 
-  const columnHead = 'px-2 py-[9px] text-right text-xs first:pl-2 last:pr-2';
+  const status =
+    kind === 'only-current'
+      ? copy.onlyInCurrent(currentVersion)
+      : kind === 'only-previous'
+        ? copy.notInCurrent
+        : null;
 
   return (
-    <div className={className} {...props}>
-      <Table caption={caption} className="text-[13.5px]">
-        <TableHeader>
-          <TableRow>
-            <TableHead className={cn(columnHead, 'text-left')}>{messages.item}</TableHead>
-            <TableHead className={columnHead}>
-              {messages.version(previousVersion, currency)}
-            </TableHead>
-            <TableHead className={columnHead}>
-              {messages.version(currentVersion, currency)}
-            </TableHead>
-            <TableHead className={columnHead}>{messages.change(currency)}</TableHead>
-            <TableHead className={columnHead}>{messages.percent}</TableHead>
-            <TableHead className={cn(columnHead, 'text-left')}>{messages.match}</TableHead>
-          </TableRow>
-        </TableHeader>
-        {filled.map((group) => (
-          <TableBody key={group.id} className="[&_tr:last-child]:border-b">
-            <TableRow className="bg-muted/50">
-              <TableHead
-                scope="rowgroup"
-                colSpan={columns}
-                className="px-2.5 py-1.5 text-xs font-semibold tracking-[0.02em] text-muted-foreground first:pl-2.5"
-              >
-                {group.label}
-              </TableHead>
-            </TableRow>
-            {group.rows.map(renderRow)}
-          </TableBody>
-        ))}
-      </Table>
-    </div>
+    <tr
+      data-kind={kind}
+      data-big={big ? '' : undefined}
+      className={cn(kind !== 'matched' && 'bg-warning-subtle/25')}
+    >
+      <th scope="row" className={cn(cell, 'min-w-[150px] text-left font-medium whitespace-normal')}>
+        {row.label}
+        {row.description ? (
+          <div className="mt-px text-[12.5px] font-normal text-muted-foreground">
+            {row.description}
+          </div>
+        ) : null}
+      </th>
+      {amount(row.previousCents)}
+      {amount(row.currentCents)}
+      <td className={cn(cell, DIRECTION_TEXT[dir])}>
+        <Spoken shown={delta === 0 ? '0' : signed(delta)} said={deltaSaid} />
+      </td>
+      <td
+        className={cn(
+          cell,
+          kind === 'matched' ? DIRECTION_TEXT[dir] : 'text-muted-foreground',
+          big && 'bg-warning-subtle',
+        )}
+      >
+        {percentCell}
+      </td>
+      <td className={cn(cell, 'max-w-[130px] min-w-[104px] text-left whitespace-normal')}>
+        <Badge variant={kind === 'matched' ? 'success' : 'warning'}>
+          {kind === 'matched' ? copy.matched : copy.unmatched}
+        </Badge>
+        {status || row.note ? (
+          <div className="mt-[3px] text-[13.5px] text-muted-foreground">
+            {status}
+            {status && row.note ? ' · ' : null}
+            {row.note}
+          </div>
+        ) : null}
+      </td>
+    </tr>
   );
 }

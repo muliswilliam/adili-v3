@@ -39,7 +39,6 @@ import { DiscardDraftButton } from './discard-dialog';
 import { AffirmationDialog, StepUpFailedAlert, useSubmitFlow } from './submit-flow';
 import { type StepUpMarker, SUBMIT_COPY } from './submit';
 import { fullName, orUnanswered, UNANSWERED } from '../../declaration/format';
-import { issueText } from '../../declaration/issue-text';
 import { sourceDetails } from '../../declaration/item-source';
 import { OFFICER_KEY, statementSectionKey } from '../../declaration/section-key';
 import {
@@ -67,6 +66,7 @@ import {
 import {
   type AnyItem,
   blockingGroups,
+  issueText,
   blockingTitle,
   childDetails,
   childrenEmptyText,
@@ -131,10 +131,13 @@ function BlockingPanel({
   declarationId,
   blocking,
   sections,
+  document,
 }: {
   declarationId: string;
   blocking: LoadedSummary['blocking'];
   sections: Sections;
+  /** Names the items the issues are on. */
+  document: SummaryDocument;
 }) {
   const headingId = useId();
   const { groups, hidden } = blockingGroups(blocking, sections);
@@ -152,7 +155,7 @@ function BlockingPanel({
               {group.issues.map((issue) => (
                 <li key={`${issue.path}-${issue.code}-${issue.message}`} className="list-disc">
                   <ErrorsLink declarationId={declarationId} step={group.key}>
-                    {issueText(issue)}
+                    {issueText(issue, document)}
                   </ErrorsLink>
                 </li>
               ))}
@@ -765,6 +768,7 @@ export function SummaryView({ summary: loaded, stepUpMarker = null }: SummaryVie
           declarationId={declaration.id}
           blocking={blocking}
           sections={declaration.sections}
+          document={document}
         />
       ) : (
         <Alert variant="success">

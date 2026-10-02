@@ -61,7 +61,8 @@ jobs:
       - run: pnpm format:check
       # One task per vCPU (2 on this runner): more starves the test suites, whose timeouts then
       # fire on tests that take milliseconds locally.
-      - run: pnpm turbo run lint typecheck test build --filter='!@adili/mocks' --cache-dir=.turbo --concurrency=2
+      # `eval` replays each AI task's golden set against its recorded outputs (ai-gateway evals/).
+      - run: pnpm turbo run lint typecheck test eval build --filter='!@adili/mocks' --cache-dir=.turbo --concurrency=2
       - run: pnpm deps:check
       # Typecheck and build regenerate these (route trees, clients generated from the committed
       # contracts), so a stale committed copy shows up as a diff.

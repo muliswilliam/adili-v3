@@ -1,57 +1,64 @@
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 
-import { AssigneeChip } from './assignee-chip';
+import { AssigneeChip, initialsOf } from './assignee-chip';
+
+const FAITH = { subject: 'faith', name: 'Faith Achieng' };
+const PETER = { subject: 'peter', name: 'Peter Mwangi Kariuki' };
+
+describe('initialsOf', () => {
+  it('takes the first and last names, or one for a single name', () => {
+    expect(initialsOf('Faith Achieng')).toBe('FA');
+    expect(initialsOf('Peter Mwangi Kariuki')).toBe('PK');
+    expect(initialsOf('  halima  ')).toBe('H');
+    expect(initialsOf('')).toBe('');
+  });
+});
 
 describe('AssigneeChip', () => {
-  it('shows another officer by name with their initials', () => {
-    const { container } = render(<AssigneeChip name="Peter Mwangi" />);
+  it('shows another officer by initials and name', () => {
+    const { container } = render(<AssigneeChip assignee={PETER} viewerSubject="faith" />);
 
     const chip = container.firstElementChild as HTMLElement;
-    expect(chip.textContent).toBe('PMPeter Mwangi');
-    expect(chip.dataset.assignee).toBe('other');
-    expect(chip.querySelector('[aria-hidden="true"]')?.textContent).toBe('PM');
+    expect(chip.textContent).toBe('PKPeter Mwangi Kariuki');
+    expect(chip.getAttribute('data-assignee')).toBe('other');
+    expect(chip.querySelector('[aria-hidden="true"]')?.textContent).toBe('PK');
   });
 
-  it('marks the signed-in user with "(you)" and the brand avatar', () => {
-    const { container } = render(<AssigneeChip name="Faith Achieng" current />);
-
-    expect(screen.getByText('(you)')).toBeTruthy();
-    expect(container.querySelector('[data-current]')?.className).toContain('to-brand');
-  });
-
-  it('reads "You" in a compact chip, with the name on hover', () => {
-    const { container } = render(<AssigneeChip name="Faith Achieng" current compact />);
+  it('marks the signed-in officer', () => {
+    const { container } = render(<AssigneeChip assignee={FAITH} viewerSubject="faith" />);
 
     const chip = container.firstElementChild as HTMLElement;
-    expect(chip.textContent).toBe('FAYou');
-    expect(chip.title).toBe('Faith Achieng');
+    expect(chip.textContent).toBe('FAFaith Achieng (you)');
+    expect(chip.getAttribute('data-assignee')).toBe('me');
+    expect(chip.querySelector('[data-me]')).not.toBeNull();
   });
 
-  it('keeps the name of another officer in a compact chip', () => {
-    render(<AssigneeChip name="Peter Mwangi" compact />);
-
-    expect(screen.getByText('Peter Mwangi')).toBeTruthy();
-  });
-
-  it('says nobody holds the case', () => {
-    const { container } = render(<AssigneeChip name={null} />);
+  it('reads "You" when compact, keeping the full name for hover and screen readers', () => {
+    const { container } = render(<AssigneeChip assignee={FAITH} viewerSubject="faith" compact />);
 
     const chip = container.firstElementChild as HTMLElement;
-    expect(chip.textContent).toBe('Unassigned');
-    expect(chip.dataset.assignee).toBe('none');
-    expect(chip.className).toContain('border-dashed');
+    expect(chip.getAttribute('title')).toBe('Faith Achieng');
+    expect(screen.getByText('You').getAttribute('aria-hidden')).toBe('true');
+    expect(screen.getByText('Faith Achieng (you)').className).toContain('sr-only');
   });
 
-  it('takes other wording', () => {
-    render(
-      <>
-        <AssigneeChip messages={{ unassigned: 'Hakuna' }} />
-        <AssigneeChip name="Faith Achieng" current messages={{ you: '(wewe)' }} />
-      </>,
-    );
+  it('shows another officer in full when compact', () => {
+    render(<AssigneeChip assignee={PETER} viewerSubject="faith" compact />);
 
-    expect(screen.getByText('Hakuna')).toBeTruthy();
-    expect(screen.getByText('(wewe)')).toBeTruthy();
+    expect(screen.getByText('Peter Mwangi Kariuki')).toBeTruthy();
+  });
+
+  it('is nobody without a viewer', () => {
+    const { container } = render(<AssigneeChip assignee={FAITH} />);
+
+    expect(container.firstElementChild?.getAttribute('data-assignee')).toBe('other');
+  });
+
+  it('says when nobody holds the case', () => {
+    const { container } = render(<AssigneeChip assignee={null} viewerSubject="faith" />);
+
+    expect(container.firstElementChild?.textContent).toBe('Unassigned');
+    expect(container.firstElementChild?.getAttribute('data-assignee')).toBe('none');
   });
 });

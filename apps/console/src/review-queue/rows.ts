@@ -1,6 +1,6 @@
-import type { Priority } from '@adili/ui';
+import type { PriorityBand } from '@adili/ui';
 
-import { type AssignmentAction, assignmentActions, type CaseViewer } from '../review-case/view';
+import { type AssignmentAction, assignmentActions, type CaseViewer } from '../review-case/case';
 import type { components } from '../server/review/api.gen';
 import type { CaseListItem } from '../server/review/types';
 import type { QueueTile } from './query';
@@ -15,10 +15,10 @@ export type QueueSummary = components['schemas']['QueueSummary'];
 /** A tile's count and its split by priority, highest first. */
 export interface TileCount {
   total: number;
-  bands: { band: Priority; value: number }[];
+  bands: { band: PriorityBand; value: number }[];
 }
 
-const BANDS: readonly Priority[] = ['high', 'medium', 'low'];
+const BANDS: readonly PriorityBand[] = ['high', 'medium', 'low'];
 
 export function tileCount(summary: QueueSummary, tile: QueueTile): TileCount {
   const counts = tile === 'mine' ? summary.mine : summary.byStatusAndBand[tile];

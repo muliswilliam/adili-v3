@@ -35,6 +35,9 @@ import type { ClarificationView } from './representation.js';
 
 const NOT_VISIBLE = 'Not found, or not visible to the caller';
 const NOT_ASSIGNEE = 'Caller is not the assignee of the case';
+/** A draft's save names a Draft with AI job (ADR-007) that is not the caller's on the case. */
+const AI_DRAFT_NOT_ON_CASE =
+  'Body failed validation, or problem type `ai-draft-not-on-case`: an `aiJobId` or `openingAiJobId` the clarification does not already name that names no ready Draft with AI the caller asked for on the case (one whose 24 hours are over still counts: only its text is purged)';
 
 const ApiUuidParam = (name: string) =>
   ApiParam({ name, schema: { type: 'string', format: 'uuid' } });
@@ -57,7 +60,7 @@ export class ClarificationsController {
     summary: 'Create a clarification draft (assignee only)',
   })
   @ApiCreatedResponse({ description: 'Draft', schema: schemaRef('Clarification') })
-  @ApiProblemResponse(400, 'Body failed validation')
+  @ApiProblemResponse(400, AI_DRAFT_NOT_ON_CASE)
   @ApiProblemResponse(403, NOT_ASSIGNEE)
   @ApiProblemResponse(404, NOT_VISIBLE)
   createDraft(
@@ -122,9 +125,12 @@ export class ClarificationsController {
   @AcceptIdempotencyKey()
   @ApiUuidParam('clarificationId')
   @ApiBody({ required: true, schema: schemaRef('ClarificationInput') })
-  @ApiOperation({ operationId: 'updateClarificationDraft', summary: "Update a draft's items" })
+  @ApiOperation({
+    operationId: 'updateClarificationDraft',
+    summary: "Update a draft's items and opening paragraph",
+  })
   @ApiOkResponse({ description: 'Draft', schema: schemaRef('Clarification') })
-  @ApiProblemResponse(400, 'Body failed validation')
+  @ApiProblemResponse(400, AI_DRAFT_NOT_ON_CASE)
   @ApiProblemResponse(403, NOT_ASSIGNEE)
   @ApiProblemResponse(404, NOT_VISIBLE)
   @ApiProblemResponse(409, 'Problem code `not-a-draft`')

@@ -1,134 +1,151 @@
 import { fireEvent, render, screen } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
 import { useState } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 
 import { SplitPane, type SplitPaneProps } from './split-pane';
 
 function renderPane(props: Partial<SplitPaneProps> = {}) {
-  const view = render(
+  render(
     <SplitPane
       main={<p>Declaration</p>}
-      side={<p>Review</p>}
-      label="Resize review panel"
-      defaultSize={440}
+      side={<p>Flags</p>}
+      mainLabel="Declaration as filed"
+      sideLabel="Review tools"
+      handleLabel="Resize review panel"
       {...props}
     />,
   );
-  const handle = screen.getByRole('separator', { name: 'Resize review panel' });
-  const root = view.container.firstElementChild as HTMLElement;
-  return { handle, root };
+  return screen.getByRole('separator', { name: 'Resize review panel' });
 }
 
 describe('SplitPane', () => {
-  it('is a focusable vertical separator valued by the side pane width', () => {
-    const { handle, root } = renderPane();
+  it('names both panes and ties the handle to the side pane', () => {
+    const handle = renderPane();
 
-    expect(handle.tabIndex).toBe(0);
+    expect(screen.getByRole('region', { name: 'Declaration as filed' }).textContent).toBe(
+      'Declaration',
+    );
+    const side = screen.getByRole('complementary', { name: 'Review tools' });
+    expect(handle.getAttribute('aria-controls')).toBe(side.id);
     expect(handle.getAttribute('aria-orientation')).toBe('vertical');
-    expect(handle.getAttribute('aria-valuenow')).toBe('440');
+    expect(handle.tabIndex).toBe(0);
     expect(handle.getAttribute('aria-valuemin')).toBe('340');
     expect(handle.getAttribute('aria-valuemax')).toBe('720');
-    expect(document.getElementById(handle.getAttribute('aria-controls') ?? '')?.textContent).toBe(
-      'Review',
-    );
-    expect(root.style.getPropertyValue('--split-side')).toBe('440px');
+    expect(handle.getAttribute('aria-valuenow')).toBe('440');
   });
 
-  it('widens the side pane with the left arrow and narrows it with the right', async () => {
-    const user = userEvent.setup();
-    const onSizeChange = vi.fn();
-    const { handle, root } = renderPane({ onSizeChange });
+  it('resizes with the arrow keys, Home and End, within the limits', () => {
+    const onSideWidthChange = vi.fn();
+    const handle = renderPane({ defaultSideWidth: 460, onSideWidthChange });
 
-    await user.tab();
-    expect(document.activeElement).toBe(handle);
-    await user.keyboard('{ArrowLeft}{ArrowLeft}');
-    expect(handle.getAttribute('aria-valuenow')).toBe('488');
-    expect(root.style.getPropertyValue('--split-side')).toBe('488px');
-    await user.keyboard('{ArrowRight}');
-    expect(handle.getAttribute('aria-valuenow')).toBe('464');
-    expect(onSizeChange.mock.calls).toEqual([[464], [488], [464]]);
-  });
-
-  it('jumps to the limits with Home and End, and stays within them', async () => {
-    const user = userEvent.setup();
-    const onSizeChange = vi.fn();
-    const { handle } = renderPane({ onSizeChange, step: 200 });
-
-    handle.focus();
-    await user.keyboard('{Home}');
+    fireEvent.keyDown(handle, { key: 'ArrowLeft' });
+    expect(handle.getAttribute('aria-valuenow')).toBe('484');
+    fireEvent.keyDown(handle, { key: 'ArrowRight' });
+    fireEvent.keyDown(handle, { key: 'ArrowRight' });
+    expect(handle.getAttribute('aria-valuenow')).toBe('436');
+    fireEvent.keyDown(handle, { key: 'Home' });
     expect(handle.getAttribute('aria-valuenow')).toBe('720');
-    await user.keyboard('{ArrowLeft}');
+    fireEvent.keyDown(handle, { key: 'ArrowLeft' });
     expect(handle.getAttribute('aria-valuenow')).toBe('720');
-    await user.keyboard('{End}');
+    fireEvent.keyDown(handle, { key: 'End' });
     expect(handle.getAttribute('aria-valuenow')).toBe('340');
-    await user.keyboard('{ArrowRight}');
+    fireEvent.keyDown(handle, { key: 'ArrowRight' });
     expect(handle.getAttribute('aria-valuenow')).toBe('340');
-    // Pressing a key at a limit changes nothing, so nothing is reported.
-    expect(onSizeChange.mock.calls).toEqual([[720], [340]]);
+
+    expect(onSideWidthChange.mock.calls.map(([width]) => width as number)).toEqual([
+      484, 460, 436, 720, 340,
+    ]);
   });
 
-  it('resizes to the pointer while dragging', () => {
-    const onSizeChange = vi.fn();
-    const { handle, root } = renderPane({ onSizeChange });
-    root.getBoundingClientRect = () => ({ right: 1200 }) as DOMRect;
+  it('ignores other keys', () => {
+    const handle = renderPane();
+
+    const event = fireEvent.keyDown(handle, { key: 'ArrowUp' });
+
+    expect(event).toBe(true);
+    expect(handle.getAttribute('aria-valuenow')).toBe('440');
+  });
+
+  it('leaves arrow keys with a modifier to the browser (Alt+Left goes back)', () => {
+    const handle = renderPane();
+
+    for (const modifier of ['altKey', 'metaKey', 'ctrlKey'] as const) {
+      const event = fireEvent.keyDown(handle, { key: 'ArrowLeft', [modifier]: true });
+      expect(event).toBe(true);
+    }
+    expect(handle.getAttribute('aria-valuenow')).toBe('440');
+  });
+
+  it('reads its width out in words', () => {
+    const handle = renderPane();
+
+    expect(handle.getAttribute('aria-valuetext')).toBe('440 pixels wide');
+    fireEvent.keyDown(handle, { key: 'ArrowLeft' });
+    expect(handle.getAttribute('aria-valuetext')).toBe('464 pixels wide');
+  });
+
+  it('resizes by dragging the handle', () => {
+    const handle = renderPane();
+    const grid = handle.parentElement ?? document.body;
+    grid.getBoundingClientRect = () => ({ right: 1200 }) as DOMRect;
     handle.setPointerCapture = vi.fn();
     handle.hasPointerCapture = () => true;
     handle.releasePointerCapture = vi.fn();
 
     fireEvent.pointerDown(handle, { button: 0, pointerId: 1, clientX: 752 });
-    expect(handle.dataset.dragging).toBe('true');
+    expect(handle.hasAttribute('data-dragging')).toBe(true);
+    expect(document.activeElement).toBe(handle);
     fireEvent.pointerMove(handle, { pointerId: 1, clientX: 692 });
     expect(handle.getAttribute('aria-valuenow')).toBe('500');
     fireEvent.pointerMove(handle, { pointerId: 1, clientX: 100 });
     expect(handle.getAttribute('aria-valuenow')).toBe('720');
     fireEvent.pointerUp(handle, { pointerId: 1 });
-    expect(handle.dataset.dragging).toBeUndefined();
+    expect(handle.hasAttribute('data-dragging')).toBe(false);
+
     fireEvent.pointerMove(handle, { pointerId: 1, clientX: 900 });
     expect(handle.getAttribute('aria-valuenow')).toBe('720');
-    expect(onSizeChange.mock.calls).toEqual([[500], [720]]);
   });
 
-  it('ignores a pointer that is not the main button', () => {
-    const { handle } = renderPane();
-
-    fireEvent.pointerDown(handle, { button: 2, pointerId: 1 });
-
-    expect(handle.dataset.dragging).toBeUndefined();
-  });
-
-  it('can be controlled', async () => {
-    const user = userEvent.setup();
+  it('can be controlled by the parent', () => {
     function Controlled() {
-      const [size, setSize] = useState(400);
+      const [width, setWidth] = useState(400);
       return (
         <>
+          <output>{width}</output>
           <SplitPane
             main="Main"
             side="Side"
-            label="Resize"
-            size={size}
-            onSizeChange={setSize}
-            min={200}
-            max={600}
-            step={50}
+            mainLabel="Main"
+            sideLabel="Side"
+            handleLabel="Resize"
+            sideWidth={width}
+            onSideWidthChange={setWidth}
           />
-          <output>{size}</output>
         </>
       );
     }
     render(<Controlled />);
+    const handle = screen.getByRole('separator');
 
-    screen.getByRole('separator').focus();
-    await user.keyboard('{ArrowLeft}');
+    fireEvent.keyDown(handle, { key: 'ArrowLeft' });
 
-    expect(screen.getByRole('status').textContent).toBe('450');
-    expect(screen.getByRole('separator').getAttribute('aria-valuenow')).toBe('450');
+    expect(screen.getByRole('status').textContent).toBe('424');
+    expect(handle.getAttribute('aria-valuenow')).toBe('424');
   });
 
-  it('clamps a starting width outside the limits', () => {
-    const { handle } = renderPane({ defaultSize: 9000 });
+  it('holds a width outside the limits to them', () => {
+    const handle = renderPane({ sideWidth: 900 });
 
     expect(handle.getAttribute('aria-valuenow')).toBe('720');
+  });
+
+  it('shows the narrow switch, and hides the other pane while stacked', () => {
+    renderPane({ narrowPane: 'side', narrowSwitch: <button type="button">Declaration</button> });
+
+    expect(screen.getByRole('button', { name: 'Declaration' }).parentElement?.className).toContain(
+      '@min-[800px]:hidden',
+    );
+    expect(screen.getByRole('region').className).toContain('@max-[800px]:hidden');
+    expect(screen.getByRole('complementary').className).not.toContain('@max-[800px]:hidden');
   });
 });

@@ -20,6 +20,10 @@
     "test": {
       "dependsOn": ["^build"]
     },
+    "eval": {
+      "dependsOn": ["^build"],
+      "passThroughEnv": ["GITHUB_STEP_SUMMARY"]
+    },
     "test:integration": {
       "dependsOn": ["^build"],
       "cache": false,

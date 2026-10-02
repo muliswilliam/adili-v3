@@ -1,62 +1,73 @@
-import type { Attachment } from '@adili/forms';
 import {
-  anchorIdFor,
-  type AttachmentState,
   Button,
-  cn,
+  EmptyState,
   Icon,
   SegmentedChoice,
+  Spinner,
   SplitPane,
   Tabs,
   TabsContent,
   TabsCount,
   TabsList,
-  Spinner,
   TabsTrigger,
+  Timeline,
   Tooltip,
   useToast,
 } from '@adili/ui';
 import {
   Alert02Icon,
-  ArrowLeftRightIcon,
+  Clock01Icon,
   RefreshIcon,
-  Undo02Icon,
-  UserCheck01Icon,
-  UserRemove01Icon,
+  SquareLock02Icon,
 } from '@hugeicons/core-free-icons';
 import { useRouter } from '@tanstack/react-router';
-import { type ReactNode, useEffect, useId, useState } from 'react';
-import { flushSync } from 'react-dom';
+import { type ReactNode, useCallback, useId, useMemo, useState } from 'react';
 
-import { flagTarget, pinsByItem, pinsBySection } from '../../../review-case/flags';
-import { CASE_COPY, REGISTRY_COPY } from '../../../review-case/messages';
-import { recheckAccess, registryNeedsAttention } from '../../../review-case/registry';
-import { CASE_TAB_LABELS, CASE_TABS, type CaseTab, tabCount } from '../../../review-case/tabs';
+import { newClarificationBlock } from '../../../clarification/list';
+import { caseActions, versionLine } from '../../../review-case/case';
 import {
-  type AssignmentAction,
-  assignmentActions,
-  type CaseViewer,
-  holdsCase,
-  readOnlyNote,
-  separationCue,
-} from '../../../review-case/view';
+  parseDeclaration,
+  readDeclaration,
+  reportingEntityOf,
+} from '../../../review-case/declaration';
+import { groupFlags, openFlagsByItem, openFlagsBySection } from '../../../review-case/flags';
+import { REGISTRY_COPY } from '../../../review-case/messages';
+import { recheckAccess, registryNeedsAttention } from '../../../review-case/registry';
+import { timelineEvents } from '../../../review-case/timeline';
 import {
   addCaseNote,
   getCaseAttachmentLink,
   markCaseFlagReviewed,
 } from '../../../server/review-case';
-import type { CaseFlag, CaseLoad } from '../../../server/review-case.server';
+import type { CaseView as CaseViewData } from '../../../server/review-case.server';
+import type { Copilot } from '../../../server/copilot.server';
+import type { ServiceError, ServiceResult } from '../../../server/service-call';
 import { Page } from '../../page';
-import { failureText, isStale, useCaseAssignment } from '../assignment';
+import { useCaseAssignment } from '../assignment';
+import { CaseCopilot, type CaseCopilotProps } from '../copilot/case-copilot';
+import { declarationAnchorId, highlightInDeclaration } from '../copilot/source-refs';
 import { RecheckDialog } from './assignment-dialogs';
-import { CaseHeader, HeaderNote } from './case-header';
-import { ClarificationsTab } from './clarifications-tab';
-import { DECLARATION_ANCHORS, DeclarationPane } from './declaration-pane';
-import { flagAnchorId, FlagsTab } from './flags-tab';
+import { CaseClarifications } from '../case-clarifications';
+import { useDraftWithAi } from '../draft-with-ai/use-draft-with-ai';
+import { ClarificationComposer } from '../composer/clarification-composer';
+import type { LetterCommission } from '../composer/letter-preview';
+import { CaseHeader } from './case-header';
+import { DeclarationPane, DeclarationUnavailable, DeclarationUnreadable } from './declaration-pane';
+import { FlagsTab } from './flags-tab';
+import { messages as t } from './messages';
 import { NotesTab } from './notes-tab';
 import { RegistryTab } from './registry-tab';
-import { TimelineTab } from './timeline-tab';
 import { useCaseRegistry, useCooldown } from './use-case-registry';
+
+/**
+ * A review case (spec 07a FE-3; S8, S9, S11): the header with the assignment actions and the
+ * registry Re-check, then the declaration as filed beside the review tools (Flags, Registry,
+ * Clarifications, Notes, Timeline) in a resizable split pane, with the Copilot (spec 07c) above
+ * the tabs, replacing them while open. Every view of the case is a recorded read of the
+ * declaration, as the footer says.
+ */
+
+export type CaseTab = 'flags' | 'registry' | 'clarifications' | 'notes' | 'timeline';
 
 /**
  * The registry Re-check (spec 07b FE-2): for the assignee or a supervisor, disabled while a
@@ -114,416 +125,379 @@ function RecheckButton({
   );
 }
 
-function scrollToId(id: string) {
-  const element = document.getElementById(id);
-  if (!element) return;
-  const smooth = !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  element.scrollIntoView({ block: 'center', behavior: smooth ? 'smooth' : 'auto' });
-}
-
 export interface CaseViewProps {
-  load: CaseLoad;
-  viewer: CaseViewer & { name: string };
+  load: CaseViewData;
+  now: string;
+  supervisor: boolean;
   /** The viewer's Commission, for the reassign dialog's reviewers. */
   slug: string | null;
-  now: number;
-  tab: CaseTab;
-  onTab: (tab: CaseTab) => void;
+  /** The letterhead of the Commission's clarification letters. */
+  commission: LetterCommission;
+  /** Re-reads the case (the declaration's Try again). */
+  onReload?: () => Promise<void>;
+  /** Fakes the Copilot in tests. */
+  copilot?: Pick<CaseCopilotProps, 'api' | 'initial'>;
 }
 
-/**
- * A review case (spec 07a FE-3, `/review/cases/$caseId`): the header with the assignment
- * actions, then the declaration as filed beside the review tabs (Flags, Clarifications, Notes,
- * Timeline) in a `SplitPane`; below 1100px, a switch between the two. "Go to item" on a flag
- * scrolls to its item and highlights it; an item's pin brings its flag back into view. The
- * footer says the view is recorded.
- *
- * Later slices extend it in two places: a tab (spec 07b's Registry) is one more `CASE_TABS`
- * entry and one more panel in `panels`; a case action (the registry Re-check, Propose
- * determination) is one more element after the assignment buttons in `actions`.
- */
-export function CaseView({ load, viewer, slug, now, tab, onTab }: CaseViewProps) {
-  const { detail, document } = load;
+function failureText(error: ServiceError): string {
+  if (error.kind === 'unauthenticated') return t.toasts.sessionEnded;
+  if (error.kind === 'problem' && error.problem.status === 403) return t.toasts.forbidden;
+  if (error.kind === 'problem' && error.problem.status === 409) return t.toasts.stale;
+  return t.toasts.failed;
+}
+
+/** 403 and 409 mean the page is out of date. */
+function isStale(error: ServiceError): boolean {
+  return error.kind === 'problem' && (error.problem.status === 403 || error.problem.status === 409);
+}
+
+export function CaseView({
+  load,
+  now,
+  supervisor,
+  slug,
+  commission,
+  onReload,
+  copilot,
+}: CaseViewProps) {
+  const { detail, documentUnavailable, viewer } = load;
   const item = detail.case;
+  const nowMs = Date.parse(now);
   const router = useRouter();
   const { toast } = useToast();
-  const [view, setView] = useState<'declaration' | 'review'>('declaration');
-  const [highlight, setHighlight] = useState<string | null>(null);
-  const [pulse, setPulse] = useState<string | null>(null);
-  const [editing, setEditing] = useState<string | null>(null);
-  const [downloads, setDownloads] = useState<Record<string, AttachmentState>>({});
+  const actions = caseActions(item, viewer.subject, supervisor);
+  const view = useMemo(() => readDeclaration(detail.document), [detail.document]);
+  const declaration = useMemo(() => parseDeclaration(detail.document), [detail.document]);
+  const pins = useMemo(() => openFlagsByItem(detail.flags), [detail.flags]);
+  const sectionPins = useMemo(() => openFlagsBySection(detail.flags), [detail.flags]);
+  const openFlags = groupFlags(detail.flags).openCount;
+
+  const [tab, setTab] = useState<CaseTab>('flags');
+  const [pane, setPane] = useState<'main' | 'side'>('main');
+  const [copilotOpen, setCopilotOpen] = useState(false);
+  const [copilotStatus, setCopilotStatus] = useState<Copilot['status'] | null>(null);
+  const [explain, setExplain] = useState<{ flagId: string; key: number } | null>(null);
+  const [pulse, setPulse] = useState<{ flagId: string; key: number } | null>(null);
+  const [downloading, setDownloading] = useState<ReadonlySet<string>>(new Set());
   const [retrying, setRetrying] = useState(false);
-  // The open tab follows the address (`tab`), and changes here at once, before the address does,
-  // so a pin can open Flags and scroll to its flag in one go.
-  const [active, setActive] = useState<CaseTab>(tab);
-  const [addressTab, setAddressTab] = useState<CaseTab>(tab);
-  if (tab !== addressTab) {
-    setAddressTab(tab);
-    setActive(tab);
-  }
+  const [composing, setComposing] = useState(false);
+  const composeBlocked = newClarificationBlock(item, viewer.subject, now);
+  // Flags picked in the copilot ("Add to clarification") are Draft with AI's in the composer.
+  const drafting = useDraftWithAi({
+    caseId: item.id,
+    flags: detail.flags,
+    copilotStatus,
+    onCompose: () => {
+      setComposing(true);
+    },
+    composeDisabled: composeBlocked !== null,
+  });
 
-  function openTab(next: CaseTab) {
-    setActive(next);
-    onTab(next);
-  }
-
-  const holder = holdsCase(item, viewer);
-  const pins = pinsByItem(detail.flags);
-  const sectionPins = pinsBySection(detail.flags);
-  const previousVersion = item.currentVersion > 1 ? item.currentVersion - 1 : null;
-
-  // A pulse plays once; clear it so the same flag can pulse again.
-  useEffect(() => {
-    if (!pulse) return;
-    const timer = window.setTimeout(() => {
-      setPulse(null);
-    }, 1700);
-    return () => {
-      window.clearTimeout(timer);
-    };
-  }, [pulse]);
-
-  async function refresh() {
-    await router.invalidate();
-  }
+  const onStatusChange = useCallback((status: Copilot['status'] | null) => {
+    setCopilotStatus(status);
+  }, []);
 
   const assignment = useCaseAssignment({
-    viewer,
+    viewer: { ...viewer, supervisor },
     slug,
-    refresh,
+    refresh: () => router.invalidate(),
     find: (caseId) => (caseId === item.id ? item : undefined),
   });
-  const startAssignment = (action: AssignmentAction) => {
-    assignment.start(action, { item, reviewerHistory: detail.reviewerHistory });
-  };
+  const registry = useCaseRegistry({
+    load: { detail, document: declaration },
+    open: tab === 'registry',
+    refresh: () => router.invalidate(),
+  });
+  const recheck = recheckAccess(item, { subject: viewer.subject, supervisor });
 
-  const registry = useCaseRegistry({ load, open: active === 'registry', refresh });
-  const { checking } = registry;
-
-  function goTo(flag: CaseFlag) {
-    const target = flagTarget(flag, document);
-    if (!target) return;
-    // Reveal the item first (the declaration view, on a narrow screen), then scroll to it.
-    flushSync(() => {
-      setHighlight(target.highlight);
-      setView('declaration');
-    });
-    const anchor = anchorIdFor(target, DECLARATION_ANCHORS);
-    if (anchor) scrollToId(anchor);
-  }
-
-  /** "Go to item" from a registry's match table: the declared item the record matched. */
-  function goToItem(itemId: string) {
-    flushSync(() => {
-      setHighlight(itemId);
-      setView('declaration');
-    });
-    const anchor = anchorIdFor({ itemId }, DECLARATION_ANCHORS);
-    if (anchor) scrollToId(anchor);
-  }
-
-  function showFlag(flagId: string) {
-    flushSync(() => {
-      openTab('flags');
-      setView('review');
-      setPulse(flagId);
-    });
-    scrollToId(flagAnchorId(flagId));
-  }
-
-  async function review(flag: CaseFlag, note: string): Promise<string | null> {
-    const result = await markCaseFlagReviewed({
-      data: { caseId: item.id, flagId: flag.id, note },
-    });
-    if (!result.ok) {
-      if (!isStale(result.error)) return failureText(result.error);
-      setEditing(null);
-      toast({
-        title:
-          result.error.kind === 'problem' && result.error.problem.status === 409
-            ? CASE_COPY.flags.alreadyReviewed
-            : CASE_COPY.stale,
-        urgency: 'assertive',
-      });
-      await refresh();
+  /** Shows how a call went; resolves to the error to show in place, or null. */
+  async function settle<T>(
+    result: ServiceResult<T>,
+    success: string | null,
+    { inPlace = false }: { inPlace?: boolean } = {},
+  ): Promise<string | null> {
+    if (result.ok) {
+      if (success) toast({ title: success });
+      await router.invalidate();
       return null;
     }
-    setEditing(null);
-    toast({ title: CASE_COPY.flags.marked });
-    await refresh();
-    return null;
+    const text = failureText(result.error);
+    if (isStale(result.error) || !inPlace) {
+      toast({ title: text, urgency: 'assertive' });
+      if (isStale(result.error)) await router.invalidate();
+      return inPlace ? null : text;
+    }
+    return text;
   }
 
-  async function addNote(text: string): Promise<string | null> {
-    const result = await addCaseNote({ data: { caseId: item.id, text } });
-    if (!result.ok) return failureText(result.error);
-    toast({ title: CASE_COPY.notes.added });
-    await refresh();
-    return null;
+  function onAction(action: 'claim' | 'release' | 'reassign' | 'unassign') {
+    assignment.start(action, { item, reviewerHistory: detail.reviewerHistory });
   }
 
-  async function download(attachment: Attachment) {
-    setDownloads((all) => ({ ...all, [attachment.uploadId]: 'busy' }));
-    const result = await getCaseAttachmentLink({
-      data: { caseId: item.id, uploadId: attachment.uploadId },
-    }).catch(() => ({ ok: false }) as const);
-    setDownloads((all) => ({ ...all, [attachment.uploadId]: result.ok ? 'done' : 'idle' }));
-    if (result.ok) window.location.assign(result.data.downloadUrl);
-    else toast({ title: CASE_COPY.declaration.downloadFailed, urgency: 'assertive' });
+  function openFlag(flagId: string) {
+    setCopilotOpen(false);
+    setTab('flags');
+    setPane('side');
+    setPulse({ flagId, key: Date.now() });
   }
 
-  const ACTION_BUTTONS: Record<AssignmentAction, ReactNode> = {
-    claim: (
-      <Button
-        key="claim"
-        size="sm"
-        onClick={() => {
-          startAssignment('claim');
-        }}
-      >
-        <Icon icon={UserCheck01Icon} />
-        {CASE_COPY.claim}
-      </Button>
-    ),
-    release: (
-      <Button
-        key="release"
-        size="sm"
-        variant="secondary"
-        onClick={() => {
-          startAssignment('release');
-        }}
-      >
-        <Icon icon={Undo02Icon} />
-        {CASE_COPY.release}
-      </Button>
-    ),
-    reassign: (
-      <Button
-        key="reassign"
-        size="sm"
-        variant="secondary"
-        onClick={() => {
-          startAssignment('reassign');
-        }}
-      >
-        <Icon icon={ArrowLeftRightIcon} />
-        {CASE_COPY.reassign}
-      </Button>
-    ),
-    assign: (
-      <Button
-        key="assign"
-        size="sm"
-        variant="secondary"
-        onClick={() => {
-          startAssignment('assign');
-        }}
-      >
-        <Icon icon={ArrowLeftRightIcon} />
-        {CASE_COPY.assign}
-      </Button>
-    ),
-    unassign: (
-      <Button
-        key="unassign"
-        size="sm"
-        variant="ghost"
-        onClick={() => {
-          startAssignment('unassign');
-        }}
-      >
-        <Icon icon={UserRemove01Icon} />
-        {CASE_COPY.unassign}
-      </Button>
-    ),
-  };
-  // Later slices append theirs after the registry Re-check: Propose determination.
-  const actions = assignmentActions(item, viewer).map((action) => ACTION_BUTTONS[action]);
-  const recheck = recheckAccess(item, viewer);
-  if (recheck !== 'hidden') {
-    actions.push(
-      <RecheckButton
-        key="recheck"
-        forbidden={recheck === 'forbidden'}
-        checking={checking}
-        availableAt={registry.availableAt}
-        now={now}
-        onClick={() => {
-          registry.setConfirming(true);
-        }}
-      />,
+  function goToItem(itemId: string) {
+    setPane('main');
+    // The pane may have to show first on a narrow screen.
+    requestAnimationFrame(() => {
+      highlightInDeclaration(declarationAnchorId({ kind: 'item', itemId }));
+    });
+  }
+
+  async function download(uploadId: string) {
+    setDownloading((current) => new Set(current).add(uploadId));
+    const result = await getCaseAttachmentLink({ data: { caseId: item.id, uploadId } }).catch(
+      () => ({ ok: false }) as const,
     );
+    setDownloading((current) => {
+      const next = new Set(current);
+      next.delete(uploadId);
+      return next;
+    });
+    if (result.ok) window.location.assign(result.data.downloadUrl);
+    else toast({ title: t.toasts.linkFailed, urgency: 'assertive' });
   }
 
-  const readOnly = readOnlyNote(item, viewer);
-  const notes = (
-    <>
-      {separationCue(detail, viewer) ? (
-        <HeaderNote tone="warning">{CASE_COPY.separation}</HeaderNote>
-      ) : null}
-      {readOnly ? <HeaderNote tone="neutral">{readOnly}</HeaderNote> : null}
-    </>
-  );
+  async function retry() {
+    setRetrying(true);
+    await (onReload ? onReload() : router.invalidate());
+    setRetrying(false);
+  }
 
-  const panels: Record<CaseTab, ReactNode> = {
-    flags: (
-      <FlagsTab
-        flags={detail.flags}
-        document={document}
-        previousVersion={previousVersion}
-        currentVersion={item.currentVersion}
-        canReview={holder}
-        editing={editing}
-        pulse={pulse}
-        onEdit={(flag) => {
-          setEditing(flag.id);
-        }}
-        onCancel={() => {
-          setEditing(null);
-        }}
-        onReview={review}
-        onGo={goTo}
-      />
-    ),
-    registry: (
-      <RegistryTab
-        layout={registry.layout}
-        failed={registry.failed}
-        retrying={registry.retrying}
-        onRetry={registry.retry}
-        checking={checking}
-        refusedUntil={registry.refusedUntil}
-        now={now}
-        onGoToItem={goToItem}
-        document={document}
-        previousVersion={previousVersion}
-        currentVersion={item.currentVersion}
-        canReview={holder}
-        editing={editing}
-        onEdit={(flag) => {
-          setEditing(flag.id);
-        }}
-        onCancel={() => {
-          setEditing(null);
-        }}
-        onReview={review}
-        onGo={goTo}
-      />
-    ),
-    clarifications: <ClarificationsTab caseId={item.id} clarifications={detail.clarifications} />,
-    notes: <NotesTab notes={detail.notes} subject={viewer.subject} onAdd={addNote} />,
-    timeline: <TimelineTab entries={detail.timeline} now={now} />,
-  };
-
-  const side = (
-    <Tabs
-      value={active}
-      onValueChange={(next) => {
-        setEditing(null);
-        openTab(next as CaseTab);
-      }}
-      className="rounded-2xl bg-card shadow-card"
-    >
-      {/* The card behind the sticky tabs, so their edge fade (when they scroll sideways, on
-          narrow screens) shows the card, not the panel scrolling under them. */}
-      <div className="sticky top-0 z-[3] rounded-t-2xl bg-card">
-        <TabsList
-          aria-label={CASE_COPY.tabsLabel}
-          // Five tabs with counts and the registry's attention icon fit the pane at its default
-          // width: no gaps between them, tight padding.
-          className="gap-0 px-2"
-        >
-          {CASE_TABS.map((key) => {
-            const count = tabCount(key, detail);
-            return (
-              <TabsTrigger key={key} value={key} className="gap-[5px] px-[6px] text-[13.5px]">
-                {CASE_TAB_LABELS[key]}
-                {count ? <TabsCount>{count}</TabsCount> : null}
-                {key === 'registry' && registryNeedsAttention(detail) ? (
-                  <span role="img" aria-label={REGISTRY_COPY.attention} className="inline-flex">
-                    <Icon icon={Alert02Icon} strokeWidth={2.2} className="size-3.5 text-warning" />
-                  </span>
-                ) : null}
-              </TabsTrigger>
-            );
-          })}
-        </TabsList>
-      </div>
-      {CASE_TABS.map((key) => (
-        <TabsContent key={key} value={key} className="mt-0 rounded-b-2xl p-4">
-          {panels[key]}
-        </TabsContent>
-      ))}
-    </Tabs>
-  );
-
-  const main = (
+  const version = versionLine(detail);
+  const main = documentUnavailable ? (
+    <DeclarationUnavailable onRetry={() => void retry()} retrying={retrying} />
+  ) : view ? (
     <DeclarationPane
-      document={document}
-      version={item.currentVersion}
-      versions={detail.versions.length}
-      highlight={highlight}
+      view={view}
+      version={version.text}
+      versionNumber={item.currentVersion}
       pins={pins}
       sectionPins={sectionPins}
-      onPin={showFlag}
-      onAttachment={(attachment) => void download(attachment)}
-      attachmentState={(uploadId) => downloads[uploadId] ?? 'idle'}
-      retrying={retrying}
-      onRetry={() => {
-        setRetrying(true);
-        void refresh().finally(() => {
-          setRetrying(false);
-        });
-      }}
+      onOpenFlag={openFlag}
+      onDownload={(uploadId) => void download(uploadId)}
+      downloading={downloading}
     />
+  ) : (
+    <DeclarationUnreadable />
+  );
+
+  const copilotPanel = (
+    <CaseCopilot
+      caseId={item.id}
+      detail={detail}
+      access={actions.mine ? 'assignee' : supervisor ? 'supervisor' : 'viewer'}
+      assigneeName={item.assignee?.name}
+      open={copilotOpen}
+      onOpenChange={setCopilotOpen}
+      explain={explain}
+      onStatusChange={onStatusChange}
+      selection={drafting.copilotSelection}
+      {...copilot}
+    />
+  );
+
+  const events = timelineEvents(detail.timeline);
+  const side = (
+    // One column no wider than the pane: long content (a source chip) is cut, never widens it.
+    <div className="grid grid-cols-[minmax(0,1fr)] gap-3">
+      {copilotPanel}
+      {copilotOpen ? null : (
+        <Tabs
+          value={tab}
+          onValueChange={(value) => {
+            setTab(value as CaseTab);
+          }}
+          className="min-h-[200px] rounded-2xl bg-card shadow-card"
+        >
+          <TabsList
+            aria-label={t.tabs.label}
+            className="sticky -top-px z-[3] rounded-t-2xl bg-card px-2"
+          >
+            <SideTab value="flags" count={openFlags}>
+              {t.tabs.flags}
+            </SideTab>
+            <SideTab value="registry">
+              {t.tabs.registry}
+              {registryNeedsAttention(detail) ? (
+                <span role="img" aria-label={REGISTRY_COPY.attention} className="inline-flex">
+                  <Icon icon={Alert02Icon} strokeWidth={2.2} className="size-3.5 text-warning" />
+                </span>
+              ) : null}
+            </SideTab>
+            <SideTab value="clarifications" count={detail.clarifications.length}>
+              {t.tabs.clarifications}
+            </SideTab>
+            <SideTab value="notes" count={detail.notes.length}>
+              {t.tabs.notes}
+            </SideTab>
+            <SideTab value="timeline">{t.tabs.timeline}</SideTab>
+          </TabsList>
+          <TabsContent value="flags" className="mt-0 p-4">
+            <FlagsTab
+              flags={detail.flags}
+              view={view}
+              declarant={item.declarantName}
+              canReview={actions.reviewFlags}
+              canExplain={copilotStatus === 'ready' || copilotStatus === 'stale'}
+              pulse={pulse}
+              onGoToItem={goToItem}
+              onExplain={(flagId) => {
+                setExplain({ flagId, key: Date.now() });
+                setCopilotOpen(true);
+              }}
+              onReview={async (flagId, note) =>
+                settle(
+                  await markCaseFlagReviewed({ data: { caseId: item.id, flagId, note } }),
+                  t.toasts.reviewed,
+                  { inPlace: true },
+                )
+              }
+            />
+          </TabsContent>
+          <TabsContent value="registry" className="mt-0 p-4">
+            <RegistryTab
+              layout={registry.layout}
+              failed={registry.failed}
+              retrying={registry.retrying}
+              onRetry={registry.retry}
+              checking={registry.checking}
+              refusedUntil={registry.refusedUntil}
+              now={nowMs}
+              document={declaration}
+              flagProps={{
+                view,
+                declarant: item.declarantName,
+                canReview: actions.reviewFlags,
+                canExplain: copilotStatus === 'ready' || copilotStatus === 'stale',
+                onGoToItem: goToItem,
+                onExplain: (flagId) => {
+                  setExplain({ flagId, key: Date.now() });
+                  setCopilotOpen(true);
+                },
+                onReview: async (flagId, note) =>
+                  settle(
+                    await markCaseFlagReviewed({ data: { caseId: item.id, flagId, note } }),
+                    t.toasts.reviewed,
+                    { inPlace: true },
+                  ),
+              }}
+            />
+          </TabsContent>
+          <TabsContent value="clarifications" className="mt-0 p-4">
+            <CaseClarifications
+              reviewCase={item}
+              clarifications={detail.clarifications}
+              subject={viewer.subject}
+              now={now}
+              onNew={() => {
+                setComposing(true);
+              }}
+            />
+          </TabsContent>
+          <TabsContent value="notes" className="mt-0 p-4">
+            <NotesTab
+              notes={detail.notes}
+              viewerSubject={viewer.subject}
+              onAdd={async (text) =>
+                settle(await addCaseNote({ data: { caseId: item.id, text } }), t.toasts.noteAdded, {
+                  inPlace: true,
+                })
+              }
+            />
+          </TabsContent>
+          <TabsContent value="timeline" className="mt-0 p-4">
+            {events.length > 0 ? (
+              <Timeline events={events} now={nowMs} />
+            ) : (
+              <EmptyState
+                icon={<Icon icon={Clock01Icon} />}
+                title={t.timeline.emptyTitle}
+                description={t.timeline.emptyBody}
+              />
+            )}
+          </TabsContent>
+        </Tabs>
+      )}
+    </div>
   );
 
   return (
     <Page>
       <CaseHeader
         detail={detail}
-        employer={document?.officer.employment.employer ?? null}
-        subject={viewer.subject}
-        now={now}
-        actions={actions.length > 0 ? actions : null}
-        notes={notes}
+        reportingEntity={reportingEntityOf(detail.document)}
+        viewer={viewer}
+        actions={actions}
+        supervisor={supervisor}
+        now={nowMs}
+        onAction={onAction}
+        extraActions={
+          recheck === 'hidden'
+            ? []
+            : [
+                <RecheckButton
+                  key="recheck"
+                  forbidden={recheck === 'forbidden'}
+                  checking={registry.checking}
+                  availableAt={registry.availableAt}
+                  now={nowMs}
+                  onClick={() => {
+                    registry.setConfirming(true);
+                  }}
+                />,
+              ]
+        }
       />
-
-      <SegmentedChoice
-        variant="track"
-        legend={CASE_COPY.views.label}
-        options={[
-          { value: 'declaration', label: CASE_COPY.views.declaration },
-          { value: 'review', label: CASE_COPY.views.review },
-        ]}
-        value={view}
-        onValueChange={(next) => {
-          setView(next as 'declaration' | 'review');
-        }}
-        className="mb-3 w-full min-[1100px]:hidden"
-      />
-
       <SplitPane
-        label={CASE_COPY.resizeLabel}
-        defaultSize={440}
-        min={340}
-        max={720}
         main={main}
         side={side}
-        // Below 1100px the panes become two views with a switch (the prototype's `.mview`).
-        className="max-[1099px]:grid-cols-1 max-[1099px]:[&>[role=separator]]:hidden"
-        mainClassName={cn(view === 'review' && 'max-[1099px]:hidden')}
-        // No scroll anchoring in the review pane: when a tab's content changed or a tab opened,
-        // the browser kept a card in place and scrolled the tab's top out of sight.
-        sideClassName={cn(
-          'min-[1100px]:sticky min-[1100px]:top-[72px] min-[1100px]:max-h-[calc(100dvh-88px)] min-[1100px]:overflow-y-auto min-[1100px]:[overflow-anchor:none] min-[1100px]:rounded-2xl',
-          view === 'declaration' && 'max-[1099px]:hidden',
-        )}
+        mainLabel={t.pane.main}
+        sideLabel={t.pane.side}
+        handleLabel={t.pane.handle}
+        defaultSideWidth={460}
+        narrowPane={pane}
+        narrowSwitch={
+          <SegmentedChoice
+            variant="track"
+            legend={t.pane.switchLabel}
+            options={[
+              { value: 'main', label: t.pane.switchDeclaration },
+              { value: 'side', label: t.pane.switchReview },
+            ]}
+            value={pane}
+            onValueChange={(value) => {
+              setPane(value as 'main' | 'side');
+            }}
+          />
+        }
       />
+      <p className="mt-[22px] flex items-center justify-center gap-2 text-[13px] text-muted-foreground">
+        <Icon icon={SquareLock02Icon} className="size-3.5" />
+        {t.audit}
+      </p>
 
-      <p className="mt-4 text-xs text-muted-foreground">{CASE_COPY.audit}</p>
-
+      <ClarificationComposer
+        open={composing}
+        onOpenChange={setComposing}
+        reviewCase={item}
+        document={detail.document}
+        commission={commission}
+        now={now}
+        tools={drafting.tools}
+        onSaved={() => void router.invalidate()}
+        onIssued={() => {
+          drafting.clear();
+          setCopilotOpen(false);
+          setTab('clarifications');
+          void router.invalidate();
+        }}
+      />
       {assignment.dialogs}
       <RecheckDialog
         open={registry.confirming}
@@ -531,5 +505,22 @@ export function CaseView({ load, viewer, slug, now, tab, onTab }: CaseViewProps)
         onConfirm={registry.recheck}
       />
     </Page>
+  );
+}
+
+function SideTab({
+  value,
+  count,
+  children,
+}: {
+  value: CaseTab;
+  count?: number;
+  children: ReactNode;
+}) {
+  return (
+    <TabsTrigger value={value} className="gap-[5px] px-[7px] text-[13.5px]">
+      {children}
+      {count ? <TabsCount>{count}</TabsCount> : null}
+    </TabsTrigger>
   );
 }

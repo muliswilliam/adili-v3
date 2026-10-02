@@ -1,60 +1,51 @@
-import { PencilEdit02Icon } from '@hugeicons/core-free-icons';
 import type { Meta, StoryObj } from '@storybook/react-vite';
 
-import { EmptyState } from './empty-state';
-import { Icon } from './icon';
 import { NoteList } from './note-list';
 
 const meta = {
   title: 'Review/NoteList',
   component: NoteList,
   args: {
-    className: 'max-w-[560px]',
+    viewerSubject: 'faith',
     notes: [
       {
         id: '1',
-        author: 'Peter Mwangi',
-        at: '2026-04-28T08:52:00Z',
+        author: { subject: 'peter', name: 'Peter Mwangi' },
         text: 'Late filing is explained by the HR letter.',
+        at: '2026-04-28T08:52:00Z',
+      },
+      {
+        id: '2',
+        author: { subject: 'faith', name: 'Faith Achieng' },
+        text: 'Checked the NTSA mismatch: the Probox was sold in March.\nAsked for the sale agreement in the clarification.',
+        at: '2026-09-25T12:05:00Z',
       },
     ],
   },
+  decorators: [
+    (Story) => (
+      <div className="max-w-[560px]">
+        <Story />
+      </div>
+    ),
+  ],
 } satisfies Meta<typeof NoteList>;
 
 export default meta;
 type Story = StoryObj<typeof meta>;
 
-export const OneNote: Story = {};
+/** Newest first; the signed-in officer's notes get the brand initials. */
+export const Default: Story = {};
 
-export const Several: Story = {
+export const OneNote: Story = {
   args: {
     notes: [
       {
         id: '1',
-        author: 'Peter Mwangi',
-        at: '2026-04-28T08:52:00Z',
+        author: { subject: 'peter', name: 'Peter Mwangi' },
         text: 'Late filing is explained by the HR letter.',
-      },
-      {
-        id: '2',
-        author: 'Faith Achieng',
-        current: true,
-        at: '2026-09-25T12:05:00Z',
-        text: 'KRA income checked against the payslips: within 6%.\nSpouse business income still to confirm with the declarant.',
+        at: '2026-04-28T08:52:00Z',
       },
     ],
-  },
-};
-
-export const Empty: Story = {
-  args: {
-    notes: [],
-    empty: (
-      <EmptyState
-        icon={<Icon icon={PencilEdit02Icon} />}
-        title="No notes yet"
-        description="Notes help a colleague pick up this case."
-      />
-    ),
   },
 };

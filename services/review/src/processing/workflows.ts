@@ -5,12 +5,14 @@
 import { isCancellation, log, proxyActivities } from '@temporalio/workflow';
 
 import { registryCheck } from '../registry/workflows.js';
+import { requestCaseCopilot } from '../copilot/workflows.js';
 import type { ProcessingActivities } from './activities.js';
 import type { ProcessingInput, ProcessingResult } from './contract.js';
 
 // The worker bundles this module: every workflow of the review service is exported from it.
 export { clarification } from '../clarifications/workflows.js';
 export { closureNotices, closureSweep, closureSweeps } from '../closures/workflows.js';
+export { copilotJobFinished, copilotPolicyChanged } from '../copilot/workflows.js';
 export { determinationIssuance } from '../determinations/workflows.js';
 export { enforcement } from '../enforcement/workflows.js';
 export { referralSending, referralSweep, referralSweeps } from '../referrals/workflows.js';
@@ -45,7 +47,12 @@ const { pullVersion, pullPreviousVersion, runRules, upsertCase } =
  * Then the registry check (spec 07b, `registryCheck`): the registries are looked up for the case
  * and their flags merged into it. The case is in the queue before, with its registries not checked
  * yet, so a registry, or the gateway, never holds up a case; a check that fails for good leaves
- * the case as it is. 07c adds AI activities; no AI runs here.
+ * the case as it is.
+ *
+ * A case created or amended then gets its copilot (spec 07c): `requestCopilot` asks the
+ * ai-gateway for the summary and flag explanations, and the case shows them `pending` (or, after
+ * an amendment, the earlier ones `stale`) until they arrive. The copilot never holds a case up: a
+ * gateway that cannot be reached leaves it `failed`, for the assignee to try again.
  */
 export async function declarationProcessing(input: ProcessingInput): Promise<ProcessingResult> {
   const facts = await pullVersion(input);
@@ -58,7 +65,8 @@ export async function declarationProcessing(input: ProcessingInput): Promise<Pro
   const flags = await runRules({ input, facts, previous });
   const processed = await upsertCase({ input, facts, flags });
   try {
-    // A version the case is already past is `stale` and looks nothing up.
+    // A version the case is already past is `stale` and looks nothing up. A repeated run checks
+    // again, so a run stopped between the case and its check still gets one.
     await registryCheck({ ...input, caseId: processed.caseId });
   } catch (error) {
     if (isCancellation(error)) throw error;
@@ -67,5 +75,22 @@ export async function declarationProcessing(input: ProcessingInput): Promise<Pro
       versionId: input.versionId,
     });
   }
+  if (processed.outcome === 'unchanged') return processed;
+  await afterRegistryMatching(input, processed);
   return processed;
+}
+
+/**
+ * The steps after the registry check. The copilot request omits `registryCheckedAt`, so it keeps
+ * the record's.
+ */
+async function afterRegistryMatching(
+  input: ProcessingInput,
+  { outcome, caseId }: { outcome: 'created' | 'updated'; caseId: string },
+): Promise<void> {
+  await requestCaseCopilot({
+    tenant: input.tenant,
+    caseId,
+    trigger: outcome === 'created' ? 'case-created' : 'amendment',
+  });
 }

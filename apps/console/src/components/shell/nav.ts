@@ -6,6 +6,7 @@ import {
   CheckListIcon,
   Key01Icon,
   PlugSocketIcon,
+  SparklesIcon,
   UserGroupIcon,
 } from '@hugeicons/core-free-icons';
 
@@ -50,6 +51,7 @@ const NAV: { label: string; items: NavDefinition[] }[] = [
       { workspace: 'commissions', icon: Building03Icon },
       { workspace: 'national-obligations', icon: ChartColumnIcon },
       { workspace: 'platform', icon: PlugSocketIcon, label: 'Integrations' },
+      { workspace: 'ai-policy', icon: SparklesIcon },
     ],
   },
   {

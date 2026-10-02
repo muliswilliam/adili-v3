@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { ToastProvider, TooltipProvider } from '@adili/ui';
-import { act, fireEvent, render, screen, within } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import type { ReactNode } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -20,7 +20,8 @@ import {
   mockReviewClient,
   resetReviewMock,
 } from '../../server/review/mock.server';
-import { ClarificationDetailView } from './clarification-detail';
+import type { CopilotDraftInput } from '../../server/review/types';
+import { ClarificationDetailView, LETTER_REFRESH_MS } from './clarification-detail';
 
 const navigate = vi.fn(() => Promise.resolve());
 const invalidate = vi.fn(() => Promise.resolve());
@@ -54,7 +55,27 @@ vi.mock('../../server/clarifications', () => ({
   raiseFollowUpClarification: vi.fn(),
   getLetterLink: vi.fn(),
   getResponseAttachmentLink: vi.fn(),
+  saveClarificationDraft: vi.fn(),
+  issueComposedClarification: vi.fn(),
 }));
+
+vi.mock('../../server/copilot', async () => {
+  const { pollDraft, requestDraft } = await import('../../server/copilot-drafts.server');
+  const { mockReviewClient } = await import('../../server/review/mock.server');
+  const client = () => mockReviewClient(ME, 'Grace Wanjiru');
+  return {
+    draftClarificationWithAi: vi.fn(
+      ({
+        data: { caseId, key, ...input },
+      }: {
+        data: CopilotDraftInput & { caseId: string; key: string };
+      }) => requestDraft(client(), caseId, input, key),
+    ),
+    getCopilotDraft: vi.fn(({ data }: { data: { draftId: string } }) =>
+      pollDraft(client(), data.draftId),
+    ),
+  };
+});
 
 const resolveMock = vi.mocked(resolveClarification);
 const withdrawMock = vi.mocked(withdrawClarification);
@@ -76,7 +97,12 @@ function renderDetail(detail: ClarificationDetail, supervisor = false) {
   render(
     <TooltipProvider>
       <ToastProvider>
-        <ClarificationDetailView detail={detail} now={NOW} supervisor={supervisor} />
+        <ClarificationDetailView
+          detail={detail}
+          now={NOW}
+          supervisor={supervisor}
+          commission={{ name: 'Teachers Service Commission', issuerCode: 'TSC' }}
+        />
       </ToastProvider>
     </TooltipProvider>,
   );
@@ -193,6 +219,120 @@ describe('ClarificationDetailView: states', () => {
   });
 });
 
+describe('ClarificationDetailView: drafts and the letter (#170)', () => {
+  it('names each item from the declaration as filed', async () => {
+    renderDetail(await detailOf(CASES.mine, K.issued));
+    const items = screen.getByRole('list', { name: 'Items and responses' });
+    expect(
+      within(items).getByText('Assets · Plot Kisumu/Manyatta/1234 · John Kennedy Otieno'),
+    ).toBeTruthy();
+    expect(within(items).getByText('Financial statement · John Kennedy Otieno')).toBeTruthy();
+  });
+
+  it('continues a draft in the composer, for the reviewer holding the case', async () => {
+    renderDetail(await detailOf(CASES.mine, K.draft));
+    expect(screen.getByText('Not sent.')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Continue draft' }));
+    const drawer = screen.getByRole('dialog', { name: 'Clarification draft' });
+    expect(
+      within(drawer).getByRole('button', {
+        name: 'What is this about? Assets · Plot Kisumu/Manyatta/1234 · John Kennedy Otieno',
+      }),
+    ).toBeTruthy();
+  });
+
+  it('looks again while the letter is being produced', async () => {
+    const detail = await detailOf(CASES.mine, K.issued);
+    vi.useFakeTimers();
+    try {
+      renderDetail({
+        ...detail,
+        clarification: {
+          ...detail.clarification,
+          letter: { documentId: K.issued, verificationId: 'pending', status: 'pending' },
+        },
+      });
+      expect(screen.getByText('Producing the letter…')).toBeTruthy();
+      expect(button('Show letter')).toBeNull();
+      act(() => {
+        vi.advanceTimersByTime(LETTER_REFRESH_MS);
+      });
+      expect(invalidate).toHaveBeenCalledTimes(1);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('opens a draft straight in the composer after Raise follow-up', async () => {
+    const detail = await detailOf(CASES.mine, K.draft);
+    render(
+      <TooltipProvider>
+        <ToastProvider>
+          <ClarificationDetailView
+            detail={detail}
+            now={NOW}
+            supervisor={false}
+            commission={{ name: 'Teachers Service Commission', issuerCode: 'TSC' }}
+            compose
+          />
+        </ToastProvider>
+      </TooltipProvider>,
+    );
+    expect(screen.getByRole('dialog', { name: 'Clarification draft' })).toBeTruthy();
+  });
+
+  it('labels the items and opening drafted with AI, and the letter says so (ADR-007)', async () => {
+    renderDetail(await detailOf(CASES.mine, K.issued));
+    const [first, second] = screen
+      .getAllByRole('listitem')
+      .filter((each) => each.textContent.includes('What we asked'));
+    if (!first || !second) throw new Error('no items');
+    expect(within(first).getByRole('img', { name: /^AI-assisted\./ })).toBeTruthy();
+    expect(within(second).queryByRole('img', { name: /^AI-assisted/ })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Show letter' }));
+    const letter = screen.getByRole('article', { name: 'Letter preview' });
+    expect(within(letter).getByText(/drafted with AI assistance/)).toBeTruthy();
+  });
+
+  it('says a draft’s AI items are still to be checked, an issued one’s approved (Q11)', async () => {
+    renderDetail(await detailOf(CASES.mine, K.issued));
+    expect(
+      screen.getByRole('img', {
+        name: 'AI-assisted. Drafted with AI, then approved by the reviewer who issued it',
+      }),
+    ).toBeTruthy();
+    cleanup();
+
+    const draft = await detailOf(CASES.mine, K.draft);
+    const [first, ...rest] = draft.clarification.items;
+    if (!first) throw new Error('no items');
+    renderDetail({
+      ...draft,
+      clarification: {
+        ...draft.clarification,
+        items: [{ ...first, aiJobId: '0199a000-0000-7000-8000-00000000d0b2' }, ...rest],
+      },
+    });
+    expect(
+      screen.getByRole('img', {
+        name: 'AI-assisted. Drafted with AI; the reviewer checks it before issuing',
+      }),
+    ).toBeTruthy();
+    expect(screen.queryByRole('img', { name: /approved/ })).toBeNull();
+  });
+
+  it('shows the issued letter on request', async () => {
+    renderDetail(await detailOf(CASES.mine, K.issued));
+    expect(screen.queryByRole('article', { name: 'Letter preview' })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Show letter' }));
+    const letter = screen.getByRole('article', { name: 'Letter preview' });
+    expect(within(letter).getByText('CLR-TSC-2026-0000042-K')).toBeTruthy();
+    expect(within(letter).getByText('V-0042-7K2Q')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Hide letter' }));
+    expect(screen.queryByRole('article', { name: 'Letter preview' })).toBeNull();
+  });
+});
+
 describe('ClarificationDetailView: actions (S15)', () => {
   it('resolves with a required note and says what happens to the case', async () => {
     const detail = await detailOf(CASES.mine, K.late);
@@ -264,6 +404,7 @@ describe('ClarificationDetailView: actions (S15)', () => {
     expect(navigate).toHaveBeenCalledWith({
       to: '/review/cases/$caseId/clarifications/$clarificationId',
       params: { caseId: CASES.mine, clarificationId: draftId },
+      search: { compose: true },
     });
   });
 

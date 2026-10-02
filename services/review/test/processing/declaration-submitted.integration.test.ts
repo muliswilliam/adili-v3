@@ -1,9 +1,9 @@
 import { asc, eq } from 'drizzle-orm';
-import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
 import { inbox, outbox, reviewCases, reviewFlags, reviewTimeline } from '../../src/db/schema.js';
 import { asset, declaration, income, statement } from '../fixtures/declarations.js';
-import { untilRegistryChecked } from '../support/cases.js';
+import { processedFromInbox, untilProcessed } from '../support/cases.js';
 import { submittedVersion } from '../support/fake-declarations.js';
 import { type ReviewApi, startReviewApi, submittedEvent } from '../support/review-api.js';
 
@@ -48,9 +48,9 @@ describe('declaration.submitted.v1 consumer and processing', () => {
     const version = firstDeclaration();
     api.declarations.given(version);
 
-    await api.consumer.submitted(submittedEvent('psc', version));
-
-    const created = await untilRegistryChecked(api, version);
+    // Through the inbox, until the workflow's last step (the copilot requested).
+    const created = await processedFromInbox(api, version);
+    expect(await casesOf(version.declarationId)).toHaveLength(1);
     expect(created).toMatchObject({
       tenant: 'psc',
       declarationId: version.declarationId,
@@ -108,9 +108,11 @@ describe('declaration.submitted.v1 consumer and processing', () => {
 
     // S21: identifiers and states only.
     const events = await api.db.select().from(outbox).orderBy(asc(outbox.createdAt));
+    // The case, its registry check, then its copilot requested (spec 07c).
     expect(events.map((event) => event.eventType)).toEqual([
       'review.case.created.v1',
       'review.registry.checked.v1',
+      'review.copilot.updated.v1',
     ]);
     expect(events[0]?.envelope).toMatchObject({
       type: 'review.case.created.v1',
@@ -138,8 +140,9 @@ describe('declaration.submitted.v1 consumer and processing', () => {
     const event = submittedEvent('psc', version);
 
     await api.consumer.submitted(event);
-    await untilRegistryChecked(api, version);
+    await untilProcessed(api, version);
     const readsAfterFirst = api.declarations.reads.length;
+    const eventsAfterFirst = (await api.db.select().from(outbox)).length;
 
     // The same event again (RabbitMQ redelivery): the inbox skips it.
     await api.consumer.submitted(event);
@@ -151,8 +154,8 @@ describe('declaration.submitted.v1 consumer and processing', () => {
     expect(await casesOf(version.declarationId)).toHaveLength(1);
     expect(api.declarations.reads).toHaveLength(readsAfterFirst);
     const events = await api.db.select().from(outbox);
-    // The case and its registry check, once.
-    expect(events).toHaveLength(2);
+    // The case, its registry check and its copilot request, once.
+    expect(events).toHaveLength(eventsAfterFirst);
     const handled = await api.db.select().from(inbox);
     expect(handled.map((row) => row.eventId).sort()).toHaveLength(2);
   });
@@ -200,15 +203,9 @@ describe('declaration.submitted.v1 consumer and processing', () => {
     // This version's reads only: a workflow of an earlier test still running cannot take them.
     api.declarations.failDocumentReads(version.declarationId, 2);
 
-    await api.consumer.submitted(submittedEvent('psc', version));
+    await processedFromInbox(api, version);
 
-    // The case is what the retries are for; the registry check after it is not waited for.
-    await vi.waitFor(
-      async () => {
-        expect(await casesOf(version.declarationId)).toHaveLength(1);
-      },
-      { timeout: 45_000, interval: 250 },
-    );
+    expect(await casesOf(version.declarationId)).toHaveLength(1);
     expect(api.declarations.failedReads).toEqual([version.declarationId, version.declarationId]);
   });
 

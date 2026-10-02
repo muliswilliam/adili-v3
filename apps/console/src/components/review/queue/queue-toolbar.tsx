@@ -16,7 +16,7 @@ import {
 import { useId } from 'react';
 
 import { CASE_COPY } from '../../../review-case/messages';
-import { CASE_STATUSES } from '../../../review-case/view';
+import { CASE_STATUSES } from '../../../review-case/labels';
 import { QUEUE_COPY as m } from '../../../review-queue/messages';
 import {
   QUEUE_BANDS,

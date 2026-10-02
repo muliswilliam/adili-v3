@@ -1,16 +1,174 @@
 import createClient from 'openapi-fetch';
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 
-import { CASE_ID, caseData, DOCUMENT, ME, registryView, WAFULA } from '../review-case/fixtures';
+import { CASE_ID, ME as FIXTURE_ME, registryView, WAFULA } from '../review-case/fixtures';
+
 import {
+  addNote,
+  attachmentLink,
   claim,
-  loadCase,
-  loadReviewers,
+  loadCaseView,
+  markFlagReviewed,
+  reassign,
+  release,
   loadRegistry,
   loadRegistryStatus,
+  loadReviewers,
   recheck,
 } from './review-case.server';
+import { MOCK_ATTACHMENTS, MOCK_FLAG_IDS as F } from './review/copilot-mock.server';
+import {
+  MOCK_CASE_IDS as CASES,
+  MOCK_OFFICERS,
+  mockReviewClient,
+  resetReviewMock,
+} from './review/mock.server';
 import type { paths } from './review/api.gen';
+import type { Assignee } from './review/types';
+
+const NOW_MS = Date.parse('2026-10-02T09:00:00Z');
+const ME: Assignee = { subject: 'a1b2c3d4-0000-4000-8000-000000000001', name: 'Faith Achieng' };
+const B: Assignee = { subject: 'a1b2c3d4-0000-4000-8000-000000000002', name: 'Halima Abdi' };
+
+const as = (officer: Assignee) => mockReviewClient(officer.subject, officer.name);
+
+async function view(caseId: string, officer: Assignee = ME) {
+  const result = await loadCaseView(as(officer), caseId, officer);
+  if (!result.ok) throw new Error(JSON.stringify(result.error));
+  return result.data;
+}
+
+beforeEach(() => {
+  resetReviewMock(NOW_MS);
+});
+
+describe('loadCaseView (S9)', () => {
+  it('returns the case with its document, flags, notes, timeline and reviewers of record', async () => {
+    const { detail, documentUnavailable, viewer } = await view(CASES.mine);
+    expect(documentUnavailable).toBe(false);
+    expect(viewer).toEqual(ME);
+    expect(detail.case.assignee).toEqual(ME);
+    expect(detail.document?.schemaVersion).toBe('declaration.v1');
+    expect(detail.flags).toHaveLength(5);
+    expect(detail.notes.map((note) => note.author.name)).toEqual(['Peter Mwangi', ME.name]);
+    expect(detail.reviewerHistory).toEqual([MOCK_OFFICERS.peter, ME]);
+    expect(detail.versions.map((each) => each.version)).toEqual([1, 2]);
+    expect(detail.timeline.at(0)?.kind).toBe('case-created');
+    expect('determinations' in detail).toBe(false);
+  });
+
+  it('still shows the case when the declarations service is down (502)', async () => {
+    const { detail, documentUnavailable } = await view(CASES.unavailable);
+    expect(documentUnavailable).toBe(true);
+    expect(detail.document).toBeNull();
+    expect(detail.case.reference).toBe('DCB-TSC-2026-0000988-4');
+    expect(detail.flags.length).toBeGreaterThan(0);
+    expect(detail).not.toHaveProperty('title');
+  });
+
+  it('reads an unknown case as missing', async () => {
+    const result = await loadCaseView(as(ME), 'ca5e0000-0000-4000-8000-0000000000ff', ME);
+    expect(result).toMatchObject({
+      ok: false,
+      error: { kind: 'problem', problem: { status: 404 } },
+    });
+  });
+});
+
+describe('assignment (S8)', () => {
+  it('claims an unassigned case: assigned, a timeline entry and a reviewer of record', async () => {
+    const claimed = await claim(as(ME), CASES.unassigned);
+    expect(claimed).toMatchObject({ ok: true, data: { status: 'assigned', assignee: ME } });
+    const { detail } = await view(CASES.unassigned);
+    expect(detail.reviewerHistory).toEqual([ME]);
+    expect(detail.timeline.at(-1)).toMatchObject({
+      kind: 'assigned',
+      summary: 'Claimed',
+      ref: ME.subject,
+    });
+  });
+
+  it('refuses a second claim (409), and only the holder releases (403 for anyone else)', async () => {
+    await claim(as(ME), CASES.unassigned);
+    expect(await claim(as(B), CASES.unassigned)).toMatchObject({
+      ok: false,
+      error: { kind: 'problem', problem: { status: 409, type: 'case-already-assigned' } },
+    });
+    expect(await release(as(B), CASES.unassigned)).toMatchObject({
+      ok: false,
+      error: { kind: 'problem', problem: { status: 403 } },
+    });
+    expect(await release(as(ME), CASES.unassigned)).toMatchObject({
+      ok: true,
+      data: { status: 'unassigned', assignee: null },
+    });
+  });
+
+  it('loses a claim another officer made first, who then holds the case', async () => {
+    expect(await claim(as(ME), CASES.contested)).toMatchObject({
+      ok: false,
+      error: { kind: 'problem', problem: { status: 409 } },
+    });
+    const { detail } = await view(CASES.contested);
+    expect(detail.case.assignee).toEqual(MOCK_OFFICERS.mercy);
+  });
+
+  it('lets a supervisor reassign and unassign, keeping the history', async () => {
+    expect(await reassign(as(ME), CASES.peters, MOCK_OFFICERS.mercy.subject)).toMatchObject({
+      ok: true,
+      data: { assignee: MOCK_OFFICERS.mercy },
+    });
+    expect(await reassign(as(ME), CASES.peters, null)).toMatchObject({
+      ok: true,
+      data: { assignee: null },
+    });
+    const { detail } = await view(CASES.peters);
+    expect(detail.reviewerHistory).toEqual([MOCK_OFFICERS.mercy, MOCK_OFFICERS.peter]);
+    expect(detail.timeline.slice(-2).map((entry) => entry.summary)).toEqual([
+      'Reassigned to Mercy Wambui',
+      'Unassigned by a supervisor',
+    ]);
+  });
+});
+
+describe('notes and flags', () => {
+  it('adds an internal note, a timeline entry', async () => {
+    const added = await addNote(as(ME), CASES.mine, 'Checked the title deed.');
+    expect(added).toMatchObject({
+      ok: true,
+      data: { author: ME, text: 'Checked the title deed.' },
+    });
+    const { detail } = await view(CASES.mine);
+    expect(detail.notes.at(-1)?.text).toBe('Checked the title deed.');
+    expect(detail.timeline.at(-1)?.kind).toBe('note-added');
+  });
+
+  it('marks a flag reviewed once with a note, and the open count goes down (S11)', async () => {
+    const before = (await view(CASES.mine)).detail.case.openFlags;
+    const reviewed = await markFlagReviewed(as(ME), CASES.mine, F.acquisition, 'Bought in 2025.');
+    expect(reviewed).toMatchObject({
+      ok: true,
+      data: { id: F.acquisition, reviewed: { by: ME, note: 'Bought in 2025.' } },
+    });
+    const { detail } = await view(CASES.mine);
+    expect(detail.case.openFlags).toBe(before - 1);
+    expect(detail.timeline.at(-1)).toMatchObject({ kind: 'flag-reviewed', ref: F.acquisition });
+    expect(await markFlagReviewed(as(ME), CASES.mine, F.acquisition, 'Again.')).toMatchObject({
+      ok: false,
+      error: { kind: 'problem', problem: { status: 409, type: 'flag-already-reviewed' } },
+    });
+  });
+
+  it('gives a link to one of the declaration’s attachments, and 404 for any other upload', async () => {
+    const link = await attachmentLink(as(ME), CASES.mine, MOCK_ATTACHMENTS.titleDeed.uploadId);
+    expect(link.ok && link.data.downloadUrl).toBe(
+      `/api/mock-files/${MOCK_ATTACHMENTS.titleDeed.uploadId}`,
+    );
+    expect(
+      await attachmentLink(as(ME), CASES.mine, '0b10ad00-0000-4000-8000-0000000002ff'),
+    ).toMatchObject({ ok: false, error: { kind: 'problem', problem: { status: 404 } } });
+  });
+});
 
 type Handler = (request: Request) => Response | Promise<Response>;
 
@@ -28,79 +186,6 @@ function json(status: number, body: unknown) {
   });
 }
 
-const detail = { ...caseData(), document: DOCUMENT };
-
-describe('loadCase', () => {
-  it('splits the case from its declaration as filed', async () => {
-    const result = await loadCase(
-      client(() => json(200, detail)),
-      CASE_ID,
-    );
-    if (!result.ok) throw new Error(JSON.stringify(result.error));
-    expect(result.data.document?.officer.name.firstName).toBe('Wanjiku');
-    expect(result.data.documentUnavailable).toBe(false);
-    expect(result.data.detail.flags).toHaveLength(3);
-    expect('document' in result.data.detail).toBe(false);
-  });
-
-  it('keeps the case when declarations could not give the document (502)', async () => {
-    const result = await loadCase(
-      client(() =>
-        json(502, {
-          type: 'declarations-unavailable',
-          title: 'Upstream service unavailable',
-          status: 502,
-          ...caseData(),
-          document: null,
-        }),
-      ),
-      CASE_ID,
-    );
-    if (!result.ok) throw new Error(JSON.stringify(result.error));
-    expect(result.data.document).toBeNull();
-    expect(result.data.documentUnavailable).toBe(true);
-    expect(result.data.detail.case.reference).toBe('DCI-PSC-2026-9164002-3');
-  });
-
-  it('treats a document it cannot read as unavailable', async () => {
-    const result = await loadCase(
-      client(() => json(200, { ...detail, document: { schemaVersion: 'declaration.v0' } })),
-      CASE_ID,
-    );
-    expect(result).toMatchObject({ ok: true, data: { document: null, documentUnavailable: true } });
-  });
-
-  it('passes on a missing case and a service that did not answer', async () => {
-    expect(
-      await loadCase(
-        client(() => json(404, { type: 'about:blank', title: 'Not found', status: 404 })),
-        CASE_ID,
-      ),
-    ).toMatchObject({ ok: false, error: { kind: 'problem', problem: { status: 404 } } });
-    expect(
-      await loadCase(
-        client(() => json(503, { type: 'about:blank', title: 'Unavailable', status: 503 })),
-        CASE_ID,
-      ),
-    ).toMatchObject({ ok: false, error: { kind: 'unavailable' } });
-  });
-});
-
-describe('claim', () => {
-  it('says when another officer got there first', async () => {
-    const result = await claim(
-      client(() =>
-        json(409, { type: 'case-already-assigned', title: 'Case already assigned', status: 409 }),
-      ),
-      CASE_ID,
-    );
-    expect(result).toMatchObject({
-      ok: false,
-      error: { kind: 'problem', problem: { status: 409, type: 'case-already-assigned' } },
-    });
-  });
-});
-
 describe('loadReviewers', () => {
   const list = (items: unknown[]) => () => json(200, { items });
 
@@ -110,7 +195,7 @@ describe('loadReviewers', () => {
       client((request) => {
         paths.push(new URL(request.url).pathname);
         return list([
-          { subject: ME.subject, name: 'Kiprono Chebet', supervisor: true, openCases: 0 },
+          { subject: FIXTURE_ME.subject, name: 'Kiprono Chebet', supervisor: true, openCases: 0 },
           { subject: 'old', name: 'Mercy Wambui', supervisor: false, openCases: 1 },
           { subject: WAFULA.subject, name: 'Wafula Barasa', supervisor: false, openCases: 2 },
         ])();
@@ -122,7 +207,7 @@ describe('loadReviewers', () => {
     // One read, not one per status.
     expect(paths).toEqual(['/v1/commissions/psc/review/queue/reviewers']);
     expect(result.data).toEqual([
-      { subject: ME.subject, name: 'Kiprono Chebet', open: 0, ofRecord: false },
+      { subject: FIXTURE_ME.subject, name: 'Kiprono Chebet', open: 0, ofRecord: false },
       { subject: 'old', name: 'Mercy Wambui', open: 1, ofRecord: true },
       { subject: WAFULA.subject, name: 'Wafula Barasa', open: 2, ofRecord: false },
     ]);
@@ -133,7 +218,7 @@ describe('loadReviewers', () => {
       client(
         list([
           { subject: WAFULA.subject, name: 'Wafula Barasa', supervisor: false, openCases: 1 },
-          { subject: ME.subject, name: 'Achieng Njeri', supervisor: true, openCases: 0 },
+          { subject: FIXTURE_ME.subject, name: 'Achieng Njeri', supervisor: true, openCases: 0 },
         ]),
       ),
       'psc',

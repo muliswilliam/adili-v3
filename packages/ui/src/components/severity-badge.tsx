@@ -28,6 +28,8 @@ export type SeverityBadgeProps = Omit<BadgeProps, 'children' | 'variant'> & {
   severity: Severity;
   /** Replaces the word, e.g. for another language. */
   label?: string;
+  /** `sm`: 19px, for a reviewed or closed flag's line and the copilot's flag list. */
+  size?: 'default' | 'sm';
 };
 
 /**
@@ -35,13 +37,23 @@ export type SeverityBadgeProps = Omit<BadgeProps, 'children' | 'variant'> & {
  * three bars, medium amber with two, low blue with one, info grey with an info mark. Smaller than
  * a `PriorityBadge`, which ranks a whole case.
  */
-export function SeverityBadge({ severity, label, className, ...props }: SeverityBadgeProps) {
+export function SeverityBadge({
+  severity,
+  label,
+  size = 'default',
+  className,
+  ...props
+}: SeverityBadgeProps) {
   const { variant, bars } = META[severity];
   return (
     <Badge
       variant={variant}
       data-severity={severity}
-      className={cn('h-[22px] gap-[5px] px-2 text-xs font-semibold [&_svg]:size-3', className)}
+      className={cn(
+        'font-semibold [&_svg]:size-3',
+        size === 'sm' ? 'h-[19px] gap-1 px-1.5 text-[11px]' : 'h-[22px] gap-[5px] px-2 text-xs',
+        className,
+      )}
       {...props}
     >
       {bars > 0 ? (

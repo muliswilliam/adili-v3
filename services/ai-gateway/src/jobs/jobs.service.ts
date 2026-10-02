@@ -1,15 +1,18 @@
 import { HttpStatus, Injectable } from '@nestjs/common';
 import { callerOf, type Principal, ProblemException } from '@adili/api-kit';
-import { type Database, InjectDatabase } from '@adili/data-access';
+import { InjectDatabase } from '@adili/data-access';
 import { EventPublisher } from '@adili/events';
 import { and, eq, inArray, isNull, sql } from 'drizzle-orm';
 import { v7 as uuidv7 } from 'uuid';
 
-import { CACHE_KEY, type Job, jobs, type schema } from '../db/schema.js';
+import { asTenant, type GatewayDatabase, type GatewayTransaction } from '../db/context.js';
+import { CACHE_KEY, type Job, jobs } from '../db/schema.js';
 import { hashJson } from '../hashing.js';
+import { Budgets } from '../policy/budgets.js';
+import { GenAiTelemetry } from '../policy/telemetry.js';
 import { findTask } from '../tasks/registry.js';
-import { gateAdmits } from './classification-gate.js';
-import { jobFinished } from './events.js';
+import { Admission } from './admission.js';
+import { recordJobEnded } from './job-ended.js';
 import { JobWorkflows } from './job-workflows.js';
 import { CACHEABLE_STATUSES, isTerminal } from './job-states.js';
 import { toJobView, type JobView } from './job-view.js';
@@ -29,17 +32,24 @@ const MAX_CREATE_ATTEMPTS = 3;
 @Injectable()
 export class JobsService {
   constructor(
-    @InjectDatabase() private readonly db: Database<typeof schema>,
+    @InjectDatabase() private readonly db: GatewayDatabase,
     private readonly routing: Routing,
+    private readonly admission: Admission,
+    private readonly budgets: Budgets,
     private readonly workflows: JobWorkflows,
     private readonly events: EventPublisher,
+    private readonly telemetry: GenAiTelemetry,
   ) {}
 
   /**
    * Creates a job for a task call and starts it, unless the caller's Idempotency-Key names an
    * earlier job, or an equal request already has a live or succeeded job (the cache): then that
-   * job is returned. Waits up to `waitSeconds` for the job to end. A request the classification
-   * gate refuses is recorded as a `blocked` job (reason `policy`) that never reaches a provider.
+   * job is returned. Waits up to `waitSeconds` for the job to end.
+   *
+   * A new job counts against the tenant's per-minute limit (beyond it: 429, no job). A request
+   * the classification gate refuses, or from a tenant past its monthly budget, is recorded as a
+   * `blocked` job (reason `policy` or `budget`) that never reaches a provider; one routed to a
+   * provider this process cannot reach fails at once with `provider-unavailable`.
    *
    * A request served from the cache does not record its key. Should the cached job fail, a
    * retry with that key runs a new job rather than returning the failed one: the retry of a
@@ -48,6 +58,7 @@ export class JobsService {
   async run(
     taskName: string,
     body: unknown,
+    tenant: string,
     principal: Principal,
     idempotencyKey: string,
   ): Promise<RunTaskResult> {
@@ -70,9 +81,9 @@ export class JobsService {
         detail: `Task ${task.name} has prompt versions ${task.promptVersions.join(', ')}.`,
       });
     }
-    const route = this.routing.route();
+    const route = await this.routing.route(tenant, task.name);
     const fields: Pick<Job, (typeof CACHE_KEY)[number]> = {
-      tenant: request.tenant,
+      tenant,
       caller: callerOf(principal),
       subjectRef: request.subjectRef,
       dataClass: request.dataClass,
@@ -85,18 +96,29 @@ export class JobsService {
     // What the caller asked for; the wait is not part of it, so a retry may wait differently.
     const requestHash = hashJson({
       task: task.name,
-      tenant: request.tenant,
+      tenant,
       dataClass: request.dataClass,
       subjectRef: request.subjectRef,
       promptVersion: request.promptVersion,
       input: request.input,
     });
 
+    // The caller's transactions see the acting tenant's jobs only (row-level security).
+    const asCaller = <T>(work: (tx: GatewayTransaction) => Promise<T>) =>
+      asTenant(this.db, tenant, work, fields.caller);
     for (let attempt = 0; attempt < MAX_CREATE_ATTEMPTS; attempt++) {
-      const [previous] = await this.db
-        .select()
-        .from(jobs)
-        .where(and(eq(jobs.caller, fields.caller), eq(jobs.idempotencyKey, idempotencyKey)));
+      const [previous] = await asCaller((tx) =>
+        tx
+          .select()
+          .from(jobs)
+          .where(
+            and(
+              eq(jobs.tenant, tenant),
+              eq(jobs.caller, fields.caller),
+              eq(jobs.idempotencyKey, idempotencyKey),
+            ),
+          ),
+      );
       if (previous) {
         if (previous.requestHash !== requestHash) {
           throw new ProblemException({
@@ -109,50 +131,61 @@ export class JobsService {
         return { job: await this.startAndWait(previous, request.waitSeconds), replayed: true };
       }
 
-      const [cached] = await this.db
-        .select()
-        .from(jobs)
-        .where(
-          and(
-            ...CACHE_KEY.map((column) => eq(jobs[column], fields[column])),
-            inArray(jobs.status, CACHEABLE_STATUSES),
-            isNull(jobs.outputPurgedAt),
+      const [cached] = await asCaller((tx) =>
+        tx
+          .select()
+          .from(jobs)
+          .where(
+            and(
+              ...CACHE_KEY.map((column) => eq(jobs[column], fields[column])),
+              inArray(jobs.status, CACHEABLE_STATUSES),
+              isNull(jobs.outputPurgedAt),
+            ),
           ),
-        );
+      );
       if (cached) {
         return { job: await this.startAndWait(cached, request.waitSeconds), replayed: false };
       }
 
-      const admitted = gateAdmits(request.dataClass, route.providerClass);
-      const created = await this.db.transaction(async (tx) => {
+      const limit = await this.budgets.rateLimited(tenant);
+      if (limit.limited) {
+        throw ProblemException.fromCode('rate-limit-exceeded', {
+          detail: `Tenant ${tenant} has reached its per-minute limit of AI task calls.`,
+          extensions: { retryAfterSeconds: limit.retryAfterSeconds },
+        });
+      }
+      const ending = await this.admission.refusal(tenant, request.dataClass, route.provider);
+      const created = await asCaller(async (tx) => {
         const [job] = await tx
           .insert(jobs)
           .values({
             id: uuidv7(),
             ...fields,
+            params: route.params,
             idempotencyKey,
             requestHash,
-            ...(admitted
-              ? { input: request.input, status: 'queued' as const }
-              : { status: 'blocked' as const, reason: 'policy' as const, finishedAt: sql`now()` }),
+            ...(ending
+              ? { ...ending, finishedAt: sql`now()` }
+              : { input: request.input, status: 'queued' as const }),
           })
           // Lost a race on the key or the cache entry: the next attempt reads the winner.
           .onConflictDoNothing()
           .returning();
-        if (job?.status === 'blocked') await this.events.record(tx, jobFinished(job));
+        if (job && isTerminal(job.status)) await recordJobEnded(tx, this.events, job);
         return job;
       });
       if (created) {
+        if (isTerminal(created.status)) this.telemetry.jobFinished(created);
         return { job: await this.startAndWait(created, request.waitSeconds), replayed: false };
       }
     }
     throw new Error('Could not create or find the job under contention');
   }
 
-  /** A job is visible only to the caller that created it. */
-  async get(id: string, principal: Principal): Promise<JobView | undefined> {
-    const job = await this.find(id, callerOf(principal));
-    return job && toJobView(job);
+  /** A job is visible only to the caller that created it, acting for the job's tenant. */
+  async get(id: string, tenant: string, principal: Principal): Promise<JobView | undefined> {
+    const job = await this.find(id, tenant, callerOf(principal));
+    return job ? toJobView(job) : undefined;
   }
 
   /**
@@ -167,14 +200,20 @@ export class JobsService {
       return toJobView(job);
     }
     await this.workflows.waitForEnd(job.id, waitSeconds * 1000);
-    return toJobView((await this.find(job.id, job.caller)) ?? job);
+    return toJobView((await this.find(job.id, job.tenant, job.caller)) ?? job);
   }
 
-  private async find(id: string, caller: string): Promise<Job | undefined> {
-    const [job] = await this.db
-      .select()
-      .from(jobs)
-      .where(and(eq(jobs.id, id), eq(jobs.caller, caller)));
+  private async find(id: string, tenant: string, caller: string): Promise<Job | undefined> {
+    const [job] = await asTenant(
+      this.db,
+      tenant,
+      (tx) =>
+        tx
+          .select()
+          .from(jobs)
+          .where(and(eq(jobs.id, id), eq(jobs.tenant, tenant), eq(jobs.caller, caller))),
+      caller,
+    );
     return job;
   }
 }

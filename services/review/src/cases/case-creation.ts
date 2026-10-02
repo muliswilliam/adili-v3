@@ -196,7 +196,7 @@ async function amendCase(
 /** The version among those the case has processed (the case view's version list). */
 async function recordVersion(
   tx: ReviewTransaction,
-  { input, facts }: UpsertCaseRequest,
+  { input, facts, flags }: UpsertCaseRequest,
   caseId: string,
   amendment: boolean,
 ): Promise<void> {
@@ -209,6 +209,7 @@ async function recordVersion(
     submittedAt: new Date(facts.submittedAt),
     late: facts.late,
     amendment,
+    firstOnAdili: flags.some((flag) => flag.ruleId === 'no-previous-version'),
   });
 }
 

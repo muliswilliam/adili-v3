@@ -8,11 +8,18 @@ import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { CaseDetail } from '../../src/cases/representation.js';
 import { clarificationWorkflowId } from '../../src/clarifications/contract.js';
+import { CopilotDraftPurge } from '../../src/copilot/copilot-draft-purge.js';
 import type {
   ClarificationView,
   DeclarantClarificationView,
 } from '../../src/clarifications/representation.js';
-import { clarifications, outbox, reviewCases, reviewTimeline } from '../../src/db/schema.js';
+import {
+  clarifications,
+  outbox,
+  reviewCases,
+  reviewCopilotDrafts,
+  reviewTimeline,
+} from '../../src/db/schema.js';
 import { asset, declaration, SPOUSE, statement } from '../fixtures/declarations.js';
 import { givenAssignedCase } from '../support/cases.js';
 import { contractErrors, okResponse } from '../support/contract.js';
@@ -122,6 +129,9 @@ describe('clarifications: drafts, issue, letter payload, declarant reads', () =>
       dueAt: null,
       letter: null,
       response: null,
+      opening: null,
+      // Left out: English.
+      language: 'en',
       items: twoItems.items,
     });
   });
@@ -138,7 +148,9 @@ describe('clarifications: drafts, issue, letter payload, declarant reads', () =>
         updated.json(),
       ),
     ).toEqual([]);
-    expect(updated.json<ClarificationView>().items).toEqual(twoItems.items);
+    expect(updated.json<ClarificationView>().items).toEqual(
+      twoItems.items.map((item) => ({ ...item, aiJobId: null, aiLanguage: null })),
+    );
 
     expect((await issue(id)).statusCode).toBe(200);
     const again = await api.send('PUT', `/v1/review/clarifications/${id}`, reviewerA, twoItems);
@@ -389,6 +401,363 @@ describe('clarifications: drafts, issue, letter payload, declarant reads', () =>
     expect(response.json()).toMatchObject({ code: 'clarification-has-no-items' });
   });
 
+  it("S12: a draft keeps the letter's opening paragraph; an update replaces it, and issuing prints it in the letter payload", async () => {
+    const caseId = await givenAssignedCase(api, version);
+    const opening =
+      'Thank you for your biennial declaration. The points below relate to registry records.';
+
+    const created = await draft(caseId, { ...twoItems, opening: `  ${opening}  ` });
+    expect(created.statusCode, created.body).toBe(201);
+    const { id, ...body } = created.json<ClarificationView>();
+    expect(body.opening).toBe(opening);
+    expect((await api.get(`/v1/review/clarifications/${id}`, reviewerA)).json()).toMatchObject({
+      opening,
+    });
+
+    // Up to 800 characters.
+    const tooLong = await api.send('PUT', `/v1/review/clarifications/${id}`, reviewerA, {
+      ...twoItems,
+      opening: 'x'.repeat(801),
+    });
+    expect(tooLong.statusCode).toBe(400);
+
+    // An update replaces the draft's content: left out (or blank), there is no opening.
+    const cleared = await api.send('PUT', `/v1/review/clarifications/${id}`, reviewerA, twoItems);
+    expect(cleared.statusCode, cleared.body).toBe(200);
+    expect(cleared.json<ClarificationView>().opening).toBeNull();
+    const blank = await api.send('PUT', `/v1/review/clarifications/${id}`, reviewerA, {
+      ...twoItems,
+      opening: '   ',
+    });
+    expect(blank.json<ClarificationView>().opening).toBeNull();
+    const updated = await api.send('PUT', `/v1/review/clarifications/${id}`, reviewerA, {
+      ...twoItems,
+      opening,
+    });
+    expect(
+      contractErrors(
+        okResponse('/v1/review/clarifications/{clarificationId}', 'put'),
+        updated.json(),
+      ),
+    ).toEqual([]);
+    expect(updated.json<ClarificationView>().opening).toBe(opening);
+
+    const issued = await issue(id);
+    expect(issued.statusCode, issued.body).toBe(200);
+    expect(issued.json<ClarificationView>().opening).toBe(opening);
+    await vi.waitFor(
+      () => {
+        expect(api.documents.issued).toHaveLength(1);
+      },
+      { timeout: 45_000, interval: 250 },
+    );
+    const payload = await api.get(
+      `/internal/v1/review/clarifications/${id}/letter-payload`,
+      documentsService,
+      { 'x-acting-tenant': 'psc' },
+    );
+    expect(payload.statusCode, payload.body).toBe(200);
+    expect(
+      contractErrors(
+        okResponse('/internal/v1/review/clarifications/{clarificationId}/letter-payload', 'get'),
+        payload.json(),
+      ),
+    ).toEqual([]);
+    expect(payload.json()).toMatchObject({ opening });
+  });
+
+  it("story 7: a Swahili letter keeps its language through updates and follow-ups, and the letter payload's labels and requirements are in it", async () => {
+    const caseId = await givenAssignedCase(api, version);
+    const created = await draft(caseId, { ...twoItems, language: 'sw' });
+    expect(created.statusCode, created.body).toBe(201);
+    const { id } = created.json<ClarificationView>();
+    expect(created.json<ClarificationView>().language).toBe('sw');
+    expect(
+      (
+        await api.send('POST', `/v1/review/cases/${caseId}/clarifications`, reviewerA, {
+          ...twoItems,
+          language: 'fr',
+        })
+      ).statusCode,
+    ).toBe(400);
+
+    // An update replaces it like the items: left out, the letter is in English.
+    const english = await api.send('PUT', `/v1/review/clarifications/${id}`, reviewerA, twoItems);
+    expect(english.json<ClarificationView>().language).toBe('en');
+    const swahili = await api.send('PUT', `/v1/review/clarifications/${id}`, reviewerA, {
+      ...twoItems,
+      language: 'sw',
+    });
+    expect(swahili.json<ClarificationView>().language).toBe('sw');
+
+    const issued = await issue(id);
+    expect(issued.statusCode, issued.body).toBe(200);
+    await vi.waitFor(
+      () => {
+        expect(api.documents.issued).toHaveLength(1);
+      },
+      { timeout: 45_000, interval: 250 },
+    );
+    const payload = await api.get(
+      `/internal/v1/review/clarifications/${id}/letter-payload`,
+      documentsService,
+      { 'x-acting-tenant': 'psc' },
+    );
+    expect(payload.statusCode, payload.body).toBe(200);
+    expect(payload.json()).toMatchObject({
+      language: 'sw',
+      items: [
+        {
+          label: 'Mali · Plot KSM/123 · James Otieno',
+          requirementLabel: 'Eleza tofauti au kutowiana kwa taarifa',
+          text: twoItems.items[0]?.text,
+        },
+        {
+          label: 'Mali · Toyota KDA 123A · Grace Otieno',
+          requirementLabel: 'Toa taarifa zilizoachwa',
+          text: twoItems.items[1]?.text,
+        },
+      ],
+    });
+
+    const followUp = await api.send('POST', `/v1/review/clarifications/${id}/follow-up`, reviewerA);
+    expect(followUp.statusCode, followUp.body).toBe(201);
+    expect(followUp.json<ClarificationView>().language).toBe('sw');
+  });
+
+  it('ADR-007: text drafted with AI keeps its job through edits and issue, and the letter says so', async () => {
+    const caseId = await givenAssignedCase(api, version);
+    const jobId = randomUUID();
+    // A ready Draft with AI of the case (its text is the composer's business).
+    const readyDraft = (forCase: string, job: string) =>
+      api.asPlatform((tx) =>
+        tx.insert(reviewCopilotDrafts).values({
+          id: randomUUID(),
+          tenant: 'psc',
+          caseId: forCase,
+          requestedBy: 'reviewer-a',
+          selectionHash: 'selection',
+          jobId: job,
+          status: 'ready',
+          ciphertext: 'sealed',
+          envelope: {} as never,
+          expiresAt: new Date(Date.now() + 3_600_000),
+        }),
+      );
+    await readyDraft(caseId, jobId);
+    const [drafted, written] = twoItems.items;
+    const body = {
+      items: [{ ...drafted, aiJobId: jobId }, written],
+      opening: 'The Commission asks you to clarify the points below.',
+      openingAiJobId: jobId,
+    };
+
+    // A job that drafted nothing on this case is refused.
+    const unknown = await draft(caseId, { ...body, openingAiJobId: randomUUID() });
+    expect(unknown.statusCode).toBe(400);
+    expect(unknown.json()).toMatchObject({ type: 'ai-draft-not-on-case' });
+
+    const created = await draft(caseId, body);
+    expect(created.statusCode, created.body).toBe(201);
+    const view = created.json<ClarificationView>();
+    expect(
+      contractErrors(okResponse('/v1/review/cases/{caseId}/clarifications', 'post', 201), view),
+    ).toEqual([]);
+    expect(view.items.map((item) => item.aiJobId)).toEqual([jobId, null]);
+    expect(view.openingAiJobId).toBe(jobId);
+
+    // The draft is purged; the reviewer edits the AI text: the job stays named.
+    await api.asPlatform((tx) => tx.delete(reviewCopilotDrafts));
+    const edited = await api.send('PUT', `/v1/review/clarifications/${view.id}`, reviewerA, {
+      ...body,
+      items: [
+        { ...drafted, text: 'Explain the higher value of the plot.', aiJobId: jobId },
+        written,
+      ],
+    });
+    expect(edited.statusCode, edited.body).toBe(200);
+    expect(edited.json<ClarificationView>().items[0]?.aiJobId).toBe(jobId);
+
+    expect((await issue(view.id)).statusCode).toBe(200);
+    await vi.waitFor(
+      () => {
+        expect(api.documents.issued).toHaveLength(1);
+      },
+      { timeout: 45_000, interval: 250 },
+    );
+    const payload = await api.get(
+      `/internal/v1/review/clarifications/${view.id}/letter-payload`,
+      documentsService,
+      { 'x-acting-tenant': 'psc' },
+    );
+    expect(payload.json()).toMatchObject({
+      aiAssisted: true,
+      items: [{ aiAssisted: true }, { aiAssisted: false }],
+    });
+    const fetched = await api.get(`/v1/review/clarifications/${view.id}`, reviewerA);
+    expect(fetched.json()).toMatchObject({
+      openingAiJobId: jobId,
+      items: [{ aiJobId: jobId }, { aiJobId: null }],
+    });
+  });
+
+  it('Q36: each drafted part keeps the language its job drafted in, through a letter language change, purge and follow-up', async () => {
+    const caseId = await givenAssignedCase(api, version);
+    const jobId = randomUUID();
+    await api.asPlatform((tx) =>
+      tx.insert(reviewCopilotDrafts).values({
+        id: randomUUID(),
+        tenant: 'psc',
+        caseId,
+        requestedBy: 'reviewer-a',
+        selectionHash: 'selection',
+        language: 'sw',
+        jobId,
+        status: 'ready',
+        ciphertext: 'sealed',
+        envelope: {} as never,
+        expiresAt: new Date(Date.now() + 3_600_000),
+      }),
+    );
+    const [drafted, written] = twoItems.items;
+    const body = {
+      items: [{ ...drafted, aiJobId: jobId }, written],
+      opening: 'Tume inakuomba ufafanue mambo yafuatayo.',
+      openingAiJobId: jobId,
+      language: 'sw' as const,
+    };
+    const created = await draft(caseId, body);
+    expect(created.statusCode, created.body).toBe(201);
+    const view = created.json<ClarificationView>();
+    expect(view.items.map((item) => item.aiLanguage)).toEqual(['sw', null]);
+    expect(view.openingAiLanguage).toBe('sw');
+
+    // The letter turns English and the draft's row goes: the parts still say Swahili.
+    await api.asPlatform((tx) => tx.delete(reviewCopilotDrafts));
+    const english = await api.send('PUT', `/v1/review/clarifications/${view.id}`, reviewerA, {
+      ...body,
+      language: 'en',
+    });
+    expect(english.statusCode, english.body).toBe(200);
+    const updated = english.json<ClarificationView>();
+    expect(
+      contractErrors(okResponse('/v1/review/clarifications/{clarificationId}', 'put'), updated),
+    ).toEqual([]);
+    expect(updated).toMatchObject({
+      language: 'en',
+      openingAiLanguage: 'sw',
+      items: [
+        { aiJobId: jobId, aiLanguage: 'sw' },
+        { aiJobId: null, aiLanguage: null },
+      ],
+    });
+
+    // Dropping the opening's job drops its language.
+    const reviewer = await api.send('PUT', `/v1/review/clarifications/${view.id}`, reviewerA, {
+      ...body,
+      openingAiJobId: null,
+    });
+    expect(reviewer.json<ClarificationView>().openingAiLanguage).toBeNull();
+
+    expect((await issue(view.id)).statusCode).toBe(200);
+    const followUp = await api.send(
+      'POST',
+      `/v1/review/clarifications/${view.id}/follow-up`,
+      reviewerA,
+    );
+    expect(followUp.statusCode, followUp.body).toBe(201);
+    expect(followUp.json<ClarificationView>().items[0]?.aiLanguage).toBe('sw');
+  });
+
+  it('ADR-007: a clarification that named AI-drafted text stays AI-assisted when an edit drops the job', async () => {
+    const caseId = await givenAssignedCase(api, version);
+    const jobId = randomUUID();
+    await api.asPlatform((tx) =>
+      tx.insert(reviewCopilotDrafts).values({
+        id: randomUUID(),
+        tenant: 'psc',
+        caseId,
+        requestedBy: 'reviewer-a',
+        selectionHash: 'selection',
+        jobId,
+        status: 'ready',
+        ciphertext: 'sealed',
+        envelope: {} as never,
+        expiresAt: new Date(Date.now() + 3_600_000),
+      }),
+    );
+    const [drafted, written] = twoItems.items;
+    const created = await draft(caseId, { items: [{ ...drafted, aiJobId: jobId }, written] });
+    expect(created.statusCode, created.body).toBe(201);
+    const { id } = created.json<ClarificationView>();
+
+    // A client that leaves the job out of its next save.
+    const edited = await api.send('PUT', `/v1/review/clarifications/${id}`, reviewerA, twoItems);
+    expect(edited.statusCode, edited.body).toBe(200);
+
+    expect((await issue(id)).statusCode).toBe(200);
+    await vi.waitFor(
+      () => {
+        expect(api.documents.issued).toHaveLength(1);
+      },
+      { timeout: 45_000, interval: 250 },
+    );
+    const payload = await api.get(
+      `/internal/v1/review/clarifications/${id}/letter-payload`,
+      documentsService,
+      { 'x-acting-tenant': 'psc' },
+    );
+    expect(payload.json()).toMatchObject({ aiAssisted: true });
+  });
+
+  it("ADR-007: a draft's job names AI text after its 24 hours are purged, and only for the reviewer who drafted it", async () => {
+    const caseId = await givenAssignedCase(api, version);
+    const jobId = randomUUID();
+    const draftId = randomUUID();
+    await api.asPlatform((tx) =>
+      tx.insert(reviewCopilotDrafts).values({
+        id: draftId,
+        tenant: 'psc',
+        caseId,
+        requestedBy: 'reviewer-a',
+        selectionHash: 'selection',
+        jobId,
+        status: 'ready',
+        ciphertext: 'sealed',
+        envelope: {} as never,
+        expiresAt: new Date(Date.now() - 60_000),
+      }),
+    );
+    const [drafted, written] = twoItems.items;
+    const body = { items: [{ ...drafted, aiJobId: jobId }, written] };
+
+    // Another reviewer of the Commission (the case reassigned to them) cannot name it.
+    await api.asPlatform((tx) =>
+      tx.update(reviewCases).set({ assignee: 'reviewer-b' }).where(eq(reviewCases.id, caseId)),
+    );
+    const byOther = await draft(caseId, body, reviewerB);
+    expect(byOther.statusCode).toBe(400);
+    expect(byOther.json()).toMatchObject({ type: 'ai-draft-not-on-case' });
+    await api.asPlatform((tx) =>
+      tx.update(reviewCases).set({ assignee: 'reviewer-a' }).where(eq(reviewCases.id, caseId)),
+    );
+
+    // The purge removes the drafted text and keeps which job drafted it on the case.
+    expect(await api.app.get(CopilotDraftPurge).purge()).toBe(1);
+    const [purged] = await api.asPlatform((tx) =>
+      tx.select().from(reviewCopilotDrafts).where(eq(reviewCopilotDrafts.id, draftId)),
+    );
+    expect(purged).toMatchObject({ jobId, ciphertext: null, envelope: null });
+    expect(purged?.purgedAt).toBeInstanceOf(Date);
+
+    const created = await draft(caseId, body);
+    expect(created.statusCode, created.body).toBe(201);
+    expect(created.json<ClarificationView>().items.map((item) => item.aiJobId)).toEqual([
+      jobId,
+      null,
+    ]);
+  });
+
   it('S12: issuing needs an Idempotency-Key, and a retry with the same key replays the answer', async () => {
     const caseId = await givenAssignedCase(api, version);
     const { id } = (await draft(caseId)).json<ClarificationView>();
@@ -452,16 +821,21 @@ describe('clarifications: drafts, issue, letter payload, declarant reads', () =>
       commission: { name: 'Public Service Commission', issuerCode: 'PSC' },
       declarationReference: 'DCB-PSC-2027-0000042-7',
       clarificationReference: reference,
+      language: 'en',
+      opening: null,
+      aiAssisted: false,
       items: [
         {
           label: 'Assets · Plot KSM/123 · James Otieno',
           requirementLabel: 'Explain the discrepancy or inconsistency',
           text: twoItems.items[0]?.text,
+          aiAssisted: false,
         },
         {
           label: 'Assets · Toyota KDA 123A · Grace Otieno',
           requirementLabel: 'Provide the omitted information',
           text: twoItems.items[1]?.text,
+          aiAssisted: false,
         },
       ],
       issuedAt: '2027-12-20T08:00:00.000Z',
@@ -520,8 +894,18 @@ describe('clarifications: drafts, issue, letter payload, declarant reads', () =>
 
     const issued = await itemsOf();
     expect(issued.read).toEqual([
-      { ...twoItems.items[0], label: 'Assets · Plot KSM/123 · James Otieno' },
-      { ...twoItems.items[1], label: 'Assets · Toyota KDA 123A · Grace Otieno' },
+      {
+        ...twoItems.items[0],
+        aiJobId: null,
+        aiLanguage: null,
+        label: 'Assets · Plot KSM/123 · James Otieno',
+      },
+      {
+        ...twoItems.items[1],
+        aiJobId: null,
+        aiLanguage: null,
+        label: 'Assets · Toyota KDA 123A · Grace Otieno',
+      },
     ]);
     expect(issued.listed).toEqual(issued.read);
   });

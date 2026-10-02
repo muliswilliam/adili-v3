@@ -1,82 +1,68 @@
-import { render, screen } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 
-import { PRIORITY_BADGE_MESSAGES, PriorityBadge } from './priority-badge';
-
-const indicator = 'Indicator for ordering only. Not a finding.';
+import { PRIORITY_BANDS, PriorityBadge } from './priority-badge';
 
 describe('PriorityBadge', () => {
-  it('carries the band as text with the indicator note in its accessible name', () => {
-    render(<PriorityBadge priority="high" />);
+  it.each([
+    ['high', 'High'],
+    ['medium', 'Medium'],
+    ['low', 'Low'],
+  ] as const)('shows %s in text, with the note in its accessible name', (band, text) => {
+    render(<PriorityBadge band={band} />);
 
-    const badge = screen.getByRole('img', { name: `High priority. ${indicator}` });
-    expect(badge.textContent).toBe('High');
-    expect(badge.dataset.priority).toBe('high');
-    expect(badge.className).toContain('text-destructive');
+    const badge = screen.getByRole('img', {
+      name: `${text} priority. Indicator for ordering only. Not a finding.`,
+    });
+    expect(badge.textContent).toBe(text);
+    expect(badge.getAttribute('data-band')).toBe(band);
+    expect(badge.tabIndex).toBe(0);
   });
 
-  it('tints medium amber and low grey, each with its word', () => {
-    render(
-      <>
-        <PriorityBadge priority="medium" />
-        <PriorityBadge priority="low" />
-      </>,
+  it('lights one bar more per band', () => {
+    const lit = PRIORITY_BANDS.map((band) => {
+      const { container, unmount } = render(<PriorityBadge band={band} />);
+      const bars = [...container.querySelectorAll('rect')];
+      unmount();
+      return bars.filter((bar) => bar.getAttribute('opacity') !== '0.25').length;
+    });
+    expect(lit).toEqual([1, 2, 3]);
+  });
+
+  it('shows the note in a tooltip on focus', () => {
+    render(<PriorityBadge band="high" />);
+
+    fireEvent.focus(screen.getByRole('img'));
+
+    expect(screen.getByRole('tooltip').textContent).toBe(
+      'Indicator for ordering only. Not a finding.',
     );
-
-    expect(screen.getByText('Medium').className).toContain('text-warning');
-    expect(screen.getByText('Low').className).toContain('text-secondary-foreground');
   });
 
-  it('lights one bar per band, never colour alone', () => {
-    render(
-      <>
-        <PriorityBadge priority="high" />
-        <PriorityBadge priority="medium" />
-        <PriorityBadge priority="low" />
-      </>,
-    );
+  it('can leave out the tooltip and the tab stop, keeping the note for screen readers', () => {
+    render(<PriorityBadge band="medium" tooltip={false} />);
 
-    const lit = (word: string) =>
-      [...screen.getByText(word).querySelectorAll('rect')].filter(
-        (bar) => bar.getAttribute('opacity') === '1',
-      ).length;
-    expect([lit('High'), lit('Medium'), lit('Low')]).toEqual([3, 2, 1]);
-    expect(screen.getByText('High').querySelector('svg')?.getAttribute('aria-hidden')).toBe('true');
-  });
-
-  it('shows the indicator note in a tooltip on keyboard focus', async () => {
-    const user = userEvent.setup();
-    render(<PriorityBadge priority="medium" />);
-
-    await user.tab();
-
-    expect(document.activeElement?.textContent).toBe('Medium');
-    expect((await screen.findByRole('tooltip')).textContent).toBe(indicator);
-  });
-
-  it('without the tooltip is not a tab stop but keeps the note in its name', () => {
-    render(<PriorityBadge priority="low" tooltip={false} />);
-
-    const badge = screen.getByRole('img', { name: `Low priority. ${indicator}` });
+    const badge = screen.getByRole('img', {
+      name: 'Medium priority. Indicator for ordering only. Not a finding.',
+    });
     expect(badge.hasAttribute('tabindex')).toBe(false);
+    fireEvent.focus(badge);
+    expect(screen.queryByRole('tooltip')).toBeNull();
   });
 
-  it('takes other wording', () => {
+  it('takes other copy', () => {
     render(
       <PriorityBadge
-        priority="high"
+        band="low"
         messages={{
-          bands: { high: 'Juu' },
-          label: (band) => `Kipaumbele ${band}`,
-          indicator: 'Kiashiria tu.',
+          bands: { low: 'Chini', medium: 'Wastani', high: 'Juu' },
+          note: 'Kwa mpangilio tu.',
         }}
       />,
     );
 
-    expect(screen.getByRole('img', { name: 'Kipaumbele Juu. Kiashiria tu.' }).textContent).toBe(
-      'Juu',
+    expect(screen.getByRole('img', { name: 'Chini priority. Kwa mpangilio tu.' }).textContent).toBe(
+      'Chini',
     );
-    expect(PRIORITY_BADGE_MESSAGES.bands.high).toBe('High');
   });
 });

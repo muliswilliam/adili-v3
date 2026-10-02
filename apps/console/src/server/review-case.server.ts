@@ -1,4 +1,3 @@
-import { DeclarationSchema, type DeclarationV1 } from '@adili/forms';
 import { z } from 'zod';
 
 import type { ReviewClient } from './review/client.server';
@@ -6,24 +5,27 @@ import type { Assignee, CaseDetail, CaseListItem, Flag, Note, RegistryView } fro
 import { callService, type ServiceError, type ServiceResult } from './service-call';
 
 /**
- * The review service's case endpoints for the case view (spec 07a FE-3, review.yaml), folded
- * into results the screen can switch on. Pure: the caller injects the client (`review-case.ts`
- * holds the server functions that call these as the signed-in reviewer or supervisor).
+ * The review service's case endpoints for the case view (spec 07a FE-3, S8, S9, S11), folded into
+ * results the screen can switch on. Pure: the caller injects the client (see `review-case.ts`
+ * for the server functions that call these as the signed-in reviewer or supervisor).
  */
 
-/** JSON as a server function can send it (an `unknown` map cannot be checked as serialisable). */
-export type JsonValue =
-  string | number | boolean | null | JsonValue[] | { [key: string]: JsonValue };
+/** JSON, as the document and a flag's evidence are: what a server function can return. */
+export type Json = string | number | boolean | null | Json[] | { [key: string]: Json };
+export type JsonObject = Record<string, Json>;
 
-/** A flag whose evidence is plain JSON, as review.yaml has it: facts, never amounts. */
-export type CaseFlag = Omit<Flag, 'evidence'> & { evidence: Record<string, JsonValue> };
+/**
+ * A flag as the case view gets it: review.yaml types its evidence as the clear facts the rules
+ * record (strings, numbers, booleans, lists of codes), which a server function can return.
+ */
+export type CaseFlag = Flag;
 
 type RegistryPersonView = RegistryView['persons'][number];
 type RegistrySystemView = RegistryPersonView['systems'][number];
 
 /** A registry record beside a declared item, the record as plain JSON (as the gateway holds it). */
 export type CaseRegistryRow = Omit<RegistrySystemView['rows'][number], 'registryRecord'> & {
-  registryRecord: Record<string, JsonValue>;
+  registryRecord: JsonObject;
 };
 
 /** review.yaml `RegistryView` with plain JSON records and evidence, as a server function sends it. */
@@ -37,75 +39,78 @@ export interface CaseRegistryView {
   })[];
 }
 
-/** The case detail without its document, which is parsed separately. */
-export type CaseData = Omit<CaseDetail, 'document' | 'flags'> & {
+/** The case detail as the case view reads it (determinations are spec 08's). */
+export type CaseViewDetail = Omit<CaseDetail, 'flags' | 'document' | 'determinations'> & {
   flags: CaseFlag[];
+  document: JsonObject | null;
 };
 
-export interface CaseLoad {
-  detail: CaseData;
-  /** The current version's declaration as filed; null when it could not be read. */
-  document: DeclarationV1 | null;
+function viewOf(detail: CaseDetail): CaseViewDetail {
+  const view: Partial<CaseDetail> = { ...detail };
+  delete view.determinations;
+  return view as CaseViewDetail;
+}
+
+export interface CaseView {
+  detail: CaseViewDetail;
   /**
-   * Declarations did not answer (review.yaml's 502 `declarations-unavailable`, which still
-   * carries the rest of the case) or answered with a document this console cannot read.
+   * The declarations service could not give the document (502 `declarations-unavailable`): the
+   * rest of the case still shows, and no view was recorded.
    */
   documentUnavailable: boolean;
+  /** Who is looking, as their session names them. */
+  viewer: Assignee;
 }
 
-function isCaseDetail(body: unknown): body is CaseDetail {
-  return (
-    typeof body === 'object' &&
-    body !== null &&
-    'case' in body &&
-    'flags' in body &&
-    'timeline' in body &&
-    'notes' in body
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null && !Array.isArray(value);
+
+const PROBLEM_FIELDS = new Set(['type', 'title', 'status', 'detail']);
+
+/** The 502 problem carries the case detail with a null document (review.yaml `getReviewCase`). */
+function caseDetailOf(body: unknown): CaseViewDetail | null {
+  if (!isRecord(body) || !isRecord(body.case) || !Array.isArray(body.flags)) return null;
+  if (!Array.isArray(body.timeline) || !Array.isArray(body.versions)) return null;
+  // The problem's own fields; the rest is the case detail.
+  const rest = Object.fromEntries(
+    Object.entries(body).filter(([field]) => !PROBLEM_FIELDS.has(field)),
   );
-}
-
-function split(detail: CaseDetail): CaseLoad {
-  const { document, flags, ...others } = detail;
-  const rest: CaseData = { ...others, flags: flags };
-  if (document === null) return { detail: rest, document: null, documentUnavailable: true };
-  const parsed = DeclarationSchema.safeParse(document);
-  return parsed.success
-    ? { detail: rest, document: parsed.data, documentUnavailable: false }
-    : { detail: rest, document: null, documentUnavailable: true };
+  return { ...viewOf(rest as unknown as CaseDetail), document: null };
 }
 
 /**
- * `GET /v1/review/cases/{caseId}`: the case, its flags, clarifications, notes, timeline and the
- * declaration pulled for this read (an audited view). A 502 still carries the case, so the
- * reviewer sees everything but the declaration.
+ * `GET /v1/review/cases/{caseId}`: the case with its declaration, pulled on demand and audited
+ * as a read. When declarations is down the service still answers with the case (502); that is
+ * a case view without the document, not a failed load.
  */
-export async function loadCase(
+export async function loadCaseView(
   client: ReviewClient,
   caseId: string,
-): Promise<ServiceResult<CaseLoad>> {
-  let unavailableBody: unknown = null;
+  viewer: Assignee,
+): Promise<ServiceResult<CaseView>> {
+  const unavailable: { detail: CaseViewDetail | null } = { detail: null };
   const result = await callService(async () => {
     const outcome = await client.GET('/v1/review/cases/{caseId}', {
       params: { path: { caseId } },
     });
-    if (outcome.response.status === 502) unavailableBody = outcome.error;
+    if (outcome.response.status === 502) unavailable.detail = caseDetailOf(outcome.error);
     return outcome;
   });
-  if (result.ok) return { ok: true, data: split(result.data) };
-  if (isCaseDetail(unavailableBody)) {
-    return { ok: true, data: split({ ...unavailableBody, document: null }) };
+  if (unavailable.detail) {
+    return { ok: true, data: { detail: unavailable.detail, documentUnavailable: true, viewer } };
   }
-  return result;
+  if (!result.ok) return result;
+  return { ok: true, data: { detail: viewOf(result.data), documentUnavailable: false, viewer } };
 }
 
-/** `POST .../claim`: the caller holds the case; 409 when another reviewer got there first. */
+/** `POST .../claim`: the case becomes the caller's (409 `case-already-assigned` if taken). */
 export function claim(client: ReviewClient, caseId: string): Promise<ServiceResult<CaseListItem>> {
   return callService(() =>
     client.POST('/v1/review/cases/{caseId}/claim', { params: { path: { caseId } } }),
   );
 }
 
-/** `POST .../release`: back to the queue (the holder only; else 403). */
+/** `POST .../release`: the caller's case goes back to the queue (403 for anyone else's). */
 export function release(
   client: ReviewClient,
   caseId: string,
@@ -115,7 +120,7 @@ export function release(
   );
 }
 
-/** `PUT .../assignment`: a supervisor gives the case to a reviewer, or unassigns it (null). */
+/** `PUT .../assignment`: a supervisor hands the case to `assignee`, or unassigns it (null). */
 export function reassign(
   client: ReviewClient,
   caseId: string,
@@ -129,7 +134,7 @@ export function reassign(
   );
 }
 
-/** `POST .../notes`: an internal note, which the declarant never sees. */
+/** `POST .../notes`: an internal note (1 to 2,000 characters). */
 export function addNote(
   client: ReviewClient,
   caseId: string,
@@ -143,7 +148,7 @@ export function addNote(
   );
 }
 
-/** `POST .../flags/{flagId}/reviewed`: once, with the assignee's conclusion; 409 when it was. */
+/** `POST .../flags/{flagId}/reviewed` with the reviewer's conclusion (409 if reviewed already). */
 export function markFlagReviewed(
   client: ReviewClient,
   caseId: string,
@@ -154,6 +159,19 @@ export function markFlagReviewed(
     client.POST('/v1/review/cases/{caseId}/flags/{flagId}/reviewed', {
       params: { path: { caseId, flagId } },
       body: { note },
+    }),
+  );
+}
+
+/** A short-lived link to one of the declaration's attachments (an audited read). */
+export function attachmentLink(
+  client: ReviewClient,
+  caseId: string,
+  uploadId: string,
+): Promise<ServiceResult<{ downloadUrl: string; expiresAt: string }>> {
+  return callService(() =>
+    client.GET('/v1/review/cases/{caseId}/attachments/{uploadId}/download', {
+      params: { path: { caseId, uploadId } },
     }),
   );
 }
@@ -191,7 +209,7 @@ export async function loadRegistry(
   return { ok: true, data: { checkedAt: view.checkedAt, persons } };
 }
 
-const jsonValue: z.ZodType<JsonValue> = z.lazy(() =>
+const jsonValue: z.ZodType<Json> = z.lazy(() =>
   z.union([
     z.string(),
     z.number(),

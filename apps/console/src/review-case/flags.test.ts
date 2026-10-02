@@ -1,226 +1,186 @@
 import { describe, expect, it } from 'vitest';
 
-import type { Severity } from '../server/review/types';
-import { DOCUMENT, flag, ME, PLOT, SALARY } from './fixtures';
 import {
+  MOCK_DECLARATION,
+  MOCK_FLAG_IDS as F,
+  MOCK_ITEM_IDS as I,
+  mockFlags,
+} from '../server/review/copilot-mock.server';
+import type { Flag } from '../server/review/types';
+import { readDeclaration } from './declaration';
+import {
+  concernsLine,
   evidenceLine,
-  flagTarget,
-  flagTargetLine,
+  flagItemId,
+  flagNoteError,
   groupFlags,
-  pinsByItem,
-  pinsBySection,
+  openFlagsByItem,
+  openFlagsBySection,
+  topSeverity,
 } from './flags';
 
-const reviewed = { at: '2026-10-02T07:47:00Z', by: ME, note: 'Explained by the bank statement.' };
+const flags = mockFlags('v2');
+const view = readDeclaration(MOCK_DECLARATION);
+const byId = (id: string) => {
+  const found = flags.find((flag) => flag.id === id);
+  if (!found) throw new Error(id);
+  return found;
+};
 
 describe('groupFlags', () => {
-  it('groups open flags by severity, highest first, then the reviewed and the closed', () => {
-    const groups = groupFlags([
-      flag({ id: 'low', severity: 'low' }),
-      flag({ id: 'high', severity: 'high' }),
-      flag({ id: 'info', severity: 'info' }),
-      flag({ id: 'done', severity: 'high', reviewed }),
-      flag({ id: 'closed', severity: 'medium', closedReason: 'superseded-by-recheck' }),
-      flag({
-        id: 'closed-reviewed',
-        severity: 'medium',
-        closedReason: 'superseded-by-recheck',
-        reviewed,
-      }),
+  it('groups open flags by severity, high first, and keeps reviewed and closed ones apart', () => {
+    const closed: Flag = {
+      ...byId(F.foreign),
+      id: 'closed',
+      closedReason: 'superseded-by-recheck',
+    };
+    const groups = groupFlags([...flags, closed]);
+    expect(groups.open.map((group) => [group.severity, group.flags.length])).toEqual([
+      ['high', 1],
+      ['medium', 2],
+      ['info', 1],
     ]);
+    expect(groups.reviewed.map((flag) => flag.id)).toEqual([F.late]);
+    expect(groups.closed.map((flag) => flag.id)).toEqual(['closed']);
+    expect(groups.openCount).toBe(4);
+  });
 
-    expect(groups.open.map(({ severity, flags }) => [severity, flags.map((f) => f.id)])).toEqual([
-      ['high', ['high']],
-      ['low', ['low']],
-      ['info', ['info']],
-    ]);
-    expect(groups.reviewed.map((f) => f.id)).toEqual(['done', 'closed-reviewed']);
-    expect(groups.closed.map((f) => f.id)).toEqual(['closed']);
-    expect(groups.openCount).toBe(3);
+  it('keeps a reviewed flag a re-check then closed with the reviewed, with its note', () => {
+    const reviewedThenClosed: Flag = { ...byId(F.late), closedReason: 'superseded-by-recheck' };
+    const groups = groupFlags([reviewedThenClosed]);
+    expect(groups.reviewed.map((flag) => flag.id)).toEqual([F.late]);
+    expect(groups.closed).toEqual([]);
   });
 });
 
 describe('evidenceLine', () => {
+  const line = (ruleId: Flag['ruleId'], evidence: Flag['evidence']) =>
+    evidenceLine({ ruleId, evidence });
+
   it.each([
-    ['value-change-25', { changePercent: 41, direction: 'up' }, 1, 'Value up 41% from version 1'],
-    [
-      'value-change-25',
-      { changePercent: 42, direction: 'down' },
-      null,
-      'Value down 42% from the previous version',
-    ],
-    [
-      'value-change-25',
-      { changePercent: null, direction: 'up' },
-      null,
-      'Value up from nil in the previous version',
-    ],
-    [
-      'change-flag-mismatch',
-      { changePercent: 12, markedAsChanged: true },
-      null,
-      'Change of 12% · marked as changed',
-    ],
-    ['acquisition-unflagged', { category: 'assets' }, null, 'Assets · not in the previous version'],
-    ['disposal-unflagged', { category: 'liabilities' }, 2, 'Liabilities · only in version 2'],
-    [
-      'nil-after-populated',
-      { category: 'income', previousItems: 1 },
-      null,
-      'Income nil · 1 item in the previous version',
-    ],
-    [
-      'income-vs-asset-growth',
-      { growthToIncome: 4.8 },
-      null,
-      'Asset growth 4.8 times the income declared',
-    ],
-    [
-      'late-filing',
-      { daysLate: 22, dueDate: '2026-08-30', submittedOn: '2026-09-21' },
-      null,
-      'Submitted 22 days after the due date (30 Aug 2026)',
-    ],
-    ['foreign-holdings', { items: 2, countries: 'AE,US' }, null, '2 items'],
-    [
-      'joint-share-inconsistent',
-      { sharePercentTotal: 80, statements: 2 },
-      null,
-      'Shares add up to 80% · 2 statements',
-    ],
-    ['completeness-residual', { issues: 3 }, null, '3 form checks not met'],
     [
       'registry-parcel-undeclared',
       { parcelNumber: 'KAJIADO/KITENGELA/48213' },
-      null,
       'Parcel KAJIADO/KITENGELA/48213',
     ],
     [
       'directorship-employer-supplier',
       { companyRegistrationNumber: 'PVT-7XK2M9', role: 'director', declared: true },
-      null,
       "Company PVT-7XK2M9 · role director · on the employer's supplier list",
     ],
     [
       'registry-directorship-undeclared',
       { companyRegistrationNumber: 'PVT-9XYZ2L4Q', role: 'director_shareholder' },
-      null,
       'Company PVT-9XYZ2L4Q · role director and shareholder',
     ],
     [
       'kra-income-mismatch',
       { differencePercent: 40, direction: 'below' },
-      null,
       'Income declared to KRA lower by 40%',
     ],
-    ['registry-supplier-check-not-run', { companies: 2 }, null, '2 companies listed at BRS'],
+    ['registry-supplier-check-not-run', { companies: 2 }, '2 companies listed at BRS'],
     [
       'registry-company-dissolved',
       { companyRegistrationNumber: 'PVT-9XYZ2L4Q' },
-      null,
       'Company PVT-9XYZ2L4Q dissolved',
     ],
-  ] as const)('%s reads its facts', (ruleId, evidence, previous, line) => {
-    expect(evidenceLine({ ruleId, evidence }, previous)).toBe(line);
+  ] as const)('%s reads its registry facts (spec 07b)', (ruleId, evidence, expected) => {
+    expect(line(ruleId, evidence)).toBe(expected);
   });
 
-  it('names the countries of holdings outside Kenya', () => {
-    expect(
-      evidenceLine(
-        { ruleId: 'foreign-holdings', evidence: { items: 2, countries: ['AE', 'US'] } },
-        null,
-      ),
-    ).toBe('2 items · United Arab Emirates, United States');
-  });
-
-  it('gives no line for a rule without facts, or facts it cannot read', () => {
-    expect(evidenceLine({ ruleId: 'no-previous-version', evidence: {} }, null)).toBeNull();
-    expect(
-      evidenceLine({ ruleId: 'registry-parcel-number-missing', evidence: {} }, null),
-    ).toBeNull();
-    expect(evidenceLine({ ruleId: 'registry-vehicle-undeclared', evidence: {} }, null)).toBeNull();
-    expect(
-      evidenceLine({ ruleId: 'late-filing', evidence: { daysLate: 'soon' } }, null),
-    ).toBeNull();
-  });
-});
-
-describe('what a flag points at', () => {
-  it('names the item, or the statement, with the person', () => {
-    expect(flagTargetLine(flag(), DOCUMENT)).toBe(
-      'Income · Salary and emoluments · Wanjiku Njoki Kamau',
+  it('says each rule’s facts in words, without amounts', () => {
+    expect(line('value-change-25', { changePercent: 41, direction: 'up' })).toBe(
+      'Value up 41% from the previous version',
+    );
+    expect(line('value-change-25', { changePercent: 30, direction: 'down' })).toBe(
+      'Value down 30% from the previous version',
+    );
+    expect(line('value-change-25', { changePercent: null, direction: 'up' })).toBe(
+      'Value up from nil in the previous version',
+    );
+    expect(line('change-flag-mismatch', { changePercent: 3, markedAsChanged: true })).toBe(
+      'Marked as changed · value moved 3%',
+    );
+    expect(line('nil-after-populated', { category: 'liabilities', previousItems: 1 })).toBe(
+      'Liabilities nil · 1 item in the previous version',
+    );
+    expect(line('income-vs-asset-growth', { growthToIncome: 2.4 })).toBe(
+      'Asset growth 2.4 times the income declared for the period',
     );
     expect(
-      flagTargetLine(
-        flag({ itemRefs: [{ personKey: 'officer', itemId: 'gone', sectionKey: null }] }),
-        DOCUMENT,
-      ),
-    ).toBe('Financial statement · Wanjiku Njoki Kamau');
-    expect(flagTargetLine(flag(), null)).toBe('');
+      line('late-filing', { dueDate: '2025-12-31', submittedOn: '2026-03-28', daysLate: 87 }),
+    ).toBe('Submitted 87 days after the due date (31 Dec 2025)');
+    expect(line('foreign-holdings', { items: 1, countries: ['GB'] })).toBe(
+      '1 item outside Kenya (United Kingdom)',
+    );
+    expect(line('joint-share-inconsistent', { sharePercentTotal: 80, statements: 2 })).toBe(
+      'Shares add up to 80% across 2 statements',
+    );
+    expect(line('no-previous-version', {})).toBe('No previous version');
   });
 
-  it('sends "Go to item" to the first item it names, else to its section', () => {
-    expect(flagTarget(flag(), DOCUMENT)).toEqual({
-      highlight: SALARY,
-      itemId: SALARY,
-      personKey: 'officer',
-      sectionKey: null,
-    });
-    expect(
-      flagTarget(
-        flag({
-          itemRefs: [{ personKey: 'officer', itemId: null, sectionKey: 'statement:officer' }],
-        }),
-        DOCUMENT,
-      ),
-    ).toEqual({
-      highlight: 'statement:officer',
-      itemId: null,
-      personKey: 'officer',
-      sectionKey: 'statement:officer',
-    });
-    expect(flagTarget(flag({ itemRefs: [] }), DOCUMENT)).toBeNull();
-    expect(flagTarget(flag(), null)).toBeNull();
+  it('says nothing for a rule it has no words for, or facts it cannot read', () => {
+    expect(line('registry-parcel-number-missing', {})).toBeNull();
+    expect(line('late-filing', {})).toBeNull();
   });
 });
 
-describe('pinsByItem', () => {
-  it('counts the open flags on each item and opens the most severe', () => {
-    const pins = pinsByItem([
-      flag({ id: 'low', severity: 'low' }),
-      flag({ id: 'high', severity: 'high' }),
-      flag({ id: 'done', severity: 'high', reviewed }),
-      flag({ id: 'plot', itemRefs: [{ personKey: 'officer', itemId: PLOT, sectionKey: null }] }),
-    ]);
+describe('concernsLine', () => {
+  it('names the item a flag points at, or the declaration as a whole', () => {
+    expect(concernsLine(byId(F.valueChange), view, 'John Kennedy Otieno')).toBe(
+      'Assets · Land · Plot Kisumu/Manyatta/1234 · John Kennedy Otieno',
+    );
+    expect(concernsLine(byId(F.growth), view, 'John Kennedy Otieno')).toBe(
+      'Declaration · John Kennedy Otieno',
+    );
+  });
 
-    expect(pins.get(SALARY)).toEqual({ count: 2, severity: 'high', flagId: 'high' });
-    expect(pins.get(PLOT)).toEqual({ count: 1, severity: 'medium', flagId: 'plot' });
+  it('names the category and person for a flag about a statement', () => {
+    const nil: Flag = {
+      ...byId(F.growth),
+      ruleId: 'nil-after-populated',
+      evidence: { category: 'liabilities', previousItems: 1 },
+      itemRefs: [{ personKey: 'officer', itemId: null, sectionKey: 'statement:officer' }],
+    };
+    expect(concernsLine(nil, view, 'John Kennedy Otieno')).toBe(
+      'Liabilities · John Kennedy Otieno',
+    );
+    // Without the document the declarant's name still says whose it is.
+    expect(concernsLine(nil, null, 'John Otieno')).toBe('Liabilities · John Otieno');
   });
 });
 
-describe('pinsBySection', () => {
+describe('flag pins', () => {
+  it('counts the open flags on each item, and the most severe', () => {
+    const pins = openFlagsByItem(flags);
+    expect(pins.get(I.plot)?.map((flag) => flag.id)).toEqual([F.valueChange]);
+    expect(pins.has(I.house)).toBe(false);
+    expect(topSeverity([byId(F.foreign), byId(F.acquisition)])).toBe('medium');
+    expect(flagItemId(byId(F.valueChange))).toBe(I.plot);
+    expect(flagItemId(byId(F.growth))).toBeNull();
+  });
+
   it('Q10: counts the open flags on a section as a whole, by its section key', () => {
-    const onSection = (id: string, severity: Severity, sectionKey: string | null) =>
-      flag({ id, severity, itemRefs: [{ personKey: 'officer', itemId: null, sectionKey }] });
-    const pins = pinsBySection(
-      [
-        onSection('nil', 'medium', 'statement:officer'),
-        onSection('vehicle', 'high', 'statement:officer'),
-        // A reference without a section key is the person's statement.
-        onSection('pin', 'low', null),
-        onSection('supplier', 'high', 'other'),
-        onSection('reviewed', 'high', 'other'),
-        // On an item: the item's pin, not the section's.
-        flag({ id: 'plot', itemRefs: [{ personKey: 'officer', itemId: PLOT, sectionKey: null }] }),
-      ].map((each) => (each.id === 'reviewed' ? { ...each, reviewed } : each)),
-    );
-
-    expect(pins.get('statement:officer')).toEqual({
-      count: 3,
-      severity: 'high',
-      flagId: 'vehicle',
-    });
-    expect(pins.get('other')).toEqual({ count: 1, severity: 'high', flagId: 'supplier' });
+    const nil: Flag = {
+      ...byId(F.growth),
+      id: 'nil',
+      itemRefs: [{ personKey: 'officer', itemId: null, sectionKey: 'statement:officer' }],
+    };
+    const household: Flag = {
+      ...byId(F.growth),
+      id: 'household',
+      itemRefs: [{ personKey: 'spouse-1', itemId: null, sectionKey: 'household' }],
+    };
+    const reviewed: Flag = { ...household, id: 'reviewed', reviewed: byId(F.late).reviewed };
+    const pins = openFlagsBySection([nil, household, reviewed, byId(F.valueChange)]);
+    expect(pins.get('statement:officer')?.map((flag) => flag.id)).toEqual(['nil']);
+    expect(pins.get('household')?.map((flag) => flag.id)).toEqual(['household']);
     expect(pins.size).toBe(2);
+  });
+
+  it('needs a note of up to 1,000 characters to mark a flag reviewed', () => {
+    expect(flagNoteError('  ')).toBe('Add a note to record what you concluded.');
+    expect(flagNoteError('x'.repeat(1001))).toBe('Notes can be up to 1,000 characters.');
+    expect(flagNoteError('Valuation report explains it.')).toBeNull();
   });
 });

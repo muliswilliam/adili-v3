@@ -1,4 +1,4 @@
-import type { Assert, Priority, Same } from '@adili/ui';
+import type { Assert, PriorityBand, Same } from '@adili/ui';
 import { z } from 'zod';
 
 import type { paths } from '../server/review/api.gen';
@@ -28,7 +28,7 @@ export const QUEUE_TYPES = ['initial', 'biennial', 'final'] as const;
 /** Fails to compile when the lists drift from the contract. */
 export type QueueFiltersMatchContract = [
   Assert<Same<(typeof QUEUE_BANDS)[number], NonNullable<ReviewQueueSearch['band']>>>,
-  Assert<Same<(typeof QUEUE_BANDS)[number], Priority>>,
+  Assert<Same<(typeof QUEUE_BANDS)[number], PriorityBand>>,
   Assert<Same<(typeof QUEUE_TYPES)[number], NonNullable<ReviewQueueSearch['type']>>>,
 ];
 

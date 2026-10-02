@@ -22,6 +22,25 @@ export const envSchema = baseEnvSchema.extend({
   NOTIFICATIONS_URL: z.url(),
   /** Base URL of the integration-gateway, which sends salary stop and resume instructions. */
   INTEGRATION_GATEWAY_URL: z.url(),
+  /** Base URL of the ai-gateway, the only component that reaches an AI provider (ADR-007). */
+  AI_GATEWAY_URL: z.url(),
+  /**
+   * Commissions whose declarations are synthetic (demo data), comma-separated slugs. Their copilot
+   * inputs are sent to the ai-gateway as `synthetic`; every other Commission's as
+   * `highly-confidential`, which the gateway's classification gate keeps from external providers.
+   */
+  AI_SYNTHETIC_DATA_TENANTS: z
+    .string()
+    .default('')
+    .transform((value) =>
+      value
+        .split(',')
+        .map((slug) => slug.trim())
+        .filter((slug) => slug.length > 0),
+    ),
+  /** OpenBao Transit, which wraps the data keys of the encrypted copilot outputs (ADR-006). */
+  OPENBAO_ADDR: z.url(),
+  OPENBAO_TOKEN: z.string().min(1),
   /** The declarant portal, linked from clarification letters and messages. */
   PORTAL_URL: z.url(),
   /** Confidential Keycloak client whose service account calls other services' internal APIs. */

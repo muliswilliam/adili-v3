@@ -1,5 +1,5 @@
 import { and, asc, eq, sql } from 'drizzle-orm';
-import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
 import type { CaseDetail, CasePage } from '../../src/cases/representation.js';
 import {
@@ -23,16 +23,11 @@ import {
   wanjikuHousehold,
 } from '../fixtures/households.js';
 import { BARAKA, IMANI, PETER, type SeededPerson, WANJIKU } from '../fixtures/registries.js';
-import { processed, processingInput } from '../support/cases.js';
+import { processed, processedFromInbox, processingInput } from '../support/cases.js';
 import { temporalOf } from '../support/closures.js';
 import { contractErrors, okResponse } from '../support/contract.js';
 import { type StoredVersion, submittedVersion } from '../support/fake-declarations.js';
-import {
-  type Caller,
-  type ReviewApi,
-  startReviewApi,
-  submittedEvent,
-} from '../support/review-api.js';
+import { type Caller, type ReviewApi, startReviewApi } from '../support/review-api.js';
 import { historyPayloads } from '../support/workflow-history.js';
 
 /**
@@ -145,19 +140,12 @@ describe('registry checks', () => {
   it('S4, S5, S9: a submitted declaration becomes a case, then its registries are checked: flags, statuses, score and review.registry.checked.v1', async () => {
     const version = wanjikuVersion();
 
-    await api.consumer.submitted(submittedEvent('psc', version));
-
-    const checked = await vi.waitFor(
-      async () => {
-        const [entry] = await api.asPlatform((tx) =>
-          tx.select().from(reviewTimeline).where(eq(reviewTimeline.kind, 'registry-checked')),
-        );
-        if (!entry) throw new Error('not checked yet');
-        return entry;
-      },
-      { timeout: 45_000, interval: 250 },
+    // Through the inbox, until the workflow's last step (the copilot requested).
+    const caseId = (await processedFromInbox(api, version)).id;
+    const [checked] = await api.asPlatform((tx) =>
+      tx.select().from(reviewTimeline).where(eq(reviewTimeline.kind, 'registry-checked')),
     );
-    const caseId = checked.caseId;
+    if (!checked) throw new Error('not checked');
     const row = await caseRow(caseId);
 
     expect(await registryFlags(caseId)).toEqual([
@@ -205,9 +193,11 @@ describe('registry checks', () => {
     ).toEqual(['KEMSA:PVT-9XYZ2L4Q']);
 
     const events = await api.db.select().from(outbox).orderBy(asc(outbox.createdAt));
+    // Then the copilot is requested (spec 07c).
     expect(events.map((event) => event.eventType)).toEqual([
       'review.case.created.v1',
       'review.registry.checked.v1',
+      'review.copilot.updated.v1',
     ]);
     const event = events[1]?.envelope;
     expect(event).toMatchObject({

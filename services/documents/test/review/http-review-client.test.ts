@@ -36,11 +36,15 @@ const PAYLOAD = {
   commission: { name: 'Public Service Commission', issuerCode: 'PSC' },
   declarationReference: 'DCB-PSC-2027-0000001-1',
   clarificationReference: format(CLR, { issuer: 'PSC', period: 2028, sequence: 451 }),
+  language: 'en',
+  opening: null,
+  aiAssisted: false,
   items: [
     {
       label: 'Assets · Plot KSM/123 · Achieng Wambui Otieno',
       requirementLabel: 'Explain the discrepancy or inconsistency',
       text: 'Please explain the value declared.',
+      aiAssisted: false,
     },
   ],
   issuedAt: '2028-02-01T07:00:00.000Z',

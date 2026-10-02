@@ -2,7 +2,7 @@ import { useToast } from '@adili/ui';
 import { type ReactNode, useEffect, useRef, useState } from 'react';
 
 import { CASE_COPY } from '../../review-case/messages';
-import type { AssignmentAction, CaseViewer } from '../../review-case/view';
+import type { AssignmentAction, CaseViewer } from '../../review-case/case';
 import { claimCase, getReviewers, reassignCase, releaseCase } from '../../server/review-case';
 import type { Assignee, CaseListItem } from '../../server/review/types';
 import type { ServiceError, ServiceResult } from '../../server/service-call';

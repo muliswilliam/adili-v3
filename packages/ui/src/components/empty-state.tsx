@@ -1,6 +1,7 @@
 import type { ComponentProps, ReactNode } from 'react';
 
 import { cn } from '../lib/cn';
+import { type Tone, toneClassNames } from '../lib/tone';
 
 export type EmptyStateProps = Omit<ComponentProps<'div'>, 'title'> & {
   /** Decorative icon, hidden from assistive technology. */
@@ -14,6 +15,11 @@ export type EmptyStateProps = Omit<ComponentProps<'div'>, 'title'> & {
   text?: ReactNode;
   /** Optional next step, e.g. a Button. */
   action?: ReactNode;
+  /**
+   * Tints the icon tile with a status tone, e.g. `success` for "nothing left to do" or
+   * `destructive` for a list that could not load. Leave out for the muted tile.
+   */
+  tone?: Tone;
 };
 
 /** Centred message for an empty list or panel, usually inside a Card. */
@@ -23,6 +29,7 @@ export function EmptyState({
   description,
   text,
   action,
+  tone,
   className,
   ...props
 }: EmptyStateProps) {
@@ -33,7 +40,10 @@ export function EmptyState({
       {icon ? (
         <div
           aria-hidden="true"
-          className="mb-3.5 flex size-[30px] items-center justify-center rounded-tile bg-muted text-muted-foreground [&_svg]:size-4"
+          className={cn(
+            'mb-3.5 flex size-[30px] items-center justify-center rounded-tile [&_svg]:size-4',
+            tone ? toneClassNames[tone] : 'bg-muted text-muted-foreground',
+          )}
         >
           {icon}
         </div>

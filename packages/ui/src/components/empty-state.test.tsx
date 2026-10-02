@@ -21,6 +21,21 @@ describe('EmptyState', () => {
     expect(screen.getByTestId('icon').parentElement?.getAttribute('aria-hidden')).toBe('true');
   });
 
+  it('tints the icon tile with a status tone, muted by default', () => {
+    render(
+      <>
+        <EmptyState icon={<svg data-testid="done" />} title="All answered" tone="success" />
+        <EmptyState icon={<svg data-testid="plain" />} title="No results" />
+      </>,
+    );
+
+    const tile = (id: string) => screen.getByTestId(id).parentElement?.className ?? '';
+    expect(tile('done')).toContain('bg-success-subtle');
+    expect(tile('done')).toContain('text-success');
+    expect(tile('done')).not.toContain('bg-muted');
+    expect(tile('plain')).toContain('bg-muted');
+  });
+
   it('still accepts the older text prop', () => {
     render(<EmptyState title="No results" text="Try a different search." />);
 

@@ -184,13 +184,17 @@ describe('amendment re-processing', () => {
 
     // S21: identifiers and states only.
     const events = await api.db.select().from(outbox).orderBy(asc(outbox.createdAt));
+    // Each version's case event, its registry check, then its copilot requested (spec 07c):
+    // pending, then stale.
     expect(events.map((event) => event.eventType)).toEqual([
       'review.case.created.v1',
       'review.registry.checked.v1',
+      'review.copilot.updated.v1',
       'review.case.updated.v1',
       'review.registry.checked.v1',
+      'review.copilot.updated.v1',
     ]);
-    expect(events[2]?.envelope).toMatchObject({
+    expect(events[3]?.envelope).toMatchObject({
       type: 'review.case.updated.v1',
       subject: caseId,
       tenant: 'psc',
@@ -201,7 +205,7 @@ describe('amendment re-processing', () => {
         band: 'medium',
       },
     });
-    expect(Object.keys(events[2]?.envelope.data ?? {}).sort()).toEqual([
+    expect(Object.keys(events[3]?.envelope.data ?? {}).sort()).toEqual([
       'band',
       'caseId',
       'declarationId',
@@ -248,7 +252,7 @@ describe('amendment re-processing', () => {
       flagsAfter.map((flag) => flag.id).sort(),
     );
     const events = await api.db.select().from(outbox);
-    // Created and updated, each with its registry check.
-    expect(events).toHaveLength(4);
+    // Each version's case event, registry check and copilot request; nothing since.
+    expect(events).toHaveLength(6);
   });
 });

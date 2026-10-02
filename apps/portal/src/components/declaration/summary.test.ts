@@ -6,6 +6,7 @@ import {
   blockingTitle,
   childDetails,
   childrenEmptyText,
+  issueText,
   itemFlags,
   paragraphCompleteness,
   spouseDetails,
@@ -13,6 +14,7 @@ import {
   statementTotals,
   SUBMIT_READY,
   submitNote,
+  type SummaryDocument,
 } from './summary';
 import { sections } from './testing';
 
@@ -177,5 +179,77 @@ describe('statement lines', () => {
     expect(itemFlags('income', { change: { changed: true, kind: 'value-change' } })).toEqual([
       'Changed: value changed',
     ]);
+  });
+});
+
+describe('issueText', () => {
+  const document = {
+    statements: [
+      {
+        personKey: 'officer',
+        assets: [{ description: 'One-bedroom apartment, Dubai Marina' }, {}],
+      },
+    ],
+    spouses: {
+      items: [{ name: { firstName: 'Mary', surname: 'Wanjiru' } }, { separated: true }],
+    },
+  } as unknown as SummaryDocument;
+  const issue = (
+    sectionKey: CompletenessIssue['sectionKey'],
+    path: string,
+    message: string,
+  ): CompletenessIssue => ({
+    sectionKey,
+    path,
+    code: 'required',
+    message,
+  });
+
+  it('names the item and field of a schema check, not "is required / is required"', () => {
+    expect(issueText(issue('statement:officer', '/assets/0/value', 'is required'), document)).toBe(
+      'One-bedroom apartment, Dubai Marina: Value is required',
+    );
+    // An item with no description yet is named by its place; a value's amount by its field.
+    expect(
+      issueText(issue('statement:officer', '/assets/1/value/kesCents', 'is required'), document),
+    ).toBe('Asset 2: Value is required');
+    expect(
+      issueText(issue('household', '/spouses/items/0/separationDate', 'is required'), document),
+    ).toBe('Mary Wanjiru: Date of separation is required');
+    // A spouse or child with no name yet is named by their place (N29).
+    expect(
+      issueText(issue('household', '/spouses/items/1/separationDate', 'is required'), document),
+    ).toBe('Spouse 2: Date of separation is required');
+    expect(
+      issueText(issue('household', '/children/items/0/dateOfBirth', 'is required'), document),
+    ).toBe('Child 1: Date of birth is required');
+    // An issue with the spouse's entry itself names only the spouse (N31).
+    expect(issueText(issue('household', '/spouses/items/0', 'is required'), document)).toBe(
+      'Mary Wanjiru: is required',
+    );
+    expect(issueText(issue('bio', '/placeOfBirth', 'is required'), document)).toBe(
+      'Place of birth is required',
+    );
+    // A last part that is ambiguous alone is named by the end of its path.
+    expect(issueText(issue('bio', '/birth/place', 'is required'), document)).toBe(
+      'Place of birth is required',
+    );
+    expect(issueText(issue('bio', '/address/postal', 'is required'), document)).toBe(
+      'Postal address is required',
+    );
+  });
+
+  it('names a field as its screen labels it (Q33)', () => {
+    expect(
+      issueText(
+        issue('statement:officer', '/assets/0/details/parcelNumber', 'is required'),
+        document,
+      ),
+    ).toBe('One-bedroom apartment, Dubai Marina: Parcel or plot number is required');
+  });
+
+  it('keeps the rules’ own sentences', () => {
+    const sentence = 'Add your dependent children or tick "No dependent children".';
+    expect(issueText(issue('household', '/children', sentence), document)).toBe(sentence);
   });
 });

@@ -222,6 +222,10 @@ export const caseDetailSchema = z.object({
         amendment: z
           .boolean()
           .meta({ description: 'The version amended an earlier one of the same declaration' }),
+        firstOnAdili: z.boolean().meta({
+          description:
+            'The rules found no earlier declaration on Adili to compare the version with (`no-previous-version`), kept after an amendment replaces that flag',
+        }),
       }),
     )
     .meta({

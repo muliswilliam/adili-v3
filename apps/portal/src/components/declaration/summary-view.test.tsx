@@ -445,9 +445,11 @@ describe('SummaryView', () => {
     renderSummary(summaryOf({ blocking, valid: false, cannotSubmitReason: 'incomplete' }));
 
     const panel = card('2 things to complete before you can submit');
-    expect(within(panel).getByRole('link', { name: 'Place of birth is required.' })).toBeTruthy();
+    expect(within(panel).getByRole('link', { name: 'Place of birth is required' })).toBeTruthy();
     expect(
-      within(panel).getByRole('link', { name: 'Spouse 1: date of separation is required.' }),
+      within(panel).getByRole('link', {
+        name: 'Mary Wanjiru Kennedy: Date of separation is required',
+      }),
     ).toBeTruthy();
     expect(within(panel).queryByRole('link', { name: 'is required' })).toBeNull();
   });

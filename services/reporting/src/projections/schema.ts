@@ -101,6 +101,49 @@ export const referralFacts = pgTable('referral_facts', {
   sentAt: timestamp({ withTimezone: true }).notNull(),
 });
 
+/**
+ * The AI reviewer copilot of each case (spec 07c `review.copilot.updated.v1`): its latest status,
+ * and when it first had outputs to show, which makes the case AI-assisted.
+ */
+export const copilotCaseFacts = pgTable(
+  'copilot_case_facts',
+  {
+    caseId: uuid().primaryKey(),
+    tenant: text().notNull(),
+    /** `not-enabled` | `pending` | `ready` | `failed` | `stale`. */
+    status: text().notNull(),
+    statusAt: timestamp({ withTimezone: true }).notNull(),
+    /** When the copilot was first `ready`; null while it never was. */
+    firstReadyAt: timestamp({ withTimezone: true }),
+    /** Financial year of `firstReadyAt`. */
+    fy: integer(),
+  },
+  (table) => [index('copilot_case_facts_tenant_fy_idx').on(table.tenant, table.fy)],
+);
+
+/**
+ * Reviewers' ratings of AI outputs (spec 07c `ai.feedback.recorded.v1`): one row per rating (of
+ * an output or one of its blocks), the latest wins when a reviewer rates again. Rating and reason only; never who rated or the note.
+ */
+export const aiFeedbackFacts = pgTable(
+  'ai_feedback_facts',
+  {
+    feedbackId: uuid().primaryKey(),
+    tenant: text().notNull(),
+    jobId: uuid().notNull(),
+    /** The gateway task whose output was rated, e.g. `summarize-declaration`. */
+    task: text().notNull(),
+    /** `helpful` | `not-helpful`. */
+    rating: text().notNull(),
+    /** `inaccurate` | `missed-something` | `unclear` | `too-long` | `other`; null for none. */
+    reason: text(),
+    /** Financial year of the latest rating. */
+    fy: integer().notNull(),
+    recordedAt: timestamp({ withTimezone: true }).notNull(),
+  },
+  (table) => [index('ai_feedback_facts_tenant_fy_idx').on(table.tenant, table.fy)],
+);
+
 export const OBLIGATION_TYPES = ['initial', 'biennial', 'final'] as const;
 export type ObligationType = (typeof OBLIGATION_TYPES)[number];
 
@@ -143,4 +186,6 @@ export const projectionsSchema = {
   actionFacts,
   determinationFacts,
   referralFacts,
+  copilotCaseFacts,
+  aiFeedbackFacts,
 };

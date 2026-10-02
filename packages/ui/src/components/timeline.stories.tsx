@@ -1,129 +1,103 @@
 import {
   CheckmarkCircle02Icon,
-  EyeIcon,
+  File01Icon,
   Flag02Icon,
-  MailSend01Icon,
   PencilEdit02Icon,
+  RefreshIcon,
+  Shield01Icon,
   UserCheck01Icon,
-  WorkflowSquare03Icon,
+  UserRemove01Icon,
 } from '@hugeicons/core-free-icons';
 import type { Meta, StoryObj } from '@storybook/react-vite';
 
-import { Timeline, type TimelineEntry } from './timeline';
+import { Timeline, type TimelineEvent } from './timeline';
 
-// 25 Sep 2026 in Nairobi, so the newest day reads "Today" in the Today story.
+// 25 Sep 2026, 18:00 in Nairobi.
 const NOW = Date.parse('2026-09-25T15:00:00Z');
 
-const caseEvents: TimelineEntry[] = [
+const events: TimelineEvent[] = [
   {
     id: '1',
-    at: '2026-09-18T05:30:00Z',
+    at: '2026-04-12T06:02:00Z',
+    title: 'Case created from version 1',
     actor: null,
-    title: 'Version 1 processed',
-    summary: '4 flags raised',
-    icon: WorkflowSquare03Icon,
+    icon: File01Icon,
   },
   {
     id: '2',
-    at: '2026-09-18T05:47:00Z',
-    actor: 'Faith Achieng',
-    title: 'Claimed by Faith Achieng',
+    at: '2026-04-12T06:03:00Z',
+    title: '7 indicators raised · priority medium',
+    actor: null,
+    icon: Flag02Icon,
+  },
+  {
+    id: '3',
+    at: '2026-04-22T07:15:00Z',
+    title: 'Claimed by Peter Mwangi',
+    actor: 'Peter Mwangi',
     icon: UserCheck01Icon,
     tone: 'info',
   },
   {
-    id: '3',
-    at: '2026-09-18T05:48:00Z',
-    actor: 'Faith Achieng',
-    title: 'Viewed 3 times by Faith Achieng',
-    icon: EyeIcon,
-  },
-  {
     id: '4',
-    at: '2026-09-22T07:10:00Z',
-    actor: 'Faith Achieng',
-    title: 'Flag reviewed: Income differs from KRA records',
-    icon: Flag02Icon,
-    tone: 'warning',
+    at: '2026-04-28T08:40:00Z',
+    title: 'Indicator reviewed: Filed after the due date',
+    actor: 'Peter Mwangi',
+    icon: CheckmarkCircle02Icon,
+    tone: 'success',
   },
   {
     id: '5',
-    at: '2026-09-22T07:40:00Z',
-    actor: 'Faith Achieng',
-    title: 'Clarification CLR-PSC-2026-0000012-4 issued',
-    summary: 'Response due 6 Oct 2026',
-    icon: MailSend01Icon,
-    tone: 'info',
+    at: '2026-05-05T13:20:00Z',
+    title: 'Released by Peter Mwangi',
+    actor: 'Peter Mwangi',
+    icon: UserRemove01Icon,
   },
   {
     id: '6',
-    at: '2026-09-25T12:05:00Z',
-    actor: 'Faith Achieng',
-    title: 'Note added',
-    icon: PencilEdit02Icon,
+    at: '2026-09-02T11:30:00Z',
+    title: 'Version 2 processed · indicators recomputed, 1 reviewed indicator kept · priority high',
+    actor: null,
+    icon: RefreshIcon,
+    tone: 'warning',
   },
   {
     id: '7',
-    at: '2026-09-25T12:06:00Z',
+    at: '2026-09-02T11:31:00Z',
+    title: 'Registries checked',
+    actor: null,
+    icon: Shield01Icon,
+    detail: '5 mismatched, 1 unavailable',
+  },
+  {
+    id: '8',
+    at: '2026-09-25T12:05:00Z',
+    title: 'Note added',
     actor: 'Faith Achieng',
-    title: 'Viewed 2 times by Faith Achieng',
-    icon: EyeIcon,
+    icon: PencilEdit02Icon,
   },
 ];
 
 const meta = {
   title: 'Review/Timeline',
   component: Timeline,
-  args: {
-    entries: caseEvents,
-    now: Date.parse('2026-09-30T09:00:00Z'),
-    className: 'max-w-[520px]',
-  },
+  args: { events, now: NOW },
+  decorators: [
+    (Story) => (
+      <div className="max-w-[520px]">
+        <Story />
+      </div>
+    ),
+  ],
 } satisfies Meta<typeof Timeline>;
 
 export default meta;
 type Story = StoryObj<typeof meta>;
 
-export const CaseTimeline: Story = {};
+/** A case's timeline: newest first, a list per day. */
+export const Default: Story = {};
 
-export const Today: Story = { args: { now: NOW } };
-
-export const EveryTone: Story = {
-  args: {
-    entries: [
-      { id: 'd', at: '2026-09-25T09:00:00Z', actor: null, title: 'Default', icon: EyeIcon },
-      {
-        id: 'i',
-        at: '2026-09-25T08:00:00Z',
-        actor: null,
-        title: 'Info',
-        icon: UserCheck01Icon,
-        tone: 'info',
-      },
-      {
-        id: 's',
-        at: '2026-09-25T07:00:00Z',
-        actor: null,
-        title: 'Success',
-        icon: CheckmarkCircle02Icon,
-        tone: 'success',
-      },
-      {
-        id: 'w',
-        at: '2026-09-25T06:00:00Z',
-        actor: null,
-        title: 'Warning',
-        icon: Flag02Icon,
-        tone: 'warning',
-      },
-      {
-        id: 'x',
-        at: '2026-09-25T05:00:00Z',
-        actor: null,
-        title: 'Destructive',
-        icon: Flag02Icon,
-        tone: 'destructive',
-      },
-    ],
-  },
+/** No icons given: each event takes the clock. */
+export const DefaultIcons: Story = {
+  args: { events: events.map((event) => ({ ...event, icon: undefined })) },
 };

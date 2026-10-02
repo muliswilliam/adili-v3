@@ -10,10 +10,12 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AiPolicyRouteRouteImport } from './routes/ai-policy/route'
 import { Route as CommissionsRouteRouteImport } from './routes/commissions/route'
 import { Route as ObligationsRouteRouteImport } from './routes/obligations/route'
 import { Route as ReviewRouteRouteImport } from './routes/review/route'
 import { Route as RosterRouteRouteImport } from './routes/roster/route'
+import { Route as AiPolicyIndexRouteImport } from './routes/ai-policy/index'
 import { Route as AuthCallbackRouteImport } from './routes/auth/callback'
 import { Route as AuthLoginRouteImport } from './routes/auth/login'
 import { Route as AuthLogoutRouteImport } from './routes/auth/logout'
@@ -58,6 +60,11 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AiPolicyRouteRoute = AiPolicyRouteRouteImport.update({
+  id: '/ai-policy',
+  path: '/ai-policy',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const CommissionsRouteRoute = CommissionsRouteRouteImport.update({
   id: '/commissions',
   path: '/commissions',
@@ -77,6 +84,11 @@ const RosterRouteRoute = RosterRouteRouteImport.update({
   id: '/roster',
   path: '/roster',
   getParentRoute: () => rootRouteImport,
+} as any)
+const AiPolicyIndexRoute = AiPolicyIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AiPolicyRouteRoute,
 } as any)
 const AuthCallbackRoute = AuthCallbackRouteImport.update({
   id: '/auth/callback',
@@ -282,6 +294,7 @@ const ReviewCasesCaseIdClarificationsClarificationIdRoute =
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/ai-policy': typeof AiPolicyRouteRouteWithChildren
   '/commissions': typeof CommissionsRouteRouteWithChildren
   '/obligations': typeof ObligationsRouteRouteWithChildren
   '/review': typeof ReviewRouteRouteWithChildren
@@ -300,6 +313,7 @@ export interface FileRoutesByFullPath {
   '/roster/flagged': typeof RosterFlaggedRoute
   '/roster/import': typeof RosterImportRoute
   '/roster/template': typeof RosterTemplateRoute
+  '/ai-policy/': typeof AiPolicyIndexRoute
   '/commissions/': typeof CommissionsIndexRoute
   '/obligations/': typeof ObligationsIndexRoute
   '/roster/': typeof RosterIndexRoute
@@ -336,6 +350,7 @@ export interface FileRoutesByTo {
   '/roster/flagged': typeof RosterFlaggedRoute
   '/roster/import': typeof RosterImportRoute
   '/roster/template': typeof RosterTemplateRoute
+  '/ai-policy': typeof AiPolicyIndexRoute
   '/commissions': typeof CommissionsIndexRoute
   '/obligations': typeof ObligationsIndexRoute
   '/roster': typeof RosterIndexRoute
@@ -360,6 +375,7 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/ai-policy': typeof AiPolicyRouteRouteWithChildren
   '/commissions': typeof CommissionsRouteRouteWithChildren
   '/obligations': typeof ObligationsRouteRouteWithChildren
   '/review': typeof ReviewRouteRouteWithChildren
@@ -379,6 +395,7 @@ export interface FileRoutesById {
   '/roster/flagged': typeof RosterFlaggedRoute
   '/roster/import': typeof RosterImportRoute
   '/roster/template': typeof RosterTemplateRoute
+  '/ai-policy/': typeof AiPolicyIndexRoute
   '/commissions/': typeof CommissionsIndexRoute
   '/obligations/': typeof ObligationsIndexRoute
   '/roster/': typeof RosterIndexRoute
@@ -407,6 +424,7 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/ai-policy'
     | '/commissions'
     | '/obligations'
     | '/review'
@@ -425,6 +443,7 @@ export interface FileRouteTypes {
     | '/roster/flagged'
     | '/roster/import'
     | '/roster/template'
+    | '/ai-policy/'
     | '/commissions/'
     | '/obligations/'
     | '/roster/'
@@ -461,6 +480,7 @@ export interface FileRouteTypes {
     | '/roster/flagged'
     | '/roster/import'
     | '/roster/template'
+    | '/ai-policy'
     | '/commissions'
     | '/obligations'
     | '/roster'
@@ -484,6 +504,7 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
+    | '/ai-policy'
     | '/commissions'
     | '/obligations'
     | '/review'
@@ -503,6 +524,7 @@ export interface FileRouteTypes {
     | '/roster/flagged'
     | '/roster/import'
     | '/roster/template'
+    | '/ai-policy/'
     | '/commissions/'
     | '/obligations/'
     | '/roster/'
@@ -530,6 +552,7 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AiPolicyRouteRoute: typeof AiPolicyRouteRouteWithChildren
   CommissionsRouteRoute: typeof CommissionsRouteRouteWithChildren
   ObligationsRouteRoute: typeof ObligationsRouteRouteWithChildren
   ReviewRouteRoute: typeof ReviewRouteRouteWithChildren
@@ -549,6 +572,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/ai-policy': {
+      id: '/ai-policy'
+      path: '/ai-policy'
+      fullPath: '/ai-policy'
+      preLoaderRoute: typeof AiPolicyRouteRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/commissions': {
@@ -578,6 +608,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/roster'
       preLoaderRoute: typeof RosterRouteRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/ai-policy/': {
+      id: '/ai-policy/'
+      path: '/'
+      fullPath: '/ai-policy/'
+      preLoaderRoute: typeof AiPolicyIndexRouteImport
+      parentRoute: typeof AiPolicyRouteRoute
     }
     '/auth/callback': {
       id: '/auth/callback'
@@ -848,6 +885,18 @@ declare module '@tanstack/react-router' {
   }
 }
 
+interface AiPolicyRouteRouteChildren {
+  AiPolicyIndexRoute: typeof AiPolicyIndexRoute
+}
+
+const AiPolicyRouteRouteChildren: AiPolicyRouteRouteChildren = {
+  AiPolicyIndexRoute: AiPolicyIndexRoute,
+}
+
+const AiPolicyRouteRouteWithChildren = AiPolicyRouteRoute._addFileChildren(
+  AiPolicyRouteRouteChildren,
+)
+
 interface CommissionsSlugObligationsRouteRouteChildren {
   CommissionsSlugObligationsIndexRoute: typeof CommissionsSlugObligationsIndexRoute
 }
@@ -1040,6 +1089,7 @@ const ObligationsNationalRouteRouteWithChildren =
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AiPolicyRouteRoute: AiPolicyRouteRouteWithChildren,
   CommissionsRouteRoute: CommissionsRouteRouteWithChildren,
   ObligationsRouteRoute: ObligationsRouteRouteWithChildren,
   ReviewRouteRoute: ReviewRouteRouteWithChildren,
@@ -1054,12 +1104,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { createStart } from '@tanstack/react-start'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-  }
-}

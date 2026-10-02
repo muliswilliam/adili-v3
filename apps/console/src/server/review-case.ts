@@ -1,82 +1,86 @@
 import { createServerFn } from '@tanstack/react-start';
 import { z } from 'zod';
 
-import type { DownloadLink } from './clarifications';
+import { asReviewer, withReviewer } from './as-viewer.server';
 import { SLUG_PATTERN } from './directory/contract';
 import {
   addNote,
+  attachmentLink,
   type CaseFlag,
-  type CaseLoad,
   type CaseRegistryView,
+  type CaseView,
   claim,
-  loadCase,
-  loadReviewers,
-  markFlagReviewed,
+  loadCaseView,
   loadRegistry,
   loadRegistryStatus,
-  type Reviewer,
+  loadReviewers,
+  markFlagReviewed,
   reassign,
   recheck,
   type RecheckResult,
   release,
+  type Reviewer,
 } from './review-case.server';
-import { asStaffMember, withReviewClient } from './review/as-staff-member.server';
 import type { CaseListItem, Note } from './review/types';
-import { callService, type ServiceResult } from './service-call';
+import type { ServiceResult } from './service-call';
 
 /**
  * Server functions for the case view (spec 07a FE-3), called as the signed-in reviewer or
- * supervisor. Tokens stay on the server; attachments come back as short-lived links.
+ * supervisor. The review service decides who may claim, release, reassign and mark flags
+ * reviewed; tokens stay on the server, and attachments come back as short-lived links.
  */
 
 const id = z.uuid();
+const caseInput = z.object({ caseId: id });
 
-export type CaseViewLoad = ServiceResult<CaseLoad> & {
-  /** The viewer's subject, to tell whether they hold the case. */
-  subject: string | null;
-  now: string;
-};
+export type CaseViewLoad = ServiceResult<CaseView> & { now: string };
 
 export const getCaseView = createServerFn({ method: 'GET' })
-  .validator(z.object({ caseId: id }))
+  .validator(caseInput)
   .handler(async ({ data }): Promise<CaseViewLoad> => {
     const now = new Date().toISOString();
-    let subject: string | null = null;
-    const result = await asStaffMember((client, user) => {
-      subject = user.subject;
-      return loadCase(client, data.caseId);
-    });
-    return { ...result, subject, now };
+    return {
+      ...(await asReviewer((client, { subject, name }) =>
+        loadCaseView(client, data.caseId, { subject, name }),
+      )),
+      now,
+    };
   });
 
 export const claimCase = createServerFn({ method: 'POST' })
-  .validator(z.object({ caseId: id }))
+  .validator(caseInput)
   .handler(({ data }): Promise<ServiceResult<CaseListItem>> =>
-    asStaffMember((client) => claim(client, data.caseId)),
+    asReviewer((client) => claim(client, data.caseId)),
   );
 
 export const releaseCase = createServerFn({ method: 'POST' })
-  .validator(z.object({ caseId: id }))
+  .validator(caseInput)
   .handler(({ data }): Promise<ServiceResult<CaseListItem>> =>
-    asStaffMember((client) => release(client, data.caseId)),
+    asReviewer((client) => release(client, data.caseId)),
   );
 
 export const reassignCase = createServerFn({ method: 'POST' })
   .validator(z.object({ caseId: id, assignee: z.string().min(1).max(200).nullable() }))
   .handler(({ data }): Promise<ServiceResult<CaseListItem>> =>
-    asStaffMember((client) => reassign(client, data.caseId, data.assignee)),
+    asReviewer((client) => reassign(client, data.caseId, data.assignee)),
   );
 
 export const addCaseNote = createServerFn({ method: 'POST' })
   .validator(z.object({ caseId: id, text: z.string().trim().min(1).max(2000) }))
   .handler(({ data }): Promise<ServiceResult<Note>> =>
-    asStaffMember((client) => addNote(client, data.caseId, data.text)),
+    asReviewer((client) => addNote(client, data.caseId, data.text)),
   );
 
 export const markCaseFlagReviewed = createServerFn({ method: 'POST' })
   .validator(z.object({ caseId: id, flagId: id, note: z.string().trim().min(1).max(1000) }))
   .handler(({ data }): Promise<ServiceResult<CaseFlag>> =>
-    asStaffMember((client) => markFlagReviewed(client, data.caseId, data.flagId, data.note)),
+    asReviewer((client) => markFlagReviewed(client, data.caseId, data.flagId, data.note)),
+  );
+
+export const getCaseAttachmentLink = createServerFn({ method: 'GET' })
+  .validator(z.object({ caseId: id, uploadId: id }))
+  .handler(({ data }): Promise<ServiceResult<{ downloadUrl: string; expiresAt: string }>> =>
+    asReviewer((client) => attachmentLink(client, data.caseId, data.uploadId)),
   );
 
 const staffMember = z.object({ subject: z.string().min(1).max(200), name: z.string().max(200) });
@@ -95,24 +99,11 @@ export const getReviewers = createServerFn({ method: 'GET' })
     }),
   )
   .handler(({ data }): Promise<ServiceResult<Reviewer[]>> =>
-    asStaffMember((client) =>
+    asReviewer((client) =>
       loadReviewers(client, data.slug, {
         assignee: data.assignee,
         reviewerHistory: data.reviewerHistory,
       }),
-    ),
-  );
-
-/** An attachment of the version under review, through the case's audited download. */
-export const getCaseAttachmentLink = createServerFn({ method: 'GET' })
-  .validator(z.object({ caseId: id, uploadId: id }))
-  .handler(({ data }): Promise<ServiceResult<DownloadLink>> =>
-    asStaffMember((client) =>
-      callService(() =>
-        client.GET('/v1/review/cases/{caseId}/attachments/{uploadId}/download', {
-          params: { path: { caseId: data.caseId, uploadId: data.uploadId } },
-        }),
-      ),
     ),
   );
 
@@ -123,21 +114,21 @@ export const getCaseAttachmentLink = createServerFn({ method: 'GET' })
 export const getCaseRegistry = createServerFn({ method: 'GET' })
   .validator(z.object({ caseId: id }))
   .handler(({ data }): Promise<ServiceResult<CaseRegistryView>> =>
-    asStaffMember((client) => loadRegistry(client, data.caseId)),
+    asReviewer((client) => loadRegistry(client, data.caseId)),
   );
 
 /** When the case's latest registry check was stored: polled while a re-check runs, unaudited. */
 export const getCaseRegistryStatus = createServerFn({ method: 'GET' })
   .validator(z.object({ caseId: id }))
   .handler(({ data }): Promise<ServiceResult<{ checkedAt: string | null }>> =>
-    asStaffMember((client) => loadRegistryStatus(client, data.caseId)),
+    asReviewer((client) => loadRegistryStatus(client, data.caseId)),
   );
 
 /** Re-checks the case's registries: the assignee or a supervisor, once every 10 minutes. */
 export const recheckCaseRegistries = createServerFn({ method: 'POST' })
   .validator(z.object({ caseId: id }))
   .handler(({ data }): Promise<RecheckResult> =>
-    withReviewClient(
+    withReviewer(
       (client) => recheck(client, data.caseId),
       () => ({ ok: false, refusal: null, error: { kind: 'unauthenticated' } }),
     ),

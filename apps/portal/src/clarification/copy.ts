@@ -17,18 +17,31 @@ interface Label {
 
 const en = (text: string): Label => ({ en: text, sw: '' });
 
-/** What each s.35(4) requirement asks of the declarant, in plain words. */
+/**
+ * What each s.35(4) requirement asks of the declarant, in plain words. `ask` is part of what the
+ * letter asks, so it is shown in the clarification's letter language (`Clarification.language`),
+ * with its Swahili done; the placeholder is the portal's own copy.
+ */
 export const REQUIREMENTS = {
   'provide-omitted': {
-    ask: en('Your Commission asks you to provide the omitted information for:'),
+    ask: {
+      en: 'Your Commission asks you to provide the omitted information for:',
+      sw: 'Tume yako inakuomba utoe taarifa zilizoachwa kuhusu:',
+    },
     placeholder: en('Give the missing details. Attach a statement if you have one.'),
   },
   'explain-discrepancy': {
-    ask: en('Your Commission asks you to explain the discrepancy in:'),
+    ask: {
+      en: 'Your Commission asks you to explain the discrepancy in:',
+      sw: 'Tume yako inakuomba ueleze tofauti iliyopo katika:',
+    },
     placeholder: en('Explain in your own words. Short, clear answers are best.'),
   },
   correct: {
-    ask: en('Your Commission asks you to correct:'),
+    ask: {
+      en: 'Your Commission asks you to correct:',
+      sw: 'Tume yako inakuomba usahihishe:',
+    },
     placeholder: en('Say what the correct entry is and why.'),
   },
 } satisfies Record<Requirement, { ask: Label; placeholder: Label }>;
@@ -44,10 +57,13 @@ export const STATUSES = {
 } satisfies Record<ClarificationStatus, { label: Label; variant: BadgeProps['variant'] }>;
 
 export const COPY = {
-  back: 'Your dashboard',
+  back: 'Clarifications',
+  allClarifications: 'All clarifications',
   title: (followUp: boolean) => (followUp ? 'Further clarification' : 'Clarification'),
   declaration: 'Declaration',
   askedOpen: 'What your Commission asks',
+  aiAssisted:
+    'Parts of this clarification were drafted with AI assistance, then checked and approved by a reviewer at your Commission.',
   askedAnswered: 'What was asked and your response',
   askedClosed: 'What was asked',
   answerOnce: 'Answer every point. You can respond once.',
@@ -142,4 +158,36 @@ export const COPY = {
   unavailableTitle: 'We could not load this clarification',
   unavailableBody: 'Check your connection and try again in a few minutes.',
   tryAgain: 'Try again',
+} as const;
+
+/** Words for the declarant's clarification list and the dashboard's Clarifications card. */
+export const LIST_COPY = {
+  title: 'Clarifications',
+  needsResponse: 'Needs your response',
+  earlier: 'Earlier',
+  all: 'All clarifications',
+  viewAll: 'View all',
+  viewAllLabel: 'View all clarifications',
+
+  rowTitle: (points: number, declaration: string) =>
+    `${plural(points, 'point')} on your ${declaration}`,
+  declaration: 'declaration',
+  issued: (date: string) => `Issued ${date}`,
+  due: (date: string) => `due ${date}`,
+  responded: (date: string) => `responded ${date}`,
+  resolved: (date: string) => `resolved ${date}`,
+  withdrawn: 'withdrawn',
+  reminderSent: (date: string) => `Reminder sent ${date}`,
+  respondedLate: (days: number) => `Responded ${plural(days, 'day')} late`,
+  furtherClarification: 'Further clarification',
+  furtherSent: 'Further clarification sent',
+
+  loading: 'Loading your clarifications',
+  emptyTitle: 'No clarification requests',
+  emptyBody: 'If one arrives, we will SMS and email you. You will have 30 days to respond.',
+  unavailableTitle: 'We could not load your clarifications',
+  unavailableBody: 'Check your connection and try again.',
+  tryAgain: 'Try again',
+
+  pagination: 'Pages of your earlier clarifications',
 } as const;

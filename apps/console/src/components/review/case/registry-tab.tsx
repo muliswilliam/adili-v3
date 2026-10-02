@@ -28,7 +28,7 @@ import {
   Shield01Icon,
   WifiDisconnected01Icon,
 } from '@hugeicons/core-free-icons';
-import { useState } from 'react';
+import { type ReactNode, useState } from 'react';
 
 import { CASE_COPY, REGISTRY_COPY } from '../../../review-case/messages';
 import {
@@ -40,7 +40,8 @@ import {
   type SystemRow,
 } from '../../../review-case/registry';
 import type { RegistrySystem } from '../../../server/review/types';
-import { FlagCard, type FlagActions } from './flags-tab';
+import type { CaseFlag } from '../../../server/review-case.server';
+import { type FlagCardContext, useFlagCards } from './flags-tab';
 import { useCooldown } from './use-case-registry';
 
 const copy = REGISTRY_COPY;
@@ -60,12 +61,10 @@ const TONES: Record<RegistryPerson['kind'], AvatarTone> = {
 
 const BADGE_TONES = { success: 'success', warning: 'warning', default: 'default' } as const;
 
-interface FlagContext extends FlagActions {
+/** The declaration, and how a registry's flags are shown (as flag cards, as on the Flags tab). */
+interface FlagContext {
   document: DeclarationV1 | null;
-  previousVersion: number | null;
-  currentVersion: number;
-  canReview: boolean;
-  editing: string | null;
+  card: (flag: CaseFlag) => ReactNode;
 }
 
 function KraTable({ row }: { row: SystemRow }) {
@@ -152,7 +151,6 @@ function SystemDetail({
   flags: FlagContext;
   onGoToItem: (itemId: string) => void;
 }) {
-  const { editing, ...context } = flags;
   return (
     <>
       {row.system === 'kra' ? (
@@ -167,14 +165,7 @@ function SystemDetail({
       {row.flags.length > 0 ? (
         <ul aria-label={copy.flagsLabel(row.name)} className="grid gap-2.5">
           {row.flags.map((flag) => (
-            <FlagCard
-              key={flag.id}
-              flag={flag}
-              editing={editing === flag.id}
-              pulse={false}
-              showSystem={false}
-              {...context}
-            />
+            <li key={flag.id}>{flags.card(flag)}</li>
           ))}
         </ul>
       ) : null}
@@ -285,7 +276,11 @@ function CooldownAlert({ until, now }: { until: number | null; now: number }) {
   );
 }
 
-export interface RegistryTabProps extends FlagContext {
+export interface RegistryTabProps {
+  /** The declaration as filed, for the declared items beside the records; null when unread. */
+  document: DeclarationV1 | null;
+  /** How the registry's flags are shown and acted on, as on the Flags tab. */
+  flagProps: FlagCardContext;
   /** Null until the registry is read the first time. */
   layout: RegistryLayout | null;
   /** The registry records could not be read: the layout has the last check's statuses only. */
@@ -301,7 +296,6 @@ export interface RegistryTabProps extends FlagContext {
   refusedUntil: number | null;
   /** The page's time (epoch ms), as the server rendered it. */
   now: number;
-  onGoToItem: (itemId: string) => void;
 }
 
 /**
@@ -320,10 +314,13 @@ export function RegistryTab({
   checking,
   refusedUntil,
   now,
-  onGoToItem,
-  ...flags
+  document,
+  flagProps,
 }: RegistryTabProps) {
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+  const card = useFlagCards(flagProps, { showSystem: false });
+  const flags: FlagContext = { document, card };
+  const { onGoToItem } = flagProps;
   return (
     <div className="grid gap-3.5">
       <Alert variant="info" role="note" className="font-medium">

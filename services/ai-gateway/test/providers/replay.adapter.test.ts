@@ -283,4 +283,13 @@ describe('ReplayAdapter', () => {
       batch: true,
     });
   });
+
+  it('reports the class of the provider its fixtures stand in for, so the gate decides as in production', () => {
+    expect(replayer().providerClass).toBe('external');
+    expect(
+      new ReplayAdapter({ fixturesDir: dir, mode: 'replay', providerClass: 'self-hosted' })
+        .providerClass,
+    ).toBe('self-hosted');
+    expect(recorder().providerClass).toBe('external');
+  });
 });

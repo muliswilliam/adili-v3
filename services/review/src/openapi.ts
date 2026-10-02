@@ -36,12 +36,18 @@ import {
   clarificationSchema,
   clarificationStatusSchema,
   declarantClarificationSchema,
+  letterLanguageSchema,
   requirementSchema,
 } from './clarifications/representation.js';
 import {
   bulkApprovalResultSchema,
   closureSummarySchema,
 } from './closures/bulk-closures.service.js';
+import { commissionAiStatusSchema } from './copilot/ai-status.controller.js';
+import { copilotDraftSchema } from './copilot/copilot-drafts.service.js';
+import { copilotBlockSchema, copilotFeedbackInput } from './copilot/copilot-feedback.js';
+import { copilotStatusSchema, copilotViewSchema } from './copilot/copilot.service.js';
+import { copilotDraftInput } from './copilot/draft-input.js';
 import {
   determinationInput,
   furtherActionLink,
@@ -79,8 +85,7 @@ import { registryStatusSchema, registryViewSchema } from './registry/representat
 
 /**
  * Named schemas of the review service's OpenAPI document (`#/components/schemas/<name>`), which
- * is exported to packages/schemas/internal/review.yaml by `pnpm contracts`. The copilot's (spec
- * 07c) are drafted in packages/schemas/drafts/review.yaml until implemented.
+ * is exported to packages/schemas/internal/review.yaml by `pnpm contracts`.
  */
 export const OPENAPI_SCHEMAS: Record<string, z.ZodType> = {
   DeclarationType: declarationTypeSchema,
@@ -94,12 +99,20 @@ export const OPENAPI_SCHEMAS: Record<string, z.ZodType> = {
   CaseListItem: caseListItemSchema,
   QueueSummary: queueSummarySchema,
   ReviewerList: reviewerListSchema,
+  CopilotStatus: copilotStatusSchema,
+  CopilotView: copilotViewSchema,
+  CopilotDraftInput: copilotDraftInput,
+  CopilotDraft: copilotDraftSchema,
+  CommissionAiStatus: commissionAiStatusSchema,
+  CopilotBlock: copilotBlockSchema,
+  CopilotFeedbackInput: copilotFeedbackInput,
   Flag: flagSchema,
   Note: noteSchema,
   TimelineEntry: timelineEntrySchema,
   CaseDetail: caseDetailSchema,
   VersionComparison: versionComparisonSchema,
   ClarificationItemInput: clarificationItemInput,
+  LetterLanguage: letterLanguageSchema,
   ClarificationInput: clarificationInput,
   ClarificationResponseInput: responseInput,
   Clarification: clarificationSchema,

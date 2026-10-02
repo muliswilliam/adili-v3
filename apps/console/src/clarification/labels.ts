@@ -30,3 +30,16 @@ export const REQUIREMENT_LABELS = {
   'explain-discrepancy': 'Explain the discrepancy or inconsistency',
   correct: 'Correct the entry',
 } satisfies Record<Requirement, string>;
+
+/**
+ * Act s.35(4) as the letter states it in each letter language: the review service's
+ * `REQUIREMENT_LABELS` (services/review/src/clarifications/labels.ts), word for word.
+ */
+export const LETTER_REQUIREMENT_LABELS = {
+  en: REQUIREMENT_LABELS,
+  sw: {
+    'provide-omitted': 'Toa taarifa zilizoachwa',
+    'explain-discrepancy': 'Eleza tofauti au kutowiana kwa taarifa',
+    correct: 'Sahihisha taarifa iliyoandikwa',
+  },
+} satisfies Record<'en' | 'sw', Record<Requirement, string>>;

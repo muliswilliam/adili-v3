@@ -1,3 +1,4 @@
+import type { DeclarationV1 } from '@adili/forms';
 import { useToast } from '@adili/ui';
 import { useEffect, useMemo, useRef, useState } from 'react';
 
@@ -17,7 +18,7 @@ import {
   getCaseRegistryStatus,
   recheckCaseRegistries,
 } from '../../../server/review-case';
-import type { CaseLoad, CaseRegistryView } from '../../../server/review-case.server';
+import type { CaseRegistryView, CaseViewDetail } from '../../../server/review-case.server';
 import { SERVICE_UNAVAILABLE, type ServiceResult } from '../../../server/service-call';
 import { goToSignIn } from '../../sign-in-redirect';
 import { failureText } from '../assignment';
@@ -98,7 +99,11 @@ export function useCaseRegistry({
   open,
   refresh,
 }: {
-  load: CaseLoad;
+  load: {
+    detail: CaseViewDetail;
+    /** The declaration as filed, for the people and items; null when it could not be read. */
+    document: DeclarationV1 | null;
+  };
   /** The Registry tab is open. */
   open: boolean;
   /** Reloads the case (its flags and registry summary). */

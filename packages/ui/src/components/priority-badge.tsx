@@ -1,108 +1,112 @@
+import type { ComponentProps } from 'react';
+
 import { cn } from '../lib/cn';
 import { focusRing } from '../lib/focus';
-import { Badge, type BadgeProps } from './badge';
+import { Badge } from './badge';
 import { Tooltip } from './tooltip';
 
-/** A review case's priority band, from its indicator score (review.yaml `band`). */
-export type Priority = 'low' | 'medium' | 'high';
+/** A review case's priority band (review.yaml `PriorityBand`). */
+export const PRIORITY_BANDS = ['low', 'medium', 'high'] as const;
 
-export const PRIORITIES: readonly Priority[] = ['high', 'medium', 'low'];
+export type PriorityBand = (typeof PRIORITY_BANDS)[number];
 
 export interface PriorityBadgeMessages {
-  bands: Record<Priority, string>;
-  /** The accessible name before the indicator note, e.g. "High priority". */
+  /** The badge's text per band. */
+  bands: Record<PriorityBand, string>;
+  /** `High` → "High priority", the start of the accessible name. */
   label: (band: string) => string;
-  /** What the priority means, in the tooltip and the accessible name. */
-  indicator: string;
+  /** What the band is for, in the tooltip and the accessible name. */
+  note: string;
 }
 
+/** What the priority indicator is, as the queue's column header and the flags banner say it. */
+export const PRIORITY_NOTE = 'Indicator for ordering only. Not a finding.';
+
 export const PRIORITY_BADGE_MESSAGES: PriorityBadgeMessages = {
-  bands: { high: 'High', medium: 'Medium', low: 'Low' },
+  bands: { low: 'Low', medium: 'Medium', high: 'High' },
   label: (band) => `${band} priority`,
-  indicator: 'Indicator for ordering only. Not a finding.',
+  note: PRIORITY_NOTE,
 };
 
-const META: Record<Priority, { variant: NonNullable<BadgeProps['variant']>; bars: number }> = {
-  high: { variant: 'destructive', bars: 3 },
-  medium: { variant: 'warning', bars: 2 },
-  low: { variant: 'default', bars: 1 },
+const LOOK: Record<PriorityBand, { tone: 'default' | 'warning' | 'destructive'; bars: number }> = {
+  low: { tone: 'default', bars: 1 },
+  medium: { tone: 'warning', bars: 2 },
+  high: { tone: 'destructive', bars: 3 },
 };
 
-/** Three rising bars, `lit` of them solid and the rest faint, like a signal meter. Decorative. */
+/** Three rising bars, the first `lit` solid and the rest faint, like a signal meter. Decorative. */
 export function SignalBars({ lit }: { lit: number }) {
-  const bars = [
-    { x: 0.5, y: 7, height: 4.5 },
-    { x: 4.5, y: 4, height: 7.5 },
-    { x: 8.5, y: 0.5, height: 11 },
-  ];
   return (
-    <svg viewBox="0 0 12 12" aria-hidden="true">
-      {bars.map((bar, index) => (
-        <rect
-          key={bar.x}
-          {...bar}
-          width={3}
-          rx={1}
-          fill="currentColor"
-          opacity={index < lit ? 1 : 0.25}
-        />
-      ))}
+    <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true" className="shrink-0">
+      <rect x="0.5" y="7" width="3" height="4.5" rx="1" fill="currentColor" />
+      <rect
+        x="4.5"
+        y="4"
+        width="3"
+        height="7.5"
+        rx="1"
+        fill="currentColor"
+        opacity={lit < 2 ? 0.25 : 1}
+      />
+      <rect
+        x="8.5"
+        y="0.5"
+        width="3"
+        height="11"
+        rx="1"
+        fill="currentColor"
+        opacity={lit < 3 ? 0.25 : 1}
+      />
     </svg>
   );
 }
 
-export type PriorityBadgeProps = Omit<BadgeProps, 'children' | 'variant'> & {
-  priority: Priority;
+export type PriorityBadgeProps = Omit<ComponentProps<'span'>, 'children'> & {
+  band: PriorityBand;
   /**
-   * Shows the indicator note on hover and keyboard focus (default). Turn it off where the note
-   * is already on screen, e.g. in the flags banner; the accessible name still carries it.
+   * Shows the note in a tooltip on hover and focus, which makes the badge a tab stop. Turn it off
+   * where the note is already on screen (a column header's tooltip, the flags banner); the
+   * accessible name keeps the note either way.
    */
   tooltip?: boolean;
-  /** Replaces any of the default words. */
-  messages?: Partial<Omit<PriorityBadgeMessages, 'bands'>> & {
-    bands?: Partial<PriorityBadgeMessages['bands']>;
-  };
+  messages?: Partial<PriorityBadgeMessages>;
 };
 
 /**
- * A case's priority: bars plus the word, never colour alone. High is red with three bars,
- * medium amber with two, low grey with one. Its accessible name is "High priority. Indicator
- * for ordering only. Not a finding.", and the same note shows in a tooltip on hover or focus,
- * since a priority is not a finding.
+ * A review case's priority: rising bars and the band in text ("High"), never colour alone; high is
+ * red, medium amber, low grey. Its accessible name, "High priority. Indicator for ordering only.
+ * Not a finding.", carries the same note as its tooltip. Needs no TooltipProvider, but shares one
+ * when mounted.
  */
 export function PriorityBadge({
-  priority,
+  band,
   tooltip = true,
-  messages: overrides,
+  messages,
   className,
   ...props
 }: PriorityBadgeProps) {
-  const messages = {
-    ...PRIORITY_BADGE_MESSAGES,
-    ...overrides,
-    bands: { ...PRIORITY_BADGE_MESSAGES.bands, ...overrides?.bands },
-  };
-  const { variant, bars } = META[priority];
-  const word = messages.bands[priority];
+  const copy = { ...PRIORITY_BADGE_MESSAGES, ...messages };
+  const look = LOOK[band];
+  const text = copy.bands[band];
 
   const badge = (
     <Badge
-      variant={variant}
+      variant={look.tone}
       role="img"
       tabIndex={tooltip ? 0 : undefined}
-      aria-label={`${messages.label(word)}. ${messages.indicator}`}
-      data-priority={priority}
+      aria-label={`${copy.label(text)}. ${copy.note}`}
+      data-band={band}
       className={cn(
-        'gap-1.5 pr-[9px] pl-[7px] font-semibold [&_svg]:size-3',
-        tooltip && focusRing,
+        'gap-1.5 pr-[9px] pl-[7px] font-semibold',
+        tooltip && cn(focusRing, 'cursor-help'),
         className,
       )}
       {...props}
     >
-      <SignalBars lit={bars} />
-      {word}
+      <SignalBars lit={look.bars} />
+      {text}
     </Badge>
   );
 
-  return tooltip ? <Tooltip content={messages.indicator}>{badge}</Tooltip> : badge;
+  return tooltip ? <Tooltip content={copy.note}>{badge}</Tooltip> : badge;
 }

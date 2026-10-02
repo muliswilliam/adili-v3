@@ -3,10 +3,19 @@ import { randomUUID } from 'node:crypto';
 import { outbox } from '@adili/events';
 import { beforeAll, describe, expect, it } from 'vitest';
 
-import { jobs } from '../../src/db/schema.js';
+import { v7 as uuidv7 } from 'uuid';
+
+import { jobs, routes } from '../../src/db/schema.js';
 import { JobsJanitor } from '../../src/jobs/jobs-janitor.js';
 import { contractErrors } from '../support/contract.js';
-import { summarizeInput, summarizeOutput, taskRequest, usage } from '../support/inputs.js';
+import {
+  actingFor,
+  summarizeInput,
+  summarizeOutput,
+  taskCall,
+  taskRequest,
+  usage,
+} from '../support/inputs.js';
 import { ScriptedProvider } from '../support/scripted-provider.js';
 import { createTestApp, type TestApp } from '../support/test-app.js';
 
@@ -16,7 +25,10 @@ interface Job {
   [key: string]: unknown;
 }
 
-/** The default gate with an external provider (spec 07c S2): only synthetic data reaches it. */
+/**
+ * The gate with an external provider (spec 07c S2): by default it sees nothing; the demo tenant's
+ * seeded rule lets synthetic data, and only that, reach it.
+ */
 describe('classification gate', () => {
   const external = new ScriptedProvider(
     () =>
@@ -33,17 +45,20 @@ describe('classification gate', () => {
 
   beforeAll(async () => {
     t = await createTestApp({ provider: external });
+    await t.seedDemoGate('demo');
     auth = { authorization: `Bearer ${await t.token()}` };
     return () => t.close();
   });
 
-  const runTask = (payload: object) =>
-    t.app.inject({
+  const runTask = (payload: object) => {
+    const call = taskCall(payload);
+    return t.app.inject({
       method: 'POST',
       url: '/internal/v1/tasks/summarize-declaration',
-      headers: { ...auth, 'idempotency-key': randomUUID() },
-      payload,
+      headers: { ...auth, ...call.headers, 'idempotency-key': randomUUID() },
+      payload: call.body,
     });
+  };
 
   it.each(['restricted', 'highly-confidential'])(
     'blocks %s data for an external provider without contacting it',
@@ -67,15 +82,63 @@ describe('classification gate', () => {
     },
   );
 
-  it('lets synthetic data through to an external provider', async () => {
+  it("lets the demo tenant's synthetic data through to an external provider", async () => {
     const response = await runTask(taskRequest(summarizeInput, { waitSeconds: 10 }));
 
     expect(response.json<Job>()).toMatchObject({ status: 'succeeded' });
   });
 
-  it('blocks a queued job at execution when the provider it would reach is external', async () => {
+  it.each(['synthetic', 'restricted', 'highly-confidential'])(
+    'blocks %s data for an external provider for a tenant without a rule',
+    async (dataClass) => {
+      const before = external.requests.length;
+
+      const response = await runTask(
+        taskRequest(summarizeInput, { tenant: 'newcomm', dataClass, waitSeconds: 10 }),
+      );
+
+      expect(response.json<Job>()).toMatchObject({ status: 'blocked', reason: 'policy' });
+      expect(external.requests.length).toBe(before);
+    },
+  );
+
+  describe('a route to a provider this gateway cannot reach (review S4)', () => {
+    const routeElsewhere = (tenant: string) =>
+      t.db.insert(routes).values({
+        id: uuidv7(),
+        tenant,
+        task: 'summarize-declaration',
+        provider: 'elsewhere',
+        model: 'm',
+        changedBy: 'platform-admin-1',
+      });
+
+    it('is blocked by the gate, not failed, when the tenant may not use every provider class', async () => {
+      await routeElsewhere('nogate');
+
+      const response = await runTask(
+        taskRequest(summarizeInput, { tenant: 'nogate', dataClass: 'restricted' }),
+      );
+
+      expect(response.json<Job>()).toMatchObject({ status: 'blocked', reason: 'policy' });
+    });
+
+    it('fails provider-unavailable when the gate would admit it on any provider', async () => {
+      await routeElsewhere('opengate');
+      await t.seedDemoGate('opengate');
+
+      const response = await runTask(taskRequest(summarizeInput, { tenant: 'opengate' }));
+
+      expect(response.json<Job>()).toMatchObject({
+        status: 'failed',
+        reason: 'provider-unavailable',
+      });
+    });
+  });
+
+  it('blocks a queued job at execution when the gate no longer admits it', async () => {
     const before = external.requests.length;
-    // Queued under a self-hosted route; this process now reaches an external provider.
+    // Queued before the policy changed (or written by hand): the gate is checked again.
     const id = randomUUID();
     await t.db.insert(jobs).values({
       id,
@@ -90,7 +153,7 @@ describe('classification gate', () => {
       inputHash: 'queued',
       input: summarizeInput,
       status: 'queued',
-      provider: 'replay',
+      provider: 'scripted',
       model: 'claude-opus-5-5',
       createdAt: new Date(Date.now() - 5 * 60_000),
     });
@@ -102,7 +165,11 @@ describe('classification gate', () => {
     do {
       await new Promise((resolve) => setTimeout(resolve, 100));
       job = (
-        await t.app.inject({ method: 'GET', url: `/internal/v1/jobs/${id}`, headers: auth })
+        await t.app.inject({
+          method: 'GET',
+          url: `/internal/v1/jobs/${id}`,
+          headers: { ...auth, ...actingFor() },
+        })
       ).json<Job>();
     } while (['queued', 'running'].includes(job.status) && Date.now() < deadline);
     expect(job).toMatchObject({ status: 'blocked', reason: 'policy' });

@@ -231,6 +231,7 @@ async function caseData(
       submittedAt: version.submittedAt.toISOString(),
       late: version.late,
       amendment: version.amendment,
+      firstOnAdili: version.firstOnAdili,
     })),
     reviewerHistory,
     determinations: determinationRows.map(determinationView),
@@ -276,6 +277,10 @@ function clarificationView(
                   : 'issued',
           },
     followUpOf: row.followUpOf,
+    opening: row.opening,
+    openingAiJobId: row.openingAiJobId,
+    openingAiLanguage: row.openingAiLanguage,
+    language: row.language,
     response:
       response === undefined
         ? null

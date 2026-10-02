@@ -115,13 +115,21 @@ _Avoid_: query, question, follow-up
 One thing a clarification asks: the section, person or item it concerns, what Act s.35(4) requires (provide omitted information, explain a discrepancy, or correct the entry) and the Commission's text. The declarant answers each one. Portal copy calls it a "point" ("Point 2 of 3"); the console and the contract say "item".
 _Avoid_: question
 
+**Letter language**:
+The language a clarification letter is issued in, English or Swahili, chosen by the reviewer. The letter's own text (heading, introduction, item labels, requirements, how to respond) is printed in it; the reviewer's text is printed as written. Draft with AI drafts in it. The contract calls it `language` (`LetterLanguage`).
+_Avoid_: locale
+
 **Further clarification**:
 A clarification raised on the response to an earlier one, recorded as `followUpOf`. The console action is "Raise follow-up", after the contract's `/follow-up` operation; that is the one place "follow-up" is used. The declarant sees "further clarification".
 _Avoid_: follow-up (for the clarification itself)
 
+**Risk flag**:
+An indicator computed by a fixed rule that points a reviewer at part of a declaration to check. It is never a compliance determination.
+_Avoid_: finding, red flag, alert
+
 **Compliance determination**:
 The decision that a declaration is compliant, non-compliant or needs further action.
-_Avoid_: verdict, outcome, approval
+_Avoid_: verdict, outcome, approval, finding
 
 **Administrative action**:
 A sanction for non-compliance, from notice to comply up to disciplinary proceedings.

@@ -1,6 +1,6 @@
 {
-  "id": "593fdd3a-3606-4121-b9f0-de207366f3ba",
-  "prevId": "18c0c9c8-5f06-4fbb-bd89-37938b0a0ef3",
+  "id": "9884d597-1d07-4530-8946-e02d04e10e1d",
+  "prevId": "257f3112-6431-4d1b-8bb9-582cc4b16dbc",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -452,6 +452,25 @@
           "primaryKey": false,
           "notNull": true
         },
+        "opening": {
+          "name": "opening",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "opening_ai_job_id": {
+          "name": "opening_ai_job_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "ai_assisted": {
+          "name": "ai_assisted",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
         "issued_at": {
           "name": "issued_at",
           "type": "timestamp with time zone",
@@ -788,6 +807,13 @@
           "primaryKey": false,
           "notNull": true
         },
+        "first_on_adili": {
+          "name": "first_on_adili",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
         "processed_at": {
           "name": "processed_at",
           "type": "timestamp with time zone",
@@ -970,6 +996,12 @@
           "primaryKey": false,
           "notNull": true
         },
+        "designation": {
+          "name": "designation",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
         "roster_record_id": {
           "name": "roster_record_id",
           "type": "uuid",
@@ -984,27 +1016,6 @@
         },
         "open_flags": {
           "name": "open_flags",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 0
-        },
-        "registry_unavailable": {
-          "name": "registry_unavailable",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": false
-        },
-        "registry_check_sequence": {
-          "name": "registry_check_sequence",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 0
-        },
-        "stored_registry_check": {
-          "name": "stored_registry_check",
           "type": "integer",
           "primaryKey": false,
           "notNull": true,
@@ -1036,12 +1047,6 @@
           "primaryKey": false,
           "notNull": true,
           "default": "now()"
-        },
-        "designation": {
-          "name": "designation",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
         }
       },
       "indexes": {
@@ -1179,22 +1184,6 @@
           "concurrently": false,
           "method": "btree",
           "with": {}
-        },
-        "review_cases_registry_unavailable_idx": {
-          "name": "review_cases_registry_unavailable_idx",
-          "columns": [
-            {
-              "expression": "id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "where": "\"review_cases\".\"registry_unavailable\"",
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
         }
       },
       "foreignKeys": {},
@@ -1306,12 +1295,6 @@
           "notNull": true,
           "default": false
         },
-        "closed_reason": {
-          "name": "closed_reason",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
         "created_at": {
           "name": "created_at",
           "type": "timestamp with time zone",
@@ -1359,10 +1342,6 @@
         "review_flags_severity_check": {
           "name": "review_flags_severity_check",
           "value": "\"review_flags\".\"severity\" in ('info', 'low', 'medium', 'high')"
-        },
-        "review_flags_closed_reason_check": {
-          "name": "review_flags_closed_reason_check",
-          "value": "\"review_flags\".\"closed_reason\" in ('superseded-by-recheck')"
         }
       },
       "isRLSEnabled": false
@@ -1694,6 +1673,475 @@
       "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.review_copilot_drafts": {
+      "name": "review_copilot_drafts",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "tenant": {
+          "name": "tenant",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "case_id": {
+          "name": "case_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "requested_by": {
+          "name": "requested_by",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "selection_hash": {
+          "name": "selection_hash",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "job_id": {
+          "name": "job_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "failure_reason": {
+          "name": "failure_reason",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "ciphertext": {
+          "name": "ciphertext",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "envelope": {
+          "name": "envelope",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "expires_at": {
+          "name": "expires_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "purged_at": {
+          "name": "purged_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "review_copilot_drafts_expires_at_idx": {
+          "name": "review_copilot_drafts_expires_at_idx",
+          "columns": [
+            {
+              "expression": "expires_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "review_copilot_drafts_case_id_review_cases_id_fk": {
+          "name": "review_copilot_drafts_case_id_review_cases_id_fk",
+          "tableFrom": "review_copilot_drafts",
+          "tableTo": "review_cases",
+          "columnsFrom": [
+            "case_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "review_copilot_drafts_status_check": {
+          "name": "review_copilot_drafts_status_check",
+          "value": "\"review_copilot_drafts\".\"status\" in ('pending', 'ready', 'failed')"
+        },
+        "review_copilot_drafts_content_check": {
+          "name": "review_copilot_drafts_content_check",
+          "value": "(\"review_copilot_drafts\".\"status\" = 'ready' and \"review_copilot_drafts\".\"purged_at\" is null) = (\"review_copilot_drafts\".\"ciphertext\" is not null and \"review_copilot_drafts\".\"envelope\" is not null)"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.review_copilot_ratings": {
+      "name": "review_copilot_ratings",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "job_id": {
+          "name": "job_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "reviewer_subject": {
+          "name": "reviewer_subject",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "block": {
+          "name": "block",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "tenant": {
+          "name": "tenant",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "case_id": {
+          "name": "case_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "rating": {
+          "name": "rating",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "rated_at": {
+          "name": "rated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "review_copilot_ratings_case_id_review_cases_id_fk": {
+          "name": "review_copilot_ratings_case_id_review_cases_id_fk",
+          "tableFrom": "review_copilot_ratings",
+          "tableTo": "review_cases",
+          "columnsFrom": [
+            "case_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "review_copilot_ratings_job_reviewer_block_key": {
+          "name": "review_copilot_ratings_job_reviewer_block_key",
+          "nullsNotDistinct": true,
+          "columns": [
+            "job_id",
+            "reviewer_subject",
+            "block"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "review_copilot_ratings_rating_check": {
+          "name": "review_copilot_ratings_rating_check",
+          "value": "\"review_copilot_ratings\".\"rating\" in ('helpful', 'not-helpful')"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.review_copilots": {
+      "name": "review_copilots",
+      "schema": "",
+      "columns": {
+        "case_id": {
+          "name": "case_id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "tenant": {
+          "name": "tenant",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "for_version_id": {
+          "name": "for_version_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "registry_checked_at": {
+          "name": "registry_checked_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "attempt": {
+          "name": "attempt",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "requested_summary_job_id": {
+          "name": "requested_summary_job_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "requested_explanations_job_id": {
+          "name": "requested_explanations_job_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "requested_at": {
+          "name": "requested_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "failure_reason": {
+          "name": "failure_reason",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "generated_for_version_id": {
+          "name": "generated_for_version_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "generated_at": {
+          "name": "generated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "summary_job_id": {
+          "name": "summary_job_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "summary_prompt_version": {
+          "name": "summary_prompt_version",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "summary_ciphertext": {
+          "name": "summary_ciphertext",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "summary_envelope": {
+          "name": "summary_envelope",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "explanations_job_id": {
+          "name": "explanations_job_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "explanations_prompt_version": {
+          "name": "explanations_prompt_version",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "explanations_ciphertext": {
+          "name": "explanations_ciphertext",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "explanations_envelope": {
+          "name": "explanations_envelope",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "staged_summary_prompt_version": {
+          "name": "staged_summary_prompt_version",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "staged_summary_ciphertext": {
+          "name": "staged_summary_ciphertext",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "staged_summary_envelope": {
+          "name": "staged_summary_envelope",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "staged_explanations_prompt_version": {
+          "name": "staged_explanations_prompt_version",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "staged_explanations_ciphertext": {
+          "name": "staged_explanations_ciphertext",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "staged_explanations_envelope": {
+          "name": "staged_explanations_envelope",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "review_copilots_summary_job_id_idx": {
+          "name": "review_copilots_summary_job_id_idx",
+          "columns": [
+            {
+              "expression": "summary_job_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "review_copilots_explanations_job_id_idx": {
+          "name": "review_copilots_explanations_job_id_idx",
+          "columns": [
+            {
+              "expression": "explanations_job_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "review_copilots_not_enabled_idx": {
+          "name": "review_copilots_not_enabled_idx",
+          "columns": [
+            {
+              "expression": "tenant",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "case_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "where": "\"review_copilots\".\"status\" = 'not-enabled'",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "review_copilots_case_id_review_cases_id_fk": {
+          "name": "review_copilots_case_id_review_cases_id_fk",
+          "tableFrom": "review_copilots",
+          "tableTo": "review_cases",
+          "columnsFrom": [
+            "case_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "review_copilots_status_check": {
+          "name": "review_copilots_status_check",
+          "value": "\"review_copilots\".\"status\" in ('not-enabled', 'pending', 'ready', 'failed', 'stale')"
+        }
+      },
       "isRLSEnabled": false
     },
     "public.determinations": {
@@ -3018,152 +3466,6 @@
         "referrals_proposer_kind_check": {
           "name": "referrals_proposer_kind_check",
           "value": "\"referrals\".\"proposer_kind\" in ('system', 'user')"
-        }
-      },
-      "isRLSEnabled": false
-    },
-    "public.registry_checks": {
-      "name": "registry_checks",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "tenant": {
-          "name": "tenant",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "case_id": {
-          "name": "case_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "version_id": {
-          "name": "version_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "person_key": {
-          "name": "person_key",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "system": {
-          "name": "system",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "status": {
-          "name": "status",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "reason": {
-          "name": "reason",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "checked_at": {
-          "name": "checked_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "result_id": {
-          "name": "result_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        }
-      },
-      "indexes": {
-        "registry_checks_case_person_system_key": {
-          "name": "registry_checks_case_person_system_key",
-          "columns": [
-            {
-              "expression": "case_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "person_key",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "system",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "registry_checks_tenant_status_idx": {
-          "name": "registry_checks_tenant_status_idx",
-          "columns": [
-            {
-              "expression": "tenant",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "status",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "registry_checks_case_id_review_cases_id_fk": {
-          "name": "registry_checks_case_id_review_cases_id_fk",
-          "tableFrom": "registry_checks",
-          "tableTo": "review_cases",
-          "columnsFrom": [
-            "case_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {
-        "registry_checks_system_check": {
-          "name": "registry_checks_system_check",
-          "value": "\"registry_checks\".\"system\" in ('kra', 'ntsa', 'brs', 'ardhisasa')"
-        },
-        "registry_checks_status_check": {
-          "name": "registry_checks_status_check",
-          "value": "\"registry_checks\".\"status\" in ('matched', 'mismatched', 'unavailable', 'not-checked', 'no-id')"
         }
       },
       "isRLSEnabled": false

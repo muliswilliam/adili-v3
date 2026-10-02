@@ -1,666 +1,508 @@
 // @vitest-environment jsdom
 import { ToastProvider, TooltipProvider } from '@adili/ui';
 import { act, fireEvent, render, screen, within } from '@testing-library/react';
-import type { ReactNode } from 'react';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { type ReactNode, useEffect, useState } from 'react';
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import {
-  caseData,
-  caseItem,
-  CHECKED_AT,
-  DISSOLVED_FLAG,
-  DOCUMENT,
-  flag,
-  ME,
-  PLOT,
-  registryView,
-  SALARY,
-  SUPPLIER_NOT_RUN_FLAG,
-  VEHICLE_FLAG,
-  WAFULA,
-} from '../../../review-case/fixtures';
-import type { CaseTab } from '../../../review-case/tabs';
 import {
   addCaseNote,
   claimCase,
-  getCaseRegistry,
-  getCaseRegistryStatus,
-  getReviewers,
   markCaseFlagReviewed,
   reassignCase,
-  recheckCaseRegistries,
   releaseCase,
 } from '../../../server/review-case';
-import type { CaseLoad } from '../../../server/review-case.server';
-import type * as SignInRedirect from '../../sign-in-redirect';
-import { goToSignIn } from '../../sign-in-redirect';
+import { type CaseView as CaseViewData, loadCaseView } from '../../../server/review-case.server';
+import { MOCK_FLAG_IDS as F, MOCK_ITEM_IDS as I } from '../../../server/review/copilot-mock.server';
+import {
+  MOCK_CASE_IDS as CASES,
+  MOCK_OFFICERS,
+  mockReviewClient,
+  resetReviewMock,
+} from '../../../server/review/mock.server';
+import type { Assignee } from '../../../server/review/types';
 import { CaseView } from './case-view';
 
-const invalidate = vi.fn(() => Promise.resolve());
-const scrollIntoView = vi.fn();
+const ME: Assignee = { subject: 'a1b2c3d4-0000-4000-8000-000000000001', name: 'Faith Achieng' };
+const NOW_MS = Date.parse('2026-10-02T09:00:00Z');
+const NOW = new Date(NOW_MS).toISOString();
+
+// The page reads the case again when the router is invalidated; the harness answers it.
+const harness: { reload: () => Promise<void>; load: CaseViewData | null } = {
+  reload: () => Promise.resolve(),
+  load: null,
+};
+const invalidate = vi.fn(() => harness.reload());
 
 vi.mock('@tanstack/react-router', () => ({
-  Link: ({ to, children, ...props }: { to: string; children: ReactNode }) => (
-    <a href={to} {...props}>
-      {children}
-    </a>
-  ),
-  useRouter: () => ({ invalidate }),
-}));
-// The Clarifications tab reuses the clarification detail's status badge.
-vi.mock('../../../server/clarifications', () => ({}));
-vi.mock('../../../server/review-case', () => ({
-  addCaseNote: vi.fn(),
-  claimCase: vi.fn(),
-  getCaseAttachmentLink: vi.fn(),
-  getCaseRegistry: vi.fn(),
-  getCaseRegistryStatus: vi.fn(),
-  getReviewers: vi.fn(),
-  markCaseFlagReviewed: vi.fn(),
-  reassignCase: vi.fn(),
-  recheckCaseRegistries: vi.fn(),
-  releaseCase: vi.fn(),
+  Link: ({
+    to,
+    params,
+    children,
+    ...props
+  }: {
+    to: string;
+    params?: Record<string, string>;
+    children: ReactNode;
+  }) => {
+    let href = to;
+    for (const [name, value] of Object.entries(params ?? {}))
+      href = href.replace(`$${name}`, value);
+    return (
+      <a href={href} {...props}>
+        {children}
+      </a>
+    );
+  },
+  useRouter: () => ({
+    invalidate,
+    get state() {
+      return {
+        matches: [
+          {
+            routeId: '/review/cases/$caseId/',
+            loaderData: harness.load ? { ok: true, data: harness.load, now: NOW } : null,
+          },
+        ],
+      };
+    },
+  }),
 }));
 
-vi.mock('../../sign-in-redirect', async (importOriginal) => ({
-  ...(await importOriginal<typeof SignInRedirect>()),
-  goToSignIn: vi.fn(),
+// The server functions, answered by the review mock as the signed-in officer.
+vi.mock('../../../server/review-case', async () => {
+  const server = await import('../../../server/review-case.server');
+  const { MOCK_OFFICERS: officers, mockReviewClient } =
+    await import('../../../server/review/mock.server');
+  const client = () => mockReviewClient('a1b2c3d4-0000-4000-8000-000000000001', 'Faith Achieng');
+  interface Data<T> {
+    data: T;
+  }
+  return {
+    claimCase: vi.fn(({ data }: Data<{ caseId: string }>) => server.claim(client(), data.caseId)),
+    releaseCase: vi.fn(({ data }: Data<{ caseId: string }>) =>
+      server.release(client(), data.caseId),
+    ),
+    reassignCase: vi.fn(({ data }: Data<{ caseId: string; assignee: string | null }>) =>
+      server.reassign(client(), data.caseId, data.assignee),
+    ),
+    addCaseNote: vi.fn(({ data }: Data<{ caseId: string; text: string }>) =>
+      server.addNote(client(), data.caseId, data.text),
+    ),
+    markCaseFlagReviewed: vi.fn(
+      ({ data }: Data<{ caseId: string; flagId: string; note: string }>) =>
+        server.markFlagReviewed(client(), data.caseId, data.flagId, data.note),
+    ),
+    getCaseAttachmentLink: vi.fn(({ data }: Data<{ caseId: string; uploadId: string }>) =>
+      server.attachmentLink(client(), data.caseId, data.uploadId),
+    ),
+    // The Commission's reviewers (the review mock has no reviewer list): two besides the holder.
+    getReviewers: vi.fn(() =>
+      Promise.resolve({
+        ok: true,
+        data: [
+          { subject: officers.mercy.subject, name: 'Mercy Wambui', open: 2, ofRecord: true },
+          {
+            subject: 'a1b2c3d4-0000-4000-8000-000000000001',
+            name: 'Faith Achieng',
+            open: 1,
+            ofRecord: false,
+          },
+        ],
+      }),
+    ),
+    getCaseRegistry: vi.fn(() => new Promise(() => undefined)),
+    getCaseRegistryStatus: vi.fn(),
+    recheckCaseRegistries: vi.fn(),
+  };
+});
+vi.mock('../../../server/copilot', async () => {
+  const { loadCopilot } = await import('../../../server/copilot.server');
+  const { mockReviewClient } = await import('../../../server/review/mock.server');
+  const client = () => mockReviewClient('a1b2c3d4-0000-4000-8000-000000000001', 'Faith Achieng');
+  return {
+    getCaseCopilot: vi.fn(({ data }: { data: { caseId: string } }) =>
+      loadCopilot(client(), data.caseId),
+    ),
+    refreshCaseCopilot: vi.fn(),
+    rateCopilotOutput: vi.fn(),
+  };
+});
+vi.mock('../../../server/clarifications', () => ({
+  saveClarificationDraft: vi.fn(),
+  issueComposedClarification: vi.fn(),
 }));
 
-const NOW = Date.parse('2026-10-02T09:00:00Z');
-const reviewer = { ...ME, supervisor: false };
-const supervisor = { ...ME, supervisor: true };
-
-function load(overrides: Partial<CaseLoad> = {}): CaseLoad {
-  return { detail: caseData(), document: DOCUMENT, documentUnavailable: false, ...overrides };
+async function loaded(caseId: string): Promise<CaseViewData> {
+  const result = await loadCaseView(mockReviewClient(ME.subject, ME.name), caseId, ME);
+  if (!result.ok) throw new Error(JSON.stringify(result.error));
+  return result.data;
 }
 
-function view(
-  loaded: CaseLoad,
-  viewer: typeof reviewer = reviewer,
-  tab: CaseTab = 'flags',
-  onTab = vi.fn(),
-) {
+function Harness({ initial, supervisor }: { initial: CaseViewData; supervisor: boolean }) {
+  const [load, setLoad] = useState(initial);
+  useEffect(() => {
+    harness.load = load;
+    harness.reload = async () => {
+      const next = await loaded(initial.detail.case.id);
+      harness.load = next;
+      setLoad(next);
+    };
+  }, [load, initial.detail.case.id]);
   return (
-    <TooltipProvider>
-      <ToastProvider>
-        <CaseView load={loaded} viewer={viewer} slug="psc" now={NOW} tab={tab} onTab={onTab} />
-      </ToastProvider>
-    </TooltipProvider>
+    <CaseView
+      load={load}
+      now={NOW}
+      supervisor={supervisor}
+      slug="tsc"
+      commission={{ name: 'Teachers Service Commission', issuerCode: 'TSC' }}
+    />
   );
 }
 
-const ok = <T,>(data: T) => ({ ok: true as const, data });
+async function renderCase(caseId: string, { supervisor = false } = {}) {
+  const initial = await loaded(caseId);
+  harness.load = initial;
+  render(
+    <TooltipProvider>
+      <ToastProvider>
+        <Harness initial={initial} supervisor={supervisor} />
+      </ToastProvider>
+    </TooltipProvider>,
+  );
+  // Let the copilot's first read land.
+  await act(async () => {
+    await Promise.resolve();
+  });
+}
 
-/** The innermost element reading `text`, also when part of it is in a span of its own. */
-const wholeText = (text: string) => (_: string, element: Element | null) =>
-  element?.textContent === text &&
-  ![...element.children].some((child) => child.textContent === text);
+/** Clicks, then lets the server function and the reload it causes land. */
+async function clickAndSettle(click: () => void) {
+  await act(async () => {
+    click();
+    await Promise.resolve();
+  });
+}
 
-beforeEach(() => {
-  vi.clearAllMocks();
-  Element.prototype.scrollIntoView = scrollIntoView;
-  window.matchMedia = vi.fn().mockReturnValue({ matches: false }) as typeof window.matchMedia;
+const button = (name: string | RegExp) => screen.queryByRole('button', { name });
+
+function openTab(name: RegExp) {
+  const tab = screen.getByRole('tab', { name });
+  fireEvent.mouseDown(tab);
+  fireEvent.click(tab);
+}
+
+beforeAll(() => {
+  Element.prototype.hasPointerCapture = () => false;
+  Element.prototype.releasePointerCapture = () => undefined;
+  Element.prototype.scrollIntoView = () => undefined;
+  window.requestAnimationFrame = (callback) => {
+    callback(0);
+    return 0;
+  };
 });
 
-describe('CaseView', () => {
-  it('shows an unassigned case with Claim, and its flags grouped by severity', () => {
-    render(view(load()));
+beforeEach(() => {
+  vi.useFakeTimers({ toFake: ['Date'] });
+  vi.setSystemTime(NOW_MS);
+  resetReviewMock(NOW_MS);
+  vi.clearAllMocks();
+});
 
-    expect(screen.getByRole('heading', { level: 1, name: 'Wanjiku Kamau' })).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'Claim' })).toBeTruthy();
-    expect(screen.queryByText(/Read-only/)).toBeNull();
+afterEach(() => {
+  vi.useRealTimers();
+});
+
+describe('CaseView: the reviewer holding the case', () => {
+  it('heads the case with its reference, status, priority, window and the Release action', async () => {
+    await renderCase(CASES.mine);
+    expect(screen.getByRole('heading', { level: 1, name: 'John Kennedy Otieno' })).toBeTruthy();
+    expect(screen.getByText('DCI-TSC-2026-0003418-P')).toBeTruthy();
+    expect(screen.getByText('Awaiting clarification')).toBeTruthy();
     expect(
-      screen.getByText('Flags are indicators to guide your review. They are not findings.'),
+      screen.getByRole('img', { name: /^High priority\. Indicator for ordering only/ }),
     ).toBeTruthy();
-    const groups = screen.getAllByRole('region').map((each) => each.getAttribute('aria-label'));
-    expect(groups).toContain('High: 1');
-    expect(groups.indexOf('High: 1')).toBeLessThan(groups.indexOf('Medium: 2'));
-    // Only the reviewer holding the case marks flags reviewed.
-    expect(screen.queryByRole('button', { name: 'Mark reviewed' })).toBeNull();
+    expect(screen.getByText('Late filing')).toBeTruthy();
+    // In the header and on the declaration pane.
+    expect(screen.getAllByText('Version 2 of 2')).toHaveLength(2);
+    expect(screen.getByText('Window closes 1 Nov 2026 · 30 days left')).toBeTruthy();
+    expect(screen.getByText('2 reviewers of record')).toBeTruthy();
+    expect(button('Release')).toBeTruthy();
+    expect(button('Claim')).toBeNull();
+    expect(button('Reassign')).toBeNull();
     expect(
       screen.getByText('Your access to this declaration is recorded in the audit trail.'),
     ).toBeTruthy();
   });
 
-  it('claims the case', async () => {
-    vi.mocked(claimCase).mockResolvedValue(ok(caseItem({ assignee: ME })));
-    render(view(load()));
-
-    await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: 'Claim' }));
-      await Promise.resolve();
-    });
-
-    expect(claimCase).toHaveBeenCalledWith({ data: { caseId: caseItem().id } });
-    expect(invalidate).toHaveBeenCalled();
-    expect(await screen.findByText('Case claimed. You hold it now.')).toBeTruthy();
+  it('shows the declaration as filed, with the ids the copilot and flags scroll to', async () => {
+    await renderCase(CASES.mine);
+    const pane = screen.getByRole('region', { name: 'Declaration as filed' });
+    for (const section of ['personal', 'spouses', 'children', 'other']) {
+      expect(document.getElementById(`decl-section-${section}`)).toBeTruthy();
+    }
+    expect(document.getElementById('decl-statement-officer')).toBeTruthy();
+    const plot = document.getElementById(`decl-item-${I.plot}`);
+    expect(plot?.textContent).toContain('Plot Kisumu/Manyatta/1234');
+    expect(plot?.textContent).toContain('KES 4,500,000');
+    // On the item, and in the attachments list.
+    expect(
+      within(pane).getAllByRole('button', { name: 'Download Title deed Kisumu-Manyatta-1234.pdf' }),
+    ).toHaveLength(2);
   });
 
-  it('says who claimed it first when the claim lost the race (409)', async () => {
-    vi.mocked(claimCase).mockResolvedValue({
-      ok: false,
-      error: {
-        kind: 'problem',
-        problem: { type: 'case-already-assigned', title: 'Case already assigned', status: 409 },
+  it('labels each total with its column, for the lines it becomes on phones (mobile case view)', async () => {
+    await renderCase(CASES.mine);
+    const pane = screen.getByRole('region', { name: 'Declaration as filed' });
+    const totals = within(pane).getAllByRole('table')[0];
+    if (!totals) throw new Error('no totals table');
+    const row = within(totals).getAllByRole('row')[1];
+    if (!row) throw new Error('no totals row');
+    expect(
+      within(row)
+        .getAllByRole('cell')
+        .map((cell) => cell.getAttribute('data-label')),
+    ).toEqual(['Income', 'Assets', 'Liabilities']);
+    expect(totals.querySelector('thead')?.className).toContain('max-sm:sr-only');
+  });
+
+  it('groups open flags by severity under the indicator banner', async () => {
+    await renderCase(CASES.mine);
+    expect(
+      screen.getByText('Flags are indicators to guide your review. They are not findings.'),
+    ).toBeTruthy();
+    expect(screen.getByText('4 open · 1 reviewed')).toBeTruthy();
+    const high = screen.getByRole('region', { name: 'high severity' });
+    expect(within(high).getByText('Value up 150% from the previous version')).toBeTruthy();
+    expect(
+      within(high).getByText('Assets · Land · Plot Kisumu/Manyatta/1234 · John Kennedy Otieno'),
+    ).toBeTruthy();
+    expect(screen.getByText('Reviewed by Peter Mwangi on 7 May 2026')).toBeTruthy();
+  });
+
+  it('marks a flag reviewed with a note, and the flag collapses with the note and reviewer (S11)', async () => {
+    await renderCase(CASES.mine);
+    const flag = screen.getByRole('article', { name: 'New item not marked as acquired' });
+    fireEvent.click(within(flag).getByRole('button', { name: 'Mark reviewed' }));
+    fireEvent.click(within(flag).getByRole('button', { name: 'Mark reviewed' }));
+    expect(within(flag).getByText('Add a note to record what you concluded.')).toBeTruthy();
+    expect(vi.mocked(markCaseFlagReviewed)).not.toHaveBeenCalled();
+
+    fireEvent.change(within(flag).getByLabelText('What did you conclude?'), {
+      target: { value: 'Bought with the 2025 bonus; payslip attached.' },
+    });
+    await clickAndSettle(() => {
+      fireEvent.click(within(flag).getByRole('button', { name: 'Mark reviewed' }));
+    });
+    expect(vi.mocked(markCaseFlagReviewed)).toHaveBeenCalledWith({
+      data: {
+        caseId: CASES.mine,
+        flagId: F.acquisition,
+        note: 'Bought with the 2025 bonus; payslip attached.',
       },
     });
-    const { rerender } = render(view(load()));
-
-    await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: 'Claim' }));
-      await Promise.resolve();
-    });
-    expect(invalidate).toHaveBeenCalled();
-    // The reload brings the case as Wafula holds it.
-    rerender(
-      view(
-        load({ detail: caseData({ case: caseItem({ assignee: WAFULA, status: 'assigned' }) }) }),
-      ),
-    );
-
-    expect(await screen.findByText('Already claimed by Wafula Barasa')).toBeTruthy();
-    expect(screen.getByText('Read-only. Wafula Barasa holds this case.')).toBeTruthy();
-    expect(screen.queryByRole('button', { name: 'Claim' })).toBeNull();
+    expect(screen.getByText('3 open · 2 reviewed')).toBeTruthy();
+    const reviewed = screen.getByRole('region', { name: 'Reviewed 2' });
+    expect(within(reviewed).getByText('Reviewed by Faith Achieng on 2 Oct 2026')).toBeTruthy();
+    expect(
+      within(reviewed).getByText('Bought with the 2025 bonus; payslip attached.'),
+    ).toBeTruthy();
+    expect(screen.getAllByText('Marked reviewed').length).toBeGreaterThan(0);
   });
 
-  it('marks a flag reviewed with a note, which is required', async () => {
-    vi.mocked(markCaseFlagReviewed).mockResolvedValue(ok(flag()));
-    render(view(load({ detail: caseData({ case: caseItem({ assignee: ME }) }) })));
+  it('goes to the item a flag concerns, and from an item’s pin to its flag', async () => {
+    await renderCase(CASES.mine);
+    const flag = screen.getByRole('article', { name: /Value changed by 150%/ });
+    fireEvent.click(within(flag).getByRole('button', { name: 'Go to item' }));
+    expect(
+      document.getElementById(`decl-item-${I.plot}`)?.hasAttribute('data-target-highlight'),
+    ).toBe(true);
 
-    const card = screen.getByText('Value down 42% from the previous version').closest('li');
-    if (!card) throw new Error('no flag card');
-    fireEvent.click(within(card).getByRole('button', { name: 'Mark reviewed' }));
-    const form = within(card).getByRole('form');
-    await act(async () => {
-      fireEvent.click(within(form).getByRole('button', { name: 'Mark reviewed' }));
-      await Promise.resolve();
-    });
-    expect(within(form).getByText('Add a note to record what you concluded.')).toBeTruthy();
-    expect(markCaseFlagReviewed).not.toHaveBeenCalled();
-
-    fireEvent.change(within(form).getByLabelText('What did you conclude?'), {
-      target: { value: '  Explained by the bank statement.  ' },
-    });
-    await act(async () => {
-      fireEvent.click(within(form).getByRole('button', { name: 'Mark reviewed' }));
-      await Promise.resolve();
-    });
-
-    expect(markCaseFlagReviewed).toHaveBeenCalledWith({
-      data: { caseId: caseItem().id, flagId: flag().id, note: 'Explained by the bank statement.' },
-    });
-    expect(invalidate).toHaveBeenCalled();
-    expect(await screen.findByText('Marked reviewed')).toBeTruthy();
-  });
-
-  it('collapses a reviewed flag with its note and reviewer', () => {
-    const reviewed = flag({
-      reviewed: {
-        at: '2026-10-02T07:47:00Z',
-        by: WAFULA,
-        note: 'Explained by the bank statement.',
-      },
-    });
-    render(view(load({ detail: caseData({ flags: [reviewed] }) })));
-
-    const group = screen.getByRole('region', { name: 'Reviewed' });
-    expect(within(group).getByText('Reviewed by Wafula Barasa on 2 Oct 2026')).toBeTruthy();
-    expect(within(group).getByText('Explained by the bank statement.')).toBeTruthy();
-    expect(within(group).queryByText('Go to item')).toBeNull();
-    expect(screen.getByText('0 open · 1 reviewed')).toBeTruthy();
-  });
-
-  it('goes to a flag’s item and highlights it, and a pin brings its flag back', () => {
-    const onTab = vi.fn();
-    render(view(load(), reviewer, 'notes', onTab));
-
-    const salary = document.querySelector<HTMLElement>(`[data-item-id="${SALARY}"]`);
-    if (!salary) throw new Error('no salary item');
+    const plot = document.getElementById(`decl-item-${I.plot}`);
+    if (!plot) throw new Error('no plot');
     fireEvent.click(
-      within(salary).getByRole('button', {
-        name: '1 indicator on this item, medium severity. Show in flags.',
+      within(plot).getByRole('button', {
+        name: /^1 indicator on this item, \w+ severity\. Show in flags\.$/,
       }),
     );
-    expect(onTab).toHaveBeenCalledWith('flags');
-    const card = screen.getByText('Value down 42% from the previous version').closest('li');
-    if (!card) throw new Error('no flag card');
-    expect(card.dataset.pulse).toBe('true');
-
-    fireEvent.click(within(card).getByRole('button', { name: 'Go to item' }));
-    const item = document.querySelector(`[data-item-id="${SALARY}"]`);
-    expect(item?.getAttribute('data-highlighted')).toBe('true');
-    expect(
-      document.querySelector(`[data-item-id="${PLOT}"]`)?.hasAttribute('data-highlighted'),
-    ).toBe(false);
-    expect(scrollIntoView).toHaveBeenCalled();
+    expect(document.activeElement?.id).toBe(`flag-${F.valueChange}`);
   });
 
-  it('adds a note', async () => {
-    vi.mocked(addCaseNote).mockResolvedValue(
-      ok({ id: 'n1', author: ME, text: 'Checked the parcel.', at: '2026-10-02T09:00:00Z' }),
-    );
-    render(view(load(), reviewer, 'notes'));
+  it('offers Explain once the copilot is ready, and opens it on the flag', async () => {
+    await renderCase(CASES.mine);
+    const flag = screen.getByRole('article', { name: 'New item not marked as acquired' });
+    fireEvent.click(within(flag).getByRole('button', { name: 'Explain' }));
+    expect(screen.queryByRole('tab', { name: /Notes/ })).toBeNull();
+    expect(screen.getByRole('tab', { name: /Flags/, selected: true })).toBeTruthy();
+  });
 
+  it('opens the composer from the Clarifications tab', async () => {
+    await renderCase(CASES.mine);
+    openTab(/Clarifications/);
+    fireEvent.click(screen.getByRole('button', { name: 'New clarification' }));
+    const drawer = screen.getByRole('dialog', { name: 'New clarification' });
+    expect(
+      within(drawer).getByText('To John Kennedy Otieno · re: DCI-TSC-2026-0003418-P'),
+    ).toBeTruthy();
+  });
+
+  it("opens the composer with the flags picked in the copilot as Draft with AI's", async () => {
+    await renderCase(CASES.mine);
+    const flag = screen.getByRole('article', { name: /Value changed by 150%/ });
+    fireEvent.click(within(flag).getByRole('button', { name: 'Explain' }));
+    const [add] = screen.getAllByRole('button', { name: /Add to clarification/ });
+    if (!add) throw new Error('no Add to clarification');
+    fireEvent.click(add);
+    expect(screen.getByText('1 flag selected')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'New clarification' }));
+    const drawer = screen.getByRole('dialog', { name: 'New clarification' });
+    const drafting = within(drawer).getByRole('region', { name: 'Draft with AI' });
+    expect(
+      within(drafting).getByRole('button', {
+        name: 'Remove Value changed by 150% since the previous declaration',
+      }),
+    ).toBeTruthy();
+    // The composer starts as for any new clarification: one blank item.
+    expect(within(drawer).getAllByRole('region', { name: /^Item / })).toHaveLength(1);
+
+    // Removing the chip unpicks the flag in the copilot too.
+    fireEvent.click(
+      within(drafting).getByRole('button', {
+        name: 'Remove Value changed by 150% since the previous declaration',
+      }),
+    );
+    expect(screen.queryByText('1 flag selected')).toBeNull();
+  });
+
+  it('adds a note, and refuses an empty one', async () => {
+    await renderCase(CASES.mine);
+    openTab(/Notes/);
     expect(
       screen.getByText('Notes are internal to your Commission. The declarant never sees them.'),
     ).toBeTruthy();
-    await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: 'Add note' }));
-      await Promise.resolve();
-    });
+    fireEvent.click(screen.getByRole('button', { name: 'Add note' }));
     expect(screen.getByText('Write a note first.')).toBeTruthy();
-
     fireEvent.change(screen.getByLabelText('Add note'), {
-      target: { value: 'Checked the parcel.' },
+      target: { value: 'Asked HR for the leave letter.' },
     });
-    expect(screen.getByText('19 / 2,000')).toBeTruthy();
-    await act(async () => {
+    await clickAndSettle(() => {
       fireEvent.click(screen.getByRole('button', { name: 'Add note' }));
-      await Promise.resolve();
     });
-    expect(addCaseNote).toHaveBeenCalledWith({
-      data: { caseId: caseItem().id, text: 'Checked the parcel.' },
+    expect(vi.mocked(addCaseNote)).toHaveBeenCalledWith({
+      data: { caseId: CASES.mine, text: 'Asked HR for the leave letter.' },
     });
-    expect(await screen.findByText('Note added')).toBeTruthy();
+    const notes = screen.getByRole('list', { name: 'Notes' });
+    expect(within(notes).getAllByRole('listitem')[0]?.textContent).toContain(
+      'Asked HR for the leave letter.',
+    );
   });
 
-  it('shows the case without the declaration when it could not be loaded', async () => {
-    render(view(load({ document: null, documentUnavailable: true })));
-
-    expect(screen.getByText('The declaration could not be loaded.')).toBeTruthy();
+  it('lists the case’s events on the Timeline tab', async () => {
+    await renderCase(CASES.mine);
+    openTab(/Timeline/);
+    expect(screen.getByText('Case created from version 1')).toBeTruthy();
     expect(
-      screen.getByRole('heading', { name: /^Assets grew faster than declared income/ }),
+      screen.getByText('Version 2 processed: flags recomputed, reviewed flags kept'),
     ).toBeTruthy();
-    await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
-      await Promise.resolve();
-    });
-    expect(invalidate).toHaveBeenCalled();
+    expect(screen.getAllByText('Claimed').length).toBe(2);
   });
 
-  it('lets a holder release the case after confirming', async () => {
-    vi.mocked(releaseCase).mockResolvedValue(ok(caseItem()));
-    render(view(load({ detail: caseData({ case: caseItem({ assignee: ME }) }) })));
-
+  it('releases the case after a confirmation', async () => {
+    await renderCase(CASES.mine);
     fireEvent.click(screen.getByRole('button', { name: 'Release' }));
-    const dialog = await screen.findByRole('dialog', { name: 'Release this case?' });
-    await act(async () => {
+    const dialog = screen.getByRole('dialog', { name: 'Release this case?' });
+    await clickAndSettle(() => {
       fireEvent.click(within(dialog).getByRole('button', { name: 'Release case' }));
-      await Promise.resolve();
     });
-    expect(releaseCase).toHaveBeenCalled();
-    expect(await screen.findByText('Case released to the queue')).toBeTruthy();
+    expect(vi.mocked(releaseCase)).toHaveBeenCalledWith({ data: { caseId: CASES.mine } });
+    expect(screen.getByText('Case released to the queue')).toBeTruthy();
+    expect(button('Claim')).toBeTruthy();
   });
 
-  it('lets a supervisor reassign to a reviewer of the Commission', async () => {
-    vi.mocked(getReviewers).mockResolvedValue(
-      ok([{ subject: 'm', name: 'Mercy Wambui', open: 11, ofRecord: true }]),
-    );
-    vi.mocked(reassignCase).mockResolvedValue(ok(caseItem()));
-    render(
-      view(
-        load({
-          detail: caseData({ case: caseItem({ assignee: WAFULA }), reviewerHistory: [WAFULA] }),
-        }),
-        supervisor,
-      ),
-    );
+  it('still shows the case when the declaration could not be loaded', async () => {
+    await renderCase(CASES.unavailable);
+    expect(screen.getByText('The declaration could not be loaded.')).toBeTruthy();
+    expect(screen.getByText('Flags, notes and clarifications are still available.')).toBeTruthy();
+    expect(button('Try again')).toBeTruthy();
+    expect(screen.getByRole('article', { name: /Value changed by 150%/ })).toBeTruthy();
+  });
+});
 
-    expect(screen.getByRole('button', { name: 'Unassign' })).toBeTruthy();
+describe('CaseView: other reviewers', () => {
+  it('reads another reviewer’s case read-only', async () => {
+    await renderCase(CASES.peters);
+    expect(screen.getByText('Read-only. Peter Mwangi holds this case.')).toBeTruthy();
+    expect(button('Release')).toBeNull();
+    expect(button('Mark reviewed')).toBeNull();
+    expect(screen.getAllByRole('button', { name: 'Go to item' }).length).toBeGreaterThan(0);
+  });
+
+  it('claims an unassigned case', async () => {
+    await renderCase(CASES.unassigned);
+    expect(screen.getAllByText('Unassigned').length).toBeGreaterThan(0);
+    expect(screen.getByText('First declaration on Adili')).toBeTruthy();
+    await clickAndSettle(() => {
+      fireEvent.click(screen.getByRole('button', { name: 'Claim' }));
+    });
+    expect(vi.mocked(claimCase)).toHaveBeenCalledWith({ data: { caseId: CASES.unassigned } });
+    expect(screen.getByText('Case claimed. You hold it now.')).toBeTruthy();
+    expect(button('Release')).toBeTruthy();
+  });
+
+  it('says who claimed it first when a claim loses the race (409)', async () => {
+    await renderCase(CASES.contested);
+    await clickAndSettle(() => {
+      fireEvent.click(screen.getByRole('button', { name: 'Claim' }));
+    });
+    expect(screen.getByText('Already claimed by Mercy Wambui')).toBeTruthy();
+    expect(screen.getByText('Read-only. Mercy Wambui holds this case.')).toBeTruthy();
+  });
+});
+
+describe('CaseView: a supervisor', () => {
+  it('reassigns a case to a reviewer of record', async () => {
+    await renderCase(CASES.peters, { supervisor: true });
+    expect(screen.queryByText(/Read-only/)).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: 'Reassign' }));
-    const dialog = await screen.findByRole('dialog', { name: 'Reassign case' });
-    expect(within(dialog).getByText('Currently held by Wafula Barasa.')).toBeTruthy();
-    const mercy = await within(dialog).findByRole('radio', { name: 'Mercy Wambui' });
-    expect(within(dialog).getByText('11 open cases · already a reviewer of record')).toBeTruthy();
-    expect(getReviewers).toHaveBeenCalledWith({
-      data: { slug: 'psc', assignee: WAFULA.subject, reviewerHistory: [WAFULA] },
-    });
-
-    fireEvent.click(mercy);
-    await act(async () => {
+    const dialog = screen.getByRole('dialog', { name: 'Reassign case' });
+    expect(within(dialog).getByText('Currently held by Peter Mwangi.')).toBeTruthy();
+    const options = await within(dialog).findAllByRole('radio');
+    expect(options).toHaveLength(2);
+    fireEvent.click(within(dialog).getByRole('radio', { name: /Mercy Wambui/ }));
+    await clickAndSettle(() => {
       fireEvent.click(within(dialog).getByRole('button', { name: 'Reassign' }));
-      await Promise.resolve();
     });
-    expect(reassignCase).toHaveBeenCalledWith({
-      data: { caseId: caseItem().id, assignee: 'm' },
+    expect(vi.mocked(reassignCase)).toHaveBeenCalledWith({
+      data: { caseId: CASES.peters, assignee: MOCK_OFFICERS.mercy.subject },
     });
-    expect(await screen.findByText('Reassigned to Mercy Wambui')).toBeTruthy();
+    expect(screen.getByText('Reassigned to Mercy Wambui')).toBeTruthy();
   });
 
-  it('cues a supervisor who held the case', () => {
-    render(view(load({ detail: caseData({ reviewerHistory: [ME] }) }), supervisor));
+  it('unassigns a case after a confirmation', async () => {
+    await renderCase(CASES.peters, { supervisor: true });
+    fireEvent.click(screen.getByRole('button', { name: 'Unassign' }));
+    const dialog = screen.getByRole('dialog', { name: 'Unassign this case?' });
+    await clickAndSettle(() => {
+      fireEvent.click(within(dialog).getByRole('button', { name: 'Unassign' }));
+    });
+    expect(vi.mocked(reassignCase)).toHaveBeenCalledWith({
+      data: { caseId: CASES.peters, assignee: null },
+    });
+    expect(screen.getByText('Case unassigned')).toBeTruthy();
+  });
 
+  it('confirms a claim, as it makes the supervisor a reviewer of record', async () => {
+    await renderCase(CASES.unassigned, { supervisor: true });
+    fireEvent.click(screen.getByRole('button', { name: 'Claim' }));
+    const dialog = screen.getByRole('dialog', { name: 'Claim this case?' });
+    expect(within(dialog).getByText(/You become a reviewer of record/)).toBeTruthy();
+    await clickAndSettle(() => {
+      fireEvent.click(within(dialog).getByRole('button', { name: 'Claim case' }));
+    });
+    expect(vi.mocked(claimCase)).toHaveBeenCalled();
     expect(
       screen.getByText(
         'You are a reviewer of record, so another supervisor must approve the determination.',
       ),
     ).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'Assign to a reviewer' })).toBeTruthy();
-  });
-});
-
-describe('CaseView: Registry tab', () => {
-  const held = () =>
-    load({ detail: caseData({ case: caseItem({ assignee: ME, status: 'assigned' }) }) });
-
-  afterEach(() => {
-    vi.useRealTimers();
-  });
-
-  it('reads the registry when the tab opens and shows a status row per registry and person', async () => {
-    vi.mocked(getCaseRegistry).mockResolvedValue(ok(registryView()));
-    render(view(held(), reviewer, 'registry'));
-
-    expect(
-      screen.getByText(
-        'Registry checks compare the declaration with KRA, NTSA, BRS and ArdhiSasa. Mismatches are indicators for your review, not findings.',
-      ),
-    ).toBeTruthy();
-    const wanjiku = await screen.findByRole('list', {
-      name: 'Registry checks for Wanjiku Njoki Kamau',
-    });
-    expect(getCaseRegistry).toHaveBeenCalledWith({ data: { caseId: caseItem().id } });
-    expect(within(wanjiku).getByText('PIN on record, compliant, income within 25%')).toBeTruthy();
-    expect(
-      within(wanjiku).getByText(
-        wholeText('Could not reach ArdhiSasa. Re-checked automatically every hour.'),
-      ),
-    ).toBeTruthy();
-    expect(within(wanjiku).getAllByText('Mismatched')).toHaveLength(2);
-    const imani = screen.getByRole('list', { name: 'Registry checks for Imani Wairimu Kamau' });
-    expect(within(imani).getByText('All registries')).toBeTruthy();
-    expect(within(imani).getByText('No national ID declared')).toBeTruthy();
-    expect(
-      within(imani).getByText('Registries cannot be checked for Imani without an ID.'),
-    ).toBeTruthy();
-  });
-
-  it('opens a registry to its records and indicators, and marks one reviewed there', async () => {
-    vi.mocked(getCaseRegistry).mockResolvedValue(ok(registryView()));
-    vi.mocked(markCaseFlagReviewed).mockResolvedValue(ok({ ...VEHICLE_FLAG }));
-    render(view(held(), reviewer, 'registry'));
-
-    fireEvent.click(await screen.findByRole('button', { name: 'NTSA' }));
-    const table = screen.getByRole('table', { name: 'NTSA records beside the declared items' });
-    expect(within(table).getByRole('rowheader', { name: /KDK 482M/ })).toBeTruthy();
-    expect(within(table).getByText('Not declared')).toBeTruthy();
-    const indicators = screen.getByRole('list', { name: 'NTSA indicators' });
-    fireEvent.click(within(indicators).getByRole('button', { name: 'Mark reviewed' }));
-    fireEvent.change(screen.getByLabelText('What did you conclude?'), {
-      target: { value: 'Bought in 2024; the declarant will amend.' },
-    });
-    await act(async () => {
-      fireEvent.click(within(indicators).getByRole('button', { name: 'Mark reviewed' }));
-      await Promise.resolve();
-    });
-
-    expect(markCaseFlagReviewed).toHaveBeenCalledWith({
-      data: {
-        caseId: caseItem().id,
-        flagId: VEHICLE_FLAG.id,
-        note: 'Bought in 2024; the declarant will amend.',
-      },
-    });
-    expect(await screen.findByText('Marked reviewed')).toBeTruthy();
-  });
-
-  it('S6: names notes on the collapsed row: a matched BRS with the supplier check not run is not "all declared"', async () => {
-    const registry = registryView();
-    const brs = registry.persons[0]?.systems.find((entry) => entry.system === 'brs');
-    if (!brs) throw new Error('no BRS row');
-    brs.status = 'matched';
-    brs.rows = brs.rows.map((row) => ({ ...row, relation: 'matched' }));
-    brs.flags = [SUPPLIER_NOT_RUN_FLAG, DISSOLVED_FLAG];
-    vi.mocked(getCaseRegistry).mockResolvedValue(ok(registry));
-    render(view(held(), reviewer, 'registry'));
-
-    const wanjiku = await screen.findByRole('list', {
-      name: 'Registry checks for Wanjiku Njoki Kamau',
-    });
-    expect(within(wanjiku).getByText('1 record, supplier check not run, 1 note')).toBeTruthy();
-    expect(within(wanjiku).queryByText(/all declared/)).toBeNull();
-  });
-
-  it("S6: names the supplier check not run when only the last check's statuses could be loaded", async () => {
-    vi.mocked(getCaseRegistry).mockResolvedValue({
-      ok: false,
-      error: { kind: 'unavailable', detail: null },
-    });
-    const detail = caseData({
-      case: caseItem({ assignee: ME, status: 'assigned' }),
-      flags: [SUPPLIER_NOT_RUN_FLAG],
-      registry: {
-        checkedAt: CHECKED_AT,
-        recheckAvailableAt: null,
-        checks: [
-          {
-            personKey: 'officer',
-            system: 'brs',
-            status: 'matched',
-            reason: null,
-            checkedAt: CHECKED_AT,
-            resultId: null,
-          },
-        ],
-      },
-    });
-    render(view(load({ detail }), reviewer, 'registry'));
-
-    expect(await screen.findByText('No indicators, supplier check not run')).toBeTruthy();
-    expect(screen.queryByText('All records declared')).toBeNull();
-  });
-
-  it("shows the last check's statuses when the records could not be loaded", async () => {
-    vi.mocked(getCaseRegistry)
-      .mockResolvedValueOnce({ ok: false, error: { kind: 'unavailable', detail: null } })
-      .mockResolvedValueOnce(ok(registryView()));
-    const detail = caseData({
-      case: caseItem({ assignee: ME, status: 'assigned' }),
-      registry: {
-        checkedAt: CHECKED_AT,
-        recheckAvailableAt: null,
-        checks: [
-          {
-            personKey: 'officer',
-            system: 'ntsa',
-            status: 'unavailable',
-            reason: 'timeout',
-            checkedAt: CHECKED_AT,
-            resultId: null,
-          },
-        ],
-      },
-    });
-    render(view(load({ detail }), reviewer, 'registry'));
-
-    expect(
-      await screen.findByText(
-        'Registry records could not be loaded. Status is shown from the last check.',
-      ),
-    ).toBeTruthy();
-    expect(
-      screen.getByText(wholeText('Could not reach NTSA. Re-checked automatically every hour.')),
-    ).toBeTruthy();
-    // The tab is marked: a registry could not be checked.
-    expect(screen.getByRole('img', { name: 'A registry could not be checked' })).toBeTruthy();
-
-    await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
-      await Promise.resolve();
-    });
-    expect(
-      await screen.findByRole('list', { name: 'Registry checks for Imani Wairimu Kamau' }),
-    ).toBeTruthy();
-  });
-
-  it('re-checks after confirming, says it is checking, then shows the new results', async () => {
-    vi.useFakeTimers({ shouldAdvanceTime: true });
-    const after = { ...registryView(), checkedAt: '2026-10-02T09:01:00.000Z' };
-    vi.mocked(getCaseRegistry)
-      .mockResolvedValueOnce(ok(registryView()))
-      .mockResolvedValue(ok(after));
-    vi.mocked(getCaseRegistryStatus)
-      .mockResolvedValueOnce(ok({ checkedAt: registryView().checkedAt }))
-      .mockResolvedValue(ok({ checkedAt: after.checkedAt }));
-    vi.mocked(recheckCaseRegistries).mockResolvedValue({ ok: true });
-    render(view(held(), reviewer, 'registry'));
-    await screen.findByRole('list', { name: 'Registry checks for Wanjiku Njoki Kamau' });
-
-    fireEvent.click(screen.getByRole('button', { name: 'Re-check' }));
-    const dialog = await screen.findByRole('dialog', { name: 'Re-check registries' });
-    expect(
-      within(dialog).getByText(
-        'Re-check all registries for this case? Reviewed flags keep your notes.',
-      ),
-    ).toBeTruthy();
-    await act(async () => {
-      fireEvent.click(within(dialog).getByRole('button', { name: 'Re-check' }));
-      await Promise.resolve();
-    });
-
-    expect(recheckCaseRegistries).toHaveBeenCalledWith({ data: { caseId: caseItem().id } });
-    const running = screen.getByRole('button', { name: 'Checking…' });
-    expect((running as HTMLButtonElement).disabled).toBe(true);
-    expect(screen.getAllByText('Checking…').length).toBeGreaterThan(1);
-
-    await act(async () => {
-      await vi.advanceTimersByTimeAsync(4000);
-    });
-    expect(await screen.findByText('Registry checks updated')).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'Re-check' })).toBeTruthy();
-    expect(invalidate).toHaveBeenCalled();
-    // Polled the unaudited status; read the audited records once when the tab opened, once after.
-    expect(getCaseRegistryStatus).toHaveBeenCalledTimes(2);
-    expect(getCaseRegistry).toHaveBeenCalledTimes(2);
-  });
-
-  it('Q4: stops polling and signs in again when the session ends during a re-check', async () => {
-    vi.useFakeTimers({ shouldAdvanceTime: true });
-    vi.mocked(getCaseRegistry).mockResolvedValue(ok(registryView()));
-    vi.mocked(getCaseRegistryStatus).mockResolvedValue({
-      ok: false,
-      error: { kind: 'unauthenticated' },
-    });
-    vi.mocked(recheckCaseRegistries).mockResolvedValue({ ok: true });
-    render(view(held(), reviewer, 'registry'));
-    await screen.findByRole('list', { name: 'Registry checks for Wanjiku Njoki Kamau' });
-    fireEvent.click(screen.getByRole('button', { name: 'Re-check' }));
-    const dialog = await screen.findByRole('dialog', { name: 'Re-check registries' });
-    await act(async () => {
-      fireEvent.click(within(dialog).getByRole('button', { name: 'Re-check' }));
-      await Promise.resolve();
-    });
-
-    await act(async () => {
-      await vi.advanceTimersByTimeAsync(120_000);
-    });
-
-    expect(goToSignIn).toHaveBeenCalledTimes(1);
-    // The first status read said signed out: no more polls.
-    expect(getCaseRegistryStatus).toHaveBeenCalledTimes(1);
-    vi.useRealTimers();
-  });
-
-  it('says when the next re-check is accepted (429)', async () => {
-    vi.mocked(getCaseRegistry).mockResolvedValue(ok(registryView()));
-    vi.mocked(recheckCaseRegistries).mockResolvedValue({
-      ok: false,
-      refusal: { kind: 'cooldown', retryAfterSeconds: 400 },
-    });
-    render(view(held(), reviewer, 'registry'));
-
-    fireEvent.click(screen.getByRole('button', { name: 'Re-check' }));
-    const dialog = await screen.findByRole('dialog', { name: 'Re-check registries' });
-    await act(async () => {
-      fireEvent.click(within(dialog).getByRole('button', { name: 'Re-check' }));
-      await Promise.resolve();
-    });
-
-    // The toast and the tab say it; the blocked button is described by it.
-    expect(await screen.findAllByText('Re-checked recently. Try again in 7 minutes.')).toHaveLength(
-      3,
-    );
-    expect(
-      screen.getByRole('button', {
-        name: 'Re-check',
-        description: 'Re-checked recently. Try again in 7\u00a0minutes.',
-      }),
-    ).toBeTruthy();
-    expect(screen.queryByRole('dialog')).toBeNull();
-  });
-
-  it('disables Re-check within ten minutes of the last one, saying when it is accepted, then enables it', async () => {
-    vi.useFakeTimers({ shouldAdvanceTime: true });
-    vi.setSystemTime(NOW);
-    vi.mocked(getCaseRegistry).mockResolvedValue(ok(registryView()));
-    const detail = caseData({
-      case: caseItem({ assignee: ME, status: 'assigned' }),
-      registry: {
-        ...caseData().registry,
-        recheckAvailableAt: new Date(NOW + 6 * 60_000 + 20_000).toISOString(),
-      },
-    });
-    render(view(load({ detail }), reviewer, 'registry'));
-
-    // Q16: blocked but focusable, named, and described by why; a press does nothing.
-    const button = screen.getByRole('button', {
-      name: 'Re-check',
-      description: 'Re-checked recently. Try again in 7\u00a0minutes.',
-    });
-    expect(button.getAttribute('aria-disabled')).toBe('true');
-    expect((button as HTMLButtonElement).disabled).toBe(false);
-    button.focus();
-    expect(document.activeElement).toBe(button);
-    fireEvent.click(button);
-    expect(screen.queryByRole('dialog')).toBeNull();
-    // Nothing was refused on this page: the tab does not repeat it.
-    expect(
-      within(screen.getByRole('tabpanel')).queryByText(
-        'Re-checked recently. Try again in 7 minutes.',
-      ),
-    ).toBeNull();
-
-    await act(async () => {
-      await vi.advanceTimersByTimeAsync(60_000);
-    });
-    expect(
-      screen.getByRole('button', {
-        name: 'Re-check',
-        description: 'Re-checked recently. Try again in 6\u00a0minutes.',
-      }),
-    ).toBeTruthy();
-
-    await act(async () => {
-      await vi.advanceTimersByTimeAsync(5 * 60_000 + 30_000);
-    });
-    const enabled = screen.getByRole('button', { name: 'Re-check', description: '' });
-    expect(enabled.hasAttribute('aria-disabled')).toBe(false);
-    expect((enabled as HTMLButtonElement).disabled).toBe(false);
-    fireEvent.click(enabled);
-    expect(await screen.findByRole('dialog', { name: 'Re-check registries' })).toBeTruthy();
-    vi.useRealTimers();
-  });
-
-  it('disables Re-check for a reviewer who does not hold the case', () => {
-    vi.mocked(getCaseRegistry).mockResolvedValue(ok(registryView()));
-    render(
-      view(
-        load({ detail: caseData({ case: caseItem({ assignee: WAFULA, status: 'assigned' }) }) }),
-      ),
-    );
-
-    // Q16: blocked but focusable, named, and described by why; a press does nothing.
-    const button = screen.getByRole('button', {
-      name: 'Re-check',
-      description: 'Only the assigned reviewer or a supervisor can re-check the registries.',
-    });
-    expect(button.getAttribute('aria-disabled')).toBe('true');
-    button.focus();
-    expect(document.activeElement).toBe(button);
-    fireEvent.click(button);
-    expect(screen.queryByRole('dialog')).toBeNull();
-    // Not read until the tab opens: each read is an audited view of the declaration.
-    expect(getCaseRegistry).not.toHaveBeenCalled();
   });
 });

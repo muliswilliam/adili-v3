@@ -30,7 +30,8 @@ export type WorkspaceHref =
   | '/obligations'
   | '/obligations/national'
   | '/review'
-  | '/platform/integrations';
+  | '/platform/integrations'
+  | '/ai-policy';
 
 interface WorkspaceDefinition {
   id: string;
@@ -153,6 +154,13 @@ const WORKSPACES: WorkspaceDefinition[] = [
     title: 'Account support',
     description: 'Help users unlock accounts and recover access.',
     roles: [HELPDESK],
+  },
+  {
+    id: 'ai-policy',
+    title: 'AI policy',
+    description: 'Which Commissions may use an AI provider, task routing and budgets.',
+    href: '/ai-policy',
+    roles: [PLATFORM_ADMIN],
   },
   {
     id: 'platform',

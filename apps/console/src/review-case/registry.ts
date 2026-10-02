@@ -12,14 +12,14 @@ import {
 } from '@adili/ui';
 
 import type {
-  CaseData,
+  CaseViewDetail,
   CaseFlag,
   CaseRegistryRow,
   CaseRegistryView as RegistryView,
 } from '../server/review-case.server';
 import type { CaseListItem, RegistrySummary, RegistrySystem } from '../server/review/types';
+import type { CaseViewer } from './case';
 import { REGISTRY_COPY } from './messages';
-import type { CaseViewer } from './view';
 
 /**
  * The Registry tab's arithmetic (spec 07b FE-2): the people checked and a status row per
@@ -321,7 +321,7 @@ export function summaryView(
 }
 
 /** A registry could not be checked for someone on the case: the tab shows a mark. */
-export function registryNeedsAttention(detail: Pick<CaseData, 'registry'>): boolean {
+export function registryNeedsAttention(detail: Pick<CaseViewDetail, 'registry'>): boolean {
   return detail.registry.checks.some((check) => check.status === 'unavailable');
 }
 
