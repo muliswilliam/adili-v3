@@ -1,10 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { notFoundIfInvisible, type Principal, type ReadAudit } from '@adili/api-kit';
 import { DATABASE, FieldCipher, withTenant } from '@adili/data-access';
-import {
-  type AccessRequestIdentifiedData,
-  CANNOT_IDENTIFY_DECLINE_REASON,
-} from '@adili/events/contracts';
+import { CANNOT_IDENTIFY_DECLINE_REASON } from '@adili/events/contracts';
 import { and, eq, gte, ilike, inArray, lt, not, or, type SQL, sql } from 'drizzle-orm';
 
 import {
@@ -314,10 +311,7 @@ export class OfficerService {
           actor: { subject: principal.subject, name: principal.name },
           at: now,
           details: { rosterRecordId: record.id },
-          eventData: { rosterRecordId: record.id } satisfies Pick<
-            AccessRequestIdentifiedData,
-            'rosterRecordId'
-          >,
+          eventData: { rosterRecordId: record.id },
         });
       } else {
         await this.register.record(tx, {

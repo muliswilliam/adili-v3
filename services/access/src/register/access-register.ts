@@ -13,6 +13,7 @@ import {
   type AccessRequestCannotIdentifyData,
   type AccessRequestDecidedData,
   type AccessRequestEventKind,
+  type AccessRequestIdentifiedData,
   type AccessRequestNotifiedData,
   type AccessRequestReceivedData,
   type AccessSubjectKind,
@@ -50,6 +51,7 @@ type Extra<T extends AccessRegisterEventData> = Omit<
 interface EventExtras {
   'access-request': {
     received: Extra<AccessRequestReceivedData>;
+    identified: Extra<AccessRequestIdentifiedData>;
     notified: Extra<AccessRequestNotifiedData>;
     decided: Extra<AccessRequestDecidedData>;
     'package-issued': Extra<AccessPackageIssuedData>;
