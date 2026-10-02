@@ -48,8 +48,8 @@ import { FakeDeclarations } from './fake-declarations.js';
 import { FakeDirectory } from './fake-directory.js';
 import { FakeDocuments } from './fake-documents.js';
 import { FakeIntegrationGateway } from './fake-integration-gateway.js';
-import { applyMigrations } from './migrations.js';
 import { FakeNotifications } from './fake-notifications.js';
+import { applyMigrations } from './migrations.js';
 
 const ISSUER = 'http://keycloak.test/realms/adili';
 const AUDIENCE = 'adili-api';
