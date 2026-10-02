@@ -7,7 +7,7 @@
     "messages": [
       {
         "role": "user",
-        "content": "<untrusted-input>\n{\"changes\":[],\"document\":{\"attestation\":{\"text\":\"I solemnly declare that the information I have given in this declaration is, to the best of my knowledge, true and complete.\"},\"children\":{\"items\":[],\"none\":true},\"incomePeriod\":{\"from\":\"2025-08-16\",\"fromSource\":\"assumed\",\"to\":\"2026-08-15\"},\"officer\":{\"address\":{\"physical\":\"[[ADDRESS_1]]\",\"postal\":\"[[ADDRESS_2]]\"},\"birth\":{\"date\":\"2001-11-04\",\"place\":\"Eldoret\"},\"employment\":{\"designation\":\"Graduate Intern, Accounts\",\"employer\":\"County Government of Uasin Gishu\",\"nature\":\"temporary\",\"responsibleCommission\":\"cpsbuasingishu\"},\"maritalStatus\":\"single\",\"name\":{\"firstName\":\"[[PERSON_1]]\",\"surname\":\"[[PERSON_2]]\"}},\"otherInformation\":{\"freeText\":\"\",\"materialChanges\":[],\"registrableInterests\":{\"directorships\":[],\"dualCitizenship\":{\"holds\":false,\"pendingApplication\":false},\"memberships\":[],\"pendingCases\":[]}},\"schemaVersion\":\"declaration.v1\",\"spouses\":{\"items\":[],\"none\":true},\"statementDate\":\"2026-08-15\",\"statements\":[{\"assets\":[],\"assetsNil\":true,\"income\":[],\"incomeNil\":true,\"incomePeriod\":{\"from\":\"2025-08-16\",\"to\":\"2026-08-15\"},\"liabilities\":[],\"liabilitiesNil\":true,\"personKey\":\"officer\",\"personName\":{\"firstName\":\"[[PERSON_1]]\",\"surname\":\"[[PERSON_2]]\"},\"statementDate\":\"2026-08-15\"}],\"type\":\"initial\"},\"flags\":[{\"evidence\":{},\"id\":\"0199e0a0-f1a6-7000-8000-000000000005\",\"indicator\":\"There is no earlier declaration on Adili to compare with, so changes since the last one cannot be checked.\",\"itemRefs\":[],\"ruleId\":\"no-previous-version\",\"severity\":\"info\",\"title\":\"First declaration on Adili\"}],\"kind\":\"summarize-declaration\",\"language\":\"sw\",\"previousDocument\":null,\"registryStatuses\":[{\"status\":\"matched\",\"system\":\"kra\"},{\"status\":\"not-checked\",\"system\":\"ntsa\"},{\"status\":\"not-checked\",\"system\":\"ardhisasa\"},{\"status\":\"not-checked\",\"system\":\"brs\"}]}\n</untrusted-input>"
+        "content": "<untrusted-input>\n{\"changes\":[],\"document\":{\"attestation\":{\"text\":\"I solemnly declare that the information I have given in this declaration is, to the best of my knowledge, true and complete.\"},\"children\":{\"items\":[],\"none\":true},\"incomePeriod\":{\"from\":\"2025-08-16\",\"fromSource\":\"assumed\",\"to\":\"2026-08-15\"},\"officer\":{\"address\":{\"physical\":\"[[ADDRESS_1]]\",\"postal\":\"[[ADDRESS_2]]\"},\"birth\":{\"date\":\"[[BIRTH_DATE_1]]\",\"place\":\"[[BIRTH_PLACE_1]]\"},\"employment\":{\"designation\":\"Graduate Intern, Accounts\",\"employer\":\"County Government of Uasin Gishu\",\"nature\":\"temporary\",\"responsibleCommission\":\"cpsbuasingishu\"},\"maritalStatus\":\"single\",\"name\":{\"firstName\":\"[[PERSON_1]]\",\"surname\":\"[[PERSON_2]]\"}},\"otherInformation\":{\"freeText\":\"\",\"materialChanges\":[],\"registrableInterests\":{\"directorships\":[],\"dualCitizenship\":{\"holds\":false,\"pendingApplication\":false},\"memberships\":[],\"pendingCases\":[]}},\"schemaVersion\":\"declaration.v1\",\"spouses\":{\"items\":[],\"none\":true},\"statementDate\":\"2026-08-15\",\"statements\":[{\"assets\":[],\"assetsNil\":true,\"income\":[],\"incomeNil\":true,\"incomePeriod\":{\"from\":\"2025-08-16\",\"to\":\"2026-08-15\"},\"liabilities\":[],\"liabilitiesNil\":true,\"personKey\":\"officer\",\"personName\":{\"firstName\":\"[[PERSON_1]]\",\"surname\":\"[[PERSON_2]]\"},\"statementDate\":\"2026-08-15\"}],\"type\":\"initial\"},\"flags\":[{\"evidence\":{},\"id\":\"0199e0a0-f1a6-7000-8000-000000000005\",\"indicator\":\"There is no earlier declaration on Adili to compare with, so changes since the last one cannot be checked.\",\"itemRefs\":[],\"ruleId\":\"no-previous-version\",\"severity\":\"info\",\"title\":\"First declaration on Adili\"}],\"kind\":\"summarize-declaration\",\"language\":\"en\",\"previousDocument\":null,\"registryStatuses\":[{\"status\":\"matched\",\"system\":\"kra\"},{\"status\":\"not-checked\",\"system\":\"ntsa\"},{\"status\":\"not-checked\",\"system\":\"ardhisasa\"},{\"status\":\"not-checked\",\"system\":\"brs\"}]}\n</untrusted-input>"
       }
     ],
     "maxOutputTokens": 8192,
@@ -187,19 +187,19 @@
   "response": {
     "model": "claude-opus-5-5",
     "usage": {
-      "inputTokens": 836,
-      "outputTokens": 930,
+      "inputTokens": 855,
+      "outputTokens": 819,
       "cacheReadTokens": 2812,
       "cacheWriteTokens": 0
     },
     "status": "completed",
     "output": {
-      "overview": "Hili ni tamko la kwanza (initial) la [[PERSON_1]] [[PERSON_2]], Graduate Intern, Accounts katika County Government of Uasin Gishu, kwa ajira ya muda (temporary). Afisa hajaoa/hajaolewa na hajatangaza mwenzi wala mtoto. Taarifa ya kifedha ya afisa inatangaza kuwa hakuna mapato, mali wala madeni kwa kipindi cha 2025-08-16 hadi 2026-08-15, ambapo tarehe ya mwanzo wa kipindi imechukuliwa kwa makisio (assumed). Ukaguzi wa KRA umeoanishwa (matched), na NTSA, Ardhisasa na BRS hazijakaguliwa.",
+      "overview": "This is an initial declaration (first on Adili) by [[PERSON_1]] [[PERSON_2]], a Graduate Intern, Accounts, on temporary terms with the County Government of Uasin Gishu, with a statement date of 2026-08-15. The officer is single and declares no spouse or children, so only the officer's own statement is included. That statement declares nil income, nil assets and nil liabilities for the period 2025-08-16 to 2026-08-15; the start of the income period is recorded as assumed. No directorships, memberships, pending cases or dual citizenship are declared; the KRA cross-check is matched, while NTSA, Ardhisasa and BRS were not checked.",
       "changesSincePrevious": [],
       "sections": [
         {
           "sectionKey": "statement:officer",
-          "text": "Afisa ametangaza kuwa hana mapato, mali wala madeni kwa kipindi cha 2025-08-16 hadi 2026-08-15.",
+          "text": "The officer's statement declares nil income, nil assets and nil liabilities for the period 2025-08-16 to 2026-08-15.",
           "refs": [
             {
               "sectionKey": "statement:officer",
@@ -224,7 +224,7 @@
       ],
       "worthAttention": [
         {
-          "text": "Hili ni tamko la kwanza kwenye Adili, kwa hivyo mabadiliko tangu tamko lililopita hayawezi kukaguliwa.",
+          "text": "This is the first declaration on Adili, so there is no earlier version against which changes can be checked.",
           "flagIds": [
             "0199e0a0-f1a6-7000-8000-000000000005"
           ]
