@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { slugSchema } from '../../commissions/create-commission.js';
 import { ofrSchema } from '../../onboarding/representation.js';
 import { importChannelSchema } from '../import/representation.js';
+import { MARITAL_STATUSES } from '../row-validation.js';
 import { ROSTER_RECORD_STATES } from '../schema.js';
 
 /**
@@ -108,6 +109,14 @@ export const internalRosterRecordSchema = z.object({
   designation: z.string().nullable(),
   jobGroup: z.string().nullable(),
   reportingEntity: reportingEntityRefSchema.nullable(),
+  workStation: z
+    .string()
+    .nullable()
+    .meta({ description: 'Where the officer works; null when the roster gives none' }),
+  maritalStatus: z
+    .enum(MARITAL_STATUSES)
+    .nullable()
+    .meta({ description: 'As `declaration.v1` names it; null when the roster gives none' }),
   state: rosterRecordStateSchema,
   appointmentDate: z.iso.date().nullable().meta({ description: 'Null when the roster gives none' }),
   exitDate: z.iso.date().nullable().meta({ description: 'Set while the record is exited' }),

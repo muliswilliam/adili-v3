@@ -12,7 +12,11 @@ import type {
   RosterImportPage,
   RosterImportRowPage,
 } from '../../src/roster/import/representation.js';
-import type { RosterRecord, RosterRecordPage } from '../../src/roster/records/representation.js';
+import type {
+  InternalRosterRecordPage,
+  RosterRecord,
+  RosterRecordPage,
+} from '../../src/roster/records/representation.js';
 import { todayInNairobi } from '../../src/roster/row-validation.js';
 import { componentSchema, contractErrors, okResponse } from '../support/contract.js';
 import { type Caller, type DirectoryApi, startDirectoryApi } from '../support/directory-api.js';
@@ -54,6 +58,8 @@ interface RowInput {
   jobGroup?: string | null;
   reportingEntity?: string | null;
   appointmentDate?: string | null;
+  workStation?: string | null;
+  maritalStatus?: string | null;
   email?: string | null;
   phone?: string | null;
 }
@@ -268,6 +274,46 @@ describe('S15 batch import', () => {
       fullName: 'Kiprono Kipchumba',
       nationalId: '12AB',
     });
+  });
+
+  it('carries work station and marital status to the record, and rejects an unknown status (S8)', async () => {
+    const ended = await imported([
+      { ...ACHIENG, workStation: 'Afya House, Nairobi', maritalStatus: 'WIDOWED' },
+      { ...KIPRONO, maritalStatus: 'engaged' },
+    ]);
+
+    expect(ended.counts).toMatchObject({ accepted: 1, created: 1, rejected: 1 });
+    const rejected = await api.get(`${IMPORTS}/${ended.id}/rows?status=rejected`, PSC_HR);
+    expect(
+      rejected.json<RosterImportRowPage>().items.map((row) => [row.rowNumber, row.errors]),
+    ).toEqual([
+      [
+        2,
+        [
+          {
+            field: 'maritalStatus',
+            code: 'format',
+            message: 'Use single, married, separated, divorced or widowed',
+          },
+        ],
+      ],
+    ]);
+    // As declarations reads it to pre-fill bio.
+    const pulled = await api.get(
+      `/internal/v1/commissions/psc/roster/records?importId=${ended.id}`,
+      { sub: 'service-account-declarations', azp: 'declarations', scope: 'directory:internal' },
+      { 'x-acting-tenant': 'psc' },
+    );
+    expect(pulled.statusCode, pulled.body).toBe(200);
+    expect(pulled.json<InternalRosterRecordPage>().items).toEqual([
+      expect.objectContaining({
+        personnelFileNumber: ACHIENG.personnelFileNumber,
+        jobGroup: 'C3',
+        appointmentDate: '2019-01-07',
+        workStation: 'Afya House, Nairobi',
+        maritalStatus: 'widowed',
+      }),
+    ]);
   });
 
   it('lets the HR system read its imports, rows and rejected rows report', async () => {
