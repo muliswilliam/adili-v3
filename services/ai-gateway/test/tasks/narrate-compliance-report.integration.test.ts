@@ -48,7 +48,7 @@ describe('narrate-compliance-report', { timeout: 90_000 }, () => {
       payload: {
         tenant: 'eacc',
         dataClass: 'synthetic',
-        subjectRef: `national-report:${randomUUID()}`,
+        subjectRef: `ncr:${randomUUID()}`,
         waitSeconds: 10,
         input: narrateInput,
       },

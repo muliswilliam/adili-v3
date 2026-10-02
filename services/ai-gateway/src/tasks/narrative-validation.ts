@@ -89,8 +89,14 @@ export function aggregateKeys(input: NarrateInput): Set<string> {
   );
 }
 
-/** A financial year label, "2025/26" or "FY2025/2026", by the year it ends in. */
-const FY_LABEL = /\b(?:FY\s?)?(\d{4})\/(\d{2}|\d{4})\b/giu;
+/** A financial year label, "2025/26", "2025-26" or "FY2025/2026", by the year it ends in. */
+const FY_LABEL = /\b(?:FY\s?)?(\d{4})[/\-–](\d{2}|\d{4})\b/giu;
+
+/** A bare four-digit whole number in this range reads as a year, not a count ("in 2025"). */
+const YEARS = { from: 1900, to: 2099 };
+
+/** Places a percentage may be rounded to; more is not a rounding of an input rate. */
+const MAX_PERCENT_DECIMALS = 2;
 
 /**
  * A number as written: digits with optional thousands separators (comma, thin or narrow
@@ -105,21 +111,27 @@ interface Mention {
   /** Decimal places as written: the precision a figure was rounded to. */
   decimals: number;
   percent: boolean;
+  /** Four digits, no separator, no decimals or unit: a year. */
+  year: boolean;
 }
 
 function mentions(text: string): Mention[] {
-  return [...text.matchAll(NUMBER)].map(([, integer = '', fraction, unit]) => ({
-    value: Number(`${integer.replaceAll(/[,\u2009\u202f]/g, '')}.${fraction ?? '0'}`),
-    decimals: fraction?.length ?? 0,
-    percent: Boolean(unit),
-  }));
+  return [...text.matchAll(NUMBER)].map(([, integer = '', fraction, unit]) => {
+    const value = Number(`${integer.replaceAll(/[,\u2009\u202f]/g, '')}.${fraction ?? '0'}`);
+    return {
+      value,
+      decimals: fraction?.length ?? 0,
+      percent: Boolean(unit),
+      year:
+        /^\d{4}$/.test(integer) && !fraction && !unit && value >= YEARS.from && value <= YEARS.to,
+    };
+  });
 }
 
 /** The figures the input states, unsigned: a fall of 0.12 reads as "fell by 12%". */
 function inputNumbers(input: NarrateInput): number[] {
   const years = [input, ...input.priorYears];
   const figures = years.flatMap((year) => [
-    year.fy,
     ...Object.values(year.totals),
     ...Object.values(year.rates),
     ...year.commissionTable.flatMap((row) => Object.values(row.figures)),
@@ -130,9 +142,13 @@ function inputNumbers(input: NarrateInput): number[] {
     .map((value) => Math.abs(value));
 }
 
+/**
+ * Half-up rounding as on paper. The scaled value is first cut to 12 significant digits, so a
+ * binary near-miss rounds as its decimal does: 0.0515 × 1000 is 51.4999…, read as 51.5.
+ */
 function round(value: number, decimals: number): number {
   const scale = 10 ** decimals;
-  return Math.round(value * scale) / scale;
+  return Math.round(Number((value * scale).toPrecision(12))) / scale;
 }
 
 function same(a: number, b: number): boolean {
@@ -140,21 +156,28 @@ function same(a: number, b: number): boolean {
 }
 
 /**
- * Whether the input states a mention. A percentage matches a fraction ×100 or a value already in
- * percent, rounded as written; a whole number matches exactly; a decimal matches rounded as
- * written. Nothing derived: a difference or ratio passes only when the input carries it.
+ * Whether the input states a mention. A percentage matches a fraction ×100 rounded as written,
+ * to at most two places; a year matches an input FY; another whole number matches exactly; a
+ * decimal matches rounded as written. Nothing derived: a difference or ratio passes only when
+ * the input carries it.
  */
-function stated({ value, decimals, percent }: Mention, known: readonly number[]): boolean {
+function stated(
+  { value, decimals, percent, year }: Mention,
+  known: readonly number[],
+  years: ReadonlySet<number>,
+): boolean {
   if (percent) {
-    return known.some(
-      (each) => same(round(each * 100, decimals), value) || same(round(each, decimals), value),
+    return (
+      decimals <= MAX_PERCENT_DECIMALS &&
+      known.some((each) => same(round(each * 100, decimals), value))
     );
   }
+  if (year) return years.has(value);
   if (decimals === 0) return known.some((each) => same(each, value));
   return known.some((each) => same(round(each, decimals), value));
 }
 
-/** The mentions in `text` the input does not state; a year label counts when it is an input FY. */
+/** The mentions in `text` the input does not state; a year or FY label counts when it is an input FY. */
 function foreignNumbers(
   text: string,
   known: readonly number[],
@@ -163,9 +186,9 @@ function foreignNumbers(
   const labels = [...text.matchAll(FY_LABEL)];
   const foreignLabels = labels
     .filter(([, start = '', end = '']) => !years.has(fyEnd(Number(start), end)))
-    .map((): Mention => ({ value: Number.NaN, decimals: 0, percent: false }));
+    .map((): Mention => ({ value: Number.NaN, decimals: 0, percent: false, year: true }));
   const rest = text.replaceAll(FY_LABEL, ' ');
-  return [...foreignLabels, ...mentions(rest).filter((mention) => !stated(mention, known))];
+  return [...foreignLabels, ...mentions(rest).filter((mention) => !stated(mention, known, years))];
 }
 
 /** The year an FY label ends in; NaN when its years are not consecutive ("2025/27"). */

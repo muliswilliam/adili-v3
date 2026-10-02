@@ -33,6 +33,21 @@ describe('narrative validation', () => {
       expect(foreign('The non-filer rate was 16.41%.')).toEqual(['foreign-number']);
     });
 
+    it('reads a percentage only as a rate ×100, never a count or a rate as written', () => {
+      expect(foreign('Late filings were 960%.')).toEqual(['foreign-number']);
+      expect(foreign('The late rate was 0.08%.')).toEqual(['foreign-number']);
+    });
+
+    it('rounds half up in decimal, as a reader would', () => {
+      const rates = { ...input, rates: { filingRate: 0.0515, lateRate: 0.0705 } };
+      const text = 'Rates of 5.2% and 7.1%.';
+      expect(narrativeViolations(rates, withParagraph(0, { text }))).toEqual([]);
+    });
+
+    it('fails a percentage written to more than two places', () => {
+      expect(foreign('The non-filer rate was 16.400%.')).toEqual(['foreign-number']);
+    });
+
     it('reads a change in percentage points, unsigned', () => {
       expect(foreign('The rate rose by 100 per cent.')).toEqual([]);
     });
@@ -52,9 +67,25 @@ describe('narrative validation', () => {
       expect(foreign('In 2023.')).toEqual(['foreign-number']);
     });
 
-    it('fails a derived figure the input does not carry', () => {
-      expect(foreign('The rate rose by 8.2 percentage points.')).toEqual([]);
+    it('reads a bare four-digit year as a year, not a count that happens to match', () => {
+      const counted = { ...input, totals: { ...input.totals, expected: 2023 } };
+      expect(
+        narrativeViolations(counted, withParagraph(0, { text: 'In 2023.' })).map(
+          (each) => each.kind,
+        ),
+      ).toEqual(['foreign-number']);
+      expect(foreign('Expected: 12,480.')).toEqual([]);
+    });
+
+    it('reads an FY label with a hyphen or an en dash', () => {
+      expect(foreign('In FY2025-26 and 2024–25.')).toEqual([]);
+      expect(foreign('In 2022-23.')).toEqual(['foreign-number']);
+    });
+
+    it('fails a derived figure, unless it happens to equal an input figure', () => {
       expect(foreign('Filings fell by 146.')).toEqual(['foreign-number']);
+      // 8.2 points equals the prior-year rate of 8.2%: a coincidence the check cannot tell apart.
+      expect(foreign('The rate rose by 8.2 percentage points.')).toEqual([]);
     });
 
     it('treats an Act section number as a number', () => {

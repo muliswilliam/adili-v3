@@ -22,7 +22,7 @@ const commissionRow = z.object({
 const year = {
   fy: z.number().int().meta({ description: 'Financial year, by the calendar year it ends in' }),
   totals: figures.meta({ description: 'National counts' }),
-  rates: figures.meta({ description: 'National rates, as fractions (0.123 is 12.3%)' }),
+  rates: figures.meta({ description: 'National rates, as fractions (0.164 is 16.4%)' }),
   commissionTable: z.array(commissionRow).meta({
     description: 'One row per Commission: code, name and its figures, rates as fractions',
   }),

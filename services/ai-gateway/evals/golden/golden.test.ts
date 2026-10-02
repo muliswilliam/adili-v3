@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { narrateComplianceReport } from '../../src/tasks/narrate-compliance-report.js';
 import { aggregateKeys } from '../../src/tasks/narrative-validation.js';
-import { TASK_NAMES } from '../../src/tasks/task.js';
+import { TASK_NAMES, type TaskName } from '../../src/tasks/task.js';
 import { refProblem } from '../lib/refs.js';
 import { hardFailures } from '../lib/score.js';
 import type { FlagInput } from './flags.js';
@@ -15,7 +15,7 @@ describe('golden sets', () => {
   });
 
   /** The reviewer tasks serve both languages; the NCR narrative is English (spec 09b). */
-  const SIZES: Record<string, { cases: number; swahili: number }> = {
+  const SIZES: Partial<Record<TaskName, { cases: number; swahili: number }>> = {
     'narrate-compliance-report': { cases: 6, swahili: 0 },
   };
 

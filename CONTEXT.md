@@ -148,13 +148,13 @@ EACC's yearly report built from every Commission's compliance report: aggregates
 _Avoid_: national report (alone), annual report
 
 **Aggregate key**:
-The stable name of one figure in the NCR aggregates, e.g. `commission.tsc.nonFilerRate`; what a narrative paragraph cites.
+The stable name of one figure in the NCR aggregates, such as one Commission's non-filer rate in a given year; what a narrative paragraph cites.
 _Avoid_: metric ID, field
 
 **Pattern candidate**:
-A notable pattern computed by code from this and prior years' aggregates, which the narrative may cite. The AI narrates candidates; it does not find them.
-_Avoid_: insight, finding (a finding is the narrative's statement)
+A notable pattern computed deterministically from this and prior years' aggregates, such as a rate that doubled or a Commission late three years running. The NCR's Findings section is written from candidates; AI narrates them and never finds its own.
+_Avoid_: insight, pattern (alone)
 
 **AI draft**:
-A narrative paragraph written by AI that the analyst has not yet edited. Editing it makes it the analyst's own.
+A narrative paragraph written by AI that the EACC analyst drafting the NCR has not yet edited. Editing it makes it EACC's own text.
 _Avoid_: suggestion, AI text
