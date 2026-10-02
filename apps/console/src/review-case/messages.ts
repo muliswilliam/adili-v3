@@ -34,7 +34,6 @@ export const CASE_COPY = {
   unassign: 'Unassign',
   claimed: 'Case claimed. You hold it now.',
   claimConflict: (holder: string) => `Already claimed by ${holder}`,
-  claimConflictUnknown: 'Another officer claimed this case first',
   released: 'Case released to the queue',
   reassigned: (name: string) => `Reassigned to ${name}`,
   assigned: (name: string) => `Assigned to ${name}`,

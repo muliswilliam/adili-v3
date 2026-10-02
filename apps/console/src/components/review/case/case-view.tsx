@@ -21,7 +21,7 @@ import {
   UserRemove01Icon,
 } from '@hugeicons/core-free-icons';
 import { useRouter } from '@tanstack/react-router';
-import { type ReactNode, useEffect, useRef, useState } from 'react';
+import { type ReactNode, useEffect, useState } from 'react';
 import { flushSync } from 'react-dom';
 
 import { flagTarget, pinsByItem } from '../../../review-case/flags';
@@ -37,35 +37,18 @@ import {
 } from '../../../review-case/view';
 import {
   addCaseNote,
-  claimCase,
   getCaseAttachmentLink,
-  getReassignOfficers,
   markCaseFlagReviewed,
-  reassignCase,
-  releaseCase,
 } from '../../../server/review-case';
 import type { CaseFlag, CaseLoad } from '../../../server/review-case.server';
-import type { ServiceError, ServiceResult } from '../../../server/service-call';
 import { Page } from '../../page';
-import { ClaimDialog, ReassignDialog, ReleaseDialog, UnassignDialog } from './assignment-dialogs';
+import { failureText, isStale, useCaseAssignment } from '../assignment';
 import { CaseHeader, HeaderNote } from './case-header';
 import { ClarificationsTab } from './clarifications-tab';
 import { DECLARATION_ANCHORS, DeclarationPane } from './declaration-pane';
 import { flagAnchorId, FlagsTab } from './flags-tab';
 import { NotesTab } from './notes-tab';
 import { TimelineTab } from './timeline-tab';
-
-type Dialog = 'claim' | 'release' | 'reassign' | 'unassign' | null;
-
-function failureText(error: ServiceError): string {
-  if (error.kind === 'unauthenticated') return CASE_COPY.sessionEnded;
-  return CASE_COPY.actionFailed;
-}
-
-/** 403, 404 and 409 mean the page is out of date: reload it rather than retry. */
-function isStale(error: ServiceError): boolean {
-  return error.kind === 'problem' && [403, 404, 409].includes(error.problem.status);
-}
 
 function scrollToId(id: string) {
   const element = document.getElementById(id);
@@ -100,14 +83,12 @@ export function CaseView({ load, viewer, slug, now, tab, onTab }: CaseViewProps)
   const item = detail.case;
   const router = useRouter();
   const { toast } = useToast();
-  const [dialog, setDialog] = useState<Dialog>(null);
   const [view, setView] = useState<'declaration' | 'review'>('declaration');
   const [highlight, setHighlight] = useState<string | null>(null);
   const [pulse, setPulse] = useState<string | null>(null);
   const [editing, setEditing] = useState<string | null>(null);
   const [downloads, setDownloads] = useState<Record<string, AttachmentState>>({});
   const [retrying, setRetrying] = useState(false);
-  const conflict = useRef(false);
   // The open tab follows the address (`tab`), and changes here at once, before the address does,
   // so a pin can open Flags and scroll to its flag in one go.
   const [active, setActive] = useState<CaseTab>(tab);
@@ -137,51 +118,19 @@ export function CaseView({ load, viewer, slug, now, tab, onTab }: CaseViewProps)
     };
   }, [pulse]);
 
-  // A claim that lost the race reloads the case, then says who holds it now.
-  useEffect(() => {
-    if (!conflict.current) return;
-    conflict.current = false;
-    toast({
-      title: item.assignee
-        ? CASE_COPY.claimConflict(item.assignee.name)
-        : CASE_COPY.claimConflictUnknown,
-      urgency: 'assertive',
-    });
-  }, [item.assignee, toast]);
-
   async function refresh() {
     await router.invalidate();
   }
 
-  /** Runs an assignment change; resolves to an error for the dialog, or null when done. */
-  async function assign(
-    run: () => Promise<ServiceResult<unknown>>,
-    success: string,
-  ): Promise<string | null> {
-    const result = await run();
-    if (!result.ok) {
-      if (!isStale(result.error)) return failureText(result.error);
-      setDialog(null);
-      toast({ title: CASE_COPY.stale, urgency: 'assertive' });
-      await refresh();
-      return null;
-    }
-    setDialog(null);
-    toast({ title: success });
-    await refresh();
-    return null;
-  }
-
-  async function claimNow(): Promise<string | null> {
-    const result = await claimCase({ data: { caseId: item.id } });
-    if (!result.ok && result.error.kind === 'problem' && result.error.problem.status === 409) {
-      setDialog(null);
-      conflict.current = true;
-      await refresh();
-      return null;
-    }
-    return assign(() => Promise.resolve(result), CASE_COPY.claimed);
-  }
+  const assignment = useCaseAssignment({
+    viewer,
+    slug,
+    refresh,
+    find: (caseId) => (caseId === item.id ? item : undefined),
+  });
+  const startAssignment = (action: AssignmentAction) => {
+    assignment.start(action, { item, reviewerHistory: detail.reviewerHistory });
+  };
 
   function goTo(flag: CaseFlag) {
     const target = flagTarget(flag, document);
@@ -251,11 +200,7 @@ export function CaseView({ load, viewer, slug, now, tab, onTab }: CaseViewProps)
         key="claim"
         size="sm"
         onClick={() => {
-          if (viewer.supervisor) setDialog('claim');
-          else
-            void claimNow().then((error) => {
-              if (error) toast({ title: error, urgency: 'assertive' });
-            });
+          startAssignment('claim');
         }}
       >
         <Icon icon={UserCheck01Icon} />
@@ -268,7 +213,7 @@ export function CaseView({ load, viewer, slug, now, tab, onTab }: CaseViewProps)
         size="sm"
         variant="secondary"
         onClick={() => {
-          setDialog('release');
+          startAssignment('release');
         }}
       >
         <Icon icon={Undo02Icon} />
@@ -281,7 +226,7 @@ export function CaseView({ load, viewer, slug, now, tab, onTab }: CaseViewProps)
         size="sm"
         variant="secondary"
         onClick={() => {
-          setDialog('reassign');
+          startAssignment('reassign');
         }}
       >
         <Icon icon={ArrowLeftRightIcon} />
@@ -294,7 +239,7 @@ export function CaseView({ load, viewer, slug, now, tab, onTab }: CaseViewProps)
         size="sm"
         variant="secondary"
         onClick={() => {
-          setDialog('reassign');
+          startAssignment('assign');
         }}
       >
         <Icon icon={ArrowLeftRightIcon} />
@@ -307,7 +252,7 @@ export function CaseView({ load, viewer, slug, now, tab, onTab }: CaseViewProps)
         size="sm"
         variant="ghost"
         onClick={() => {
-          setDialog('unassign');
+          startAssignment('unassign');
         }}
       >
         <Icon icon={UserRemove01Icon} />
@@ -447,68 +392,7 @@ export function CaseView({ load, viewer, slug, now, tab, onTab }: CaseViewProps)
 
       <p className="mt-4 text-xs text-muted-foreground">{CASE_COPY.audit}</p>
 
-      <ClaimDialog
-        open={dialog === 'claim'}
-        onOpenChange={(open) => {
-          setDialog(open ? 'claim' : null);
-        }}
-        reference={item.reference}
-        name={item.declarantName}
-        onConfirm={claimNow}
-      />
-      <ReleaseDialog
-        open={dialog === 'release'}
-        onOpenChange={(open) => {
-          setDialog(open ? 'release' : null);
-        }}
-        reference={item.reference}
-        onConfirm={() =>
-          assign(() => releaseCase({ data: { caseId: item.id } }), CASE_COPY.released)
-        }
-      />
-      <UnassignDialog
-        open={dialog === 'unassign'}
-        onOpenChange={(open) => {
-          setDialog(open ? 'unassign' : null);
-        }}
-        reference={item.reference}
-        holder={item.assignee?.name ?? ''}
-        onConfirm={() =>
-          assign(
-            () => reassignCase({ data: { caseId: item.id, assignee: null } }),
-            CASE_COPY.unassigned,
-          )
-        }
-      />
-      <ReassignDialog
-        // A fresh dialog each time it opens: the officers reload and nobody is picked.
-        key={dialog === 'reassign' ? 'reassign-open' : 'reassign-closed'}
-        open={dialog === 'reassign'}
-        onOpenChange={(open) => {
-          setDialog(open ? 'reassign' : null);
-        }}
-        reference={item.reference}
-        declarantName={item.declarantName}
-        holder={item.assignee?.name ?? null}
-        self={viewer.subject}
-        loadOfficers={() =>
-          slug
-            ? getReassignOfficers({
-                data: {
-                  slug,
-                  assignee: item.assignee?.subject ?? null,
-                  reviewerHistory: detail.reviewerHistory,
-                },
-              })
-            : Promise.resolve({ ok: false, error: { kind: 'unavailable', detail: null } })
-        }
-        onConfirm={(officer) =>
-          assign(
-            () => reassignCase({ data: { caseId: item.id, assignee: officer.subject } }),
-            item.assignee ? CASE_COPY.reassigned(officer.name) : CASE_COPY.assigned(officer.name),
-          )
-        }
-      />
+      {assignment.dialogs}
     </Page>
   );
 }

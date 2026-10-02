@@ -1,8 +1,6 @@
 import { createServerFn } from '@tanstack/react-start';
-import { getRequest } from '@tanstack/react-start/server';
 import { z } from 'zod';
 
-import { getBff } from './bff.server';
 import type { DownloadLink } from './clarifications';
 import {
   addNote,
@@ -16,7 +14,7 @@ import {
   reassign,
   release,
 } from './review-case.server';
-import { reviewClient, type ReviewClient } from './review/client.server';
+import { asOfficer } from './review/as-officer.server';
 import type { CaseListItem, Note } from './review/types';
 import { callService, type ServiceResult } from './service-call';
 
@@ -24,17 +22,6 @@ import { callService, type ServiceResult } from './service-call';
  * Server functions for the case view (spec 07a FE-3), called as the signed-in reviewer or
  * supervisor. Tokens stay on the server; attachments come back as short-lived links.
  */
-
-async function asOfficer<T>(
-  work: (
-    client: ReviewClient,
-    user: { subject: string; name: string },
-  ) => Promise<ServiceResult<T>>,
-): Promise<ServiceResult<T>> {
-  const session = await getBff().getSession(getRequest());
-  if (!session) return { ok: false, error: { kind: 'unauthenticated' } };
-  return work(reviewClient(session.accessToken), session.user);
-}
 
 const id = z.uuid();
 
