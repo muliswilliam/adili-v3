@@ -57,4 +57,12 @@ export const SYSTEM_POLICY_CONFIG: SystemPolicies = {
     burst: burstOf(config.PAYROLL_RATE_LIMIT_PER_MINUTE),
     maxQueueMs: config.RATE_LIMIT_MAX_WAIT_MS,
   },
+  icms: {
+    timeoutMs: config.ICMS_TIMEOUT_MS,
+    // A registration is an act, not a read: never answered from a cache.
+    cacheTtlSeconds: null,
+    ratePerMinute: config.ICMS_RATE_LIMIT_PER_MINUTE,
+    burst: burstOf(config.ICMS_RATE_LIMIT_PER_MINUTE),
+    maxQueueMs: config.RATE_LIMIT_MAX_WAIT_MS,
+  },
 };

@@ -1,5 +1,6 @@
 import type { z } from 'zod';
 
+import { icmsReferralRequestSchema, icmsReferralSchema } from './icms/icms-records.js';
 import { coverageSchema, systemCoverageSchema } from './integrations/coverage.js';
 import { iprsPersonSchema, lookupIprsPersonSchema } from './iprs/iprs-person.js';
 import {
@@ -45,4 +46,6 @@ export const OPENAPI_SCHEMAS: Record<string, z.ZodType> = {
   PayrollAction: payrollActionSchema,
   PayrollInstructionRequest: payrollInstructionRequestSchema,
   PayrollInstruction: payrollInstructionSchema,
+  IcmsReferralRequest: icmsReferralRequestSchema,
+  IcmsReferral: icmsReferralSchema,
 };

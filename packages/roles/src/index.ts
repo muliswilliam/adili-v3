@@ -143,6 +143,13 @@ export const REGISTRY_SCOPE = 'registry';
 export const PAYROLL_SCOPE = 'payroll';
 
 /**
+ * The integration-gateway's ICMS referrals: registering a Commission's referral with EACC's case
+ * management system (Regs r.20) and reading its case number. A scope of its own, held by the
+ * reporting client alone (spec 09).
+ */
+export const ICMS_SCOPE = 'icms';
+
+/**
  * The review service's disclosures to third parties (spec 10): the clarifications an access grant
  * discloses with the declarations. A scope of its own, held by the access client alone, like
  * `declarations:disclosures`.

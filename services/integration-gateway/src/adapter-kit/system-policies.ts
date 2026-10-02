@@ -12,7 +12,7 @@ export interface SystemPolicy {
   timeoutMs: number;
   /**
    * How long a lookup's answer (found or not found) is reused; null for a system whose calls are
-   * never answered from a cache (payroll instructions: each is an act, not a read).
+   * never answered from a cache (payroll instructions, ICMS referrals: each is an act, not a read).
    */
   cacheTtlSeconds: number | null;
   /** Calls per minute sent to the registry across every instance. */

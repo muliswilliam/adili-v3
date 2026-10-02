@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { ServiceTokenClient } from '@adili/api-kit';
+import { ICMS_SCOPE } from '@adili/roles';
 
 import { config } from './config.js';
 import { DeclarationsClient } from './declarations/declarations-client.js';
@@ -17,10 +18,7 @@ import {
   DIRECTORY_INTERNAL_SCOPE,
   HttpDirectoryClient,
 } from './directory/http-directory-client.js';
-import {
-  HttpIntegrationGatewayClient,
-  ICMS_SCOPE,
-} from './integration-gateway/http-integration-gateway-client.js';
+import { HttpIntegrationGatewayClient } from './integration-gateway/http-integration-gateway-client.js';
 import { IntegrationGatewayClient } from './integration-gateway/integration-gateway-client.js';
 import {
   HttpNotificationsClient,

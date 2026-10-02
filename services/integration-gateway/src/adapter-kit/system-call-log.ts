@@ -18,8 +18,8 @@ export interface SystemCall {
 }
 
 /**
- * The calls to systems that are not lookups (payroll instructions), one `system_calls` row each,
- * which coverage counts as it counts lookups from verification results. Counts, not an audit
+ * The calls to systems that are not lookups (payroll instructions, ICMS referrals), one
+ * `system_calls` row each, which coverage counts as it counts lookups from verification results. Counts, not an audit
  * trail: the adapter's own rows and events are that, written in the same transaction.
  */
 @Injectable()

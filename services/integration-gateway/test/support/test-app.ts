@@ -24,6 +24,7 @@ import {
 import { AppModule } from '../../src/app.module.js';
 import { config } from '../../src/config.js';
 import { schema } from '../../src/db/schema.js';
+import { ICMS_CLIENT_OPTIONS, type IcmsClientOptions } from '../../src/icms/icms-client.js';
 import { IPRS_CLIENT_OPTIONS, type IprsClientOptions } from '../../src/iprs/iprs-client.js';
 import {
   PAYROLL_CLIENT_OPTIONS,
@@ -55,14 +56,16 @@ export interface TestAppOptions extends Partial<IprsClientOptions> {
   timeoutMs?: number;
   /**
    * Policies of systems besides IPRS, e.g. for a stub adapter. KRA, NTSA, BRS and ArdhiSasa
-   * default to the spec's timeout and cache with a rate the tests never reach; payroll to the
-   * same without a cache.
+   * default to the spec's timeout and cache with a rate the tests never reach; payroll and ICMS
+   * to the same without a cache.
    */
   policies?: SystemPolicies;
   /** Where the KRA, NTSA, BRS, ArdhiSasa and HR adapters call, e.g. `StubRegistries.urls`. */
   registryUrls?: RegistryUrls;
   /** Where the payroll adapter calls, e.g. `StubPayroll.baseUrl`. */
   payrollUrl?: string;
+  /** Where the ICMS adapter calls, e.g. `StubIcms.baseUrl`. */
+  icmsUrl?: string;
   /** Extra controllers, e.g. one exercising a kit decorator. */
   controllers?: Type[];
 }
@@ -105,6 +108,7 @@ export async function createTestApp({
   policies = {},
   registryUrls,
   payrollUrl,
+  icmsUrl,
   controllers = [],
 }: TestAppOptions = {}): Promise<TestApp> {
   const baseUrl = requireEnv('TEST_DATABASE_URL');
@@ -172,6 +176,7 @@ export async function createTestApp({
       ardhisasa: registryPolicy,
       'hr-suppliers': registryPolicy,
       payroll: { ...registryPolicy, cacheTtlSeconds: null },
+      icms: { ...registryPolicy, cacheTtlSeconds: null },
       ...policies,
     } satisfies SystemPolicies)
     .overrideProvider(TokenVerifier)
@@ -187,6 +192,11 @@ export async function createTestApp({
     builder = builder
       .overrideProvider(PAYROLL_CLIENT_OPTIONS)
       .useValue({ baseUrl: payrollUrl } satisfies PayrollClientOptions);
+  }
+  if (icmsUrl) {
+    builder = builder
+      .overrideProvider(ICMS_CLIENT_OPTIONS)
+      .useValue({ baseUrl: icmsUrl } satisfies IcmsClientOptions);
   }
   const moduleRef = await builder.compile();
 

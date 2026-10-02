@@ -8,6 +8,7 @@ import { TemporalModule, TemporalReadinessCheck } from '@adili/temporal';
 import { AdapterKitModule } from './adapter-kit/adapter-kit.module.js';
 import { config, SERVICE_NAME } from './config.js';
 import { schema } from './db/schema.js';
+import { IcmsModule } from './icms/icms.module.js';
 import { IntegrationsModule } from './integrations/integrations.module.js';
 import { IprsModule } from './iprs/iprs.module.js';
 import { PayrollModule } from './payroll/payroll.module.js';
@@ -52,6 +53,7 @@ import { VerificationModule } from './verification/verification.module.js';
     IprsModule,
     RegistriesModule,
     PayrollModule,
+    IcmsModule,
     VerificationModule,
     IntegrationsModule,
   ],

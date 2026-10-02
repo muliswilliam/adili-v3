@@ -38,7 +38,7 @@ export interface CallOptions {
 /**
  * The resilience every call to a government system goes through, whatever it asks: a lookup
  * (`RegistryLookups`, which adds the answer cache and the verification-results row) or an
- * instruction (payroll), which is never cached. In order, against the system's policy
+ * instruction (payroll, ICMS), which is never cached. In order, against the system's policy
  * (`SYSTEM_POLICIES`): the pause flag, an open circuit failing fast, the system's rate limit, then
  * the work itself, timed out and behind the system's circuit breaker. Queueing for our own rate
  * limit never counts against the timeout or the breaker. The upstream not answering is an

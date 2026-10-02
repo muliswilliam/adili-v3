@@ -316,10 +316,12 @@ describe('registry lookups', () => {
 
       expect(response.statusCode).toBe(200);
       expect(response.json()).toEqual(
-        ['iprs', 'kra', 'ntsa', 'brs', 'ardhisasa', 'hr-suppliers', 'payroll'].map((system) => ({
-          system,
-          ratePerMinute: system === 'iprs' ? 1_200 : 60_000,
-        })),
+        ['iprs', 'kra', 'ntsa', 'brs', 'ardhisasa', 'hr-suppliers', 'payroll', 'icms'].map(
+          (system) => ({
+            system,
+            ratePerMinute: system === 'iprs' ? 1_200 : 60_000,
+          }),
+        ),
       );
       const other = await t.token({ clientId: 'directory', scope: 'iprs' });
       expect((await read({ authorization: `Bearer ${other}` })).statusCode).toBe(403);

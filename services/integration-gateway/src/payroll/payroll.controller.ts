@@ -24,7 +24,7 @@ import {
   type InstructionPurpose,
   InstructionPurposeHeaders,
 } from '../adapter-kit/lookup-purpose.js';
-import { INSTRUCTION_LEGAL_BASES } from '../db/schema.js';
+import { PAYROLL_LEGAL_BASES } from '../db/schema.js';
 import { PayrollInstructions } from './payroll-instructions.js';
 import {
   INSTRUCTION_REFERENCE,
@@ -53,7 +53,7 @@ export class PayrollController {
   constructor(private readonly instructions: PayrollInstructions) {}
 
   @Post()
-  @InstructionPurposeHeaders(INSTRUCTION_LEGAL_BASES)
+  @InstructionPurposeHeaders(PAYROLL_LEGAL_BASES)
   @ApiOperation({
     operationId: 'submitPayrollInstruction',
     summary:

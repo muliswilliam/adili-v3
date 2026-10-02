@@ -57,12 +57,23 @@ export const LEGAL_BASES = [
 export type LegalBasis = (typeof LEGAL_BASES)[number];
 
 /**
- * Why payroll is instructed (ADR-009: only after a recorded decision): a sanction of the
- * Administrative Mechanisms' ladder, salary stoppage and its reinstatement. Callers name it in
- * `X-Legal-Basis`, as for lookups.
+ * Why a system is instructed (an act on it, not a read; ADR-008, ADR-009: only after a recorded
+ * decision). Callers name it in `X-Legal-Basis`, as for lookups; each instruction route takes only
+ * its own (`PAYROLL_LEGAL_BASES`, `ICMS_LEGAL_BASES`).
  */
-export const INSTRUCTION_LEGAL_BASES = ['am-sanctions'] as const;
+export const INSTRUCTION_LEGAL_BASES = [
+  /** A sanction of the Administrative Mechanisms' ladder: salary stoppage and its reinstatement. */
+  'am-sanctions',
+  /** Regs r.20: a Commission's referral of a non-compliant officer to EACC. */
+  'regs-r20-referral',
+] as const;
 export type InstructionLegalBasis = (typeof INSTRUCTION_LEGAL_BASES)[number];
+
+/** What payroll may be instructed on. */
+export const PAYROLL_LEGAL_BASES = ['am-sanctions'] as const satisfies InstructionLegalBasis[];
+
+/** What a referral may be registered with ICMS on. */
+export const ICMS_LEGAL_BASES = ['regs-r20-referral'] as const satisfies InstructionLegalBasis[];
 
 /** external/payroll.yaml `ActionEnum`. */
 export const PAYROLL_ACTIONS = ['stop_salary', 'resume_salary'] as const;
@@ -71,6 +82,13 @@ export type PayrollAction = (typeof PAYROLL_ACTIONS)[number];
 /** How payroll acknowledged an instruction. The mock accepts every valid one. */
 export const PAYROLL_STATUSES = ['accepted', 'pending', 'failed'] as const;
 export type PayrollStatus = (typeof PAYROLL_STATUSES)[number];
+
+/**
+ * How ICMS answered a referral (external/icms.yaml `StatusEnum`): ICMS registers a referral as it
+ * receives it, with its case number.
+ */
+export const ICMS_STATUSES = ['registered'] as const;
+export type IcmsStatus = (typeof ICMS_STATUSES)[number];
 
 export const SYSTEM_CALL_OUTCOMES = ['answered', 'unavailable'] as const;
 export type SystemCallOutcome = (typeof SYSTEM_CALL_OUTCOMES)[number];
@@ -144,10 +162,10 @@ export const integrationSettings = pgTable('integration_settings', {
 });
 
 /**
- * One row per call to a system that is not a lookup (payroll instructions), answered or not:
- * what coverage counts for them, as it counts lookups from verification results. Identifiers of
- * nobody: a system, an outcome and a latency. A replay answered from the stored instruction is
- * no call.
+ * One row per call to a system that is not a lookup (payroll instructions, ICMS referrals),
+ * answered or not: what coverage counts for them, as it counts lookups from verification
+ * results. Identifiers of nobody: a system, an outcome and a latency. A replay answered from the
+ * stored instruction or registration is no call.
  */
 export const systemCalls = pgTable(
   'system_calls',
@@ -197,6 +215,35 @@ export const payrollInstructions = pgTable('payroll_instructions', {
   caseRef: text(),
 });
 
+/**
+ * A referral ICMS registered (spec 09), one row per referral reference: written only once ICMS
+ * answered, so a referral ICMS never received is not here. The declarant is identified to ICMS by
+ * national ID and name; here only by the national ID's keyed hash, with the referring Commission
+ * enough to tell a replay from another referral under the same reference. No name, grounds or
+ * narrative: ICMS holds those. Acts for no tenant (ADR-013 section 8.7): the referring Commission
+ * is in the referral, and its reference (`RFL-...`) names it.
+ */
+export const icmsReferrals = pgTable('icms_referrals', {
+  /** The `RFL` reference. */
+  referralReference: text().primaryKey(),
+  /** The referring Commission's issuer code, e.g. `PSC`. */
+  referringCommission: text().notNull(),
+  /** HMAC of the declarant's national ID under SUBJECT_HASH_KEY. */
+  nationalIdHash: text().notNull(),
+  status: text({ enum: ICMS_STATUSES }).notNull(),
+  /** ICMS's case number, e.g. `EACC/ICMS/2028/000123`. */
+  caseNumber: text().notNull(),
+  /** When ICMS registered it, by ICMS's clock. */
+  registeredAt: timestamp({ withTimezone: true }).notNull(),
+  /** When the gateway sent it (the call that ICMS answered). */
+  sentAt: timestamp({ withTimezone: true }).notNull(),
+  /** OAuth client of the calling service. */
+  requestedBy: text().notNull(),
+  legalBasis: text({ enum: INSTRUCTION_LEGAL_BASES }).notNull(),
+  /** The record the referral is for, as the caller named it. */
+  caseRef: text(),
+});
+
 /** Drizzle schema of the integration-gateway database. Only this service reads or writes it (ADR-013). */
 export const schema = {
   ...eventsSchema,
@@ -205,6 +252,7 @@ export const schema = {
   integrationSettings,
   systemCalls,
   payrollInstructions,
+  icmsReferrals,
 };
 
 export * from '@adili/api-kit/schema';

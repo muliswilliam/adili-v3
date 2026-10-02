@@ -381,6 +381,7 @@ describe('payroll instructions', () => {
     it.each([
       ['missing', {}],
       ['a lookup basis', { 'x-legal-basis': 'regs-r20-1-b' }],
+      ['an ICMS basis', { 'x-legal-basis': 'regs-r20-referral' }],
       ['unknown', { 'x-legal-basis': 'curiosity' }],
     ])('refuses a legal basis %s (400) without calling payroll', async (_, basis) => {
       const headers = { ...review };

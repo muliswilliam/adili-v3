@@ -62,6 +62,15 @@ export const envSchema = baseEnvSchema.extend({
   PAYROLL_TIMEOUT_MS: z.coerce.number().int().positive().max(10_000).default(5_000),
   /** Instructions a minute sent to payroll, across every instance. */
   PAYROLL_RATE_LIMIT_PER_MINUTE: ratePerMinute,
+  /** EACC ICMS base URL, ending before `/v1` (the mock serves it under `/icms`). */
+  ICMS_BASE_URL: z.url(),
+  /**
+   * Longest wait for ICMS to register one referral. The reporting service waits 15 s for the
+   * gateway (ADR-013 section 2) and retries, so this stays well within it.
+   */
+  ICMS_TIMEOUT_MS: z.coerce.number().int().positive().max(10_000).default(5_000),
+  /** Referrals a minute sent to ICMS, across every instance. */
+  ICMS_RATE_LIMIT_PER_MINUTE: ratePerMinute,
   /**
    * Longest a lookup queues for its system's rate limit before it is answered unavailable
    * (`rate-limited`) instead.

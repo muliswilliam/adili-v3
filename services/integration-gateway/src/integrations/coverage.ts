@@ -26,8 +26,8 @@ export const systemCoverageSchema = z
   .object({
     system: systemSchema,
     /**
-     * Lookups (or, for payroll, instructions sent) in the last 24 hours, answered or not, cached
-     * or not.
+     * Lookups (or, for payroll and ICMS, instructions and referrals sent) in the last 24 hours,
+     * answered or not, cached or not.
      */
     calls24h: z.int().nonnegative(),
     cacheHitRate: z.number().min(0).max(1).meta({
@@ -53,7 +53,7 @@ export const systemCoverageSchema = z
     rateLimitPerMinute: z.int().positive(),
     cacheTtlSeconds: z.int().positive().nullable().meta({
       description:
-        'How long an answer is reused; null for a system that is never cached (payroll instructions)',
+        'How long an answer is reused; null for a system that is never cached (payroll instructions, ICMS referrals)',
     }),
     timeoutMs: z.int().positive(),
     /** Consecutive failures that open the circuit. */
@@ -79,7 +79,7 @@ interface Counts extends Record<string, unknown> {
 /**
  * Per-system call volume, cache hit rate, failures, last success, breaker and pause state, for
  * platform administrators (spec 07b S13). Volumes come from verification results (one row per
- * lookup) and, for systems that are not looked up (payroll), system calls (one row per call),
+ * lookup) and, for systems that are not looked up (payroll, ICMS), system calls (one row per call),
  * both indexed by system and time; breaker state is this instance's.
  */
 @Injectable()
