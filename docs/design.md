@@ -84,6 +84,7 @@ Controls and cards get their edges from a hairline ring in the shadow rather tha
 | `shadow-card` | `--shadow-card` | cards |
 | `shadow-card-editing` | *derived* | the item card open for editing in a `Repeater`: 1.5px ink ring and a soft lift |
 | `shadow-card-flat` | *derived* | a settled card on a `muted` fill (a reviewed or closed flag): the hairline ring without the lift |
+| `shadow-card-hover` | *derived* | a hovered card that is a link as a whole (the console's workspace cards): the ring darkens to `input` with a soft lift |
 | `shadow-pop` | `--shadow-pop` | dialogs, menus, select and combobox lists, toasts, tooltips |
 | `shadow-button-primary`, `-destructive` | `.btn-primary`, `.btn-danger` | the lift and inner highlight on solid buttons |
 
@@ -98,9 +99,11 @@ Controls and cards get their edges from a hairline ring in the shadow rather tha
 | `rounded-xl` | 12px | | menus, toasts, drop zone icon tiles |
 | `rounded-item` | 14px | | `Repeater` item cards and their add button, chat bubbles, `ChatComposer`, `SuggestedQuestions` chips, 48-52px icon tiles (the verify app's status mark and home tile) |
 | `rounded-2xl` | 16px | `--r-lg` | cards, drop zones |
+| `rounded-dialog` | 20px | | the dialog panel |
+| `rounded-sheet` | 22px | | the top corners of the phone sheet (a dialog, the chat panel) |
 | `rounded-3xl` | 24px | `.auth-art` | the photo panel beside the signed-out pages |
 
-Dialogs use 20px (22px at the top of the phone sheet), as in the kit.
+Dialogs use 20px (`rounded-dialog`) and 22px at the top of the phone sheet (`rounded-t-sheet`), as in the kit.
 
 ## Logo
 
