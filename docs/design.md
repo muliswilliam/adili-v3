@@ -85,6 +85,7 @@ Controls and cards get their edges from a hairline ring in the shadow rather tha
 | `shadow-card-editing` | *derived* | the item card open for editing in a `Repeater`: 1.5px ink ring and a soft lift |
 | `shadow-card-flat` | *derived* | a settled card on a `muted` fill (a reviewed or closed flag): the hairline ring without the lift |
 | `shadow-card-hover` | *derived* | a hovered card that is a link as a whole (the console's workspace cards): the ring darkens to `input` with a soft lift |
+| `shadow-highlight` | *derived* | a highlighted row's 3px `brand` edge on the left, inset (the item a flag points at in `DeclarationSummary`) |
 | `shadow-pop` | `--shadow-pop` | dialogs, menus, select and combobox lists, toasts, tooltips |
 | `shadow-button-primary`, `-destructive` | `.btn-primary`, `.btn-danger` | the lift and inner highlight on solid buttons |
 

@@ -356,7 +356,7 @@ function ItemRow({
       className={cn(
         'grid scroll-mt-32 grid-cols-[32px_minmax(0,1fr)_auto] items-start gap-x-3 gap-y-1 border-t border-border/60 px-3.5 py-2.5 transition-colors first:border-t-0',
         highlighted &&
-          'bg-brand-faint shadow-[inset_3px_0_0_var(--color-brand)] motion-safe:animate-highlight',
+          'bg-brand-faint shadow-highlight motion-safe:animate-highlight',
       )}
     >
       <span className="grid size-8 place-items-center rounded-tile bg-muted text-secondary-foreground">

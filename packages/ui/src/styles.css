@@ -116,6 +116,8 @@
     0 1px 2px rgb(150 20 10 / 0.3), inset 0 1px 0 rgb(255 255 255 / 0.15);
   /* A frosted list card on the photo panel (the kit's .art-item). */
   --elevation-art-item: 0 1px 2px rgb(0 0 0 / 0.06);
+  /* The brand edge of a highlighted row, e.g. the item a flag points at in the declaration. */
+  --elevation-highlight: inset 3px 0 0 var(--brand);
 }
 
 /* Dark theme: not in the prototypes yet, derived from the same warm neutrals and hues. */
@@ -267,6 +269,7 @@
   --shadow-button-primary: var(--elevation-button-primary);
   --shadow-button-destructive: var(--elevation-button-destructive);
   --shadow-art-item: var(--elevation-art-item);
+  --shadow-highlight: var(--elevation-highlight);
 }
 
 /* Skeleton shimmer, the indeterminate progress sweep, the drawer's slide in, the chat's typing marks
