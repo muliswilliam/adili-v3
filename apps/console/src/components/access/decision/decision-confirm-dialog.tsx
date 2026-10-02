@@ -1,4 +1,5 @@
 import {
+  accessOutcomeTones,
   Button,
   Dialog,
   DialogBody,
@@ -58,7 +59,7 @@ export function DecisionConfirmDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent busy={busy} aria-describedby={undefined}>
         <DialogHeader className="flex-row items-center gap-3 pr-12">
-          <IconTile tone={deny ? 'destructive' : 'success'}>
+          <IconTile tone={accessOutcomeTones[outcome]}>
             <Icon icon={JusticeScale01Icon} />
           </IconTile>
           <DialogTitle>{m.confirmTitle[outcome]}</DialogTitle>

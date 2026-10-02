@@ -135,6 +135,9 @@ describe('DecisionForm (#260, S6)', () => {
     expect(dialog.textContent).toContain('A Confidential package goes to Mercy Wanjiku Kamau');
     expect(dialog.textContent).toContain('2026 · Officer and spouses · Income');
     expect(dialog.textContent).toContain('Grounds: Against public interest');
+    // A partial grant reads amber, as everywhere else, not as a full grant.
+    expect(dialog.querySelector('.bg-warning-subtle')).not.toBeNull();
+    expect(dialog.querySelector('.bg-success-subtle')).toBeNull();
     await confirm();
     await waitFor(() => {
       expect(onDecided).toHaveBeenCalled();
