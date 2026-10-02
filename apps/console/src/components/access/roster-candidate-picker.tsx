@@ -171,16 +171,11 @@ function Results({
 
   const details = (record: RosterCandidate) => (
     <>
-      <span className="block truncate text-[13px] text-muted-foreground">
+      <span className="block text-[13px] text-muted-foreground">
         {[m.fileNumber(record.personnelFileNumber), record.designation].filter(Boolean).join(' · ')}
       </span>
       {withEntity && record.reportingEntity ? (
-        <span
-          className="block truncate text-[13px] text-muted-foreground"
-          title={record.reportingEntity}
-        >
-          {record.reportingEntity}
-        </span>
+        <span className="block text-[13px] text-muted-foreground">{record.reportingEntity}</span>
       ) : null}
       {record.onboarded ? null : (
         <span className="mt-1.5 flex flex-wrap items-center gap-1.5">

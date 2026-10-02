@@ -269,6 +269,8 @@ export function RepresentationsCard({ view }: { view: OfficerRequestView }) {
           ) : null}
           {reps.attachments.length > 0 ? (
             <AttachmentList
+              // The rows keep to the card and cut long names (the list grid sizes to its content).
+              className="grid-cols-[minmax(0,1fr)] [&>ul]:grid-cols-[minmax(0,1fr)]"
               label={m.attachmentsLabel}
               attachments={reps.attachments.map((file) => ({
                 id: file.uploadId,
