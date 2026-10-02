@@ -32,7 +32,7 @@ export function preparePrompt(
 }
 
 /**
- * The request a streamed task sends (ADR-0019): the job's request without the output schema, since
+ * The request a streamed task sends (ADR-019): the job's request without the output schema, since
  * the model writes tagged text that the gateway reads and checks against the schema itself.
  */
 export function streamedRequest(request: StructuredRequest): GenerateRequest {

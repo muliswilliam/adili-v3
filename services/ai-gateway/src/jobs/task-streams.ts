@@ -60,7 +60,7 @@ class CallerGone extends Error {
 }
 
 /**
- * Streamed tasks (ADR-0019): a job created and run in the request, its output's prose sent as
+ * Streamed tasks (ADR-019): a job created and run in the request, its output's prose sent as
  * text deltas while the model writes, then the job itself once its output is validated. The same
  * policy as a job: idempotency key, cache, rate limit, classification gate, budget and breaker;
  * the input minimised and wrapped as untrusted; every ending recorded with its audit and event.
@@ -266,7 +266,15 @@ export class TaskStreams {
         yield* this.end(job, this.decline(job, task, [{ kind: 'truncated' }]), metrics(result));
         return;
       }
-      if (delta !== '') yield { event: 'delta', data: { text: prompt.restore(delta) } };
+      let last: string;
+      try {
+        last = delta === '' ? '' : prompt.restore(delta);
+      } catch (error) {
+        if (!(error instanceof UnknownTokenError)) throw error;
+        yield* this.end(job, { status: 'failed', reason: 'validation' }, metrics(result));
+        return;
+      }
+      if (last !== '') yield { event: 'delta', data: { text: last } };
       yield* this.end(job, this.judge(job, task, answer, result, prompt), metrics(result));
       return;
     }

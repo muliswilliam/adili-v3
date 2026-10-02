@@ -30,7 +30,7 @@ const input = z
       .min(1)
       .max(2000)
       .nullable()
-      .meta({ description: 'The declarant’s question; null in hints mode' }),
+      .meta({ description: "The declarant's question; null in hints mode" }),
     context: z
       .object({
         declarationType: z.string().max(50).nullable(),
@@ -41,7 +41,7 @@ const input = z
         }),
         sectionKey: sectionKey.nullable().meta({ description: 'The section the declarant is on' }),
         residuals: z.array(residual).max(100).meta({
-          description: 'What the completeness module still reports: where, and by which rule',
+          description: 'What the completeness check still reports: where, and by which rule',
         }),
       })
       .meta({ description: 'Never contains amounts, names, identifiers or descriptions' }),

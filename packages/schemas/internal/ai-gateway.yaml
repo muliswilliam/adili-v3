@@ -71,7 +71,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Job'
         '400':
-          description: Request failed validation, Idempotency-Key missing or not a UUID, or X-Acting-Tenant missing
+          description: 'Request failed validation, an input the task streams (`task-streamed`: `answer`-mode `answer-declarant-question`, sent to its stream endpoint), Idempotency-Key missing or not a UUID, or X-Acting-Tenant missing'
           content:
             application/problem+json:
               schema:
@@ -112,7 +112,7 @@ paths:
       tags:
         - internal
       summary: 'Stream an answer (server-sent events: text deltas, then the job with its validated output)'
-      description: "Runs an `answer`-mode input of `answer-declarant-question` as a job, in the request. Events: `delta` {text}, the answer's prose as the model writes it, provisional until the end; then either `final` {job}, the succeeded job, whose output replaces the deltas (an answer that failed its checks arrives as `declined: true` with no blocks), or `error` {reason}, the job failed. A `: ping` comment is sent every 15 s. The Idempotency-Key names the job like the task endpoint's: a finished key returns its `final` (or `error`) only; an equal request with a succeeded job is served from it as one `delta` and its `final`."
+      description: "Runs an `answer`-mode input of `answer-declarant-question` as a job, in the request. Events: `delta` {text}, the answer's prose as the model writes it, provisional until the end; then either `final` {job}, the succeeded job, whose output replaces the deltas (an answer that failed its checks arrives as `declined: true` with no blocks), or `error` {reason}, the job failed. A caller that disconnects mid-stream fails the job with reason `provider`, as the contract has no reason for it. A `: ping` comment is sent every 15 s. The Idempotency-Key names the job like the task endpoint's: a finished key returns its `final` (or `error`) only; an equal request with a succeeded job is served from it as one `delta` and its `final`."
       operationId: streamAnswerDeclarantQuestion
       parameters:
         - name: X-Acting-Tenant
@@ -1290,7 +1290,7 @@ components:
               minLength: 1
               maxLength: 2000
             - type: 'null'
-          description: The declarant’s question; null in hints mode
+          description: The declarant's question; null in hints mode
         context:
           type: object
           properties:
@@ -1345,7 +1345,7 @@ components:
                   - sectionKey
                   - ruleId
                   - fieldPath
-              description: 'What the completeness module still reports: where, and by which rule'
+              description: 'What the completeness check still reports: where, and by which rule'
           required:
             - declarationType
             - statementDate

@@ -1,7 +1,7 @@
 import type { OutputViolation } from './task.js';
 
 /**
- * The tagged-text grammar a streamed answer is written in (ADR-0019). The provider port streams
+ * The tagged-text grammar a streamed answer is written in (ADR-019). The provider port streams
  * text only, so a task that needs structure while streaming has the model write it inline:
  *
  *     <block>Plain-language paragraph. <cite ids="id1,id2"/> <link section="…" field="…"/></block>

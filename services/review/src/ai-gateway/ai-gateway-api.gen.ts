@@ -35,7 +35,7 @@ export interface paths {
         put?: never;
         /**
          * Stream an answer (server-sent events: text deltas, then the job with its validated output)
-         * @description Runs an `answer`-mode input of `answer-declarant-question` as a job, in the request. Events: `delta` {text}, the answer's prose as the model writes it, provisional until the end; then either `final` {job}, the succeeded job, whose output replaces the deltas (an answer that failed its checks arrives as `declined: true` with no blocks), or `error` {reason}, the job failed. A `: ping` comment is sent every 15 s. The Idempotency-Key names the job like the task endpoint's: a finished key returns its `final` (or `error`) only; an equal request with a succeeded job is served from it as one `delta` and its `final`.
+         * @description Runs an `answer`-mode input of `answer-declarant-question` as a job, in the request. Events: `delta` {text}, the answer's prose as the model writes it, provisional until the end; then either `final` {job}, the succeeded job, whose output replaces the deltas (an answer that failed its checks arrives as `declined: true` with no blocks), or `error` {reason}, the job failed. A caller that disconnects mid-stream fails the job with reason `provider`, as the contract has no reason for it. A `: ping` comment is sent every 15 s. The Idempotency-Key names the job like the task endpoint's: a finished key returns its `final` (or `error`) only; an equal request with a succeeded job is served from it as one `delta` and its `final`.
          */
         post: operations["streamAnswerDeclarantQuestion"];
         delete?: never;
@@ -460,7 +460,7 @@ export interface components {
             mode: "answer" | "hints";
             /** @enum {string} */
             language: "en" | "sw";
-            /** @description The declarant’s question; null in hints mode */
+            /** @description The declarant's question; null in hints mode */
             question: string | null;
             /** @description Never contains amounts, names, identifiers or descriptions */
             context: {
@@ -472,7 +472,7 @@ export interface components {
                 };
                 /** @description The section the declarant is on */
                 sectionKey: string | null;
-                /** @description What the completeness module still reports: where, and by which rule */
+                /** @description What the completeness check still reports: where, and by which rule */
                 residuals: {
                     /** @description bio, household, other, or statement:<personKey> (declarations.yaml) */
                     sectionKey: string;
@@ -724,7 +724,7 @@ export interface operations {
                     "application/json": components["schemas"]["Job"];
                 };
             };
-            /** @description Request failed validation, Idempotency-Key missing or not a UUID, or X-Acting-Tenant missing */
+            /** @description Request failed validation, an input the task streams (`task-streamed`: `answer`-mode `answer-declarant-question`, sent to its stream endpoint), Idempotency-Key missing or not a UUID, or X-Acting-Tenant missing */
             400: {
                 headers: {
                     [name: string]: unknown;
