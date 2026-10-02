@@ -67,7 +67,7 @@ export function ChatPanel({
           />
         ) : null}
         <div className="flex items-center gap-2.5">
-          <span className="grid size-[30px] shrink-0 place-items-center rounded-[9px] bg-ai-subtle text-ai [&_svg]:size-4">
+          <span className="grid size-[30px] shrink-0 place-items-center rounded-tile bg-ai-subtle text-ai [&_svg]:size-4">
             <Icon icon={SparklesIcon} />
           </span>
           <h2 id={titleId} className="min-w-0 flex-1 truncate text-base font-semibold">

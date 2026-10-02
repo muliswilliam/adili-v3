@@ -223,7 +223,7 @@ function ReviewedFlag({ flag, currentVersion }: { flag: CaseFlag; currentVersion
       id={flagAnchorId(flag.id)}
       data-flag-id={flag.id}
       data-reviewed="true"
-      className={cn(card, 'bg-muted/30 shadow-[0_0_0_1px_var(--border)] before:bg-success')}
+      className={cn(card, 'bg-muted/30 shadow-card-flat before:bg-success')}
     >
       <div className="flex flex-wrap items-center gap-2">
         <Icon icon={Tick02Icon} strokeWidth={2.4} className="text-success" />
@@ -254,11 +254,7 @@ function ClosedFlag({ flag }: { flag: CaseFlag }) {
     <li
       id={flagAnchorId(flag.id)}
       data-flag-id={flag.id}
-      className={cn(
-        card,
-        'bg-muted/30 opacity-85 shadow-[0_0_0_1px_var(--border)]',
-        EDGE[flag.severity],
-      )}
+      className={cn(card, 'bg-muted/30 opacity-85 shadow-card-flat', EDGE[flag.severity])}
     >
       <div className="flex flex-wrap items-center gap-2">
         <SeverityBadge severity={flag.severity} />

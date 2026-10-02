@@ -276,15 +276,7 @@ function Fields({ rows }: { rows: [string, ReactNode][] }) {
   );
 }
 
-function Person({
-  name,
-  kind,
-  lines,
-}: {
-  name: string;
-  kind: PersonKind;
-  lines: string[];
-}) {
+function Person({ name, kind, lines }: { name: string; kind: PersonKind; lines: string[] }) {
   return (
     <li className="flex items-center gap-2.5">
       <Avatar name={name} tone={TONE[kind]} className="size-7 text-[11.5px]" />
@@ -314,7 +306,7 @@ function AttachmentChip({
     </>
   );
   const chip =
-    'inline-flex h-6 max-w-full items-center gap-[5px] rounded-[7px] bg-muted px-2 text-xs font-medium text-secondary-foreground [&_svg]:size-3 [&_svg]:shrink-0';
+    'inline-flex h-6 max-w-full items-center gap-[5px] rounded-chip bg-muted px-2 text-xs font-medium text-secondary-foreground [&_svg]:size-3 [&_svg]:shrink-0';
   if (!onAttachment) return <span className={chip}>{body}</span>;
   return (
     <button
@@ -366,7 +358,7 @@ function ItemRow({
           'bg-brand-faint shadow-[inset_3px_0_0_var(--color-brand)] motion-safe:animate-highlight',
       )}
     >
-      <span className="grid size-8 place-items-center rounded-[9px] bg-muted text-secondary-foreground">
+      <span className="grid size-8 place-items-center rounded-tile bg-muted text-secondary-foreground">
         <Icon icon={itemIcon(category, item)} className="size-4" />
       </span>
       <div className="min-w-0">
@@ -432,7 +424,7 @@ function StatementCard({
       id={sectionAnchorId(sectionKey, props.anchorPrefix)}
       data-highlighted={highlighted || undefined}
       className={cn(
-        'mt-3 scroll-mt-32 overflow-hidden rounded-[14px] shadow-card',
+        'mt-3 scroll-mt-32 overflow-hidden rounded-item shadow-card',
         highlighted && 'motion-safe:animate-ring-pulse',
       )}
     >
