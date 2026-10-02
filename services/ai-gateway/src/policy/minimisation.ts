@@ -8,9 +8,10 @@
  * field names for names, debtors and creditors, ID numbers, KRA PINs, personnel file numbers,
  * parcel numbers, vehicle registrations, file names, phones, emails and addresses) and by their
  * shape anywhere in free text. Values found in fields are also replaced wherever they recur in
- * free text. Amounts, dates and item descriptions are left alone: the tasks need them, and the
- * classification gate decides whether they may leave. Over-matching is safe, since every token
- * is restored; it only hides a word from the model.
+ * free text, in any case and, for codes, with or without spaces and dashes; the token stands for
+ * the value as its field holds it. Amounts, dates and item descriptions are left alone: the tasks
+ * need them, and the classification gate decides whether they may leave. Over-matching is safe,
+ * since every token is restored; it only hides a word from the model.
  *
  * A token in the output that the input never had (the model invented or garbled one) cannot be
  * restored: `restore` throws `UnknownTokenError`, and the job fails as a validation failure
@@ -182,13 +183,15 @@ export function minimise<T>(input: T): Minimised<T> {
     return token;
   };
 
-  const knownPattern = alternation([...known.keys()]);
+  const lookup = knownLookup(known);
+  const knownPattern = alternation(known);
   const replaceText = (text: string): string => {
     let result = text.replace(TOKEN, (literal) => tokenFor('LITERAL', literal));
     if (knownPattern) {
-      result = result.replace(knownPattern, (value) =>
-        tokenFor(known.get(value) ?? 'PERSON', value),
-      );
+      result = result.replace(knownPattern, (match) => {
+        const found = lookup(match);
+        return found ? tokenFor(found.cls, found.value) : match;
+      });
     }
     for (const { cls, pattern, group } of PATTERNS) {
       result = result.replace(pattern, (match, ...groups: unknown[]) => {
@@ -259,12 +262,60 @@ function fieldClass(key: string): IdentifierClass | undefined {
   return NAME_FIELDS.has(key) ? 'PERSON' : FIELD_CLASSES.get(key);
 }
 
-/** One pattern matching any of `values` as a whole word, longest first so it wins. */
-function alternation(values: string[]): RegExp | undefined {
-  if (values.length === 0) return undefined;
-  const sorted = [...values].sort((a, b) => b.length - a.length || (a < b ? -1 : 1));
-  const escaped = sorted.map((value) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
-  return new RegExp(`${EDGE_BEFORE}(?:${escaped.join('|')})${EDGE_AFTER}`, 'gu');
+/**
+ * Classes whose values are codes people write with or without spaces and dashes (`2876 5432`,
+ * `PF 2003 001184`); a known one is found in any of those forms.
+ */
+const COMPACT_CLASSES: ReadonlySet<IdentifierClass> = new Set([
+  'ID',
+  'KRA_PIN',
+  'PASSPORT',
+  'PHONE',
+  'FILE_NUMBER',
+  'REGISTRATION',
+]);
+const SEPARATORS = /[\s-]+/gu;
+
+/** The form a known value is matched in: any case, and for codes without separators. */
+function normalised(value: string, compact: boolean): string {
+  const lower = value.toLowerCase();
+  return compact ? lower.replace(SEPARATORS, '') : lower;
+}
+
+/**
+ * Finds the known value (as written in its field) and class behind a match of the known-values
+ * pattern; the first value collected wins when two differ only in case or separators.
+ */
+function knownLookup(
+  known: ReadonlyMap<string, IdentifierClass>,
+): (match: string) => { value: string; cls: IdentifierClass } | undefined {
+  const exact = new Map<string, { value: string; cls: IdentifierClass }>();
+  const compact = new Map<string, { value: string; cls: IdentifierClass }>();
+  for (const [value, cls] of known) {
+    const isCompact = COMPACT_CLASSES.has(cls);
+    const map = isCompact ? compact : exact;
+    const key = normalised(value, isCompact);
+    if (!map.has(key)) map.set(key, { value, cls });
+  }
+  return (match) => exact.get(normalised(match, false)) ?? compact.get(normalised(match, true));
+}
+
+/**
+ * One case-insensitive pattern matching any known value as a whole word, longest first so it
+ * wins; a code also matches with spaces or dashes between its characters.
+ */
+function alternation(known: ReadonlyMap<string, IdentifierClass>): RegExp | undefined {
+  if (known.size === 0) return undefined;
+  const sorted = [...known].sort(([a], [b]) => b.length - a.length || (a < b ? -1 : a > b ? 1 : 0));
+  const escape = (text: string): string => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const alternatives = sorted.map(([value, cls]) =>
+    COMPACT_CLASSES.has(cls)
+      ? Array.from(value.replace(SEPARATORS, ''))
+          .map(escape)
+          .join(String.raw`[\s-]*`)
+      : escape(value),
+  );
+  return new RegExp(`${EDGE_BEFORE}(?:${alternatives.join('|')})${EDGE_AFTER}`, 'giu');
 }
 
 /** A copy of `value` with `map` applied to every string outside the untouched fields. */

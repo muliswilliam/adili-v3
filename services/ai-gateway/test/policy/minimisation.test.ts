@@ -126,6 +126,34 @@ describe('minimise (spec 07c S3)', () => {
     expect(minimise({ note: text }).input.note).toBe(text);
   });
 
+  it('finds a known name in any case, under the same token (review M1)', () => {
+    const minimised = minimise({
+      surname: 'Wanjiru',
+      note: "WANJIRU said wanjiru-s plot is Wanjiru's.",
+    });
+
+    expect(minimised.input).toEqual({
+      surname: '[[PERSON_1]]',
+      note: "[[PERSON_1]] said [[PERSON_1]]-s plot is [[PERSON_1]]'s.",
+    });
+    expect(minimised.restore({ text: 'By [[PERSON_1]].' })).toEqual({ text: 'By Wanjiru.' });
+  });
+
+  it('finds a known ID number written with spaces or dashes (review M1)', () => {
+    const minimised = minimise({
+      nationalId: '28765432',
+      kraPin: 'A002345678Z',
+      note: 'ID 2876 5432, also 28-765-432; PIN a002 345 678z.',
+    });
+
+    expect(minimised.input).toEqual({
+      kraPin: '[[KRA_PIN_1]]',
+      nationalId: '[[ID_1]]',
+      note: 'ID [[ID_1]], also [[ID_1]]; PIN [[KRA_PIN_1]].',
+    });
+    expect(minimised.restore({ text: '[[ID_1]]' })).toEqual({ text: '28765432' });
+  });
+
   it('refuses to restore a token the input never had', () => {
     const minimised = minimise({ surname: 'Otieno' });
 
