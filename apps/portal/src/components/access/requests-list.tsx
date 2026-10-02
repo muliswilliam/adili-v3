@@ -30,8 +30,8 @@ import { useState } from 'react';
 
 import { day, PACKAGE_COPY, REQUESTS_COPY as COPY } from '../../access/copy';
 import { WITHDRAWABLE } from '../../access/progress';
-import { getMyPackageDownload } from '../../server/access-requests';
-import type { RequestSummary } from '../../server/access-requests.server';
+import type { PackageDownloadResult, RequestSummary } from '../../server/access-requests.server';
+import type { Unauthenticated } from '../../server/results';
 import { downloadFrom } from '../download';
 import { RequestStatusBadge, RequestStatusTile } from './request-status';
 
@@ -154,6 +154,8 @@ function DecisionSummary({ decision }: { decision: NonNullable<RequestSummary['d
 /** What a row can do from the list: withdraw an open request, reload when one moved on. */
 export interface RowActions {
   onWithdraw: (request: RequestSummary) => void;
+  /** A download link for the applicant's own package (documents), as the request page gets it. */
+  download: (documentId: string) => Promise<PackageDownloadResult | Unauthenticated>;
   /** The list is stale (a download window closed meanwhile): read it again. */
   onChanged: () => void;
 }
@@ -166,12 +168,12 @@ function RowDownload({
   request,
   documentId,
   expiresAt,
-  onChanged,
+  actions,
 }: {
   request: RequestSummary;
   documentId: string;
   expiresAt: string;
-  onChanged: () => void;
+  actions: RowActions;
 }) {
   const { toast } = useToast();
   const [pending, setPending] = useState(false);
@@ -179,13 +181,13 @@ function RowDownload({
 
   async function download() {
     setPending(true);
-    const link = await getMyPackageDownload({ data: { documentId } }).catch(() => null);
+    const link = await actions.download(documentId).catch(() => null);
     setPending(false);
     if (link?.status === 'ok') {
       downloadFrom(link.downloadUrl);
       toast({ title: PACKAGE_COPY.downloadStarted });
     } else if (link?.status === 'window-closed') {
-      onChanged();
+      actions.onChanged();
     } else {
       toast({ title: PACKAGE_COPY.downloadFailed, urgency: 'assertive' });
     }
@@ -236,7 +238,7 @@ function RowActionsBar({
           request={request}
           documentId={documentId}
           expiresAt={expiresAt}
-          onChanged={actions.onChanged}
+          actions={actions}
         />
       ) : null}
       {withdrawable ? (

@@ -5,7 +5,6 @@ import type { ReactElement } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { STATUSES } from '../../access/copy';
-import { getMyPackageDownload } from '../../server/access-requests';
 import { downloadFrom } from '../download';
 import { RequestsList } from './requests-list';
 import { IDS, NOW, seededRequests, toSummary } from './testing';
@@ -13,11 +12,10 @@ import { IDS, NOW, seededRequests, toSummary } from './testing';
 vi.mock('@tanstack/react-router', async () =>
   (await import('../declaration/testing-mocks')).routerMock(),
 );
-vi.mock('../../server/access-requests', () => ({ getMyPackageDownload: vi.fn() }));
 vi.mock('../download', async () => (await import('../declaration/testing-mocks')).downloadMock());
 
-const packageDownload = vi.mocked(getMyPackageDownload);
-const ACTIONS = { onWithdraw: vi.fn(), onChanged: vi.fn() };
+const ACTIONS = { onWithdraw: vi.fn(), onChanged: vi.fn(), download: vi.fn() };
+const packageDownload = ACTIONS.download;
 
 afterEach(() => {
   vi.clearAllMocks();
@@ -191,9 +189,7 @@ describe('RequestsList (S17)', () => {
       await Promise.resolve();
     });
 
-    expect(packageDownload).toHaveBeenCalledWith({
-      data: { documentId: granted.packageDocumentId },
-    });
+    expect(packageDownload).toHaveBeenCalledWith(granted.packageDocumentId);
     expect(downloadFrom).toHaveBeenCalledWith('/package.pdf');
     expect(screen.getByText('Download started. Each download is recorded.')).toBeTruthy();
   });

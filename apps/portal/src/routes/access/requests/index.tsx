@@ -9,7 +9,11 @@ import { NotApplicantNotice, UnavailableNotice } from '../../../components/acces
 import { NewRequestButton, RequestsList } from '../../../components/access/requests-list';
 import { WithdrawDialog } from '../../../components/access/withdraw-dialog';
 import { signInRedirect } from '../../../components/declaration/route-helpers';
-import { getMyAccessRequests, withdrawMyAccessRequest } from '../../../server/access-requests';
+import {
+  getMyAccessRequests,
+  getMyPackageDownload,
+  withdrawMyAccessRequest,
+} from '../../../server/access-requests';
 import type { RequestSummary } from '../../../server/access-requests.server';
 
 /**
@@ -64,6 +68,7 @@ function MyRequests() {
           }}
           actions={{
             onWithdraw: setWithdrawing,
+            download: (documentId) => getMyPackageDownload({ data: { documentId } }),
             onChanged: () => void router.invalidate(),
           }}
         />
