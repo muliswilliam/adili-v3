@@ -61,7 +61,7 @@ export const draftClarificationWithAi = createServerFn({ method: 'POST' })
         .array(
           z.object({
             sectionKey: nullable,
-            personKey: nullable,
+            personKey: z.string().max(80).nullable(),
             itemId: z.uuid().nullable(),
             requirement: z.enum(['provide-omitted', 'explain-discrepancy', 'correct']).nullable(),
           }),

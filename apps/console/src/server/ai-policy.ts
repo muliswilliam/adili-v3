@@ -68,8 +68,9 @@ export const setGatePolicy = createServerFn({ method: 'POST' })
 
 export const setTenantBudgetInput = z.object({
   tenant: commissionSlug,
-  monthlyTokens: z.number().int().min(0),
-  perMinute: z.number().int().min(1),
+  // Bounds as the contract's BudgetInput has them.
+  monthlyTokens: z.number().int().min(0).max(Number.MAX_SAFE_INTEGER),
+  perMinute: z.number().int().min(1).max(2_147_483_647),
 });
 
 /** Sets a Commission's monthly token budget and per-minute limit. */

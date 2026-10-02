@@ -60,9 +60,10 @@ export const raiseFollowUpClarification = createServerFn({ method: 'POST' })
   );
 
 /** review.yaml `ClarificationItemInput`, as the composer sends it. */
-const item = z.object({
-  sectionKey: z.string().nullable(),
-  personKey: z.string().nullable(),
+export const clarificationItemInput = z.object({
+  // Bounds as `CopilotDraftInput.itemRefs` has them; review checks the keys' shape.
+  sectionKey: z.string().max(100).nullable(),
+  personKey: z.string().max(80).nullable(),
   itemId: z.uuid().nullable(),
   requirement: z.enum(['provide-omitted', 'explain-discrepancy', 'correct']),
   text: z.string().trim().min(1).max(1000),
@@ -74,7 +75,7 @@ const composed = z.object({
   caseId: id,
   /** The draft being edited, or null for a new one. */
   clarificationId: id.nullable(),
-  items: z.array(item).max(50),
+  items: z.array(clarificationItemInput).max(50),
   /** The letter's opening paragraph (Draft with AI's), or null for none. */
   opening: z.string().max(800).nullable(),
   /** The Draft with AI job that drafted the opening paragraph, or null. */
