@@ -1028,7 +1028,7 @@ export interface paths {
         put?: never;
         /**
          * Draft clarification items from selected flags and items (assignee); nothing is issued
-         * @description Builds the ai-gateway `draft-clarification` input from the case's current version (item context) and flags, in the requested language, and waits up to 10 seconds for the job. A draft not ready by then answers 202 and is polled with `getCopilotDraft`. Drafts are kept for 24 hours and never become clarifications: the console inserts the items into the composer, and the clarification endpoints issue them. A retry with the same Idempotency-Key answers the same draft. Audited read (`review.copilot.drafted`).
+         * @description Builds the ai-gateway `draft-clarification` input from the case's current version (item context) and flags, in the requested language, and waits up to 10 seconds for the job. A draft not ready by then answers 202 and is polled with `getCopilotDraft`. Drafts are kept for 24 hours and never become clarifications: the console inserts the items into the composer, and the clarification endpoints issue them. A retry with the same Idempotency-Key answers the same draft as it is now (never a stored replay: the drafted text is kept only encrypted), and 409 `draft-expired` once its 24 hours are over. Audited read (`review.copilot.drafted`).
          */
         post: operations["draftClarificationWithAi"];
         delete?: never;
@@ -1176,7 +1176,7 @@ export interface components {
             forVersionId: string | null;
             /** Format: date-time */
             generatedAt: string | null;
-            /** @description The ai-gateway's job reason (`validation`, `budget`, `provider`, ...), `policy` when not enabled, `rejected` / `ai-gateway-unavailable`, or `declarations-unavailable` when the declaration could not be read */
+            /** @description The ai-gateway's job reason (`validation`, `budget`, `provider`, ...; `validation` also when an output breaks the task's contract), `policy` when not enabled, `rejected` / `ai-gateway-unavailable`, `declarations-unavailable` when the declaration could not be read, `key-service-unavailable` when an output could not be encrypted, or `internal-error` */
             failureReason: string | null;
             /** @description ai-gateway SummarizeDeclarationOutput (label, overview, changesSincePrevious, sections, worthAttention) */
             summary: {
@@ -1192,7 +1192,7 @@ export interface components {
                 /** Format: uuid */
                 explain: string | null;
             };
-            /** @description The caller's own ratings of the outputs shown (`jobs`) */
+            /** @description The ratings of the outputs shown (`jobs`) by the case's assignee, who rates them; read-only to the Commission's other reviewers and supervisors. Empty while the case has no assignee */
             feedback: {
                 /** Format: uuid */
                 jobId: string;
@@ -1463,7 +1463,7 @@ export interface components {
             clarificationReference: string;
             /** @description Printed before the items; null when the letter has no opening paragraph */
             opening: string | null;
-            /** @description Some of the letter's text (its opening or an item) was drafted with AI and approved by the reviewer who issued it (ADR-007); the letter says so. */
+            /** @description Some of the letter's text (its opening or an item) was drafted with AI and approved by the reviewer who issued it (ADR-007); the letter says so. Once a save of the clarification names a Draft with AI job, it stays true, even if a later save leaves the job out. */
             aiAssisted: boolean;
             items: {
                 label: string;
@@ -2393,7 +2393,7 @@ export interface operations {
                     "application/json": components["schemas"]["Clarification"];
                 };
             };
-            /** @description Body failed validation, or problem type `ai-draft-not-on-case`: an `aiJobId` or `openingAiJobId` that names no ready Draft with AI of the case */
+            /** @description Body failed validation, or problem type `ai-draft-not-on-case`: an `aiJobId` or `openingAiJobId` the clarification does not already name that names no ready Draft with AI the caller asked for on the case (one whose 24 hours are over still counts: only its text is purged) */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -2456,7 +2456,7 @@ export interface operations {
                     "application/json": components["schemas"]["Clarification"];
                 };
             };
-            /** @description Body failed validation, or problem type `ai-draft-not-on-case`: an `aiJobId` or `openingAiJobId` that names no ready Draft with AI of the case */
+            /** @description Body failed validation, or problem type `ai-draft-not-on-case`: an `aiJobId` or `openingAiJobId` the clarification does not already name that names no ready Draft with AI the caller asked for on the case (one whose 24 hours are over still counts: only its text is purged) */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -4020,7 +4020,7 @@ export interface operations {
             };
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
-            /** @description AI not enabled for this Commission (problem type `ai-not-enabled`), or a request with the same Idempotency-Key is still running (`idempotency-key-in-use`) */
+            /** @description AI not enabled for this Commission (problem type `ai-not-enabled`), a request with the same Idempotency-Key is still running (`idempotency-key-in-use`), or the draft of that key is past its 24 hours (`draft-expired`) */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -4157,7 +4157,7 @@ export interface operations {
             };
             404: components["responses"]["NotFound"];
             /** @description Problem type `ai-gateway-unavailable`; the status could not be read */
-            502: {
+            503: {
                 headers: {
                     [name: string]: unknown;
                 };
