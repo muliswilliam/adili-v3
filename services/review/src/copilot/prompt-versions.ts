@@ -8,5 +8,5 @@ import type { ReviewTask } from '../ai-gateway/ai-gateway-client.js';
 export const COPILOT_PROMPT_VERSIONS: Readonly<Record<ReviewTask, number>> = {
   'summarize-declaration': 1,
   'explain-flags': 1,
-  'draft-clarification': 1,
+  'draft-clarification': 2,
 };

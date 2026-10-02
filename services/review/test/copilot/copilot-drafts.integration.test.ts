@@ -98,13 +98,13 @@ describe('review copilot drafts', () => {
     label: {
       aiAssisted: true,
       task: 'draft-clarification',
-      promptVersion: 1,
+      promptVersion: 2,
       provider: 'replay',
       model: 'claude-opus-5-5',
       generatedAt: '2028-01-20T08:05:00.000Z',
       disclaimer: 'Viashiria, si matokeo. Afisa aliyetajwa ndiye anayeamua.',
     },
-    opening: 'Tume inaomba ufafanuzi.',
+    opening: 'Ombi hili linahusu kiwanja cha Karen Ridge.',
     items: input.selections.map((selection) => ({
       ref: selection.ref,
       requirement: selection.requirement ?? 'explain-discrepancy',
@@ -159,7 +159,7 @@ describe('review copilot drafts', () => {
       status: 'ready',
       jobId: api.ai.jobsOf('draft-clarification')[0]?.id,
       label: expect.objectContaining({ aiAssisted: true, task: 'draft-clarification' }) as object,
-      opening: 'Tume inaomba ufafanuzi.',
+      opening: 'Ombi hili linahusu kiwanja cha Karen Ridge.',
       items: [
         {
           sectionKey: 'statement:officer',
@@ -182,6 +182,8 @@ describe('review copilot drafts', () => {
         tenant: 'psc',
         dataClass: 'synthetic',
         subjectRef: `review-case:${caseId}`,
+        // v2: the opening is a lead-in to the letter's own introduction, not a second one.
+        promptVersion: 2,
         input: {
           kind: 'draft-clarification',
           commissionName: expect.any(String) as string,
@@ -308,7 +310,7 @@ describe('review copilot drafts', () => {
     expect(later.statusCode).toBe(200);
     expect(later.json()).toMatchObject({
       status: 'ready',
-      opening: 'Tume inaomba ufafanuzi.',
+      opening: 'Ombi hili linahusu kiwanja cha Karen Ridge.',
       items: [{ itemId: raised.id, text: DRAFTED, aiJobId: job.id }],
     });
     const [row] = await draftRows();
