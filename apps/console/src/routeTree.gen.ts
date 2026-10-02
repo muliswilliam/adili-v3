@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AccessRouteRouteImport } from './routes/access/route'
+import { Route as AiPolicyRouteRouteImport } from './routes/ai-policy/route'
 import { Route as CommissionsRouteRouteImport } from './routes/commissions/route'
 import { Route as LeaRouteRouteImport } from './routes/lea/route'
 import { Route as ObligationsRouteRouteImport } from './routes/obligations/route'
@@ -21,6 +22,7 @@ import { Route as AccessIndexRouteImport } from './routes/access/index'
 import { Route as AccessCertifiedCopiesRouteRouteImport } from './routes/access/certified-copies/route'
 import { Route as AccessLeaRequestsRouteRouteImport } from './routes/access/lea-requests/route'
 import { Route as AccessRequestsRouteRouteImport } from './routes/access/requests/route'
+import { Route as AiPolicyIndexRouteImport } from './routes/ai-policy/index'
 import { Route as AuthCallbackRouteImport } from './routes/auth/callback'
 import { Route as AuthLoginRouteImport } from './routes/auth/login'
 import { Route as AuthLogoutRouteImport } from './routes/auth/logout'
@@ -71,6 +73,7 @@ import { Route as AccessRequestsRequestIdDecideRouteImport } from './routes/acce
 import { Route as CommissionsSlugObligationsIndexRouteImport } from './routes/commissions/$slug/obligations/index'
 import { Route as CommissionsSlugRecordsIndexRouteImport } from './routes/commissions/$slug/records/index'
 import { Route as CommissionsSlugRecordsRecordIdRouteImport } from './routes/commissions/$slug/records/$recordId'
+import { Route as ReviewCasesCaseIdIndexRouteImport } from './routes/review/cases.$caseId.index'
 import { Route as RosterImportsImportIdIndexRouteImport } from './routes/roster/imports/$importId/index'
 import { Route as RosterImportsImportIdReportDotcsvRouteImport } from './routes/roster/imports/$importId/report[.]csv'
 import { Route as CommissionsSlugImportsImportIdIndexRouteImport } from './routes/commissions/$slug/imports/$importId/index'
@@ -85,6 +88,11 @@ const IndexRoute = IndexRouteImport.update({
 const AccessRouteRoute = AccessRouteRouteImport.update({
   id: '/access',
   path: '/access',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AiPolicyRouteRoute = AiPolicyRouteRouteImport.update({
+  id: '/ai-policy',
+  path: '/ai-policy',
   getParentRoute: () => rootRouteImport,
 } as any)
 const CommissionsRouteRoute = CommissionsRouteRouteImport.update({
@@ -137,6 +145,11 @@ const AccessRequestsRouteRoute = AccessRequestsRouteRouteImport.update({
   id: '/requests',
   path: '/requests',
   getParentRoute: () => AccessRouteRoute,
+} as any)
+const AiPolicyIndexRoute = AiPolicyIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AiPolicyRouteRoute,
 } as any)
 const AuthCallbackRoute = AuthCallbackRouteImport.update({
   id: '/auth/callback',
@@ -407,6 +420,11 @@ const CommissionsSlugRecordsRecordIdRoute =
     path: '/$recordId',
     getParentRoute: () => CommissionsSlugRecordsRouteRoute,
   } as any)
+const ReviewCasesCaseIdIndexRoute = ReviewCasesCaseIdIndexRouteImport.update({
+  id: '/cases/$caseId/',
+  path: '/cases/$caseId/',
+  getParentRoute: () => ReviewRouteRoute,
+} as any)
 const RosterImportsImportIdIndexRoute =
   RosterImportsImportIdIndexRouteImport.update({
     id: '/$importId/',
@@ -441,6 +459,7 @@ const ReviewCasesCaseIdClarificationsClarificationIdRoute =
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/access': typeof AccessRouteRouteWithChildren
+  '/ai-policy': typeof AiPolicyRouteRouteWithChildren
   '/commissions': typeof CommissionsRouteRouteWithChildren
   '/lea': typeof LeaRouteRouteWithChildren
   '/obligations': typeof ObligationsRouteRouteWithChildren
@@ -466,6 +485,7 @@ export interface FileRoutesByFullPath {
   '/roster/import': typeof RosterImportRoute
   '/roster/template': typeof RosterTemplateRoute
   '/access/': typeof AccessIndexRoute
+  '/ai-policy/': typeof AiPolicyIndexRoute
   '/commissions/': typeof CommissionsIndexRoute
   '/lea/': typeof LeaIndexRoute
   '/obligations/': typeof ObligationsIndexRoute
@@ -502,6 +522,7 @@ export interface FileRoutesByFullPath {
   '/access/requests/$requestId/': typeof AccessRequestsRequestIdIndexRoute
   '/commissions/$slug/obligations/': typeof CommissionsSlugObligationsIndexRoute
   '/commissions/$slug/records/': typeof CommissionsSlugRecordsIndexRoute
+  '/review/cases/$caseId/': typeof ReviewCasesCaseIdIndexRoute
   '/roster/imports/$importId/': typeof RosterImportsImportIdIndexRoute
   '/commissions/$slug/imports/$importId/report.csv': typeof CommissionsSlugImportsImportIdReportDotcsvRoute
   '/review/cases/$caseId/clarifications/$clarificationId': typeof ReviewCasesCaseIdClarificationsClarificationIdRoute
@@ -519,6 +540,7 @@ export interface FileRoutesByTo {
   '/roster/import': typeof RosterImportRoute
   '/roster/template': typeof RosterTemplateRoute
   '/access': typeof AccessIndexRoute
+  '/ai-policy': typeof AiPolicyIndexRoute
   '/commissions': typeof CommissionsIndexRoute
   '/lea': typeof LeaIndexRoute
   '/obligations': typeof ObligationsIndexRoute
@@ -551,6 +573,7 @@ export interface FileRoutesByTo {
   '/access/requests/$requestId': typeof AccessRequestsRequestIdIndexRoute
   '/commissions/$slug/obligations': typeof CommissionsSlugObligationsIndexRoute
   '/commissions/$slug/records': typeof CommissionsSlugRecordsIndexRoute
+  '/review/cases/$caseId': typeof ReviewCasesCaseIdIndexRoute
   '/roster/imports/$importId': typeof RosterImportsImportIdIndexRoute
   '/commissions/$slug/imports/$importId/report.csv': typeof CommissionsSlugImportsImportIdReportDotcsvRoute
   '/review/cases/$caseId/clarifications/$clarificationId': typeof ReviewCasesCaseIdClarificationsClarificationIdRoute
@@ -560,6 +583,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/access': typeof AccessRouteRouteWithChildren
+  '/ai-policy': typeof AiPolicyRouteRouteWithChildren
   '/commissions': typeof CommissionsRouteRouteWithChildren
   '/lea': typeof LeaRouteRouteWithChildren
   '/obligations': typeof ObligationsRouteRouteWithChildren
@@ -585,6 +609,7 @@ export interface FileRoutesById {
   '/roster/import': typeof RosterImportRoute
   '/roster/template': typeof RosterTemplateRoute
   '/access/': typeof AccessIndexRoute
+  '/ai-policy/': typeof AiPolicyIndexRoute
   '/commissions/': typeof CommissionsIndexRoute
   '/lea/': typeof LeaIndexRoute
   '/obligations/': typeof ObligationsIndexRoute
@@ -621,6 +646,7 @@ export interface FileRoutesById {
   '/access/requests/$requestId/': typeof AccessRequestsRequestIdIndexRoute
   '/commissions/$slug/obligations/': typeof CommissionsSlugObligationsIndexRoute
   '/commissions/$slug/records/': typeof CommissionsSlugRecordsIndexRoute
+  '/review/cases/$caseId/': typeof ReviewCasesCaseIdIndexRoute
   '/roster/imports/$importId/': typeof RosterImportsImportIdIndexRoute
   '/commissions/$slug/imports/$importId/report.csv': typeof CommissionsSlugImportsImportIdReportDotcsvRoute
   '/review/cases/$caseId/clarifications/$clarificationId': typeof ReviewCasesCaseIdClarificationsClarificationIdRoute
@@ -631,6 +657,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/access'
+    | '/ai-policy'
     | '/commissions'
     | '/lea'
     | '/obligations'
@@ -656,6 +683,7 @@ export interface FileRouteTypes {
     | '/roster/import'
     | '/roster/template'
     | '/access/'
+    | '/ai-policy/'
     | '/commissions/'
     | '/lea/'
     | '/obligations/'
@@ -692,6 +720,7 @@ export interface FileRouteTypes {
     | '/access/requests/$requestId/'
     | '/commissions/$slug/obligations/'
     | '/commissions/$slug/records/'
+    | '/review/cases/$caseId/'
     | '/roster/imports/$importId/'
     | '/commissions/$slug/imports/$importId/report.csv'
     | '/review/cases/$caseId/clarifications/$clarificationId'
@@ -709,6 +738,7 @@ export interface FileRouteTypes {
     | '/roster/import'
     | '/roster/template'
     | '/access'
+    | '/ai-policy'
     | '/commissions'
     | '/lea'
     | '/obligations'
@@ -741,6 +771,7 @@ export interface FileRouteTypes {
     | '/access/requests/$requestId'
     | '/commissions/$slug/obligations'
     | '/commissions/$slug/records'
+    | '/review/cases/$caseId'
     | '/roster/imports/$importId'
     | '/commissions/$slug/imports/$importId/report.csv'
     | '/review/cases/$caseId/clarifications/$clarificationId'
@@ -749,6 +780,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/access'
+    | '/ai-policy'
     | '/commissions'
     | '/lea'
     | '/obligations'
@@ -774,6 +806,7 @@ export interface FileRouteTypes {
     | '/roster/import'
     | '/roster/template'
     | '/access/'
+    | '/ai-policy/'
     | '/commissions/'
     | '/lea/'
     | '/obligations/'
@@ -810,6 +843,7 @@ export interface FileRouteTypes {
     | '/access/requests/$requestId/'
     | '/commissions/$slug/obligations/'
     | '/commissions/$slug/records/'
+    | '/review/cases/$caseId/'
     | '/roster/imports/$importId/'
     | '/commissions/$slug/imports/$importId/report.csv'
     | '/review/cases/$caseId/clarifications/$clarificationId'
@@ -819,6 +853,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AccessRouteRoute: typeof AccessRouteRouteWithChildren
+  AiPolicyRouteRoute: typeof AiPolicyRouteRouteWithChildren
   CommissionsRouteRoute: typeof CommissionsRouteRouteWithChildren
   LeaRouteRoute: typeof LeaRouteRouteWithChildren
   ObligationsRouteRoute: typeof ObligationsRouteRouteWithChildren
@@ -847,6 +882,13 @@ declare module '@tanstack/react-router' {
       path: '/access'
       fullPath: '/access'
       preLoaderRoute: typeof AccessRouteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/ai-policy': {
+      id: '/ai-policy'
+      path: '/ai-policy'
+      fullPath: '/ai-policy'
+      preLoaderRoute: typeof AiPolicyRouteRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/commissions': {
@@ -918,6 +960,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/access/requests'
       preLoaderRoute: typeof AccessRequestsRouteRouteImport
       parentRoute: typeof AccessRouteRoute
+    }
+    '/ai-policy/': {
+      id: '/ai-policy/'
+      path: '/'
+      fullPath: '/ai-policy/'
+      preLoaderRoute: typeof AiPolicyIndexRouteImport
+      parentRoute: typeof AiPolicyRouteRoute
     }
     '/auth/callback': {
       id: '/auth/callback'
@@ -1269,6 +1318,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CommissionsSlugRecordsRecordIdRouteImport
       parentRoute: typeof CommissionsSlugRecordsRouteRoute
     }
+    '/review/cases/$caseId/': {
+      id: '/review/cases/$caseId/'
+      path: '/cases/$caseId'
+      fullPath: '/review/cases/$caseId/'
+      preLoaderRoute: typeof ReviewCasesCaseIdIndexRouteImport
+      parentRoute: typeof ReviewRouteRoute
+    }
     '/roster/imports/$importId/': {
       id: '/roster/imports/$importId/'
       path: '/$importId'
@@ -1407,6 +1463,18 @@ const AccessRouteRouteChildren: AccessRouteRouteChildren = {
 
 const AccessRouteRouteWithChildren = AccessRouteRoute._addFileChildren(
   AccessRouteRouteChildren,
+)
+
+interface AiPolicyRouteRouteChildren {
+  AiPolicyIndexRoute: typeof AiPolicyIndexRoute
+}
+
+const AiPolicyRouteRouteChildren: AiPolicyRouteRouteChildren = {
+  AiPolicyIndexRoute: AiPolicyIndexRoute,
+}
+
+const AiPolicyRouteRouteWithChildren = AiPolicyRouteRoute._addFileChildren(
+  AiPolicyRouteRouteChildren,
 )
 
 interface CommissionsSlugObligationsRouteRouteChildren {
@@ -1552,10 +1620,12 @@ const PlatformRouteRouteWithChildren = PlatformRouteRoute._addFileChildren(
 )
 
 interface ReviewRouteRouteChildren {
+  ReviewCasesCaseIdIndexRoute: typeof ReviewCasesCaseIdIndexRoute
   ReviewCasesCaseIdClarificationsClarificationIdRoute: typeof ReviewCasesCaseIdClarificationsClarificationIdRoute
 }
 
 const ReviewRouteRouteChildren: ReviewRouteRouteChildren = {
+  ReviewCasesCaseIdIndexRoute: ReviewCasesCaseIdIndexRoute,
   ReviewCasesCaseIdClarificationsClarificationIdRoute:
     ReviewCasesCaseIdClarificationsClarificationIdRoute,
 }
@@ -1647,6 +1717,7 @@ const ObligationsNationalRouteRouteWithChildren =
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AccessRouteRoute: AccessRouteRouteWithChildren,
+  AiPolicyRouteRoute: AiPolicyRouteRouteWithChildren,
   CommissionsRouteRoute: CommissionsRouteRouteWithChildren,
   LeaRouteRoute: LeaRouteRouteWithChildren,
   ObligationsRouteRoute: ObligationsRouteRouteWithChildren,
