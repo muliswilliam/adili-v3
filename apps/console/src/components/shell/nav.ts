@@ -97,13 +97,3 @@ export function activeNavHref(groups: NavGroup[], pathname: string): NavHref | n
   }
   return active;
 }
-
-/** Up to two initials for the avatar, e.g. "Juma Omondi" gives "JO". */
-export function initials(name: string): string {
-  return name
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((part) => part[0]?.toUpperCase())
-    .join('');
-}

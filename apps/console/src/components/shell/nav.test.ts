@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { activeNavHref, initials, navFor } from './nav';
+import { activeNavHref, navFor } from './nav';
 
 const labels = (roles: string[]) =>
   navFor(roles).map((group) => [group.label, group.items.map((item) => item.label)]);
@@ -62,13 +62,5 @@ describe('activeNavHref', () => {
     ['/', null],
   ])('marks %s under %s', (pathname, expected) => {
     expect(activeNavHref(groups, pathname)).toBe(expected);
-  });
-});
-
-describe('initials', () => {
-  it('takes the first letter of the first two names', () => {
-    expect(initials('Juma Omondi')).toBe('JO');
-    expect(initials('  amina  ')).toBe('A');
-    expect(initials('Dr. Paul Odhiambo')).toBe('DP');
   });
 });
