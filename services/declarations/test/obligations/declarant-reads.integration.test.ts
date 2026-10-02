@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 
 import { withTenant } from '@adili/data-access';
 import { and, asc, eq, isNull } from 'drizzle-orm';
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
 import { REMINDER_JITTER_WINDOW_MS } from '../../src/config.js';
 import { filingObligations, obligationReminders, outbox } from '../../src/db/schema.js';
@@ -35,10 +35,7 @@ let api: DeclarationsApi;
 
 beforeAll(async () => {
   api = await startDeclarationsApi();
-});
-
-afterAll(async () => {
-  await api.close();
+  return () => api.close();
 });
 
 /**

@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
 import { outbox } from '../../src/db/schema.js';
 import {
@@ -28,10 +28,7 @@ let api: DirectoryApi;
 
 beforeAll(async () => {
   api = await startDirectoryApi();
-});
-
-afterAll(async () => {
-  await api.close();
+  return () => api.close();
 });
 
 beforeEach(async () => {

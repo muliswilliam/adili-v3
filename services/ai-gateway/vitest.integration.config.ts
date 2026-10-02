@@ -10,8 +10,8 @@ export default defineConfig({
   plugins: [swc.vite({ module: { type: 'es6' } })],
   test: {
     include: ['test/**/*.integration.test.ts'],
+    globalSetup: ['test/support/workflow-bundles.ts'],
     setupFiles: ['test/support/integration-setup.ts'],
-    // The Temporal worker bundles the workflows when the app starts.
     hookTimeout: 60_000,
     testTimeout: 30_000,
     env: {

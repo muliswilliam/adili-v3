@@ -9,4 +9,5 @@ export {
   TemporalWorkerModule,
   type TemporalWorkerModuleOptions,
   TemporalWorkerReadinessCheck,
+  WorkflowBundler,
 } from './temporal-worker.module.js';

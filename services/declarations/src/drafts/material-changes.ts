@@ -1,6 +1,7 @@
 import type { PersonKey } from '@adili/forms';
 
 import { recordOf } from '../guards.js';
+import { FLAGGED_INTERESTS } from './sections.js';
 
 /**
  * Paragraph 9's material changes (Act s.31(3)-(4), Regs r.21), composed by the service rather
@@ -27,12 +28,6 @@ export interface ComposedFrom {
   /** Paragraph 9's `registrableInterests`, as saved; absent before `other` is. */
   interests?: unknown;
 }
-
-/** The registrable interests that carry a change flag, and what names each entry. */
-const INTERESTS = [
-  { list: 'directorships', kind: 'directorship', name: 'company' },
-  { list: 'memberships', kind: 'membership', name: 'entity' },
-] as const;
 
 const CATEGORIES = ['income', 'assets', 'liabilities'] as const;
 
@@ -68,7 +63,7 @@ export function composeMaterialChanges({
     }
   }
   const registrable = recordOf(interests);
-  for (const { list, kind, name } of INTERESTS) {
+  for (const { list, kind, name } of FLAGGED_INTERESTS) {
     const items = Array.isArray(registrable[list]) ? (registrable[list] as unknown[]) : [];
     for (const value of items) {
       const interest = recordOf(value);

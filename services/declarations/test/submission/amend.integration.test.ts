@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 
 import { and, eq, sql } from 'drizzle-orm';
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
 import {
   commissionRefs,
@@ -63,10 +63,7 @@ const { declarant, steppedUp, givenObligation, completeDraft, save, section, sub
 
 beforeAll(async () => {
   api = await startDeclarationsApi();
-});
-
-afterAll(async () => {
-  await api.close();
+  return () => api.close();
 });
 
 beforeEach(async () => {

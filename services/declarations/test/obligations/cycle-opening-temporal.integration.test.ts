@@ -4,7 +4,7 @@ import { withTenant } from '@adili/data-access';
 import { TEMPORAL_CLIENT } from '@adili/temporal';
 import type { Client, ScheduleHandle } from '@temporalio/client';
 import { and, eq } from 'drizzle-orm';
-import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
+import { beforeAll, describe, expect, it, vi } from 'vitest';
 
 import { filingObligations, outbox } from '../../src/db/schema.js';
 import type { Transaction } from '../../src/db/transaction.js';
@@ -33,22 +33,21 @@ beforeAll(async () => {
   schedule = temporal.schedule.getHandle(
     cycleOpeningScheduleId(process.env.TEMPORAL_TASK_QUEUE ?? '', 'psc'),
   );
+  return async () => {
+    const ids = await asPlatform((tx) =>
+      tx.select({ id: filingObligations.id }).from(filingObligations),
+    );
+    await Promise.all(
+      ids.map(({ id }) =>
+        temporal.workflow
+          .getHandle(id)
+          .terminate('test over')
+          .catch(() => undefined),
+      ),
+    );
+    await api.close();
+  };
 }, 60_000);
-
-afterAll(async () => {
-  const ids = await asPlatform((tx) =>
-    tx.select({ id: filingObligations.id }).from(filingObligations),
-  );
-  await Promise.all(
-    ids.map(({ id }) =>
-      temporal.workflow
-        .getHandle(id)
-        .terminate('test over')
-        .catch(() => undefined),
-    ),
-  );
-  await api.close();
-});
 
 function asPlatform<T>(work: (tx: Transaction) => Promise<T>): Promise<T> {
   return withTenant(api.db, { tenant: 'platform', subject: 'test' }, work);

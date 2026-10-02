@@ -10,7 +10,7 @@ import {
   type VerificationOutcome,
 } from '@adili/events/contracts';
 import { eq } from 'drizzle-orm';
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
 import type { AcknowledgementPayload } from '../../src/acknowledgement/representation.js';
 import { ACKNOWLEDGEMENT_DEADLINE_MS } from '../../src/declaration/acknowledgement.js';
@@ -53,10 +53,7 @@ const { declarant, steppedUp, completeDraft, submit } = submissionFixtures(() =>
 
 beforeAll(async () => {
   api = await startDeclarationsApi();
-});
-
-afterAll(async () => {
-  await api.close();
+  return () => api.close();
 });
 
 beforeEach(async () => {

@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 
 import type { AssetItem, IncomeItem, LiabilityItem } from '@adili/forms';
 import { sql } from 'drizzle-orm';
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
 import { commissionRefs, filingObligations, rosterSnapshots } from '../../src/db/schema.js';
 import type {
@@ -32,10 +32,7 @@ let api: DeclarationsApi;
 
 beforeAll(async () => {
   api = await startDeclarationsApi();
-});
-
-afterAll(async () => {
-  await api.close();
+  return () => api.close();
 });
 
 beforeEach(async () => {

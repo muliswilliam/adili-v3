@@ -15,11 +15,12 @@ import {
 } from '@adili/data-access';
 import { FakeCipher } from '@adili/data-access/testing';
 import { type EventEnvelope, OutboxRelay } from '@adili/events';
-import { TEMPORAL_CLIENT, TemporalWorkerReadinessCheck } from '@adili/temporal';
+import { TEMPORAL_CLIENT, TemporalWorkerReadinessCheck, WorkflowBundler } from '@adili/temporal';
+import { prebuiltWorkflowBundler, untilWorkerPolling } from '@adili/temporal/testing';
 import type { Client } from '@temporalio/client';
 import { sql } from 'drizzle-orm';
 import { createLocalJWKSet, exportJWK, generateKeyPair, type JWK, SignJWT } from 'jose';
-import { vi } from 'vitest';
+import { inject } from 'vitest';
 
 import { AppModule } from '../../src/app.module.js';
 import { Clock } from '../../src/clock.js';
@@ -186,16 +187,16 @@ export async function startReportingApi(): Promise<ReportingApi> {
     .useValue(clock)
     .overrideProvider(OutboxRelay)
     .useValue({})
+    .overrideProvider(WorkflowBundler)
+    .useValue(prebuiltWorkflowBundler(inject('workflowBundles')))
     .compile();
   const app = moduleRef.createNestApplication<NestFastifyApplication>(new FastifyAdapter(), {
     logger: ['fatal'],
   });
   await app.init();
   await app.getHttpAdapter().getInstance().ready();
-  // The worker bundles the workflow code before it polls: seconds of CPU, longer when suites
-  // start together. Tests begin once it polls, so their waits measure the workflow alone.
-  const worker = app.get(TemporalWorkerReadinessCheck);
-  await vi.waitFor(() => worker.check(), { timeout: 120_000, interval: 250 });
+  // Tests start once the worker polls, as traffic waits for readiness (see untilWorkerPolling).
+  await untilWorkerPolling(app.get(TemporalWorkerReadinessCheck));
 
   const consumer = app.get(ProjectionsConsumer);
   return {

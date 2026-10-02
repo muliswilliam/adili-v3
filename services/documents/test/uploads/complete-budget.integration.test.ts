@@ -1,5 +1,5 @@
 import { HeadObjectCommand } from '@aws-sdk/client-s3';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it } from 'vitest';
 
 import { MalwareScanner, type ScanResult } from '../../src/scanning/malware-scanner.js';
 import { CSV } from '../../src/uploads/purposes.js';
@@ -55,10 +55,7 @@ let api: DocumentsApi;
 
 beforeAll(async () => {
   api = await startDocumentsApi({ scanner, completeBudgetMs: BUDGET_MS });
-});
-
-afterAll(async () => {
-  await api.close();
+  return () => api.close();
 });
 
 async function upload(): Promise<UploadReservation> {

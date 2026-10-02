@@ -3,7 +3,7 @@ import { randomUUID } from 'node:crypto';
 import { TEMPORAL_CLIENT } from '@adili/temporal';
 import type { Client } from '@temporalio/client';
 import { asc, eq } from 'drizzle-orm';
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { ladderHistory, outbox } from '../../src/db/schema.js';
 import { DECIDED_SIGNAL, enforcementWorkflowId } from '../../src/enforcement/contract.js';
@@ -85,10 +85,7 @@ describe('salary stoppage, reinstatement and disciplinary referral', () => {
 
   beforeAll(async () => {
     api = await startReviewApi();
-  });
-
-  afterAll(async () => {
-    await api.close();
+    return () => api.close();
   });
 
   // A ladder left running would write while the next test empties the tables.

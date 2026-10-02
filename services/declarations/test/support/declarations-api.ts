@@ -26,12 +26,13 @@ import {
 import { ClientRMQ, type MicroserviceOptions } from '@nestjs/microservices';
 import amqp from 'amqplib';
 import { lastValueFrom } from 'rxjs';
-import { TEMPORAL_CLIENT, TemporalWorkerReadinessCheck } from '@adili/temporal';
-import { untilWorkerPolling } from '@adili/temporal/testing';
+import { TEMPORAL_CLIENT, TemporalWorkerReadinessCheck, WorkflowBundler } from '@adili/temporal';
+import { prebuiltWorkflowBundler, untilWorkerPolling } from '@adili/temporal/testing';
 import type { Client } from '@temporalio/client';
 import { sql } from 'drizzle-orm';
 import { createLocalJWKSet, exportJWK, generateKeyPair, type JWK, SignJWT } from 'jose';
 import { v7 as uuidv7 } from 'uuid';
+import { inject } from 'vitest';
 
 import { AcknowledgementConsumer } from '../../src/acknowledgement/acknowledgement.consumer.js';
 import { AppModule } from '../../src/app.module.js';
@@ -40,6 +41,8 @@ import type { Transaction } from '../../src/db/transaction.js';
 import { type DeclarationsSchema, schema, tenantPolicyCache } from '../../src/db/schema.js';
 import { DirectoryClient } from '../../src/directory/directory-client.js';
 import { DocumentsClient } from '../../src/documents/documents-client.js';
+import { type CorpusFile, loadCorpus } from '../../src/help/corpus.js';
+import { CorpusFiles } from '../../src/help/corpus-importer.js';
 import { NotificationsClient } from '../../src/notifications/notifications-client.js';
 import { DirectoryEventsConsumer } from '../../src/obligations/directory-events.consumer.js';
 import {
@@ -100,6 +103,23 @@ export class TestClock extends Clock {
 
   reset(): void {
     this.fixed = undefined;
+  }
+}
+
+/** The corpus files the service imports: the committed ones until a test sets others. */
+export class TestCorpusFiles extends CorpusFiles {
+  private files: CorpusFile[] | undefined;
+
+  override load(): CorpusFile[] {
+    return this.files ?? loadCorpus();
+  }
+
+  set(files: CorpusFile[]): void {
+    this.files = files;
+  }
+
+  reset(): void {
+    this.files = undefined;
   }
 }
 
@@ -224,6 +244,11 @@ export interface DeclarationsApi {
   /** The Commissions whose cycle-opening schedule was ensured (not in `real` mode). */
   cycleSchedules: RecordingCycleOpeningSchedules;
   clock: TestClock;
+  /**
+   * The corpus files the service imports on boot and on a platform-admin re-import; the
+   * committed corpus unless a test sets others. `reset` does not re-import.
+   */
+  corpus: TestCorpusFiles;
   /** The directory event consumers, called as the RabbitMQ transport would. */
   consumers: DirectoryEventsConsumer;
   /** The acknowledgement slip's event consumers (documents, verification-api), likewise. */
@@ -289,6 +314,7 @@ export async function startDeclarationsApi({
   const clock = new TestClock();
   const cycleSchedules = new RecordingCycleOpeningSchedules();
   const cipher = new FakeCipher();
+  const corpus = new TestCorpusFiles();
   let builder = Test.createTestingModule({ imports: [AppModule] })
     .overrideProvider(DATABASE)
     .useValue(db)
@@ -304,11 +330,15 @@ export async function startDeclarationsApi({
     .useValue(clock)
     .overrideProvider(FieldCipher)
     .useValue(cipher)
+    .overrideProvider(CorpusFiles)
+    .useValue(corpus)
     .overrideProvider(OutboxRelay)
     .useValue({})
     // The hourly schedule lives on the shared Temporal; suites run the sweep themselves.
     .overrideProvider(SweepSchedule)
-    .useValue({});
+    .useValue({})
+    .overrideProvider(WorkflowBundler)
+    .useValue(prebuiltWorkflowBundler(inject('workflowBundles')));
   if (mode === 'recording') {
     builder = builder.overrideProvider(ObligationWorkflows).useValue(workflows);
   } else if (mode === 'fake') {
@@ -358,6 +388,7 @@ export async function startDeclarationsApi({
     sweep: app.get(ObligationsSweep),
     cycleSchedules,
     clock,
+    corpus,
     consumers: app.get(DirectoryEventsConsumer),
     acknowledgementConsumers: app.get(AcknowledgementConsumer),
     async get(path, caller) {
@@ -386,7 +417,7 @@ export async function startDeclarationsApi({
     },
     async reset() {
       await db.execute(
-        sql`truncate declaration_items, declaration_versions, numbering_counters, idempotency_keys, obligation_drafts, declaration_attachments, declaration_sections, declarations, reminder_messages, obligation_reminders, filing_obligations, roster_snapshots, tenant_policy_cache, commission_refs, cycle_openings, outbox, inbox`,
+        sql`truncate help_articles, declaration_items, declaration_versions, numbering_counters, idempotency_keys, obligation_drafts, declaration_attachments, declaration_sections, declarations, reminder_messages, obligation_reminders, filing_obligations, roster_snapshots, tenant_policy_cache, commission_refs, cycle_openings, outbox, inbox`,
       );
       await db.execute(sql`update cycle_calendar set opening_lead_days = 120`);
       cycleSchedules.reset();
@@ -397,6 +428,7 @@ export async function startDeclarationsApi({
       temporal.reset();
       clock.reset();
       cipher.calls.length = 0;
+      corpus.reset();
     },
     async close() {
       if (mode === 'real') await deleteCycleOpeningSchedules(app.get<Client>(TEMPORAL_CLIENT), db);

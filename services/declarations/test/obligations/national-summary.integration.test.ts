@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 
 import { eq } from 'drizzle-orm';
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
 import { cycleCalendar } from '../../src/db/schema.js';
 
@@ -37,10 +37,7 @@ let api: DeclarationsApi;
 
 beforeAll(async () => {
   api = await startDeclarationsApi();
-});
-
-afterAll(async () => {
-  await api.close();
+  return () => api.close();
 });
 
 const PSC_OVERDUE = rosterRecord('psc', { appointmentDate: '2027-08-01' });

@@ -52,7 +52,7 @@ export function assembleDocument(
     else other = contents;
   }
   // Paragraph 9 as saved, but for the material changes, which are composed here.
-  const interests = Object.fromEntries(
+  const asSaved = Object.fromEntries(
     Object.entries(other).filter(([field]) => field !== 'materialChanges'),
   );
   return {
@@ -70,7 +70,7 @@ export function assembleDocument(
         statements,
         interests: other.registrableInterests,
       }),
-      ...interests,
+      ...asSaved,
     },
     attestation: { text: ATTESTATION_TEXT },
   };

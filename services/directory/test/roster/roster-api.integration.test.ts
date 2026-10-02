@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 
 import { withTenant } from '@adili/data-access';
 import { eq } from 'drizzle-orm';
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
 import type { RosterSummary } from '../../src/commissions/representation.js';
 import { config } from '../../src/config.js';
@@ -87,10 +87,7 @@ let api: DirectoryApi;
 
 beforeAll(async () => {
   api = await startDirectoryApi();
-});
-
-afterAll(async () => {
-  await api.close();
+  return () => api.close();
 });
 
 beforeEach(async () => {

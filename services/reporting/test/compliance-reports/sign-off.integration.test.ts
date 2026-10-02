@@ -4,7 +4,7 @@ import { canonicalJson } from '@adili/api-kit';
 import { formMIssues, validateFormM } from '@adili/forms';
 import { format, RPT } from '@adili/numbering';
 import { eq } from 'drizzle-orm';
-import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { complianceReportWorkflowId } from '../../src/compliance-reports/contract.js';
 import {
@@ -42,11 +42,10 @@ describe('Form M review, confirm and submit (S3, S5, S6, S7)', () => {
 
   beforeAll(async () => {
     api = await startReportingApi();
-  });
-
-  afterAll(async () => {
-    await endWorkflows();
-    await api.close();
+    return async () => {
+      await endWorkflows();
+      await api.close();
+    };
   });
 
   beforeEach(async () => {

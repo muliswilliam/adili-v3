@@ -4,7 +4,7 @@ import { canonicalJson } from '@adili/api-kit';
 import { hasValidCheckCharacter, parse } from '@adili/numbering/references';
 import { DCB } from '@adili/numbering';
 import { and, eq, sql } from 'drizzle-orm';
-import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
   commissionRefs,
@@ -52,10 +52,7 @@ const { declarant, steppedUp, givenObligation, started, completeDraft, save, sec
 
 beforeAll(async () => {
   api = await startDeclarationsApi();
-});
-
-afterAll(async () => {
-  await api.close();
+  return () => api.close();
 });
 
 beforeEach(async () => {

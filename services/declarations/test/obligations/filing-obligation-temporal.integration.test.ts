@@ -4,7 +4,7 @@ import { withTenant } from '@adili/data-access';
 import { TEMPORAL_CLIENT } from '@adili/temporal';
 import type { Client } from '@temporalio/client';
 import { eq } from 'drizzle-orm';
-import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
+import { beforeAll, describe, expect, it, vi } from 'vitest';
 
 import { filingObligations } from '../../src/db/schema.js';
 import type { Transaction } from '../../src/db/transaction.js';
@@ -37,19 +37,18 @@ const started: string[] = [];
 beforeAll(async () => {
   api = await startDeclarationsApi({ workflows: 'real', events: true });
   temporal = api.app.get<Client>(TEMPORAL_CLIENT);
+  return async () => {
+    await Promise.all(
+      started.map((id) =>
+        temporal.workflow
+          .getHandle(id)
+          .terminate('test over')
+          .catch(() => undefined),
+      ),
+    );
+    await api.close();
+  };
 }, 60_000);
-
-afterAll(async () => {
-  await Promise.all(
-    started.map((id) =>
-      temporal.workflow
-        .getHandle(id)
-        .terminate('test over')
-        .catch(() => undefined),
-    ),
-  );
-  await api.close();
-});
 
 function asPlatform<T>(work: (tx: Transaction) => Promise<T>): Promise<T> {
   return withTenant(api.db, { tenant: 'platform', subject: 'test' }, work);

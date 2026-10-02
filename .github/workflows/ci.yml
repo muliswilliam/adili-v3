@@ -228,10 +228,18 @@ jobs:
             || { docker logs seaweedfs; exit 1; }
           timeout 120 sh -c 'until docker exec -e SEAWEEDFS_MASTER=localhost:9333 seaweedfs sh /scripts/create-buckets.sh \
             && echo s3.bucket.list | docker exec -i seaweedfs weed shell -master=localhost:9333 | grep -q audit-archive; do sleep 2; done'
+      # Ready means it issues a token, not only that it serves the discovery document: the first
+      # grant on the fresh JVM loads the token path (about 20 times a warm grant), and with the
+      # suites loading the runner it outlasted ServiceTokenClient's 5 s timeout. One grant here
+      # pays that cost before any test runs.
       - name: Wait for Keycloak
         run: |
           # shellcheck disable=SC2016 # the inner shell expands the variable
           timeout 180 sh -c 'until curl -sf "$TEST_KEYCLOAK_ISSUER_URL/.well-known/openid-configuration" >/dev/null; do sleep 2; done' \
+            || { docker logs keycloak; exit 1; }
+          # shellcheck disable=SC2016 # the inner shell expands the variable
+          timeout 60 sh -c 'until curl -sf -o /dev/null -d grant_type=client_credentials -d client_id=directory \
+            -d client_secret=directory-dev-secret "$TEST_KEYCLOAK_ISSUER_URL/protocol/openid-connect/token"; do sleep 2; done' \
             || { docker logs keycloak; exit 1; }
       - run: pnpm test:integration
       # S22 and S23 (spec 03): sign-in with the adili-otp extension through the notifications

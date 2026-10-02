@@ -7,8 +7,8 @@ import { join } from 'node:path';
 import { FastifyAdapter, type NestFastifyApplication } from '@nestjs/platform-fastify';
 import { Test } from '@nestjs/testing';
 import { TokenVerifier } from '@adili/api-kit';
-import { TEMPORAL_CLIENT, TemporalWorkerReadinessCheck } from '@adili/temporal';
-import { untilWorkerPolling } from '@adili/temporal/testing';
+import { TEMPORAL_CLIENT, TemporalWorkerReadinessCheck, WorkflowBundler } from '@adili/temporal';
+import { prebuiltWorkflowBundler, untilWorkerPolling } from '@adili/temporal/testing';
 import type { Client } from '@temporalio/client';
 import { createDatabase, DATABASE, type Database } from '@adili/data-access';
 import { inArray } from 'drizzle-orm';
@@ -16,15 +16,17 @@ import { drizzle } from 'drizzle-orm/node-postgres';
 import { migrate } from 'drizzle-orm/node-postgres/migrator';
 import { createLocalJWKSet, exportJWK, generateKeyPair, SignJWT } from 'jose';
 import pg from 'pg';
+import { inject } from 'vitest';
 
 import { AppModule } from '../../src/app.module.js';
 import { config } from '../../src/config.js';
 import { jobs, schema } from '../../src/db/schema.js';
 import { LIVE_STATUSES } from '../../src/jobs/job-states.js';
+import { BREAKER_OPTIONS, type BreakerOptions } from '../../src/policy/circuit-breaker.js';
 import type { ModelProvider, StructuredResult } from '../../src/providers/port.js';
-import { MODEL_PROVIDER } from '../../src/providers/providers.module.js';
+import { MODEL_PROVIDERS } from '../../src/providers/providers.module.js';
 import { ReplayAdapter } from '../../src/providers/replay.adapter.js';
-import { buildProviderRequest } from '../../src/tasks/provider-request.js';
+import { preparePrompt } from '../../src/policy/prompt.js';
 import { findTask } from '../../src/tasks/registry.js';
 import { ScriptedProvider } from './scripted-provider.js';
 
@@ -36,16 +38,25 @@ export interface TestApp {
   /** Signs an access token as the given OAuth client with the given scopes. */
   token: (options?: { clientId?: string; scope?: string }) => Promise<string>;
   /**
-   * Records the provider's response to the request the gateway will make for this task input,
-   * as record mode would, so the replay adapter serves it.
+   * Records the provider's response to the request the gateway will make for this task input
+   * (minimised, wrapped), as record mode would, so the replay adapter serves it.
    */
-  record: (task: string, input: unknown, result: StructuredResult) => Promise<void>;
+  record: (
+    task: string,
+    input: unknown,
+    result: StructuredResult,
+    options?: { model?: string },
+  ) => Promise<void>;
   close: () => Promise<void>;
 }
 
 export interface TestAppOptions {
   /** Replaces the replay adapter, which otherwise serves fixtures from a temporary directory. */
   provider?: ModelProvider;
+  /** Further providers the routing table may name. */
+  extraProviders?: ModelProvider[];
+  /** Replaces the configured circuit breaker settings. */
+  breaker?: BreakerOptions;
 }
 
 /**
@@ -82,8 +93,20 @@ export async function createTestApp(options: TestAppOptions = {}): Promise<TestA
         createLocalJWKSet({ keys: [jwk] }),
       ),
     )
-    .overrideProvider(MODEL_PROVIDER)
-    .useValue(options.provider ?? new ReplayAdapter({ fixturesDir, mode: 'replay' }))
+    .overrideProvider(MODEL_PROVIDERS)
+    .useValue([
+      options.provider ?? new ReplayAdapter({ fixturesDir, mode: 'replay' }),
+      ...(options.extraProviders ?? []),
+    ])
+    .overrideProvider(BREAKER_OPTIONS)
+    .useValue(
+      options.breaker ?? {
+        failureThreshold: config.AI_BREAKER_FAILURE_THRESHOLD,
+        cooldownMs: config.AI_BREAKER_COOLDOWN_MS,
+      },
+    )
+    .overrideProvider(WorkflowBundler)
+    .useValue(prebuiltWorkflowBundler(inject('workflowBundles')))
     .compile();
 
   const app = moduleRef.createNestApplication<NestFastifyApplication>(new FastifyAdapter());
@@ -103,14 +126,14 @@ export async function createTestApp(options: TestAppOptions = {}): Promise<TestA
         .setSubject(`service-account-${clientId}`)
         .setExpirationTime('5m')
         .sign(privateKey),
-    record: async (taskName, input, result) => {
+    record: async (taskName, input, result, { model = config.AI_MODEL } = {}) => {
       const task = findTask(taskName);
       if (!task) throw new Error(`Unknown task ${taskName}`);
-      const request = buildProviderRequest(
+      const { request } = preparePrompt(
         task,
         task.currentPromptVersion,
         task.input.parse(input),
-        config.AI_MODEL,
+        model,
       );
       const recorder = new ReplayAdapter({
         fixturesDir,

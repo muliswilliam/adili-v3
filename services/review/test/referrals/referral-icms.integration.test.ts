@@ -1,5 +1,5 @@
 import { eq } from 'drizzle-orm';
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
 import { inbox, outbox, reviewCases } from '../../src/db/schema.js';
 import { REFERRAL_ICMS_REGISTERED_CONSUMER } from '../../src/referrals/icms-registered.consumer.js';
@@ -53,10 +53,7 @@ describe('referrals: ICMS payload and case number (S12)', () => {
 
   beforeAll(async () => {
     api = await startReviewApi();
-  });
-
-  afterAll(async () => {
-    await api.close();
+    return () => api.close();
   });
 
   beforeEach(async () => {

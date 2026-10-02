@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
 import type { RosterRecord, RosterRecordPage } from '../../src/roster/records/representation.js';
 import { contractErrors, okResponse } from '../support/contract.js';
@@ -35,6 +35,7 @@ const byFileNumber = (page: RosterRecordPage) => page.items.map((item) => item.p
 
 beforeAll(async () => {
   api = await startDirectoryApi();
+  return () => api.close();
 });
 
 beforeEach(async () => {
@@ -55,10 +56,6 @@ beforeEach(async () => {
   onboarded = await givenOnboardedPerson(api, { recordIds: [ids.get('TSC/1') ?? ''] });
   await givenIdentityMismatch(api, ids.get('TSC/2') ?? '', MISMATCH_AT);
   await givenIdentityMismatch(api, psc.get('PSC/1') ?? '', MISMATCH_AT);
-});
-
-afterAll(async () => {
-  await api.close();
 });
 
 describe('roster records and onboarding (S25)', () => {

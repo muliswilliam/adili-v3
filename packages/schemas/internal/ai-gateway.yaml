@@ -48,7 +48,7 @@ paths:
         '400':
           $ref: '#/components/responses/ValidationProblem'
         '429':
-          description: 'Per-tenant rate limit; problem code `rate-limited`'
+          description: 'Per-tenant rate limit (jobs per minute); problem code `rate-limit-exceeded` with `retryAfterSeconds`'
           content:
             application/problem+json:
               schema:
@@ -76,7 +76,7 @@ paths:
         '400':
           $ref: '#/components/responses/ValidationProblem'
         '429':
-          description: 'Per-tenant rate limit; problem code `rate-limited`'
+          description: 'Per-tenant rate limit (jobs per minute); problem code `rate-limit-exceeded` with `retryAfterSeconds`'
           content:
             application/problem+json:
               schema:

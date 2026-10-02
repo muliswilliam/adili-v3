@@ -38,6 +38,13 @@ export function isStatementKey(key: string): key is StatementKey {
   return key.startsWith(STATEMENT_PREFIX);
 }
 
+/** What kind of section a section key names: `statement:<person>` is `statement`. */
+export type SectionKind = 'bio' | 'household' | 'statement' | 'other';
+
+export function sectionKind(key: DeclarationSectionKey): SectionKind {
+  return isStatementKey(key) ? 'statement' : key;
+}
+
 /** Whose statement the section is, or null for a section that is not a statement. */
 export function statementPersonKey(key: string): PersonKey | null {
   return isStatementKey(key) ? (key.slice(STATEMENT_PREFIX.length) as PersonKey) : null;
@@ -239,6 +246,15 @@ export function applyLockedFields(
   }
   return { contents, changed };
 }
+
+/**
+ * The registrable interests of paragraph 9 that carry a change flag, the material-change kind
+ * each lists as, and the field that names an entry.
+ */
+export const FLAGGED_INTERESTS = [
+  { list: 'directorships', kind: 'directorship', name: 'company' },
+  { list: 'memberships', kind: 'membership', name: 'entity' },
+] as const;
 
 export const STATEMENT_CATEGORIES = [
   { list: 'income', nil: 'incomeNil' },

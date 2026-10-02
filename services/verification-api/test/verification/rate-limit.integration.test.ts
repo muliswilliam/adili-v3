@@ -1,5 +1,5 @@
 import { newVerificationId } from '@adili/events/contracts';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it } from 'vitest';
 
 import { issued, issuedData } from '../support/events.js';
 import {
@@ -13,10 +13,7 @@ describe('S14 lookups are rate limited per client IP', () => {
 
   beforeAll(async () => {
     api = await startVerificationApi();
-  });
-
-  afterAll(async () => {
-    await api.close();
+    return () => api.close();
   });
 
   it('refuses the 31st lookup from one address in a minute, whatever the answers were', async () => {

@@ -12,7 +12,6 @@ const unsupported = () => {
 
 /** A provider whose structured answer is scripted per test, for record mode and executor tests. */
 export class ScriptedProvider implements ModelProvider {
-  readonly name = 'scripted';
   readonly capabilities: ProviderCapabilities = {
     structuredOutput: true,
     streaming: false,
@@ -25,6 +24,7 @@ export class ScriptedProvider implements ModelProvider {
   constructor(
     private readonly answer: (request: StructuredRequest) => Promise<StructuredResult>,
     readonly providerClass: ProviderClass = 'self-hosted',
+    readonly name = 'scripted',
   ) {}
 
   generateStructured(request: StructuredRequest): Promise<StructuredResult> {

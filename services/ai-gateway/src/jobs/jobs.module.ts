@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 
 import { config } from '../config.js';
+import { PolicyModule } from '../policy/policy.module.js';
 import { ProvidersModule } from '../providers/providers.module.js';
 import { JobExecutor } from './job-executor.js';
 import { JOB_WORKFLOWS_OPTIONS, JobWorkflows, type JobWorkflowsOptions } from './job-workflows.js';
@@ -12,9 +13,9 @@ import { Routing, ROUTING_OPTIONS, type RoutingOptions } from './routing.js';
 /** Margin over the provider timeout for building the request and recording the outcome. */
 const ATTEMPT_OVERHEAD_MS = 30_000;
 
-/** Task jobs: the internal task and job API, execution and the janitor. */
+/** Task jobs: the internal task and job API, routing, execution and the janitor. */
 @Module({
-  imports: [ProvidersModule.forRoot(config)],
+  imports: [ProvidersModule.forRoot(config), PolicyModule],
   controllers: [JobsController],
   providers: [
     JobsService,
@@ -35,6 +36,6 @@ const ATTEMPT_OVERHEAD_MS = 30_000;
       useValue: { outputRetentionDays: config.AI_OUTPUT_RETENTION_DAYS } satisfies JanitorOptions,
     },
   ],
-  exports: [JobExecutor],
+  exports: [JobExecutor, Routing, PolicyModule],
 })
 export class JobsModule {}

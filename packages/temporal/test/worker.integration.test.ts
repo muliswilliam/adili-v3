@@ -6,14 +6,20 @@ import { fileURLToPath } from 'node:url';
 import { Module } from '@nestjs/common';
 import { Test, type TestingModule } from '@nestjs/testing';
 import type { Client } from '@temporalio/client';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeAll, describe, expect, it } from 'vitest';
 
 import {
   TEMPORAL_CLIENT,
   TemporalModule,
   TemporalWorkerModule,
   TemporalWorkerReadinessCheck,
+  WorkflowBundler,
 } from '../src/index.js';
+import {
+  prebuiltWorkflowBundler,
+  type WorkflowBundles,
+  workflowBundlesSetup,
+} from '../src/testing.js';
 import { GREETING_PREFIX, GreetingActivities } from './fixtures/greeting-activities.js';
 import { greetNow } from './fixtures/workflows.js';
 
@@ -31,8 +37,12 @@ const workflowsPath = fileURLToPath(new URL('fixtures/workflows.ts', import.meta
 })
 class PrefixModule {}
 
-async function createApp(options: { taskQueue: string; drainTimeoutMs?: number }) {
-  return Test.createTestingModule({
+async function createApp(options: {
+  taskQueue: string;
+  drainTimeoutMs?: number;
+  bundler?: WorkflowBundler;
+}) {
+  const builder = Test.createTestingModule({
     imports: [
       TemporalModule.forRoot({ address: ADDRESS, namespace: NAMESPACE }),
       TemporalWorkerModule.forRoot({
@@ -45,7 +55,10 @@ async function createApp(options: { taskQueue: string; drainTimeoutMs?: number }
         drainTimeoutMs: options.drainTimeoutMs,
       }),
     ],
-  }).compile();
+  });
+  return (
+    options.bundler ? builder.overrideProvider(WorkflowBundler).useValue(options.bundler) : builder
+  ).compile();
 }
 
 async function waitUntil(condition: () => boolean | Promise<boolean>, timeoutMs = 20_000) {
@@ -110,6 +123,57 @@ describe('TemporalWorkerModule against compose Temporal', () => {
     }
   });
 
+  describe('with bundles built once for the run', () => {
+    let bundles: WorkflowBundles | undefined;
+
+    beforeAll(async () => {
+      // As Vitest runs it from a config's globalSetup.
+      const setup = workflowBundlesSetup([workflowsPath]);
+      await setup({
+        provide: (_key: 'workflowBundles', value: WorkflowBundles) => {
+          bundles = value;
+        },
+      } as unknown as Parameters<typeof setup>[0]);
+    });
+
+    it('runs workflows from the prebuilt bundle', async () => {
+      const taskQueue = `worker-test-${randomUUID()}`;
+      app = await createApp({ taskQueue, bundler: prebuiltWorkflowBundler(bundles) });
+      await app.init();
+      const client = app.get<Client>(TEMPORAL_CLIENT);
+
+      const result = await client.workflow.execute(greetNow, {
+        taskQueue,
+        workflowId: randomUUID(),
+        args: ['Njeri'],
+      });
+
+      expect(result).toBe('Habari, Njeri');
+    });
+
+    it('reports a workflows module the setup did not bundle as the reason it is down', async () => {
+      app = await createApp({
+        taskQueue: `worker-test-${randomUUID()}`,
+        bundler: prebuiltWorkflowBundler({}),
+      });
+      const readiness = app.get(TemporalWorkerReadinessCheck);
+      await app.init();
+
+      const reason = async () => {
+        const error = await readiness.check().then(
+          () => undefined,
+          (failure: unknown) => failure,
+        );
+        return error instanceof Error && error.cause instanceof Error ? error.cause : undefined;
+      };
+      await waitUntil(async () => (await reason()) !== undefined);
+
+      expect((await reason())?.message).toContain(
+        `No prebuilt workflow bundle for ${workflowsPath}`,
+      );
+    });
+  });
+
   it('reports down until the worker is polling, then up', async () => {
     app = await createApp({ taskQueue: `worker-test-${randomUUID()}` });
     const readiness = app.get(TemporalWorkerReadinessCheck);
@@ -167,6 +231,8 @@ describe('TemporalWorkerModule against compose Temporal', () => {
   it('stops waiting for in-flight activities after the drain time', async () => {
     const taskQueue = `worker-test-${randomUUID()}`;
     app = await createApp({ taskQueue, drainTimeoutMs: 500 });
+    // The SDK logs the activity it gives up on as a worker failure: expected here.
+    app.useLogger(false);
     await app.init();
     const activities = app.get(GreetingActivities);
     activities.delayMs = 60_000;
