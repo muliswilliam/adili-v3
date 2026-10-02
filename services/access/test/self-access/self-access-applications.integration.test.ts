@@ -353,6 +353,25 @@ describe('Written self-access applications (#303)', () => {
     );
     expect(entry?.details).toMatchObject({ applicationId: recorded.id, representativeName: null });
     expect(api.documents.linked).toEqual([]);
+    // Recording it is a write: its audit record, in its transaction (ADR-008), ids only.
+    expect(await api.events('access.self-access-application.recorded.v1')).toEqual([
+      expect.objectContaining({
+        subject: recorded.id,
+        tenant: 'psc',
+        data: {
+          applicationId: recorded.id,
+          certifiedCopyId: issued.certifiedCopy.id,
+          tenant: 'psc',
+          personId: anne.personId,
+          deliveryMethod: 'dispatch',
+          actor: officer.sub,
+          at: expect.any(String) as unknown,
+          declarationId: recorded.declarationId,
+          version: 2,
+          byRepresentative: false,
+        },
+      }),
+    ]);
     // Declarations audits the read as handed to Anne herself, asked by the officer.
     expect(api.declarations.fullDocumentCalls).toEqual([
       expect.objectContaining({
@@ -390,6 +409,18 @@ describe('Written self-access applications (#303)', () => {
     const again = await deliver(recorded.id);
     expect(again.statusCode).toBe(409);
     expect(again.json<{ detail: string }>().detail).toContain('collected');
+    // Marking it delivered is a write: its audit record, once (ADR-008).
+    expect(await api.events('access.self-access-application.delivered.v1')).toEqual([
+      expect.objectContaining({
+        subject: recorded.id,
+        data: expect.objectContaining({
+          applicationId: recorded.id,
+          deliveryMethod: 'collection',
+          actor: officer.sub,
+          at: '2027-05-12T08:00:00.000Z',
+        }) as unknown,
+      }),
+    ]);
   });
 
   it('S13: the list shows each application with its 14-day deadline, earliest first, late only when not issued in time', async () => {

@@ -93,6 +93,21 @@ describe('AccessRequestWorkflow activities (S3, S5)', () => {
         expect.objectContaining({ recipient: { kind: 'address', to: 'second.officer@psc.go.ke' } }),
       ]);
       expect(api.directory.calls).toContainEqual({ method: 'staffWithRole', slug: 'psc' });
+      // The status change's audit record (ADR-008): ids only.
+      expect(await api.events('access.request.officer-unresolved.v1')).toEqual([
+        expect.objectContaining({
+          subject: input.requestId,
+          tenant: 'psc',
+          data: {
+            requestId: input.requestId,
+            reference,
+            tenant: 'psc',
+            personId: null,
+            status: 'officer-unresolved',
+            at: '2027-03-09T09:00:00.000Z',
+          },
+        }),
+      ]);
     });
 
     it('a retried reminder is not sent twice', async () => {
@@ -102,6 +117,7 @@ describe('AccessRequestWorkflow activities (S3, S5)', () => {
       await activities.remindOfficer({ ...input, day: 5 });
 
       expect(api.notifications.sent).toHaveLength(2);
+      expect(await api.events('access.request.officer-unresolved.v1')).toHaveLength(1);
     });
 
     it('S2: a request held for verification is reminded at day 5 to verify the applicant, and stays held', async () => {
@@ -233,8 +249,21 @@ describe('AccessRequestWorkflow activities (S3, S5)', () => {
       await update(input.requestId, { status: 'awaiting-representations' });
 
       expect(await activities.closeWindow(input)).toBe('under-decision');
-      expect((await rowOf(api, input.requestId)).status).toBe('under-decision');
+      const row = await rowOf(api, input.requestId);
+      expect(row.status).toBe('under-decision');
       expect(await activities.closeWindow(input)).toBe('unchanged');
+      // The status change's audit record (ADR-008), once.
+      expect(await api.events('access.request.window-closed.v1')).toEqual([
+        expect.objectContaining({
+          subject: input.requestId,
+          tenant: 'psc',
+          data: expect.objectContaining({
+            requestId: input.requestId,
+            reference: row.reference,
+            status: 'under-decision',
+          }) as unknown,
+        }),
+      ]);
     });
 
     it('leaves a withdrawn request withdrawn', async () => {
@@ -243,6 +272,7 @@ describe('AccessRequestWorkflow activities (S3, S5)', () => {
 
       expect(await activities.closeWindow(input)).toBe('unchanged');
       expect((await rowOf(api, input.requestId)).status).toBe('withdrawn');
+      expect(await api.events('access.request.window-closed.v1')).toEqual([]);
     });
   });
 
