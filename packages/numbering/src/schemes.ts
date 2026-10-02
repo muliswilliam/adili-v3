@@ -103,7 +103,7 @@ export const DCF = defineScheme({
 
 /**
  * Clarification request (Act s.35): issued by the Responsible Commission, numbered per Commission
- * and calendar year of issue. `CLR-PSC-2028-0000451-3`.
+ * and calendar year of issue. `CLR-PSC-2028-0000451-1`.
  */
 export const CLR = defineScheme({
   code: 'CLR',
