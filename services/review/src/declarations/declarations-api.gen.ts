@@ -3737,7 +3737,7 @@ export interface operations {
                     "application/json": components["schemas"]["SuggestionSet"][];
                 };
             };
-            /** @description The declarant did not request the check (`consent-required`), the spouse or child has no national ID in Household (`no-id`), or the request failed validation (an unknown registry, or a person not in the household) */
+            /** @description The declarant did not request the check (`consent-required`), the spouse or child has no national ID in Household (`no-id`), the request failed validation (an unknown registry, or a person not in the household), or the Idempotency-Key header missing */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -3755,7 +3755,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
-            /** @description Not a draft (`declaration-not-draft`) */
+            /** @description Not a draft (`declaration-not-draft`), or a request with the same Idempotency-Key still running */
             409: {
                 headers: {
                     [name: string]: unknown;

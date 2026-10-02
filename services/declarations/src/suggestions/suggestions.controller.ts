@@ -75,10 +75,13 @@ export class SuggestionsController {
   })
   @ApiProblemResponse(
     400,
-    'The declarant did not request the check (`consent-required`), the spouse or child has no national ID in Household (`no-id`), or the request failed validation (an unknown registry, or a person not in the household)',
+    'The declarant did not request the check (`consent-required`), the spouse or child has no national ID in Household (`no-id`), the request failed validation (an unknown registry, or a person not in the household), or the Idempotency-Key header missing',
   )
   @ApiProblemResponse(404, NOT_VISIBLE)
-  @ApiProblemResponse(409, 'Not a draft (`declaration-not-draft`)')
+  @ApiProblemResponse(
+    409,
+    'Not a draft (`declaration-not-draft`), or a request with the same Idempotency-Key still running',
+  )
   requestLookups(
     @CurrentPrincipal() principal: Principal,
     @Param('declarationId') declarationId: string,

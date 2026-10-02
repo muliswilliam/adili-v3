@@ -496,6 +496,28 @@ describe('accepting a suggestion (S4)', () => {
     expect(await eventsOf('declaration.suggestion-accepted.v1')).toEqual([]);
   });
 
+  it('makes one change and one event of two accepts at once (no Idempotency-Key, ADR-013 8.9)', async () => {
+    const draft = await givenDraft();
+    givenOfficerRegistries();
+    const [set] = await checked(draft.id, achieng, 'officer', ['ntsa']);
+    const fielder = suggestionOf(set, 'vehicle');
+    const ifMatch = await etagOf(draft.id);
+    const body = { fields: fielder.fields, applyToItemId: null };
+
+    const responses = await Promise.all([
+      accept(draft.id, fielder.id, body, { ifMatch }),
+      accept(draft.id, fielder.id, body, { ifMatch }),
+    ]);
+
+    expect(responses.map((response) => response.statusCode).sort()).toEqual([200, 409]);
+    expect(itemsOf(await section(draft.id, 'statement:officer'), 'assets')).toHaveLength(1);
+    expect(await eventsOf('declaration.suggestion-accepted.v1')).toHaveLength(1);
+    // A retry after a lost answer is told it is decided; the section's ETag is read again.
+    const retry = await accept(draft.id, fielder.id, body, { ifMatch: await etagOf(draft.id) });
+    expect(retry.statusCode).toBe(409);
+    expect(retry.json()).toMatchObject({ code: 'not-new' });
+  });
+
   it('answers 428 without If-Match', async () => {
     const draft = await givenDraft();
     givenOfficerRegistries();

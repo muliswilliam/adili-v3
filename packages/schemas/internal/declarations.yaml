@@ -1818,7 +1818,7 @@ paths:
                 items:
                   $ref: '#/components/schemas/SuggestionSet'
         '400':
-          description: The declarant did not request the check (`consent-required`), the spouse or child has no national ID in Household (`no-id`), or the request failed validation (an unknown registry, or a person not in the household)
+          description: The declarant did not request the check (`consent-required`), the spouse or child has no national ID in Household (`no-id`), the request failed validation (an unknown registry, or a person not in the household), or the Idempotency-Key header missing
           content:
             application/problem+json:
               schema:
@@ -1830,7 +1830,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetails'
         '409':
-          description: Not a draft (`declaration-not-draft`)
+          description: Not a draft (`declaration-not-draft`), or a request with the same Idempotency-Key still running
           content:
             application/problem+json:
               schema:
