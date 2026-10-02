@@ -16,6 +16,7 @@ import {
 } from '@hugeicons/core-free-icons';
 import { type ReactNode, useId } from 'react';
 
+import { accessOutcomeTones } from '../lib/access';
 import { cn } from '../lib/cn';
 import { focusRingInset } from '../lib/focus';
 import { formatDate, formatDateTime, formatMonth } from '../lib/format-date';
@@ -81,9 +82,9 @@ export const registerKindMeta: Record<RegisterKind, EntryMeta> = {
 
 /** How a `decided` entry reads and is tinted, by its outcome. */
 export const registerOutcomeMeta: Record<RegisterOutcome, Pick<EntryMeta, 'label' | 'tone'>> = {
-  grant: { label: 'Access granted', tone: 'success' },
-  'partial-grant': { label: 'Access partially granted', tone: 'warning' },
-  deny: { label: 'Access denied', tone: 'destructive' },
+  grant: { label: 'Access granted', tone: accessOutcomeTones.grant },
+  'partial-grant': { label: 'Access partially granted', tone: accessOutcomeTones['partial-grant'] },
+  deny: { label: 'Access denied', tone: accessOutcomeTones.deny },
 };
 
 export interface RegisterEntry {

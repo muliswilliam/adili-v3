@@ -611,6 +611,9 @@ describe('RequestDetailView (spec 10 FE-5)', () => {
     renderDetail(await viewOf(R.partial));
     const decision = within(side()).getByRole('region', { name: 'Decision' });
     expect(within(decision).getByText('Partially granted')).toBeTruthy();
+    // Amber, as everywhere a partial grant shows, not a grant's green.
+    expect(decision.querySelector('.bg-warning-subtle')).not.toBeNull();
+    expect(decision.querySelector('.bg-success-subtle')).toBeNull();
     expect(
       within(decision).getByText(
         '2026 · Officer and spouses · Assets, liabilities, clarifications',

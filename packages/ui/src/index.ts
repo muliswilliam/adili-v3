@@ -412,6 +412,7 @@ export {
   accessMessages,
   accessMessagesSw,
   accessOutcomeLabels,
+  accessOutcomeTones,
   type AccessRequestStatus,
   type AccessStatusMeta,
   accessStatusMeta,

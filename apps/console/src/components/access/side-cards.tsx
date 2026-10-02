@@ -14,6 +14,7 @@ import {
   IconTile,
   MenuItem,
   Spinner,
+  type Tone,
   useToast,
 } from '@adili/ui';
 import {
@@ -149,7 +150,7 @@ export function OutcomeLine({
   children,
 }: {
   icon: IconProps['icon'];
-  tone: 'success' | 'destructive' | 'default';
+  tone: Tone;
   children: ReactNode;
 }) {
   return (

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   accessOutcomeLabels,
+  accessOutcomeTones,
   accessStatusMeta,
   applicantAccessStatusMeta,
   DECIDED_ACCESS_STATUSES,
@@ -40,6 +41,21 @@ describe('access status words', () => {
       'partial-grant': 'Partially granted',
       deny: 'Denied',
     });
+  });
+
+  it('tints a decision the same for staff, applicants and law enforcement: partial is amber', () => {
+    expect(accessOutcomeTones).toEqual({
+      grant: 'success',
+      'partial-grant': 'warning',
+      deny: 'destructive',
+    });
+    for (const meta of [accessStatusMeta, applicantAccessStatusMeta]) {
+      expect(meta.granted.tone).toBe('success');
+      expect(meta['partially-granted'].tone).toBe('warning');
+      expect(meta.denied.tone).toBe('destructive');
+    }
+    expect(leaStatusMeta.granted.tone).toBe('success');
+    expect(leaStatusMeta.denied.tone).toBe('destructive');
   });
 
   it('splits the statuses into open, decided and granted', () => {

@@ -157,6 +157,9 @@ describe('RequestPage (S17)', () => {
     show(await seededRequest(IDS.partial));
     expect(screen.getByText('Against public interest')).toBeTruthy();
     expect(screen.getByText('Granted')).toBeTruthy();
+    // Amber, as the declarant and the register see a partial grant, not a grant's green.
+    const badge = document.querySelector('[data-status="partially-granted"]');
+    expect(badge?.className).toContain('bg-warning-subtle');
   });
 
   it('offers a new request with the details after the officer could not be identified', async () => {

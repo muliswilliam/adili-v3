@@ -64,6 +64,16 @@ export const accessMessagesSw: Partial<Record<keyof typeof accessMessages, strin
 
 const m = accessMessages;
 
+/**
+ * A decision's tint wherever it shows, for staff, applicants and declarants alike: granted
+ * green, partially granted amber (part of what was asked was refused), denied red.
+ */
+export const accessOutcomeTones: Record<AccessOutcome, Tone> = {
+  grant: 'success',
+  'partial-grant': 'warning',
+  deny: 'destructive',
+};
+
 export interface AccessStatusMeta {
   label: string;
   tone: Tone;
@@ -79,9 +89,9 @@ export const accessStatusMeta: Record<AccessRequestStatus, AccessStatusMeta> = {
   'officer-unresolved': { label: m.identifyOfficer, tone: 'warning' },
   'awaiting-representations': { label: m.awaitingRepresentations, tone: 'default' },
   'under-decision': { label: m.underDecision, tone: 'brand' },
-  granted: { label: m.granted, tone: 'success' },
-  'partially-granted': { label: m.partiallyGranted, tone: 'success' },
-  denied: { label: m.denied, tone: 'destructive' },
+  granted: { label: m.granted, tone: accessOutcomeTones.grant },
+  'partially-granted': { label: m.partiallyGranted, tone: accessOutcomeTones['partial-grant'] },
+  denied: { label: m.denied, tone: accessOutcomeTones.deny },
   'cannot-identify': { label: m.cannotIdentify, tone: 'default' },
   withdrawn: { label: m.withdrawn, tone: 'default' },
 };
@@ -101,8 +111,8 @@ export const applicantAccessStatusMeta: Record<AccessRequestStatus, AccessStatus
 export const leaStatusMeta: Record<LeaRequestStatus, AccessStatusMeta> = {
   received: { label: m.received, tone: 'info' },
   verified: { label: m.verified, tone: 'brand' },
-  granted: { label: m.granted, tone: 'success' },
-  denied: { label: m.denied, tone: 'destructive' },
+  granted: { label: m.granted, tone: accessOutcomeTones.grant },
+  denied: { label: m.denied, tone: accessOutcomeTones.deny },
   withdrawn: { label: m.withdrawn, tone: 'default' },
 };
 

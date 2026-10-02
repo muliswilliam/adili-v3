@@ -1,5 +1,6 @@
 import {
   accessOutcomeLabels,
+  accessOutcomeTones,
   daysBetween,
   formatDate,
   formatDateTime,
@@ -78,13 +79,13 @@ export const STATE_META: Record<NoticeState, StateMeta> = {
     tone: 'info',
     icon: BalanceScaleIcon,
   },
-  grant: { label: accessOutcomeLabels.grant, tone: 'success', icon: Tick02Icon },
+  grant: { label: accessOutcomeLabels.grant, tone: accessOutcomeTones.grant, icon: Tick02Icon },
   'partial-grant': {
     label: accessOutcomeLabels['partial-grant'],
-    tone: 'warning',
+    tone: accessOutcomeTones['partial-grant'],
     icon: CheckListIcon,
   },
-  deny: { label: accessOutcomeLabels.deny, tone: 'destructive', icon: UnavailableIcon },
+  deny: { label: accessOutcomeLabels.deny, tone: accessOutcomeTones.deny, icon: UnavailableIcon },
   withdrawn: { label: NOTICES_COPY.statusWithdrawn, tone: 'default', icon: Undo02Icon },
   closed: { label: NOTICES_COPY.statusClosed, tone: 'default', icon: UnavailableIcon },
   lea: { label: NOTICES_COPY.statusLea, tone: 'info', icon: PoliceBadgeIcon },
