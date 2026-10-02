@@ -27,7 +27,7 @@ describe('outbound registry spans', () => {
   beforeAll(async () => {
     // The SDK batches spans for 5s; export each batch at once, so a test waits milliseconds.
     vi.stubEnv('OTEL_BSP_SCHEDULE_DELAY', '10');
-    sdk = startTelemetry({ serviceName: 'integration-gateway', traceExporter: spans });
+    sdk = startTelemetry({ serviceName: 'integration-gateway', testSpanExporter: spans });
     registries = await StubRegistries.start();
     iprs = await StubIprs.start();
     t = await createTestApp({ registryUrls: registries.urls, baseUrl: iprs.baseUrl });
@@ -113,6 +113,22 @@ describe('outbound registry spans', () => {
     expect(text).not.toContain(KIPRONO_PIN);
   });
 
+  it('a KRA lookup the registry fails (503) exports no national ID', async () => {
+    registries.behaviour.kra = { kind: 'status', status: 503 };
+    const response = await t.app.inject({
+      method: 'POST',
+      url: '/internal/v1/kra/taxpayer-lookups',
+      headers: review,
+      payload: { nationalId: SEED.kiprono },
+    });
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({ outcome: 'unavailable', reason: 'upstream-error' });
+
+    const text = await exported([/\/kra\/v1\/pins\?id_number=/]);
+    expect(text).not.toContain(SEED.kiprono);
+    expect(text).not.toContain(KIPRONO_PIN);
+  });
+
   it('the IPRS lookup exports no national ID', async () => {
     iprs.people.set(SEED.kiprono, {
       id_number: SEED.kiprono,
@@ -130,6 +146,19 @@ describe('outbound registry spans', () => {
       payload: { nationalId: SEED.kiprono },
     });
     expect(response.statusCode).toBe(200);
+
+    const text = await exported([/\/v1\/persons\/[^/]+$/]);
+    expect(text).not.toContain(SEED.kiprono);
+  });
+
+  it('an IPRS lookup of nobody (404) exports no national ID', async () => {
+    const response = await t.app.inject({
+      method: 'POST',
+      url: '/internal/v1/iprs/person-lookups',
+      headers: directory,
+      payload: { nationalId: SEED.kiprono },
+    });
+    expect(response.statusCode).toBe(404);
 
     const text = await exported([/\/v1\/persons\/[^/]+$/]);
     expect(text).not.toContain(SEED.kiprono);

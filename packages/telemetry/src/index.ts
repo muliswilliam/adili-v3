@@ -14,10 +14,11 @@ export interface TelemetryOptions {
   /** OTLP gRPC endpoint, e.g. http://localhost:4317. */
   endpoint?: string;
   /**
-   * Test seam: spans go here (redacted, as in production) rather than to OTLP, and no metrics are
-   * exported. Tests pass an in-memory exporter to read what a service's spans would carry.
+   * Tests only, never set in a service: spans go here (redacted, as in production) rather than to
+   * OTLP, and metrics are not exported at all. Tests pass an in-memory exporter to read what a
+   * service's spans would carry.
    */
-  traceExporter?: tracing.SpanExporter;
+  testSpanExporter?: tracing.SpanExporter;
 }
 
 /**
@@ -33,9 +34,9 @@ export function startTelemetry(options: TelemetryOptions): NodeSDK {
     // No free text a person typed and no identifier leaves in a traced URL ("no PII in URLs",
     // docs/architecture).
     traceExporter: new RedactingSpanExporter(
-      options.traceExporter ?? new OTLPTraceExporter({ url: options.endpoint }),
+      options.testSpanExporter ?? new OTLPTraceExporter({ url: options.endpoint }),
     ),
-    metricReaders: options.traceExporter
+    metricReaders: options.testSpanExporter
       ? []
       : [
           new PeriodicExportingMetricReader({

@@ -11,7 +11,7 @@ const URL_ATTRIBUTES = ['url.full', 'url.original', 'url.path', 'http.url', 'htt
 const QUERY_ATTRIBUTES = ['url.query'] as const;
 
 /** A query alone, redacted as it would be in its URL, with or without its leading `?`. */
-const redactQuery = (query: string) =>
+const redactQueryAttribute = (query: string) =>
   query.startsWith('?') ? redactTracedUrl(query) : redactTracedUrl(`?${query}`).slice(1);
 
 /**
@@ -31,7 +31,7 @@ export function redactAttributes(attributes: Attributes): Attributes {
   }
   for (const key of QUERY_ATTRIBUTES) {
     const value = attributes[key];
-    if (typeof value === 'string') set(key, redactQuery(value));
+    if (typeof value === 'string') set(key, redactQueryAttribute(value));
   }
   return redacted ?? attributes;
 }
