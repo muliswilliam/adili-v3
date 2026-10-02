@@ -71,6 +71,13 @@
       "when": 1790930354647,
       "tag": "0009_grant_packages",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1790938897426,
+      "tag": "0010_backfill_package_kind",
+      "breakpoints": true
     }
   ]
 }
