@@ -57,7 +57,7 @@ const uploadDownloadSchema = z.object({
  * The documents internal API through the client generated from its contract
  * (packages/schemas/internal/documents.yaml → documents-api.gen.ts via `pnpm generate:api`),
  * with the access service's own token (`documents:internal`) and the Commission in
- * `X-Acting-Tenant` (ADR-013 §8.5).
+ * `X-Acting-Tenant` (ADR-013 §8.8).
  */
 export class HttpDocumentsClient extends DocumentsClient {
   private readonly documents: ServiceClient<paths>;
