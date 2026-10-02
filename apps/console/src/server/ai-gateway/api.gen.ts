@@ -24,6 +24,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/internal/v1/tasks/answer-declarant-question/stream": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Stream an answer (server-sent events: text deltas, then the job with its validated output)
+         * @description Runs an `answer`-mode input of `answer-declarant-question` as a job, in the request. Events: `delta` {text}, the answer's prose as the model writes it, provisional until the end; then either `final` {job}, the succeeded job, whose output replaces the deltas (an answer that failed its checks arrives as `declined: true` with no blocks), or `error` {reason}, the job failed. A `: ping` comment is sent every 15 s. The Idempotency-Key names the job like the task endpoint's: a finished key returns its `final` (or `error`) only; an equal request with a succeeded job is served from it as one `delta` and its `final`.
+         */
+        post: operations["streamAnswerDeclarantQuestion"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/internal/v1/jobs/{jobId}": {
         parameters: {
             query?: never;
@@ -170,29 +190,12 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/internal/v1/tasks/answer-declarant-question/stream": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Stream an answer (server-sent events: text deltas, then one final structured frame that is validated like a job output) */
-        post: operations["streamAnswerDeclarantQuestion"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
         /** @enum {string} */
-        TaskName: "summarize-declaration" | "explain-flags" | "draft-clarification" | "narrate-compliance-report";
+        TaskName: "summarize-declaration" | "explain-flags" | "draft-clarification" | "narrate-compliance-report" | "answer-declarant-question";
         /** @enum {string} */
         DataClass: "synthetic" | "restricted" | "highly-confidential";
         /** @enum {string} */
@@ -216,7 +219,7 @@ export interface components {
             /** @default 0 */
             waitSeconds: number;
             /** @description The task's input; its `kind` is the task name */
-            input: components["schemas"]["SummarizeDeclarationInput"] | components["schemas"]["ExplainFlagsInput"] | components["schemas"]["DraftClarificationInput"] | components["schemas"]["NarrateComplianceReportInput"];
+            input: components["schemas"]["SummarizeDeclarationInput"] | components["schemas"]["ExplainFlagsInput"] | components["schemas"]["DraftClarificationInput"] | components["schemas"]["NarrateComplianceReportInput"] | components["schemas"]["AnswerDeclarantQuestionInput"];
         };
         Job: {
             /** Format: uuid */
@@ -239,7 +242,7 @@ export interface components {
                 latencyMs: number;
             };
             /** @description The task's output; null until the job succeeded, or once purged */
-            output: components["schemas"]["SummarizeDeclarationOutput"] | components["schemas"]["ExplainFlagsOutput"] | components["schemas"]["DraftClarificationOutput"] | components["schemas"]["NarrateComplianceReportOutput"] | null;
+            output: components["schemas"]["SummarizeDeclarationOutput"] | components["schemas"]["ExplainFlagsOutput"] | components["schemas"]["DraftClarificationOutput"] | components["schemas"]["NarrateComplianceReportOutput"] | components["schemas"]["AnswerDeclarantQuestionOutput"] | null;
             /** Format: date-time */
             createdAt: string;
             finishedAt: string | null;
@@ -254,7 +257,7 @@ export interface components {
             model: string;
             /** Format: date-time */
             generatedAt: string;
-            /** @description Fixed text: indicators, not findings; a named reviewer decides */
+            /** @description Fixed text per task and language: for the reviewer tasks, indicators, not findings, a named reviewer decides; for a declarant's answers, not legal advice */
             disclaimer: string;
         };
         SourceRef: {
@@ -447,6 +450,68 @@ export interface components {
                 candidateIds: string[];
             }[];
         };
+        AnswerDeclarantQuestionInput: {
+            /** @constant */
+            kind: "answer-declarant-question";
+            /**
+             * @description `answer` streams an answer to the question (stream endpoint only); `hints` writes one hint per residual (job endpoint only)
+             * @enum {string}
+             */
+            mode: "answer" | "hints";
+            /** @enum {string} */
+            language: "en" | "sw";
+            /** @description The declarant’s question; null in hints mode */
+            question: string | null;
+            /** @description Never contains amounts, names, identifiers or descriptions */
+            context: {
+                declarationType: string | null;
+                statementDate: string | null;
+                householdCounts: {
+                    spouses: number;
+                    children: number;
+                };
+                /** @description The section the declarant is on */
+                sectionKey: string | null;
+                /** @description What the completeness module still reports: where, and by which rule */
+                residuals: {
+                    /** @description bio, household, other, or statement:<personKey> (declarations.yaml) */
+                    sectionKey: string;
+                    /** @description The completeness rule that reports it */
+                    ruleId: string;
+                    /** @description JSON pointer within the section */
+                    fieldPath: string;
+                }[];
+            };
+            /** @description Retrieved corpus passages; an answer may cite only these */
+            passages: {
+                id: string;
+                citation: string;
+                text: string;
+            }[];
+            /** @description Earlier turns, oldest first, to resolve follow-up questions */
+            history: {
+                /** @enum {string} */
+                role: "user" | "assistant";
+                text: string;
+            }[];
+        };
+        AnswerDeclarantQuestionOutput: {
+            label: components["schemas"]["AiLabel"];
+            /** @description The passages do not answer the question; also set when a streamed answer fails its checks, which then has no blocks */
+            declined: boolean;
+            blocks: {
+                text: string;
+                /** @description Passages the block rests on, all from the input; at least one in answer mode */
+                passageIds: string[];
+                /** @description Where in the declaration the block is about; in hints mode, its residual */
+                sectionLink: {
+                    /** @description bio, household, other, or statement:<personKey> (declarations.yaml) */
+                    sectionKey: string;
+                    fieldPath: string | null;
+                } | null;
+            }[];
+            followUps: string[];
+        };
         FeedbackInput: {
             /** @description The reviewer rating the output, as the calling service knows them (token `sub`) */
             reviewerSubject: string;
@@ -608,54 +673,6 @@ export interface components {
             }[];
             warnings: string[];
         };
-        AnswerDeclarantQuestionInput: {
-            /** @constant */
-            kind: "answer-declarant-question";
-            /** @enum {string} */
-            mode: "answer" | "hints";
-            /** @enum {string} */
-            language: "en" | "sw";
-            /** @description null in hints mode */
-            question: string | null;
-            /** @description Never contains amounts, names, identifiers or descriptions */
-            context: {
-                declarationType: string | null;
-                /** Format: date */
-                statementDate: string | null;
-                householdCounts: {
-                    spouses: number;
-                    children: number;
-                };
-                sectionKey: string | null;
-                residuals: {
-                    ruleId: string;
-                    fieldPath: string;
-                }[];
-            };
-            passages: {
-                id: string;
-                citation: string;
-                text: string;
-            }[];
-            history: {
-                /** @enum {string} */
-                role: "user" | "assistant";
-                text: string;
-            }[];
-        };
-        AnswerDeclarantQuestionOutput: {
-            label: components["schemas"]["AiLabel"];
-            declined: boolean;
-            blocks: {
-                text: string;
-                passageIds: string[];
-                sectionLink: {
-                    sectionKey: string;
-                    fieldPath: string | null;
-                } | null;
-            }[];
-            followUps: string[];
-        };
     };
     responses: never;
     parameters: never;
@@ -748,6 +765,89 @@ export interface operations {
                 headers: {
                     /** @description Seconds until the next request would be allowed */
                     "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    streamAnswerDeclarantQuestion: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Tenant the calling service acts for; the resource must belong to it */
+                "X-Acting-Tenant": string;
+                /** @description Client-generated UUID, unique per logical request; reuse on retry */
+                "Idempotency-Key": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TaskRequest"];
+            };
+        };
+        responses: {
+            /** @description SSE stream: `delta` {text}, then `final` {job: Job} or `error` {reason: JobReason} */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/event-stream": string;
+                };
+            };
+            /** @description Request failed validation, a `hints` input (`task-not-streamed`, run it as a job), Idempotency-Key missing or not a UUID, or X-Acting-Tenant missing */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description The classification gate refused it (`task-blocked`, `reason: policy`); the blocked job is recorded */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description The Idempotency-Key, or an equal request, is streaming now (`job-in-progress`) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Idempotency-Key reused with a different request */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Tenant's per-minute limit reached (code `rate-limit-exceeded`, no job), or its monthly budget spent (`task-blocked`, `reason: budget`) */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description No provider reachable for the route (`task-blocked`) */
+            503: {
+                headers: {
                     [name: string]: unknown;
                 };
                 content: {
@@ -1122,50 +1222,6 @@ export interface operations {
             };
             /** @description The tenant is not the one the caller acts for */
             404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetails"];
-                };
-            };
-        };
-    };
-    streamAnswerDeclarantQuestion: {
-        parameters: {
-            query?: never;
-            header: {
-                "Idempotency-Key": string;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["TaskRequest"];
-            };
-        };
-        responses: {
-            /** @description SSE stream; events `delta` {text}, `final` {job}, `error` {reason} */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "text/event-stream": string;
-                };
-            };
-            /** @description Request failed validation */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetails"];
-                };
-            };
-            /** @description Per-tenant rate limit (jobs per minute); problem code `rate-limit-exceeded` with `retryAfterSeconds` */
-            429: {
                 headers: {
                     [name: string]: unknown;
                 };

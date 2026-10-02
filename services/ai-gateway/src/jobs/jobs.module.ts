@@ -9,6 +9,7 @@ import { JOB_WORKFLOWS_OPTIONS, JobWorkflows, type JobWorkflowsOptions } from '.
 import { JobsController } from './jobs.controller.js';
 import { JANITOR_OPTIONS, type JanitorOptions, JobsJanitor } from './jobs-janitor.js';
 import { JobsService } from './jobs.service.js';
+import { TaskStreams } from './task-streams.js';
 import { Routing, ROUTING_OPTIONS, type RoutingOptions } from './routing.js';
 
 /** Margin over the provider timeout for building the request and recording the outcome. */
@@ -20,6 +21,7 @@ const ATTEMPT_OVERHEAD_MS = 30_000;
   controllers: [JobsController],
   providers: [
     JobsService,
+    TaskStreams,
     Admission,
     JobExecutor,
     JobWorkflows,

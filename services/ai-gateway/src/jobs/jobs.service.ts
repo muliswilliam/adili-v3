@@ -10,13 +10,14 @@ import { hashJson } from '../hashing.js';
 import { Budgets } from '../policy/budgets.js';
 import { GenAiTelemetry } from '../policy/telemetry.js';
 import { findTask } from '../tasks/registry.js';
+import type { TaskDefinition } from '../tasks/task.js';
 import { Admission } from './admission.js';
 import { recordJobEnded } from './job-ended.js';
 import { JobWorkflows } from './job-workflows.js';
 import { CACHEABLE_STATUSES, isTerminal } from './job-states.js';
 import { toJobView, type JobView } from './job-view.js';
-import { Routing } from './routing.js';
-import { taskRequestSchema } from './task-request.js';
+import { type Route, Routing } from './routing.js';
+import { type TaskRequest, taskRequestSchema } from './task-request.js';
 
 export interface RunTaskResult {
   job: JobView;
@@ -25,7 +26,65 @@ export interface RunTaskResult {
 }
 
 /** Two concurrent requests can race for the same key or cache entry; the loser reads the winner. */
-const MAX_CREATE_ATTEMPTS = 3;
+export const MAX_CREATE_ATTEMPTS = 3;
+
+/** The prompt version a request runs: the one it pins, else the task's current one. */
+export function promptVersionFor(task: TaskDefinition, pinned: number | null): number {
+  const promptVersion = pinned ?? task.currentPromptVersion;
+  if (!task.promptVersions.includes(promptVersion)) {
+    throw new ProblemException({
+      type: 'prompt-version-unknown',
+      title: 'Unknown prompt version',
+      status: HttpStatus.BAD_REQUEST,
+      detail: `Task ${task.name} has prompt versions ${task.promptVersions.join(', ')}.`,
+    });
+  }
+  return promptVersion;
+}
+
+/**
+ * A request's job identity: the cache key columns, and the hash of what the caller asked for
+ * (the wait is not part of it, so a retry may wait differently).
+ */
+export function jobKey(
+  task: TaskDefinition,
+  request: Pick<TaskRequest, 'dataClass' | 'subjectRef' | 'promptVersion' | 'input'>,
+  promptVersion: number,
+  route: Pick<Route, 'provider' | 'model'>,
+  tenant: string,
+  principal: Principal,
+): { fields: Pick<Job, (typeof CACHE_KEY)[number]>; requestHash: string } {
+  return {
+    fields: {
+      tenant,
+      caller: callerOf(principal),
+      subjectRef: request.subjectRef,
+      dataClass: request.dataClass,
+      task: task.name,
+      promptVersion,
+      provider: route.provider,
+      model: route.model,
+      inputHash: hashJson(request.input),
+    },
+    requestHash: hashJson({
+      task: task.name,
+      tenant,
+      dataClass: request.dataClass,
+      subjectRef: request.subjectRef,
+      promptVersion: request.promptVersion,
+      input: request.input,
+    }),
+  };
+}
+
+export function keyReused(): ProblemException {
+  return new ProblemException({
+    type: 'idempotency-key-reused',
+    title: 'Idempotency-Key reused',
+    status: HttpStatus.UNPROCESSABLE_ENTITY,
+    detail: 'This Idempotency-Key was already used for a different request.',
+  });
+}
 
 /** Creates task jobs (cache and idempotency enforced by the database) and reads them back. */
 @Injectable()
@@ -71,36 +130,17 @@ export class JobsService {
       });
     }
     const request = taskRequestSchema(task).parse(body);
-    const promptVersion = request.promptVersion ?? task.currentPromptVersion;
-    if (!task.promptVersions.includes(promptVersion)) {
+    if (task.streamed?.(request.input)) {
       throw new ProblemException({
-        type: 'prompt-version-unknown',
-        title: 'Unknown prompt version',
+        type: 'task-streamed',
+        title: 'Streamed task input',
         status: HttpStatus.BAD_REQUEST,
-        detail: `Task ${task.name} has prompt versions ${task.promptVersions.join(', ')}.`,
+        detail: `Task ${task.name} answers this input over its stream endpoint, not as a job.`,
       });
     }
+    const promptVersion = promptVersionFor(task, request.promptVersion);
     const route = await this.routing.route(tenant, task.name);
-    const fields: Pick<Job, (typeof CACHE_KEY)[number]> = {
-      tenant,
-      caller: callerOf(principal),
-      subjectRef: request.subjectRef,
-      dataClass: request.dataClass,
-      task: task.name,
-      promptVersion,
-      provider: route.provider,
-      model: route.model,
-      inputHash: hashJson(request.input),
-    };
-    // What the caller asked for; the wait is not part of it, so a retry may wait differently.
-    const requestHash = hashJson({
-      task: task.name,
-      tenant,
-      dataClass: request.dataClass,
-      subjectRef: request.subjectRef,
-      promptVersion: request.promptVersion,
-      input: request.input,
-    });
+    const { fields, requestHash } = jobKey(task, request, promptVersion, route, tenant, principal);
 
     for (let attempt = 0; attempt < MAX_CREATE_ATTEMPTS; attempt++) {
       const [previous] = await this.db
@@ -108,14 +148,7 @@ export class JobsService {
         .from(jobs)
         .where(and(eq(jobs.caller, fields.caller), eq(jobs.idempotencyKey, idempotencyKey)));
       if (previous) {
-        if (previous.requestHash !== requestHash) {
-          throw new ProblemException({
-            type: 'idempotency-key-reused',
-            title: 'Idempotency-Key reused',
-            status: HttpStatus.UNPROCESSABLE_ENTITY,
-            detail: 'This Idempotency-Key was already used for a different request.',
-          });
-        }
+        if (previous.requestHash !== requestHash) throw keyReused();
         return { job: await this.startAndWait(previous, request.waitSeconds), replayed: true };
       }
 

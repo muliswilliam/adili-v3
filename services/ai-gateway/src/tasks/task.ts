@@ -11,6 +11,7 @@ export const TASK_NAMES = [
   'explain-flags',
   'draft-clarification',
   'narrate-compliance-report',
+  'answer-declarant-question',
 ] as const;
 export type TaskName = (typeof TASK_NAMES)[number];
 export const taskNameSchema = z.enum(TASK_NAMES);
@@ -34,9 +35,10 @@ export const aiLabelSchema = z
     provider: z.string(),
     model: z.string(),
     generatedAt: z.iso.datetime(),
-    disclaimer: z
-      .string()
-      .meta({ description: 'Fixed text: indicators, not findings; a named reviewer decides' }),
+    disclaimer: z.string().meta({
+      description:
+        "Fixed text per task and language: for the reviewer tasks, indicators, not findings, a named reviewer decides; for a declarant's answers, not legal advice",
+    }),
   })
   .meta({ description: 'Present on every output' });
 export type AiLabel = z.infer<typeof aiLabelSchema>;
@@ -66,6 +68,13 @@ interface TaskSpec<TInput extends z.ZodObject, TOutput extends z.ZodObject> {
    * violation fails the job with reason `validation`.
    */
   validate?: (input: z.infer<TInput>, output: z.infer<TOutput>) => OutputViolation[];
+  /**
+   * The inputs this task answers over the stream endpoint, as text deltas then the output, rather
+   * than as a job; the job endpoint refuses them, and the stream endpoint refuses the rest.
+   */
+  streamed?: (input: z.infer<TInput>) => boolean;
+  /** The label's disclaimer per language, when not the reviewer tasks' (`DISCLAIMERS`). */
+  disclaimer?: Readonly<Record<Language, string>>;
   /**
    * Hours a finished job keeps this task's output, when shorter than the service-wide
    * `AI_OUTPUT_RETENTION_DAYS` (a clarification draft is kept 24 hours, spec 07c).
@@ -127,6 +136,7 @@ const DISCLAIMERS: Record<Language, string> = {
 export function aiLabel(
   fields: Omit<AiLabel, 'aiAssisted' | 'disclaimer'>,
   language: Language,
+  disclaimers: Readonly<Record<Language, string>> = DISCLAIMERS,
 ): AiLabel {
-  return { aiAssisted: true, ...fields, disclaimer: DISCLAIMERS[language] };
+  return { aiAssisted: true, ...fields, disclaimer: disclaimers[language] };
 }

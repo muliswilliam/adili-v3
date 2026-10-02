@@ -23,25 +23,29 @@ import {
 import { ProviderRegistry } from '../providers/providers.module.js';
 import { inputLanguage } from '../tasks/common.js';
 import { findTask } from '../tasks/registry.js';
-import { aiLabel, type OutputViolation, type TaskDefinition } from '../tasks/task.js';
+import { type AiLabel, aiLabel, type OutputViolation, type TaskDefinition } from '../tasks/task.js';
 import { Admission } from './admission.js';
 import { recordJobEnded } from './job-ended.js';
 import { type JobReason, LIVE_STATUSES } from './job-states.js';
 import { parseParams, type RouteParams } from './routing.js';
 
-type Outcome =
-  | { status: 'succeeded'; output: Record<string, unknown> }
+/**
+ * How a job ends. A succeeded job carries violations only when its output was replaced because it
+ * failed its checks (a streamed answer becomes a decline).
+ */
+export type Outcome =
+  | { status: 'succeeded'; output: Record<string, unknown>; violations?: OutputViolation[] }
   | { status: 'failed' | 'blocked'; reason: JobReason; violations?: OutputViolation[] };
 
 /** What one provider call cost; absent when the job ends without a call. */
-interface AttemptMetrics {
+export interface AttemptMetrics {
   usage: Usage | null;
   /** Model that served the call, which prices it. */
   model: string | null;
   latencyMs: number;
 }
 
-const NO_CALL: AttemptMetrics = { usage: null, model: null, latencyMs: 0 };
+export const NO_CALL: AttemptMetrics = { usage: null, model: null, latencyMs: 0 };
 
 /** Violations kept with a failed job and its audit record: enough to say why, bounded. */
 const MAX_STORED_VIOLATIONS = 20;
@@ -177,7 +181,9 @@ export class JobExecutor {
     // the workflow's retry, which would call the provider again. A worker that dies between
     // the call and the commit still leads to a second call; only storing the raw result first
     // would prevent that.
-    await retryWrite(job.id, deadline, () => this.finish(job, outcome, metrics));
+    await retryWrite(job.id, deadline, async () => {
+      await this.finish(job, outcome, metrics);
+    });
   }
 
   /** Records a job whose execution could not succeed (retries exhausted, permanent error). */
@@ -234,11 +240,11 @@ export class JobExecutor {
    * schema and the input's refs, then the output with identifiers restored against the schema
    * again, so what is stored is always valid. Any failure stores nothing (no partial output).
    */
-  private outcome(
+  outcome(
     job: Job,
     task: TaskDefinition,
     result: StructuredResult,
-    prompt: PreparedPrompt,
+    prompt: Pick<PreparedPrompt, 'restore'>,
   ): Outcome {
     if (result.status === 'refused') return { status: 'failed', reason: 'refused' };
     // A cut-off structured output is absent: nothing valid to keep.
@@ -298,8 +304,12 @@ export class JobExecutor {
       );
       return { status: 'failed', reason: 'validation', violations };
     }
-    const language = inputLanguage(job.input);
-    const label = aiLabel(
+    return { status: 'succeeded', output: { label: this.label(job, task), ...restored.data } };
+  }
+
+  /** The label of a job's output: what made it, when, and the task's disclaimer. */
+  label(job: Job, task: TaskDefinition): AiLabel {
+    return aiLabel(
       {
         task: task.name,
         promptVersion: job.promptVersion,
@@ -307,9 +317,9 @@ export class JobExecutor {
         model: job.model,
         generatedAt: new Date().toISOString(),
       },
-      language,
+      inputLanguage(job.input),
+      task.disclaimer,
     );
-    return { status: 'succeeded', output: { label, ...restored.data } };
   }
 
   /**
@@ -333,7 +343,7 @@ export class JobExecutor {
    * Moves a live job to its final state, with its audit record and event; a job that already
    * ended is left. Counted in telemetry once committed.
    */
-  private async finish(job: Job, outcome: Outcome, metrics: AttemptMetrics): Promise<void> {
+  async finish(job: Job, outcome: Outcome, metrics: AttemptMetrics): Promise<Job | undefined> {
     const output = outcome.status === 'succeeded' ? outcome.output : null;
     const finished = await this.db.transaction(async (tx) => {
       // A hung write (lock wait, lost connection) must fail in time for the caller to react.
@@ -343,7 +353,7 @@ export class JobExecutor {
         .set({
           status: outcome.status,
           reason: outcome.status === 'succeeded' ? null : outcome.reason,
-          violations: outcome.status === 'succeeded' ? null : (outcome.violations ?? null),
+          violations: outcome.violations ?? null,
           output,
           outputHash: output && hashJson(output),
           input: null,
@@ -361,6 +371,7 @@ export class JobExecutor {
       return row;
     });
     if (finished) this.telemetry.jobFinished(finished);
+    return finished;
   }
 }
 

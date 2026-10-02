@@ -4,13 +4,27 @@ import {
   type Counter,
   type Histogram,
   metrics,
+  type Span,
   SpanKind,
   SpanStatusCode,
   trace,
 } from '@opentelemetry/api';
 
 import type { Job } from '../db/schema.js';
-import { ProviderError, type StructuredResult, totalInputTokens } from '../providers/port.js';
+import {
+  type GenerateResult,
+  ProviderError,
+  type StructuredResult,
+  totalInputTokens,
+} from '../providers/port.js';
+
+type CallResult = StructuredResult | GenerateResult;
+
+/** One provider call's span, ended with its result or its error. */
+export interface CallSpan {
+  succeeded(result: CallResult): void;
+  failed(error: unknown): void;
+}
 
 /**
  * OpenTelemetry for provider calls and jobs, following the GenAI semantic conventions: a client
@@ -139,68 +153,95 @@ export class GenAiTelemetry {
   }
 
   /** Runs one provider call inside a GenAI client span, recording its usage and duration. */
-  async call(
-    context: CallContext,
-    run: () => Promise<StructuredResult>,
-  ): Promise<StructuredResult> {
-    const base: Attributes = {
+  async call<T extends CallResult>(context: CallContext, run: () => Promise<T>): Promise<T> {
+    return trace
+      .getTracer(SCOPE)
+      .startActiveSpan(`${OPERATION} ${context.model}`, this.spanOptions(context), async (span) => {
+        const call = this.track(context, span);
+        try {
+          const result = await run();
+          call.succeeded(result);
+          return result;
+        } catch (error) {
+          call.failed(error);
+          throw error;
+        }
+      });
+  }
+
+  /**
+   * Opens a provider call's span for a call that outlives one promise (a stream): ended by the
+   * handle, with the same attributes and metrics as `call`.
+   */
+  begin(context: CallContext): CallSpan {
+    const span = trace
+      .getTracer(SCOPE)
+      .startSpan(`${OPERATION} ${context.model}`, this.spanOptions(context));
+    return this.track(context, span);
+  }
+
+  private spanOptions(context: CallContext) {
+    return {
+      kind: SpanKind.CLIENT,
+      attributes: {
+        ...this.baseAttributes(context),
+        [GEN_AI.requestMaxTokens]: context.maxOutputTokens,
+        [AI_ATTRIBUTES.jobId]: context.jobId,
+        [AI_ATTRIBUTES.tenant]: context.tenant,
+        [AI_ATTRIBUTES.task]: context.task,
+        [AI_ATTRIBUTES.promptVersion]: context.promptVersion,
+      },
+    };
+  }
+
+  private baseAttributes(context: CallContext): Attributes {
+    return {
       [GEN_AI.operationName]: OPERATION,
       [GEN_AI.system]: context.provider,
       [GEN_AI.providerName]: context.provider,
       [GEN_AI.requestModel]: context.model,
     };
-    return trace.getTracer(SCOPE).startActiveSpan(
-      `${OPERATION} ${context.model}`,
-      {
-        kind: SpanKind.CLIENT,
-        attributes: {
+  }
+
+  /** Records a call's outcome on its span and in the metrics, then ends the span. */
+  private track(context: CallContext, span: Span): CallSpan {
+    const base = this.baseAttributes(context);
+    const startedAt = performance.now();
+    return {
+      succeeded: (result) => {
+        const usage = result.usage;
+        span.setAttributes({
+          [GEN_AI.responseModel]: result.model,
+          [GEN_AI.responseFinishReasons]: [FINISH_REASONS[result.status]],
+          [GEN_AI.usageInputTokens]: totalInputTokens(usage),
+          [GEN_AI.usageOutputTokens]: usage.outputTokens,
+          [GEN_AI.usageCacheReadTokens]: usage.cacheReadTokens,
+          [GEN_AI.usageCacheCreationTokens]: usage.cacheWriteTokens,
+        });
+        const withResponse = { ...base, [GEN_AI.responseModel]: result.model };
+        this.tokenUsage.record(totalInputTokens(usage), {
+          ...withResponse,
+          [GEN_AI.tokenType]: 'input',
+        });
+        this.tokenUsage.record(usage.outputTokens, {
+          ...withResponse,
+          [GEN_AI.tokenType]: 'output',
+        });
+        this.duration.record((performance.now() - startedAt) / 1000, withResponse);
+        span.end();
+      },
+      failed: (error) => {
+        const errorType = error instanceof ProviderError ? error.kind : '_OTHER';
+        // The kind only: provider messages are kept off spans like everything else.
+        span.setAttribute(GEN_AI.errorType, errorType);
+        span.setStatus({ code: SpanStatusCode.ERROR, message: errorType });
+        this.duration.record((performance.now() - startedAt) / 1000, {
           ...base,
-          [GEN_AI.requestMaxTokens]: context.maxOutputTokens,
-          [AI_ATTRIBUTES.jobId]: context.jobId,
-          [AI_ATTRIBUTES.tenant]: context.tenant,
-          [AI_ATTRIBUTES.task]: context.task,
-          [AI_ATTRIBUTES.promptVersion]: context.promptVersion,
-        },
+          [GEN_AI.errorType]: errorType,
+        });
+        span.end();
       },
-      async (span) => {
-        const startedAt = performance.now();
-        try {
-          const result = await run();
-          const usage = result.usage;
-          span.setAttributes({
-            [GEN_AI.responseModel]: result.model,
-            [GEN_AI.responseFinishReasons]: [FINISH_REASONS[result.status]],
-            [GEN_AI.usageInputTokens]: totalInputTokens(usage),
-            [GEN_AI.usageOutputTokens]: usage.outputTokens,
-            [GEN_AI.usageCacheReadTokens]: usage.cacheReadTokens,
-            [GEN_AI.usageCacheCreationTokens]: usage.cacheWriteTokens,
-          });
-          const withResponse = { ...base, [GEN_AI.responseModel]: result.model };
-          this.tokenUsage.record(totalInputTokens(usage), {
-            ...withResponse,
-            [GEN_AI.tokenType]: 'input',
-          });
-          this.tokenUsage.record(usage.outputTokens, {
-            ...withResponse,
-            [GEN_AI.tokenType]: 'output',
-          });
-          this.duration.record((performance.now() - startedAt) / 1000, withResponse);
-          return result;
-        } catch (error) {
-          const errorType = error instanceof ProviderError ? error.kind : '_OTHER';
-          // The kind only: provider messages are kept off spans like everything else.
-          span.setAttribute(GEN_AI.errorType, errorType);
-          span.setStatus({ code: SpanStatusCode.ERROR, message: errorType });
-          this.duration.record((performance.now() - startedAt) / 1000, {
-            ...base,
-            [GEN_AI.errorType]: errorType,
-          });
-          throw error;
-        } finally {
-          span.end();
-        }
-      },
-    );
+    };
   }
 
   /** Counts a job that has just ended, with its tokens and cost. */
