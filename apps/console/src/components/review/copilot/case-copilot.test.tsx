@@ -278,8 +278,9 @@ describe('CaseCopilot (S15)', () => {
       reason: null,
       note: null,
     });
-    await mount({ access: 'supervisor' });
-    expect(screen.getByText('Rated helpful')).toBeTruthy();
+    await mount({ access: 'supervisor', assigneeName: 'Grace Wanjiru' });
+    // Whose rating it is, as the supervisor did not give it.
+    expect(screen.getByText('Grace Wanjiru: helpful')).toBeTruthy();
     expect(screen.queryByRole('group', { name: 'Rate the overview' })).toBeNull();
     expect(screen.getByRole('button', { name: 'Refresh summary and explanations' })).toBeTruthy();
   });

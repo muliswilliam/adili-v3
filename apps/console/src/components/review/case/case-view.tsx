@@ -223,6 +223,7 @@ export function CaseView({ load, now, supervisor, commission, onReload, copilot 
       caseId={item.id}
       detail={detail}
       access={actions.mine ? 'assignee' : supervisor ? 'supervisor' : 'viewer'}
+      assigneeName={item.assignee?.name}
       open={copilotOpen}
       onOpenChange={setCopilotOpen}
       explain={explain}

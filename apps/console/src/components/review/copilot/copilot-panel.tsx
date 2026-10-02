@@ -37,6 +37,8 @@ export type { CopilotTab } from './panel-parts';
 export interface CopilotPanelProps {
   state: CaseCopilot;
   access: CopilotAccess;
+  /** The name of the reviewer holding the case, whose ratings a supervisor reads. */
+  assigneeName?: string;
   /** The case's flags (review.yaml `Flag`), explained on the Flags tab. */
   flags: Flag[];
   versions: CaseDetail['versions'];
@@ -63,6 +65,7 @@ export interface CopilotPanelProps {
 export function CopilotPanel({
   state,
   access,
+  assigneeName,
   flags,
   versions,
   resolveRef,
@@ -247,6 +250,7 @@ export function CopilotPanel({
               <Rating
                 state={state}
                 access={access}
+                ratedBy={assigneeName}
                 jobId={copilot.jobs.summarize}
                 block={block}
                 group={group}
@@ -277,6 +281,7 @@ export function CopilotPanel({
               <Rating
                 state={state}
                 access={access}
+                ratedBy={assigneeName}
                 jobId={copilot.jobs.explain}
                 block={explanationBlock(flagId)}
                 group={group}
