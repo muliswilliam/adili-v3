@@ -84,16 +84,17 @@ export class SuggestionsService {
     const systems = [...new Set(request.systems)];
     const now = this.clock.now();
     const consentId = uuidv7();
+    const planned = systems.map((system) => ({ setId: uuidv7(), system }));
 
     const recorded = await withPerson(this.db, person, async (tx) => {
       const declaration = await liveDeclaration(tx, declarationId, { lock: true });
       if (!declaration) return null;
       if (!isEditable(declaration.status)) throw declarationNotDraft('edited');
-      await this.checkPerson(tx, declaration, request.personKey);
+      const personKey = await this.checkPerson(tx, declaration, request.personKey);
       await tx.insert(suggestionConsents).values({
         id: consentId,
         declarationId: declaration.id,
-        personKey: request.personKey as PersonKey,
+        personKey,
         consentedBy: person.subject,
         consentedAt: now,
         textVersion: request.consent.textVersion,
@@ -102,11 +103,11 @@ export class SuggestionsService {
       const sets = await tx
         .insert(suggestionSets)
         .values(
-          systems.map((source) => ({
-            id: uuidv7(),
+          planned.map(({ setId, system }) => ({
+            id: setId,
             declarationId: declaration.id,
-            personKey: request.personKey as PersonKey,
-            source,
+            personKey,
+            source: system,
             consentId,
             requestedAt: now,
           })),
@@ -116,14 +117,14 @@ export class SuggestionsService {
         tx,
         declarationLookupRequested(declaration.tenant, {
           declarationId: declaration.id,
-          personKey: request.personKey,
+          personKey,
           systems,
           consentId,
         }),
       );
-      return { declaration, sets };
+      return { declaration, personKey, sets };
     });
-    const { declaration, sets } = notFoundIfInvisible(recorded);
+    const { declaration, personKey, sets } = notFoundIfInvisible(recorded);
 
     try {
       await this.workflows.start({
@@ -131,17 +132,18 @@ export class SuggestionsService {
         declarationId: declaration.id,
         personId: person.personId,
         subject: person.subject,
-        personKey: request.personKey,
+        personKey,
         consentId,
-        sets: sets.map((set) => ({
-          setId: set.id,
-          system: set.source as (typeof systems)[number],
-        })),
+        sets: planned,
       });
     } catch (error) {
       // Nothing will answer these sets: say so now rather than leave them pending.
       this.logger.warn(
-        { err: error, declarationId: declaration.id, consentId },
+        {
+          declarationId: declaration.id,
+          consentId,
+          err: error instanceof Error ? error.name : typeof error,
+        },
         'Registry lookups not started',
       );
       await this.markFailed(
@@ -378,15 +380,15 @@ export class SuggestionsService {
   }
 
   /**
-   * The officer can always be looked up (by their roster record); a spouse or child must be
-   * listed in Household, with a national ID.
+   * The person `personKey` names, if they can be looked up: the officer always (by their roster
+   * record); a spouse or child must be listed in Household, with a national ID.
    */
   private async checkPerson(
     tx: Transaction,
     declaration: DeclarationRow,
     personKey: string,
-  ): Promise<void> {
-    if (isOfficer(personKey)) return;
+  ): Promise<PersonKey> {
+    if (isOfficer(personKey)) return personKey;
     const notInHousehold = validationProblem([
       { path: 'personKey', message: 'Not a person of the household' },
     ]);
@@ -404,6 +406,7 @@ export class SuggestionsService {
         detail: 'Add their national ID in Household to check registries for them.',
       });
     }
+    return personKey;
   }
 
   private async markFailed(person: PersonContext, setIds: string[]): Promise<void> {
@@ -415,7 +418,10 @@ export class SuggestionsService {
           .where(and(inArray(suggestionSets.id, setIds), eq(suggestionSets.status, 'pending'))),
       );
     } catch (error) {
-      this.logger.warn({ err: error }, 'Unstarted registry lookups not marked failed');
+      this.logger.warn(
+        { err: error instanceof Error ? error.name : typeof error },
+        'Unstarted registry lookups not marked failed',
+      );
     }
   }
 }

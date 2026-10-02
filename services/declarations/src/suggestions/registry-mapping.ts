@@ -26,9 +26,8 @@ import type {
  * Pure mapping from the gateway's verification results to suggestions (spec 05b, S3): what a
  * registry holds about one person becomes the item fields the declarant can add with one tap.
  *
- * Field names per item type are the portal's vocabulary, not declaration.v1 `details`: the
- * portal's accept mapping (`apps/portal/src/declaration/suggestions.ts`) translates them into the
- * item on Accept. The contract's `Suggestion.fields` is free-form; the keys are:
+ * Field names per item type are the portal's vocabulary, not declaration.v1 `details`: accepting
+ * a suggestion translates them into the item in the service (`acceptance.ts`). The contract's `Suggestion.fields` is free-form; the keys are:
  * - `vehicle` (NTSA): registration, make, model, year
  * - `land` (ArdhiSasa): parcelNumber, size, location, county (a declaration.v1 county code)
  * - `shareholding` (BRS, a holding of shares; the spec's `investment`, which declaration.v1 does

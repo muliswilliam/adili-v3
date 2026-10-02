@@ -1,7 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { type Database, InjectDatabase, type PersonContext, withPerson } from '@adili/data-access';
 import { EventPublisher } from '@adili/events';
-import type { PersonKey } from '@adili/forms';
 import { and, eq, gt, inArray, lt, ne } from 'drizzle-orm';
 import { v7 as uuidv7 } from 'uuid';
 
@@ -89,7 +88,7 @@ export class RegistryLookupSteps {
       return 'recorded';
     }
 
-    const mapped = mapRegistryResult(result, attempt.personKey as PersonKey);
+    const mapped = mapRegistryResult(result, attempt.personKey);
     const rows = await this.sealed(
       attempt,
       mapped.verificationResultId,
@@ -154,7 +153,7 @@ export class RegistryLookupSteps {
         .where(
           and(
             eq(suggestions.declarationId, attempt.declarationId),
-            eq(suggestions.personKey, attempt.personKey as PersonKey),
+            eq(suggestions.personKey, attempt.personKey),
             eq(suggestionSets.source, attempt.system),
             inArray(suggestions.status, ['accepted', 'dismissed']),
           ),
@@ -222,7 +221,7 @@ export class RegistryLookupSteps {
           id,
           setId: ref.setId,
           declarationId: ref.declarationId,
-          personKey: ref.personKey as PersonKey,
+          personKey: ref.personKey,
           sectionKey: suggestion.sectionKey,
           itemType: suggestion.itemType,
           ciphertext: sealed.ciphertext,
