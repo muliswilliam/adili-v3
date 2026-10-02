@@ -37,6 +37,8 @@ const IDENTIFIERS = [
   'KISUMU/MUNICIPALITY BLOCK 7/412',
   'KDK 482M',
   'KDK482M',
+  '1974-03-12',
+  '2004-06-02',
 ];
 
 describe('minimise (spec 07c S3)', () => {
@@ -152,6 +154,25 @@ describe('minimise (spec 07c S3)', () => {
       note: 'ID [[ID_1]], also [[ID_1]]; PIN [[KRA_PIN_1]].',
     });
     expect(minimised.restore({ text: '[[ID_1]]' })).toEqual({ text: '28765432' });
+  });
+
+  it('replaces dates and places of birth, and bank account numbers in free text (review Q14)', () => {
+    const minimised = minimise({
+      birth: { date: '1974-03-12', place: 'Kisumu' },
+      children: [{ dateOfBirth: '2004-06-02' }],
+      note: 'Born 1974-03-12 in Kisumu. Salary paid to account 01234567890123 and 0123 4567 8901; acquired 2004-06-02.',
+    });
+
+    expect(minimised.input).toEqual({
+      birth: { date: '[[BIRTH_DATE_1]]', place: '[[BIRTH_PLACE_1]]' },
+      children: [{ dateOfBirth: '[[BIRTH_DATE_2]]' }],
+      note: 'Born [[BIRTH_DATE_1]] in [[BIRTH_PLACE_1]]. Salary paid to account [[ACCOUNT_1]] and [[ACCOUNT_2]]; acquired [[BIRTH_DATE_2]].',
+    });
+    expect(minimised.restore(minimised.input)).toEqual({
+      birth: { date: '1974-03-12', place: 'Kisumu' },
+      children: [{ dateOfBirth: '2004-06-02' }],
+      note: 'Born 1974-03-12 in Kisumu. Salary paid to account 01234567890123 and 0123 4567 8901; acquired 2004-06-02.',
+    });
   });
 
   it('refuses to restore a token the input never had', () => {

@@ -6,10 +6,11 @@
  *
  * Task-independent: identifiers are found by where they sit in the input (the declaration.v1
  * field names for names, debtors and creditors, ID numbers, KRA PINs, personnel file numbers,
- * parcel numbers, vehicle registrations, file names, phones, emails and addresses) and by their
+ * parcel numbers, vehicle registrations, file names, phones, emails, addresses, and dates and
+ * places of birth) and by their
  * shape anywhere in free text. Values found in fields are also replaced wherever they recur in
  * free text, in any case and, for codes, with or without spaces and dashes; the token stands for
- * the value as its field holds it. Amounts, dates and item descriptions are left alone: the tasks
+ * the value as its field holds it. Amounts, other dates and item descriptions are left alone: the tasks
  * need them, and the classification gate decides whether they may leave. Over-matching is safe,
  * since every token is restored; it only hides a word from the model.
  *
@@ -32,6 +33,9 @@ export const IDENTIFIER_CLASSES = [
   'PARCEL',
   'REGISTRATION',
   'FILE_NAME',
+  'BIRTH_DATE',
+  'BIRTH_PLACE',
+  'ACCOUNT',
 ] as const;
 export type IdentifierClass = (typeof IDENTIFIER_CLASSES)[number];
 
@@ -81,6 +85,17 @@ const FIELD_CLASSES: ReadonlyMap<string, IdentifierClass> = new Map([
   ['parcelNumber', 'PARCEL'],
   ['registration', 'REGISTRATION'],
   ['fileName', 'FILE_NAME'],
+  ['dateOfBirth', 'BIRTH_DATE'],
+]);
+/** Objects whose lines are each an identifier of the given class (declaration.v1 `birth`). */
+const OBJECT_FIELDS: ReadonlyMap<string, ReadonlyMap<string, IdentifierClass>> = new Map([
+  [
+    'birth',
+    new Map<string, IdentifierClass>([
+      ['date', 'BIRTH_DATE'],
+      ['place', 'BIRTH_PLACE'],
+    ]),
+  ],
 ]);
 /**
  * Keys, references and enums the output points back at (source refs, flag ids, item ids) or the
@@ -151,6 +166,13 @@ const PATTERNS: readonly { cls: IdentifierClass; pattern: RegExp; group?: number
     pattern:
       /\b(?:national\s+id(?:entity)?(?:\s+card)?|identity\s+card|id(?:\s+card)?|i\.d\.|(?:nambari\s+ya\s+)?kitambulisho(?:\s+cha\s+taifa)?)(?:\s*(?:no\.?|number|nambari|namba|#))?[\s:]*(\d{6,9})(?![\p{L}\p{N}])/giu,
     group: 1,
+  },
+  // Bank account numbers: a run of ten to sixteen digits, or three or four groups of four.
+  // Amounts after a currency, or with separators or decimals, are left alone as below.
+  {
+    cls: 'ACCOUNT',
+    pattern:
+      /(?<![\p{L}\p{N}.,-]|(?:KES|KSh|Ksh|KShs|Kshs|Shs?|USD|US\$|\$|EUR|GBP)\.?\s?)(?:\d{10,16}|\d{4}(?:[ -]\d{4}){2,3})(?![\p{L}\p{N}%-]|[.,]\d)/gu,
   },
   // A bare seven- or eight-digit number is shaped like a national ID. Amounts stay readable:
   // one after a currency, or with separators, decimals or a percent sign, is left alone, as is
@@ -247,10 +269,12 @@ function collect(
   }
   if (value !== null && typeof value === 'object') {
     const inAddress = key !== undefined && FIELD_CLASSES.get(key) === 'ADDRESS';
+    const lines = key === undefined ? undefined : OBJECT_FIELDS.get(key);
     for (const [childKey, child] of sortedEntries(value)) {
       // Every line of an address object (postal, physical) is part of the address.
-      if (inAddress && typeof child === 'string') {
-        if (child.trim().length >= 2) known.set(child.trim(), 'ADDRESS');
+      const lineClass = inAddress ? 'ADDRESS' : lines?.get(childKey);
+      if (lineClass !== undefined && typeof child === 'string') {
+        if (child.trim().length >= 2) known.set(child.trim(), lineClass);
       } else {
         collect(child, childKey, known);
       }
@@ -271,6 +295,7 @@ const COMPACT_CLASSES: ReadonlySet<IdentifierClass> = new Set([
   'KRA_PIN',
   'PASSPORT',
   'PHONE',
+  'ACCOUNT',
   'FILE_NUMBER',
   'REGISTRATION',
 ]);
