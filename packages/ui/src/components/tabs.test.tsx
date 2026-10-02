@@ -64,6 +64,17 @@ describe('Tabs', () => {
     expect(list.dataset.moreBefore).toBe('true');
     expect(list.dataset.moreAfter).toBeUndefined();
     expect(list.style.maskImage).toContain('linear-gradient(to right, transparent, #000 40px');
+
+    // With 8px of padding at each end, only padding left to scroll is nothing more to see.
+    list.style.paddingLeft = '8px';
+    list.style.paddingRight = '8px';
+    scrollLeft = 193;
+    fireEvent.scroll(list);
+    expect(list.dataset.moreAfter).toBeUndefined();
+    scrollLeft = 7;
+    fireEvent.scroll(list);
+    expect(list.dataset.moreBefore).toBeUndefined();
+    expect(list.dataset.moreAfter).toBe('true');
   });
 
   it('keeps a visible focus outline on tabs and panels', () => {

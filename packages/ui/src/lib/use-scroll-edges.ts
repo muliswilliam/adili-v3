@@ -20,8 +20,15 @@ export function useScrollEdges<T extends HTMLElement>(): [RefCallback<T>, Scroll
     if (!element) return;
     const measure = () => {
       const { scrollLeft, scrollWidth, clientWidth } = element;
-      // A pixel of slack: zoomed layouts round scroll positions.
-      const next = { start: scrollLeft > 1, end: scrollLeft + clientWidth < scrollWidth - 1 };
+      // Only the padding past an edge: nothing more to see there. A pixel of slack, as zoomed
+      // layouts round scroll positions.
+      const style = getComputedStyle(element);
+      const before = (parseFloat(style.paddingLeft) || 0) + 1;
+      const after = (parseFloat(style.paddingRight) || 0) + 1;
+      const next = {
+        start: scrollLeft > before,
+        end: scrollLeft + clientWidth < scrollWidth - after,
+      };
       setEdges((current) =>
         current.start === next.start && current.end === next.end ? current : next,
       );
