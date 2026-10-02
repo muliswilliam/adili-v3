@@ -38,6 +38,13 @@ export const define = <TChannel extends Channel, TParams extends z.ZodType>(
   template: Template<TChannel, TParams>,
 ) => template;
 
+/**
+ * A `portalUrl` param: the portal page a message links to. https, or http in development and test,
+ * where the portal runs on plain http: `renderTemplate` refuses an http one with
+ * `httpsLinksOnly` (`NODE_ENV=production`).
+ */
+export const portalUrlSchema = z.url({ protocol: /^https?$/ }).max(200);
+
 /** One paragraph of an email, as plain text and as HTML. */
 export interface Paragraph {
   text: string;

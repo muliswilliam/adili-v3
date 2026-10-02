@@ -16,6 +16,7 @@ import {
   longDate,
   NEVER_ASKS,
   paragraph,
+  portalUrlSchema,
   referenceOf,
   type RenderedEmail,
   type RenderedSms,
@@ -87,7 +88,7 @@ const reminderParams = z
     dueDate: z.iso.date(),
     /** Whole days from the send to the due date; the caller computes it in Nairobi time. */
     daysLeft: z.number().int().min(0).max(366),
-    portalUrl: z.url({ protocol: /^https?$/ }).max(200),
+    portalUrl: portalUrlSchema,
   })
   .refine((params) => params.dueDate >= params.statementDate, {
     path: ['dueDate'],
@@ -147,7 +148,7 @@ const acknowledgementParams = z
         'must be a verification code in its printed form, such as ADL-7Q4K-M2XR-9HTC-2B7F-Q3ZD-8WNA-9K',
       ),
     /** Where the declarant signs in to download the slip; the email carries no attachment. */
-    portalUrl: z.url({ protocol: /^https?$/ }).max(200),
+    portalUrl: portalUrlSchema,
   })
   .refine((params) => params.reference.startsWith(`${declarationSchemes[params.type].code}-`), {
     path: ['type'],
@@ -194,7 +195,7 @@ const clarificationFields = {
   /** Civil date `YYYY-MM-DD`: the last day to respond, in Nairobi time. */
   dueDate: z.iso.date(),
   /** The portal page where the declarant reads the letter and responds. */
-  portalUrl: z.url({ protocol: /^https?$/ }).max(200),
+  portalUrl: portalUrlSchema,
 };
 
 const clarificationIssuedParams = z.strictObject(clarificationFields);

@@ -7,6 +7,7 @@ import {
   longDate,
   NEVER_ASKS,
   paragraph,
+  portalUrlSchema,
   referenceOf,
   type RenderedEmail,
   signInParagraph,
@@ -24,8 +25,6 @@ import {
 
 /** The Commission's name. The review service calls it `commission`. */
 const commission = z.string().trim().min(1).max(120);
-/** The portal page of the decision or the notice. */
-const portalUrl = z.url({ protocol: /^https?$/ }).max(200);
 /** A civil date `YYYY-MM-DD` in Nairobi time, as the review service computes it. */
 const civilDate = z.iso.date();
 
@@ -58,7 +57,7 @@ const decisionParams = z.strictObject({
   commission,
   reference: determinationReference,
   outcome: z.enum(OUTCOMES),
-  portalUrl,
+  portalUrl: portalUrlSchema,
 });
 type DecisionParams = z.infer<typeof decisionParams>;
 
@@ -89,7 +88,7 @@ const noticeParams = z.strictObject({
   reference: actionReference,
   step: z.enum(NOTICE_STEPS),
   actBy: civilDate,
-  portalUrl,
+  portalUrl: portalUrlSchema,
 });
 type NoticeParams = z.infer<typeof noticeParams>;
 
@@ -114,7 +113,7 @@ const salaryStoppedParams = z.strictObject({
   stoppedFrom: civilDate,
   /** The end of the stoppage's window, after which the disciplinary referral may follow. */
   actBy: civilDate,
-  portalUrl,
+  portalUrl: portalUrlSchema,
 });
 type SalaryStoppedParams = z.infer<typeof salaryStoppedParams>;
 
@@ -142,7 +141,7 @@ const salaryReinstatedParams = z.strictObject({
   reference: actionReference,
   /** The day the reinstatement was sent to payroll. */
   reinstatedOn: civilDate,
-  portalUrl,
+  portalUrl: portalUrlSchema,
 });
 type SalaryReinstatedParams = z.infer<typeof salaryReinstatedParams>;
 
