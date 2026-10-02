@@ -60,6 +60,9 @@ const STATEMENT = `statement:${OFFICER}`;
 const F = MOCK_FLAG_IDS;
 const kes = (shillings: number) => ({ kesCents: shillings * 100 });
 const unchanged = { changed: false };
+/** County codes, as `declaration.v1` stores them (`042` is Kisumu). */
+const KISUMU = '042';
+const NAIROBI = '047';
 const kenya = (county: string, detail?: string) => ({
   inKenya: true,
   county,
@@ -153,7 +156,7 @@ export const MOCK_DECLARATION: Record<string, unknown> = {
           type: 'salary-emoluments',
           description: 'Salary from the Teachers Service Commission',
           amount: kes(3_120_000),
-          location: kenya('Kisumu'),
+          location: kenya(KISUMU),
           change: unchanged,
         },
         {
@@ -161,7 +164,7 @@ export const MOCK_DECLARATION: Record<string, unknown> = {
           type: 'rent',
           description: 'Rent from a bedsitter block in Kondele',
           amount: kes(480_000),
-          location: kenya('Kisumu', 'Kondele'),
+          location: kenya(KISUMU, 'Kondele'),
           change: { changed: true, kind: 'new-source' },
         },
       ],
@@ -173,7 +176,7 @@ export const MOCK_DECLARATION: Record<string, unknown> = {
           description: 'Plot Kisumu/Manyatta/1234',
           details: { parcelNumber: 'KISUMU/MANYATTA/1234', size: '0.25 acres' },
           value: kes(4_500_000),
-          location: kenya('Kisumu', 'Manyatta'),
+          location: kenya(KISUMU, 'Manyatta'),
           joint: sole,
           change: unchanged,
           attachments: [MOCK_ATTACHMENTS.titleDeed],
@@ -183,7 +186,7 @@ export const MOCK_DECLARATION: Record<string, unknown> = {
           type: 'building',
           description: 'Three-bedroom house in Milimani',
           value: kes(9_800_000),
-          location: kenya('Kisumu', 'Milimani'),
+          location: kenya(KISUMU, 'Milimani'),
           joint: { isJoint: true, sharePercent: 50, coOwner: 'Lilian Akoth Otieno' },
           change: unchanged,
           attachments: [MOCK_ATTACHMENTS.valuation],
@@ -193,7 +196,7 @@ export const MOCK_DECLARATION: Record<string, unknown> = {
           type: 'securities',
           description: 'CIC Money Market Fund units',
           value: kes(850_000),
-          location: kenya('Nairobi'),
+          location: kenya(NAIROBI),
           joint: sole,
           change: unchanged,
         },
@@ -216,7 +219,7 @@ export const MOCK_DECLARATION: Record<string, unknown> = {
           description: 'Mortgage from KCB Bank',
           creditor: 'KCB Bank',
           outstanding: kes(3_400_000),
-          location: kenya('Kisumu'),
+          location: kenya(KISUMU),
           change: unchanged,
         },
       ],
@@ -232,7 +235,7 @@ export const MOCK_DECLARATION: Record<string, unknown> = {
           type: 'business',
           description: 'Profit from a cereals shop in Kibuye market',
           amount: kes(960_000),
-          location: kenya('Kisumu', 'Kibuye market'),
+          location: kenya(KISUMU, 'Kibuye market'),
           change: unchanged,
         },
       ],
@@ -243,7 +246,7 @@ export const MOCK_DECLARATION: Record<string, unknown> = {
           type: 'other',
           description: 'Shop stock',
           value: kes(350_000),
-          location: kenya('Kisumu', 'Kibuye market'),
+          location: kenya(KISUMU, 'Kibuye market'),
           joint: sole,
           change: unchanged,
         },
@@ -264,7 +267,7 @@ export const MOCK_DECLARATION: Record<string, unknown> = {
           type: 'securities',
           description: 'Unit trust savings for school fees',
           value: kes(120_000),
-          location: kenya('Kisumu'),
+          location: kenya(KISUMU),
           joint: sole,
           change: unchanged,
         },
