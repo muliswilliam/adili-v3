@@ -13,6 +13,7 @@ import type {
   ClarificationLetter,
   ClarificationResponseAttachment,
   ClarificationResponseItem,
+  LetterLanguage,
 } from '../cases/schema.js';
 import { itemLabel, REQUIREMENT_LABELS } from './labels.js';
 
@@ -140,6 +141,8 @@ export interface IssuedClarification {
   responseLate: boolean | null;
   resolvedAt: Date | null;
   items: ClarificationItem[];
+  /** The letter's language: an item with no letter text is labelled in it. */
+  language: LetterLanguage;
   letter: ClarificationLetter | null;
   response: {
     items: ClarificationResponseItem[];
@@ -189,8 +192,9 @@ export function disclosedClarification(
     const answer = clarification.response?.items.find((each) => each.itemId === item.id);
     return [
       {
-        label: lettered?.label ?? itemLabel(item, null),
-        requirementLabel: lettered?.requirementLabel ?? REQUIREMENT_LABELS[item.requirement],
+        label: lettered?.label ?? itemLabel(item, null, clarification.language),
+        requirementLabel:
+          lettered?.requirementLabel ?? REQUIREMENT_LABELS[clarification.language][item.requirement],
         text: lettered?.text ?? item.text,
         response:
           answer === undefined

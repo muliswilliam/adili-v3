@@ -84,6 +84,7 @@ function issuedClarifications(
         responseLate: clarifications.responseLate,
         resolvedAt: clarifications.resolvedAt,
         items: clarifications.items,
+        language: clarifications.language,
         letter: clarifications.letter,
         responseItems: clarificationResponses.items,
         responseAttachments: clarificationResponses.attachments,
@@ -124,6 +125,7 @@ function inScope(row: IssuedRow, scope: ClarificationCountsRequest) {
       responseLate: row.responseLate,
       resolvedAt: row.resolvedAt,
       items: row.items,
+      language: row.language,
       letter: row.letter,
       response:
         row.responseItems === null

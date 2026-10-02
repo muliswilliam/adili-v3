@@ -87,6 +87,7 @@ describe('disclosedClarification', () => {
       item({ id: 'a', sectionKey: 'statement:officer', personKey: 'officer', text: 'Plot?' }),
       item({ id: 'b', sectionKey: `statement:${SPOUSE}`, personKey: SPOUSE, text: 'Car?' }),
     ],
+    language: 'en',
     letter: {
       commission: { name: 'Public Service Commission', issuerCode: 'PSC' },
       items: [
@@ -134,6 +135,14 @@ describe('disclosedClarification', () => {
           response: { text: 'Bought in 2026.', attachmentNames: ['logbook.jpg'] },
         },
       ],
+    });
+  });
+
+  it('labels an item without letter text in the letter language', () => {
+    const disclosed = disclosedClarification({ ...issued, language: 'sw', letter: null }, everything);
+    expect(disclosed?.items[0]).toMatchObject({
+      label: 'Taarifa ya kifedha',
+      requirementLabel: 'Eleza tofauti au kutowiana kwa taarifa',
     });
   });
 
