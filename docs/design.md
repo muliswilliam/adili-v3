@@ -239,6 +239,7 @@ Every `design-pending` ticket is built on the tokens above. A screen's own desig
 | KRA line under Your details | [#312](https://github.com/muliswilliam/adili-v3/issues/312) | `apps/portal/prototype/declarant-journey.prototype.html` (`j-bio-kra`) | built from the prototype; read-only for the declarant, whose declaration.v1 bio has no KRA fields |
 | Read into the form sheet (attachment row menu, kind, reading, review, failed, not enabled) | [#316](https://github.com/muliswilliam/adili-v3/issues/316) | `apps/portal/prototype/declarant-journey.prototype.html` (`j-ex-*` states) | built from the prototype |
 | Source badges on items and the summary, roster note on HR fields in Your details | [#319](https://github.com/muliswilliam/adili-v3/issues/319) | `apps/portal/prototype/declarant-journey.prototype.html` (`j-src-items`, `j-sum-src`, `j-bio-hr`) | built from the prototype |
+| Review case view (header and assignment, declaration as filed, flags, notes, timeline, narrow switch) | [#164](https://github.com/muliswilliam/adili-v3/issues/164) | `apps/console/prototype/07a-review.prototype.html` (`case`, `case-*` screens) | built from the prototype without the Copilot launcher, Registry tab, version compare and Propose determination (later tickets); Mark reviewed is the holder's only; no viewed-per-day timeline entries (the contract records none) |
 
 Add a row when a screen's design pass starts, and flip the status when it merges.
 
