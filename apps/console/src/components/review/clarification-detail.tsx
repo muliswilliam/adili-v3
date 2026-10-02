@@ -330,7 +330,7 @@ function useDownload() {
   ) => {
     const result = await link.catch(() => ({ ok: false }) as const);
     if (result.ok) window.location.assign(result.data.downloadUrl);
-    else toast({ title: failed });
+    else toast({ title: failed, urgency: 'assertive' });
   };
 }
 

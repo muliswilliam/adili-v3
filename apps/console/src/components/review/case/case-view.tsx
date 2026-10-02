@@ -214,7 +214,7 @@ export function CaseView({ load, viewer, slug, now, tab, onTab }: CaseViewProps)
     }).catch(() => ({ ok: false }) as const);
     setDownloads((all) => ({ ...all, [attachment.uploadId]: result.ok ? 'done' : 'idle' }));
     if (result.ok) window.location.assign(result.data.downloadUrl);
-    else toast({ title: CASE_COPY.declaration.downloadFailed });
+    else toast({ title: CASE_COPY.declaration.downloadFailed, urgency: 'assertive' });
   }
 
   const ACTION_BUTTONS: Record<AssignmentAction, ReactNode> = {
@@ -384,12 +384,14 @@ export function CaseView({ load, viewer, slug, now, tab, onTab }: CaseViewProps)
     >
       <TabsList
         aria-label={CASE_COPY.tabsLabel}
-        className="sticky top-0 z-[3] rounded-t-2xl bg-card px-2"
+        // Five tabs with counts and the registry's attention icon fit the pane at its default
+        // width: no gaps between them, tight padding.
+        className="sticky top-0 z-[3] gap-0 rounded-t-2xl bg-card px-2"
       >
         {CASE_TABS.map((key) => {
           const count = tabCount(key, detail);
           return (
-            <TabsTrigger key={key} value={key} className="gap-[5px] px-[7px] text-[13.5px]">
+            <TabsTrigger key={key} value={key} className="gap-[5px] px-[6px] text-[13.5px]">
               {CASE_TAB_LABELS[key]}
               {count ? <TabsCount>{count}</TabsCount> : null}
               {key === 'registry' && registryNeedsAttention(detail) ? (
