@@ -15,14 +15,11 @@ import { Clock01Icon, SquareLock02Icon } from '@hugeicons/core-free-icons';
 import { useRouter } from '@tanstack/react-router';
 import { type ReactNode, useCallback, useMemo, useState } from 'react';
 
-import {
-  assignableOfficers,
-  caseActions,
-  clarificationLine,
-  versionLine,
-} from '../../../review-case/case';
-import { employerOf, readDeclaration } from '../../../review-case/declaration';
-import { groupFlags, openFlagsByItem } from '../../../review-case/flags';
+import { type ComposerDraft } from '../../../clarification/composer';
+import { newClarificationBlock } from '../../../clarification/list';
+import { assignableOfficers, caseActions, versionLine } from '../../../review-case/case';
+import { readDeclaration } from '../../../review-case/declaration';
+import { groupFlags, openFlagsByItem, seedFromFlags } from '../../../review-case/flags';
 import { timelineEvents } from '../../../review-case/timeline';
 import {
   addCaseNote,
@@ -45,7 +42,12 @@ import {
   ReleaseDialog,
   UnassignDialog,
 } from './assignment-dialogs';
-import { CaseClarifications } from './case-clarifications';
+import { CaseClarifications } from '../case-clarifications';
+import {
+  ClarificationComposer,
+  type ClarificationComposerProps,
+} from '../composer/clarification-composer';
+import { employerOf, type LetterCommission } from '../composer/letter-preview';
 import { CaseHeader } from './case-header';
 import { DeclarationPane, DeclarationUnavailable, DeclarationUnreadable } from './declaration-pane';
 import { FlagsTab } from './flags-tab';
@@ -65,13 +67,12 @@ export interface CaseViewProps {
   load: CaseViewData;
   now: string;
   supervisor: boolean;
+  /** The letterhead of the Commission's clarification letters. */
+  commission: LetterCommission;
   /** Re-reads the case (the declaration's Try again). */
   onReload?: () => Promise<void>;
-  /**
-   * Slot for #170: the "New clarification" action (and composer) of the Clarifications tab.
-   * The tab lists the case's clarifications either way.
-   */
-  clarificationAction?: ReactNode;
+  /** Draft with AI (#288), above the composer's items. */
+  composerTools?: ClarificationComposerProps['tools'];
   /** Fakes the Copilot in tests. */
   copilot?: Pick<CaseCopilotProps, 'api' | 'initial'>;
 }
@@ -95,8 +96,9 @@ export function CaseView({
   load,
   now,
   supervisor,
+  commission,
   onReload,
-  clarificationAction,
+  composerTools,
   copilot,
 }: CaseViewProps) {
   const { detail, documentUnavailable, viewer } = load;
@@ -118,6 +120,13 @@ export function CaseView({
   const [dialog, setDialog] = useState<AssignmentDialog | null>(null);
   const [downloading, setDownloading] = useState<ReadonlySet<string>>(new Set());
   const [retrying, setRetrying] = useState(false);
+  const [composer, setComposer] = useState<{ open: boolean; seed: ComposerDraft | null }>({
+    open: false,
+    seed: null,
+  });
+  // Flags picked in the copilot for a clarification ("Add to clarification").
+  const [picked, setPicked] = useState<string[]>([]);
+  const composeBlocked = newClarificationBlock(item, viewer.subject, now);
 
   const onStatusChange = useCallback((status: Copilot['status'] | null) => {
     setCopilotStatus(status);
@@ -226,6 +235,23 @@ export function CaseView({
       onOpenChange={setCopilotOpen}
       explain={explain}
       onStatusChange={onStatusChange}
+      selection={{
+        flagIds: picked,
+        onToggle: (flagId) => {
+          setPicked((current) =>
+            current.includes(flagId)
+              ? current.filter((each) => each !== flagId)
+              : [...current, flagId],
+          );
+        },
+        onClear: () => {
+          setPicked([]);
+        },
+        onCompose: () => {
+          setComposer({ open: true, seed: seedFromFlags(detail.flags, picked) });
+        },
+        composeDisabled: composeBlocked !== null,
+      }}
       {...copilot}
     />
   );
@@ -281,10 +307,13 @@ export function CaseView({
           </TabsContent>
           <TabsContent value="clarifications" className="mt-0 p-4">
             <CaseClarifications
-              caseId={item.id}
+              reviewCase={item}
               clarifications={detail.clarifications}
-              line={clarificationLine(item, viewer.subject, nowMs)}
-              action={clarificationAction}
+              subject={viewer.subject}
+              now={now}
+              onNew={() => {
+                setComposer({ open: true, seed: null });
+              }}
             />
           </TabsContent>
           <TabsContent value="notes" className="mt-0 p-4">
@@ -319,7 +348,7 @@ export function CaseView({
     <Page>
       <CaseHeader
         detail={detail}
-        employer={employerOf(view)}
+        employer={employerOf(detail.document)}
         viewer={viewer}
         actions={actions}
         supervisor={supervisor}
@@ -354,6 +383,25 @@ export function CaseView({
         {t.audit}
       </p>
 
+      <ClarificationComposer
+        open={composer.open}
+        onOpenChange={(open) => {
+          setComposer((current) => ({ ...current, open }));
+        }}
+        reviewCase={item}
+        document={detail.document}
+        commission={commission}
+        now={now}
+        seed={composer.seed}
+        tools={composerTools}
+        onSaved={() => void router.invalidate()}
+        onIssued={() => {
+          setPicked([]);
+          setCopilotOpen(false);
+          setTab('clarifications');
+          void router.invalidate();
+        }}
+      />
       <ClaimDialog
         open={dialog?.kind === 'claim'}
         onOpenChange={(open) => {

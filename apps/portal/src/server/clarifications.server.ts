@@ -64,6 +64,17 @@ export function loadClarificationPage(
   });
 }
 
+export type MyClarificationsResult =
+  { status: 'ok'; clarifications: DeclarantClarification[] } | Unavailable;
+
+/** `GET /v1/me/clarifications`: every clarification issued to the declarant, as one array. */
+export function loadMyClarifications(client: ReviewClient): Promise<MyClarificationsResult> {
+  return attempt(async () => {
+    const { data } = await client.GET('/v1/me/clarifications');
+    return data ? { status: 'ok', clarifications: data } : unavailable;
+  });
+}
+
 export type ConflictReason = 'already-responded' | 'not-open' | 'attachment-not-clean';
 
 export type RespondResult =

@@ -1,5 +1,6 @@
 import { formatDate, formatNumber, plural } from '@adili/ui';
 
+import type { ComposerDraft, ComposerSeed } from '../clarification/composer';
 import type { Flag, Severity } from '../server/review/types';
 import {
   countryName,
@@ -177,4 +178,35 @@ export function flagNoteError(note: string): string | null {
   if (!note.trim()) return 'Add a note to record what you concluded.';
   if (note.length > FLAG_NOTE_MAX_LENGTH) return 'Notes can be up to 1,000 characters.';
   return null;
+}
+
+/**
+ * A new clarification's starting items from the flags picked in the copilot ("Add to
+ * clarification", spec 07c FE-3): one item per item, statement or declaration they point at, in
+ * the order picked, each for the reviewer to give a requirement and words. A flag about the
+ * whole declaration asks about the declarant's statement.
+ */
+export function seedFromFlags(flags: readonly Flag[], flagIds: readonly string[]): ComposerDraft {
+  const items: ComposerSeed[] = [];
+  const seen = new Set<string>();
+  for (const flagId of flagIds) {
+    const flag = flags.find((each) => each.id === flagId);
+    if (!flag) continue;
+    const refs =
+      flag.itemRefs.length > 0 ? flag.itemRefs : [{ personKey: 'officer', itemId: null }];
+    for (const ref of refs) {
+      const seed: ComposerSeed = {
+        sectionKey: `statement:${ref.personKey}`,
+        personKey: ref.personKey,
+        itemId: ref.itemId ?? null,
+        requirement: null,
+        text: '',
+      };
+      const key = `${seed.personKey ?? ''}|${seed.itemId ?? ''}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      items.push(seed);
+    }
+  }
+  return { label: null, opening: null, items };
 }

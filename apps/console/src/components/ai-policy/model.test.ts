@@ -1,13 +1,14 @@
 import { describe, expect, it } from 'vitest';
 
-import type { GateRule, TenantUsage } from '../../server/ai-gateway/types';
-import type { AiTenantRow } from '../../server/ai-policy.server';
+import type { GateRule, GateRuleInput, TenantUsage } from '../../server/ai-gateway/types';
+import { type AiTenantRow, gateOf } from '../../server/ai-policy.server';
 import {
   accessOf,
   accessText,
   belowUsage,
   budgetErrors,
   budgetResetsOn,
+  changedByText,
   confirmText,
   filterCounts,
   filterRows,
@@ -29,11 +30,38 @@ function rule(overrides: Partial<GateRule> = {}): GateRule {
     providerClass: 'external',
     allowed: true,
     approvalRef: 'EACC/AI/2026/014',
-    changedBy: 'Amina Wanjiru',
+    changedBy: '7d1c2a4e-0000-4000-8000-00000000a001',
+    changedByName: 'Amina Wanjiru',
     changedAt: '2026-09-01T08:40:00Z',
     ...overrides,
   };
 }
+
+/** Every cell blocked by default, so each test's rules alone decide what is allowed. */
+const BLOCKED: GateRuleInput[] = (
+  ['synthetic', 'restricted', 'highly-confidential'] as const
+).flatMap((dataClass) =>
+  (['external', 'self-hosted'] as const).map((providerClass) => ({
+    dataClass,
+    providerClass,
+    allowed: false,
+  })),
+);
+
+/** The gateway's default: self-hosted sees everything, external synthetic data only. */
+const DEFAULTS: GateRuleInput[] = BLOCKED.map((cell) => ({
+  ...cell,
+  allowed: cell.providerClass === 'self-hosted' || cell.dataClass === 'synthetic',
+}));
+
+const gate = (rules: GateRule[], defaults = BLOCKED) => gateOf(defaults, rules);
+const routedTo = (
+  rules: GateRule[],
+  routed: AiTenantRow['routed'] = ['external', 'self-hosted'],
+) => ({
+  gate: gate(rules),
+  routed,
+});
 
 function usage(tokensUsed: number, monthlyTokens = 1_000_000): TenantUsage {
   return {
@@ -50,12 +78,18 @@ function usage(tokensUsed: number, monthlyTokens = 1_000_000): TenantUsage {
 }
 
 function row(slug: string, name: string, rules: GateRule[], used: number | null = 0): AiTenantRow {
-  return { slug, name, rules, usage: used === null ? null : usage(used) };
+  return {
+    slug,
+    name,
+    gate: gate(rules),
+    routed: ['external'],
+    usage: used === null ? null : usage(used),
+  };
 }
 
 describe('accessText', () => {
   it('reads "External provider, synthetic data only" for the demo set-up', () => {
-    expect(accessText(accessOf([rule()]))).toBe('External provider, synthetic data only');
+    expect(accessText(accessOf(routedTo([rule()])))).toBe('External provider, synthetic data only');
   });
 
   it('lists every data class per provider class', () => {
@@ -64,13 +98,22 @@ describe('accessText', () => {
       rule({ dataClass: 'restricted' }),
       rule({ dataClass: 'highly-confidential', providerClass: 'self-hosted' }),
     ];
-    expect(accessText(accessOf(rules))).toBe(
+    expect(accessText(accessOf(routedTo(rules)))).toBe(
       'External provider, synthetic and restricted data; self-hosted provider, highly confidential data',
     );
   });
 
   it('is null when nothing is allowed, blocked rules included', () => {
-    expect(accessText(accessOf([rule({ allowed: false })]))).toBeNull();
+    expect(accessText(accessOf(routedTo([rule({ allowed: false })])))).toBeNull();
+  });
+
+  it('leaves out provider classes nothing is routed to, and applies the default gate', () => {
+    const defaults = { gate: gate([], DEFAULTS), routed: ['external' as const] };
+    expect(accessText(accessOf(defaults))).toBe('External provider, synthetic data only');
+    expect(accessOf({ ...defaults, routed: [] })).toEqual([]);
+    expect(
+      accessOf({ gate: gate([rule({ allowed: false })], DEFAULTS), routed: ['external'] }),
+    ).toEqual([]);
   });
 });
 
@@ -112,12 +155,12 @@ describe('filters', () => {
 
 describe('the edit dialog', () => {
   it('lists the cells the draft changes, in table order', () => {
-    const rules = [rule()];
-    const draft = gateDraft(rules);
-    expect(gateChanges(rules, draft)).toEqual([]);
+    const cells = gate([rule()]);
+    const draft = gateDraft(cells);
+    expect(gateChanges(cells, draft)).toEqual([]);
     draft['synthetic|external'] = false;
     draft['highly-confidential|self-hosted'] = true;
-    expect(gateChanges(rules, draft)).toEqual([
+    expect(gateChanges(cells, draft)).toEqual([
       { dataClass: 'synthetic', providerClass: 'external', allowed: false },
       { dataClass: 'highly-confidential', providerClass: 'self-hosted', allowed: true },
     ]);
@@ -143,7 +186,14 @@ describe('the edit dialog', () => {
   it('shows the latest decisions newest first', () => {
     const older = rule({ changedAt: '2026-08-01T00:00:00Z' });
     const newer = rule({ dataClass: 'restricted', changedAt: '2026-09-20T00:00:00Z' });
-    expect(gateHistory([older, newer])).toEqual([newer, older]);
+    expect(gateHistory(gate([older, newer]))).toEqual([newer, older]);
+  });
+
+  it('names who changed a cell, or their account id when the gateway has no name', () => {
+    expect(changedByText(rule())).toBe('Amina Wanjiru');
+    expect(changedByText(rule({ changedByName: null }))).toBe(
+      '7d1c2a4e-0000-4000-8000-00000000a001',
+    );
   });
 });
 
@@ -186,13 +236,13 @@ describe('formatting', () => {
   });
 
   it('labels the parameters it knows, then the rest as given', () => {
-    expect(routeParams({ temperature: 0.2, maxTokens: 3_000, timeoutMs: 10_000, topP: 1 })).toEqual(
-      [
-        { label: 'Temperature', value: '0.2' },
-        { label: 'Max tokens', value: '3,000' },
-        { label: 'Timeout', value: '10 s' },
-        { label: 'topP', value: '1' },
-      ],
-    );
+    expect(
+      routeParams({ maxOutputTokens: 3_000, effort: 'high', timeoutMs: 10_000, topP: 1 }),
+    ).toEqual([
+      { label: 'Max output tokens', value: '3,000' },
+      { label: 'Effort', value: 'High' },
+      { label: 'Timeout', value: '10 s' },
+      { label: 'topP', value: '1' },
+    ]);
   });
 });

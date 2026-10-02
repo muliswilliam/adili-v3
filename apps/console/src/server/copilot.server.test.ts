@@ -102,6 +102,15 @@ describe('copilot endpoints (review mock)', () => {
     expect(mine.ok && mine.data.feedback).toEqual([{ jobId, rating: 'not-helpful' }]);
     const other = await loadCopilot(mockReviewClient('someone-else', 'Peter'), CASES.mine);
     expect(other.ok && other.data.feedback).toEqual([]);
+    // Only the officer holding the case rates it (spec 07c: supervisors read).
+    const peters = await loadCopilot(client(), CASES.peters);
+    if (!peters.ok) throw new Error('not ok');
+    const notHolder = await rateOutput(client(), peters.data.jobs.summarize ?? '', {
+      rating: 'helpful',
+      reason: null,
+      note: null,
+    });
+    expect(notHolder.ok || notHolder.error).toMatchObject({ problem: { status: 403 } });
 
     const unknown = await rateOutput(client(), '00000000-0000-4000-8000-000000000000', {
       rating: 'helpful',

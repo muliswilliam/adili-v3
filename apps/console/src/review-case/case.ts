@@ -105,22 +105,3 @@ export function noteError(text: string): string | null {
   if (text.length > NOTE_MAX_LENGTH) return 'Notes can be up to 2,000 characters.';
   return null;
 }
-
-/**
- * What the Clarifications tab says above its list: until when the window is open for the
- * officer holding the case, or why they cannot issue one (spec 07a FE-4 words it).
- */
-export function clarificationLine(
-  item: Pick<CaseListItem, 'assignee' | 'windowEndsAt'>,
-  viewerSubject: string,
-  now: number,
-): string {
-  if (item.assignee?.subject !== viewerSubject) {
-    return item.assignee
-      ? `Only ${item.assignee.name}, who holds this case, can issue clarifications.`
-      : 'Claim this case to issue a clarification.';
-  }
-  return Date.parse(item.windowEndsAt) < now
-    ? `The clarification window closed on ${formatDate(item.windowEndsAt)}.`
-    : `Window open until ${formatDate(item.windowEndsAt)}`;
-}

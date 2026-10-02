@@ -103,7 +103,8 @@ paths:
     put:
       tags: [feedback]
       operationId: recordFeedback
-      summary: Record or update a reviewer's rating of a job's output
+      summary: Record or update a reviewer's rating of a job's output (caller service only)
+      description: 'One rating per reviewer per job: a second rating by the same reviewer replaces the first. Only a succeeded job of the caller has an output to rate. Each rating announces `ai.feedback.recorded.v1` (no note, no reviewer).'
       requestBody:
         required: true
         content:
@@ -117,15 +118,26 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Feedback'
+        '400':
+          $ref: '#/components/responses/ValidationProblem'
         '404':
-          $ref: '#/components/responses/NotFound'
+          description: No succeeded job with this id visible to the caller
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
   /internal/v1/tenants/{tenant}/status:
     parameters:
       - $ref: '#/components/parameters/Tenant'
     get:
       tags: [policy]
       operationId: getTenantAiStatus
-      summary: Whether AI assistance is enabled for a tenant and with which provider class (for the Commission status line)
+      summary: Whether AI assistance is enabled for a tenant and with which provider class (services with the `ai` scope; review proxies it for the Commission status line)
+      description: |
+        Derived from the tenant's routes and its classification gate (explicit rules, else the
+        default): the provider classes the tenant's tasks are routed to, and the data classes
+        every one of them may process. With routes on more than one provider class,
+        `providerClass` is `external`.
       responses:
         '200':
           description: Status
@@ -133,20 +145,22 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/TenantAiStatus'
+        '400':
+          $ref: '#/components/responses/ValidationProblem'
+        '403':
+          $ref: '#/components/responses/Forbidden'
   /v1/ai/policies:
     get:
       tags: [policy]
       operationId: listGatePolicies
-      summary: Classification gate policy per tenant (platform-admin)
+      summary: Classification gate per tenant with explicit rules, and the default for every other pair (platform-admin)
       responses:
         '200':
           description: Policies
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/TenantPolicy'
+                $ref: '#/components/schemas/GatePolicyList'
         '403':
           $ref: '#/components/responses/Forbidden'
   /v1/ai/policies/{tenant}:
@@ -155,7 +169,10 @@ paths:
     put:
       tags: [policy]
       operationId: setGatePolicy
-      summary: Allow or block a provider class for a data class (platform-admin; audited with approval reference)
+      summary: Allow or block provider classes per data class, all or none (platform-admin; audited with approval reference)
+      description: |
+        The rules apply in one transaction: every rule is stored, or none is. Each rule gets
+        its own audit record and `ai.policy.changed.v1` event, all with the approval reference.
       requestBody:
         required: true
         content:
@@ -189,6 +206,20 @@ paths:
                   $ref: '#/components/schemas/Route'
         '403':
           $ref: '#/components/responses/Forbidden'
+  /v1/ai/usage:
+    get:
+      tags: [policy]
+      operationId: listTenantUsage
+      summary: This month's budget and usage of every tenant with a budget or a job this month, and the default budget of the others (platform-admin)
+      responses:
+        '200':
+          description: Usage
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UsageList'
+        '403':
+          $ref: '#/components/responses/Forbidden'
   /v1/ai/tenants/{tenant}/usage:
     parameters:
       - $ref: '#/components/parameters/Tenant'
@@ -203,12 +234,14 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/TenantUsage'
+        '400':
+          $ref: '#/components/responses/ValidationProblem'
         '403':
           $ref: '#/components/responses/Forbidden'
     put:
       tags: [policy]
       operationId: setTenantBudget
-      summary: Set the monthly token budget and per-minute limit (platform-admin)
+      summary: Set the monthly token budget and per-minute limit (platform-admin; audited)
       requestBody:
         required: true
         content:
@@ -222,6 +255,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/TenantUsage'
+        '400':
+          $ref: '#/components/responses/ValidationProblem'
         '403':
           $ref: '#/components/responses/Forbidden'
 components:
@@ -383,6 +418,7 @@ components:
               type: integer
             costMicros:
               type: integer
+              description: Estimated cost in micro US dollars at provider list price
             latencyMs:
               type: integer
         output:
@@ -921,6 +957,9 @@ components:
       properties:
         reviewerSubject:
           type: string
+          minLength: 1
+          maxLength: 255
+          description: The officer rating the output, as the calling service knows them (token `sub`)
         rating:
           type: string
           enum: [helpful, not-helpful]
@@ -950,17 +989,20 @@ components:
           type: string
         enabled:
           type: boolean
+          description: Some data class may be sent to the tenant's routed provider class
         providerClass:
+          description: null when no route names a provider this gateway can reach
           oneOf:
             - $ref: '#/components/schemas/ProviderClass'
             - type: 'null'
         dataClasses:
           type: array
+          description: Data classes the routed provider class may process, in DataClass order
           items:
             $ref: '#/components/schemas/DataClass'
-    GatePolicyInput:
+    GateRuleInput:
       type: object
-      required: [dataClass, providerClass, allowed, approvalRef]
+      required: [dataClass, providerClass, allowed]
       properties:
         dataClass:
           $ref: '#/components/schemas/DataClass'
@@ -968,10 +1010,40 @@ components:
           $ref: '#/components/schemas/ProviderClass'
         allowed:
           type: boolean
+    GatePolicyInput:
+      type: object
+      required: [rules, approvalRef]
+      properties:
+        rules:
+          type: array
+          description: At most one rule per data class and provider class
+          minItems: 1
+          maxItems: 6
+          items:
+            $ref: '#/components/schemas/GateRuleInput'
         approvalRef:
           type: string
           minLength: 1
           maxLength: 200
+          description: The decision the change rests on, e.g. an EACC approval number
+    GateRule:
+      description: An explicit rule of a tenant's gate, with who decided it and on which approval
+      allOf:
+        - $ref: '#/components/schemas/GateRuleInput'
+        - type: object
+          required: [approvalRef, changedBy, changedByName, changedAt]
+          properties:
+            approvalRef:
+              type: string
+            changedBy:
+              type: string
+              description: '`sub` of the platform admin who made the change'
+            changedByName:
+              type: [string, 'null']
+              description: Their display name at the time; null when unknown
+            changedAt:
+              type: string
+              format: date-time
     TenantPolicy:
       type: object
       required: [tenant, rules]
@@ -980,20 +1052,43 @@ components:
           type: string
         rules:
           type: array
+          description: |
+            Explicit rules, allowing or blocking, in DataClass then ProviderClass order. A pair
+            without one follows `GatePolicyList.defaults`.
           items:
-            allOf:
-              - $ref: '#/components/schemas/GatePolicyInput'
-              - type: object
-                required: [changedBy, changedAt]
-                properties:
-                  changedBy:
-                    type: string
-                  changedAt:
-                    type: string
-                    format: date-time
+            $ref: '#/components/schemas/GateRule'
+    GatePolicyList:
+      type: object
+      required: [defaults, tenants]
+      properties:
+        defaults:
+          type: array
+          description: The gate of every (data class, provider class) pair a tenant has no rule for
+          items:
+            $ref: '#/components/schemas/GateRuleInput'
+        tenants:
+          type: array
+          description: Tenants with at least one explicit rule, by tenant
+          items:
+            $ref: '#/components/schemas/TenantPolicy'
+    RouteParams:
+      type: object
+      description: Call parameters; an unset one falls back to the task's own
+      additionalProperties: false
+      properties:
+        maxOutputTokens:
+          type: integer
+          minimum: 1
+        effort:
+          type: string
+          enum: [low, medium, high]
+        timeoutMs:
+          type: integer
+          minimum: 1
+          description: Longest one provider call may take
     Route:
       type: object
-      required: [tenant, task, provider, model, params]
+      required: [tenant, task, provider, providerClass, model, params]
       properties:
         tenant:
           type: [string, 'null']
@@ -1002,11 +1097,15 @@ components:
           $ref: '#/components/schemas/TaskName'
         provider:
           type: string
+        providerClass:
+          description: The provider's class, which the gate decides on; null when this gateway cannot reach the provider (its jobs fail `provider-unavailable`)
+          oneOf:
+            - $ref: '#/components/schemas/ProviderClass'
+            - type: 'null'
         model:
           type: string
         params:
-          type: object
-          additionalProperties: true
+          $ref: '#/components/schemas/RouteParams'
     BudgetInput:
       type: object
       required: [monthlyTokens, perMinute]
@@ -1014,9 +1113,11 @@ components:
         monthlyTokens:
           type: integer
           minimum: 0
+          description: Tokens (in and out) per calendar month, Africa/Nairobi
         perMinute:
           type: integer
           minimum: 1
+          description: Jobs created per minute
     TenantUsage:
       type: object
       required:
@@ -1027,6 +1128,7 @@ components:
         month:
           type: string
           pattern: '^[0-9]{4}-[0-9]{2}$'
+          description: Calendar month, Africa/Nairobi
         monthlyTokens:
           type: integer
         perMinute:
@@ -1035,12 +1137,29 @@ components:
           type: integer
         costMicros:
           type: integer
+          description: Estimated cost in micro US dollars (USD 1 = 1,000,000) at provider list price
         jobs:
           type: integer
         blocked:
           type: integer
         failed:
           type: integer
+    UsageList:
+      type: object
+      required: [month, defaults, tenants]
+      properties:
+        month:
+          type: string
+          pattern: '^[0-9]{4}-[0-9]{2}$'
+          description: Calendar month, Africa/Nairobi
+        defaults:
+          description: The budget of a tenant without one of its own; such a tenant without jobs this month has used nothing
+          $ref: '#/components/schemas/BudgetInput'
+        tenants:
+          type: array
+          description: Tenants with a budget of their own or a job this month, by tenant
+          items:
+            $ref: '#/components/schemas/TenantUsage'
     ProblemDetails:
       type: object
       required: [type, title, status]

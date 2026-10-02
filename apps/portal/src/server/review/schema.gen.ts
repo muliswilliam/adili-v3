@@ -1026,7 +1026,10 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Draft clarification items from selected flags and items (assignee); nothing is issued */
+        /**
+         * Draft clarification items from selected flags and items (assignee); nothing is issued
+         * @description Builds the ai-gateway `draft-clarification` input from the case's current version (item context) and flags, in the requested language, and waits up to 10 seconds for the job. A draft not ready by then answers 202 and is polled with `getCopilotDraft`. Drafts are kept for 24 hours and never become clarifications: the console inserts the items into the composer, and the clarification endpoints issue them. A retry with the same Idempotency-Key answers the same draft. Audited read (`review.copilot.drafted`).
+         */
         post: operations["draftClarificationWithAi"];
         delete?: never;
         options?: never;
@@ -1043,7 +1046,10 @@ export interface paths {
             };
             cookie?: never;
         };
-        /** Poll a pending draft (assignee) */
+        /**
+         * Poll a pending draft (assignee)
+         * @description Only the assignee who asked for it, for 24 hours; anyone else, or later, 404. Audited read (`review.copilot.draft-viewed`).
+         */
         get: operations["getCopilotDraft"];
         put?: never;
         post?: never;
@@ -1063,7 +1069,10 @@ export interface paths {
             cookie?: never;
         };
         get?: never;
-        /** Rate an AI output as helpful or not (reviewer, supervisor); one rating per reviewer per output */
+        /**
+         * Rate a copilot output shown on a case as helpful or not (the case's assignee); one rating per reviewer per output
+         * @description The output is named by its job (`CopilotView.jobs`). A second rating by the same reviewer replaces the first. The rating is forwarded to the ai-gateway, which announces it for reporting. Supervisors and other reviewers of the Commission read the copilot but do not rate it (403); anyone else, or a job that is not an output shown on a case, gets 404.
+         */
         put: operations["rateCopilotOutput"];
         post?: never;
         delete?: never;
@@ -1081,7 +1090,13 @@ export interface paths {
             };
             cookie?: never;
         };
-        /** Whether AI assistance is enabled for the Commission (commission-admin, supervisor) */
+        /**
+         * Whether AI assistance is enabled for the Commission (commission-admin, supervisor)
+         * @description The commission-admin and supervisors of the Commission; anyone else gets 404. Reads the
+         *     ai-gateway's tenant status (its routes and classification gate). `enabled` says whether
+         *     the copilot may run on this Commission's cases: the data class its declarations are sent
+         *     as is among `dataClasses`.
+         */
         get: operations["getCommissionAiStatus"];
         put?: never;
         post?: never;
@@ -1177,7 +1192,7 @@ export interface components {
                 /** Format: uuid */
                 explain: string | null;
             };
-            /** @description The caller's own ratings */
+            /** @description The caller's own ratings of the outputs shown (`jobs`) */
             feedback: {
                 /** Format: uuid */
                 jobId: string;
@@ -1209,7 +1224,9 @@ export interface components {
                 [key: string]: unknown;
             } | null;
             opening: string | null;
+            /** @description Empty until ready */
             items: components["schemas"]["ClarificationItemInput"][];
+            /** @description The ai-gateway's job reason (`validation`, `budget`, `provider`, ...), or `rejected` when the gateway refused the request */
             failureReason: string | null;
         };
         CopilotFeedbackInput: {
@@ -3916,7 +3933,7 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Draft ready */
+            /** @description Draft ready, or failed (`failureReason`) */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -3934,11 +3951,37 @@ export interface operations {
                     "application/json": components["schemas"]["CopilotDraft"];
                 };
             };
-            400: components["responses"]["ValidationProblem"];
+            /** @description Body failed validation, or problem type `selection-not-on-case`: a flag the case does not have, an item or section its current version lacks, no selection, or more than 50 items */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
-            /** @description AI not enabled for this Commission */
+            /** @description AI not enabled for this Commission (problem type `ai-not-enabled`) */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description The declarations service could not give the declaration; nothing was requested */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description The ai-gateway (problem type `ai-gateway-unavailable`) or the Commission directory cannot be reached; nothing was requested */
+            503: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -3969,6 +4012,15 @@ export interface operations {
                 };
             };
             404: components["responses"]["NotFound"];
+            /** @description The ai-gateway cannot be reached (problem type `ai-gateway-unavailable`) */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
         };
     };
     rateCopilotOutput: {
@@ -3993,7 +4045,26 @@ export interface operations {
                 };
                 content?: never;
             };
+            400: components["responses"]["ValidationProblem"];
+            /** @description The caller is not the case's assignee (problem type `not-the-assignee`) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
             404: components["responses"]["NotFound"];
+            /** @description The ai-gateway cannot be reached (problem type `ai-gateway-unavailable`); nothing was recorded */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
         };
     };
     getCommissionAiStatus: {
@@ -4015,13 +4086,26 @@ export interface operations {
                 content: {
                     "application/json": {
                         enabled: boolean;
-                        /** @enum {string|null} */
+                        /**
+                         * @description The provider class the Commission's AI tasks are routed to
+                         * @enum {string|null}
+                         */
                         providerClass: "external" | "self-hosted" | null;
-                        dataClasses: string[];
+                        /** @description Data classes that provider class may process for the Commission */
+                        dataClasses: ("synthetic" | "restricted" | "highly-confidential")[];
                     };
                 };
             };
             404: components["responses"]["NotFound"];
+            /** @description Problem type `ai-gateway-unavailable`; the status could not be read */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
         };
     };
 }

@@ -332,13 +332,6 @@ export function readDeclaration(document: Record<string, unknown> | null): Decla
   };
 }
 
-/** The reporting entity the declarant names, or null. */
-export function employerOf(view: DeclarationView | null): string | null {
-  const value = view?.personal.find((field) => field.label === 'Reporting entity')?.value;
-  if (!value) return null;
-  return value;
-}
-
 /** Where an item sits, for a flag's "concerns" line: "Assets · Land · Plot 1234 · John Otieno". */
 export function itemLabel(view: DeclarationView, itemId: string): string | null {
   for (const statement of view.statements) {

@@ -8,15 +8,7 @@ import { EnabledBadge } from './parts';
 export function statusAccess(status: CommissionAiStatus): ProviderAccess[] {
   const { providerClass } = status;
   if (!status.enabled || !providerClass) return [];
-  return [
-    {
-      providerClass,
-      dataClasses: status.dataClasses.filter(
-        (each): each is ProviderAccess['dataClasses'][number] =>
-          each === 'synthetic' || each === 'restricted' || each === 'highly-confidential',
-      ),
-    },
-  ];
+  return [{ providerClass, dataClasses: status.dataClasses }];
 }
 
 /**

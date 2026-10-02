@@ -1,11 +1,14 @@
 import type { AiGatewayClient } from './ai-gateway/client.server';
 import type {
   BudgetInput,
-  GatePolicyInput,
+  DataClass,
   GateRule,
+  GateRuleInput,
+  ProviderClass,
   Route,
   TenantPolicy,
   TenantUsage,
+  UsageList,
 } from './ai-gateway/types';
 import { callDirectory, type DirectoryClient } from './directory/client';
 import { callService, type ServiceResult } from './service-call';
@@ -16,16 +19,28 @@ import { callService, type ServiceResult } from './service-call';
  * the server functions that call these as the signed-in platform admin).
  */
 
+/** One cell of a Commission's gate: allowed or not, and the explicit rule behind it, if any. */
+export interface GateCellView {
+  dataClass: DataClass;
+  providerClass: ProviderClass;
+  allowed: boolean;
+  /** Null when the gateway's default decides the cell. */
+  rule: GateRule | null;
+}
+
 /** One Commission on the AI policy page: its name from the directory, its gate and usage. */
 export interface AiTenantRow {
   slug: string;
   name: string;
-  rules: GateRule[];
-  /** This month's usage and budget; null when the gateway did not answer for this tenant. */
+  /** Every data class and provider class, in table order. */
+  gate: GateCellView[];
+  /** The provider classes the Commission's tasks are routed to (every class when unknown). */
+  routed: ProviderClass[];
+  /** This month's usage and budget; null when the gateway did not answer. */
   usage: TenantUsage | null;
 }
 
-/** A route with its parameters as plain values, so it crosses to the browser as it is. */
+/** A route with its parameters as a plain record, so the page lists any it does not know too. */
 export type RouteRow = Omit<Route, 'params'> & {
   params: Record<string, string | number | boolean | null>;
 };
@@ -35,18 +50,6 @@ export interface AiPolicyOverview {
   tenants: AiTenantRow[];
   /** The routing table; a failure here leaves the Commissions tab working. */
   routing: ServiceResult<RouteRow[]>;
-}
-
-/** Parameters are open-ended in the contract: keep plain values, write anything else as JSON. */
-function plainParams(params: Route['params']): RouteRow['params'] {
-  return Object.fromEntries(
-    Object.entries(params).map(([key, value]) => [
-      key,
-      value === null || ['string', 'number', 'boolean'].includes(typeof value)
-        ? (value as string | number | boolean | null)
-        : JSON.stringify(value),
-    ]),
-  );
 }
 
 /** Directory pages read at most, at the largest page size: 4,000 Commissions. */
@@ -73,97 +76,118 @@ async function allCommissions(
   return { ok: true, data: commissions };
 }
 
+/** The gate of every cell for a Commission: its own rule where it has one, else the default. */
+export function gateOf(
+  defaults: readonly GateRuleInput[],
+  rules: readonly GateRule[],
+): GateCellView[] {
+  return defaults.map((cell) => {
+    const rule =
+      rules.find(
+        (each) => each.dataClass === cell.dataClass && each.providerClass === cell.providerClass,
+      ) ?? null;
+    return {
+      dataClass: cell.dataClass,
+      providerClass: cell.providerClass,
+      allowed: rule ? rule.allowed : cell.allowed,
+      rule,
+    };
+  });
+}
+
+const PROVIDER_CLASSES: readonly ProviderClass[] = ['external', 'self-hosted'];
+
+/**
+ * The provider classes a Commission's tasks are routed to: per task its own route, else the
+ * default route. Routes to a provider the gateway cannot reach send nothing anywhere.
+ */
+export function routedClasses(routes: readonly Route[], tenant: string): ProviderClass[] {
+  const tasks = new Set(routes.map((route) => route.task));
+  const classes = new Set(
+    [...tasks].flatMap((task) => {
+      const route =
+        routes.find((each) => each.task === task && each.tenant === tenant) ??
+        routes.find((each) => each.task === task && each.tenant === null);
+      return route?.providerClass ? [route.providerClass] : [];
+    }),
+  );
+  return PROVIDER_CLASSES.filter((each) => classes.has(each));
+}
+
+/** A Commission's usage from the list: its own entry, else the default budget and nothing used. */
+function usageOf(list: UsageList, tenant: string): TenantUsage {
+  return (
+    list.tenants.find((each) => each.tenant === tenant) ?? {
+      tenant,
+      month: list.month,
+      ...list.defaults,
+      tokensUsed: 0,
+      costMicros: 0,
+      jobs: 0,
+      blocked: 0,
+      failed: 0,
+    }
+  );
+}
+
 /**
  * The Commissions with their classification gate and this month's usage, and the routing table:
- * the directory's Commissions, `GET /v1/ai/policies`, `GET /v1/ai/routing`, then
- * `GET /v1/ai/tenants/{tenant}/usage` per Commission (the contract has no list of usage). A
- * Commission without a policy is blocked for every data class, the gateway's default.
+ * the directory's Commissions with `GET /v1/ai/policies`, `GET /v1/ai/routing` and
+ * `GET /v1/ai/usage`. The gateway lists only the tenants it has rules or usage for; every other
+ * Commission has the default gate and budget the lists carry.
  */
 export async function loadAiPolicyOverview(
   gateway: AiGatewayClient,
   directory: DirectoryClient,
 ): Promise<ServiceResult<AiPolicyOverview>> {
-  const [commissions, policies, routing] = await Promise.all([
+  const [commissions, policies, routing, usage] = await Promise.all([
     allCommissions(directory),
     callService(() => gateway.GET('/v1/ai/policies')),
     callService(() => gateway.GET('/v1/ai/routing')),
+    callService(() => gateway.GET('/v1/ai/usage')),
   ]);
   if (!policies.ok) return policies;
   if (!commissions.ok) return commissions;
-  const rulesOf = new Map(policies.data.map((policy) => [policy.tenant, policy.rules]));
-  const usage = await Promise.all(
-    commissions.data.map(({ slug }) => loadTenantUsage(gateway, slug)),
-  );
+  const rulesOf = new Map(policies.data.tenants.map((policy) => [policy.tenant, policy.rules]));
   return {
     ok: true,
     data: {
-      tenants: commissions.data.map(({ slug, name }, index) => {
-        const read = usage[index];
-        return {
-          slug,
-          name,
-          rules: rulesOf.get(slug) ?? [],
-          usage: read?.ok ? read.data : null,
-        };
-      }),
+      tenants: commissions.data.map(({ slug, name }) => ({
+        slug,
+        name,
+        gate: gateOf(policies.data.defaults, rulesOf.get(slug) ?? []),
+        routed: routing.ok ? routedClasses(routing.data, slug) : [...PROVIDER_CLASSES],
+        usage: usage.ok ? usageOf(usage.data, slug) : null,
+      })),
       routing: routing.ok
         ? {
             ok: true,
-            data: routing.data.map((route) => ({ ...route, params: plainParams(route.params) })),
+            data: routing.data.map((route) => ({ ...route, params: { ...route.params } })),
           }
         : routing,
     },
   };
 }
 
-/** `GET /v1/ai/tenants/{tenant}/usage`. */
-export function loadTenantUsage(
-  gateway: AiGatewayClient,
-  tenant: string,
-): Promise<ServiceResult<TenantUsage>> {
-  return callService(() =>
-    gateway.GET('/v1/ai/tenants/{tenant}/usage', { params: { path: { tenant } } }),
-  );
-}
-
 /** One cell of the gate that the platform admin changed. */
-export type GateChange = Omit<GatePolicyInput, 'approvalRef'>;
-
-/** How far a policy save got: every change, or the first failure after `saved` of them. */
-export type GatePolicySave =
-  | { ok: true; data: TenantPolicy }
-  | {
-      ok: false;
-      error: Exclude<ServiceResult<never>, { ok: true }>['error'];
-      /** Changes stored before the failure; the page reloads to show them. */
-      saved: number;
-    };
+export type GateChange = GateRuleInput;
 
 /**
- * `PUT /v1/ai/policies/{tenant}` once per changed cell, in order, each with the same approval
- * reference (the contract takes one data class and provider class per call). Stops at the first
- * failure and says how many were stored.
+ * `PUT /v1/ai/policies/{tenant}`: every changed cell on one approval reference. The gateway
+ * stores all of them or none.
  */
-export async function saveGatePolicy(
+export function saveGatePolicy(
   gateway: AiGatewayClient,
   tenant: string,
   changes: readonly GateChange[],
   approvalRef: string,
-): Promise<GatePolicySave> {
-  let latest: TenantPolicy | null = null;
-  for (const [index, change] of changes.entries()) {
-    const result = await callService(() =>
-      gateway.PUT('/v1/ai/policies/{tenant}', {
-        params: { path: { tenant } },
-        body: { ...change, approvalRef },
-      }),
-    );
-    if (!result.ok) return { ok: false, error: result.error, saved: index };
-    latest = result.data;
-  }
-  return latest
-    ? { ok: true, data: latest }
-    : { ok: false, error: { kind: 'unavailable', detail: null }, saved: 0 };
+): Promise<ServiceResult<TenantPolicy>> {
+  return callService(() =>
+    gateway.PUT('/v1/ai/policies/{tenant}', {
+      params: { path: { tenant } },
+      body: { rules: [...changes], approvalRef },
+    }),
+  );
 }
 
 /** `PUT /v1/ai/tenants/{tenant}/usage`: the monthly token budget and the per-minute limit. */

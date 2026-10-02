@@ -27,22 +27,13 @@ import { versionLine, windowLine } from '../../../review-case/case';
 import { CASE_STATUSES, DECLARATION_TYPES } from '../../../review-case/labels';
 import type { CaseViewDetail } from '../../../server/review-case.server';
 import type { Assignee } from '../../../server/review/types';
+import { TONES } from '../status-badge';
 import { InfoTip } from './info-tip';
 import { messages as t } from './messages';
 
-/** The badge variant of each tone the case statuses use. */
-const BADGE_TONES = {
-  neutral: 'default',
-  info: 'info',
-  brand: 'brand',
-  success: 'success',
-  warning: 'warning',
-  destructive: 'destructive',
-} as const;
-
 export function CaseStatusBadge({ status }: { status: CaseViewDetail['case']['status'] }) {
   const { label, tone } = CASE_STATUSES[status];
-  return <Badge variant={BADGE_TONES[tone]}>{label}</Badge>;
+  return <Badge variant={TONES[tone].badge}>{label}</Badge>;
 }
 
 /**

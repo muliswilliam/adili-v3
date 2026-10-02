@@ -4,6 +4,7 @@ import { and, asc, eq, isNull, or } from 'drizzle-orm';
 import { z } from 'zod';
 
 import { routes, type schema } from '../db/schema.js';
+import type { ProviderClass } from '../providers/port.js';
 import { ProviderRegistry } from '../providers/providers.module.js';
 import { TASK_NAMES, type TaskName } from '../tasks/task.js';
 
@@ -34,6 +35,8 @@ export interface RouteView extends Route {
   /** Null for the default route of every tenant. */
   tenant: string | null;
   task: TaskName;
+  /** Null when this process cannot reach the provider. */
+  providerClass: ProviderClass | null;
 }
 
 /**
@@ -65,19 +68,25 @@ export class Routing {
   async table(): Promise<RouteView[]> {
     const rows = await this.db.select().from(routes).orderBy(asc(routes.task), asc(routes.tenant));
     const defaults = new Set(rows.filter((row) => row.tenant === null).map((row) => row.task));
+    const view = (tenant: string | null, task: TaskName, route: Route): RouteView => ({
+      tenant,
+      task,
+      provider: route.provider,
+      providerClass: this.providers.get(route.provider)?.providerClass ?? null,
+      model: route.model,
+      params: route.params,
+    });
     return [
-      ...rows.map((row) => ({
-        tenant: row.tenant,
-        task: row.task,
-        provider: row.provider,
-        model: row.model,
-        params: parseParams(row.params, row.id),
-      })),
-      ...TASK_NAMES.filter((task) => !defaults.has(task)).map((task) => ({
-        tenant: null,
-        task,
-        ...this.fallback(),
-      })),
+      ...rows.map((row) =>
+        view(row.tenant, row.task, {
+          provider: row.provider,
+          model: row.model,
+          params: parseParams(row.params, row.id),
+        }),
+      ),
+      ...TASK_NAMES.filter((task) => !defaults.has(task)).map((task) =>
+        view(null, task, this.fallback()),
+      ),
     ];
   }
 

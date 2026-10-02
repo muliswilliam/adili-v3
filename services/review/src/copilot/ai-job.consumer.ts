@@ -14,8 +14,12 @@ export const AI_JOB_CONSUMER = 'review.ai-job';
 /** What the consumer reads from `ai.job.completed.v1`, `failed.v1` and `blocked.v1`. */
 const jobFinishedData = z.object({
   jobId: z.uuid(),
+  task: z.string().optional(),
   subjectRef: z.string(),
 });
+
+/** Drafts are read when the reviewer polls them (copilot-drafts.service.ts), not on events. */
+const POLLED_TASKS: readonly string[] = ['draft-clarification'];
 
 const tenantSchema = z.string().regex(TENANT_KEY);
 const caseIdSchema = z.uuid();
@@ -24,7 +28,7 @@ const caseIdSchema = z.uuid();
  * The ai-gateway's announcements that a job has ended (spec 07c). The events carry identifiers,
  * hashes and counts only; for a job about a review case (`subjectRef` `review-case:<id>`) the
  * consumer starts `copilotJobFinished`, which pulls the outcome and records it. Jobs about
- * anything else are other services'. Each event is handled once (inbox); the start is idempotent
+ * anything else are other services', and a case's clarification drafts are polled instead. Each event is handled once (inbox); the start is idempotent
  * by job. A handler that throws (Temporal unreachable) is retried once, then dead-lettered.
  */
 @Controller()
@@ -50,7 +54,8 @@ export class AiJobConsumer {
   }
 
   private async finished(event: EventEnvelope): Promise<void> {
-    const { jobId, subjectRef } = jobFinishedData.parse(event.data);
+    const { jobId, task, subjectRef } = jobFinishedData.parse(event.data);
+    if (task !== undefined && POLLED_TASKS.includes(task)) return;
     const caseId = caseIdSchema.safeParse(caseOfSubjectRef(subjectRef));
     if (!caseId.success) return;
     const tenant = tenantSchema.parse(event.tenant);

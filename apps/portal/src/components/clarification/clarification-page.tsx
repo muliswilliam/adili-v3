@@ -69,7 +69,7 @@ export function ClarificationPage(props: ClarificationPageProps) {
   return (
     <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-8 sm:px-6">
       <Button asChild variant="ghost" size="sm" className="-ml-3 mb-3">
-        <Link to="/">
+        <Link to="/clarifications">
           <Icon icon={ArrowLeft01Icon} />
           {COPY.back}
         </Link>

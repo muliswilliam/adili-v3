@@ -1,0 +1,460 @@
+import { randomUUID } from 'node:crypto';
+
+import { outbox } from '@adili/events';
+import { COMMISSION_ADMIN, PLATFORM_ADMIN, SUPERVISOR } from '@adili/roles';
+import { asc, eq, sql } from 'drizzle-orm';
+import { v7 as uuidv7 } from 'uuid';
+import { afterEach, beforeAll, describe, expect, it } from 'vitest';
+
+import { auditRecords, gatePolicies, jobs, routes } from '../../src/db/schema.js';
+import { currentMonth } from '../../src/policy/budgets.js';
+import { contractErrors } from '../support/contract.js';
+import { summarizeInput, summarizeOutput, usage } from '../support/inputs.js';
+import { ScriptedProvider } from '../support/scripted-provider.js';
+import { createTestApp, type TestApp } from '../support/test-app.js';
+
+const MODEL = 'claude-opus-5-5';
+
+interface Job {
+  id: string;
+  status: string;
+}
+
+/**
+ * The platform admin's policy, routing, budget and usage API, and the tenant AI status services
+ * read (spec 07c S5, S14, S16), against real Postgres with an external default provider and a
+ * self-hosted second one.
+ */
+describe('admin API', { timeout: 90_000 }, () => {
+  const external = new ScriptedProvider(
+    () => Promise.resolve({ status: 'completed', model: MODEL, output: summarizeOutput, usage }),
+    'external',
+  );
+  const selfHosted = new ScriptedProvider(
+    () => Promise.reject(new Error('not called')),
+    'self-hosted',
+    'local',
+  );
+  let t: TestApp;
+  let admin: { authorization: string };
+  let service: { authorization: string };
+
+  beforeAll(async () => {
+    t = await createTestApp({ provider: external, extraProviders: [selfHosted] });
+    admin = {
+      authorization: `Bearer ${await t.userToken({
+        subject: 'platform-admin-1',
+        roles: [PLATFORM_ADMIN],
+        name: 'Amina Odhiambo',
+      })}`,
+    };
+    service = { authorization: `Bearer ${await t.token()}` };
+    return () => t.close();
+  });
+
+  afterEach(async () => {
+    await t.db.delete(routes);
+  });
+
+  const request = (
+    method: 'GET' | 'PUT',
+    url: string,
+    headers: { authorization: string },
+    payload?: object,
+  ) => t.app.inject({ method, url, headers, ...(payload ? { payload } : {}) });
+
+  /** Runs a task as review and waits for its end. */
+  const run = async (tenant: string, dataClass: string, language = 'en') => {
+    const response = await t.app.inject({
+      method: 'POST',
+      url: '/internal/v1/tasks/summarize-declaration',
+      headers: { ...service, 'idempotency-key': randomUUID() },
+      payload: {
+        tenant,
+        dataClass,
+        subjectRef: `review-case:${randomUUID()}`,
+        promptVersion: null,
+        waitSeconds: 10,
+        input: { ...summarizeInput, language },
+      },
+    });
+    let job = response.json<Job>();
+    const deadline = Date.now() + 60_000;
+    while (['queued', 'running'].includes(job.status)) {
+      if (Date.now() > deadline) throw new Error(`job ${job.id} still ${job.status}`);
+      await new Promise((resolve) => setTimeout(resolve, 100));
+      job = (await request('GET', `/internal/v1/jobs/${job.id}`, service)).json<Job>();
+    }
+    return job;
+  };
+
+  describe('access (S14)', () => {
+    const adminPaths: ['GET' | 'PUT', string, object?][] = [
+      ['GET', '/v1/ai/policies'],
+      [
+        'PUT',
+        '/v1/ai/policies/kcomm',
+        {
+          rules: [{ dataClass: 'restricted', providerClass: 'external', allowed: true }],
+          approvalRef: 'EACC/AI/1',
+        },
+      ],
+      ['GET', '/v1/ai/routing'],
+      ['GET', '/v1/ai/usage'],
+      ['GET', '/v1/ai/tenants/kcomm/usage'],
+      ['PUT', '/v1/ai/tenants/kcomm/usage', { monthlyTokens: 1, perMinute: 1 }],
+    ];
+
+    it('refuses everyone but a platform admin on every /v1/ai path, and changes nothing', async () => {
+      const commissionAdmin = {
+        authorization: `Bearer ${await t.userToken({
+          subject: 'commission-admin-1',
+          roles: [COMMISSION_ADMIN, SUPERVISOR],
+        })}`,
+      };
+      for (const [method, url, payload] of adminPaths) {
+        for (const caller of [commissionAdmin, service]) {
+          const response = await request(method, url, caller, payload);
+          expect(response.statusCode, `${method} ${url}`).toBe(403);
+        }
+      }
+      expect(await t.db.select().from(gatePolicies)).toEqual([]);
+    });
+
+    it('serves the tenant status to services with the ai scope only', async () => {
+      expect((await request('GET', '/internal/v1/tenants/kcomm/status', admin)).statusCode).toBe(
+        403,
+      );
+      expect((await request('GET', '/internal/v1/tenants/kcomm/status', service)).statusCode).toBe(
+        200,
+      );
+      expect(
+        (await request('GET', '/internal/v1/tenants/Not-A-Slug/status', service)).statusCode,
+      ).toBe(400);
+    });
+  });
+
+  describe('gate policy (S16)', () => {
+    it('applies several rules on one approval, audits each with the reference, and lists them', async () => {
+      const before = await request('GET', '/v1/ai/policies', admin);
+      expect(before.statusCode).toBe(200);
+      expect(contractErrors('GatePolicyList', before.json())).toEqual([]);
+      expect(before.json()).toMatchObject({
+        defaults: [
+          { dataClass: 'synthetic', providerClass: 'external', allowed: true },
+          { dataClass: 'synthetic', providerClass: 'self-hosted', allowed: true },
+          { dataClass: 'restricted', providerClass: 'external', allowed: false },
+          { dataClass: 'restricted', providerClass: 'self-hosted', allowed: true },
+          { dataClass: 'highly-confidential', providerClass: 'external', allowed: false },
+          { dataClass: 'highly-confidential', providerClass: 'self-hosted', allowed: true },
+        ],
+      });
+
+      const response = await request('PUT', '/v1/ai/policies/psc', admin, {
+        rules: [
+          { dataClass: 'restricted', providerClass: 'external', allowed: true },
+          { dataClass: 'synthetic', providerClass: 'external', allowed: false },
+        ],
+        approvalRef: 'EACC/AI/2026/014',
+      });
+
+      expect(response.statusCode).toBe(200);
+      const policy = response.json<{ tenant: string; rules: unknown[] }>();
+      expect(contractErrors('TenantPolicy', policy)).toEqual([]);
+      expect(policy).toEqual({
+        tenant: 'psc',
+        rules: [
+          {
+            dataClass: 'synthetic',
+            providerClass: 'external',
+            allowed: false,
+            approvalRef: 'EACC/AI/2026/014',
+            changedBy: 'platform-admin-1',
+            changedByName: 'Amina Odhiambo',
+            changedAt: expect.any(String) as string,
+          },
+          {
+            dataClass: 'restricted',
+            providerClass: 'external',
+            allowed: true,
+            approvalRef: 'EACC/AI/2026/014',
+            changedBy: 'platform-admin-1',
+            changedByName: 'Amina Odhiambo',
+            changedAt: expect.any(String) as string,
+          },
+        ],
+      });
+      const changes = await t.db
+        .select()
+        .from(auditRecords)
+        .where(eq(auditRecords.tenant, 'psc'))
+        .orderBy(asc(auditRecords.id));
+      expect(changes).toMatchObject([
+        {
+          action: 'ai.gate-policy.changed',
+          actor: 'platform-admin-1',
+          approvalRef: 'EACC/AI/2026/014',
+          change: {
+            before: { dataClass: 'restricted', allowed: false, explicit: false },
+            after: { dataClass: 'restricted', allowed: true, explicit: true },
+          },
+        },
+        {
+          action: 'ai.gate-policy.changed',
+          approvalRef: 'EACC/AI/2026/014',
+          change: { after: { dataClass: 'synthetic', allowed: false } },
+        },
+      ]);
+      const events = await t.db
+        .select()
+        .from(outbox)
+        .where(sql`${outbox.envelope}->>'type' = 'ai.policy.changed.v1'`);
+      expect(
+        events.filter((row) => row.envelope.tenant === 'psc').map((row) => row.envelope.data),
+      ).toMatchObject([{ approvalRef: 'EACC/AI/2026/014' }, { approvalRef: 'EACC/AI/2026/014' }]);
+
+      const listed = await request('GET', '/v1/ai/policies', admin);
+      expect(listed.json<{ tenants: unknown[] }>().tenants).toContainEqual(policy);
+
+      // The gate follows the change at the next job.
+      expect((await run('psc', 'restricted')).status).toBe('succeeded');
+      expect((await run('psc', 'synthetic')).status).toBe('blocked');
+    });
+
+    it('stores none of the rules when the change is invalid', async () => {
+      const invalid = [
+        {
+          rules: [
+            { dataClass: 'restricted', providerClass: 'external', allowed: true },
+            { dataClass: 'restricted', providerClass: 'external', allowed: false },
+          ],
+          approvalRef: 'EACC/AI/2026/015',
+        },
+        {
+          rules: [{ dataClass: 'restricted', providerClass: 'external', allowed: true }],
+          approvalRef: '  ',
+        },
+        { rules: [], approvalRef: 'EACC/AI/2026/015' },
+        {
+          rules: [{ dataClass: 'secret', providerClass: 'external', allowed: true }],
+          approvalRef: 'EACC/AI/2026/015',
+        },
+      ];
+      for (const payload of invalid) {
+        const response = await request('PUT', '/v1/ai/policies/nocomm', admin, payload);
+        expect(response.statusCode).toBe(400);
+        expect(contractErrors('ProblemDetails', response.json())).toEqual([]);
+      }
+      expect(
+        await t.db.select().from(gatePolicies).where(eq(gatePolicies.tenant, 'nocomm')),
+      ).toEqual([]);
+    });
+  });
+
+  describe('budgets and usage (S5)', () => {
+    it('sets a budget, audited, and reports usage that matches the jobs', async () => {
+      const set = await request('PUT', '/v1/ai/tenants/kcomm/usage', admin, {
+        monthlyTokens: 2000,
+        perMinute: 30,
+      });
+      expect(set.statusCode).toBe(200);
+      expect(contractErrors('TenantUsage', set.json())).toEqual([]);
+
+      await run('kcomm', 'synthetic', 'en');
+      await run('kcomm', 'synthetic', 'sw');
+      await run('kcomm', 'highly-confidential');
+
+      const response = await request('GET', '/v1/ai/tenants/kcomm/usage', admin);
+      expect(response.statusCode).toBe(200);
+      expect(contractErrors('TenantUsage', response.json())).toEqual([]);
+      const [totals] = await t.db
+        .select({
+          tokens: sql<number>`sum(${jobs.tokensIn} + ${jobs.tokensOut})::int`,
+          cost: sql<number>`sum(${jobs.costMicros})::int`,
+        })
+        .from(jobs)
+        .where(eq(jobs.tenant, 'kcomm'));
+      expect(response.json()).toEqual({
+        tenant: 'kcomm',
+        month: currentMonth(),
+        monthlyTokens: 2000,
+        perMinute: 30,
+        tokensUsed: totals?.tokens,
+        costMicros: totals?.cost,
+        jobs: 3,
+        blocked: 1,
+        failed: 0,
+      });
+      expect(totals).toEqual({ tokens: 3000, cost: 2 * 10_800 });
+      const [change] = await t.db
+        .select()
+        .from(auditRecords)
+        .where(eq(auditRecords.action, 'ai.budget.changed'));
+      expect(change).toMatchObject({
+        tenant: 'kcomm',
+        actor: 'platform-admin-1',
+        change: { after: { monthlyTokens: 2000, perMinute: 30 } },
+      });
+
+      const list = await request('GET', '/v1/ai/usage', admin);
+      expect(list.statusCode).toBe(200);
+      expect(contractErrors('UsageList', list.json())).toEqual([]);
+      const body = list.json<{ month: string; defaults: object; tenants: { tenant: string }[] }>();
+      expect(body.month).toBe(currentMonth());
+      expect(body.defaults).toEqual({
+        monthlyTokens: expect.any(Number) as number,
+        perMinute: expect.any(Number) as number,
+      });
+      expect(body.tenants.find((each) => each.tenant === 'kcomm')).toEqual(response.json());
+      expect(body.tenants.map((each) => each.tenant)).toEqual(
+        [...body.tenants.map((each) => each.tenant)].sort(),
+      );
+    });
+
+    it('refuses an invalid budget', async () => {
+      for (const payload of [
+        { monthlyTokens: -1, perMinute: 10 },
+        { monthlyTokens: 1000, perMinute: 0 },
+        { monthlyTokens: 1.5, perMinute: 10 },
+        { monthlyTokens: 1000 },
+      ]) {
+        const response = await request('PUT', '/v1/ai/tenants/bcomm/usage', admin, payload);
+        expect(response.statusCode).toBe(400);
+      }
+    });
+  });
+
+  describe('routing', () => {
+    it('returns the effective table, with the configured route for tasks without a row', async () => {
+      await t.db.insert(routes).values({
+        id: uuidv7(),
+        tenant: 'kcomm',
+        task: 'explain-flags',
+        provider: 'local',
+        model: 'llama-4',
+        params: { maxOutputTokens: 2048, timeoutMs: 30_000 },
+        changedBy: 'platform-admin-1',
+      });
+      await t.db.insert(routes).values({
+        id: uuidv7(),
+        tenant: 'tsc',
+        task: 'explain-flags',
+        provider: 'elsewhere',
+        model: 'm',
+        changedBy: 'platform-admin-1',
+      });
+
+      const response = await request('GET', '/v1/ai/routing', admin);
+
+      expect(response.statusCode).toBe(200);
+      const table = response.json<object[]>();
+      for (const route of table) expect(contractErrors('Route', route)).toEqual([]);
+      expect(table).toContainEqual({
+        tenant: 'kcomm',
+        task: 'explain-flags',
+        provider: 'local',
+        providerClass: 'self-hosted',
+        model: 'llama-4',
+        params: { maxOutputTokens: 2048, timeoutMs: 30_000 },
+      });
+      expect(table).toContainEqual(
+        expect.objectContaining({ tenant: 'tsc', provider: 'elsewhere', providerClass: null }),
+      );
+      expect(table).toContainEqual({
+        tenant: null,
+        task: 'summarize-declaration',
+        provider: 'scripted',
+        providerClass: 'external',
+        model: MODEL,
+        params: {},
+      });
+    });
+  });
+
+  describe('tenant AI status', () => {
+    const status = async (tenant: string) => {
+      const response = await request('GET', `/internal/v1/tenants/${tenant}/status`, service);
+      expect(contractErrors('TenantAiStatus', response.json())).toEqual([]);
+      return response.json<unknown>();
+    };
+    const setGate = (tenant: string, rules: object[]) =>
+      request('PUT', `/v1/ai/policies/${tenant}`, admin, { rules, approvalRef: 'EACC/AI/9' });
+
+    it('reads the default gate for the routed provider class', async () => {
+      expect(await status('fresh')).toEqual({
+        tenant: 'fresh',
+        enabled: true,
+        providerClass: 'external',
+        dataClasses: ['synthetic'],
+      });
+    });
+
+    it('follows the tenant rules', async () => {
+      await setGate('opened', [
+        { dataClass: 'highly-confidential', providerClass: 'external', allowed: true },
+      ]);
+      expect(await status('opened')).toMatchObject({
+        enabled: true,
+        dataClasses: ['synthetic', 'highly-confidential'],
+      });
+
+      await setGate('shut', [
+        { dataClass: 'synthetic', providerClass: 'external', allowed: false },
+      ]);
+      expect(await status('shut')).toEqual({
+        tenant: 'shut',
+        enabled: false,
+        providerClass: 'external',
+        dataClasses: [],
+      });
+    });
+
+    it('names the routed provider class; mixed routes read as external', async () => {
+      const routeAll = (tenant: string, tasks: string[]) =>
+        t.db.insert(routes).values(
+          tasks.map((task) => ({
+            id: uuidv7(),
+            tenant,
+            task: task as 'explain-flags',
+            provider: 'local',
+            model: 'llama-4',
+            changedBy: 'platform-admin-1',
+          })),
+        );
+      await routeAll('onprem', ['summarize-declaration', 'explain-flags', 'draft-clarification']);
+      expect(await status('onprem')).toEqual({
+        tenant: 'onprem',
+        enabled: true,
+        providerClass: 'self-hosted',
+        dataClasses: ['synthetic', 'restricted', 'highly-confidential'],
+      });
+
+      await routeAll('mixed', ['explain-flags']);
+      expect(await status('mixed')).toMatchObject({
+        providerClass: 'external',
+        dataClasses: ['synthetic'],
+      });
+    });
+
+    it('is not enabled when no route names a reachable provider', async () => {
+      await t.db.insert(routes).values(
+        (['summarize-declaration', 'explain-flags', 'draft-clarification'] as const).map(
+          (task) => ({
+            id: uuidv7(),
+            tenant: null,
+            task,
+            provider: 'elsewhere',
+            model: 'm',
+            changedBy: 'platform-admin-1',
+          }),
+        ),
+      );
+      expect(await status('kcomm')).toEqual({
+        tenant: 'kcomm',
+        enabled: false,
+        providerClass: null,
+        dataClasses: [],
+      });
+    });
+  });
+});

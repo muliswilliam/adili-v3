@@ -8,6 +8,7 @@ import { CaseView } from '../../components/review/case/case-view';
 import { CaseViewSkeleton } from '../../components/review/case/case-view-skeleton';
 import { messages as t } from '../../components/review/case/messages';
 import { signInRedirect } from '../../components/sign-in-redirect';
+import { getCommission } from '../../server/commissions';
 import { getCaseView } from '../../server/review-case';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
@@ -28,13 +29,23 @@ export const Route = createFileRoute('/review/cases/$caseId/')({
   loader: async ({ params, location, context }) => {
     if (!context.workspace) return null;
     if (!UUID.test(params.caseId)) throw notFound();
-    const result = await getCaseView({ data: { caseId: params.caseId } });
+    const tenant = context.viewer.directory.ok ? context.viewer.directory.principal.tenant : null;
+    const [result, commission] = await Promise.all([
+      getCaseView({ data: { caseId: params.caseId } }),
+      // The clarification letter's letterhead; the issuer code stands in when the directory
+      // does not answer.
+      tenant ? getCommission({ data: { slug: tenant } }).catch(() => null) : null,
+    ]);
     if (!result.ok && result.error.kind === 'unauthenticated') throw signInRedirect(location.href);
     if (!result.ok && result.error.kind === 'problem') {
       const { status } = result.error.problem;
       if (status === 404 || status === 403) throw notFound();
     }
-    return result;
+    const letterhead = {
+      name: commission?.ok ? commission.data.name : (tenant ?? '').toUpperCase(),
+      issuerCode: commission?.ok ? commission.data.issuerCode : (tenant ?? '').toUpperCase(),
+    };
+    return { ...result, commission: letterhead };
   },
   staticData: { crumb: ({ loaderData }) => crumbOf(loaderData) },
   head: ({ loaderData }) => {
@@ -83,6 +94,7 @@ function CaseRoute() {
       load={load.data}
       now={load.now}
       supervisor={supervisor}
+      commission={load.commission}
     />
   );
 }
