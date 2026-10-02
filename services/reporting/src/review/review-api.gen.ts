@@ -1007,7 +1007,10 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Re-request the summary and explanations (assignee or supervisor) */
+        /**
+         * Re-request the summary and explanations (assignee or supervisor)
+         * @description A copilot that is `not-enabled` is requested again too: the ai-gateway decides whether the Commission may use it now. The console offers no Refresh there, as a change of the Commission's AI policy or route already requests not-enabled copilots again; the API keeps it on purpose, for a request made right after such a change and for tooling.
+         */
         post: operations["refreshCaseCopilot"];
         delete?: never;
         options?: never;
@@ -3958,7 +3961,7 @@ export interface operations {
             };
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
-            /** @description Already pending (problem type `copilot-pending`). A case whose copilot was `not-enabled` is requested again: the ai-gateway decides whether the Commission may use it now */
+            /** @description Already pending (problem type `copilot-pending`) */
             409: {
                 headers: {
                     [name: string]: unknown;

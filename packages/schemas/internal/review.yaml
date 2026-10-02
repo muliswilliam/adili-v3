@@ -1715,6 +1715,11 @@ paths:
       tags: [copilot]
       operationId: refreshCaseCopilot
       summary: Re-request the summary and explanations (assignee or supervisor)
+      description: >-
+        A copilot that is `not-enabled` is requested again too: the ai-gateway decides whether the
+        Commission may use it now. The console offers no Refresh there, as a change of the
+        Commission's AI policy or route already requests not-enabled copilots again; the API keeps
+        it on purpose, for a request made right after such a change and for tooling.
       responses:
         '202':
           description: Requested
@@ -1727,7 +1732,7 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
         '409':
-          description: 'Already pending (problem type `copilot-pending`). A case whose copilot was `not-enabled` is requested again: the ai-gateway decides whether the Commission may use it now'
+          description: Already pending (problem type `copilot-pending`)
           content:
             application/problem+json:
               schema:
