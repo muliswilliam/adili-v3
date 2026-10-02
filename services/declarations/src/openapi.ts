@@ -65,6 +65,12 @@ import {
   declarationVersionSchema,
 } from './declaration/representation.js';
 import { submissionResultSchema, submitProblemSchema } from './submission/representation.js';
+import {
+  registryLookupRequestSchema,
+  suggestionSchema,
+  suggestionSetSchema,
+  suggestionSourceSchema,
+} from './suggestions/representation.js';
 
 /**
  * Named schemas of the declarations service's OpenAPI document (`#/components/schemas/<name>`),
@@ -125,4 +131,8 @@ export const OPENAPI_SCHEMAS: Record<string, z.ZodType> = {
   InternalObligation: internalObligationSchema,
   InternalPersonObligation: internalPersonObligationSchema,
   InternalObligationDetails: internalObligationDetailsSchema,
+  SuggestionSource: suggestionSourceSchema,
+  Suggestion: suggestionSchema,
+  SuggestionSet: suggestionSetSchema,
+  RegistryLookupRequest: registryLookupRequestSchema,
 };

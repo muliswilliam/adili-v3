@@ -24,6 +24,7 @@ import { HelpModule } from './help/help.module.js';
 import { ObligationsModule } from './obligations/obligations.module.js';
 import { ServiceReadsModule } from './service-reads/service-reads.module.js';
 import { SubmissionModule } from './submission/submission.module.js';
+import { SuggestionsModule } from './suggestions/suggestions.module.js';
 
 const openbao = { url: config.OPENBAO_ADDR, token: config.OPENBAO_TOKEN };
 
@@ -68,6 +69,7 @@ class FieldCipherModule {}
     AcknowledgementModule,
     HelpModule,
     ServiceReadsModule,
+    SuggestionsModule,
   ],
 })
 export class AppModule {}
