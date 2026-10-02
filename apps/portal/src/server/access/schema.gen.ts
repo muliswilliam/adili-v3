@@ -1865,7 +1865,7 @@ export interface operations {
             /**
              * @description The Commission supervisor reads requests; only its access officer acts
              *
-             *     Requires one of the roles: access-officer, supervisor
+             *     Requires one of the roles: access-officer, supervisor, eacc-analyst, eacc-supervisor
              */
             403: {
                 headers: {
@@ -1875,7 +1875,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
-            /** @description No such request at the Commission */
+            /** @description No such request at the caller's Commission (another Commission's, EACC's or anyone else's view) */
             404: {
                 headers: {
                     [name: string]: unknown;

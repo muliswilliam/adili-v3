@@ -15,9 +15,9 @@ import {
   TENANT_KEY,
   ZodValidationPipe,
 } from '@adili/api-kit';
-import { ACCESS_OFFICER, EACC_ROLES, SUPERVISOR } from '@adili/roles';
 import { z } from 'zod';
 
+import { OFFICER_ROUTE_ROLES } from '../access.js';
 import { type DecisionInput, decisionInputSchema } from '../decision.js';
 import {
   type AttachmentDownload,
@@ -34,12 +34,6 @@ import type { OfficerRequestView } from './officer-view.js';
 import { OfficerService } from './officer.service.js';
 
 const REQUEST_ID = { name: 'requestId', schema: { type: 'string', format: 'uuid' } } as const;
-
-/**
- * Who reaches these routes: the Commission's access officer and supervisor, and EACC, whose roles
- * see nothing here (spec 10): they get 404, as for another Commission's requests, not 403.
- */
-const OFFICER_ROUTE_ROLES = [ACCESS_OFFICER, SUPERVISOR, ...EACC_ROLES] as const;
 
 const NOT_THE_COMMISSIONS =
   "No such request at the caller's Commission (another Commission's, EACC's or anyone else's view)";

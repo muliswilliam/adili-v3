@@ -8,10 +8,11 @@ import {
 import { DATABASE, type TenantContext, withTenant } from '@adili/data-access';
 import type { AccessRequestReceivedData } from '@adili/events/contracts';
 import { allocateReference, LEA } from '@adili/numbering';
+import { LAW_ENFORCEMENT_TENANT } from '@adili/roles';
 import { and, desc, eq } from 'drizzle-orm';
 import { v7 as uuidv7 } from 'uuid';
 
-import { isLeaOfficer, LEA_TENANT, ownCommissionTenant, requireAccessOfficer } from '../access.js';
+import { isLeaOfficer, ownCommissionTenant, requireAccessOfficer } from '../access.js';
 import { addDays, Clock, nairobiYear } from '../clock.js';
 import { config } from '../config.js';
 import type { AccessDatabase, AccessTransaction } from '../db/database.js';
@@ -140,7 +141,7 @@ export class LeaService {
   /** The officer's own requests, latest first, across Commissions. */
   async list(principal: Principal): Promise<LeaRequest[]> {
     leaOfficerPersonId(principal);
-    const context = { tenant: LEA_TENANT, subject: principal.subject };
+    const context = { tenant: LAW_ENFORCEMENT_TENANT, subject: principal.subject };
     const { rows, entries } = await withTenant(this.db, context, async (tx) => {
       const own = await tx
         .select()
@@ -414,7 +415,10 @@ function leaOfficerPersonId(principal: Principal): string {
 function readerOf(principal: Principal): Reader {
   if (isLeaOfficer(principal)) {
     leaOfficerPersonId(principal);
-    return { kind: 'lea-officer', context: { tenant: LEA_TENANT, subject: principal.subject } };
+    return {
+      kind: 'lea-officer',
+      context: { tenant: LAW_ENFORCEMENT_TENANT, subject: principal.subject },
+    };
   }
   return {
     kind: 'commission',

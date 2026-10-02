@@ -22,9 +22,9 @@ import {
   TENANT_KEY,
   ZodValidationPipe,
 } from '@adili/api-kit';
-import { ACCESS_OFFICER, EACC_ROLES, SUPERVISOR } from '@adili/roles';
 import { z } from 'zod';
 
+import { OFFICER_ROUTE_ROLES } from '../access.js';
 import {
   type RosterCandidates,
   type RosterCandidatesQuery,
@@ -40,9 +40,6 @@ import {
   type SelfAccessPage,
 } from './application-representation.js';
 import { SelfAccessApplicationsService } from './applications.service.js';
-
-/** The Commission's access officer and supervisor, and EACC, who gets 404 here (spec 10 S16). */
-const ROUTE_ROLES = [ACCESS_OFFICER, SUPERVISOR, ...EACC_ROLES] as const;
 
 const SLUG = { name: 'slug', schema: { type: 'string', pattern: TENANT_KEY.source } } as const;
 const APPLICATION_ID = {
@@ -67,7 +64,7 @@ export class SelfAccessApplicationsController {
   constructor(private readonly applications: SelfAccessApplicationsService) {}
 
   @Get('v1/commissions/:slug/access/self-access/declarants')
-  @Roles(...ROUTE_ROLES)
+  @Roles(...OFFICER_ROUTE_ROLES)
   @AuditedRead({ action: 'access.self-access.declarants.listed', resource: 'roster-record' })
   @ApiParam(SLUG)
   @ApiOperation({
@@ -93,7 +90,7 @@ export class SelfAccessApplicationsController {
   }
 
   @Get('v1/commissions/:slug/access/self-access/declarants/:rosterRecordId/versions')
-  @Roles(...ROUTE_ROLES)
+  @Roles(...OFFICER_ROUTE_ROLES)
   @AuditedRead({ action: 'access.self-access.versions.listed', resource: 'roster-record' })
   @ApiParam(SLUG)
   @ApiParam({ name: 'rosterRecordId', schema: { type: 'string', format: 'uuid' } })
@@ -118,7 +115,7 @@ export class SelfAccessApplicationsController {
   }
 
   @Post('v1/commissions/:slug/access/self-access')
-  @Roles(...ROUTE_ROLES)
+  @Roles(...OFFICER_ROUTE_ROLES)
   @RequireIdempotencyKey()
   @ApiParam(SLUG)
   @ApiOperation({
@@ -151,7 +148,7 @@ export class SelfAccessApplicationsController {
   }
 
   @Get('v1/commissions/:slug/access/self-access')
-  @Roles(...ROUTE_ROLES)
+  @Roles(...OFFICER_ROUTE_ROLES)
   @ApiParam(SLUG)
   @ApiOperation({
     operationId: 'listSelfAccessApplications',
@@ -172,7 +169,7 @@ export class SelfAccessApplicationsController {
   }
 
   @Get('v1/access/self-access/:applicationId')
-  @Roles(...ROUTE_ROLES)
+  @Roles(...OFFICER_ROUTE_ROLES)
   @AuditedRead({ action: 'access.self-access.viewed', resource: 'self-access-application' })
   @ApiParam(APPLICATION_ID)
   @ApiOperation({
@@ -195,7 +192,7 @@ export class SelfAccessApplicationsController {
 
   @Post('v1/access/self-access/:applicationId/delivered')
   @HttpCode(HttpStatus.OK)
-  @Roles(...ROUTE_ROLES)
+  @Roles(...OFFICER_ROUTE_ROLES)
   @AcceptIdempotencyKey()
   @ApiParam(APPLICATION_ID)
   @ApiOperation({

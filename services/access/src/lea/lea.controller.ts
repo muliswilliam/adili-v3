@@ -21,9 +21,10 @@ import {
   schemaRef,
   ZodValidationPipe,
 } from '@adili/api-kit';
-import { ACCESS_OFFICER, EACC_ROLES, LAW_ENFORCEMENT, SUPERVISOR } from '@adili/roles';
+import { LAW_ENFORCEMENT } from '@adili/roles';
 import { z } from 'zod';
 
+import { OFFICER_ROUTE_ROLES } from '../access.js';
 import { type DecisionInput, decisionInputSchema } from '../decision.js';
 import {
   type RosterCandidates,
@@ -43,12 +44,6 @@ const LEA_REQUEST_ID = {
   name: 'leaRequestId',
   schema: { type: 'string', format: 'uuid' },
 } as const;
-
-/**
- * Who reaches the Commission's routes: its access officer and supervisor, and EACC, whose roles
- * see nothing here (spec 10): they get 404, as for another Commission's requests, not 403.
- */
-const OFFICER_ROUTE_ROLES = [ACCESS_OFFICER, SUPERVISOR, ...EACC_ROLES] as const;
 
 const NOT_VISIBLE =
   "No such request of the caller's (another officer's, another Commission's, EACC's or anyone else's view)";
