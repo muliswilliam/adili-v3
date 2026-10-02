@@ -159,10 +159,6 @@ describe('RecordApplicationForm (slice #302)', () => {
       target: { value: '23456789' },
     });
     pick('Written authority', pdf('authority.pdf'));
-    await screen.findByText(/Scanned clean/);
-    pick("Representative's ID", pdf('virus.pdf'));
-    expect(await screen.findByText('Failed the virus check. Upload another file.')).toBeTruthy();
-    fireEvent.click(screen.getByRole('button', { name: 'Dismiss virus.pdf' }));
     pick("Representative's ID", pdf('joseph-id.pdf'));
     await waitFor(() => {
       expect(screen.getAllByText(/Scanned clean/)).toHaveLength(2);
@@ -191,7 +187,20 @@ describe('RecordApplicationForm (slice #302)', () => {
       },
       deliveryMethod: 'dispatch',
     });
-  }, 15_000);
+  });
+
+  it('says a proof failed the virus check, and takes another in its place', async () => {
+    renderForm();
+    fireEvent.click(screen.getByRole('radio', { name: 'A representative' }));
+
+    pick("Representative's ID", pdf('virus.pdf'));
+    expect(await screen.findByText('Failed the virus check. Upload another file.')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Dismiss virus.pdf' }));
+    pick("Representative's ID", pdf('joseph-id.pdf'));
+
+    expect(await screen.findByText(/Scanned clean/)).toBeTruthy();
+    expect(screen.queryByText('Failed the virus check. Upload another file.')).toBeNull();
+  });
 
   it('keeps the form and says why when the workflow engine cannot order the copy', async () => {
     vi.mocked(recordSelfAccessApplication).mockResolvedValue({
