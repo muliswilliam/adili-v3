@@ -1071,7 +1071,7 @@ export interface paths {
         get?: never;
         /**
          * Rate a copilot output shown on a case as helpful or not (the case's assignee); one rating per reviewer per output
-         * @description The output is named by its job (`CopilotView.jobs`). A second rating by the same reviewer replaces the first. The rating is forwarded to the ai-gateway, which announces it for reporting. Supervisors and other reviewers of the Commission read the copilot but do not rate it (403); anyone else, or a job that is not an output shown on a case, gets 404.
+         * @description The output is named by its job: a summary or explanations shown on the case (`CopilotView.jobs`), or a ready clarification draft within its 24 hours (`CopilotDraft.jobId`). A second rating by the same reviewer replaces the first. The rating is forwarded to the ai-gateway, which announces it for reporting. Supervisors and other reviewers of the Commission read the copilot but do not rate it (403); anyone else, or a job that is not such an output (a pending draft's, say), gets 404.
          */
         put: operations["rateCopilotOutput"];
         post?: never;
@@ -1228,6 +1228,17 @@ export interface components {
             items: components["schemas"]["ClarificationItemInput"][];
             /** @description The ai-gateway's job reason (`validation`, `budget`, `provider`, ...), or `rejected` when the gateway refused the request */
             failureReason: string | null;
+        };
+        CommissionAiStatus: {
+            /** @description The copilot may run on the Commission's cases: the data class they are sent as is among `dataClasses` */
+            enabled: boolean;
+            /**
+             * @description The provider class the Commission's AI tasks are routed to; null when no route names a provider the ai-gateway can reach
+             * @enum {string|null}
+             */
+            providerClass: "external" | "self-hosted" | null;
+            /** @description Data classes that provider class may process for the Commission */
+            dataClasses: ("synthetic" | "restricted" | "highly-confidential")[];
         };
         CopilotFeedbackInput: {
             /** @enum {string} */
@@ -3968,8 +3979,17 @@ export interface operations {
             };
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
-            /** @description AI not enabled for this Commission (problem type `ai-not-enabled`) */
+            /** @description AI not enabled for this Commission (problem type `ai-not-enabled`), or a request with the same Idempotency-Key is still running (`idempotency-key-in-use`) */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Idempotency-Key reused with a different request body (problem type `idempotency-key-reused`) */
+            422: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -4017,6 +4037,7 @@ export interface operations {
                     "application/json": components["schemas"]["CopilotDraft"];
                 };
             };
+            400: components["responses"]["ValidationProblem"];
             404: components["responses"]["NotFound"];
             /** @description The ai-gateway cannot be reached (problem type `ai-gateway-unavailable`) */
             503: {
@@ -4090,16 +4111,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        enabled: boolean;
-                        /**
-                         * @description The provider class the Commission's AI tasks are routed to
-                         * @enum {string|null}
-                         */
-                        providerClass: "external" | "self-hosted" | null;
-                        /** @description Data classes that provider class may process for the Commission */
-                        dataClasses: ("synthetic" | "restricted" | "highly-confidential")[];
-                    };
+                    "application/json": components["schemas"]["CommissionAiStatus"];
                 };
             };
             404: components["responses"]["NotFound"];

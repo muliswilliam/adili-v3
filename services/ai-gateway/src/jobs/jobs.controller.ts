@@ -12,13 +12,18 @@ import {
 import {
   ApiAcceptedResponse,
   ApiBearerAuth,
+  ApiBody,
   ApiHeader,
   ApiOkResponse,
   ApiOperation,
+  ApiParam,
+  ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
 import {
   ApiProblemResponse,
+  PROBLEM_CONTENT_TYPE,
+  schemaRef,
   CurrentPrincipal,
   IDEMPOTENCY_KEY_HEADER,
   IDEMPOTENT_REPLAYED_HEADER,
@@ -35,6 +40,13 @@ import type { JobView } from './job-view.js';
 import { JobsService } from './jobs.service.js';
 
 const idempotencyKey = z.uuid();
+
+const REPLAYED_HEADER = {
+  'Idempotent-Replayed': {
+    description: '`true` when the key named an existing job, which is returned as it is now',
+    schema: { type: 'string', enum: ['true'] },
+  },
+};
 
 /**
  * Internal: not routed by the public entrypoint.
@@ -61,23 +73,39 @@ export class JobsController {
       'equal request with a live or succeeded job returns that job (the cache). Completion is ' +
       'announced by ai.job.* events; a job already finished is returned with 200.',
   })
+  @ApiParam({ name: 'task', schema: schemaRef('TaskName') })
   @ApiHeader({
     name: 'Idempotency-Key',
     required: true,
     description: 'Client-generated UUID, unique per logical request; reuse on retry',
     schema: { type: 'string', format: 'uuid' },
   })
-  @ApiOkResponse({ description: 'The job has finished (within the wait window, or before)' })
+  @ApiBody({ required: true, schema: schemaRef('TaskRequest') })
+  @ApiOkResponse({
+    description: 'The job has finished (within the wait window, or before)',
+    schema: schemaRef('Job'),
+    headers: REPLAYED_HEADER,
+  })
   @ApiAcceptedResponse({
     description: 'Queued or running; completion announced by ai.job.* events',
+    schema: schemaRef('Job'),
+    headers: REPLAYED_HEADER,
   })
-  @ApiProblemResponse(400, 'Request failed validation, or Idempotency-Key missing')
+  @ApiProblemResponse(400, 'Request failed validation, or Idempotency-Key missing or not a UUID')
   @ApiProblemResponse(404, 'Unknown task')
   @ApiProblemResponse(422, 'Idempotency-Key reused with a different request')
-  @ApiProblemResponse(
-    429,
-    "Tenant's per-minute limit reached (code `rate-limit-exceeded`); no job was created. `retryAfterSeconds` and Retry-After say when to try again",
-  )
+  @ApiResponse({
+    status: 429,
+    description:
+      "Tenant's per-minute limit reached (code `rate-limit-exceeded`); no job was created. `retryAfterSeconds` and Retry-After say when to try again",
+    content: { [PROBLEM_CONTENT_TYPE]: { schema: schemaRef('ProblemDetails') } },
+    headers: {
+      'Retry-After': {
+        description: 'Seconds until the next request would be allowed',
+        schema: { type: 'integer' },
+      },
+    },
+  })
   async runTask(
     @Param('task') task: string,
     @Body() body: unknown,
@@ -104,7 +132,9 @@ export class JobsController {
     operationId: 'getJob',
     summary: 'Job state and validated output (caller service only)',
   })
-  @ApiOkResponse({ description: 'The job' })
+  @ApiParam({ name: 'jobId', schema: { type: 'string', format: 'uuid' } })
+  @ApiOkResponse({ description: 'The job', schema: schemaRef('Job') })
+  @ApiProblemResponse(400, 'The id is not a UUID')
   @ApiProblemResponse(404, 'Not found, or not visible to the caller')
   async getJob(
     @Param('jobId', new ZodValidationPipe(z.uuid())) jobId: string,

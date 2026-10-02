@@ -1,6 +1,7 @@
 import { Body, Controller, Get, HttpStatus, Param, Post, Res } from '@nestjs/common';
 import {
   ApiAcceptedResponse,
+  ApiBody,
   ApiOkResponse,
   ApiOperation,
   ApiParam,
@@ -47,6 +48,7 @@ export class CopilotDraftsController {
     summary:
       'Draft clarification items from selected flags and items (assignee); nothing is issued',
   })
+  @ApiBody({ required: true, schema: schemaRef('CopilotDraftInput') })
   @ApiOkResponse({ description: 'Draft ready (or failed)', schema: schemaRef('CopilotDraft') })
   @ApiAcceptedResponse({
     description: 'Still drafting; poll the draft',
@@ -55,7 +57,10 @@ export class CopilotDraftsController {
   @ApiProblemResponse(400, 'Body failed validation, or problem type `selection-not-on-case`')
   @ApiProblemResponse(403, 'The caller is not the assignee of the case')
   @ApiProblemResponse(404, NOT_VISIBLE)
-  @ApiProblemResponse(409, 'AI not enabled for this Commission (problem type `ai-not-enabled`)')
+  @ApiProblemResponse(
+    409,
+    'AI not enabled for this Commission (problem type `ai-not-enabled`), or a request with the same Idempotency-Key is still running (`idempotency-key-in-use`)',
+  )
   @ApiProblemResponse(502, 'The declaration could not be read; nothing was requested')
   @ApiProblemResponse(503, `${GATEWAY_DOWN}, or the Commission directory; nothing was requested`)
   async draft(
@@ -75,6 +80,7 @@ export class CopilotDraftsController {
   @ApiUuidParam('draftId')
   @ApiOperation({ operationId: 'getCopilotDraft', summary: 'Poll a pending draft (assignee)' })
   @ApiOkResponse({ description: 'Draft', schema: schemaRef('CopilotDraft') })
+  @ApiProblemResponse(400, 'The id is not a UUID')
   @ApiProblemResponse(404, `${NOT_VISIBLE}, or past its 24 hours`)
   @ApiProblemResponse(503, GATEWAY_DOWN)
   get(

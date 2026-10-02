@@ -1,8 +1,8 @@
 import { Controller, Get, Param } from '@nestjs/common';
 import { ApiBearerAuth, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
-import { ApiProblemResponse, Scopes, ZodValidationPipe } from '@adili/api-kit';
+import { ApiProblemResponse, schemaRef, Scopes, ZodValidationPipe } from '@adili/api-kit';
 
-import { tenantParam } from './admin-input.js';
+import { ApiTenantParam, tenantParam } from './admin-input.js';
 import { type TenantAiStatus, TenantStatus } from './tenant-status.js';
 
 /**
@@ -17,8 +17,15 @@ export class TenantStatusController {
   constructor(private readonly status: TenantStatus) {}
 
   @Get(':tenant/status')
-  @ApiOperation({ operationId: 'getTenantAiStatus' })
-  @ApiOkResponse({ description: 'Status' })
+  @ApiTenantParam()
+  @ApiOperation({
+    operationId: 'getTenantAiStatus',
+    summary:
+      'Whether AI assistance is enabled for a tenant and with which provider class (review proxies it for the Commission status line)',
+    description:
+      "Derived from the tenant's routes and its classification gate (explicit rules, else the default): the provider classes the tenant's tasks are routed to, and the data classes every one of them may process.",
+  })
+  @ApiOkResponse({ description: 'Status', schema: schemaRef('TenantAiStatus') })
   @ApiProblemResponse(400, 'Request failed validation')
   @ApiProblemResponse(403, 'Caller lacks the ai scope')
   getTenantAiStatus(

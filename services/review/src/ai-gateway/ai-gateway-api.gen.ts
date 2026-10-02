@@ -8,15 +8,162 @@ export interface paths {
         parameters: {
             query?: never;
             header?: never;
-            path: {
-                task: components["parameters"]["Task"];
-            };
+            path?: never;
             cookie?: never;
         };
         get?: never;
         put?: never;
-        /** Create a job for a task (services); returns immediately, or waits up to `waitSeconds` for the result */
+        /**
+         * Create a job for a task (services); returns immediately, or waits up to `waitSeconds` for the result
+         * @description The Idempotency-Key names the job: a retry with the same key returns the first job. An equal request with a live or succeeded job returns that job (the cache). Completion is announced by ai.job.* events; a job already finished is returned with 200.
+         */
         post: operations["runTask"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/internal/v1/jobs/{jobId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Job state and validated output (caller service only) */
+        get: operations["getJob"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/internal/v1/jobs/{jobId}/feedback": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Record or update a reviewer's rating of a job's output (caller service only)
+         * @description One rating per reviewer per job: a second rating by the same reviewer replaces the first. Each rating announces ai.feedback.recorded.v1 (no note, no reviewer).
+         */
+        put: operations["recordFeedback"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/ai/policies": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Classification gate per tenant with explicit rules, and the default for every other pair */
+        get: operations["listGatePolicies"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/ai/policies/{tenant}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Allow or block provider classes per data class, all or none (audited with the approval reference)
+         * @description The rules apply in one transaction: every rule is stored, or none is. Each rule gets its own audit record and `ai.policy.changed.v1` event, all with the approval reference.
+         */
+        put: operations["setGatePolicy"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/ai/routing": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Effective routing table (task to provider, model and parameters), with tenant overrides */
+        get: operations["getRouting"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/ai/usage": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** This month's budget and usage of every tenant with a budget or a job this month, and the default budget of the others */
+        get: operations["listTenantUsage"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/ai/tenants/{tenant}/usage": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Budget, tokens and cost this month, blocked and failed counts */
+        get: operations["getTenantUsage"];
+        /** Set the monthly token budget and per-minute limit (audited) */
+        put: operations["setTenantBudget"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/internal/v1/tenants/{tenant}/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Whether AI assistance is enabled for a tenant and with which provider class (review proxies it for the Commission status line)
+         * @description Derived from the tenant's routes and its classification gate (explicit rules, else the default): the provider classes the tenant's tasks are routed to, and the data classes every one of them may process.
+         */
+        get: operations["getTenantAiStatus"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -40,172 +187,12 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/internal/v1/jobs/{jobId}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                jobId: components["parameters"]["JobId"];
-            };
-            cookie?: never;
-        };
-        /** Job state and validated output (caller service only) */
-        get: operations["getJob"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/internal/v1/jobs/{jobId}/feedback": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                jobId: components["parameters"]["JobId"];
-            };
-            cookie?: never;
-        };
-        get?: never;
-        /**
-         * Record or update a reviewer's rating of a job's output (caller service only)
-         * @description One rating per reviewer per job: a second rating by the same reviewer replaces the first. Only a succeeded job of the caller has an output to rate. Each rating announces `ai.feedback.recorded.v1` (no note, no reviewer).
-         */
-        put: operations["recordFeedback"];
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/internal/v1/tenants/{tenant}/status": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                tenant: components["parameters"]["Tenant"];
-            };
-            cookie?: never;
-        };
-        /**
-         * Whether AI assistance is enabled for a tenant and with which provider class (services with the `ai` scope; review proxies it for the Commission status line)
-         * @description Derived from the tenant's routes and its classification gate (explicit rules, else the
-         *     default): the provider classes the tenant's tasks are routed to, and the data classes
-         *     every one of them may process. With routes on more than one provider class,
-         *     `providerClass` is `external`.
-         */
-        get: operations["getTenantAiStatus"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/ai/policies": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Classification gate per tenant with explicit rules, and the default for every other pair (platform-admin) */
-        get: operations["listGatePolicies"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/ai/policies/{tenant}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                tenant: components["parameters"]["Tenant"];
-            };
-            cookie?: never;
-        };
-        get?: never;
-        /**
-         * Allow or block provider classes per data class, all or none (platform-admin; audited with approval reference)
-         * @description The rules apply in one transaction: every rule is stored, or none is. Each rule gets
-         *     its own audit record and `ai.policy.changed.v1` event, all with the approval reference.
-         */
-        put: operations["setGatePolicy"];
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/ai/routing": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Effective routing table (task → provider, model, parameters) per tenant override (platform-admin) */
-        get: operations["getRouting"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/ai/usage": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** This month's budget and usage of every tenant with a budget or a job this month, and the default budget of the others (platform-admin) */
-        get: operations["listTenantUsage"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/ai/tenants/{tenant}/usage": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                tenant: components["parameters"]["Tenant"];
-            };
-            cookie?: never;
-        };
-        /** Budget, tokens and cost this month, blocked and failed counts (platform-admin) */
-        get: operations["getTenantUsage"];
-        /** Set the monthly token budget and per-minute limit (platform-admin; audited) */
-        put: operations["setTenantBudget"];
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
         /** @enum {string} */
-        TaskName: "summarize-declaration" | "explain-flags" | "draft-clarification" | "extract-document" | "answer-declarant-question" | "narrate-compliance-report";
+        TaskName: "summarize-declaration" | "explain-flags" | "draft-clarification";
         /** @enum {string} */
         DataClass: "synthetic" | "restricted" | "highly-confidential";
         /** @enum {string} */
@@ -222,11 +209,15 @@ export interface components {
             dataClass: components["schemas"]["DataClass"];
             /** @description Owning record, e.g. review-case:<uuid>; appears in audit and events */
             subjectRef: string;
-            /** @description Pin a prompt version; null uses the current one */
-            promptVersion?: number | null;
+            /**
+             * @description Pin a prompt version; null uses the current one
+             * @default null
+             */
+            promptVersion: number | null;
             /** @default 0 */
             waitSeconds: number;
-            input: components["schemas"]["SummarizeDeclarationInput"] | components["schemas"]["ExplainFlagsInput"] | components["schemas"]["DraftClarificationInput"] | components["schemas"]["ExtractDocumentInput"] | components["schemas"]["AnswerDeclarantQuestionInput"] | components["schemas"]["NarrateComplianceReportInput"];
+            /** @description The task's input; its `kind` is the task name */
+            input: components["schemas"]["SummarizeDeclarationInput"] | components["schemas"]["ExplainFlagsInput"] | components["schemas"]["DraftClarificationInput"];
         };
         Job: {
             /** Format: uuid */
@@ -244,14 +235,14 @@ export interface components {
             usage: {
                 tokensIn: number;
                 tokensOut: number;
-                /** @description Estimated cost in micro US dollars at provider list price */
+                /** @description Estimated cost in micro US dollars (USD 1 = 1,000,000) at provider list price */
                 costMicros: number;
                 latencyMs: number;
             };
-            output: components["schemas"]["SummarizeDeclarationOutput"] | components["schemas"]["ExplainFlagsOutput"] | components["schemas"]["DraftClarificationOutput"] | components["schemas"]["ExtractDocumentOutput"] | components["schemas"]["AnswerDeclarantQuestionOutput"] | components["schemas"]["NarrateComplianceReportOutput"] | null;
+            /** @description The task's output; null until the job succeeded, or once purged */
+            output: components["schemas"]["SummarizeDeclarationOutput"] | components["schemas"]["ExplainFlagsOutput"] | components["schemas"]["DraftClarificationOutput"] | null;
             /** Format: date-time */
             createdAt: string;
-            /** Format: date-time */
             finishedAt: string | null;
         };
         /** @description Present on every output */
@@ -270,7 +261,6 @@ export interface components {
         SourceRef: {
             sectionKey: string | null;
             personKey: string | null;
-            /** Format: uuid */
             itemId: string | null;
             /** @description JSON pointer into the declaration.v1 document */
             fieldPath: string | null;
@@ -292,7 +282,6 @@ export interface components {
             kind: "acquired" | "disposed" | "value-changed" | "unchanged" | "corrected";
             personKey: string;
             sectionKey: string;
-            /** Format: uuid */
             itemId: string | null;
             percent: number | null;
         };
@@ -303,7 +292,7 @@ export interface components {
         SummarizeDeclarationInput: {
             /** @constant */
             kind: "summarize-declaration";
-            /** @description declaration.v1 document (minimised by the gateway before any provider call) */
+            /** @description declaration.v1 document. The gateway replaces personal identifiers with tokens before any provider call and restores them in the output */
             document: {
                 [key: string]: unknown;
             };
@@ -337,7 +326,7 @@ export interface components {
             /** @constant */
             kind: "explain-flags";
             flags: components["schemas"]["FlagInput"][];
-            /** @description Minimal context for referenced items (type, description, values); minimised by the gateway */
+            /** @description Minimal context for referenced items (type, description, values); personal identifiers are replaced with tokens before any provider call */
             itemContext: {
                 ref: components["schemas"]["SourceRef"];
                 context: {
@@ -370,11 +359,8 @@ export interface components {
                 itemContext: {
                     [key: string]: unknown;
                 };
-                /**
-                 * @description Reviewer's choice if set; the task proposes one otherwise
-                 * @enum {string|null}
-                 */
-                requirement: "provide-omitted" | "explain-discrepancy" | "correct" | null;
+                /** @description Reviewer's choice if set; the task proposes one otherwise */
+                requirement: ("provide-omitted" | "explain-discrepancy" | "correct") | null;
             }[];
         };
         DraftClarificationOutput: {
@@ -385,6 +371,131 @@ export interface components {
                 /** @enum {string} */
                 requirement: "provide-omitted" | "explain-discrepancy" | "correct";
                 text: string;
+            }[];
+        };
+        FeedbackInput: {
+            /** @description The officer rating the output, as the calling service knows them (token `sub`) */
+            reviewerSubject: string;
+            /** @enum {string} */
+            rating: "helpful" | "not-helpful";
+            reason: ("inaccurate" | "missed-something" | "unclear" | "too-long" | "other") | null;
+            note: string | null;
+        };
+        Feedback: {
+            /** Format: uuid */
+            jobId: string;
+            /** @description The officer rating the output, as the calling service knows them (token `sub`) */
+            reviewerSubject: string;
+            /** @enum {string} */
+            rating: "helpful" | "not-helpful";
+            reason: ("inaccurate" | "missed-something" | "unclear" | "too-long" | "other") | null;
+            note: string | null;
+            /** Format: date-time */
+            at: string;
+        };
+        TenantAiStatus: {
+            tenant: string;
+            /** @description Some data class may be sent to the tenant's routed provider class */
+            enabled: boolean;
+            /** @description The provider class of the tenant's routes; `external` when they are on more than one. Null when no route names a provider this gateway can reach */
+            providerClass: components["schemas"]["ProviderClass"] | null;
+            /** @description Data classes every routed provider class may process, in DataClass order */
+            dataClasses: components["schemas"]["DataClass"][];
+        };
+        GateRuleInput: {
+            dataClass: components["schemas"]["DataClass"];
+            providerClass: components["schemas"]["ProviderClass"];
+            allowed: boolean;
+        };
+        GatePolicyInput: {
+            /** @description At most one rule per data class and provider class */
+            rules: components["schemas"]["GateRuleInput"][];
+            /** @description The decision the change rests on, e.g. an EACC approval number */
+            approvalRef: string;
+        };
+        /** @description An explicit rule of a tenant's gate, with who decided it and on which approval */
+        GateRule: {
+            dataClass: components["schemas"]["DataClass"];
+            providerClass: components["schemas"]["ProviderClass"];
+            allowed: boolean;
+            approvalRef: string;
+            /** @description `sub` of the platform admin who made the change */
+            changedBy: string;
+            /** @description Their display name at the time; null when unknown */
+            changedByName: string | null;
+            /** Format: date-time */
+            changedAt: string;
+        };
+        TenantPolicy: {
+            tenant: string;
+            /** @description Explicit rules, allowing or blocking, in DataClass then ProviderClass order. A pair without one follows `GatePolicyList.defaults` */
+            rules: components["schemas"]["GateRule"][];
+        };
+        GatePolicyList: {
+            /** @description The gate of every (data class, provider class) pair a tenant has no rule for: self-hosted providers may see every data class, external providers none, so a new tenant sends nothing outside the platform until a platform admin records an approved rule (the demo tenant's synthetic rule is seeded that way) */
+            defaults: components["schemas"]["GateRuleInput"][];
+            /** @description Tenants with at least one explicit rule, by tenant */
+            tenants: components["schemas"]["TenantPolicy"][];
+        };
+        /** @description Call parameters; an unset one falls back to the task's own */
+        RouteParams: {
+            maxOutputTokens?: number;
+            /** @enum {string} */
+            effort?: "low" | "medium" | "high";
+            /** @description Longest one provider call may take */
+            timeoutMs?: number;
+        };
+        Route: {
+            /** @description null is the default route */
+            tenant: string | null;
+            task: components["schemas"]["TaskName"];
+            provider: string;
+            /** @description The provider's class, which the gate decides on; null when this gateway cannot reach the provider (its jobs fail `provider-unavailable`) */
+            providerClass: components["schemas"]["ProviderClass"] | null;
+            model: string;
+            params: components["schemas"]["RouteParams"];
+        };
+        BudgetInput: {
+            /** @description Tokens (in and out) per calendar month, Africa/Nairobi */
+            monthlyTokens: number;
+            /** @description Jobs created per minute */
+            perMinute: number;
+        };
+        TenantUsage: {
+            tenant: string;
+            /** @description Calendar month, Africa/Nairobi */
+            month: string;
+            monthlyTokens: number;
+            perMinute: number;
+            tokensUsed: number;
+            /** @description Estimated cost in micro US dollars (USD 1 = 1,000,000) at provider list price */
+            costMicros: number;
+            jobs: number;
+            blocked: number;
+            failed: number;
+        };
+        UsageList: {
+            /** @description Calendar month, Africa/Nairobi */
+            month: string;
+            defaults: components["schemas"]["BudgetInput"];
+            /** @description Tenants with a budget of their own or a job this month, by tenant */
+            tenants: components["schemas"]["TenantUsage"][];
+        };
+        ProblemDetails: {
+            type: string;
+            title: string;
+            status: number;
+            /**
+             * @description Machine-readable cause, from the platform registry; clients map it to copy and never show `title` or `detail`
+             * @enum {string}
+             */
+            code?: "database-unavailable" | "rate-limit-exceeded" | "no-match" | "already-onboarded" | "no-roster" | "otp-invalid" | "otp-expired" | "resend-cooldown" | "otp-send-failed" | "wrong-step" | "session-expired" | "iprs-unavailable" | "identity-unavailable" | "email-in-use" | "step-up-required" | "incomplete" | "before-statement-date" | "amendment-window-closed" | "not-a-draft" | "not-submitted" | "obligation-cancelled" | "acknowledgement-issued" | "acknowledgement-in-progress";
+            detail?: string;
+            instance?: string;
+            /** @description Field-level errors; `path` is the dotted request field */
+            errors?: {
+                path: string;
+                message: string;
             }[];
         };
         ExtractDocumentInput: {
@@ -507,163 +618,9 @@ export interface components {
                 candidateIds: string[];
             }[];
         };
-        FeedbackInput: {
-            /** @description The officer rating the output, as the calling service knows them (token `sub`) */
-            reviewerSubject: string;
-            /** @enum {string} */
-            rating: "helpful" | "not-helpful";
-            /** @enum {string|null} */
-            reason: "inaccurate" | "missed-something" | "unclear" | "too-long" | "other" | null;
-            note: string | null;
-        };
-        Feedback: components["schemas"]["FeedbackInput"] & {
-            /** Format: uuid */
-            jobId: string;
-            /** Format: date-time */
-            at: string;
-        };
-        TenantAiStatus: {
-            tenant: string;
-            /** @description Some data class may be sent to the tenant's routed provider class */
-            enabled: boolean;
-            /** @description null when no route names a provider this gateway can reach */
-            providerClass: components["schemas"]["ProviderClass"] | null;
-            /** @description Data classes the routed provider class may process, in DataClass order */
-            dataClasses: components["schemas"]["DataClass"][];
-        };
-        GateRuleInput: {
-            dataClass: components["schemas"]["DataClass"];
-            providerClass: components["schemas"]["ProviderClass"];
-            allowed: boolean;
-        };
-        GatePolicyInput: {
-            /** @description At most one rule per data class and provider class */
-            rules: components["schemas"]["GateRuleInput"][];
-            /** @description The decision the change rests on, e.g. an EACC approval number */
-            approvalRef: string;
-        };
-        /** @description An explicit rule of a tenant's gate, with who decided it and on which approval */
-        GateRule: components["schemas"]["GateRuleInput"] & {
-            approvalRef: string;
-            /** @description `sub` of the platform admin who made the change */
-            changedBy: string;
-            /** @description Their display name at the time; null when unknown */
-            changedByName: string | null;
-            /** Format: date-time */
-            changedAt: string;
-        };
-        TenantPolicy: {
-            tenant: string;
-            /**
-             * @description Explicit rules, allowing or blocking, in DataClass then ProviderClass order. A pair
-             *     without one follows `GatePolicyList.defaults`.
-             */
-            rules: components["schemas"]["GateRule"][];
-        };
-        GatePolicyList: {
-            /**
-             * @description The gate of every (data class, provider class) pair a tenant has no rule for:
-             *     self-hosted providers may see every data class, external providers none, so a new
-             *     tenant sends nothing outside the platform until a platform admin records an approved
-             *     rule (the demo tenant's synthetic rule is seeded that way).
-             */
-            defaults: components["schemas"]["GateRuleInput"][];
-            /** @description Tenants with at least one explicit rule, by tenant */
-            tenants: components["schemas"]["TenantPolicy"][];
-        };
-        /** @description Call parameters; an unset one falls back to the task's own */
-        RouteParams: {
-            maxOutputTokens?: number;
-            /** @enum {string} */
-            effort?: "low" | "medium" | "high";
-            /** @description Longest one provider call may take */
-            timeoutMs?: number;
-        };
-        Route: {
-            /** @description null is the default route */
-            tenant: string | null;
-            task: components["schemas"]["TaskName"];
-            provider: string;
-            /** @description The provider's class, which the gate decides on; null when this gateway cannot reach the provider (its jobs fail `provider-unavailable`) */
-            providerClass: components["schemas"]["ProviderClass"] | null;
-            model: string;
-            params: components["schemas"]["RouteParams"];
-        };
-        BudgetInput: {
-            /** @description Tokens (in and out) per calendar month, Africa/Nairobi */
-            monthlyTokens: number;
-            /** @description Jobs created per minute */
-            perMinute: number;
-        };
-        TenantUsage: {
-            tenant: string;
-            /** @description Calendar month, Africa/Nairobi */
-            month: string;
-            monthlyTokens: number;
-            perMinute: number;
-            tokensUsed: number;
-            /** @description Estimated cost in micro US dollars (USD 1 = 1,000,000) at provider list price */
-            costMicros: number;
-            jobs: number;
-            blocked: number;
-            failed: number;
-        };
-        UsageList: {
-            /** @description Calendar month, Africa/Nairobi */
-            month: string;
-            /** @description The budget of a tenant without one of its own; such a tenant without jobs this month has used nothing */
-            defaults: components["schemas"]["BudgetInput"];
-            /** @description Tenants with a budget of their own or a job this month, by tenant */
-            tenants: components["schemas"]["TenantUsage"][];
-        };
-        ProblemDetails: {
-            type: string;
-            title: string;
-            status: number;
-            detail?: string;
-            instance?: string;
-            code?: string;
-            errors?: {
-                path: string;
-                message: string;
-            }[];
-        };
     };
-    responses: {
-        /** @description Not found, or not visible to the caller */
-        NotFound: {
-            headers: {
-                [name: string]: unknown;
-            };
-            content: {
-                "application/problem+json": components["schemas"]["ProblemDetails"];
-            };
-        };
-        /** @description Caller lacks the required role */
-        Forbidden: {
-            headers: {
-                [name: string]: unknown;
-            };
-            content: {
-                "application/problem+json": components["schemas"]["ProblemDetails"];
-            };
-        };
-        /** @description Request failed validation */
-        ValidationProblem: {
-            headers: {
-                [name: string]: unknown;
-            };
-            content: {
-                "application/problem+json": components["schemas"]["ProblemDetails"];
-            };
-        };
-    };
-    parameters: {
-        Task: components["schemas"]["TaskName"];
-        JobId: string;
-        Tenant: string;
-        IdempotencyKey: string;
-    };
+    responses: never;
+    parameters: never;
     requestBodies: never;
     headers: never;
     pathItems: never;
@@ -674,10 +631,11 @@ export interface operations {
         parameters: {
             query?: never;
             header: {
-                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                /** @description Client-generated UUID, unique per logical request; reuse on retry */
+                "Idempotency-Key": string;
             };
             path: {
-                task: components["parameters"]["Task"];
+                task: components["schemas"]["TaskName"];
             };
             cookie?: never;
         };
@@ -687,27 +645,30 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Finished within the wait window */
+            /** @description The job has finished (within the wait window, or before) */
             200: {
                 headers: {
+                    /** @description `true` when the key named an existing job, which is returned as it is now */
+                    "Idempotent-Replayed"?: "true";
                     [name: string]: unknown;
                 };
                 content: {
                     "application/json": components["schemas"]["Job"];
                 };
             };
-            /** @description Queued; completion announced by ai.job.* events */
+            /** @description Queued or running; completion announced by ai.job.* events */
             202: {
                 headers: {
+                    /** @description `true` when the key named an existing job, which is returned as it is now */
+                    "Idempotent-Replayed"?: "true";
                     [name: string]: unknown;
                 };
                 content: {
                     "application/json": components["schemas"]["Job"];
                 };
             };
-            400: components["responses"]["ValidationProblem"];
-            /** @description Per-tenant rate limit (jobs per minute); problem code `rate-limit-exceeded` with `retryAfterSeconds` */
-            429: {
+            /** @description Request failed validation, or Idempotency-Key missing or not a UUID */
+            400: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -715,36 +676,38 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
-        };
-    };
-    streamAnswerDeclarantQuestion: {
-        parameters: {
-            query?: never;
-            header: {
-                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["TaskRequest"];
-            };
-        };
-        responses: {
-            /** @description SSE stream; events `delta` {text}, `final` {job}, `error` {reason} */
-            200: {
+            /** @description Requires one of the scopes: ai */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "text/event-stream": string;
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
-            400: components["responses"]["ValidationProblem"];
-            /** @description Per-tenant rate limit (jobs per minute); problem code `rate-limit-exceeded` with `retryAfterSeconds` */
+            /** @description Unknown task */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Idempotency-Key reused with a different request */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Tenant's per-minute limit reached (code `rate-limit-exceeded`); no job was created. `retryAfterSeconds` and Retry-After say when to try again */
             429: {
                 headers: {
+                    /** @description Seconds until the next request would be allowed */
+                    "Retry-After"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -758,13 +721,13 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                jobId: components["parameters"]["JobId"];
+                jobId: string;
             };
             cookie?: never;
         };
         requestBody?: never;
         responses: {
-            /** @description Job */
+            /** @description The job */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -773,7 +736,33 @@ export interface operations {
                     "application/json": components["schemas"]["Job"];
                 };
             };
-            404: components["responses"]["NotFound"];
+            /** @description The id is not a UUID */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Requires one of the scopes: ai */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not found, or not visible to the caller */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
         };
     };
     recordFeedback: {
@@ -781,7 +770,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                jobId: components["parameters"]["JobId"];
+                jobId: string;
             };
             cookie?: never;
         };
@@ -800,7 +789,24 @@ export interface operations {
                     "application/json": components["schemas"]["Feedback"];
                 };
             };
-            400: components["responses"]["ValidationProblem"];
+            /** @description Request failed validation */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Requires one of the scopes: ai */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
             /** @description No succeeded job with this id visible to the caller */
             404: {
                 headers: {
@@ -810,30 +816,6 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
-        };
-    };
-    getTenantAiStatus: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                tenant: components["parameters"]["Tenant"];
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Status */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["TenantAiStatus"];
-                };
-            };
-            400: components["responses"]["ValidationProblem"];
-            403: components["responses"]["Forbidden"];
         };
     };
     listGatePolicies: {
@@ -854,7 +836,15 @@ export interface operations {
                     "application/json": components["schemas"]["GatePolicyList"];
                 };
             };
-            403: components["responses"]["Forbidden"];
+            /** @description Caller is not a platform admin */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
         };
     };
     setGatePolicy: {
@@ -862,7 +852,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                tenant: components["parameters"]["Tenant"];
+                tenant: string;
             };
             cookie?: never;
         };
@@ -881,8 +871,24 @@ export interface operations {
                     "application/json": components["schemas"]["TenantPolicy"];
                 };
             };
-            400: components["responses"]["ValidationProblem"];
-            403: components["responses"]["Forbidden"];
+            /** @description Request failed validation */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Caller is not a platform admin */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
         };
     };
     getRouting: {
@@ -903,7 +909,15 @@ export interface operations {
                     "application/json": components["schemas"]["Route"][];
                 };
             };
-            403: components["responses"]["Forbidden"];
+            /** @description Caller is not a platform admin */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
         };
     };
     listTenantUsage: {
@@ -924,7 +938,15 @@ export interface operations {
                     "application/json": components["schemas"]["UsageList"];
                 };
             };
-            403: components["responses"]["Forbidden"];
+            /** @description Caller is not a platform admin */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
         };
     };
     getTenantUsage: {
@@ -932,7 +954,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                tenant: components["parameters"]["Tenant"];
+                tenant: string;
             };
             cookie?: never;
         };
@@ -947,8 +969,24 @@ export interface operations {
                     "application/json": components["schemas"]["TenantUsage"];
                 };
             };
-            400: components["responses"]["ValidationProblem"];
-            403: components["responses"]["Forbidden"];
+            /** @description Request failed validation */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Caller is not a platform admin */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
         };
     };
     setTenantBudget: {
@@ -956,7 +994,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                tenant: components["parameters"]["Tenant"];
+                tenant: string;
             };
             cookie?: never;
         };
@@ -975,8 +1013,108 @@ export interface operations {
                     "application/json": components["schemas"]["TenantUsage"];
                 };
             };
-            400: components["responses"]["ValidationProblem"];
-            403: components["responses"]["Forbidden"];
+            /** @description Request failed validation */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Caller is not a platform admin */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    getTenantAiStatus: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                tenant: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Status */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TenantAiStatus"];
+                };
+            };
+            /** @description Request failed validation */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Caller lacks the ai scope */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    streamAnswerDeclarantQuestion: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TaskRequest"];
+            };
+        };
+        responses: {
+            /** @description SSE stream; events `delta` {text}, `final` {job}, `error` {reason} */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/event-stream": string;
+                };
+            };
+            /** @description Request failed validation */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Per-tenant rate limit (jobs per minute); problem code `rate-limit-exceeded` with `retryAfterSeconds` */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
         };
     };
 }

@@ -1,0 +1,289 @@
+# Drafted operations of the ai-gateway API for specs not implemented yet: document extraction
+# (spec 05b, `extract-document`), Ask Adili's streamed answers (spec 11,
+# `answer-declarant-question`) and the national report narrative (spec 09b,
+# `narrate-compliance-report`), whose tasks are not registered yet.
+# `pnpm --filter @adili/ai-gateway contracts` merges them into
+# packages/schemas/internal/ai-gateway.yaml, where they may reference the implemented components
+# (e.g. `#/components/schemas/TaskRequest`, `AiLabel`, `ProblemDetails`). When an operation or
+# component is implemented, delete it here: the export fails while both define it. A task's
+# input and output come from its Zod schemas once the task is registered.
+paths:
+  /internal/v1/tasks/answer-declarant-question/stream:
+    post:
+      tags: [internal]
+      operationId: streamAnswerDeclarantQuestion
+      summary: 'Stream an answer (server-sent events: text deltas, then one final structured frame that is validated like a job output)'
+      parameters:
+        - name: Idempotency-Key
+          in: header
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TaskRequest'
+      responses:
+        '200':
+          description: 'SSE stream; events `delta` {text}, `final` {job}, `error` {reason}'
+          content:
+            text/event-stream:
+              schema:
+                type: string
+        '400':
+          description: Request failed validation
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '429':
+          description: 'Per-tenant rate limit (jobs per minute); problem code `rate-limit-exceeded` with `retryAfterSeconds`'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+components:
+  schemas:
+    ExtractDocumentInput:
+      type: object
+      required: [kind, documentKindHint, targetItemType, attachment, language]
+      properties:
+        kind:
+          const: extract-document
+        documentKindHint:
+          type: string
+          enum: [title-deed, logbook, payslip, bank-letter, share-certificate, other]
+        targetItemType:
+          type: string
+          description: Second Schedule item type from declaration.v1 the fields must fit
+        attachment:
+          type: object
+          required: [downloadUrl, contentType, sha256]
+          properties:
+            downloadUrl:
+              type: string
+              format: uri
+              description: Short-lived internal URL from the documents service
+            contentType:
+              type: string
+            sha256:
+              type: string
+        language:
+          type: string
+          enum: [en, sw]
+    ExtractDocumentOutput:
+      type: object
+      required: [label, detectedKind, fields, warnings]
+      properties:
+        label:
+          $ref: '#/components/schemas/AiLabel'
+        detectedKind:
+          type: string
+        fields:
+          type: array
+          items:
+            type: object
+            required: [name, value, confidence, page]
+            properties:
+              name:
+                type: string
+                description: Field path within the target item type
+              value:
+                description: Typed per field; strings, numbers or dates
+              confidence:
+                type: number
+                minimum: 0
+                maximum: 1
+              page:
+                type: [integer, 'null']
+        warnings:
+          type: array
+          items:
+            type: string
+    AnswerDeclarantQuestionInput:
+      type: object
+      required: [kind, mode, language, question, context, passages, history]
+      properties:
+        kind:
+          const: answer-declarant-question
+        mode:
+          type: string
+          enum: [answer, hints]
+        language:
+          type: string
+          enum: [en, sw]
+        question:
+          type: [string, 'null']
+          maxLength: 2000
+          description: null in hints mode
+        context:
+          type: object
+          description: Never contains amounts, names, identifiers or descriptions
+          required: [declarationType, statementDate, householdCounts, sectionKey, residuals]
+          properties:
+            declarationType:
+              type: [string, 'null']
+            statementDate:
+              type: [string, 'null']
+              format: date
+            householdCounts:
+              type: object
+              required: [spouses, children]
+              properties:
+                spouses:
+                  type: integer
+                children:
+                  type: integer
+            sectionKey:
+              type: [string, 'null']
+            residuals:
+              type: array
+              items:
+                type: object
+                required: [ruleId, fieldPath]
+                properties:
+                  ruleId:
+                    type: string
+                  fieldPath:
+                    type: string
+        passages:
+          type: array
+          items:
+            type: object
+            required: [id, citation, text]
+            properties:
+              id:
+                type: string
+              citation:
+                type: string
+              text:
+                type: string
+        history:
+          type: array
+          maxItems: 10
+          items:
+            type: object
+            required: [role, text]
+            properties:
+              role:
+                type: string
+                enum: [user, assistant]
+              text:
+                type: string
+    AnswerDeclarantQuestionOutput:
+      type: object
+      required: [label, declined, blocks, followUps]
+      properties:
+        label:
+          $ref: '#/components/schemas/AiLabel'
+        declined:
+          type: boolean
+        blocks:
+          type: array
+          items:
+            type: object
+            required: [text, passageIds, sectionLink]
+            properties:
+              text:
+                type: string
+                maxLength: 1500
+              passageIds:
+                type: array
+                items:
+                  type: string
+              sectionLink:
+                oneOf:
+                  - type: object
+                    required: [sectionKey, fieldPath]
+                    properties:
+                      sectionKey:
+                        type: string
+                      fieldPath:
+                        type: [string, 'null']
+                  - type: 'null'
+        followUps:
+          type: array
+          maxItems: 3
+          items:
+            type: string
+            maxLength: 200
+    NarrateComplianceReportInput:
+      type: object
+      required:
+        [kind, fy, section, language, totals, commissionTable, rates, priorYears, candidates]
+      properties:
+        kind:
+          const: narrate-compliance-report
+        fy:
+          type: integer
+        section:
+          type: string
+          enum: [overview, findings, recommendations, all]
+        language:
+          type: string
+          enum: [en]
+        totals:
+          type: object
+          additionalProperties: true
+        commissionTable:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+        rates:
+          type: object
+          additionalProperties: true
+        priorYears:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+        candidates:
+          type: array
+          items:
+            type: object
+            required: [id, kind, subject, values, aggregateKeys]
+            properties:
+              id:
+                type: string
+              kind:
+                type: string
+              subject:
+                type: string
+              values:
+                type: object
+                additionalProperties: true
+              aggregateKeys:
+                type: array
+                items:
+                  type: string
+    NarrateComplianceReportOutput:
+      type: object
+      required: [label, paragraphs]
+      properties:
+        label:
+          $ref: '#/components/schemas/AiLabel'
+        paragraphs:
+          type: array
+          items:
+            type: object
+            required: [section, text, aggregateRefs, candidateIds]
+            properties:
+              section:
+                type: string
+                enum: [overview, findings, recommendations]
+              text:
+                type: string
+                maxLength: 2000
+              aggregateRefs:
+                type: array
+                minItems: 1
+                items:
+                  type: string
+              candidateIds:
+                type: array
+                items:
+                  type: string
