@@ -68,6 +68,64 @@ describe('Textarea', () => {
       spy.mockRestore();
     });
 
+    it('adds a border back to the measured text, so the box does not scroll by it', () => {
+      vi.stubGlobal('CSS', { supports: () => false });
+      const spies = [
+        vi.spyOn(HTMLTextAreaElement.prototype, 'scrollHeight', 'get').mockReturnValue(180),
+        vi.spyOn(HTMLElement.prototype, 'offsetHeight', 'get').mockReturnValue(112),
+        vi.spyOn(Element.prototype, 'clientHeight', 'get').mockReturnValue(110),
+      ];
+      render(<Textarea aria-label="Text" autoGrow value="One" readOnly className="border" />);
+      expect(screen.getByRole('textbox', { name: 'Text' }).style.height).toBe('182px');
+      for (const spy of spies) spy.mockRestore();
+    });
+
+    it('grows as text is typed into an uncontrolled one', () => {
+      vi.stubGlobal('CSS', { supports: () => false });
+      let height = 120;
+      const spy = vi
+        .spyOn(HTMLTextAreaElement.prototype, 'scrollHeight', 'get')
+        .mockImplementation(() => height);
+      render(<Textarea aria-label="Text" autoGrow defaultValue="One" />);
+      const textarea = screen.getByRole('textbox', { name: 'Text' });
+      expect(textarea.style.height).toBe('120px');
+
+      height = 240;
+      fireEvent.input(textarea, { target: { value: 'One, and a lot more' } });
+      expect(textarea.style.height).toBe('240px');
+      spy.mockRestore();
+    });
+
+    it('measures again when its width changes, as the text rewraps', () => {
+      vi.stubGlobal('CSS', { supports: () => false });
+      const observers: (() => void)[] = [];
+      vi.stubGlobal(
+        'ResizeObserver',
+        vi.fn(function (callback: () => void) {
+          observers.push(callback);
+          return { observe: vi.fn(), disconnect: vi.fn() };
+        }),
+      );
+      let height = 120;
+      let width = 600;
+      const spies = [
+        vi
+          .spyOn(HTMLTextAreaElement.prototype, 'scrollHeight', 'get')
+          .mockImplementation(() => height),
+        vi.spyOn(Element.prototype, 'clientWidth', 'get').mockImplementation(() => width),
+      ];
+      render(<Textarea aria-label="Text" autoGrow value="A long drafted request" readOnly />);
+      const textarea = screen.getByRole('textbox', { name: 'Text' });
+
+      height = 200;
+      for (const notify of observers) notify();
+      expect(textarea.style.height).toBe('120px');
+      width = 320;
+      for (const notify of observers) notify();
+      expect(textarea.style.height).toBe('200px');
+      for (const spy of spies) spy.mockRestore();
+    });
+
     it('stays a fixed, resizable box without it', () => {
       render(<Textarea aria-label="Reason" />);
       expect(screen.getByRole('textbox', { name: 'Reason' }).className).toContain('resize-y');

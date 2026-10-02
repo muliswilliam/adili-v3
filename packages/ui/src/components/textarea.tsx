@@ -21,6 +21,16 @@ function assignRef<T>(ref: Ref<T> | undefined, value: T | null) {
   else if (ref) ref.current = value;
 }
 
+/**
+ * Sets a border-box textarea's height to its text: `scrollHeight` counts the padding but not the
+ * borders, so a caller's border is added back, or the box would scroll by its width.
+ */
+function fitToContent(node: HTMLTextAreaElement) {
+  node.style.height = 'auto';
+  const borders = node.offsetHeight - node.clientHeight;
+  node.style.height = `${String(node.scrollHeight + borders)}px`;
+}
+
 export function Textarea({ className, autoGrow = false, ref, value, ...props }: TextareaProps) {
   const own = useRef<HTMLTextAreaElement | null>(null);
   const setRef = useCallback(
@@ -30,12 +40,35 @@ export function Textarea({ className, autoGrow = false, ref, value, ...props }: 
     },
     [ref],
   );
-  // Without field-sizing, size it to its content on every change of the text.
+  // Without field-sizing, size it to its content: on every change of the text, as typed into an
+  // uncontrolled one, and when its width changes (a drawer or window resized rewraps the text).
   useLayoutEffect(() => {
     const node = own.current;
     if (!autoGrow || !node || fieldSizingSupported()) return;
-    node.style.height = 'auto';
-    node.style.height = `${String(node.scrollHeight)}px`;
+    fitToContent(node);
+    const onInput = () => {
+      fitToContent(node);
+    };
+    node.addEventListener('input', onInput);
+    let width = node.clientWidth;
+    const observer =
+      typeof ResizeObserver === 'undefined'
+        ? null
+        : new ResizeObserver(() => {
+            if (node.clientWidth === width) return;
+            width = node.clientWidth;
+            fitToContent(node);
+          });
+    observer?.observe(node);
+    return () => {
+      node.removeEventListener('input', onInput);
+      observer?.disconnect();
+    };
+  }, [autoGrow]);
+  useLayoutEffect(() => {
+    const node = own.current;
+    if (!autoGrow || !node || fieldSizingSupported()) return;
+    fitToContent(node);
   }, [autoGrow, value]);
   return (
     <textarea
