@@ -47,6 +47,14 @@ describe('failureReasonText', () => {
     expect(failureReasonText('validation')).toBe('output failed its checks');
     expect(failureReasonText('budget')).toBe('monthly AI budget used up');
     expect(failureReasonText('output-purged')).toBe('the output expired before it was saved');
+    // The review service's own reasons too (review.yaml `CopilotView.failureReason`).
+    expect(failureReasonText('rejected')).toBe('the AI service refused the request');
+    expect(failureReasonText('ai-gateway-unavailable')).toBe('AI service unavailable');
+    expect(failureReasonText('declarations-unavailable')).toBe('the declaration could not be read');
+    expect(failureReasonText('key-service-unavailable')).toBe(
+      'the Commission key service is unavailable',
+    );
+    expect(failureReasonText('internal-error')).toBe('an error in the review service');
     expect(failureReasonText('something-new')).toBe('unknown error');
     expect(failureReasonText(null)).toBe('unknown error');
   });
