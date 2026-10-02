@@ -104,7 +104,7 @@ describe('leaTimelineOf', () => {
     expect(entries[3]).toMatchObject({ title: 'Declarant notified after grant' });
   });
 
-  it('reads the received entry by where the declarant stands now: told online or in writing, never, or not yet', () => {
+  it('reads the received entry as it did at receipt, whatever happened since', () => {
     const received = {
       id: '1',
       kind: 'received' as const,
@@ -123,22 +123,21 @@ describe('leaTimelineOf', () => {
         notifiedOn: null,
         recordedBy: null,
       }) as LeaRequest['declarantNotice'];
-    expect(summaryOf({ status: 'verified' })).toBe(
-      'Case DCI/ECU/142/2026. Declarant not told yet.',
-    );
-    expect(summaryOf({ status: 'granted' })).toBe('Case DCI/ECU/142/2026. Declarant not told yet.');
+    const atReceipt = 'Case DCI/ECU/142/2026. Declarant not told yet.';
+    expect(summaryOf({ status: 'received' })).toBe(atReceipt);
+    expect(summaryOf({ status: 'verified' })).toBe(atReceipt);
     expect(
       summaryOf({ status: 'granted', declarantNotifiedAt: NOW, declarantNotice: notice('online') }),
-    ).toBe('Case DCI/ECU/142/2026. Declarant notified after grant.');
+    ).toBe(atReceipt);
     expect(
       summaryOf({
         status: 'granted',
         declarantNotifiedAt: NOW,
         declarantNotice: notice('written'),
       }),
-    ).toBe('Case DCI/ECU/142/2026. Declarant notified in writing after grant.');
-    expect(summaryOf({ status: 'denied' })).toBe('Case DCI/ECU/142/2026. Declarant not told.');
-    expect(summaryOf({ status: 'withdrawn' })).toBe('Case DCI/ECU/142/2026. Declarant not told.');
+    ).toBe(atReceipt);
+    expect(summaryOf({ status: 'denied' })).toBe(atReceipt);
+    expect(summaryOf({ status: 'withdrawn' })).toBe(atReceipt);
   });
 
   it('reads the steps of a nil letter as the letter, not a package (decision 1)', () => {
