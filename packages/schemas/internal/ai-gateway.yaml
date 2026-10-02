@@ -1342,6 +1342,13 @@ components:
                 type: string
               kind:
                 type: string
+                enum:
+                  - rate-change
+                  - threshold-breach
+                  - chronic-late-reporting
+                  - clarification-ratio-outlier
+                  - size-band-outlier
+                  - non-reporting
               subject:
                 type: string
                 description: Commission slug, entity type, or `national`
@@ -1387,7 +1394,7 @@ components:
         - candidates
         - section
         - language
-      description: 'Aggregate keys name each figure: `national.<name>` for totals and rates, `commission.<code>.<name>` for a Commission row, and the same prefixed `fy<fy>.` for a prior year (`fy2025.national.filed`)'
+      description: 'Aggregate keys name each figure: `national.<name>` for totals and rates, `commission.<code>.<name>` for a Commission row, and the same prefixed `fy<fy>.` for a prior year (`fy2025.national.filed`). Aggregates only, no person: callers send data class `restricted`'
     NarrateComplianceReportOutput:
       type: object
       properties:

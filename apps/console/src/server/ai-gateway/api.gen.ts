@@ -414,7 +414,7 @@ export interface components {
                 text: string;
             }[];
         };
-        /** @description Aggregate keys name each figure: `national.<name>` for totals and rates, `commission.<code>.<name>` for a Commission row, and the same prefixed `fy<fy>.` for a prior year (`fy2025.national.filed`) */
+        /** @description Aggregate keys name each figure: `national.<name>` for totals and rates, `commission.<code>.<name>` for a Commission row, and the same prefixed `fy<fy>.` for a prior year (`fy2025.national.filed`). Aggregates only, no person: callers send data class `restricted` */
         NarrateComplianceReportInput: {
             /** @constant */
             kind: "narrate-compliance-report";
@@ -462,7 +462,8 @@ export interface components {
             }[];
             candidates: {
                 id: string;
-                kind: string;
+                /** @enum {string} */
+                kind: "rate-change" | "threshold-breach" | "chronic-late-reporting" | "clarification-ratio-outlier" | "size-band-outlier" | "non-reporting";
                 /** @description Commission slug, entity type, or `national` */
                 subject: string;
                 values: {

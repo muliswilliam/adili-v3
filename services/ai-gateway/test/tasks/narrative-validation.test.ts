@@ -93,7 +93,9 @@ describe('narrative validation', () => {
 
     it('carries a unit written once across a range', () => {
       expect(foreign('The rate rose from 8.2 to 16.4 per cent.')).toEqual([]);
-      expect(foreign('The rate was 8.2–16.4%, between 8.2 and 16.4%, or 8.2 - 16.4%.')).toEqual([]);
+      expect(
+        foreign('The rate was 8.2\u201316.4%, between 8.2 and 16.4%, or 8.2 - 16.4%.'),
+      ).toEqual([]);
       expect(foreign('The rate was 8.2\u201416.4%.')).toEqual([]);
       expect(foreign('The rate rose from 8.2 to 16.4 percentage points.')).toEqual([]);
       // A year is not one end of a range of percentages.
@@ -108,7 +110,7 @@ describe('narrative validation', () => {
 
     it('still fails a foreign number at either end of a range', () => {
       expect(foreign('The rate rose from 8.3 to 16.4 per cent.')).toEqual(['foreign-number']);
-      expect(foreign('The rate was 8.2–16.5%.')).toEqual(['foreign-number']);
+      expect(foreign('The rate was 8.2\u201316.5%.')).toEqual(['foreign-number']);
       // A carried unit is a second reading, so a count before a percentage is still a count.
       expect(foreign('Of 960, 16.4% were late.')).toEqual([]);
     });
@@ -136,16 +138,16 @@ describe('narrative validation', () => {
       const kinds = (text: string) =>
         narrativeViolations(counted, withParagraph(0, { text })).map((each) => each.kind);
       // A count next to a share, both in the input.
-      expect(kinds('Non-filers numbered 670 – 8.2% of the 8,200 expected.')).toEqual([]);
+      expect(kinds('Non-filers numbered 670 \u2013 8.2% of the 8,200 expected.')).toEqual([]);
       expect(kinds('Filings reached 14,854 and 93.4% of declarations were filed on time.')).toEqual(
         [],
       );
       // Neither 671 nor 6.71% is in the input.
-      expect(kinds('Non-filers numbered 671 – 8.2% of the 8,200 expected.')).toEqual([
+      expect(kinds('Non-filers numbered 671 \u2013 8.2% of the 8,200 expected.')).toEqual([
         'foreign-number',
       ]);
       // A count before a range does not let a count ×100 through at its end.
-      expect(kinds('Non-filers numbered 670 – 67000%.')).toEqual(['foreign-number']);
+      expect(kinds('Non-filers numbered 670 \u2013 67000%.')).toEqual(['foreign-number']);
     });
 
     it('strips thousands separators, comma, thin or narrow no-break space', () => {
@@ -232,8 +234,10 @@ describe('narrative validation', () => {
       expect(foreign('Expected: 12,480.')).toEqual([]);
     });
 
-    it('reads an FY label with a hyphen or an en dash', () => {
-      expect(foreign('In FY2025-26 and 2024–25.')).toEqual([]);
+    it('reads an FY label with a hyphen, an en dash or an em dash', () => {
+      expect(foreign('In FY2025-26 and 2024\u201325.')).toEqual([]);
+      // An em dash joins an FY label as the hyphen and en dash do: "25" is not a stray number.
+      expect(foreign('In 2024\u201425.')).toEqual([]);
       expect(foreign('In 2022-23.')).toEqual(['foreign-number']);
     });
 
@@ -248,9 +252,9 @@ describe('narrative validation', () => {
       const ranged = (text: string) =>
         narrativeViolations(threeYears, withParagraph(0, { text })).map((each) => each.kind);
 
-      expect(ranged('Late every year 2024–2026, and in FY2024-2026.')).toEqual([]);
-      expect(ranged('Late every year 2023–2026.')).toEqual(['foreign-number']);
-      expect(ranged('Late every year 2024–2027, or 2024/27.')).toEqual([
+      expect(ranged('Late every year 2024\u20132026, and in FY2024-2026.')).toEqual([]);
+      expect(ranged('Late every year 2023\u20132026.')).toEqual(['foreign-number']);
+      expect(ranged('Late every year 2024\u20132027, or 2024/27.')).toEqual([
         'foreign-number',
         'foreign-number',
       ]);
