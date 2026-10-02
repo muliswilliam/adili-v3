@@ -80,6 +80,8 @@ export class RequestsController {
   @ApiOperation({
     operationId: 'getMyAccessRequest',
     summary: 'One request with decision and package status (applicant)',
+    description:
+      "Their own only; anyone else's request is 404. The timeline leaves out the declarant's representations and names no actor but the applicant. A grant's package is downloaded from documents with `package.documentId`.",
   })
   @ApiOkResponse({ description: 'Request', schema: schemaRef('AccessRequest') })
   @ApiProblemResponse(400, 'requestId is not a UUID')

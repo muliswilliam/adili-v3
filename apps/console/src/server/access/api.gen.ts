@@ -55,7 +55,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** One request with decision and package status (applicant) */
+        /**
+         * One request with decision and package status (applicant)
+         * @description Their own only; anyone else's request is 404. The timeline leaves out the declarant's representations and names no actor but the applicant. A grant's package is downloaded from documents with `package.documentId`.
+         */
         get: operations["getMyAccessRequest"];
         put?: never;
         post?: never;
@@ -112,7 +115,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Full request for the access officer (Form K, representations, register) */
+        /**
+         * Full request for the access officer (Form K, representations, register)
+         * @description The Commission's access officer and supervisor read it; another Commission's request, and EACC, get 404. The timeline is the request's whole access register, actors named.
+         */
         get: operations["getAccessRequestForOfficer"];
         put?: never;
         post?: never;
@@ -501,7 +507,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** A written self-access application, with the representative's ID number */
+        /**
+         * A written self-access application, with the representative's ID number
+         * @description The Commission's access officer and supervisor read it; another Commission's application, and EACC, get 404. `recordedByCaller`: the caller recorded it, so may download the issued certified copy to hand it over.
+         */
         get: operations["getSelfAccessApplication"];
         put?: never;
         post?: never;
