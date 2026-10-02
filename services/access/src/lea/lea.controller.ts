@@ -11,8 +11,11 @@ import {
   AcceptIdempotencyKey,
   ApiProblemResponse,
   ApiQueryParameters,
+  AuditedRead,
   CurrentPrincipal,
+  CurrentReadAudit,
   type Principal,
+  type ReadAudit,
   RequireIdempotencyKey,
   Roles,
   schemaRef,
@@ -104,10 +107,11 @@ export class LeaController {
 
   @Get(':leaRequestId')
   @Roles(LAW_ENFORCEMENT, ...OFFICER_ROUTE_ROLES)
+  @AuditedRead({ action: 'lea.request.viewed', resource: 'lea-request' })
   @ApiParam(LEA_REQUEST_ID)
   @ApiOperation({
     operationId: 'getLeaRequest',
-    summary: "One request (the officer who filed it, or the Commission's access officer)",
+    summary: "One request (the officer who filed it, or the Commission's access officer; audited)",
     description:
       "The officer who filed it sees it with only their own name on the timeline; the Commission's access officer and supervisor see it whole. The package (`package.documentId`) is downloaded by the filing officer from documents until `package.downloadExpiresAt`.",
   })
@@ -118,17 +122,20 @@ export class LeaController {
   get(
     @CurrentPrincipal() principal: Principal,
     @Param('leaRequestId', new ZodValidationPipe(z.uuid())) requestId: string,
+    @CurrentReadAudit() audit: ReadAudit,
   ): Promise<LeaRequest> {
-    return this.lea.get(principal, requestId);
+    return this.lea.get(principal, requestId, audit);
   }
 
   @Get(':leaRequestId/roster-candidates')
   @Roles(...OFFICER_ROUTE_ROLES)
+  @AuditedRead({ action: 'lea.roster-candidates.listed', resource: 'roster-record' })
   @ApiTags('officer')
   @ApiParam(LEA_REQUEST_ID)
   @ApiOperation({
     operationId: 'listLeaRosterCandidates',
-    summary: "Search the Commission's roster for the officer a law enforcement request names",
+    summary:
+      "Search the Commission's roster for the officer a law enforcement request names (audited)",
     description:
       'As for Form K: by personnel file number (its beginning) or part of the name, at most 20 records by full name. Only an `onboarded` record can be chosen when verifying: its declarant is told after a grant.',
   })
@@ -142,8 +149,9 @@ export class LeaController {
     @CurrentPrincipal() principal: Principal,
     @Param('leaRequestId', new ZodValidationPipe(z.uuid())) requestId: string,
     @Query(new ZodValidationPipe(rosterCandidatesQuery)) query: RosterCandidatesQuery,
+    @CurrentReadAudit() audit: ReadAudit,
   ): Promise<RosterCandidates> {
-    return this.lea.rosterCandidates(principal, requestId, query.q);
+    return this.lea.rosterCandidates(principal, requestId, query.q, audit);
   }
 
   @Post(':leaRequestId/verify')

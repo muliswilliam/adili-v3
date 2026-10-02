@@ -11,8 +11,11 @@ import {
   AcceptIdempotencyKey,
   ApiProblemResponse,
   ApiQueryParameters,
+  AuditedRead,
   CurrentPrincipal,
+  CurrentReadAudit,
   type Principal,
+  type ReadAudit,
   RequireIdempotencyKey,
   Roles,
   schemaRef,
@@ -65,6 +68,7 @@ export class SelfAccessApplicationsController {
 
   @Get('v1/commissions/:slug/access/self-access/declarants')
   @Roles(...ROUTE_ROLES)
+  @AuditedRead({ action: 'access.self-access.declarants.listed', resource: 'roster-record' })
   @ApiParam(SLUG)
   @ApiOperation({
     operationId: 'searchSelfAccessDeclarants',
@@ -83,12 +87,14 @@ export class SelfAccessApplicationsController {
     @CurrentPrincipal() principal: Principal,
     @Param('slug') slug: string,
     @Query(new ZodValidationPipe(rosterCandidatesQuery)) query: RosterCandidatesQuery,
+    @CurrentReadAudit() audit: ReadAudit,
   ): Promise<RosterCandidates> {
-    return this.applications.declarants(principal, slug, query.q);
+    return this.applications.declarants(principal, slug, query.q, audit);
   }
 
   @Get('v1/commissions/:slug/access/self-access/declarants/:rosterRecordId/versions')
   @Roles(...ROUTE_ROLES)
+  @AuditedRead({ action: 'access.self-access.versions.listed', resource: 'roster-record' })
   @ApiParam(SLUG)
   @ApiParam({ name: 'rosterRecordId', schema: { type: 'string', format: 'uuid' } })
   @ApiOperation({
@@ -106,8 +112,9 @@ export class SelfAccessApplicationsController {
     @CurrentPrincipal() principal: Principal,
     @Param('slug') slug: string,
     @Param('rosterRecordId', new ZodValidationPipe(z.uuid())) rosterRecordId: string,
+    @CurrentReadAudit() audit: ReadAudit,
   ): Promise<DeclarantVersions> {
-    return this.applications.declarantVersions(principal, slug, rosterRecordId);
+    return this.applications.declarantVersions(principal, slug, rosterRecordId, audit);
   }
 
   @Post('v1/commissions/:slug/access/self-access')
@@ -166,6 +173,7 @@ export class SelfAccessApplicationsController {
 
   @Get('v1/access/self-access/:applicationId')
   @Roles(...ROUTE_ROLES)
+  @AuditedRead({ action: 'access.self-access.viewed', resource: 'self-access-application' })
   @ApiParam(APPLICATION_ID)
   @ApiOperation({
     operationId: 'getSelfAccessApplication',
@@ -180,8 +188,9 @@ export class SelfAccessApplicationsController {
   get(
     @CurrentPrincipal() principal: Principal,
     @Param('applicationId', new ZodValidationPipe(z.uuid())) applicationId: string,
+    @CurrentReadAudit() audit: ReadAudit,
   ): Promise<SelfAccessApplicationDetail> {
-    return this.applications.get(principal, applicationId);
+    return this.applications.get(principal, applicationId, audit);
   }
 
   @Post('v1/access/self-access/:applicationId/delivered')

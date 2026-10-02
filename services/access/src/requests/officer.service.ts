@@ -176,12 +176,19 @@ export class OfficerService {
   }
 
   /** A request of the caller's Commission with its Form K, representations and timeline. */
-  async get(principal: Principal, requestId: string): Promise<OfficerRequestView> {
+  async get(
+    principal: Principal,
+    requestId: string,
+    audit: ReadAudit,
+  ): Promise<OfficerRequestView> {
     const tenant = ownCommissionTenant(principal);
-    const found = await withTenant(this.db, { tenant, subject: principal.subject }, (tx) =>
-      officerRecord(tx, requestId),
+    const found = notFoundIfInvisible(
+      await withTenant(this.db, { tenant, subject: principal.subject }, (tx) =>
+        officerRecord(tx, requestId),
+      ),
     );
-    return this.view(notFoundIfInvisible(found));
+    audit.resource({ tenant, subjectPersonId: found.row.resolvedPersonId });
+    return this.view(found);
   }
 
   /**
@@ -223,6 +230,7 @@ export class OfficerService {
     principal: Principal,
     requestId: string,
     search: string,
+    audit: ReadAudit,
   ): Promise<RosterCandidates> {
     const tenant = ownCommissionTenant(principal);
     requireAccessOfficer(principal, 'search the roster for the officer a request names');
@@ -231,7 +239,7 @@ export class OfficerService {
         requestRow(tx, requestId),
       ),
     );
-    return rosterCandidates(this.directory, tenant, search);
+    return rosterCandidates(this.directory, tenant, search, audit);
   }
 
   /**

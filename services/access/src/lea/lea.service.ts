@@ -1,5 +1,10 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { notFoundIfInvisible, PLATFORM_TENANT, type Principal } from '@adili/api-kit';
+import {
+  notFoundIfInvisible,
+  PLATFORM_TENANT,
+  type Principal,
+  type ReadAudit,
+} from '@adili/api-kit';
 import { DATABASE, type TenantContext, withTenant } from '@adili/data-access';
 import type { AccessRequestReceivedData } from '@adili/events/contracts';
 import { allocateReference, LEA } from '@adili/numbering';
@@ -155,12 +160,13 @@ export class LeaService {
    * Commission's access officer and supervisor see it whole. Anyone else, another officer or
    * Commission and EACC included, gets 404.
    */
-  async get(principal: Principal, requestId: string): Promise<LeaRequest> {
+  async get(principal: Principal, requestId: string, audit: ReadAudit): Promise<LeaRequest> {
     const reader = readerOf(principal);
-    const found = await withTenant(this.db, reader.context, (tx) =>
-      leaRecord(tx, requestId, reader),
+    const found = notFoundIfInvisible(
+      await withTenant(this.db, reader.context, (tx) => leaRecord(tx, requestId, reader)),
     );
-    return this.view(notFoundIfInvisible(found), reader, principal);
+    audit.resource({ tenant: found.row.tenant, subjectPersonId: found.row.resolvedPersonId });
+    return this.view(found, reader, principal);
   }
 
   /**
@@ -171,6 +177,7 @@ export class LeaService {
     principal: Principal,
     requestId: string,
     search: string,
+    audit: ReadAudit,
   ): Promise<RosterCandidates> {
     const tenant = ownCommissionTenant(principal);
     requireAccessOfficer(principal, 'search the roster for the officer a request names');
@@ -179,7 +186,7 @@ export class LeaService {
         leaRow(tx, requestId),
       ),
     );
-    return rosterCandidates(this.directory, tenant, search);
+    return rosterCandidates(this.directory, tenant, search, audit);
   }
 
   /**

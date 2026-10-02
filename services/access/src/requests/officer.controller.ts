@@ -73,10 +73,11 @@ export class OfficerController {
 
   @Get('v1/access/requests/:requestId/officer')
   @Roles(...OFFICER_ROUTE_ROLES)
+  @AuditedRead({ action: 'access.request.viewed', resource: 'access-request' })
   @ApiParam(REQUEST_ID)
   @ApiOperation({
     operationId: 'getAccessRequestForOfficer',
-    summary: 'Full request for the access officer (Form K, representations, register)',
+    summary: 'Full request for the access officer (Form K, representations, register; audited)',
     description:
       "The Commission's access officer and supervisor read it; another Commission's request, and EACC, get 404. The timeline is the request's whole access register, actors named.",
   })
@@ -87,8 +88,9 @@ export class OfficerController {
   get(
     @CurrentPrincipal() principal: Principal,
     @Param('requestId', new ZodValidationPipe(z.uuid())) requestId: string,
+    @CurrentReadAudit() audit: ReadAudit,
   ): Promise<OfficerRequestView> {
-    return this.officer.get(principal, requestId);
+    return this.officer.get(principal, requestId, audit);
   }
 
   @Get('v1/access/requests/:requestId/representations/attachments/:uploadId/download')
@@ -124,10 +126,12 @@ export class OfficerController {
 
   @Get('v1/access/requests/:requestId/roster-candidates')
   @Roles(...OFFICER_ROUTE_ROLES)
+  @AuditedRead({ action: 'access.roster-candidates.listed', resource: 'roster-record' })
   @ApiParam(REQUEST_ID)
   @ApiOperation({
     operationId: 'listRosterCandidates',
-    summary: "Search the Commission's roster for the officer a request names (access officer)",
+    summary:
+      "Search the Commission's roster for the officer a request names (access officer; audited)",
     description:
       'By personnel file number (its beginning) or part of the name, at most 20 records by full name. Only an `onboarded` record can be chosen: its declarant is notified.',
   })
@@ -141,8 +145,9 @@ export class OfficerController {
     @CurrentPrincipal() principal: Principal,
     @Param('requestId', new ZodValidationPipe(z.uuid())) requestId: string,
     @Query(new ZodValidationPipe(rosterCandidatesQuery)) query: RosterCandidatesQuery,
+    @CurrentReadAudit() audit: ReadAudit,
   ): Promise<RosterCandidates> {
-    return this.officer.rosterCandidates(principal, requestId, query.q);
+    return this.officer.rosterCandidates(principal, requestId, query.q, audit);
   }
 
   @Post('v1/access/requests/:requestId/resolve')
