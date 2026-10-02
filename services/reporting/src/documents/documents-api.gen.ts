@@ -15,7 +15,7 @@ export interface paths {
         put?: never;
         /**
          * Reserve an upload and get a presigned PUT to quarantine
-         * @description The purpose's roles only (roster-import: reporting-officer; declaration-attachment and clarification-attachment: declarant). The PUT URL is valid for 15 minutes and accepts exactly the declared Content-Type and size.
+         * @description The purpose's roles only (roster-import: reporting-officer; declaration-attachment, clarification-attachment and action-response: declarant). The PUT URL is valid for 15 minutes and accepts exactly the declared Content-Type and size.
          */
         post: operations["createUpload"];
         delete?: never;
@@ -195,9 +195,29 @@ export interface paths {
         put?: never;
         /**
          * Render, sign and register a document (services)
-         * @description Service tokens with scope documents:internal, issuing for the tenant in X-Acting-Tenant. Renders the type's versioned template to PDF through Gotenberg with the verification code and QR in the footer of every page and the watermark, when given, across every page, PAdES-signs it with the documents signing certificate, stores its SHA-256 in an Ed25519-signed verification record, stores the PDF and emits `document.issued.v1`. The disclosure level and public payload are the template's. `downloadWindowDays` limits the subject person's downloads to that many days from issue. An access-package and an access-nil-letter require a watermark, a download window and a subject person; a certified-copy a subject person. A clarification letter names its clarification; its fields are pulled from the review service (internalGetClarificationLetterPayload) for the same tenant. One document per type and subject: issuing again returns it with 200.
+         * @description Service tokens with scope documents:internal, issuing for the tenant in X-Acting-Tenant. Renders the type's versioned template to PDF through Gotenberg with the verification code and QR in the footer of every page and the watermark, when given, across every page, PAdES-signs it with the documents signing certificate, stores its SHA-256 in an Ed25519-signed verification record, stores the PDF and emits `document.issued.v1`. The disclosure level and public payload are the template's. `downloadWindowDays` limits the subject person's downloads to that many days from issue. An access-package and an access-nil-letter require a watermark, a download window and a subject person; a certified-copy a subject person. A letter of the review service names its record, and its fields are pulled from the review service for the same tenant: a clarification-letter its clarification (internalGetClarificationLetterPayload), a decision-letter its determination (internalGetDeterminationLetterPayload), a notice-to-comply, warning, salary-stoppage or disciplinary-referral its administrative action (internalGetActionLetterPayload); the subject person must be the one the pulled payload names. A referral-package names its referral (internalGetReferralPackagePayload) and has no subject person. One document per type and subject: issuing again returns it with 200.
          */
         post: operations["issueDocument"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/internal/v1/documents/{documentId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Metadata of an issued document of the acting tenant (services)
+         * @description Service tokens with scope documents:internal, acting in X-Acting-Tenant for the issuing tenant; a document another tenant issued is 404. The review service reads the SHA-256 of the letters it lists in a referral package's manifest (spec 08). Metadata only, no content or download link, so no audited read.
+         */
+        get: operations["internalGetDocument"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -244,34 +264,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/internal/v1/documents/{documentId}": {
-        parameters: {
-            query?: never;
-            header: {
-                /** @description Tenant the calling service acts for; the resource must belong to it */
-                "X-Acting-Tenant": components["parameters"]["ActingTenant"];
-            };
-            path: {
-                documentId: components["parameters"]["DocumentId"];
-            };
-            cookie?: never;
-        };
-        /**
-         * Metadata of an issued document of the acting tenant (services)
-         * @description Service tokens with scope documents:internal, acting in X-Acting-Tenant for the issuing
-         *     tenant; a document another tenant issued is 404. The review service reads the SHA-256 of
-         *     the letters it lists in a referral package's manifest (spec 08). Metadata only, no content
-         *     or download link.
-         */
-        get: operations["internalGetDocument"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/internal/v1/documents/{documentId}/revoke": {
         parameters: {
             query?: never;
@@ -308,7 +300,7 @@ export interface components {
          * @description Sets allowed content types and the size limit
          * @enum {string}
          */
-        UploadPurpose: "roster-import" | "declaration-attachment" | "clarification-attachment" | "access-representation";
+        UploadPurpose: "roster-import" | "declaration-attachment" | "clarification-attachment" | "action-response" | "access-representation";
         /** @enum {string} */
         UploadState: "awaiting-upload" | "clean" | "infected" | "rejected" | "expired" | "deleted";
         /**
@@ -380,7 +372,7 @@ export interface components {
          * @description Document types with a template; later specs add theirs
          * @enum {string}
          */
-        DocumentType: "acknowledgement-slip" | "clarification-letter" | "access-package" | "access-nil-letter" | "certified-copy";
+        DocumentType: "acknowledgement-slip" | "clarification-letter" | "decision-letter" | "notice-to-comply" | "warning" | "salary-stoppage" | "disciplinary-referral" | "referral-package" | "access-package" | "access-nil-letter" | "certified-copy";
         /**
          * @description What the public verify page shows: public (content), restricted (reference, type, Commission, date), confidential (validity only). Fixed by the document type's template
          * @enum {string}
@@ -396,20 +388,35 @@ export interface components {
              * @example declaration-version:0192f0c4-8a51-7cc2-9d1e-3b3f2a7e4c10
              */
             subjectRef: string;
-            /** @description The only person who may download the document: the declarant, the applicant or the law-enforcement officer (their token carries it as `person_id`); null for none. Required for access-package, access-nil-letter and certified-copy */
+            /** @description The only person who may download the document: the declarant, the applicant or the law-enforcement officer (their token carries it as `person_id`); null for none. Required for access-package, access-nil-letter and certified-copy; for a letter of the review service, the person its record names (none for an officer who never onboarded); null for a referral-package */
             subjectPersonId: string | null;
             watermark?: components["schemas"]["Watermark"];
             /** @description Days from issue during which the subject person may download the document; afterwards a download is refused with 410 `download-window-closed`. None: no window. Required for access-package and access-nil-letter */
             downloadWindowDays?: number;
             /** @description Token subjects (`sub`) of the issuing Commission's staff who may download the document besides its subject person, with a token of that Commission, within the same window and audited the same way: the access officer who recorded an in-person self-access application, to print the certified copy they hand over. None: the subject person only */
             additionalDownloaders?: string[];
-            /** @description The template's payload: the schema named after `type` */
-            payload: components["schemas"]["AcknowledgementSlipPayload"] | components["schemas"]["ClarificationLetterSource"] | components["schemas"]["AccessPackagePayload"] | components["schemas"]["AccessNilLetterPayload"] | components["schemas"]["CertifiedCopyPayload"];
+            /** @description The template's payload: the schema named after `type`, or for a pulled type the record it is pulled for (`clarificationId`, `determinationId`, `actionId` or `referralId`) */
+            payload: components["schemas"]["AcknowledgementSlipPayload"] | components["schemas"]["ClarificationLetterSource"] | components["schemas"]["DecisionLetterSource"] | components["schemas"]["ActionLetterSource"] | components["schemas"]["ReferralPackageSource"] | components["schemas"]["AccessPackagePayload"] | components["schemas"]["AccessNilLetterPayload"] | components["schemas"]["CertifiedCopyPayload"];
         };
         /** @description A clarification-letter's payload: the clarification whose letter this is; the fields the template renders are pulled from the review service's letter payload endpoint */
         ClarificationLetterSource: {
             /** Format: uuid */
             clarificationId: string;
+        };
+        /** @description A decision-letter's payload: the approved determination whose letter this is; the fields are pulled from the review service (internalGetDeterminationLetterPayload) */
+        DecisionLetterSource: {
+            /** Format: uuid */
+            determinationId: string;
+        };
+        /** @description The payload of a step letter (notice-to-comply, warning, salary-stoppage, disciplinary-referral): the approved administrative action whose letter this is; the fields are pulled from the review service (internalGetActionLetterPayload) */
+        ActionLetterSource: {
+            /** Format: uuid */
+            actionId: string;
+        };
+        /** @description A referral-package's payload: the approved referral whose evidence package this is; the cover sheet, manifest and evidence are pulled from the review service (internalGetReferralPackagePayload) */
+        ReferralPackageSource: {
+            /** Format: uuid */
+            referralId: string;
         };
         SupersedeDocument: {
             /**
@@ -1014,11 +1021,6 @@ export interface components {
         };
         /** @enum {string} */
         RevocationReason: "issued-in-error";
-        /** @description An issued document as its issuer reads it, with the SHA-256 of the signed PDF */
-        InternalIssuedDocument: components["schemas"]["IssuedDocument"] & {
-            /** @description SHA-256 of the signed PDF, lowercase hex */
-            sha256: string;
-        };
     };
     responses: never;
     parameters: {
@@ -1520,7 +1522,7 @@ export interface operations {
                     "application/json": components["schemas"]["IssuedDocument"];
                 };
             };
-            /** @description Request failed validation, the payload (or the one pulled) is not the template's, the request lacks what the type requires, or the review service holds no issued clarification with the id for the tenant */
+            /** @description Request failed validation, the payload (or the one pulled) is not the template's, the request lacks what the type requires, the subject person is not the pulled record's, or the review service holds no such record with a document to issue for the tenant */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -1549,6 +1551,58 @@ export interface operations {
             };
             /** @description Problem type `renderer-unavailable`, `signer-unavailable`, `storage-unavailable` or `review-unavailable`: nothing was issued; retry */
             502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    internalGetDocument: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Tenant the calling service acts for; the resource must belong to it */
+                "X-Acting-Tenant": string;
+            };
+            path: {
+                documentId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Metadata */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IssuedDocument"];
+                };
+            };
+            /** @description X-Acting-Tenant is missing or not a tenant key */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Requires a service token with scope documents:internal */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not found, or not the acting tenant's document */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -1688,40 +1742,6 @@ export interface operations {
             };
             /** @description Problem type `signer-unavailable`: nothing changed; retry */
             502: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetails"];
-                };
-            };
-        };
-    };
-    internalGetDocument: {
-        parameters: {
-            query?: never;
-            header: {
-                /** @description Tenant the calling service acts for; the resource must belong to it */
-                "X-Acting-Tenant": components["parameters"]["ActingTenant"];
-            };
-            path: {
-                documentId: components["parameters"]["DocumentId"];
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Metadata */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["InternalIssuedDocument"];
-                };
-            };
-            /** @description Not found, or not the acting tenant's document */
-            404: {
                 headers: {
                     [name: string]: unknown;
                 };

@@ -39,6 +39,25 @@ export function declarationSchemeOf(reference: string): NumberingScheme {
   return found;
 }
 
+/** A valid reference number of `scheme`, check character included, e.g. `CMP-PSC-2027-0000001-D`. */
+export function referenceOf(scheme: NumberingScheme) {
+  return z.string().refine((reference) => isReferenceOf(reference, [scheme]), {
+    message: `Must be a ${scheme.code} reference number with a valid check character`,
+  });
+}
+
+/**
+ * Whether `reference`, when a valid number of `scheme`, was numbered by the Commission with
+ * `issuerCode`. An invalid number passes, so that it is reported once, on its own.
+ */
+export function numberedBy(
+  reference: string,
+  scheme: NumberingScheme,
+  issuerCode: string,
+): boolean {
+  return !isReferenceOf(reference, [scheme]) || parse(reference, [scheme]).issuer === issuerCode;
+}
+
 /** The issuing Commission as the declarations service names it (`CommissionRef`). */
 export const commissionRefSchema = z.strictObject({
   slug: z.string().min(1).max(20),

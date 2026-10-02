@@ -15,7 +15,7 @@ paths:
       tags:
         - uploads
       summary: Reserve an upload and get a presigned PUT to quarantine
-      description: "The purpose's roles only (roster-import: reporting-officer; declaration-attachment and clarification-attachment: declarant). The PUT URL is valid for 15 minutes and accepts exactly the declared Content-Type and size."
+      description: "The purpose's roles only (roster-import: reporting-officer; declaration-attachment, clarification-attachment and action-response: declarant). The PUT URL is valid for 15 minutes and accepts exactly the declared Content-Type and size."
       operationId: createUpload
       parameters:
         - name: Idempotency-Key
@@ -414,7 +414,7 @@ paths:
       tags:
         - internal
       summary: Render, sign and register a document (services)
-      description: "Service tokens with scope documents:internal, issuing for the tenant in X-Acting-Tenant. Renders the type's versioned template to PDF through Gotenberg with the verification code and QR in the footer of every page and the watermark, when given, across every page, PAdES-signs it with the documents signing certificate, stores its SHA-256 in an Ed25519-signed verification record, stores the PDF and emits `document.issued.v1`. The disclosure level and public payload are the template's. `downloadWindowDays` limits the subject person's downloads to that many days from issue. An access-package and an access-nil-letter require a watermark, a download window and a subject person; a certified-copy a subject person. A clarification letter names its clarification; its fields are pulled from the review service (internalGetClarificationLetterPayload) for the same tenant. One document per type and subject: issuing again returns it with 200."
+      description: "Service tokens with scope documents:internal, issuing for the tenant in X-Acting-Tenant. Renders the type's versioned template to PDF through Gotenberg with the verification code and QR in the footer of every page and the watermark, when given, across every page, PAdES-signs it with the documents signing certificate, stores its SHA-256 in an Ed25519-signed verification record, stores the PDF and emits `document.issued.v1`. The disclosure level and public payload are the template's. `downloadWindowDays` limits the subject person's downloads to that many days from issue. An access-package and an access-nil-letter require a watermark, a download window and a subject person; a certified-copy a subject person. A letter of the review service names its record, and its fields are pulled from the review service for the same tenant: a clarification-letter its clarification (internalGetClarificationLetterPayload), a decision-letter its determination (internalGetDeterminationLetterPayload), a notice-to-comply, warning, salary-stoppage or disciplinary-referral its administrative action (internalGetActionLetterPayload); the subject person must be the one the pulled payload names. A referral-package names its referral (internalGetReferralPackagePayload) and has no subject person. One document per type and subject: issuing again returns it with 200."
       operationId: issueDocument
       parameters:
         - name: X-Acting-Tenant
@@ -451,7 +451,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/IssuedDocument'
         '400':
-          description: Request failed validation, the payload (or the one pulled) is not the template's, the request lacks what the type requires, or the review service holds no issued clarification with the id for the tenant
+          description: Request failed validation, the payload (or the one pulled) is not the template's, the request lacks what the type requires, the subject person is not the pulled record's, or the review service holds no such record with a document to issue for the tenant
           content:
             application/problem+json:
               schema:
@@ -470,6 +470,52 @@ paths:
                 $ref: '#/components/schemas/ProblemDetails'
         '502':
           description: 'Problem type `renderer-unavailable`, `signer-unavailable`, `storage-unavailable` or `review-unavailable`: nothing was issued; retry'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+  /internal/v1/documents/{documentId}:
+    get:
+      tags:
+        - internal
+      summary: Metadata of an issued document of the acting tenant (services)
+      description: Service tokens with scope documents:internal, acting in X-Acting-Tenant for the issuing tenant; a document another tenant issued is 404. The review service reads the SHA-256 of the letters it lists in a referral package's manifest (spec 08). Metadata only, no content or download link, so no audited read.
+      operationId: internalGetDocument
+      parameters:
+        - name: X-Acting-Tenant
+          in: header
+          description: Tenant the calling service acts for; the resource must belong to it
+          required: true
+          schema:
+            type: string
+            pattern: ^[a-z][a-z0-9]{1,19}$
+        - name: documentId
+          required: true
+          in: path
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Metadata
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IssuedDocument'
+        '400':
+          description: X-Acting-Tenant is missing or not a tenant key
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '403':
+          description: Requires a service token with scope documents:internal
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: Not found, or not the acting tenant's document
           content:
             application/problem+json:
               schema:
@@ -607,34 +653,6 @@ paths:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/ProblemDetails'
-  /internal/v1/documents/{documentId}:
-    parameters:
-      - $ref: '#/components/parameters/DocumentId'
-      - $ref: '#/components/parameters/ActingTenant'
-    get:
-      tags:
-        - internal
-      summary: Metadata of an issued document of the acting tenant (services)
-      description: |
-        Service tokens with scope documents:internal, acting in X-Acting-Tenant for the issuing
-        tenant; a document another tenant issued is 404. The review service reads the SHA-256 of
-        the letters it lists in a referral package's manifest (spec 08). Metadata only, no content
-        or download link.
-      operationId: internalGetDocument
-      x-draft: true
-      responses:
-        '200':
-          description: Metadata
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/InternalIssuedDocument'
-        '404':
-          description: Not found, or not the acting tenant's document
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ProblemDetails'
   /internal/v1/documents/{documentId}/revoke:
     parameters:
       - $ref: '#/components/parameters/DocumentId'
@@ -693,6 +711,7 @@ components:
         - roster-import
         - declaration-attachment
         - clarification-attachment
+        - action-response
         - access-representation
       description: Sets allowed content types and the size limit
     UploadState:
@@ -860,6 +879,12 @@ components:
       enum:
         - acknowledgement-slip
         - clarification-letter
+        - decision-letter
+        - notice-to-comply
+        - warning
+        - salary-stoppage
+        - disciplinary-referral
+        - referral-package
         - access-package
         - access-nil-letter
         - certified-copy
@@ -897,7 +922,7 @@ components:
             - type: string
               format: uuid
             - type: 'null'
-          description: 'The only person who may download the document: the declarant, the applicant or the law-enforcement officer (their token carries it as `person_id`); null for none. Required for access-package, access-nil-letter and certified-copy'
+          description: 'The only person who may download the document: the declarant, the applicant or the law-enforcement officer (their token carries it as `person_id`); null for none. Required for access-package, access-nil-letter and certified-copy; for a letter of the review service, the person its record names (none for an officer who never onboarded); null for a referral-package'
         watermark:
           $ref: '#/components/schemas/Watermark'
         downloadWindowDays:
@@ -917,10 +942,13 @@ components:
           anyOf:
             - $ref: '#/components/schemas/AcknowledgementSlipPayload'
             - $ref: '#/components/schemas/ClarificationLetterSource'
+            - $ref: '#/components/schemas/DecisionLetterSource'
+            - $ref: '#/components/schemas/ActionLetterSource'
+            - $ref: '#/components/schemas/ReferralPackageSource'
             - $ref: '#/components/schemas/AccessPackagePayload'
             - $ref: '#/components/schemas/AccessNilLetterPayload'
             - $ref: '#/components/schemas/CertifiedCopyPayload'
-          description: "The template's payload: the schema named after `type`"
+          description: "The template's payload: the schema named after `type`, or for a pulled type the record it is pulled for (`clarificationId`, `determinationId`, `actionId` or `referralId`)"
       required:
         - type
         - templateVersion
@@ -935,7 +963,38 @@ components:
           format: uuid
       required:
         - clarificationId
+      additionalProperties: false
       description: "A clarification-letter's payload: the clarification whose letter this is; the fields the template renders are pulled from the review service's letter payload endpoint"
+    DecisionLetterSource:
+      type: object
+      properties:
+        determinationId:
+          type: string
+          format: uuid
+      required:
+        - determinationId
+      additionalProperties: false
+      description: "A decision-letter's payload: the approved determination whose letter this is; the fields are pulled from the review service (internalGetDeterminationLetterPayload)"
+    ActionLetterSource:
+      type: object
+      properties:
+        actionId:
+          type: string
+          format: uuid
+      required:
+        - actionId
+      additionalProperties: false
+      description: 'The payload of a step letter (notice-to-comply, warning, salary-stoppage, disciplinary-referral): the approved administrative action whose letter this is; the fields are pulled from the review service (internalGetActionLetterPayload)'
+    ReferralPackageSource:
+      type: object
+      properties:
+        referralId:
+          type: string
+          format: uuid
+      required:
+        - referralId
+      additionalProperties: false
+      description: "A referral-package's payload: the approved referral whose evidence package this is; the cover sheet, manifest and evidence are pulled from the review service (internalGetReferralPackagePayload)"
     SupersedeDocument:
       type: object
       properties:
@@ -2746,18 +2805,6 @@ components:
       type: string
       enum:
         - issued-in-error
-    InternalIssuedDocument:
-      description: An issued document as its issuer reads it, with the SHA-256 of the signed PDF
-      allOf:
-        - $ref: '#/components/schemas/IssuedDocument'
-        - type: object
-          required:
-            - sha256
-          properties:
-            sha256:
-              type: string
-              pattern: ^[0-9a-f]{64}$
-              description: SHA-256 of the signed PDF, lowercase hex
   parameters:
     ActingTenant:
       name: X-Acting-Tenant

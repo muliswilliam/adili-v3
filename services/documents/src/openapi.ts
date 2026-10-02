@@ -2,7 +2,12 @@ import { DeclarationSchema } from '@adili/forms';
 import type { z } from 'zod';
 
 import {
+  actionLetterSource,
   clarificationLetterSource,
+  decisionLetterSource,
+  referralPackageSource,
+} from './issuance/pulled-payloads.js';
+import {
   disclosureLevelSchema,
   documentDownloadSchema,
   documentStatusSchema,
@@ -46,6 +51,9 @@ export const OPENAPI_SCHEMAS: Record<string, z.ZodType> = {
   DocumentStatus: documentStatusSchema,
   IssueDocument: issueDocumentBody,
   ClarificationLetterSource: clarificationLetterSource,
+  DecisionLetterSource: decisionLetterSource,
+  ActionLetterSource: actionLetterSource,
+  ReferralPackageSource: referralPackageSource,
   SupersedeDocument: supersedeDocumentBody,
   IssuedDocument: issuedDocumentSchema,
   DocumentDownload: documentDownloadSchema,

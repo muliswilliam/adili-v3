@@ -112,7 +112,7 @@ export interface DocumentsApi {
   s3: S3Client;
   /** The declarations internal API the acknowledgement payloads are pulled from. */
   declarations: FakeDeclarations;
-  /** The review internal API the clarification letter payloads are pulled from. */
+  /** The review internal API the letter and referral package payloads are pulled from. */
   review: FakeReview;
   /** Gotenberg, which a test can take down. */
   renderer: SwitchableRenderer;

@@ -2,13 +2,19 @@ import { VERIFICATION_ID_PATTERN } from '@adili/events/contracts';
 import {
   declarationSchemes,
   GRANT_REFERENCE_PATTERN,
-  InvalidReferenceError,
   isGrantReference,
-  parse,
 } from '@adili/numbering/references';
 import { z } from 'zod';
 
-import { define, email, longDate, NEVER_ASKS, paragraph, signInParagraph } from './template-kit.js';
+import {
+  define,
+  email,
+  longDate,
+  NEVER_ASKS,
+  paragraph,
+  referenceOf,
+  signInParagraph,
+} from './template-kit.js';
 
 /**
  * Templates of access to declarations (spec 10): to the declarant (a request was made, what was
@@ -55,20 +61,10 @@ const commissionName = z.string().trim().min(1).max(120);
 const signInUrl = z.url({ protocol: /^https?$/ }).max(200);
 
 const DECLARATION_SCHEMES = Object.values(declarationSchemes);
-const declarationReference = z.string().superRefine((reference, ctx) => {
-  try {
-    parse(reference, DECLARATION_SCHEMES);
-  } catch (error) {
-    if (!(error instanceof InvalidReferenceError)) throw error;
-    ctx.addIssue({
-      code: 'custom',
-      message:
-        error.reason === 'bad-check-character'
-          ? 'has a wrong check character'
-          : 'must be a DCI, DCB or DCF declaration reference',
-    });
-  }
-});
+const declarationReference = referenceOf(
+  DECLARATION_SCHEMES,
+  'a DCI, DCB or DCF declaration reference',
+);
 
 const UNDER_SECTION_36 = 'under section 36 of the Conflict of Interest Act';
 

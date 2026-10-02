@@ -39,7 +39,8 @@ const ApiUploadIdParam = () => ApiParam({ name: 'id', schema: { type: 'string', 
 
 /**
  * Uploads for the caller's tenant. Who may upload is decided per purpose (roster-import:
- * reporting-officer; declaration-attachment and clarification-attachment: declarant), so the service checks roles rather than
+ * reporting-officer; declaration-attachment, clarification-attachment and action-response:
+ * declarant), so the service checks roles rather than
  * a controller-level `@Roles`.
  */
 @ApiTags('uploads')
@@ -53,7 +54,7 @@ export class UploadsController {
     operationId: 'createUpload',
     summary: 'Reserve an upload and get a presigned PUT to quarantine',
     description:
-      "The purpose's roles only (roster-import: reporting-officer; declaration-attachment and clarification-attachment: declarant). The PUT URL is valid for 15 minutes and accepts exactly the declared Content-Type and size.",
+      "The purpose's roles only (roster-import: reporting-officer; declaration-attachment, clarification-attachment and action-response: declarant). The PUT URL is valid for 15 minutes and accepts exactly the declared Content-Type and size.",
   })
   @ApiBody({ required: true, schema: schemaRef('CreateUpload') })
   @ApiCreatedResponse({

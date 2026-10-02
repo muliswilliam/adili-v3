@@ -741,5 +741,87 @@ describe('internal messages API', () => {
         expect(directory.lookups).toHaveLength(0);
       });
     });
+
+    describe('decisions, notices and salary (spec 08)', () => {
+      const portalUrl = 'https://portal.adili.go.ke/notices/0199a8f0-6666-7000-8000-000000000002';
+      const ADM = 'ADM-PSC-2028-0000233-9';
+      /** The params the review service sends each template. */
+      const PARAMS: Record<string, Record<string, string>> = {
+        decision: {
+          commission: 'Public Service Commission',
+          reference: 'CMP-PSC-2027-0000001-D',
+          outcome: 'Non-compliant',
+          portalUrl,
+        },
+        notice: {
+          commission: 'Public Service Commission',
+          reference: ADM,
+          step: 'Warning',
+          actBy: '2028-01-19',
+          portalUrl,
+        },
+        'salary-stopped': {
+          commission: 'Public Service Commission',
+          reference: ADM,
+          stoppedFrom: '2028-02-05',
+          actBy: '2028-03-05',
+          portalUrl,
+        },
+        'salary-reinstated': {
+          commission: 'Public Service Commission',
+          reference: ADM,
+          reinstatedOn: '2028-02-20',
+          portalUrl,
+        },
+      };
+      const message = (name: string, channel: 'sms' | 'email', personId: string) => ({
+        channel,
+        recipient: { kind: 'person', personId },
+        template: `${name}-${channel}`,
+        params: PARAMS[name],
+        tenant: 'psc',
+      });
+
+      it.each(Object.keys(PARAMS))(
+        'emails and texts %s to the verified contacts, with no letter attached',
+        async (name) => {
+          const personId = newPerson();
+          directory.set(personId, { email: 'grace@example.go.ke', phone: '+254712345678' });
+
+          const mailed = await send(message(name, 'email', personId));
+          const texted = await send(message(name, 'sms', personId));
+
+          expect(mailed.statusCode).toBe(201);
+          expect(mailed.json()).toMatchObject({ template: `${name}-email`, status: 'sent' });
+          expect(texted.statusCode).toBe(201);
+          expect(texted.json()).toMatchObject({ template: `${name}-sms`, status: 'sent' });
+          const reference = PARAMS[name]?.reference ?? '';
+          expect(email.sent).toHaveLength(1);
+          expect(email.sent[0]?.to).toBe('grace@example.go.ke');
+          expect(email.sent[0]?.subject).toContain(reference);
+          expect(email.sent[0]?.html).toContain(portalUrl);
+          expect(Object.keys(email.sent[0] ?? {}).sort()).toEqual([
+            'html',
+            'subject',
+            'text',
+            'to',
+          ]);
+          expect(sms.sent).toHaveLength(1);
+          expect(sms.sent[0]?.to).toBe('+254712345678');
+          expect(sms.sent[0]?.text).toContain(reference);
+        },
+      );
+
+      it('rejects a notice for a step that has its own message before looking anyone up', async () => {
+        const response = await send({
+          ...message('notice', 'sms', newPerson()),
+          params: { ...PARAMS.notice, step: 'Salary stoppage' },
+        });
+
+        expect(response.statusCode).toBe(400);
+        expect(response.json()).toMatchObject({ errors: [{ path: 'params.step' }] });
+        expect(directory.lookups).toHaveLength(0);
+      });
+    });
   });
 });

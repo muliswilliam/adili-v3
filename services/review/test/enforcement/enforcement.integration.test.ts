@@ -213,6 +213,7 @@ describe('enforcement ladder', () => {
       ),
     ).toEqual([]);
     expect(letter?.pulled.body).toEqual({
+      declarantPersonId: obligation.personId,
       declarantName: 'Grace Wanjiru',
       personnelFileNumber: 'PSC/2019/0077',
       commission: { name: 'Public Service Commission', issuerCode: 'PSC' },

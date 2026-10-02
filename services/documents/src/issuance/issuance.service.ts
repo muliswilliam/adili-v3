@@ -12,7 +12,6 @@ import { errorType, notFoundIfInvisible, ProblemException } from '@adili/api-kit
 import { type Database, InjectDatabase, withPerson, withTenant } from '@adili/data-access';
 import { EventPublisher, type NewEvent } from '@adili/events';
 import {
-  CLARIFICATION_LETTER,
   DOCUMENT_DOWNLOADED,
   DOCUMENT_ISSUED,
   DOCUMENT_SUPERSEDED,
@@ -31,17 +30,14 @@ import { z } from 'zod';
 import { Clock } from '../clock.js';
 import { config, SYSTEM_SUBJECT } from '../config.js';
 import type { DocumentsSchema } from '../db/schema.js';
-import { ClarificationNotFound, ReviewClient, ReviewUnavailable } from '../review/review-client.js';
+import { ReviewClient, ReviewRecordNotFound, ReviewUnavailable } from '../review/review-client.js';
 import { S3, S3_PUBLIC } from '../storage/storage.module.js';
 import { dependencyProblem, IssuanceDependencyUnavailable } from './errors.js';
 import { PadesSigner } from './pades.js';
 import { RecordSigner, type SignedRecord } from './record-signer.js';
 import { PdfRenderer } from './renderer.js';
-import {
-  clarificationLetterSource,
-  type DocumentDownload,
-  type IssuedDocument,
-} from './representation.js';
+import { type PulledPayload, pulledPayloadOf } from './pulled-payloads.js';
+import type { DocumentDownload, IssuedDocument } from './representation.js';
 import { issuedDocuments, verificationRecords } from './schema.js';
 import { footerDocument, type Watermark, watermarked } from './templates/page.js';
 import { templateOf } from './templates/registry.js';
@@ -75,14 +71,18 @@ interface DocumentWithRecord {
   record: RecordRow;
 }
 /**
- * Who the review service says the letter is for, beside the fields the template renders: the
- * issue request's `subjectPersonId` must be this person.
+ * Who the source says a pulled document is for, beside the fields the template renders: the
+ * issue request's `subjectPersonId` must be this person (`PulledPayload.owner`).
  */
-const letterSubject = z.looseObject({ declarantPersonId: z.uuid() });
+const pulledOwner = {
+  declarant: z.looseObject({ declarantPersonId: z.uuid() }),
+  'declarant-if-onboarded': z.looseObject({ declarantPersonId: z.uuid().nullable() }),
+} as const;
 
-/** The subject of the letter of a clarification: one letter per clarification. */
-function clarificationSubjectRef(clarificationId: string): string {
-  return `clarification:${clarificationId}`;
+/** A pulled type's request: how its fields are pulled, and the record they are pulled for. */
+interface PullFrom {
+  pulled: PulledPayload;
+  id: string;
 }
 
 /** Tries at a supersede whose records keep changing between signing and writing. */
@@ -106,7 +106,7 @@ export interface IssueRequest {
   downloadWindowDays?: number;
   /** Subjects of the issuing Commission's staff who may download it too. */
   additionalDownloaders?: string[];
-  /** The fields the template renders, or for a clarification letter its `clarificationId`. */
+  /** The fields the template renders, or for a pulled type the record's id (pulled-payloads.ts). */
   payload: unknown;
 }
 
@@ -159,10 +159,10 @@ export class IssuanceService {
 
   /**
    * Issues a document, or returns the one of the same type already issued for the subject (for a
-   * clarification letter, before its fields are pulled). Throws 400 for an unknown template, a
-   * payload the template refuses, a request without what the template requires (a watermark, a
-   * download window, a subject person) or a clarification the review service does not hold; 502
-   * when the renderer, the signer, storage or the review service fails.
+   * pulled type, before its fields are pulled). Throws 400 for an unknown template, a payload the
+   * template refuses, a request without what the template requires (a watermark, a download
+   * window, a subject person) or a record the source does not hold; 502 when the renderer, the
+   * signer, storage or the source fails.
    */
   async issue(request: IssueRequest): Promise<IssueOutcome> {
     const template = templateOf(request.type, request.templateVersion);
@@ -174,12 +174,11 @@ export class IssuanceService {
         },
       ]);
     }
-    // A clarification letter names its clarification; the fields it renders are pulled below.
-    const letter =
-      request.type === CLARIFICATION_LETTER
-        ? clarificationLetterSource.safeParse(request.payload)
-        : null;
-    const source = letter ?? template.payload.safeParse(request.payload);
+    // A pulled type names its record; the fields it renders are pulled below.
+    const pulled = pulledPayloadOf(template.type);
+    const source = pulled
+      ? pulled.source.safeParse(request.payload)
+      : template.payload.safeParse(request.payload);
     const missing = missingRequirements(template, request);
     if (!source.success || missing.length > 0) {
       throw validationProblem([
@@ -190,22 +189,11 @@ export class IssuanceService {
         })),
       ]);
     }
-    const clarificationId = letter?.data?.clarificationId ?? null;
-    if (
-      clarificationId !== null &&
-      request.subjectRef !== clarificationSubjectRef(clarificationId)
-    ) {
-      throw validationProblem([
-        {
-          path: 'subjectRef',
-          message: `A clarification letter's subject is ${clarificationSubjectRef(clarificationId)}`,
-        },
-      ]);
-    }
+    const from = pulled ? pullFrom(pulled, request, source.data as Record<string, string>) : null;
     const existing = await this.findBySubject(request.tenant, request.type, request.subjectRef);
     if (existing) return { document: existing, created: false };
 
-    const fields = await this.fieldsOf(request, clarificationId);
+    const fields = await this.fieldsOf(request, from);
     const parsed = template.payload.safeParse(fields.payload);
     if (!parsed.success) {
       throw validationProblem([
@@ -343,33 +331,33 @@ export class IssuanceService {
   }
 
   /**
-   * The fields the template renders: the request's own, or those the review service holds for
-   * the letter's record (pulled for the same tenant). A record the review service does not hold
-   * is a refused request (400), and so is a request naming another person than the record's
-   * declarant as the one who may download the letter; a review service that fails is a 502, so
-   * the caller retries.
+   * The fields the template renders: the request's own, or those the source holds for the
+   * record (pulled for the same tenant). A record the source does not hold is a refused request
+   * (400), and so is a request naming another person than the record's declarant as the one who
+   * may download the document; a source that fails is a 502, so the caller retries.
    */
   private async fieldsOf(
     request: IssueRequest,
-    clarificationId: string | null,
+    from: PullFrom | null,
   ): Promise<{ payload: unknown; pulled: boolean }> {
-    if (clarificationId === null) return { payload: request.payload, pulled: false };
-    let pulled: unknown;
+    if (from === null) return { payload: request.payload, pulled: false };
+    const { pulled, id } = from;
+    let fields: unknown;
     try {
-      pulled = await this.review.clarificationLetterPayload(request.tenant, clarificationId);
+      fields = await this.review.payload(pulled.record, request.tenant, id);
     } catch (error) {
-      if (error instanceof ClarificationNotFound) {
+      if (error instanceof ReviewRecordNotFound) {
         throw validationProblem([
           {
-            path: 'payload.clarificationId',
-            message: 'The review service holds no issued clarification with this id for the tenant',
+            path: `payload.${pulled.idField}`,
+            message: `The review service holds no ${pulled.record} with a document to issue with this id for the tenant`,
           },
         ]);
       }
       if (error instanceof ReviewUnavailable) {
         this.logger.error(
           { err: errorType(error), cause: error.message, dependency: 'review' },
-          'Pulling a letter payload failed',
+          'Pulling a document payload failed',
         );
         throw dependencyProblem(
           new IssuanceDependencyUnavailable('review', error.message, { cause: error }),
@@ -377,7 +365,18 @@ export class IssuanceService {
       }
       throw error;
     }
-    const subject = letterSubject.safeParse(pulled);
+    if (pulled.owner === 'nobody') {
+      if (request.subjectPersonId !== null) {
+        throw validationProblem([
+          {
+            path: 'subjectPersonId',
+            message: `Must be null: no person may download a ${request.type}`,
+          },
+        ]);
+      }
+      return { payload: fields, pulled: true };
+    }
+    const subject = pulledOwner[pulled.owner].safeParse(fields);
     if (!subject.success) {
       throw validationProblem([
         { path: 'payload', message: 'The pulled payload names no declarant person id' },
@@ -388,7 +387,7 @@ export class IssuanceService {
       throw validationProblem([
         {
           path: 'subjectPersonId',
-          message: "Must be the clarification's declarant, who alone may download the letter",
+          message: `Must be the ${pulled.record}'s declarant, who alone may download the document`,
         },
       ]);
     }
@@ -555,6 +554,17 @@ export class IssuanceService {
         },
       },
     };
+  }
+
+  /**
+   * A document the tenant issued, as the service acting for it reads it: its metadata and the
+   * SHA-256 of its signed PDF (the review service listing a letter in a referral package's
+   * manifest). 404 for another tenant's document.
+   */
+  async getForTenant(tenant: string, actor: string, id: string): Promise<IssuedDocument> {
+    const found = await withTenant(this.db, { tenant, subject: actor }, (tx) => findRecord(tx, id));
+    const { document, record } = notFoundIfInvisible(found);
+    return this.toIssuedDocument(document, record);
   }
 
   /**
@@ -766,6 +776,26 @@ function unchanged(locked: DocumentWithRecord | undefined, read: DocumentWithRec
     locked?.record.status === read.record.status &&
     locked.record.recordSignature === read.record.recordSignature
   );
+}
+
+/**
+ * The record a pulled type's request names, which must be the request's subject: one document
+ * per record. Throws 400 for another subject, before anything is pulled.
+ */
+function pullFrom(
+  pulled: PulledPayload,
+  request: IssueRequest,
+  source: Record<string, string>,
+): PullFrom {
+  const id = source[pulled.idField];
+  if (id === undefined) throw new Error(`the ${pulled.idField} source parsed without its id`);
+  const subjectRef = pulled.subjectRef(id);
+  if (request.subjectRef !== subjectRef) {
+    throw validationProblem([
+      { path: 'subjectRef', message: `A ${request.type}'s subject is ${subjectRef}` },
+    ]);
+  }
+  return { pulled, id };
 }
 
 /** The signed form of a stored record whose superseding document is not needed (valid). */

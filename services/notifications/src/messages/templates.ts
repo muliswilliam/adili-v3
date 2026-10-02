@@ -1,14 +1,9 @@
 import { VERIFICATION_ID_PATTERN } from '@adili/events/contracts';
-import {
-  CLR,
-  DECLARATION_TYPES,
-  declarationSchemes,
-  InvalidReferenceError,
-  parse,
-} from '@adili/numbering/references';
+import { CLR, DECLARATION_TYPES, declarationSchemes } from '@adili/numbering/references';
 import { z } from 'zod';
 
 import { accessTemplates } from './access-templates.js';
+import { determinationTemplates } from './determination-templates.js';
 import {
   CHANNELS,
   type Channel,
@@ -20,6 +15,7 @@ import {
   longDate,
   NEVER_ASKS,
   paragraph,
+  referenceOf,
   type RenderedEmail,
   type RenderedSms,
   signInParagraph,
@@ -132,23 +128,6 @@ function reminderEmail(params: ReminderParams): RenderedEmail {
 
 /** Declaration reference schemes (ADR-011): `DCB-TSC-2027-0012345-K`. */
 const DECLARATION_SCHEMES = Object.values(declarationSchemes);
-
-/** A reference of one of `schemes` with a valid check character; `expected` names them. */
-const referenceOf = (schemes: Parameters<typeof parse>[1], expected: string) =>
-  z.string().superRefine((reference, ctx) => {
-    try {
-      parse(reference, schemes);
-    } catch (error) {
-      if (!(error instanceof InvalidReferenceError)) throw error;
-      ctx.addIssue({
-        code: 'custom',
-        message:
-          error.reason === 'bad-check-character'
-            ? 'has a wrong check character'
-            : `must be ${expected}`,
-      });
-    }
-  });
 
 const acknowledgementParams = z
   .strictObject({
@@ -267,9 +246,10 @@ function clarificationReminderEmail(params: ClarificationReminderParams): Render
 /**
  * Every message the service can send, by template id. Params are validated before rendering.
  *
- * Later specs add theirs here, which widens the contract's `TemplateId` enum: 08 decisions,
- * notices, salary stopped and reinstated, 09 Form M (draft ready, reminder, chase, receipt).
- * Spec 10's access templates, the Form K acknowledgement among them, are in access-templates.ts.
+ * Later specs add theirs here, which widens the contract's `TemplateId` enum: 09 Form M (draft
+ * ready, reminder, chase, receipt). Spec 08's decision, notice and salary templates are in
+ * determination-templates.ts; spec 10's access templates, the Form K acknowledgement among them,
+ * in access-templates.ts.
  */
 export const templates = {
   'onboarding-otp-email': define({
@@ -383,6 +363,7 @@ export const templates = {
       }),
     },
   }),
+  ...determinationTemplates,
   ...accessTemplates,
 } as const;
 

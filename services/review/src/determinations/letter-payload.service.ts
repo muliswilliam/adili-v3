@@ -42,6 +42,7 @@ export class DeterminationLetterPayloadService {
     }
     const commission = await withUpstream(() => this.directory.getCommission(tenant));
     return {
+      declarantPersonId: determination.personId,
       declarantName,
       commission: { name: commission.name, issuerCode: commission.issuerCode },
       declarationReference,

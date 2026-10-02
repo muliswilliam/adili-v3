@@ -12,6 +12,12 @@
 export const DOCUMENT_TYPES = [
   'acknowledgement-slip',
   'clarification-letter',
+  'decision-letter',
+  'notice-to-comply',
+  'warning',
+  'salary-stoppage',
+  'disciplinary-referral',
+  'referral-package',
   'access-package',
   'access-nil-letter',
   'certified-copy',
@@ -23,6 +29,27 @@ export const ACKNOWLEDGEMENT_SLIP = 'acknowledgement-slip' satisfies DocumentTyp
 
 /** A Commission's request for clarification of a declaration (spec 07a, Act s.35). */
 export const CLARIFICATION_LETTER = 'clarification-letter' satisfies DocumentType;
+
+/** A Commission's compliance determination on a declaration (spec 08): restricted. */
+export const DECISION_LETTER = 'decision-letter' satisfies DocumentType;
+
+/** The first step of the administrative action ladder (spec 08): restricted. */
+export const NOTICE_TO_COMPLY = 'notice-to-comply' satisfies DocumentType;
+
+/** The second step of the administrative action ladder (spec 08): restricted. */
+export const WARNING = 'warning' satisfies DocumentType;
+
+/** The ladder's salary stoppage pending compliance (spec 08): restricted. */
+export const SALARY_STOPPAGE = 'salary-stoppage' satisfies DocumentType;
+
+/** The ladder's referral to the employer for disciplinary proceedings (spec 08): restricted. */
+export const DISCIPLINARY_REFERRAL = 'disciplinary-referral' satisfies DocumentType;
+
+/**
+ * A referral's evidence package for EACC (spec 08, Regs r.20): a cover sheet with the manifest of
+ * what it includes and their hashes. Confidential: the verify page shows validity only.
+ */
+export const REFERRAL_PACKAGE = 'referral-package' satisfies DocumentType;
 
 /**
  * The scoped disclosure granted on an access request or a law-enforcement request (spec 10):

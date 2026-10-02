@@ -1,8 +1,21 @@
-/** The Commission has no issued clarification with this id: unknown, a draft, or another's. */
-export class ClarificationNotFound extends Error {
-  constructor(readonly clarificationId: string) {
-    super(`No issued clarification ${clarificationId} for this Commission`);
-    this.name = 'ClarificationNotFound';
+/**
+ * The records of the review service whose documents issuance renders from a pulled payload: a
+ * clarification's letter (spec 07a), a determination's decision letter, an administrative
+ * action's step letter and a referral's evidence package (spec 08).
+ */
+export type ReviewRecord = 'clarification' | 'determination' | 'action' | 'referral';
+
+/**
+ * The Commission has no such record with a document to issue: unknown, not issued or approved
+ * yet, or another Commission's.
+ */
+export class ReviewRecordNotFound extends Error {
+  constructor(
+    readonly record: ReviewRecord,
+    readonly id: string,
+  ) {
+    super(`No ${record} ${id} with a document to issue for this Commission`);
+    this.name = 'ReviewRecordNotFound';
   }
 }
 
@@ -15,15 +28,16 @@ export class ReviewUnavailable extends Error {
 }
 
 /**
- * The review service's internal API as issuing its letters needs it (ADR-013: the issue request
+ * The review service's internal API as issuing its documents needs it (ADR-013: the issue request
  * names the record, the payload is pulled), acting for a Commission. A Nest token: the service
  * uses `HttpReviewClient`, tests a fake.
  */
 export abstract class ReviewClient {
   /**
-   * The fields of the Commission's clarification letter (`internalGetClarificationLetterPayload`),
-   * as the review service serves them: the template checks them. Throws `ClarificationNotFound`
-   * or `ReviewUnavailable`.
+   * The fields of the document of the Commission's record, as the review service serves them
+   * (`internalGetClarificationLetterPayload`, `internalGetDeterminationLetterPayload`,
+   * `internalGetActionLetterPayload`, `internalGetReferralPackagePayload`): the template checks
+   * them. Throws `ReviewRecordNotFound` or `ReviewUnavailable`.
    */
-  abstract clarificationLetterPayload(tenant: string, clarificationId: string): Promise<unknown>;
+  abstract payload(record: ReviewRecord, tenant: string, id: string): Promise<unknown>;
 }

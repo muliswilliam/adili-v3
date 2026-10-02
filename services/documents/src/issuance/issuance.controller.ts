@@ -128,7 +128,7 @@ export class InternalDocumentsController {
     operationId: 'issueDocument',
     summary: 'Render, sign and register a document (services)',
     description:
-      "Service tokens with scope documents:internal, issuing for the tenant in X-Acting-Tenant. Renders the type's versioned template to PDF through Gotenberg with the verification code and QR in the footer of every page and the watermark, when given, across every page, PAdES-signs it with the documents signing certificate, stores its SHA-256 in an Ed25519-signed verification record, stores the PDF and emits `document.issued.v1`. The disclosure level and public payload are the template's. `downloadWindowDays` limits the subject person's downloads to that many days from issue. An access-package and an access-nil-letter require a watermark, a download window and a subject person; a certified-copy a subject person. A clarification letter names its clarification; its fields are pulled from the review service (internalGetClarificationLetterPayload) for the same tenant. One document per type and subject: issuing again returns it with 200.",
+      "Service tokens with scope documents:internal, issuing for the tenant in X-Acting-Tenant. Renders the type's versioned template to PDF through Gotenberg with the verification code and QR in the footer of every page and the watermark, when given, across every page, PAdES-signs it with the documents signing certificate, stores its SHA-256 in an Ed25519-signed verification record, stores the PDF and emits `document.issued.v1`. The disclosure level and public payload are the template's. `downloadWindowDays` limits the subject person's downloads to that many days from issue. An access-package and an access-nil-letter require a watermark, a download window and a subject person; a certified-copy a subject person. A letter of the review service names its record, and its fields are pulled from the review service for the same tenant: a clarification-letter its clarification (internalGetClarificationLetterPayload), a decision-letter its determination (internalGetDeterminationLetterPayload), a notice-to-comply, warning, salary-stoppage or disciplinary-referral its administrative action (internalGetActionLetterPayload); the subject person must be the one the pulled payload names. A referral-package names its referral (internalGetReferralPackagePayload) and has no subject person. One document per type and subject: issuing again returns it with 200.",
   })
   @ApiBody({ required: true, schema: schemaRef('IssueDocument') })
   @ApiCreatedResponse({ description: 'Issued', schema: schemaRef('IssuedDocument') })
@@ -138,7 +138,7 @@ export class InternalDocumentsController {
   })
   @ApiProblemResponse(
     400,
-    "Request failed validation, the payload (or the one pulled) is not the template's, the request lacks what the type requires, or the review service holds no issued clarification with the id for the tenant",
+    "Request failed validation, the payload (or the one pulled) is not the template's, the request lacks what the type requires, the subject person is not the pulled record's, or the review service holds no such record with a document to issue for the tenant",
   )
   @ApiProblemResponse(
     502,
@@ -157,6 +157,24 @@ export class InternalDocumentsController {
     });
     reply.status(created ? HttpStatus.CREATED : HttpStatus.OK);
     return document;
+  }
+
+  @Get(':documentId')
+  @ApiDocumentIdParam()
+  @ApiOperation({
+    operationId: 'internalGetDocument',
+    summary: 'Metadata of an issued document of the acting tenant (services)',
+    description:
+      "Service tokens with scope documents:internal, acting in X-Acting-Tenant for the issuing tenant; a document another tenant issued is 404. The review service reads the SHA-256 of the letters it lists in a referral package's manifest (spec 08). Metadata only, no content or download link, so no audited read.",
+  })
+  @ApiOkResponse({ description: 'Metadata', schema: schemaRef('IssuedDocument') })
+  @ApiProblemResponse(404, "Not found, or not the acting tenant's document")
+  get(
+    @CurrentPrincipal() principal: Principal,
+    @ActingTenant() tenant: string,
+    @Param('documentId', documentId) id: string,
+  ): Promise<IssuedDocument> {
+    return this.issuance.getForTenant(tenant, principal.subject, id);
   }
 
   @Get(':documentId/download')

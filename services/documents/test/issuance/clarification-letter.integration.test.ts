@@ -91,7 +91,12 @@ function clarification(
   declarantPersonId: string | null = DECLARANT_PERSON,
 ): string {
   const id = randomUUID();
-  api.review.given(tenant, id, declarantPersonId ? { ...payload, declarantPersonId } : payload);
+  api.review.given(
+    'clarification',
+    tenant,
+    id,
+    declarantPersonId ? { ...payload, declarantPersonId } : payload,
+  );
   return id;
 }
 
@@ -161,8 +166,8 @@ describe('S17 issuing a clarification letter', () => {
   });
 
   it('pulls the letter fields from the review service for the issuing Commission', () => {
-    expect(api.review.pulls.filter((pull) => pull.clarificationId === clarificationId)).toEqual([
-      { tenant: 'tsc', clarificationId },
+    expect(api.review.pulls.filter((pull) => pull.id === clarificationId)).toEqual([
+      { record: 'clarification', tenant: 'tsc', id: clarificationId },
     ]);
   });
 
