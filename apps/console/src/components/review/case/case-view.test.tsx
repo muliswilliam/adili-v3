@@ -8,12 +8,14 @@ import {
   caseData,
   caseItem,
   CHECKED_AT,
+  DISSOLVED_FLAG,
   DOCUMENT,
   flag,
   ME,
   PLOT,
   registryView,
   SALARY,
+  SUPPLIER_NOT_RUN_FLAG,
   VEHICLE_FLAG,
   WAFULA,
 } from '../../../review-case/fixtures';
@@ -217,7 +219,7 @@ describe('CaseView', () => {
     if (!salary) throw new Error('no salary item');
     fireEvent.click(
       within(salary).getByRole('button', {
-        name: '1 indicator on this item, highest medium. Show in flags.',
+        name: '1 indicator on this item, medium severity. Show in flags.',
       }),
     );
     expect(onTab).toHaveBeenCalledWith('flags');
@@ -399,6 +401,51 @@ describe('CaseView: Registry tab', () => {
       },
     });
     expect(await screen.findByText('Marked reviewed')).toBeTruthy();
+  });
+
+  it('S6: names notes on the collapsed row: a matched BRS with the supplier check not run is not "all declared"', async () => {
+    const registry = registryView();
+    const brs = registry.persons[0]?.systems.find((entry) => entry.system === 'brs');
+    if (!brs) throw new Error('no BRS row');
+    brs.status = 'matched';
+    brs.rows = brs.rows.map((row) => ({ ...row, relation: 'matched' }));
+    brs.flags = [SUPPLIER_NOT_RUN_FLAG, DISSOLVED_FLAG];
+    vi.mocked(getCaseRegistry).mockResolvedValue(ok(registry));
+    render(view(held(), reviewer, 'registry'));
+
+    const wanjiku = await screen.findByRole('list', {
+      name: 'Registry checks for Wanjiku Njoki Kamau',
+    });
+    expect(within(wanjiku).getByText('1 record, supplier check not run, 1 note')).toBeTruthy();
+    expect(within(wanjiku).queryByText(/all declared/)).toBeNull();
+  });
+
+  it("S6: names the supplier check not run when only the last check's statuses could be loaded", async () => {
+    vi.mocked(getCaseRegistry).mockResolvedValue({
+      ok: false,
+      error: { kind: 'unavailable', detail: null },
+    });
+    const detail = caseData({
+      case: caseItem({ assignee: ME, status: 'assigned' }),
+      flags: [SUPPLIER_NOT_RUN_FLAG],
+      registry: {
+        checkedAt: CHECKED_AT,
+        checks: [
+          {
+            personKey: 'officer',
+            system: 'brs',
+            status: 'matched',
+            reason: null,
+            checkedAt: CHECKED_AT,
+            resultId: null,
+          },
+        ],
+      },
+    });
+    render(view(load({ detail }), reviewer, 'registry'));
+
+    expect(await screen.findByText('No indicators, supplier check not run')).toBeTruthy();
+    expect(screen.queryByText('All records declared')).toBeNull();
   });
 
   it("shows the last check's statuses when the records could not be loaded", async () => {

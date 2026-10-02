@@ -82,7 +82,9 @@ export function QueuePage({
     <QueueView
       commission={queue?.commission ?? null}
       summary={queue?.summary ?? null}
-      list={loading ? null : (list?.list ?? null)}
+      // Until hydrated the list shows as loading: the server cannot see the history entry, so a
+      // reload with search text would otherwise flash the unfiltered list before the filtered one.
+      list={loading || !hydrated ? null : (list?.list ?? null)}
       search={search}
       onSearchChange={(next: QueueSearch, options?: { replace?: boolean }) => {
         const { url, text: nextText } = splitQueueSearch(next);

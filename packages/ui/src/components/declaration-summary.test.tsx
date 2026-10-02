@@ -34,6 +34,20 @@ describe('DeclarationSummary', () => {
     ).toBeTruthy();
   });
 
+  it("N7: keeps a section's extras beside its heading, out of the heading's name", () => {
+    render(
+      <DeclarationSummary
+        document={WANJIKU_DECLARATION}
+        sectionExtras={(key) => (key === 'household' ? <button type="button">Pin</button> : null)}
+      />,
+    );
+
+    const heading = screen.getByRole('heading', { level: 3, name: '6Spouses' });
+    const pin = screen.getByRole('button', { name: 'Pin' });
+    expect(heading.contains(pin)).toBe(false);
+    expect(heading.parentElement?.contains(pin)).toBe(true);
+  });
+
   it('totals each person and the household in KES', () => {
     render(<DeclarationSummary document={WANJIKU_DECLARATION} />);
 

@@ -2,6 +2,8 @@ import { asc, eq, sql } from 'drizzle-orm';
 import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
 import { outbox, verificationResults } from '../src/db/schema.js';
+import { SYSTEM_POLICY_CONFIG } from '../src/adapter-kit/adapter-kit.module.js';
+import { config } from '../src/config.js';
 import { KraAdapter } from '../src/registries/kra-adapter.js';
 import { REGISTRY_LOOKUP_PERFORMED } from '../src/verification/lookup-events.js';
 
@@ -87,21 +89,23 @@ describe('registry lookups', () => {
     ).map(({ envelope }) => envelope);
 
   describe('S1 KRA', () => {
-    it('M4: takes a rate-limit slot for each compliance call after the PINs', async () => {
+    it('M9: charges the rate limit for compliance calls past the two the kit reserved', async () => {
       const adapter = new KraAdapter(registries.urls);
-      let further = 0;
+      const charged: number[] = [];
+      const charge = (count: number) => {
+        charged.push(count);
+        return Promise.resolve();
+      };
 
-      const answer = await adapter.fetch(SEED.wanjiku, new AbortController().signal, {
-        another: () => {
-          further += 1;
-          return Promise.resolve();
-        },
-      });
+      const one = await adapter.fetch(SEED.wanjiku, new AbortController().signal, { charge });
+      const two = await adapter.fetch(SEED.twoPins, new AbortController().signal, { charge });
 
-      expect(answer?.taxpayers).toHaveLength(1);
-      // The kit took the PINs' slot; the compliance call took one of its own.
-      expect(registries.calls.kra).toBe(2);
-      expect(further).toBe(1);
+      expect(adapter.callsPerLookup).toBe(2);
+      expect(one?.taxpayers).toHaveLength(1);
+      expect(two?.taxpayers).toHaveLength(2);
+      // The PINs and one compliance each, then the second PIN's compliance.
+      expect(registries.calls.kra).toBe(5);
+      expect(charged).toEqual([0, 1]);
     });
 
     it('answers the PIN with its compliance and declared income, then from the cache', async () => {
@@ -550,5 +554,86 @@ describe('registry lookups', () => {
         expect(everything).not.toContain(secret);
       }
     });
+  });
+});
+
+/**
+ * M9: KRA at its configured policy (.env.example: one call a second, the mocks' limit, and a
+ * one-second max wait). A lookup reserves the PINs' and one compliance call together before its
+ * timeout starts, and the burst fits a household's two lookups; a second PIN's call is charged
+ * without waiting.
+ */
+describe('KRA lookups at the configured rate limit', () => {
+  let registries: StubRegistries;
+  let t: TestApp;
+  let review: Record<string, string>;
+
+  beforeAll(async () => {
+    registries = await StubRegistries.start();
+    t = await createTestApp({
+      registryUrls: registries.urls,
+      policies: { kra: SYSTEM_POLICY_CONFIG.kra },
+    });
+    t.app.useLogger(false);
+    const token = await t.token({ clientId: 'review', scope: 'registry' });
+    review = {
+      authorization: `Bearer ${token}`,
+      'x-acting-tenant': 'psc',
+      'x-legal-basis': 'regs-r20-1-b',
+      'x-case-ref': 'case-0001',
+    };
+    // Pay undici's lazy start-up outside any lookup's timeout.
+    await (await fetch(`${registries.urls.hr}/v1/employers/warm-up/suppliers`)).body?.cancel();
+    return async () => {
+      await t.close();
+      await registries.close();
+    };
+  });
+
+  beforeEach(async () => {
+    registries.reset();
+    await t.clearCache();
+  });
+
+  const lookup = (nationalId: string) =>
+    t.app.inject({
+      method: 'POST',
+      url: '/internal/v1/kra/taxpayer-lookups',
+      headers: review,
+      payload: { nationalId },
+    });
+
+  it('runs at the slowest defaults: one call a second, a one-second max wait', () => {
+    expect(SYSTEM_POLICY_CONFIG.kra).toMatchObject({
+      ratePerMinute: 60,
+      burst: 4,
+      maxQueueMs: config.RATE_LIMIT_MAX_WAIT_MS,
+    });
+    expect(config.RATE_LIMIT_MAX_WAIT_MS).toBe(1_000);
+  });
+
+  it('answers a taxpayer with two PINs when the bucket is idle', async () => {
+    const response = await lookup(SEED.twoPins);
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json<Body>()).toMatchObject({
+      outcome: 'found',
+      taxpayers: [{ pin: 'A003185220P' }, { pin: 'P051852207Q' }],
+    });
+    expect(registries.calls.kra).toBe(3);
+  });
+
+  it("answers a declarant's and a spouse's lookups at once", async () => {
+    const responses = await Promise.all([lookup(SEED.wanjiku), lookup(SEED.peter)]);
+
+    expect(responses.map((response) => response.json<Body>().outcome)).toEqual(['found', 'found']);
+    expect(registries.calls.kra).toBe(4);
+  });
+
+  it('answers a household at once when one of them has two PINs', async () => {
+    const responses = await Promise.all([lookup(SEED.twoPins), lookup(SEED.peter)]);
+
+    expect(responses.map((response) => response.json<Body>().outcome)).toEqual(['found', 'found']);
+    expect(registries.calls.kra).toBe(5);
   });
 });

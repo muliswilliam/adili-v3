@@ -6,6 +6,8 @@ import { PeriodicExportingMetricReader } from '@opentelemetry/sdk-metrics';
 import { NodeSDK } from '@opentelemetry/sdk-node';
 import { ATTR_SERVICE_NAME, ATTR_SERVICE_VERSION } from '@opentelemetry/semantic-conventions';
 
+import { RedactingSpanExporter } from './redacting-span-exporter.js';
+
 export interface TelemetryOptions {
   serviceName: string;
   serviceVersion?: string;
@@ -23,7 +25,8 @@ export function startTelemetry(options: TelemetryOptions): NodeSDK {
       [ATTR_SERVICE_NAME]: options.serviceName,
       [ATTR_SERVICE_VERSION]: options.serviceVersion ?? '0.0.0',
     }),
-    traceExporter: new OTLPTraceExporter({ url: options.endpoint }),
+    // No free text a person typed leaves in a traced URL ("no PII in URLs", docs/architecture).
+    traceExporter: new RedactingSpanExporter(new OTLPTraceExporter({ url: options.endpoint })),
     metricReaders: [
       new PeriodicExportingMetricReader({
         exporter: new OTLPMetricExporter({ url: options.endpoint }),

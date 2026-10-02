@@ -8,8 +8,14 @@ export interface SystemPolicy {
   timeoutMs: number;
   /** How long an answer (found or not found) is reused. */
   cacheTtlSeconds: number;
-  /** Calls per minute sent to the registry across every instance; one second's worth may burst. */
+  /** Calls per minute sent to the registry across every instance. */
   ratePerMinute: number;
+  /**
+   * Calls that may go out at once on an idle bucket (`burstOf`): at least a lookup's reserved
+   * calls (`RegistryAdapter.callsPerLookup`), so they never queue behind each other, and for
+   * KRA those of a household's lookups at once (`KRA_BURST`).
+   */
+  burst: number;
   /** Longest a lookup queues for the rate limit before it is answered `rate-limited`. */
   maxQueueMs: number;
 }
@@ -21,4 +27,9 @@ export function policyOf(policies: SystemPolicies, system: System): SystemPolicy
   const policy = policies[system];
   if (!policy) throw new Error(`No policy configured for ${system}`);
   return policy;
+}
+
+/** One second's worth of `ratePerMinute`, and at least `minimum` calls. */
+export function burstOf(ratePerMinute: number, minimum = 1): number {
+  return Math.max(minimum, Math.ceil(ratePerMinute / 60));
 }

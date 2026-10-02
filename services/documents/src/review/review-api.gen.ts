@@ -13,11 +13,31 @@ export interface paths {
         };
         /**
          * Cases of the Commission ordered by score then age
-         * @description Reviewers and supervisors of the Commission. Anyone else, including another Commission's staff, gets 404.
+         * @description Reviewers and supervisors of the Commission. Anyone else, including another Commission's staff, gets 404. Filters only: search text is personal data, so it is never in a URL; send it to `searchReviewQueue`.
          */
         get: operations["listReviewQueue"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/commissions/{slug}/review/queue/search": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Cases of the Commission matching a search, ordered by score then age
+         * @description As `listReviewQueue`, with the filters and the search text in the body, so the text (a name, say) stays out of URLs and so out of access logs and traces. Reads nothing but the queue. Reviewers and supervisors of the Commission; anyone else gets 404.
+         */
+        post: operations["searchReviewQueue"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1968,16 +1988,14 @@ export interface operations {
                 cycle?: number;
                 /** @description `mine`, `unassigned`, `any` (the default), or a subject id */
                 assignee?: string;
+                /** @description `nextCursor` of the previous page; omit for the first page */
+                cursor?: string;
                 /** @description Only cases filed late, or only those filed on time */
                 late?: "true" | "false";
                 /** @description Only cases with an open clarification, or only those without */
                 openClarification?: "true" | "false";
                 /** @description Only cases where a registry could not be checked at the latest registry check, or only the others */
                 registryUnavailable?: "true" | "false";
-                /** @description A reference or personnel file number or their beginning, or part of a name (case-insensitive) */
-                search?: string;
-                /** @description `nextCursor` of the previous page; omit for the first page */
-                cursor?: string;
                 limit?: number;
             };
             header?: never;
@@ -2001,6 +2019,76 @@ export interface operations {
                 };
             };
             /** @description Query failed validation, or the cursor is unknown */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not found, or not visible to the caller */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    searchReviewQueue: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @enum {string} */
+                    status?: "unassigned" | "assigned" | "awaiting-clarification" | "clarified" | "ready-for-determination" | "sample-review" | "further-action" | "determined";
+                    /** @enum {string} */
+                    band?: "low" | "medium" | "high";
+                    /** @enum {string} */
+                    type?: "initial" | "biennial" | "final";
+                    /** @description The statement date's year */
+                    cycle?: number;
+                    /** @description `mine`, `unassigned`, `any` (the default), or a subject id */
+                    assignee?: string;
+                    /** @description `nextCursor` of the previous page; omit for the first page */
+                    cursor?: string;
+                    /** @description Only cases filed late, or only those filed on time */
+                    late?: boolean;
+                    /** @description Only cases with an open clarification, or only those without */
+                    openClarification?: boolean;
+                    /** @description Only cases where a registry could not be checked at the latest registry check, or only the others */
+                    registryUnavailable?: boolean;
+                    /** @description A reference or personnel file number or their beginning, or part of a name (case-insensitive) */
+                    search?: string;
+                    /** @default 50 */
+                    limit?: number;
+                };
+            };
+        };
+        responses: {
+            /** @description Page */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: components["schemas"]["CaseListItem"][];
+                        nextCursor: string | null;
+                    };
+                };
+            };
+            /** @description Body failed validation, or the cursor is unknown */
             400: {
                 headers: {
                     [name: string]: unknown;

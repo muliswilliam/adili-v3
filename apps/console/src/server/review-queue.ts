@@ -1,12 +1,14 @@
 import { createServerFn } from '@tanstack/react-start';
 import { z } from 'zod';
 
-import { queueQuery, queueSearchSchema } from '../review-queue/query';
+import { queueSearchSchema } from '../review-queue/query';
 import type { QueueSummary } from '../review-queue/rows';
 import { SLUG_PATTERN } from './directory/contract';
+import { loadQueuePage, type QueuePage } from './review-queue.server';
 import { asStaffMember } from './review/as-staff-member.server';
-import type { CaseListItem } from './review/types';
 import { callService, type ServiceResult } from './service-call';
+
+export type { QueuePage };
 
 /**
  * Server functions for the review queue (spec 07a FE-2), called as the signed-in reviewer or
@@ -15,14 +17,9 @@ import { callService, type ServiceResult } from './service-call';
 
 const slug = z.string().regex(SLUG_PATTERN);
 
-export interface QueuePage {
-  items: CaseListItem[];
-  nextCursor: string | null;
-}
-
 /**
- * `GET /v1/commissions/{slug}/review/queue`: a page of cases for the filters, by score then age.
- * POST to the console's server, so the search text (a name, say) is never in a URL there.
+ * A page of the queue for the filters (`loadQueuePage`). POST to the console's server and on to
+ * the review service, so the search text (a name, say) is never in a URL on either hop.
  */
 export const getReviewQueue = createServerFn({ method: 'POST' })
   .validator(
@@ -35,14 +32,7 @@ export const getReviewQueue = createServerFn({ method: 'POST' })
   )
   .handler(({ data }): Promise<ServiceResult<QueuePage>> =>
     asStaffMember((client) =>
-      callService(() =>
-        client.GET('/v1/commissions/{slug}/review/queue', {
-          params: {
-            path: { slug: data.slug },
-            query: queueQuery(data.filters, { cursor: data.cursor, limit: data.limit }),
-          },
-        }),
-      ),
+      loadQueuePage(client, data.slug, data.filters, { cursor: data.cursor, limit: data.limit }),
     ),
   );
 
