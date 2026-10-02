@@ -33,6 +33,12 @@ const DECIDED_AT = '2027-03-20T12:00:00.000Z';
  * downloads), and their certified copies; never staff or law enforcement officers by name.
  * Another declarant sees nothing of it.
  */
+/** The law enforcement package of the history suite. */
+const PACKAGE_ID = '0199c000-0000-7000-8000-00000000a001';
+
+/** An entry of any step, the tenant left out. */
+type WithoutTenant<T> = T extends unknown ? Omit<T, 'tenant'> : never;
+
 describe('Who accessed my declaration (S12)', () => {
   let api: AccessApi;
   let register: AccessRegister;
@@ -63,7 +69,7 @@ describe('Who accessed my declaration (S12)', () => {
   const kinds = (entries: AccessHistoryEntry[]) => entries.map((entry) => entry.kind);
 
   /** Records a register entry in the Commission's context, as the service's steps do. */
-  const record = (entry: Omit<RegisterEntryInput, 'tenant'>) =>
+  const record = (entry: WithoutTenant<RegisterEntryInput>) =>
     api.asTenant({ tenant: 'psc', subject: 'test' }, (tx) =>
       register.record(tx, { tenant: 'psc', ...entry }),
     );
@@ -132,6 +138,7 @@ describe('Who accessed my declaration (S12)', () => {
         actor: { subject: callers.mercy.sub, name: row.applicantName },
         at: new Date('2027-03-21T08:00:00.000Z'),
         details: { documentId: packaged.packageDocumentId },
+        eventData: { documentId: packaged.packageDocumentId ?? '' },
       });
 
       const entries = await historyOf(declarantOf(anne));
@@ -208,6 +215,7 @@ describe('Who accessed my declaration (S12)', () => {
         kind: 'received',
         actor: { subject: 'lea-officer-peter', name: 'Peter Mwangi' },
         at: new Date('2027-03-01T08:00:00.000Z'),
+        eventData: { decisionDeadlineAt: '2027-03-15T08:00:00.000Z' },
       });
       await record({
         ...common,
@@ -256,12 +264,14 @@ describe('Who accessed my declaration (S12)', () => {
         kind: 'package-issued',
         actor: null,
         at: new Date('2027-03-05T10:04:00.000Z'),
+        eventData: { documentId: PACKAGE_ID, downloadExpiresAt: '2027-03-19T10:04:00.000Z' },
       });
       await record({
         ...common,
         kind: 'downloaded',
         actor: { subject: 'lea-officer-peter', name: 'Peter Mwangi' },
         at: new Date('2027-03-06T09:00:00.000Z'),
+        eventData: { documentId: PACKAGE_ID },
       });
 
       const entries = await historyOf(declarantOf(anne));
