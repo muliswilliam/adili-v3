@@ -414,10 +414,7 @@ export class IssuanceService {
     const { document, record } = await this.owned(caller, id);
     const now = this.clock.now();
     if (document.downloadExpiresAt && now >= document.downloadExpiresAt) {
-      throw new ProblemException({
-        type: 'download-window-closed',
-        title: 'Download window closed',
-        status: HttpStatus.GONE,
+      throw ProblemException.fromCode('download-window-closed', {
         detail: `The document could be downloaded until ${document.downloadExpiresAt.toISOString()}.`,
       });
     }

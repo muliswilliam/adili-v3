@@ -555,7 +555,10 @@ describe('S10 downloading an access package within its window', () => {
     api.clock.advance(14 * DAY_MS);
     const response = await download(document.id, APPLICANT);
     expect(response.statusCode).toBe(410);
-    expect(response.json<Problem>().type).toBe('download-window-closed');
+    expect(response.json<Problem>()).toMatchObject({
+      type: 'download-window-closed',
+      code: 'download-window-closed',
+    });
     expect(
       (await eventsAbout(document.id)).filter((event) => event.type === 'document.downloaded.v1'),
     ).toEqual([]);
