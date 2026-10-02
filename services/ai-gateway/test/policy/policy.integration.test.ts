@@ -510,9 +510,23 @@ describe('policy', { timeout: 90_000 }, () => {
       await t.app
         .get(Budgets)
         .set('limited', { monthlyTokens: 1_000_000, perMinute: 2 }, 'platform-admin-1');
-      const payload = { tenant: 'limited', dataClass: 'restricted' };
+      await t.seedDemoGate('limited');
+      // Blocked jobs reached no provider and do not count against the limit.
       for (const language of ['en', 'sw']) {
-        await run('summarize-declaration', { ...payload, input: { ...summarizeInput, language } });
+        const blocked = await run('summarize-declaration', {
+          tenant: 'limited',
+          dataClass: 'restricted',
+          input: { ...summarizeInput, language, registryStatuses: [] },
+        });
+        expect(blocked).toMatchObject({ status: 'blocked', reason: 'policy' });
+      }
+      const payload = { tenant: 'limited', dataClass: 'synthetic' };
+      for (const language of ['en', 'sw']) {
+        const admitted = await run('summarize-declaration', {
+          ...payload,
+          input: { ...summarizeInput, language },
+        });
+        expect(admitted.status).toBe('succeeded');
       }
 
       const response = await runTask('summarize-declaration', {
