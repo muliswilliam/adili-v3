@@ -5,11 +5,16 @@
  * job's duration only: it is never stored, logged or sent anywhere.
  *
  * Task-independent: identifiers are found by where they sit in the input (the declaration.v1
- * field names for names, ID numbers, KRA PINs, phones, emails and addresses) and by their shape
- * anywhere in free text. Names found in fields are also replaced wherever they recur in free
- * text. Amounts, dates and item descriptions are left alone: the tasks need them, and the
+ * field names for names, debtors and creditors, ID numbers, KRA PINs, personnel file numbers,
+ * parcel numbers, vehicle registrations, file names, phones, emails and addresses) and by their
+ * shape anywhere in free text. Values found in fields are also replaced wherever they recur in
+ * free text. Amounts, dates and item descriptions are left alone: the tasks need them, and the
  * classification gate decides whether they may leave. Over-matching is safe, since every token
  * is restored; it only hides a word from the model.
+ *
+ * A token in the output that the input never had (the model invented or garbled one) cannot be
+ * restored: `restore` throws `UnknownTokenError`, and the job fails as a validation failure
+ * rather than storing a placeholder as if it were the record.
  */
 
 export const IDENTIFIER_CLASSES = [
@@ -20,6 +25,12 @@ export const IDENTIFIER_CLASSES = [
   'PHONE',
   'EMAIL',
   'ADDRESS',
+  /** A debtor or creditor: a person or a body, kept whole. */
+  'PARTY',
+  'FILE_NUMBER',
+  'PARCEL',
+  'REGISTRATION',
+  'FILE_NAME',
 ] as const;
 export type IdentifierClass = (typeof IDENTIFIER_CLASSES)[number];
 
@@ -29,10 +40,21 @@ type TokenClass = IdentifierClass | 'LITERAL';
 export interface Minimised<T> {
   /** The input with identifiers replaced by tokens. */
   input: T;
-  /** Replaces the tokens in every string of `output` with what they stand for. */
+  /**
+   * Replaces the tokens in every string of `output` with what they stand for; throws
+   * `UnknownTokenError` for a token this input never had.
+   */
   restore: <U>(output: U) => U;
   /** Distinct identifiers replaced, per class; counts only, for telemetry and tests. */
   counts: Partial<Record<TokenClass, number>>;
+}
+
+/** The output holds a token the input never had; how many, never which. */
+export class UnknownTokenError extends Error {
+  override readonly name = 'UnknownTokenError';
+  constructor(readonly unknownTokens: number) {
+    super(`The output holds ${unknownTokens} token(s) the input never had`);
+  }
 }
 
 const TOKEN = /\[\[([A-Z][A-Z_]*)_(\d+)\]\]/g;
@@ -52,6 +74,12 @@ const FIELD_CLASSES: ReadonlyMap<string, IdentifierClass> = new Map([
   ['address', 'ADDRESS'],
   ['postalAddress', 'ADDRESS'],
   ['physicalAddress', 'ADDRESS'],
+  ['debtor', 'PARTY'],
+  ['creditor', 'PARTY'],
+  ['personnelFileNumber', 'FILE_NUMBER'],
+  ['parcelNumber', 'PARCEL'],
+  ['registration', 'REGISTRATION'],
+  ['fileName', 'FILE_NAME'],
 ]);
 /**
  * Keys, references and enums the output points back at (source refs, flag ids, item ids) or the
@@ -90,6 +118,25 @@ const PATTERNS: readonly { cls: IdentifierClass; pattern: RegExp; group?: number
       'gu',
     ),
   },
+  // Postal addresses: P.O. Box (Swahili: Sanduku la Posta) or Private Bag, the box, the postal
+  // code and the town.
+  {
+    cls: 'ADDRESS',
+    pattern:
+      /(?<![\p{L}\p{N}])(?:P\.?\s?O\.?\s*Box|Private\s+Bag|Sanduku\s+la\s+Posta)\s*\d{1,6}(?:\s*-\s*\d{5})?(?:,\s*\p{Lu}\p{L}+)?/giu,
+  },
+  // Kenyan vehicle registrations (KDK 482M); KES and KSh amounts are not.
+  {
+    cls: 'REGISTRATION',
+    pattern: new RegExp(`${EDGE_BEFORE}K(?!ES|SH)[A-Z]{2}\\s?\\d{3}[A-Z]?${EDGE_AFTER}`, 'gu'),
+  },
+  // Land parcel numbers: a registration section, its blocks, then the number (KSM/123,
+  // KISUMU/MUNICIPALITY BLOCK 7/412).
+  {
+    cls: 'PARCEL',
+    pattern:
+      /(?<![\p{L}\p{N}/])\p{Lu}{2,}(?:[ .]\p{Lu}+)*(?:\/[\p{Lu}\p{N}]+(?:[ .][\p{Lu}\p{N}]+)*)*\/\d+(?![\p{L}\p{N}/])/gu,
+  },
   // Kenyan passport numbers: one or two letters and seven digits.
   { cls: 'PASSPORT', pattern: new RegExp(`${EDGE_BEFORE}[A-Z]{1,2}\\d{7}${EDGE_AFTER}`, 'gu') },
   {
@@ -97,12 +144,20 @@ const PATTERNS: readonly { cls: IdentifierClass; pattern: RegExp; group?: number
     pattern: /\bpassport(?:\s*(?:no\.?|number|#))?[\s:]*([A-Z0-9]{6,9})(?![\p{L}\p{N}])/giu,
     group: 1,
   },
-  // A bare number is an ID only when named as one: amounts must stay readable.
+  // A number named as an ID, in English or Swahili.
   {
     cls: 'ID',
     pattern:
-      /\b(?:national\s+id(?:entity)?(?:\s+card)?|id(?:\s+card)?|i\.d\.)(?:\s*(?:no\.?|number|#))?[\s:]*(\d{6,9})(?![\p{L}\p{N}])/giu,
+      /\b(?:national\s+id(?:entity)?(?:\s+card)?|identity\s+card|id(?:\s+card)?|i\.d\.|(?:nambari\s+ya\s+)?kitambulisho(?:\s+cha\s+taifa)?)(?:\s*(?:no\.?|number|nambari|namba|#))?[\s:]*(\d{6,9})(?![\p{L}\p{N}])/giu,
     group: 1,
+  },
+  // A bare seven- or eight-digit number is shaped like a national ID. Amounts stay readable:
+  // one after a currency, or with separators, decimals or a percent sign, is left alone, as is
+  // a part of a longer code (a UUID's group).
+  {
+    cls: 'ID',
+    pattern:
+      /(?<![\p{L}\p{N}.,-]|(?:KES|KSh|Ksh|KShs|Kshs|Shs?|USD|US\$|\$|EUR|GBP)\.?\s?)\d{7,8}(?![\p{L}\p{N}%-]|[.,]\d)/gu,
   },
 ];
 
@@ -148,10 +203,18 @@ export function minimise<T>(input: T): Minimised<T> {
   const minimised = mapStrings(input, undefined, replaceText) as T;
   return {
     input: minimised,
-    restore: <U>(output: U): U =>
-      mapStrings(output, undefined, (text) =>
-        text.replace(TOKEN, (token) => values.get(token) ?? token),
-      ) as U,
+    restore: <U>(output: U): U => {
+      let unknown = 0;
+      const restored = mapStrings(output, undefined, (text) =>
+        text.replace(TOKEN, (token) => {
+          const value = values.get(token);
+          if (value === undefined) unknown++;
+          return value ?? token;
+        }),
+      ) as U;
+      if (unknown > 0) throw new UnknownTokenError(unknown);
+      return restored;
+    },
     counts: Object.fromEntries(counters),
   };
 }
