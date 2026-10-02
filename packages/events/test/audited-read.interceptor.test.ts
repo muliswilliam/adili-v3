@@ -49,6 +49,13 @@ class ThingsController {
   @AuditedRead({ action: 'thing.viewed', resource: 'thing' })
   get(@Param('id') id: string, @CurrentReadAudit() audit: ReadAudit) {
     if (id === 'mine') audit.ownRecord();
+    else if (id === 'for-a-case') {
+      audit.resource({
+        tenant: 'tsc',
+        subjectPersonId: 'person-1',
+        legalBasis: 'review-case:case-1',
+      });
+    } else if (id === 'a-batch') audit.resource({ tenant: 'tsc', ids: ['thing-2', 'thing-3'] });
     else audit.resource({ tenant: 'tsc', subjectPersonId: 'person-1' });
     return { id };
   }
@@ -267,6 +274,25 @@ describe('AuditedReadInterceptor', () => {
         },
       },
     ]);
+  });
+
+  it('records the legal basis the handler names, and none when it names none', async () => {
+    await app.inject({ method: 'GET', url: '/v1/things/for-a-case' });
+    await app.inject({ method: 'GET', url: '/v1/things/thing-1' });
+
+    expect(recorded.map((event) => (event.data as { legalBasis?: string }).legalBasis)).toEqual([
+      'review-case:case-1',
+      undefined,
+    ]);
+  });
+
+  it('records the ids of a batch read the handler names, and none when it names none', async () => {
+    await app.inject({ method: 'GET', url: '/v1/things/a-batch' });
+    await app.inject({ method: 'GET', url: '/v1/things/thing-1' });
+
+    expect(
+      recorded.map((event) => (event.data as { resource: { ids?: string[] } }).resource.ids),
+    ).toEqual([['thing-2', 'thing-3'], undefined]);
   });
 
   it('records nothing when the caller read their own record', async () => {

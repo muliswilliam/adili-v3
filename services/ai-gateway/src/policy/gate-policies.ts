@@ -11,10 +11,11 @@ import { auditChange } from './audit.js';
 /**
  * The classification gate's default, for a (data class, provider class) pair a tenant has no
  * rule for (spec 07c): self-hosted providers may see every data class; external providers see
- * synthetic data only, so no real declaration leaves the platform without a recorded decision.
+ * none, so nothing leaves the platform until a platform admin records an approved rule. The
+ * demo tenant's external-on-synthetic rule is recorded like one (see `seedDemoGatePolicies`).
  */
-export function defaultGateAdmits(dataClass: DataClass, providerClass: ProviderClass): boolean {
-  return providerClass === 'self-hosted' || dataClass === 'synthetic';
+export function defaultGateAdmits(providerClass: ProviderClass): boolean {
+  return providerClass === 'self-hosted';
 }
 
 /** Contract `GateRuleInput`: whether a provider class may see a data class. */
@@ -56,7 +57,7 @@ export function defaultGate(): GateCell[] {
     PROVIDER_CLASSES.map((providerClass) => ({
       dataClass,
       providerClass,
-      allowed: defaultGateAdmits(dataClass, providerClass),
+      allowed: defaultGateAdmits(providerClass),
     })),
   );
 }
@@ -87,7 +88,7 @@ export class GatePolicies {
           eq(gatePolicies.providerClass, providerClass),
         ),
       );
-    return rule ? rule.allowed : defaultGateAdmits(dataClass, providerClass);
+    return rule ? rule.allowed : defaultGateAdmits(providerClass);
   }
 
   /** The tenant's gate for every pair: its rule where it has one, else the default. */
@@ -159,9 +160,7 @@ export class GatePolicies {
           before: {
             dataClass: input.dataClass,
             providerClass: input.providerClass,
-            allowed: before
-              ? before.allowed
-              : defaultGateAdmits(input.dataClass, input.providerClass),
+            allowed: before ? before.allowed : defaultGateAdmits(input.providerClass),
             explicit: before !== undefined,
           },
           after: {

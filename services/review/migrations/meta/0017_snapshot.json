@@ -1,6 +1,6 @@
 {
-  "id": "1c6141a0-1d52-4e31-af32-fd2397becb5f",
-  "prevId": "06c047c4-0a4c-4124-9bef-e8eb93e66d25",
+  "id": "06c047c4-0a4c-4124-9bef-e8eb93e66d25",
+  "prevId": "fd7d291d-18f4-40ba-968f-713cb8612643",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -451,12 +451,6 @@
           "type": "jsonb",
           "primaryKey": false,
           "notNull": true
-        },
-        "opening": {
-          "name": "opening",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
         },
         "issued_at": {
           "name": "issued_at",
@@ -975,6 +969,12 @@
           "type": "text",
           "primaryKey": false,
           "notNull": true
+        },
+        "designation": {
+          "name": "designation",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
         },
         "roster_record_id": {
           "name": "roster_record_id",

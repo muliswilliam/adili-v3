@@ -16,7 +16,10 @@ interface Job {
   [key: string]: unknown;
 }
 
-/** The default gate with an external provider (spec 07c S2): only synthetic data reaches it. */
+/**
+ * The gate with an external provider (spec 07c S2): by default it sees nothing; the demo tenant's
+ * seeded rule lets synthetic data, and only that, reach it.
+ */
 describe('classification gate', () => {
   const external = new ScriptedProvider(
     () =>
@@ -33,6 +36,7 @@ describe('classification gate', () => {
 
   beforeAll(async () => {
     t = await createTestApp({ provider: external });
+    await t.seedDemoGate('demo');
     auth = { authorization: `Bearer ${await t.token()}` };
     return () => t.close();
   });
@@ -67,11 +71,25 @@ describe('classification gate', () => {
     },
   );
 
-  it('lets synthetic data through to an external provider', async () => {
+  it("lets the demo tenant's synthetic data through to an external provider", async () => {
     const response = await runTask(taskRequest(summarizeInput, { waitSeconds: 10 }));
 
     expect(response.json<Job>()).toMatchObject({ status: 'succeeded' });
   });
+
+  it.each(['synthetic', 'restricted', 'highly-confidential'])(
+    'blocks %s data for an external provider for a tenant without a rule',
+    async (dataClass) => {
+      const before = external.requests.length;
+
+      const response = await runTask(
+        taskRequest(summarizeInput, { tenant: 'newcomm', dataClass, waitSeconds: 10 }),
+      );
+
+      expect(response.json<Job>()).toMatchObject({ status: 'blocked', reason: 'policy' });
+      expect(external.requests.length).toBe(before);
+    },
+  );
 
   it('blocks a queued job at execution when the gate no longer admits it', async () => {
     const before = external.requests.length;

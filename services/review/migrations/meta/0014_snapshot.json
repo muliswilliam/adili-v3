@@ -1,5 +1,5 @@
 {
-  "id": "8ce7f284-1a23-4b88-8a64-e452f33350d4",
+  "id": "54297218-a3b3-4d08-a5e2-5aa82205360b",
   "prevId": "5f279de2-779a-4090-9280-ee90f9904f01",
   "version": "7",
   "dialect": "postgresql",
@@ -970,6 +970,12 @@
           "primaryKey": false,
           "notNull": true
         },
+        "designation": {
+          "name": "designation",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
         "roster_record_id": {
           "name": "roster_record_id",
           "type": "uuid",
@@ -1641,165 +1647,6 @@
       "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.review_copilots": {
-      "name": "review_copilots",
-      "schema": "",
-      "columns": {
-        "case_id": {
-          "name": "case_id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "tenant": {
-          "name": "tenant",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "status": {
-          "name": "status",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "for_version_id": {
-          "name": "for_version_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "registry_checked_at": {
-          "name": "registry_checked_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "attempt": {
-          "name": "attempt",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "summarize_job_id": {
-          "name": "summarize_job_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "explain_job_id": {
-          "name": "explain_job_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "requested_at": {
-          "name": "requested_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "failure_reason": {
-          "name": "failure_reason",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "generated_for_version_id": {
-          "name": "generated_for_version_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "generated_at": {
-          "name": "generated_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "summary_job_id": {
-          "name": "summary_job_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "summary_prompt_version": {
-          "name": "summary_prompt_version",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "summary_ciphertext": {
-          "name": "summary_ciphertext",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "summary_envelope": {
-          "name": "summary_envelope",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "explanations_job_id": {
-          "name": "explanations_job_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "explanations_prompt_version": {
-          "name": "explanations_prompt_version",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "explanations_ciphertext": {
-          "name": "explanations_ciphertext",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "explanations_envelope": {
-          "name": "explanations_envelope",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {
-        "review_copilots_case_id_review_cases_id_fk": {
-          "name": "review_copilots_case_id_review_cases_id_fk",
-          "tableFrom": "review_copilots",
-          "tableTo": "review_cases",
-          "columnsFrom": [
-            "case_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {
-        "review_copilots_status_check": {
-          "name": "review_copilots_status_check",
-          "value": "\"review_copilots\".\"status\" in ('not-enabled', 'pending', 'ready', 'failed', 'stale')"
-        }
-      },
       "isRLSEnabled": false
     },
     "public.determinations": {

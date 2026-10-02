@@ -4,10 +4,30 @@ import type {
   clarificationResponses,
   clarifications,
 } from '../cases/schema.js';
+import { z } from 'zod';
+
 import type { Requirement } from './labels.js';
 
 type ClarificationRow = typeof clarifications.$inferSelect;
 type ResponseRow = typeof clarificationResponses.$inferSelect;
+
+/** The most clarification ids one details request carries (reporting pages by it). */
+export const CLARIFICATION_DETAILS_PAGE = 1_000;
+
+export const clarificationDetailsRequest = z.object({
+  clarificationIds: z.array(z.uuid()).min(1).max(CLARIFICATION_DETAILS_PAGE),
+});
+export type ClarificationDetailsRequest = z.infer<typeof clarificationDetailsRequest>;
+
+/** review.yaml `InternalClarificationDetails`: Form M section 4's row of a clarification. */
+export interface ClarificationDetails {
+  clarificationId: string;
+  reference: string | null;
+  name: string;
+  designation: string;
+  identifier: string;
+  requirementLabels: string[];
+}
 
 /** review.yaml `ClarificationItemInput`, as a clarification shows its items. */
 export interface ClarificationItemView {

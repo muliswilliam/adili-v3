@@ -77,7 +77,10 @@ export class FakeAiGateway extends AiGatewayClient {
     this.withinWait = outcome;
   }
 
-  /** The tenant's AI status from now on; by default the gateway's default gate on an external route. */
+  /**
+   * The tenant's AI status from now on. By default, the gateway's on an external route: `psc` has
+   * the demo seed's synthetic rule, every other tenant the default gate (external blocked).
+   */
   givenTenantStatus(tenant: string, status: Omit<TenantAiStatus, 'tenant'>): void {
     this.statuses.set(tenant, status);
   }
@@ -158,11 +161,11 @@ export class FakeAiGateway extends AiGatewayClient {
       this.failures -= 1;
       return Promise.reject(new AiGatewayUnavailable('The ai-gateway is unavailable'));
     }
-    const status = this.statuses.get(tenant) ?? {
-      enabled: true,
-      providerClass: 'external',
-      dataClasses: ['synthetic'],
-    };
+    const status =
+      this.statuses.get(tenant) ??
+      (tenant === 'psc'
+        ? { enabled: true, providerClass: 'external', dataClasses: ['synthetic'] }
+        : { enabled: false, providerClass: 'external', dataClasses: [] });
     return Promise.resolve({ tenant, ...structuredClone(status) });
   }
 

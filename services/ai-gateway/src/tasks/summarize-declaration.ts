@@ -36,5 +36,6 @@ export const summarizeDeclaration = defineTask({
     worthAttention: z.array(z.object({ text: z.string().max(300), flagIds: z.array(z.uuid()) })),
   }),
   promptVersions: [1],
-  maxOutputTokens: 4096,
+  // A household declaration (several statements, refs with ids) needs more than 4096 tokens.
+  maxOutputTokens: 8192,
 });

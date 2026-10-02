@@ -23,6 +23,7 @@
     "typecheck": "turbo run typecheck",
     "test": "turbo run test",
     "test:integration": "turbo run test:integration",
+    "eval": "turbo run eval",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "deps:check": "depcruise services packages apps --config .dependency-cruiser.cjs",

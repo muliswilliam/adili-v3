@@ -11,7 +11,7 @@
  * left alone.
  */
 
-interface SourceRef {
+export interface SourceRef {
   sectionKey: string | null;
   personKey: string | null;
   itemId: string | null;
@@ -23,13 +23,16 @@ const FIXED_SECTIONS = new Set(['bio', 'household', 'other']);
 const STATEMENT_SECTION = 'statement:';
 const CATEGORIES = ['income', 'assets', 'liabilities'] as const;
 
-interface InputIndex {
+interface DocumentIndex {
   documents: Record<string, unknown>[];
-  refs: SourceRef[];
-  flagIds: Set<string>;
   /** Item id → person key, across the documents. */
   owners: Map<string, string>;
   people: Set<string>;
+}
+
+interface InputIndex extends DocumentIndex {
+  refs: SourceRef[];
+  flagIds: Set<string>;
 }
 
 /** Why the output's refs do not resolve against the input; empty when they all do. */
@@ -56,21 +59,23 @@ export function sourceRefProblems(input: unknown, output: unknown): string[] {
 }
 
 function indexInput(input: unknown): InputIndex {
-  const index: InputIndex = {
-    documents: [],
-    refs: [],
-    flagIds: new Set(),
-    owners: new Map(),
-    people: new Set(),
-  };
+  const documents: Record<string, unknown>[] = [];
+  const refs: SourceRef[] = [];
+  const flagIds = new Set<string>();
   walk(input, (node) => {
     if (!isObject(node)) return;
-    if (isSourceRef(node)) index.refs.push(node);
-    if (node.schemaVersion === 'declaration.v1') index.documents.push(node);
+    if (isSourceRef(node)) refs.push(node);
+    if (node.schemaVersion === 'declaration.v1') documents.push(node);
     // A flag: an id with the rule that raised it.
-    if (typeof node.id === 'string' && typeof node.ruleId === 'string') index.flagIds.add(node.id);
+    if (typeof node.id === 'string' && typeof node.ruleId === 'string') flagIds.add(node.id);
   });
-  for (const document of index.documents) {
+  return { ...indexDocuments(documents), refs, flagIds };
+}
+
+function indexDocuments(documents: readonly unknown[]): DocumentIndex {
+  const index: DocumentIndex = { documents: [], owners: new Map(), people: new Set() };
+  for (const document of documents.filter(isObject)) {
+    index.documents.push(document);
     const statements = Array.isArray(document.statements) ? document.statements : [];
     for (const statement of statements.filter(isObject)) {
       if (typeof statement.personKey !== 'string') continue;
@@ -93,7 +98,19 @@ function refProblem(ref: SourceRef, index: InputIndex): string | null {
   }
   if (index.refs.some((each) => sameTarget(ref, each))) return null;
   if (index.documents.length === 0) return `ref ${describe(ref)} is not one of the input's refs`;
+  return problemIn(ref, index);
+}
 
+/**
+ * Why `ref` does not resolve against these declaration.v1 documents (null entries are skipped),
+ * or null when it does: its parts exist and agree. The check the task evals score with.
+ */
+export function documentRefProblem(ref: SourceRef, documents: readonly unknown[]): string | null {
+  return problemIn(ref, indexDocuments(documents));
+}
+
+function problemIn(ref: SourceRef, index: DocumentIndex): string | null {
+  const { sectionKey, personKey, itemId, fieldPath } = ref;
   const sectionPerson = sectionKey?.startsWith(STATEMENT_SECTION)
     ? sectionKey.slice(STATEMENT_SECTION.length)
     : null;
@@ -128,7 +145,7 @@ function refProblem(ref: SourceRef, index: InputIndex): string | null {
 }
 
 /** The same section, person and item as an input ref, and its field path or none. */
-function sameTarget(ref: SourceRef, inputRef: SourceRef): boolean {
+export function sameTarget(ref: SourceRef, inputRef: SourceRef): boolean {
   return (
     ref.sectionKey === inputRef.sectionKey &&
     ref.personKey === inputRef.personKey &&
