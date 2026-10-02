@@ -662,6 +662,8 @@ describe('S10 issuing a nil letter for a grant with nothing to disclose', () => 
     expect(texts[0]).toContain('Sections: Income, Assets');
     expect(texts[0]).toContain('Clarifications the declarant gave');
     expect(texts[0]).toContain('section 36(1) of the Act (Form K)');
+    // A one-page letter: the signature does not spill onto a page of its own.
+    expect(texts).toHaveLength(1);
     for (const text of texts) {
       expect(text).toContain(WATERMARK);
       expect(compact(text)).toContain('CONFIDENTIAL');
