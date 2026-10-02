@@ -262,7 +262,9 @@ export function Refs({
   });
   if (resolved.length === 0) return null;
   return (
-    <div className="mt-1.5 flex flex-wrap gap-1.5">
+    // contain-inline-size: the row takes the block's width and adds none of its own, so a long
+    // chip is cut there instead of widening the panel.
+    <div className="mt-1.5 flex flex-wrap gap-1.5 [contain:inline-size]">
       {resolved.map((one) => (
         <SourceRefLink
           key={one.anchorId}

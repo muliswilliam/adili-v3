@@ -235,7 +235,8 @@ export function CaseView({ load, now, supervisor, commission, onReload, copilot 
 
   const events = timelineEvents(detail.timeline);
   const side = (
-    <div className="grid gap-3">
+    // One column no wider than the pane: long content (a source chip) is cut, never widens it.
+    <div className="grid grid-cols-[minmax(0,1fr)] gap-3">
       {copilotPanel}
       {copilotOpen ? null : (
         <Tabs

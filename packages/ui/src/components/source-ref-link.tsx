@@ -133,7 +133,8 @@ export function SourceRefLink({
       }}
     >
       <Icon icon={icon ?? TARGET_ICONS[target]} />
-      <span className="truncate">{label}</span>
+      {/* min-w-0: the label gives way first, so a chip never widens what holds it. */}
+      <span className="min-w-0 truncate">{label}</span>
       {detail ? (
         <span className="shrink-0 font-normal whitespace-nowrap text-muted-foreground">
           · {detail}
