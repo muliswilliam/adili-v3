@@ -195,7 +195,7 @@ export class CopilotDraftsService {
     const draft = notFoundIfInvisible(row?.requestedBy === principal.subject ? row : null);
     if (draft.status === 'failed' || draft.jobId === null) return this.viewOf(draft, null);
 
-    const job = await this.gateway.getJob(draft.jobId).catch((error: unknown) => {
+    const job = await this.gateway.getJob(tenant, draft.jobId).catch((error: unknown) => {
       throw error instanceof AiGatewayUnavailable ? gatewayUnavailable() : error;
     });
     if (draft.status === 'pending' && (job === null || isFinished(job))) {

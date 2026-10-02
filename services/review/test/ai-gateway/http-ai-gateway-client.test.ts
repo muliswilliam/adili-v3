@@ -66,7 +66,7 @@ describe('HttpAiGatewayClient', () => {
       fetch,
     });
 
-  it('posts the task with the idempotency key, no wait and the current prompt, and answers the job', async () => {
+  it('posts the task for the tenant it acts for, with the idempotency key, no wait and the current prompt, and answers the job', async () => {
     const fetch = vi.fn<typeof globalThis.fetch>(() =>
       Promise.resolve(Response.json(job, { status: 202 })),
     );
@@ -89,9 +89,16 @@ describe('HttpAiGatewayClient', () => {
     expect(Object.fromEntries(sent.headers)).toMatchObject({
       authorization: 'Bearer token',
       'idempotency-key': key,
+      'x-acting-tenant': 'psc',
     });
     const body: unknown = await sent.json();
-    expect(body).toEqual({ ...request, promptVersion: null, waitSeconds: 0 });
+    expect(body).toEqual({
+      dataClass: request.dataClass,
+      subjectRef: request.subjectRef,
+      input: request.input,
+      promptVersion: null,
+      waitSeconds: 0,
+    });
     expect(validTaskRequest(body), JSON.stringify(validTaskRequest.errors)).toBe(true);
   });
 
@@ -139,17 +146,20 @@ describe('HttpAiGatewayClient', () => {
       status: 'succeeded',
       output: { overview: 'Summary' },
     });
-    expect(await client(fetch).getJob(job.id)).toMatchObject({ id: job.id, status: 'succeeded' });
-    expect((fetch.mock.calls[1]?.[0] as Request).url).toBe(
-      `http://ai.test/internal/v1/jobs/${job.id}`,
-    );
+    expect(await client(fetch).getJob('psc', job.id)).toMatchObject({
+      id: job.id,
+      status: 'succeeded',
+    });
+    const read = fetch.mock.calls[1]?.[0] as Request;
+    expect(read.url).toBe(`http://ai.test/internal/v1/jobs/${job.id}`);
+    expect(read.headers.get('x-acting-tenant')).toBe('psc');
   });
 
   it('a job the gateway does not have (404) is null', async () => {
     const fetch = vi.fn<typeof globalThis.fetch>(() =>
       Promise.resolve(Response.json({ title: 'Not found' }, { status: 404 })),
     );
-    expect(await client(fetch).getJob(job.id)).toBeNull();
+    expect(await client(fetch).getJob('psc', job.id)).toBeNull();
   });
 
   it('a request the gateway refuses (400, 404, 422) is rejected; a rate limit, an outage or a body outside the contract is unavailable', async () => {
@@ -190,10 +200,11 @@ describe('HttpAiGatewayClient', () => {
         ),
       );
 
-      expect(await client(fetch).recordFeedback(job.id, feedback)).toBe(true);
+      expect(await client(fetch).recordFeedback('psc', job.id, feedback)).toBe(true);
       const sent = fetch.mock.calls[0]?.[0] as Request;
       expect(sent.url).toBe(`http://ai.test/internal/v1/jobs/${job.id}/feedback`);
       expect(sent.method).toBe('PUT');
+      expect(sent.headers.get('x-acting-tenant')).toBe('psc');
       const body: unknown = await sent.json();
       expect(body).toEqual(feedback);
       expect(validFeedbackInput(body), JSON.stringify(validFeedbackInput.errors)).toBe(true);
@@ -204,13 +215,13 @@ describe('HttpAiGatewayClient', () => {
         vi.fn<typeof globalThis.fetch>(() =>
           Promise.resolve(Response.json({ title: 'No' }, { status })),
         );
-      expect(await client(answering(404)).recordFeedback(job.id, feedback)).toBe(false);
-      await expect(client(answering(400)).recordFeedback(job.id, feedback)).rejects.toBeInstanceOf(
-        InternalApiRejected,
-      );
-      await expect(client(answering(503)).recordFeedback(job.id, feedback)).rejects.toBeInstanceOf(
-        AiGatewayUnavailable,
-      );
+      expect(await client(answering(404)).recordFeedback('psc', job.id, feedback)).toBe(false);
+      await expect(
+        client(answering(400)).recordFeedback('psc', job.id, feedback),
+      ).rejects.toBeInstanceOf(InternalApiRejected);
+      await expect(
+        client(answering(503)).recordFeedback('psc', job.id, feedback),
+      ).rejects.toBeInstanceOf(AiGatewayUnavailable);
     });
   });
 
@@ -224,9 +235,9 @@ describe('HttpAiGatewayClient', () => {
     const fetch = vi.fn<typeof globalThis.fetch>(() => Promise.resolve(Response.json(status)));
 
     expect(await client(fetch).tenantStatus('psc')).toEqual(status);
-    expect((fetch.mock.calls[0]?.[0] as Request).url).toBe(
-      'http://ai.test/internal/v1/tenants/psc/status',
-    );
+    const sent = fetch.mock.calls[0]?.[0] as Request;
+    expect(sent.url).toBe('http://ai.test/internal/v1/tenants/psc/status');
+    expect(sent.headers.get('x-acting-tenant')).toBe('psc');
 
     const broken = vi.fn<typeof globalThis.fetch>(() =>
       Promise.resolve(Response.json({ ...status, providerClass: 'cloud' })),
