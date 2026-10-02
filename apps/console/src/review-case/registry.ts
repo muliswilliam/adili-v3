@@ -577,9 +577,9 @@ export function recheckLanded(before: string | null, after: string | null): bool
   return after !== null && after !== before;
 }
 
-/** The words for "{n} minutes", for the cooldown. */
+/** The words for "{n} minutes", for the cooldown; kept on one line (a no-break space). */
 export function minutesWords(minutes: number): string {
-  return plural(minutes, 'minute');
+  return plural(minutes, 'minute').replace(' ', '\u00a0');
 }
 
 /**

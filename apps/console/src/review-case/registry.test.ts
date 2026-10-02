@@ -543,9 +543,9 @@ describe('re-check', () => {
     const at = Date.parse('2026-10-02T09:10:00.000Z');
     expect(cooldownText(null, at)).toBeNull();
     expect(cooldownText(at, at)).toBeNull();
-    expect(cooldownText(at, at - 1000)).toBe('Re-checked recently. Try again in 1 minute.');
+    expect(cooldownText(at, at - 1000)).toBe('Re-checked recently. Try again in 1\u00a0minute.');
     expect(cooldownText(at, at - 9 * 60_000 - 1)).toBe(
-      'Re-checked recently. Try again in 10 minutes.',
+      'Re-checked recently. Try again in 10\u00a0minutes.',
     );
   });
 
