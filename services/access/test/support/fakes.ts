@@ -277,6 +277,8 @@ export class FakeDirectory extends DirectoryClient {
 }
 
 /** Declarations: scoped disclosures and full documents, as given per declarant. */
+type DeclarationsMethod = 'renderDisclosure' | 'fullDocument' | 'personVersions';
+
 export class FakeDeclarations extends DeclarationsClient {
   /** Each disclosure asked for, as asked. */
   readonly disclosureCalls: DisclosureRequest[] = [];
@@ -285,6 +287,8 @@ export class FakeDeclarations extends DeclarationsClient {
   private readonly disclosures = new Map<string, DisclosureDocument>();
   private readonly documents = new Map<string, VersionDocument>();
   private readonly failures = new Failures();
+  private failingMethod: DeclarationsMethod | undefined;
+  private withholding = false;
 
   /** What a disclosure for `personId` returns (whatever the scope asked). */
   givenDisclosure(personId: string, disclosure: DisclosureDocument): void {
@@ -295,8 +299,15 @@ export class FakeDeclarations extends DeclarationsClient {
     this.documents.set(`${document.declarationId}:${String(document.version)}`, document);
   }
 
-  failCalls(count: number): void {
+  /** The next `count` calls (of `method` only, when given) fail, as an outage would. */
+  failCalls(count: number, method?: DeclarationsMethod): void {
     this.failures.next(count);
+    this.failingMethod = method;
+  }
+
+  /** Full documents are not found while on, though their versions are listed. */
+  withholdFullDocuments(on = true): void {
+    this.withholding = on;
   }
 
   reset(): void {
@@ -306,11 +317,18 @@ export class FakeDeclarations extends DeclarationsClient {
     this.disclosures.clear();
     this.documents.clear();
     this.failures.reset();
+    this.failingMethod = undefined;
+    this.withholding = false;
+  }
+
+  private fails(method: DeclarationsMethod): boolean {
+    const failing = this.failingMethod === undefined || this.failingMethod === method;
+    return failing && this.failures.take();
   }
 
   renderDisclosure(request: DisclosureRequest): Promise<DisclosureDocument | null> {
     this.disclosureCalls.push(structuredClone(request));
-    if (this.failures.take()) {
+    if (this.fails('renderDisclosure')) {
       return Promise.reject(new DeclarationsUnavailable('The declarations service is unreachable'));
     }
     return Promise.resolve(this.disclosures.get(request.personId) ?? null);
@@ -318,18 +336,21 @@ export class FakeDeclarations extends DeclarationsClient {
 
   fullDocument(request: FullDocumentRequest): Promise<VersionDocument | null> {
     this.fullDocumentCalls.push(structuredClone(request));
-    if (this.failures.take()) {
+    if (this.fails('fullDocument')) {
       return Promise.reject(new DeclarationsUnavailable('The declarations service is unreachable'));
     }
     // As declarations: only a version of the person, at the acting Commission.
     const found = this.documents.get(`${request.declarationId}:${String(request.version)}`);
-    const theirs = found?.personId === request.personId && found.commission.slug === request.tenant;
+    const theirs =
+      !this.withholding &&
+      found?.personId === request.personId &&
+      found.commission.slug === request.tenant;
     return Promise.resolve(theirs ? found : null);
   }
 
   personVersions(tenant: string, personId: string): Promise<PersonVersion[]> {
     this.personVersionsCalls.push({ tenant, personId });
-    if (this.failures.take()) {
+    if (this.fails('personVersions')) {
       return Promise.reject(new DeclarationsUnavailable('The declarations service is unreachable'));
     }
     // As declarations: the person's versions at the acting Commission, latest submitted first.

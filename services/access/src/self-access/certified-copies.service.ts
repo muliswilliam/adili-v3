@@ -6,8 +6,12 @@ import { and, desc, eq } from 'drizzle-orm';
 import { declarantPersonId } from '../access.js';
 import { Clock } from '../clock.js';
 import type { AccessDatabase } from '../db/database.js';
+import {
+  DeclarationsClient,
+  DeclarationsUnavailable,
+} from '../declarations/declarations-client.js';
 import { DirectoryClient, DirectoryUnavailable } from '../directory/directory-client.js';
-import { directoryUnavailable, notFound } from '../problems.js';
+import { declarationsUnavailable, directoryUnavailable, notFound } from '../problems.js';
 import { CertifiedCopyIssuance } from './certified-copy-issuance.js';
 import {
   type CertifiedCopy,
@@ -26,19 +30,22 @@ export class CertifiedCopiesService {
   constructor(
     @Inject(DATABASE) private readonly db: AccessDatabase,
     private readonly directory: DirectoryClient,
+    private readonly declarations: DeclarationsClient,
     private readonly issuance: CertifiedCopyIssuance,
     private readonly clock: Clock,
   ) {}
 
   /**
    * Orders a certified copy of the declarant's version at the Commission it was filed with: the
-   * copy is `pending` until the workflow has it issued, or `failed` if declarations has no such
-   * submitted version of theirs. Asking again returns the same copy (a failed one tried again).
-   * An unknown Commission is 404; the directory unreachable is 503.
+   * copy is `pending` until the workflow has it issued, or `failed` if declarations cannot issue
+   * it after all. Asking again returns the same copy (a failed one tried again). An unknown
+   * Commission, or a version that is not one the declarant submitted there (someone else's, S13),
+   * is 404 at once, with nothing ordered; the directory or declarations unreachable is 503.
    */
   async request(principal: Principal, input: CertifiedCopyRequest): Promise<CertifiedCopy> {
     const personId = declarantPersonId(principal);
     const commission = await this.commission(input.commission);
+    await this.requireOwnVersion(commission.slug, personId, input);
     const copy = await withTenant(
       this.db,
       { tenant: commission.slug, subject: principal.subject },
@@ -80,6 +87,25 @@ export class CertifiedCopiesService {
         .where(and(eq(certifiedCopies.id, copyId), eq(certifiedCopies.personId, personId))),
     );
     return toCertifiedCopy(notFoundIfInvisible(row));
+  }
+
+  /** 404 unless the declarant submitted this version at the Commission. */
+  private async requireOwnVersion(
+    tenant: string,
+    personId: string,
+    input: Pick<CertifiedCopyRequest, 'declarationId' | 'version'>,
+  ): Promise<void> {
+    let versions;
+    try {
+      versions = await this.declarations.personVersions(tenant, personId);
+    } catch (error) {
+      if (error instanceof DeclarationsUnavailable) throw declarationsUnavailable();
+      throw error;
+    }
+    const own = versions.some(
+      (found) => found.declarationId === input.declarationId && found.version === input.version,
+    );
+    if (!own) throw notFound();
   }
 
   private async commission(slug: string): Promise<{ slug: string; name: string }> {

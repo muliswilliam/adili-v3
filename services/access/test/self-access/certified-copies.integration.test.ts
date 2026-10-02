@@ -222,7 +222,7 @@ describe('Certified copies (S13)', () => {
     );
   });
 
-  it("S13: another person sees nothing of Anne's copy (404), and asking for her version gets them nothing issued", async () => {
+  it("S13: another person sees nothing of Anne's copy (404), and asking for her version is 404 at once, with nothing ordered", async () => {
     given();
     const mine = (await ask()).json<CertifiedCopy>();
     await untilSettled(mine.id);
@@ -230,25 +230,37 @@ describe('Certified copies (S13)', () => {
     expect((await api.get(`/v1/me/certified-copies/${mine.id}`, otieno)).statusCode).toBe(404);
     expect((await api.get('/v1/me/certified-copies', otieno)).json()).toEqual([]);
 
-    // Declarations has no such version of Otieno's: his copy fails, nothing is issued or registered.
-    const theirs = (await ask(otieno)).json<CertifiedCopy>();
-    const failed = await untilSettled(theirs.id, otieno);
-    expect(failed).toMatchObject({ status: 'failed', documentId: null, reference: null });
-    expect(api.declarations.fullDocumentCalls.at(-1)).toMatchObject({
+    // Declarations lists no such version of Otieno's at the PSC: 404, as if it did not exist.
+    const theirs = await ask(otieno);
+    expect(theirs.statusCode, theirs.body).toBe(404);
+    expect(api.declarations.personVersionsCalls.at(-1)).toEqual({
+      tenant: 'psc',
       personId: otieno.personId,
-      actingSubject: otieno.sub,
     });
+    expect((await api.get('/v1/me/certified-copies', otieno)).json()).toEqual([]);
+    expect(api.declarations.fullDocumentCalls).toHaveLength(1);
     expect(api.documents.issued).toHaveLength(1);
     expect(await api.events(ACCESS_CERTIFIED_COPY_ISSUED)).toHaveLength(1);
   });
 
+  it('S13: a version number the declarant never submitted is 404, and declarations unreachable is 503, nothing ordered', async () => {
+    given();
+    const other = await ask(anne, { commission: 'psc', declarationId: DECLARATION_ID, version: 2 });
+    expect(other.statusCode).toBe(404);
+
+    api.declarations.failCalls(1, 'personVersions');
+    const down = await ask();
+    expect(down.statusCode).toBe(503);
+    expect((await api.get('/v1/me/certified-copies', anne)).json()).toEqual([]);
+  });
+
   it('S13: a failed copy is tried again when asked again', async () => {
-    api.clock.set(NOW);
-    api.directory.givenCommission('psc', 'Public Service Commission');
+    given();
+    api.declarations.withholdFullDocuments();
     const first = (await ask()).json<CertifiedCopy>();
     expect(await untilSettled(first.id)).toMatchObject({ status: 'failed' });
 
-    api.declarations.givenFullDocument(versionOne());
+    api.declarations.withholdFullDocuments(false);
     const again = await ask();
 
     expect(again.statusCode, again.body).toBe(202);
@@ -258,7 +270,7 @@ describe('Certified copies (S13)', () => {
 
   it('S13: declarations and documents outages delay the copy, never lose it', async () => {
     given();
-    api.declarations.failCalls(1);
+    api.declarations.failCalls(1, 'fullDocument');
     api.documents.failCalls(1);
 
     const copy = (await ask()).json<CertifiedCopy>();
