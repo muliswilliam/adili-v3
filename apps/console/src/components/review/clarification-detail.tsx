@@ -86,6 +86,17 @@ function failureText(error: ServiceError): string {
   return 'We could not save this. Try again.';
 }
 
+/**
+ * Why a withdrawal failed. Documents could not revoke the letter (503 `documents-unavailable`):
+ * review withdraws nothing then, so say the letter stands and nothing changed.
+ */
+function withdrawFailureText(error: ServiceError): string {
+  if (error.kind === 'unavailable' && error.problemType === 'documents-unavailable') {
+    return 'The letter could not be revoked, so nothing changed. Try again later.';
+  }
+  return failureText(error);
+}
+
 /** 403 and 409 mean the page is out of date: say so and reload rather than retry. */
 function isStale(error: ServiceError): boolean {
   return error.kind === 'problem' && (error.problem.status === 403 || error.problem.status === 409);
@@ -113,6 +124,7 @@ export function ClarificationDetailView({
   async function done(
     result: Awaited<ReturnType<typeof resolveClarification>>,
     success: string,
+    failure: (error: ServiceError) => string = failureText,
   ): Promise<string | null> {
     if (!result.ok) {
       if (isStale(result.error)) {
@@ -121,7 +133,7 @@ export function ClarificationDetailView({
         await router.invalidate();
         return null;
       }
-      return failureText(result.error);
+      return failure(result.error);
     }
     setDialog(null);
     toast({ title: success });
@@ -316,6 +328,7 @@ export function ClarificationDetailView({
           done(
             await withdrawClarification({ data: { clarificationId: clarification.id, reason } }),
             'Clarification withdrawn',
+            withdrawFailureText,
           )
         }
       />

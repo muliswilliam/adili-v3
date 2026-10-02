@@ -288,6 +288,33 @@ describe('ClarificationDetailView: actions (S15)', () => {
     expect(screen.getByText('The letter could not be downloaded. Try again.')).toBeTruthy();
   });
 
+  it('says above the buttons, not under the reason, that nothing changed when the letter could not be revoked', async () => {
+    renderDetail(await detailOf(CASES.mine, K.issued));
+    withdrawMock.mockResolvedValue({
+      ok: false,
+      error: {
+        kind: 'unavailable',
+        detail: 'The documents service cannot be reached. Try again shortly.',
+        problemType: 'documents-unavailable',
+      },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Withdraw' }));
+    const dialog = screen.getByRole('dialog');
+    const reason = within(dialog).getByLabelText('Reason');
+    fireEvent.change(reason, { target: { value: 'Issued against the wrong item' } });
+    await act(async () => {
+      fireEvent.click(within(dialog).getByRole('button', { name: 'Withdraw clarification' }));
+      await Promise.resolve();
+    });
+    const alert = within(dialog).getByRole('alert');
+    expect(alert.textContent).toBe(
+      'The letter could not be revoked, so nothing changed. Try again later.',
+    );
+    expect(reason.getAttribute('aria-invalid')).toBeNull();
+    expect(reason.getAttribute('aria-describedby')).toBeNull();
+    expect(invalidate).not.toHaveBeenCalled();
+  });
+
   it('reloads when the service says the page is out of date (403 or 409)', async () => {
     renderDetail(await detailOf(CASES.mine, K.issued));
     withdrawMock.mockResolvedValue({
