@@ -72,11 +72,15 @@ beforeEach(async () => {
   );
 });
 
-/** A draft of the person's, its roster record giving the officer's national ID. */
-async function givenDraft(personId = ACHIENG, caller: Caller = achieng): Promise<Declaration> {
+/** A draft of the person's, its roster record giving the officer's national ID (or none). */
+async function givenDraft(
+  personId = ACHIENG,
+  caller: Caller = achieng,
+  { nationalId = OFFICER_ID }: { nationalId?: string | null } = {},
+): Promise<Declaration> {
   const record = rosterRecord('psc', { personId, fullName: 'Achieng Wambui Otieno' });
   api.directory.givenRecords([record]);
-  api.directory.givenNationalId(record.id, OFFICER_ID);
+  if (nationalId !== null) api.directory.givenNationalId(record.id, nationalId);
   const obligationId = randomUUID();
   await api.asPlatform(async (tx) => {
     await tx.insert(rosterSnapshots).values({
@@ -411,6 +415,27 @@ describe('who can be checked, and registries that do not answer (S2)', () => {
     expect(api.gateway.calls).toEqual([]);
     expect(await api.asPerson(ACHIENG, (tx) => tx.select().from(suggestionSets))).toEqual([]);
     expect(await api.asPerson(ACHIENG, (tx) => tx.select().from(suggestionConsents))).toEqual([]);
+  });
+
+  it('marks every registry no-id for an officer whose roster record has no national ID', async () => {
+    const draft = await givenDraft(ACHIENG, achieng, { nationalId: null });
+    givenOfficerRegistries();
+
+    const response = await requestLookups(draft.id, {
+      personKey: 'officer',
+      systems: [...ALL],
+      consent: CONSENT,
+    });
+
+    expect(response.statusCode).toBe(202);
+    const sets = await settled(draft.id);
+    expect(sets.map((set) => [set.source, set.status, set.suggestions])).toEqual(
+      ['kra', 'ntsa', 'brs', 'ardhisasa'].map((source) => [source, 'no-id', []]),
+    );
+    expect(sets.every((set) => set.readyAt === null)).toBe(true);
+    expect(api.directory.nationalIdReads).toHaveLength(4);
+    expect(api.gateway.calls).toEqual([]);
+    expect(await eventsOf('declaration.suggestions-ready.v1')).toEqual([]);
   });
 
   it("looks a spouse up by the national ID in Household, into the spouse's sections", async () => {
