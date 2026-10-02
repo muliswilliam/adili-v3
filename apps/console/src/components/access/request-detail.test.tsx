@@ -341,6 +341,8 @@ describe('RequestDetailView (spec 10 FE-5)', () => {
       within(side()).getByText('Waiting for the access officer to record the written notice.'),
     ).toBeTruthy();
     expect(within(side()).queryByRole('button')).toBeNull();
+    // An untitled card is no landmark: its DOM id is not read out as a name.
+    expect(within(side()).queryByRole('region', { name: 'waiting' })).toBeNull();
   });
 
   it('decision 2: notified in writing, with the representations received in writing', async () => {
