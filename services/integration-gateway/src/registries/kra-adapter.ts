@@ -14,16 +14,21 @@ import { REGISTRY_URLS, type RegistryUrls } from './registry-urls.js';
 export const KRA_CALLS_PER_LOOKUP = 2;
 
 /**
- * Lookups a case's registry check sends KRA at once: the declarant's and their spouse's, the
- * common household (children are rarely of an age to hold a national ID).
+ * KRA lookups of one household the burst takes without queueing: the declarant's, then their
+ * spouse's, the common household (children are rarely of an age to hold a national ID). A case's
+ * registry check looks its people up one after the other, the spouse's well within the seconds
+ * the declarant's slots take to free up at the slowest rate.
  */
-export const KRA_CONCURRENT_LOOKUPS = 2;
+export const KRA_HOUSEHOLD_LOOKUPS = 2;
 
 /**
- * KRA's least burst: a household's lookups go out together, none queueing for the rate limit,
- * whatever the rate (at 60 a minute, one second's worth would be a single call).
+ * KRA's least burst: a household's consecutive lookups go out without queueing for the rate
+ * limit, whatever the rate (at 60 a minute, one second's worth would be a single call). A third
+ * person's lookup, another case's or one after a second PIN's charged call shares the bucket: it
+ * queues up to the max wait, or is answered `rate-limited` and looked up again by the check's
+ * retries.
  */
-export const KRA_BURST = KRA_CALLS_PER_LOOKUP * KRA_CONCURRENT_LOOKUPS;
+export const KRA_BURST = KRA_CALLS_PER_LOOKUP * KRA_HOUSEHOLD_LOOKUPS;
 
 /** The compliance of a PIN KRA listed but holds no compliance record for. */
 const NO_COMPLIANCE: KraTaxpayers['taxpayers'][number]['compliance'] = {
