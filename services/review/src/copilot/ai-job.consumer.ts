@@ -14,7 +14,7 @@ export const AI_JOB_CONSUMER = 'review.ai-job';
 /** What the consumer reads from `ai.job.completed.v1`, `failed.v1` and `blocked.v1`. */
 const jobFinishedData = z.object({
   jobId: z.uuid(),
-  task: z.string(),
+  task: z.string().optional(),
   subjectRef: z.string(),
 });
 
@@ -55,7 +55,7 @@ export class AiJobConsumer {
 
   private async finished(event: EventEnvelope): Promise<void> {
     const { jobId, task, subjectRef } = jobFinishedData.parse(event.data);
-    if (POLLED_TASKS.includes(task)) return;
+    if (task !== undefined && POLLED_TASKS.includes(task)) return;
     const caseId = caseIdSchema.safeParse(caseOfSubjectRef(subjectRef));
     if (!caseId.success) return;
     const tenant = tenantSchema.parse(event.tenant);
