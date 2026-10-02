@@ -1,17 +1,19 @@
 import { randomUUID } from 'node:crypto';
 
 import { outbox } from '@adili/events';
-import { eq, sql } from 'drizzle-orm';
+import { eq, inArray, sql } from 'drizzle-orm';
 import { beforeAll, describe, expect, it } from 'vitest';
 
 import { jobs } from '../../src/db/schema.js';
 import { JobsJanitor } from '../../src/jobs/jobs-janitor.js';
 import { contractErrors } from '../support/contract.js';
 import {
+  actingFor,
   explainInput,
   FLAG_ID,
   summarizeInput,
   summarizeOutput,
+  taskCall,
   taskRequest,
   usage,
 } from '../support/inputs.js';
@@ -45,16 +47,22 @@ describe('task jobs', () => {
     task: string,
     payload: object,
     { key = randomUUID(), headers = auth }: { key?: string; headers?: Record<string, string> } = {},
-  ) =>
-    t.app.inject({
+  ) => {
+    const call = taskCall(payload);
+    return t.app.inject({
       method: 'POST',
       url: `/internal/v1/tasks/${task}`,
-      headers: { ...headers, 'idempotency-key': key },
-      payload,
+      headers: { ...call.headers, ...headers, 'idempotency-key': key },
+      payload: call.body,
     });
+  };
 
-  const getJob = (id: string, headers = auth) =>
-    t.app.inject({ method: 'GET', url: `/internal/v1/jobs/${id}`, headers });
+  const getJob = (id: string, headers: Record<string, string> = auth, tenant = 'demo') =>
+    t.app.inject({
+      method: 'GET',
+      url: `/internal/v1/jobs/${id}`,
+      headers: { ...actingFor(tenant), ...headers },
+    });
 
   async function untilFinished(id: string): Promise<Job> {
     const deadline = Date.now() + 20_000;
@@ -207,11 +215,12 @@ describe('task jobs', () => {
     });
 
     it('requires an Idempotency-Key', async () => {
+      const call = taskCall(taskRequest(freshInput()));
       const response = await t.app.inject({
         method: 'POST',
         url: '/internal/v1/tasks/summarize-declaration',
-        headers: auth,
-        payload: taskRequest(freshInput()),
+        headers: { ...auth, ...call.headers },
+        payload: call.body,
       });
 
       expect(response.statusCode).toBe(400);
@@ -457,6 +466,39 @@ describe('task jobs', () => {
       expect((await getJob(id, other)).statusCode).toBe(404);
     });
 
+    it('hides a job from the caller acting for another tenant (ADR-013)', async () => {
+      const { id } = (
+        await runTask('summarize-declaration', taskRequest(freshInput()))
+      ).json<Job>();
+
+      expect((await getJob(id, auth, 'kcomm')).statusCode).toBe(404);
+    });
+
+    it('takes the tenant from X-Acting-Tenant, not the body', async () => {
+      const input = freshInput();
+      await recordSuccess(input);
+      const missing = await t.app.inject({
+        method: 'POST',
+        url: '/internal/v1/tasks/summarize-declaration',
+        headers: { ...auth, 'idempotency-key': randomUUID() },
+        payload: taskRequest(input),
+      });
+      expect(missing.statusCode).toBe(400);
+
+      // The body's tenant is not the contract's and is ignored: the job is the header's.
+      const response = await t.app.inject({
+        method: 'POST',
+        url: '/internal/v1/tasks/summarize-declaration',
+        headers: { ...auth, ...actingFor('kcomm'), 'idempotency-key': randomUUID() },
+        payload: taskRequest(input, { tenant: 'demo' }),
+      });
+      const [job] = await t.db
+        .select({ tenant: jobs.tenant })
+        .from(jobs)
+        .where(eq(jobs.id, response.json<Job>().id));
+      expect(job?.tenant).toBe('kcomm');
+    });
+
     it('refuses callers without the ai scope', async () => {
       const unscoped = { authorization: `Bearer ${await t.token({ scope: 'profile' })}` };
 
@@ -529,6 +571,48 @@ describe('task jobs', () => {
       expect(purged.outputHash).toMatch(/^[0-9a-f]{64}$/);
       const again = (await runTask('summarize-declaration', taskRequest(input))).json<Job>();
       expect(again.id).not.toBe(first.id);
+    });
+
+    it('purges a clarification draft after 24 hours and keeps a summary for its full window', async () => {
+      const finished = async (task: 'draft-clarification' | 'summarize-declaration') => {
+        const id = randomUUID();
+        await t.db.insert(jobs).values({
+          id,
+          tenant: 'demo',
+          task,
+          promptVersion: 1,
+          dataClass: 'synthetic',
+          subjectRef: `review-case:${randomUUID()}`,
+          caller: 'review',
+          idempotencyKey: randomUUID(),
+          requestHash: 'finished',
+          inputHash: randomUUID(),
+          status: 'succeeded',
+          provider: 'replay',
+          model: 'claude-opus-5-5',
+          output: { drafted: 'text' },
+          outputHash: 'hash',
+          finishedAt: sql`now() - interval '25 hours'`,
+        });
+        return id;
+      };
+      const draft = await finished('draft-clarification');
+      const summary = await finished('summarize-declaration');
+
+      await t.app.get(JobsJanitor).sweep();
+
+      const outputs = await t.db
+        .select({ id: jobs.id, output: jobs.output, purgedAt: jobs.outputPurgedAt })
+        .from(jobs)
+        .where(inArray(jobs.id, [draft, summary]));
+      expect(outputs.find((row) => row.id === draft)).toMatchObject({
+        output: null,
+        purgedAt: expect.any(Date) as Date,
+      });
+      expect(outputs.find((row) => row.id === summary)).toMatchObject({
+        output: { drafted: 'text' },
+        purgedAt: null,
+      });
     });
   });
 });

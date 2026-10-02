@@ -1070,8 +1070,8 @@ export interface paths {
         };
         get?: never;
         /**
-         * Rate a copilot output shown on a case as helpful or not (the case's assignee); one rating per reviewer per output
-         * @description The output is named by its job: a summary or explanations shown on the case (`CopilotView.jobs`), or a ready clarification draft within its 24 hours (`CopilotDraft.jobId`). A second rating by the same reviewer replaces the first. The rating is forwarded to the ai-gateway, which announces it for reporting. Supervisors and other reviewers of the Commission read the copilot but do not rate it (403); anyone else, or a job that is not such an output (a pending draft's, say), gets 404.
+         * Rate a copilot output shown on a case as helpful or not (the case's assignee); one rating per reviewer per output block
+         * @description The output is named by its job: a summary or explanations shown on the case (`CopilotView.jobs`), or a ready clarification draft within its 24 hours (`CopilotDraft.jobId`); `block` names the block rated (a summary's section, a flag's explanation), null the output as a whole. A second rating by the same reviewer of the same block replaces the first. A block the output does not have is 400. The rating is forwarded to the ai-gateway, which announces it for reporting. Supervisors and other reviewers of the Commission read the copilot but do not rate it (403); anyone else, or a job that is not such an output (a pending draft's, say), gets 404.
          */
         put: operations["rateCopilotOutput"];
         post?: never;
@@ -1091,8 +1091,8 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Whether AI assistance is enabled for the Commission (commission-admin, supervisor)
-         * @description The commission-admin and supervisors of the Commission; anyone else gets 404. Reads the
+         * Whether AI assistance is enabled for the Commission (commission-admin)
+         * @description The commission-admin of the Commission; anyone else gets 404. Reads the
          *     ai-gateway's tenant status (its routes and classification gate). `enabled` says whether
          *     the copilot may run on this Commission's cases: the data class its declarations are sent
          *     as is among `dataClasses`.
@@ -1176,7 +1176,7 @@ export interface components {
             forVersionId: string | null;
             /** Format: date-time */
             generatedAt: string | null;
-            /** @description The ai-gateway's job reason (`validation`, `budget`, `provider`, ...), `policy` when not enabled, or `rejected` / `ai-gateway-unavailable` */
+            /** @description The ai-gateway's job reason (`validation`, `budget`, `provider`, ...), `policy` when not enabled, `rejected` / `ai-gateway-unavailable`, or `declarations-unavailable` when the declaration could not be read */
             failureReason: string | null;
             /** @description ai-gateway SummarizeDeclarationOutput (label, overview, changesSincePrevious, sections, worthAttention) */
             summary: {
@@ -1196,6 +1196,7 @@ export interface components {
             feedback: {
                 /** Format: uuid */
                 jobId: string;
+                block: components["schemas"]["CopilotBlock"];
                 /** @enum {string} */
                 rating: "helpful" | "not-helpful";
             }[];
@@ -1240,7 +1241,10 @@ export interface components {
             /** @description Data classes that provider class may process for the Commission */
             dataClasses: ("synthetic" | "restricted" | "highly-confidential")[];
         };
+        /** @description The block of an output a rating is for: a summary's `overview`, `changes`, `sections` or `worth-attention`, or an explanation's `flag:<flagId>`. Null: the output as a whole (a clarification draft). */
+        CopilotBlock: string | null;
         CopilotFeedbackInput: {
+            block?: components["schemas"]["CopilotBlock"];
             /** @enum {string} */
             rating: "helpful" | "not-helpful";
             /** @enum {string|null} */
@@ -1351,11 +1355,21 @@ export interface components {
             itemId?: string | null;
             requirement: components["schemas"]["Requirement"];
             text: string;
+            /**
+             * Format: uuid
+             * @description The Draft with AI job (`CopilotDraft.jobId`) that drafted the item, kept when the reviewer edits it (ADR-007: AI-assisted content stays labelled). Left out or null: written by the reviewer.
+             */
+            aiJobId?: string | null;
         };
         ClarificationInput: {
             items: components["schemas"]["ClarificationItemInput"][];
             /** @description The letter's opening paragraph, printed before the items (e.g. from Draft with AI). Left out or null: the letter has none. A draft's update replaces it like the items. */
             opening?: string | null;
+            /**
+             * Format: uuid
+             * @description The Draft with AI job that drafted the opening paragraph, kept when the reviewer edits it. Left out or null: written by the reviewer (or no opening).
+             */
+            openingAiJobId?: string | null;
         };
         ClarificationResponseInput: {
             items: {
@@ -1398,6 +1412,11 @@ export interface components {
             followUpOf: string | null;
             /** @description The letter's opening paragraph, printed before the items; null when it has none */
             opening: string | null;
+            /**
+             * Format: uuid
+             * @description The Draft with AI job that drafted the opening paragraph; null when written by the reviewer
+             */
+            openingAiJobId: string | null;
             response: {
                 items: {
                     index: number;
@@ -1444,10 +1463,14 @@ export interface components {
             clarificationReference: string;
             /** @description Printed before the items; null when the letter has no opening paragraph */
             opening: string | null;
+            /** @description Some of the letter's text (its opening or an item) was drafted with AI and approved by the reviewer who issued it (ADR-007); the letter says so. */
+            aiAssisted: boolean;
             items: {
                 label: string;
                 requirementLabel: string;
                 text: string;
+                /** @description The item was drafted with AI (and possibly edited) before the reviewer issued it */
+                aiAssisted: boolean;
             }[];
             /** Format: date-time */
             issuedAt: string;
@@ -2370,6 +2393,15 @@ export interface operations {
                     "application/json": components["schemas"]["Clarification"];
                 };
             };
+            /** @description Body failed validation, or problem type `ai-draft-not-on-case`: an `aiJobId` or `openingAiJobId` that names no ready Draft with AI of the case */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
         };
@@ -2422,6 +2454,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Clarification"];
+                };
+            };
+            /** @description Body failed validation, or problem type `ai-draft-not-on-case`: an `aiJobId` or `openingAiJobId` that names no ready Draft with AI of the case */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
             404: components["responses"]["NotFound"];
@@ -3904,7 +3945,7 @@ export interface operations {
             };
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
-            /** @description Already pending (problem type `copilot-pending`), or AI not enabled for this Commission (`ai-not-enabled`) */
+            /** @description Already pending (problem type `copilot-pending`). A case whose copilot was `not-enabled` is requested again: the ai-gateway decides whether the Commission may use it now */
             409: {
                 headers: {
                     [name: string]: unknown;

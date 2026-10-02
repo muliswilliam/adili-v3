@@ -1,7 +1,11 @@
 import { Injectable } from '@nestjs/common';
 
 import { SYSTEM_SUBJECT } from '../system-context.js';
-import type { CopilotActivityRequest, CopilotJobFinished } from './contract.js';
+import type {
+  CopilotActivityRequest,
+  CopilotJobFinished,
+  CopilotUnavailableReason,
+} from './contract.js';
 import { COPILOT_FAILURES, CopilotRequests } from './copilot-requests.js';
 
 /**
@@ -23,13 +27,27 @@ export class CopilotActivities {
     return this.requests.recordJob(tenant, caseId, jobId);
   }
 
+  /** The cases of the Commission whose copilot is `not-enabled`. */
+  notEnabledCopilots({ tenant }: { tenant: string }): Promise<string[]> {
+    return this.requests.notEnabled(tenant);
+  }
+
   /**
-   * The gateway stayed unreachable for as long as the workflow tried: the copilot is `failed`, so
-   * the assignee can try again. With a job, only while it is still the latest request's.
+   * The gateway (or, for a request, the declarations service: `reason`) stayed unreachable for as
+   * long as the workflow tried: the copilot is `failed`, so the assignee can try again. With a
+   * job, only while it is still the latest request's.
    */
-  copilotUnavailable(request: { tenant: string; caseId: string; jobId?: string }): Promise<void> {
-    return this.requests.fail(request.tenant, request.caseId, COPILOT_FAILURES.unavailable, {
-      jobId: request.jobId,
-    });
+  copilotUnavailable(request: {
+    tenant: string;
+    caseId: string;
+    jobId?: string;
+    reason?: CopilotUnavailableReason;
+  }): Promise<void> {
+    return this.requests.fail(
+      request.tenant,
+      request.caseId,
+      request.reason ?? COPILOT_FAILURES.unavailable,
+      { jobId: request.jobId },
+    );
   }
 }

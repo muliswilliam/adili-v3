@@ -26,6 +26,8 @@ export interface SplitPaneProps {
   sideLabel: string;
   /** Names the handle: "Resize review panel". */
   handleLabel: string;
+  /** The handle's value in words, for screen readers: `460` → "460 pixels wide". */
+  handleValueText?: (width: number) => string;
   /** The side pane's width in px, when the parent holds it (to keep it across visits). */
   sideWidth?: number;
   /** The starting width when uncontrolled. */
@@ -62,6 +64,7 @@ export function SplitPane({
   mainLabel,
   sideLabel,
   handleLabel,
+  handleValueText = (px) => `${String(px)} pixels wide`,
   sideWidth,
   defaultSideWidth = 440,
   minSideWidth = 340,
@@ -80,6 +83,7 @@ export function SplitPane({
   const [ownWidth, setOwnWidth] = useState(defaultSideWidth);
   const [dragging, setDragging] = useState(false);
   const roomForSide = useRoomForSide(grid, minMainWidth);
+  const measured = Number.isFinite(roomForSide);
   const maxWidth = Math.max(minSideWidth, Math.min(maxSideWidth, Math.floor(roomForSide)));
   const width = clamp(sideWidth ?? ownWidth, minSideWidth, maxWidth);
 
@@ -91,6 +95,8 @@ export function SplitPane({
   };
 
   const onKeyDown = (event: KeyboardEvent) => {
+    // Alt+Left is the browser's Back, Cmd and Ctrl with an arrow its own shortcuts.
+    if (event.altKey || event.metaKey || event.ctrlKey) return;
     const next = {
       ArrowLeft: width + step,
       ArrowRight: width - step,
@@ -129,13 +135,14 @@ export function SplitPane({
         ref={grid}
         style={
           {
-            '--split-side': `${String(width)}px`,
-            '--split-side-min': `${String(minSideWidth)}px`,
-            '--split-main-min': `${String(minMainWidth)}px`,
+            // The limits are applied above, once the grid is measured. Before that (the server
+            // render, and where ResizeObserver is missing) min() keeps the main pane its width.
+            '--split-side': measured
+              ? `${String(width)}px`
+              : `min(${String(width)}px, calc(100% - 16px - ${String(minMainWidth)}px))`,
           } as CSSProperties
         }
-        // min() holds the main pane's width before the first measure (server render).
-        className="grid grid-cols-[minmax(0,1fr)] gap-4 @min-[800px]:grid-cols-[minmax(0,1fr)_16px_max(var(--split-side-min),min(var(--split-side),calc(100%-16px-var(--split-main-min))))] @min-[800px]:items-start @min-[800px]:gap-0"
+        className="grid grid-cols-[minmax(0,1fr)] gap-4 @min-[800px]:grid-cols-[minmax(0,1fr)_16px_var(--split-side)] @min-[800px]:items-start @min-[800px]:gap-0"
       >
         <section
           aria-label={mainLabel}
@@ -152,6 +159,7 @@ export function SplitPane({
           aria-valuemin={minSideWidth}
           aria-valuemax={maxWidth}
           aria-valuenow={width}
+          aria-valuetext={handleValueText(width)}
           data-dragging={dragging ? '' : undefined}
           onKeyDown={onKeyDown}
           onPointerDown={onPointerDown}

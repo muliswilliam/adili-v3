@@ -35,19 +35,42 @@ interface InputIndex extends DocumentIndex {
   flagIds: Set<string>;
 }
 
+/** What is wrong with a ref or flag id, as a code safe to log. */
+export type RefProblemCode =
+  | 'unknown-flag'
+  | 'unknown-ref'
+  | 'unknown-person'
+  | 'unknown-item'
+  | 'unknown-section'
+  | 'unknown-field'
+  | 'item-not-of-person'
+  | 'person-not-of-section'
+  | 'item-not-of-section';
+
+/**
+ * A ref or flag id that does not resolve. `message` quotes what the model wrote: never log it
+ * (use `problemCounts`), since the model's text can carry anything, an identifier included.
+ */
+export interface RefProblem {
+  code: RefProblemCode;
+  message: string;
+}
+
 /** Why the output's refs do not resolve against the input; empty when they all do. */
-export function sourceRefProblems(input: unknown, output: unknown): string[] {
+export function sourceRefProblems(input: unknown, output: unknown): RefProblem[] {
   const index = indexInput(input);
-  const problems: string[] = [];
+  const problems: RefProblem[] = [];
+  const unknownFlag = (id: string): RefProblem => ({
+    code: 'unknown-flag',
+    message: `flag ${id} is not in the input`,
+  });
   walk(output, (node, key) => {
     if (key === 'flagId' && typeof node === 'string' && !index.flagIds.has(node)) {
-      problems.push(`flag ${node} is not in the input`);
+      problems.push(unknownFlag(node));
     }
     if (key === 'flagIds' && Array.isArray(node)) {
       for (const id of node) {
-        if (typeof id === 'string' && !index.flagIds.has(id)) {
-          problems.push(`flag ${id} is not in the input`);
-        }
+        if (typeof id === 'string' && !index.flagIds.has(id)) problems.push(unknownFlag(id));
       }
     }
     if (isSourceRef(node)) {
@@ -56,6 +79,15 @@ export function sourceRefProblems(input: unknown, output: unknown): string[] {
     }
   });
   return problems;
+}
+
+/** How many problems of each kind: what may be logged of them. */
+export function problemCounts(
+  problems: readonly RefProblem[],
+): Partial<Record<RefProblemCode, number>> {
+  const counts: Partial<Record<RefProblemCode, number>> = {};
+  for (const { code } of problems) counts[code] = (counts[code] ?? 0) + 1;
+  return counts;
 }
 
 function indexInput(input: unknown): InputIndex {
@@ -91,13 +123,15 @@ function indexDocuments(documents: readonly unknown[]): DocumentIndex {
   return index;
 }
 
-function refProblem(ref: SourceRef, index: InputIndex): string | null {
+function refProblem(ref: SourceRef, index: InputIndex): RefProblem | null {
   const { sectionKey, personKey, itemId, fieldPath } = ref;
   if (sectionKey === null && personKey === null && itemId === null && fieldPath === null) {
     return null;
   }
   if (index.refs.some((each) => sameTarget(ref, each))) return null;
-  if (index.documents.length === 0) return `ref ${describe(ref)} is not one of the input's refs`;
+  if (index.documents.length === 0) {
+    return { code: 'unknown-ref', message: `ref ${describe(ref)} is not one of the input's refs` };
+  }
   return problemIn(ref, index);
 }
 
@@ -106,40 +140,49 @@ function refProblem(ref: SourceRef, index: InputIndex): string | null {
  * or null when it does: its parts exist and agree. The check the task evals score with.
  */
 export function documentRefProblem(ref: SourceRef, documents: readonly unknown[]): string | null {
-  return problemIn(ref, indexDocuments(documents));
+  return problemIn(ref, indexDocuments(documents))?.message ?? null;
 }
 
-function problemIn(ref: SourceRef, index: DocumentIndex): string | null {
+function problemIn(ref: SourceRef, index: DocumentIndex): RefProblem | null {
+  const problem = (code: RefProblemCode, message: string): RefProblem => ({ code, message });
   const { sectionKey, personKey, itemId, fieldPath } = ref;
   const sectionPerson = sectionKey?.startsWith(STATEMENT_SECTION)
     ? sectionKey.slice(STATEMENT_SECTION.length)
     : null;
   if (personKey !== null && !index.people.has(personKey)) {
-    return `person ${personKey} is not in the input`;
+    return problem('unknown-person', `person ${personKey} is not in the input`);
   }
-  if (itemId !== null && !index.owners.has(itemId)) return `item ${itemId} is not in the input`;
+  if (itemId !== null && !index.owners.has(itemId)) {
+    return problem('unknown-item', `item ${itemId} is not in the input`);
+  }
   if (
     sectionKey !== null &&
     !FIXED_SECTIONS.has(sectionKey) &&
     !index.people.has(sectionPerson ?? '')
   ) {
-    return `section ${sectionKey} is not in the input`;
+    return problem('unknown-section', `section ${sectionKey} is not in the input`);
   }
   if (
     fieldPath !== null &&
     index.documents.every((document) => resolvePointer(document, fieldPath) === undefined)
   ) {
-    return `field ${fieldPath} is not in the input`;
+    return problem('unknown-field', `field ${fieldPath} is not in the input`);
   }
   const owner = itemId === null ? undefined : index.owners.get(itemId);
   if (personKey !== null && owner !== undefined && owner !== personKey) {
-    return `item ${itemId} does not belong to ${personKey}`;
+    return problem('item-not-of-person', `item ${itemId} does not belong to ${personKey}`);
   }
   if (sectionPerson !== null && personKey !== null && sectionPerson !== personKey) {
-    return `person ${personKey} does not belong to section ${sectionKey}`;
+    return problem(
+      'person-not-of-section',
+      `person ${personKey} does not belong to section ${sectionKey}`,
+    );
   }
   if (sectionPerson !== null && owner !== undefined && owner !== sectionPerson) {
-    return `item ${itemId} does not belong to section ${sectionKey}`;
+    return problem(
+      'item-not-of-section',
+      `item ${itemId} does not belong to section ${sectionKey}`,
+    );
   }
   return null;
 }

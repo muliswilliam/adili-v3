@@ -40,7 +40,7 @@ import { messages as t } from './messages';
 
 /**
  * The Flags tab (spec 07a FE-3, S11): the indicator banner, open flags grouped by severity, each
- * with its evidence, what it concerns, Go to item, Mark reviewed (the officer holding the case,
+ * with its evidence, what it concerns, Go to item, Mark reviewed (the reviewer holding the case,
  * with a note) and Explain (when the copilot has explanations); reviewed flags collapse to the
  * reviewer's note.
  */
@@ -49,7 +49,7 @@ export interface FlagsTabProps {
   flags: CaseFlag[];
   view: DeclarationView | null;
   declarant: string;
-  /** The officer holding the case may mark flags reviewed. */
+  /** The reviewer holding the case may mark flags reviewed. */
   canReview: boolean;
   /** The copilot has explanations to open. */
   canExplain: boolean;
@@ -105,7 +105,7 @@ export function FlagsTab({
     <div className="grid gap-3.5">
       <div
         role="note"
-        className="flex items-start gap-2.5 rounded-[10px] bg-info-subtle px-[13px] py-[11px] text-[13.5px] font-medium text-info-subtle-foreground"
+        className="flex items-start gap-2.5 rounded-lg bg-info-subtle px-[13px] py-[11px] text-[13.5px] font-medium text-info-subtle-foreground"
       >
         <Icon icon={InformationCircleIcon} className="mt-0.5 size-4 shrink-0" />
         <span>{t.flags.banner}</span>
@@ -173,7 +173,7 @@ export function FlagsTab({
 
 const STRIPES = {
   high: 'before:bg-destructive',
-  medium: 'before:bg-[#d98a00]',
+  medium: 'before:bg-warning-mark',
   low: 'before:bg-info',
   info: 'before:bg-input',
 } as const;

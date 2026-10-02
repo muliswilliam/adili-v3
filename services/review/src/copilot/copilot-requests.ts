@@ -25,14 +25,15 @@ import {
 } from '../declarations/declarations-client.js';
 import { InternalApiRejected } from '../internal-api/rejected.js';
 import { systemContext } from '../system-context.js';
-import type { CopilotActivityRequest } from './contract.js';
+import { COPILOT_UNAVAILABLE, type CopilotActivityRequest } from './contract.js';
 import { copilotInputs } from './copilot-inputs.js';
+import { COPILOT_PROMPT_VERSIONS } from './prompt-versions.js';
 import { caseSubjectRef, type CopilotUpdatedData, REVIEW_COPILOT_UPDATED } from './events.js';
 import { type CopilotRow, type CopilotStatus, reviewCopilots } from './schema.js';
 
 /** A request of a case's copilot, on whose behalf the declaration is read. */
 export interface CopilotRequest extends CopilotActivityRequest {
-  /** The service (`system:review`), or the officer who refreshed. */
+  /** The service (`system:review`), or the reviewer who refreshed. */
   actingSubject: string;
 }
 
@@ -41,7 +42,9 @@ export const COPILOT_FAILURES = {
   /** The gateway refused the request (400, 404, 422): sending it again does not help. */
   rejected: 'rejected',
   /** The gateway could not be reached for as long as the workflow tried. */
-  unavailable: 'ai-gateway-unavailable',
+  unavailable: COPILOT_UNAVAILABLE.aiGateway,
+  /** The declaration could not be pulled for as long as the workflow tried. */
+  declarationsUnavailable: COPILOT_UNAVAILABLE.declarations,
 } as const;
 
 /** Names the idempotency keys of the copilot's task calls (UUID v5, RFC 9562). */
@@ -75,7 +78,7 @@ export class CopilotRequests {
    * earlier outputs are kept for show) and `review.copilot.updated.v1`.
    *
    * Safe to retry: the idempotency keys are derived from the case, the version, the registry
-   * check and the request count, which moves on only once the previous request has ended, so a
+   * check, the task's prompt version and the request count, which moves on only once the previous request has ended, so a
    * retry gets the same jobs. A job that has already ended (a cached result, a blocked tenant) is
    * recorded at once.
    *
@@ -127,16 +130,24 @@ export class CopilotRequests {
       (record.registryCheckedAt?.toISOString() ?? null) === registryCheckedAt;
     const attempt = inFlight ? record.attempt : (record?.attempt ?? 0) + 1;
     const key = (task: ReviewTask) =>
-      uuidv5(
-        [task, caseId, row.currentVersionId, registryCheckedAt ?? 'none', String(attempt)].join(
-          '|',
-        ),
-        KEY_NAMESPACE,
-      );
+      copilotTaskKey({
+        task,
+        caseId,
+        versionId: row.currentVersionId,
+        registryCheckedAt,
+        promptVersion: COPILOT_PROMPT_VERSIONS[task],
+        attempt,
+      });
     const call = (task: ReviewTask, input: ReviewTaskInput) =>
       this.gateway.runTask(
         task,
-        { tenant, dataClass: dataClassOf(tenant), subjectRef: caseSubjectRef(caseId), input },
+        {
+          tenant,
+          dataClass: dataClassOf(tenant),
+          subjectRef: caseSubjectRef(caseId),
+          promptVersion: COPILOT_PROMPT_VERSIONS[task],
+          input,
+        },
         key(task),
       );
 
@@ -161,8 +172,8 @@ export class CopilotRequests {
         forVersionId: row.currentVersionId,
         registryCheckedAt: registryCheckedAt === null ? null : new Date(registryCheckedAt),
         attempt,
-        summarizeJobId: summarize?.id ?? null,
-        explainJobId: explain?.id ?? null,
+        requestedSummaryJobId: summarize?.id ?? null,
+        requestedExplanationsJobId: explain?.id ?? null,
         requestedAt: new Date(),
         failureReason: null,
       };
@@ -179,7 +190,7 @@ export class CopilotRequests {
     // A job may have ended before it was recorded here, its event then found no record to match:
     // read it again now that it is recorded.
     for (const job of jobs) {
-      const latest = isFinished(job) ? job : await this.gateway.getJob(job.id);
+      const latest = isFinished(job) ? job : await this.gateway.getJob(tenant, job.id);
       if (latest) await this.record(tenant, caseId, latest);
     }
   }
@@ -193,7 +204,7 @@ export class CopilotRequests {
   async recordJob(tenant: string, caseId: string, jobId: string): Promise<void> {
     const record = await withTenant(this.db, systemContext(tenant), (tx) => copilotOf(tx, caseId));
     if (!record || !isRequested(record, jobId)) return;
-    const job = await this.gateway.getJob(jobId);
+    const job = await this.gateway.getJob(tenant, jobId);
     if (job) await this.record(tenant, caseId, job);
   }
 
@@ -235,6 +246,18 @@ export class CopilotRequests {
     });
   }
 
+  /** The cases of the Commission whose copilot the classification gate blocked. */
+  async notEnabled(tenant: string): Promise<string[]> {
+    const rows = await withTenant(this.db, systemContext(tenant), (tx) =>
+      tx
+        .select({ caseId: reviewCopilots.caseId })
+        .from(reviewCopilots)
+        .where(and(eq(reviewCopilots.tenant, tenant), eq(reviewCopilots.status, 'not-enabled')))
+        .orderBy(asc(reviewCopilots.caseId)),
+    );
+    return rows.map((row) => row.caseId);
+  }
+
   private async record(tenant: string, caseId: string, job: AiJob): Promise<void> {
     if (!isFinished(job)) return;
     const sealed =
@@ -251,7 +274,7 @@ export class CopilotRequests {
       if (sealed) {
         Object.assign(
           next,
-          job.id === locked.summarizeJobId
+          job.id === locked.requestedSummaryJobId
             ? {
                 summaryJobId: job.id,
                 summaryPromptVersion: job.promptVersion,
@@ -267,8 +290,9 @@ export class CopilotRequests {
         );
         const after = { ...locked, ...next };
         const complete =
-          after.summaryJobId === locked.summarizeJobId &&
-          (locked.explainJobId === null || after.explanationsJobId === locked.explainJobId);
+          after.summaryJobId === locked.requestedSummaryJobId &&
+          (locked.requestedExplanationsJobId === null ||
+            after.explanationsJobId === locked.requestedExplanationsJobId);
         // A failed or blocked job of the same request keeps the record failed or not enabled.
         if (complete && (status === 'pending' || status === 'stale')) {
           status = 'ready';
@@ -276,7 +300,7 @@ export class CopilotRequests {
             generatedForVersionId: locked.forVersionId,
             generatedAt: new Date(),
             // A first version's request has no explanations to show.
-            ...(locked.explainJobId === null
+            ...(locked.requestedExplanationsJobId === null
               ? {
                   explanationsJobId: null,
                   explanationsPromptVersion: null,
@@ -343,9 +367,54 @@ export class CopilotRequests {
   }
 }
 
+/**
+ * The idempotency key of a copilot task call: one per task, case, version, registry check, prompt
+ * version and request count, so a retry gets the same job and anything else asks anew.
+ */
+export function copilotTaskKey(parts: {
+  task: ReviewTask;
+  caseId: string;
+  versionId: string;
+  registryCheckedAt: string | null;
+  promptVersion: number;
+  attempt: number;
+}): string {
+  return uuidv5(
+    [
+      parts.task,
+      parts.caseId,
+      parts.versionId,
+      parts.registryCheckedAt ?? 'none',
+      String(parts.promptVersion),
+      String(parts.attempt),
+    ].join('|'),
+    KEY_NAMESPACE,
+  );
+}
+
 /** The AAD record id of a stored output: the case and the job it came from. */
 export function copilotOutputRecordId(caseId: string, jobId: string): string {
   return `review-copilot:${caseId}:${jobId}`;
+}
+
+/** A stored output of the copilot record, decrypted; null when it has none. */
+export async function openOutput(
+  cipher: FieldCipher,
+  record: CopilotRow,
+  output: 'summary' | 'explanations',
+): Promise<Record<string, unknown> | null> {
+  const [jobId, ciphertext, envelope] =
+    output === 'summary'
+      ? [record.summaryJobId, record.summaryCiphertext, record.summaryEnvelope]
+      : [record.explanationsJobId, record.explanationsCiphertext, record.explanationsEnvelope];
+  if (jobId === null || ciphertext === null || envelope === null) return null;
+  const plaintext = await cipher.decrypt({
+    tenant: record.tenant,
+    recordId: copilotOutputRecordId(record.caseId, jobId),
+    ciphertext,
+    envelope,
+  });
+  return JSON.parse(plaintext.toString('utf8')) as Record<string, unknown>;
 }
 
 /** How sensitive a Commission's declarations are, as the gateway's gate reads it. */
@@ -374,7 +443,7 @@ export async function copilotOf(
 }
 
 function isRequested(record: CopilotRow, jobId: string): boolean {
-  return record.summarizeJobId === jobId || record.explainJobId === jobId;
+  return record.requestedSummaryJobId === jobId || record.requestedExplanationsJobId === jobId;
 }
 
 function hasOutputs(record: CopilotRow | undefined): boolean {

@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 
+import type { EventEnvelope } from '@adili/events';
 import { asc, eq, sql } from 'drizzle-orm';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -166,10 +167,12 @@ describe('review copilot', () => {
   /** Completes the latest request's jobs and waits for the copilot to be ready. */
   const completeJobs = async (caseId: string, overview = OVERVIEW) => {
     const row = await copilotRow(caseId);
-    if (!row?.summarizeJobId) throw new Error('no summarize job');
-    await deliver(api.ai.succeed(row.summarizeJobId, summaryOutput(overview)));
-    if (row.explainJobId) {
-      await deliver(api.ai.succeed(row.explainJobId, explanationsOutput(await flagIdsOf(caseId))));
+    if (!row?.requestedSummaryJobId) throw new Error('no summarize job');
+    await deliver(api.ai.succeed(row.requestedSummaryJobId, summaryOutput(overview)));
+    if (row.requestedExplanationsJobId) {
+      await deliver(
+        api.ai.succeed(row.requestedExplanationsJobId, explanationsOutput(await flagIdsOf(caseId))),
+      );
     }
     return untilStatus(caseId, 'ready');
   };
@@ -194,8 +197,8 @@ describe('review copilot', () => {
         status: 'pending',
         forVersionId: first.versionId,
         attempt: 1,
-        summarizeJobId: api.ai.jobsOf('summarize-declaration')[0]?.id,
-        explainJobId: api.ai.jobsOf('explain-flags')[0]?.id,
+        requestedSummaryJobId: api.ai.jobsOf('summarize-declaration')[0]?.id,
+        requestedExplanationsJobId: api.ai.jobsOf('explain-flags')[0]?.id,
       });
 
       // The inputs: the version's document, the case's flags by id, the synthetic demo tenant.
@@ -246,7 +249,7 @@ describe('review copilot', () => {
         failureReason: null,
         summary: summaryOutput(),
         explanations: explanationsOutput(flagIds),
-        jobs: { summarize: row.summarizeJobId, explain: row.explainJobId },
+        jobs: { summarize: row.requestedSummaryJobId, explain: row.requestedExplanationsJobId },
         feedback: [],
       });
 
@@ -302,6 +305,8 @@ describe('review copilot', () => {
 
       // A Commission without synthetic data is announced as highly confidential.
       expect(api.ai.calls[0]?.request.dataClass).toBe('highly-confidential');
+      // The prompt version asked for is pinned, as its idempotency key names it.
+      expect(api.ai.calls[0]?.request.promptVersion).toBe(1);
       const body = await view(created.id, tscReviewer);
       expect(body).toMatchObject({
         status: 'not-enabled',
@@ -310,10 +315,62 @@ describe('review copilot', () => {
         explanations: null,
       });
 
+      // A refresh asks the gateway again, which still blocks the Commission.
       await assign(created.id, 'reviewer-t');
+      const calls = api.ai.calls.length;
       const refresh = await api.send('POST', refreshPath(created.id), tscReviewer);
-      expect(refresh.statusCode).toBe(409);
-      expect(refresh.json()).toMatchObject({ type: 'ai-not-enabled' });
+      expect(refresh.statusCode).toBe(202);
+      expect(refresh.json()).toMatchObject({ status: 'not-enabled' });
+      expect(api.ai.calls.length).toBeGreaterThan(calls);
+
+      // Once the gateway admits the Commission, a refresh requests the copilot anew.
+      api.ai.reset();
+      const enabled = await api.send('POST', refreshPath(created.id), tscReviewer);
+      expect(enabled.statusCode).toBe(202);
+      expect(enabled.json()).toMatchObject({ status: 'pending' });
+    });
+
+    it('a gate rule that now admits the Commission requests its not-enabled copilots again', async () => {
+      const version = submittedVersion({
+        tenant: 'tsc',
+        document: declaration([statement('officer', { assets: [land] })]),
+      });
+      api.declarations.given(version);
+      api.ai.blockEverything('policy');
+      const created = await processedFromInbox(api, version);
+      await untilStatus(created.id, 'not-enabled');
+      api.ai.reset();
+
+      const policyEvent = (tenant: string, allowed: boolean): EventEnvelope => ({
+        specversion: '1.0',
+        id: randomUUID(),
+        source: 'adili/ai-gateway',
+        type: 'ai.policy.changed.v1',
+        time: new Date().toISOString(),
+        subject: randomUUID(),
+        datacontenttype: 'application/json',
+        tenant,
+        data: {
+          action: 'ai.gate-policy.changed',
+          tenant,
+          actor: 'platform-admin-1',
+          approvalRef: 'DPO-2028-01',
+          before: {
+            dataClass: 'highly-confidential',
+            providerClass: 'self-hosted',
+            allowed: !allowed,
+          },
+          after: { dataClass: 'highly-confidential', providerClass: 'self-hosted', allowed },
+        },
+      });
+      // A rule that blocks, or another Commission's rule, asks nothing.
+      await api.aiPolicy.changed(policyEvent('tsc', false));
+      await api.aiPolicy.changed(policyEvent('psc', true));
+      expect(api.ai.calls).toEqual([]);
+
+      await api.aiPolicy.changed(policyEvent('tsc', true));
+      await untilStatus(created.id, 'pending');
+      expect(api.ai.jobsOf('summarize-declaration')).toHaveLength(1);
     });
 
     it('is not enabled when a blocked job is announced by event, and failed when a job fails', async () => {
@@ -321,17 +378,17 @@ describe('review copilot', () => {
       api.declarations.given(first);
 
       const { caseId, row } = await createdCase(first);
-      await deliver(api.ai.block(row.summarizeJobId ?? ''));
+      await deliver(api.ai.block(row.requestedSummaryJobId ?? ''));
       await untilStatus(caseId, 'not-enabled');
 
-      // The assignee cannot refresh a Commission without AI; reset the row to a fresh request.
+      // Reset the row to a fresh request.
       await api.asPlatform((tx) =>
         tx
           .update(reviewCopilots)
           .set({ status: 'pending' })
           .where(eq(reviewCopilots.caseId, caseId)),
       );
-      await deliver(api.ai.fail(row.explainJobId ?? '', 'validation'));
+      await deliver(api.ai.fail(row.requestedExplanationsJobId ?? '', 'validation'));
       const failed = await untilStatus(caseId, 'failed');
       expect(failed.failureReason).toBe('validation');
       expect((await view(caseId)).failureReason).toBe('validation');
@@ -342,21 +399,21 @@ describe('review copilot', () => {
       api.declarations.given(first);
       const { caseId, row } = await createdCase(first);
       await assign(caseId, 'reviewer-a');
-      await deliver(api.ai.fail(row.summarizeJobId ?? ''));
+      await deliver(api.ai.fail(row.requestedSummaryJobId ?? ''));
       await untilStatus(caseId, 'failed');
 
       const refresh = await api.send('POST', refreshPath(caseId), reviewerA);
       expect(refresh.statusCode).toBe(202);
       const second = await copilotRow(caseId);
       expect(second?.status).toBe('pending');
-      expect(second?.summarizeJobId).not.toBe(row.summarizeJobId);
+      expect(second?.requestedSummaryJobId).not.toBe(row.requestedSummaryJobId);
 
       // The first request's other job ends: nothing changes.
-      const earlier = api.ai.succeed(row.explainJobId ?? '', explanationsOutput([]));
+      const earlier = api.ai.succeed(row.requestedExplanationsJobId ?? '', explanationsOutput([]));
       await deliver(earlier);
       // A job of another service's, for the same tenant.
       const foreign = {
-        ...api.ai.eventOf(second?.summarizeJobId ?? ''),
+        ...api.ai.eventOf(second?.requestedSummaryJobId ?? ''),
         id: randomUUID(),
         data: { jobId: randomUUID(), subjectRef: `declaration-draft:${randomUUID()}` },
       };
@@ -364,7 +421,7 @@ describe('review copilot', () => {
 
       await completeJobs(caseId);
       const ready = await copilotRow(caseId);
-      expect(ready?.explanationsJobId).toBe(second?.explainJobId);
+      expect(ready?.explanationsJobId).toBe(second?.requestedExplanationsJobId);
     });
 
     it('records a job that ended before the request was recorded (a cached result)', async () => {
@@ -395,7 +452,7 @@ describe('review copilot', () => {
         status: 'ready',
         summary: { overview: 'Refreshed overview.' },
       });
-      expect((await copilotRow(caseId))?.summaryJobId).not.toBe(row.summarizeJobId);
+      expect((await copilotRow(caseId))?.summaryJobId).not.toBe(row.requestedSummaryJobId);
     });
   });
 
@@ -471,8 +528,8 @@ describe('review copilot', () => {
       expect(await copilotRow(caseId)).toMatchObject({
         status: 'stale',
         attempt: 2,
-        summarizeJobId: stale?.summarizeJobId,
-        explainJobId: stale?.explainJobId,
+        requestedSummaryJobId: stale?.requestedSummaryJobId,
+        requestedExplanationsJobId: stale?.requestedExplanationsJobId,
       });
       const statuses = (await eventsOf('review.copilot.updated.v1')).map(
         (event) => (event.data as { status: string }).status,
@@ -605,15 +662,18 @@ describe('review copilot', () => {
           jobId: summary,
           feedback: {
             reviewerSubject: 'reviewer-a',
+            block: null,
             rating: 'not-helpful',
             reason: 'missed-something',
             note: 'No plot.',
           },
         },
       ]);
-      expect((await view(caseId)).feedback).toEqual([{ jobId: summary, rating: 'not-helpful' }]);
+      expect((await view(caseId)).feedback).toEqual([
+        { jobId: summary, block: null, rating: 'not-helpful' },
+      ]);
 
-      // Rated again: the gateway gets the new rating; one rating per output for the officer.
+      // Rated again: the gateway gets the new rating; one rating per output for the reviewer.
       expect((await api.send('PUT', feedbackPath(summary), reviewerA, helpful)).statusCode).toBe(
         200,
       );
@@ -629,8 +689,8 @@ describe('review copilot', () => {
       expect(mine).toHaveLength(2);
       expect(mine).toEqual(
         expect.arrayContaining([
-          { jobId: summary, rating: 'helpful' },
-          { jobId: explanations, rating: 'helpful' },
+          { jobId: summary, block: null, rating: 'helpful' },
+          { jobId: explanations, block: null, rating: 'helpful' },
         ]),
       );
       // The feedback in the view is the caller's own: others see none of it.
@@ -643,6 +703,46 @@ describe('review copilot', () => {
         )
         .then((result) => result.rows);
       expect(stored?.row).not.toContain('No plot');
+    });
+
+    it('rates each block on its own: a summary block, a flag explanation; a block the output lacks is 400', async () => {
+      const { caseId, summary, explanations } = await readyCase();
+      const [flagId] = await flagIdsOf(caseId);
+      if (!flagId) throw new Error('no flag');
+
+      const rate = (jobId: string, block: unknown, body: object = helpful) =>
+        api.send('PUT', feedbackPath(jobId), reviewerA, { ...body, block });
+      expect((await rate(summary, 'overview', notHelpful)).statusCode).toBe(200);
+      expect((await rate(summary, 'sections')).statusCode).toBe(200);
+      expect((await rate(explanations, `flag:${flagId}`)).statusCode).toBe(200);
+      // Rated again: replaces that block's rating only.
+      expect((await rate(summary, 'overview')).statusCode).toBe(200);
+
+      expect(api.ai.feedback.map((call) => [call.jobId, call.feedback.block])).toEqual([
+        [summary, 'overview'],
+        [summary, 'sections'],
+        [explanations, `flag:${flagId}`],
+        [summary, 'overview'],
+      ]);
+      expect((await view(caseId)).feedback).toEqual(
+        expect.arrayContaining([
+          { jobId: summary, block: 'overview', rating: 'helpful' },
+          { jobId: summary, block: 'sections', rating: 'helpful' },
+          { jobId: explanations, block: `flag:${flagId}`, rating: 'helpful' },
+        ]),
+      );
+      expect((await view(caseId)).feedback).toHaveLength(3);
+
+      // A flag the explanations do not cover, a summary block on the explanations, a malformed one.
+      for (const [jobId, block] of [
+        [explanations, `flag:${randomUUID()}`],
+        [explanations, 'overview'],
+        [summary, `flag:${flagId}`],
+        [summary, 'everything'],
+      ] as const) {
+        expect((await rate(jobId, block)).statusCode, block).toBe(400);
+      }
+      expect(api.ai.feedback).toHaveLength(4);
     });
 
     it('a supervisor and another reviewer get 403, other tenants and outsiders 404, nothing forwarded', async () => {

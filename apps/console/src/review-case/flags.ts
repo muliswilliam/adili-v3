@@ -128,7 +128,7 @@ export function concernsLine(flag: Flag, view: DeclarationView | null, declarant
     if (item) return item;
     const name = firstText(
       view ? statementFor(view, ref.personKey)?.name : null,
-      relationOf(ref.personKey) === 'officer' ? declarant : null,
+      relationOf(ref.personKey) === 'declarant' ? declarant : null,
     );
     return [category ?? 'Statement', name].filter(Boolean).join(' · ');
   });

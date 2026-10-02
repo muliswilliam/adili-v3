@@ -1,5 +1,5 @@
 {
-  "id": "b282989c-968a-46b1-ad12-23e78d4358b0",
+  "id": "4ca1de79-1bc2-4ac7-b301-10d21dadeb2e",
   "prevId": "43bc76ec-022f-4bf3-8047-b9b6d4b71df2",
   "version": "7",
   "dialect": "postgresql",
@@ -129,12 +129,6 @@
           "primaryKey": false,
           "notNull": false
         },
-        "violations": {
-          "name": "violations",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": false
-        },
         "approval_ref": {
           "name": "approval_ref",
           "type": "text",
@@ -245,7 +239,7 @@
         "id": {
           "name": "id",
           "type": "uuid",
-          "primaryKey": false,
+          "primaryKey": true,
           "notNull": true
         },
         "job_id": {
@@ -259,6 +253,12 @@
           "type": "text",
           "primaryKey": false,
           "notNull": true
+        },
+        "block": {
+          "name": "block",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
         },
         "rating": {
           "name": "rating",
@@ -302,26 +302,24 @@
           "onUpdate": "no action"
         }
       },
-      "compositePrimaryKeys": {
-        "feedback_job_id_reviewer_subject_pk": {
-          "name": "feedback_job_id_reviewer_subject_pk",
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "feedback_job_id_reviewer_subject_block_unique": {
+          "name": "feedback_job_id_reviewer_subject_block_unique",
+          "nullsNotDistinct": true,
           "columns": [
             "job_id",
-            "reviewer_subject"
-          ]
-        }
-      },
-      "uniqueConstraints": {
-        "feedback_id_unique": {
-          "name": "feedback_id_unique",
-          "nullsNotDistinct": false,
-          "columns": [
-            "id"
+            "reviewer_subject",
+            "block"
           ]
         }
       },
       "policies": {},
       "checkConstraints": {
+        "feedback_block_check": {
+          "name": "feedback_block_check",
+          "value": "char_length(\"feedback\".\"block\") <= 64"
+        },
         "feedback_rating_check": {
           "name": "feedback_rating_check",
           "value": "\"feedback\".\"rating\" in ('helpful', 'not-helpful')"
@@ -524,12 +522,6 @@
         "output_purged_at": {
           "name": "output_purged_at",
           "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "violations": {
-          "name": "violations",
-          "type": "jsonb",
           "primaryKey": false,
           "notNull": false
         },

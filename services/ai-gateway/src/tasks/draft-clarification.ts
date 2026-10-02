@@ -44,4 +44,6 @@ export const draftClarification = defineTask({
   }),
   promptVersions: [1],
   maxOutputTokens: 4096,
+  // Drafts are stored briefly (spec 07c): the reviewer inserts them into the composer or not.
+  outputRetentionHours: 24,
 });

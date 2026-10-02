@@ -66,6 +66,24 @@ describe('SplitPane', () => {
     expect(handle.getAttribute('aria-valuenow')).toBe('440');
   });
 
+  it('leaves arrow keys with a modifier to the browser (Alt+Left goes back)', () => {
+    const handle = renderPane();
+
+    for (const modifier of ['altKey', 'metaKey', 'ctrlKey'] as const) {
+      const event = fireEvent.keyDown(handle, { key: 'ArrowLeft', [modifier]: true });
+      expect(event).toBe(true);
+    }
+    expect(handle.getAttribute('aria-valuenow')).toBe('440');
+  });
+
+  it('reads its width out in words', () => {
+    const handle = renderPane();
+
+    expect(handle.getAttribute('aria-valuetext')).toBe('440 pixels wide');
+    fireEvent.keyDown(handle, { key: 'ArrowLeft' });
+    expect(handle.getAttribute('aria-valuetext')).toBe('464 pixels wide');
+  });
+
   it('resizes by dragging the handle', () => {
     const handle = renderPane();
     const grid = handle.parentElement ?? document.body;

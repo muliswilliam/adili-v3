@@ -7,10 +7,11 @@ import { caseTenant, isSupervisor } from '../cases/access.js';
 import { findCase } from '../cases/case-lookup.js';
 import type { ReviewSchema } from '../db/schema.js';
 import { DeclarationsUnavailable } from '../declarations/declarations-client.js';
-import { declarationsUnavailable, upstreamUnavailable } from '../internal-api/upstream.js';
+import { declarationsUnavailable } from '../internal-api/upstream.js';
 import { type CopilotRatingView, ratingsOf } from './copilot-feedback.js';
-import { copilotOf, copilotOutputRecordId, CopilotRequests } from './copilot-requests.js';
-import type { CopilotRow, CopilotStatus } from './schema.js';
+import { copilotOf, CopilotRequests, openOutput } from './copilot-requests.js';
+import { aiGatewayUnavailable } from './problems.js';
+import type { CopilotStatus } from './schema.js';
 
 /** review.yaml `CopilotView`. */
 export interface CopilotView {
@@ -78,8 +79,8 @@ export class CopilotService {
       forVersionId: record.generatedForVersionId ?? record.forVersionId,
       generatedAt: record.generatedAt?.toISOString() ?? null,
       failureReason: record.failureReason,
-      summary: await this.open(tenant, record, 'summary'),
-      explanations: await this.open(tenant, record, 'explanations'),
+      summary: await openOutput(this.cipher, record, 'summary'),
+      explanations: await openOutput(this.cipher, record, 'explanations'),
       jobs: { summarize: record.summaryJobId, explain: record.explanationsJobId },
       feedback,
     };
@@ -87,8 +88,9 @@ export class CopilotService {
 
   /**
    * Requests the copilot again (S11): the case's assignee or a supervisor of the Commission; any
-   * other reviewer gets 403. 409 while the outputs of a first request are still produced, and
-   * when AI assistance is not enabled for the Commission. The declaration is read for the caller.
+   * other reviewer gets 403. 409 while the outputs of a first request are still produced. A
+   * copilot that was not enabled is requested again: the gateway decides whether the Commission
+   * may use AI now. The declaration is read for the caller.
    */
   async refresh(principal: Principal, caseId: string): Promise<CopilotView> {
     const tenant = caseTenant(principal);
@@ -119,17 +121,6 @@ export class CopilotService {
         { code: 'copilot-pending' },
       );
     }
-    if (record?.status === 'not-enabled') {
-      throw new ProblemException(
-        {
-          type: 'ai-not-enabled',
-          title: 'AI assistance not enabled',
-          status: HttpStatus.CONFLICT,
-          detail: 'AI assistance is not enabled for this Commission.',
-        },
-        { code: 'ai-not-enabled' },
-      );
-    }
 
     try {
       await this.requests.request({
@@ -140,34 +131,9 @@ export class CopilotService {
       });
     } catch (error) {
       if (error instanceof DeclarationsUnavailable) throw declarationsUnavailable();
-      if (error instanceof AiGatewayUnavailable) {
-        throw upstreamUnavailable(
-          'ai-gateway',
-          'The AI gateway cannot be reached. Try again shortly.',
-          HttpStatus.SERVICE_UNAVAILABLE,
-        );
-      }
+      if (error instanceof AiGatewayUnavailable) throw aiGatewayUnavailable();
       throw error;
     }
     return this.view(principal, row.id);
-  }
-
-  private async open(
-    tenant: string,
-    record: CopilotRow,
-    output: 'summary' | 'explanations',
-  ): Promise<Record<string, unknown> | null> {
-    const [jobId, ciphertext, envelope] =
-      output === 'summary'
-        ? [record.summaryJobId, record.summaryCiphertext, record.summaryEnvelope]
-        : [record.explanationsJobId, record.explanationsCiphertext, record.explanationsEnvelope];
-    if (jobId === null || ciphertext === null || envelope === null) return null;
-    const plaintext = await this.cipher.decrypt({
-      tenant,
-      recordId: copilotOutputRecordId(record.caseId, jobId),
-      ciphertext,
-      envelope,
-    });
-    return JSON.parse(plaintext.toString('utf8')) as Record<string, unknown>;
   }
 }

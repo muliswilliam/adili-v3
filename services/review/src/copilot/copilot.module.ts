@@ -4,6 +4,7 @@ import { AiGatewayModule } from '../ai-gateway/ai-gateway.module.js';
 import { DeclarationsModule } from '../declarations/declarations.module.js';
 import { DirectoryModule } from '../directory/directory.module.js';
 import { AiJobConsumer } from './ai-job.consumer.js';
+import { AiPolicyConsumer } from './ai-policy.consumer.js';
 import { AiStatusController } from './ai-status.controller.js';
 import { CopilotController } from './copilot.controller.js';
 import { CopilotDraftPurge } from './copilot-draft-purge.js';
@@ -28,6 +29,7 @@ import { CopilotWorkflows } from './copilot-workflows.js';
     CopilotFeedbackController,
     AiStatusController,
     AiJobConsumer,
+    AiPolicyConsumer,
   ],
   providers: [
     CopilotService,

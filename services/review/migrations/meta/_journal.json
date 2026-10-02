@@ -134,6 +134,27 @@
       "when": 1790928716333,
       "tag": "0018_clarification_opening",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1790931554464,
+      "tag": "0019_copilot_draft_content",
+      "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1790932123044,
+      "tag": "0020_copilot_rating_blocks",
+      "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1790932355731,
+      "tag": "0021_clarification_ai_drafted",
+      "breakpoints": true
     }
   ]
 }

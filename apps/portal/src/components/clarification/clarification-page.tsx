@@ -23,6 +23,7 @@ import {
   Message01Icon,
   Notification01Icon,
   SentIcon,
+  SparklesIcon,
   UnavailableIcon,
 } from '@hugeicons/core-free-icons';
 import { Link, useRouter } from '@tanstack/react-router';
@@ -410,9 +411,18 @@ function Points({
 }) {
   const { items, response } = clarification;
   const heading = form ? COPY.askedOpen : response ? COPY.askedAnswered : COPY.askedClosed;
+  // ADR-007: AI-assisted text stays labelled, for the declarant too.
+  const aiAssisted =
+    clarification.openingAiJobId !== null || items.some((item) => Boolean(item.aiJobId));
   return (
     <Card className="p-0 sm:p-0">
       <h2 className="border-b px-5 py-4 text-base font-semibold">{heading}</h2>
+      {aiAssisted ? (
+        <p className="flex items-start gap-2 border-b px-5 py-3 text-[13px] text-muted-foreground">
+          <Icon icon={SparklesIcon} className="mt-0.5 size-3.5 shrink-0" />
+          {COPY.aiAssisted}
+        </p>
+      ) : null}
       <ol className="divide-y">
         {items.map((item, index) => {
           const answer = response?.items.find((each) => each.index === index);

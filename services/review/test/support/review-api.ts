@@ -28,6 +28,7 @@ import { AppModule } from '../../src/app.module.js';
 import type { ReviewTransaction } from '../../src/cases/case-lookup.js';
 import { Clock } from '../../src/clock.js';
 import { AiJobConsumer } from '../../src/copilot/ai-job.consumer.js';
+import { AiPolicyConsumer } from '../../src/copilot/ai-policy.consumer.js';
 import { CopilotActivities } from '../../src/copilot/activities.js';
 import { type ReviewSchema, schema } from '../../src/db/schema.js';
 import { DeclarationsClient } from '../../src/declarations/declarations-client.js';
@@ -87,6 +88,7 @@ export interface ReviewApi {
   cipher: FakeCipher;
   /** The inbox consumer of the `ai.job.*` events. */
   aiJobs: AiJobConsumer;
+  aiPolicy: AiPolicyConsumer;
   /** The copilot's activities, for driving its steps directly. */
   copilot: CopilotActivities;
   /** The inbox consumer of `declaration.submitted.v1`, called as the RabbitMQ transport would. */
@@ -223,6 +225,7 @@ export async function startReviewApi(): Promise<ReviewApi> {
     ai,
     cipher,
     aiJobs: app.get(AiJobConsumer),
+    aiPolicy: app.get(AiPolicyConsumer),
     copilot: app.get(CopilotActivities),
     consumer: app.get(DeclarationSubmittedConsumer),
     enforcement: app.get(EnforcementConsumer),

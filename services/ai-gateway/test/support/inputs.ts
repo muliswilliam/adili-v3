@@ -86,6 +86,22 @@ export function taskRequest(input: object, overrides: object = {}) {
   };
 }
 
+/** The header naming the tenant a service acts for (ADR-013 §8.8). */
+export function actingFor(tenant = 'demo'): { 'x-acting-tenant': string } {
+  return { 'x-acting-tenant': tenant };
+}
+
+/**
+ * A task call written with its tenant (as `taskRequest` gives it), split into the request body
+ * and the `X-Acting-Tenant` header that carries the tenant.
+ */
+export function taskCall({ tenant = 'demo', ...body }: { tenant?: string } & object): {
+  headers: { 'x-acting-tenant': string };
+  body: object;
+} {
+  return { headers: actingFor(tenant), body };
+}
+
 /** Synthetic aggregates for FY2026 with one prior year. */
 export const narrateInput: NarrateInput = {
   kind: 'narrate-compliance-report',

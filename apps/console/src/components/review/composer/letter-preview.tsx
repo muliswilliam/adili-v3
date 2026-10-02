@@ -27,11 +27,16 @@ export interface LetterItem {
 export interface LetterPreviewProps {
   commission: LetterCommission;
   reviewCase: Pick<CaseListItem, 'reference' | 'declarantName' | 'personnelFileNumber' | 'type'>;
-  /** The declarant's employer, from the declaration as filed. */
-  employer: string | null;
+  /** The declarant's reporting entity, from the declaration as filed (`reportingEntityOf`). */
+  reportingEntity: string | null;
   items: readonly LetterItem[];
   /** Draft with AI's opening paragraph, when there is one. */
   opening?: string | null;
+  /**
+   * Some of the text (the opening or an item) was drafted with AI: the letter says so, as the
+   * issued one does (`ClarificationLetterPayload.aiAssisted`, ADR-007).
+   */
+  aiAssisted?: boolean;
   /** Set once issued; until then the preview says when they are allocated. */
   reference?: string | null;
   verificationId?: string | null;
@@ -45,9 +50,10 @@ export interface LetterPreviewProps {
 export function LetterPreview({
   commission,
   reviewCase,
-  employer,
+  reportingEntity,
   items,
   opening,
+  aiAssisted = false,
   reference,
   verificationId,
   date,
@@ -60,14 +66,14 @@ export function LetterPreview({
     <article
       aria-label="Letter preview"
       className={cn(
-        'relative rounded-md bg-white px-5 py-6 sm:px-[30px] sm:py-7 font-serif text-[13.5px] leading-[1.6] text-[#222] shadow-[0_1px_3px_rgb(0_0_0/0.08),0_0_0_1px_var(--border)]',
+        'relative rounded-md bg-paper px-5 py-6 sm:px-[30px] sm:py-7 font-serif text-[13.5px] leading-[1.6] text-paper-foreground shadow-paper',
         className,
       )}
     >
-      <header className="mb-3.5 flex items-center gap-3 border-b-2 border-[#222] pb-3 font-sans">
+      <header className="mb-3.5 flex items-center gap-3 border-b-2 border-paper-foreground pb-3 font-sans">
         <span
           aria-hidden="true"
-          className="grid size-[38px] shrink-0 place-items-center rounded-full bg-[#1f3a2c] text-[11px] font-bold text-white"
+          className="grid size-[38px] shrink-0 place-items-center rounded-full bg-seal text-[11px] font-bold text-seal-foreground"
         >
           {commission.issuerCode}
         </span>
@@ -90,10 +96,10 @@ export function LetterPreview({
         {reviewCase.declarantName}
         <br />
         {t.letter.fileNumber(reviewCase.personnelFileNumber)}
-        {employer ? (
+        {reportingEntity ? (
           <>
             <br />
-            {employer}
+            {reportingEntity}
           </>
         ) : null}
       </p>
@@ -118,6 +124,9 @@ export function LetterPreview({
       </ol>
       <p>{t.letter.respond(dueAt)}</p>
       <p className="mt-3.5">{t.letter.signOff}</p>
+      {aiAssisted ? (
+        <p className="mt-2 font-sans text-[11.5px] italic">{t.letter.aiAssisted}</p>
+      ) : null}
       <footer className="mt-[18px] flex items-center gap-3.5 border-t pt-3 font-sans text-[11.5px] text-muted-foreground">
         {verificationId ? (
           <QrCode
@@ -152,14 +161,4 @@ export function LetterPreview({
       ) : null}
     </article>
   );
-}
-
-/** The declarant's employer in the declaration as filed, for the letter's address block. */
-export function employerOf(document: Record<string, unknown> | null): string | null {
-  const officer = document?.officer;
-  if (typeof officer !== 'object' || officer === null) return null;
-  const employment = (officer as Record<string, unknown>).employment;
-  if (typeof employment !== 'object' || employment === null) return null;
-  const employer = (employment as Record<string, unknown>).employer;
-  return typeof employer === 'string' && employer ? employer : null;
 }

@@ -21,7 +21,7 @@ import {
 export type Category = 'income' | 'assets' | 'liabilities';
 export const CATEGORIES: readonly Category[] = ['income', 'assets', 'liabilities'];
 
-export type Relation = 'officer' | 'spouse' | 'child';
+export type Relation = 'declarant' | 'spouse' | 'child';
 
 export interface DeclaredAttachment {
   uploadId: string;
@@ -97,7 +97,7 @@ export function personName(value: unknown): string {
 export function relationOf(personKey: string): Relation {
   if (personKey.startsWith('spouse:')) return 'spouse';
   if (personKey.startsWith('child:')) return 'child';
-  return 'officer';
+  return 'declarant';
 }
 
 const COUNTRY_NAMES = new Map(COUNTRIES.map((country) => [country.code, country.name]));
@@ -353,4 +353,15 @@ export function itemLabel(view: DeclarationView, itemId: string): string | null 
 /** The statement of a person, by key. */
 export function statementFor(view: DeclarationView, personKey: string): DeclaredStatement | null {
   return view.statements.find((each) => each.personKey === personKey) ?? null;
+}
+
+/**
+ * The declarant's reporting entity in the declaration as filed (`officer.employment.employer`
+ * in `declaration.v1`), for the case header and the letter's address block.
+ */
+export function reportingEntityOf(document: Record<string, unknown> | null): string | null {
+  const declarant = document?.officer;
+  if (!isRecord(declarant) || !isRecord(declarant.employment)) return null;
+  const entity = declarant.employment.employer;
+  return typeof entity === 'string' && entity ? entity : null;
 }

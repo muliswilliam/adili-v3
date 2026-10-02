@@ -16,7 +16,7 @@
  */
 import createClient from 'openapi-fetch';
 
-import { isRecord, json, problem, readJson } from '../mock-http';
+import { isRecord, json, mockCallerOf, problem, readJson, unsignedMockToken } from '../mock-http';
 import type { paths } from './api.gen';
 import type {
   DataClass,
@@ -203,29 +203,17 @@ interface Caller {
 
 /** The caller from the token's claims; the mock does not verify it, the gateway would. */
 function callerOf(request: Request): Caller {
-  const unknown: Caller = { subject: 'unknown', name: null, roles: [] };
-  const token = request.headers.get('authorization')?.replace(/^Bearer /, '') ?? '';
-  try {
-    const claims: unknown = JSON.parse(
-      Buffer.from(token.split('.')[1] ?? '', 'base64url').toString('utf8'),
-    );
-    if (!isRecord(claims)) return unknown;
-    const access = claims.realm_access;
-    const roles = isRecord(access) && Array.isArray(access.roles) ? access.roles : [];
-    return {
-      subject: typeof claims.sub === 'string' ? claims.sub : 'unknown',
-      name: typeof claims.name === 'string' ? claims.name : null,
-      roles: roles.filter((role): role is string => typeof role === 'string'),
-    };
-  } catch {
-    return unknown;
-  }
+  const caller = mockCallerOf(request);
+  return { ...caller, subject: caller.subject ?? 'unknown' };
 }
 
 /** An unsigned token with the claims the mock reads, for tests. */
 export function mockToken(name: string, roles: readonly string[]): string {
-  const part = (value: object) => Buffer.from(JSON.stringify(value)).toString('base64url');
-  return `${part({ alg: 'none' })}.${part({ sub: `user-${name.toLowerCase().replace(/\W+/g, '-')}`, name, realm_access: { roles } })}.`;
+  return unsignedMockToken({
+    subject: `user-${name.toLowerCase().replace(/\W+/g, '-')}`,
+    name,
+    roles,
+  });
 }
 
 /** A gateway client answered by this mock, as `name` holding `roles`, for tests. */

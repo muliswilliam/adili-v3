@@ -113,6 +113,49 @@ describe('useCaseCopilot', () => {
     expect(result.current.copilot?.status).toBe('ready');
   });
 
+  it('says the first read failed when the call itself throws, instead of loading forever', async () => {
+    const api = fakeApi([], ok(copilot('ready')));
+    api.read.mockRejectedValueOnce(new Error('Failed to fetch'));
+    const { result } = renderHook(() => useCaseCopilot(CASE, api));
+    await settle();
+    expect(result.current.error).toBe('unavailable');
+    act(() => {
+      result.current.retry();
+    });
+    await settle();
+    expect(result.current.copilot?.status).toBe('ready');
+  });
+
+  it('polls on after Check again when that read throws', async () => {
+    const api = fakeApi([ok(copilot('stale'))]);
+    const { result } = renderHook(() => useCaseCopilot(CASE, api));
+    await settle();
+    await wait(POLL_STOP_AFTER_MS);
+    expect(result.current.stopped).toBe(true);
+    api.read.mockRejectedValueOnce(new Error('Failed to fetch'));
+    act(() => {
+      result.current.retry();
+    });
+    await settle();
+    expect(result.current.stopped).toBe(false);
+    const polls = api.read.mock.calls.length;
+    await wait(2000);
+    expect(api.read).toHaveBeenCalledTimes(polls + 1);
+  });
+
+  it('stops refreshing and says so when the refresh call throws', async () => {
+    const api = fakeApi([ok(copilot('ready'))]);
+    api.refresh.mockRejectedValueOnce(new Error('Failed to fetch'));
+    const { result } = renderHook(() => useCaseCopilot(CASE, api));
+    await settle();
+    let problem: string | null = null;
+    await act(async () => {
+      problem = await result.current.refresh();
+    });
+    expect(problem).toBe('Copilot could not be refreshed. Try again.');
+    expect(result.current.refreshing).toBe(false);
+  });
+
   it('reads a 404 as not found', async () => {
     const api = fakeApi([
       { ok: false, error: { kind: 'problem', problem: { type: 'x', title: 'x', status: 404 } } },
@@ -160,7 +203,7 @@ describe('useCaseCopilot', () => {
     await act(async () => {
       problem = await result.current.refresh();
     });
-    expect(problem).toBe('Only the officer holding the case or a supervisor can refresh it.');
+    expect(problem).toBe('Only the reviewer holding the case or a supervisor can refresh it.');
   });
 
   it('starts from the view it is given without reading it again', async () => {
@@ -170,25 +213,33 @@ describe('useCaseCopilot', () => {
     expect(api.read).not.toHaveBeenCalled();
   });
 
-  it("keeps the caller's ratings: from the view, then as saved", async () => {
+  it("keeps the caller's ratings per block: from the view, then as saved", async () => {
     const api = fakeApi(
       [],
-      ok(copilot('ready', { feedback: [{ jobId: JOB, rating: 'helpful' }] })),
+      ok(copilot('ready', { feedback: [{ jobId: JOB, block: 'overview', rating: 'helpful' }] })),
     );
     const { result } = renderHook(() => useCaseCopilot(CASE, api));
     await settle();
-    expect(result.current.ratingOf(JOB)).toEqual({ rating: 'helpful', reason: null, note: null });
+    expect(result.current.ratingOf(JOB, 'overview')).toEqual({
+      rating: 'helpful',
+      reason: null,
+      note: null,
+    });
+    expect(result.current.ratingOf(JOB, 'changes')).toBeNull();
     const feedback = { rating: 'not-helpful', reason: 'too-long', note: null } as const;
     await act(async () => {
-      await result.current.rate(JOB, feedback);
+      await result.current.rate(JOB, 'changes', feedback);
     });
-    expect(api.rate).toHaveBeenCalledWith(JOB, feedback);
-    expect(result.current.ratingOf(JOB)).toEqual(feedback);
+    expect(api.rate).toHaveBeenCalledWith(JOB, 'changes', feedback);
+    expect(result.current.ratingOf(JOB, 'changes')).toEqual(feedback);
+    expect(result.current.ratingOf(JOB, 'overview')?.rating).toBe('helpful');
 
     api.rate.mockResolvedValueOnce({ ok: false, error: { kind: 'unavailable', detail: null } });
     await expect(
-      act(() => result.current.rate(JOB, { rating: 'helpful', reason: null, note: null })),
+      act(() =>
+        result.current.rate(JOB, 'changes', { rating: 'helpful', reason: null, note: null }),
+      ),
     ).rejects.toThrow();
-    expect(result.current.ratingOf(JOB)).toEqual(feedback);
+    expect(result.current.ratingOf(JOB, 'changes')).toEqual(feedback);
   });
 });

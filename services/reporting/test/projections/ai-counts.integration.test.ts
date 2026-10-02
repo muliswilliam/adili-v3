@@ -91,6 +91,7 @@ describe('AI counts projections (spec 07c)', () => {
     const other = aiFeedbackRecorded('psc', {
       feedbackId: randomUUID(),
       task: 'explain-flags',
+      block: `flag:${randomUUID()}`,
       rating: 'not-helpful',
       reason: 'too-long',
       recordedAt: '2028-02-02T08:00:00Z',

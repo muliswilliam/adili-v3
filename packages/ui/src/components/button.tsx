@@ -22,7 +22,7 @@ export const buttonVariants = cva(
           'bg-destructive text-destructive-foreground shadow-button-destructive hover:bg-destructive-hover',
         'destructive-ghost': 'text-destructive hover:bg-destructive-subtle',
         // The prototype kit's .btn-ai: an action that asks an AI model for something.
-        ai: 'bg-ai text-ai-foreground hover:bg-[color-mix(in_oklch,var(--ai),black_12%)]',
+        ai: 'bg-ai text-ai-foreground hover:bg-ai-hover',
         link: 'text-foreground underline decoration-input underline-offset-3 hover:decoration-foreground active:translate-y-0',
       },
       size: {

@@ -47,6 +47,7 @@ export const AI_ATTRIBUTES = {
   tenant: 'adili.tenant',
   outcome: 'adili.ai.outcome',
   reason: 'adili.ai.reason',
+  identifierClass: 'adili.ai.identifier_class',
 } as const;
 
 export interface CallContext {
@@ -72,6 +73,8 @@ export class GenAiTelemetry {
   private readonly jobs: Counter;
   private readonly cost: Counter;
   private readonly tokens: Counter;
+  private readonly unpriced: Counter;
+  private readonly minimised: Counter;
 
   constructor() {
     const meter = metrics.getMeter(SCOPE);
@@ -105,6 +108,34 @@ export class GenAiTelemetry {
       description: 'Tokens used by finished jobs, by tenant and task',
       unit: '{token}',
     });
+    this.unpriced = meter.createCounter('adili.ai.unpriced_calls', {
+      description: 'Calls to an external model without a list price, counted as costing 0',
+      unit: '{call}',
+    });
+    this.minimised = meter.createCounter('adili.ai.identifiers_minimised', {
+      description: 'Distinct identifiers replaced by tokens before a provider call, by class',
+      unit: '{identifier}',
+    });
+  }
+
+  /** Counts a call whose model has no list price, so the gap in the price table shows. */
+  unpricedCall(provider: string, model: string): void {
+    this.unpriced.add(1, { [GEN_AI.providerName]: provider, [GEN_AI.requestModel]: model });
+  }
+
+  /** Counts the identifiers minimised for one attempt, per class; counts only, never values. */
+  identifiersMinimised(
+    job: Pick<Job, 'tenant' | 'task'>,
+    counts: Readonly<Partial<Record<string, number>>>,
+  ): void {
+    for (const [identifierClass, n] of Object.entries(counts)) {
+      if (!n) continue;
+      this.minimised.add(n, {
+        [AI_ATTRIBUTES.tenant]: job.tenant,
+        [AI_ATTRIBUTES.task]: job.task,
+        [AI_ATTRIBUTES.identifierClass]: identifierClass,
+      });
+    }
   }
 
   /** Runs one provider call inside a GenAI client span, recording its usage and duration. */

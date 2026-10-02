@@ -6,6 +6,7 @@ import { ApplicationFailure } from '@temporalio/common';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 
 import type { CopilotActivities } from '../../src/copilot/activities.js';
+import { DeclarationsUnavailable } from '../../src/declarations/declarations-client.js';
 import { ProcessingActivities } from '../../src/processing/activities.js';
 import {
   type PreviousVersion,
@@ -66,6 +67,7 @@ function activities(overrides: Partial<Activities> = {}): Activities {
     requestCopilot: vi.fn(() => Promise.resolve()),
     recordCopilotJob: vi.fn(() => Promise.resolve()),
     copilotUnavailable: vi.fn(() => Promise.resolve()),
+    notEnabledCopilots: vi.fn(() => Promise.resolve([])),
     ...overrides,
   };
 }
@@ -152,7 +154,24 @@ describe('DeclarationProcessingWorkflow', () => {
 
     expect(result).toEqual({ outcome: 'created', caseId: 'case-1' });
     expect(mocks.requestCopilot).toHaveBeenCalledTimes(10);
-    expect(mocks.copilotUnavailable).toHaveBeenCalledWith({ tenant: 'psc', caseId: 'case-1' });
+    expect(mocks.copilotUnavailable).toHaveBeenCalledWith({
+      tenant: 'psc',
+      caseId: 'case-1',
+      reason: 'ai-gateway-unavailable',
+    });
+  }, 60_000);
+
+  it("records the copilot's own reason when the declaration cannot be pulled for it", async () => {
+    const unavailable = new DeclarationsUnavailable('declarations unreachable');
+    const mocks = activities({ requestCopilot: vi.fn(() => Promise.reject(unavailable)) });
+
+    await env.execute(declarationProcessing, { workflowsPath, activities: mocks, args: [input] });
+
+    expect(mocks.copilotUnavailable).toHaveBeenCalledWith({
+      tenant: 'psc',
+      caseId: 'case-1',
+      reason: 'declarations-unavailable',
+    });
   }, 60_000);
 
   it('hands the previous version to the rules', async () => {

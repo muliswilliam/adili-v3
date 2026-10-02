@@ -5,6 +5,7 @@ import {
   MOCK_COPILOT_DELAY_MS,
   MOCK_FLAG_IDS,
   mockSummary,
+  setMockAiOff,
   setMockCopilot,
 } from './review/copilot-mock.server';
 import { MOCK_CASE_IDS as CASES, mockReviewClient, resetReviewMock } from './review/mock.server';
@@ -80,32 +81,67 @@ describe('copilot endpoints (review mock)', () => {
     expect(later.ok && later.data.status).toBe('ready');
   });
 
-  it('refuses a refresh by someone not holding the case, and when AI is not enabled', async () => {
+  it('refuses a refresh by someone not holding the case', async () => {
     const theirs = await refreshCopilot(client(), CASES.peters);
     expect(theirs.ok || theirs.error).toMatchObject({ problem: { status: 403 } });
-
-    setMockCopilot(CASES.mine, { status: 'not-enabled', summary: null, explanations: null });
-    const off = await refreshCopilot(client(), CASES.mine);
-    expect(off.ok || off.error).toMatchObject({ problem: { status: 409 } });
   });
 
-  it("keeps one rating per reviewer per output and lists only the caller's", async () => {
+  it('asks again when the copilot was not enabled: pending once the Commission may use AI', async () => {
+    setMockCopilot(CASES.mine, { status: 'not-enabled', summary: null, explanations: null });
+    const asked = await refreshCopilot(client(), CASES.mine);
+    expect(asked.ok && asked.data.status).toBe('pending');
+  });
+
+  it('asks again when the copilot was not enabled, and stays so while AI is still off', async () => {
+    setMockAiOff(true);
+    setMockCopilot(CASES.mine, { status: 'not-enabled', summary: null, explanations: null });
+    const asked = await refreshCopilot(client(), CASES.mine);
+    expect(asked.ok && asked.data.status).toBe('not-enabled');
+  });
+
+  it("keeps one rating per reviewer per output block and lists only the caller's", async () => {
     const loaded = await loadCopilot(client(), CASES.mine);
     if (!loaded.ok) throw new Error('not ok');
     const jobId = loaded.data.jobs.summarize ?? '';
+    const rated = (block: string | null) => ({ block, reason: null, note: null });
     expect(
-      (await rateOutput(client(), jobId, { rating: 'helpful', reason: null, note: null })).ok,
+      (await rateOutput(client(), jobId, { ...rated('overview'), rating: 'helpful' })).ok,
     ).toBe(true);
-    await rateOutput(client(), jobId, { rating: 'not-helpful', reason: 'unclear', note: 'Long' });
+    await rateOutput(client(), jobId, {
+      block: 'overview',
+      rating: 'not-helpful',
+      reason: 'unclear',
+      note: 'Long',
+    });
+    await rateOutput(client(), jobId, { ...rated('changes'), rating: 'helpful' });
 
     const mine = await loadCopilot(client(), CASES.mine);
-    expect(mine.ok && mine.data.feedback).toEqual([{ jobId, rating: 'not-helpful' }]);
+    expect(mine.ok && mine.data.feedback).toEqual([
+      { jobId, block: 'overview', rating: 'not-helpful' },
+      { jobId, block: 'changes', rating: 'helpful' },
+    ]);
     const other = await loadCopilot(mockReviewClient('someone-else', 'Peter'), CASES.mine);
     expect(other.ok && other.data.feedback).toEqual([]);
-    // Only the officer holding the case rates it (spec 07c: supervisors read).
+    // A block the output does not have is refused.
+    const flagOnSummary = await rateOutput(client(), jobId, {
+      ...rated(`flag:${loaded.data.explanations?.explanations[0]?.flagId ?? ''}`),
+      rating: 'helpful',
+    });
+    expect(flagOnSummary.ok || flagOnSummary.error).toMatchObject({ problem: { status: 400 } });
+    const explained = loaded.data.explanations?.explanations[0]?.flagId ?? '';
+    expect(
+      (
+        await rateOutput(client(), loaded.data.jobs.explain ?? '', {
+          ...rated(`flag:${explained}`),
+          rating: 'helpful',
+        })
+      ).ok,
+    ).toBe(true);
+    // Only the reviewer holding the case rates it (spec 07c: supervisors read).
     const peters = await loadCopilot(client(), CASES.peters);
     if (!peters.ok) throw new Error('not ok');
     const notHolder = await rateOutput(client(), peters.data.jobs.summarize ?? '', {
+      block: 'overview',
       rating: 'helpful',
       reason: null,
       note: null,
@@ -113,6 +149,7 @@ describe('copilot endpoints (review mock)', () => {
     expect(notHolder.ok || notHolder.error).toMatchObject({ problem: { status: 403 } });
 
     const unknown = await rateOutput(client(), '00000000-0000-4000-8000-000000000000', {
+      block: 'overview',
       rating: 'helpful',
       reason: null,
       note: null,

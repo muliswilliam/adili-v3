@@ -21,6 +21,8 @@ export const en = {
   discardItem: 'Discard',
   discardItemLabel: (n: number) => `Discard drafted item ${String(n)}`,
   aiDraft: 'AI draft',
+  aiAssisted: 'AI-assisted',
+  aiAssistedTip: 'Drafted with AI. Check it before issuing; you approve what is sent.',
   addItem: 'Add item',
   noItemsTitle: 'No items',
   noItemsText: 'Add at least one item.',
@@ -51,10 +53,12 @@ export const en = {
   issueFailedTitle: 'This clarification could not be issued.',
   windowClosed: (date: string) =>
     `The clarification window closed on ${formatDate(date)}. Your draft is kept.`,
-  notMine: 'Only the officer holding the case can issue its clarifications. Your draft is kept.',
+  notMine: 'Only the reviewer holding the case can issue its clarifications. Your draft is kept.',
   issueUnavailable: 'The review service did not answer. Your draft is kept; try again.',
   saveFailed: 'The draft could not be saved. Try again.',
-  saveStale: 'Only the officer holding the case can change its clarifications.',
+  aiDraftGone:
+    'An AI-drafted item or opening no longer matches a Draft with AI of this case. Discard it and draft again, or write it yourself.',
+  saveStale: 'Only the reviewer holding the case can change its clarifications.',
   sessionEnded: 'Your session has ended. Sign in again.',
 
   responseDue: (date: string) => `Response due ${formatDate(date)}`,
@@ -90,6 +94,8 @@ export const en = {
     respond: (due: string) =>
       `Please respond by ${formatDate(due)}, within thirty days as required by section 35(3). Respond online in the Adili portal under Clarifications, answering each point and attaching any documents. You can still respond after this date, but your response will be recorded as late.`,
     signOff: 'For the Commission Secretary',
+    aiAssisted:
+      'Parts of this letter were drafted with AI assistance, then checked and approved by the Commission reviewer who issued it.',
     verifyPending: 'The verification code and QR are added when the letter is issued.',
     verificationCode: 'Verification code',
     verifyHow: 'Scan the code, or enter it on the Adili verification page, to check this letter.',

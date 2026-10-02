@@ -6,7 +6,7 @@ import { beforeAll, describe, expect, it } from 'vitest';
 
 import { routes } from '../../src/db/schema.js';
 import { ProviderError, type StructuredResult } from '../../src/providers/port.js';
-import { summarizeInput, summarizeOutput, usage } from '../support/inputs.js';
+import { actingFor, summarizeInput, summarizeOutput, usage } from '../support/inputs.js';
 import { ScriptedProvider } from '../support/scripted-provider.js';
 import { createTestApp, type TestApp } from '../support/test-app.js';
 
@@ -75,9 +75,8 @@ describe('resilience', () => {
     const response = await t.app.inject({
       method: 'POST',
       url: '/internal/v1/tasks/summarize-declaration',
-      headers: { ...auth, 'idempotency-key': randomUUID() },
+      headers: { ...auth, ...actingFor(tenant), 'idempotency-key': randomUUID() },
       payload: {
-        tenant,
         dataClass: 'synthetic',
         subjectRef: `review-case:${randomUUID()}`,
         input: summarizeInput,
@@ -89,7 +88,11 @@ describe('resilience', () => {
       if (Date.now() > deadline) throw new Error(`job ${job.id} still ${job.status}`);
       await sleep(100);
       job = (
-        await t.app.inject({ method: 'GET', url: `/internal/v1/jobs/${job.id}`, headers: auth })
+        await t.app.inject({
+          method: 'GET',
+          url: `/internal/v1/jobs/${job.id}`,
+          headers: { ...auth, ...actingFor(tenant) },
+        })
       ).json<Job>();
     }
     return job;

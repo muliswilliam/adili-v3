@@ -159,6 +159,51 @@ describe('DiffTable', () => {
     expect(rowOf('Land').slice(3, 5)).toEqual(['No change', 'No change']);
   });
 
+  it('says a change under 0.1% is less than 0.1%, never +0.0%', () => {
+    render(
+      <DiffTable
+        caption="Tiny changes"
+        previousVersion={1}
+        currentVersion={2}
+        groups={[
+          {
+            id: 'assets',
+            rows: [
+              {
+                id: 'up',
+                label: 'Land',
+                previousCents: KES(10_000_000),
+                currentCents: KES(10_000_100),
+              },
+              {
+                id: 'down',
+                label: 'Mortgage',
+                previousCents: KES(10_000_000),
+                currentCents: KES(9_999_900),
+                deltaPercent: -0.001,
+              },
+            ],
+          },
+        ]}
+      />,
+    );
+    const percentOf = (label: string) => {
+      const cells = screen
+        .getByRole('rowheader', { name: new RegExp(`^${label}`) })
+        .closest('tr')?.cells;
+      const cell = cells?.[4];
+      return {
+        shown: cell?.querySelector('[aria-hidden="true"]')?.textContent,
+        said: cell?.querySelector('.sr-only')?.textContent,
+      };
+    };
+    expect(percentOf('Land')).toEqual({ shown: '+<0.1%', said: 'Up less than 0.1 percent' });
+    expect(percentOf('Mortgage')).toEqual({
+      shown: '−<0.1%',
+      said: 'Down less than 0.1 percent',
+    });
+  });
+
   it('shows n/a for a null percentage and says why', () => {
     renderTable();
 

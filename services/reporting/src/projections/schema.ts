@@ -122,8 +122,8 @@ export const copilotCaseFacts = pgTable(
 );
 
 /**
- * Officers' ratings of AI outputs (spec 07c `ai.feedback.recorded.v1`): one row per rating, the
- * latest wins when an officer rates again. Rating and reason only; never who rated or the note.
+ * Reviewers' ratings of AI outputs (spec 07c `ai.feedback.recorded.v1`): one row per rating (of
+ * an output or one of its blocks), the latest wins when a reviewer rates again. Rating and reason only; never who rated or the note.
  */
 export const aiFeedbackFacts = pgTable(
   'ai_feedback_facts',

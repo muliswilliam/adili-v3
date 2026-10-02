@@ -8,16 +8,15 @@ import { v7 as uuidv7 } from 'uuid';
 import { CACHE_KEY, type Job, jobs, type schema } from '../db/schema.js';
 import { hashJson } from '../hashing.js';
 import { Budgets } from '../policy/budgets.js';
-import { GatePolicies } from '../policy/gate-policies.js';
 import { GenAiTelemetry } from '../policy/telemetry.js';
-import { ProviderRegistry } from '../providers/providers.module.js';
 import { findTask } from '../tasks/registry.js';
+import { Admission } from './admission.js';
 import { recordJobEnded } from './job-ended.js';
 import { JobWorkflows } from './job-workflows.js';
-import { CACHEABLE_STATUSES, isTerminal, type JobReason } from './job-states.js';
+import { CACHEABLE_STATUSES, isTerminal } from './job-states.js';
 import { toJobView, type JobView } from './job-view.js';
-import { type Route, Routing } from './routing.js';
-import { type TaskRequest, taskRequestSchema } from './task-request.js';
+import { Routing } from './routing.js';
+import { taskRequestSchema } from './task-request.js';
 
 export interface RunTaskResult {
   job: JobView;
@@ -34,8 +33,7 @@ export class JobsService {
   constructor(
     @InjectDatabase() private readonly db: Database<typeof schema>,
     private readonly routing: Routing,
-    private readonly providers: ProviderRegistry,
-    private readonly gate: GatePolicies,
+    private readonly admission: Admission,
     private readonly budgets: Budgets,
     private readonly workflows: JobWorkflows,
     private readonly events: EventPublisher,
@@ -59,6 +57,7 @@ export class JobsService {
   async run(
     taskName: string,
     body: unknown,
+    tenant: string,
     principal: Principal,
     idempotencyKey: string,
   ): Promise<RunTaskResult> {
@@ -81,9 +80,9 @@ export class JobsService {
         detail: `Task ${task.name} has prompt versions ${task.promptVersions.join(', ')}.`,
       });
     }
-    const route = await this.routing.route(request.tenant, task.name);
+    const route = await this.routing.route(tenant, task.name);
     const fields: Pick<Job, (typeof CACHE_KEY)[number]> = {
-      tenant: request.tenant,
+      tenant,
       caller: callerOf(principal),
       subjectRef: request.subjectRef,
       dataClass: request.dataClass,
@@ -96,7 +95,7 @@ export class JobsService {
     // What the caller asked for; the wait is not part of it, so a retry may wait differently.
     const requestHash = hashJson({
       task: task.name,
-      tenant: request.tenant,
+      tenant,
       dataClass: request.dataClass,
       subjectRef: request.subjectRef,
       promptVersion: request.promptVersion,
@@ -134,14 +133,14 @@ export class JobsService {
         return { job: await this.startAndWait(cached, request.waitSeconds), replayed: false };
       }
 
-      const limit = await this.budgets.rateLimited(request.tenant);
+      const limit = await this.budgets.rateLimited(tenant);
       if (limit.limited) {
         throw ProblemException.fromCode('rate-limit-exceeded', {
-          detail: `Tenant ${request.tenant} has reached its per-minute limit of AI task calls.`,
+          detail: `Tenant ${tenant} has reached its per-minute limit of AI task calls.`,
           extensions: { retryAfterSeconds: limit.retryAfterSeconds },
         });
       }
-      const ending = await this.admission(request, route);
+      const ending = await this.admission.refusal(tenant, request.dataClass, route.provider);
       const created = await this.db.transaction(async (tx) => {
         const [job] = await tx
           .insert(jobs)
@@ -169,25 +168,10 @@ export class JobsService {
     throw new Error('Could not create or find the job under contention');
   }
 
-  /** Why a new job must end at once, without reaching a provider; undefined when it may run. */
-  private async admission(
-    request: TaskRequest,
-    route: Route,
-  ): Promise<{ status: 'failed' | 'blocked'; reason: JobReason } | undefined> {
-    const provider = this.providers.get(route.provider);
-    if (!provider) return { status: 'failed', reason: 'provider-unavailable' };
-    if (!(await this.gate.admits(request.tenant, request.dataClass, provider.providerClass))) {
-      return { status: 'blocked', reason: 'policy' };
-    }
-    if (await this.budgets.exhausted(request.tenant))
-      return { status: 'blocked', reason: 'budget' };
-    return undefined;
-  }
-
-  /** A job is visible only to the caller that created it. */
-  async get(id: string, principal: Principal): Promise<JobView | undefined> {
+  /** A job is visible only to the caller that created it, acting for the job's tenant. */
+  async get(id: string, tenant: string, principal: Principal): Promise<JobView | undefined> {
     const job = await this.find(id, callerOf(principal));
-    return job && toJobView(job);
+    return job?.tenant === tenant ? toJobView(job) : undefined;
   }
 
   /**

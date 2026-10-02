@@ -162,14 +162,21 @@ export function DraftWithAi({
     if (count === 0 || busy) return;
     setPhase('busy');
     const input = draftInput(selection, flags, api.targets, language);
-    const outcome = await fetchDraft(
-      server,
-      { ...input, caseId, key: crypto.randomUUID() },
-      () => alive.current,
-      () => {
-        setPhase('pending');
-      },
-    );
+    let outcome: Awaited<ReturnType<typeof fetchDraft>>;
+    try {
+      outcome = await fetchDraft(
+        server,
+        { ...input, caseId, key: crypto.randomUUID() },
+        () => alive.current,
+        () => {
+          setPhase('pending');
+        },
+      );
+    } catch {
+      // The call itself failed (the network, or the server function threw).
+      if (alive.current) finish(t.failed(reasonText('provider-unavailable')), true);
+      return;
+    }
     if (outcome === null) return;
     if (outcome === 'timeout') {
       finish(t.failed(reasonText('timeout')), true);
@@ -189,7 +196,12 @@ export function DraftWithAi({
       return;
     }
     if (done.status === 'ready') {
-      api.insert({ label: done.label, opening: done.opening, items: done.items });
+      api.insert({
+        label: done.label,
+        jobId: done.jobId,
+        opening: done.opening,
+        items: done.items,
+      });
       onSelectionChange(NO_SELECTION);
       finish(t.inserted(done.items.length), false);
     }
@@ -204,7 +216,7 @@ export function DraftWithAi({
     return (
       <section
         aria-label={t.legend}
-        className="flex flex-wrap items-center gap-2 rounded-[14px] bg-ai-subtle px-3.5 py-3"
+        className="flex flex-wrap items-center gap-2 rounded-item bg-ai-subtle px-3.5 py-3"
       >
         <Tooltip content={t.notEnabled}>
           <span tabIndex={0} className="rounded-md">
@@ -224,7 +236,7 @@ export function DraftWithAi({
     <section
       aria-label={t.legend}
       aria-busy={busy}
-      className="grid gap-2.5 rounded-[14px] bg-ai-subtle px-3.5 py-3"
+      className="grid gap-2.5 rounded-item bg-ai-subtle px-3.5 py-3"
     >
       <div className="flex min-w-0 flex-wrap items-center gap-2">
         <span className="text-[12.5px] font-semibold text-ai-subtle-foreground">{t.draftFrom}</span>
@@ -366,7 +378,7 @@ function Chip({
   onRemove: () => void;
 }) {
   return (
-    <span className="inline-flex h-7 max-w-full min-w-0 items-center gap-1.5 rounded-full bg-card pr-1 pl-[9px] text-[12.5px] font-medium shadow-[0_0_0_1px] shadow-ai/20">
+    <span className="inline-flex h-7 max-w-full min-w-0 items-center gap-1.5 rounded-full bg-card pr-1 pl-[9px] text-[12.5px] font-medium ring-1 ring-ai/20">
       {lead}
       <span className="min-w-0 truncate">{text}</span>
       <button

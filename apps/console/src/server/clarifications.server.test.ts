@@ -136,6 +136,7 @@ const PLOT_ITEM = {
   itemId: MOCK_ITEM_IDS.plot,
   requirement: 'explain-discrepancy' as const,
   text: 'Explain the 150% change in value.',
+  aiJobId: null,
 };
 const KEYS = {
   draft: 'd0000000-0000-4000-8000-000000000001',

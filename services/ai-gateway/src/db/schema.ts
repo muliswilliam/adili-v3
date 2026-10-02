@@ -11,6 +11,7 @@ import {
   primaryKey,
   text,
   timestamp,
+  unique,
   uniqueIndex,
   uuid,
 } from 'drizzle-orm/pg-core';
@@ -201,27 +202,33 @@ export const FEEDBACK_REASONS = [
 export type FeedbackReason = (typeof FEEDBACK_REASONS)[number];
 
 /**
- * Reviewers' ratings of job outputs (spec 07c): one per reviewer per job, a later rating by the
- * same reviewer replacing the earlier one. The note is the reviewer's own words and stays here;
- * events carry the rating and reason only.
+ * Reviewers' ratings of job outputs (spec 07c): one per reviewer per block of a job's output (a
+ * summary's section, a flag's explanation, or the output as a whole), a later rating by the same
+ * reviewer of the same block replacing the earlier one. The note is the reviewer's own words and
+ * stays here; events carry the rating, reason and block only.
  */
 export const feedback = pgTable(
   'feedback',
   {
     /** Stable across updates: events name the rating by it, so counts can take the latest. */
-    id: uuid().notNull().unique(),
+    id: uuid().primaryKey(),
     jobId: uuid()
       .notNull()
       .references(() => jobs.id),
-    /** The officer, as the calling service knows them (its token's `sub`). */
+    /** The reviewer, as the calling service knows them (its token's `sub`). */
     reviewerSubject: text().notNull(),
+    /** The block rated (`overview`, `flag:<id>`, ...); null for the output as a whole. */
+    block: text(),
     rating: text({ enum: FEEDBACK_RATINGS }).notNull(),
     reason: text({ enum: FEEDBACK_REASONS }),
     note: text(),
     at: timestamp({ withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [
-    primaryKey({ columns: [table.jobId, table.reviewerSubject] }),
+    unique('feedback_job_id_reviewer_subject_block_unique')
+      .on(table.jobId, table.reviewerSubject, table.block)
+      .nullsNotDistinct(),
+    check('feedback_block_check', sql`char_length(${table.block}) <= 64`),
     check('feedback_rating_check', sql`${table.rating} in ('helpful', 'not-helpful')`),
     check(
       'feedback_reason_check',

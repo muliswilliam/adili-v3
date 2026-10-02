@@ -35,7 +35,7 @@ export class CopilotController {
     summary:
       'AI-assisted summary and flag explanations for the case (reviewer, supervisor; audited read)',
     description:
-      "Reviewers and supervisors of the case's Commission; anyone else gets 404. Indicators, not findings: a named officer decides.",
+      "Reviewers and supervisors of the case's Commission; anyone else gets 404. Indicators, not findings: a named reviewer decides.",
   })
   @ApiOkResponse({ description: 'Copilot view', schema: schemaRef('CopilotView') })
   @ApiProblemResponse(404, NOT_VISIBLE)
@@ -57,10 +57,7 @@ export class CopilotController {
   @ApiAcceptedResponse({ description: 'Requested', schema: schemaRef('CopilotView') })
   @ApiProblemResponse(403, 'The caller is neither the assignee nor a supervisor')
   @ApiProblemResponse(404, NOT_VISIBLE)
-  @ApiProblemResponse(
-    409,
-    'Problem type `copilot-pending` (already requested) or `ai-not-enabled` (AI not enabled for this Commission)',
-  )
+  @ApiProblemResponse(409, 'Problem type `copilot-pending` (already requested)')
   @ApiProblemResponse(502, 'Declarations unavailable')
   @ApiProblemResponse(503, 'The AI gateway is unavailable; nothing was requested')
   refresh(

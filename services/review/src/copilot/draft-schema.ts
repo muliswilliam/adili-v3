@@ -1,5 +1,6 @@
+import type { FieldEnvelope } from '@adili/data-access';
 import { sql } from 'drizzle-orm';
-import { check, index, pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-core';
+import { check, index, jsonb, pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-core';
 
 import { reviewCases } from '../cases/schema.js';
 
@@ -14,12 +15,13 @@ export const COPILOT_DRAFT_TTL_HOURS = 24;
 
 /**
  * A clarification draft the ai-gateway's `draft-clarification` task produces for a reviewer
- * (spec 07c S12): which job, for whom, and how it ended. Kept for a day so a slow draft can be
- * polled, then purged. It never becomes a clarification: the reviewer puts the items into the
+ * (spec 07c S12): which job, for whom, how it ended and, once ready, the drafted text. Kept for a
+ * day, then purged. It never becomes a clarification: the reviewer puts the items into the
  * composer and issues through the clarification endpoints.
  *
- * No content: the selection and the drafted text stay with the gateway's job, read when the
- * draft is polled.
+ * The drafted text holds declaration content, so it is stored only encrypted under the
+ * Commission's key (ADR-006), bound to the draft and its job, and copied from the gateway's job
+ * once it is ready: the draft is served from here for its whole day, whatever the gateway keeps.
  */
 export const reviewCopilotDrafts = pgTable(
   'review_copilot_drafts',
@@ -36,6 +38,9 @@ export const reviewCopilotDrafts = pgTable(
     status: text({ enum: COPILOT_DRAFT_STATUSES }).notNull(),
     /** The gateway's job reason, or `rejected`. */
     failureReason: text(),
+    /** Base64 AES-256-GCM ciphertext of the draft (`DraftContent`); set once, and only, when ready. */
+    ciphertext: text(),
+    envelope: jsonb().$type<FieldEnvelope>(),
     createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
     expiresAt: timestamp({ withTimezone: true }).notNull(),
   },
@@ -43,6 +48,10 @@ export const reviewCopilotDrafts = pgTable(
     check(
       'review_copilot_drafts_status_check',
       sql`${table.status} in (${inList(COPILOT_DRAFT_STATUSES)})`,
+    ),
+    check(
+      'review_copilot_drafts_content_check',
+      sql`(${table.status} = 'ready') = (${table.ciphertext} is not null and ${table.envelope} is not null)`,
     ),
     index('review_copilot_drafts_expires_at_idx').on(table.expiresAt),
   ],

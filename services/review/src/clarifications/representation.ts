@@ -36,6 +36,8 @@ export interface ClarificationItemView {
   itemId: string | null;
   requirement: Requirement;
   text: string;
+  /** The Draft with AI job that drafted the item; null when the reviewer wrote it. */
+  aiJobId: string | null;
 }
 
 /** review.yaml `Clarification`. */
@@ -55,6 +57,8 @@ export interface ClarificationView {
   followUpOf: string | null;
   /** The letter's opening paragraph, before the items; null when it has none. */
   opening: string | null;
+  /** The Draft with AI job that drafted the opening paragraph; null when the reviewer wrote it. */
+  openingAiJobId: string | null;
   response: {
     items: {
       index: number;
@@ -99,6 +103,7 @@ export function clarificationView(
           },
     followUpOf: row.followUpOf,
     opening: row.opening,
+    openingAiJobId: row.openingAiJobId,
     response: response === null ? null : responseView(row.items, response),
   };
 }
@@ -110,6 +115,7 @@ function itemView(item: ClarificationItem): ClarificationItemView {
     itemId: item.itemId,
     requirement: item.requirement,
     text: item.text,
+    aiJobId: item.aiJobId ?? null,
   };
 }
 

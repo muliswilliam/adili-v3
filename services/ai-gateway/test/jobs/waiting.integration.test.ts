@@ -4,7 +4,7 @@ import { afterEach, beforeAll, describe, expect, it } from 'vitest';
 
 import type { StructuredResult } from '../../src/providers/port.js';
 import { contractErrors } from '../support/contract.js';
-import { explainInput, taskRequest, usage } from '../support/inputs.js';
+import { explainInput, taskCall, taskRequest, usage } from '../support/inputs.js';
 import { ScriptedProvider } from '../support/scripted-provider.js';
 import { createTestApp, type TestApp } from '../support/test-app.js';
 
@@ -62,13 +62,15 @@ describe('waiting for a task', () => {
     release();
   });
 
-  const runTask = (payload: object, key = randomUUID()) =>
-    t.app.inject({
+  const runTask = (payload: object, key = randomUUID()) => {
+    const call = taskCall(payload);
+    return t.app.inject({
       method: 'POST',
       url: '/internal/v1/tasks/draft-clarification',
-      headers: { ...auth, 'idempotency-key': key },
-      payload,
+      headers: { ...auth, ...call.headers, 'idempotency-key': key },
+      payload: call.body,
     });
+  };
 
   it('answers 200 with the draft when the job ends within the wait', async () => {
     const response = await runTask(taskRequest(draftInput, { waitSeconds: 30 }));

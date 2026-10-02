@@ -45,8 +45,8 @@ export const en = {
     you: 'You',
     ofRecord: 'Already a reviewer of record',
     reviewerOfRecordNote:
-      'Only officers who have worked this case are listed until the review service lists a Commission’s reviewers.',
-    noOfficers: 'There is nobody else to hand this case to yet.',
+      'Only reviewers who have worked this case are listed until the review service lists a Commission’s reviewers.',
+    noReviewers: 'There is nobody else to hand this case to yet.',
     unassignTitle: 'Unassign this case?',
     unassignBody: (reference: string, name: string) =>
       `${reference} returns to the queue unassigned. ${name} remains a reviewer of record; their notes stay.`,
@@ -55,7 +55,7 @@ export const en = {
   toasts: {
     claimed: 'Case claimed. You hold it now.',
     claimConflict: (name: string | null) =>
-      name ? `Already claimed by ${name}` : 'Another officer claimed this case first',
+      name ? `Already claimed by ${name}` : 'Another reviewer claimed this case first',
     released: 'Case released to the queue',
     reassigned: (name: string) => `Reassigned to ${name}`,
     assigned: (name: string) => `Assigned to ${name}`,

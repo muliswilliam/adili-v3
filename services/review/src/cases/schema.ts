@@ -264,6 +264,11 @@ export interface ClarificationItem {
   itemId: string | null;
   requirement: (typeof REQUIREMENTS)[number];
   text: string;
+  /**
+   * The Draft with AI job that drafted the item, kept when the reviewer edits it (ADR-007: AI
+   * content stays labelled); null or absent when the reviewer wrote it.
+   */
+  aiJobId?: string | null;
 }
 
 /**
@@ -276,7 +281,12 @@ export interface ClarificationLetter {
   commission: { name: string; issuerCode: string };
   /** The opening paragraph, before the items; absent from letters issued before it existed. */
   opening?: string | null;
-  items: { label: string; requirementLabel: string; text: string }[];
+  /**
+   * Some of the text was drafted with AI (ADR-007), which the letter says; absent from letters
+   * issued before it was recorded.
+   */
+  aiAssisted?: boolean;
+  items: { label: string; requirementLabel: string; text: string; aiAssisted?: boolean }[];
 }
 
 /** A written request for clarification (Act s.35(2)-(4)), numbered `CLR-…` when issued. */
@@ -295,6 +305,8 @@ export const clarifications = pgTable(
     items: jsonb().$type<ClarificationItem[]>().notNull(),
     /** The letter's opening paragraph, before the items (e.g. from Draft with AI); null for none. */
     opening: text(),
+    /** The Draft with AI job that drafted the opening paragraph; null when the reviewer wrote it. */
+    openingAiJobId: uuid(),
     issuedAt: timestamp({ withTimezone: true }),
     dueAt: timestamp({ withTimezone: true }),
     respondedAt: timestamp({ withTimezone: true }),

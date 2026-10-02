@@ -192,7 +192,7 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
-describe('CaseView: the officer holding the case', () => {
+describe('CaseView: the reviewer holding the case', () => {
   it('heads the case with its reference, status, priority, window and the Release action', async () => {
     await renderCase(CASES.mine);
     expect(screen.getByRole('heading', { level: 1, name: 'John Kennedy Otieno' })).toBeTruthy();

@@ -9,10 +9,21 @@ import { z } from 'zod';
 import { FEEDBACK_RATINGS, FEEDBACK_REASONS, feedback, jobs, type schema } from '../db/schema.js';
 import { feedbackRecorded } from './events.js';
 
+/**
+ * A block of an output: a summary's `overview`, `changes`, `sections` or `worth-attention`, or
+ * an explanation's `flag:<flagId>`.
+ */
+export const FEEDBACK_BLOCK =
+  /^(overview|changes|sections|worth-attention|flag:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/;
+
 /** ai-gateway.yaml `FeedbackInput`. */
 export const feedbackInputSchema = z.object({
   reviewerSubject: z.string().min(1).max(255).meta({
-    description: 'The officer rating the output, as the calling service knows them (token `sub`)',
+    description: 'The reviewer rating the output, as the calling service knows them (token `sub`)',
+  }),
+  block: z.string().max(64).regex(FEEDBACK_BLOCK).nullable().optional().meta({
+    description:
+      "The block rated: a summary's `overview`, `changes`, `sections` or `worth-attention`, or an explanation's `flag:<flagId>`. Null or left out: the output as a whole",
   }),
   rating: z.enum(FEEDBACK_RATINGS),
   reason: z.enum(FEEDBACK_REASONS).nullable(),
@@ -24,13 +35,17 @@ export type FeedbackInput = z.infer<typeof feedbackInputSchema>;
 export const feedbackViewSchema = z.object({
   jobId: z.uuid(),
   ...feedbackInputSchema.shape,
+  block: z
+    .string()
+    .nullable()
+    .meta({ description: 'The block rated; null for the output as a whole' }),
   at: z.iso.datetime(),
 });
 export type FeedbackView = z.infer<typeof feedbackViewSchema>;
 
 /**
  * Reviewers' ratings of job outputs (spec 07c S13), recorded for the calling service that ran
- * the job: one per reviewer per job, a repeat replacing the earlier rating. Each rating is
+ * the job: one per reviewer per block of the output, a repeat replacing the earlier rating. Each rating is
  * announced by `ai.feedback.recorded.v1` in the same transaction.
  */
 @Injectable()
@@ -42,12 +57,13 @@ export class FeedbackService {
 
   /**
    * Records `input` for job `jobId`; undefined when the caller has no succeeded job with that id
-   * (another caller's job is indistinguishable from a missing one, and only a succeeded job has
-   * an output to rate).
+   * for `tenant` (another caller's or another tenant's job is indistinguishable from a missing
+   * one, and only a succeeded job has an output to rate).
    */
   async record(
     jobId: string,
     input: FeedbackInput,
+    tenant: string,
     principal: Principal,
   ): Promise<FeedbackView | undefined> {
     return this.db.transaction(async (tx) => {
@@ -57,6 +73,7 @@ export class FeedbackService {
         .where(
           and(
             eq(jobs.id, jobId),
+            eq(jobs.tenant, tenant),
             eq(jobs.caller, callerOf(principal)),
             eq(jobs.status, 'succeeded'),
           ),
@@ -64,9 +81,15 @@ export class FeedbackService {
       if (!job) return undefined;
       const [row] = await tx
         .insert(feedback)
-        .values({ id: uuidv7(), jobId: job.id, ...input, at: new Date() })
+        .values({
+          id: uuidv7(),
+          jobId: job.id,
+          ...input,
+          block: input.block ?? null,
+          at: new Date(),
+        })
         .onConflictDoUpdate({
-          target: [feedback.jobId, feedback.reviewerSubject],
+          target: [feedback.jobId, feedback.reviewerSubject, feedback.block],
           set: {
             rating: sql`excluded.rating`,
             reason: sql`excluded.reason`,
@@ -80,6 +103,7 @@ export class FeedbackService {
       return {
         jobId: row.jobId,
         reviewerSubject: row.reviewerSubject,
+        block: row.block,
         rating: row.rating,
         reason: row.reason,
         note: row.note,

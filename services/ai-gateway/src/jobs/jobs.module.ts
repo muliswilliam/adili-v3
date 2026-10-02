@@ -3,6 +3,7 @@ import { Module } from '@nestjs/common';
 import { config } from '../config.js';
 import { PolicyModule } from '../policy/policy.module.js';
 import { ProvidersModule } from '../providers/providers.module.js';
+import { Admission } from './admission.js';
 import { JobExecutor } from './job-executor.js';
 import { JOB_WORKFLOWS_OPTIONS, JobWorkflows, type JobWorkflowsOptions } from './job-workflows.js';
 import { JobsController } from './jobs.controller.js';
@@ -19,6 +20,7 @@ const ATTEMPT_OVERHEAD_MS = 30_000;
   controllers: [JobsController],
   providers: [
     JobsService,
+    Admission,
     JobExecutor,
     JobWorkflows,
     JobsJanitor,

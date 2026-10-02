@@ -44,7 +44,7 @@ export function CaseStatusBadge({ status }: { status: CaseViewDetail['case']['st
  */
 export function CaseHeader({
   detail,
-  employer,
+  reportingEntity,
   viewer,
   actions,
   supervisor,
@@ -53,7 +53,7 @@ export function CaseHeader({
 }: {
   detail: CaseViewDetail;
   /** The reporting entity, from the declaration when it could be read. */
-  employer: string | null;
+  reportingEntity: string | null;
   viewer: Assignee;
   actions: CaseActions;
   supervisor: boolean;
@@ -65,7 +65,7 @@ export function CaseHeader({
   const version = versionLine(detail);
   const history = detail.reviewerHistory;
   const supervisorOfRecord =
-    supervisor && history.some((officer) => officer.subject === viewer.subject);
+    supervisor && history.some((reviewer) => reviewer.subject === viewer.subject);
 
   const buttons = [];
   if (actions.claim) {
@@ -142,7 +142,7 @@ export function CaseHeader({
         <p className="mt-1 flex flex-wrap gap-x-[18px] gap-y-1 text-sm text-muted-foreground">
           <span>{t.fileNumber(item.personnelFileNumber)}</span>
           <span>{t.typeAndCycle(DECLARATION_TYPES[item.type], item.cycleYear)}</span>
-          {employer ? <span>{employer}</span> : null}
+          {reportingEntity ? <span>{reportingEntity}</span> : null}
           <span>{t.received(formatDate(item.receivedAt))}</span>
           {item.currentVersion > 1 || detail.versions.length > 1 ? (
             <span className="inline-flex items-center gap-[5px]">
@@ -166,13 +166,13 @@ export function CaseHeader({
           </span>
         </p>
       </div>
-      <div className="flex flex-wrap items-center gap-2.5 rounded-[14px] bg-card py-2.5 pr-3 pl-3.5 shadow-card">
+      <div className="flex flex-wrap items-center gap-2.5 rounded-item bg-card py-2.5 pr-3 pl-3.5 shadow-card">
         <div className="flex min-w-0 flex-wrap items-center gap-2.5">
           <span className="text-[13px] text-muted-foreground">{t.assignedTo}</span>
           <AssigneeChip assignee={item.assignee} viewerSubject={viewer.subject} />
           {history.length > 0 ? (
             <Tooltip
-              content={t.reviewersOfRecordTip(history.map((officer) => officer.name).join(', '))}
+              content={t.reviewersOfRecordTip(history.map((reviewer) => reviewer.name).join(', '))}
             >
               <span
                 tabIndex={0}

@@ -69,7 +69,7 @@ export interface Copilot {
   summary: CopilotSummary | null;
   explanations: CopilotExplanations | null;
   jobs: { summarize: string | null; explain: string | null };
-  /** The caller's own ratings, by job. */
+  /** The caller's own ratings, by job and block. */
   feedback: CopilotView['feedback'];
 }
 
@@ -130,7 +130,10 @@ export async function refreshCopilot(
   );
 }
 
-/** `PUT /v1/review/copilot/outputs/{jobId}/feedback`: one rating per reviewer per output. */
+/**
+ * `PUT /v1/review/copilot/outputs/{jobId}/feedback`: one rating per reviewer per output block
+ * (`block`: a summary block, an explanation's `flag:<id>`, or null for a whole draft).
+ */
 export async function rateOutput(
   client: ReviewClient,
   jobId: string,

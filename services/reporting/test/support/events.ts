@@ -241,7 +241,7 @@ export function copilotUpdated(
   );
 }
 
-/** `ai.feedback.recorded.v1` (ai-gateway spec 07c): an officer rated an output. */
+/** `ai.feedback.recorded.v1` (ai-gateway spec 07c): a reviewer rated an output or a block of it. */
 export function aiFeedbackRecorded(
   tenant: string,
   fixture: {
@@ -250,6 +250,7 @@ export function aiFeedbackRecorded(
     task?: string;
     rating: 'helpful' | 'not-helpful';
     reason?: string | null;
+    block?: string | null;
     recordedAt: string;
   },
 ): EventEnvelope {
@@ -264,6 +265,7 @@ export function aiFeedbackRecorded(
       tenant,
       rating: fixture.rating,
       reason: fixture.reason ?? null,
+      block: fixture.block ?? null,
       recordedAt: fixture.recordedAt,
     },
     fixture.recordedAt,

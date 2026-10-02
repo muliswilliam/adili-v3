@@ -8,7 +8,7 @@ import {
   schemaRef,
   TENANT_KEY,
 } from '@adili/api-kit';
-import { COMMISSION_ADMIN, SUPERVISOR } from '@adili/roles';
+import { COMMISSION_ADMIN } from '@adili/roles';
 
 import { AiGatewayClient, AiGatewayUnavailable } from '../ai-gateway/ai-gateway-client.js';
 import { upstreamUnavailable } from '../internal-api/upstream.js';
@@ -21,12 +21,11 @@ export interface CommissionAiStatus {
   dataClasses: string[];
 }
 
-const STATUS_ROLES: readonly string[] = [COMMISSION_ADMIN, SUPERVISOR];
-
 /**
  * The Commission's AI status line (spec 07c): the ai-gateway's tenant status, read for the
- * Commission's admin and supervisors. Enabled when the gate lets the routed provider see the
- * data class the copilot sends this Commission's cases as, so the line agrees with the panel.
+ * Commission's admin only (commission administrators see a read-only status line). Enabled when
+ * the gate lets the routed provider see the data class the copilot sends this Commission's cases
+ * as, so the line agrees with the panel.
  */
 @ApiTags('copilot')
 @Controller('v1/commissions/:slug/ai-status')
@@ -37,7 +36,7 @@ export class AiStatusController {
   @ApiParam({ name: 'slug', schema: { type: 'string', pattern: TENANT_KEY.source } })
   @ApiOperation({
     operationId: 'getCommissionAiStatus',
-    summary: 'Whether AI assistance is enabled for the Commission (commission-admin, supervisor)',
+    summary: 'Whether AI assistance is enabled for the Commission (commission-admin)',
   })
   @ApiOkResponse({ description: 'Status', schema: schemaRef('CommissionAiStatus') })
   @ApiProblemResponse(404, 'Not found, or not visible to the caller')
@@ -49,7 +48,7 @@ export class AiStatusController {
     const tenant = notFoundIfInvisible(
       principal.tenant === slug &&
         TENANT_KEY.test(slug) &&
-        principal.roles.some((role) => STATUS_ROLES.includes(role))
+        principal.roles.includes(COMMISSION_ADMIN)
         ? slug
         : null,
     );

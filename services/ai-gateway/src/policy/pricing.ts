@@ -10,8 +10,9 @@ interface ModelPrice {
 }
 
 /**
- * Anthropic list prices (first-party API, 2026-09). A model missing here costs 0, and a
- * self-hosted model has no per-token price. Replayed jobs are priced as the model they replay,
+ * Anthropic list prices (first-party API, 2026-09). A self-hosted model has no per-token price;
+ * an external model missing here is a gap in this table, which the executor warns about and
+ * counts (`adili.ai.unpriced_calls`) rather than letting budgets quietly read 0. Replayed jobs are priced as the model they replay,
  * so budgets and usage behave in tests and the demo as they would in production.
  */
 const PRICES: Readonly<Record<string, ModelPrice>> = {
@@ -22,10 +23,13 @@ const PRICES: Readonly<Record<string, ModelPrice>> = {
   'claude-haiku-4-5': { input: 1, output: 5, cacheRead: 0.1, cacheWrite: 1.25 },
 };
 
-/** Estimated cost of one call in micro-USD at list price (USD per MTok = micro-USD per token). */
-export function costMicros(model: string, usage: Usage): number {
+/**
+ * Estimated cost of one call in micro-USD at list price (USD per MTok = micro-USD per token);
+ * undefined for a model without a list price.
+ */
+export function costMicros(model: string, usage: Usage): number | undefined {
   const price = PRICES[model];
-  if (!price) return 0;
+  if (!price) return undefined;
   return Math.round(
     usage.inputTokens * price.input +
       usage.outputTokens * price.output +

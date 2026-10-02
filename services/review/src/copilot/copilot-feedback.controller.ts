@@ -14,7 +14,7 @@ import {
   type CopilotFeedbackInput,
 } from './copilot-feedback.js';
 
-/** Officers' ratings of copilot outputs (spec 07c S13), named by the output's job. */
+/** Reviewers' ratings of copilot outputs (spec 07c S13), named by the output's job and block. */
 @ApiTags('copilot')
 @Controller('v1/review/copilot/outputs/:jobId/feedback')
 export class CopilotFeedbackController {
@@ -26,11 +26,14 @@ export class CopilotFeedbackController {
   @ApiOperation({
     operationId: 'rateCopilotOutput',
     summary:
-      "Rate a copilot output shown on a case as helpful or not (the case's assignee); one rating per reviewer per output",
+      "Rate a copilot output shown on a case as helpful or not (the case's assignee); one rating per reviewer per output block",
   })
   @ApiBody({ required: true, schema: schemaRef('CopilotFeedbackInput') })
   @ApiOkResponse({ description: 'Recorded' })
-  @ApiProblemResponse(400, 'Request failed validation')
+  @ApiProblemResponse(
+    400,
+    'Request failed validation, or problem type `block-not-in-output`: the output has no such block',
+  )
   @ApiProblemResponse(403, "The caller is not the case's assignee (`not-the-assignee`)")
   @ApiProblemResponse(404, 'Not found, or not visible to the caller')
   @ApiProblemResponse(503, 'The AI gateway is unavailable; nothing was recorded')

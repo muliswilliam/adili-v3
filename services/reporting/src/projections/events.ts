@@ -134,8 +134,10 @@ export const copilotUpdatedData = z.object({
 });
 
 /**
- * `ai.feedback.recorded.v1` (ai-gateway, spec 07c): an officer rated an output. A rating changed
- * later comes again under the same `feedbackId`. No note and no officer: nothing to keep out.
+ * `ai.feedback.recorded.v1` (ai-gateway, spec 07c): a reviewer rated an output, or one block of
+ * it (`block`: a summary block, a flag's explanation; a rating counts the same either way). A
+ * rating changed later comes again under the same `feedbackId`. No note and no reviewer: nothing
+ * to keep out.
  */
 export const aiFeedbackRecordedData = z.object({
   feedbackId: z.uuid(),
@@ -143,5 +145,6 @@ export const aiFeedbackRecordedData = z.object({
   task: z.string().min(1),
   rating: z.enum(['helpful', 'not-helpful']),
   reason: z.enum(['inaccurate', 'missed-something', 'unclear', 'too-long', 'other']).nullable(),
+  block: z.string().max(64).nullish(),
   recordedAt: z.iso.datetime({ offset: true }),
 });

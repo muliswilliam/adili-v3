@@ -210,7 +210,7 @@ describe('ClarificationDetailView: drafts and the letter (#170)', () => {
     expect(within(items).getByText('Financial statement · John Kennedy Otieno')).toBeTruthy();
   });
 
-  it('continues a draft in the composer, for the officer holding the case', async () => {
+  it('continues a draft in the composer, for the reviewer holding the case', async () => {
     renderDetail(await detailOf(CASES.mine, K.draft));
     expect(screen.getByText('Not sent.')).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Continue draft' }));
@@ -260,6 +260,19 @@ describe('ClarificationDetailView: drafts and the letter (#170)', () => {
       </TooltipProvider>,
     );
     expect(screen.getByRole('dialog', { name: 'Clarification draft' })).toBeTruthy();
+  });
+
+  it('labels the items and opening drafted with AI, and the letter says so (ADR-007)', async () => {
+    renderDetail(await detailOf(CASES.mine, K.issued));
+    const [first, second] = screen
+      .getAllByRole('listitem')
+      .filter((each) => each.textContent.includes('What we asked'));
+    if (!first || !second) throw new Error('no items');
+    expect(within(first).getByRole('img', { name: /^AI-assisted\./ })).toBeTruthy();
+    expect(within(second).queryByRole('img', { name: /^AI-assisted/ })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Show letter' }));
+    const letter = screen.getByRole('article', { name: 'Letter preview' });
+    expect(within(letter).getByText(/drafted with AI assistance/)).toBeTruthy();
   });
 
   it('shows the issued letter on request', async () => {
@@ -406,7 +419,7 @@ describe('ClarificationDetailView: actions (S15)', () => {
       fireEvent.click(screen.getByRole('button', { name: 'Raise follow-up' }));
       await Promise.resolve();
     });
-    expect(screen.getByText('Only the officer holding the case can do this.')).toBeTruthy();
+    expect(screen.getByText('Only the reviewer holding the case can do this.')).toBeTruthy();
     expect(invalidate).toHaveBeenCalled();
     expect(navigate).not.toHaveBeenCalled();
   });

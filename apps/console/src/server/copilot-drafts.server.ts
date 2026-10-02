@@ -41,6 +41,7 @@ const draftItem = z.object({
 const copilotDraft = z.object({
   id: z.string(),
   status: z.enum(['pending', 'ready', 'failed']),
+  jobId: z.string().nullable(),
   label: z.unknown(),
   opening: z.string().nullable(),
   items: z.array(draftItem),
@@ -56,6 +57,8 @@ export type AiDraft =
   | {
       status: 'ready';
       id: string;
+      /** The drafting job, kept with each inserted item so it stays labelled (ADR-007). */
+      jobId: string | null;
       label: AiLabelDetails;
       opening: string | null;
       items: DraftedItem[];
@@ -79,6 +82,7 @@ export function readDraft(body: unknown): AiDraft | null {
   return {
     status: 'ready',
     id: draft.id,
+    jobId: draft.jobId,
     label: { task, promptVersion, provider, model, generatedAt, disclaimer },
     opening: draft.opening?.trim() ? draft.opening : null,
     items: draft.items,

@@ -145,7 +145,7 @@ describe('CaseCopilot (S15)', () => {
       const block = screen.getByRole('region', { name: title });
       expect(within(block).getByRole('img', { name: /^AI\. Summary · Anthropic/ })).toBeTruthy();
     }
-    expect(screen.getByText('Indicators, not findings. A named officer decides.')).toBeTruthy();
+    expect(screen.getByText('Indicators, not findings. A named reviewer decides.')).toBeTruthy();
   });
 
   it('opens a source in the declaration pane, highlighted', async () => {
@@ -197,23 +197,52 @@ describe('CaseCopilot (S15)', () => {
     expect(onToggle).toHaveBeenCalledWith(MOCK_FLAG_IDS.valueChange);
   });
 
-  it('rates the summary and the explanations, one rating per output (S13)', async () => {
+  it('rates each block of the summary and each explanation on its own (S13)', async () => {
     await mount();
-    const summaryRating = screen.getByRole('group', { name: 'Rate this summary' });
+    for (const name of [
+      'Rate the overview',
+      'Rate the changes since previous version',
+      'Rate the by person summary',
+      'Rate what is worth attention',
+    ]) {
+      expect(screen.getByRole('group', { name })).toBeTruthy();
+    }
+    const overview = screen.getByRole('group', { name: 'Rate the overview' });
     await act(() => {
-      fireEvent.click(within(summaryRating).getByRole('button', { name: 'Helpful' }));
+      fireEvent.click(within(overview).getByRole('button', { name: 'Helpful' }));
       return Promise.resolve();
     });
     expect(rateCopilotOutput).toHaveBeenCalledWith({
-      data: expect.objectContaining({ rating: 'helpful', reason: null, note: null }) as unknown,
+      data: expect.objectContaining({
+        block: 'overview',
+        rating: 'helpful',
+        reason: null,
+        note: null,
+      }) as unknown,
     });
     expect(
-      within(summaryRating).getByRole('button', { name: 'Helpful' }).getAttribute('aria-pressed'),
+      within(overview).getByRole('button', { name: 'Helpful' }).getAttribute('aria-pressed'),
     ).toBe('true');
+    // Rating one block leaves the others unrated.
+    expect(
+      within(screen.getByRole('group', { name: 'Rate what is worth attention' }))
+        .getByRole('button', { name: 'Helpful' })
+        .getAttribute('aria-pressed'),
+    ).toBe('false');
 
     fireEvent.mouseDown(screen.getByRole('tab', { name: /Flags/ }));
     fireEvent.click(screen.getByRole('tab', { name: /Flags/ }));
-    expect(screen.getByRole('group', { name: 'Rate the flag explanations' })).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: /Value changed by 150%/ }));
+    const explanation = screen.getByRole('group', {
+      name: 'Rate the explanation of Value changed by 150% since the previous declaration',
+    });
+    await act(() => {
+      fireEvent.click(within(explanation).getByRole('button', { name: 'Helpful' }));
+      return Promise.resolve();
+    });
+    expect(rateCopilotOutput).toHaveBeenLastCalledWith({
+      data: expect.objectContaining({ block: `flag:${MOCK_FLAG_IDS.valueChange}` }) as unknown,
+    });
   });
 
   it('shows a supervisor the rating read-only, with refresh', async () => {
@@ -222,20 +251,21 @@ describe('CaseCopilot (S15)', () => {
     const loaded = await loadCopilot(client, CASE);
     if (!loaded.ok) throw new Error('not ok');
     await rateOutput(client, loaded.data.jobs.summarize ?? '', {
+      block: 'overview',
       rating: 'helpful',
       reason: null,
       note: null,
     });
     await mount({ access: 'supervisor' });
     expect(screen.getByText('Rated helpful')).toBeTruthy();
-    expect(screen.queryByRole('group', { name: 'Rate this summary' })).toBeNull();
+    expect(screen.queryByRole('group', { name: 'Rate the overview' })).toBeNull();
     expect(screen.getByRole('button', { name: 'Refresh summary and explanations' })).toBeTruthy();
   });
 
   it('shows anyone else neither refresh nor ratings', async () => {
     await mount({ access: 'viewer' });
     expect(screen.queryByRole('button', { name: 'Refresh summary and explanations' })).toBeNull();
-    expect(screen.queryByRole('group', { name: 'Rate this summary' })).toBeNull();
+    expect(screen.queryByRole('group', { name: 'Rate the overview' })).toBeNull();
   });
 
   it('refreshes: pending with a skeleton until the new outputs are ready (S11)', async () => {
@@ -261,7 +291,7 @@ describe('CaseCopilot (S15)', () => {
       return Promise.resolve();
     });
     expect(
-      screen.getByText('Only the officer holding the case or a supervisor can refresh it.'),
+      screen.getByText('Only the reviewer holding the case or a supervisor can refresh it.'),
     ).toBeTruthy();
   });
 
@@ -372,10 +402,11 @@ describe('CopilotPanel states (S15)', () => {
     expect(screen.queryByRole('button', { name: 'Try again' })).toBeNull();
   });
 
-  it('not enabled: says so, explains why, and offers no refresh', () => {
+  it('not enabled: says so, explains why, and offers a refresh, which asks again', () => {
     renderState({ status: 'not-enabled', ...nothing });
     expect(screen.getByText('AI assistance is not enabled for this Commission.')).toBeTruthy();
-    expect(screen.queryByRole('button', { name: 'Refresh summary and explanations' })).toBeNull();
+    // The Commission's policy may have changed since: refresh asks the gateway again.
+    expect(screen.getByRole('button', { name: 'Refresh summary and explanations' })).toBeTruthy();
     expect(screen.queryByRole('tablist')).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: 'Learn why' }));
     const dialog = screen.getByRole('dialog', { name: 'Why AI is not enabled' });
