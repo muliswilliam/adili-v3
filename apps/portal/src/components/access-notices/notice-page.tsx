@@ -16,6 +16,7 @@ import {
   scopeSectionLabels,
   Tooltip,
   useToast,
+  useIdempotencyKey,
 } from '@adili/ui';
 import {
   ArrowLeft01Icon,
@@ -588,7 +589,7 @@ function ResponseForm({
     warnings.clear();
   }
   // One key per body: a retry of the same response replays, a changed one is a new request.
-  const [attempt, setAttempt] = useState<{ key: string; body: string } | null>(null);
+  const idempotencyKeys = useIdempotencyKey();
   const [confirming, setConfirming] = useState(false);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<SendError>(null);
@@ -621,9 +622,7 @@ function ResponseForm({
   async function send() {
     const check = checkRepresentations(state.form);
     if (check.status !== 'ready') return;
-    const body = JSON.stringify(check.body);
-    const idempotencyKey = attempt?.body === body ? attempt.key : crypto.randomUUID();
-    setAttempt({ key: idempotencyKey, body });
+    const idempotencyKey = idempotencyKeys.keyFor(check.body);
     setSending(true);
     let result;
     try {

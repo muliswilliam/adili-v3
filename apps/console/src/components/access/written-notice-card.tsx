@@ -7,10 +7,11 @@ import {
   Icon,
   Spinner,
   useToast,
+  useIdempotencyKey,
 } from '@adili/ui';
 import { AlertCircleIcon, File01Icon, Mail01Icon } from '@hugeicons/core-free-icons';
 import { useRouter } from '@tanstack/react-router';
-import { useId, useRef, useState } from 'react';
+import { useId, useState } from 'react';
 
 import type { AccessResult } from '../../server/access-requests.server';
 import { goToSignIn } from '../sign-in-redirect';
@@ -66,7 +67,7 @@ export function WrittenNoticeCard({
   const [busy, setBusy] = useState(false);
   // One key per day sent: kept across retries of it, a new one once the day changes (the
   // service keeps a refusal under its key, so a corrected day needs its own).
-  const attempt = useRef<{ key: string; day: string } | null>(null);
+  const idempotencyKey = useIdempotencyKey();
   const bounds = { today, earliest, earliestMessage };
 
   const closesOn = day && windowDays !== undefined ? dayAfter(day, windowDays) : null;
@@ -83,11 +84,12 @@ export function WrittenNoticeCard({
     if (problem || !day) return;
     setBusy(true);
     setFailure(null);
-    if (attempt.current?.day !== day) attempt.current = { key: crypto.randomUUID(), day };
-    const result = await record(day, attempt.current.key).catch((): AccessResult<unknown> => ({
-      ok: false,
-      error: { kind: 'unavailable', detail: null },
-    }));
+    const result = await record(day, idempotencyKey.keyFor(day)).catch(
+      (): AccessResult<unknown> => ({
+        ok: false,
+        error: { kind: 'unavailable', detail: null },
+      }),
+    );
     setBusy(false);
     if (result.ok) {
       toast({ title: success });

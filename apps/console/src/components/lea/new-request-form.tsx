@@ -15,6 +15,7 @@ import {
   Spinner,
   StatusMark,
   Textarea,
+  useIdempotencyKey,
 } from '@adili/ui';
 import {
   Alert02Icon,
@@ -53,8 +54,8 @@ const fieldId = (base: string, field: LeaField) => `${base}-${field}`;
 /**
  * A new written request (spec 10 FE-6, S11, Regs r.23(1)): the Commission, the officer sought,
  * the reason and the case reference, and the scope. The declarant is told only after a grant.
- * Sent once per form with its Idempotency-Key, so a retry after a network failure cannot file
- * it twice; then the LEA reference and the deadline the Commission's policy sets.
+ * Sent with one Idempotency-Key per body, so a retry after a network failure cannot file it
+ * twice; then the LEA reference and the deadline the Commission's policy sets.
  */
 export function NewRequestForm({ commissions }: { commissions: AccessCommission[] }) {
   const id = useId();
@@ -64,7 +65,7 @@ export function NewRequestForm({ commissions }: { commissions: AccessCommission[
   const [failure, setFailure] = useState<LeaSubmitFailure | null>(null);
   const [busy, setBusy] = useState(false);
   const [sent, setSent] = useState<LeaRequest | null>(null);
-  const key = useRef<string | null>(null);
+  const idempotencyKey = useIdempotencyKey();
   const alertRef = useRef<HTMLDivElement>(null);
   const chosen = commissions.find((each) => each.slug === draft.commission) ?? null;
 
@@ -98,13 +99,10 @@ export function NewRequestForm({ commissions }: { commissions: AccessCommission[
       focusFirst(found);
       return;
     }
-    key.current ??= crypto.randomUUID();
+    const input = leaInput({ ...draft, commission: draft.commission });
     setBusy(true);
     const result = await sendLeaRequest({
-      data: {
-        idempotencyKey: key.current,
-        input: leaInput({ ...draft, commission: draft.commission }),
-      },
+      data: { idempotencyKey: idempotencyKey.keyFor(input), input },
     }).catch((): AccessResult<LeaRequest> => ({
       ok: false,
       error: { kind: 'unavailable', detail: null },
@@ -120,7 +118,7 @@ export function NewRequestForm({ commissions }: { commissions: AccessCommission[
       goToSignIn();
       return;
     }
-    if (failed.newKey) key.current = null;
+    if (failed.newKey) idempotencyKey.reset();
     setFailure(failed);
     setErrors({ ...found, ...failed.fieldErrors });
     focusFirst(failed.fieldErrors);
