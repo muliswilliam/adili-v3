@@ -19,7 +19,7 @@ import {
 } from '@hugeicons/core-free-icons';
 
 import { budgetResetDate, failureReasonText } from './copilot-view';
-import { Callout, PanelBody, RetryButton } from './panel-parts';
+import { Callout, PanelBody, RetryButton, SessionEnded } from './panel-parts';
 import { messages as t } from './messages';
 
 /** The Copilot panel while it has no outputs to show: waiting, not enabled, failed. */
@@ -36,13 +36,16 @@ export function Waiting({
   sessionEnded?: boolean;
   onCheckAgain: () => void;
 }) {
+  if (sessionEnded) {
+    return (
+      <PanelBody className="pt-3">
+        <SessionEnded />
+      </PanelBody>
+    );
+  }
   return (
     <PanelBody className="pt-3">
-      {sessionEnded ? (
-        <Callout tone="warning" icon={Alert02Icon}>
-          {t.sessionEnded}
-        </Callout>
-      ) : stopped ? (
+      {stopped ? (
         <Callout
           tone="neutral"
           icon={Clock01Icon}

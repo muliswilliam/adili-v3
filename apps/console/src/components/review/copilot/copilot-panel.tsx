@@ -15,6 +15,7 @@ import {
   PanelLabel,
   type ResolveRef,
   RetryButton,
+  SessionEnded,
   TabContent,
 } from './panel-parts';
 import { Failed, NotEnabled, Waiting, WhyDialog } from './panel-states';
@@ -184,17 +185,21 @@ export function CopilotPanel({
   if (!copilot) {
     body = error ? (
       <PanelBody>
-        <Callout
-          tone="warning"
-          icon={Alert02Icon}
-          action={
-            error === 'unavailable' ? (
-              <RetryButton onClick={state.retry}>{t.tryAgain}</RetryButton>
-            ) : null
-          }
-        >
-          {error === 'unauthenticated' ? t.sessionEnded : t.loadFailed}
-        </Callout>
+        {error === 'unauthenticated' ? (
+          <SessionEnded />
+        ) : (
+          <Callout
+            tone="warning"
+            icon={Alert02Icon}
+            action={
+              error === 'unavailable' ? (
+                <RetryButton onClick={state.retry}>{t.tryAgain}</RetryButton>
+              ) : null
+            }
+          >
+            {t.loadFailed}
+          </Callout>
+        )}
         <p className="text-[13px] text-muted-foreground">{t.worksAsUsual}</p>
       </PanelBody>
     ) : (

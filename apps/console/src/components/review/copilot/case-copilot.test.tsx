@@ -25,6 +25,7 @@ import {
   resetReviewMock,
 } from '../../../server/review/mock.server';
 import type { CaseDetail, CopilotView } from '../../../server/review/types';
+import { goToSignIn } from '../../sign-in-redirect';
 import { CaseCopilot, type CaseCopilotProps } from './case-copilot';
 import { CopilotPanel } from './copilot-panel';
 import type { CopilotAccess } from './copilot-view';
@@ -34,6 +35,8 @@ import type { CaseCopilot as CopilotState } from './use-case-copilot';
 const ME = 'a1b2c3d4-0000-4000-8000-000000000001';
 
 // The server functions, answered by the review mock as the signed-in reviewer.
+vi.mock('../../sign-in-redirect', () => ({ goToSignIn: vi.fn() }));
+
 vi.mock('../../../server/copilot', async () => {
   const { loadCopilot, refreshCopilot, rateOutput } =
     await import('../../../server/copilot.server');
@@ -397,9 +400,13 @@ describe('CopilotPanel states (S15)', () => {
       renderState(status === 'pending' ? { status, ...nothing } : { status }, {
         sessionEnded: true,
       });
-      expect(screen.getByText('Your session has ended. Sign in again.')).toBeTruthy();
+      expect(screen.getByText('Your session has ended.')).toBeTruthy();
       expect(screen.queryByText('Preparing summary…')).toBeNull();
       expect(screen.queryByText('Declaration or registry results changed. Updating…')).toBeNull();
+      // Nothing is loading any more, so no skeleton says it is.
+      expect(document.querySelector('[aria-busy="true"]')).toBeNull();
+      fireEvent.click(screen.getByRole('button', { name: 'Sign in' }));
+      expect(goToSignIn).toHaveBeenCalledWith();
     },
   );
 

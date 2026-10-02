@@ -19,6 +19,7 @@ import {
 import { type ReactNode, useId } from 'react';
 
 import { formatRelativeTime } from '../../format';
+import { goToSignIn } from '../../sign-in-redirect';
 import type { Copilot, CopilotAiLabel, CopilotSourceRef } from '../../../server/copilot.server';
 import type { CaseDetail } from '../../../server/review/types';
 import { versionNumber } from './copilot-view';
@@ -110,9 +111,7 @@ export function TabContent({
     <TabsContent value={value} className="mt-0 rounded-none rounded-b-2xl">
       <PanelBody>
         {stale && sessionEnded ? (
-          <Callout tone="warning" icon={Alert02Icon}>
-            {t.sessionEnded}
-          </Callout>
+          <SessionEnded />
         ) : stale && stopped ? (
           <Callout
             tone="neutral"
@@ -171,6 +170,27 @@ export function Callout({
       <div className="min-w-0 flex-1">{children}</div>
       {action}
     </div>
+  );
+}
+
+/** The session ended: nothing more loads until the user signs in again, back to this page. */
+export function SessionEnded() {
+  return (
+    <Callout
+      tone="warning"
+      icon={Alert02Icon}
+      action={
+        <RetryButton
+          onClick={() => {
+            goToSignIn();
+          }}
+        >
+          {t.signIn}
+        </RetryButton>
+      }
+    >
+      {t.sessionEnded}
+    </Callout>
   );
 }
 

@@ -53,7 +53,8 @@ export const en = {
   } as Record<string, string>,
   unknownReason: 'unknown error',
   loadFailed: 'Copilot could not be loaded.',
-  sessionEnded: 'Your session has ended. Sign in again.',
+  sessionEnded: 'Your session has ended.',
+  signIn: 'Sign in',
   live: { pending: 'Preparing summary', stale: 'Updating summary', ready: 'Summary ready' },
   blocks: {
     overview: 'Overview',
