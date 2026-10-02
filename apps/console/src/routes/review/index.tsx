@@ -1,5 +1,11 @@
 import { useToday } from '@adili/ui';
-import { createFileRoute, useNavigate, useRouter, useRouterState } from '@tanstack/react-router';
+import {
+  createFileRoute,
+  useLocation,
+  useNavigate,
+  useRouter,
+  useRouterState,
+} from '@tanstack/react-router';
 import { useEffect, useState } from 'react';
 
 import { useReloadingInPlace } from '../../components/reload-in-place';
@@ -10,7 +16,9 @@ import {
   cycleOptions,
   QUEUE_PAGE_SIZE,
   type QueueSearch,
-  queueSearchSchema,
+  queueUrlSchema,
+  readQueueSearch,
+  splitQueueSearch,
 } from '../../review-queue/query';
 import type { QueueSummary } from '../../review-queue/rows';
 import { getCommission } from '../../server/commissions';
@@ -21,24 +29,39 @@ import { SERVICE_UNAVAILABLE, type ServiceResult } from '../../server/service-ca
 
 const PATH = '/review';
 
+declare module '@tanstack/react-router' {
+  interface HistoryState {
+    /** The queue's search text: personal data, so in the history entry, not the URL. */
+    reviewQueueSearch?: string;
+  }
+}
+
 interface QueueLoad {
+  /** The search text the list was loaded for. */
+  text: string | null;
   list: ServiceResult<QueuePage>;
   summary: ServiceResult<QueueSummary>;
   /** The Commission's name for the heading; null when it could not be read. */
   commission: string | null;
 }
 
-/** The review queue (spec 07a FE-2): the Commission's cases, filters in the URL (S19). */
+/**
+ * The review queue (spec 07a FE-2): the Commission's cases, filters in the URL (S19), the search
+ * text in the history entry's state (no PII in URLs).
+ */
 export const Route = createFileRoute('/review/')({
-  validateSearch: queueSearchSchema,
+  validateSearch: queueUrlSchema,
   // Filter changes reload this match in place, not as a new one: see `useReloadingInPlace`.
   shouldReload: true,
   loader: async ({ context, location }): Promise<QueueLoad | null> => {
     // The layout shows why there is no workspace; do not fetch one.
     if (!context.workspace) return null;
     const slug = context.viewer.directory.ok ? context.viewer.directory.principal.tenant : null;
-    if (!slug) return { list: SERVICE_UNAVAILABLE, summary: SERVICE_UNAVAILABLE, commission: null };
-    const filters = queueSearchSchema.parse(location.search);
+    const filters = readQueueSearch(location.search, location.state.reviewQueueSearch);
+    const text = filters.search ?? null;
+    if (!slug) {
+      return { text, list: SERVICE_UNAVAILABLE, summary: SERVICE_UNAVAILABLE, commission: null };
+    }
     const [list, summary, commission] = await Promise.all([
       getReviewQueue({ data: { slug, filters, limit: QUEUE_PAGE_SIZE } }),
       getReviewQueueSummary({ data: { slug } }),
@@ -50,7 +73,7 @@ export const Route = createFileRoute('/review/')({
     ) {
       throw signInRedirect(location.href);
     }
-    return { list, summary, commission: commission?.ok ? commission.data.name : null };
+    return { text, list, summary, commission: commission?.ok ? commission.data.name : null };
   },
   head: () => ({ meta: [{ title: `${m.title} · Adili Online Console` }] }),
   pendingComponent: QueueLoading,
@@ -70,7 +93,8 @@ function QueueLoaded() {
 
 /** The workspace page; `load` is null while the first page loads. */
 function QueuePageView({ load }: { load: QueueLoad | null }) {
-  const search = Route.useSearch();
+  const text = useLocation({ select: (location) => location.state.reviewQueueSearch });
+  const search = readQueueSearch(Route.useSearch(), text);
   const { viewer, supervisor } = Route.useRouteContext();
   const navigate = useNavigate({ from: `${PATH}/` });
   const router = useRouter();
@@ -81,6 +105,13 @@ function QueuePageView({ load }: { load: QueueLoad | null }) {
   const reviewers = useReviewers(supervisor ? slug : null, viewer.user.subject);
   // Only Copy link reads the address, on click, so the server's render needs no origin.
   const origin = typeof window === 'undefined' ? '' : window.location.origin;
+  // A reload renders on the server, which has no history state: the list then comes without the
+  // search the entry still holds, so load it again here for that search.
+  const idle = useRouterState({ select: (state) => state.status === 'idle' });
+  const stale = load !== null && idle && load.text !== (search.search ?? null);
+  useEffect(() => {
+    if (stale) void router.invalidate();
+  }, [stale, router]);
 
   return (
     <QueueView
@@ -89,7 +120,12 @@ function QueuePageView({ load }: { load: QueueLoad | null }) {
       list={loading ? null : (load?.list ?? null)}
       search={search}
       onSearchChange={(next: QueueSearch, options?: { replace?: boolean }) => {
-        void navigate({ search: next, replace: options?.replace });
+        const { url, text: nextText } = splitQueueSearch(next);
+        void navigate({
+          search: url,
+          state: (state) => ({ ...state, reviewQueueSearch: nextText }),
+          replace: options?.replace,
+        });
       }}
       viewer={{ subject: viewer.user.subject, name: viewer.user.name, supervisor }}
       slug={slug}

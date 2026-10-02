@@ -20,8 +20,11 @@ export interface QueuePage {
   nextCursor: string | null;
 }
 
-/** `GET /v1/commissions/{slug}/review/queue`: a page of cases for the filters, by score then age. */
-export const getReviewQueue = createServerFn({ method: 'GET' })
+/**
+ * `GET /v1/commissions/{slug}/review/queue`: a page of cases for the filters, by score then age.
+ * POST to the console's server, so the search text (a name, say) is never in a URL there.
+ */
+export const getReviewQueue = createServerFn({ method: 'POST' })
   .validator(
     z.object({
       slug,
