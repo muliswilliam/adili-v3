@@ -162,11 +162,7 @@ export function ScopePicker({
         // A stray choice outside the request stays enabled so it can be unticked.
         disabled={disabled || (!requested && !checked)}
         hint={
-          requested ? (
-            description
-          ) : (
-            <span className="text-[11.5px] font-medium">Not requested</span>
-          )
+          requested ? description : <span className="text-[11.5px] font-medium">Not requested</span>
         }
         onChange={(event) => {
           onToggle(event.currentTarget.checked);

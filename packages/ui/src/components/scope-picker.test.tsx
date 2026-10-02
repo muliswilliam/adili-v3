@@ -96,7 +96,9 @@ describe('ScopePicker', () => {
     const group = screen.getByRole('group', { name: 'Clarifications' });
     const box = within(group).getByRole('checkbox', { name: 'The declarant’s clarifications' });
     expect(box.getAttribute('aria-describedby')).toBe(
-      within(group).getByText(/answers to the Commission’s requests/).closest('p')?.id,
+      within(group)
+        .getByText(/answers to the Commission’s requests/)
+        .closest('p')?.id,
     );
     fireEvent.click(box);
     expect(onChange).toHaveBeenLastCalledWith({ ...empty, includeClarifications: true });
