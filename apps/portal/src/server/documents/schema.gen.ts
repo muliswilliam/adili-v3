@@ -173,7 +173,7 @@ export interface paths {
         };
         /**
          * Short-lived presigned download of an issued PDF (owner)
-         * @description The document's subject person (the `person_id` of their token), or staff of the issuing Commission named among the document's additional downloaders (their token's `sub` and tenant); anyone else gets 404. A document with a download window (an access package) is refused with 410 once it ends. Every download link handed out is audited under the issuing Commission and recorded as `document.downloaded.v1`, which the access register reads.
+         * @description The document's subject person (the `person_id` of their token), or an access officer of the issuing Commission named among the document's additional downloaders (their token's `sub`, tenant and role); anyone else gets 404. A document with a download window (an access package) is refused with 410 once it ends. Every download link handed out is audited under the issuing Commission and recorded as `document.downloaded.v1`, which the access register reads.
          */
         get: operations["getDocumentDownload"];
         put?: never;

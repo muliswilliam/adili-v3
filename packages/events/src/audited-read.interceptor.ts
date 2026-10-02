@@ -116,9 +116,11 @@ export class AuditedReadInterceptor implements NestInterceptor {
     return next.handle().pipe(
       mergeMap(async (body: unknown) => {
         const audit = readAuditOf(request);
-        if (!audit.isOwnRecord) {
-          await this.events.record(this.db, auditRead(mark, request, audit));
-        }
+        // One multi-row insert: the audit event and those the read causes, both or neither.
+        await this.events.recordAll(this.db, [
+          ...(audit.isOwnRecord ? [] : [auditRead(mark, request, audit)]),
+          ...audit.eventsAlongside,
+        ]);
         return body;
       }),
     );

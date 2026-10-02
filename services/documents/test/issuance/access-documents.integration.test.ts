@@ -9,7 +9,7 @@ import {
   documentDownloadedDataSchema,
   documentIssuedDataSchema,
 } from '@adili/events/contracts/schemas';
-import { asc, eq } from 'drizzle-orm';
+import { asc, desc, eq } from 'drizzle-orm';
 import { afterEach, beforeAll, describe, expect, it } from 'vitest';
 
 import { issuedDocuments, outbox, verificationRecords } from '../../src/db/schema.js';
@@ -604,6 +604,19 @@ describe('S13 a certified copy ordered in person: the recording officer hands it
     ]);
   });
 
+  it('records the download and its audit event together, in one insert', async () => {
+    await download(document.id, ACCESS_OFFICER);
+
+    const rows = await api.db
+      .select({ type: outbox.eventType, envelope: outbox.envelope, createdAt: outbox.createdAt })
+      .from(outbox)
+      .orderBy(desc(outbox.id))
+      .limit(2);
+    expect(rows.map((row) => row.type).sort()).toEqual(['audit.read.v1', 'document.downloaded.v1']);
+    // Written by the one statement: the same transaction timestamp.
+    expect(rows[0]?.createdAt).toEqual(rows[1]?.createdAt);
+  });
+
   it('still downloads for the declarant', async () => {
     expect((await download(document.id, DECLARANT)).statusCode).toBe(200);
   });
@@ -612,8 +625,17 @@ describe('S13 a certified copy ordered in person: the recording officer hands it
     const otherOfficer: Caller = { ...ACCESS_OFFICER, sub: 'officer-2' };
     const otherCommission: Caller = { ...ACCESS_OFFICER, tenant: 'tsc' };
     const supervisor: Caller = { sub: 'supervisor-1', tenant: 'psc', roles: ['supervisor'] };
+    // The officer named on it, since moved to another role at the Commission: no longer theirs.
+    const reassigned: Caller = { ...ACCESS_OFFICER, roles: ['reporting-officer'] };
     const before = (await eventsAbout(document.id)).length;
-    for (const caller of [otherOfficer, otherCommission, supervisor, APPLICANT, LEA_OFFICER]) {
+    for (const caller of [
+      otherOfficer,
+      otherCommission,
+      supervisor,
+      reassigned,
+      APPLICANT,
+      LEA_OFFICER,
+    ]) {
       expect((await download(document.id, caller)).statusCode).toBe(404);
       expect((await api.get(`/v1/documents/${document.id}`, caller)).statusCode).toBe(404);
     }

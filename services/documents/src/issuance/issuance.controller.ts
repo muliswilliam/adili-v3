@@ -79,7 +79,7 @@ export class DocumentsController {
     operationId: 'getDocumentDownload',
     summary: 'Short-lived presigned download of an issued PDF (owner)',
     description:
-      "The document's subject person (the `person_id` of their token), or staff of the issuing Commission named among the document's additional downloaders (their token's `sub` and tenant); anyone else gets 404. A document with a download window (an access package) is refused with 410 once it ends. Every download link handed out is audited under the issuing Commission and recorded as `document.downloaded.v1`, which the access register reads.",
+      "The document's subject person (the `person_id` of their token), or an access officer of the issuing Commission named among the document's additional downloaders (their token's `sub`, tenant and role); anyone else gets 404. A document with a download window (an access package) is refused with 410 once it ends. Every download link handed out is audited under the issuing Commission and recorded as `document.downloaded.v1`, which the access register reads.",
   })
   @ApiOkResponse({
     description: 'Download URL valid for five minutes',
@@ -92,14 +92,24 @@ export class DocumentsController {
     @Param('documentId', documentId) id: string,
     @CurrentReadAudit() audit: ReadAudit,
   ): Promise<DocumentDownload> {
-    const { download, document } = await this.issuance.download(downloaderOf(principal), id);
+    const { download, document, downloaded } = await this.issuance.download(
+      downloaderOf(principal),
+      id,
+    );
     audit.resource({ tenant: document.tenant, subjectPersonId: document.subjectPersonId });
+    // The download the access register reads and its audit event: both recorded, or neither.
+    audit.alongside(downloaded);
     return download;
   }
 }
 
 function downloaderOf(principal: Principal): Downloader {
-  return { personId: principal.personId, subject: principal.subject, tenant: principal.tenant };
+  return {
+    personId: principal.personId,
+    subject: principal.subject,
+    tenant: principal.tenant,
+    roles: principal.roles,
+  };
 }
 
 /** Internal: not routed by the public entrypoint. Callers are services acting for a tenant. */

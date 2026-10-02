@@ -6,6 +6,7 @@ export {
 export {
   type AuditedResource,
   CurrentReadAudit,
+  type EventAlongsideRead,
   ReadAudit,
   readAuditOf,
   type ReadDisclosure,
