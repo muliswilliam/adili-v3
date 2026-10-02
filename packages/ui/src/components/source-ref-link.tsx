@@ -52,7 +52,7 @@ const DEFAULT_MESSAGES: SourceRefLinkMessages = { openPrefix: 'Open in the decla
 
 const linkClassName = cn(
   focusRing,
-  'inline-flex min-h-6 max-w-full cursor-pointer items-center gap-[5px] rounded-[7px] bg-muted py-0.5 pr-2 pl-1.5 text-left text-[12.5px] leading-[1.3] font-medium text-foreground hover:bg-input [&_svg]:size-[13px] [&_svg]:shrink-0 [&_svg]:text-muted-foreground',
+  'inline-flex min-h-6 max-w-full cursor-pointer items-center gap-[5px] overflow-hidden rounded-[7px] bg-muted py-0.5 pr-2 pl-1.5 text-left text-[12.5px] leading-[1.3] font-medium text-foreground hover:bg-input [&_svg]:size-[13px] [&_svg]:shrink-0 [&_svg]:text-muted-foreground',
 );
 
 export interface SourceRefLinkProps extends Omit<ComponentProps<'button'>, 'children' | 'onClick'> {
@@ -133,10 +133,11 @@ export function SourceRefLink({
       }}
     >
       <Icon icon={icon ?? TARGET_ICONS[target]} />
-      {/* min-w-0: the label gives way first, so a chip never widens what holds it. */}
+      {/* min-w-0: the label gives way first, so a chip never widens what holds it; a long
+          detail (a person's full name) is cut too, past the chip's last 45%. */}
       <span className="min-w-0 truncate">{label}</span>
       {detail ? (
-        <span className="shrink-0 font-normal whitespace-nowrap text-muted-foreground">
+        <span className="max-w-[45%] shrink-0 truncate font-normal text-muted-foreground">
           · {detail}
         </span>
       ) : null}
