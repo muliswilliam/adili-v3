@@ -429,6 +429,7 @@ export {
   formatTime,
   msUntilKenyanMidnight,
 } from './lib/format-date';
+export { type IdempotencyKeys, useIdempotencyKey } from './lib/use-idempotency-key';
 export { useToday } from './lib/use-today';
 export {
   obligationCycleLabel,
