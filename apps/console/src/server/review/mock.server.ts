@@ -53,7 +53,7 @@ import createClient from 'openapi-fetch';
 import { isOutstanding } from '../../clarification/labels';
 import { mockTenantAiStatus } from '../ai-gateway/mock.server';
 import { type Env, envSchema } from '../env.server';
-import { isRecord, json, problem, readJson } from '../mock-http';
+import { isRecord, json, mockCallerOf, problem, readJson, unsignedMockToken } from '../mock-http';
 import type { paths } from './api.gen';
 import {
   copilotRoute,
@@ -688,24 +688,13 @@ export function resetReviewMock(
 
 /** A bearer token the mock reads `sub` and `name` from (tests; unsigned). */
 export function mockToken(subject: string, name: string): string {
-  const part = (value: object) => Buffer.from(JSON.stringify(value)).toString('base64url');
-  return `${part({ alg: 'none' })}.${part({ sub: subject, name })}.`;
+  return unsignedMockToken({ subject, name });
 }
 
 /** The caller from the token's claims; the mock does not verify it, the service would. */
 function callerOf(request: Request): Assignee {
-  const token = request.headers.get('authorization')?.replace(/^Bearer /, '') ?? '';
-  try {
-    const claims = JSON.parse(
-      Buffer.from(token.split('.')[1] ?? '', 'base64url').toString('utf8'),
-    ) as { sub?: unknown; name?: unknown };
-    return {
-      subject: typeof claims.sub === 'string' ? claims.sub : 'unknown',
-      name: typeof claims.name === 'string' ? claims.name : 'You',
-    };
-  } catch {
-    return { subject: 'unknown', name: 'You' };
-  }
+  const { subject, name } = mockCallerOf(request);
+  return { subject: subject ?? 'unknown', name: name ?? 'You' };
 }
 
 function officer(value: Officer, caller: Assignee): Assignee {
