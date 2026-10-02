@@ -15,7 +15,7 @@ import { personOf } from '../drafts/access.js';
 import { DraftsService } from '../drafts/drafts.service.js';
 import { declarationNotDraft, validationProblem } from '../drafts/problems.js';
 import { type DeclarationRow, liveDeclaration, sectionIs } from '../drafts/repository.js';
-import { declarationSections } from '../drafts/schema.js';
+import { declarationSections, type StoredEnvelope } from '../drafts/schema.js';
 import { SectionCipher } from '../drafts/section-cipher.js';
 import { etag } from '../http.js';
 import { placementOf } from './acceptance.js';
@@ -300,7 +300,7 @@ export class SuggestionsService {
   /**
    * Sets a `new` suggestion aside with the declarant's reason, if they gave one (S5), recording
    * `declaration.suggestion-dismissed.v1` (identifiers only; the reason stays with the
-   * suggestion). Dismissing it again changes nothing; 409 `not-new` when it was accepted or
+   * suggestion, sealed with the Commission's key). Dismissing it again changes nothing; 409 `not-new` when it was accepted or
    * superseded; 404 when it is not the caller's. The draft is untouched.
    */
   async dismiss(
@@ -316,11 +316,20 @@ export class SuggestionsService {
     const parsed = dismissSuggestionRequestSchema.safeParse(body ?? {});
     if (!parsed.success) throw validationProblem(issuesOf(parsed.error.issues));
     const reason = parsed.data.reason?.trim() ? parsed.data.reason.trim() : null;
+    // Sealed before the transaction: the key service is not called with a row lock held.
+    const sealed =
+      row.status === 'dismissed' || reason === null
+        ? null
+        : await this.cipher.sealReason(declaration.tenant, declaration.id, row.id, reason);
     const dismissed =
       row.status === 'dismissed'
         ? row
         : await withPerson(this.db, person, async (tx) => {
-            const updated = await decide(tx, row.id, { status: 'dismissed', reason });
+            const updated = await decide(tx, row.id, {
+              status: 'dismissed',
+              reasonCiphertext: sealed?.ciphertext ?? null,
+              reasonEnvelope: sealed?.envelope ?? null,
+            });
             await this.events.record(
               tx,
               declarationSuggestionDismissed(declaration.tenant, {
@@ -445,7 +454,12 @@ async function decide(
   tx: Transaction,
   suggestionId: string,
   decision:
-    { status: 'accepted'; acceptedItemId: string } | { status: 'dismissed'; reason: string | null },
+    | { status: 'accepted'; acceptedItemId: string }
+    | {
+        status: 'dismissed';
+        reasonCiphertext: Buffer | null;
+        reasonEnvelope: StoredEnvelope | null;
+      },
 ): Promise<SuggestionRow> {
   const [current] = await tx
     .select({ status: suggestions.status })

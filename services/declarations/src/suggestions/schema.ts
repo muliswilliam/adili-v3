@@ -12,8 +12,9 @@ import type { StoredEnvelope } from '../drafts/schema.js';
  * discarding an amendment, deletes them (S7, `expiry.ts`).
  *
  * Personal data: a suggestion's proposed fields, the registry's identifiers and the match keys
- * are one envelope-encrypted blob per suggestion (ADR-006, the Commission's key). Clear columns
- * hold identifiers, statuses and keys the routes filter by, nothing a registry said.
+ * are one envelope-encrypted blob per suggestion (ADR-006, the Commission's key), and the reason
+ * a declarant gives for dismissing one is another. Clear columns hold identifiers, statuses and
+ * keys the routes filter by, nothing a registry or the declarant said.
  *
  * Row-level security (migration 0021): the declarant's own, through their declaration, like the
  * draft's sections; nobody else reads them.
@@ -121,8 +122,12 @@ export const suggestions = pgTable(
     /** The item already in the section whose identifier coincides, when there is one. */
     matchItemId: uuid(),
     status: text({ enum: SUGGESTION_STATUSES }).notNull().default('new'),
-    /** Why the declarant dismissed it, when they said. */
-    reason: text(),
+    /**
+     * Why the declarant dismissed it, when they said: their own words, sealed like the contents
+     * (`SuggestionCipher.sealReason`); both null otherwise.
+     */
+    reasonCiphertext: bytea(),
+    reasonEnvelope: jsonb().$type<StoredEnvelope>(),
     acceptedItemId: uuid(),
     /** Copied from the set: an accepted item's `source` names it even after a re-check. */
     verificationResultId: uuid(),

@@ -11,6 +11,7 @@ import {
 } from '../../src/db/schema.js';
 import type { Declaration, SectionEnvelope } from '../../src/drafts/representation.js';
 import type { Suggestion, SuggestionSet } from '../../src/suggestions/representation.js';
+import { SuggestionCipher } from '../../src/suggestions/suggestion-cipher.js';
 import { contractErrors, responseBody } from '../support/contract.js';
 import {
   type Caller,
@@ -608,7 +609,19 @@ describe('dismissing, and checking again (S5)', () => {
     const [row] = await api.asPerson(ACHIENG, (tx) =>
       tx.select().from(suggestions).where(eq(suggestions.id, dmax.id)),
     );
-    expect(row).toMatchObject({ status: 'dismissed', reason: 'Sold to my brother in 2025' });
+    expect(row?.status).toBe('dismissed');
+    // The declarant's words are sealed with the Commission's key, bound to the suggestion.
+    if (!row?.reasonCiphertext || !row.reasonEnvelope) throw new Error('No sealed reason');
+    expect(row.reasonCiphertext.toString('latin1')).not.toContain('brother');
+    const sealed = { ciphertext: row.reasonCiphertext, envelope: row.reasonEnvelope };
+    expect(await api.app.get(SuggestionCipher).openReason('psc', draft.id, dmax.id, sealed)).toBe(
+      'Sold to my brother in 2025',
+    );
+    await expect(
+      api.app
+        .get(SuggestionCipher)
+        .openReason('psc', draft.id, suggestionOf(set, 'vehicle').id, sealed),
+    ).rejects.toThrow();
     const events = await eventsOf('declaration.suggestion-dismissed.v1');
     expect(events.map((event) => event.data)).toEqual([
       { declarationId: draft.id, suggestionId: dmax.id, setId: set?.id, source: 'ntsa' },
@@ -632,7 +645,7 @@ describe('dismissing, and checking again (S5)', () => {
     const [row] = await api.asPerson(ACHIENG, (tx) =>
       tx.select().from(suggestions).where(eq(suggestions.id, dmax.id)),
     );
-    expect(row?.reason).toBeNull();
+    expect(row).toMatchObject({ reasonCiphertext: null, reasonEnvelope: null });
     expect(await eventsOf('declaration.suggestion-dismissed.v1')).toHaveLength(1);
   });
 

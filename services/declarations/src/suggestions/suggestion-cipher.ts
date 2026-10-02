@@ -18,7 +18,9 @@ export interface SuggestionContents {
 /**
  * Encrypts and decrypts suggestion contents with the Commission's key (ADR-006), the record id
  * `<declarationId>/suggestions/<suggestionId>` bound into the AAD so a blob cannot move to
- * another suggestion or declaration. No cache: a list decrypts a handful per registry.
+ * another suggestion or declaration. No cache: a list decrypts a handful per registry. The
+ * reason a declarant gives for a dismissal is sealed the same way, as a record of its own
+ * (`.../<suggestionId>/reason`).
  */
 @Injectable()
 export class SuggestionCipher {
@@ -52,6 +54,39 @@ export class SuggestionCipher {
     });
     return JSON.parse(plaintext.toString('utf8')) as SuggestionContents;
   }
+
+  async sealReason(
+    tenant: string,
+    declarationId: string,
+    suggestionId: string,
+    reason: string,
+  ): Promise<SealedSection> {
+    const { ciphertext, envelope } = await this.cipher.encrypt({
+      tenant,
+      recordId: reasonRecordId(declarationId, suggestionId),
+      plaintext: reason,
+    });
+    return { ciphertext: Buffer.from(ciphertext, 'base64'), envelope };
+  }
+
+  async openReason(
+    tenant: string,
+    declarationId: string,
+    suggestionId: string,
+    sealed: SealedSection,
+  ): Promise<string> {
+    const plaintext = await this.cipher.decrypt({
+      tenant,
+      recordId: reasonRecordId(declarationId, suggestionId),
+      ciphertext: sealed.ciphertext.toString('base64'),
+      envelope: sealed.envelope,
+    });
+    return plaintext.toString('utf8');
+  }
+}
+
+function reasonRecordId(declarationId: string, suggestionId: string): string {
+  return `${recordId(declarationId, suggestionId)}/reason`;
 }
 
 function recordId(declarationId: string, suggestionId: string): string {
