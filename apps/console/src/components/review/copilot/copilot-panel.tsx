@@ -295,7 +295,8 @@ export function CopilotPanel({
     </aside>
   );
 
-  return content ? (
+  // Always inside Tabs, so the panel (and the focus in it) stays when the outputs arrive.
+  return (
     <Tabs
       value={tab}
       onValueChange={(value) => {
@@ -304,7 +305,5 @@ export function CopilotPanel({
     >
       {panel}
     </Tabs>
-  ) : (
-    panel
   );
 }

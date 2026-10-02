@@ -403,6 +403,56 @@ describe('CopilotPanel states (S15)', () => {
     },
   );
 
+  it('keeps the panel (and the focus in it) when the outputs arrive (N1)', () => {
+    const at = '2026-10-01T06:00:00Z';
+    const view = (over: Partial<CopilotView>): Copilot =>
+      readCopilotView({
+        status: 'ready',
+        forVersionId: CASE,
+        generatedAt: at,
+        failureReason: null,
+        summary: mockSummary(at),
+        explanations: mockExplanations(at),
+        jobs: { summarize: 'aaaa0000-0000-4000-8000-000000000001', explain: null },
+        feedback: [],
+        ...over,
+      });
+    const state = (copilot: Copilot): CopilotState => ({
+      copilot,
+      error: null,
+      stopped: false,
+      sessionEnded: false,
+      refreshing: false,
+      retry: vi.fn(),
+      refresh: vi.fn(() => Promise.resolve(null)),
+      ratingOf: () => null,
+      rate: vi.fn(() => Promise.resolve()),
+    });
+    const panelOf = (copilot: Copilot) => (
+      <TooltipProvider>
+        <CopilotPanel
+          state={state(copilot)}
+          access="assignee"
+          flags={mockFlags(CASE)}
+          versions={detail.versions}
+          resolveRef={sourceRefResolver(MOCK_DECLARATION)}
+          hasPrevious
+          onClose={vi.fn()}
+          onRefresh={vi.fn()}
+          onOpenSource={vi.fn()}
+          now={new Date(NOW_MS)}
+        />
+      </TooltipProvider>
+    );
+    const { rerender } = render(panelOf(view({ status: 'pending', ...nothing })));
+    const before = panel();
+    const close = screen.getByRole('button', { name: 'Close Copilot' });
+    close.focus();
+    rerender(panelOf(view({})));
+    expect(panel()).toBe(before);
+    expect(document.activeElement).toBe(close);
+  });
+
   it('stale: the old content greyed out under a banner', () => {
     renderState({ status: 'stale' });
     expect(screen.getByText('Declaration or registry results changed. Updating…')).toBeTruthy();
