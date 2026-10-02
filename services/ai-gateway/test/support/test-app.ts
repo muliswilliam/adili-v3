@@ -26,6 +26,8 @@ import { BREAKER_OPTIONS, type BreakerOptions } from '../../src/policy/circuit-b
 import type { ModelProvider, StructuredResult } from '../../src/providers/port.js';
 import { MODEL_PROVIDERS } from '../../src/providers/providers.module.js';
 import { ReplayAdapter } from '../../src/providers/replay.adapter.js';
+import { seedDemoGatePolicies } from '../../src/policy/demo-seed.js';
+import { GatePolicies } from '../../src/policy/gate-policies.js';
 import { preparePrompt } from '../../src/policy/prompt.js';
 import { findTask } from '../../src/tasks/registry.js';
 import { ScriptedProvider } from './scripted-provider.js';
@@ -49,6 +51,11 @@ export interface TestApp {
     result: StructuredResult,
     options?: { model?: string },
   ) => Promise<void>;
+  /**
+   * Records the demo seed's rule (external providers on synthetic data) for these tenants, as
+   * `pnpm db:seed` does for the demo tenant; every other tenant keeps external blocked.
+   */
+  seedDemoGate: (...tenants: string[]) => Promise<void>;
   close: () => Promise<void>;
 }
 
@@ -151,6 +158,9 @@ export async function createTestApp(options: TestAppOptions = {}): Promise<TestA
         inner: new ScriptedProvider(() => Promise.resolve(result)),
       });
       await recorder.generateStructured(request);
+    },
+    seedDemoGate: async (...tenants) => {
+      await seedDemoGatePolicies(app.get(GatePolicies), tenants);
     },
     close: async () => {
       // Jobs a test did not wait for would otherwise sit on this file's queue, which no worker
