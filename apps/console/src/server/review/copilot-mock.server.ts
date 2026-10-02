@@ -561,6 +561,14 @@ function readyView(
   };
 }
 
+/** The ai-gateway's gate refuses every case (REVIEW_MOCK_COPILOT=not-enabled). */
+let aiOff = false;
+
+/** Turns the gateway's gate off for every case, or back on (tests). */
+export function setMockAiOff(off: boolean) {
+  aiOff = off;
+}
+
 /** How a mock case's copilot starts: ready, pending (ready `readyAfterMs` after its first read), or AI off. */
 export interface CopilotSeed {
   caseId: string;
@@ -579,6 +587,7 @@ export function resetCopilotMock(
   seeds: CopilotSeed[],
   { notEnabled = false }: { notEnabled?: boolean } = {},
 ) {
+  aiOff = notEnabled;
   store.clear();
   drafts.clear();
   draftKeys.clear();
@@ -769,7 +778,7 @@ async function requestDraft(
   caller: Assignee,
   held: boolean,
 ): Promise<Response> {
-  if (!held) return problem(403, 'Only the officer holding the case drafts with AI');
+  if (!held) return problem(403, 'Only the reviewer holding the case drafts with AI');
   const stored = store.get(caseId);
   if (stored?.view.status === 'not-enabled') {
     return json(409, {
@@ -842,6 +851,7 @@ async function requestDraft(
   return draftAnswer(kept, now);
 }
 
+const SUMMARY_BLOCKS = new Set(['overview', 'changes', 'sections', 'worth-attention']);
 const RATINGS = new Set(['helpful', 'not-helpful']);
 const REASONS = new Set(['inaccurate', 'missed-something', 'unclear', 'too-long', 'other']);
 
@@ -882,10 +892,13 @@ export async function copilotRoute(
       return json(200, forCaller(stored, current(caseId, stored, now), caller));
     }
     if (method === 'POST' && view[2]) {
-      if (!held) return problem(403, 'Only the officer holding the case or a supervisor');
+      if (!held) return problem(403, 'Only the reviewer holding the case or a supervisor');
       const { status } = current(caseId, stored, now);
       if (status === 'pending' || status === 'stale') return problem(409, 'Already pending');
-      if (status === 'not-enabled') return problem(409, 'AI assistance is not enabled');
+      // Not enabled is asked again: the gateway decides. While AI is still off for the
+      // Commission, the new jobs are blocked at once and the view stays not enabled.
+      if (status === 'not-enabled' && aiOff)
+        return json(202, forCaller(stored, stored.view, caller));
       stored.view = {
         ...stored.view,
         status: 'pending',
@@ -913,7 +926,7 @@ export async function copilotRoute(
         ]) => jobs.summarize === jobId || jobs.explain === jobId,
       ) ?? [];
     if (!caseId || !stored || holds(caseId) === null) return problem(404, 'Not found');
-    if (!holds(caseId)) return problem(403, 'Only the officer holding the case rates its copilot');
+    if (!holds(caseId)) return problem(403, 'Only the reviewer holding the case rates its copilot');
     const body = await readJson(request);
     const valid =
       isRecord(body) &&
@@ -921,9 +934,26 @@ export async function copilotRoute(
       (body.reason === null || REASONS.has(body.reason as string)) &&
       (body.note === null || (typeof body.note === 'string' && body.note.length <= 1000));
     if (!valid) return problem(400, 'Invalid rating');
+    // The block must be one the output has: a summary block, or a flag the explanations cover.
+    const block = typeof body.block === 'string' ? body.block : null;
+    const explained = new Set(
+      (isRecord(stored.view.explanations) && Array.isArray(stored.view.explanations.explanations)
+        ? stored.view.explanations.explanations
+        : []
+      ).map((each: unknown) => (isRecord(each) ? `flag:${String(each.flagId)}` : '')),
+    );
+    const known =
+      stored.view.jobs.summarize === jobId
+        ? block !== null && SUMMARY_BLOCKS.has(block)
+        : block !== null && explained.has(block);
+    if (!known) return problem(400, 'The output has no such block', 'unknown-block');
     const mine =
       stored.ratings.get(caller.subject) ?? new Map<string, CopilotView['feedback'][number]>();
-    mine.set(jobId, { jobId, rating: body.rating as 'helpful' | 'not-helpful' });
+    mine.set(`${jobId} ${block}`, {
+      jobId,
+      block,
+      rating: body.rating as 'helpful' | 'not-helpful',
+    });
     stored.ratings.set(caller.subject, mine);
     return new Response(null, { status: 200 });
   }

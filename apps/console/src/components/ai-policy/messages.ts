@@ -158,6 +158,8 @@ export const en = {
   aiEnabledText: (provider: string, data: string, only: boolean) =>
     `${provider} provider, ${data} data${only ? ' only' : ''}`,
   aiNotEnabledText: 'No declaration data is sent to an AI provider',
+  /** The status line's detail after Enabled or Not enabled: "(external provider, …)". */
+  statusDetail: (text: string) => `(${text.charAt(0).toLowerCase()}${text.slice(1)})`,
   aiStatusUnavailable: 'Could not be checked. Reload the page to try again.',
 } as const;
 

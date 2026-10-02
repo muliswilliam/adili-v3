@@ -26,7 +26,7 @@ import { messages as t } from './messages';
 /**
  * The confirmations behind the case header's actions (spec 07a FE-3, S8): claim (a supervisor is
  * told they become a reviewer of record), release, unassign, and the reassign dialog with the
- * officers a supervisor can hand the case to. Each `onConfirm` resolves when the call is done;
+ * reviewers a supervisor can hand the case to. Each `onConfirm` resolves when the call is done;
  * the header closes the dialog and says how it went.
  */
 
@@ -170,7 +170,7 @@ export function ReassignDialog({
   reference,
   declarant,
   holder,
-  officers,
+  reviewers,
   viewerSubject,
   reviewersOfRecord,
   onConfirm,
@@ -180,20 +180,20 @@ export function ReassignDialog({
   reference: string;
   declarant: string;
   holder: Assignee | null;
-  officers: Assignee[];
+  reviewers: Assignee[];
   viewerSubject: string;
   reviewersOfRecord: Assignee[];
-  onConfirm: (officer: Assignee) => Promise<void>;
+  onConfirm: (reviewer: Assignee) => Promise<void>;
 }) {
-  const [picked, setPicked] = useState<string | null>(officers[0]?.subject ?? null);
+  const [picked, setPicked] = useState<string | null>(reviewers[0]?.subject ?? null);
   const [busy, setBusy] = useState(false);
-  const officer = officers.find((each) => each.subject === picked) ?? null;
+  const reviewer = reviewers.find((each) => each.subject === picked) ?? null;
   const verb = holder ? t.actions.reassign : 'Assign';
   return (
     <Dialog
       open={open}
       onOpenChange={(next) => {
-        if (next) setPicked(officers[0]?.subject ?? null);
+        if (next) setPicked(reviewers[0]?.subject ?? null);
         onOpenChange(next);
       }}
     >
@@ -210,9 +210,9 @@ export function ReassignDialog({
               {t.dialogs.currentlyHeld(holder.name)}
             </p>
           ) : null}
-          {officers.length > 0 ? (
+          {reviewers.length > 0 ? (
             <RadioGroup legend={t.dialogs.assignTo}>
-              {officers.map((each) => {
+              {reviewers.map((each) => {
                 const ofRecord = reviewersOfRecord.some((known) => known.subject === each.subject);
                 const you = each.subject === viewerSubject;
                 return (
@@ -244,7 +244,7 @@ export function ReassignDialog({
               })}
             </RadioGroup>
           ) : (
-            <p className="text-sm text-muted-foreground">{t.dialogs.noOfficers}</p>
+            <p className="text-sm text-muted-foreground">{t.dialogs.noReviewers}</p>
           )}
           <FieldHint className="-mt-2">{t.dialogs.reviewerOfRecordNote}</FieldHint>
         </DialogBody>
@@ -253,11 +253,11 @@ export function ReassignDialog({
             <Button variant="secondary">{t.dialogs.cancel}</Button>
           </DialogClose>
           <Button
-            disabled={busy || !officer}
+            disabled={busy || !reviewer}
             onClick={() => {
-              if (!officer) return;
+              if (!reviewer) return;
               setBusy(true);
-              void onConfirm(officer).finally(() => {
+              void onConfirm(reviewer).finally(() => {
                 setBusy(false);
               });
             }}

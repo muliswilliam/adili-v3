@@ -11,6 +11,7 @@ import {
   formatMoney,
   Icon,
   type IconProps,
+  IconTile,
   initialsOf,
   Spinner,
 } from '@adili/ui';
@@ -305,9 +306,9 @@ function Section({
 
 /** The kit's household avatars: the declarant in brand orange, spouses blue, children green. */
 const AVATAR_TONES: Record<Relation, string> = {
-  officer: 'from-[#f7b58d] to-brand',
-  spouse: 'from-[#a8c7f0] to-[#3a6fc4]',
-  child: 'from-[#b9e3c2] to-[#2f9656]',
+  declarant: 'from-household-declarant to-brand',
+  spouse: 'from-household-spouse to-household-spouse-solid',
+  child: 'from-household-child to-household-child-solid',
 };
 
 /** A household member's initials, tinted by their place in the household. */
@@ -428,7 +429,7 @@ function StatementCard({
     <section
       id={declarationAnchorId({ kind: 'statement', personKey: statement.personKey })}
       aria-label={`${statement.name}, ${statement.relationLabel}`}
-      className="scroll-mt-[130px] overflow-hidden rounded-[14px] shadow-card outline-none"
+      className="scroll-mt-[130px] overflow-hidden rounded-item shadow-card outline-none"
     >
       <div className="flex items-center gap-2.5 border-b bg-background/60 px-3.5 py-3">
         <PersonAvatar name={statement.name} relation={statement.relation} />
@@ -517,9 +518,9 @@ function ItemRow({
         !first && 'border-t border-border/60',
       )}
     >
-      <span className="grid size-8 place-items-center rounded-[9px] bg-muted text-secondary-foreground">
-        <Icon icon={itemIcon(item)} className="size-4" />
-      </span>
+      <IconTile size="sm">
+        <Icon icon={itemIcon(item)} />
+      </IconTile>
       <div className="min-w-0">
         <div className="text-sm leading-[1.35] font-medium">{item.type}</div>
         {line ? <div className="mt-px text-[13px] text-muted-foreground">{line}</div> : null}
@@ -542,7 +543,7 @@ function ItemRow({
                 }}
                 className={cn(
                   focusRing,
-                  'inline-flex h-6 max-w-full cursor-pointer items-center gap-[5px] rounded-[7px] bg-muted px-2 text-xs font-medium text-secondary-foreground hover:bg-border/70 hover:text-foreground disabled:cursor-progress',
+                  'inline-flex h-6 max-w-full cursor-pointer items-center gap-[5px] rounded-md bg-muted px-2 text-xs font-medium text-secondary-foreground hover:bg-border/70 hover:text-foreground disabled:cursor-progress',
                 )}
               >
                 {downloading.has(attachment.uploadId) ? (

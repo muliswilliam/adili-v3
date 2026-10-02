@@ -127,7 +127,7 @@ export function addNote(
   );
 }
 
-/** `POST .../flags/{flagId}/reviewed` with the officer's conclusion (409 if reviewed already). */
+/** `POST .../flags/{flagId}/reviewed` with the reviewer's conclusion (409 if reviewed already). */
 export function markFlagReviewed(
   client: ReviewClient,
   caseId: string,

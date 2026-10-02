@@ -21,7 +21,7 @@ const t = messages.list;
 
 /**
  * The Clarifications tab of the case view (spec 07a FE-4): the case's clarifications newest
- * first, each linking to its detail, and "New clarification" for the officer holding the case
+ * first, each linking to its detail, and "New clarification" for the reviewer holding the case
  * while the six-month window is open (disabled with the reason otherwise). Opening the composer
  * is the host's: pass `onNew`. Ready to mount in the case view's side tabs (#164).
  */

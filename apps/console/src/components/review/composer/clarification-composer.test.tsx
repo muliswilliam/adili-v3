@@ -36,7 +36,7 @@ const AI: AiLabelDetails = {
 
 const client = () => mockReviewClient(ME, 'Grace Wanjiru');
 
-/** The server functions, answered by the review mock as the officer holding the cases. */
+/** The server functions, answered by the review mock as the reviewer holding the cases. */
 function mockServer(): ComposerServer & {
   save: ReturnType<typeof vi.fn>;
   issue: ReturnType<typeof vi.fn>;
@@ -237,6 +237,7 @@ describe('ClarificationComposer', () => {
             itemId: MOCK_ITEM_IDS.plot,
             requirement: 'explain-discrepancy',
             text: 'Explain the 150% change.',
+            aiJobId: null,
           },
         ],
       }),
@@ -299,6 +300,28 @@ describe('ClarificationComposer', () => {
     expect(screen.getByText('Draft saved. The declarant cannot see it.')).toBeTruthy();
   });
 
+  it('says when a drafted item no longer matches a Draft with AI of the case (400)', async () => {
+    const { server } = await renderComposer();
+    server.save.mockResolvedValueOnce({
+      ok: false,
+      error: {
+        kind: 'problem',
+        problem: { type: 'ai-draft-not-on-case', title: 'Bad Request', status: 400 },
+      },
+    });
+    pickTarget(item(1), 'Personal details');
+    fillItem(item(1), 'Correct the entry', 'Correct your date of birth.');
+    await act(async () => {
+      fireEvent.click(within(drawer()).getByRole('button', { name: 'Save draft' }));
+      await Promise.resolve();
+    });
+    expect(
+      screen.getByText(
+        'An AI-drafted item or opening no longer matches a Draft with AI of this case. Discard it and draft again, or write it yourself.',
+      ),
+    ).toBeTruthy();
+  });
+
   it('continues a saved draft with its items on their targets', async () => {
     const { clarifications } = await caseOf(CASES.mine);
     await renderComposer({ draft: draftOnMine({ clarifications }) });
@@ -336,6 +359,7 @@ describe('ClarificationComposer', () => {
           onClick={() => {
             api.insert({
               label: AI,
+              jobId: null,
               opening: 'Thank you for your declaration.',
               items: [
                 {

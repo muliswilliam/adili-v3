@@ -73,6 +73,8 @@ const item = z.object({
   itemId: z.uuid().nullable(),
   requirement: z.enum(['provide-omitted', 'explain-discrepancy', 'correct']),
   text: z.string().trim().min(1).max(1000),
+  /** The Draft with AI job that drafted it; null for the reviewer's own (ADR-007 label). */
+  aiJobId: z.uuid().nullable(),
 });
 
 const composed = z.object({
@@ -82,6 +84,8 @@ const composed = z.object({
   items: z.array(item).max(50),
   /** The letter's opening paragraph (Draft with AI's), or null for none. */
   opening: z.string().max(800).nullable(),
+  /** The Draft with AI job that drafted the opening paragraph, or null. */
+  openingAiJobId: z.uuid().nullable(),
   /** One per composer, reused on retry, so a retried create makes one draft. */
   draftKey: id,
 });
@@ -95,7 +99,7 @@ export const saveClarificationDraft = createServerFn({ method: 'POST' })
         client,
         data.caseId,
         data.clarificationId,
-        { items: data.items, opening: data.opening },
+        { items: data.items, opening: data.opening, openingAiJobId: data.openingAiJobId },
         data.draftKey,
       ),
     ),
@@ -114,7 +118,7 @@ export const issueComposedClarification = createServerFn({ method: 'POST' })
       reviewClient(session.accessToken),
       data.caseId,
       data.clarificationId,
-      { items: data.items, opening: data.opening },
+      { items: data.items, opening: data.opening, openingAiJobId: data.openingAiJobId },
       { draft: data.draftKey, issue: data.issueKey },
     );
   });

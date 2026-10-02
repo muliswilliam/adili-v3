@@ -9,7 +9,7 @@ import { messages as t } from './messages';
  * pure, so each state is tested without rendering.
  */
 
-/** Who is looking: the officer holding the case rates and refreshes; a supervisor reads and refreshes. */
+/** Who is looking: the reviewer holding the case rates and refreshes; a supervisor reads and refreshes. */
 export type CopilotAccess = 'assignee' | 'supervisor' | 'viewer';
 
 export type LauncherTone = 'ready' | 'busy' | 'warning' | 'off';
@@ -83,3 +83,12 @@ export function sortFlags(flags: Flag[]): Flag[] {
  */
 export const hasPreviousDeclaration = (flags: Flag[]): boolean =>
   !flags.some((flag) => flag.ruleId === 'no-previous-version');
+
+/** The blocks of a summary, each rated on its own (review.yaml `CopilotBlock`). */
+export type SummaryBlock = 'overview' | 'changes' | 'sections' | 'worth-attention';
+
+/** A rated block: a summary block, or one flag's explanation (`flag:<flagId>`). */
+export type CopilotBlock = SummaryBlock | `flag:${string}`;
+
+/** The block key of a flag's explanation. */
+export const explanationBlock = (flagId: string): CopilotBlock => `flag:${flagId}`;

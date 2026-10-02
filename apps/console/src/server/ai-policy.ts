@@ -21,7 +21,12 @@ import type { ServiceResult } from './service-call';
  * admin: the gateway refuses anyone else (403). Tokens stay on the server.
  */
 
-async function asPlatformAdmin<T>(
+/**
+ * Runs `work` with an ai-gateway client acting as the signed-in user, or answers
+ * `unauthenticated`. It checks no role: the gateway admits platform admins only and answers 403
+ * to anyone else, which the page shows as no access.
+ */
+async function withAiGateway<T>(
   work: (gateway: AiGatewayClient, accessToken: string) => Promise<T>,
 ): Promise<T | { ok: false; error: { kind: 'unauthenticated' } }> {
   const session = await getBff().getSession(getRequest());
@@ -31,7 +36,7 @@ async function asPlatformAdmin<T>(
 
 export const getAiPolicyOverview = createServerFn({ method: 'GET' }).handler(
   (): Promise<ServiceResult<AiPolicyOverview>> =>
-    asPlatformAdmin((gateway, accessToken) =>
+    withAiGateway((gateway, accessToken) =>
       loadAiPolicyOverview(
         gateway,
         createDirectoryClient({ baseUrl: env().DIRECTORY_API_URL, accessToken }),
@@ -56,7 +61,7 @@ export const setGatePolicyInput = z.object({
 export const setGatePolicy = createServerFn({ method: 'POST' })
   .validator(setGatePolicyInput)
   .handler(({ data }): Promise<ServiceResult<TenantPolicy>> =>
-    asPlatformAdmin((gateway) =>
+    withAiGateway((gateway) =>
       saveGatePolicy(gateway, data.tenant, data.changes, data.approvalRef),
     ),
   );
@@ -71,7 +76,7 @@ export const setTenantBudgetInput = z.object({
 export const setTenantBudget = createServerFn({ method: 'POST' })
   .validator(setTenantBudgetInput)
   .handler(({ data }): Promise<ServiceResult<TenantUsage>> =>
-    asPlatformAdmin((gateway) =>
+    withAiGateway((gateway) =>
       saveTenantBudget(gateway, data.tenant, {
         monthlyTokens: data.monthlyTokens,
         perMinute: data.perMinute,

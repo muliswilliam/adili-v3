@@ -30,7 +30,7 @@ export function listLine(clarification: LineFields): string {
 }
 
 /**
- * Why the viewer cannot start a clarification, or null when they can: only the officer holding
+ * Why the viewer cannot start a clarification, or null when they can: only the reviewer holding
  * the case issues them (a supervisor claims or reassigns first), within the six-month window.
  */
 export function newClarificationBlock(

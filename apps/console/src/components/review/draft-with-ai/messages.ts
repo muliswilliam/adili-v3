@@ -41,7 +41,7 @@ export const en = {
     'selection-not-on-case': 'a flag or item is no longer on the case',
   } as Record<string, string>,
   unknownReason: 'unknown error',
-  notAssignee: 'Only the officer holding the case can draft with AI.',
+  notAssignee: 'Only the reviewer holding the case can draft with AI.',
   sessionEnded: 'Your session has ended. Sign in again.',
 };
 

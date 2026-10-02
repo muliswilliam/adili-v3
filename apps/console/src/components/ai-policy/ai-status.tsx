@@ -12,8 +12,9 @@ export function statusAccess(status: CommissionAiStatus): ProviderAccess[] {
 }
 
 /**
- * The Commission's AI status line (spec 07c FE-4): "Enabled · External provider, synthetic data
- * only", or "Not enabled · No declaration data is sent to an AI provider". Read only.
+ * The Commission's AI status line (spec 07c FE-4), as the spec words it: "AI assistance: enabled
+ * (external provider, synthetic data only)", or "not enabled (no declaration data is sent to an
+ * AI provider)". The row names "AI assistance"; this is its value. Read only.
  */
 export function AiStatusValue({ status }: { status: ServiceResult<CommissionAiStatus> }) {
   if (!status.ok) {
@@ -23,7 +24,9 @@ export function AiStatusValue({ status }: { status: ServiceResult<CommissionAiSt
   return (
     <span className="flex flex-wrap items-center gap-2">
       <EnabledBadge enabled={text !== null} />
-      <span className="font-normal text-secondary-foreground">{text ?? m.aiNotEnabledText}</span>
+      <span className="font-normal text-secondary-foreground">
+        {m.statusDetail(text ?? m.aiNotEnabledText)}
+      </span>
     </span>
   );
 }

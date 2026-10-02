@@ -67,7 +67,7 @@ interface DocStatement {
 function relationOf(personKey: string): string {
   if (personKey.startsWith('spouse:')) return t.relations.spouse;
   if (personKey.startsWith('child:')) return t.relations.child;
-  return t.relations.officer;
+  return t.relations.declarant;
 }
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>

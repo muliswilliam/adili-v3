@@ -42,7 +42,7 @@ export const CATEGORY_LABELS = {
 } as const;
 
 export const RELATION_LABELS = {
-  officer: 'Declarant',
+  declarant: 'Declarant',
   spouse: 'Spouse',
   child: 'Child',
 } as const;

@@ -39,11 +39,13 @@ const LABEL = {
   model: 'claude-opus-5',
   promptVersion: 2,
   generatedAt: '2026-09-28T08:59:00.000Z',
-  disclaimer: 'Indicators, not findings. A named officer decides.',
+  disclaimer: 'Indicators, not findings. A named reviewer decides.',
 };
+const DRAFT_JOB = '0199a000-0000-7000-8000-00000000d0b2';
 const READY: AiDraft = {
   status: 'ready',
   id: 'd1',
+  jobId: DRAFT_JOB,
   label: LABEL,
   opening: 'Thank you for your biennial declaration.',
   items: [
@@ -273,7 +275,7 @@ describe('Draft with AI in the composer (spec 07c FE-3, S12)', () => {
     expect(within(itemCard(1)).getByRole('img', { name: /^AI draft, edited\./ })).toBeTruthy();
   });
 
-  it('saves the opening paragraph with the items', async () => {
+  it('saves the opening paragraph with the items, each drafted part with its job (ADR-007)', async () => {
     const { composer } = renderHost();
     pick('Value changed by 150% since the previous declaration');
     fireEvent.click(draftButton());
@@ -285,9 +287,10 @@ describe('Draft with AI in the composer (spec 07c FE-3, S12)', () => {
     expect(composer.save).toHaveBeenCalledWith(
       expect.objectContaining({
         opening: 'Thank you for your biennial declaration.',
+        openingAiJobId: DRAFT_JOB,
         items: [
-          expect.objectContaining({ itemId: I.plot }),
-          expect.objectContaining({ itemId: I.fund }),
+          expect.objectContaining({ itemId: I.plot, aiJobId: DRAFT_JOB }),
+          expect.objectContaining({ itemId: I.fund, aiJobId: DRAFT_JOB }),
         ],
       }),
     );
@@ -353,6 +356,24 @@ describe('Draft with AI in the composer (spec 07c FE-3, S12)', () => {
     ).toBeTruthy();
   });
 
+  it('is ready again when the draft call itself throws, instead of drafting forever', async () => {
+    const server = fakeDraftServer();
+    server.request.mockRejectedValueOnce(new Error('Failed to fetch'));
+    renderHost({ server });
+    pick('Value changed by 150% since the previous declaration');
+    fireEvent.click(draftButton());
+    await settle();
+
+    expect(
+      screen.getByText(
+        'Draft not available (AI service unavailable). You can write the items manually.',
+      ),
+    ).toBeTruthy();
+    expect(draftButton().textContent).toBe('Draft with AI');
+    expect(draftButton().hasAttribute('disabled')).toBe(false);
+    expect(drafting().getAttribute('aria-busy')).toBe('false');
+  });
+
   it('says a failed draft is not available and keeps the picks for another try', async () => {
     renderHost({
       server: fakeDraftServer({ request: ok({ status: 'failed', id: 'd1', reason: 'budget' }) }),
@@ -400,7 +421,7 @@ describe('Draft with AI in the composer (spec 07c FE-3, S12)', () => {
     expect(draftButton().hasAttribute('disabled')).toBe(true);
   });
 
-  it('tells the reviewer when only the officer holding the case may draft (403)', async () => {
+  it('tells the reviewer when only the reviewer holding the case may draft (403)', async () => {
     renderHost({
       server: fakeDraftServer({
         request: {
@@ -416,6 +437,6 @@ describe('Draft with AI in the composer (spec 07c FE-3, S12)', () => {
     fireEvent.click(draftButton());
     await settle();
 
-    expect(screen.getByText('Only the officer holding the case can draft with AI.')).toBeTruthy();
+    expect(screen.getByText('Only the reviewer holding the case can draft with AI.')).toBeTruthy();
   });
 });

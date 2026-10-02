@@ -29,3 +29,50 @@ export async function readJson(request: Request): Promise<unknown> {
 export function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
+
+/** What the mocks read from a caller's bearer token. */
+export interface MockCaller {
+  subject: string | null;
+  name: string | null;
+  /** Keycloak realm roles (`realm_access.roles`). */
+  roles: string[];
+}
+
+/**
+ * The caller from the request's bearer token claims. The mocks do not verify the token (the
+ * services would); a missing or unreadable one reads as nobody.
+ */
+export function mockCallerOf(request: Request): MockCaller {
+  const nobody: MockCaller = { subject: null, name: null, roles: [] };
+  const token = request.headers.get('authorization')?.replace(/^Bearer /, '') ?? '';
+  try {
+    const claims: unknown = JSON.parse(
+      Buffer.from(token.split('.')[1] ?? '', 'base64url').toString('utf8'),
+    );
+    if (!isRecord(claims)) return nobody;
+    const access = claims.realm_access;
+    const roles = isRecord(access) && Array.isArray(access.roles) ? access.roles : [];
+    return {
+      subject: typeof claims.sub === 'string' ? claims.sub : null,
+      name: typeof claims.name === 'string' ? claims.name : null,
+      roles: roles.filter((role): role is string => typeof role === 'string'),
+    };
+  } catch {
+    return nobody;
+  }
+}
+
+/** An unsigned bearer token with the claims `mockCallerOf` reads, for tests and mock clients. */
+export function unsignedMockToken({
+  subject,
+  name,
+  roles,
+}: {
+  subject: string;
+  name: string;
+  roles?: readonly string[];
+}): string {
+  const part = (value: object) => Buffer.from(JSON.stringify(value)).toString('base64url');
+  const claims = roles ? { sub: subject, name, realm_access: { roles } } : { sub: subject, name };
+  return `${part({ alg: 'none' })}.${part(claims)}.`;
+}

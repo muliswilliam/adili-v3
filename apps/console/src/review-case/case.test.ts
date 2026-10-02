@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import type { Assignee } from '../server/review/types';
-import { assignableOfficers, caseActions, noteError, versionLine, windowLine } from './case';
+import { assignableReviewers, caseActions, noteError, versionLine, windowLine } from './case';
 
 const ME: Assignee = { subject: 'me', name: 'Faith Achieng' };
 const PETER: Assignee = { subject: 'peter', name: 'Peter Mwangi' };
@@ -97,10 +97,10 @@ describe('versionLine', () => {
   });
 });
 
-describe('assignableOfficers', () => {
+describe('assignableReviewers', () => {
   it('offers the reviewers of record and the supervisor, never the holder', () => {
     expect(
-      assignableOfficers(
+      assignableReviewers(
         { case: { assignee: PETER } as never, reviewerHistory: [MERCY, PETER, MERCY] },
         ME,
       ),
