@@ -118,8 +118,17 @@ interface Mention {
   year: boolean;
 }
 
+/** What joins the two ends of a range, "8.2 to 16.4%", "between 8.2 and 16.4%" or "8.2–16.4%". */
+const RANGE_JOIN = /^\s*(?:to|and|[-–—])\s*$/iu;
+
+/**
+ * The numbers in `text`. A unit written once, after a range's last number, is carried to the
+ * numbers before it: "from 8.2 to 16.4 per cent" states two percentages. A year is not part of a
+ * range of figures ("in FY2024 to 35.3% in FY2025").
+ */
 function mentions(text: string): Mention[] {
-  return [...text.matchAll(NUMBER)].map(([, integer = '', fraction, unit]) => {
+  const matches = [...text.matchAll(NUMBER)];
+  const found = matches.map(([, integer = '', fraction, unit]): Mention => {
     const value = Number(`${integer.replaceAll(/[,\u2009\u202f]/g, '')}.${fraction ?? '0'}`);
     return {
       value,
@@ -129,6 +138,16 @@ function mentions(text: string): Mention[] {
         /^\d{4}$/.test(integer) && !fraction && !unit && value >= YEARS.from && value <= YEARS.to,
     };
   });
+  // From the last, so a unit carries along a chain: "8.2 to 9.1 to 16.4%".
+  for (let at = found.length - 2; at >= 0; at -= 1) {
+    const [current, next] = [found[at], found[at + 1]];
+    const [written, following] = [matches[at], matches[at + 1]];
+    if (!current || !next || !written || !following) continue;
+    if (current.percent || current.year || !next.percent) continue;
+    const between = text.slice(written.index + written[0].length, following.index);
+    current.percent = RANGE_JOIN.test(between);
+  }
+  return found;
 }
 
 type InputNumbers = Readonly<Record<'all' | 'rates', readonly number[]>>;
