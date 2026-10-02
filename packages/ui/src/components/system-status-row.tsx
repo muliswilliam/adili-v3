@@ -3,6 +3,7 @@ import { type ComponentProps, type ReactNode, useId, useState } from 'react';
 
 import { cn } from '../lib/cn';
 import { formatDateTime } from '../lib/format-date';
+import { keepHyphenatedWords } from '../lib/keep-hyphenated-words';
 import { Badge, type BadgeProps } from './badge';
 import { Icon, type IconProps } from './icon';
 import { IconTile } from './icon-tile';
@@ -236,7 +237,9 @@ export function SystemStatusRow({
             ) : (
               <>
                 {copy ? (
-                  <div className="mt-px text-[12.5px] text-secondary-foreground">{copy}</div>
+                  <div className="mt-px text-[12.5px] text-secondary-foreground">
+                    {typeof copy === 'string' ? keepHyphenatedWords(copy) : copy}
+                  </div>
                 ) : null}
                 {checkedAt ? (
                   <div className="text-[12.5px] text-muted-foreground">

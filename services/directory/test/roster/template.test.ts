@@ -16,16 +16,17 @@ const HEADERS = [
   'appointment_date',
   'email',
   'phone',
+  'employer_code',
 ];
 
 describe('roster columns', () => {
-  it('are the nine spec 02 columns with the three required ones', () => {
+  it('are the nine spec 02 columns and the employer code, three of them required', () => {
     expect(ROSTER_COLUMNS.map((column) => column.name)).toEqual(HEADERS);
     expect(ROSTER_COLUMNS.filter((column) => column.required).map((column) => column.name)).toEqual(
       ['personnel_file_number', 'full_name', 'national_id'],
     );
     expect(ROSTER_COLUMNS.filter((column) => column.textCell).map((column) => column.name)).toEqual(
-      ['personnel_file_number', 'national_id', 'phone'],
+      ['personnel_file_number', 'national_id', 'phone', 'employer_code'],
     );
   });
 });

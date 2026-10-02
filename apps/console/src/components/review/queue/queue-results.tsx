@@ -123,10 +123,10 @@ export function QueueResults(props: QueueResultsProps) {
 
   return (
     <>
-      <div className="hidden @[960px]:block">
+      <div className="hidden @[1120px]:block">
         <QueueTable {...props} items={loaded.items} />
       </div>
-      <div className="@[960px]:hidden">
+      <div className="@[1120px]:hidden">
         <QueueCards {...props} items={loaded.items} />
       </div>
       <div className="flex flex-wrap items-center gap-3 border-t px-4 py-2.5 text-[13.5px] text-muted-foreground">

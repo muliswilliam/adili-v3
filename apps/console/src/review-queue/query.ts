@@ -49,7 +49,7 @@ const onlySwitch = z
 /**
  * Filters of the review queue, kept in the URL so a view can be shared, reloaded and reached with
  * Back (S19: `/review?band=high&late=true`). Unknown values are dropped rather than failing the
- * page; switches that are off are left out. `assignee` is `mine`, `unassigned` or an officer's
+ * page; switches that are off are left out. `assignee` is `mine`, `unassigned` or a reviewer's
  * subject (a supervisor's choice); anyone is the default and is left out. Pages come from "Load
  * more" and are not part of the URL.
  */

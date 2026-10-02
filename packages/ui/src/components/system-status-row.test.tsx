@@ -36,6 +36,16 @@ describe('SystemStatusRow', () => {
     expect(within(list).getByText('Mismatched').className).toContain('text-warning');
   });
 
+  it('keeps a hyphenated word of its row copy on one line', () => {
+    inList(<SystemStatusRow name="ArdhiSasa" status="unavailable" />);
+
+    const word = screen.getByText('Re-checked');
+    expect(word.className).toContain('whitespace-nowrap');
+    expect(word.parentElement?.textContent).toBe(
+      'Could not reach ArdhiSasa. Re-checked automatically every hour.',
+    );
+  });
+
   it('says when the check ran, in Kenyan time', () => {
     inList(<SystemStatusRow name="KRA" status="matched" checkedAt="2026-09-02T11:31:00Z" />);
 

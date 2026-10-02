@@ -1,4 +1,4 @@
-import { COMMISSION_ADMIN, REPORTING_OFFICER, SUPERVISOR } from '@adili/roles';
+import { COMMISSION_ADMIN, REPORTING_OFFICER, REVIEWER, SUPERVISOR } from '@adili/roles';
 import { z } from 'zod';
 
 import {
@@ -75,8 +75,11 @@ export const internalCommissionListSchema = z.object({
 });
 export type InternalCommissionList = z.infer<typeof internalCommissionListSchema>;
 
-/** The roles services list a Commission's staff by (spec 09 reminders and chase). */
-export const STAFF_ROLES = [REPORTING_OFFICER, SUPERVISOR, COMMISSION_ADMIN] as const;
+/**
+ * The roles services list a Commission's staff by: spec 09's reminders and chase, and the
+ * reviewers and supervisors review offers to assign a case to (spec 07a).
+ */
+export const STAFF_ROLES = [REPORTING_OFFICER, REVIEWER, SUPERVISOR, COMMISSION_ADMIN] as const;
 export type StaffRole = (typeof STAFF_ROLES)[number];
 
 export const staffQuery = z.object({ role: z.enum(STAFF_ROLES) });
@@ -88,6 +91,9 @@ export const internalCommissionStaffSchema = z.object({
     z.object({
       subject: z.string().meta({ description: "The staff member's account (token `sub`)" }),
       email: z.email(),
+      name: z.string().meta({
+        description: "The staff member's name as on their account; their email when it has none",
+      }),
     }),
   ),
 });

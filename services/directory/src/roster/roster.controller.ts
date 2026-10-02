@@ -24,7 +24,7 @@ export class RosterController {
     operationId: 'getRosterTemplate',
     summary: 'Roster template with column notes and a sample row',
     description:
-      'reporting-officer, commission-admin, platform-admin, eacc-analyst and eacc-supervisor. The nine roster columns as headers and a sample row, generated from the same column definitions the import parser uses. The XLSX has a `Roster` sheet (file number, national ID and phone columns formatted as text) and a `Notes` sheet documenting each column. Sent as an attachment (`Content-Disposition`).',
+      'reporting-officer, commission-admin, platform-admin, eacc-analyst and eacc-supervisor. The ten roster columns as headers and a sample row, generated from the same column definitions the import parser uses. The XLSX has a `Roster` sheet (file number, national ID, phone and employer code columns formatted as text) and a `Notes` sheet documenting each column. Sent as an attachment (`Content-Disposition`).',
   })
   @ApiQueryParameters(rosterTemplateQuery)
   @ApiOkResponse({

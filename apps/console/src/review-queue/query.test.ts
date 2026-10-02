@@ -36,7 +36,7 @@ describe('S19 review queue filters in the URL', () => {
       },
     ],
     ['high and late (the spec example)', { band: 'high', late: true }],
-    ['a supervisor picking an officer', { assignee: SUBJECT }],
+    ['a supervisor picking a reviewer', { assignee: SUBJECT }],
     ['unassigned only', { assignee: 'unassigned', status: 'unassigned' }],
     ['registry unavailable only', { registryUnavailable: true }],
     ['a file number of digits', { search: '2019' }],

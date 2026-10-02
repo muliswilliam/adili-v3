@@ -20,20 +20,22 @@ describe('windowLine', () => {
 
   it('counts the days left, amber from three weeks', () => {
     expect(windowLine('2027-03-21T13:05:00Z', now)).toEqual({
-      text: 'Window closes 21 Mar 2027 · 170 days left',
+      text: 'Clarification window closes 21 Mar 2027 · 170 days left',
       open: true,
       closing: false,
     });
     expect(windowLine('2026-10-18T13:05:00Z', now)).toMatchObject({
-      text: 'Window closes 18 Oct 2026 · 16 days left',
+      text: 'Clarification window closes 18 Oct 2026 · 16 days left',
       closing: true,
     });
-    expect(windowLine('2026-10-02T20:00:00Z', now).text).toBe('Window closes 2 Oct 2026 · today');
+    expect(windowLine('2026-10-02T20:00:00Z', now).text).toBe(
+      'Clarification window closes 2 Oct 2026 · today',
+    );
   });
 
   it('says when it closed', () => {
     expect(windowLine('2026-09-30T13:05:00Z', now)).toEqual({
-      text: 'Window closed 30 Sep 2026',
+      text: 'Clarification window closed 30 Sep 2026',
       open: false,
       closing: false,
     });

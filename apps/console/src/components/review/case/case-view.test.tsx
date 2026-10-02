@@ -22,7 +22,8 @@ import {
   addCaseNote,
   claimCase,
   getCaseRegistry,
-  getReassignOfficers,
+  getCaseRegistryStatus,
+  getReviewers,
   markCaseFlagReviewed,
   reassignCase,
   recheckCaseRegistries,
@@ -49,7 +50,8 @@ vi.mock('../../../server/review-case', () => ({
   claimCase: vi.fn(),
   getCaseAttachmentLink: vi.fn(),
   getCaseRegistry: vi.fn(),
-  getReassignOfficers: vi.fn(),
+  getCaseRegistryStatus: vi.fn(),
+  getReviewers: vi.fn(),
   markCaseFlagReviewed: vi.fn(),
   reassignCase: vi.fn(),
   recheckCaseRegistries: vi.fn(),
@@ -81,6 +83,11 @@ function view(
 
 const ok = <T,>(data: T) => ({ ok: true as const, data });
 
+/** The innermost element reading `text`, also when part of it is in a span of its own. */
+const wholeText = (text: string) => (_: string, element: Element | null) =>
+  element?.textContent === text &&
+  ![...element.children].some((child) => child.textContent === text);
+
 beforeEach(() => {
   vi.clearAllMocks();
   Element.prototype.scrollIntoView = scrollIntoView;
@@ -100,7 +107,7 @@ describe('CaseView', () => {
     const groups = screen.getAllByRole('region').map((each) => each.getAttribute('aria-label'));
     expect(groups).toContain('High: 1');
     expect(groups.indexOf('High: 1')).toBeLessThan(groups.indexOf('Medium: 2'));
-    // Only the officer holding the case marks flags reviewed.
+    // Only the reviewer holding the case marks flags reviewed.
     expect(screen.queryByRole('button', { name: 'Mark reviewed' })).toBeNull();
     expect(
       screen.getByText('Your access to this declaration is recorded in the audit trail.'),
@@ -273,8 +280,8 @@ describe('CaseView', () => {
     expect(await screen.findByText('Case released to the queue')).toBeTruthy();
   });
 
-  it('lets a supervisor reassign to an officer of the Commission', async () => {
-    vi.mocked(getReassignOfficers).mockResolvedValue(
+  it('lets a supervisor reassign to a reviewer of the Commission', async () => {
+    vi.mocked(getReviewers).mockResolvedValue(
       ok([{ subject: 'm', name: 'Mercy Wambui', open: 11, ofRecord: true }]),
     );
     vi.mocked(reassignCase).mockResolvedValue(ok(caseItem()));
@@ -293,7 +300,7 @@ describe('CaseView', () => {
     expect(within(dialog).getByText('Currently held by Wafula Barasa.')).toBeTruthy();
     const mercy = await within(dialog).findByRole('radio', { name: 'Mercy Wambui' });
     expect(within(dialog).getByText('11 open cases · already a reviewer of record')).toBeTruthy();
-    expect(getReassignOfficers).toHaveBeenCalledWith({
+    expect(getReviewers).toHaveBeenCalledWith({
       data: { slug: 'psc', assignee: WAFULA.subject, reviewerHistory: [WAFULA] },
     });
 
@@ -343,11 +350,14 @@ describe('CaseView: Registry tab', () => {
     expect(getCaseRegistry).toHaveBeenCalledWith({ data: { caseId: caseItem().id } });
     expect(within(wanjiku).getByText('PIN on record, compliant, income within 25%')).toBeTruthy();
     expect(
-      within(wanjiku).getByText('Could not reach ArdhiSasa. Re-checked automatically every hour.'),
+      within(wanjiku).getByText(
+        wholeText('Could not reach ArdhiSasa. Re-checked automatically every hour.'),
+      ),
     ).toBeTruthy();
     expect(within(wanjiku).getAllByText('Mismatched')).toHaveLength(2);
     const imani = screen.getByRole('list', { name: 'Registry checks for Imani Wairimu Kamau' });
-    expect(within(imani).getByText('Not checked: no national ID declared')).toBeTruthy();
+    expect(within(imani).getByText('All registries')).toBeTruthy();
+    expect(within(imani).getByText('No national ID declared')).toBeTruthy();
     expect(
       within(imani).getByText('Registries cannot be checked for Imani without an ID.'),
     ).toBeTruthy();
@@ -365,7 +375,7 @@ describe('CaseView: Registry tab', () => {
     const indicators = screen.getByRole('list', { name: 'NTSA indicators' });
     fireEvent.click(within(indicators).getByRole('button', { name: 'Mark reviewed' }));
     fireEvent.change(screen.getByLabelText('What did you conclude?'), {
-      target: { value: 'Bought in 2024; the officer will amend.' },
+      target: { value: 'Bought in 2024; the declarant will amend.' },
     });
     await act(async () => {
       fireEvent.click(within(indicators).getByRole('button', { name: 'Mark reviewed' }));
@@ -376,7 +386,7 @@ describe('CaseView: Registry tab', () => {
       data: {
         caseId: caseItem().id,
         flagId: VEHICLE_FLAG.id,
-        note: 'Bought in 2024; the officer will amend.',
+        note: 'Bought in 2024; the declarant will amend.',
       },
     });
     expect(await screen.findByText('Marked reviewed')).toBeTruthy();
@@ -410,7 +420,7 @@ describe('CaseView: Registry tab', () => {
       ),
     ).toBeTruthy();
     expect(
-      screen.getByText('Could not reach NTSA. Re-checked automatically every hour.'),
+      screen.getByText(wholeText('Could not reach NTSA. Re-checked automatically every hour.')),
     ).toBeTruthy();
     // The tab is marked: a registry could not be checked.
     expect(screen.getByRole('img', { name: 'A registry could not be checked' })).toBeTruthy();
@@ -429,8 +439,10 @@ describe('CaseView: Registry tab', () => {
     const after = { ...registryView(), checkedAt: '2026-10-02T09:01:00.000Z' };
     vi.mocked(getCaseRegistry)
       .mockResolvedValueOnce(ok(registryView()))
-      .mockResolvedValueOnce(ok(registryView()))
       .mockResolvedValue(ok(after));
+    vi.mocked(getCaseRegistryStatus)
+      .mockResolvedValueOnce(ok({ checkedAt: registryView().checkedAt }))
+      .mockResolvedValue(ok({ checkedAt: after.checkedAt }));
     vi.mocked(recheckCaseRegistries).mockResolvedValue({ ok: true });
     render(view(held(), reviewer, 'registry'));
     await screen.findByRole('list', { name: 'Registry checks for Wanjiku Njoki Kamau' });
@@ -458,6 +470,9 @@ describe('CaseView: Registry tab', () => {
     expect(await screen.findByText('Registry checks updated')).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Re-check' })).toBeTruthy();
     expect(invalidate).toHaveBeenCalled();
+    // Polled the unaudited status; read the audited records once when the tab opened, once after.
+    expect(getCaseRegistryStatus).toHaveBeenCalledTimes(2);
+    expect(getCaseRegistry).toHaveBeenCalledTimes(2);
   });
 
   it('says when the next re-check is accepted (429)', async () => {

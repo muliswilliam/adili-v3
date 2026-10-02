@@ -27,7 +27,7 @@ import {
   toggleSwitch,
   withFilter,
 } from '../../../review-queue/query';
-import type { Officer } from '../../../server/review-case.server';
+import type { Reviewer } from '../../../server/review-case.server';
 import { SearchBox } from '../../search-box';
 
 /** Radix Select items cannot have an empty value, so "all" is this sentinel. */
@@ -39,8 +39,8 @@ export interface QueueToolbarProps {
   onSearchChange: (next: QueueSearch, options?: { replace?: boolean }) => void;
   /** Statement years to filter by. */
   cycles: readonly number[];
-  /** A supervisor's officers to filter by (themselves aside: that is Mine); null for reviewers. */
-  officers: readonly Officer[] | null;
+  /** A supervisor's reviewers to filter by (themselves aside: that is Mine); null for reviewers. */
+  reviewers: readonly Reviewer[] | null;
   /** The page's address, for Copy link. */
   href: string;
 }
@@ -56,16 +56,16 @@ export function QueueToolbar({
   search,
   onSearchChange,
   cycles,
-  officers,
+  reviewers,
   href,
 }: QueueToolbarProps) {
   const id = useId();
   const assignee = search.assignee ?? ANY;
-  const knownOfficer =
+  const knownReviewer =
     assignee === ANY ||
     assignee === 'mine' ||
     assignee === 'unassigned' ||
-    (officers ?? []).some((officer) => officer.subject === assignee);
+    (reviewers ?? []).some((reviewer) => reviewer.subject === assignee);
 
   return (
     <div role="search" className="flex flex-col gap-2.5 border-b px-4 py-3.5">
@@ -170,13 +170,13 @@ export function QueueToolbar({
           <SelectItem value={ANY}>{m.assigneeAny}</SelectItem>
           <SelectItem value="mine">{m.assigneeMine}</SelectItem>
           <SelectItem value="unassigned">{m.assigneeUnassigned}</SelectItem>
-          {(officers ?? []).map((officer) => (
-            <SelectItem key={officer.subject} value={officer.subject}>
-              {officer.name}
+          {(reviewers ?? []).map((reviewer) => (
+            <SelectItem key={reviewer.subject} value={reviewer.subject}>
+              {reviewer.name}
             </SelectItem>
           ))}
-          {/* An officer from a shared link who holds no case now. */}
-          {knownOfficer ? null : <SelectItem value={assignee}>{m.assigneeOther}</SelectItem>}
+          {/* A reviewer from a shared link who holds no case now. */}
+          {knownReviewer ? null : <SelectItem value={assignee}>{m.assigneeOther}</SelectItem>}
         </Select>
       </div>
       <div className="flex flex-wrap items-center gap-2">

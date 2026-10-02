@@ -216,8 +216,8 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * A Commission's staff holding a role, with their emails (services)
-         * @description Service tokens with scope directory:internal, acting for the Commission in X-Acting-Tenant; audited, naming the accounts read (it gives staff and their emails). Only enabled accounts with a verified email. The reporting service reminds supervisors and commission admins of the Form M deadlines, and chases reporting officers about a late report (spec 09).
+         * A Commission's staff holding a role, with their names and emails (services)
+         * @description Service tokens with scope directory:internal, acting for the Commission in X-Acting-Tenant; audited, naming the accounts read (it gives staff, their names and emails). Only enabled accounts with a verified email. The reporting service reminds supervisors and commission admins of the Form M deadlines, and chases reporting officers about a late report (spec 09); the review service lists the reviewers and supervisors a case can be assigned to (spec 07a).
          */
         get: operations["internalListCommissionStaff"];
         put?: never;
@@ -257,7 +257,7 @@ export interface paths {
         };
         /**
          * Roster template with column notes and a sample row
-         * @description reporting-officer, commission-admin, platform-admin, eacc-analyst and eacc-supervisor. The nine roster columns as headers and a sample row, generated from the same column definitions the import parser uses. The XLSX has a `Roster` sheet (file number, national ID and phone columns formatted as text) and a `Notes` sheet documenting each column. Sent as an attachment (`Content-Disposition`).
+         * @description reporting-officer, commission-admin, platform-admin, eacc-analyst and eacc-supervisor. The ten roster columns as headers and a sample row, generated from the same column definitions the import parser uses. The XLSX has a `Roster` sheet (file number, national ID, phone and employer code columns formatted as text) and a `Notes` sheet documenting each column. Sent as an attachment (`Content-Disposition`).
          */
         get: operations["getRosterTemplate"];
         put?: never;
@@ -409,7 +409,7 @@ export interface paths {
         };
         /**
          * Rejected rows as CSV with reason columns appended
-         * @description Same callers as `listRosterImportRows`. One line per rejected row, in row order: the nine template columns with the values as sent, then `row_number`, `error_fields`, `error_codes` and `error_messages` (several errors joined by `; `). UTF-8 with a byte order mark; values that a spreadsheet would run as a formula are prefixed with `'`. The fixed file can be uploaded again as it is: the reason columns are ignored. Streamed, and sent as an attachment (`Content-Disposition`).
+         * @description Same callers as `listRosterImportRows`. One line per rejected row, in row order: the template columns with the values as sent, then `row_number`, `error_fields`, `error_codes` and `error_messages` (several errors joined by `; `). UTF-8 with a byte order mark; values that a spreadsheet would run as a formula are prefixed with `'`. The fixed file can be uploaded again as it is: the reason columns are ignored. Streamed, and sent as an attachment (`Content-Disposition`).
          */
         get: operations["getRosterImportReportCsv"];
         put?: never;
@@ -1062,6 +1062,8 @@ export interface components {
                 subject: string;
                 /** Format: email */
                 email: string;
+                /** @description The staff member's name as on their account; their email when it has none */
+                name: string;
             }[];
         };
         TenantPolicyVersion: {
@@ -1210,12 +1212,12 @@ export interface components {
                  * @description Template column it matched
                  * @enum {string}
                  */
-                field: "personnel_file_number" | "full_name" | "national_id" | "designation" | "job_group" | "reporting_entity" | "appointment_date" | "email" | "phone";
+                field: "personnel_file_number" | "full_name" | "national_id" | "designation" | "job_group" | "reporting_entity" | "appointment_date" | "email" | "phone" | "employer_code";
             }[];
             /** @description File headers that match no template column, or repeat one already matched */
             ignored: string[];
             /** @description Optional template columns not present */
-            missing: ("personnel_file_number" | "full_name" | "national_id" | "designation" | "job_group" | "reporting_entity" | "appointment_date" | "email" | "phone")[];
+            missing: ("personnel_file_number" | "full_name" | "national_id" | "designation" | "job_group" | "reporting_entity" | "appointment_date" | "email" | "phone" | "employer_code")[];
         };
         ImportCounts: {
             /** @description Rows applied to the roster (created, updated or unchanged). Like every count, only rows processed: a failed import does not count the rows it did not reach (totalRows - processedRows) */
@@ -1331,6 +1333,11 @@ export interface components {
              * @example 0712345678
              */
             phone?: string | null;
+            /**
+             * @description Up to 40 letters, digits, _ or -, starting with a letter or digit.
+             * @example TSC
+             */
+            employerCode?: string | null;
         };
         StartBatchImport: {
             /** @constant */
@@ -1396,7 +1403,7 @@ export interface components {
             format: "csv" | "xlsx";
             mapping: components["schemas"]["ColumnMapping"];
             /** @description Required template columns the file lacks; the import would fail while any are */
-            missingRequired: ("personnel_file_number" | "full_name" | "national_id" | "designation" | "job_group" | "reporting_entity" | "appointment_date" | "email" | "phone")[];
+            missingRequired: ("personnel_file_number" | "full_name" | "national_id" | "designation" | "job_group" | "reporting_entity" | "appointment_date" | "email" | "phone" | "employer_code")[];
             /** @description Data rows: exact for smaller files, estimated from the file size for large CSV files, null for large XLSX files */
             estimatedRows: number | null;
         };
@@ -1411,7 +1418,7 @@ export interface components {
              * @description The roster field at fault
              * @enum {string}
              */
-            field: "personnelFileNumber" | "fullName" | "nationalId" | "designation" | "jobGroup" | "reportingEntity" | "appointmentDate" | "email" | "phone";
+            field: "personnelFileNumber" | "fullName" | "nationalId" | "designation" | "jobGroup" | "reportingEntity" | "appointmentDate" | "email" | "phone" | "employerCode";
             /** @enum {string} */
             code: "required" | "format" | "too-long" | "future-date" | "duplicate-in-file" | "identity-locked";
             /** @description What to fix, in English */
@@ -1433,6 +1440,7 @@ export interface components {
                 appointmentDate?: string | null;
                 email?: string | null;
                 phone?: string | null;
+                employerCode?: string | null;
             };
             /** @description Why the row was rejected; empty if not */
             errors: components["schemas"]["RowError"][];
@@ -1442,7 +1450,7 @@ export interface components {
                  * @description The roster field the note is about
                  * @enum {string}
                  */
-                field: "personnelFileNumber" | "fullName" | "nationalId" | "designation" | "jobGroup" | "reportingEntity" | "appointmentDate" | "email" | "phone";
+                field: "personnelFileNumber" | "fullName" | "nationalId" | "designation" | "jobGroup" | "reportingEntity" | "appointmentDate" | "email" | "phone" | "employerCode";
                 /**
                  * @description `national-id-on-another-roster`: the national ID is also on another Commission's roster (people move between Commissions); which one is not disclosed
                  * @enum {string}
@@ -1574,6 +1582,11 @@ export interface components {
             designation: string | null;
             jobGroup: string | null;
             reportingEntity: components["schemas"]["ReportingEntityRef"] | null;
+            /**
+             * @description The HR and payroll systems' code for the employer, as the roster gives it; null when it gives none
+             * @example KEMSA
+             */
+            employerCode: string | null;
             state: components["schemas"]["RosterRecordState"];
             /** @description Null when the roster gives none */
             appointmentDate: string | null;
@@ -2508,7 +2521,7 @@ export interface operations {
     internalListCommissionStaff: {
         parameters: {
             query: {
-                role: "reporting-officer" | "supervisor" | "commission-admin";
+                role: "reporting-officer" | "reviewer" | "supervisor" | "commission-admin";
             };
             header: {
                 /** @description Tenant the calling service acts for; the resource must belong to it */
@@ -2530,7 +2543,7 @@ export interface operations {
                     "application/json": components["schemas"]["InternalStaffList"];
                 };
             };
-            /** @description role is not reporting-officer, supervisor or commission-admin */
+            /** @description role is not reporting-officer, reviewer, supervisor or commission-admin */
             400: {
                 headers: {
                     [name: string]: unknown;

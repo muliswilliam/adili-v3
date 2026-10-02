@@ -423,6 +423,15 @@ export function templateParams(id: TemplateId): z.ZodType {
 
 type RenderFn = (params: unknown) => RenderedEmail | RenderedSms;
 
+export interface RenderOptions {
+  /**
+   * Refuse a `portalUrl` that is not https: a link a declarant follows to sign in must not go out
+   * in the clear. On outside development and test (`NODE_ENV=production`), where the portal runs
+   * on plain http locally.
+   */
+  httpsLinksOnly?: boolean;
+}
+
 /**
  * Validates `params` against the template's schema and renders it in `locale`, falling back
  * to English. Throws a `ZodError` whose paths start at `params`.
@@ -431,6 +440,7 @@ export function renderTemplate(
   id: TemplateId,
   locale: Locale,
   params: unknown,
+  { httpsLinksOnly = false }: RenderOptions = {},
 ): Partial<RenderedEmail> & { text: string } {
   const template = templates[id] as unknown as {
     params: z.ZodType;
@@ -441,6 +451,17 @@ export function renderTemplate(
     throw new z.ZodError(
       parsed.error.issues.map((issue) => ({ ...issue, path: ['params', ...issue.path] })),
     );
+  }
+  const portalUrl = (parsed.data as { portalUrl?: unknown }).portalUrl;
+  if (httpsLinksOnly && typeof portalUrl === 'string' && !portalUrl.startsWith('https:')) {
+    throw new z.ZodError([
+      {
+        code: 'custom',
+        path: ['params', 'portalUrl'],
+        message: 'must be an https URL',
+        input: portalUrl,
+      },
+    ]);
   }
   return (template.copy[locale] ?? template.copy.en)(parsed.data);
 }

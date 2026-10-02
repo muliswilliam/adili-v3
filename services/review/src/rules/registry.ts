@@ -94,9 +94,9 @@ export const RULES = {
       'A declared company registration number is not among the companies BRS lists for this person. A typing difference or a holding through a nominee can explain this.',
   },
   'directorship-employer-supplier': {
-    title: "Company supplies the officer's employer",
+    title: "Company supplies the declarant's employer",
     indicator:
-      "BRS lists this person as a director or shareholder of a company on the supplier list of the officer's own employer. It may be a conflict of interest to look into, or one already managed.",
+      "BRS lists this person as a director or shareholder of a company on the supplier list of the declarant's own employer. It may be a conflict of interest to look into, or one already managed.",
   },
   'kra-pin-missing': {
     title: 'No KRA PIN found',

@@ -1,12 +1,6 @@
 import { Button, Icon } from '@adili/ui';
 import { Settings01Icon, Upload04Icon, UserGroupIcon } from '@hugeicons/core-free-icons';
-import {
-  createFileRoute,
-  getRouteApi,
-  Link,
-  useNavigate,
-  useRouterState,
-} from '@tanstack/react-router';
+import { createFileRoute, getRouteApi, Link, useNavigate } from '@tanstack/react-router';
 
 import { messages as m } from '../../components/obligations/messages';
 import {
@@ -27,18 +21,22 @@ const PATH = '/obligations';
 
 export const Route = createFileRoute('/obligations/')({
   validateSearch: obligationsSearchSchema,
-  loaderDeps: ({ search }) => search,
-  loader: async ({
-    deps,
-    location,
-    context,
-  }): Promise<DeclarationsResult<ObligationPage> | null> => {
+  // The filters are not loader deps: a new set of deps is a new match, which the router replaces
+  // with the loading page once its loader takes over a second (the search box losing focus
+  // mid-word). Without, and with `shouldReload`, a filter change reloads the same match in the
+  // background; the loader reads the filters off the location it is loading for.
+  shouldReload: true,
+  loader: async ({ location, context }): Promise<DeclarationsResult<ObligationPage> | null> => {
     // The layout shows no list without the workspace; do not fetch one.
     if (!context.workspace) return null;
     const slug = context.tenant;
     if (!slug) return SERVICE_UNAVAILABLE;
     const list = await listCommissionObligations({
-      data: { slug, ...deps, limit: OBLIGATIONS_PAGE_SIZE },
+      data: {
+        slug,
+        ...obligationsSearchSchema.parse(location.search),
+        limit: OBLIGATIONS_PAGE_SIZE,
+      },
     });
     if (!list.ok && list.error.kind === 'unauthenticated') throw signInRedirect(location.href);
     return list;
@@ -63,17 +61,13 @@ function ObligationsLoaded() {
 
 /** The workspace page; `list` is null while the first page loads. */
 function ObligationsPage({ list }: { list: DeclarationsResult<ObligationPage> | null }) {
-  const committed = Route.useSearch();
+  const search = Route.useSearch();
   const { roles, tenant } = Route.useRouteContext();
   const data = layout.useLoaderData();
   const navigate = useNavigate({ from: `${PATH}/` });
-  // Filter changes keep this page mounted (and the search box focused) while the loader runs;
-  // the toolbar shows the filters being loaded rather than the previous ones.
-  const pending = useRouterState({
-    select: (state) =>
-      state.status === 'pending' && state.location.pathname === PATH ? state.location.search : null,
-  });
-  const search = pending ? obligationsSearchSchema.parse(pending) : committed;
+  // Filter changes keep this page mounted (and the search box focused) while the loader runs in
+  // the background: the toolbar has the new filters already, the list says it is loading them.
+  const loading = Route.useMatch({ select: (match) => match.isFetching !== false });
   const roster = data?.commission.ok ? data.commission.data.roster : null;
   // The roster is the reporting officer's and the commission admin's; reviewers do not open it.
   const opensRoster = workspaceFor(roles, 'roster') !== undefined;
@@ -86,7 +80,7 @@ function ObligationsPage({ list }: { list: DeclarationsResult<ObligationPage> | 
   return (
     <ObligationsView
       summary={data?.summary ?? null}
-      list={pending ? null : list}
+      list={loading ? null : list}
       search={search}
       onSearchChange={changeSearch}
       actions={
@@ -102,7 +96,7 @@ function ObligationsPage({ list }: { list: DeclarationsResult<ObligationPage> | 
       }
       loadPage={(cursor) =>
         listCommissionObligations({
-          data: { slug: tenant ?? '', ...committed, cursor, limit: OBLIGATIONS_PAGE_SIZE },
+          data: { slug: tenant ?? '', ...search, cursor, limit: OBLIGATIONS_PAGE_SIZE },
         })
       }
       loadObligation={(id) => getObligation({ data: { id } })}

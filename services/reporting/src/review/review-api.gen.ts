@@ -41,6 +41,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/commissions/{slug}/review/queue/reviewers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Reviewers and supervisors a case can be given to, with the cases they hold
+         * @description Supervisors of the Commission (a reviewer gets 403 `supervisor-required`; anyone else 404). The Commission's enabled reviewer and supervisor accounts as the directory has them, by name, each with the cases of the Commission they hold that are not determined. For the reassign dialog and the queue's assignee filter.
+         */
+        get: operations["listCommissionReviewers"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/review/cases/{caseId}/compare": {
         parameters: {
             query?: never;
@@ -858,6 +878,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/review/cases/{caseId}/registry/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * When the case's latest registry check was stored
+         * @description Reviewers and supervisors of the case's Commission; anyone else gets 404. What a client polls while a re-check runs, before reading the registry view once: read from review alone (no declaration, no registry records), so not an audited read.
+         */
+        get: operations["getCaseRegistryStatus"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/review/cases/{caseId}/recheck": {
         parameters: {
             query?: never;
@@ -1067,6 +1107,17 @@ export interface components {
                 high: number;
             };
             overdueClarifications: number;
+        };
+        ReviewerList: {
+            items: {
+                /** @description The staff member's account (token `sub`) */
+                subject: string;
+                name: string;
+                /** @description Holds the supervisor role */
+                supervisor: boolean;
+                /** @description Cases of the Commission they hold, not determined */
+                openCases: number;
+            }[];
         };
         Flag: {
             /** Format: uuid */
@@ -1312,6 +1363,11 @@ export interface components {
             requirementLabels: string[];
         };
         ClarificationLetterPayload: {
+            /**
+             * Format: uuid
+             * @description Who may download the letter: the documents service checks the issue request against it. Not printed
+             */
+            declarantPersonId: string;
             declarantName: string;
             commission: {
                 name: string;
@@ -1377,6 +1433,10 @@ export interface components {
                     flags: components["schemas"]["Flag"][];
                 }[];
             }[];
+        };
+        RegistryStatus: {
+            /** @description When the current version's latest check was stored; null before one */
+            checkedAt: string | null;
         };
         /** @enum {string} */
         DeterminationOutcome: "compliant" | "compliant-no-issues" | "non-compliant" | "further-action";
@@ -1982,6 +2042,55 @@ export interface operations {
             };
             /** @description Not found, or not visible to the caller */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    listCommissionReviewers: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Reviewers */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReviewerList"];
+                };
+            };
+            /** @description Problem type `supervisor-required` */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not found, or not visible to the caller */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Directory unavailable */
+            502: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -4784,6 +4893,37 @@ export interface operations {
             };
             /** @description Declarations or the integration-gateway unavailable */
             502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    getCaseRegistryStatus: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                caseId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Registry status */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RegistryStatus"];
+                };
+            };
+            /** @description Not found, or not visible to the caller */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };

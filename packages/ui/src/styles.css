@@ -106,6 +106,8 @@
     0 0 0 4px color-mix(in oklch, var(--destructive) 12%, transparent);
   --elevation-card: 0 1px 2px rgb(20 20 20 / 0.04), 0 0 0 1px var(--border);
   --elevation-card-editing: 0 0 0 1.5px var(--ring), 0 8px 24px -12px rgb(20 20 20 / 0.2);
+  /* A settled card on a muted fill (a reviewed or closed flag): the hairline without the lift. */
+  --elevation-card-flat: 0 0 0 1px var(--border);
   --elevation-pop: 0 12px 40px -8px rgb(20 20 20 / 0.22), 0 0 0 1px rgb(20 20 20 / 0.06);
   --elevation-button-primary: 0 1px 2px rgb(0 0 0 / 0.25), inset 0 1px 0 rgb(255 255 255 / 0.12);
   --elevation-button-destructive:
@@ -234,9 +236,11 @@
   --color-art-lift: var(--art-lift);
   --color-art-item: var(--art-item);
   --color-art-tile: var(--art-tile);
-  /* 6, 8, 10, 12, 14, 16 and 24px. The kit's --r-sm, --r and --r-lg are md, lg and 2xl. */
+  /* 6, 7, 8, 9, 10, 12, 14, 16 and 24px. The kit's --r-sm, --r and --r-lg are md, lg and 2xl. */
   --radius-sm: calc(var(--radius) - 4px);
+  --radius-chip: calc(var(--radius) - 3px);
   --radius-md: calc(var(--radius) - 2px);
+  --radius-tile: calc(var(--radius) - 1px);
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 2px);
   --radius-item: calc(var(--radius) + 4px);
@@ -250,6 +254,7 @@
   --shadow-control-selected: var(--elevation-control-selected);
   --shadow-card: var(--elevation-card);
   --shadow-card-editing: var(--elevation-card-editing);
+  --shadow-card-flat: var(--elevation-card-flat);
   --shadow-pop: var(--elevation-pop);
   --shadow-button-primary: var(--elevation-button-primary);
   --shadow-button-destructive: var(--elevation-button-destructive);

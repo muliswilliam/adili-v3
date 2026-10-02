@@ -223,7 +223,7 @@ function ReviewedFlag({ flag, currentVersion }: { flag: CaseFlag; currentVersion
       id={flagAnchorId(flag.id)}
       data-flag-id={flag.id}
       data-reviewed="true"
-      className={cn(card, 'bg-muted/30 shadow-[0_0_0_1px_var(--border)] before:bg-success')}
+      className={cn(card, 'bg-muted/30 shadow-card-flat before:bg-success')}
     >
       <div className="flex flex-wrap items-center gap-2">
         <Icon icon={Tick02Icon} strokeWidth={2.4} className="text-success" />
@@ -254,11 +254,7 @@ function ClosedFlag({ flag }: { flag: CaseFlag }) {
     <li
       id={flagAnchorId(flag.id)}
       data-flag-id={flag.id}
-      className={cn(
-        card,
-        'bg-muted/30 opacity-85 shadow-[0_0_0_1px_var(--border)]',
-        EDGE[flag.severity],
-      )}
+      className={cn(card, 'bg-muted/30 opacity-85 shadow-card-flat', EDGE[flag.severity])}
     >
       <div className="flex flex-wrap items-center gap-2">
         <SeverityBadge severity={flag.severity} />
@@ -306,7 +302,7 @@ export interface FlagActions {
 /**
  * The Flags tab (spec 07a FE-3): the indicator banner, the counts and how priority is set, then
  * open flags grouped by severity (High, Medium, Low, Info), each with its title, indicator text
- * (behind the info mark), evidence line, what it points at, "Go to item" and, for the officer
+ * (behind the info mark), evidence line, what it points at, "Go to item" and, for the reviewer
  * holding the case, "Mark reviewed" with a note. Reviewed flags collapse below with the note and
  * the reviewer; flags a registry re-check closed come last.
  */

@@ -405,7 +405,7 @@ describe('clarifications: drafts, issue, letter payload, declarant reads', () =>
     expect(retry.json()).toEqual(first.json());
   });
 
-  it('the letter payload serves only the template fields, to a documents service token acting for the Commission', async () => {
+  it("the letter payload serves only the template fields and the declarant's person id, to a documents service token acting for the Commission", async () => {
     const caseId = await givenAssignedCase(api, version);
     const { id } = (await draft(caseId)).json<ClarificationView>();
     const payloadUrl = `/internal/v1/review/clarifications/${id}/letter-payload`;
@@ -447,6 +447,7 @@ describe('clarifications: drafts, issue, letter payload, declarant reads', () =>
       ),
     ).toEqual([]);
     expect(payload).toEqual({
+      declarantPersonId: version.personId,
       declarantName: 'James Otieno',
       commission: { name: 'Public Service Commission', issuerCode: 'PSC' },
       declarationReference: 'DCB-PSC-2027-0000042-7',
@@ -467,9 +468,10 @@ describe('clarifications: drafts, issue, letter payload, declarant reads', () =>
       dueAt: '2028-01-19T08:00:00.000Z',
       portalUrl: `http://localhost:3010/clarifications/${id}`,
     });
-    // Nothing beyond the template: no ids (the portal link names the clarification, nothing else),
-    // person ids, amounts or other content.
-    const text = JSON.stringify(payload);
+    // Nothing beyond the template and who the letter is for: no other ids (the portal link names
+    // the clarification, nothing else), amounts or other content.
+    const printed = { ...payload, declarantPersonId: undefined };
+    const text = JSON.stringify(printed);
     for (const leak of [caseId, version.personId, version.declarationId, plot.id, '1000000000']) {
       expect(text).not.toContain(leak);
     }

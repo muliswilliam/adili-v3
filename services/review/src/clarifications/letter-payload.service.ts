@@ -11,8 +11,9 @@ import type { ClarificationLetterPayload } from './representation.js';
 
 /**
  * The letter payload the documents service pulls when it renders a clarification letter
- * (`internalGetClarificationLetterPayload`). Template fields only: no ids, person ids, amounts or
- * anything else of the declaration beyond the labels of the items asked about. Served from the
+ * (`internalGetClarificationLetterPayload`). Template fields and the declarant's person id (who
+ * may download the letter, which documents checks the issue request against); no other ids, no
+ * amounts or anything else of the declaration beyond the labels of the items asked about. Served from the
  * letter fixed when the clarification was issued, so rendering calls no other service (ADR-013
  * §7.3) and a letter reads the same whenever it is rendered.
  */
@@ -30,18 +31,20 @@ export class LetterPayloadService {
           dueAt: clarifications.dueAt,
           declarationReference: reviewCases.reference,
           declarantName: reviewCases.declarantName,
+          personId: clarifications.personId,
         })
         .from(clarifications)
         .innerJoin(reviewCases, eq(reviewCases.id, clarifications.caseId))
         .where(and(eq(clarifications.id, clarificationId), ne(clarifications.status, 'draft')));
       return row ?? null;
     });
-    const { reference, letter, issuedAt, dueAt, declarationReference, declarantName } =
+    const { reference, letter, issuedAt, dueAt, declarationReference, declarantName, personId } =
       notFoundIfInvisible(found);
     if (!reference || !letter || !issuedAt || !dueAt) {
       throw new Error(`Clarification ${clarificationId} is issued without its letter`);
     }
     return {
+      declarantPersonId: personId,
       declarantName,
       commission: letter.commission,
       declarationReference,

@@ -1,5 +1,5 @@
 import { asc, eq } from 'drizzle-orm';
-import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { inbox, outbox, reviewCases, reviewFlags, reviewTimeline } from '../../src/db/schema.js';
 import { asset, declaration, income, statement } from '../fixtures/declarations.js';
@@ -197,12 +197,19 @@ describe('declaration.submitted.v1 consumer and processing', () => {
   it('retries pulls while declarations is unavailable, then creates the case', async () => {
     const version = firstDeclaration();
     api.declarations.given(version);
-    api.declarations.failReads(2);
+    // This version's reads only: a workflow of an earlier test still running cannot take them.
+    api.declarations.failDocumentReads(version.declarationId, 2);
 
     await api.consumer.submitted(submittedEvent('psc', version));
 
-    await untilRegistryChecked(api, version);
-    expect(await casesOf(version.declarationId)).toHaveLength(1);
+    // The case is what the retries are for; the registry check after it is not waited for.
+    await vi.waitFor(
+      async () => {
+        expect(await casesOf(version.declarationId)).toHaveLength(1);
+      },
+      { timeout: 45_000, interval: 250 },
+    );
+    expect(api.declarations.failedReads).toEqual([version.declarationId, version.declarationId]);
   });
 
   it('rejects an event without a tenant, and one for a version it cannot name', async () => {

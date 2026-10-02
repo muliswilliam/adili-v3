@@ -16,7 +16,7 @@ import {
   SquareLock02Icon,
   UserMultiple02Icon,
 } from '@hugeicons/core-free-icons';
-import type { ReactNode } from 'react';
+import { Fragment, type ReactNode } from 'react';
 
 import { CASE_COPY } from '../../../review-case/messages';
 import { CASE_STATUSES, windowLine } from '../../../review-case/view';
@@ -90,11 +90,23 @@ export function CaseHeader({
             )}
           >
             <Icon icon={window.open ? Clock01Icon : SquareLock02Icon} className="size-3.5" />
-            {window.text}
+            <span>
+              {/* "170 days left" stays on one line when the date wraps. */}
+              {window.text.split(' · ').map((part, index) =>
+                index === 0 ? (
+                  part
+                ) : (
+                  <Fragment key={part}>
+                    {' · '}
+                    <span className="whitespace-nowrap">{part}</span>
+                  </Fragment>
+                ),
+              )}
+            </span>
           </span>
         </p>
       </div>
-      <div className="flex flex-wrap items-center gap-2.5 rounded-[14px] bg-card py-2.5 pr-3 pl-3.5 shadow-card">
+      <div className="flex flex-wrap items-center gap-2.5 rounded-item bg-card py-2.5 pr-3 pl-3.5 shadow-card">
         <div className="flex min-w-0 flex-wrap items-center gap-2.5">
           <span className="text-[13px] text-muted-foreground">{CASE_COPY.assignedTo}</span>
           <AssigneeChip

@@ -17,8 +17,14 @@ export const VIEW_REGISTRY_RECORDS_BUDGET_MS = 3_000;
 export const SLOWEST_VIEW_MS = VIEW_DECLARATIONS_BUDGET_MS + VIEW_REGISTRY_RECORDS_BUDGET_MS;
 
 /**
- * `work`, or `unanswered()` thrown once `ms` have passed without its answer. The work itself is
- * left to finish or time out on its own; its outcome is then ignored.
+ * `work`, or `unanswered()` thrown once `ms` have passed without its answer.
+ *
+ * The work is not cancelled: api-kit's service client takes no `AbortSignal`, so a call past the
+ * deadline goes on until its own per-attempt timeouts end it, and its outcome is then ignored.
+ * For the declarations read that means declarations may still answer, and record its audited
+ * read for the viewer and the case, after review has answered the viewer without the
+ * declaration. That read is recorded truthfully (the declaration was read for them); it is just
+ * not shown. Cancelling it would take a signal through `ServiceClient.call` to `fetch`.
  */
 export async function within<T>(
   ms: number,

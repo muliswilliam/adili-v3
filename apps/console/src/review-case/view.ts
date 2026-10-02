@@ -44,7 +44,7 @@ export interface WindowLine {
   closing: boolean;
 }
 
-/** "Window closes 12 Oct 2026 · 16 days left", or "Window closed ..." once it has. */
+/** "Clarification window closes 12 Oct 2026 · 16 days left", or "... closed ..." once it has. */
 export function windowLine(windowEndsAt: string, now: number): WindowLine {
   const open = now <= Date.parse(windowEndsAt);
   if (!open) return { text: CASE_COPY.windowClosed(windowEndsAt), open, closing: false };

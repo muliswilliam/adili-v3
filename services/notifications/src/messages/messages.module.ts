@@ -20,6 +20,8 @@ import { SmtpSender } from './smtp-sender.js';
         providerTimeoutMs: config.PROVIDER_TIMEOUT_MS,
         contactLookupTimeoutMs: config.CONTACT_LOOKUP_TIMEOUT_MS,
         recipientHashKey: config.RECIPIENT_HASH_KEY,
+        // The portal runs on plain http in development and tests only.
+        httpsLinksOnly: config.NODE_ENV === 'production',
       } satisfies MessagesOptions,
     },
     {

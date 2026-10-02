@@ -5,8 +5,9 @@
 // scopes (messages, iprs, directory:internal, directory:person-contacts and
 // directory:roster-national-id; the keycloak-extension, declarations and notifications clients) and API client setup (roster:write client scope; documents:internal and
 // the adili-api audience for the directory) specs 03, 04, 06 and 27 require. Demo users are optional (#371 seeds them). Portal and console tokens carry the
-// person_id claim (spec 04).
-import { readFileSync } from 'node:fs';
+// person_id claim (spec 04). Every scope a service's token client asks for is a default scope of its
+// client.
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -215,6 +216,8 @@ for (const name of [
   'directory:roster-national-id',
   'reports:submit',
   'registry',
+  'payroll',
+  'icms',
 ]) {
   const scope = scopes.get(name);
   if (!scope) {
@@ -297,6 +300,10 @@ for (const client of realm.clients ?? []) {
   if (client.clientId !== 'review' && scopesOf.includes('registry')) {
     fail(`${client.clientId} must not get registry (review only)`);
   }
+  // Payroll instructions stop an officer's salary: only review sends them (spec 08).
+  if (client.clientId !== 'review' && scopesOf.includes('payroll')) {
+    fail(`${client.clientId} must not get payroll (review only)`);
+  }
 }
 if (!clients.get('review')?.defaultClientScopes?.includes('registry')) {
   fail('review needs the registry scope (registry cross-checks, spec 07b)');
@@ -318,6 +325,74 @@ if (realm.clientScopes) {
     if (!scopes.has(name))
       fail(`${owner} names client scope ${name}, which is not in clientScopes`);
   }
+}
+
+// Every scope a service's token client asks for must be a realm scope its Keycloak client has by
+// default: Keycloak refuses the whole token request for one scope it does not grant.
+for (const { service, clientId, scopes: asked } of requestedServiceScopes()) {
+  const client = clients.get(clientId);
+  if (!client) {
+    fail(`${service} asks for tokens as client ${clientId}, which the realm lacks`);
+    continue;
+  }
+  for (const scope of asked) {
+    if (!scopes.has(scope))
+      fail(`${service} asks for scope ${scope}, which is not in clientScopes`);
+    else if (!client.defaultClientScopes?.includes(scope)) {
+      fail(`${service} asks for scope ${scope}, which client ${clientId} does not have by default`);
+    }
+  }
+}
+
+/**
+ * The scopes each service's own tokens ask for, read from its source: `scopes: [...]` of a
+ * `ServiceTokenClient` and the arguments of its token helpers (`tokens(...)`,
+ * `directoryServiceTokens(...)`), each a string or a `*_SCOPE` constant of the service or
+ * `@adili/roles`. The client is the service's `KEYCLOAK_CLIENT_ID` in `.env.example`.
+ */
+function requestedServiceScopes() {
+  const root = join(dirname(fileURLToPath(import.meta.url)), '..');
+  const sourcesOf = (dir) =>
+    readdirSync(dir, { recursive: true, withFileTypes: true })
+      .filter(
+        (entry) => entry.isFile() && /\.ts$/.test(entry.name) && !/\.gen\.ts$/.test(entry.name),
+      )
+      .map((entry) => readFileSync(join(entry.parentPath, entry.name), 'utf8'));
+  const constantsIn = (sources) =>
+    new Map(
+      sources.flatMap((source) =>
+        [...source.matchAll(/export const (\w+_SCOPE) = '([^']+)'/g)].map(([, name, value]) => [
+          name,
+          value,
+        ]),
+      ),
+    );
+  const shared = constantsIn(sourcesOf(join(root, 'packages/roles/src')));
+  const requested = [];
+  for (const service of readdirSync(join(root, 'services'))) {
+    const dir = join(root, 'services', service);
+    if (!existsSync(join(dir, '.env.example')) || !existsSync(join(dir, 'src'))) continue;
+    const clientId = /^KEYCLOAK_CLIENT_ID=(.+)$/m.exec(
+      readFileSync(join(dir, '.env.example'), 'utf8'),
+    )?.[1];
+    if (!clientId) continue;
+    const sources = sourcesOf(join(dir, 'src'));
+    const constants = new Map([...shared, ...constantsIn(sources)]);
+    const found = new Set();
+    for (const source of sources) {
+      for (const [, list, args] of source.matchAll(
+        /new ServiceTokenClient\(\{[^}]*?scopes:\s*\[([^\]]*)\]|[tT]okens\(([^)]*)\)/g,
+      )) {
+        for (const [, literal, name] of (list ?? args).matchAll(/'([^']+)'|\b(\w+_SCOPE)\b/g)) {
+          const scope = literal ?? constants.get(name);
+          if (scope === undefined) fail(`${service}: cannot resolve scope constant ${name}`);
+          else found.add(scope);
+        }
+      }
+    }
+    if (found.size > 0) requested.push({ service, clientId, scopes: [...found] });
+  }
+  return requested;
 }
 
 const profileProvider = realm.components?.['org.keycloak.userprofile.UserProfileProvider']?.[0];

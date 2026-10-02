@@ -50,7 +50,7 @@ export function ClarificationsTab({
               'grid grid-cols-[32px_minmax(0,1fr)_auto] items-center gap-3 px-3.5 py-3 hover:bg-muted/50',
             )}
           >
-            <span className="grid size-8 place-items-center rounded-[9px] bg-muted text-secondary-foreground">
+            <span className="grid size-8 place-items-center rounded-tile bg-muted text-secondary-foreground">
               <Icon icon={clarification.status === 'draft' ? PencilEdit02Icon : Message01Icon} />
             </span>
             <span className="min-w-0">

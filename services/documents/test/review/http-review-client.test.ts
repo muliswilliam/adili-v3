@@ -31,6 +31,7 @@ function conforming(schema: string, body: unknown): unknown {
 const CLARIFICATION_ID = '0192f1a0-5a11-7000-8000-000000000001';
 
 const PAYLOAD = {
+  declarantPersonId: '0192f1a0-5a11-7000-8000-0000000000d1',
   declarantName: 'Achieng Wambui Otieno',
   commission: { name: 'Public Service Commission', issuerCode: 'PSC' },
   declarationReference: 'DCB-PSC-2027-0000001-1',

@@ -31,6 +31,7 @@ TEMPLATE_COLUMNS = (
     "appointment_date",
     "email",
     "phone",
+    "employer_code",
 )
 
 
@@ -216,6 +217,7 @@ def hr_rows(commission: str) -> list[dict[str, str]]:
             designation=row.designation,
             job_group=row.job_group,
             reporting_entity=row.reporting_entity,
+            employer_code=row.employer_code,
             appointment_date=row.appointment_date.isoformat(),
             email=row.email,
             phone=row.phone,

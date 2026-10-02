@@ -1,21 +1,14 @@
 import { DeclarationSchema, type DeclarationV1 } from '@adili/forms';
+import { z } from 'zod';
 
 import type { ReviewClient } from './review/client.server';
-import type {
-  Assignee,
-  CaseDetail,
-  CaseListItem,
-  CaseStatus,
-  Flag,
-  Note,
-  RegistryView,
-} from './review/types';
+import type { Assignee, CaseDetail, CaseListItem, Flag, Note, RegistryView } from './review/types';
 import { callService, type ServiceError, type ServiceResult } from './service-call';
 
 /**
  * The review service's case endpoints for the case view (spec 07a FE-3, review.yaml), folded
  * into results the screen can switch on. Pure: the caller injects the client (`review-case.ts`
- * holds the server functions that call these as the signed-in officer).
+ * holds the server functions that call these as the signed-in reviewer or supervisor).
  */
 
 /** JSON as a server function can send it (an `unknown` map cannot be checked as serialisable). */
@@ -105,7 +98,7 @@ export async function loadCase(
   return result;
 }
 
-/** `POST .../claim`: the caller holds the case; 409 when another officer got there first. */
+/** `POST .../claim`: the caller holds the case; 409 when another reviewer got there first. */
 export function claim(client: ReviewClient, caseId: string): Promise<ServiceResult<CaseListItem>> {
   return callService(() =>
     client.POST('/v1/review/cases/{caseId}/claim', { params: { path: { caseId } } }),
@@ -122,7 +115,7 @@ export function release(
   );
 }
 
-/** `PUT .../assignment`: a supervisor gives the case to an officer, or unassigns it (null). */
+/** `PUT .../assignment`: a supervisor gives the case to a reviewer, or unassigns it (null). */
 export function reassign(
   client: ReviewClient,
   caseId: string,
@@ -150,20 +143,19 @@ export function addNote(
   );
 }
 
-/** `POST .../flags/{flagId}/reviewed`: once, with the officer's conclusion; 409 when it was. */
-export async function markFlagReviewed(
+/** `POST .../flags/{flagId}/reviewed`: once, with the assignee's conclusion; 409 when it was. */
+export function markFlagReviewed(
   client: ReviewClient,
   caseId: string,
   flagId: string,
   note: string,
 ): Promise<ServiceResult<CaseFlag>> {
-  const result = await callService(() =>
+  return callService(() =>
     client.POST('/v1/review/cases/{caseId}/flags/{flagId}/reviewed', {
       params: { path: { caseId, flagId } },
       body: { note },
     }),
   );
-  return result.ok ? { ok: true, data: result.data } : result;
 }
 
 /**
@@ -180,9 +172,51 @@ export async function loadRegistry(
     client.GET('/v1/review/cases/{caseId}/registry', { params: { path: { caseId } } }),
   );
   if (!result.ok) return result;
-  // Parsed from JSON, so the records and the evidence are JSON values.
-  const view: unknown = result.data;
-  return { ok: true, data: view as CaseRegistryView };
+  const view = result.data;
+  const persons: CaseRegistryView['persons'] = [];
+  for (const person of view.persons) {
+    const systems: CaseRegistryView['persons'][number]['systems'] = [];
+    for (const system of person.systems) {
+      const rows: CaseRegistryRow[] = [];
+      for (const row of system.rows) {
+        const record = registryRecordSchema.safeParse(row.registryRecord);
+        // A record that is not plain JSON is outside the contract: as if review had not answered.
+        if (!record.success) return { ok: false, error: { kind: 'unavailable', detail: null } };
+        rows.push({ ...row, registryRecord: record.data });
+      }
+      systems.push({ ...system, rows });
+    }
+    persons.push({ ...person, systems });
+  }
+  return { ok: true, data: { checkedAt: view.checkedAt, persons } };
+}
+
+const jsonValue: z.ZodType<JsonValue> = z.lazy(() =>
+  z.union([
+    z.string(),
+    z.number(),
+    z.boolean(),
+    z.null(),
+    z.array(jsonValue),
+    z.record(z.string(), jsonValue),
+  ]),
+);
+
+/** A registry record as the gateway holds it: an object of plain JSON values. */
+const registryRecordSchema = z.record(z.string(), jsonValue);
+
+/**
+ * `GET .../registry/status`: when the case's latest registry check was stored. Not an audited
+ * read (no declaration, no records), so the case view polls it while a re-check runs and reads
+ * the Registry tab once the new check has landed.
+ */
+export async function loadRegistryStatus(
+  client: ReviewClient,
+  caseId: string,
+): Promise<ServiceResult<{ checkedAt: string | null }>> {
+  return callService(() =>
+    client.GET('/v1/review/cases/{caseId}/registry/status', { params: { path: { caseId } } }),
+  );
 }
 
 /** Why review refused a re-check, beyond the usual service errors. */
@@ -231,73 +265,39 @@ export async function recheck(client: ReviewClient, caseId: string): Promise<Rec
   return { ok: false, refusal: null, error };
 }
 
-/** An officer a supervisor can give the case to. */
-export interface Officer {
+/** A reviewer (or supervisor) a supervisor can give the case to. */
+export interface Reviewer {
   subject: string;
   name: string;
-  /** Review cases the officer holds now (as far as the queue shows; see `loadOfficers`). */
+  /** Open review cases the reviewer holds now. */
   open: number;
-  /** The officer held this case before (a reviewer of record). */
+  /** The reviewer held this case before (a reviewer of record). */
   ofRecord: boolean;
 }
 
-/** Statuses of a case someone holds. */
-const HELD: readonly CaseStatus[] = [
-  'assigned',
-  'awaiting-clarification',
-  'clarified',
-  'ready-for-determination',
-  'sample-review',
-  'further-action',
-];
-
 /**
- * The officers a supervisor can reassign a case to. review.yaml lists no officers, so this reads
- * them off the Commission's queue: everyone holding a case (the first 100 per status, enough to
- * name them), with the count, plus the case's reviewers of record and the supervisor. An officer
- * who has never held a case is missing until the contract lists the Commission's reviewers.
+ * `GET /v1/commissions/{slug}/review/queue/reviewers`: the Commission's reviewers and
+ * supervisors (as the directory has its staff) with the open cases each holds, by name; the
+ * case's holder left out and its reviewers of record marked.
  */
-export async function loadOfficers(
+export async function loadReviewers(
   client: ReviewClient,
   slug: string,
   detail: { assignee: string | null; reviewerHistory: Assignee[] },
-  self: { subject: string; name: string },
-): Promise<ServiceResult<Officer[]>> {
-  const pages = await Promise.all(
-    HELD.map((status) =>
-      callService(() =>
-        client.GET('/v1/commissions/{slug}/review/queue', {
-          params: { path: { slug }, query: { status, limit: 100 } },
-        }),
-      ),
-    ),
+): Promise<ServiceResult<Reviewer[]>> {
+  const result = await callService(() =>
+    client.GET('/v1/commissions/{slug}/review/queue/reviewers', { params: { path: { slug } } }),
   );
-
-  const officers = new Map<string, Officer>();
-  const add = (subject: string, name: string) => {
-    const known = officers.get(subject);
-    if (known) return known;
-    const officer = {
-      subject,
-      name,
-      open: 0,
-      ofRecord: detail.reviewerHistory.some((each) => each.subject === subject),
-    };
-    officers.set(subject, officer);
-    return officer;
-  };
-  for (const page of pages) {
-    if (!page.ok) return page;
-    for (const item of page.data.items) {
-      if (item.assignee) add(item.assignee.subject, item.assignee.name).open += 1;
-    }
-  }
-  for (const each of detail.reviewerHistory) add(each.subject, each.name);
-  add(self.subject, self.name);
+  if (!result.ok) return result;
   return {
     ok: true,
-    data: [...officers.values()]
-      .filter((officer) => officer.subject !== detail.assignee)
-      .sort((a, b) => a.name.localeCompare(b.name)),
+    data: result.data.items
+      .filter((member) => member.subject !== detail.assignee)
+      .map((member) => ({
+        subject: member.subject,
+        name: member.name,
+        open: member.openCases,
+        ofRecord: detail.reviewerHistory.some((each) => each.subject === member.subject),
+      })),
   };
 }

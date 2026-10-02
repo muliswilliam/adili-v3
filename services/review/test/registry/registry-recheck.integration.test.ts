@@ -221,6 +221,46 @@ describe('registry re-checks and the sweep', () => {
     );
   });
 
+  it("gives the latest check's time to poll during a re-check, without an audited read", async () => {
+    const version = wanjikuVersion();
+    const caseId = await processed(api, version);
+    const statusPath = `/v1/review/cases/${caseId}/registry/status`;
+    const status = async (caller: Caller = assignee) => {
+      const response = await api.get(statusPath, caller);
+      expect(response.statusCode, response.body).toBe(200);
+      const body = response.json<{ checkedAt: string | null }>();
+      expect(
+        contractErrors(okResponse('/v1/review/cases/{caseId}/registry/status', 'get'), body),
+      ).toEqual([]);
+      return body.checkedAt;
+    };
+    await api.asPlatform((tx) =>
+      tx.delete(registryChecks).where(eq(registryChecks.caseId, caseId)),
+    );
+    expect(await status()).toBeNull();
+
+    await check({ ...processingInput(version), caseId });
+    await claim(caseId);
+    const first = await status();
+    expect(first).not.toBeNull();
+    expect(
+      (await api.get(`/v1/review/cases/${caseId}/registry`, assignee)).json<RegistryView>(),
+    ).toMatchObject({ checkedAt: first });
+    const auditedBefore = (await eventsOf('audit.read.v1')).length;
+
+    expect((await api.send('POST', recheckPath(caseId), assignee)).statusCode).toBe(202);
+    await recheckRun(caseId);
+    const after = await status();
+    expect(Date.parse(after ?? '')).toBeGreaterThan(Date.parse(first ?? ''));
+    expect(await status(supervisor)).toBe(after);
+    // Polled three times, audited never.
+    expect(await eventsOf('audit.read.v1')).toHaveLength(auditedBefore);
+    expect(
+      (await api.get(statusPath, { sub: 'reviewer-x', tenant: 'tsc', roles: ['reviewer'] }))
+        .statusCode,
+    ).toBe(404);
+  });
+
   it('S11: another reviewer is refused 403; a supervisor may; within ten minutes 429, after that again', async () => {
     const { caseId } = await checkedCase();
     await claim(caseId);

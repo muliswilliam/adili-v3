@@ -66,6 +66,9 @@ describe('statusDescription', () => {
     expect(statusDescription('kra', 'not-checked', { records: null, indicators: 0 })).toBe(
       'Checks run after submission.',
     );
+    expect(
+      statusDescription('ntsa', 'no-id', { records: null, indicators: 0, personName: 'Imani' }),
+    ).toBe('Registries cannot be checked for Imani without an ID.');
   });
 });
 
@@ -76,7 +79,7 @@ describe('registryLayout', () => {
     expect(layout.checkedAt).toBe(CHECKED_AT);
     expect(layout.noIds).toBe(false);
     expect(layout.persons.map((person) => [person.name, person.kind])).toEqual([
-      ['Wanjiku Njoki Kamau', 'officer'],
+      ['Wanjiku Njoki Kamau', 'declarant'],
       ['Imani Wairimu Kamau', 'child'],
     ]);
     const [wanjiku, imani] = layout.persons;

@@ -5,6 +5,7 @@ import {
   type MatchRelation,
   personFullName,
   personKind,
+  type PersonKind,
   plural,
   type SystemCheckStatus,
   typeLabel,
@@ -74,7 +75,7 @@ export interface SystemRow {
 export interface RegistryPerson {
   personKey: string;
   name: string;
-  kind: 'officer' | 'spouse' | 'child';
+  kind: PersonKind;
   hasNationalId: boolean;
   /** Empty for someone without a national ID: no registry can be asked. */
   systems: SystemRow[];
@@ -112,6 +113,8 @@ export function statusDescription(
     indicators: number;
     /** KRA: the income declared to KRA was compared (false when it could not be). */
     incomeCompared?: boolean;
+    /** The person checked, by first name, for the no-ID copy. */
+    personName?: string;
   },
 ): string {
   const copy = REGISTRY_COPY.rows;
@@ -129,7 +132,7 @@ export function statusDescription(
     case 'not-checked':
       return copy.notChecked;
     case 'no-id':
-      return copy.noIdRow;
+      return REGISTRY_COPY.noIdBody(counts.personName ?? '');
   }
 }
 
@@ -137,6 +140,7 @@ function systemRow(
   personKey: string,
   entry: ViewSystem,
   context: {
+    personName: string;
     checkedAt: string | null;
     recordsLoaded: boolean;
     latest: ReadonlyMap<string, CaseFlag>;
@@ -158,12 +162,18 @@ function systemRow(
         context.recordsLoaded && entry.system === 'kra'
           ? entry.rows.some((row) => typeof row.registryRecord.incomeDifferencePercent === 'number')
           : undefined,
+      personName: context.personName,
     }),
     checkedAt: entry.checkedAt && entry.checkedAt !== context.checkedAt ? entry.checkedAt : null,
     expandable: answered && context.recordsLoaded,
     rows: entry.rows,
     flags,
   };
+}
+
+/** "Imani" of "Imani Wairimu Kamau", as the no-ID copy names a person. */
+export function firstName(name: string): string {
+  return name.split(' ')[0] ?? name;
 }
 
 /**
@@ -185,6 +195,7 @@ export function registryLayout(
     systems: person.hasNationalId
       ? person.systems.map((entry) =>
           systemRow(person.personKey, entry, {
+            personName: firstName(person.personName),
             checkedAt: view.checkedAt,
             recordsLoaded,
             latest,
@@ -271,7 +282,7 @@ export interface MatchRow {
   declaredDetail: string | null;
   /** For "Go to item". */
   itemId: string | null;
-  /** A company on the officer's employer's supplier list (`directorship-employer-supplier`). */
+  /** A company on the declarant's employer's supplier list (`directorship-employer-supplier`). */
   supplier: boolean;
 }
 

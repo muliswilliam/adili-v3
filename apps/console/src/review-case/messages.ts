@@ -17,8 +17,8 @@ export const CASE_COPY = {
     `Amended ${formatDate(amendedAt)}. Indicators were recomputed against version ${String(previous)}; reviewed indicators kept their notes.`,
   aboutVersion: 'About this version',
   windowOpen: (closes: string, daysLeft: number) =>
-    `Window closes ${formatDate(closes)} · ${daysLeft === 0 ? 'today' : `${plural(daysLeft, 'day')} left`}`,
-  windowClosed: (closed: string) => `Window closed ${formatDate(closed)}`,
+    `Clarification window closes ${formatDate(closes)} · ${daysLeft === 0 ? 'today' : `${plural(daysLeft, 'day')} left`}`,
+  windowClosed: (closed: string) => `Clarification window closed ${formatDate(closed)}`,
   assignedTo: 'Assigned to',
   reviewersOfRecord: (count: number) => `${plural(count, 'reviewer')} of record`,
   reviewersOfRecordTip: (names: string) =>
@@ -69,11 +69,11 @@ export const CASE_COPY = {
     you: '(you)',
     load: (open: number) => plural(open, 'open case'),
     ofRecord: 'already a reviewer of record',
-    none: 'No other officer of your Commission holds a review case yet.',
-    loading: 'Loading officers…',
-    failed: 'The list of officers could not be loaded.',
-    hint: 'Officers who hold review cases in your Commission, with the cases they hold.',
-    pick: 'Choose an officer.',
+    none: 'Your Commission has no other reviewer.',
+    loading: 'Loading reviewers…',
+    failed: 'The list of reviewers could not be loaded.',
+    hint: 'Reviewers and supervisors of your Commission, with the cases they hold.',
+    pick: 'Choose a reviewer.',
     confirm: (held: boolean) => (held ? 'Reassign' : 'Assign'),
   },
   cancel: 'Cancel',
@@ -125,7 +125,7 @@ export const CASE_COPY = {
     closedNote: 'Closed by re-check: the registry no longer shows this.',
     marked: 'Marked reviewed',
     alreadyReviewed: 'Someone marked this flag reviewed first. It now shows their note.',
-    holderOnly: 'Only the officer holding the case marks flags reviewed.',
+    holderOnly: 'Only the reviewer holding the case marks flags reviewed.',
   },
 
   clarifications: {
@@ -180,8 +180,9 @@ export const REGISTRY_COPY = {
   lastChecked: (at: string) => `Last checked ${formatDateTime(at)}`,
   notCheckedYet: 'Not checked yet',
   personLabel: (name: string) => `Registry checks for ${name}`,
-  relation: { officer: 'Declarant', spouse: 'Spouse', child: 'Child' },
-  noIdTitle: 'Not checked: no national ID declared',
+  relation: { declarant: 'Declarant', spouse: 'Spouse', child: 'Child' },
+  /** The one row of someone without a national ID: no registry can be asked. */
+  noIdRegistries: 'All registries',
   noIdBody: (name: string) => `Registries cannot be checked for ${name} without an ID.`,
   loadFailed: 'Registry records could not be loaded. Status is shown from the last check.',
   loading: 'Loading registry checks',
@@ -200,7 +201,6 @@ export const REGISTRY_COPY = {
     unavailable: (system: string) =>
       `Could not reach ${system}. Re-checked automatically every hour.`,
     notChecked: 'Checks run after submission.',
-    noIdRow: 'No national ID declared',
   },
 
   table: {

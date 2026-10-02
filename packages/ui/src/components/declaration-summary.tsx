@@ -31,6 +31,7 @@ import {
   itemsOf,
   personFullName,
   personKind,
+  type PersonKind,
   sectionAnchorId,
   spouseLine,
   STATEMENT_CATEGORIES,
@@ -79,7 +80,7 @@ export interface DeclarationSummaryMessages {
   downloadAgain: string;
   downloadName: (fileName: string) => string;
   declared: (at: string, version: number | undefined) => string;
-  relation: Record<'officer' | 'spouse' | 'child', string>;
+  relation: Record<PersonKind, string>;
   fields: {
     surname: string;
     firstName: string;
@@ -134,7 +135,7 @@ export const DECLARATION_SUMMARY_MESSAGES: DeclarationSummaryMessages = {
   downloadName: (fileName) => `Download ${fileName}`,
   declared: (at, version) =>
     `Solemn declaration made online on ${at}${version === undefined ? '' : ` (version ${String(version)})`}.`,
-  relation: { officer: 'Declarant', spouse: 'Spouse', child: 'Child' },
+  relation: { declarant: 'Declarant', spouse: 'Spouse', child: 'Child' },
   fields: {
     surname: 'Surname',
     firstName: 'First name',
@@ -189,8 +190,8 @@ export type DeclarationSummaryProps = Omit<ComponentProps<'div'>, 'children'> & 
   messages?: Partial<DeclarationSummaryMessages>;
 };
 
-const TONE: Record<'officer' | 'spouse' | 'child', AvatarTone> = {
-  officer: 'brand',
+const TONE: Record<PersonKind, AvatarTone> = {
+  declarant: 'brand',
   spouse: 'info',
   child: 'success',
 };
@@ -275,15 +276,7 @@ function Fields({ rows }: { rows: [string, ReactNode][] }) {
   );
 }
 
-function Person({
-  name,
-  kind,
-  lines,
-}: {
-  name: string;
-  kind: 'officer' | 'spouse' | 'child';
-  lines: string[];
-}) {
+function Person({ name, kind, lines }: { name: string; kind: PersonKind; lines: string[] }) {
   return (
     <li className="flex items-center gap-2.5">
       <Avatar name={name} tone={TONE[kind]} className="size-7 text-[11.5px]" />
@@ -313,7 +306,7 @@ function AttachmentChip({
     </>
   );
   const chip =
-    'inline-flex h-6 max-w-full items-center gap-[5px] rounded-[7px] bg-muted px-2 text-xs font-medium text-secondary-foreground [&_svg]:size-3 [&_svg]:shrink-0';
+    'inline-flex h-6 max-w-full items-center gap-[5px] rounded-chip bg-muted px-2 text-xs font-medium text-secondary-foreground [&_svg]:size-3 [&_svg]:shrink-0';
   if (!onAttachment) return <span className={chip}>{body}</span>;
   return (
     <button
@@ -365,7 +358,7 @@ function ItemRow({
           'bg-brand-faint shadow-[inset_3px_0_0_var(--color-brand)] motion-safe:animate-highlight',
       )}
     >
-      <span className="grid size-8 place-items-center rounded-[9px] bg-muted text-secondary-foreground">
+      <span className="grid size-8 place-items-center rounded-tile bg-muted text-secondary-foreground">
         <Icon icon={itemIcon(category, item)} className="size-4" />
       </span>
       <div className="min-w-0">
@@ -431,7 +424,7 @@ function StatementCard({
       id={sectionAnchorId(sectionKey, props.anchorPrefix)}
       data-highlighted={highlighted || undefined}
       className={cn(
-        'mt-3 scroll-mt-32 overflow-hidden rounded-[14px] shadow-card',
+        'mt-3 scroll-mt-32 overflow-hidden rounded-item shadow-card',
         highlighted && 'motion-safe:animate-ring-pulse',
       )}
     >

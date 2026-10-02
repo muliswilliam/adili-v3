@@ -73,7 +73,7 @@ const SACCO: Item = {
 
 interface StoredCase {
   item: CaseListItem;
-  /** CALLER, or a fixed officer. */
+  /** CALLER, or a fixed reviewer. */
   holder: Assignee | typeof CALLER;
   /** Status changes made in this store (the seeded history is not replayed). */
   timeline: TimelineEntry[];
@@ -432,7 +432,7 @@ async function act(
   const stored = found ? cases.get(found.caseId) : undefined;
   if (!found || !stored) return problem(404, 'Not found');
   if (holderOf(stored, caller).subject !== caller.subject) {
-    return problem(403, 'Only the officer holding the case can act on its clarifications');
+    return problem(403, 'Only the reviewer holding the case can act on its clarifications');
   }
 
   if (action === 'resolve') {

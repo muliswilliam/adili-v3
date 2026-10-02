@@ -7,6 +7,7 @@ import { formatDate, plural } from '@adili/ui';
  */
 export const QUEUE_COPY = {
   title: 'Review queue',
+  titleOf: (commission: string) => `Review queue · ${commission}`,
 
   tilesLabel: 'Cases by status',
   tiles: {
@@ -32,8 +33,8 @@ export const QUEUE_COPY = {
   assigneeAny: 'Anyone',
   assigneeMine: 'Mine',
   assigneeUnassigned: 'Unassigned',
-  assigneeOther: 'Another officer',
-  officersLabel: 'Officers',
+  assigneeOther: 'Another reviewer',
+  reviewersLabel: 'Reviewers',
   late: 'Late filing',
   openClarification: 'Open clarification',
   registryUnavailable: 'Registry unavailable',

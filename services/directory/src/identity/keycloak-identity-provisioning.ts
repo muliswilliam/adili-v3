@@ -163,7 +163,8 @@ export class KeycloakIdentityProvisioning extends IdentityProvisioning {
           user.emailVerified === true &&
           email !== undefined &&
           user.attributes?.tenant?.[0] === tenant;
-        if (reachable) staff.push({ subject: user.id, email });
+        const name = [user.firstName, user.lastName].filter(Boolean).join(' ');
+        if (reachable) staff.push({ subject: user.id, email, name: name || email });
       }
       if (page.length < STAFF_PAGE) break;
     }

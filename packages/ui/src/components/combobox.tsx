@@ -216,7 +216,7 @@ export function Combobox({
               onMouseMove={() => {
                 setActive(index);
               }}
-              className="flex cursor-default items-center gap-3 rounded-[9px] p-2.5 text-[14.5px] leading-snug font-medium select-none data-active:bg-muted"
+              className="flex cursor-default items-center gap-3 rounded-tile p-2.5 text-[14.5px] leading-snug font-medium select-none data-active:bg-muted"
             >
               <span className="min-w-0 flex-1">{option.label}</span>
               {/* After the label in the DOM so the option is named by it, shown before it. */}

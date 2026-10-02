@@ -371,4 +371,64 @@ describe('review queue and summary', () => {
     expect((await api.get('/v1/commissions/tsc/review/queue', reviewer)).statusCode).toBe(404);
     expect((await api.get('/v1/commissions/PSC!/review/queue', reviewer)).statusCode).toBe(404);
   });
+
+  describe("the Commission's reviewers", () => {
+    const reviewersPath = '/v1/commissions/psc/review/queue/reviewers';
+    const hold = (caseId: string, assignee: string, status: CaseListItem['status']) =>
+      api.asPlatform((tx) =>
+        tx.update(reviewCases).set({ assignee, status }).where(eq(reviewCases.id, caseId)),
+      );
+
+    it('lists reviewers and supervisors from the directory by name, with the open cases they hold', async () => {
+      api.directory.givenStaff('psc', 'reviewer', [
+        { subject: 'reviewer-b', name: 'Wafula Barasa' },
+        { subject: 'reviewer-a', name: 'Asha Njeri' },
+        { subject: 'reviewer-new', name: 'Mercy Chebet' },
+      ]);
+      api.directory.givenStaff('psc', 'supervisor', [
+        { subject: 'supervisor-s', name: 'Grace Akinyi' },
+      ]);
+      const cases = await Promise.all(
+        ['2027-12-01', '2027-12-02', '2027-12-03', '2027-12-04'].map((day) =>
+          givenCase({ submittedAt: `${day}T08:00:00Z` }),
+        ),
+      );
+      await hold(cases[0] ?? '', 'reviewer-a', 'assigned');
+      await hold(cases[1] ?? '', 'reviewer-a', 'awaiting-clarification');
+      await hold(cases[2] ?? '', 'reviewer-a', 'determined');
+      await hold(cases[3] ?? '', 'supervisor-s', 'ready-for-determination');
+      const tscCase = await givenCase({ tenant: 'tsc', submittedAt: '2027-12-05T08:00:00Z' });
+      await hold(tscCase, 'reviewer-b', 'assigned');
+
+      const response = await api.get(reviewersPath, supervisor);
+
+      expect(response.statusCode, response.body).toBe(200);
+      const body = response.json<unknown>();
+      expect(
+        contractErrors(okResponse('/v1/commissions/{slug}/review/queue/reviewers', 'get'), body),
+      ).toEqual([]);
+      expect(body).toEqual({
+        items: [
+          { subject: 'reviewer-a', name: 'Asha Njeri', supervisor: false, openCases: 2 },
+          { subject: 'supervisor-s', name: 'Grace Akinyi', supervisor: true, openCases: 1 },
+          // Never held a case: listed all the same (the queue alone would not name her).
+          { subject: 'reviewer-new', name: 'Mercy Chebet', supervisor: false, openCases: 0 },
+          { subject: 'reviewer-b', name: 'Wafula Barasa', supervisor: false, openCases: 0 },
+        ],
+      });
+    });
+
+    it('is for supervisors of the Commission: 403 for a reviewer, 404 for others; 502 without the directory', async () => {
+      const reviewerResponse = await api.get(reviewersPath, reviewer);
+      expect(reviewerResponse.statusCode).toBe(403);
+      expect(reviewerResponse.json<{ type: string }>().type).toBe('supervisor-required');
+      const tscSupervisor: Caller = { tenant: 'tsc', roles: ['supervisor'] };
+      expect((await api.get(reviewersPath, tscSupervisor)).statusCode).toBe(404);
+
+      api.directory.reset();
+      const down = await api.get(reviewersPath, supervisor);
+      expect(down.statusCode).toBe(502);
+      expect(down.json<{ type: string }>().type).toBe('directory-unavailable');
+    });
+  });
 });

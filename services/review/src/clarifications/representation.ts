@@ -110,6 +110,10 @@ export type DeclarantClarificationView = z.infer<typeof declarantClarificationSc
 
 /** review.yaml `ClarificationLetterPayload`: the fields `clarification-letter.v1` renders. */
 export const clarificationLetterPayloadSchema = z.object({
+  declarantPersonId: z.uuid().meta({
+    description:
+      'Who may download the letter: the documents service checks the issue request against it. Not printed',
+  }),
   declarantName: z.string(),
   commission: z.object({ name: z.string(), issuerCode: z.string() }),
   declarationReference: z.string(),

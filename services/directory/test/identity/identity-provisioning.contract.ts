@@ -306,7 +306,7 @@ export function identityProvisioningContract(name: string, harness: () => Contra
           role,
         });
         await harness().verifyEmail(userId);
-        return { subject: userId, email };
+        return { subject: userId, email, name: 'Otieno Odhiambo Ouma' };
       };
       const supervisor = await staff('supervisor', 'supervisor');
       const officer = await staff('officer', 'reporting-officer');

@@ -83,6 +83,7 @@ Controls and cards get their edges from a hairline ring in the shadow rather tha
 | `shadow-control-selected` | `.gr:has(input:checked)` | a chosen option card (radio cards, grounds): 1.5px ink ring |
 | `shadow-card` | `--shadow-card` | cards |
 | `shadow-card-editing` | *derived* | the item card open for editing in a `Repeater`: 1.5px ink ring and a soft lift |
+| `shadow-card-flat` | *derived* | a settled card on a `muted` fill (a reviewed or closed flag): the hairline ring without the lift |
 | `shadow-pop` | `--shadow-pop` | dialogs, menus, select and combobox lists, toasts, tooltips |
 | `shadow-button-primary`, `-destructive` | `.btn-primary`, `.btn-danger` | the lift and inner highlight on solid buttons |
 
@@ -90,7 +91,9 @@ Controls and cards get their edges from a hairline ring in the shadow rather tha
 |---|---|---|---|
 | `rounded-xs` | 2px | | `highlight` marks |
 | `rounded-sm` | 6px | | checkboxes, skeletons, code chips |
+| `rounded-chip` | 7px | | `xs` buttons, `SourceRefLink` and the declaration's item chips |
 | `rounded-md` | 8px | `--r-sm` | small and icon buttons, tooltips, menu items |
+| `rounded-tile` | 9px | | 30-32px icon tiles (empty states, list rows, the chat panel's mark), combobox options |
 | `rounded-lg` | 10px | `--r` | buttons, inputs, callouts |
 | `rounded-xl` | 12px | | menus, toasts, drop zone icon tiles |
 | `rounded-item` | 14px | | `Repeater` item cards and their add button, chat bubbles, `ChatComposer`, `SuggestedQuestions` chips, 48-52px icon tiles (the verify app's status mark and home tile) |

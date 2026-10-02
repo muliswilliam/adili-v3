@@ -26,20 +26,12 @@ import {
   UserRemove01Icon,
 } from '@hugeicons/core-free-icons';
 import { useRouter } from '@tanstack/react-router';
-import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react';
+import { type ReactNode, useEffect, useState } from 'react';
 import { flushSync } from 'react-dom';
 
 import { flagTarget, pinsByItem } from '../../../review-case/flags';
 import { CASE_COPY, REGISTRY_COPY } from '../../../review-case/messages';
-import {
-  cooldownMinutes,
-  minutesWords,
-  recheckAccess,
-  recheckLanded,
-  registryLayout,
-  registryNeedsAttention,
-  summaryView,
-} from '../../../review-case/registry';
+import { recheckAccess, registryNeedsAttention } from '../../../review-case/registry';
 import { CASE_TAB_LABELS, CASE_TABS, type CaseTab, tabCount } from '../../../review-case/tabs';
 import {
   type AssignmentAction,
@@ -52,12 +44,9 @@ import {
 import {
   addCaseNote,
   getCaseAttachmentLink,
-  getCaseRegistry,
   markCaseFlagReviewed,
-  recheckCaseRegistries,
 } from '../../../server/review-case';
-import type { CaseFlag, CaseLoad, CaseRegistryView } from '../../../server/review-case.server';
-import { SERVICE_UNAVAILABLE, type ServiceResult } from '../../../server/service-call';
+import type { CaseFlag, CaseLoad } from '../../../server/review-case.server';
 import { Page } from '../../page';
 import { failureText, isStale, useCaseAssignment } from '../assignment';
 import { RecheckDialog } from './assignment-dialogs';
@@ -68,19 +57,7 @@ import { flagAnchorId, FlagsTab } from './flags-tab';
 import { NotesTab } from './notes-tab';
 import { RegistryTab } from './registry-tab';
 import { TimelineTab } from './timeline-tab';
-
-/**
- * Waits between reads of the registry after a re-check: the lookups take seconds (more when a
- * registry is retried), so early reads are close together and later ones further apart. About a
- * minute and a half in all, after which the tab says the re-check is still running.
- */
-const RECHECK_POLL_MS = [
-  1500, 2000, 2000, 3000, 3000, 5000, 5000, 5000, 8000, 8000, 10_000, 10_000, 15_000, 15_000,
-];
-
-function wait(ms: number) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
+import { useCaseRegistry } from './use-case-registry';
 
 function scrollToId(id: string) {
   const element = document.getElementById(id);
@@ -92,7 +69,7 @@ function scrollToId(id: string) {
 export interface CaseViewProps {
   load: CaseLoad;
   viewer: CaseViewer & { name: string };
-  /** The viewer's Commission, for the reassign dialog's officers. */
+  /** The viewer's Commission, for the reassign dialog's reviewers. */
   slug: string | null;
   now: number;
   tab: CaseTab;
@@ -121,26 +98,6 @@ export function CaseView({ load, viewer, slug, now, tab, onTab }: CaseViewProps)
   const [editing, setEditing] = useState<string | null>(null);
   const [downloads, setDownloads] = useState<Record<string, AttachmentState>>({});
   const [retrying, setRetrying] = useState(false);
-  const [recheckOpen, setRecheckOpen] = useState(false);
-  // The Registry tab's records: read when the tab first opens (an audited read of its own), and
-  // again after a re-check or Try again. Null until read; `failed` shows the last statuses.
-  const [registry, setRegistry] = useState<{ view: CaseRegistryView | null; failed: boolean }>({
-    view: null,
-    failed: false,
-  });
-  const [registryRetrying, setRegistryRetrying] = useState(false);
-  const registryRequested = useRef(false);
-  const [checking, setChecking] = useState(false);
-  const [cooldown, setCooldown] = useState<string | null>(null);
-  const mounted = useRef(true);
-  // A function, so the checks after each await are not narrowed away.
-  const isMounted = () => mounted.current;
-  useEffect(() => {
-    mounted.current = true;
-    return () => {
-      mounted.current = false;
-    };
-  }, []);
   // The open tab follows the address (`tab`), and changes here at once, before the address does,
   // so a pin can open Flags and scroll to its flag in one go.
   const [active, setActive] = useState<CaseTab>(tab);
@@ -184,75 +141,8 @@ export function CaseView({ load, viewer, slug, now, tab, onTab }: CaseViewProps)
     assignment.start(action, { item, reviewerHistory: detail.reviewerHistory });
   };
 
-  function readRegistry(): Promise<ServiceResult<CaseRegistryView>> {
-    return getCaseRegistry({ data: { caseId: item.id } }).catch(
-      (): ServiceResult<CaseRegistryView> => SERVICE_UNAVAILABLE,
-    );
-  }
-
-  async function loadRegistry() {
-    registryRequested.current = true;
-    const result = await readRegistry();
-    if (!isMounted()) return;
-    setRegistry(result.ok ? { view: result.data, failed: false } : { view: null, failed: true });
-  }
-
-  useEffect(() => {
-    if (active !== 'registry' || registryRequested.current) return;
-    void loadRegistry();
-    // Read once, when the tab first opens; later reads follow a re-check or Try again.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [active]);
-
-  /** Reads the registry until the re-check's results are stored, then shows them. */
-  async function awaitRecheck(before: string | null) {
-    for (const delay of RECHECK_POLL_MS) {
-      await wait(delay);
-      if (!isMounted()) return;
-      const result = await readRegistry();
-      if (!isMounted()) return;
-      if (result.ok && recheckLanded(before, result.data.checkedAt)) {
-        registryRequested.current = true;
-        setRegistry({ view: result.data, failed: false });
-        setChecking(false);
-        toast({ title: REGISTRY_COPY.recheck.done });
-        await refresh();
-        return;
-      }
-    }
-    setChecking(false);
-    toast({ title: REGISTRY_COPY.recheck.slow });
-    await refresh();
-  }
-
-  async function recheckNow(): Promise<string | null> {
-    const before = registry.view?.checkedAt ?? detail.registry.checkedAt;
-    const result = await recheckCaseRegistries({ data: { caseId: item.id } });
-    if (result.ok) {
-      setRecheckOpen(false);
-      setCooldown(null);
-      setChecking(true);
-      void awaitRecheck(before);
-      return null;
-    }
-    if (result.refusal === null) return failureText(result.error);
-    setRecheckOpen(false);
-    if (result.refusal.kind === 'cooldown') {
-      const text = REGISTRY_COPY.recheck.cooldown(
-        minutesWords(cooldownMinutes(result.refusal.retryAfterSeconds)),
-      );
-      setCooldown(text);
-      toast({ title: text, urgency: 'assertive' });
-      return null;
-    }
-    // Someone else holds the case now, or it was determined: the page is out of date.
-    toast({
-      title: result.refusal.kind === 'closed' ? REGISTRY_COPY.recheck.closed : CASE_COPY.stale,
-      urgency: 'assertive',
-    });
-    await refresh();
-    return null;
-  }
+  const registry = useCaseRegistry({ load, open: active === 'registry', refresh });
+  const { checking } = registry;
 
   function goTo(flag: CaseFlag) {
     const target = flagTarget(flag, document);
@@ -403,7 +293,7 @@ export function CaseView({ load, viewer, slug, now, tab, onTab }: CaseViewProps)
         variant="secondary"
         disabled={recheck === 'forbidden' || checking}
         onClick={() => {
-          setRecheckOpen(true);
+          registry.setConfirming(true);
         }}
       >
         {checking ? <Spinner /> : <Icon icon={RefreshIcon} />}
@@ -422,16 +312,6 @@ export function CaseView({ load, viewer, slug, now, tab, onTab }: CaseViewProps)
       ),
     );
   }
-
-  const layout = useMemo(() => {
-    if (registry.view) return registryLayout(registry.view, detail.flags, true);
-    if (!registry.failed) return null;
-    return registryLayout(
-      summaryView(detail.registry, document, detail.flags, item.declarantName),
-      detail.flags,
-      false,
-    );
-  }, [registry, detail.flags, detail.registry, document, item.declarantName]);
 
   const readOnly = readOnlyNote(item, viewer);
   const notes = (
@@ -465,17 +345,12 @@ export function CaseView({ load, viewer, slug, now, tab, onTab }: CaseViewProps)
     ),
     registry: (
       <RegistryTab
-        layout={layout}
+        layout={registry.layout}
         failed={registry.failed}
-        retrying={registryRetrying}
-        onRetry={() => {
-          setRegistryRetrying(true);
-          void loadRegistry().finally(() => {
-            setRegistryRetrying(false);
-          });
-        }}
+        retrying={registry.retrying}
+        onRetry={registry.retry}
         checking={checking}
-        cooldown={cooldown}
+        cooldown={registry.cooldown}
         onGoToItem={goToItem}
         document={document}
         previousVersion={previousVersion}
@@ -599,7 +474,11 @@ export function CaseView({ load, viewer, slug, now, tab, onTab }: CaseViewProps)
       <p className="mt-4 text-xs text-muted-foreground">{CASE_COPY.audit}</p>
 
       {assignment.dialogs}
-      <RecheckDialog open={recheckOpen} onOpenChange={setRecheckOpen} onConfirm={recheckNow} />
+      <RecheckDialog
+        open={registry.confirming}
+        onOpenChange={registry.setConfirming}
+        onConfirm={registry.recheck}
+      />
     </Page>
   );
 }
