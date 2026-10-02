@@ -1,7 +1,7 @@
 import type { AiLabelDetails } from '@adili/ui';
 
 import type { Requirement } from '../server/review/types';
-import type { DraftLanguage } from './draft-selection';
+import { DEFAULT_DRAFT_LANGUAGE, type DraftLanguage } from './draft-selection';
 import { type ClarificationTarget, targetOf, type TargetRef } from './targets';
 
 /**
@@ -17,13 +17,6 @@ export const ITEM_TEXT_MAX = 1000;
 
 /** review.yaml `ClarificationInput.opening` limit. */
 export const OPENING_TEXT_MAX = 800;
-
-/**
- * The language of the letter's own text: its heading, introduction and how to respond
- * (`LetterPreview`, and the issued `clarification-letter.v1`) are in English only. Text drafted
- * with AI in another language would mix two languages in one letter.
- */
-export const LETTER_LANGUAGE: DraftLanguage = 'en';
 
 export interface ComposerItem {
   /** Stable while the composer is open, for React keys and field ids. */
@@ -62,6 +55,11 @@ export interface ComposerOpening {
 export interface ComposerState {
   items: ComposerItem[];
   opening: ComposerOpening | null;
+  /**
+   * The letter's language (review.yaml `LetterLanguage`): its own text (heading, introduction,
+   * labels, how to respond) is in it, and Draft with AI drafts in it. English to start with.
+   */
+  language: DraftLanguage;
   /** The next item key's number. */
   next: number;
 }
@@ -95,7 +93,8 @@ export type ComposerAction =
   | { type: 'text'; key: string; text: string }
   | { type: 'insert'; draft: ComposerDraft; targets: readonly ClarificationTarget[] }
   | { type: 'opening'; text: string }
-  | { type: 'discard-opening' };
+  | { type: 'discard-opening' }
+  | { type: 'language'; language: DraftLanguage };
 
 function blank(key: string): ComposerItem {
   return {
@@ -143,9 +142,9 @@ function seeded(
   return { ...state, items: [...state.items, ...items], next };
 }
 
-/** A new clarification: one blank item to start from. */
+/** A new clarification: one blank item to start from, in English. */
 export function emptyComposer(): ComposerState {
-  return { items: [blank('item-1')], opening: null, next: 2 };
+  return { items: [blank('item-1')], opening: null, language: DEFAULT_DRAFT_LANGUAGE, next: 2 };
 }
 
 /** A saved draft (or a follow-up's pre-filled draft), its items on their targets. */
@@ -154,7 +153,13 @@ export function draftComposer(
     items,
     opening,
     openingAiJobId = null,
-  }: { items: readonly ComposerSeed[]; opening: string | null; openingAiJobId?: string | null },
+    language = DEFAULT_DRAFT_LANGUAGE,
+  }: {
+    items: readonly ComposerSeed[];
+    opening: string | null;
+    openingAiJobId?: string | null;
+    language?: DraftLanguage;
+  },
   targets: readonly ClarificationTarget[],
 ): ComposerState {
   return seeded(
@@ -163,6 +168,7 @@ export function draftComposer(
       opening: opening
         ? { text: opening, ai: null, aiJobId: openingAiJobId, edited: false, language: null }
         : null,
+      language,
       next: 1,
     },
     items,
@@ -244,17 +250,20 @@ export function composerReducer(state: ComposerState, action: ComposerAction): C
       };
     case 'discard-opening':
       return { ...state, opening: null };
+    case 'language':
+      return { ...state, language: action.language };
   }
 }
 
 /**
  * The language a drafted part (an item or the opening) is in when it is not the letter's, so
- * the composer can say the letter would mix languages; null when it matches or is not known.
+ * the composer can say so; null when it matches or is not known.
  */
-export const foreignLanguageOf = (part: {
-  language: DraftLanguage | null;
-}): DraftLanguage | null =>
-  part.language !== null && part.language !== LETTER_LANGUAGE ? part.language : null;
+export const foreignLanguageOf = (
+  part: { language: DraftLanguage | null },
+  letter: DraftLanguage,
+): DraftLanguage | null =>
+  part.language !== null && part.language !== letter ? part.language : null;
 
 export type ItemProblem = 'required' | 'too-long';
 
@@ -297,11 +306,13 @@ export function composerToInput(state: ComposerState): {
   items: (TargetRef & { requirement: Requirement; text: string; aiJobId: string | null })[];
   opening: string | null;
   openingAiJobId: string | null;
+  language: DraftLanguage;
 } {
   const opening = state.opening?.text.trim() ? state.opening : null;
   return {
     opening: opening ? opening.text.trim() : null,
     openingAiJobId: opening?.aiJobId ?? null,
+    language: state.language,
     items: state.items.flatMap((item) =>
       isBlank(item) || !item.requirement
         ? []

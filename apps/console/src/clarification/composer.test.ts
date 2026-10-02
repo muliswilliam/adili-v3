@@ -154,23 +154,31 @@ describe('Draft with AI insertion (spec 07c FE-3)', () => {
     });
   });
 
-  it('keeps the language a part was drafted in, through edits, to tell a mixed letter (e2e 13)', () => {
+  it('keeps the language a part was drafted in, through edits, to tell it from the letter’s (e2e 13, S7)', () => {
     const swahili = { ...draft, language: 'sw' as const, opening: 'Ombi hili linahusu kiwanja.' };
-    let state = composerReducer(emptyComposer(), { type: 'insert', draft: swahili, targets });
+    let state = composerReducer(emptyComposer(), { type: 'language', language: 'sw' });
+    state = composerReducer(state, { type: 'insert', draft: swahili, targets });
     state = composerReducer(state, { type: 'text', key: 'item-2', text: 'Eleza thamani.' });
     state = composerReducer(state, { type: 'opening', text: 'Ombi hili linahusu mali.' });
-    expect(state.items.map(foreignLanguageOf)).toEqual(['sw']);
-    expect(state.opening && foreignLanguageOf(state.opening)).toBe('sw');
+    // Drafted in the letter's language: nothing to say.
+    expect(state.items.map((item) => foreignLanguageOf(item, state.language))).toEqual([null]);
+    expect(state.opening && foreignLanguageOf(state.opening, state.language)).toBeNull();
 
-    const english = composerReducer(emptyComposer(), {
-      type: 'insert',
-      draft: { ...draft, language: 'en' },
-      targets,
-    });
-    expect(
-      [...english.items, english.opening].map((part) => part && foreignLanguageOf(part)),
-    ).toEqual([null, null]);
-    expect(filled().items.map(foreignLanguageOf)).toEqual([null]);
+    // The letter changed to English since.
+    state = composerReducer(state, { type: 'language', language: 'en' });
+    expect(state.items.map((item) => foreignLanguageOf(item, state.language))).toEqual(['sw']);
+    expect(state.opening && foreignLanguageOf(state.opening, state.language)).toBe('sw');
+    // The reviewer's own text has no known language.
+    expect(filled().items.map((item) => foreignLanguageOf(item, 'sw'))).toEqual([null]);
+  });
+
+  it('starts a letter in English, takes the chosen language and sends it (S7)', () => {
+    expect(emptyComposer().language).toBe('en');
+    const state = composerReducer(filled(), { type: 'language', language: 'sw' });
+    expect(composerToInput(state).language).toBe('sw');
+    expect(draftComposer({ items: [], opening: null, language: 'sw' }, targets).language).toBe(
+      'sw',
+    );
   });
 
   it('appends after the reviewer’s own items', () => {
@@ -344,6 +352,7 @@ describe('composerToInput', () => {
     expect(composerToInput(state)).toEqual({
       opening: null,
       openingAiJobId: null,
+      language: 'en',
       items: [
         {
           sectionKey: 'statement:officer',

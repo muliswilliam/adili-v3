@@ -22,6 +22,8 @@ export interface ClarificationTarget {
   group: string;
   /** As the letter prints it, e.g. "Assets · Plot Kisumu/Manyatta/1234 · John Kennedy Otieno". */
   label: string;
+  /** As a Swahili letter prints it (`label` is the English one); a saved target has none. */
+  swLabel?: string;
   kind: 'section' | 'statement' | 'item';
   ref: TargetRef;
   /** An item's category and description in the declaration, for short labels (chips). */
@@ -34,22 +36,24 @@ export const DECLARATION_GROUP = 'Declaration';
 /** Heading of a saved target the current version no longer has. */
 const SAVED_GROUP = 'Saved';
 
-/** The review service's section labels (labels.ts `SECTION_LABELS`). */
+/** The review service's label words (labels.ts `LABEL_WORDS`), English then Swahili. */
 const SECTIONS = [
-  ['bio', 'Personal details'],
-  ['household', 'Spouses and children'],
-  ['other', 'Other information'],
+  ['bio', 'Personal details', 'Taarifa binafsi'],
+  ['household', 'Spouses and children', 'Wenzi wa ndoa na watoto'],
+  ['other', 'Other information', 'Taarifa nyingine'],
 ] as const;
 
 const CATEGORIES = [
-  ['income', 'Income'],
-  ['assets', 'Assets'],
-  ['liabilities', 'Liabilities'],
+  ['income', 'Income', 'Mapato'],
+  ['assets', 'Assets', 'Mali'],
+  ['liabilities', 'Liabilities', 'Madeni'],
 ] as const;
 
 const STATEMENT_LABEL = 'Financial statement';
+const SW_STATEMENT_LABEL = 'Taarifa ya kifedha';
 /** What the service prints for an item that names no section, person or item. */
 const DECLARATION_LABEL = 'Declaration';
+const SW_DECLARATION_LABEL = 'Tamko';
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -62,11 +66,12 @@ function fullName(value: unknown): string {
     .join(' ');
 }
 
-function sectionTarget(sectionKey: string, label: string): ClarificationTarget {
+function sectionTarget(sectionKey: string, label: string, swLabel: string): ClarificationTarget {
   return {
     key: `section:${sectionKey}`,
     group: DECLARATION_GROUP,
     label,
+    swLabel,
     kind: 'section',
     ref: { sectionKey, personKey: null, itemId: null },
   };
@@ -76,7 +81,7 @@ function sectionTarget(sectionKey: string, label: string): ClarificationTarget {
 export function clarificationTargets(
   document: Record<string, unknown> | null,
 ): ClarificationTarget[] {
-  const targets = SECTIONS.map(([key, label]) => sectionTarget(key, label));
+  const targets = SECTIONS.map(([key, label, swLabel]) => sectionTarget(key, label, swLabel));
   const statements = Array.isArray(document?.statements) ? document.statements : [];
   for (const statement of statements) {
     if (!isRecord(statement) || typeof statement.personKey !== 'string') continue;
@@ -88,10 +93,11 @@ export function clarificationTargets(
       key: sectionKey,
       group,
       label: [STATEMENT_LABEL, name].filter(Boolean).join(' · '),
+      swLabel: [SW_STATEMENT_LABEL, name].filter(Boolean).join(' · '),
       kind: 'statement',
       ref: { sectionKey, personKey, itemId: null },
     });
-    for (const [category, categoryLabel] of CATEGORIES) {
+    for (const [category, categoryLabel, swCategoryLabel] of CATEGORIES) {
       const items = statement[category];
       if (!Array.isArray(items)) continue;
       for (const item of items) {
@@ -101,6 +107,7 @@ export function clarificationTargets(
           key: `item:${item.id}`,
           group,
           label: [categoryLabel, description, name].filter(Boolean).join(' · '),
+          swLabel: [swCategoryLabel, description, name].filter(Boolean).join(' · '),
           kind: 'item',
           ref: { sectionKey, personKey, itemId: item.id },
           item: { category, description },
@@ -160,7 +167,21 @@ export function targetOf(
   return null;
 }
 
-/** The label of a saved item: its target's, its own, or "Declaration" when it names nothing. */
-export function labelOf(item: SavedRef, targets: readonly ClarificationTarget[]): string {
-  return targetOf(item, targets)?.label ?? item.label ?? DECLARATION_LABEL;
+/**
+ * The label of a saved item: its target's, its own, or "Declaration" when it names nothing; in
+ * the letter's language when given.
+ */
+export function labelOf(
+  item: SavedRef,
+  targets: readonly ClarificationTarget[],
+  language: 'en' | 'sw' = 'en',
+): string {
+  const target = targetOf(item, targets);
+  if (target) return letterLabelOf(target, language);
+  return item.label ?? (language === 'sw' ? SW_DECLARATION_LABEL : DECLARATION_LABEL);
+}
+
+/** A target's label as a letter in `language` prints it; a saved one keeps its saved label. */
+export function letterLabelOf(target: ClarificationTarget, language: 'en' | 'sw'): string {
+  return language === 'sw' ? (target.swLabel ?? target.label) : target.label;
 }

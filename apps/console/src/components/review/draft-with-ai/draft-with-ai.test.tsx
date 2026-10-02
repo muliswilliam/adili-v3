@@ -193,6 +193,14 @@ function itemCard(index: number): HTMLElement {
   return card;
 }
 
+/** Chooses the letter's language in the composer. */
+function letterIn(language: string) {
+  fireEvent.keyDown(within(drawer()).getByRole('combobox', { name: 'Letter language' }), {
+    key: 'Enter',
+  });
+  fireEvent.click(screen.getByRole('option', { name: language }));
+}
+
 function pick(name: string) {
   fireEvent.keyDown(
     within(drafting()).getByRole('combobox', { name: 'Add a flag or item to draft from' }),
@@ -237,10 +245,7 @@ describe('Draft with AI in the composer (spec 07c FE-3, S12)', () => {
     const { server } = renderHost();
     fireEvent.click(screen.getByRole('button', { name: 'Add to clarification', hidden: true }));
     pick('Plot Kisumu/Manyatta/1234 (John Kennedy Otieno)');
-    fireEvent.keyDown(within(drafting()).getByRole('combobox', { name: 'Language' }), {
-      key: 'Enter',
-    });
-    fireEvent.click(screen.getByRole('option', { name: 'Swahili' }));
+    letterIn('Swahili');
 
     fireEvent.click(draftButton());
     expect(draftButton().textContent).toBe('Drafting…');
@@ -283,39 +288,35 @@ describe('Draft with AI in the composer (spec 07c FE-3, S12)', () => {
     expect(within(itemCard(1)).getByRole('img', { name: /^AI draft, edited\./ })).toBeTruthy();
   });
 
-  it('warns that a draft in Swahili mixes two languages in the English letter (e2e 13)', async () => {
-    renderHost();
+  it('drafts in the letter’s language, and says so of a part drafted in another one (e2e 13, S7)', async () => {
+    const server = fakeDraftServer();
+    renderHost({ server });
+    expect(within(drafting()).getByText("Drafts in English, the letter's language.")).toBeTruthy();
     pick('Value changed by 150% since the previous declaration');
-    // An English draft: nothing to warn about.
+    // An English draft in an English letter: nothing to say.
     fireEvent.click(draftButton());
     await settle();
-    expect(within(drawer()).queryByText(/the letter will mix two languages/)).toBeNull();
+    expect(server.request.mock.calls[0]?.[0].language).toBe('en');
+    expect(within(drawer()).queryByText(/^Drafted in /)).toBeNull();
+
+    // The letter turns Swahili: the English parts say so, edited or not; a new draft is Swahili.
+    letterIn('Swahili');
+    expect(within(drafting()).getByText("Drafts in Swahili, the letter's language.")).toBeTruthy();
+    const note = 'Drafted in English. The letter is in Swahili.';
+    expect(within(itemCard(0)).getByText(note)).toBeTruthy();
+    fireEvent.change(within(itemCard(1)).getByRole('textbox', { name: 'What you need' }), {
+      target: { value: 'Please declare the acquisition date.' },
+    });
+    expect(within(itemCard(1)).getByText(note)).toBeTruthy();
+    expect(within(drawer()).queryByText(/rest of the letter|mix two languages/)).toBeNull();
 
     pick('Plot Kisumu/Manyatta/1234 (John Kennedy Otieno)');
-    fireEvent.keyDown(within(drafting()).getByRole('combobox', { name: 'Language' }), {
-      key: 'Enter',
-    });
-    fireEvent.click(screen.getByRole('option', { name: 'Swahili' }));
-    // Before drafting, the language list says what the letter is in.
-    expect(
-      within(drafting())
-        .getByRole('combobox', { name: 'Language' })
-        .getAttribute('aria-describedby'),
-    ).toBeTruthy();
-    expect(within(drafting()).getByText('The rest of the letter is in English.')).toBeTruthy();
-
     fireEvent.click(draftButton());
     await settle();
-    // The English items stay quiet; each Swahili one says so, edited or not.
-    const warning =
-      'Drafted in Swahili, but the rest of the letter is in English. Rewrite it in English, or the letter will mix two languages.';
+    expect(server.request.mock.calls[1]?.[0].language).toBe('sw');
     expect(items()).toHaveLength(4);
-    expect(within(itemCard(0)).queryByText(warning)).toBeNull();
-    expect(within(itemCard(2)).getByText(warning)).toBeTruthy();
-    fireEvent.change(within(itemCard(3)).getByRole('textbox', { name: 'What you need' }), {
-      target: { value: 'Tafadhali taja tarehe ya ununuzi.' },
-    });
-    expect(within(itemCard(3)).getByText(warning)).toBeTruthy();
+    expect(within(itemCard(2)).queryByText(/^Drafted in /)).toBeNull();
+    expect(within(itemCard(3)).queryByText(/^Drafted in /)).toBeNull();
   });
 
   it('saves the opening paragraph with the items, each drafted part with its job (ADR-007)', async () => {
@@ -448,10 +449,7 @@ describe('Draft with AI in the composer (spec 07c FE-3, S12)', () => {
     await settle();
     const changed = server.request.mock.calls[4]?.[0].key;
     expect(changed).not.toBe(server.request.mock.calls[3]?.[0].key);
-    fireEvent.keyDown(within(drafting()).getByRole('combobox', { name: 'Language' }), {
-      key: 'Enter',
-    });
-    fireEvent.click(screen.getByRole('option', { name: 'Swahili' }));
+    letterIn('Swahili');
     fireEvent.click(draftButton());
     await settle();
     expect(server.request.mock.calls[5]?.[0].key).not.toBe(changed);

@@ -368,6 +368,49 @@ describe('ClarificationComposer', () => {
     expect(letter.textContent).toContain('Please respond by 28 Oct 2026');
   });
 
+  it('writes the letter in the language chosen, English to start with, and sends it (S7)', async () => {
+    const { server } = await renderComposer();
+    const language = () => within(drawer()).getByRole('combobox', { name: 'Letter language' });
+    expect(language().textContent).toContain('English');
+    pickTarget(item(1), 'Assets · Plot Kisumu/Manyatta/1234 · John Kennedy Otieno');
+    fillItem(item(1), 'Explain the discrepancy or inconsistency', 'Eleza ongezeko la thamani.');
+    fireEvent.keyDown(language(), { key: 'Enter' });
+    fireEvent.click(screen.getByRole('option', { name: 'Swahili' }));
+
+    fireEvent.click(within(drawer()).getByRole('radio', { name: /Letter preview/ }));
+    const letter = within(drawer()).getByRole('article', { name: 'Letter preview' });
+    expect(letter.getAttribute('lang')).toBe('sw');
+    expect(
+      within(letter).getByText(
+        'Ombi la ufafanuzi chini ya kifungu cha 35(2) cha Sheria ya Mgongano wa Maslahi, 2025',
+      ),
+    ).toBeTruthy();
+    expect(
+      within(letter).getByText('Mali · Plot Kisumu/Manyatta/1234 · John Kennedy Otieno'),
+    ).toBeTruthy();
+    expect(within(letter).getByText('Eleza tofauti au kutowiana kwa taarifa.')).toBeTruthy();
+    expect(within(letter).getByText('Eleza ongezeko la thamani.')).toBeTruthy();
+    expect(letter.textContent).toContain('Tafadhali jibu kufikia tarehe 28 Oktoba 2026');
+    expect(letter.textContent).not.toContain('Please respond');
+
+    fireEvent.click(within(drawer()).getByRole('button', { name: 'Issue clarification' }));
+    const confirm = screen.getByRole('dialog', { name: 'Issue this clarification?' });
+    expect(within(confirm).getByText('Swahili')).toBeTruthy();
+    await act(async () => {
+      fireEvent.click(within(confirm).getByRole('button', { name: 'Issue clarification' }));
+      await Promise.resolve();
+    });
+    expect(server.issue).toHaveBeenCalledWith(expect.objectContaining({ language: 'sw' }));
+  });
+
+  it('continues a saved draft in its language', async () => {
+    const { clarifications } = await caseOf(CASES.mine);
+    await renderComposer({ draft: { ...draftOnMine({ clarifications }), language: 'sw' } });
+    expect(
+      within(drawer()).getByRole('combobox', { name: 'Letter language' }).textContent,
+    ).toContain('Swahili');
+  });
+
   it('takes Draft with AI’s items through the tools slot, labelled until edited (07c FE-3)', async () => {
     await renderComposer({
       tools: (api) => (

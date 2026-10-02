@@ -80,6 +80,8 @@ const composed = z.object({
   opening: z.string().max(800).nullable(),
   /** The Draft with AI job that drafted the opening paragraph, or null. */
   openingAiJobId: z.uuid().nullable(),
+  /** The letter's language (review.yaml `LetterLanguage`). */
+  language: z.enum(['en', 'sw']),
   /** One per composer, reused on retry, so a retried create makes one draft. */
   draftKey: id,
 });
@@ -93,7 +95,12 @@ export const saveClarificationDraft = createServerFn({ method: 'POST' })
         client,
         data.caseId,
         data.clarificationId,
-        { items: data.items, opening: data.opening, openingAiJobId: data.openingAiJobId },
+        {
+          items: data.items,
+          opening: data.opening,
+          openingAiJobId: data.openingAiJobId,
+          language: data.language,
+        },
         data.draftKey,
       ),
     ),
@@ -112,7 +119,12 @@ export const issueComposedClarification = createServerFn({ method: 'POST' })
       reviewClient(session.accessToken),
       data.caseId,
       data.clarificationId,
-      { items: data.items, opening: data.opening, openingAiJobId: data.openingAiJobId },
+      {
+        items: data.items,
+        opening: data.opening,
+        openingAiJobId: data.openingAiJobId,
+        language: data.language,
+      },
       { draft: data.draftKey, issue: data.issueKey },
     );
   });

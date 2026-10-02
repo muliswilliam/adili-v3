@@ -284,6 +284,7 @@ function clarification(
     followUpOf: null,
     opening: null,
     openingAiJobId: null,
+    language: 'en',
     response: null,
     ...overrides,
   };
@@ -754,6 +755,7 @@ function draftOf(
     followUpOf,
     opening: null,
     openingAiJobId: null,
+    language: 'en',
     response: null,
   };
 }
@@ -1156,6 +1158,7 @@ async function act(
     ...draftOf(randomUUID(), found.caseId, found.items, found.id),
     opening: found.opening,
     openingAiJobId: found.openingAiJobId,
+    language: found.language,
   };
   clarifications.set(draft.id, draft);
   return json(201, draft);
@@ -1185,7 +1188,7 @@ async function once(request: Request, work: () => Promise<Response>): Promise<Re
 /** review.yaml `ClarificationInput`, checked as the service does; null when invalid. */
 async function contentOf(
   request: Request,
-): Promise<{ items: Item[]; opening: string | null; openingAiJobId: string | null } | null> {
+): Promise<Pick<Clarification, 'items' | 'opening' | 'openingAiJobId' | 'language'> | null> {
   const body = await readJson(request);
   const items = isRecord(body) ? body.items : null;
   if (!Array.isArray(items) || items.length > 50) return null;
@@ -1195,6 +1198,9 @@ async function contentOf(
   }
   const openingAiJobId = isRecord(body) ? (body.openingAiJobId ?? null) : null;
   if (openingAiJobId !== null && typeof openingAiJobId !== 'string') return null;
+  // Left out: English, as the service has it.
+  const language = isRecord(body) ? (body.language ?? 'en') : 'en';
+  if (language !== 'en' && language !== 'sw') return null;
   const valid: Item[] = [];
   const optional = (value: unknown) => (typeof value === 'string' ? value : null);
   for (const item of items) {
@@ -1216,6 +1222,7 @@ async function contentOf(
     items: valid,
     opening: trimmed === '' ? null : trimmed,
     openingAiJobId: trimmed === '' ? null : openingAiJobId,
+    language,
   };
 }
 

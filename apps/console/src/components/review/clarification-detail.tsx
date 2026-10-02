@@ -301,10 +301,11 @@ export function ClarificationDetailView({
                 reviewCase={reviewCase}
                 reportingEntity={reportingEntityOf(document)}
                 items={clarification.items.map((item) => ({
-                  label: labelOf(item, clarificationTargets(document)),
+                  label: labelOf(item, clarificationTargets(document), clarification.language),
                   requirement: item.requirement,
                   text: item.text,
                 }))}
+                language={clarification.language}
                 opening={clarification.opening}
                 aiAssisted={
                   clarification.openingAiJobId !== null ||
