@@ -53,6 +53,8 @@ export interface TaskRequest {
   dataClass: DataClass;
   /** `review-case:<caseId>`: the events of the job carry it back. */
   subjectRef: string;
+  /** The task's prompt version; part of what the idempotency key names. */
+  promptVersion: number;
   input: ReviewTaskInput;
 }
 

@@ -27,6 +27,7 @@ import { InternalApiRejected } from '../internal-api/rejected.js';
 import { systemContext } from '../system-context.js';
 import type { CopilotActivityRequest } from './contract.js';
 import { copilotInputs } from './copilot-inputs.js';
+import { COPILOT_PROMPT_VERSIONS } from './prompt-versions.js';
 import { caseSubjectRef, type CopilotUpdatedData, REVIEW_COPILOT_UPDATED } from './events.js';
 import { type CopilotRow, type CopilotStatus, reviewCopilots } from './schema.js';
 
@@ -75,7 +76,7 @@ export class CopilotRequests {
    * earlier outputs are kept for show) and `review.copilot.updated.v1`.
    *
    * Safe to retry: the idempotency keys are derived from the case, the version, the registry
-   * check and the request count, which moves on only once the previous request has ended, so a
+   * check, the task's prompt version and the request count, which moves on only once the previous request has ended, so a
    * retry gets the same jobs. A job that has already ended (a cached result, a blocked tenant) is
    * recorded at once.
    *
@@ -127,16 +128,24 @@ export class CopilotRequests {
       (record.registryCheckedAt?.toISOString() ?? null) === registryCheckedAt;
     const attempt = inFlight ? record.attempt : (record?.attempt ?? 0) + 1;
     const key = (task: ReviewTask) =>
-      uuidv5(
-        [task, caseId, row.currentVersionId, registryCheckedAt ?? 'none', String(attempt)].join(
-          '|',
-        ),
-        KEY_NAMESPACE,
-      );
+      copilotTaskKey({
+        task,
+        caseId,
+        versionId: row.currentVersionId,
+        registryCheckedAt,
+        promptVersion: COPILOT_PROMPT_VERSIONS[task],
+        attempt,
+      });
     const call = (task: ReviewTask, input: ReviewTaskInput) =>
       this.gateway.runTask(
         task,
-        { tenant, dataClass: dataClassOf(tenant), subjectRef: caseSubjectRef(caseId), input },
+        {
+          tenant,
+          dataClass: dataClassOf(tenant),
+          subjectRef: caseSubjectRef(caseId),
+          promptVersion: COPILOT_PROMPT_VERSIONS[task],
+          input,
+        },
         key(task),
       );
 
@@ -354,6 +363,31 @@ export class CopilotRequests {
     }
     return pulled;
   }
+}
+
+/**
+ * The idempotency key of a copilot task call: one per task, case, version, registry check, prompt
+ * version and request count, so a retry gets the same job and anything else asks anew.
+ */
+export function copilotTaskKey(parts: {
+  task: ReviewTask;
+  caseId: string;
+  versionId: string;
+  registryCheckedAt: string | null;
+  promptVersion: number;
+  attempt: number;
+}): string {
+  return uuidv5(
+    [
+      parts.task,
+      parts.caseId,
+      parts.versionId,
+      parts.registryCheckedAt ?? 'none',
+      String(parts.promptVersion),
+      String(parts.attempt),
+    ].join('|'),
+    KEY_NAMESPACE,
+  );
 }
 
 /** The AAD record id of a stored output: the case and the job it came from. */

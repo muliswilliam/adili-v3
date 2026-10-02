@@ -37,6 +37,7 @@ describe('HttpAiGatewayClient', () => {
     tenant: 'psc',
     dataClass: 'synthetic',
     subjectRef: `review-case:${caseId}`,
+    promptVersion: 1,
     input: copilotInputs({ current: document, previous: null, flags: [], registryStatuses: [] })
       .summarize,
   };
@@ -66,7 +67,7 @@ describe('HttpAiGatewayClient', () => {
       fetch,
     });
 
-  it('posts the task with the idempotency key, no wait and the current prompt, and answers the job', async () => {
+  it('posts the task with the idempotency key, no wait and the pinned prompt version, and answers the job', async () => {
     const fetch = vi.fn<typeof globalThis.fetch>(() =>
       Promise.resolve(Response.json(job, { status: 202 })),
     );
@@ -91,7 +92,7 @@ describe('HttpAiGatewayClient', () => {
       'idempotency-key': key,
     });
     const body: unknown = await sent.json();
-    expect(body).toEqual({ ...request, promptVersion: null, waitSeconds: 0 });
+    expect(body).toEqual({ ...request, waitSeconds: 0 });
     expect(validTaskRequest(body), JSON.stringify(validTaskRequest.errors)).toBe(true);
   });
 

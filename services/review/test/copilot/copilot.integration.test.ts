@@ -305,6 +305,8 @@ describe('review copilot', () => {
 
       // A Commission without synthetic data is announced as highly confidential.
       expect(api.ai.calls[0]?.request.dataClass).toBe('highly-confidential');
+      // The prompt version asked for is pinned, as its idempotency key names it.
+      expect(api.ai.calls[0]?.request.promptVersion).toBe(1);
       const body = await view(created.id, tscReviewer);
       expect(body).toMatchObject({
         status: 'not-enabled',

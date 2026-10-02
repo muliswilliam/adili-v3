@@ -41,6 +41,7 @@ import {
 } from './draft-input.js';
 import { caseSubjectRef } from './events.js';
 import { aiGatewayUnavailable as gatewayUnavailable, aiNotEnabled } from './problems.js';
+import { COPILOT_PROMPT_VERSIONS } from './prompt-versions.js';
 
 /** review.yaml `CopilotDraft`. */
 export interface CopilotDraft {
@@ -146,7 +147,13 @@ export class CopilotDraftsService {
       // The gateway decides whether the Commission may use AI now: a policy change applies at once.
       job = await this.gateway.runTask(
         'draft-clarification',
-        { tenant, dataClass: dataClassOf(tenant), subjectRef: caseSubjectRef(row.id), input },
+        {
+          tenant,
+          dataClass: dataClassOf(tenant),
+          subjectRef: caseSubjectRef(row.id),
+          promptVersion: COPILOT_PROMPT_VERSIONS['draft-clarification'],
+          input,
+        },
         id,
         { waitSeconds: DRAFT_WAIT_SECONDS },
       );

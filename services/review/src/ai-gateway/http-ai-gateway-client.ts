@@ -101,7 +101,7 @@ export class HttpAiGatewayClient extends AiGatewayClient {
       (api) =>
         api.POST('/internal/v1/tasks/{task}', {
           params: { path: { task }, header: { 'Idempotency-Key': idempotencyKey } },
-          body: { ...request, promptVersion: null, waitSeconds },
+          body: { ...request, waitSeconds },
         }),
       {
         status: [200, 202],
