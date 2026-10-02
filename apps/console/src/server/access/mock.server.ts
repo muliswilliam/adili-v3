@@ -19,7 +19,8 @@
  * service answers. Resolving to a record leaves the request as it was until the workflow notifies
  * the declarant, two seconds later. Searching the queue for `slow` answers after four seconds
  * (the loading state); for `offline`, 503. Searching the roster for `offline` is 503 too.
- * Attachment links point at `/api/mock-files/{id}` (`routes/api/mock-files.$id.ts`).
+ * Attachment links point at `/api/mock-files/{id}` (`routes/api/mock-files.$id.ts`). Written
+ * self-access applications are answered by `self-access-mock.server.ts`.
  */
 import { randomUUID } from 'node:crypto';
 
@@ -28,6 +29,7 @@ import createClient from 'openapi-fetch';
 
 import { isRecord, json, problem, readJson } from '../mock-http';
 import type { paths } from './api.gen';
+import { mockSelfAccessFetch, mockSelfAccessFileTitle } from './self-access-mock.server';
 import type {
   AccessRequestStatus,
   OfficerRequestView,
@@ -930,6 +932,8 @@ export async function mockAccessFetch(request: Request): Promise<Response> {
   if (method === 'GET' && /^\/v1\/commissions\/[^/]+\/access\/requests$/.test(pathname)) {
     return queue(url);
   }
+  // Written self-access applications (#304) have their own store.
+  if (/\/self-access(\/|$)/.test(pathname)) return mockSelfAccessFetch(request);
 
   const match = /^\/v1\/access\/requests\/([^/]+)\/(.+)$/.exec(pathname);
   const stored = match?.[1] ? requests.get(match[1]) : undefined;
@@ -987,5 +991,5 @@ export function mockAccessFileTitle(id: string): string | null {
     const file = stored.view.representations?.attachments.find((each) => each.uploadId === id);
     if (file) return file.fileName;
   }
-  return null;
+  return mockSelfAccessFileTitle(id);
 }

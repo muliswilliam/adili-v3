@@ -16,6 +16,7 @@ import { Route as ObligationsRouteRouteImport } from './routes/obligations/route
 import { Route as ReviewRouteRouteImport } from './routes/review/route'
 import { Route as RosterRouteRouteImport } from './routes/roster/route'
 import { Route as AccessIndexRouteImport } from './routes/access/index'
+import { Route as AccessCertifiedCopiesRouteRouteImport } from './routes/access/certified-copies/route'
 import { Route as AccessRequestsRouteRouteImport } from './routes/access/requests/route'
 import { Route as AuthCallbackRouteImport } from './routes/auth/callback'
 import { Route as AuthLoginRouteImport } from './routes/auth/login'
@@ -33,9 +34,13 @@ import { Route as RosterImportRouteImport } from './routes/roster/import'
 import { Route as RosterImportsRouteRouteImport } from './routes/roster/imports/route'
 import { Route as RosterRecordsRouteRouteImport } from './routes/roster/records/route'
 import { Route as RosterTemplateRouteImport } from './routes/roster/template'
+import { Route as AccessCertifiedCopiesIndexRouteImport } from './routes/access/certified-copies/index'
+import { Route as AccessCertifiedCopiesApplicationIdRouteImport } from './routes/access/certified-copies/$applicationId'
+import { Route as AccessCertifiedCopiesNewRouteImport } from './routes/access/certified-copies/new'
 import { Route as AccessRequestsIndexRouteImport } from './routes/access/requests/index'
 import { Route as AccessRequestsRequestIdRouteImport } from './routes/access/requests/$requestId'
 import { Route as ApiMockFilesIdRouteImport } from './routes/api/mock-files.$id'
+import { Route as ApiMockUploadsIdRouteImport } from './routes/api/mock-uploads.$id'
 import { Route as CommissionsSlugIndexRouteImport } from './routes/commissions/$slug/index'
 import { Route as CommissionsSlugObligationsRouteRouteImport } from './routes/commissions/$slug/obligations/route'
 import { Route as CommissionsSlugRecordsRouteRouteImport } from './routes/commissions/$slug/records/route'
@@ -89,6 +94,12 @@ const AccessIndexRoute = AccessIndexRouteImport.update({
   path: '/',
   getParentRoute: () => AccessRouteRoute,
 } as any)
+const AccessCertifiedCopiesRouteRoute =
+  AccessCertifiedCopiesRouteRouteImport.update({
+    id: '/certified-copies',
+    path: '/certified-copies',
+    getParentRoute: () => AccessRouteRoute,
+  } as any)
 const AccessRequestsRouteRoute = AccessRequestsRouteRouteImport.update({
   id: '/requests',
   path: '/requests',
@@ -175,6 +186,24 @@ const RosterTemplateRoute = RosterTemplateRouteImport.update({
   path: '/template',
   getParentRoute: () => RosterRouteRoute,
 } as any)
+const AccessCertifiedCopiesIndexRoute =
+  AccessCertifiedCopiesIndexRouteImport.update({
+    id: '/',
+    path: '/',
+    getParentRoute: () => AccessCertifiedCopiesRouteRoute,
+  } as any)
+const AccessCertifiedCopiesApplicationIdRoute =
+  AccessCertifiedCopiesApplicationIdRouteImport.update({
+    id: '/$applicationId',
+    path: '/$applicationId',
+    getParentRoute: () => AccessCertifiedCopiesRouteRoute,
+  } as any)
+const AccessCertifiedCopiesNewRoute =
+  AccessCertifiedCopiesNewRouteImport.update({
+    id: '/new',
+    path: '/new',
+    getParentRoute: () => AccessCertifiedCopiesRouteRoute,
+  } as any)
 const AccessRequestsIndexRoute = AccessRequestsIndexRouteImport.update({
   id: '/',
   path: '/',
@@ -188,6 +217,11 @@ const AccessRequestsRequestIdRoute = AccessRequestsRequestIdRouteImport.update({
 const ApiMockFilesIdRoute = ApiMockFilesIdRouteImport.update({
   id: '/api/mock-files/$id',
   path: '/api/mock-files/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiMockUploadsIdRoute = ApiMockUploadsIdRouteImport.update({
+  id: '/api/mock-uploads/$id',
+  path: '/api/mock-uploads/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
 const CommissionsSlugIndexRoute = CommissionsSlugIndexRouteImport.update({
@@ -294,6 +328,7 @@ export interface FileRoutesByFullPath {
   '/obligations': typeof ObligationsRouteRouteWithChildren
   '/review': typeof ReviewRouteRouteWithChildren
   '/roster': typeof RosterRouteRouteWithChildren
+  '/access/certified-copies': typeof AccessCertifiedCopiesRouteRouteWithChildren
   '/access/requests': typeof AccessRequestsRouteRouteWithChildren
   '/commissions/$slug': typeof CommissionsSlugRouteRouteWithChildren
   '/obligations/national': typeof ObligationsNationalRouteRouteWithChildren
@@ -314,10 +349,14 @@ export interface FileRoutesByFullPath {
   '/roster/': typeof RosterIndexRoute
   '/commissions/$slug/obligations': typeof CommissionsSlugObligationsRouteRouteWithChildren
   '/commissions/$slug/records': typeof CommissionsSlugRecordsRouteRouteWithChildren
+  '/access/certified-copies/$applicationId': typeof AccessCertifiedCopiesApplicationIdRoute
+  '/access/certified-copies/new': typeof AccessCertifiedCopiesNewRoute
   '/access/requests/$requestId': typeof AccessRequestsRequestIdRoute
   '/api/mock-files/$id': typeof ApiMockFilesIdRoute
+  '/api/mock-uploads/$id': typeof ApiMockUploadsIdRoute
   '/roster/api-access/docs': typeof RosterApiAccessDocsRoute
   '/roster/records/$recordId': typeof RosterRecordsRecordIdRoute
+  '/access/certified-copies/': typeof AccessCertifiedCopiesIndexRoute
   '/access/requests/': typeof AccessRequestsIndexRoute
   '/commissions/$slug/': typeof CommissionsSlugIndexRoute
   '/obligations/national/': typeof ObligationsNationalIndexRoute
@@ -348,10 +387,14 @@ export interface FileRoutesByTo {
   '/commissions': typeof CommissionsIndexRoute
   '/obligations': typeof ObligationsIndexRoute
   '/roster': typeof RosterIndexRoute
+  '/access/certified-copies/$applicationId': typeof AccessCertifiedCopiesApplicationIdRoute
+  '/access/certified-copies/new': typeof AccessCertifiedCopiesNewRoute
   '/access/requests/$requestId': typeof AccessRequestsRequestIdRoute
   '/api/mock-files/$id': typeof ApiMockFilesIdRoute
+  '/api/mock-uploads/$id': typeof ApiMockUploadsIdRoute
   '/roster/api-access/docs': typeof RosterApiAccessDocsRoute
   '/roster/records/$recordId': typeof RosterRecordsRecordIdRoute
+  '/access/certified-copies': typeof AccessCertifiedCopiesIndexRoute
   '/access/requests': typeof AccessRequestsIndexRoute
   '/commissions/$slug': typeof CommissionsSlugIndexRoute
   '/obligations/national': typeof ObligationsNationalIndexRoute
@@ -375,6 +418,7 @@ export interface FileRoutesById {
   '/obligations': typeof ObligationsRouteRouteWithChildren
   '/review': typeof ReviewRouteRouteWithChildren
   '/roster': typeof RosterRouteRouteWithChildren
+  '/access/certified-copies': typeof AccessCertifiedCopiesRouteRouteWithChildren
   '/access/requests': typeof AccessRequestsRouteRouteWithChildren
   '/commissions/$slug': typeof CommissionsSlugRouteRouteWithChildren
   '/obligations_/national': typeof ObligationsNationalRouteRouteWithChildren
@@ -395,10 +439,14 @@ export interface FileRoutesById {
   '/roster/': typeof RosterIndexRoute
   '/commissions/$slug/obligations': typeof CommissionsSlugObligationsRouteRouteWithChildren
   '/commissions/$slug/records': typeof CommissionsSlugRecordsRouteRouteWithChildren
+  '/access/certified-copies/$applicationId': typeof AccessCertifiedCopiesApplicationIdRoute
+  '/access/certified-copies/new': typeof AccessCertifiedCopiesNewRoute
   '/access/requests/$requestId': typeof AccessRequestsRequestIdRoute
   '/api/mock-files/$id': typeof ApiMockFilesIdRoute
+  '/api/mock-uploads/$id': typeof ApiMockUploadsIdRoute
   '/roster/api-access/docs': typeof RosterApiAccessDocsRoute
   '/roster/records/$recordId': typeof RosterRecordsRecordIdRoute
+  '/access/certified-copies/': typeof AccessCertifiedCopiesIndexRoute
   '/access/requests/': typeof AccessRequestsIndexRoute
   '/commissions/$slug/': typeof CommissionsSlugIndexRoute
   '/obligations_/national/': typeof ObligationsNationalIndexRoute
@@ -423,6 +471,7 @@ export interface FileRouteTypes {
     | '/obligations'
     | '/review'
     | '/roster'
+    | '/access/certified-copies'
     | '/access/requests'
     | '/commissions/$slug'
     | '/obligations/national'
@@ -443,10 +492,14 @@ export interface FileRouteTypes {
     | '/roster/'
     | '/commissions/$slug/obligations'
     | '/commissions/$slug/records'
+    | '/access/certified-copies/$applicationId'
+    | '/access/certified-copies/new'
     | '/access/requests/$requestId'
     | '/api/mock-files/$id'
+    | '/api/mock-uploads/$id'
     | '/roster/api-access/docs'
     | '/roster/records/$recordId'
+    | '/access/certified-copies/'
     | '/access/requests/'
     | '/commissions/$slug/'
     | '/obligations/national/'
@@ -477,10 +530,14 @@ export interface FileRouteTypes {
     | '/commissions'
     | '/obligations'
     | '/roster'
+    | '/access/certified-copies/$applicationId'
+    | '/access/certified-copies/new'
     | '/access/requests/$requestId'
     | '/api/mock-files/$id'
+    | '/api/mock-uploads/$id'
     | '/roster/api-access/docs'
     | '/roster/records/$recordId'
+    | '/access/certified-copies'
     | '/access/requests'
     | '/commissions/$slug'
     | '/obligations/national'
@@ -503,6 +560,7 @@ export interface FileRouteTypes {
     | '/obligations'
     | '/review'
     | '/roster'
+    | '/access/certified-copies'
     | '/access/requests'
     | '/commissions/$slug'
     | '/obligations_/national'
@@ -523,10 +581,14 @@ export interface FileRouteTypes {
     | '/roster/'
     | '/commissions/$slug/obligations'
     | '/commissions/$slug/records'
+    | '/access/certified-copies/$applicationId'
+    | '/access/certified-copies/new'
     | '/access/requests/$requestId'
     | '/api/mock-files/$id'
+    | '/api/mock-uploads/$id'
     | '/roster/api-access/docs'
     | '/roster/records/$recordId'
+    | '/access/certified-copies/'
     | '/access/requests/'
     | '/commissions/$slug/'
     | '/obligations_/national/'
@@ -555,6 +617,7 @@ export interface RootRouteChildren {
   AuthLoginRoute: typeof AuthLoginRoute
   AuthLogoutRoute: typeof AuthLogoutRoute
   ApiMockFilesIdRoute: typeof ApiMockFilesIdRoute
+  ApiMockUploadsIdRoute: typeof ApiMockUploadsIdRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -606,6 +669,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/access/'
       preLoaderRoute: typeof AccessIndexRouteImport
+      parentRoute: typeof AccessRouteRoute
+    }
+    '/access/certified-copies': {
+      id: '/access/certified-copies'
+      path: '/certified-copies'
+      fullPath: '/access/certified-copies'
+      preLoaderRoute: typeof AccessCertifiedCopiesRouteRouteImport
       parentRoute: typeof AccessRouteRoute
     }
     '/access/requests': {
@@ -727,6 +797,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof RosterTemplateRouteImport
       parentRoute: typeof RosterRouteRoute
     }
+    '/access/certified-copies/': {
+      id: '/access/certified-copies/'
+      path: '/'
+      fullPath: '/access/certified-copies/'
+      preLoaderRoute: typeof AccessCertifiedCopiesIndexRouteImport
+      parentRoute: typeof AccessCertifiedCopiesRouteRoute
+    }
+    '/access/certified-copies/$applicationId': {
+      id: '/access/certified-copies/$applicationId'
+      path: '/$applicationId'
+      fullPath: '/access/certified-copies/$applicationId'
+      preLoaderRoute: typeof AccessCertifiedCopiesApplicationIdRouteImport
+      parentRoute: typeof AccessCertifiedCopiesRouteRoute
+    }
+    '/access/certified-copies/new': {
+      id: '/access/certified-copies/new'
+      path: '/new'
+      fullPath: '/access/certified-copies/new'
+      preLoaderRoute: typeof AccessCertifiedCopiesNewRouteImport
+      parentRoute: typeof AccessCertifiedCopiesRouteRoute
+    }
     '/access/requests/': {
       id: '/access/requests/'
       path: '/'
@@ -746,6 +837,13 @@ declare module '@tanstack/react-router' {
       path: '/api/mock-files/$id'
       fullPath: '/api/mock-files/$id'
       preLoaderRoute: typeof ApiMockFilesIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/mock-uploads/$id': {
+      id: '/api/mock-uploads/$id'
+      path: '/api/mock-uploads/$id'
+      fullPath: '/api/mock-uploads/$id'
+      preLoaderRoute: typeof ApiMockUploadsIdRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/commissions/$slug/': {
@@ -870,6 +968,25 @@ declare module '@tanstack/react-router' {
   }
 }
 
+interface AccessCertifiedCopiesRouteRouteChildren {
+  AccessCertifiedCopiesApplicationIdRoute: typeof AccessCertifiedCopiesApplicationIdRoute
+  AccessCertifiedCopiesNewRoute: typeof AccessCertifiedCopiesNewRoute
+  AccessCertifiedCopiesIndexRoute: typeof AccessCertifiedCopiesIndexRoute
+}
+
+const AccessCertifiedCopiesRouteRouteChildren: AccessCertifiedCopiesRouteRouteChildren =
+  {
+    AccessCertifiedCopiesApplicationIdRoute:
+      AccessCertifiedCopiesApplicationIdRoute,
+    AccessCertifiedCopiesNewRoute: AccessCertifiedCopiesNewRoute,
+    AccessCertifiedCopiesIndexRoute: AccessCertifiedCopiesIndexRoute,
+  }
+
+const AccessCertifiedCopiesRouteRouteWithChildren =
+  AccessCertifiedCopiesRouteRoute._addFileChildren(
+    AccessCertifiedCopiesRouteRouteChildren,
+  )
+
 interface AccessRequestsRouteRouteChildren {
   AccessRequestsRequestIdRoute: typeof AccessRequestsRequestIdRoute
   AccessRequestsIndexRoute: typeof AccessRequestsIndexRoute
@@ -884,11 +1001,13 @@ const AccessRequestsRouteRouteWithChildren =
   AccessRequestsRouteRoute._addFileChildren(AccessRequestsRouteRouteChildren)
 
 interface AccessRouteRouteChildren {
+  AccessCertifiedCopiesRouteRoute: typeof AccessCertifiedCopiesRouteRouteWithChildren
   AccessRequestsRouteRoute: typeof AccessRequestsRouteRouteWithChildren
   AccessIndexRoute: typeof AccessIndexRoute
 }
 
 const AccessRouteRouteChildren: AccessRouteRouteChildren = {
+  AccessCertifiedCopiesRouteRoute: AccessCertifiedCopiesRouteRouteWithChildren,
   AccessRequestsRouteRoute: AccessRequestsRouteRouteWithChildren,
   AccessIndexRoute: AccessIndexRoute,
 }
@@ -1083,6 +1202,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthLoginRoute: AuthLoginRoute,
   AuthLogoutRoute: AuthLogoutRoute,
   ApiMockFilesIdRoute: ApiMockFilesIdRoute,
+  ApiMockUploadsIdRoute: ApiMockUploadsIdRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
