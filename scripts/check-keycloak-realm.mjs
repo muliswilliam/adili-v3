@@ -83,15 +83,6 @@ for (const id of ['portal', 'console']) {
     fail(`${id}: the person_id claim must be on the access token`);
   }
 }
-// Law-enforcement officers (spec 10) sign in to the console; their agency is a token claim.
-const agency = (clients.get('console')?.protocolMappers ?? []).find(
-  (mapper) =>
-    mapper.protocolMapper === 'oidc-usermodel-attribute-mapper' &&
-    mapper.config?.['user.attribute'] === 'agency',
-);
-if (agency?.config?.['claim.name'] !== 'agency' || agency.config['access.token.claim'] !== 'true') {
-  fail('console needs an agency user attribute mapper to the agency access token claim (spec 10)');
-}
 
 const flows = new Map((realm.authenticationFlows ?? []).map((flow) => [flow.alias, flow]));
 for (const alias of [

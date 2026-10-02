@@ -208,20 +208,6 @@
           }
         },
         {
-          "name": "agency",
-          "protocol": "openid-connect",
-          "protocolMapper": "oidc-usermodel-attribute-mapper",
-          "config": {
-            "user.attribute": "agency",
-            "claim.name": "agency",
-            "jsonType.label": "String",
-            "id.token.claim": "true",
-            "access.token.claim": "true",
-            "userinfo.token.claim": "true",
-            "introspection.token.claim": "true"
-          }
-        },
-        {
           "name": "adili-api audience",
           "protocol": "openid-connect",
           "protocolMapper": "oidc-audience-mapper",
