@@ -3,7 +3,10 @@ import { randomUUID } from 'node:crypto';
 import { asc, eq, sql } from 'drizzle-orm';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import type { ReviewTask } from '../../src/ai-gateway/ai-gateway-client.js';
+import type {
+  ReviewTask,
+  SummarizeDeclarationInput,
+} from '../../src/ai-gateway/ai-gateway-client.js';
 import type { CopilotView } from '../../src/copilot/copilot.service.js';
 import { outbox, reviewCases, reviewCopilots, reviewFlags } from '../../src/db/schema.js';
 import { asset, declaration, income, revalued, statement } from '../fixtures/declarations.js';
@@ -213,7 +216,8 @@ describe('review copilot', () => {
           },
         },
       });
-      expect(summarize?.request.input.flags.map((flag) => flag.id)).toEqual(flagIds);
+      const summarizeInput = summarize?.request.input as SummarizeDeclarationInput | undefined;
+      expect(summarizeInput?.flags.map((flag) => flag.id)).toEqual(flagIds);
       expect(explain).toMatchObject({
         task: 'explain-flags',
         request: { input: { kind: 'explain-flags', language: 'en' } },

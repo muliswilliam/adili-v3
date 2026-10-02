@@ -9,6 +9,7 @@ import {
   AiGatewayClient,
   AiGatewayUnavailable,
   type ReviewTask,
+  type RunTaskOptions,
   type TaskRequest,
 } from '../../src/ai-gateway/ai-gateway-client.js';
 import { InternalApiRejected } from '../../src/internal-api/rejected.js';
@@ -18,14 +19,19 @@ export interface TaskCall {
   task: ReviewTask;
   request: TaskRequest;
   idempotencyKey: string;
+  waitSeconds: number;
 }
+
+/** How a job ends. */
+export type JobOutcome = Pick<AiJob, 'status' | 'reason' | 'output'>;
 
 /**
  * The ai-gateway's task and job API for tests, behaving as its contract says: one job per
  * idempotency key (a replay answers the first job), jobs `queued` until the test ends them with
  * `succeed`, `fail` or `block`, each of which answers the `ai.job.*` event the gateway would
  * publish. `blockEverything` ends every new job `blocked` at once, as the classification gate
- * does for a Commission without approval. Every call is recorded.
+ * does for a Commission without approval; `endWithinWait` ends a job created by a call that waits
+ * before the call answers. Every call is recorded.
  */
 export class FakeAiGateway extends AiGatewayClient {
   readonly calls: TaskCall[] = [];
@@ -34,6 +40,7 @@ export class FakeAiGateway extends AiGatewayClient {
   private failures = 0;
   private blockedFor: AiJobReason | null = null;
   private rejecting = false;
+  private withinWait: ((call: TaskCall) => JobOutcome) | null = null;
 
   /** The jobs created, in order. */
   get created(): (AiJob & { tenant: string })[] {
@@ -60,6 +67,11 @@ export class FakeAiGateway extends AiGatewayClient {
     this.rejecting = true;
   }
 
+  /** A new job of a call that waits ends during the wait, as `outcome` says. */
+  endWithinWait(outcome: (call: TaskCall) => JobOutcome): void {
+    this.withinWait = outcome;
+  }
+
   reset(): void {
     this.calls.length = 0;
     this.jobs.clear();
@@ -67,10 +79,17 @@ export class FakeAiGateway extends AiGatewayClient {
     this.failures = 0;
     this.blockedFor = null;
     this.rejecting = false;
+    this.withinWait = null;
   }
 
-  runTask(task: ReviewTask, request: TaskRequest, idempotencyKey: string): Promise<AiJob> {
-    this.calls.push({ task, request: structuredClone(request), idempotencyKey });
+  runTask(
+    task: ReviewTask,
+    request: TaskRequest,
+    idempotencyKey: string,
+    { waitSeconds = 0 }: RunTaskOptions = {},
+  ): Promise<AiJob> {
+    const call = { task, request: structuredClone(request), idempotencyKey, waitSeconds };
+    this.calls.push(call);
     if (this.failures > 0) {
       this.failures -= 1;
       return Promise.reject(new AiGatewayUnavailable('The ai-gateway is unavailable'));
@@ -95,6 +114,8 @@ export class FakeAiGateway extends AiGatewayClient {
         reason: this.blockedFor,
         finishedAt: new Date().toISOString(),
       });
+    } else if (waitSeconds > 0 && this.withinWait) {
+      Object.assign(job, this.withinWait(call), { finishedAt: new Date().toISOString() });
     }
     this.jobs.set(job.id, job);
     this.byKey.set(idempotencyKey, job.id);
@@ -162,10 +183,7 @@ export class FakeAiGateway extends AiGatewayClient {
     };
   }
 
-  private finish(
-    jobId: string,
-    outcome: Pick<AiJob, 'status' | 'reason' | 'output'>,
-  ): EventEnvelope {
+  private finish(jobId: string, outcome: JobOutcome): EventEnvelope {
     const job = this.jobs.get(jobId);
     if (!job) throw new Error(`No job ${jobId}`);
     Object.assign(job, outcome, { finishedAt: new Date().toISOString() });

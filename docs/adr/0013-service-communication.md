@@ -1,6 +1,6 @@
 # ADR-013: Service-to-service communication
 
-- **Status:** Accepted; amended 2026-09-28 with the recorded exceptions in §8 (spec #27, spec 03), and 2026-10-01 with the reporting service's (§2 timeouts, §8.7; spec 09); the depth limit and default timeout in §2 and the acting-tenant uses in §8.1 partly superseded by [ADR-017](0017-obligation-reminder-delivery.md) for the declarations service's calls (spec 04)
+- **Status:** Accepted; amended 2026-09-28 with the recorded exceptions in §8 (spec #27, spec 03), 2026-10-01 with the reporting service's (§2 timeouts, §8.7; spec 09), and 2026-10-02 with the review service's AI draft call (§2 timeouts; spec 07c); the depth limit and default timeout in §2 and the acting-tenant uses in §8.1 partly superseded by [ADR-017](0017-obligation-reminder-delivery.md) for the declarations service's calls (spec 04)
 - **Date:** 2026-09-24
 - **Deciders:** Adili V3 DIALs team
 - **Related:** [ADR-003](0003-temporal-as-workflow-engine.md), [ADR-004](0004-identity-keycloak-self-registration.md), [ADR-005](0005-message-queue-rabbitmq.md), [ADR-006](0006-multi-tenancy-and-hierarchy.md), [ADR-009](0009-api-first-interoperability.md), [ADR-012](0012-single-polyglot-monorepo.md)
@@ -56,6 +56,7 @@ flowchart LR
   - review → documents `POST /internal/v1/documents/issue` (clarification letters, spec 07a): 30 s. Rendering through Gotenberg and PAdES signing take seconds; it runs in a workflow activity, which retries, and issuing again answers the document already issued.
   - review → notifications `POST /internal/v1/messages` (clarification notices, spec 07a): 7 s. The messages API's 5 s provider budget plus the hop; sent from workflow activities, which retry under the same `Idempotency-Key`.
   - review → integration-gateway `POST /internal/v1/payroll/instructions` (salary stoppage and resumption, spec 08): 15 s. The gateway's payroll adapter answers within its own budget; instructions go out from workflow activities, which retry, and a replay of the same instruction reference answers the stored acknowledgement.
+  - review → ai-gateway `POST /internal/v1/tasks/draft-clarification` with `waitSeconds` (Draft with AI, spec 07c): 12 s. The reviewer waits for the draft; the gateway answers within the 10 s wait (`MAX_TASK_WAIT_SECONDS`), with the finished job or the job still running, which the console then polls, and the extra 2 s cover the hop. A retry carries the same `Idempotency-Key`, so it gets the same job. The service's other gateway calls only record or read a job and keep the 2 s default.
   - reporting (spec 09), all from Temporal activities that retry, except the ICMS push an EACC analyst waits on:
     - → notifications `POST /internal/v1/messages` (Form M reminders, chase, receipt): 7 s, the 5 s provider budget plus the hop; a retry carries the same `Idempotency-Key`, so nothing is sent twice.
     - → declarations `POST /internal/v1/obligations/details` and → review `POST /internal/v1/review/clarifications/details`: 10 s, a page is up to 1,000 records; review's `GET /internal/v1/review/referrals/{referralId}/icms-payload` shares the budget.

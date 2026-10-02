@@ -92,6 +92,35 @@ describe('HttpAiGatewayClient', () => {
     expect(validTaskRequest(body), JSON.stringify(validTaskRequest.errors)).toBe(true);
   });
 
+  it('waits for the job when asked, past the default 2 s budget, and refuses a longer wait than its own', async () => {
+    const finished = { ...job, status: 'succeeded', output: { items: [] } };
+    // Answers after the default budget would have aborted the call.
+    const fetch = vi.fn<typeof globalThis.fetch>(
+      (_request, init) =>
+        new Promise((resolve, reject) => {
+          const timer = setTimeout(() => {
+            resolve(Response.json(finished, { status: 200 }));
+          }, 2_300);
+          init?.signal?.addEventListener('abort', () => {
+            clearTimeout(timer);
+            reject(new Error('aborted'));
+          });
+        }),
+    );
+
+    const answer = await client(fetch).runTask('summarize-declaration', request, key, {
+      waitSeconds: 10,
+    });
+
+    expect(answer).toMatchObject({ status: 'succeeded' });
+    const body: unknown = await (fetch.mock.calls[0]?.[0] as Request).json();
+    expect(body).toMatchObject({ waitSeconds: 10 });
+    expect(validTaskRequest(body), JSON.stringify(validTaskRequest.errors)).toBe(true);
+    expect(() =>
+      client(fetch).runTask('summarize-declaration', request, key, { waitSeconds: 11 }),
+    ).toThrow(RangeError);
+  });
+
   it('answers a job already finished (200) with its output, and reads a job by id', async () => {
     const finished = {
       ...job,
