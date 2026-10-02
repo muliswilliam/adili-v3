@@ -140,6 +140,9 @@ function OpenFlag({
   const ruleSystem = RULE_SYSTEMS[flag.ruleId];
   const system = showSystem && ruleSystem ? SYSTEM_NAMES[ruleSystem] : null;
   const canGo = document !== null && flag.itemRefs.length > 0;
+  const lastSpace = flag.title.lastIndexOf(' ');
+  const titleHead = flag.title.slice(0, lastSpace + 1);
+  const titleTail = flag.title.slice(lastSpace + 1);
   return (
     <li
       id={flagAnchorId(flag.id)}
@@ -154,19 +157,23 @@ function OpenFlag({
     >
       <div className="flex items-start gap-2">
         <h4 className="min-w-0 flex-1 text-sm leading-[1.35] font-semibold">
-          {flag.title}{' '}
-          <Tooltip content={flag.indicator}>
-            <button
-              type="button"
-              aria-label={`${copy.aboutIndicator}: ${flag.indicator}`}
-              className={cn(
-                focusRing,
-                'inline-flex rounded-full align-[-2px] text-muted-foreground',
-              )}
-            >
-              <Icon icon={InformationCircleIcon} className="size-[15px]" />
-            </button>
-          </Tooltip>
+          {titleHead}
+          {/* The info icon wraps with the title's last word, never alone onto a line. */}
+          <span className="whitespace-nowrap">
+            {titleTail}{' '}
+            <Tooltip content={flag.indicator}>
+              <button
+                type="button"
+                aria-label={`${copy.aboutIndicator}: ${flag.indicator}`}
+                className={cn(
+                  focusRing,
+                  'inline-flex rounded-full align-[-2px] text-muted-foreground',
+                )}
+              >
+                <Icon icon={InformationCircleIcon} className="size-[15px]" />
+              </button>
+            </Tooltip>
+          </span>
         </h4>
         {system ? <Badge>{system}</Badge> : null}
         {flag.recomputed ? <Badge>{copy.recomputed}</Badge> : null}

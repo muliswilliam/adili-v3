@@ -269,7 +269,9 @@ describe('CaseView', () => {
     render(view(load({ document: null, documentUnavailable: true })));
 
     expect(screen.getByText('The declaration could not be loaded.')).toBeTruthy();
-    expect(screen.getByText('Assets grew faster than declared income')).toBeTruthy();
+    expect(
+      screen.getByRole('heading', { name: /^Assets grew faster than declared income/ }),
+    ).toBeTruthy();
     await act(async () => {
       fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
       await Promise.resolve();
