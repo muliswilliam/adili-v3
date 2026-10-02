@@ -38,12 +38,12 @@ const unavailable = { ok: false, error: { kind: 'unavailable', detail: null } } 
 
 /**
  * What the pause dialog lists for a system: registries feed review cases, IPRS onboarding; an
- * instructed system's callers retry, and nothing of it is cached.
+ * instructed system's callers get "unavailable" (nothing is queued), and nothing of it is cached.
  */
 function pauseEffects(row: SystemCoverage): string[] {
   const system = systemInfo(row.system);
   if (isInstructed(system)) {
-    return [m.pauseNothingSent(system), m.pauseInstructionsRetried(system), m.auditNote];
+    return [m.pauseNothingSent(system), m.pauseNothingQueued, system.retries, m.auditNote];
   }
   const effects =
     row.system === 'iprs'
@@ -148,6 +148,7 @@ export function PauseControl({
                       ? m.resumeInstructionsText(system, row.rateLimitPerMinute)
                       : m.resumeText(system, row.rateLimitPerMinute)}
                   </p>
+                  {isInstructed(system) ? <p>{m.resumeNothingResent(system)}</p> : null}
                   <p className="text-sm text-muted-foreground">{m.auditNote}</p>
                 </>
               )}

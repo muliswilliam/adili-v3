@@ -5,6 +5,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 import type {
   IntegrationGatewayResult,
+  IntegrationSystem,
   SystemCoverage,
 } from '../../server/integration-gateway/client';
 import { IntegrationsView, type IntegrationsViewProps } from './integrations-view';
@@ -509,10 +510,12 @@ describe('S15 Integrations page', () => {
       fireEvent.click(within(row('payroll')).getByRole('button', { name: 'Pause Payroll (IPPD)' }));
       const dialog = within(screen.getByRole('dialog'));
       dialog.getByText(
-        'Salary stoppages and reinstatements are not sent to Payroll (IPPD) until it is resumed.',
+        'Salary stoppages and reinstatements to Payroll (IPPD) get "unavailable" until it is resumed.',
       );
       dialog.getByText('Nothing is sent to Payroll (IPPD) while it is paused.');
-      dialog.getByText('They are retried automatically and sent once it is resumed.');
+      dialog.getByText('Adili does not queue them to send later.');
+      dialog.getByText('The review service decides whether to retry each one.');
+      expect(dialog.queryByText(/retried automatically|sent once/)).toBe(null);
       dialog.getByText('Recorded in the audit trail with your name.');
       expect(dialog.queryByText(/Lookups|cache|Registry tab/)).toBe(null);
     });
@@ -532,13 +535,31 @@ describe('S15 Integrations page', () => {
         setPaused: vi.fn(() => Promise.resolve({ ok: true, data: coverage() } as const)),
       });
 
-      screen.getByText(/Referrals are retried and sent once it is resumed\./);
-      expect(screen.queryByText(/Lookups are marked unavailable/)).toBe(null);
-      fireEvent.click(within(row('icms')).getByRole('button', { name: 'Resume EACC ICMS' }));
-      within(screen.getByRole('dialog')).getByText(
-        'Waiting referrals are sent to EACC ICMS, within its rate limit of 60 calls a minute.',
+      screen.getByText(
+        /Referrals get "unavailable" until it is resumed; nothing is queued\. Pushes from EACC fail after a few quick retries; EACC must push those referrals again\./,
       );
+      expect(screen.queryByText(/Lookups are marked unavailable|retried and sent/)).toBe(null);
+      fireEvent.click(within(row('icms')).getByRole('button', { name: 'Resume EACC ICMS' }));
+      const dialog = within(screen.getByRole('dialog'));
+      dialog.getByText(
+        'Referrals are sent to EACC ICMS again, within its rate limit of 60 calls a minute.',
+      );
+      dialog.getByText(
+        'Nothing refused while it was paused is sent on its own. Pushes from EACC fail after a few quick retries; EACC must push those referrals again.',
+      );
+      expect(dialog.queryByText(/Waiting/)).toBe(null);
     });
+  });
+
+  it('lists a system this build does not know by its id, without a description or operator', () => {
+    renderView({
+      result: ok([coverage(), coverage({ system: 'kenha' as IntegrationSystem, calls24h: 3 })]),
+    });
+
+    const unknown = within(row('kenha'));
+    unknown.getByText('KENHA');
+    expect(unknown.queryByText('Operated by')).toBe(null);
+    within(row('kra')).getByText('KRA iTax');
   });
 
   it('draws the cache hit rate as a decorative bar beside its percentage', () => {

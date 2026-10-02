@@ -6,18 +6,25 @@ export interface SystemInfo {
   name: string;
   /** The name is plural ("HR supplier lists are paused"). */
   plural?: boolean;
-  owner: string;
-  use: string;
+  /** Null for a system the page has no description of. */
+  owner: string | null;
+  use: string | null;
   /**
    * What Adili sends a system it instructs rather than looks up (payroll, ICMS), as a sentence
-   * starts ("Referrals are not sent..."). Instructions are acts: never cached, and a pause holds
-   * them back (their callers retry) instead of marking lookups unavailable.
+   * starts ("Referrals get..."). Instructions are acts: never cached, and while the system is
+   * paused the gateway answers them "unavailable" (nothing is queued) instead of marking lookups
+   * unavailable.
    */
   instructions?: string;
+  /** What becomes of an instruction refused while the system is paused: who sends it again. */
+  retries?: string;
 }
 
-/** Every system the coverage response can list, as the prototype words them. */
-const SYSTEM_INFO: Record<IntegrationSystem, SystemInfo> = {
+/**
+ * The systems the coverage response lists today, as the prototype words them. The response is not
+ * validated at runtime, so a system this build does not know (a newer gateway) shows its id.
+ */
+const SYSTEM_INFO: Partial<Record<IntegrationSystem, SystemInfo>> = {
   iprs: {
     name: 'IPRS',
     owner: 'National Registration Bureau',
@@ -54,23 +61,29 @@ const SYSTEM_INFO: Record<IntegrationSystem, SystemInfo> = {
     owner: 'State Department for Public Service',
     use: 'Salary stoppages and reinstatements of officers',
     instructions: 'Salary stoppages and reinstatements',
+    retries: 'The review service decides whether to retry each one.',
   },
   icms: {
     name: 'EACC ICMS',
     owner: 'Ethics and Anti-Corruption Commission',
     use: "Commissions' referrals, registered as EACC cases",
     instructions: 'Referrals',
+    retries:
+      'Pushes from EACC fail after a few quick retries; EACC must push those referrals again.',
   },
 };
 
 /** How the page names and describes a system of the coverage response. */
 export function systemInfo(system: IntegrationSystem): SystemInfo {
-  return SYSTEM_INFO[system];
+  return SYSTEM_INFO[system] ?? { name: system.toUpperCase(), owner: null, use: null };
 }
 
+/** A system Adili instructs (payroll, ICMS), with the copy its pause and resume need. */
+export type InstructedSystemInfo = SystemInfo & { instructions: string; retries: string };
+
 /** Whether Adili instructs the system (payroll, ICMS) rather than looks it up. */
-export const isInstructed = (system: SystemInfo): system is SystemInfo & { instructions: string } =>
-  system.instructions !== undefined;
+export const isInstructed = (system: SystemInfo): system is InstructedSystemInfo =>
+  system.instructions !== undefined && system.retries !== undefined;
 
 export interface CoverageSummary {
   calls24h: number;

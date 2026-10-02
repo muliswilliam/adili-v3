@@ -60,7 +60,7 @@ import {
 import { messages as m } from './messages';
 import { PauseControl, type SetPaused } from './pause-control';
 
-const ICONS: Record<IntegrationSystem, IconProps['icon']> = {
+const ICONS: Partial<Record<IntegrationSystem, IconProps['icon']>> = {
   iprs: UserIcon,
   kra: BankIcon,
   ntsa: Car01Icon,
@@ -289,8 +289,8 @@ function SystemRow({ row, now, action }: { row: SystemCoverage; now: Date; actio
   return (
     <SystemStatusRow
       name={system.name}
-      icon={ICONS[row.system]}
-      description={system.use}
+      icon={ICONS[row.system] ?? PlugSocketIcon}
+      description={system.use ?? undefined}
       data-system={row.system}
       metrics={<Metrics row={row} now={now} />}
       action={action}
@@ -381,7 +381,7 @@ function Details({ row, withAction }: { row: SystemCoverage; withAction: boolean
   // Each in the row's column above it (when the row has its figures beside the name): who runs it and its failures under
   // the name, the rate limit and timeout under Calls, the cache and breaker under Last success.
   const items: [string, string, DetailColumn][] = [
-    [m.operatedBy, owner, 'name'],
+    ...(owner === null ? [] : [[m.operatedBy, owner, 'name'] satisfies DetailItem]),
     [m.rateLimit, m.rateLimitValue(row.rateLimitPerMinute), 'calls'],
     [
       m.cacheLifetime,

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import type { SystemCoverage } from '../../server/integration-gateway/client';
+import type { IntegrationSystem, SystemCoverage } from '../../server/integration-gateway/client';
 import {
   formatDuration,
   formatLastSuccess,
@@ -131,13 +131,22 @@ describe('systemInfo', () => {
       owner: 'State Department for Public Service',
       use: 'Salary stoppages and reinstatements of officers',
       instructions: 'Salary stoppages and reinstatements',
+      retries: 'The review service decides whether to retry each one.',
     });
     expect(systemInfo('icms')).toEqual({
       name: 'EACC ICMS',
       owner: 'Ethics and Anti-Corruption Commission',
       use: "Commissions' referrals, registered as EACC cases",
       instructions: 'Referrals',
+      retries:
+        'Pushes from EACC fail after a few quick retries; EACC must push those referrals again.',
     });
+  });
+
+  it('names a system this build does not know by its id, without a description', () => {
+    const unknown = systemInfo('kenha' as IntegrationSystem);
+    expect(unknown).toEqual({ name: 'KENHA', owner: null, use: null });
+    expect(isInstructed(unknown)).toBe(false);
   });
 
   it('tells the systems Adili instructs from the ones it looks up', () => {
