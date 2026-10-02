@@ -1052,6 +1052,20 @@ export interface components {
             byBand: {
                 [key: string]: number;
             };
+            /** @description Every status with its cases per band (the queue's tiles break their counts down) */
+            byStatusAndBand: {
+                [key: string]: {
+                    low: number;
+                    medium: number;
+                    high: number;
+                };
+            };
+            /** @description Cases the caller holds that are not determined, per band */
+            mine: {
+                low: number;
+                medium: number;
+                high: number;
+            };
             overdueClarifications: number;
         };
         Flag: {

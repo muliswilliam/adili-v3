@@ -38,9 +38,10 @@ describe('navFor', () => {
     ]);
   });
 
-  it('shows reviewers and supervisors Obligations only, leaving out what is not built yet', () => {
+  it('shows reviewers and supervisors Obligations and the review queue, leaving out what is not built yet', () => {
     expect(labels(['reviewer', 'supervisor', 'access-officer'])).toEqual([
       ['Commission', ['Obligations']],
+      ['Review', ['Review queue']],
     ]);
     expect(navFor(['access-officer'])).toEqual([]);
   });
@@ -62,5 +63,13 @@ describe('activeNavHref', () => {
     ['/', null],
   ])('marks %s under %s', (pathname, expected) => {
     expect(activeNavHref(groups, pathname)).toBe(expected);
+  });
+
+  it('marks a review case under the review queue', () => {
+    const review = navFor(['reviewer']);
+    expect(activeNavHref(review, '/review')).toBe('/review');
+    expect(activeNavHref(review, '/review/cases/ca5e0000-0000-4000-8000-000000000001')).toBe(
+      '/review',
+    );
   });
 });

@@ -3,6 +3,7 @@ import {
   Building03Icon,
   Calendar03Icon,
   ChartColumnIcon,
+  CheckListIcon,
   Key01Icon,
   PlugSocketIcon,
   UserGroupIcon,
@@ -65,6 +66,10 @@ const NAV: { label: string; items: NavDefinition[] }[] = [
       },
       { workspace: 'obligations', icon: Calendar03Icon },
     ],
+  },
+  {
+    label: 'Review',
+    items: [{ workspace: 'review', icon: CheckListIcon }],
   },
 ];
 

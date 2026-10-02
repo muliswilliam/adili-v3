@@ -76,10 +76,19 @@ export interface CasePage {
   nextCursor: string | null;
 }
 
+/** Cases per priority band. */
+const bandCountsSchema = z.object({ low: z.int(), medium: z.int(), high: z.int() });
+
 /** review.yaml `QueueSummary`. */
 export const queueSummarySchema = z.object({
   byStatus: z.record(z.string(), z.int()),
   byBand: z.record(z.string(), z.int()),
+  byStatusAndBand: z.record(z.string(), bandCountsSchema).meta({
+    description: "Every status with its cases per band (the queue's tiles break their counts down)",
+  }),
+  mine: bandCountsSchema.meta({
+    description: 'Cases the caller holds that are not determined, per band',
+  }),
   overdueClarifications: z.int(),
 });
 export type QueueSummary = z.infer<typeof queueSummarySchema>;
