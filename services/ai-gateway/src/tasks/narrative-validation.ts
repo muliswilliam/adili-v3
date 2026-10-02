@@ -106,10 +106,11 @@ const MAX_PERCENT_DECIMALS = 2;
  * no-break space), decimals, and a percentage unit. Digits after a letter and a dot count
  * ("s.31"); digits after a number's decimal point do not. A thousands group is read whole, so
  * digits after a comma that makes no group are a number of their own: "17,5%" states 17 and 5%,
- * "120,45" states 120 and 45, and each is checked.
+ * "120,45" states 120 and 45, and each is checked. A group is three digits and no more, so
+ * "11,2045" states 11 and 2045, not 11,204.
  */
 const NUMBER =
-  /(?<!\d|\d\.)(\d{1,3}(?:[,\u2009\u202f]\d{3})+|\d+)(?:\.(\d+))?(\s*(?:%|per\s?cent\b|percentage points?\b|pp\b))?/giu;
+  /(?<!\d|\d\.)(\d{1,3}(?:[,\u2009\u202f]\d{3}(?!\d))+|\d+)(?:\.(\d+))?(\s*(?:%|per\s?cent\b|percentage points?\b|pp\b))?/giu;
 
 interface Mention {
   value: number;

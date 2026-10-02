@@ -170,6 +170,24 @@ describe('narrative validation', () => {
       expect(kinds('From 120, 17 and 12.35%.')).toEqual([]);
     });
 
+    it('reads a thousands group as three digits, so digits that run on after it are checked', () => {
+      const grouped = {
+        ...input,
+        totals: { ...input.totals, late: 12_345, notReported: 1_234_567 },
+        rates: { ...input.rates, lateRate: 0.125 },
+      };
+      const kinds = (text: string) =>
+        narrativeViolations(grouped, withParagraph(0, { text })).map((each) => each.kind);
+
+      // 11,204 and 12,345 are in the input; 11, 2045, 12 and 3456 are not.
+      const both = ['foreign-number', 'foreign-number'];
+      expect(kinds('11,2045 declarations were filed.')).toEqual(both);
+      expect(kinds('12,3456 declarations were filed.')).toEqual(both);
+      expect(kinds('12\u20093456 declarations were filed.')).toEqual(both);
+      expect(kinds('Filed: 11,204 and 12,345, of 1,234,567 and 1\u202f234\u202f567.')).toEqual([]);
+      expect(kinds('In FY2025/26 and 2025/26, 12.5% were late, from 8.2 to 16.4%.')).toEqual([]);
+    });
+
     it('fails a whole number that rounds a decimal figure', () => {
       expect(foreign('16 Commissions had rates near 16.4%.')).toEqual(['foreign-number']);
       expect(foreign('About 8,000 were expected at TSC.')).toEqual(['foreign-number']);
