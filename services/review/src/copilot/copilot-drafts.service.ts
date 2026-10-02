@@ -26,7 +26,7 @@ import {
 import { DirectoryClient } from '../directory/directory-client.js';
 import { InternalApiRejected } from '../internal-api/rejected.js';
 import { declarationsUnavailable, withUpstream } from '../internal-api/upstream.js';
-import { COPILOT_FAILURES, dataClassOf } from './copilot-requests.js';
+import { COPILOT_FAILURES, dataClassOf, succeededWithout } from './copilot-requests.js';
 import {
   COPILOT_DRAFT_TTL_HOURS,
   type CopilotDraftRow,
@@ -381,14 +381,15 @@ export function copilotDraftRecordId(draftId: string, jobId: string): string {
 
 /**
  * A draft's status and failure reason from its job, with its text once it succeeded; a succeeded
- * job whose output breaks the contract (or that the gateway no longer gives) failed `validation`.
+ * job whose output breaks the contract failed `validation`, one the gateway no longer gives
+ * (purged) `output-purged`.
  */
 function outcomeOf(job: AiJob): Outcome {
   if (job.status === 'succeeded') {
     const content = draftOfOutput(job.output);
     return content
       ? { status: 'ready', reason: null, content }
-      : { status: 'failed', reason: 'validation', content: null };
+      : { status: 'failed', reason: succeededWithout(job), content: null };
   }
   if (isFinished(job)) return { status: 'failed', reason: job.reason ?? 'provider', content: null };
   return { status: 'pending', reason: null, content: null };

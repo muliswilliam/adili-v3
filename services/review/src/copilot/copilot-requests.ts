@@ -50,7 +50,14 @@ export const COPILOT_FAILURES = {
   unavailable: COPILOT_UNAVAILABLE.aiGateway,
   /** The declaration could not be pulled for as long as the workflow tried. */
   declarationsUnavailable: COPILOT_UNAVAILABLE.declarations,
+  /** The job succeeded, but its output was purged by the gateway before it was read. */
+  outputPurged: 'output-purged',
 } as const;
+
+/** Why a succeeded job gives nothing to show: no output left, or one outside the contract. */
+export function succeededWithout(job: AiJob): string {
+  return job.output === null ? COPILOT_FAILURES.outputPurged : 'validation';
+}
 
 /** Names the idempotency keys of the copilot's task calls (UUID v5, RFC 9562). */
 const KEY_NAMESPACE = '6d1f7c84-5e1b-4f0e-9a43-6a5c3b2d9e10';
@@ -299,7 +306,8 @@ export class CopilotRequests {
       slotOf(await copilotOf(tx, caseId), job.id),
     );
     if (slot === null) return;
-    // An output outside the contract (or none) fails the copilot as the gateway's validation would.
+    // An output outside the contract fails the copilot as the gateway's validation would; none
+    // left (purged) fails it `output-purged`.
     const valid = job.status === 'succeeded' && isCopilotOutput(slot, job.output);
     const sealed = valid ? await this.seal(tenant, caseId, job) : null;
 
@@ -356,7 +364,8 @@ export class CopilotRequests {
       } else if (status !== 'not-enabled' && status !== 'ready') {
         // A failed or blocked job of the same request keeps the record failed or not enabled.
         status = 'failed';
-        next.failureReason = job.status === 'succeeded' ? 'validation' : (job.reason ?? 'provider');
+        next.failureReason =
+          job.status === 'succeeded' ? succeededWithout(job) : (job.reason ?? 'provider');
       }
 
       next.status = status;

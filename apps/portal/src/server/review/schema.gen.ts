@@ -1176,7 +1176,7 @@ export interface components {
             forVersionId: string | null;
             /** Format: date-time */
             generatedAt: string | null;
-            /** @description The ai-gateway's job reason (`validation`, `budget`, `provider`, ...; `validation` also when an output breaks the task's contract), `policy` when not enabled, `rejected` / `ai-gateway-unavailable`, `declarations-unavailable` when the declaration could not be read, `key-service-unavailable` when an output could not be encrypted, or `internal-error` */
+            /** @description The ai-gateway's job reason (`validation`, `budget`, `provider`, ...; `validation` also when an output breaks the task's contract), `output-purged` when a job succeeded but its output was purged before it was read, `policy` when not enabled, `rejected` / `ai-gateway-unavailable`, `declarations-unavailable` when the declaration could not be read, `key-service-unavailable` when an output could not be encrypted, or `internal-error` */
             failureReason: string | null;
             /** @description ai-gateway SummarizeDeclarationOutput (label, overview, changesSincePrevious, sections, worthAttention) */
             summary: {
@@ -1227,7 +1227,7 @@ export interface components {
             opening: string | null;
             /** @description Empty until ready */
             items: components["schemas"]["ClarificationItemInput"][];
-            /** @description The ai-gateway's job reason (`validation`, `budget`, `provider`, ...), or `rejected` when the gateway refused the request */
+            /** @description The ai-gateway's job reason (`validation`, `budget`, `provider`, ...), `output-purged` when the job succeeded but its output was purged before it was read, or `rejected` when the gateway refused the request */
             failureReason: string | null;
         };
         CommissionAiStatus: {

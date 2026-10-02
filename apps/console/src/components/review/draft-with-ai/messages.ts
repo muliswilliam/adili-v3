@@ -33,6 +33,7 @@ export const en = {
     timeout: 'timed out',
     refused: 'declined by the AI model',
     validation: 'output failed its checks',
+    'output-purged': 'the output expired before it was saved',
     budget: 'monthly AI budget used up',
     policy: 'not allowed for this Commission',
     rejected: 'the AI service refused the request',

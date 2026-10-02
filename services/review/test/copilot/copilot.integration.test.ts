@@ -597,7 +597,7 @@ describe('review copilot', () => {
       expect(api.ai.created).toHaveLength(jobs);
     });
 
-    it('a job that succeeded without a valid output fails the copilot as validation, storing nothing', async () => {
+    it('a job that succeeded without a valid output fails the copilot as validation, or output-purged without one, storing nothing', async () => {
       const { first } = versions();
       api.declarations.given(first);
       const { caseId, row } = await createdCase(first);
@@ -608,7 +608,7 @@ describe('review copilot', () => {
       const failed = await untilStatus(caseId, 'failed');
       expect(failed).toMatchObject({ failureReason: 'validation', summaryCiphertext: null });
 
-      // A job that succeeded with no output at all, the same.
+      // A job that succeeded with no output left (the gateway purged it) says so (Q24).
       await api.asPlatform((tx) =>
         tx
           .update(reviewCopilots)
@@ -622,7 +622,7 @@ describe('review copilot', () => {
         ),
       );
       expect(await untilStatus(caseId, 'failed')).toMatchObject({
-        failureReason: 'validation',
+        failureReason: 'output-purged',
         explanationsCiphertext: null,
       });
     });

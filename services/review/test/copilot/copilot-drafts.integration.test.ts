@@ -344,6 +344,18 @@ describe('review copilot drafts', () => {
     expect((await api.get(draftPath(draft.id), otherReviewer)).statusCode).toBe(404);
   });
 
+  it('reports a succeeded job whose output the gateway purged as output-purged (Q24)', async () => {
+    const { caseId, flagId } = await flaggedCase();
+    const pending = (await post(caseId, draftInput(flagId))).json<CopilotDraft>();
+    api.ai.succeed(pending.jobId ?? '', null as unknown as Record<string, unknown>);
+
+    expect((await api.get(draftPath(pending.id), assignee)).json()).toMatchObject({
+      status: 'failed',
+      failureReason: 'output-purged',
+      items: [],
+    });
+  });
+
   it('reports a failed job with its reason, and a request the gateway refuses as rejected', async () => {
     const { caseId, flagId } = await flaggedCase();
     const pending = (await post(caseId, draftInput(flagId))).json<CopilotDraft>();

@@ -46,6 +46,7 @@ describe('failureReasonText', () => {
     expect(failureReasonText('refused')).toBe('declined by the AI model');
     expect(failureReasonText('validation')).toBe('output failed its checks');
     expect(failureReasonText('budget')).toBe('monthly AI budget used up');
+    expect(failureReasonText('output-purged')).toBe('the output expired before it was saved');
     expect(failureReasonText('something-new')).toBe('unknown error');
     expect(failureReasonText(null)).toBe('unknown error');
   });
