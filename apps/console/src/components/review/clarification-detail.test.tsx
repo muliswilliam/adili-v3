@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { ToastProvider, TooltipProvider } from '@adili/ui';
-import { act, fireEvent, render, screen, within } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import type { ReactNode } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -273,6 +273,33 @@ describe('ClarificationDetailView: drafts and the letter (#170)', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Show letter' }));
     const letter = screen.getByRole('article', { name: 'Letter preview' });
     expect(within(letter).getByText(/drafted with AI assistance/)).toBeTruthy();
+  });
+
+  it('says a draft’s AI items are still to be checked, an issued one’s approved (Q11)', async () => {
+    renderDetail(await detailOf(CASES.mine, K.issued));
+    expect(
+      screen.getByRole('img', {
+        name: 'AI-assisted. Drafted with AI, then approved by the reviewer who issued it',
+      }),
+    ).toBeTruthy();
+    cleanup();
+
+    const draft = await detailOf(CASES.mine, K.draft);
+    const [first, ...rest] = draft.clarification.items;
+    if (!first) throw new Error('no items');
+    renderDetail({
+      ...draft,
+      clarification: {
+        ...draft.clarification,
+        items: [{ ...first, aiJobId: '0199a000-0000-7000-8000-00000000d0b2' }, ...rest],
+      },
+    });
+    expect(
+      screen.getByRole('img', {
+        name: 'AI-assisted. Drafted with AI; the reviewer checks it before issuing',
+      }),
+    ).toBeTruthy();
+    expect(screen.queryByRole('img', { name: /approved/ })).toBeNull();
   });
 
   it('shows the issued letter on request', async () => {

@@ -418,7 +418,11 @@ function ItemsAndResponses({
                       size="sm"
                       text="AI-assisted"
                       messages={{
-                        noDetails: 'Drafted with AI, then approved by the reviewer who issued it',
+                        // Only an issued clarification has been approved by anyone.
+                        noDetails:
+                          status === 'draft'
+                            ? 'Drafted with AI; the reviewer checks it before issuing'
+                            : 'Drafted with AI, then approved by the reviewer who issued it',
                       }}
                     />
                   ) : null}
