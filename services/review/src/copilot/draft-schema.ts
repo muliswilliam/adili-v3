@@ -3,12 +3,11 @@ import { sql } from 'drizzle-orm';
 import { check, index, jsonb, pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-core';
 
 import { reviewCases } from '../cases/schema.js';
+import { inList } from '../db/sql-list.js';
 
 /** review.yaml `CopilotDraft.status`. */
 export const COPILOT_DRAFT_STATUSES = ['pending', 'ready', 'failed'] as const;
 export type CopilotDraftStatus = (typeof COPILOT_DRAFT_STATUSES)[number];
-
-const inList = (values: readonly string[]) => sql.raw(values.map((v) => `'${v}'`).join(', '));
 
 /** How long a draft can be polled; the purge deletes it after. */
 export const COPILOT_DRAFT_TTL_HOURS = 24;

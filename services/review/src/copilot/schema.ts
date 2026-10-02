@@ -13,6 +13,7 @@ import {
 } from 'drizzle-orm/pg-core';
 
 import { reviewCases } from '../cases/schema.js';
+import { inList } from '../db/sql-list.js';
 
 /**
  * review.yaml `CopilotStatus`: `pending` while the first outputs are produced, `ready` when they
@@ -21,8 +22,6 @@ import { reviewCases } from '../cases/schema.js';
  */
 export const COPILOT_STATUSES = ['not-enabled', 'pending', 'ready', 'failed', 'stale'] as const;
 export type CopilotStatus = (typeof COPILOT_STATUSES)[number];
-
-const inList = (values: readonly string[]) => sql.raw(values.map((v) => `'${v}'`).join(', '));
 
 /**
  * The copilot of a case (spec 07c): the AI-assisted summary and flag explanations the ai-gateway

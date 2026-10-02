@@ -4,8 +4,12 @@ import { type Database, FieldCipher, InjectDatabase, withTenant } from '@adili/d
 import { and, eq, gt, inArray, or, sql } from 'drizzle-orm';
 import { z } from 'zod';
 
-import { AiGatewayClient, AiGatewayUnavailable } from '../ai-gateway/ai-gateway-client.js';
-import { caseTenant } from '../cases/access.js';
+import {
+  AiGatewayClient,
+  AiGatewayUnavailable,
+  type FeedbackInput,
+} from '../ai-gateway/ai-gateway-client.js';
+import { caseTenant, notTheAssignee } from '../cases/access.js';
 import { findCase, type ReviewTransaction, visibleId } from '../cases/case-lookup.js';
 import type { ReviewSchema } from '../db/schema.js';
 import { openOutput } from './copilot-requests.js';
@@ -36,11 +40,20 @@ const copilotBlock = z
   .max(64)
   .refine((block) => block in SUMMARY_BLOCKS || FLAG_BLOCK.test(block), 'Not a copilot block');
 
+/** Why a reviewer found an output unhelpful: the ai-gateway's `FeedbackInput.reason`, forwarded. */
+const FEEDBACK_REASONS = [
+  'inaccurate',
+  'missed-something',
+  'unclear',
+  'too-long',
+  'other',
+] as const satisfies readonly NonNullable<FeedbackInput['reason']>[];
+
 /** review.yaml `CopilotFeedbackInput`. */
 export const copilotFeedbackInput = z.object({
   block: copilotBlock.nullish().transform((block) => block ?? null),
   rating: z.enum(COPILOT_RATINGS),
-  reason: z.enum(['inaccurate', 'missed-something', 'unclear', 'too-long', 'other']).nullable(),
+  reason: z.enum(FEEDBACK_REASONS).nullable(),
   note: z.string().max(1000).nullable(),
 });
 export type CopilotFeedbackInput = z.infer<typeof copilotFeedbackInput>;
@@ -141,15 +154,7 @@ export class CopilotFeedback {
       );
       const row = await findCase(tx, tenant, output.caseId);
       if (row.assignee !== principal.subject) {
-        throw new ProblemException(
-          {
-            type: 'not-the-assignee',
-            title: 'Forbidden',
-            status: HttpStatus.FORBIDDEN,
-            detail: "Only the case's assignee rates its copilot.",
-          },
-          { code: 'not-the-assignee' },
-        );
+        throw notTheAssignee("Only the case's assignee rates its copilot.");
       }
       return output;
     });

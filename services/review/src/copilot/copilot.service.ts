@@ -3,7 +3,7 @@ import { type Principal, ProblemException } from '@adili/api-kit';
 import { type Database, FieldCipher, InjectDatabase, withTenant } from '@adili/data-access';
 
 import { AiGatewayUnavailable } from '../ai-gateway/ai-gateway-client.js';
-import { caseTenant, isSupervisor } from '../cases/access.js';
+import { caseTenant, isSupervisor, notTheAssignee } from '../cases/access.js';
 import { findCase } from '../cases/case-lookup.js';
 import type { ReviewSchema } from '../db/schema.js';
 import { DeclarationsUnavailable } from '../declarations/declarations-client.js';
@@ -108,12 +108,7 @@ export class CopilotService {
       },
     );
     if (row.assignee !== principal.subject && !isSupervisor(principal)) {
-      throw new ProblemException({
-        type: 'not-the-assignee',
-        title: 'Forbidden',
-        status: HttpStatus.FORBIDDEN,
-        detail: "Only the case's assignee or a supervisor can refresh its copilot.",
-      });
+      throw notTheAssignee("Only the case's assignee or a supervisor can refresh its copilot.");
     }
     if (record?.status === 'pending') {
       // The jobs may have ended with their events lost: pull them before refusing.
