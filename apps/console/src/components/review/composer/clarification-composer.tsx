@@ -597,7 +597,7 @@ function ItemCard({
 }
 
 /** A drafted item's card: the card's shadow with the AI colour down its left edge. */
-const AI_CARD = 'shadow-[var(--elevation-card),inset_3px_0_0_var(--ai)]';
+const AI_CARD = 'shadow-card-ai';
 
 /** The letter's opening paragraph (Draft with AI's, or a saved draft's); editable, or discarded. */
 function OpeningField({

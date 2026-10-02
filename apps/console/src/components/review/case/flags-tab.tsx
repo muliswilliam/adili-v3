@@ -105,7 +105,7 @@ export function FlagsTab({
     <div className="grid gap-3.5">
       <div
         role="note"
-        className="flex items-start gap-2.5 rounded-[10px] bg-info-subtle px-[13px] py-[11px] text-[13.5px] font-medium text-info-subtle-foreground"
+        className="flex items-start gap-2.5 rounded-lg bg-info-subtle px-[13px] py-[11px] text-[13.5px] font-medium text-info-subtle-foreground"
       >
         <Icon icon={InformationCircleIcon} className="mt-0.5 size-4 shrink-0" />
         <span>{t.flags.banner}</span>
@@ -173,7 +173,7 @@ export function FlagsTab({
 
 const STRIPES = {
   high: 'before:bg-destructive',
-  medium: 'before:bg-[#d98a00]',
+  medium: 'before:bg-warning-mark',
   low: 'before:bg-info',
   info: 'before:bg-input',
 } as const;

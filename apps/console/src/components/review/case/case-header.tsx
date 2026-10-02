@@ -166,7 +166,7 @@ export function CaseHeader({
           </span>
         </p>
       </div>
-      <div className="flex flex-wrap items-center gap-2.5 rounded-[14px] bg-card py-2.5 pr-3 pl-3.5 shadow-card">
+      <div className="flex flex-wrap items-center gap-2.5 rounded-item bg-card py-2.5 pr-3 pl-3.5 shadow-card">
         <div className="flex min-w-0 flex-wrap items-center gap-2.5">
           <span className="text-[13px] text-muted-foreground">{t.assignedTo}</span>
           <AssigneeChip assignee={item.assignee} viewerSubject={viewer.subject} />

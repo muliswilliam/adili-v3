@@ -11,6 +11,8 @@ import {
   DialogTitle,
   EmptyState,
   FeedbackControl,
+  focusRing,
+  focusRingInset,
   Icon,
   IconTile,
   Skeleton,
@@ -95,7 +97,10 @@ export function CopilotLauncher({
       type="button"
       onClick={onOpen}
       aria-label={t.launcher.open(text)}
-      className="flex w-full cursor-pointer items-center gap-2.5 rounded-[14px] bg-card py-2.5 pr-3 pl-2.5 text-left shadow-card transition-shadow outline-none hover:shadow-[var(--shadow-card),0_0_0_1px_var(--color-ai)] focus-visible:shadow-[var(--shadow-card),0_0_0_2px_var(--color-ring)]"
+      className={cn(
+        focusRing,
+        'flex w-full cursor-pointer items-center gap-2.5 rounded-item bg-card py-2.5 pr-3 pl-2.5 text-left shadow-card transition-shadow hover:ring-1 hover:ring-ai',
+      )}
     >
       <AiTile off={off} />
       <span className="text-[14.5px] font-semibold">{t.title}</span>
@@ -117,8 +122,9 @@ export function CopilotLauncher({
 function AiTile({ off = false }: { off?: boolean }) {
   return (
     <IconTile
+      size="xs"
       tone={off ? 'default' : 'ai'}
-      className={cn('size-[30px] rounded-[9px] [&_svg]:size-4', off && 'text-muted-foreground')}
+      className={cn(off && 'text-muted-foreground')}
     >
       <Icon icon={off ? UnavailableIcon : SparklesIcon} />
     </IconTile>
@@ -465,7 +471,7 @@ function TabContent({
         ) : stale ? (
           <div
             role="status"
-            className="flex items-center gap-2.5 rounded-[10px] bg-ai-subtle px-3 py-2.5 text-[13.5px] font-medium text-ai-subtle-foreground"
+            className="flex items-center gap-2.5 rounded-lg bg-ai-subtle px-3 py-2.5 text-[13.5px] font-medium text-ai-subtle-foreground"
           >
             <Spinner className="size-3.5 text-ai" />
             {t.stale}
@@ -502,7 +508,7 @@ function Callout({
     <div
       role={tone === 'warning' ? 'alert' : 'status'}
       className={cn(
-        'flex items-start gap-2.5 rounded-[10px] px-3.5 py-3 text-sm leading-normal',
+        'flex items-start gap-2.5 rounded-lg px-3.5 py-3 text-sm leading-normal',
         tone === 'warning'
           ? 'bg-warning-subtle text-warning-subtle-foreground'
           : 'bg-muted text-secondary-foreground',
@@ -573,9 +579,9 @@ function Waiting({ stopped, onCheckAgain }: { stopped: boolean; onCheckAgain: ()
 function NotEnabled({ onLearnWhy }: { onLearnWhy: () => void }) {
   return (
     <div className="grid justify-items-center gap-2.5 px-5 pt-9 pb-10 text-center">
-      <span className="grid size-10 place-items-center rounded-xl bg-muted text-muted-foreground">
-        <Icon icon={UnavailableIcon} className="size-[18px]" />
-      </span>
+      <IconTile size="lg" className="text-muted-foreground">
+        <Icon icon={UnavailableIcon} />
+      </IconTile>
       <p className="max-w-[300px] text-sm">{t.notEnabled}</p>
       <Button variant="link" className="text-sm" onClick={onLearnWhy}>
         {t.learnWhy}
@@ -857,7 +863,10 @@ function FlagLink({ flag, onOpen }: { flag: Flag; onOpen: (flagId: string) => vo
       onClick={() => {
         onOpen(flag.id);
       }}
-      className="inline-flex max-w-full cursor-pointer items-center gap-1.5 rounded-full py-0.5 pr-2 pl-[3px] text-[12.5px] font-medium text-foreground shadow-[0_0_0_1px_var(--color-border)] outline-none hover:shadow-[0_0_0_1px_var(--color-secondary-foreground)] focus-visible:shadow-[0_0_0_2px_var(--color-ring)]"
+      className={cn(
+        focusRing,
+        'inline-flex max-w-full cursor-pointer items-center gap-1.5 rounded-full py-0.5 pr-2 pl-[3px] text-[12.5px] font-medium text-foreground ring-1 ring-border hover:ring-secondary-foreground',
+      )}
     >
       <SeverityBadge severity={flag.severity} size="sm" />
       <span className="truncate">{flag.title}</span>
@@ -965,7 +974,10 @@ function FlagExplanation({
         aria-expanded={open}
         aria-controls={open ? bodyId : undefined}
         onClick={onToggle}
-        className="flex w-full cursor-pointer items-center gap-2 rounded-xl px-3 py-[11px] text-left outline-none focus-visible:shadow-[inset_0_0_0_2px_var(--color-ring)]"
+        className={cn(
+          focusRingInset,
+          'flex w-full cursor-pointer items-center gap-2 rounded-xl px-3 py-[11px] text-left',
+        )}
       >
         {done ? (
           <Icon icon={Tick02Icon} strokeWidth={2.4} className="size-[15px] text-success" />

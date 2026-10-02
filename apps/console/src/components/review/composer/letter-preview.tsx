@@ -60,14 +60,14 @@ export function LetterPreview({
     <article
       aria-label="Letter preview"
       className={cn(
-        'relative rounded-md bg-white px-5 py-6 sm:px-[30px] sm:py-7 font-serif text-[13.5px] leading-[1.6] text-[#222] shadow-[0_1px_3px_rgb(0_0_0/0.08),0_0_0_1px_var(--border)]',
+        'relative rounded-md bg-paper px-5 py-6 sm:px-[30px] sm:py-7 font-serif text-[13.5px] leading-[1.6] text-paper-foreground shadow-paper',
         className,
       )}
     >
-      <header className="mb-3.5 flex items-center gap-3 border-b-2 border-[#222] pb-3 font-sans">
+      <header className="mb-3.5 flex items-center gap-3 border-b-2 border-paper-foreground pb-3 font-sans">
         <span
           aria-hidden="true"
-          className="grid size-[38px] shrink-0 place-items-center rounded-full bg-[#1f3a2c] text-[11px] font-bold text-white"
+          className="grid size-[38px] shrink-0 place-items-center rounded-full bg-seal text-[11px] font-bold text-seal-foreground"
         >
           {commission.issuerCode}
         </span>

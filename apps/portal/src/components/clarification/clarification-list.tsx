@@ -80,7 +80,7 @@ function ClarificationRowLink({ row }: { row: Row }) {
           'flex items-start gap-3.5 px-5 py-[18px] transition-colors hover:bg-muted/40 sm:px-6',
         )}
       >
-        <IconTile tone={row.status.variant} className="size-10 rounded-[11px] [&_svg]:size-[18px]">
+        <IconTile tone={row.status.variant} size="lg">
           <Icon icon={STATUS_ICONS[row.kind]} />
         </IconTile>
         <div className="min-w-0 flex-1">
@@ -199,7 +199,7 @@ export function ClarificationsSkeleton() {
       >
         {[0, 1].map((key) => (
           <div key={key} className="flex gap-3.5 px-5 py-[18px] sm:px-6">
-            <Skeleton className="size-10 shrink-0 rounded-[11px]" />
+            <Skeleton className="size-10 shrink-0 rounded-xl" />
             <div className="grid flex-1 gap-2.5 pt-1">
               <Skeleton className="h-3.5 w-[45%]" />
               <Skeleton className="w-[70%]" />
@@ -236,7 +236,8 @@ export function ClarificationsView({
       {result.status === 'unavailable' ? (
         <Card className="mt-6 p-0 sm:p-0">
           <EmptyState
-            className="py-12 [&>[aria-hidden]]:bg-destructive-subtle [&>[aria-hidden]]:text-destructive"
+            className="py-12"
+            tone="destructive"
             icon={<Icon icon={WifiDisconnected01Icon} />}
             title={COPY.unavailableTitle}
             description={COPY.unavailableBody}
@@ -251,7 +252,8 @@ export function ClarificationsView({
       ) : result.clarifications.length === 0 ? (
         <Card className="mt-6 p-0 sm:p-0">
           <EmptyState
-            className="py-14 [&>[aria-hidden]]:bg-success-subtle [&>[aria-hidden]]:text-success"
+            className="py-14"
+            tone="success"
             icon={<Icon icon={Message01Icon} />}
             title={COPY.emptyTitle}
             description={COPY.emptyBody}
