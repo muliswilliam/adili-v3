@@ -817,7 +817,7 @@ function IssueConfirm({
           <DialogDescription className="text-[15px] text-foreground">
             {t.confirmText}
           </DialogDescription>
-          <dl className="grid grid-cols-3 gap-4 text-sm">
+          <dl className="grid grid-cols-2 gap-4 text-sm sm:grid-cols-3">
             <div className="grid gap-1">
               <dt className="text-[13px] text-muted-foreground">{t.confirmItems}</dt>
               <dd className="font-medium">{items}</dd>
