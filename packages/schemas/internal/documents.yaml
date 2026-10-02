@@ -2094,7 +2094,7 @@ components:
               maxLength: 20000
             findings:
               type: string
-              maxLength: 20000
+              maxLength: 40000
             recommendations:
               type: string
               maxLength: 20000

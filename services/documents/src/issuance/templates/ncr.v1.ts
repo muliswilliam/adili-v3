@@ -81,10 +81,13 @@ export const ncrPayload = z
     builtAt: z.iso.datetime({ offset: true }),
     reportsIncluded: count,
     aggregates: aggregatesSchema,
-    /** Each section's text, paragraphs separated by a blank line; empty when not written. */
+    /**
+     * Each section's text, paragraphs separated by a blank line; empty when not written. As long
+     * as reporting's `updateNationalReportNarrative` accepts.
+     */
     narrative: z.object({
       overview: z.string().max(20_000),
-      findings: z.string().max(20_000),
+      findings: z.string().max(40_000),
       recommendations: z.string().max(20_000),
     }),
     author: z.string().trim().min(1).max(200),

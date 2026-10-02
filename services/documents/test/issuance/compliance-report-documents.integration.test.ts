@@ -698,6 +698,22 @@ describe('S11 the national consolidated report', () => {
     expect(empty.join(' ')).toContain('1. Overview No text for this section.');
   });
 
+  it('takes findings as long as reporting accepts (40,000 characters), and no longer', async () => {
+    const findings = 'Final declarations had the lowest rate. '.repeat(1000);
+    expect(findings).toHaveLength(40_000);
+    const narrative = { overview: '', findings, recommendations: '' };
+    const { texts: long } = await issued(ncrRequest(randomUUID(), { narrative }));
+    expect(long.join(' ')).toContain('3. Findings Final declarations had the lowest rate.');
+
+    const tooLong = await issue(
+      ncrRequest(randomUUID(), { narrative: { ...narrative, findings: `${findings}.` } }),
+    );
+    expect(tooLong.statusCode, tooLong.body).toBe(400);
+    expect(tooLong.json<Problem>().errors).toEqual([
+      expect.objectContaining({ path: 'payload.narrative.findings' }),
+    ]);
+  });
+
   it.each([
     [
       "a Commission's reference instead of EACC's",
