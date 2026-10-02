@@ -320,6 +320,20 @@ describe('matchRegistries: land (ArdhiSasa)', () => {
     ]);
   });
 
+  it('Q2: a building whose parcel ArdhiSasa does not list for the person is no indicator; land is', () => {
+    const match = run(
+      wanjiku((h) => {
+        h.officer.assets.push(land('NAKURU/NJORO/1180', 'building'), land('MACHAKOS/MLOLONGO/77'));
+      }),
+    );
+
+    expect(
+      match.flags
+        .filter((flag) => flag.ruleId === 'declared-parcel-not-found')
+        .map((flag) => flag.evidence),
+    ).toEqual([{ parcelNumber: 'MACHAKOS/MLOLONGO/77' }]);
+  });
+
   it('matches a declared building by its parcel number', () => {
     const match = run(
       wanjiku((h) => {

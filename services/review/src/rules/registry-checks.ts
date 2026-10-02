@@ -236,7 +236,12 @@ export function sameIdentifier(a: string, b: string): boolean {
 
 const identifierKey = (value: string) => value.toUpperCase().replace(/[\s/.,-]+/gu, '');
 
-/** Land and buildings by parcel number; land declared without one cannot be compared. */
+/**
+ * Registry parcels against declared land and buildings by parcel number. Only land is "not found"
+ * (spec 07b): a building can stand on a parcel in another's name (family land, a lease, a
+ * sectional title), so its parcel missing from the person's list is no indicator. Land declared
+ * without a parcel number cannot be compared.
+ */
 function parcels({ statement }: Person, result: ArdhisasaResult): SystemMatch {
   return byIdentifier(statement, {
     system: 'ardhisasa',
@@ -245,7 +250,7 @@ function parcels({ statement }: Person, result: ArdhisasaResult): SystemMatch {
     registry: result.parcels.map((parcel) => parcel.parcelNumber),
     evidenceKey: 'parcelNumber',
     undeclared: ['registry-parcel-undeclared', 'high'],
-    notFound: ['declared-parcel-not-found', 'medium'],
+    notFound: ['declared-parcel-not-found', 'medium', ['land']],
     missing: { ruleId: 'registry-parcel-number-missing', types: ['land'] },
   });
 }
@@ -259,7 +264,7 @@ function vehicles({ statement }: Person, result: NtsaResult): SystemMatch {
     registry: result.vehicles.map((vehicle) => vehicle.registrationNumber),
     evidenceKey: 'registrationNumber',
     undeclared: ['registry-vehicle-undeclared', 'medium'],
-    notFound: ['declared-vehicle-not-found', 'low'],
+    notFound: ['declared-vehicle-not-found', 'low', ['vehicle']],
     missing: { ruleId: 'registry-vehicle-registration-missing', types: ['vehicle'] },
   });
 }
@@ -271,7 +276,8 @@ interface IdentifierRule {
   registry: string[];
   evidenceKey: string;
   undeclared: [RuleId, Severity];
-  notFound: [RuleId, Severity];
+  /** The rule and severity for a declared identifier the registry does not hold, of these types. */
+  notFound: [RuleId, Severity, AssetItem['type'][]];
   /** Items of these types declared without an identifier get this `info` flag. */
   missing: { ruleId: RuleId; types: AssetItem['type'][] };
 }
@@ -284,6 +290,7 @@ function byIdentifier(statement: Statement, rule: IdentifierRule): SystemMatch {
     return identifier ? [{ item, identifier }] : [];
   });
   const registry = uniqueBy(rule.registry, identifierKey);
+  const [notFoundRule, notFoundSeverity, notFoundTypes] = rule.notFound;
   const isDeclared = (id: string) => identified.some((d) => sameIdentifier(d.identifier, id));
   const inRegistry = (id: string) => registry.some((r) => sameIdentifier(r, id));
   return {
@@ -294,9 +301,13 @@ function byIdentifier(statement: Statement, rule: IdentifierRule): SystemMatch {
           flag(...rule.undeclared, { [rule.evidenceKey]: id }, [statementRef(personKey)]),
         ),
       ...identified
-        .filter(({ identifier }) => !inRegistry(identifier))
+        .filter(
+          ({ item, identifier }) => notFoundTypes.includes(item.type) && !inRegistry(identifier),
+        )
         .map(({ item, identifier }) =>
-          flag(...rule.notFound, { [rule.evidenceKey]: identifier }, [ref({ personKey, item })]),
+          flag(notFoundRule, notFoundSeverity, { [rule.evidenceKey]: identifier }, [
+            ref({ personKey, item }),
+          ]),
         ),
       ...declared
         .filter((item) => rule.missing.types.includes(item.type) && !rule.identifier(item)?.trim())
