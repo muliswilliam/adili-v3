@@ -145,6 +145,10 @@ describe('Certified copies (S13)', () => {
       'disabled',
       true,
     );
+    const status = within(rowOf(2)).getByRole('status');
+    expect(status.textContent).toBe(
+      'Preparing the certified copy of Initial declaration, version 2.',
+    );
 
     await act(async () => {
       await vi.advanceTimersByTimeAsync(COPY_POLL_MS);
@@ -152,6 +156,11 @@ describe('Certified copies (S13)', () => {
     expect(getMyCertifiedCopy).toHaveBeenCalledWith({ data: { copyId: ISSUED.id } });
     expect(rowOf(2).textContent).toContain('Certified 2 Oct 2026');
     expect(screen.getByText('Certified copy ready')).toBeDefined();
+    // The same region, still there, says it is ready.
+    expect(within(rowOf(2)).getByRole('status')).toBe(status);
+    expect(status.textContent).toBe(
+      'The certified copy of Initial declaration, version 2 is ready to download.',
+    );
 
     await click(
       within(rowOf(2)).getByRole('button', {
@@ -169,6 +178,8 @@ describe('Certified copies (S13)', () => {
       ISSUED,
       copy({ id: 'c0c20000-0000-4000-8000-000000000002', version: 1, status: 'failed' }),
     ]);
+    // Nothing is announced for the state the page loads in.
+    expect(within(rowOf(2)).getByRole('status').textContent).toBe('');
     expect(within(rowOf(2)).getByRole('button', { name: /Download/ })).toBeDefined();
     expect(rowOf(1).textContent).toContain('We could not prepare the copy. Try again.');
     expect(within(rowOf(1)).getByRole('button', { name: /Try again/ })).toBeDefined();
