@@ -1712,7 +1712,19 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
         '409':
-          description: Already pending, or AI not enabled for this Commission
+          description: 'Already pending (problem type `copilot-pending`), or AI not enabled for this Commission (`ai-not-enabled`)'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '502':
+          description: The declarations service could not give the declaration; nothing was requested
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '503':
+          description: 'The ai-gateway cannot be reached (problem type `ai-gateway-unavailable`); nothing was requested'
           content:
             application/problem+json:
               schema:
@@ -2098,11 +2110,13 @@ components:
         forVersionId:
           type: [string, 'null']
           format: uuid
+          description: 'The version the outputs shown are for (while `stale`, an earlier one); the version requested while there are none'
         generatedAt:
           type: [string, 'null']
           format: date-time
         failureReason:
           type: [string, 'null']
+          description: "The ai-gateway's job reason (`validation`, `budget`, `provider`, ...), `policy` when not enabled, or `rejected` / `ai-gateway-unavailable`"
         summary:
           type: [object, 'null']
           description: ai-gateway SummarizeDeclarationOutput (label, overview, changesSincePrevious, sections, worthAttention)

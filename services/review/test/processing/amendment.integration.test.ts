@@ -181,11 +181,14 @@ describe('amendment re-processing', () => {
 
     // S21: identifiers and states only.
     const events = await api.db.select().from(outbox).orderBy(asc(outbox.createdAt));
+    // Each version's case event, then its copilot requested (spec 07c): pending, then stale.
     expect(events.map((event) => event.eventType)).toEqual([
       'review.case.created.v1',
+      'review.copilot.updated.v1',
       'review.case.updated.v1',
+      'review.copilot.updated.v1',
     ]);
-    expect(events[1]?.envelope).toMatchObject({
+    expect(events[2]?.envelope).toMatchObject({
       type: 'review.case.updated.v1',
       subject: caseId,
       tenant: 'psc',
@@ -196,7 +199,7 @@ describe('amendment re-processing', () => {
         band: 'medium',
       },
     });
-    expect(Object.keys(events[1]?.envelope.data ?? {}).sort()).toEqual([
+    expect(Object.keys(events[2]?.envelope.data ?? {}).sort()).toEqual([
       'band',
       'caseId',
       'declarationId',
@@ -243,6 +246,7 @@ describe('amendment re-processing', () => {
       flagsAfter.map((flag) => flag.id).sort(),
     );
     const events = await api.db.select().from(outbox);
-    expect(events).toHaveLength(2);
+    // Each version's case event and copilot request; nothing since.
+    expect(events).toHaveLength(4);
   });
 });
