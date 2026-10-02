@@ -11,7 +11,9 @@ import { feedbackRecorded } from './events.js';
 
 /** ai-gateway.yaml `FeedbackInput`. */
 export const feedbackInputSchema = z.object({
-  reviewerSubject: z.string().min(1).max(255),
+  reviewerSubject: z.string().min(1).max(255).meta({
+    description: 'The officer rating the output, as the calling service knows them (token `sub`)',
+  }),
   rating: z.enum(FEEDBACK_RATINGS),
   reason: z.enum(FEEDBACK_REASONS).nullable(),
   note: z.string().max(1000).nullable(),
@@ -19,10 +21,12 @@ export const feedbackInputSchema = z.object({
 export type FeedbackInput = z.infer<typeof feedbackInputSchema>;
 
 /** ai-gateway.yaml `Feedback`. */
-export interface FeedbackView extends FeedbackInput {
-  jobId: string;
-  at: string;
-}
+export const feedbackViewSchema = z.object({
+  jobId: z.uuid(),
+  ...feedbackInputSchema.shape,
+  at: z.iso.datetime(),
+});
+export type FeedbackView = z.infer<typeof feedbackViewSchema>;
 
 /**
  * Reviewers' ratings of job outputs (spec 07c S13), recorded for the calling service that ran

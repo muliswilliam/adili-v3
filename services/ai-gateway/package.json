@@ -22,7 +22,8 @@
     "test:integration": "vitest run --config vitest.integration.config.ts",
     "eval": "vitest run --config vitest.eval.config.ts",
     "eval:record": "AI_REPLAY_MODE=record vitest run --config vitest.eval.config.ts",
-    "eval:prune": "node --disable-warning=DEP0205 --import @swc-node/register/esm-register evals/prune.ts"
+    "eval:prune": "node --disable-warning=DEP0205 --import @swc-node/register/esm-register evals/prune.ts",
+    "contracts": "node --disable-warning=DEP0205 --env-file=.env.example --import @swc-node/register/esm-register ../../packages/schemas/scripts/export-contract.mjs"
   },
   "dependencies": {
     "@adili/api-kit": "workspace:*",

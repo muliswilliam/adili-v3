@@ -2,10 +2,11 @@ import { Injectable } from '@nestjs/common';
 import { type Database, InjectDatabase } from '@adili/data-access';
 import { EventPublisher } from '@adili/events';
 import { and, asc, eq, sql } from 'drizzle-orm';
+import { z } from 'zod';
 
 import { type GatePolicy, gatePolicies, type schema } from '../db/schema.js';
-import { DATA_CLASSES, type DataClass } from '../jobs/task-request.js';
-import { PROVIDER_CLASSES, type ProviderClass } from '../providers/port.js';
+import { DATA_CLASSES, type DataClass, dataClassSchema } from '../jobs/task-request.js';
+import { PROVIDER_CLASSES, type ProviderClass, providerClassSchema } from '../providers/port.js';
 import { auditChange } from './audit.js';
 
 /**
@@ -19,11 +20,12 @@ export function defaultGateAdmits(providerClass: ProviderClass): boolean {
 }
 
 /** Contract `GateRuleInput`: whether a provider class may see a data class. */
-export interface GateCell {
-  dataClass: DataClass;
-  providerClass: ProviderClass;
-  allowed: boolean;
-}
+export const gateCellSchema = z.strictObject({
+  dataClass: dataClassSchema,
+  providerClass: providerClassSchema,
+  allowed: z.boolean(),
+});
+export type GateCell = z.infer<typeof gateCellSchema>;
 
 /** Contract `GatePolicyInput`: rules applied together, on one approval. */
 export interface GateChange {
@@ -32,18 +34,43 @@ export interface GateChange {
 }
 
 /** Contract `GateRule`: an explicit rule with who decided it and on which approval. */
-export interface GateRule extends GateCell {
-  approvalRef: string;
-  changedBy: string;
-  changedByName: string | null;
-  changedAt: string;
-}
+export const gateRuleSchema = z
+  .object({
+    ...gateCellSchema.shape,
+    approvalRef: z.string(),
+    changedBy: z.string().meta({ description: '`sub` of the platform admin who made the change' }),
+    changedByName: z
+      .string()
+      .nullable()
+      .meta({ description: 'Their display name at the time; null when unknown' }),
+    changedAt: z.iso.datetime(),
+  })
+  .meta({
+    description: "An explicit rule of a tenant's gate, with who decided it and on which approval",
+  });
+export type GateRule = z.infer<typeof gateRuleSchema>;
 
 /** Contract `TenantPolicy`. */
-export interface TenantGate {
-  tenant: string;
-  rules: GateRule[];
-}
+export const tenantGateSchema = z.object({
+  tenant: z.string(),
+  rules: z.array(gateRuleSchema).meta({
+    description:
+      'Explicit rules, allowing or blocking, in DataClass then ProviderClass order. A pair without one follows `GatePolicyList.defaults`',
+  }),
+});
+export type TenantGate = z.infer<typeof tenantGateSchema>;
+
+/** Contract `GatePolicyList`. */
+export const gatePolicyListSchema = z.object({
+  defaults: z.array(gateCellSchema).meta({
+    description:
+      "The gate of every (data class, provider class) pair a tenant has no rule for: self-hosted providers may see every data class, external providers none, so a new tenant sends nothing outside the platform until a platform admin records an approved rule (the demo tenant's synthetic rule is seeded that way)",
+  }),
+  tenants: z
+    .array(tenantGateSchema)
+    .meta({ description: 'Tenants with at least one explicit rule, by tenant' }),
+});
+export type GatePolicyList = z.infer<typeof gatePolicyListSchema>;
 
 /** Who changes a policy: the platform admin's subject and display name. */
 export interface Actor {

@@ -2,7 +2,9 @@ import { Inject, Injectable } from '@nestjs/common';
 import { type Database, InjectDatabase } from '@adili/data-access';
 import { EventPublisher } from '@adili/events';
 import { and, count, eq, gte, lt, sql, sum } from 'drizzle-orm';
+import { z } from 'zod';
 
+import { budgetInput } from '../admin/admin-input.js';
 import { budgets, jobs, type schema } from '../db/schema.js';
 import { auditChange } from './audit.js';
 
@@ -16,24 +18,37 @@ export interface BudgetLimits {
   perMinute: number;
 }
 
+const monthSchema = z
+  .string()
+  .regex(/^[0-9]{4}-[0-9]{2}$/)
+  .meta({ description: 'Calendar month, Africa/Nairobi' });
+
 /** Contract `TenantUsage`. */
-export interface TenantUsage extends BudgetLimits {
-  tenant: string;
-  /** `YYYY-MM`, Africa/Nairobi. */
-  month: string;
-  tokensUsed: number;
-  costMicros: number;
-  jobs: number;
-  blocked: number;
-  failed: number;
-}
+export const tenantUsageSchema = z.object({
+  tenant: z.string(),
+  month: monthSchema,
+  monthlyTokens: z.number().int(),
+  perMinute: z.number().int(),
+  tokensUsed: z.number().int(),
+  costMicros: z.number().int().meta({
+    description: 'Estimated cost in micro US dollars (USD 1 = 1,000,000) at provider list price',
+  }),
+  jobs: z.number().int(),
+  blocked: z.number().int(),
+  failed: z.number().int(),
+});
+export type TenantUsage = z.infer<typeof tenantUsageSchema>;
 
 /** Contract `UsageList`. */
-export interface UsageList {
-  month: string;
-  defaults: BudgetLimits;
-  tenants: TenantUsage[];
-}
+export const usageListSchema = z.object({
+  month: monthSchema,
+  /** The budget of a tenant without one of its own. */
+  defaults: budgetInput,
+  tenants: z
+    .array(tenantUsageSchema)
+    .meta({ description: 'Tenants with a budget of their own or a job this month, by tenant' }),
+});
+export type UsageList = z.infer<typeof usageListSchema>;
 
 const NO_USAGE = { tokensUsed: 0, costMicros: 0, jobs: 0, blocked: 0, failed: 0 } as const;
 

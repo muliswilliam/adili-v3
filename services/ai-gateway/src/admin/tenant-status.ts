@@ -1,19 +1,28 @@
 import { Injectable } from '@nestjs/common';
+import { z } from 'zod';
 
 import { Routing } from '../jobs/routing.js';
-import { DATA_CLASSES, type DataClass } from '../jobs/task-request.js';
+import { DATA_CLASSES, type DataClass, dataClassSchema } from '../jobs/task-request.js';
 import { GatePolicies } from '../policy/gate-policies.js';
-import type { ProviderClass } from '../providers/port.js';
+import { type ProviderClass, providerClassSchema } from '../providers/port.js';
 import { ProviderRegistry } from '../providers/providers.module.js';
 import { TASK_NAMES } from '../tasks/task.js';
 
 /** Contract `TenantAiStatus`. */
-export interface TenantAiStatus {
-  tenant: string;
-  enabled: boolean;
-  providerClass: ProviderClass | null;
-  dataClasses: DataClass[];
-}
+export const tenantAiStatusSchema = z.object({
+  tenant: z.string(),
+  enabled: z
+    .boolean()
+    .meta({ description: "Some data class may be sent to the tenant's routed provider class" }),
+  providerClass: providerClassSchema.nullable().meta({
+    description:
+      "The provider class of the tenant's routes; `external` when they are on more than one. Null when no route names a provider this gateway can reach",
+  }),
+  dataClasses: z.array(dataClassSchema).meta({
+    description: 'Data classes every routed provider class may process, in DataClass order',
+  }),
+});
+export type TenantAiStatus = z.infer<typeof tenantAiStatusSchema>;
 
 /**
  * Whether AI assistance is enabled for a tenant (the Commission status line, spec 07c): the

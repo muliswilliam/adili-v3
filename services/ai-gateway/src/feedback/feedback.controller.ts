@@ -1,7 +1,15 @@
 import { Body, Controller, NotFoundException, Param, Put } from '@nestjs/common';
-import { ApiBearerAuth, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
+import {
+  ApiBearerAuth,
+  ApiBody,
+  ApiOkResponse,
+  ApiOperation,
+  ApiParam,
+  ApiTags,
+} from '@nestjs/swagger';
 import {
   ApiProblemResponse,
+  schemaRef,
   CurrentPrincipal,
   type Principal,
   Scopes,
@@ -32,7 +40,9 @@ export class FeedbackController {
       'One rating per reviewer per job: a second rating by the same reviewer replaces the first. ' +
       'Each rating announces ai.feedback.recorded.v1 (no note, no reviewer).',
   })
-  @ApiOkResponse({ description: 'Recorded' })
+  @ApiParam({ name: 'jobId', schema: { type: 'string', format: 'uuid' } })
+  @ApiBody({ required: true, schema: schemaRef('FeedbackInput') })
+  @ApiOkResponse({ description: 'Recorded', schema: schemaRef('Feedback') })
   @ApiProblemResponse(400, 'Request failed validation')
   @ApiProblemResponse(404, 'No succeeded job with this id visible to the caller')
   async record(
