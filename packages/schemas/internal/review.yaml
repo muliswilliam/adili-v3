@@ -15,7 +15,7 @@ paths:
       tags:
         - queue
       summary: Cases of the Commission ordered by score then age
-      description: Reviewers and supervisors of the Commission. Anyone else, including another Commission's staff, gets 404.
+      description: "Reviewers and supervisors of the Commission. Anyone else, including another Commission's staff, gets 404. Filters only: search text is personal data, so it is never in a URL; send it to `searchReviewQueue`."
       operationId: listReviewQueue
       parameters:
         - name: slug
@@ -72,6 +72,13 @@ paths:
             type: string
             minLength: 1
             maxLength: 200
+        - name: cursor
+          required: false
+          in: query
+          description: '`nextCursor` of the previous page; omit for the first page'
+          schema:
+            type: string
+            maxLength: 500
         - name: late
           required: false
           in: query
@@ -99,20 +106,6 @@ paths:
             enum:
               - 'true'
               - 'false'
-        - name: search
-          required: false
-          in: query
-          description: A reference or personnel file number or their beginning, or part of a name (case-insensitive)
-          schema:
-            type: string
-            maxLength: 100
-        - name: cursor
-          required: false
-          in: query
-          description: '`nextCursor` of the previous page; omit for the first page'
-          schema:
-            type: string
-            maxLength: 500
         - name: limit
           required: false
           in: query
@@ -142,6 +135,113 @@ paths:
                       - 'null'
         '400':
           description: Query failed validation, or the cursor is unknown
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: Not found, or not visible to the caller
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+  /v1/commissions/{slug}/review/queue/search:
+    post:
+      tags:
+        - queue
+      summary: Cases of the Commission matching a search, ordered by score then age
+      description: As `listReviewQueue`, with the filters and the search text in the body, so the text (a name, say) stays out of URLs and so out of access logs and traces. Reads nothing but the queue. Reviewers and supervisors of the Commission; anyone else gets 404.
+      operationId: searchReviewQueue
+      parameters:
+        - name: slug
+          required: true
+          in: path
+          schema:
+            type: string
+            pattern: ^[a-z][a-z0-9]{1,19}$
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                status:
+                  type: string
+                  enum:
+                    - unassigned
+                    - assigned
+                    - awaiting-clarification
+                    - clarified
+                    - ready-for-determination
+                    - sample-review
+                    - further-action
+                    - determined
+                band:
+                  type: string
+                  enum:
+                    - low
+                    - medium
+                    - high
+                type:
+                  type: string
+                  enum:
+                    - initial
+                    - biennial
+                    - final
+                cycle:
+                  description: The statement date's year
+                  type: integer
+                  minimum: 2000
+                  maximum: 2999
+                assignee:
+                  description: '`mine`, `unassigned`, `any` (the default), or a subject id'
+                  type: string
+                  minLength: 1
+                  maxLength: 200
+                cursor:
+                  description: '`nextCursor` of the previous page; omit for the first page'
+                  type: string
+                  maxLength: 500
+                late:
+                  description: Only cases filed late, or only those filed on time
+                  type: boolean
+                openClarification:
+                  description: Only cases with an open clarification, or only those without
+                  type: boolean
+                registryUnavailable:
+                  description: Only cases where a registry could not be checked at the latest registry check, or only the others
+                  type: boolean
+                search:
+                  description: A reference or personnel file number or their beginning, or part of a name (case-insensitive)
+                  type: string
+                  maxLength: 100
+                limit:
+                  default: 50
+                  type: integer
+                  minimum: 1
+                  maximum: 100
+      responses:
+        '200':
+          description: Page
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - items
+                  - nextCursor
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/CaseListItem'
+                  nextCursor:
+                    type:
+                      - string
+                      - 'null'
+        '400':
+          description: Body failed validation, or the cursor is unknown
           content:
             application/problem+json:
               schema:

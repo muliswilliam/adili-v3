@@ -19,6 +19,7 @@ describe('review queue and summary', () => {
   const reviewer: Caller = { sub: 'reviewer-a', tenant: 'psc', roles: ['reviewer'] };
   const supervisor: Caller = { sub: 'supervisor-s', tenant: 'psc', roles: ['supervisor'] };
   const queuePath = '/v1/commissions/{slug}/review/queue';
+  const searchPath = '/v1/commissions/{slug}/review/queue/search';
   const summaryPath = '/v1/commissions/{slug}/review/queue/summary';
 
   beforeAll(async () => {
@@ -99,6 +100,23 @@ describe('review queue and summary', () => {
     const body = response.json<CasePage>();
     expect(contractErrors(okResponse(queuePath, 'get'), body)).toEqual([]);
     return body;
+  }
+
+  /** The queue for a search, its text in the body (`searchReviewQueue`). */
+  async function search(
+    body: Record<string, unknown>,
+    caller: Caller = reviewer,
+  ): Promise<CasePage> {
+    const response = await api.send(
+      'POST',
+      '/v1/commissions/psc/review/queue/search',
+      caller,
+      body,
+    );
+    expect(response.statusCode, response.body).toBe(200);
+    const page = response.json<CasePage>();
+    expect(contractErrors(okResponse(searchPath, 'post'), page)).toEqual([]);
+    return page;
   }
 
   it('S7: orders by score descending, then oldest first', async () => {
@@ -219,14 +237,46 @@ describe('review queue and summary', () => {
       submittedAt: '2027-12-03T08:00:00Z',
     });
 
-    expect(ids(await queue('?search=dec-psc-2027-00042'))).toEqual([byReference]);
-    expect(ids(await queue('?search=PSC%2F2011'))).toEqual([byFile]);
-    expect(ids(await queue('?search=KAMAU'))).toEqual([byName]);
+    expect(ids(await search({ search: 'dec-psc-2027-00042' }))).toEqual([byReference]);
+    expect(ids(await search({ search: 'PSC/2011' }))).toEqual([byFile]);
+    expect(ids(await search({ search: 'KAMAU' }))).toEqual([byName]);
     // Only beginnings of references and file numbers match.
-    expect(ids(await queue('?search=0004242'))).toEqual([]);
+    expect(ids(await search({ search: '0004242' }))).toEqual([]);
     // LIKE wildcards are taken literally.
-    expect(ids(await queue('?search=%25'))).toEqual([]);
-    expect(ids(await queue('?search=%20'))).toHaveLength(3);
+    expect(ids(await search({ search: '%' }))).toEqual([]);
+    expect(ids(await search({ search: ' ' }))).toHaveLength(3);
+  });
+
+  it('M10: search text goes in a POST body with the filters, never in the query string', async () => {
+    const lateKamau = await givenCase({
+      declarantName: 'Wanjiru Kamau',
+      late: true,
+      submittedAt: '2027-12-01T08:00:00Z',
+    });
+    await givenCase({ declarantName: 'Otieno Kamau', submittedAt: '2027-12-02T08:00:00Z' });
+    await givenCase({
+      declarantName: 'Achieng Wanjiru',
+      late: true,
+      submittedAt: '2027-12-03T08:00:00Z',
+    });
+
+    expect(ids(await search({ search: 'kamau', late: true, cycle: 2027, limit: 10 }))).toEqual([
+      lateKamau,
+    ]);
+    // The list's query has no search: a name sent there filters nothing.
+    expect(ids(await queue('?search=kamau'))).toHaveLength(3);
+    const invalid = await api.send('POST', '/v1/commissions/psc/review/queue/search', reviewer, {
+      late: 'true',
+    });
+    expect(invalid.statusCode).toBe(400);
+    // Outsiders get 404, as on the list.
+    const outsider = await api.send(
+      'POST',
+      '/v1/commissions/psc/review/queue/search',
+      { tenant: 'tsc', roles: ['reviewer'] },
+      { search: 'kamau' },
+    );
+    expect(outsider.statusCode).toBe(404);
   });
 
   it('S7: pages with a cursor', async () => {

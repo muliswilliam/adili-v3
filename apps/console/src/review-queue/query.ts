@@ -4,10 +4,13 @@ import { z } from 'zod';
 import type { paths } from '../server/review/api.gen';
 import type { CaseStatus } from '../server/review/types';
 
-/** The review service's queue query (review.yaml `listReviewQueue`). */
-export type ReviewQueueQuery = NonNullable<
-  paths['/v1/commissions/{slug}/review/queue']['get']['parameters']['query']
->;
+/**
+ * The review service's queue search (review.yaml `searchReviewQueue`): the filters and the search
+ * text in a POST body, so the text is never in a URL the service, a proxy or a trace records.
+ */
+export type ReviewQueueSearch = NonNullable<
+  paths['/v1/commissions/{slug}/review/queue/search']['post']['requestBody']
+>['content']['application/json'];
 
 /** The statuses the queue filters by (spec 07a FE-2), in the order the toolbar lists them. */
 export const QUEUE_FILTER_STATUSES = [
@@ -24,9 +27,9 @@ export const QUEUE_TYPES = ['initial', 'biennial', 'final'] as const;
 
 /** Fails to compile when the lists drift from the contract. */
 export type QueueFiltersMatchContract = [
-  Assert<Same<(typeof QUEUE_BANDS)[number], NonNullable<ReviewQueueQuery['band']>>>,
+  Assert<Same<(typeof QUEUE_BANDS)[number], NonNullable<ReviewQueueSearch['band']>>>,
   Assert<Same<(typeof QUEUE_BANDS)[number], Priority>>,
-  Assert<Same<(typeof QUEUE_TYPES)[number], NonNullable<ReviewQueueQuery['type']>>>,
+  Assert<Same<(typeof QUEUE_TYPES)[number], NonNullable<ReviewQueueSearch['type']>>>,
 ];
 
 /** Page size of the queue: the review service's default. */
@@ -192,14 +195,14 @@ export function toggleTile(search: QueueSearch, tile: QueueTile): QueueSearch {
 }
 
 /**
- * The review service's query for a set of filters and the page after `cursor`. Filters that are
- * off are left out; anyone (no `assignee`) is the service's default.
+ * The review service's search body for a set of filters and the page after `cursor`. Filters
+ * that are off are left out; anyone (no `assignee`) is the service's default.
  */
-export function queueQuery(
+export function queueSearchBody(
   filters: QueueSearch,
   page: { cursor?: string | null; limit?: number } = {},
-): ReviewQueueQuery {
-  const query: ReviewQueueQuery = {};
+): ReviewQueueSearch {
+  const query: ReviewQueueSearch = {};
   const search = filters.search?.trim();
   if (search) query.search = search;
   if (filters.status) query.status = filters.status;
@@ -207,9 +210,9 @@ export function queueQuery(
   if (filters.type) query.type = filters.type;
   if (filters.cycle !== undefined) query.cycle = filters.cycle;
   if (filters.assignee) query.assignee = filters.assignee;
-  if (filters.late) query.late = 'true';
-  if (filters.openClarification) query.openClarification = 'true';
-  if (filters.registryUnavailable) query.registryUnavailable = 'true';
+  if (filters.late) query.late = true;
+  if (filters.openClarification) query.openClarification = true;
+  if (filters.registryUnavailable) query.registryUnavailable = true;
   if (page.cursor) query.cursor = page.cursor;
   if (page.limit !== undefined) query.limit = page.limit;
   return query;

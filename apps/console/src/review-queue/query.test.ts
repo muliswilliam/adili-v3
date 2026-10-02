@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest';
 import {
   cycleOptions,
   hasQueueFilters,
-  queueQuery,
+  queueSearchBody,
   type QueueSearch,
   queueUrlSchema,
   readQueueSearch,
@@ -151,10 +151,10 @@ describe('summary tiles as filters', () => {
   });
 });
 
-describe('queueQuery', () => {
-  it("sends the review service's query: switches as true, off filters left out", () => {
+describe('queueSearchBody', () => {
+  it("sends the review service's search body: switches as true, off filters left out", () => {
     expect(
-      queueQuery(
+      queueSearchBody(
         {
           search: ' DCI ',
           status: 'clarified',
@@ -175,13 +175,13 @@ describe('queueQuery', () => {
       type: 'biennial',
       cycle: 2025,
       assignee: SUBJECT,
-      late: 'true',
-      openClarification: 'true',
-      registryUnavailable: 'true',
+      late: true,
+      openClarification: true,
+      registryUnavailable: true,
       cursor: 'next',
       limit: 50,
     });
-    expect(queueQuery({})).toEqual({});
+    expect(queueSearchBody({})).toEqual({});
   });
 });
 
