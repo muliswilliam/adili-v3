@@ -139,6 +139,7 @@ export const revokedReasons: Record<RevokedReason, string> = {
 export const documentTypeNames: Record<string, string> = {
   'acknowledgement-slip': 'Acknowledgement slip',
   'access-package': 'Access package',
+  'access-nil-letter': 'Nil letter',
   'certified-copy': 'Certified copy',
   'compliance-certificate': 'Compliance certificate',
   'clarification-request': 'Clarification request',

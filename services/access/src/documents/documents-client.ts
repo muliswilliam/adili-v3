@@ -5,11 +5,12 @@ export const ACCESS_REPRESENTATION_PURPOSE = 'access-representation';
 
 /**
  * The documents the access service issues (documents.yaml `DocumentType`): a grant's
- * Confidential package (per-recipient watermark) and a declarant's Restricted certified copy.
+ * Confidential package (per-recipient watermark), or its nil letter when the scope holds nothing,
+ * and a declarant's Restricted certified copy.
  */
 export type AccessDocumentType = Extract<
   components['schemas']['DocumentType'],
-  'access-package' | 'certified-copy'
+  'access-package' | 'access-nil-letter' | 'certified-copy'
 >;
 
 /**
@@ -21,6 +22,9 @@ export type Watermark = components['schemas']['Watermark'];
 
 /** documents.yaml `AccessPackagePayload` (access-package v1): the disclosure and the grant. */
 export type AccessPackagePayload = components['schemas']['AccessPackagePayload'];
+
+/** documents.yaml `AccessNilLetterPayload` (access-nil-letter v1): a grant with nothing to disclose. */
+export type AccessNilLetterPayload = components['schemas']['AccessNilLetterPayload'];
 
 /** documents.yaml `CertifiedCopyPayload` (certified-copy v1). */
 export type CertifiedCopyPayload = components['schemas']['CertifiedCopyPayload'];
@@ -40,7 +44,7 @@ export interface IssueDocumentRequest {
   subjectRef: string;
   /** Who may download it: the applicant, the law enforcement officer's person, or the declarant. */
   subjectPersonId: string;
-  payload: AccessPackagePayload | CertifiedCopyPayload;
+  payload: AccessPackagePayload | AccessNilLetterPayload | CertifiedCopyPayload;
   watermark?: Watermark;
   /** How long the subject may download it (access packages). */
   downloadWindowDays?: number;

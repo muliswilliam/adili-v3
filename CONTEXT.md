@@ -145,6 +145,14 @@ _Avoid_: LEA request (in prose), subpoena
 The signed PDF a granted access request or law enforcement request delivers: the declarations in scope, cut to the granted years, household members and sections, watermarked with its recipient and downloadable by them for a limited window.
 _Avoid_: disclosure (for the document), export, report
 
+**Nil letter**:
+The signed letter a granted access request or law enforcement request delivers instead of an access package when the Commission holds no declaration within the granted scope; watermarked with its recipient and downloadable by them for the same window.
+_Avoid_: empty package, no-package notice
+
+**Scope preview**:
+The access officer's view, before deciding, of how much a scope holds of the declarant's declarations: counts per declaration year, section, household member kind and clarifications, never their content; audited like a disclosure.
+_Avoid_: draft package, disclosure preview
+
 **Certified copy**:
 A signed, full copy of one submitted version of a declarant's own declaration, issued to the declarant or their representative on a self-access application (Administrative Mechanism 32).
 _Avoid_: duplicate, printout, access package

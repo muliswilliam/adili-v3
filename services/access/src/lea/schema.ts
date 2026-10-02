@@ -1,6 +1,6 @@
 import { index, jsonb, pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-core';
 
-import type { Decision } from '../decision.js';
+import type { Decision, PackageKind } from '../decision.js';
 import type { Scope } from '../scope.js';
 import type { WrittenNotice } from '../written-notice.js';
 
@@ -106,10 +106,14 @@ export const leaRequests = pgTable(
     remindedAt: timestamp({ withTimezone: true }),
     breachedAt: timestamp({ withTimezone: true }),
     decision: jsonb().$type<Decision>(),
+    /** What the grant delivered (package or nil letter), as for a Form K request. */
+    packageKind: text().$type<PackageKind>(),
     packageDocumentId: uuid(),
     packageVerificationId: text(),
     packageIssuedAt: timestamp({ withTimezone: true }),
     downloadExpiresAt: timestamp({ withTimezone: true }),
+    /** When issuing it failed after its retries; cleared once it is issued. */
+    packageFailedAt: timestamp({ withTimezone: true }),
     /**
      * When the declarant was told of the grant (r.23(2): only after it): online, or the start of
      * the day a written notice was served.

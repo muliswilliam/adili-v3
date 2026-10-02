@@ -4,6 +4,8 @@ import { z } from 'zod';
 import { refusedWith } from '../upstream-refusal.js';
 import type { paths } from './review-api.gen.js';
 import {
+  type ClarificationCount,
+  type ClarificationCountsRequest,
   type ClarificationDisclosureRequest,
   type DisclosedClarification,
   ReviewClient,
@@ -28,8 +30,13 @@ const disclosureSchema = z.object({
   ),
 });
 
+/** `ClarificationCounts`. */
+const countsSchema = z.object({
+  counts: z.array(z.object({ declarationReference: z.string(), clarifications: z.int().min(0) })),
+});
+
 /**
- * Review's `internalDiscloseClarifications` through the client generated from its contract
+ * Review's `internalDiscloseClarifications` (and `internalCountClarificationDisclosure`) through the client generated from its contract
  * (packages/schemas/internal/review.yaml → review-api.gen.ts via `pnpm generate:api`), with the
  * access service's own token (`review:disclosures`), the Commission in `X-Acting-Tenant` and the
  * deciding officer in `X-Acting-Subject`, whom review audits the read for; the recipient goes in
@@ -67,5 +74,18 @@ export class HttpReviewClient extends ReviewClient {
       },
     );
     return disclosure.clarifications as DisclosedClarification[];
+  }
+
+  async countClarifications(request: ClarificationCountsRequest): Promise<ClarificationCount[]> {
+    const { tenant, viewerSubject, ...body } = request;
+    const counted = await this.review.call(
+      (api) =>
+        api.POST('/internal/v1/review/clarifications/disclosure-counts', {
+          params: { header: { 'X-Acting-Tenant': tenant, 'X-Acting-Subject': viewerSubject } },
+          body,
+        }),
+      { status: 200, schema: countsSchema, otherwise: refusedWith('review', [400, 403]) },
+    );
+    return counted.counts;
   }
 }

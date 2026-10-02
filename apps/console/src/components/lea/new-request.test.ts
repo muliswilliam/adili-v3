@@ -101,7 +101,8 @@ describe('the package of a request', () => {
       outcome: 'grant',
       decidedAt: at,
     }) as LeaRequest['decision'];
-  const pkg = (until: string) => ({
+  const pkg = (until: string, kind: 'access-package' | 'nil-letter' = 'access-package') => ({
+    kind,
     documentId: 'd',
     verificationId: 'v',
     issuedAt: '2026-09-30T09:00:00.000Z',
@@ -109,40 +110,59 @@ describe('the package of a request', () => {
     downloads: 1,
   });
 
-  it('is ready to download, closed, being prepared, or missing after an hour', () => {
+  it('is ready to download (package or nil letter), closed, being prepared, or failed', () => {
+    const granted = { status: 'granted' as const, packageFailedAt: null };
     expect(
       packageState(
         {
-          status: 'granted',
+          ...granted,
           decision: decided('2026-09-30T08:00:00.000Z'),
           package: pkg('2026-10-14T00:00:00.000Z'),
         },
         NOW,
       ),
-    ).toMatchObject({ kind: 'ready', documentId: 'd' });
+    ).toMatchObject({ kind: 'ready', document: 'access-package', documentId: 'd' });
     expect(
       packageState(
         {
-          status: 'granted',
+          ...granted,
+          decision: decided('2026-09-30T08:00:00.000Z'),
+          package: pkg('2026-10-14T00:00:00.000Z', 'nil-letter'),
+        },
+        NOW,
+      ),
+    ).toMatchObject({ kind: 'ready', document: 'nil-letter' });
+    expect(
+      packageState(
+        {
+          ...granted,
           decision: decided('2026-09-01T08:00:00.000Z'),
           package: pkg('2026-09-15T00:00:00.000Z'),
         },
         NOW,
       ),
     ).toMatchObject({ kind: 'closed' });
+    // However long ago the grant: preparing until the backend says it failed.
     expect(
       packageState(
-        { status: 'granted', decision: decided('2026-10-02T08:59:00.000Z'), package: null },
+        { ...granted, decision: decided('2026-09-01T08:00:00.000Z'), package: null },
         NOW,
       ),
     ).toEqual({ kind: 'preparing' });
     expect(
       packageState(
-        { status: 'granted', decision: decided('2026-10-01T08:00:00.000Z'), package: null },
+        {
+          status: 'granted',
+          decision: decided('2026-10-01T08:00:00.000Z'),
+          package: null,
+          packageFailedAt: '2026-10-01T15:30:00.000Z',
+        },
         NOW,
       ),
-    ).toEqual({ kind: 'missing' });
-    expect(packageState({ status: 'denied', decision: null, package: null }, NOW)).toEqual({
+    ).toEqual({ kind: 'failed' });
+    expect(
+      packageState({ status: 'denied', decision: null, package: null, packageFailedAt: null }, NOW),
+    ).toEqual({
       kind: 'none',
     });
   });

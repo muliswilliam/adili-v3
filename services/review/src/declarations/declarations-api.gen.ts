@@ -446,6 +446,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/internal/v1/declarations/disclosure-counts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Count what a scope would disclose of a person's declarations (audited, no content)
+         * @description Service tokens with scope declarations:disclosures (the access service only), acting for the Commission in X-Acting-Tenant. For each year of the scope, the person's versions in force at the Commission and, per section and included household member kind, how many entries and persons the disclosure of that scope would let out: counts only, never content, so the access officer can see before deciding whether a grant would disclose anything. A year with none, or a person who is not the Commission's declarant, counts zero. Audited (`audit.read.v1`, action `declaration.disclosure-counted`) with the legal basis, the request reference and the officer as recipient.
+         */
+        post: operations["internalCountDisclosure"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/internal/v1/declarations/{declarationId}/versions/{version}/full-document": {
         parameters: {
             query?: never;
@@ -1536,6 +1556,46 @@ export interface components {
             commission: components["schemas"]["CommissionRef"];
             /** @description Per granted year, the version in force of each of the person's declarations at the Commission, by statement date. A granted year with none has no entry */
             versions: components["schemas"]["DisclosedVersion"][];
+        };
+        /** @description A scope an access officer is about to decide on, to be counted */
+        DisclosureCountsRequest: {
+            /**
+             * Format: uuid
+             * @description The declarant whose declarations are counted
+             */
+            personId: string;
+            grantReference: components["schemas"]["GrantReference"];
+            legalBasis: components["schemas"]["LegalBasis"];
+            /** @description Declaration years: the statement dates' years */
+            years: number[];
+            includeSpouses: boolean;
+            includeChildren: boolean;
+            sections: components["schemas"]["DisclosureSection"][];
+        };
+        DisclosureYearCounts: {
+            /** @description A year of the scope: the statement dates' year */
+            year: number;
+            /** @description The person's declarations at the Commission that year (versions in force) */
+            declarations: number;
+            /** @description Their reference numbers, for counting the clarifications issued on them; the access service never shows them */
+            declarationReferences: components["schemas"]["DeclarationReference"][];
+            /** @description Per section of the scope (absent: not in it): `bio` the persons whose particulars would go out, `income`, `assets`, `liabilities` the entries of the included persons' statements, `other` the material changes, directorships, memberships, pending cases and a written statement */
+            sections: {
+                bio?: number;
+                income?: number;
+                assets?: number;
+                liabilities?: number;
+                other?: number;
+            };
+            /** @description The spouses anything would go out about; null when not included */
+            spouses: number | null;
+            /** @description The children anything would go out about; null when not included */
+            children: number | null;
+        };
+        /** @description How much a scope would disclose of a person's declarations, in counts only: never content */
+        DisclosureCounts: {
+            /** @description Every year of the scope, ascending, with zero counts for a year with none */
+            years: components["schemas"]["DisclosureYearCounts"][];
         };
         /** @description Whose version is asked for in full, and whom the certified copy goes to */
         FullDocumentRequest: {
@@ -3015,6 +3075,53 @@ export interface operations {
             };
             /** @description No version of the person's declarations at the acting Commission in the granted years */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    internalCountDisclosure: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Tenant the calling service acts for; the resource must belong to it */
+                "X-Acting-Tenant": string;
+                /** @description The access officer (or supervisor) weighing the scope before the decision; recorded in the audit event as the actor and the recipient of the counts */
+                "X-Acting-Subject": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DisclosureCountsRequest"];
+            };
+        };
+        responses: {
+            /** @description The counts */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DisclosureCounts"];
+                };
+            };
+            /** @description Invalid scope, a legal basis that does not go with the request reference, or no X-Acting-Subject */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Requires a service token with scope declarations:disclosures */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };

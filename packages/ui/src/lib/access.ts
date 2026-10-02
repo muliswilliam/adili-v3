@@ -54,7 +54,9 @@ export const accessMessages = {
   withdrawn: 'Withdrawn',
   received: 'Received',
   verified: 'Verified',
-  noPackage: 'No package has been issued for this grant.',
+  nilLetter: 'Nil letter',
+  nilLetterStatement: 'No declarations held within the granted scope.',
+  packageFailed: 'The package could not be issued.',
 };
 
 /** Swahili translations, key by key; empty until reviewed. */
@@ -134,17 +136,17 @@ export const OPEN_ACCESS_STATUSES: ReadonlySet<AccessRequestStatus> = new Set([
 ]);
 
 /**
- * How long after a grant a package that is not issued yet still reads as being prepared. The
- * access workflow renders, watermarks and signs it within minutes; a grant whose scope holds
- * nothing to disclose is never issued one (#259), and neither is one whose issuing failed.
+ * What a grant has delivered, as every audience reads it (spec 10, decision 1): its access
+ * package, or the nil letter the Commission issues instead when the granted scope holds no
+ * declaration; before either, `preparing` while the access service issues it, or `failed` once
+ * issuing failed after its retries (the backend's `packageFailedAt`).
  */
-export const PACKAGE_PREPARING_FOR_MS = 60 * 60 * 1000;
+export type GrantPackageStatus = 'preparing' | 'failed' | 'access-package' | 'nil-letter';
 
-/**
- * Where a granted request without a package stands at `now` (epoch milliseconds): `preparing`
- * within `PACKAGE_PREPARING_FOR_MS` of the decision, then `missing` ("No package has been
- * issued"). Every audience reads the same rule.
- */
-export function unissuedPackageState(decidedAt: string, now: number): 'preparing' | 'missing' {
-  return now - Date.parse(decidedAt) < PACKAGE_PREPARING_FOR_MS ? 'preparing' : 'missing';
+export function grantPackageStatus(
+  pkg: { kind: 'access-package' | 'nil-letter' } | null,
+  packageFailedAt: string | null,
+): GrantPackageStatus {
+  if (pkg) return pkg.kind;
+  return packageFailedAt === null ? 'preparing' : 'failed';
 }

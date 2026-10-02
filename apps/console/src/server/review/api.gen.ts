@@ -503,6 +503,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/internal/v1/review/clarifications/disclosure-counts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * How many clarifications a scope would disclose (access, spec 10 decision 1)
+         * @description Service tokens with scope review:disclosures (the access service only), acting for the Commission in X-Acting-Tenant. Before deciding a Form K request, the access officer sees what the scope holds: per declaration named, how many clarifications a grant of the scope would disclose with it, cut as `internalDiscloseClarifications` cuts them (zero for one with none). Counts only, never content. Audited (`audit.read.v1`, action `clarification.disclosure-counted`) with the legal basis, the request reference, the officer as recipient and the clarifications counted. A read: no Idempotency-Key.
+         */
+        post: operations["internalCountClarificationDisclosure"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/internal/v1/review/referrals/{referralId}/icms-payload": {
         parameters: {
             query?: never;
@@ -1426,6 +1446,32 @@ export interface components {
             includeSpouses: boolean;
             includeChildren: boolean;
             sections: ("bio" | "income" | "assets" | "liabilities" | "other")[];
+        };
+        ClarificationCountsRequest: {
+            /**
+             * Format: uuid
+             * @description The declarant whose clarifications are counted
+             */
+            personId: string;
+            /** @description ADR-011: the request's ARQ (Form K) or LEA reference, with a valid check character */
+            grantReference: string;
+            /**
+             * @description act-s36-1 goes with an ARQ reference, act-s36-2 with an LEA reference
+             * @enum {string}
+             */
+            legalBasis: "act-s36-1" | "act-s36-2";
+            /** @description The declarations the scope holds (declarations' `DisclosureCounts`) */
+            declarationReferences: string[];
+            includeSpouses: boolean;
+            includeChildren: boolean;
+            sections: ("bio" | "income" | "assets" | "liabilities" | "other")[];
+        };
+        ClarificationCounts: {
+            /** @description One per declaration named, in the order named */
+            counts: {
+                declarationReference: string;
+                clarifications: number;
+            }[];
         };
         ClarificationDisclosure: {
             grantReference: string;
@@ -2929,6 +2975,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ClarificationDisclosure"];
+                };
+            };
+            400: components["responses"]["ValidationProblem"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    internalCountClarificationDisclosure: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Tenant the calling service acts for; the resource must belong to it */
+                "X-Acting-Tenant": components["parameters"]["ActingTenant"];
+                /** @description The access officer (or supervisor) weighing the scope; recorded in the audit event as the actor and the recipient of the counts */
+                "X-Acting-Subject": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ClarificationCountsRequest"];
+            };
+        };
+        responses: {
+            /** @description Per declaration named, the clarifications in the scope */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ClarificationCounts"];
                 };
             };
             400: components["responses"]["ValidationProblem"];

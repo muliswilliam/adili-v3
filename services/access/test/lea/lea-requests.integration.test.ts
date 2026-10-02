@@ -113,6 +113,7 @@ describe('Law enforcement requests (S11)', () => {
         declarantInvitedAt: null,
         declarantNotice: null,
         package: null,
+        packageFailedAt: null,
         timeline: [
           {
             id: expect.any(String) as unknown,

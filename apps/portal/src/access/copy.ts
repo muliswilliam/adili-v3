@@ -194,7 +194,7 @@ const REQUESTS = {
   grounds: en('Grounds:'),
   expiresToday: en('Expires today'),
   downloadExpired: en('Download expired'),
-  noPackage: en('No package issued'),
+  packageNotIssued: en('Package not issued'),
 };
 
 export const REQUESTS_COPY = english(REQUESTS);
@@ -298,16 +298,34 @@ const PACKAGE = {
       `Some of what you asked for was not granted. Download your package today, by ${time}.`,
   ),
   preparingNext: en('Your package is being prepared.'),
-  missingTitle: en(accessMessages.noPackage),
-  missingNext: en(accessMessages.noPackage),
+  failedTitle: en('We could not issue your package.'),
+  failedText: en(
+    (commission: string) =>
+      `The decision stands. Contact ${commission} if your package is not ready soon.`,
+  ),
+  failedNext: en('Your package could not be issued yet.'),
+
+  nilLetterTitle: en(accessMessages.nilLetter),
+  nilLetterStatement: en(accessMessages.nilLetterStatement),
+  nilLetterText: en(
+    (commission: string, officer: string) =>
+      `${commission} holds no declarations by ${officer} for the years and parts it granted. It issued you this signed letter instead of a package.`,
+  ),
+  nilLetterReadyNext: en(
+    (at: string) => `There was nothing to disclose. Download the nil letter by ${at}.`,
+  ),
+  nilLetterReadyTodayNext: en(
+    (time: string) => `There was nothing to disclose. Download the nil letter today, by ${time}.`,
+  ),
   closedNext: en((date: string) => `The download window closed on ${date}.`),
   closedNowLead: en('The download window has closed.'),
   closedNowNext: en('The package can no longer be downloaded.'),
 
   stagePreparing: en('Package'),
   stagePreparingDetail: en('Being prepared'),
-  stageMissingDetail: en('Not issued'),
+  stageFailedDetail: en('Not issued'),
   stageReady: en('Package ready'),
+  stageNilLetterReady: en('Nil letter ready'),
   stageReadyDetail: en((at: string) => `Until ${at}`),
   stageClosed: en('Download window closed'),
 };

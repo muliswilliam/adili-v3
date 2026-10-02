@@ -1,30 +1,24 @@
-import {
-  calendarDaysUntil,
-  GRANTED_ACCESS_STATUSES,
-  PACKAGE_PREPARING_FOR_MS,
-  unissuedPackageState,
-} from '@adili/ui';
+import { calendarDaysUntil, GRANTED_ACCESS_STATUSES, grantPackageStatus } from '@adili/ui';
 
 import type { AccessRequest, Package } from '../server/access/types';
 import { PACKAGE_COPY as COPY } from './copy';
 
 /**
- * Where a granted request's package stands for the applicant (spec 10, #261): still being
- * prepared, not issued at all, ready to download until its window ends, or past its window.
- * Pure, from the request and a clock, so the page, the list and the progress agree.
+ * Where a granted request's package stands for the applicant (spec 10, #261, decision 1): still
+ * being prepared, failed to issue, ready to download until its window ends, or past its window.
+ * What is downloaded is the access package, or the nil letter when the granted scope holds no
+ * declaration (`package.kind`). Pure, from the request and a clock, so the page, the list and
+ * the progress agree.
  */
 
 /** From this long before the window ends, the page counts down in hours and minutes. */
 export const COUNTDOWN_FROM_MS = 24 * 3_600_000;
 
 export type PackageView =
-  /** Granted moments ago, and the package is not issued yet. */
+  /** Granted, and the package (or nil letter) is not issued yet. */
   | { state: 'preparing' }
-  /**
-   * Granted over an hour ago and still no package: none was issued (the granted scope held
-   * nothing to disclose, or issuing failed). The rule every app shares (`unissuedPackageState`).
-   */
-  | { state: 'missing' }
+  /** Issuing it failed after its retries (`packageFailedAt`): the Commission must take it up. */
+  | { state: 'failed' }
   | {
       state: 'ready';
       package: Package;
@@ -43,16 +37,15 @@ export type PackageView =
  * over the clock, as the browser's clock may run behind.
  */
 export function packageView(
-  request: Pick<AccessRequest, 'status' | 'package' | 'timeline' | 'decision'>,
+  request: Pick<AccessRequest, 'status' | 'package' | 'packageFailedAt' | 'timeline'>,
   now: number,
   windowClosed = false,
 ): PackageView | null {
   if (!GRANTED_ACCESS_STATUSES.has(request.status)) return null;
   const pkg = request.package;
   if (!pkg) {
-    // A granted request carries its decision; without one, it can only be on its way.
-    const decidedAt = request.decision?.decidedAt;
-    return { state: decidedAt ? unissuedPackageState(decidedAt, now) : 'preparing' };
+    const status = grantPackageStatus(null, request.packageFailedAt);
+    return { state: status === 'failed' ? 'failed' : 'preparing' };
   }
   const lastDownloadAt =
     request.timeline.filter((entry) => entry.kind === 'downloaded').at(-1)?.at ?? null;
@@ -70,19 +63,6 @@ export function packageView(
     msLeft,
     daysLeft: calendarDaysUntil(pkg.downloadExpiresAt, now),
   };
-}
-
-/**
- * When a granted request without a package stops reading as being prepared, as an ISO time;
- * null once it has a package, or for any other status.
- */
-export function preparingEndsAt(
-  request: Pick<AccessRequest, 'status' | 'package' | 'decision'>,
-): string | null {
-  if (!GRANTED_ACCESS_STATUSES.has(request.status) || request.package || !request.decision) {
-    return null;
-  }
-  return new Date(Date.parse(request.decision.decidedAt) + PACKAGE_PREPARING_FOR_MS).toISOString();
 }
 
 /** `5 h 12 min`, `12 min`: the time left, at least a minute while any is left. */

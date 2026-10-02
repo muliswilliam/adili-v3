@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { LAW_ENFORCEMENT } from '@adili/roles';
 import { ToastProvider, TooltipProvider } from '@adili/ui';
-import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import type { ReactNode } from 'react';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -132,29 +132,35 @@ describe("the officer's requests (spec 10 FE-6)", () => {
     expect(screen.getByText('We could not load your requests')).toBeTruthy();
   });
 
-  it('a package not issued an hour after the grant turns from preparing to none issued', async () => {
+  it('a package being prepared says so; one whose issuing failed says so apart', async () => {
     const granted = await requestOf(L.granted);
     if (!granted.decision) throw new Error('not decided');
-    const fresh = {
-      ...granted,
-      package: null,
-      decision: { ...granted.decision, decidedAt: NOW },
-    };
-    vi.useFakeTimers();
-    try {
-      wrap(<MyRequest request={fresh} now={NOW} />);
-      expect(screen.getByText(/^Preparing your package/)).toBeTruthy();
-      act(() => {
-        vi.advanceTimersByTime(61 * 60_000);
-      });
-      expect(
-        screen.getByText(
-          'No package has been issued for this grant. Contact the Commission if you need the declaration.',
-        ),
-      ).toBeTruthy();
-    } finally {
-      vi.useRealTimers();
-    }
+    const preparing = { ...granted, package: null, packageFailedAt: null };
+    const { unmount } = wrap(<MyRequest request={preparing} now={NOW} />);
+    expect(screen.getByText(/^Preparing your package/)).toBeTruthy();
+    unmount();
+
+    wrap(<MyRequest request={await requestOf(L.failed)} now={NOW} />);
+    expect(
+      screen.getByText(
+        'The package could not be issued. Contact the Commission if it is not ready soon.',
+      ),
+    ).toBeTruthy();
+    expect(screen.queryByRole('button', { name: /Download/ })).toBeNull();
+  });
+
+  it('decision 1: a nil letter downloads like a package, under its own name', async () => {
+    vi.mocked(getLeaPackageLink).mockResolvedValue({
+      ok: true,
+      data: { downloadUrl: '/api/mock-files/nil', expiresAt: NOW, sha256: '0' },
+    });
+    wrap(<MyRequest request={await requestOf(L.nilLetter)} now={NOW} />);
+    const card = screen.getByRole('region', { name: 'Nil letter' });
+    expect(card.textContent).toContain('No declarations held within the granted scope.');
+    fireEvent.click(screen.getByRole('button', { name: 'Download letter' }));
+    await waitFor(() => {
+      expect(downloadFrom).toHaveBeenCalledWith('/api/mock-files/nil');
+    });
   });
 
   it('downloads a granted package with a fresh link from documents', async () => {

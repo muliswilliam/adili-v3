@@ -38,9 +38,9 @@ const GRANT_REASONS = 'Written request from a provisioned DCI account; ongoing i
 /**
  * Spec 10 decision 2 for law enforcement requests (r.23(2)): the officer sought is on the roster
  * with no account. The access officer verifies the request to their record all the same; after a
- * grant the workflow has them invited to onboard, issues no package (no declaration of theirs is
- * on Adili), and the access officer records the written notice of the grant. Once the officer
- * onboards, the grant shows among their notices.
+ * grant the workflow has them invited to onboard, issues the agency's officer the nil letter (no
+ * declaration of theirs is on Adili), and the access officer records the written notice of the
+ * grant. Once the officer onboards, the grant shows among their notices.
  */
 describe('Law enforcement grants to an officer with no account: written notice', () => {
   let api: AccessApi;
@@ -106,11 +106,11 @@ describe('Law enforcement grants to an officer with no account: written notice',
     });
   });
 
-  it('after a grant: invited to onboard, no grant notice sent and no package, until the written notice is recorded', async () => {
+  it('after a grant: invited to onboard, the nil letter issued, no grant notice sent until the written notice is recorded', async () => {
     const { id } = await granted();
 
     const row = await leaRowOf(api, id);
-    expect(row).toMatchObject({ declarantNotifiedAt: null, packageDocumentId: null });
+    expect(row).toMatchObject({ declarantNotifiedAt: null });
     expect(api.directory.invitations).toEqual([
       { slug: 'psc', recordId: bwire.id, idempotencyKey: expect.any(String) as unknown },
     ]);
@@ -120,7 +120,25 @@ describe('Law enforcement grants to an officer with no account: written notice',
     expect(api.notifications.sent.map((message) => message.template)).not.toContain(
       'lea-grant-notice-email',
     );
-    expect(api.documents.issued).toEqual([]);
+    // An officer with no account filed nothing on Adili: the agency's officer gets the nil
+    // letter, without declarations being asked.
+    const issued = await api.eventually(async () => {
+      const found = await leaRowOf(api, id);
+      return found.packageDocumentId === null ? undefined : found;
+    });
+    expect(issued.packageKind).toBe('nil-letter');
+    expect(api.declarations.disclosureCalls).toEqual([]);
+    expect(api.documents.issued).toMatchObject([
+      {
+        type: 'access-nil-letter',
+        subjectRef: `lea-request:${id}`,
+        payload: {
+          legalBasis: 'act-s36-2',
+          declarantName: bwire.fullName,
+          scope: { includeClarifications: false },
+        },
+      },
+    ]);
 
     api.clock.set(RECORDED_AT);
     const response = await recordNotice(id, { notifiedOn: NOTIFIED_ON });

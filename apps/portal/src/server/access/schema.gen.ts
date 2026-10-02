@@ -452,6 +452,54 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/access/requests/{requestId}/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * What the requested scope holds, in counts (no content; audited)
+         * @description The Commission's access officer, and its supervisor (reading); another Commission's request, and EACC, get 404. Once the officer named is identified, until the decision. Per year of the scope, the declarations of the declarant at the Commission and, per section and included household member kind, how many entries and persons a grant would disclose, with the clarifications when the scope includes them: counts only, never content. `empty` when the scope holds nothing, so a grant would issue the nil letter (no declarations held within the granted scope) instead of an access package. Audited (`audit.read.v1`) with the legal basis, the reference and the caller as recipient; declarations and review audit their counts alike.
+         */
+        get: operations["getAccessRequestScopePreview"];
+        put?: never;
+        /**
+         * What a proposed scope (the requested one, or narrower) holds, in counts (audited)
+         * @description The Commission's access officer, and its supervisor (reading); another Commission's request, and EACC, get 404. The scope the officer is weighing for a partial grant: within the requested one (else 400 `scope-exceeds-request`). A read: no Idempotency-Key. Per year of the scope, the declarations of the declarant at the Commission and, per section and included household member kind, how many entries and persons a grant would disclose, with the clarifications when the scope includes them: counts only, never content. `empty` when the scope holds nothing, so a grant would issue the nil letter (no declarations held within the granted scope) instead of an access package. Audited (`audit.read.v1`) with the legal basis, the reference and the caller as recipient; declarations and review audit their counts alike.
+         */
+        post: operations["previewAccessRequestScope"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/lea/requests/{leaRequestId}/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * What the requested scope of a law enforcement request holds, in counts (audited)
+         * @description The Commission's access officer, and its supervisor (reading); another Commission's request, and EACC, get 404. Once verified (the officer sought identified), until the decision; never the agency's officer. Per year of the scope, the declarations of the declarant at the Commission and, per section and included household member kind, how many entries and persons a grant would disclose, with the clarifications when the scope includes them: counts only, never content. `empty` when the scope holds nothing, so a grant would issue the nil letter (no declarations held within the granted scope) instead of an access package. Audited (`audit.read.v1`) with the legal basis, the reference and the caller as recipient; declarations and review audit their counts alike.
+         */
+        get: operations["getLeaRequestScopePreview"];
+        put?: never;
+        /**
+         * What a proposed scope of a law enforcement request holds, in counts (audited)
+         * @description The Commission's access officer, and its supervisor (reading); another Commission's request, and EACC, get 404. Within the requested scope (else 400 `scope-exceeds-request`; clarifications are never in one). A read: no Idempotency-Key. Per year of the scope, the declarations of the declarant at the Commission and, per section and included household member kind, how many entries and persons a grant would disclose, with the clarifications when the scope includes them: counts only, never content. `empty` when the scope holds nothing, so a grant would issue the nil letter (no declarations held within the granted scope) instead of an access package. Audited (`audit.read.v1`) with the legal basis, the reference and the caller as recipient; declarations and review audit their counts alike.
+         */
+        post: operations["previewLeaRequestScope"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/me/access-history": {
         parameters: {
             query?: never;
@@ -664,6 +712,11 @@ export interface components {
             reasons: string;
         };
         Package: {
+            /**
+             * @description access-package: the disclosure of the granted scope; nil-letter: the signed letter that the Commission holds no declaration within it, issued instead (same watermark, download window and recipient)
+             * @enum {string}
+             */
+            kind: "access-package" | "nil-letter";
             /** Format: uuid */
             documentId: string;
             verificationId: string;
@@ -672,6 +725,41 @@ export interface components {
             /** Format: date-time */
             downloadExpiresAt: string;
             downloads: number;
+        };
+        /** @description What a scope holds of the declarant's declarations, counted for the access officer before deciding: never content. Every preview is audited with its legal basis */
+        ScopePreview: {
+            /** @description The scope previewed */
+            scope: components["schemas"]["Scope"];
+            /** @description Whether the declarant has an account: one without (served in writing, spec 10 decision 2) has filed no declaration on Adili, so the scope holds nothing */
+            declarantOnboarded: boolean;
+            /** @description Nothing within the scope: a grant of it issues the nil letter (no declarations held within the granted scope) instead of an access package */
+            empty: boolean;
+            /** @description The declarations the scope holds, in all its years */
+            declarations: number;
+            /** @description The clarifications a grant would disclose with them; null when the scope does not include clarifications */
+            clarifications: number | null;
+            /** @description Every year of the scope, ascending, with zero counts for a year with none */
+            years: components["schemas"]["ScopePreviewYear"][];
+        };
+        ScopePreviewYear: {
+            /** @description A year of the scope: the statement dates' year */
+            year: number;
+            /** @description The declarant's declarations at the Commission that year (versions in force) */
+            declarations: number;
+            /** @description Per section of the scope (absent: not in it): `bio` the persons whose particulars would go out; `income`, `assets`, `liabilities` the entries of the included persons' statements; `other` the material changes, directorships, memberships, pending cases and a written statement */
+            sections: {
+                bio?: number;
+                income?: number;
+                assets?: number;
+                liabilities?: number;
+                other?: number;
+            };
+            /** @description The spouses anything would go out about; null when not included */
+            spouses: number | null;
+            /** @description The children anything would go out about; null when not included */
+            children: number | null;
+            /** @description The clarifications issued on that year's declarations a grant would disclose; null when the scope does not include clarifications */
+            clarifications: number | null;
         };
         /** @description A form-k.v1 document (packages/schemas/forms/form-k.v1.json) */
         FormK: {
@@ -695,6 +783,8 @@ export interface components {
             decisionDeadlineAt: string;
             decision: components["schemas"]["Decision"] | null;
             package: components["schemas"]["Package"] | null;
+            /** @description When issuing the grant's package or nil letter failed after its retries (an operator takes it up); null while it is prepared and once issued. A grant with no package and no failure is being prepared */
+            packageFailedAt: string | null;
             timeline: components["schemas"]["RegisterEntry"][];
         };
         RegisterEntry: {
@@ -745,6 +835,8 @@ export interface components {
             decisionDeadlineAt: string;
             decision: components["schemas"]["Decision"] | null;
             package: components["schemas"]["Package"] | null;
+            /** @description When issuing the grant's package or nil letter failed after its retries (an operator takes it up); null while it is prepared and once issued. A grant with no package and no failure is being prepared */
+            packageFailedAt: string | null;
             timeline: components["schemas"]["RegisterEntry"][];
             /** @enum {string} */
             applicantIdentityStatus: "verified" | "pending-verification";
@@ -1097,6 +1189,8 @@ export interface components {
             /** @description How and when the declarant was told of the grant; null before, and for the agency's officer */
             declarantNotice: components["schemas"]["Notice"] | null;
             package: components["schemas"]["Package"] | null;
+            /** @description When issuing the grant's package or nil letter failed after its retries (an operator takes it up); null while it is prepared and once issued. A grant with no package and no failure is being prepared */
+            packageFailedAt: string | null;
             timeline: components["schemas"]["RegisterEntry"][];
         };
         DeclarantVersion: {
@@ -2890,6 +2984,298 @@ export interface operations {
                 };
             };
             /** @description Documents or the key service cannot be reached; nothing was saved */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    getAccessRequestScopePreview: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                requestId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Preview */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ScopePreview"];
+                };
+            };
+            /** @description requestId is not a UUID */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /**
+             * @description Not an access officer or supervisor
+             *
+             *     Requires one of the roles: access-officer, supervisor, eacc-analyst, eacc-supervisor
+             */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description No such request at the caller's Commission (another Commission's, EACC's or anyone else's view) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Problem code `not-under-decision` (the officer named is not identified yet), `request-decided` or `request-closed` */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Declarations or review cannot be reached */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    previewAccessRequestScope: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                requestId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Scope"];
+            };
+        };
+        responses: {
+            /** @description Preview */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ScopePreview"];
+                };
+            };
+            /** @description requestId is not a UUID, the scope failed validation, or problem code `scope-exceeds-request` */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /**
+             * @description Not an access officer or supervisor
+             *
+             *     Requires one of the roles: access-officer, supervisor, eacc-analyst, eacc-supervisor
+             */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description No such request at the caller's Commission (another Commission's, EACC's or anyone else's view) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Problem code `not-under-decision` (the officer named is not identified yet), `request-decided` or `request-closed` */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Declarations or review cannot be reached */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    getLeaRequestScopePreview: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                leaRequestId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Preview */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ScopePreview"];
+                };
+            };
+            /** @description leaRequestId is not a UUID */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /**
+             * @description Not an access officer or supervisor
+             *
+             *     Requires one of the roles: access-officer, supervisor, eacc-analyst, eacc-supervisor
+             */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description No such request at the caller's Commission (another Commission's, EACC's or anyone else's view) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Problem code `not-under-decision` (not verified yet), `request-decided` or `request-closed` */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Declarations cannot be reached */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    previewLeaRequestScope: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                leaRequestId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Scope"];
+            };
+        };
+        responses: {
+            /** @description Preview */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ScopePreview"];
+                };
+            };
+            /** @description leaRequestId is not a UUID, the scope failed validation, or problem code `scope-exceeds-request` */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /**
+             * @description Not an access officer or supervisor
+             *
+             *     Requires one of the roles: access-officer, supervisor, eacc-analyst, eacc-supervisor
+             */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description No such request at the caller's Commission (another Commission's, EACC's or anyone else's view) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Problem code `not-under-decision` (not verified yet), `request-decided` or `request-closed` */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Declarations cannot be reached */
             503: {
                 headers: {
                     [name: string]: unknown;

@@ -13,7 +13,6 @@ import {
   groundMeta,
   Icon,
   OPEN_ACCESS_STATUSES,
-  unissuedPackageState,
 } from '@adili/ui';
 import {
   Add01Icon,
@@ -98,19 +97,17 @@ function DecisionDue({ request, now }: { request: RequestSummary; now: number })
 }
 
 /**
- * A granted package's download window: by when, days left (soon from 3 days), or expired; or,
- * an hour after the grant without a package, that none was issued (the rule every app shares).
+ * A granted package's (or nil letter's) download window: by when, days left (soon from 3 days),
+ * or expired; nothing while it is prepared, and that it was not issued when issuing failed.
  */
 function DownloadBy({ request, now }: { request: RequestSummary; now: number }) {
   if (!GRANTED_ACCESS_STATUSES.has(request.status)) return null;
   if (!request.downloadExpiresAt) {
-    if (!request.closedAt || unissuedPackageState(request.closedAt, now) === 'preparing') {
-      return null;
-    }
+    if (request.packageFailedAt === null) return null;
     return (
-      <Badge variant="default">
+      <Badge variant="warning">
         <Icon icon={PackageRemoveIcon} strokeWidth={2.2} />
-        {COPY.noPackage}
+        {COPY.packageNotIssued}
       </Badge>
     );
   }

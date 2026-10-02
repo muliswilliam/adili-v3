@@ -10,6 +10,7 @@ import { selfAccessDocumentsClient } from './access/documents-client.server';
 import {
   decisionInputSchema,
   representationsInputSchema,
+  scopeSchema,
   writtenNoticeSchema,
 } from './access/schemas';
 import type {
@@ -17,6 +18,7 @@ import type {
   OfficerRequestView,
   QueuePage,
   RosterCandidates,
+  ScopePreview,
 } from './access/types';
 import {
   type AccessResult,
@@ -25,6 +27,7 @@ import {
   enterRepresentations,
   loadQueue,
   loadRequest,
+  previewScope,
   recordWrittenNotice,
   resolveOfficer,
   searchRoster,
@@ -90,6 +93,13 @@ export const decideAccessRequest = createServerFn({ method: 'POST' })
     asAccessViewer((client) =>
       decideRequest(client, data.requestId, data.input, data.idempotencyKey),
     ),
+  );
+
+/** What a scope the officer weighs holds, counted (decision 1); the supervisor may read it. */
+export const previewAccessScope = createServerFn({ method: 'POST' })
+  .validator(z.object({ requestId: id, scope: scopeSchema }))
+  .handler(({ data }): Promise<AccessResult<ScopePreview>> =>
+    asAccessViewer((client) => previewScope(client, data.requestId, data.scope)),
   );
 
 export const recordAccessWrittenNotice = createServerFn({ method: 'POST' })

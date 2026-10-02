@@ -57,6 +57,7 @@ export function RequestDetailView({
   const pkg = usePackageState(
     view.decision ?? null,
     view.package ?? null,
+    view.packageFailedAt,
     view.timeline.filter((entry) => entry.kind === 'downloaded').map((entry) => entry.at),
     now,
   );

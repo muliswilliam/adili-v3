@@ -120,3 +120,13 @@ export function workflowUnavailable(detail: string): ProblemException {
     detail,
   });
 }
+
+/** 503: a service the request needs cannot be reached (`type` names it, e.g. `review-unavailable`). */
+export function upstreamUnavailable(type: string, detail: string): ProblemException {
+  return new ProblemException({
+    type,
+    title: 'Upstream service unavailable',
+    status: HttpStatus.SERVICE_UNAVAILABLE,
+    detail,
+  });
+}

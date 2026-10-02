@@ -22,8 +22,9 @@
  * - `cannot`, `withdrawn`: closed; `denied`: decided with two grounds.
  * - `granted`: package issued, not downloaded yet; `partial`: partially granted, its package
  *   downloaded twice; `endsToday`: the download window ends today; `expired`: the window closed;
- *   `preparing`: granted a minute ago, the package not issued yet (it stays so); `noPackage`:
- *   granted two days ago and never issued one (as a grant with nothing to disclose, #259).
+ *   `preparing`: granted a minute ago, the package not issued yet (it stays so); `nilLetter`:
+ *   granted on a scope that held nothing, answered with the nil letter (decision 1); `failed`:
+ *   granted two days ago, its package could not be issued.
  * - Older decided requests fill a second page.
  *
  * Only the access officer acts (roster search, resolve, verify, written notice, representations
@@ -34,8 +35,13 @@
  * Attachment links point at `/api/mock-files/{id}` (`routes/api/mock-files.$id.ts`). Written
  * self-access applications are answered by `self-access-mock.server.ts`.
  *
+ * The scope preview (decision 1) counts what `mock-preview.ts` says the declarant holds: Grace
+ * Nyambura Kamau filed nothing in 2026, so `noReply` (2026 assets) previews empty; officers with
+ * no account hold nothing. Supervisors may preview too.
+ *
  * A decision follows the access service's rules (`decisionOf`: 400 by field, 409 unless under
- * decision); a grant's package is issued four seconds later. Reasons containing `offline` answer
+ * decision); a grant's package is issued four seconds later, as the nil letter when its scope
+ * previews empty. Reasons containing `offline` answer
  * 503; `rejected`, a 400 the form did not foresee (`grounds-required`); `raced`, a 409 as if
  * another officer decided first (the request is then decided by Peter Otieno).
  */
@@ -59,6 +65,7 @@ import {
   setLeaMockLatency,
 } from './lea-mock.server';
 import { mockCallerOf, mockToken } from './mock-caller';
+import { mockScopePreview } from './mock-preview';
 import { MOCK_ROSTER, MOCK_ROSTER_IDS, searchMockRoster } from './mock-roster';
 import type {
   AccessRequestStatus,
@@ -87,10 +94,11 @@ export const MOCK_REQUEST_IDS = {
   endsToday: 'a11c0000-0000-4000-8000-000000000014',
   expired: 'a11c0000-0000-4000-8000-000000000015',
   preparing: 'a11c0000-0000-4000-8000-000000000016',
-  noPackage: 'a11c0000-0000-4000-8000-000000000017',
+  nilLetter: 'a11c0000-0000-4000-8000-000000000017',
   lateWindow: 'a11c0000-0000-4000-8000-000000000018',
   noAccount: 'a11c0000-0000-4000-8000-000000000019',
   writtenNotice: 'a11c0000-0000-4000-8000-000000000020',
+  failed: 'a11c0000-0000-4000-8000-000000000021',
 } as const;
 
 const PSC = { slug: 'psc', name: 'Public Service Commission' };
@@ -220,7 +228,14 @@ interface Seed {
    * A grant's package: issued an hour after the decision, unless `expiresAt` (epoch ms from the
    * seeding time) places its window; downloads hours after issue. Left out: still preparing.
    */
-  pkg?: { downloadsAfterHours?: number[]; expiresAt?: (now: number) => number };
+  pkg?: {
+    downloadsAfterHours?: number[];
+    expiresAt?: (now: number) => number;
+    /** The nil letter instead of the access package (the scope held nothing). */
+    nilLetter?: boolean;
+  };
+  /** Issuing the grant's package failed after its retries. */
+  packageFailed?: boolean;
 }
 
 type Ground = OfficerRequestView['decision'] extends infer D
@@ -262,9 +277,11 @@ function packageOf(
   issuedAt: string,
   downloads: number,
   reference: string,
+  kind: NonNullable<OfficerRequestView['package']>['kind'] = 'access-package',
 ): NonNullable<OfficerRequestView['package']> {
   const seq = reference.split('-').slice(3).join('');
   return {
+    kind,
     documentId: randomUUID(),
     verificationId: `ADL-A7KQ-${seq.slice(0, 4)}-${seq.slice(4, 8).padEnd(4, 'X')}-9TPD-2HRC`,
     issuedAt,
@@ -402,7 +419,12 @@ function build(seed: Seed, now: number): Stored {
       const downloads = (seed.pkg.downloadsAfterHours ?? []).map((hours) =>
         hoursLater(issuedAt, hours),
       );
-      pkg = packageOf(issuedAt, downloads.length, seed.reference);
+      pkg = packageOf(
+        issuedAt,
+        downloads.length,
+        seed.reference,
+        seed.pkg.nilLetter ? 'nil-letter' : 'access-package',
+      );
       timeline.push(entry('package-issued', issuedAt, null, seed.reference));
       for (const at of downloads) {
         timeline.push(entry('downloaded', at, seed.applicant.name, seed.reference));
@@ -453,6 +475,7 @@ function build(seed: Seed, now: number): Stored {
       decisionDeadlineAt: deadline,
       decision,
       package: pkg,
+      packageFailedAt: seed.packageFailed && decision ? hoursLater(decision.decidedAt, 7.5) : null,
       timeline,
       applicantIdentityStatus:
         seed.status === 'pending-applicant-verification' ? 'pending-verification' : 'verified',
@@ -853,7 +876,7 @@ const SEEDS: Seed[] = [
     notifiedAfterDays: 31,
   },
   {
-    id: R.noPackage,
+    id: R.nilLetter,
     reference: 'ARQ-PSC-2026-0000141-0',
     applicant: ESTHER,
     sought: {
@@ -873,6 +896,30 @@ const SEEDS: Seed[] = [
       afterDays: -2,
       reasons: 'A legitimate research interest in public finance.',
     },
+    pkg: { nilLetter: true, downloadsAfterHours: [3] },
+  },
+  {
+    id: R.failed,
+    reference: referenceOf(158),
+    applicant: MERCY,
+    sought: {
+      name: 'Esther Wairimu Njoroge',
+      entity: 'State Department for Public Service',
+      workStation: 'Harambee House, Nairobi',
+    },
+    informationSought: 'Assets declared in 2026.',
+    reason: 'Reporting on public service ICT tenders.',
+    scope: SCOPE_2026_ASSETS,
+    receivedDaysAgo: 28,
+    status: 'granted',
+    resolved: K.esther,
+    notifiedAfterDays: 2,
+    decision: {
+      outcome: 'grant',
+      afterDays: -2,
+      reasons: 'A legitimate public interest in health procurement.',
+    },
+    packageFailed: true,
   },
   {
     id: R.noAccount,
@@ -991,9 +1038,14 @@ function advance(stored: Stored, now: number) {
   if (stored.issueAt !== null && now >= stored.issueAt) {
     const at = new Date(stored.issueAt).toISOString();
     stored.issueAt = null;
+    const granted = stored.view.decision?.grantedScope;
+    const empty =
+      !granted ||
+      stored.view.resolvedRosterRecordId === null ||
+      mockScopePreview(stored.view.resolvedRosterRecordId, granted).empty;
     stored.view = {
       ...stored.view,
-      package: packageOf(at, 0, stored.view.reference),
+      package: packageOf(at, 0, stored.view.reference, empty ? 'nil-letter' : 'access-package'),
       timeline: [...stored.view.timeline, entry('package-issued', at, null, stored.view.reference)],
     };
   }
@@ -1413,6 +1465,32 @@ async function decide(request: Request, stored: Stored, caller: Caller): Promise
   return json(200, stored.view);
 }
 
+/**
+ * The scope preview (decision 1): of the requested scope (GET) or one within it (POST), once the
+ * officer named is identified and until the decision, as the access service answers it.
+ */
+async function preview(request: Request, stored: Stored): Promise<Response> {
+  const { view } = stored;
+  if (view.decision) return problem(409, 'The request is decided', 'request-decided');
+  if (view.status === 'withdrawn' || view.status === 'cannot-identify') {
+    return problem(409, 'The request is closed', 'request-closed');
+  }
+  if (view.resolvedRosterRecordId === null) {
+    return problem(409, 'The officer named is not identified yet', 'not-under-decision');
+  }
+  const requested = view.formK.scope;
+  let scope = requested;
+  if (request.method === 'POST') {
+    const body = await readJson(request);
+    if (!isRecord(body)) return problem(400, 'A scope is required');
+    scope = body as unknown as typeof requested;
+    if (!isScopeWithin(scope, requested)) {
+      return problem(400, 'The scope asks for more than the request did', 'scope-exceeds-request');
+    }
+  }
+  return json(200, mockScopePreview(view.resolvedRosterRecordId, scope));
+}
+
 export async function mockAccessFetch(request: Request): Promise<Response> {
   ensureSeeded();
   const url = new URL(request.url);
@@ -1447,6 +1525,11 @@ export async function mockAccessFetch(request: Request): Promise<Response> {
       downloadUrl: `/api/mock-files/${attachment[1]}`,
       expiresAt: new Date(now + 5 * 60_000).toISOString(),
     });
+  }
+
+  if (action === 'preview' && (method === 'GET' || method === 'POST')) {
+    await delay(350);
+    return preview(request, stored);
   }
 
   if (!caller.accessOfficer) {

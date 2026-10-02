@@ -82,7 +82,7 @@ describe('LeaRequestWorkflow', () => {
   function activities(
     options: {
       decided?: LeaDecisionNoticeOutcome;
-      issued?: 'nothing-to-disclose' | 'missing';
+      issued?: 'missing';
       reminder?: LeaReminderOutcome;
       breach?: LeaBreachOutcome;
       /**
@@ -139,6 +139,9 @@ describe('LeaRequestWorkflow', () => {
           outcome: 'issued',
           downloadExpiresAt: new Date(scheduledAt() + DOWNLOAD_DAYS * DAY_MS).toISOString(),
         };
+      }),
+      leaPackageFailed: vi.fn(async () => {
+        await record('package-failed');
       }),
       leaPackageReady: vi.fn(async () => {
         await record('package-ready');
@@ -246,24 +249,6 @@ describe('LeaRequestWorkflow', () => {
     expect(mocks.flagLeaBreach).not.toHaveBeenCalled();
   }, 60_000);
 
-  it('a grant with nothing to disclose in its scope: the declarant is told, no package to announce or expire', async () => {
-    const input = await inputReceived();
-    const { mocks, recorded } = activities({
-      issued: 'nothing-to-disclose',
-      on: { remind: () => signalOwnWorkflow('decided') },
-    });
-
-    const result = await env.execute(leaRequest, options(mocks, input));
-
-    expect(result).toEqual({ outcome: 'decided' });
-    expect(recorded.calls).toEqual([
-      'remind',
-      'decision-notice',
-      'notify-declarant',
-      'issue-package',
-    ]);
-  }, 60_000);
-
   it('a lost `decided` signal: the request is read every 6 hours, and the decision is carried out', async () => {
     const input = await inputReceived();
     const { mocks, recorded } = activities({
@@ -336,8 +321,14 @@ describe('LeaRequestWorkflow', () => {
       .catch((error: unknown) => error);
 
     expect(failed).toBeInstanceOf(WorkflowFailedError);
-    expect(recorded.calls).toEqual(['decision-notice', 'notify-declarant', 'issue-package']);
+    expect(recorded.calls).toEqual([
+      'decision-notice',
+      'notify-declarant',
+      'issue-package',
+      'package-failed',
+    ]);
     expect(mocks.issueLeaPackage).toHaveBeenCalledTimes(1);
+    expect(mocks.leaPackageFailed).toHaveBeenCalledWith(input);
   }, 60_000);
 
   it('withdrawn: the access officers are told and the run ends, with no reminder', async () => {

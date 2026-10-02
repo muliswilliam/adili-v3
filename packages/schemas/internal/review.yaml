@@ -845,6 +845,51 @@ paths:
           $ref: '#/components/responses/ValidationProblem'
         '403':
           $ref: '#/components/responses/Forbidden'
+  /internal/v1/review/clarifications/disclosure-counts:
+    post:
+      tags: [internal]
+      operationId: internalCountClarificationDisclosure
+      x-audited-read:
+        action: clarification.disclosure-counted
+        resource: clarification
+      summary: How many clarifications a scope would disclose (access, spec 10 decision 1)
+      description: >-
+        Service tokens with scope review:disclosures (the access service only), acting for the
+        Commission in X-Acting-Tenant. Before deciding a Form K request, the access officer sees
+        what the scope holds: per declaration named, how many clarifications a grant of the scope
+        would disclose with it, cut as `internalDiscloseClarifications` cuts them (zero for one
+        with none). Counts only, never content. Audited (`audit.read.v1`, action
+        `clarification.disclosure-counted`) with the legal basis, the request reference, the
+        officer as recipient and the clarifications counted. A read: no Idempotency-Key.
+      parameters:
+        - $ref: '#/components/parameters/ActingTenant'
+        - name: X-Acting-Subject
+          in: header
+          required: true
+          description: >-
+            The access officer (or supervisor) weighing the scope; recorded in the audit event as
+            the actor and the recipient of the counts
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 255
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ClarificationCountsRequest'
+      responses:
+        '200':
+          description: Per declaration named, the clarifications in the scope
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClarificationCounts'
+        '400':
+          $ref: '#/components/responses/ValidationProblem'
+        '403':
+          $ref: '#/components/responses/Forbidden'
   /internal/v1/review/referrals/{referralId}/icms-payload:
     parameters:
       - $ref: '#/components/parameters/ReferralId'
@@ -2699,6 +2744,68 @@ components:
           items:
             type: string
             enum: [bio, income, assets, liabilities, other]
+    ClarificationCountsRequest:
+      type: object
+      additionalProperties: false
+      required:
+        [
+          personId,
+          grantReference,
+          legalBasis,
+          declarationReferences,
+          includeSpouses,
+          includeChildren,
+          sections,
+        ]
+      properties:
+        personId:
+          type: string
+          format: uuid
+          description: The declarant whose clarifications are counted
+        grantReference:
+          type: string
+          description: "ADR-011: the request's ARQ (Form K) or LEA reference, with a valid check character"
+          pattern: '^(ARQ|LEA)-[A-Z][A-Z0-9]{1,19}-[0-9]{4}-[0-9]{7}-[0-9A-Z]$'
+        legalBasis:
+          type: string
+          enum: [act-s36-1, act-s36-2]
+          description: act-s36-1 goes with an ARQ reference, act-s36-2 with an LEA reference
+        declarationReferences:
+          type: array
+          minItems: 1
+          maxItems: 200
+          description: The declarations the scope holds (declarations' `DisclosureCounts`)
+          items:
+            type: string
+            minLength: 1
+            maxLength: 64
+        includeSpouses:
+          type: boolean
+        includeChildren:
+          type: boolean
+        sections:
+          type: array
+          minItems: 1
+          maxItems: 5
+          items:
+            type: string
+            enum: [bio, income, assets, liabilities, other]
+    ClarificationCounts:
+      type: object
+      required: [counts]
+      properties:
+        counts:
+          type: array
+          description: One per declaration named, in the order named
+          items:
+            type: object
+            required: [declarationReference, clarifications]
+            properties:
+              declarationReference:
+                type: string
+              clarifications:
+                type: integer
+                minimum: 0
     ClarificationDisclosure:
       type: object
       required: [grantReference, clarifications]

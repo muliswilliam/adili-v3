@@ -78,6 +78,7 @@ export {
   type DocumentRevokedData,
   type DocumentStatus,
   type DocumentSupersededData,
+  ACCESS_NIL_LETTER,
   ACCESS_PACKAGE,
   ACKNOWLEDGEMENT_SLIP,
   CERTIFIED_COPY,

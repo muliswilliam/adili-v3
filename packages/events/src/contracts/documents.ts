@@ -9,7 +9,12 @@
  * Document types the documents service issues, each with its templates (ADR-010 registry); later
  * specs add theirs.
  */
-export const DOCUMENT_TYPES = ['acknowledgement-slip', 'access-package', 'certified-copy'] as const;
+export const DOCUMENT_TYPES = [
+  'acknowledgement-slip',
+  'access-package',
+  'access-nil-letter',
+  'certified-copy',
+] as const;
 export type DocumentType = (typeof DOCUMENT_TYPES)[number];
 
 /** A declaration version's acknowledgement slip (spec 06). */
@@ -20,6 +25,13 @@ export const ACKNOWLEDGEMENT_SLIP = 'acknowledgement-slip' satisfies DocumentTyp
  * confidential, watermarked with its recipient, downloadable by them for a window.
  */
 export const ACCESS_PACKAGE = 'access-package' satisfies DocumentType;
+
+/**
+ * What a grant delivers instead of its access package when the Commission holds no declaration
+ * within the granted scope (spec 10): a signed letter saying so, confidential, watermarked and
+ * downloadable like the package.
+ */
+export const ACCESS_NIL_LETTER = 'access-nil-letter' satisfies DocumentType;
 
 /** A declarant's certified copy of one of their submitted versions (spec 10): restricted. */
 export const CERTIFIED_COPY = 'certified-copy' satisfies DocumentType;

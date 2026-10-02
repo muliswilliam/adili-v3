@@ -2,15 +2,16 @@ import { Inject, Injectable, Logger } from '@nestjs/common';
 import { DATABASE, withTenant } from '@adili/data-access';
 import { and, eq, isNull } from 'drizzle-orm';
 
-import { invariantBroken, rethrowAsActivityFailure } from '../activity-failures.js';
+import { invariantBroken } from '../activity-failures.js';
 import { Clock, nairobiDate } from '../clock.js';
 import type { AccessDatabase } from '../db/database.js';
 import { DeclarationsClient } from '../declarations/declarations-client.js';
 import { DirectoryClient } from '../directory/directory-client.js';
-import { type AccessPackagePayload, DocumentsClient } from '../documents/documents-client.js';
+import { DocumentsClient } from '../documents/documents-client.js';
+import { issueGrantDocument } from '../grant-documents.js';
 import { NotificationsClient } from '../notifications/notifications-client.js';
 import { AccessRegister } from '../register/access-register.js';
-import { type DisclosedClarification, ReviewClient } from '../review/review-client.js';
+import { ReviewClient } from '../review/review-client.js';
 import { accessRegister } from '../register/schema.js';
 import { systemContext } from '../system-context.js';
 import type {
@@ -22,9 +23,6 @@ import { applicantRequestsUrl, declarantNoticesUrl } from './links.js';
 import type { AccessRequestRow } from './representation.js';
 import { accessRequests, DECIDED_STATUSES, type DecidedStatus } from './schema.js';
 import { CHANNELS, load, messageKey, send } from './workflow-support.js';
-
-/** The template version of the access package the service issues (documents' `access-package`). */
-const ACCESS_PACKAGE_TEMPLATE_VERSION = 1;
 
 /** The owning record documents keeps a request's package under (one per type and subject). */
 export function packageSubjectRef(requestId: string): string {
@@ -105,15 +103,14 @@ export class DecisionActivities {
   /**
    * Issues a grant's package, once (S6): declarations renders the disclosure of exactly the
    * granted scope for the declarant (legal basis Act s.36(1), the grant's `ARQ` reference, the
-   * deciding officer and the applicant as recipient, audited there), and documents issues it as
-   * the applicant's Confidential `access-package`, watermarked with their name, the reference and
-   * the date, downloadable by them for the Commission's download window in force now. A grant
-   * that includes clarifications (Act s.36(1), Regulation 22(1)) carries those review discloses
-   * for the declarations disclosed, cut to the same scope and audited there alike. The calls run
-   * in this one activity, so neither the disclosure nor a clarification enters the workflow's
-   * history; only the package's ids are kept. The request records the package with the
-   * `package-issued` register entry and its event. A declarant with no declaration in the
-   * granted scope has nothing to disclose.
+   * deciding officer and the applicant as recipient, audited there), with the clarifications
+   * review discloses for it when the grant includes them, and documents issues it as the
+   * applicant's Confidential `access-package`, watermarked with their name, the reference and
+   * the date, downloadable by them for the Commission's download window in force now. A scope
+   * that holds nothing (no declaration in it, or a declarant with no account) gets the nil letter
+   * instead, alike (decision 1). The calls run in this one activity, so no disclosure enters the
+   * workflow's history; only the document's ids are kept. The request records it with the
+   * `package-issued` register entry and its event.
    */
   async issuePackage({ tenant, requestId }: AccessRequestWorkflowInput): Promise<PackageOutcome> {
     const found = await load(this.db, tenant, requestId);
@@ -127,103 +124,44 @@ export class DecisionActivities {
       throw invariantBroken('The request has no grant to issue a package for');
     }
 
-    const context = { requestId };
-    if (resolvedPersonId === null) {
-      // A declarant served in writing who has still not onboarded has filed no declaration on
-      // Adili: nothing to disclose.
-      this.logger.warn(context, 'The declarant has no account: no package issued');
-      return { outcome: 'nothing-to-disclose' };
-    }
-    let disclosure;
-    try {
-      disclosure = await this.declarations.renderDisclosure({
-        personId: resolvedPersonId,
-        tenant,
-        officerSubject: decision.decidedBy.subject,
-        grantReference: found.reference,
-        legalBasis: 'act-s36-1',
-        recipientSubject: found.applicantSubject,
-        years: scope.years,
-        includeSpouses: scope.includeSpouses,
-        includeChildren: scope.includeChildren,
-        sections: scope.sections,
-      });
-    } catch (error) {
-      rethrowAsActivityFailure(this.logger, error, context, 'Disclosure refused by declarations');
-    }
-    if (disclosure === null) {
-      this.logger.warn(context, 'Nothing to disclose in the granted scope: no package issued');
-      return { outcome: 'nothing-to-disclose' };
-    }
-
-    let clarifications: DisclosedClarification[] | null = null;
-    if (scope.includeClarifications) {
-      try {
-        clarifications = await this.review.discloseClarifications({
-          personId: resolvedPersonId,
-          tenant,
-          officerSubject: decision.decidedBy.subject,
-          grantReference: found.reference,
-          legalBasis: 'act-s36-1',
-          recipientSubject: found.applicantSubject,
-          declarationReferences: disclosure.versions.map((version) => version.reference),
-          includeSpouses: scope.includeSpouses,
-          includeChildren: scope.includeChildren,
-          sections: scope.sections,
-        });
-      } catch (error) {
-        rethrowAsActivityFailure(this.logger, error, context, 'Clarifications refused by review');
-      }
-    }
-
-    const payload: AccessPackagePayload = {
-      // Verbatim: declarations' cut of the granted scope, which documents validates strictly.
-      disclosure: disclosure as unknown as AccessPackagePayload['disclosure'],
-      legalBasis: 'act-s36-1',
-      recipient: { name: found.applicantName, organisation: null },
-      grantedAt: decision.decidedAt,
-      scope: {
-        years: scope.years,
-        includeSpouses: scope.includeSpouses,
-        includeChildren: scope.includeChildren,
-        sections: scope.sections,
-        includeClarifications: scope.includeClarifications,
-      },
-      clarifications,
+    if (found.resolvedName === null) throw invariantBroken('The request resolved no declarant');
+    const deps = {
+      declarations: this.declarations,
+      review: this.review,
+      documents: this.documents,
+      directory: this.directory,
+      clock: this.clock,
+      logger: this.logger,
     };
-    let issued;
-    try {
-      issued = await this.documents.issue({
-        tenant,
-        type: 'access-package',
-        templateVersion: ACCESS_PACKAGE_TEMPLATE_VERSION,
-        subjectRef: packageSubjectRef(requestId),
-        subjectPersonId: found.applicantPersonId,
-        payload,
-        watermark: {
-          recipientName: found.applicantName,
-          reference: found.reference,
-          date: nairobiDate(this.clock.now()),
-        },
-        downloadWindowDays: (await this.directory.accessPolicy(tenant)).packageDownloadDays,
-        idempotencyKey: messageKey(requestId, 'access-package'),
-      });
-    } catch (error) {
-      rethrowAsActivityFailure(this.logger, error, context, 'Access package refused by documents');
-    }
+    const { kind, issued } = await issueGrantDocument(deps, {
+      tenant,
+      requestId,
+      reference: found.reference,
+      legalBasis: 'act-s36-1',
+      // A declarant served in writing who has still not onboarded has filed nothing on Adili.
+      personId: resolvedPersonId,
+      declarantName: found.resolvedName,
+      scope,
+      decidedBy: decision.decidedBy.subject,
+      grantedAt: decision.decidedAt,
+      recipientSubject: found.applicantSubject,
+      recipientPersonId: found.applicantPersonId,
+      recipient: { name: found.applicantName, organisation: null },
+      watermarkName: found.applicantName,
+      subjectRef: packageSubjectRef(requestId),
+    });
     const { downloadExpiresAt } = issued;
-    if (downloadExpiresAt === null) {
-      throw invariantBroken('Documents issued the access package without a download window');
-    }
 
     await withTenant(this.db, systemContext(tenant), async (tx) => {
       const [recorded] = await tx
         .update(accessRequests)
         .set({
+          packageKind: kind,
           packageDocumentId: issued.id,
           packageVerificationId: issued.verificationId,
           packageIssuedAt: issued.issuedAt,
           downloadExpiresAt,
+          packageFailedAt: null,
         })
         .where(and(eq(accessRequests.id, requestId), isNull(accessRequests.packageDocumentId)))
         .returning();
@@ -237,11 +175,29 @@ export class DecisionActivities {
         kind: 'package-issued',
         actor: null,
         at: issued.issuedAt,
-        details: { documentId: issued.id, downloadExpiresAt: downloadExpiresAt.toISOString() },
+        details: {
+          documentId: issued.id,
+          downloadExpiresAt: downloadExpiresAt.toISOString(),
+          packageKind: kind,
+        },
         eventData: { documentId: issued.id, downloadExpiresAt: downloadExpiresAt.toISOString() },
       });
     });
     return { outcome: 'issued', downloadExpiresAt: downloadExpiresAt.toISOString() };
+  }
+
+  /**
+   * Records that issuing the grant's package failed after its retries (or was refused), so the
+   * parties see it failed rather than being prepared, until an operator issues it.
+   */
+  async packageFailed({ tenant, requestId }: AccessRequestWorkflowInput): Promise<void> {
+    await withTenant(this.db, systemContext(tenant), (tx) =>
+      tx
+        .update(accessRequests)
+        .set({ packageFailedAt: this.clock.now() })
+        .where(and(eq(accessRequests.id, requestId), isNull(accessRequests.packageDocumentId))),
+    );
+    this.logger.error({ requestId }, 'The grant document could not be issued');
   }
 
   /**

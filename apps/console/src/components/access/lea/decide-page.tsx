@@ -16,7 +16,7 @@ import { Link, useNavigate, useRouter } from '@tanstack/react-router';
 import type { ReactNode } from 'react';
 
 import type { LeaRequest, Outcome } from '../../../server/access/types';
-import { decideLea } from '../../../server/lea-requests';
+import { decideLea, previewLea } from '../../../server/lea-requests';
 import { Page } from '../../page';
 import { DecisionForm } from '../decision/decision-form';
 import { scopeText } from '../format';
@@ -140,6 +140,12 @@ export function LeaDecidePage({ request, readOnly }: { request: LeaRequest; read
             packageRecipient={`${request.officer.name} (${request.agency.code})`}
             submit={(input, idempotencyKey) =>
               decideLea({ data: { requestId: request.id, input, idempotencyKey } })
+            }
+            // Nothing to count before verification: the officer sought is not identified yet.
+            preview={
+              verified
+                ? (scope) => previewLea({ data: { requestId: request.id, scope } })
+                : undefined
             }
             onDecided={async () => {
               toast({ title: m.decidedRecorded(request.agency.code) });

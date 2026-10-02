@@ -17,6 +17,9 @@ import { z } from 'zod';
 
 import { ClarificationDisclosureService } from './clarification-disclosure.service.js';
 import {
+  type ClarificationCounts,
+  type ClarificationCountsRequest,
+  clarificationCountsRequest,
   type ClarificationDisclosure,
   type ClarificationDisclosureRequest,
   clarificationDisclosureRequest,
@@ -74,5 +77,46 @@ export class ClarificationDisclosureController {
       recipient: request.recipientSubject,
     });
     return disclosure;
+  }
+
+  @Post('disclosure-counts')
+  @HttpCode(HttpStatus.OK)
+  @AuditedRead({ action: 'clarification.disclosure-counted', resource: 'clarification' })
+  @ApiHeader({
+    name: 'X-Acting-Subject',
+    required: true,
+    description:
+      'The access officer (or supervisor) weighing the scope before the decision; recorded in the audit event as the actor and the recipient of the counts',
+    schema: { type: 'string', minLength: 1, maxLength: 255 },
+  })
+  @ApiBody({ schema: z.toJSONSchema(clarificationCountsRequest) as object })
+  @ApiOperation({
+    operationId: 'internalCountClarificationDisclosure',
+    summary: 'How many clarifications a scope would disclose (audited, no content)',
+  })
+  @ApiOkResponse({ description: 'Per declaration named, the clarifications in the scope' })
+  @ApiProblemResponse(
+    400,
+    'Body failed validation, a legal basis that does not go with the request reference, or no X-Acting-Subject',
+  )
+  async count(
+    @CurrentPrincipal() principal: Principal,
+    @ActingTenant() tenant: string,
+    @ActingSubject(new ZodValidationPipe(z.string().min(1).max(255))) actingSubject: string,
+    @Body(new ZodValidationPipe(clarificationCountsRequest)) request: ClarificationCountsRequest,
+    @CurrentReadAudit() audit: ReadAudit,
+  ): Promise<ClarificationCounts> {
+    const { counts, clarificationIds } = await this.clarifications.count(
+      { tenant, subject: principal.subject },
+      request,
+    );
+    // The clarifications counted, by id: investigators can tell whose were weighed.
+    audit.resource({ tenant, subjectPersonId: request.personId, ids: clarificationIds });
+    audit.disclosure({
+      basis: request.legalBasis,
+      reference: request.grantReference,
+      recipient: actingSubject,
+    });
+    return counts;
   }
 }

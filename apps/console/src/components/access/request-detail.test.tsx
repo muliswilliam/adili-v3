@@ -500,31 +500,42 @@ describe('RequestDetailView (spec 10 FE-5)', () => {
     expect(within(decision).getByText('Does not promote the objectives of the Act')).toBeTruthy();
   });
 
-  it('a grant with no package an hour on says none was issued, as every audience reads it', async () => {
-    renderDetail(await viewOf(R.noPackage));
+  it('decision 1: a grant whose scope held nothing shows the nil letter, issued like a package', async () => {
+    renderDetail(await viewOf(R.nilLetter));
+    const letter = within(side()).getByRole('region', { name: 'Nil letter' });
+    expect(letter.textContent).toContain('No declarations held within the granted scope.');
+    expect(letter.textContent).toContain('signed letter instead of a package');
+    expect(within(letter).getByText('Downloads')).toBeTruthy();
+    expect(within(letter).getByText('Watermark')).toBeTruthy();
+    expect(within(side()).queryByRole('region', { name: 'Package' })).toBeNull();
+  });
+
+  it('a package whose issuing failed says so, apart from one being prepared', async () => {
+    renderDetail(await viewOf(R.failed));
     const pkg = within(side()).getByRole('region', { name: 'Package' });
-    expect(pkg.textContent).toContain('No package has been issued for this grant.');
+    expect(within(pkg).getByRole('alert').textContent).toContain(
+      'The package could not be issued.',
+    );
+    expect(pkg.textContent).toContain('The decision stands.');
     expect(within(pkg).queryByRole('status')).toBeNull();
   });
 
-  it('a package still preparing an hour after the grant turns into none issued, by itself', async () => {
+  it('a package being prepared is polled for, and does not turn into anything else by itself', async () => {
     const view = await viewOf(R.preparing);
     vi.useFakeTimers();
     try {
       renderDetail(view);
-      let pkg = within(side()).getByRole('region', { name: 'Package' });
+      const pkg = within(side()).getByRole('region', { name: 'Package' });
       expect(within(pkg).getByRole('status').textContent).toContain('Preparing');
       act(() => {
         vi.advanceTimersByTime(61 * 60_000);
       });
-      pkg = within(side()).getByRole('region', { name: 'Package' });
-      expect(pkg.textContent).toContain('No package has been issued for this grant.');
-      // The page stopped looking for it: twenty polls while preparing, none after.
-      const polls = invalidate.mock.calls.length;
-      act(() => {
-        vi.advanceTimersByTime(10 * 60_000);
-      });
-      expect(invalidate.mock.calls.length).toBe(polls);
+      expect(
+        within(within(side()).getByRole('region', { name: 'Package' })).getByRole('status')
+          .textContent,
+      ).toContain('Preparing');
+      // Twenty polls while preparing, then the page stops looking.
+      expect(invalidate.mock.calls.length).toBe(20);
     } finally {
       vi.useRealTimers();
     }

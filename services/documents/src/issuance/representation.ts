@@ -1,6 +1,7 @@
 import { DISCLOSURE_LEVELS, DOCUMENT_STATUSES, DOCUMENT_TYPES } from '@adili/events/contracts';
 import { z } from 'zod';
 
+import { accessNilLetterPayload } from './templates/access-nil-letter.v1.js';
 import { accessPackagePayload } from './templates/access-package.v1.js';
 import { acknowledgementSlipPayload } from './templates/acknowledgement-slip.v1.js';
 import { certifiedCopyPayload } from './templates/certified-copy.v1.js';
@@ -35,7 +36,7 @@ export const watermarkSchema = z
   })
   .meta({
     description:
-      'Printed across every page as `Issued to <recipientName> · <reference> · <date>` (ADR-010 §6), so a leaked copy traces to its recipient. Required for access-package',
+      'Printed across every page as `Issued to <recipientName> · <reference> · <date>` (ADR-010 §6), so a leaked copy traces to its recipient. Required for access-package and access-nil-letter',
   });
 
 export const issueDocumentBody = z.object({
@@ -51,12 +52,12 @@ export const issueDocumentBody = z.object({
     }),
   subjectPersonId: z.uuid().nullable().meta({
     description:
-      'The only person who may download the document: the declarant, the applicant or the law-enforcement officer (their token carries it as `person_id`); null for none. Required for access-package and certified-copy',
+      'The only person who may download the document: the declarant, the applicant or the law-enforcement officer (their token carries it as `person_id`); null for none. Required for access-package, access-nil-letter and certified-copy',
   }),
   watermark: watermarkSchema.optional(),
   downloadWindowDays: z.int().min(1).max(MAX_DOWNLOAD_WINDOW_DAYS).optional().meta({
     description:
-      'Days from issue during which the subject person may download the document; afterwards a download is refused with 410 `download-window-closed`. None: no window. Required for access-package',
+      'Days from issue during which the subject person may download the document; afterwards a download is refused with 410 `download-window-closed`. None: no window. Required for access-package and access-nil-letter',
   }),
   additionalDownloaders: z
     .array(z.string().trim().min(1).max(255))
@@ -72,7 +73,12 @@ export const issueDocumentBody = z.object({
    * service checks the payload against the template of `type` and `templateVersion`.
    */
   payload: z
-    .union([acknowledgementSlipPayload, accessPackagePayload, certifiedCopyPayload])
+    .union([
+      acknowledgementSlipPayload,
+      accessPackagePayload,
+      accessNilLetterPayload,
+      certifiedCopyPayload,
+    ])
     .meta({ description: "The template's payload: the schema named after `type`" }),
 });
 export type IssueDocumentBody = z.infer<typeof issueDocumentBody>;

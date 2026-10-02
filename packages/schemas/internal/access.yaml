@@ -1391,6 +1391,244 @@ paths:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/ProblemDetails'
+  /v1/access/requests/{requestId}/preview:
+    get:
+      tags:
+        - officer
+      summary: What the requested scope holds, in counts (no content; audited)
+      description: "The Commission's access officer, and its supervisor (reading); another Commission's request, and EACC, get 404. Once the officer named is identified, until the decision. Per year of the scope, the declarations of the declarant at the Commission and, per section and included household member kind, how many entries and persons a grant would disclose, with the clarifications when the scope includes them: counts only, never content. `empty` when the scope holds nothing, so a grant would issue the nil letter (no declarations held within the granted scope) instead of an access package. Audited (`audit.read.v1`) with the legal basis, the reference and the caller as recipient; declarations and review audit their counts alike."
+      operationId: getAccessRequestScopePreview
+      parameters:
+        - name: requestId
+          required: true
+          in: path
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Preview
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ScopePreview'
+        '400':
+          description: requestId is not a UUID
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '403':
+          description: |-
+            Not an access officer or supervisor
+
+            Requires one of the roles: access-officer, supervisor, eacc-analyst, eacc-supervisor
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: No such request at the caller's Commission (another Commission's, EACC's or anyone else's view)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '409':
+          description: Problem code `not-under-decision` (the officer named is not identified yet), `request-decided` or `request-closed`
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '503':
+          description: Declarations or review cannot be reached
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+      x-audited-read:
+        action: access.scope.previewed
+        resource: access-request
+    post:
+      tags:
+        - officer
+      summary: What a proposed scope (the requested one, or narrower) holds, in counts (audited)
+      description: "The Commission's access officer, and its supervisor (reading); another Commission's request, and EACC, get 404. The scope the officer is weighing for a partial grant: within the requested one (else 400 `scope-exceeds-request`). A read: no Idempotency-Key. Per year of the scope, the declarations of the declarant at the Commission and, per section and included household member kind, how many entries and persons a grant would disclose, with the clarifications when the scope includes them: counts only, never content. `empty` when the scope holds nothing, so a grant would issue the nil letter (no declarations held within the granted scope) instead of an access package. Audited (`audit.read.v1`) with the legal basis, the reference and the caller as recipient; declarations and review audit their counts alike."
+      operationId: previewAccessRequestScope
+      parameters:
+        - name: requestId
+          required: true
+          in: path
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Scope'
+      responses:
+        '200':
+          description: Preview
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ScopePreview'
+        '400':
+          description: requestId is not a UUID, the scope failed validation, or problem code `scope-exceeds-request`
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '403':
+          description: |-
+            Not an access officer or supervisor
+
+            Requires one of the roles: access-officer, supervisor, eacc-analyst, eacc-supervisor
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: No such request at the caller's Commission (another Commission's, EACC's or anyone else's view)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '409':
+          description: Problem code `not-under-decision` (the officer named is not identified yet), `request-decided` or `request-closed`
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '503':
+          description: Declarations or review cannot be reached
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+      x-audited-read:
+        action: access.scope.previewed
+        resource: access-request
+  /v1/lea/requests/{leaRequestId}/preview:
+    get:
+      tags:
+        - officer
+      summary: What the requested scope of a law enforcement request holds, in counts (audited)
+      description: "The Commission's access officer, and its supervisor (reading); another Commission's request, and EACC, get 404. Once verified (the officer sought identified), until the decision; never the agency's officer. Per year of the scope, the declarations of the declarant at the Commission and, per section and included household member kind, how many entries and persons a grant would disclose, with the clarifications when the scope includes them: counts only, never content. `empty` when the scope holds nothing, so a grant would issue the nil letter (no declarations held within the granted scope) instead of an access package. Audited (`audit.read.v1`) with the legal basis, the reference and the caller as recipient; declarations and review audit their counts alike."
+      operationId: getLeaRequestScopePreview
+      parameters:
+        - name: leaRequestId
+          required: true
+          in: path
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Preview
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ScopePreview'
+        '400':
+          description: leaRequestId is not a UUID
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '403':
+          description: |-
+            Not an access officer or supervisor
+
+            Requires one of the roles: access-officer, supervisor, eacc-analyst, eacc-supervisor
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: No such request at the caller's Commission (another Commission's, EACC's or anyone else's view)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '409':
+          description: Problem code `not-under-decision` (not verified yet), `request-decided` or `request-closed`
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '503':
+          description: Declarations cannot be reached
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+      x-audited-read:
+        action: access.scope.previewed
+        resource: lea-request
+    post:
+      tags:
+        - officer
+      summary: What a proposed scope of a law enforcement request holds, in counts (audited)
+      description: "The Commission's access officer, and its supervisor (reading); another Commission's request, and EACC, get 404. Within the requested scope (else 400 `scope-exceeds-request`; clarifications are never in one). A read: no Idempotency-Key. Per year of the scope, the declarations of the declarant at the Commission and, per section and included household member kind, how many entries and persons a grant would disclose, with the clarifications when the scope includes them: counts only, never content. `empty` when the scope holds nothing, so a grant would issue the nil letter (no declarations held within the granted scope) instead of an access package. Audited (`audit.read.v1`) with the legal basis, the reference and the caller as recipient; declarations and review audit their counts alike."
+      operationId: previewLeaRequestScope
+      parameters:
+        - name: leaRequestId
+          required: true
+          in: path
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Scope'
+      responses:
+        '200':
+          description: Preview
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ScopePreview'
+        '400':
+          description: leaRequestId is not a UUID, the scope failed validation, or problem code `scope-exceeds-request`
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '403':
+          description: |-
+            Not an access officer or supervisor
+
+            Requires one of the roles: access-officer, supervisor, eacc-analyst, eacc-supervisor
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: No such request at the caller's Commission (another Commission's, EACC's or anyone else's view)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '409':
+          description: Problem code `not-under-decision` (not verified yet), `request-decided` or `request-closed`
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '503':
+          description: Declarations cannot be reached
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+      x-audited-read:
+        action: access.scope.previewed
+        resource: lea-request
   /v1/me/access-history:
     get:
       tags:
@@ -2037,6 +2275,12 @@ components:
     Package:
       type: object
       properties:
+        kind:
+          type: string
+          enum:
+            - access-package
+            - nil-letter
+          description: 'access-package: the disclosure of the granted scope; nil-letter: the signed letter that the Commission holds no declaration within it, issued instead (same watermark, download window and recipient)'
         documentId:
           type: string
           format: uuid
@@ -2052,11 +2296,101 @@ components:
           type: integer
           minimum: 0
       required:
+        - kind
         - documentId
         - verificationId
         - issuedAt
         - downloadExpiresAt
         - downloads
+    ScopePreview:
+      type: object
+      properties:
+        scope:
+          description: The scope previewed
+          $ref: '#/components/schemas/Scope'
+        declarantOnboarded:
+          type: boolean
+          description: 'Whether the declarant has an account: one without (served in writing, spec 10 decision 2) has filed no declaration on Adili, so the scope holds nothing'
+        empty:
+          type: boolean
+          description: 'Nothing within the scope: a grant of it issues the nil letter (no declarations held within the granted scope) instead of an access package'
+        declarations:
+          type: integer
+          minimum: 0
+          description: The declarations the scope holds, in all its years
+        clarifications:
+          anyOf:
+            - type: integer
+              minimum: 0
+            - type: 'null'
+          description: The clarifications a grant would disclose with them; null when the scope does not include clarifications
+        years:
+          type: array
+          items:
+            $ref: '#/components/schemas/ScopePreviewYear'
+          description: Every year of the scope, ascending, with zero counts for a year with none
+      required:
+        - scope
+        - declarantOnboarded
+        - empty
+        - declarations
+        - clarifications
+        - years
+      description: "What a scope holds of the declarant's declarations, counted for the access officer before deciding: never content. Every preview is audited with its legal basis"
+    ScopePreviewYear:
+      type: object
+      properties:
+        year:
+          type: integer
+          description: "A year of the scope: the statement dates' year"
+        declarations:
+          type: integer
+          minimum: 0
+          description: The declarant's declarations at the Commission that year (versions in force)
+        sections:
+          type: object
+          properties:
+            bio:
+              type: integer
+              minimum: 0
+            income:
+              type: integer
+              minimum: 0
+            assets:
+              type: integer
+              minimum: 0
+            liabilities:
+              type: integer
+              minimum: 0
+            other:
+              type: integer
+              minimum: 0
+          description: "Per section of the scope (absent: not in it): `bio` the persons whose particulars would go out; `income`, `assets`, `liabilities` the entries of the included persons' statements; `other` the material changes, directorships, memberships, pending cases and a written statement"
+        spouses:
+          anyOf:
+            - type: integer
+              minimum: 0
+            - type: 'null'
+          description: The spouses anything would go out about; null when not included
+        children:
+          anyOf:
+            - type: integer
+              minimum: 0
+            - type: 'null'
+          description: The children anything would go out about; null when not included
+        clarifications:
+          anyOf:
+            - type: integer
+              minimum: 0
+            - type: 'null'
+          description: The clarifications issued on that year's declarations a grant would disclose; null when the scope does not include clarifications
+      required:
+        - year
+        - declarations
+        - sections
+        - spouses
+        - children
+        - clarifications
     FormK:
       type: object
       propertyNames:
@@ -2101,6 +2435,12 @@ components:
           anyOf:
             - $ref: '#/components/schemas/Package'
             - type: 'null'
+        packageFailedAt:
+          anyOf:
+            - type: string
+              format: date-time
+            - type: 'null'
+          description: When issuing the grant's package or nil letter failed after its retries (an operator takes it up); null while it is prepared and once issued. A grant with no package and no failure is being prepared
         timeline:
           type: array
           items:
@@ -2115,6 +2455,7 @@ components:
         - decisionDeadlineAt
         - decision
         - package
+        - packageFailedAt
         - timeline
     RegisterEntry:
       type: object
@@ -2242,6 +2583,12 @@ components:
           anyOf:
             - $ref: '#/components/schemas/Package'
             - type: 'null'
+        packageFailedAt:
+          anyOf:
+            - type: string
+              format: date-time
+            - type: 'null'
+          description: When issuing the grant's package or nil letter failed after its retries (an operator takes it up); null while it is prepared and once issued. A grant with no package and no failure is being prepared
         timeline:
           type: array
           items:
@@ -2305,6 +2652,7 @@ components:
         - decisionDeadlineAt
         - decision
         - package
+        - packageFailedAt
         - timeline
         - applicantIdentityStatus
         - resolvedRosterRecordId
@@ -3153,6 +3501,12 @@ components:
           anyOf:
             - $ref: '#/components/schemas/Package'
             - type: 'null'
+        packageFailedAt:
+          anyOf:
+            - type: string
+              format: date-time
+            - type: 'null'
+          description: When issuing the grant's package or nil letter failed after its retries (an operator takes it up); null while it is prepared and once issued. A grant with no package and no failure is being prepared
         timeline:
           type: array
           items:
@@ -3181,6 +3535,7 @@ components:
         - declarantInvitedAt
         - declarantNotice
         - package
+        - packageFailedAt
         - timeline
     DeclarantVersion:
       type: object

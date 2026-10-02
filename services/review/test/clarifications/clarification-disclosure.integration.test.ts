@@ -6,7 +6,10 @@ import { v7 as uuidv7 } from 'uuid';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
 import type { ClarificationStatus } from '../../src/cases/schema.js';
-import type { ClarificationDisclosure } from '../../src/clarifications/disclosure.js';
+import type {
+  ClarificationCounts,
+  ClarificationDisclosure,
+} from '../../src/clarifications/disclosure.js';
 import { clarificationResponses, clarifications, outbox } from '../../src/db/schema.js';
 import { declaration, SPOUSE, statement } from '../fixtures/declarations.js';
 import { givenAssignedCase } from '../support/cases.js';
@@ -23,6 +26,7 @@ import { type Caller, type ReviewApi, startReviewApi } from '../support/review-a
  */
 
 const DISCLOSURES = '/internal/v1/review/clarifications/disclosures';
+const COUNTS = '/internal/v1/review/clarifications/disclosure-counts';
 
 const ACCESS: Caller = { sub: 'service-account-access', scopes: ['review:disclosures'] };
 const REPORTING: Caller = { sub: 'service-account-reporting', scopes: ['review:internal'] };
@@ -186,7 +190,27 @@ function disclose(
   );
 }
 
-async function audited(): Promise<EventEnvelope[]> {
+function count(
+  body: Record<string, unknown>,
+  { caller = ACCESS, subject = ACCESS_OFFICER }: { caller?: Caller; subject?: string | null } = {},
+) {
+  return api.send(
+    'POST',
+    COUNTS,
+    caller,
+    {
+      grantReference: GRANT,
+      legalBasis: 'act-s36-1',
+      includeSpouses: true,
+      includeChildren: false,
+      sections: ['income', 'assets', 'liabilities'],
+      ...body,
+    },
+    { 'x-acting-tenant': 'psc', ...(subject === null ? {} : { 'x-acting-subject': subject }) },
+  );
+}
+
+async function audited(action = 'clarification.disclosed'): Promise<EventEnvelope[]> {
   const rows = await api.asPlatform((tx) =>
     tx
       .select({ envelope: outbox.envelope })
@@ -195,7 +219,7 @@ async function audited(): Promise<EventEnvelope[]> {
   );
   return rows
     .map((row) => row.envelope)
-    .filter((event) => (event.data as { action: string }).action === 'clarification.disclosed');
+    .filter((event) => (event.data as { action: string }).action === action);
 }
 
 describe('the clarifications a grant discloses (spec 10, decision 7)', () => {
@@ -342,5 +366,61 @@ describe('the clarifications a grant discloses (spec 10, decision 7)', () => {
     expect((await disclose({ ...body, declarationReferences: [] })).statusCode).toBe(400);
     expect((await disclose({ ...body, includeClarifications: true })).statusCode).toBe(400);
     expect(await audited()).toEqual([]);
+  });
+});
+
+describe('the clarifications a scope would disclose, counted before the decision (decision 1)', () => {
+  it('counts per declaration named only what the scope would disclose, audited without content', async () => {
+    const personId = randomUUID();
+    const { caseId, version } = await givenCase(personId);
+    const responded = await givenClarification('psc', caseId, personId, 'responded');
+    await givenClarification('psc', caseId, personId, 'draft');
+    await givenClarification('psc', caseId, personId, 'withdrawn');
+    const other = await givenCase(personId);
+
+    const response = await count({
+      personId,
+      declarationReferences: [version.reference, other.version.reference],
+    });
+
+    expect(response.statusCode, response.body).toBe(200);
+    const body = response.json<ClarificationCounts>();
+    expect(contractErrors(okResponse(COUNTS, 'post'), body)).toEqual([]);
+    expect(body).toEqual({
+      counts: [
+        { declarationReference: version.reference, clarifications: 1 },
+        { declarationReference: other.version.reference, clarifications: 0 },
+      ],
+    });
+    const biodataOnly = await count({
+      personId,
+      declarationReferences: [version.reference],
+      sections: ['bio'],
+    });
+    expect(biodataOnly.json<ClarificationCounts>().counts[0]?.clarifications).toBe(0);
+
+    const [event] = await audited('clarification.disclosure-counted');
+    expect(event).toMatchObject({
+      tenant: 'psc',
+      data: {
+        resource: { type: 'clarification', subjectPersonId: personId, ids: [responded.id] },
+        actor: { subject: 'service-account-access', onBehalfOf: ACCESS_OFFICER },
+        legalBasis: { basis: 'act-s36-1', reference: GRANT },
+        recipient: ACCESS_OFFICER,
+        request: { method: 'POST', route: COUNTS },
+      },
+    });
+    expect(JSON.stringify(event)).not.toContain('plot');
+    expect(response.body).not.toContain('plot');
+  });
+
+  it('refuses other tokens, a recipient, a mismatched basis and no acting subject', async () => {
+    const body = { personId: randomUUID(), declarationReferences: ['DCB-PSC-2027-0000042-7'] };
+
+    expect((await count(body, { caller: REPORTING })).statusCode).toBe(403);
+    expect((await count({ ...body, recipientSubject: APPLICANT })).statusCode).toBe(400);
+    expect((await count({ ...body, legalBasis: 'act-s36-2' })).statusCode).toBe(400);
+    expect((await count(body, { subject: null })).statusCode).toBe(400);
+    expect(await audited('clarification.disclosure-counted')).toEqual([]);
   });
 });

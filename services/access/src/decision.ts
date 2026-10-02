@@ -143,8 +143,19 @@ function groundsRequired(what: string): DecisionRejection {
   };
 }
 
+/**
+ * What a grant delivered: its access package, or the nil letter saying the Commission holds no
+ * declaration within the granted scope (decision 1).
+ */
+export const PACKAGE_KINDS = ['access-package', 'nil-letter'] as const;
+export type PackageKind = (typeof PACKAGE_KINDS)[number];
+
 /** A granted package as the requests show it (access.yaml `Package`). */
 export const packageSchema = z.object({
+  kind: z.enum(PACKAGE_KINDS).meta({
+    description:
+      'access-package: the disclosure of the granted scope; nil-letter: the signed letter that the Commission holds no declaration within it, issued instead (same watermark, download window and recipient)',
+  }),
   documentId: z.uuid(),
   verificationId: z.string(),
   issuedAt: z.iso.datetime({ offset: true }),
@@ -153,3 +164,12 @@ export const packageSchema = z.object({
 });
 
 export type Package = z.infer<typeof packageSchema>;
+
+/**
+ * When issuing a grant's package (or nil letter) failed after its retries, for an operator to
+ * take up: null while it is being prepared, and once it is issued.
+ */
+export const packageFailedAtSchema = z.iso.datetime({ offset: true }).nullable().meta({
+  description:
+    "When issuing the grant's package or nil letter failed after its retries (an operator takes it up); null while it is prepared and once issued. A grant with no package and no failure is being prepared",
+});

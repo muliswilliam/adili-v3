@@ -33,6 +33,7 @@ const {
   leaDecisionNotice,
   notifyDeclarantOfLeaGrant,
   leaPackageReady,
+  leaPackageFailed,
   expireLeaPackage,
 } = proxyActivities<LeaRequestActivities>({
   // A transaction and a few messages.
@@ -236,11 +237,20 @@ async function untilDeclarantTold(input: LeaRequestWorkflowInput, state: RunStat
   }
 }
 
-/** The grant's package: issued, announced to the officer, expired at the end of its window. */
+/**
+ * The grant's package (or nil letter): issued, announced to the officer, expired at the end of
+ * its window. Issuing that fails after its retries is recorded on the request, then fails the
+ * run for an operator to take up.
+ */
 async function packageCourse(input: LeaRequestWorkflowInput): Promise<Stop> {
-  const issued = await issueLeaPackage(input);
-  // Nothing to disclose: the decision stands, with no package to issue.
-  if (issued.outcome !== 'issued') return issued.outcome === 'missing' ? 'missing' : 'decided';
+  let issued;
+  try {
+    issued = await issueLeaPackage(input);
+  } catch (error) {
+    if (error instanceof ActivityFailure) await leaPackageFailed(input);
+    throw error;
+  }
+  if (issued.outcome === 'missing') return 'missing';
   await leaPackageReady(input);
 
   const open = new Date(issued.downloadExpiresAt).getTime() - Date.now();

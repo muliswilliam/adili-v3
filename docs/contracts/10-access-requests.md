@@ -29,6 +29,7 @@ Operations added (not in the draft):
 - `getRepresentationAttachmentDownload` (#254): the officer opens a declarant's representation attachment, as an audited read.
 - `getMyCertifiedCopy` (#267): the portal polls one copy until it is issued.
 - Self-access applications (#303, #304): `searchSelfAccessDeclarants`, `listSelfAccessDeclarantVersions`, `recordSelfAccessApplication`, `listSelfAccessApplications`, `getSelfAccessApplication`, `markSelfAccessDelivered`.
+- Scope preview (decision 1): `getAccessRequestScopePreview` / `previewAccessRequestScope` and `getLeaRequestScopePreview` / `previewLeaRequestScope` return `ScopePreview`, audited counts of what the requested (GET) or a narrower (POST) scope holds, never content. Access officer and supervisor, once the officer named is identified (Form K) or the request verified (law enforcement), until the decision.
 
 Operations changed:
 
@@ -49,6 +50,7 @@ Schemas changed:
 - `OfficerRequestView`: a flat object instead of `allOf(AccessRequest, ...)`, plus `resolvedName` and `resolvedFileNumber` (#250, #254).
 - `QueueItem`: `resolvedFileNumber`, `closedAt` added; `status` is the union of Form K and law enforcement statuses (#254, #264).
 - `LeaRequest`: `provenance`, `breachedAt` (the day-14 breach flag), `resolvedRosterRecordId`, `resolvedName`, `declarantNotifiedAt` added, and `verification` is now `LeaVerification` (#264).
+- `Package`: `kind` added, `access-package` or `nil-letter` (decision 1). `AccessRequest`, `OfficerRequestView` and `LeaRequest` gained `packageFailedAt`, set when issuing failed after its retries, so a failure reads apart from a package being prepared.
 - `Scope.years` and `Scope.sections` lost `uniqueItems` (Zod cannot express it); form-k.v1 still enforces uniqueness on submit (#244).
 - Nullables are exported as `anyOf [..., null]` rather than `type: [..., 'null']` (code-first export).
 
@@ -57,6 +59,11 @@ Schemas changed:
 - `internalRenderDisclosure`: `tenant` moved from the body to `X-Acting-Tenant` (an unknown body key is 400). The response is the named `DisclosureDocument`, with `DisclosedVersion`, `DisclosureSection`, `GrantReference` and `LegalBasis` (#257).
 - `internalGetFullDocumentForCertifiedCopy`: `X-Acting-Tenant` and query `personId` required (404 unless it is that declarant's version). Returns the new `FullVersionDocument` instead of review's `InternalVersionDocument` (#257).
 - Added `internalListPersonVersions` (#303), so the officer's self-access form only offers the declarant's own submitted versions.
+- Added `internalCountDisclosure` (decision 1, scope `declarations:disclosures`): per year of a scope, the person's versions in force and per section and household member kind how much the disclosure would let out; counts only, zero rather than 404, audited as `declaration.disclosure-counted` with the officer as recipient.
+
+## Review (`internal/review.yaml`, hand-written)
+
+- Added `internalDiscloseClarifications` (decision 7) and `internalCountClarificationDisclosure` (decision 1, scope `review:disclosures`): per declaration named, how many clarifications a grant of the scope would disclose, audited as `clarification.disclosure-counted`.
 
 ## Directory (`internal/directory.yaml`)
 
@@ -69,7 +76,7 @@ Schemas changed:
 
 ## Documents (`internal/documents.yaml`)
 
-- `DocumentType` gained `access-package` and `certified-copy`, with `AccessPackagePayload` and `CertifiedCopyPayload` (#258).
+- `DocumentType` gained `access-package` and `certified-copy`, with `AccessPackagePayload` and `CertifiedCopyPayload` (#258), and `access-nil-letter` with `AccessNilLetterPayload` (decision 1): the signed letter a grant whose scope holds nothing delivers instead of the package, with the package's watermark, download window and subject person rules.
 - `IssueDocument` gained `watermark`, `downloadWindowDays` (#258) and `additionalDownloaders` (#304, for the officer who hands over a certified copy in person). `IssuedDocument` gained `downloadExpiresAt`.
 - `getDocumentDownload`: 410 `download-window-closed` once the window has passed (#258).
 - `UploadPurpose` gained `access-representation` (#258), open to the declarant and the access officer (#303).

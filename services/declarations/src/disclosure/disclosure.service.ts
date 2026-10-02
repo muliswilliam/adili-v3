@@ -9,8 +9,11 @@ import type { DeclarationsSchema } from '../db/schema.js';
 import type { Transaction } from '../db/transaction.js';
 import { commissionRefs } from '../obligations/schema.js';
 import type { CommissionRef } from '../obligations/representation.js';
+import { countVersion } from './counts.js';
 import type {
   DisclosedVersion,
+  DisclosureCounts,
+  DisclosureCountsRequest,
   DisclosureDocument,
   DisclosureRequest,
   FullVersionDocument,
@@ -89,6 +92,76 @@ export class DisclosureService {
       })),
     };
     return { disclosure, versionIds: rows.map((row) => row.version.id) };
+  }
+
+  /**
+   * How much a scope would disclose (decision 1): per year of the scope, the person's versions in
+   * force at the Commission and, per section and included household member kind, how many
+   * entries and persons `disclose` would let out of them; never their content. A year (or a
+   * person) with none counts zero, so an empty scope reads as such rather than as 404. With the
+   * ids of the versions counted, for the audit trail.
+   */
+  async count(
+    tenant: string,
+    subject: string,
+    request: DisclosureCountsRequest,
+  ): Promise<{ counts: DisclosureCounts; versionIds: string[] }> {
+    const years = [...new Set(request.years)].sort((a, b) => a - b);
+    const rows = await withTenant(this.db, { tenant, subject }, (tx) =>
+      tx
+        .select({ version: declarationVersions })
+        .from(declarationVersions)
+        .innerJoin(declarations, eq(declarations.id, declarationVersions.declarationId))
+        .where(
+          and(
+            eq(declarationVersions.personId, request.personId),
+            inArray(declarationVersions.cycleYear, years),
+            isNull(declarationVersions.supersededAt),
+          ),
+        )
+        .orderBy(asc(declarations.statementDate), asc(declarationVersions.reference)),
+    );
+    const scope = {
+      includeSpouses: request.includeSpouses,
+      includeChildren: request.includeChildren,
+      sections: request.sections,
+    };
+    const counted = await Promise.all(
+      rows.map(async ({ version }) => ({
+        version,
+        counts: countVersion(await openSnapshot(this.cipher, version), scope),
+      })),
+    );
+    const sections = [...new Set(request.sections)];
+    return {
+      counts: {
+        years: years.map((year) => {
+          const inYear = counted.filter(({ version }) => version.cycleYear === year);
+          const union = (kind: 'spouses' | 'children') => {
+            if (!(kind === 'spouses' ? request.includeSpouses : request.includeChildren)) {
+              return null;
+            }
+            const keys = new Set<string>();
+            for (const { counts } of inYear) for (const key of counts[kind] ?? []) keys.add(key);
+            return keys.size;
+          };
+          return {
+            year,
+            declarations: inYear.length,
+            declarationReferences: inYear.map(({ version }) => version.reference),
+            sections: Object.fromEntries(
+              sections.map((section) => [
+                section,
+                inYear.reduce((sum, { counts }) => sum + (counts.sections[section] ?? 0), 0),
+              ]),
+            ),
+            spouses: union('spouses'),
+            children: union('children'),
+          };
+        }),
+      },
+      versionIds: rows.map(({ version }) => version.id),
+    };
   }
 
   /**

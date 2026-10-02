@@ -84,12 +84,12 @@ export type LeaDeclarantNoticeOutcome = 'notified' | 'awaiting-notice' | 'missin
 export type LeaDecisionNoticeOutcome = 'granted' | 'denied' | 'missing';
 
 /**
- * What became of a grant's package: `issued`, downloadable by the officer until
- * `downloadExpiresAt`; `nothing-to-disclose` (no declaration of the declarant in the granted
- * scope); or the request is `missing`.
+ * What became of a grant's package: `issued` (the access package, or the nil letter when the
+ * scope holds nothing), downloadable by the officer until `downloadExpiresAt`; or the request is
+ * `missing`.
  */
 export type LeaPackageOutcome =
-  { outcome: 'issued'; downloadExpiresAt: string } | { outcome: 'nothing-to-disclose' | 'missing' };
+  { outcome: 'issued'; downloadExpiresAt: string } | { outcome: 'missing' };
 
 /** How a run ended (`missing`: its receipt rolled back after the workflow started). */
 export interface LeaRequestResult {

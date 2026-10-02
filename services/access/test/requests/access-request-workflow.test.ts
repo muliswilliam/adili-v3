@@ -106,7 +106,7 @@ describe('AccessRequestWorkflow', () => {
       reminders?: Partial<Record<number, OfficerReminderOutcome>>;
       stored?: Stored;
       decided?: DecisionNoticesOutcome;
-      issued?: 'nothing-to-disclose' | 'missing';
+      issued?: 'missing';
       on?: Partial<Record<string, () => Promise<void>>>;
       fail?: readonly string[];
       /** The window a `notified` resolution answers, instead of seven days from it. */
@@ -140,6 +140,9 @@ describe('AccessRequestWorkflow', () => {
           outcome: 'issued',
           downloadExpiresAt: new Date(scheduledAt() + DOWNLOAD_DAYS * DAY_MS).toISOString(),
         };
+      }),
+      packageFailed: vi.fn(async () => {
+        await record('package-failed');
       }),
       packageReady: vi.fn(async () => {
         await record('package-ready');
@@ -630,16 +633,6 @@ describe('AccessRequestWorkflow', () => {
       expect(mocks.issuePackage).not.toHaveBeenCalled();
     }, 60_000);
 
-    it('a grant with nothing to disclose in its scope ends with no package to announce or expire', async () => {
-      const input = await inputReceived();
-      const { mocks, recorded } = activities({ issued: 'nothing-to-disclose', on: decidedOnDay20 });
-
-      const result = await env.execute(accessRequest, options(mocks, input));
-
-      expect(result).toEqual({ outcome: 'decided' });
-      expect(recorded.calls.slice(-2)).toEqual(['decision-notices', 'issue-package']);
-    }, 60_000);
-
     it('a lost `decided` signal: the request is read every 6 hours, and the decision is carried out', async () => {
       const input = await inputReceived();
       const stored: Stored = { state: 'unresolved' };
@@ -686,7 +679,13 @@ describe('AccessRequestWorkflow', () => {
         .catch((error: unknown) => error);
 
       expect(failed).toBeInstanceOf(WorkflowFailedError);
-      expect(recorded.calls.slice(-2)).toEqual(['decision-notices', 'issue-package']);
+      // Recorded on the request first, so the parties see it failed rather than being prepared.
+      expect(recorded.calls.slice(-3)).toEqual([
+        'decision-notices',
+        'issue-package',
+        'package-failed',
+      ]);
+      expect(mocks.packageFailed).toHaveBeenCalledWith(input);
       expect(mocks.packageReady).not.toHaveBeenCalled();
     }, 60_000);
 

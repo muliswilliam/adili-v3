@@ -29,6 +29,24 @@ export interface ClarificationDisclosureRequest {
   sections: Section[];
 }
 
+/**
+ * A scope the access officer is weighing before deciding, its clarifications to be counted
+ * (review.yaml `ClarificationCountsRequest`, the officer asking in `X-Acting-Subject`).
+ */
+export type ClarificationCountsRequest = Omit<
+  ClarificationDisclosureRequest,
+  'officerSubject' | 'recipientSubject'
+> & {
+  /** Token subject of the access officer (or supervisor) asking: they see the counts. */
+  viewerSubject: string;
+};
+
+/** review.yaml `ClarificationCounts` item: per declaration named. */
+export interface ClarificationCount {
+  declarationReference: string;
+  clarifications: number;
+}
+
 /** review.yaml `DisclosedClarification`: handed to documents with the disclosure, never stored. */
 export type DisclosedClarification = components['schemas']['DisclosedClarification'];
 
@@ -50,4 +68,7 @@ export abstract class ReviewClient {
   abstract discloseClarifications(
     request: ClarificationDisclosureRequest,
   ): Promise<DisclosedClarification[]>;
+
+  /** Per declaration named, how many clarifications a grant of the scope would disclose. */
+  abstract countClarifications(request: ClarificationCountsRequest): Promise<ClarificationCount[]>;
 }

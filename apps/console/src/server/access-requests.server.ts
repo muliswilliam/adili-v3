@@ -9,6 +9,8 @@ import type {
   OfficerRequestView,
   QueuePage,
   RosterCandidates,
+  Scope,
+  ScopePreview,
 } from './access/types';
 import { callService, type ServiceResult } from './service-call';
 
@@ -135,6 +137,23 @@ export function decideRequest(
         body: input,
       }),
     ),
+  );
+}
+
+/**
+ * `POST .../preview`: what `scope` (the requested one, or narrower) holds of the declarant's
+ * declarations, counted (decision 1): never content; audited by the access service.
+ */
+export function previewScope(
+  client: AccessClient,
+  requestId: string,
+  scope: Scope,
+): Promise<AccessResult<ScopePreview>> {
+  return callService(() =>
+    client.POST('/v1/access/requests/{requestId}/preview', {
+      params: { path: { requestId } },
+      body: scope,
+    }),
   );
 }
 

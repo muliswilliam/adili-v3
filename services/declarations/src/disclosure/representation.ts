@@ -80,6 +80,79 @@ export const disclosureRequestSchema = z
   .meta({ description: 'The granted scope of an access request, and whom it is disclosed to' });
 export type DisclosureRequest = z.infer<typeof disclosureRequestSchema>;
 
+/**
+ * What the access officer weighs a scope with before deciding (spec 10, decision 1): the same
+ * scope as a disclosure, counted instead of rendered. The officer asking (`X-Acting-Subject`) is
+ * the one who sees the counts, so there is no other recipient.
+ */
+export const disclosureCountsRequestSchema = z
+  .strictObject({
+    personId: z.uuid().meta({ description: 'The declarant whose declarations are counted' }),
+    grantReference: grantReferenceSchema,
+    legalBasis: legalBasisSchema,
+    years: z
+      .array(z.int().min(2000).max(2100))
+      .min(1)
+      .max(50)
+      .meta({ description: "Declaration years: the statement dates' years" }),
+    includeSpouses: z.boolean(),
+    includeChildren: z.boolean(),
+    sections: z.array(disclosureSectionSchema).min(1).max(DISCLOSURE_SECTIONS.length),
+  })
+  .refine(
+    (request) => BASIS_OF_SCHEME[grantScheme(request.grantReference) ?? ''] === request.legalBasis,
+    {
+      path: ['legalBasis'],
+      message: 'act-s36-1 goes with an ARQ reference, act-s36-2 with an LEA reference',
+    },
+  )
+  .meta({ description: 'A scope an access officer is about to decide on, to be counted' });
+export type DisclosureCountsRequest = z.infer<typeof disclosureCountsRequestSchema>;
+
+const countSchema = z.int().min(0);
+
+export const disclosureYearCountsSchema = z.object({
+  year: z.int().meta({ description: "A year of the scope: the statement dates' year" }),
+  declarations: countSchema.meta({
+    description: "The person's declarations at the Commission that year (versions in force)",
+  }),
+  declarationReferences: z.array(declarationReferenceSchema).meta({
+    description:
+      'Their reference numbers, for counting the clarifications issued on them; the access service never shows them',
+  }),
+  sections: z
+    .object({
+      bio: countSchema.optional(),
+      income: countSchema.optional(),
+      assets: countSchema.optional(),
+      liabilities: countSchema.optional(),
+      other: countSchema.optional(),
+    })
+    .meta({
+      description:
+        "Per section of the scope (absent: not in it): `bio` the persons whose particulars would go out, `income`, `assets`, `liabilities` the entries of the included persons' statements, `other` the material changes, directorships, memberships, pending cases and a written statement",
+    }),
+  spouses: countSchema
+    .nullable()
+    .meta({ description: 'The spouses anything would go out about; null when not included' }),
+  children: countSchema
+    .nullable()
+    .meta({ description: 'The children anything would go out about; null when not included' }),
+});
+export type DisclosureYearCounts = z.infer<typeof disclosureYearCountsSchema>;
+
+export const disclosureCountsSchema = z
+  .object({
+    years: z.array(disclosureYearCountsSchema).meta({
+      description: 'Every year of the scope, ascending, with zero counts for a year with none',
+    }),
+  })
+  .meta({
+    description:
+      "How much a scope would disclose of a person's declarations, in counts only: never content",
+  });
+export type DisclosureCounts = z.infer<typeof disclosureCountsSchema>;
+
 export const disclosedVersionSchema = z.object({
   reference: declarationReferenceSchema,
   version: z.int().min(1),

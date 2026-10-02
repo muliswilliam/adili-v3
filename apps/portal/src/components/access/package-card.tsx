@@ -67,28 +67,6 @@ export function usePackageClock(serverNow: number, expiresAt: string | null): nu
 }
 
 /**
- * Re-renders once at `at` (an ISO time) and returns the clock from then on: for a moment the page
- * must notice without ticking, such as a package that stops reading as being prepared.
- */
-export function useWakeAt(now: number, at: string | null): number {
-  const [woke, setWoke] = useState<number | null>(null);
-  useEffect(() => {
-    if (!at) return;
-    const wait = Math.max(0, Date.parse(at) - Date.now());
-    const timer = setTimeout(
-      () => {
-        setWoke(Date.now());
-      },
-      Math.min(wait, MAX_TIMEOUT_MS),
-    );
-    return () => {
-      clearTimeout(timer);
-    };
-  }, [at]);
-  return woke !== null && woke > now ? woke : now;
-}
-
-/**
  * A thumbnail of a watermarked page, a sheet on the card's own paper: the mark names the
  * applicant, reference and issue date.
  */
@@ -245,16 +223,18 @@ function ReadyActions({
 }
 
 /**
- * A granted request's package (spec 10, #261): being prepared; not issued (an hour after the
- * grant, the rule the console shares); ready, with Download (a link
- * fetched from documents on each click), when the window ends and, in its last day, a live
- * countdown screen readers hear at coarse steps; or expired. A 410 from documents closes the
- * window on the page (`onWindowClosed`). Every page of the package carries the applicant's
- * name and the reference, and sharing it is an offence (Act s.36(4)).
+ * A granted request's package (spec 10, #261, decision 1): being prepared; failed to issue (the
+ * access service says so); ready, with Download (a link fetched from documents on each click),
+ * when the window ends and, in its last day, a live countdown screen readers hear at coarse
+ * steps; or expired. A 410 from documents closes the window on the page (`onWindowClosed`). When
+ * the granted scope held no declaration, what is downloaded is the nil letter, saying so, in
+ * place of the package. Every page carries the applicant's name and the reference; sharing a
+ * package is an offence (Act s.36(4)).
  */
 export function PackageCard({
   view,
   applicantName,
+  officerName,
   reference,
   commission,
   onWindowClosed,
@@ -262,21 +242,23 @@ export function PackageCard({
 }: {
   view: PackageView;
   applicantName: string;
+  /** The officer the request named, whom a nil letter says no declarations are held by. */
+  officerName: string;
   reference: string;
   commission: string;
   onWindowClosed: () => void;
   onDownloaded: () => void;
 }) {
-  if (view.state === 'missing') {
+  if (view.state === 'failed') {
     return (
       <Card className="p-0 sm:p-0">
         <div role="status" className="flex items-start gap-3.5 px-5 py-[22px] sm:px-6">
-          <IconTile aria-hidden="true">
+          <IconTile aria-hidden="true" tone="warning">
             <Icon icon={PackageRemoveIcon} />
           </IconTile>
           <div className="grid gap-0.5">
-            <p className="font-semibold">{COPY.missingTitle}</p>
-            <p className="text-sm text-muted-foreground">{COPY.stillNeed(commission)}</p>
+            <p className="font-semibold">{COPY.failedTitle}</p>
+            <p className="text-sm text-muted-foreground">{COPY.failedText(commission)}</p>
           </div>
         </div>
       </Card>
@@ -296,10 +278,11 @@ export function PackageCard({
     );
   }
   const expired = view.state === 'expired';
+  const nil = view.package.kind === 'nil-letter';
   return (
     <Card className="gap-0 p-0 sm:p-0">
       <div className="flex items-center gap-3 border-b border-border px-5 py-4 sm:px-6">
-        <CardTitle className="flex-1">{COPY.title}</CardTitle>
+        <CardTitle className="flex-1">{nil ? COPY.nilLetterTitle : COPY.title}</CardTitle>
         <Badge variant="destructive">
           <Icon icon={SquareLock02Icon} strokeWidth={2.2} />
           {COPY.confidential}
@@ -313,10 +296,22 @@ export function PackageCard({
           off={expired}
         />
         <div className="grid min-w-0 flex-1 gap-3.5">
-          <div className="grid gap-0.5">
-            <p className="font-medium">{COPY.issuedOn(formatDate(view.package.issuedAt))}</p>
-            <p className="text-[13.5px] text-muted-foreground">{COPY.watermarked}</p>
-          </div>
+          {nil ? (
+            <div className="grid gap-1 text-pretty">
+              <p className="font-semibold">{COPY.nilLetterStatement}</p>
+              <p className="text-[13.5px] text-muted-foreground">
+                {COPY.nilLetterText(commission, officerName)}
+              </p>
+              <p className="text-[13.5px] text-muted-foreground">
+                {COPY.issuedOn(formatDate(view.package.issuedAt))} {COPY.watermarked}
+              </p>
+            </div>
+          ) : (
+            <div className="grid gap-0.5">
+              <p className="font-medium">{COPY.issuedOn(formatDate(view.package.issuedAt))}</p>
+              <p className="text-[13.5px] text-muted-foreground">{COPY.watermarked}</p>
+            </div>
+          )}
           {view.state === 'ready' ? (
             <ReadyActions view={view} onWindowClosed={onWindowClosed} onDownloaded={onDownloaded} />
           ) : (
@@ -333,10 +328,12 @@ export function PackageCard({
           )}
         </div>
       </div>
-      <div className="flex items-start gap-2 border-t border-border px-5 py-3 text-[13px] text-secondary-foreground sm:px-6 [&_svg]:mt-px [&_svg]:size-[15px] [&_svg]:shrink-0">
-        <Icon icon={Alert02Icon} />
-        <span>{COPY.offence(commission)}</span>
-      </div>
+      {nil ? null : (
+        <div className="flex items-start gap-2 border-t border-border px-5 py-3 text-[13px] text-secondary-foreground sm:px-6 [&_svg]:mt-px [&_svg]:size-[15px] [&_svg]:shrink-0">
+          <Icon icon={Alert02Icon} />
+          <span>{COPY.offence(commission)}</span>
+        </div>
+      )}
     </Card>
   );
 }

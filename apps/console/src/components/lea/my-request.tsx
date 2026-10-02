@@ -19,6 +19,7 @@ import {
   Spinner,
 } from '@adili/ui';
 import {
+  AlertCircleIcon,
   CheckmarkCircle02Icon,
   Clock01Icon,
   Download01Icon,
@@ -227,7 +228,15 @@ function Side({ request, now, state }: { request: LeaRequest; now: string; state
     );
     return (
       <>
-        <SideCard id="package" title={m.packageTitle} actions={header}>
+        <SideCard
+          id="package"
+          title={
+            (state.kind === 'ready' || state.kind === 'closed') && state.document === 'nil-letter'
+              ? m.nilLetterTitle
+              : m.packageTitle
+          }
+          actions={header}
+        >
           {state.kind === 'preparing' ? (
             <p
               role="status"
@@ -237,9 +246,16 @@ function Side({ request, now, state }: { request: LeaRequest; now: string; state
               {m.packagePreparing}
             </p>
           ) : null}
-          {state.kind === 'missing' ? (
-            <p className="rounded-lg bg-muted px-3.5 py-3 text-sm text-secondary-foreground">
-              {m.noPackage}
+          {state.kind === 'failed' ? (
+            <Alert variant="destructive">
+              <Icon icon={AlertCircleIcon} />
+              <AlertDescription>{m.packageFailed}</AlertDescription>
+            </Alert>
+          ) : null}
+          {(state.kind === 'ready' || state.kind === 'closed') &&
+          state.document === 'nil-letter' ? (
+            <p className="text-sm text-secondary-foreground">
+              {m.nilLetter(request.commission.name)}
             </p>
           ) : null}
           {state.kind === 'closed' ? (
@@ -268,7 +284,7 @@ function Side({ request, now, state }: { request: LeaRequest; now: string; state
                 onClick={() => void download(state.documentId)}
               >
                 {busy ? <Spinner className="size-4" /> : <Icon icon={Download01Icon} />}
-                {m.downloadPackage}
+                {state.document === 'nil-letter' ? m.downloadNilLetter : m.downloadPackage}
               </Button>
             </>
           ) : null}

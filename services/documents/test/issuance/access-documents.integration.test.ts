@@ -14,6 +14,7 @@ import { afterEach, beforeAll, describe, expect, it } from 'vitest';
 
 import { issuedDocuments, outbox, verificationRecords } from '../../src/db/schema.js';
 import type { DocumentDownload, IssuedDocument } from '../../src/issuance/representation.js';
+import type { AccessNilLetterPayload } from '../../src/issuance/templates/access-nil-letter.v1.js';
 import type { AccessPackagePayload } from '../../src/issuance/templates/access-package.v1.js';
 import type { CertifiedCopyPayload } from '../../src/issuance/templates/certified-copy.v1.js';
 import type { DisclosedDeclaration } from '../../src/issuance/templates/declaration-content.js';
@@ -587,6 +588,141 @@ describe('S10 downloading an access package within its window', () => {
 
     expect((await download(document.id, LEA_OFFICER)).statusCode).toBe(200);
     expect((await download(document.id, APPLICANT)).statusCode).toBe(404);
+  });
+});
+
+function nilLetterPayload(overrides: Partial<AccessNilLetterPayload> = {}): AccessNilLetterPayload {
+  return {
+    grantReference: ARQ,
+    commission: { slug: 'psc', issuerCode: 'PSC', name: 'Public Service Commission' },
+    declarantName: 'James Ochieng Otieno',
+    legalBasis: 'act-s36-1',
+    recipient: { name: 'Amina Achieng Otieno', organisation: null },
+    grantedAt: '2026-10-01T06:30:00.000Z',
+    scope: {
+      years: [2026, 2025],
+      includeSpouses: true,
+      includeChildren: false,
+      sections: ['income', 'assets'],
+      includeClarifications: true,
+    },
+    ...overrides,
+  };
+}
+
+function nilLetterBody(overrides: Record<string, unknown> = {}) {
+  return {
+    ...packageBody(),
+    type: 'access-nil-letter',
+    payload: nilLetterPayload(),
+    ...overrides,
+  };
+}
+
+describe('S10 issuing a nil letter for a grant with nothing to disclose', () => {
+  let document: IssuedDocument;
+  let texts: string[];
+
+  beforeAll(async () => {
+    document = await issued(nilLetterBody());
+    texts = await pageTexts(await storedPdf(document.id));
+  });
+
+  it('answers 201 with a confidential document and the download window of a package', () => {
+    expect(
+      contractErrors(okResponse('/internal/v1/documents/issue', 'post', 201), document),
+    ).toEqual([]);
+    expect(document).toMatchObject({
+      type: 'access-nil-letter',
+      disclosureLevel: 'confidential',
+      issuerTenant: 'psc',
+      status: 'valid',
+    });
+    expect(Date.parse(document.downloadExpiresAt ?? '')).toBe(
+      Date.parse(document.issuedAt) + 14 * DAY_MS,
+    );
+  });
+
+  it('says no declaration is held within the granted scope, watermarked and marked on every page', () => {
+    const all = texts.join(' ');
+    expect(texts[0]).toContain('No declarations held');
+    expect(all).toContain('No declarations held within the granted scope');
+    expect(all).toContain(
+      'It holds no declaration of income, assets and liabilities by James Ochieng Otieno within the scope granted',
+    );
+    expect(texts[0]).toContain('Issued to Amina Achieng Otieno');
+    expect(texts[0]).toContain('Declarations of 2025, 2026');
+    expect(texts[0]).toContain('Persons: the declarant, spouses');
+    expect(texts[0]).toContain('Sections: Income, Assets');
+    expect(texts[0]).toContain('Clarifications the declarant gave');
+    expect(texts[0]).toContain('section 36(1) of the Act (Form K)');
+    for (const text of texts) {
+      expect(text).toContain(WATERMARK);
+      expect(compact(text)).toContain('CONFIDENTIAL');
+      expect(text).toContain(`Ref ${ARQ}`);
+      expect(text).toContain(document.verificationId);
+    }
+  });
+
+  it('shows validity only on the verify page', async () => {
+    const [record] = await withTenant(api.db, { tenant: 'platform', subject: 'test' }, (tx) =>
+      tx.select().from(verificationRecords).where(eq(verificationRecords.documentId, document.id)),
+    );
+    expect(record).toMatchObject({ disclosureLevel: 'confidential', publicPayload: null });
+  });
+
+  it('downloads for the recipient only, within the window', async () => {
+    const response = await download(document.id, APPLICANT);
+    expect(response.statusCode, response.body).toBe(200);
+    expect(response.json<DocumentDownload>().downloadUrl).toMatch(/^http/);
+    for (const other of [DECLARANT, ACCESS_OFFICER]) {
+      expect((await download(document.id, other)).statusCode).toBe(404);
+    }
+    api.clock.advance(14 * DAY_MS);
+    expect((await download(document.id, APPLICANT)).statusCode).toBe(410);
+  });
+
+  it('names a law-enforcement officer with their agency', async () => {
+    const lea = await issued(
+      nilLetterBody({
+        subjectRef: `lea-request:${randomUUID()}`,
+        subjectPersonId: LEA_OFFICER_PERSON,
+        watermark: { recipientName: 'Peter Mwangi, DCI', reference: LEA, date: '2026-10-01' },
+        payload: nilLetterPayload({
+          grantReference: LEA,
+          legalBasis: 'act-s36-2',
+          recipient: {
+            name: 'Peter Mwangi',
+            organisation: 'Directorate of Criminal Investigations',
+          },
+          scope: { ...nilLetterPayload().scope, includeClarifications: false },
+        }),
+      }),
+    );
+    const [first] = await pageTexts(await storedPdf(lea.id));
+    expect(first).toContain('Issued to Peter Mwangi, Directorate of Criminal Investigations');
+    expect(first).toContain('section 36(2) of the Act (Regulation 23)');
+    expect(first).not.toContain('Clarifications the declarant gave');
+  });
+
+  it('needs its watermark, window and recipient, and refuses any declaration content', async () => {
+    const missing = await issue(
+      nilLetterBody({ watermark: undefined, downloadWindowDays: undefined, subjectPersonId: null }),
+    );
+    expect(missing.statusCode).toBe(400);
+    expect(
+      missing
+        .json<Problem>()
+        .errors?.map((error) => error.path)
+        .sort(),
+    ).toEqual(['downloadWindowDays', 'subjectPersonId', 'watermark']);
+    const content = await issue(
+      nilLetterBody({
+        payload: { ...nilLetterPayload(), disclosure: packagePayload().disclosure },
+      }),
+    );
+    expect(content.statusCode).toBe(400);
+    expect(content.json<Problem>().errors).toEqual([expect.objectContaining({ path: 'payload' })]);
   });
 });
 

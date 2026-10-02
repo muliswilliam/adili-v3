@@ -61,7 +61,7 @@ describe('RequestsList (S17)', () => {
   it('#261: shows a grant’s download window: days left, soon, today, expired', async () => {
     const requests = await rows();
     const granted = requests.filter(
-      (each) => each.downloadExpiresAt !== null || [IDS.unissued, IDS.preparing].includes(each.id),
+      (each) => each.downloadExpiresAt !== null || [IDS.failed, IDS.preparing].includes(each.id),
     );
     render(<RequestsList requests={granted} page={1} now={NOW} onPage={vi.fn()} />);
     const chip = (key: keyof typeof IDS) => {
@@ -76,8 +76,11 @@ describe('RequestsList (S17)', () => {
     expect(chip('expiring').getByText('Expires today')).toBeTruthy();
     expect(chip('expired').getByText('Download expired')).toBeTruthy();
     expect(chip('expired').queryByText(/left$/)).toBeNull();
-    expect(chip('unissued').getByText('No package issued')).toBeTruthy();
-    expect(chip('preparing').queryByText('No package issued')).toBeNull();
+    expect(chip('failed').getByText('Package not issued')).toBeTruthy();
+    expect(chip('preparing').queryByText('Package not issued')).toBeNull();
+    // A nil letter has the same window as a package.
+    expect(chip('nil').getByText('11 days left')).toBeTruthy();
+    expect(chip('nilExpired').getByText('Download expired')).toBeTruthy();
   });
 
   it('sums up a decided row: the grounds and the start of the reasons', async () => {
@@ -128,7 +131,7 @@ describe('RequestsList (S17)', () => {
     const onPage = vi.fn();
     render(<RequestsList requests={requests} page={1} now={NOW} onPage={onPage} />);
     expect(screen.getAllByRole('listitem')).toHaveLength(10);
-    expect(screen.getByText('1-10 of 15')).toBeTruthy();
+    expect(screen.getByText('1-10 of 17')).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Next page' }));
     expect(onPage).toHaveBeenCalledWith(2);
   });

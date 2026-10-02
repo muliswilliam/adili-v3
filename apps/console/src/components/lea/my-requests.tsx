@@ -159,7 +159,11 @@ function Action({ request, now }: { request: LeaRequest; now: string }) {
             variant="secondary"
             size="sm"
             disabled={busy !== null}
-            aria-label={m.downloadOf(request.reference)}
+            aria-label={
+              state.document === 'nil-letter'
+                ? m.downloadLetterOf(request.reference)
+                : m.downloadOf(request.reference)
+            }
             onClick={() => void download(state.documentId)}
           >
             {busy ? <Spinner className="size-4" /> : <Icon icon={Download01Icon} />}
@@ -181,7 +185,8 @@ function Action({ request, now }: { request: LeaRequest; now: string }) {
           {m.preparing}
         </span>
       );
-    case 'missing':
+    case 'failed':
+      return <Badge variant="destructive">{m.packageNotIssued}</Badge>;
     case 'none':
       break;
   }

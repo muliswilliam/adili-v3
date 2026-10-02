@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { IDS, NOW, seededRequest } from '../components/access/testing';
-import { countdownSpoken, countdownText, packageView, preparingEndsAt } from './package';
+import { countdownSpoken, countdownText, packageView } from './package';
 
 const HOUR = 3_600_000;
 
@@ -43,14 +43,20 @@ describe('packageView (#261)', () => {
     expect(packageView(await seededRequest(IDS.preparing), NOW)).toEqual({ state: 'preparing' });
   });
 
-  it('is missing an hour after the grant without a package, as in the console', async () => {
+  it('stays preparing however long it takes, until the service issues it or says it failed', async () => {
     const request = await seededRequest(IDS.preparing);
     const decided = Date.parse(request.decision?.decidedAt ?? '');
-    expect(packageView(request, decided + HOUR - 1)?.state).toBe('preparing');
-    expect(packageView(request, decided + HOUR)).toEqual({ state: 'missing' });
-    expect(packageView(await seededRequest(IDS.unissued), NOW)).toEqual({ state: 'missing' });
-    expect(preparingEndsAt(request)).toBe(new Date(decided + HOUR).toISOString());
-    expect(preparingEndsAt(await seededRequest(IDS.granted))).toBeNull();
+    expect(packageView(request, decided + 30 * 24 * HOUR)).toEqual({ state: 'preparing' });
+    expect(packageView(await seededRequest(IDS.failed), NOW)).toEqual({ state: 'failed' });
+  });
+
+  it('reads a nil letter like a package: ready within its window, then expired', async () => {
+    const ready = packageView(await seededRequest(IDS.nil), NOW);
+    if (ready?.state !== 'ready') throw new Error(ready?.state);
+    expect(ready.package.kind).toBe('nil-letter');
+    expect(ready.daysLeft).toBe(11);
+    const expired = packageView(await seededRequest(IDS.nilExpired), NOW);
+    expect(expired).toMatchObject({ state: 'expired', package: { kind: 'nil-letter' } });
   });
 
   it('is absent for any status but a grant', async () => {

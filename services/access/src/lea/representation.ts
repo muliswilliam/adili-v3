@@ -1,7 +1,7 @@
 import { TENANT_KEY } from '@adili/api-kit';
 import { z } from 'zod';
 
-import { decisionSchema, packageSchema } from '../decision.js';
+import { decisionSchema, packageFailedAtSchema, packageSchema } from '../decision.js';
 import { type RegisterEntry, registerEntrySchema } from '../register/representation.js';
 import { packageOf } from '../requests/representation.js';
 import { scopeSchema } from '../scope.js';
@@ -137,6 +137,7 @@ export const leaRequestSchema = z.object({
       "How and when the declarant was told of the grant; null before, and for the agency's officer",
   }),
   package: packageSchema.nullable(),
+  packageFailedAt: packageFailedAtSchema,
   timeline: z.array(registerEntrySchema),
 });
 
@@ -189,6 +190,7 @@ export function toLeaRequest(
     declarantInvitedAt: commission ? (row.declarantInvitedAt?.toISOString() ?? null) : null,
     declarantNotice: commission ? noticeOf(row.declarantNotifiedAt, row.writtenNotice) : null,
     package: packageOf(row, downloads),
+    packageFailedAt: row.packageFailedAt?.toISOString() ?? null,
     timeline: [...timeline],
   };
 }
