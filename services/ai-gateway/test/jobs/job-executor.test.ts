@@ -31,7 +31,10 @@ function startingDatabase(row: Job): Database<typeof schema> {
     where: () => chain,
     returning: () => Promise.resolve([row]),
   };
-  return { update: () => chain } as unknown as Database<typeof schema>;
+  const tx = { execute: () => Promise.resolve(), update: () => chain };
+  return {
+    transaction: (work: (transaction: typeof tx) => Promise<unknown>) => work(tx),
+  } as unknown as Database<typeof schema>;
 }
 
 describe('JobExecutor', () => {

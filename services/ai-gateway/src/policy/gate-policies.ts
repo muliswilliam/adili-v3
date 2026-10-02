@@ -1,11 +1,12 @@
 import { Injectable } from '@nestjs/common';
-import { type Database, InjectDatabase } from '@adili/data-access';
+import { InjectDatabase } from '@adili/data-access';
 import { EventPublisher } from '@adili/events';
 import { and, asc, eq, sql } from 'drizzle-orm';
 import { z } from 'zod';
 
 import { lockTenantSetting } from '../db/locks.js';
-import { type GatePolicy, gatePolicies, type schema } from '../db/schema.js';
+import { asPlatform, asTenant, type GatewayDatabase } from '../db/context.js';
+import { type GatePolicy, gatePolicies } from '../db/schema.js';
 import { DATA_CLASSES, type DataClass, dataClassSchema } from '../jobs/task-request.js';
 import { PROVIDER_CLASSES, type ProviderClass, providerClassSchema } from '../providers/port.js';
 import { auditChange } from './audit.js';
@@ -97,7 +98,7 @@ export function defaultGate(): GateCell[] {
 @Injectable()
 export class GatePolicies {
   constructor(
-    @InjectDatabase() private readonly db: Database<typeof schema>,
+    @InjectDatabase() private readonly db: GatewayDatabase,
     private readonly events: EventPublisher,
   ) {}
 
@@ -106,16 +107,18 @@ export class GatePolicies {
     dataClass: DataClass,
     providerClass: ProviderClass,
   ): Promise<boolean> {
-    const [rule] = await this.db
-      .select({ allowed: gatePolicies.allowed })
-      .from(gatePolicies)
-      .where(
-        and(
-          eq(gatePolicies.tenant, tenant),
-          eq(gatePolicies.dataClass, dataClass),
-          eq(gatePolicies.providerClass, providerClass),
+    const [rule] = await asTenant(this.db, tenant, (tx) =>
+      tx
+        .select({ allowed: gatePolicies.allowed })
+        .from(gatePolicies)
+        .where(
+          and(
+            eq(gatePolicies.tenant, tenant),
+            eq(gatePolicies.dataClass, dataClass),
+            eq(gatePolicies.providerClass, providerClass),
+          ),
         ),
-      );
+    );
     return rule ? rule.allowed : defaultGateAdmits(providerClass);
   }
 
@@ -132,13 +135,17 @@ export class GatePolicies {
 
   /** The tenant's explicit rules; pairs without one follow `defaultGateAdmits`. */
   async rules(tenant: string): Promise<GateRule[]> {
-    const rows = await this.db.select().from(gatePolicies).where(eq(gatePolicies.tenant, tenant));
+    const rows = await asTenant(this.db, tenant, (tx) =>
+      tx.select().from(gatePolicies).where(eq(gatePolicies.tenant, tenant)),
+    );
     return sortRules(rows.map(toRule));
   }
 
   /** Every tenant with explicit rules, by tenant. */
   async list(): Promise<TenantGate[]> {
-    const rows = await this.db.select().from(gatePolicies).orderBy(asc(gatePolicies.tenant));
+    const rows = await asPlatform(this.db, (tx) =>
+      tx.select().from(gatePolicies).orderBy(asc(gatePolicies.tenant)),
+    );
     const byTenant = new Map<string, GateRule[]>();
     for (const row of rows) {
       byTenant.set(row.tenant, [...(byTenant.get(row.tenant) ?? []), toRule(row)]);
@@ -151,57 +158,62 @@ export class GatePolicies {
    * approval. Every rule, its audit record and its event commit together, or none does.
    */
   async set(tenant: string, change: GateChange, actor: Actor): Promise<TenantGate> {
-    await this.db.transaction(async (tx) => {
-      // Concurrent changes of the tenant's gate apply, and are audited, in turn.
-      await lockTenantSetting(tx, 'gate', tenant);
-      for (const input of change.rules) {
-        const key = and(
-          eq(gatePolicies.tenant, tenant),
-          eq(gatePolicies.dataClass, input.dataClass),
-          eq(gatePolicies.providerClass, input.providerClass),
-        );
-        const [before] = await tx.select().from(gatePolicies).where(key);
-        const decision = {
-          allowed: input.allowed,
-          approvalRef: change.approvalRef,
-          changedBy: actor.subject,
-          changedByName: actor.name,
-        };
-        const [after] = await tx
-          .insert(gatePolicies)
-          .values({
+    await asTenant(
+      this.db,
+      tenant,
+      async (tx) => {
+        // Concurrent changes of the tenant's gate apply, and are audited, in turn.
+        await lockTenantSetting(tx, 'gate', tenant);
+        for (const input of change.rules) {
+          const key = and(
+            eq(gatePolicies.tenant, tenant),
+            eq(gatePolicies.dataClass, input.dataClass),
+            eq(gatePolicies.providerClass, input.providerClass),
+          );
+          const [before] = await tx.select().from(gatePolicies).where(key);
+          const decision = {
+            allowed: input.allowed,
+            approvalRef: change.approvalRef,
+            changedBy: actor.subject,
+            changedByName: actor.name,
+          };
+          const [after] = await tx
+            .insert(gatePolicies)
+            .values({
+              tenant,
+              dataClass: input.dataClass,
+              providerClass: input.providerClass,
+              ...decision,
+            })
+            .onConflictDoUpdate({
+              target: [gatePolicies.tenant, gatePolicies.dataClass, gatePolicies.providerClass],
+              set: { ...decision, changedAt: sql`now()` },
+            })
+            .returning();
+          if (!after) throw new Error('Upsert returned no row');
+          const event = await auditChange(tx, {
+            action: 'ai.gate-policy.changed',
             tenant,
-            dataClass: input.dataClass,
-            providerClass: input.providerClass,
-            ...decision,
-          })
-          .onConflictDoUpdate({
-            target: [gatePolicies.tenant, gatePolicies.dataClass, gatePolicies.providerClass],
-            set: { ...decision, changedAt: sql`now()` },
-          })
-          .returning();
-        if (!after) throw new Error('Upsert returned no row');
-        const event = await auditChange(tx, {
-          action: 'ai.gate-policy.changed',
-          tenant,
-          actor: actor.subject,
-          approvalRef: change.approvalRef,
-          before: {
-            dataClass: input.dataClass,
-            providerClass: input.providerClass,
-            allowed: before ? before.allowed : defaultGateAdmits(input.providerClass),
-            explicit: before !== undefined,
-          },
-          after: {
-            dataClass: input.dataClass,
-            providerClass: input.providerClass,
-            allowed: after.allowed,
-            explicit: true,
-          },
-        });
-        await this.events.record(tx, event);
-      }
-    });
+            actor: actor.subject,
+            approvalRef: change.approvalRef,
+            before: {
+              dataClass: input.dataClass,
+              providerClass: input.providerClass,
+              allowed: before ? before.allowed : defaultGateAdmits(input.providerClass),
+              explicit: before !== undefined,
+            },
+            after: {
+              dataClass: input.dataClass,
+              providerClass: input.providerClass,
+              allowed: after.allowed,
+              explicit: true,
+            },
+          });
+          await this.events.record(tx, event);
+        }
+      },
+      actor.subject,
+    );
     return { tenant, rules: await this.rules(tenant) };
   }
 }

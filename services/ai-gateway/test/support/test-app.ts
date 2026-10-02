@@ -6,11 +6,12 @@ import { join } from 'node:path';
 
 import { FastifyAdapter, type NestFastifyApplication } from '@nestjs/platform-fastify';
 import { Test } from '@nestjs/testing';
-import { TokenVerifier } from '@adili/api-kit';
+import { PLATFORM_TENANT, TokenVerifier } from '@adili/api-kit';
 import { TEMPORAL_CLIENT, TemporalWorkerReadinessCheck, WorkflowBundler } from '@adili/temporal';
 import { prebuiltWorkflowBundler, untilWorkerPolling } from '@adili/temporal/testing';
 import type { Client } from '@temporalio/client';
-import { createDatabase, DATABASE, type Database } from '@adili/data-access';
+import { createDatabase, DATABASE, type Database, FieldCipher } from '@adili/data-access';
+import { FakeCipher } from '@adili/data-access/testing';
 import { inArray } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/node-postgres';
 import { migrate } from 'drizzle-orm/node-postgres/migrator';
@@ -36,7 +37,13 @@ const MIGRATIONS = new URL('../../migrations', import.meta.url).pathname;
 
 export interface TestApp {
   app: NestFastifyApplication;
+  /**
+   * The test's own connection, in the platform context: it sees and writes every tenant's rows,
+   * for setting up and checking what the service did.
+   */
   db: Database<typeof schema>;
+  /** The service's connection, without a context: its tables' row-level security applies. */
+  serviceDb: Database<typeof schema>;
   /** Signs an access token as the given OAuth client with the given scopes. */
   token: (options?: { clientId?: string; scope?: string }) => Promise<string>;
   /** Signs a staff user's access token with the given realm roles. */
@@ -90,10 +97,20 @@ export async function createTestApp(options: TestAppOptions = {}): Promise<TestA
   const { publicKey, privateKey } = await generateKeyPair('RS256');
   const jwk = { ...(await exportJWK(publicKey)), kid: 'test', alg: 'RS256' };
 
-  const db = createDatabase({ url, schema, applicationName: 'ai-gateway-test' });
+  const serviceDb = createDatabase({ url, schema, applicationName: 'ai-gateway-test' });
+  // Every tenant table is under FORCE row-level security; the platform context (ADR-006) of this
+  // connection's sessions lets the test see all of them.
+  const db = createDatabase({
+    url: withSettings(url, { 'app.tenant': PLATFORM_TENANT }),
+    schema,
+    applicationName: 'ai-gateway-test-platform',
+    maxConnections: 2,
+  });
   const moduleRef = await Test.createTestingModule({ imports: [AppModule] })
     .overrideProvider(DATABASE)
-    .useValue(db)
+    .useValue(serviceDb)
+    .overrideProvider(FieldCipher)
+    .useValue(new FakeCipher())
     .overrideProvider(TokenVerifier)
     .useValue(
       new TokenVerifier(
@@ -127,6 +144,7 @@ export async function createTestApp(options: TestAppOptions = {}): Promise<TestA
   return {
     app,
     db,
+    serviceDb,
     token: ({ clientId = 'review', scope = 'profile ai' } = {}) =>
       new SignJWT({ azp: clientId, scope })
         .setProtectedHeader({ alg: 'RS256', kid: 'test' })
@@ -178,8 +196,9 @@ export async function createTestApp(options: TestAppOptions = {}): Promise<TestA
             .catch(() => undefined),
         ),
       );
-      // Closing the app stops the worker and ends the database pool.
+      // Closing the app stops the worker and ends the service's database pool.
       await app.close();
+      await db.$client.end();
       await admin.query(`drop schema "${schemaName}" cascade`);
       await admin.end();
       await rm(fixturesDir, { recursive: true, force: true });
@@ -188,8 +207,17 @@ export async function createTestApp(options: TestAppOptions = {}): Promise<TestA
 }
 
 function withSearchPath(url: string, schemaName: string): string {
+  return withSettings(url, { search_path: schemaName });
+}
+
+/** `url` with these session settings added to its `options`. */
+function withSettings(url: string, settings: Record<string, string>): string {
   const parsed = new URL(url);
-  parsed.searchParams.set('options', `-c search_path=${schemaName}`);
+  const options = [
+    parsed.searchParams.get('options'),
+    ...Object.entries(settings).map(([name, value]) => `-c ${name}=${value}`),
+  ].filter(Boolean);
+  parsed.searchParams.set('options', options.join(' '));
   return parsed.toString();
 }
 

@@ -1,12 +1,18 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { type Database, InjectDatabase } from '@adili/data-access';
+import { InjectDatabase } from '@adili/data-access';
 import { EventPublisher } from '@adili/events';
 import { and, count, eq, gte, inArray, isNotNull, lt, min, or, sql, sum } from 'drizzle-orm';
 import { z } from 'zod';
 
 import { budgetInput } from '../admin/admin-input.js';
 import { lockTenantSetting } from '../db/locks.js';
-import { budgets, jobs, type schema } from '../db/schema.js';
+import {
+  asPlatform,
+  asTenant,
+  type GatewayDatabase,
+  type GatewayTransaction,
+} from '../db/context.js';
+import { budgets, jobs } from '../db/schema.js';
 import { LIVE_STATUSES } from '../jobs/job-states.js';
 import { auditChange } from './audit.js';
 
@@ -66,26 +72,22 @@ const MONTH = /^(\d{4})-(\d{2})$/;
 @Injectable()
 export class Budgets {
   constructor(
-    @InjectDatabase() private readonly db: Database<typeof schema>,
+    @InjectDatabase() private readonly db: GatewayDatabase,
     private readonly events: EventPublisher,
     @Inject(BUDGET_DEFAULTS) private readonly defaults: BudgetLimits,
   ) {}
 
   async limits(tenant: string): Promise<BudgetLimits> {
-    const [row] = await this.db
-      .select({ monthlyTokens: budgets.monthlyTokens, perMinute: budgets.perMinute })
-      .from(budgets)
-      .where(eq(budgets.tenant, tenant));
-    return row ?? this.defaults;
+    return asTenant(this.db, tenant, (tx) => this.limitsIn(tx, tenant));
   }
 
   /** Whether the tenant has used its tokens for the current month. */
   async exhausted(tenant: string): Promise<boolean> {
-    const [{ monthlyTokens }, used] = await Promise.all([
-      this.limits(tenant),
-      this.tokensUsed(tenant, currentMonth()),
-    ]);
-    return used >= monthlyTokens;
+    return asTenant(this.db, tenant, async (tx) => {
+      const { monthlyTokens } = await this.limitsIn(tx, tenant);
+      const used = await tokensUsed(tx, tenant, currentMonth());
+      return used >= monthlyTokens;
+    });
   }
 
   /**
@@ -98,29 +100,34 @@ export class Budgets {
   async rateLimited(
     tenant: string,
   ): Promise<{ limited: false } | { limited: true; retryAfterSeconds: number }> {
-    const { perMinute } = await this.limits(tenant);
-    const [recent] = await this.db
-      .select({ admitted: count(), oldest: min(jobs.createdAt) })
-      .from(jobs)
-      .where(
-        and(
-          eq(jobs.tenant, tenant),
-          gte(jobs.createdAt, sql`now() - interval '1 minute'`),
-          or(inArray(jobs.status, LIVE_STATUSES), isNotNull(jobs.startedAt)),
-        ),
-      );
-    if (!recent || recent.admitted < perMinute) return { limited: false };
-    const oldest = recent.oldest?.getTime() ?? Date.now();
-    return {
-      limited: true,
-      retryAfterSeconds: Math.max(1, Math.ceil((oldest + 60_000 - Date.now()) / 1000)),
-    };
+    return asTenant(this.db, tenant, async (tx) => {
+      const { perMinute } = await this.limitsIn(tx, tenant);
+      const [recent] = await tx
+        .select({ admitted: count(), oldest: min(jobs.createdAt) })
+        .from(jobs)
+        .where(
+          and(
+            eq(jobs.tenant, tenant),
+            gte(jobs.createdAt, sql`now() - interval '1 minute'`),
+            or(inArray(jobs.status, LIVE_STATUSES), isNotNull(jobs.startedAt)),
+          ),
+        );
+      if (!recent || recent.admitted < perMinute) return { limited: false };
+      const oldest = recent.oldest?.getTime() ?? Date.now();
+      return {
+        limited: true,
+        retryAfterSeconds: Math.max(1, Math.ceil((oldest + 60_000 - Date.now()) / 1000)),
+      };
+    });
   }
 
   /** The tenant's budget and what its jobs used in `month` (`YYYY-MM`, default the current). */
   async usage(tenant: string, month: string = currentMonth()): Promise<TenantUsage> {
-    const [limits, [totals]] = await Promise.all([this.limits(tenant), this.totals(month, tenant)]);
-    return { tenant, month, ...limits, ...(totals ?? NO_USAGE) };
+    return asTenant(this.db, tenant, async (tx) => {
+      const limits = await this.limitsIn(tx, tenant);
+      const [used] = await totals(tx, month, tenant);
+      return { tenant, month, ...limits, ...(used ?? NO_USAGE) };
+    });
   }
 
   /**
@@ -128,18 +135,18 @@ export class Budgets {
    * and the default budget of every other tenant (which has then used nothing).
    */
   async list(month: string = currentMonth()): Promise<UsageList> {
-    const [rows, totals] = await Promise.all([
-      this.db
+    const [rows, used] = await asPlatform(this.db, async (tx) => [
+      await tx
         .select({
           tenant: budgets.tenant,
           monthlyTokens: budgets.monthlyTokens,
           perMinute: budgets.perMinute,
         })
         .from(budgets),
-      this.totals(month),
+      await totals(tx, month),
     ]);
     const limitsOf = new Map(rows.map(({ tenant, ...limits }) => [tenant, limits]));
-    const usedBy = new Map(totals.map(({ tenant, ...used }) => [tenant, used]));
+    const usedBy = new Map(used.map(({ tenant, ...counts }) => [tenant, counts]));
     const tenants = [...new Set([...limitsOf.keys(), ...usedBy.keys()])].sort();
     return {
       month,
@@ -153,58 +160,71 @@ export class Budgets {
     };
   }
 
-  /** Tokens, cost and outcomes of jobs created in `month`, per tenant (or of one tenant). */
-  private totals(month: string, tenant?: string) {
-    return this.db
-      .select({
-        tenant: jobs.tenant,
-        tokensUsed: sql`coalesce(sum(${jobs.tokensIn} + ${jobs.tokensOut}), 0)`.mapWith(Number),
-        costMicros: sql`coalesce(sum(${jobs.costMicros}), 0)`.mapWith(Number),
-        jobs: count(),
-        blocked: count(sql`case when ${jobs.status} = 'blocked' then 1 end`),
-        failed: count(sql`case when ${jobs.status} = 'failed' then 1 end`),
-      })
-      .from(jobs)
-      .where(inMonth(month, tenant))
-      .groupBy(jobs.tenant);
-  }
-
   /** Sets the tenant's budget; the change, its audit record and its event commit together. */
   async set(tenant: string, input: BudgetLimits, actor: string): Promise<TenantUsage> {
-    await this.db.transaction(async (tx) => {
-      // Concurrent changes of the tenant's budget apply, and are audited, in turn.
-      await lockTenantSetting(tx, 'budget', tenant);
-      const [before] = await tx
-        .select({ monthlyTokens: budgets.monthlyTokens, perMinute: budgets.perMinute })
-        .from(budgets)
-        .where(eq(budgets.tenant, tenant));
-      await tx
-        .insert(budgets)
-        .values({ tenant, ...input, changedBy: actor })
-        .onConflictDoUpdate({
-          target: budgets.tenant,
-          set: { ...input, changedBy: actor, changedAt: sql`now()` },
+    await asTenant(
+      this.db,
+      tenant,
+      async (tx) => {
+        // Concurrent changes of the tenant's budget apply, and are audited, in turn.
+        await lockTenantSetting(tx, 'budget', tenant);
+        const [before] = await tx
+          .select({ monthlyTokens: budgets.monthlyTokens, perMinute: budgets.perMinute })
+          .from(budgets)
+          .where(eq(budgets.tenant, tenant));
+        await tx
+          .insert(budgets)
+          .values({ tenant, ...input, changedBy: actor })
+          .onConflictDoUpdate({
+            target: budgets.tenant,
+            set: { ...input, changedBy: actor, changedAt: sql`now()` },
+          });
+        const event = await auditChange(tx, {
+          action: 'ai.budget.changed',
+          tenant,
+          actor,
+          approvalRef: null,
+          before: before ?? { ...this.defaults, default: true },
+          after: input,
         });
-      const event = await auditChange(tx, {
-        action: 'ai.budget.changed',
-        tenant,
-        actor,
-        approvalRef: null,
-        before: before ?? { ...this.defaults, default: true },
-        after: input,
-      });
-      await this.events.record(tx, event);
-    });
+        await this.events.record(tx, event);
+      },
+      actor,
+    );
     return this.usage(tenant);
   }
 
-  private async tokensUsed(tenant: string, month: string): Promise<number> {
-    const [row] = await this.db
-      .select({ used: sum(sql`${jobs.tokensIn} + ${jobs.tokensOut}`).mapWith(Number) })
-      .from(jobs)
-      .where(inMonth(month, tenant));
-    return row?.used ?? 0;
+  private async limitsIn(tx: GatewayTransaction, tenant: string): Promise<BudgetLimits> {
+    const [row] = await tx
+      .select({ monthlyTokens: budgets.monthlyTokens, perMinute: budgets.perMinute })
+      .from(budgets)
+      .where(eq(budgets.tenant, tenant));
+    return row ?? this.defaults;
   }
+}
+
+/** Tokens, cost and outcomes of jobs created in `month`, per tenant (or of one tenant). */
+function totals(tx: GatewayTransaction, month: string, tenant?: string) {
+  return tx
+    .select({
+      tenant: jobs.tenant,
+      tokensUsed: sql`coalesce(sum(${jobs.tokensIn} + ${jobs.tokensOut}), 0)`.mapWith(Number),
+      costMicros: sql`coalesce(sum(${jobs.costMicros}), 0)`.mapWith(Number),
+      jobs: count(),
+      blocked: count(sql`case when ${jobs.status} = 'blocked' then 1 end`),
+      failed: count(sql`case when ${jobs.status} = 'failed' then 1 end`),
+    })
+    .from(jobs)
+    .where(inMonth(month, tenant))
+    .groupBy(jobs.tenant);
+}
+
+async function tokensUsed(tx: GatewayTransaction, tenant: string, month: string): Promise<number> {
+  const [row] = await tx
+    .select({ used: sum(sql`${jobs.tokensIn} + ${jobs.tokensOut}`).mapWith(Number) })
+    .from(jobs)
+    .where(inMonth(month, tenant));
+  return row?.used ?? 0;
 }
 
 /** The current month, `YYYY-MM`, in Nairobi. */
