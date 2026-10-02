@@ -51,6 +51,11 @@ export interface DecisionFormProps {
   requestedScope: Scope;
   /** The outcomes on offer, in order; all three by default. */
   outcomes?: readonly Outcome[];
+  /**
+   * Whether the scope can cover the declarant's clarifications: Form K may, law enforcement
+   * requests never do (their scope keeps them false).
+   */
+  clarifications?: boolean;
   /** The decision deadline, shown in the card's header. */
   deadline: { due: string; soonDays: number };
   /** Under the reasons: who reads them, e.g. "Sent to the applicant and the declarant." */
@@ -86,6 +91,7 @@ export interface DecisionFormProps {
 export function DecisionForm({
   requestedScope,
   outcomes = ALL_OUTCOMES,
+  clarifications = false,
   deadline,
   reasonsHint,
   finality,
@@ -256,6 +262,7 @@ export function DecisionForm({
               }}
               years={requestedScope.years}
               restrictTo={requestedScope}
+              clarifications={clarifications}
               errors={{ years: errors.years, sections: errors.sections }}
               disabled={busy}
             />

@@ -214,6 +214,7 @@ const SCOPE_2026_ASSETS = {
   includeSpouses: false,
   includeChildren: false,
   sections: ['assets' as const],
+  includeClarifications: false,
 };
 
 interface Stored {
@@ -476,6 +477,7 @@ const SEEDS: Seed[] = [
       includeSpouses: true,
       includeChildren: false,
       sections: ['assets', 'liabilities'],
+      includeClarifications: false,
     },
     receivedDaysAgo: 4,
     status: 'awaiting-representations',
@@ -500,6 +502,7 @@ const SEEDS: Seed[] = [
       includeSpouses: true,
       includeChildren: true,
       sections: ['income', 'liabilities'],
+      includeClarifications: true,
     },
     receivedDaysAgo: 27,
     status: 'under-decision',
@@ -652,6 +655,7 @@ const SEEDS: Seed[] = [
       includeSpouses: true,
       includeChildren: true,
       sections: ['bio', 'income', 'assets', 'liabilities', 'other'],
+      includeClarifications: true,
     },
     receivedDaysAgo: 45,
     status: 'denied',
@@ -683,6 +687,7 @@ const SEEDS: Seed[] = [
       includeSpouses: true,
       includeChildren: true,
       sections: ['income', 'assets', 'liabilities'],
+      includeClarifications: true,
     },
     receivedDaysAgo: 34,
     status: 'partially-granted',
@@ -698,6 +703,7 @@ const SEEDS: Seed[] = [
         includeSpouses: true,
         includeChildren: false,
         sections: ['assets', 'liabilities'],
+        includeClarifications: true,
       },
       grounds: ['public-interest'],
     },

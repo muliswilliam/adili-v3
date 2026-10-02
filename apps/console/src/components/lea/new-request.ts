@@ -43,6 +43,8 @@ export const EMPTY_SCOPE: Scope = {
   includeSpouses: false,
   includeChildren: false,
   sections: [],
+  // Law enforcement requests never include clarifications (Form K only).
+  includeClarifications: false,
 };
 
 export function emptyLeaDraft(): LeaDraft {

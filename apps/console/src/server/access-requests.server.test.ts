@@ -212,6 +212,7 @@ describe('the decision (S6, #260)', () => {
     includeSpouses: true,
     includeChildren: false,
     sections: ['income' as const],
+    includeClarifications: false,
   };
 
   it('records a partial grant of a narrower scope; the package follows', async () => {

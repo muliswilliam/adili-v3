@@ -114,6 +114,7 @@ export function DecidePage({ view, readOnly }: { view: OfficerRequestView; readO
       <div className="grid items-start gap-4 min-[1080px]:grid-cols-[minmax(0,1fr)_380px]">
         <DecisionForm
           requestedScope={form.scope}
+          clarifications
           deadline={{ due: view.decisionDeadlineAt, soonDays: deadlineSoonDays.decision }}
           reasonsHint={d.reasonsToBoth}
           finality={() => ({ title: d.finalToBoth })}

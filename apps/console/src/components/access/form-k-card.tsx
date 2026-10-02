@@ -140,6 +140,9 @@ export function FormKCard({ view }: { view: OfficerRequestView }) {
             <Value term={m.years}>{formatScopeYears(scope)}</Value>
             <Value term={m.people}>{scopePeople(scope)}</Value>
             <Value term={m.sections}>{formatScopeSections(scope)}</Value>
+            <Value term={m.clarifications}>
+              {scope.includeClarifications ? m.included : m.notIncluded}
+            </Value>
           </Grid>
         </Part>
         <Part title={m.partIV}>
