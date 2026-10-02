@@ -40,6 +40,11 @@ interface TaskSpec<TInput extends z.ZodObject, TOutput extends z.ZodObject> {
   promptVersions: readonly [number, ...number[]];
   /** Output limit of every call for this task. */
   maxOutputTokens: number;
+  /**
+   * Hours a finished job keeps this task's output, when shorter than the service-wide
+   * `AI_OUTPUT_RETENTION_DAYS` (a clarification draft is kept 24 hours, spec 07c).
+   */
+  outputRetentionHours?: number;
 }
 
 export interface TaskDefinition<

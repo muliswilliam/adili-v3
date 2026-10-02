@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 
 import { outbox } from '@adili/events';
-import { eq, sql } from 'drizzle-orm';
+import { eq, inArray, sql } from 'drizzle-orm';
 import { beforeAll, describe, expect, it } from 'vitest';
 
 import { jobs } from '../../src/db/schema.js';
@@ -529,6 +529,48 @@ describe('task jobs', () => {
       expect(purged.outputHash).toMatch(/^[0-9a-f]{64}$/);
       const again = (await runTask('summarize-declaration', taskRequest(input))).json<Job>();
       expect(again.id).not.toBe(first.id);
+    });
+
+    it('purges a clarification draft after 24 hours and keeps a summary for its full window', async () => {
+      const finished = async (task: 'draft-clarification' | 'summarize-declaration') => {
+        const id = randomUUID();
+        await t.db.insert(jobs).values({
+          id,
+          tenant: 'demo',
+          task,
+          promptVersion: 1,
+          dataClass: 'synthetic',
+          subjectRef: `review-case:${randomUUID()}`,
+          caller: 'review',
+          idempotencyKey: randomUUID(),
+          requestHash: 'finished',
+          inputHash: randomUUID(),
+          status: 'succeeded',
+          provider: 'replay',
+          model: 'claude-opus-5-5',
+          output: { drafted: 'text' },
+          outputHash: 'hash',
+          finishedAt: sql`now() - interval '25 hours'`,
+        });
+        return id;
+      };
+      const draft = await finished('draft-clarification');
+      const summary = await finished('summarize-declaration');
+
+      await t.app.get(JobsJanitor).sweep();
+
+      const outputs = await t.db
+        .select({ id: jobs.id, output: jobs.output, purgedAt: jobs.outputPurgedAt })
+        .from(jobs)
+        .where(inArray(jobs.id, [draft, summary]));
+      expect(outputs.find((row) => row.id === draft)).toMatchObject({
+        output: null,
+        purgedAt: expect.any(Date) as Date,
+      });
+      expect(outputs.find((row) => row.id === summary)).toMatchObject({
+        output: { drafted: 'text' },
+        purgedAt: null,
+      });
     });
   });
 });

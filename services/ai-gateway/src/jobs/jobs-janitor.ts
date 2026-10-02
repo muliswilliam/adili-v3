@@ -6,9 +6,11 @@ import {
   type OnApplicationShutdown,
 } from '@nestjs/common';
 import { type Database, InjectDatabase } from '@adili/data-access';
-import { and, asc, gt, inArray, isNotNull, lt, sql } from 'drizzle-orm';
+import { and, asc, eq, gt, inArray, isNotNull, lt, type SQL, sql } from 'drizzle-orm';
 
 import { type Job, jobs, type schema } from '../db/schema.js';
+import { TASKS } from '../tasks/registry.js';
+import type { TaskName } from '../tasks/task.js';
 import { JobExecutor } from './job-executor.js';
 import { JobWorkflows } from './job-workflows.js';
 import { LIVE_STATUSES } from './job-states.js';
@@ -28,8 +30,9 @@ const CONCURRENCY = 10;
 
 /**
  * Every minute: recovers live jobs whose workflow is not running (a start lost to a crash, a
- * workflow terminated or reset), and clears outputs past retention. Every replica runs it;
- * each step is idempotent, and one failing does not stop the other.
+ * workflow terminated or reset), and clears outputs past retention (the task's own, else the
+ * service's). Every replica runs it; each step is idempotent, and one failing does not stop the
+ * other.
  */
 @Injectable()
 export class JobsJanitor implements OnApplicationBootstrap, OnApplicationShutdown {
@@ -112,19 +115,26 @@ export class JobsJanitor implements OnApplicationBootstrap, OnApplicationShutdow
     }
   }
 
-  /** Outputs past retention are cleared; the job keeps its hashes and counts. */
+  /**
+   * Outputs past retention are cleared; the job keeps its hashes and counts. A task with a
+   * shorter retention of its own (clarification drafts: 24 hours) is cleared after that.
+   */
   private async purgeOutputs(): Promise<void> {
-    await this.db
-      .update(jobs)
-      .set({ output: null, outputPurgedAt: sql`now()` })
-      .where(
-        and(
-          isNotNull(jobs.output),
-          lt(
-            jobs.finishedAt,
-            sql`now() - make_interval(days => ${this.options.outputRetentionDays})`,
+    const purge = (window: SQL, task?: TaskName) =>
+      this.db
+        .update(jobs)
+        .set({ output: null, outputPurgedAt: sql`now()` })
+        .where(
+          and(
+            isNotNull(jobs.output),
+            task === undefined ? undefined : eq(jobs.task, task),
+            lt(jobs.finishedAt, sql`now() - ${window}`),
           ),
-        ),
-      );
+        );
+    await purge(sql`make_interval(days => ${this.options.outputRetentionDays})`);
+    for (const task of Object.values(TASKS)) {
+      if (task.outputRetentionHours === undefined) continue;
+      await purge(sql`make_interval(hours => ${task.outputRetentionHours})`, task.name);
+    }
   }
 }
