@@ -1,5 +1,7 @@
 import { randomUUID } from 'node:crypto';
 
+import { UpstreamRefused } from '../../src/upstream-refusal.js';
+
 import {
   DeclarationsClient,
   DeclarationsUnavailable,
@@ -339,6 +341,7 @@ export class FakeDocuments extends DocumentsClient {
   private readonly byKey = new Map<string, IssuedDocument>();
   private readonly uploads = new Map<string, CleanUpload & { tenant: string; clean: boolean }>();
   private readonly failures = new Failures();
+  private refusals = 0;
 
   /** `now` dates what it issues (the service's clock in the harness). */
   constructor(private readonly now: () => Date = () => new Date()) {
@@ -363,6 +366,11 @@ export class FakeDocuments extends DocumentsClient {
     this.failures.next(count);
   }
 
+  /** The next `count` issue requests are refused (422), as documents refuses a bad payload. */
+  refuseCalls(count: number): void {
+    this.refusals = count;
+  }
+
   reset(): void {
     this.issued.length = 0;
     this.linked.length = 0;
@@ -370,11 +378,16 @@ export class FakeDocuments extends DocumentsClient {
     this.byKey.clear();
     this.uploads.clear();
     this.failures.reset();
+    this.refusals = 0;
   }
 
   issue(request: IssueDocumentRequest): Promise<IssuedDocument> {
     if (this.failures.take()) {
       return Promise.reject(new DocumentsUnavailable('The documents service is unreachable'));
+    }
+    if (this.refusals > 0) {
+      this.refusals -= 1;
+      return Promise.reject(new UpstreamRefused('documents', 422));
     }
     const existing = this.byKey.get(request.idempotencyKey);
     if (existing) return Promise.resolve(existing);

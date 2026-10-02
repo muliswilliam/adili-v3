@@ -1,7 +1,10 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { notFoundIfInvisible, type Principal, type ReadAudit } from '@adili/api-kit';
 import { DATABASE, FieldCipher, withTenant } from '@adili/data-access';
-import { CANNOT_IDENTIFY_DECLINE_REASON } from '@adili/events/contracts';
+import {
+  type AccessRequestIdentifiedData,
+  CANNOT_IDENTIFY_DECLINE_REASON,
+} from '@adili/events/contracts';
 import { and, eq, gte, ilike, inArray, lt, not, or, type SQL, sql } from 'drizzle-orm';
 
 import { commissionTenant, ownCommissionTenant, requireAccessOfficer } from '../access.js';
@@ -284,7 +287,25 @@ export class OfficerService {
         .where(eq(accessRequests.id, current.id))
         .returning();
       if (!updated) throw new Error('The access request was not resolved');
-      if (record === null) {
+      if (record !== null) {
+        // Who identified the declarant, and as which record; the `notified` entry follows from
+        // the workflow.
+        await this.register.record(tx, {
+          tenant,
+          subjectKind: 'access-request',
+          subjectId: updated.id,
+          reference: updated.reference,
+          personId: record.personId,
+          kind: 'identified',
+          actor: { subject: principal.subject, name: principal.name },
+          at: now,
+          details: { rosterRecordId: record.id },
+          eventData: { rosterRecordId: record.id } satisfies Pick<
+            AccessRequestIdentifiedData,
+            'rosterRecordId'
+          >,
+        });
+      } else {
         await this.register.record(tx, {
           tenant,
           subjectKind: 'access-request',

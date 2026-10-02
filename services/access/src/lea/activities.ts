@@ -3,6 +3,11 @@ import { DATABASE, withTenant } from '@adili/data-access';
 import { ACCESS_OFFICER } from '@adili/roles';
 import { and, eq, inArray, isNull } from 'drizzle-orm';
 
+import {
+  invariantBroken,
+  requireTransactionEnded,
+  rethrowAsActivityFailure,
+} from '../activity-failures.js';
 import { Clock, nairobiDate } from '../clock.js';
 import { config } from '../config.js';
 import type { AccessDatabase } from '../db/database.js';
@@ -13,14 +18,14 @@ import { NotificationsClient } from '../notifications/notifications-client.js';
 import { AccessRegister } from '../register/access-register.js';
 import { accessRegister } from '../register/schema.js';
 import { declarantNoticesUrl, leaRequestUrl, officerLeaRequestUrl } from '../requests/links.js';
-import { CHANNELS, logRefusal, messageKey, send } from '../requests/workflow-support.js';
+import { CHANNELS, messageKey, send } from '../requests/workflow-support.js';
 import { systemContext } from '../system-context.js';
 import type {
   LeaBreachOutcome,
   LeaDecisionNoticeOutcome,
-  LeaDecisionState,
   LeaPackageOutcome,
   LeaReminderOutcome,
+  LeaRequestState,
   LeaRequestWorkflowInput,
 } from './contract.js';
 import type { LeaRequestRow } from './representation.js';
@@ -41,8 +46,10 @@ const DAY_MS = 24 * 60 * 60 * 1000;
  * activity named after it (keep helpers out of this class: the worker registers every method of
  * the prototype); each reads the request before acting and is safe to retry: messages carry an
  * idempotency key per request and message, the package one per request, and the register
- * entries are written once. An unreachable service propagates, so Temporal retries; a message
- * notifications refuses or cannot deliver is logged and not retried.
+ * entries are written once. An unreachable service propagates, so Temporal retries; a refusal by
+ * declarations or documents, or a request not in the state its step needs, fails the step without
+ * retrying (activity-retry.ts); a message notifications refuses or cannot deliver is logged and
+ * not retried.
  */
 @Injectable()
 export class LeaRequestActivities {
@@ -58,11 +65,17 @@ export class LeaRequestActivities {
     private readonly clock: Clock,
   ) {}
 
-  /** Where the request stands, for a workflow that has had no signal for a while. */
-  async leaDecisionState({
+  /**
+   * Where the request stands, once the transaction that received it has ended (retried while it
+   * is open, activity-failures.ts): the workflow's first step, and its check for lost signals
+   * while it waits for the decision.
+   */
+  async leaRequestState({
     tenant,
     requestId,
-  }: LeaRequestWorkflowInput): Promise<LeaDecisionState> {
+    transactionId,
+  }: LeaRequestWorkflowInput): Promise<LeaRequestState> {
+    await requireTransactionEnded(this.db, transactionId);
     const found = await loadLea(this.db, tenant, requestId);
     if (!found) return 'missing';
     if (isDecided(found.status)) return 'decided';
@@ -187,7 +200,7 @@ export class LeaRequestActivities {
     if (!found) return 'missing';
     const { decision, resolvedPersonId } = found;
     if (decidedStatusOf(found) !== 'granted' || decision === null || resolvedPersonId === null) {
-      throw new Error('The request has no grant to tell the declarant of');
+      throw invariantBroken('The request has no grant to tell the declarant of');
     }
     const notified = await withTenant(this.db, systemContext(tenant), async (tx) => {
       const now = this.clock.now();
@@ -249,7 +262,7 @@ export class LeaRequestActivities {
     const { decision, resolvedPersonId } = found;
     const scope = decision?.grantedScope;
     if (decidedStatusOf(found) !== 'granted' || !decision || !scope || resolvedPersonId === null) {
-      throw new Error('The request has no grant to issue a package for');
+      throw invariantBroken('The request has no grant to issue a package for');
     }
 
     const context = { requestId };
@@ -268,8 +281,7 @@ export class LeaRequestActivities {
         sections: scope.sections,
       });
     } catch (error) {
-      logRefusal(this.logger, error, context, 'Disclosure refused by declarations');
-      throw error;
+      rethrowAsActivityFailure(this.logger, error, context, 'Disclosure refused by declarations');
     }
     if (disclosure === null) {
       this.logger.warn(context, 'Nothing to disclose in the granted scope: no package issued');
@@ -307,12 +319,11 @@ export class LeaRequestActivities {
         idempotencyKey: messageKey(requestId, 'lea-package'),
       });
     } catch (error) {
-      logRefusal(this.logger, error, context, 'Access package refused by documents');
-      throw error;
+      rethrowAsActivityFailure(this.logger, error, context, 'Access package refused by documents');
     }
     const { downloadExpiresAt } = issued;
     if (downloadExpiresAt === null) {
-      throw new Error('Documents issued the access package without a download window');
+      throw invariantBroken('Documents issued the access package without a download window');
     }
 
     await withTenant(this.db, systemContext(tenant), async (tx) => {
@@ -353,7 +364,7 @@ export class LeaRequestActivities {
   }: LeaRequestWorkflowInput): Promise<'sent' | 'missing'> {
     const found = await loadLea(this.db, tenant, requestId);
     if (!found) return 'missing';
-    if (found.downloadExpiresAt === null) throw new Error('The request has no package');
+    if (found.downloadExpiresAt === null) throw invariantBroken('The request has no package');
     for (const channel of CHANNELS) {
       await send(this.notifications, this.logger, found, {
         channel,
@@ -387,7 +398,7 @@ export class LeaRequestActivities {
         .where(eq(leaRequests.id, requestId))
         .for('update');
       if (!found) return 'missing';
-      if (found.downloadExpiresAt === null) throw new Error('The request has no package');
+      if (found.downloadExpiresAt === null) throw invariantBroken('The request has no package');
       const [expired] = await tx
         .select({ id: accessRegister.id })
         .from(accessRegister)
@@ -441,7 +452,7 @@ function isOpen(status: string): boolean {
 /** The decided status of a request the workflow was told is decided. */
 function decidedStatusOf(row: LeaRequestRow): LeaDecidedStatus {
   if (!isDecided(row.status) || row.decision === null) {
-    throw new Error('The law enforcement request is not decided');
+    throw invariantBroken('The law enforcement request is not decided');
   }
   return row.status;
 }

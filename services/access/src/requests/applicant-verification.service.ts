@@ -56,10 +56,10 @@ export class ApplicantVerificationService {
    * Verified: the directory first records the applicant's identity as `verified` (on the person
    * and the account, so their next requests are not held), then the request becomes `submitted`
    * with the officer's check on it, and the `verified` register entry and its event are recorded;
-   * its `AccessRequestWorkflow` starts (503 and nothing changed here when Temporal cannot be
-   * reached).
-   * The directory unreachable is 503 and nothing changes here; its record is idempotent (the key
-   * is the request's), so trying again is safe.
+   * once that commits, its `AccessRequestWorkflow` (running since receipt) is signalled
+   * `verified`, and goes on to wait for the officer named to be resolved. The directory
+   * unreachable is 503 and nothing changes here; its record is idempotent (the key is the
+   * request's), so trying again is safe.
    *
    * Not verified: the officer's check is recorded on the request, which stays held (the officer
    * may verify it later, or the applicant withdraw it); nothing is published.
@@ -117,13 +117,6 @@ export class ApplicantVerificationService {
           actor: { subject: principal.subject, name: principal.name },
           at: now,
         });
-        // Last, inside the transaction: the request goes ahead with its workflow, its clock
-        // still running from receipt.
-        await this.workflows.start({
-          tenant,
-          requestId: updated.id,
-          submittedAt: updated.submittedAt.toISOString(),
-        });
       }
       const [representationsRow] = await tx
         .select()
@@ -135,6 +128,7 @@ export class ApplicantVerificationService {
         representationsRow: representationsRow ?? null,
       };
     });
+    if (body.verified) await this.workflows.signal(row.id, 'verified');
     const formK = await openFormK(this.cipher, row);
     return toOfficerRequestView(row, formK, officerTimeline(entries), representationsRow);
   }

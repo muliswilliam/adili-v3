@@ -21,6 +21,12 @@ export const COMPLETE = JSON.parse(
   ),
 ) as Record<string, unknown>;
 
+/**
+ * A transaction id that has ended (Postgres's bootstrap transaction, always committed), for
+ * activities run directly: they read the record at once.
+ */
+export const ENDED_TRANSACTION = '1';
+
 /** The callers of the officer-side and declarant-side suites. */
 export const callers = {
   mercy: {

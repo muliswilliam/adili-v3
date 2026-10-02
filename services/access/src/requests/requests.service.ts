@@ -19,6 +19,7 @@ import {
 } from '../directory/directory-client.js';
 import { badRequest, directoryUnavailable, problem } from '../problems.js';
 import { AccessRegister, type RegisterRow } from '../register/access-register.js';
+import { currentTransactionId } from '../workflow-control.js';
 import { openFormK, sealFormK, withoutMeta } from './form-k.js';
 import { AccessRequestWorkflows } from './request-workflows.js';
 import { type AccessRequest, type AccessRequestRow, toAccessRequest } from './representation.js';
@@ -60,10 +61,11 @@ export class RequestsService {
    * in one transaction of the Commission's context. The request is `submitted`, or
    * `pending-applicant-verification` while the directory holds the applicant's identity as
    * pending (a passport holder no access officer has verified yet). The acknowledgement goes out
-   * from the event (`AcknowledgementService`), so it is sent even if this process dies now. A
-   * `submitted` request starts its `AccessRequestWorkflow` as the transaction's last step (503
-   * `workflow-unavailable` and nothing stored when Temporal cannot be reached); a held one starts
-   * it when the access officer verifies the applicant.
+   * from the event (`AcknowledgementService`), so it is sent even if this process dies now.
+   * Either way its `AccessRequestWorkflow` starts in the transaction, before the reference is
+   * allocated (503 `workflow-unavailable` and nothing stored when Temporal cannot be reached): the
+   * reminders count from receipt, and a held request waits in it for the applicant's
+   * verification (workflow-control.ts says why the start comes before the commit).
    */
   async submit(principal: Principal, body: unknown): Promise<AccessRequest> {
     const personId = applicantPersonId(principal);
@@ -78,7 +80,9 @@ export class RequestsService {
     const id = uuidv7();
     const now = this.clock.now();
     const decisionDeadlineAt = addDays(now, config.ACCESS_DECISION_DAYS);
-    // Sealed before the transaction: the reference counter stays locked only for the inserts.
+    // Sealed before the transaction, and the workflow started in it before the reference is
+    // allocated: the per-Commission reference counter stays locked only for the inserts, not
+    // across a call to OpenBao or Temporal.
     const sealed = await sealFormK(this.cipher, commission.slug, id, formK);
     const applicant = { subject: principal.subject, name: formK.partI.name };
 
@@ -86,6 +90,12 @@ export class RequestsService {
       this.db,
       { tenant: commission.slug, subject: principal.subject },
       async (tx) => {
+        await this.workflows.start({
+          tenant: commission.slug,
+          requestId: id,
+          submittedAt: now.toISOString(),
+          transactionId: await currentTransactionId(tx),
+        });
         const reference = await allocateReference(tx, ARQ, {
           issuer: commission.issuerCode,
           period: nairobiYear(now),
@@ -131,14 +141,6 @@ export class RequestsService {
           at: now,
           eventData,
         });
-        // Last, inside the transaction: a request never goes ahead without its workflow.
-        if (inserted.status === 'submitted') {
-          await this.workflows.start({
-            tenant: commission.slug,
-            requestId: id,
-            submittedAt: now.toISOString(),
-          });
-        }
         return { row: inserted, entry: received };
       },
     );

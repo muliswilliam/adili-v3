@@ -7,6 +7,7 @@ import { declarantPersonId } from '../access.js';
 import type { AccessDatabase } from '../db/database.js';
 import { leaRequests } from '../lea/schema.js';
 import type { RegisterRow } from '../register/access-register.js';
+import { inTimeline, type TimelineRow } from '../register/representation.js';
 import { accessRegister } from '../register/schema.js';
 import { accessRequests } from '../requests/schema.js';
 import { certifiedCopies } from '../self-access/schema.js';
@@ -118,7 +119,8 @@ export class HistoryService {
 }
 
 /** Whether the declarant sees an entry of this kind about this kind of subject. */
-function shows(row: RegisterRow): boolean {
+function shows(row: RegisterRow): row is TimelineRow {
+  if (!inTimeline(row)) return false;
   switch (row.subjectKind) {
     case 'access-request':
       return FORM_K_VISIBLE_KINDS.includes(row.kind);

@@ -6,8 +6,11 @@ import { APPLICANT, DECLARANT } from '@adili/roles';
 import { eq } from 'drizzle-orm';
 import { afterEach, beforeAll, describe, expect, it } from 'vitest';
 
+import { TRANSACTION_OPEN } from '../../src/activity-retry.js';
 import { accessRegister } from '../../src/db/schema.js';
 import type { VersionDocument } from '../../src/declarations/declarations-client.js';
+import { CertifiedCopyIssuance } from '../../src/self-access/certified-copy-issuance.js';
+import { certifiedCopyWorkflowId } from '../../src/self-access/contract.js';
 import type { CertifiedCopy } from '../../src/self-access/representation.js';
 import { type AccessApi, type Caller, startAccessApi } from '../support/access-api.js';
 import { contractErrors, okResponse } from '../support/contract.js';
@@ -254,6 +257,52 @@ describe('Certified copies (S13)', () => {
     expect(again.statusCode, again.body).toBe(202);
     expect(again.json<CertifiedCopy>()).toMatchObject({ id: first.id, status: 'pending' });
     expect(await untilSettled(first.id)).toMatchObject({ status: 'issued' });
+  });
+
+  it('S13: a failed copy ordered again is issued, even when its workflow runs before the order commits', async () => {
+    api.clock.set(NOW);
+    api.directory.givenCommission('psc', 'Public Service Commission');
+    const first = (await ask()).json<CertifiedCopy>();
+    expect(await untilSettled(first.id)).toMatchObject({ status: 'failed' });
+    api.declarations.givenFullDocument(versionOne());
+
+    // The order of it again stays open while the new run's first activity runs: the copy is
+    // still `failed` to every other transaction until it commits.
+    await api.asTenant({ tenant: 'psc', subject: anne.sub }, async (tx) => {
+      const copy = await api.app.get(CertifiedCopyIssuance).order(tx, {
+        tenant: 'psc',
+        commissionName: 'Public Service Commission',
+        personId: anne.personId,
+        declarationId: DECLARATION_ID,
+        version: 1,
+        requestedBy: { subject: anne.sub, name: anne.name },
+        applicationId: null,
+        at: new Date(NOW),
+      });
+      expect(copy).toMatchObject({ id: first.id, status: 'pending' });
+      const run = api.temporal.workflow.getHandle(certifiedCopyWorkflowId(copy.id));
+      const pending = await api.eventually(async () => {
+        const activity = (await run.describe()).raw.pendingActivities?.[0];
+        return activity && (activity.attempt ?? 0) >= 2 ? activity : undefined;
+      });
+      expect(pending.lastFailure?.applicationFailureInfo?.type).toBe(TRANSACTION_OPEN);
+    });
+
+    expect(await untilSettled(first.id)).toMatchObject({ status: 'issued' });
+    expect(api.documents.issued).toHaveLength(1);
+  });
+
+  it('S13: issuing refused by documents (not retried): the copy is recorded failed, and can be ordered again', async () => {
+    given();
+    api.documents.refuseCalls(1);
+
+    const copy = (await ask()).json<CertifiedCopy>();
+
+    expect(await untilSettled(copy.id)).toMatchObject({ status: 'failed' });
+    expect(api.documents.issued).toHaveLength(0);
+    const again = await ask();
+    expect(again.json<CertifiedCopy>()).toMatchObject({ id: copy.id, status: 'pending' });
+    expect(await untilSettled(copy.id)).toMatchObject({ status: 'issued' });
   });
 
   it('S13: declarations and documents outages delay the copy, never lose it', async () => {
