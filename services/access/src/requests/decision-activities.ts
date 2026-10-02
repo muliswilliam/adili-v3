@@ -10,6 +10,7 @@ import { DirectoryClient } from '../directory/directory-client.js';
 import { type AccessPackagePayload, DocumentsClient } from '../documents/documents-client.js';
 import { NotificationsClient } from '../notifications/notifications-client.js';
 import { AccessRegister } from '../register/access-register.js';
+import { type DisclosedClarification, ReviewClient } from '../review/review-client.js';
 import { accessRegister } from '../register/schema.js';
 import { systemContext } from '../system-context.js';
 import type {
@@ -47,6 +48,7 @@ export class DecisionActivities {
     @Inject(DATABASE) private readonly db: AccessDatabase,
     private readonly directory: DirectoryClient,
     private readonly declarations: DeclarationsClient,
+    private readonly review: ReviewClient,
     private readonly documents: DocumentsClient,
     private readonly notifications: NotificationsClient,
     private readonly register: AccessRegister,
@@ -105,10 +107,13 @@ export class DecisionActivities {
    * granted scope for the declarant (legal basis Act s.36(1), the grant's `ARQ` reference, the
    * deciding officer and the applicant as recipient, audited there), and documents issues it as
    * the applicant's Confidential `access-package`, watermarked with their name, the reference and
-   * the date, downloadable by them for the Commission's download window in force now. Both calls run in this one
-   * activity, so the disclosure never enters the workflow's history; only the package's ids are
-   * kept. The request records the package with the `package-issued` register entry and its
-   * event. A declarant with no declaration in the granted scope has nothing to disclose.
+   * the date, downloadable by them for the Commission's download window in force now. A grant
+   * that includes clarifications (Act s.36(1), Regulation 22(1)) carries those review discloses
+   * for the declarations disclosed, cut to the same scope and audited there alike. The calls run
+   * in this one activity, so neither the disclosure nor a clarification enters the workflow's
+   * history; only the package's ids are kept. The request records the package with the
+   * `package-issued` register entry and its event. A declarant with no declaration in the
+   * granted scope has nothing to disclose.
    */
   async issuePackage({ tenant, requestId }: AccessRequestWorkflowInput): Promise<PackageOutcome> {
     const found = await load(this.db, tenant, requestId);
@@ -145,6 +150,26 @@ export class DecisionActivities {
       return { outcome: 'nothing-to-disclose' };
     }
 
+    let clarifications: DisclosedClarification[] | null = null;
+    if (scope.includeClarifications) {
+      try {
+        clarifications = await this.review.discloseClarifications({
+          personId: resolvedPersonId,
+          tenant,
+          officerSubject: decision.decidedBy.subject,
+          grantReference: found.reference,
+          legalBasis: 'act-s36-1',
+          recipientSubject: found.applicantSubject,
+          declarationReferences: disclosure.versions.map((version) => version.reference),
+          includeSpouses: scope.includeSpouses,
+          includeChildren: scope.includeChildren,
+          sections: scope.sections,
+        });
+      } catch (error) {
+        rethrowAsActivityFailure(this.logger, error, context, 'Clarifications refused by review');
+      }
+    }
+
     const payload: AccessPackagePayload = {
       // Verbatim: declarations' cut of the granted scope, which documents validates strictly.
       disclosure: disclosure as unknown as AccessPackagePayload['disclosure'],
@@ -156,7 +181,9 @@ export class DecisionActivities {
         includeSpouses: scope.includeSpouses,
         includeChildren: scope.includeChildren,
         sections: scope.sections,
+        includeClarifications: scope.includeClarifications,
       },
+      clarifications,
     };
     let issued;
     try {

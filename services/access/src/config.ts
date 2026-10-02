@@ -21,6 +21,8 @@ export const envSchema = baseEnvSchema.extend({
   DECLARATIONS_URL: z.url(),
   /** Base URL of the documents service: packages, certified copies, representation attachments. */
   DOCUMENTS_URL: z.url(),
+  /** Base URL of the review service, which discloses the clarifications a Form K grant includes. */
+  REVIEW_URL: z.url(),
   /** Base URL of the notifications service, which tells applicants, declarants and officers. */
   NOTIFICATIONS_URL: z.url(),
   /** The portal, where applicants and declarants sign in: the link in their messages. */

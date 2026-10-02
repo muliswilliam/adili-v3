@@ -330,7 +330,10 @@ export class LeaRequestActivities {
         includeSpouses: scope.includeSpouses,
         includeChildren: scope.includeChildren,
         sections: scope.sections,
+        // Law enforcement requests never include clarifications (Form K only).
+        includeClarifications: false,
       },
+      clarifications: null,
     };
     let issued;
     try {

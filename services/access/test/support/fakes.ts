@@ -44,6 +44,12 @@ import {
   NotificationsUnavailable,
   type SentMessage,
 } from '../../src/notifications/notifications-client.js';
+import {
+  type ClarificationDisclosureRequest,
+  type DisclosedClarification,
+  ReviewClient,
+  ReviewUnavailable,
+} from '../../src/review/review-client.js';
 
 /**
  * The other services the access service calls, for tests: each holds what a test gives it,
@@ -388,6 +394,55 @@ export class FakeDeclarations extends DeclarationsClient {
           (other) => other.declarationId === found.declarationId && other.version > found.version,
         ),
       })),
+    );
+  }
+}
+
+/** Review: the clarifications of a declarant, disclosed whatever the scope asked. */
+export class FakeReview extends ReviewClient {
+  /** Each disclosure of clarifications asked for, as asked. */
+  readonly calls: ClarificationDisclosureRequest[] = [];
+  private readonly clarifications = new Map<string, DisclosedClarification[]>();
+  private readonly failures = new Failures();
+  private refusing: number | null = null;
+
+  /** What a disclosure of `personId`'s clarifications returns. */
+  givenClarifications(personId: string, clarifications: DisclosedClarification[]): void {
+    this.clarifications.set(personId, clarifications);
+  }
+
+  /** The next `count` calls fail, as an outage would. */
+  failCalls(count: number): void {
+    this.failures.next(count);
+  }
+
+  /** Every call is refused with `status` while set. */
+  refuse(status: number | null): void {
+    this.refusing = status;
+  }
+
+  reset(): void {
+    this.calls.length = 0;
+    this.clarifications.clear();
+    this.failures.reset();
+    this.refusing = null;
+  }
+
+  discloseClarifications(
+    request: ClarificationDisclosureRequest,
+  ): Promise<DisclosedClarification[]> {
+    this.calls.push(structuredClone(request));
+    if (this.refusing !== null) {
+      return Promise.reject(new UpstreamRefused('review', this.refusing));
+    }
+    if (this.failures.take()) {
+      return Promise.reject(new ReviewUnavailable('The review service is unreachable'));
+    }
+    // As review: only those of the declarations disclosed.
+    return Promise.resolve(
+      (this.clarifications.get(request.personId) ?? []).filter((clarification) =>
+        request.declarationReferences.includes(clarification.declarationReference),
+      ),
     );
   }
 }

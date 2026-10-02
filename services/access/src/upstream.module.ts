@@ -8,6 +8,7 @@ import {
   DIRECTORY_LAW_ENFORCEMENT_SCOPE,
   DOCUMENTS_INTERNAL_SCOPE,
   MESSAGES_SCOPE,
+  REVIEW_DISCLOSURES_SCOPE,
 } from '@adili/roles';
 
 import { config } from './config.js';
@@ -19,6 +20,8 @@ import { DocumentsClient } from './documents/documents-client.js';
 import { HttpDocumentsClient } from './documents/http-documents-client.js';
 import { HttpNotificationsClient } from './notifications/http-notifications-client.js';
 import { NotificationsClient } from './notifications/notifications-client.js';
+import { HttpReviewClient } from './review/http-review-client.js';
+import { ReviewClient } from './review/review-client.js';
 
 /** Client credentials of the access service's own account, for one callee's scope. */
 const tokens = (scope: string) =>
@@ -32,8 +35,9 @@ const tokens = (scope: string) =>
 /**
  * The other services' internal APIs the access service calls, with its own token through clients
  * generated from their contracts (ADR-013 §2, §8.8): Commissions, roster records, staff and
- * applicants (directory), scoped disclosures and full documents (declarations), packages, certified copies
- * and representation attachments (documents), and messages (notifications).
+ * applicants (directory), scoped disclosures and full documents (declarations), the clarifications
+ * a Form K grant discloses (review), packages, certified copies and representation attachments
+ * (documents), and messages (notifications).
  */
 @Module({
   providers: [
@@ -57,6 +61,14 @@ const tokens = (scope: string) =>
         }),
     },
     {
+      provide: ReviewClient,
+      useFactory: () =>
+        new HttpReviewClient({
+          reviewUrl: config.REVIEW_URL,
+          tokens: tokens(REVIEW_DISCLOSURES_SCOPE),
+        }),
+    },
+    {
       provide: DocumentsClient,
       useFactory: () =>
         new HttpDocumentsClient({
@@ -73,6 +85,12 @@ const tokens = (scope: string) =>
         }),
     },
   ],
-  exports: [DirectoryClient, DeclarationsClient, DocumentsClient, NotificationsClient],
+  exports: [
+    DirectoryClient,
+    DeclarationsClient,
+    ReviewClient,
+    DocumentsClient,
+    NotificationsClient,
+  ],
 })
 export class UpstreamModule {}
