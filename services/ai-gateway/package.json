@@ -18,7 +18,10 @@
     "test": "vitest run",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "node --disable-warning=DEP0205 --env-file-if-exists=.env --import @swc-node/register/esm-register src/db/migrate.ts",
-    "test:integration": "vitest run --config vitest.integration.config.ts"
+    "test:integration": "vitest run --config vitest.integration.config.ts",
+    "eval": "vitest run --config vitest.eval.config.ts",
+    "eval:record": "AI_REPLAY_MODE=record vitest run --config vitest.eval.config.ts",
+    "eval:prune": "node --disable-warning=DEP0205 --import @swc-node/register/esm-register evals/prune.ts"
   },
   "dependencies": {
     "@adili/api-kit": "workspace:*",

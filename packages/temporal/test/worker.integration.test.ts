@@ -78,6 +78,22 @@ async function isUp(readiness: TemporalWorkerReadinessCheck): Promise<boolean> {
 
 describe('TemporalWorkerModule against compose Temporal', () => {
   let app: TestingModule | undefined;
+  /**
+   * Tests about readiness and shutdown run from these, so their waits time the worker, not a
+   * webpack build: bundling is seconds of CPU, and on a runner busy with parallel suites it took
+   * longer than those waits allow.
+   */
+  let bundles: WorkflowBundles | undefined;
+
+  beforeAll(async () => {
+    // As Vitest runs it from a config's globalSetup.
+    const setup = workflowBundlesSetup([workflowsPath]);
+    await setup({
+      provide: (_key: 'workflowBundles', value: WorkflowBundles) => {
+        bundles = value;
+      },
+    } as unknown as Parameters<typeof setup>[0]);
+  });
 
   afterEach(async () => {
     await app?.close();
@@ -123,47 +139,7 @@ describe('TemporalWorkerModule against compose Temporal', () => {
     }
   });
 
-  it('reports down until the worker is polling, then up', async () => {
-    app = await createApp({ taskQueue: `worker-test-${randomUUID()}` });
-    const readiness = app.get(TemporalWorkerReadinessCheck);
-
-    await expect(readiness.check()).rejects.toThrow(/not polling/);
-    await app.init();
-    await waitUntil(() => isUp(readiness));
-  });
-
-  it('shuts down cleanly while the worker is still being created', async () => {
-    app = await createApp({ taskQueue: `worker-test-${randomUUID()}` });
-    const errors: unknown[] = [];
-    app.useLogger({
-      log: () => undefined,
-      warn: () => undefined,
-      error: (message: unknown) => errors.push(message),
-    });
-    await app.init();
-    // Connected by now, and still bundling the workflows.
-    await new Promise((resolve) => setTimeout(resolve, 300));
-    const closing = app.close();
-    app = undefined;
-
-    await closing;
-
-    expect(errors).toEqual([]);
-  });
-
   describe('with bundles built once for the run', () => {
-    let bundles: WorkflowBundles | undefined;
-
-    beforeAll(async () => {
-      // As Vitest runs it from a config's globalSetup.
-      const setup = workflowBundlesSetup([workflowsPath]);
-      await setup({
-        provide: (_key: 'workflowBundles', value: WorkflowBundles) => {
-          bundles = value;
-        },
-      } as unknown as Parameters<typeof setup>[0]);
-    });
-
     it('runs workflows from the prebuilt bundle', async () => {
       const taskQueue = `worker-test-${randomUUID()}`;
       app = await createApp({ taskQueue, bundler: prebuiltWorkflowBundler(bundles) });
@@ -200,71 +176,99 @@ describe('TemporalWorkerModule against compose Temporal', () => {
         `No prebuilt workflow bundle for ${workflowsPath}`,
       );
     });
+  });
 
-    // The drain tests wait for the worker to poll before starting the workflow, so waiting for
-    // the activity covers only Temporal's dispatch, not the worker's start (on a loaded CI
-    // runner, bundling the workflows per test alone took seconds).
-    it('reports down and waits for in-flight activities while shutting down', async () => {
-      const taskQueue = `worker-test-${randomUUID()}`;
-      app = await createApp({
-        taskQueue,
-        drainTimeoutMs: 10_000,
-        bundler: prebuiltWorkflowBundler(bundles),
-      });
-      await app.init();
-      const readiness = app.get(TemporalWorkerReadinessCheck);
-      await waitUntil(() => isUp(readiness));
-      const activities = app.get(GreetingActivities);
-      activities.delayMs = 1_500;
-      const client = app.get<Client>(TEMPORAL_CLIENT);
-
-      await client.workflow.start(greetNow, {
-        taskQueue,
-        workflowId: randomUUID(),
-        args: ['Baraka'],
-        // The worker stops before the workflow finishes; let Temporal close it.
-        workflowExecutionTimeout: '1 minute',
-      });
-      await waitUntil(() => activities.started === 1);
-      const closing = app.close();
-      app = undefined;
-      await waitUntil(async () => !(await isUp(readiness)));
-      expect(activities.completed).toBe(0);
-      await closing;
-
-      expect(activities.completed).toBe(1);
+  it('reports down until the worker is polling, then up', async () => {
+    app = await createApp({
+      taskQueue: `worker-test-${randomUUID()}`,
+      bundler: prebuiltWorkflowBundler(bundles),
     });
+    const readiness = app.get(TemporalWorkerReadinessCheck);
 
-    it('stops waiting for in-flight activities after the drain time', async () => {
-      const taskQueue = `worker-test-${randomUUID()}`;
-      app = await createApp({
-        taskQueue,
-        drainTimeoutMs: 500,
-        bundler: prebuiltWorkflowBundler(bundles),
-      });
-      // The SDK logs the activity it gives up on as a worker failure: expected here.
-      app.useLogger(false);
-      await app.init();
-      const readiness = app.get(TemporalWorkerReadinessCheck);
-      await waitUntil(() => isUp(readiness));
-      const activities = app.get(GreetingActivities);
-      activities.delayMs = 60_000;
-      const client = app.get<Client>(TEMPORAL_CLIENT);
+    await expect(readiness.check()).rejects.toThrow(/not polling/);
+    await app.init();
+    await waitUntil(() => isUp(readiness));
+  });
 
-      await client.workflow.start(greetNow, {
-        taskQueue,
-        workflowId: randomUUID(),
-        args: ['Chebet'],
-        workflowExecutionTimeout: '1 minute',
-      });
-      await waitUntil(() => activities.started === 1);
-      const started = Date.now();
-      await app.close();
-      app = undefined;
-
-      expect(Date.now() - started).toBeLessThan(10_000);
-      expect(activities.completed).toBe(0);
+  it('shuts down cleanly while the worker is still being created', async () => {
+    app = await createApp({ taskQueue: `worker-test-${randomUUID()}` });
+    const errors: unknown[] = [];
+    app.useLogger({
+      log: () => undefined,
+      warn: () => undefined,
+      error: (message: unknown) => errors.push(message),
     });
+    await app.init();
+    // Connected by now, and still bundling the workflows.
+    await new Promise((resolve) => setTimeout(resolve, 300));
+    const closing = app.close();
+    app = undefined;
+
+    await closing;
+
+    expect(errors).toEqual([]);
+  });
+
+  it('reports down and waits for in-flight activities while shutting down', async () => {
+    const taskQueue = `worker-test-${randomUUID()}`;
+    app = await createApp({
+      taskQueue,
+      drainTimeoutMs: 10_000,
+      bundler: prebuiltWorkflowBundler(bundles),
+    });
+    await app.init();
+    const readiness = app.get(TemporalWorkerReadinessCheck);
+    await waitUntil(() => isUp(readiness));
+    const activities = app.get(GreetingActivities);
+    activities.delayMs = 1_500;
+    const client = app.get<Client>(TEMPORAL_CLIENT);
+
+    await client.workflow.start(greetNow, {
+      taskQueue,
+      workflowId: randomUUID(),
+      args: ['Baraka'],
+      // The worker stops before the workflow finishes; let Temporal close it.
+      workflowExecutionTimeout: '1 minute',
+    });
+    await waitUntil(() => activities.started === 1);
+    const closing = app.close();
+    app = undefined;
+    await waitUntil(async () => !(await isUp(readiness)));
+    expect(activities.completed).toBe(0);
+    await closing;
+
+    expect(activities.completed).toBe(1);
+  });
+
+  it('stops waiting for in-flight activities after the drain time', async () => {
+    const taskQueue = `worker-test-${randomUUID()}`;
+    app = await createApp({
+      taskQueue,
+      drainTimeoutMs: 500,
+      bundler: prebuiltWorkflowBundler(bundles),
+    });
+    // The SDK logs the activity it gives up on as a worker failure: expected here.
+    app.useLogger(false);
+    await app.init();
+    const readiness = app.get(TemporalWorkerReadinessCheck);
+    await waitUntil(() => isUp(readiness));
+    const activities = app.get(GreetingActivities);
+    activities.delayMs = 60_000;
+    const client = app.get<Client>(TEMPORAL_CLIENT);
+
+    await client.workflow.start(greetNow, {
+      taskQueue,
+      workflowId: randomUUID(),
+      args: ['Chebet'],
+      workflowExecutionTimeout: '1 minute',
+    });
+    await waitUntil(() => activities.started === 1);
+    const started = Date.now();
+    await app.close();
+    app = undefined;
+
+    expect(Date.now() - started).toBeLessThan(10_000);
+    expect(activities.completed).toBe(0);
   });
 });
 
