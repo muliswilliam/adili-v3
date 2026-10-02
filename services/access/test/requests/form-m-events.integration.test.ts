@@ -27,6 +27,7 @@ const NARROWED = {
   includeSpouses: false,
   includeChildren: false,
   sections: ['income', 'assets'],
+  includeClarifications: false,
 };
 
 /**

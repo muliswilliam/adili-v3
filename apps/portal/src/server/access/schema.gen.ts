@@ -580,6 +580,7 @@ export interface components {
             includeSpouses: boolean;
             includeChildren: boolean;
             sections: components["schemas"]["Section"][];
+            includeClarifications: boolean;
         };
         Decision: {
             outcome: components["schemas"]["Outcome"];

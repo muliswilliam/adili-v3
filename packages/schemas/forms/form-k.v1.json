@@ -114,7 +114,13 @@
     "scope": {
       "type": "object",
       "description": "Platform scope fields (Admin Mechanism 31 scoped access)",
-      "required": ["years", "includeSpouses", "includeChildren", "sections"],
+      "required": [
+        "years",
+        "includeSpouses",
+        "includeChildren",
+        "sections",
+        "includeClarifications"
+      ],
       "additionalProperties": false,
       "properties": {
         "years": {
@@ -131,7 +137,8 @@
           "minItems": 1,
           "uniqueItems": true,
           "items": { "type": "string", "enum": ["bio", "income", "assets", "liabilities", "other"] }
-        }
+        },
+        "includeClarifications": { "type": "boolean" }
       }
     },
     "meta": {

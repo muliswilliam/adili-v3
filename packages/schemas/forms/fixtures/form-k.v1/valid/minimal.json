@@ -28,6 +28,7 @@
     "years": [2026],
     "includeSpouses": false,
     "includeChildren": false,
-    "sections": ["income"]
+    "sections": ["income"],
+    "includeClarifications": false
   }
 }

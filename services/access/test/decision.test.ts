@@ -10,6 +10,7 @@ describe('decisionOf', () => {
     includeSpouses: true,
     includeChildren: false,
     sections: ['income', 'assets', 'liabilities'],
+    includeClarifications: true,
   };
   const narrowed: Scope = { ...requested, years: [2026], includeSpouses: false };
   const decidedBy = { subject: 'officer-psc', name: 'Peter Access' };

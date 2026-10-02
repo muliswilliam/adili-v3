@@ -30,6 +30,7 @@ const REQUESTED: Scope = {
   includeSpouses: true,
   includeChildren: false,
   sections: ['income', 'assets', 'liabilities'],
+  includeClarifications: true,
 };
 
 /** Narrowed: 2026 only, the officer's own statement, assets and liabilities. */
@@ -38,6 +39,7 @@ const NARROWED: Scope = {
   includeSpouses: false,
   includeChildren: false,
   sections: ['assets', 'liabilities'],
+  includeClarifications: false,
 };
 
 const REASONS = 'The applicant shows a legitimate interest in the officer’s land holdings.';

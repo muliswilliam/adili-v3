@@ -130,7 +130,8 @@ function exceedsRequest(): DecisionRejection {
   return {
     code: 'scope-exceeds-request',
     path: 'grantedScope',
-    message: 'grants a year, section or household member the request did not ask for',
+    message:
+      'grants a year, section, household member or clarifications the request did not ask for',
   };
 }
 
