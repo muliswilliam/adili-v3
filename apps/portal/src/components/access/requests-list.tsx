@@ -13,6 +13,7 @@ import {
   groundMeta,
   Icon,
   OPEN_ACCESS_STATUSES,
+  unissuedPackageState,
 } from '@adili/ui';
 import {
   Add01Icon,
@@ -20,6 +21,7 @@ import {
   ArrowRight01Icon,
   Calendar03Icon,
   File01Icon,
+  PackageRemoveIcon,
   SquareLock02Icon,
 } from '@hugeicons/core-free-icons';
 import { Link } from '@tanstack/react-router';
@@ -95,9 +97,23 @@ function DecisionDue({ request, now }: { request: RequestSummary; now: number })
   );
 }
 
-/** A granted package's download window: by when, days left (soon from 3 days), or expired. */
+/**
+ * A granted package's download window: by when, days left (soon from 3 days), or expired; or,
+ * an hour after the grant without a package, that none was issued (the rule every app shares).
+ */
 function DownloadBy({ request, now }: { request: RequestSummary; now: number }) {
-  if (!GRANTED_ACCESS_STATUSES.has(request.status) || !request.downloadExpiresAt) return null;
+  if (!GRANTED_ACCESS_STATUSES.has(request.status)) return null;
+  if (!request.downloadExpiresAt) {
+    if (!request.closedAt || unissuedPackageState(request.closedAt, now) === 'preparing') {
+      return null;
+    }
+    return (
+      <Badge variant="default">
+        <Icon icon={PackageRemoveIcon} strokeWidth={2.2} />
+        {COPY.noPackage}
+      </Badge>
+    );
+  }
   if (Date.parse(request.downloadExpiresAt) <= now) {
     return (
       <Badge variant="default">

@@ -60,7 +60,9 @@ describe('RequestsList (S17)', () => {
 
   it('#261: shows a grant’s download window: days left, soon, today, expired', async () => {
     const requests = await rows();
-    const granted = requests.filter((each) => each.downloadExpiresAt !== null);
+    const granted = requests.filter(
+      (each) => each.downloadExpiresAt !== null || [IDS.unissued, IDS.preparing].includes(each.id),
+    );
     render(<RequestsList requests={granted} page={1} now={NOW} onPage={vi.fn()} />);
     const chip = (key: keyof typeof IDS) => {
       const request = requests.find((each) => each.id === IDS[key]);
@@ -74,6 +76,8 @@ describe('RequestsList (S17)', () => {
     expect(chip('expiring').getByText('Expires today')).toBeTruthy();
     expect(chip('expired').getByText('Download expired')).toBeTruthy();
     expect(chip('expired').queryByText(/left$/)).toBeNull();
+    expect(chip('unissued').getByText('No package issued')).toBeTruthy();
+    expect(chip('preparing').queryByText('No package issued')).toBeNull();
   });
 
   it('sums up a decided row: the grounds and the start of the reasons', async () => {

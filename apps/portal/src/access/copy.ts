@@ -192,6 +192,7 @@ const REQUESTS = {
   grounds: en('Grounds:'),
   expiresToday: en('Expires today'),
   downloadExpired: en('Download expired'),
+  noPackage: en('No package issued'),
 };
 
 export const REQUESTS_COPY = english(REQUESTS);
