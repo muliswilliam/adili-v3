@@ -74,7 +74,7 @@ class InternalRecordsController {
     audit.resource({ tenant: 'psc', subjectPersonId: 'person-1' });
     audit.disclosure({
       basis: 'act-s36-1',
-      reference: 'ARQ-PSC-2028-0000012-5',
+      reference: 'ARQ-PSC-2028-0000012-N',
       recipient: 'applicant-7',
     });
     return { id: recordId };
@@ -237,7 +237,7 @@ describe('AuditedReadInterceptor', () => {
           action: 'roster.record.disclosed',
           resource: { subjectPersonId: 'person-1' },
           actor: { subject: 'service-account-records', onBehalfOf: 'access-officer-3' },
-          legalBasis: { basis: 'act-s36-1', reference: 'ARQ-PSC-2028-0000012-5' },
+          legalBasis: { basis: 'act-s36-1', reference: 'ARQ-PSC-2028-0000012-N' },
           recipient: 'applicant-7',
         },
       },

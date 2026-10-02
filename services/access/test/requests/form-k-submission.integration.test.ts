@@ -142,6 +142,48 @@ describe('Form K submission (S2)', () => {
     expect(JSON.stringify(events)).not.toMatch(/Mercy|Njeri|journalist|land allocations/);
   });
 
+  it("S2: Part I's particulars are the directory's, whatever an API caller sends: the name stored and watermarked is the account's", async () => {
+    given();
+    const partI = COMPLETE.partI as Record<string, unknown>;
+
+    const response = await submit({
+      ...COMPLETE,
+      partI: {
+        ...partI,
+        name: 'Somebody Else',
+        identityDocument: { kind: 'passport', number: 'ZZ999999', country: 'TZ' },
+        telephone: '+254700000001',
+        email: 'somebody@example.org',
+      },
+    });
+
+    expect(response.statusCode, response.body).toBe(201);
+    const body = response.json<{ id: string; formK: { partI: unknown } }>();
+    // Name, identity document and contacts from the directory; addresses and occupation as entered.
+    expect(body.formK.partI).toEqual(partI);
+    const [row] = await api.asPlatform((tx) => tx.select().from(accessRequests));
+    // The package watermark and the timeline name the request's `applicantName`.
+    expect(row?.applicantName).toBe('Mercy Wanjiku Kamau');
+    const stored = await api.get(`/v1/access/requests/${body.id}`, applicant);
+    expect(stored.json<{ formK: { partI: unknown } }>().formK.partI).toEqual(partI);
+  });
+
+  it('S2: a contact the directory holds none of keeps the applicant entry', async () => {
+    given();
+    api.directory.givenApplicant(applicant.personId ?? '', 'verified', {
+      contacts: { email: null, phone: '+254712345678' },
+    });
+    const partI = COMPLETE.partI as Record<string, unknown>;
+
+    const response = await submit({ ...COMPLETE, partI: { ...partI, email: 'own@example.org' } });
+
+    expect(response.statusCode, response.body).toBe(201);
+    expect(response.json<{ formK: { partI: unknown } }>().formK.partI).toEqual({
+      ...partI,
+      email: 'own@example.org',
+    });
+  });
+
   it('S2: references run on per Commission and year', async () => {
     given();
     api.directory.givenCommission('tsc', 'Teachers Service Commission');
@@ -166,6 +208,20 @@ describe('Form K submission (S2)', () => {
     await expectNothingStored();
   });
 
+  it('S2: a scope asking for clarifications is 400 at the field: no access covers them', async () => {
+    given();
+
+    const response = await submit({
+      ...COMPLETE,
+      scope: { ...(COMPLETE.scope as object), includeClarifications: true },
+    });
+
+    expect(response.statusCode).toBe(400);
+    const problem = response.json<{ errors: { path: string }[] }>();
+    expect(problem.errors.map((error) => error.path)).toEqual(['scope.includeClarifications']);
+    await expectNothingStored();
+  });
+
   it('S2: a document that is not an object is 400', async () => {
     given();
 
@@ -177,8 +233,11 @@ describe('Form K submission (S2)', () => {
 
   it('S2: Form K addressed to no Responsible Commission is 400 at responsibleCommission', async () => {
     given();
+    // Reserved tenant keys are refused even if the directory ever held such a Commission: `lea`
+    // is the law enforcement officers' row-level security context.
+    api.directory.givenCommission('lea', 'Lea Commission');
 
-    for (const responsibleCommission of ['ghost', 'platform']) {
+    for (const responsibleCommission of ['ghost', 'platform', 'lea']) {
       const response = await submit({ ...COMPLETE, responsibleCommission });
 
       expect(response.statusCode).toBe(400);

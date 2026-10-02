@@ -214,7 +214,8 @@ describe('Law enforcement requests (S11)', () => {
       expect(invalid.statusCode).toBe(400);
       const paths = invalid.json<{ errors: { path: string }[] }>().errors.map((e) => e.path);
       expect(paths).toEqual(
-        expect.arrayContaining(['reason', 'caseReference', 'scope.includeClarifications']),
+        // No clarifications in a scope: the field is not allowed at all.
+        expect.arrayContaining(['reason', 'caseReference', 'scope']),
       );
       expect(unknown.statusCode).toBe(400);
       expect(unknown.json()).toMatchObject({ errors: [{ path: 'commission' }] });
@@ -638,7 +639,7 @@ describe('Law enforcement requests (S11)', () => {
       const groundless = await decideLea(api, id, { outcome: 'deny', reasons: 'No.' });
       const wider = await decideLea(api, id, {
         outcome: 'partial-grant',
-        grantedScope: { ...LEA_INPUT.scope, includeClarifications: true },
+        grantedScope: { ...LEA_INPUT.scope, includeChildren: true },
         grounds: ['public-interest'],
         reasons: 'Wider.',
       });

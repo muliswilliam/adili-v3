@@ -11,16 +11,20 @@ import {
   AcceptIdempotencyKey,
   ApiProblemResponse,
   ApiQueryParameters,
+  AuditedRead,
   CurrentPrincipal,
+  CurrentReadAudit,
   type Principal,
+  type ReadAudit,
   RequireIdempotencyKey,
   Roles,
   schemaRef,
   ZodValidationPipe,
 } from '@adili/api-kit';
-import { ACCESS_OFFICER, EACC_ROLES, LAW_ENFORCEMENT, SUPERVISOR } from '@adili/roles';
+import { LAW_ENFORCEMENT } from '@adili/roles';
 import { z } from 'zod';
 
+import { OFFICER_ROUTE_ROLES } from '../access.js';
 import { type DecisionInput, decisionInputSchema } from '../decision.js';
 import {
   type RosterCandidates,
@@ -40,12 +44,6 @@ const LEA_REQUEST_ID = {
   name: 'leaRequestId',
   schema: { type: 'string', format: 'uuid' },
 } as const;
-
-/**
- * Who reaches the Commission's routes: its access officer and supervisor, and EACC, whose roles
- * see nothing here (spec 10): they get 404, as for another Commission's requests, not 403.
- */
-const OFFICER_ROUTE_ROLES = [ACCESS_OFFICER, SUPERVISOR, ...EACC_ROLES] as const;
 
 const NOT_VISIBLE =
   "No such request of the caller's (another officer's, another Commission's, EACC's or anyone else's view)";
@@ -104,10 +102,11 @@ export class LeaController {
 
   @Get(':leaRequestId')
   @Roles(LAW_ENFORCEMENT, ...OFFICER_ROUTE_ROLES)
+  @AuditedRead({ action: 'lea.request.viewed', resource: 'lea-request' })
   @ApiParam(LEA_REQUEST_ID)
   @ApiOperation({
     operationId: 'getLeaRequest',
-    summary: "One request (the officer who filed it, or the Commission's access officer)",
+    summary: "One request (the officer who filed it, or the Commission's access officer; audited)",
     description:
       "The officer who filed it sees it with only their own name on the timeline; the Commission's access officer and supervisor see it whole. The package (`package.documentId`) is downloaded by the filing officer from documents until `package.downloadExpiresAt`.",
   })
@@ -118,17 +117,20 @@ export class LeaController {
   get(
     @CurrentPrincipal() principal: Principal,
     @Param('leaRequestId', new ZodValidationPipe(z.uuid())) requestId: string,
+    @CurrentReadAudit() audit: ReadAudit,
   ): Promise<LeaRequest> {
-    return this.lea.get(principal, requestId);
+    return this.lea.get(principal, requestId, audit);
   }
 
   @Get(':leaRequestId/roster-candidates')
   @Roles(...OFFICER_ROUTE_ROLES)
+  @AuditedRead({ action: 'lea.roster-candidates.listed', resource: 'roster-record' })
   @ApiTags('officer')
   @ApiParam(LEA_REQUEST_ID)
   @ApiOperation({
     operationId: 'listLeaRosterCandidates',
-    summary: "Search the Commission's roster for the officer a law enforcement request names",
+    summary:
+      "Search the Commission's roster for the officer a law enforcement request names (audited)",
     description:
       'As for Form K: by personnel file number (its beginning) or part of the name, at most 20 records by full name. Only an `onboarded` record can be chosen when verifying: its declarant is told after a grant.',
   })
@@ -142,8 +144,9 @@ export class LeaController {
     @CurrentPrincipal() principal: Principal,
     @Param('leaRequestId', new ZodValidationPipe(z.uuid())) requestId: string,
     @Query(new ZodValidationPipe(rosterCandidatesQuery)) query: RosterCandidatesQuery,
+    @CurrentReadAudit() audit: ReadAudit,
   ): Promise<RosterCandidates> {
-    return this.lea.rosterCandidates(principal, requestId, query.q);
+    return this.lea.rosterCandidates(principal, requestId, query.q, audit);
   }
 
   @Post(':leaRequestId/verify')

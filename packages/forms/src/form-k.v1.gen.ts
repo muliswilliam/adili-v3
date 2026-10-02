@@ -79,7 +79,6 @@ export interface FormKV1 {
      * @minItems 1
      */
     sections: ('bio' | 'income' | 'assets' | 'liabilities' | 'other')[];
-    includeClarifications: boolean;
   };
   meta?: {
     reference?: string;

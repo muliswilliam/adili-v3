@@ -72,7 +72,7 @@ export class FakeDirectory extends DirectoryClient {
   readonly calls: { method: string; slug: string }[] = [];
   /** Each verification recorded, as asked (a replayed key included). */
   readonly verifications: ApplicantVerificationInput[] = [];
-  private readonly applicants = new Map<string, ApplicantIdentityStatus>();
+  private readonly applicants = new Map<string, ApplicantFacts>();
   private failingMethod: string | undefined;
   private readonly commissions = new Map<string, CommissionListing>();
   private readonly records = new Map<string, RosterCandidateFacts & { slug: string }>();
@@ -118,9 +118,29 @@ export class FakeDirectory extends DirectoryClient {
     this.staff.set(`${slug}:${role}`, members);
   }
 
-  /** An applicant person, verified (national ID matched by IPRS) unless said otherwise. */
-  givenApplicant(personId: string, identityStatus: ApplicantIdentityStatus = 'verified'): void {
-    this.applicants.set(personId, identityStatus);
+  /**
+   * An applicant person, verified (national ID matched by IPRS) unless said otherwise, with the
+   * particulars of `particulars`, else Mercy Wanjiku Kamau's (those of the complete Form K fixture).
+   */
+  givenApplicant(
+    personId: string,
+    identityStatus: ApplicantIdentityStatus = 'verified',
+    particulars: Partial<Omit<ApplicantFacts, 'personId' | 'identityStatus'>> = {},
+  ): void {
+    this.applicants.set(personId, {
+      personId,
+      identityStatus,
+      fullName: particulars.fullName ?? 'Mercy Wanjiku Kamau',
+      identityDocument: particulars.identityDocument ?? {
+        kind: 'national-id',
+        number: '28475910',
+        country: null,
+      },
+      contacts: particulars.contacts ?? {
+        email: 'mercy.kamau@example.co.ke',
+        phone: '+254712345678',
+      },
+    });
   }
 
   /**
@@ -153,7 +173,7 @@ export class FakeDirectory extends DirectoryClient {
 
   /** The applicant's identity status as the directory now holds it. */
   identityStatusOf(personId: string): ApplicantIdentityStatus | undefined {
-    return this.applicants.get(personId);
+    return this.applicants.get(personId)?.identityStatus;
   }
 
   /** The next `count` calls (of `method` only, when given) fail, as a directory outage would. */
@@ -225,17 +245,19 @@ export class FakeDirectory extends DirectoryClient {
 
   applicant(personId: string, tenant: string): Promise<ApplicantFacts | null> {
     return this.answer('applicant', tenant, () => {
-      const identityStatus = this.applicants.get(personId);
-      return identityStatus === undefined ? null : { personId, identityStatus };
+      const found = this.applicants.get(personId);
+      return found === undefined ? null : structuredClone(found);
     });
   }
 
   verifyApplicantIdentity(input: ApplicantVerificationInput): Promise<ApplicantFacts | null> {
     return this.answer('verifyApplicantIdentity', input.tenant, () => {
       this.verifications.push({ ...input });
-      if (!this.applicants.has(input.personId)) return null;
-      this.applicants.set(input.personId, 'verified');
-      return { personId: input.personId, identityStatus: 'verified' as const };
+      const found = this.applicants.get(input.personId);
+      if (found === undefined) return null;
+      const verified = { ...found, identityStatus: 'verified' as const };
+      this.applicants.set(input.personId, verified);
+      return structuredClone(verified);
     });
   }
 
@@ -257,6 +279,8 @@ export class FakeDirectory extends DirectoryClient {
 }
 
 /** Declarations: scoped disclosures and full documents, as given per declarant. */
+type DeclarationsMethod = 'renderDisclosure' | 'fullDocument' | 'personVersions';
+
 export class FakeDeclarations extends DeclarationsClient {
   /** Each disclosure asked for, as asked. */
   readonly disclosureCalls: DisclosureRequest[] = [];
@@ -265,6 +289,8 @@ export class FakeDeclarations extends DeclarationsClient {
   private readonly disclosures = new Map<string, DisclosureDocument>();
   private readonly documents = new Map<string, VersionDocument>();
   private readonly failures = new Failures();
+  private failingMethod: DeclarationsMethod | undefined;
+  private withholding = false;
 
   /** What a disclosure for `personId` returns (whatever the scope asked). */
   givenDisclosure(personId: string, disclosure: DisclosureDocument): void {
@@ -275,8 +301,15 @@ export class FakeDeclarations extends DeclarationsClient {
     this.documents.set(`${document.declarationId}:${String(document.version)}`, document);
   }
 
-  failCalls(count: number): void {
+  /** The next `count` calls (of `method` only, when given) fail, as an outage would. */
+  failCalls(count: number, method?: DeclarationsMethod): void {
     this.failures.next(count);
+    this.failingMethod = method;
+  }
+
+  /** Full documents are not found while on, though their versions are listed. */
+  withholdFullDocuments(on = true): void {
+    this.withholding = on;
   }
 
   reset(): void {
@@ -286,11 +319,18 @@ export class FakeDeclarations extends DeclarationsClient {
     this.disclosures.clear();
     this.documents.clear();
     this.failures.reset();
+    this.failingMethod = undefined;
+    this.withholding = false;
+  }
+
+  private fails(method: DeclarationsMethod): boolean {
+    const failing = this.failingMethod === undefined || this.failingMethod === method;
+    return failing && this.failures.take();
   }
 
   renderDisclosure(request: DisclosureRequest): Promise<DisclosureDocument | null> {
     this.disclosureCalls.push(structuredClone(request));
-    if (this.failures.take()) {
+    if (this.fails('renderDisclosure')) {
       return Promise.reject(new DeclarationsUnavailable('The declarations service is unreachable'));
     }
     return Promise.resolve(this.disclosures.get(request.personId) ?? null);
@@ -298,18 +338,21 @@ export class FakeDeclarations extends DeclarationsClient {
 
   fullDocument(request: FullDocumentRequest): Promise<VersionDocument | null> {
     this.fullDocumentCalls.push(structuredClone(request));
-    if (this.failures.take()) {
+    if (this.fails('fullDocument')) {
       return Promise.reject(new DeclarationsUnavailable('The declarations service is unreachable'));
     }
     // As declarations: only a version of the person, at the acting Commission.
     const found = this.documents.get(`${request.declarationId}:${String(request.version)}`);
-    const theirs = found?.personId === request.personId && found.commission.slug === request.tenant;
+    const theirs =
+      !this.withholding &&
+      found?.personId === request.personId &&
+      found.commission.slug === request.tenant;
     return Promise.resolve(theirs ? found : null);
   }
 
   personVersions(tenant: string, personId: string): Promise<PersonVersion[]> {
     this.personVersionsCalls.push({ tenant, personId });
-    if (this.failures.take()) {
+    if (this.fails('personVersions')) {
       return Promise.reject(new DeclarationsUnavailable('The declarations service is unreachable'));
     }
     // As declarations: the person's versions at the acting Commission, latest submitted first.

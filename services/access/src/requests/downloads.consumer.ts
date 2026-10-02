@@ -9,7 +9,7 @@ import { z } from 'zod';
 
 import type { AccessDatabase, AccessTransaction } from '../db/database.js';
 import { leaRequests } from '../lea/schema.js';
-import { AccessRegister, type RegisterEntryInput } from '../register/access-register.js';
+import { AccessRegister, type RegisterEntryBase } from '../register/access-register.js';
 import { systemContext } from '../system-context.js';
 import { accessRequests } from './schema.js';
 
@@ -23,7 +23,8 @@ const DOWNLOADS_CONSUMER = 'access.package-downloaded';
 const PACKAGE_SUBJECT = /^(?<kind>access-request|lea-request):(?<id>[0-9a-f-]{36})$/;
 
 /** The register entry of a download, without its time and actor. */
-type DownloadedEntry = Omit<RegisterEntryInput, 'kind' | 'at' | 'actor'> & {
+type DownloadedEntry = Omit<RegisterEntryBase, 'at' | 'actor' | 'details'> & {
+  subjectKind: 'access-request' | 'lea-request';
   /** The recipient's account and name: the actor's name when they downloaded it themselves. */
   recipient: { subject: string; name: string };
 };

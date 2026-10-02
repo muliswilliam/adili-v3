@@ -54,7 +54,11 @@ describe('Applicant verification of passport holders (S2)', () => {
   function given(identityStatus: 'verified' | 'pending-verification' = 'pending-verification') {
     api.directory.givenCommission('psc', 'Public Service Commission');
     api.directory.givenCommission('tsc', 'Teachers Service Commission');
-    api.directory.givenApplicant(daniel.personId ?? '', identityStatus);
+    api.directory.givenApplicant(daniel.personId ?? '', identityStatus, {
+      fullName: 'Daniel Otieno',
+      identityDocument: { kind: 'passport', number: 'AK123456', country: 'UG' },
+      contacts: { email: 'd.otieno@example.org', phone: '+256772123456' },
+    });
     api.clock.set(NOW);
   }
 
