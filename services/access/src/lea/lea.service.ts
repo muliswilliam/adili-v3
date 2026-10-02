@@ -1,10 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
-import {
-  notFoundIfInvisible,
-  PLATFORM_TENANT,
-  type Principal,
-  type ReadAudit,
-} from '@adili/api-kit';
+import { notFoundIfInvisible, type Principal, type ReadAudit } from '@adili/api-kit';
 import { DATABASE, type TenantContext, withTenant } from '@adili/data-access';
 import type { AccessRequestReceivedData } from '@adili/events/contracts';
 import { allocateReference, LEA } from '@adili/numbering';
@@ -12,13 +7,18 @@ import { LAW_ENFORCEMENT_TENANT } from '@adili/roles';
 import { and, desc, eq } from 'drizzle-orm';
 import { v7 as uuidv7 } from 'uuid';
 
-import { isLeaOfficer, ownCommissionTenant, requireAccessOfficer } from '../access.js';
+import {
+  accessOfficerName,
+  isLeaOfficer,
+  ownCommissionTenant,
+  requireAccessOfficer,
+} from '../access.js';
 import { addDays, Clock, nairobiYear } from '../clock.js';
 import { config } from '../config.js';
 import type { AccessDatabase, AccessTransaction } from '../db/database.js';
+import { responsibleCommission } from '../commissions/responsible-commission.js';
 import { decisionOf, type DecisionInput, isDecisionRejection } from '../decision.js';
 import {
-  type CommissionFacts,
   DirectoryClient,
   DirectoryUnavailable,
   type LeaOfficerFacts,
@@ -73,7 +73,11 @@ export class LeaService {
    */
   async submit(principal: Principal, input: LeaRequestInput): Promise<LeaRequest> {
     const personId = leaOfficerPersonId(principal);
-    const commission = await this.commission(input.commission);
+    const commission = await responsibleCommission(this.directory, input.commission, () =>
+      badRequest('No such Responsible Commission.', [
+        { path: 'commission', message: 'is not a Responsible Commission' },
+      ]),
+    );
     const officer = await this.activeOfficer(principal, personId, commission.slug);
 
     const id = uuidv7();
@@ -238,7 +242,7 @@ export class LeaService {
           resolvedName: record.fullName,
           verification: {
             by: principal.subject,
-            byName: principal.name ?? principal.subject,
+            byName: accessOfficerName(principal),
             at: now.toISOString(),
             note: body.note,
             provenance: provenanceOf(officer, now),
@@ -289,7 +293,7 @@ export class LeaService {
       const decision = decisionOf(
         input,
         current.scope,
-        { subject: principal.subject, name: principal.name ?? principal.subject },
+        { subject: principal.subject, name: accessOfficerName(principal) },
         now,
       );
       if (isDecisionRejection(decision)) {
@@ -329,23 +333,6 @@ export class LeaService {
         ? officerTimeline(found.entries)
         : applicantTimeline(found.entries, principal.subject);
     return toLeaRequest(found.row, timeline);
-  }
-
-  /** The Commission the request names; 400 at `commission` when there is none. */
-  private async commission(slug: string): Promise<CommissionFacts> {
-    const unknown = () =>
-      badRequest('No such Responsible Commission.', [
-        { path: 'commission', message: 'is not a Responsible Commission' },
-      ]);
-    if (slug === PLATFORM_TENANT) throw unknown();
-    try {
-      const commission = await this.directory.findCommission(slug);
-      if (commission === null) throw unknown();
-      return commission;
-    } catch (error) {
-      if (error instanceof DirectoryUnavailable) throw directoryUnavailable();
-      throw error;
-    }
   }
 
   /**

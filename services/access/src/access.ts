@@ -74,6 +74,14 @@ export function requireAccessOfficer(principal: Principal, action: string): void
   throw forbidden(`Only an access officer of the Commission can ${action}.`);
 }
 
+/**
+ * How an access officer's act names them where people read it (timelines, decisions, the
+ * self-access register): their name from the token, else their role, never their account id.
+ */
+export function accessOfficerName(principal: Principal): string {
+  return principal.name ?? 'Access officer';
+}
+
 /** A law enforcement officer: role `law-enforcement` on an account of the `lea` tenant. */
 export function isLeaOfficer(principal: Principal): boolean {
   return principal.tenant === LAW_ENFORCEMENT_TENANT && principal.roles.includes(LAW_ENFORCEMENT);

@@ -4,7 +4,12 @@ import { DATABASE, FieldCipher, withTenant } from '@adili/data-access';
 import { CANNOT_IDENTIFY_DECLINE_REASON } from '@adili/events/contracts';
 import { and, eq, gte, ilike, inArray, lt, not, or, type SQL, sql } from 'drizzle-orm';
 
-import { commissionTenant, ownCommissionTenant, requireAccessOfficer } from '../access.js';
+import {
+  accessOfficerName,
+  commissionTenant,
+  ownCommissionTenant,
+  requireAccessOfficer,
+} from '../access.js';
 import { Clock } from '../clock.js';
 import type { AccessDatabase, AccessTransaction } from '../db/database.js';
 import {
@@ -72,6 +77,7 @@ import {
   CLOSED_STATUSES,
   representations,
 } from './schema.js';
+import { requestRow } from './request-row.js';
 import { officerTimeline, registerEntriesOf } from './timeline.js';
 
 /** Statuses in which the officer named in a request can be resolved. */
@@ -338,7 +344,7 @@ export class OfficerService {
         const decision = decisionOf(
           input,
           current.scope,
-          { subject: principal.subject, name: principal.name ?? principal.subject },
+          { subject: principal.subject, name: accessOfficerName(principal) },
           now,
         );
         if (isDecisionRejection(decision)) {
@@ -435,16 +441,6 @@ async function officerRecord(
     entries: (await registerEntriesOf(tx, [row.id])).get(row.id) ?? [],
     representations: representationsRow ?? null,
   };
-}
-
-async function requestRow(
-  tx: AccessTransaction,
-  requestId: string,
-  { lock = false }: { lock?: boolean } = {},
-): Promise<AccessRequestRow | undefined> {
-  const query = tx.select().from(accessRequests).where(eq(accessRequests.id, requestId));
-  const [row] = lock ? await query.for('update') : await query;
-  return row;
 }
 
 function requireResolvable(row: AccessRequestRow): void {

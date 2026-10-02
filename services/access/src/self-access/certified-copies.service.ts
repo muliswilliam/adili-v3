@@ -1,17 +1,18 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { notFoundIfInvisible, PLATFORM_TENANT, type Principal } from '@adili/api-kit';
+import { notFoundIfInvisible, type Principal } from '@adili/api-kit';
 import { DATABASE, withPerson, withTenant } from '@adili/data-access';
 import { and, desc, eq } from 'drizzle-orm';
 
 import { declarantPersonId } from '../access.js';
 import { Clock } from '../clock.js';
+import { responsibleCommission } from '../commissions/responsible-commission.js';
 import type { AccessDatabase } from '../db/database.js';
 import {
   DeclarationsClient,
   DeclarationsUnavailable,
 } from '../declarations/declarations-client.js';
-import { DirectoryClient, DirectoryUnavailable } from '../directory/directory-client.js';
-import { declarationsUnavailable, directoryUnavailable, notFound } from '../problems.js';
+import { DirectoryClient } from '../directory/directory-client.js';
+import { declarationsUnavailable, notFound } from '../problems.js';
 import { CertifiedCopyIssuance } from './certified-copy-issuance.js';
 import {
   type CertifiedCopy,
@@ -44,7 +45,7 @@ export class CertifiedCopiesService {
    */
   async request(principal: Principal, input: CertifiedCopyRequest): Promise<CertifiedCopy> {
     const personId = declarantPersonId(principal);
-    const commission = await this.commission(input.commission);
+    const commission = await responsibleCommission(this.directory, input.commission, notFound);
     await this.requireOwnVersion(commission.slug, personId, input);
     const copy = await withTenant(
       this.db,
@@ -106,18 +107,5 @@ export class CertifiedCopiesService {
       (found) => found.declarationId === input.declarationId && found.version === input.version,
     );
     if (!own) throw notFound();
-  }
-
-  private async commission(slug: string): Promise<{ slug: string; name: string }> {
-    if (slug === PLATFORM_TENANT) throw notFound();
-    let commission;
-    try {
-      commission = await this.directory.findCommission(slug);
-    } catch (error) {
-      if (error instanceof DirectoryUnavailable) throw directoryUnavailable();
-      throw error;
-    }
-    if (commission === null) throw notFound();
-    return commission;
   }
 }

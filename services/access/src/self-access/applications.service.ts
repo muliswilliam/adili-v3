@@ -4,7 +4,12 @@ import { DATABASE, FieldCipher, FieldCipherError, withTenant } from '@adili/data
 import { and, eq, inArray, sql } from 'drizzle-orm';
 import { v7 as uuidv7 } from 'uuid';
 
-import { commissionTenant, ownCommissionTenant, requireAccessOfficer } from '../access.js';
+import {
+  accessOfficerName,
+  commissionTenant,
+  ownCommissionTenant,
+  requireAccessOfficer,
+} from '../access.js';
 import { addDays, Clock } from '../clock.js';
 import { config } from '../config.js';
 import type { AccessDatabase, AccessTransaction } from '../db/database.js';
@@ -199,7 +204,7 @@ export class SelfAccessApplicationsService {
             deliveryMethod: input.deliveryMethod,
             deadlineAt: addDays(now, config.SELF_ACCESS_DAYS),
             recordedBy: principal.subject,
-            recordedByName: principal.name ?? principal.subject,
+            recordedByName: accessOfficerName(principal),
             receivedAt: now,
           })
           .returning();

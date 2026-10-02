@@ -1,5 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { notFoundIfInvisible, PLATFORM_TENANT, type Principal } from '@adili/api-kit';
+import { notFoundIfInvisible, type Principal } from '@adili/api-kit';
 import { DATABASE, FieldCipher, switchTenant, withPerson, withTenant } from '@adili/data-access';
 import type { AccessRequestReceivedData } from '@adili/events/contracts';
 import { validateFormK } from '@adili/forms';
@@ -11,9 +11,9 @@ import { applicantPersonId } from '../access.js';
 import { addDays, Clock, nairobiYear } from '../clock.js';
 import { config } from '../config.js';
 import type { AccessDatabase, AccessTransaction } from '../db/database.js';
+import { responsibleCommission } from '../commissions/responsible-commission.js';
 import {
   type ApplicantFacts,
-  type CommissionFacts,
   DirectoryClient,
   DirectoryUnavailable,
 } from '../directory/directory-client.js';
@@ -72,7 +72,14 @@ export class RequestsService {
     if (!validated.ok) {
       throw badRequest('The document is not a valid Form K.', validated.errors);
     }
-    const commission = await this.commission(validated.value.responsibleCommission);
+    const commission = await responsibleCommission(
+      this.directory,
+      validated.value.responsibleCommission,
+      () =>
+        badRequest('The document is not a valid Form K.', [
+          { path: 'responsibleCommission', message: 'is not a Responsible Commission' },
+        ]),
+    );
     const applicantRecord = await this.applicant(personId, commission.slug);
     const identityStatus = applicantRecord.identityStatus;
     const formK = withApplicantParticulars(withoutMeta(validated.value), applicantRecord);
@@ -253,23 +260,6 @@ export class RequestsService {
   ): Promise<AccessRequest> {
     const formK = await openFormK(this.cipher, row);
     return toAccessRequest(row, formK, applicantTimeline(entries, row.applicantSubject));
-  }
-
-  /** The Responsible Commission Form K names; 400 at `responsibleCommission` when there is none. */
-  private async commission(slug: string): Promise<CommissionFacts> {
-    const unknown = () =>
-      badRequest('The document is not a valid Form K.', [
-        { path: 'responsibleCommission', message: 'is not a Responsible Commission' },
-      ]);
-    if (slug === PLATFORM_TENANT) throw unknown();
-    try {
-      const commission = await this.directory.findCommission(slug);
-      if (commission === null) throw unknown();
-      return commission;
-    } catch (error) {
-      if (error instanceof DirectoryUnavailable) throw directoryUnavailable();
-      throw error;
-    }
   }
 
   /**
