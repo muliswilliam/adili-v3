@@ -11,6 +11,14 @@
  *   (responded), so Raise follow-up is disabled.
  * - Case `peters`, held by Peter Mwangi: `petersOverdue`, read-only for everyone else.
  *
+ * - Case `mine` also has `draft`, saved with one item, which the composer continues.
+ *
+ * The composer's endpoints (spec 07a #170): create a draft on a case (Idempotency-Key replays
+ * the first answer), update it while it is a draft (else 409), and issue it (Idempotency-Key
+ * required and replayed): 400 without items, 409 `clarification-window-closed` past the case's
+ * window (with `windowEndsAt`), else a CLR reference, due in 30 days, and a letter `pending`
+ * for `MOCK_LETTER_DELAY_MS`, then `issued`.
+ *
  * Only the case's assignee may act; anyone else gets 403. As review.yaml has it: resolve an
  * issued or responded clarification (note 1-2,000 characters; else 409), withdraw an issued one,
  * overdue included (reason 1-1,000 characters; the letter is revoked; else 409), or raise a
@@ -52,7 +60,17 @@ export const MOCK_CLARIFICATION_IDS = {
   withdrawn: 'c1a70000-0000-4000-8000-000000000106',
   closedWindow: 'c1a70000-0000-4000-8000-000000000107',
   petersOverdue: 'c1a70000-0000-4000-8000-000000000108',
+  draft: 'c1a70000-0000-4000-8000-000000000109',
 } as const;
+
+/** How long an issued clarification's letter stays `pending` before it reads `issued`. */
+export const MOCK_LETTER_DELAY_MS = 4_000;
+
+const REQUIREMENTS: readonly Item['requirement'][] = [
+  'provide-omitted',
+  'explain-discrepancy',
+  'correct',
+];
 
 /** Stands for "whoever is signed in" in the seeded assignee. */
 const CALLER = '(caller)';
@@ -87,6 +105,10 @@ interface StoredCase {
 
 const cases = new Map<string, StoredCase>();
 const clarifications = new Map<string, Clarification>();
+/** When each letter issued here stops being `pending`. */
+const letterReadyAt = new Map<string, number>();
+/** Answers already given, by method, path and Idempotency-Key. */
+const replays = new Map<string, { status: number; body: unknown }>();
 
 function at(now: number, days: number): string {
   return addDays(new Date(now).toISOString(), days);
@@ -118,6 +140,10 @@ function caseItem(
   };
 }
 
+function reference(n: number): string {
+  return `CLR-TSC-2026-${String(n).padStart(7, '0')}-${'KMPRTX'[n % 6] ?? 'K'}`;
+}
+
 function clarification(
   id: string,
   caseId: string,
@@ -131,7 +157,7 @@ function clarification(
   return {
     id,
     caseId,
-    reference: `CLR-TSC-2026-${String(n).padStart(7, '0')}-${'KMPRTX'[n % 6] ?? 'K'}`,
+    reference: reference(n),
     status: 'issued',
     items,
     issuedAt,
@@ -189,6 +215,8 @@ export function mockReviewClient(subject: string, name: string) {
 export function resetReviewMock(now: number = Date.now()) {
   cases.clear();
   clarifications.clear();
+  letterReadyAt.clear();
+  replays.clear();
   const C = MOCK_CASE_IDS;
   const K = MOCK_CLARIFICATION_IDS;
   cases.set(C.mine, {
@@ -247,6 +275,7 @@ export function resetReviewMock(now: number = Date.now()) {
     response: response([SACCO], at(now, -3)),
   });
   seed(clarification(K.petersOverdue, C.peters, 3, [PLOT], 35, now, { status: 'overdue' }));
+  seed(draftOf(K.draft, C.mine, [PLOT], null));
   for (const each of cases.values()) refreshCase(each);
   resetCopilotMock(now, C);
 }
@@ -277,8 +306,45 @@ function holderOf(stored: StoredCase, caller: Assignee): Assignee {
   return stored.holder === CALLER ? caller : stored.holder;
 }
 
+/** A clarification as read now: its letter `issued` once its delay has passed. */
+function current(found: Clarification): Clarification {
+  const readyAt = letterReadyAt.get(found.id);
+  if (readyAt === undefined || Date.now() < readyAt || found.letter?.status !== 'pending') {
+    return found;
+  }
+  letterReadyAt.delete(found.id);
+  const ready: Clarification = { ...found, letter: { ...found.letter, status: 'issued' } };
+  clarifications.set(ready.id, ready);
+  return ready;
+}
+
+function draftOf(
+  id: string,
+  caseId: string,
+  items: Item[],
+  followUpOf: string | null,
+): Clarification {
+  return {
+    id,
+    caseId,
+    reference: null,
+    status: 'draft',
+    items,
+    issuedAt: null,
+    dueAt: null,
+    respondedAt: null,
+    responseLate: false,
+    resolvedAt: null,
+    resolutionNote: null,
+    letter: null,
+    followUpOf,
+    response: null,
+  };
+}
+
 function ofCase(caseId: string): Clarification[] {
   return [...clarifications.values()]
+    .map(current)
     .filter((each) => each.caseId === caseId)
     .sort((a, b) => (b.issuedAt ?? '9').localeCompare(a.issuedAt ?? '9'));
 }
@@ -393,6 +459,21 @@ async function route(request: Request): Promise<Response> {
   });
   if (copilot) return copilot;
 
+  const drafts = /^\/v1\/review\/cases\/([^/]+)\/clarifications$/.exec(pathname);
+  if (method === 'POST' && drafts?.[1]) {
+    const caseId = drafts[1];
+    return once(request, () => createDraft(request, caseId, caller));
+  }
+
+  const issue = /^\/v1\/review\/clarifications\/([^/]+)\/issue$/.exec(pathname);
+  if (method === 'POST' && issue?.[1]) {
+    const id = issue[1];
+    if (!request.headers.get('idempotency-key')) {
+      return problem(400, 'Idempotency-Key is required');
+    }
+    return once(request, () => issueDraft(id, caller));
+  }
+
   const oneCase = /^\/v1\/review\/cases\/([^/]+)$/.exec(pathname);
   if (method === 'GET' && oneCase?.[1]) {
     const stored = cases.get(oneCase[1]);
@@ -409,7 +490,10 @@ async function route(request: Request): Promise<Response> {
   const one = /^\/v1\/review\/clarifications\/([^/]+)$/.exec(pathname);
   if (method === 'GET' && one?.[1]) {
     const found = clarifications.get(one[1]);
-    return found ? json(200, found) : problem(404, 'Not found');
+    return found ? json(200, current(found)) : problem(404, 'Not found');
+  }
+  if (method === 'PUT' && one?.[1]) {
+    return updateDraft(request, one[1], caller);
   }
 
   return problem(404, 'Not found');
@@ -481,22 +565,7 @@ async function act(
   }
 
   // follow-up
-  const draft: Clarification = {
-    id: randomUUID(),
-    caseId: found.caseId,
-    reference: null,
-    status: 'draft',
-    items: found.items,
-    issuedAt: null,
-    dueAt: null,
-    respondedAt: null,
-    responseLate: false,
-    resolvedAt: null,
-    resolutionNote: null,
-    letter: null,
-    followUpOf: found.id,
-    response: null,
-  };
+  const draft = draftOf(randomUUID(), found.caseId, found.items, found.id);
   clarifications.set(draft.id, draft);
   return json(201, draft);
 }
@@ -505,4 +574,132 @@ function save(stored: StoredCase, updated: Clarification, actor: Assignee): Resp
   clarifications.set(updated.id, updated);
   refreshCase(stored, actor);
   return json(200, updated);
+}
+
+/**
+ * Runs `work` once per method, path and Idempotency-Key; a repeat gets the first answer back.
+ * Without a key it runs every time, as review.yaml's optional keys have it.
+ */
+async function once(request: Request, work: () => Promise<Response>): Promise<Response> {
+  const key = request.headers.get('idempotency-key');
+  if (!key) return work();
+  const slot = `${request.method} ${new URL(request.url).pathname} ${key}`;
+  const seen = replays.get(slot);
+  if (seen) return json(seen.status, seen.body);
+  const response = await work();
+  replays.set(slot, { status: response.status, body: await response.clone().json() });
+  return response;
+}
+
+/** review.yaml `ClarificationInput`, checked as the service does; null when invalid. */
+async function itemsOf(request: Request): Promise<Item[] | null> {
+  const body = await readJson(request);
+  const items = isRecord(body) ? body.items : null;
+  if (!Array.isArray(items) || items.length > 50) return null;
+  const valid: Item[] = [];
+  const optional = (value: unknown) => (typeof value === 'string' ? value : null);
+  for (const item of items) {
+    if (!isRecord(item)) return null;
+    const { requirement, text } = item;
+    if (!REQUIREMENTS.includes(requirement as Item['requirement'])) return null;
+    if (typeof text !== 'string' || !text.trim() || text.length > 1000) return null;
+    valid.push({
+      sectionKey: optional(item.sectionKey),
+      personKey: optional(item.personKey),
+      itemId: optional(item.itemId),
+      requirement: requirement as Item['requirement'],
+      text: text.trim(),
+    });
+  }
+  return valid;
+}
+
+async function createDraft(request: Request, caseId: string, caller: Assignee) {
+  const stored = cases.get(caseId);
+  if (!stored) return problem(404, 'Not found');
+  if (holderOf(stored, caller).subject !== caller.subject) {
+    return problem(403, 'Only the officer holding the case can write its clarifications');
+  }
+  const items = await itemsOf(request);
+  if (items === null) return problem(400, 'Items are not valid');
+  const draft = draftOf(randomUUID(), caseId, items, null);
+  clarifications.set(draft.id, draft);
+  return json(201, draft);
+}
+
+async function updateDraft(request: Request, id: string, caller: Assignee) {
+  const found = clarifications.get(id);
+  const stored = found ? cases.get(found.caseId) : undefined;
+  if (!found || !stored) return problem(404, 'Not found');
+  if (holderOf(stored, caller).subject !== caller.subject) {
+    return problem(403, 'Only the officer holding the case can write its clarifications');
+  }
+  if (found.status !== 'draft') return problem(409, 'Not a draft', 'not-a-draft');
+  const items = await itemsOf(request);
+  if (items === null) return problem(400, 'Items are not valid');
+  const updated = { ...found, items };
+  clarifications.set(id, updated);
+  return json(200, updated);
+}
+
+function issueDraft(id: string, caller: Assignee): Promise<Response> {
+  const found = clarifications.get(id);
+  const stored = found ? cases.get(found.caseId) : undefined;
+  if (!found || !stored) return Promise.resolve(problem(404, 'Not found'));
+  if (holderOf(stored, caller).subject !== caller.subject) {
+    return Promise.resolve(problem(403, 'Only the officer holding the case can issue'));
+  }
+  if (found.status !== 'draft') return Promise.resolve(problem(409, 'Not a draft', 'not-a-draft'));
+  if (found.items.length === 0) {
+    return Promise.resolve(
+      json(400, {
+        type: 'clarification-has-no-items',
+        title: 'Bad Request',
+        status: 400,
+        detail: 'A clarification needs at least one item to be issued.',
+        code: 'clarification-has-no-items',
+      }),
+    );
+  }
+  const { windowEndsAt } = stored.item;
+  const now = Date.now();
+  if (now > Date.parse(windowEndsAt)) {
+    return Promise.resolve(
+      json(409, {
+        type: 'clarification-window-closed',
+        title: 'Conflict',
+        status: 409,
+        detail: 'The Commission could no longer request clarification.',
+        code: 'clarification-window-closed',
+        windowEndsAt,
+      }),
+    );
+  }
+  const numbers = [...clarifications.values()].map((each) =>
+    Number(/-(\d{7})-/.exec(each.reference ?? '')?.[1] ?? 0),
+  );
+  const n = Math.max(0, ...numbers) + 1;
+  const issuedAt = new Date(now).toISOString();
+  const issued: Clarification = {
+    ...found,
+    reference: reference(n),
+    status: 'issued',
+    issuedAt,
+    dueAt: at(now, 30),
+    letter: {
+      documentId: randomUUID(),
+      verificationId: `V-${String(n).padStart(4, '0')}-7K2Q`,
+      status: 'pending',
+    },
+  };
+  letterReadyAt.set(id, now + MOCK_LETTER_DELAY_MS);
+  stored.timeline.push({
+    id: randomUUID(),
+    kind: 'clarification-issued',
+    actor: caller,
+    at: issuedAt,
+    summary: `Clarification ${issued.reference ?? ''} issued`,
+    ref: id,
+  });
+  return Promise.resolve(save(stored, issued, caller));
 }
