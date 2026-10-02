@@ -400,7 +400,7 @@
     {
       "clientId": "access",
       "name": "Access service",
-      "description": "Service account the access service uses to read Commissions, roster records and staff from the directory, to ask declarations for scoped disclosures and full documents, to issue packages and certified copies and check attachments with documents, and to send messages through notifications",
+      "description": "Service account the access service uses for Commissions, roster records, staff, applicants and officers from the directory, disclosures and full documents from declarations, packages, copies and attachments in documents, and messages",
       "enabled": true,
       "protocol": "openid-connect",
       "publicClient": false,
@@ -451,6 +451,29 @@
           }
         }
       ]
+    },
+    {
+      "clientId": "reporting",
+      "name": "Reporting service",
+      "description": "Service account the reporting service uses for Form M: Commissions and staff from the directory, officer details from declarations, clarifications and ICMS payloads from review, its PDFs from documents, emails through notifications",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "clientAuthenticatorType": "client-secret",
+      "secret": "reporting-dev-secret",
+      "standardFlowEnabled": false,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": true,
+      "defaultClientScopes": [
+        "basic",
+        "declarations:internal",
+        "directory:internal",
+        "documents:internal",
+        "review:internal",
+        "messages"
+      ],
+      "optionalClientScopes": []
     }
   ],
   "clientScopes": [
@@ -1921,6 +1944,7 @@
       "realmRoles": ["default-roles-adili", "platform-admin"]
     },
     {
+      "id": "7159c22a-33fd-4ba0-bcfd-23c91d6acd8e",
       "username": "applicant",
       "email": "applicant@demo.adili.go.ke",
       "emailVerified": true,
@@ -1928,8 +1952,9 @@
       "lastName": "Wambua",
       "enabled": true,
       "attributes": {
-        "tenant": ["public"],
-        "phone": ["+254700000012"]
+        "person_id": ["2c2097c9-c981-44f4-8343-3e5a124422cd"],
+        "phone": ["+254700000012"],
+        "identityStatus": ["verified"]
       },
       "credentials": [
         {
@@ -1941,6 +1966,7 @@
       "realmRoles": ["default-roles-adili", "applicant"]
     },
     {
+      "id": "21aa54e7-20f5-4942-a0ab-990fad9cb8c2",
       "username": "law-enforcement",
       "email": "law-enforcement@demo.adili.go.ke",
       "emailVerified": true,
@@ -1950,6 +1976,7 @@
       "attributes": {
         "tenant": ["lea"],
         "agency": ["DCI"],
+        "person_id": ["a0221136-2e38-49ef-8a9b-7cdc1882e84e"],
         "phone": ["+254700000013"]
       },
       "credentials": [

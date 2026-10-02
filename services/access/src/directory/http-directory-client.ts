@@ -89,7 +89,7 @@ const none = (): null => null;
  * The directory's internal API through the client generated from its contract
  * (packages/schemas/internal/directory.yaml → directory-api.gen.ts via `pnpm generate:api`) on
  * api-kit's service client, with the access service's own token (`directory:internal`), acting
- * for the Commission in `X-Acting-Tenant` (ADR-013 §8.7). A Commission is cached for a few
+ * for the Commission in `X-Acting-Tenant` (ADR-013 §8.8). A Commission is cached for a few
  * minutes: a name changes rarely.
  */
 export class HttpDirectoryClient extends DirectoryClient {
