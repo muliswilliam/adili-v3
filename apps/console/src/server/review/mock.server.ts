@@ -410,7 +410,7 @@ function detail(stored: StoredCase, caller: Assignee): CaseDetail {
     ],
     reviewerHistory: [holder],
     determinations: [],
-    registry: { checkedAt: null, checks: [] },
+    registry: { checkedAt: null, checks: [], recheckAvailableAt: null },
   };
 }
 

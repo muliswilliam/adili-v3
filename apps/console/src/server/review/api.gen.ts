@@ -1447,6 +1447,8 @@ export interface components {
         RegistrySummary: {
             checkedAt: string | null;
             checks: components["schemas"]["RegistryCheck"][];
+            /** @description When the next manual re-check is accepted: 10 minutes after the last one asked for, which a re-check before then is refused with 429 `recheck-cooldown`; null before the first. A time in the past means one is accepted now */
+            recheckAvailableAt: string | null;
         };
         RegistryView: {
             checkedAt: string | null;

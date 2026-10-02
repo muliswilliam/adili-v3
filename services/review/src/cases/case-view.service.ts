@@ -234,7 +234,11 @@ async function caseData(
     })),
     reviewerHistory,
     determinations: determinationRows.map(determinationView),
-    registry: registrySummary(checks),
+    registry: registrySummary(
+      checks,
+      // The timeline is oldest first: the last re-check asked for is the last of its entries.
+      timeline.findLast((entry) => entry.kind === 'registry-rechecked')?.at ?? null,
+    ),
   };
 }
 

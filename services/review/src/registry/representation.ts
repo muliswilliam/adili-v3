@@ -8,6 +8,7 @@ import {
   registrySystemSchema,
 } from '../cases/representation.js';
 import { REGISTRY_SYSTEMS, type RegistryRow, type RegistrySystem } from '../rules/index.js';
+import { recheckAvailableAt } from './contract.js';
 import type { registryChecks } from './schema.js';
 
 /**
@@ -89,10 +90,17 @@ export function checkView(row: CheckRow): RegistryCheckView {
   };
 }
 
-/** The statuses of a case's latest registry check, as the case detail shows them. */
-export function registrySummary(rows: CheckRow[]): RegistrySummary {
+/**
+ * The statuses of a case's latest registry check, as the case detail shows them, with when the
+ * next re-check is accepted after the last one asked for (`lastRecheck`, null before the first).
+ */
+export function registrySummary(rows: CheckRow[], lastRecheck: Date | null): RegistrySummary {
   const checks = rows.map(checkView).sort(byPersonAndSystem);
-  return { checkedAt: latestCheck(rows), checks };
+  return {
+    checkedAt: latestCheck(rows),
+    checks,
+    recheckAvailableAt: lastRecheck ? recheckAvailableAt(lastRecheck).toISOString() : null,
+  };
 }
 
 /** When the latest check was stored; null before the first. */

@@ -165,7 +165,7 @@ export function caseData(overrides: Partial<CaseData> = {}): CaseData {
     ],
     reviewerHistory: [],
     determinations: [],
-    registry: { checkedAt: null, checks: [] },
+    registry: { checkedAt: null, checks: [], recheckAvailableAt: null },
     ...overrides,
   };
 }

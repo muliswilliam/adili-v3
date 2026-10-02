@@ -581,3 +581,26 @@ export function recheckLanded(before: string | null, after: string | null): bool
 export function minutesWords(minutes: number): string {
   return plural(minutes, 'minute');
 }
+
+/**
+ * When the next re-check is accepted (epoch ms): the later of what the case says (review's
+ * `recheckAvailableAt`, ten minutes after the last re-check) and the end of a refusal's wait seen
+ * on this page (a 429: someone re-checked after the page loaded). Null when neither is known.
+ */
+export function recheckAvailableAt(
+  summary: Pick<RegistrySummary, 'recheckAvailableAt'>,
+  refusedUntil: number | null,
+): number | null {
+  const fromCase = summary.recheckAvailableAt ? Date.parse(summary.recheckAvailableAt) : null;
+  if (fromCase === null) return refusedUntil;
+  return refusedUntil === null ? fromCase : Math.max(fromCase, refusedUntil);
+}
+
+/**
+ * "Re-checked recently. Try again in {m} minutes." while `availableAt` is ahead of `now`; null
+ * once a re-check is accepted.
+ */
+export function cooldownText(availableAt: number | null, now: number): string | null {
+  if (availableAt === null || availableAt <= now) return null;
+  return REGISTRY_COPY.recheck.cooldown(minutesWords(cooldownMinutes((availableAt - now) / 1000)));
+}

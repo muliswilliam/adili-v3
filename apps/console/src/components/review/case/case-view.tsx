@@ -57,7 +57,43 @@ import { flagAnchorId, FlagsTab } from './flags-tab';
 import { NotesTab } from './notes-tab';
 import { RegistryTab } from './registry-tab';
 import { TimelineTab } from './timeline-tab';
-import { useCaseRegistry } from './use-case-registry';
+import { useCaseRegistry, useCooldown } from './use-case-registry';
+
+/**
+ * The registry Re-check (spec 07b FE-2): for the assignee or a supervisor, disabled while a
+ * re-check runs, and disabled within ten minutes of the last one with a tooltip saying when the
+ * next is accepted (review refuses it until then). Another reviewer sees it disabled, with why.
+ */
+function RecheckButton({
+  forbidden,
+  checking,
+  availableAt,
+  now,
+  onClick,
+}: {
+  forbidden: boolean;
+  checking: boolean;
+  availableAt: number | null;
+  now: number;
+  onClick: () => void;
+}) {
+  const cooldown = useCooldown(availableAt, now);
+  const reason = forbidden ? REGISTRY_COPY.recheck.forbidden : checking ? null : cooldown;
+  const button = (
+    <Button size="sm" variant="secondary" disabled={reason !== null || checking} onClick={onClick}>
+      {checking ? <Spinner /> : <Icon icon={RefreshIcon} />}
+      {checking ? REGISTRY_COPY.recheck.running : REGISTRY_COPY.recheck.action}
+    </Button>
+  );
+  if (reason === null) return button;
+  return (
+    <Tooltip content={reason}>
+      <span tabIndex={0} aria-label={reason} className={cn(focusRing, 'inline-flex rounded-lg')}>
+        {button}
+      </span>
+    </Tooltip>
+  );
+}
 
 function scrollToId(id: string) {
   const element = document.getElementById(id);
@@ -287,30 +323,17 @@ export function CaseView({ load, viewer, slug, now, tab, onTab }: CaseViewProps)
   const actions = assignmentActions(item, viewer).map((action) => ACTION_BUTTONS[action]);
   const recheck = recheckAccess(item, viewer);
   if (recheck !== 'hidden') {
-    const button = (
-      <Button
+    actions.push(
+      <RecheckButton
         key="recheck"
-        size="sm"
-        variant="secondary"
-        disabled={recheck === 'forbidden' || checking}
+        forbidden={recheck === 'forbidden'}
+        checking={checking}
+        availableAt={registry.availableAt}
+        now={now}
         onClick={() => {
           registry.setConfirming(true);
         }}
-      >
-        {checking ? <Spinner /> : <Icon icon={RefreshIcon} />}
-        {checking ? REGISTRY_COPY.recheck.running : REGISTRY_COPY.recheck.action}
-      </Button>
-    );
-    actions.push(
-      recheck === 'forbidden' ? (
-        <Tooltip key="recheck" content={REGISTRY_COPY.recheck.forbidden}>
-          <span tabIndex={0} className={cn(focusRing, 'inline-flex rounded-lg')}>
-            {button}
-          </span>
-        </Tooltip>
-      ) : (
-        button
-      ),
+      />,
     );
   }
 
@@ -351,7 +374,8 @@ export function CaseView({ load, viewer, slug, now, tab, onTab }: CaseViewProps)
         retrying={registry.retrying}
         onRetry={registry.retry}
         checking={checking}
-        cooldown={registry.cooldown}
+        refusedUntil={registry.refusedUntil}
+        now={now}
         onGoToItem={goToItem}
         document={document}
         previousVersion={previousVersion}
