@@ -72,7 +72,26 @@ const staffSchema = z.object({
 const applicantSchema = z.object({
   personId: z.uuid(),
   identityStatus: z.enum(['verified', 'pending-verification']),
+  fullName: z.string().min(1),
+  identityDocument: z.object({
+    kind: z.enum(['national-id', 'passport']),
+    number: z.string().min(1),
+    country: z.string().nullable(),
+  }),
+  contacts: z.object({ email: z.string().nullable(), phone: z.string().nullable() }),
 });
+
+/** The applicant as access holds them: only what it reads, nothing the directory adds. */
+function applicantOf(found: z.infer<typeof applicantSchema>): ApplicantFacts {
+  const { personId, identityStatus, fullName, identityDocument, contacts } = found;
+  return {
+    personId,
+    identityStatus,
+    fullName,
+    identityDocument: { ...identityDocument },
+    contacts: { email: contacts.email, phone: contacts.phone },
+  };
+}
 
 const leaOfficerSchema = z.object({
   personId: z.uuid(),
@@ -206,9 +225,7 @@ export class HttpDirectoryClient extends DirectoryClient {
         }),
       { status: 200, schema: applicantSchema, otherwise: { 404: none } },
     );
-    return found === null
-      ? null
-      : { personId: found.personId, identityStatus: found.identityStatus };
+    return found === null ? null : applicantOf(found);
   }
 
   async verifyApplicantIdentity(input: ApplicantVerificationInput): Promise<ApplicantFacts | null> {
@@ -225,9 +242,7 @@ export class HttpDirectoryClient extends DirectoryClient {
         }),
       { status: 200, schema: applicantSchema, otherwise: { 404: none } },
     );
-    return found === null
-      ? null
-      : { personId: found.personId, identityStatus: found.identityStatus };
+    return found === null ? null : applicantOf(found);
   }
 
   async leaOfficer(personId: string, tenant: string): Promise<LeaOfficerFacts | null> {
