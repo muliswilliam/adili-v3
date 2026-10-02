@@ -118,6 +118,10 @@ describe('Who accessed my declaration', () => {
     const drawer = screen.getByRole('dialog', { name: 'Law-enforcement request' });
     expect(drawer.textContent).toContain('ARA/INV/2026/014');
     expect(drawer.textContent).toContain('Granted');
+    expect(
+      within(drawer).getByRole('link', { name: 'Open law-enforcement request' }),
+    ).toBeDefined();
+    expect(within(drawer).queryByRole('link', { name: 'Open access request' })).toBeNull();
   });
 
   it('shows a law-enforcement grant by agency, case, outcome and dates only', async () => {

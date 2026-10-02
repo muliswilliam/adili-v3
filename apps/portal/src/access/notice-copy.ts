@@ -39,6 +39,7 @@ const NOTICES = {
     days <= 0 ? 'closes today' : days === 1 ? '1 day left' : `${String(days)} days left`,
   ),
   openRequest: en((reference: string) => `Open access request ${reference}`),
+  openLeaRequest: en((reference: string) => `Open law-enforcement request ${reference}`),
 
   statusAwaiting: en('Waiting for your response'),
   statusSaved: en('Response saved'),

@@ -181,14 +181,21 @@ describe('a law enforcement request, for the access officer (spec 10 FE-6, S11)'
     expect(within(side()).getByRole('link', { name: 'Decide' }).getAttribute('href')).toBe(
       `/access/lea-requests/${L.verified}/decide`,
     );
-    // The verification: who, and the officer identified.
-    expect(side().textContent).toContain('Lucy Wambui');
-    expect(side().textContent).toContain('Peter Mwangi Kamau');
+    // The verification, under its own title: who, and the officer identified.
+    const verification = within(side()).getByRole('region', { name: 'Verification' });
+    expect(within(verification).getByText('Verified by')).toBeTruthy();
+    expect(verification.textContent).toContain('Lucy Wambui');
+    expect(within(verification).getByText('Officer identified')).toBeTruthy();
+    expect(verification.textContent).toContain('Peter Mwangi Kamau');
   });
 
   it('S11: after a grant, says the declarant was notified and shows the package', async () => {
     renderDetail(await requestOf(L.granted));
     expect(screen.getByText(/^Declarant notified after grant, on /)).toBeTruthy();
+    // The register's received entry reads where the declarant stands now, not at receipt.
+    const register = screen.getByRole('list', { name: 'Access register' });
+    expect(register.textContent).toContain('Declarant notified after grant.');
+    expect(register.textContent).not.toContain('Declarant not told yet');
     const pkg = within(side()).getByRole('region', { name: 'Package' });
     expect(pkg.textContent).toContain('Suleiman Ali, DCI');
     expect(pkg.textContent).toContain('Downloads1');
@@ -200,6 +207,9 @@ describe('a law enforcement request, for the access officer (spec 10 FE-6, S11)'
   it('after a denial, says the declarant was not told and the agency got the reasons', async () => {
     renderDetail(await requestOf(L.denied));
     expect(screen.getByText('The declarant was not told. DCI received the reasons.')).toBeTruthy();
+    const register = screen.getByRole('list', { name: 'Access register' });
+    expect(register.textContent).toContain('Declarant not told.');
+    expect(register.textContent).not.toContain('not told yet');
     expect(within(side()).queryByRole('region', { name: 'Package' })).toBeNull();
   });
 

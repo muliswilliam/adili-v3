@@ -8,7 +8,7 @@ import type { AccessDatabase } from '../db/database.js';
 import { DeclarationsClient } from '../declarations/declarations-client.js';
 import { DirectoryClient } from '../directory/directory-client.js';
 import { DocumentsClient } from '../documents/documents-client.js';
-import { issueGrantDocument } from '../grant-documents.js';
+import { issueGrantDocument, readyTemplate } from '../grant-documents.js';
 import { NotificationsClient } from '../notifications/notifications-client.js';
 import { AccessRegister } from '../register/access-register.js';
 import { ReviewClient } from '../review/review-client.js';
@@ -202,7 +202,8 @@ export class DecisionActivities {
 
   /**
    * Tells the applicant their package is ready (S6), with the last day they can download it; the
-   * download itself is theirs, in the portal, with their own token.
+   * download itself is theirs, in the portal, with their own token. A nil letter is announced as
+   * such: the Commission holds nothing within the grant, so there is nothing to warn about sharing.
    */
   async packageReady({
     tenant,
@@ -215,7 +216,7 @@ export class DecisionActivities {
       await send(this.notifications, this.logger, found, {
         channel,
         recipient: { kind: 'person', personId: found.applicantPersonId },
-        template: `access-package-ready-${channel}`,
+        template: `${readyTemplate(found.packageKind)}-${channel}`,
         params: {
           reference: found.reference,
           commissionName: found.commissionName,

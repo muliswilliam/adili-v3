@@ -3,7 +3,7 @@ import type { RegisterEntry as TimelineEntry } from '@adili/ui';
 import type { AccessProblem, LeaRequest } from '../../../server/access/types';
 import type { ServiceError } from '../../../server/service-call';
 import { packageTitleOf } from '../request-view';
-import { messages as m } from './messages';
+import { messages as m, type ReceivedDeclarant } from './messages';
 
 /**
  * What a law enforcement request's page shows beside the written request (spec 10 FE-6), from
@@ -79,7 +79,7 @@ export function leaTimelineOf(request: LeaRequest): TimelineEntry[] {
         return {
           ...base,
           actor: entry.actor ? officerOf(request) : null,
-          summary: m.receivedSummary(request.caseReference),
+          summary: m.receivedSummary(request.caseReference, receivedDeclarant(request)),
         };
       case 'verified':
         return {
@@ -114,6 +114,14 @@ export function leaTimelineOf(request: LeaRequest): TimelineEntry[] {
         return base;
     }
   });
+}
+
+/** Where the declarant stands now, for the register's received entry. */
+function receivedDeclarant(request: LeaRequest): ReceivedDeclarant {
+  if (request.declarantNotifiedAt !== null) {
+    return request.declarantNotice?.channel === 'written' ? 'notified-in-writing' : 'notified';
+  }
+  return request.status === 'denied' || request.status === 'withdrawn' ? 'never' : 'not-yet';
 }
 
 function withTitle(entry: TimelineEntry, title: string | undefined): TimelineEntry {

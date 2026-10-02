@@ -85,6 +85,10 @@ const ACCESS_TEMPLATES: [string, Record<string, unknown>][] = [
       signInUrl: PORTAL,
     },
   ],
+  [
+    'access-nil-letter-ready',
+    { reference: LEA, commissionName: PSC, downloadUntil: '2026-10-15', signInUrl: CONSOLE },
+  ],
 ];
 
 describe('access templates', () => {
@@ -192,6 +196,26 @@ describe('access templates', () => {
     expect(rendered.text).toContain('It is not attached to this email');
   });
 
+  it('tells the recipient of a nil letter the Commission holds nothing in scope, without the republication warning', () => {
+    const params = ACCESS_TEMPLATES[10]?.[1];
+    const rendered = renderTemplate('access-nil-letter-ready-email', 'en', params);
+    expect(rendered.subject).toBe(`Your letter for ${LEA} is ready`);
+    expect(rendered.text).toContain(
+      `${PSC} holds no declaration within the access it granted on request ${LEA}, so there is nothing to disclose.`,
+    );
+    expect(rendered.text).toContain('You can download the letter until 15 October 2026');
+    expect(rendered.text).toContain('It is not attached to this email');
+    expect(rendered.text).not.toContain('package');
+    expect(rendered.text).not.toContain('section 36(4)');
+    expect(renderTemplate('access-nil-letter-ready-sms', 'en', params).text).toBe(
+      `Adili: the Commission holds no declaration within the grant on ${LEA}. Download its signed letter by 15 October 2026 at ${CONSOLE}`,
+    );
+    expect(issuesOf('access-nil-letter-ready-sms', { ...params, reference: ARQ })).toEqual([]);
+    expect(
+      issuesOf('access-nil-letter-ready-sms', { ...params, reference: 'DCB-PSC-2027-0000001-1' }),
+    ).toEqual(['params.reference']);
+  });
+
   it('accepts a law-enforcement package and reminder, refuses another reference scheme', () => {
     const ready = ACCESS_TEMPLATES[4]?.[1];
     expect(issuesOf('access-package-ready-sms', { ...ready, reference: LEA })).toEqual([]);
@@ -297,6 +321,7 @@ describe('access templates', () => {
       'access-decision-applicant': { outcome: 'partially-granted' },
       'access-decision-declarant': { outcome: 'partially-granted' },
       'access-package-ready': { reference: LONG_LEA, downloadUntil: '2026-09-30' },
+      'access-nil-letter-ready': { reference: LONG_LEA, downloadUntil: '2026-09-30' },
       'access-officer-reminder': { task: 'decide', dueDate: '2026-09-30', daysLeft: 366 },
       'lea-grant-notice': { reference: LONG_LEA, grantedOn: '2026-09-30' },
       'lea-decision': { reference: LONG_LEA },

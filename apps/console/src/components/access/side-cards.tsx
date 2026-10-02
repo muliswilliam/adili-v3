@@ -190,10 +190,10 @@ export function OfficerCard({ view }: { view: OfficerRequestView }) {
   const notified = lastEntry(view, 'notified');
   const notice = view.notice;
   return (
-    <SideCard id="officer">
+    <SideCard id="officer" title={m.officerIdentified}>
       <dl className="grid gap-3.5 text-sm">
         <div>
-          <dt className="text-[13px] text-muted-foreground">{m.officerIdentified}</dt>
+          <dt className="text-[13px] text-muted-foreground">{m.declarant}</dt>
           <dd className="mt-0.5 text-[15px] font-semibold">{view.resolvedName}</dd>
           {view.resolvedFileNumber ? (
             <dd className="text-[13px] text-muted-foreground">
