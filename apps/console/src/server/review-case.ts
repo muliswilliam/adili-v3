@@ -8,12 +8,16 @@ import {
   addNote,
   type CaseFlag,
   type CaseLoad,
+  type CaseRegistryView,
   claim,
   loadCase,
   loadOfficers,
   markFlagReviewed,
+  loadRegistry,
   type Officer,
   reassign,
+  recheck,
+  type RecheckResult,
   release,
 } from './review-case.server';
 import { reviewClient, type ReviewClient } from './review/client.server';
@@ -124,3 +128,22 @@ export const getCaseAttachmentLink = createServerFn({ method: 'GET' })
       ),
     ),
   );
+
+/**
+ * The Registry tab's records (spec 07b): an audited read of the declaration and the registry
+ * records, so the tab reads it when opened, not with every load of the case.
+ */
+export const getCaseRegistry = createServerFn({ method: 'GET' })
+  .validator(z.object({ caseId: id }))
+  .handler(({ data }): Promise<ServiceResult<CaseRegistryView>> =>
+    asOfficer((client) => loadRegistry(client, data.caseId)),
+  );
+
+/** Re-checks the case's registries: the assignee or a supervisor, once every 10 minutes. */
+export const recheckCaseRegistries = createServerFn({ method: 'POST' })
+  .validator(z.object({ caseId: id }))
+  .handler(async ({ data }): Promise<RecheckResult> => {
+    const session = await getBff().getSession(getRequest());
+    if (!session) return { ok: false, refusal: null, error: { kind: 'unauthenticated' } };
+    return recheck(reviewClient(session.accessToken), data.caseId);
+  });

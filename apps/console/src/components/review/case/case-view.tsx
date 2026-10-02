@@ -4,6 +4,7 @@ import {
   type AttachmentState,
   Button,
   cn,
+  focusRing,
   Icon,
   SegmentedChoice,
   SplitPane,
@@ -11,21 +12,34 @@ import {
   TabsContent,
   TabsCount,
   TabsList,
+  Spinner,
   TabsTrigger,
+  Tooltip,
   useToast,
 } from '@adili/ui';
 import {
+  Alert02Icon,
   ArrowLeftRightIcon,
+  RefreshIcon,
   Undo02Icon,
   UserCheck01Icon,
   UserRemove01Icon,
 } from '@hugeicons/core-free-icons';
 import { useRouter } from '@tanstack/react-router';
-import { type ReactNode, useEffect, useRef, useState } from 'react';
+import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
 
 import { flagTarget, pinsByItem } from '../../../review-case/flags';
-import { CASE_COPY } from '../../../review-case/messages';
+import { CASE_COPY, REGISTRY_COPY } from '../../../review-case/messages';
+import {
+  cooldownMinutes,
+  minutesWords,
+  recheckAccess,
+  recheckLanded,
+  registryLayout,
+  registryNeedsAttention,
+  summaryView,
+} from '../../../review-case/registry';
 import { CASE_TAB_LABELS, CASE_TABS, type CaseTab, tabCount } from '../../../review-case/tabs';
 import {
   type AssignmentAction,
@@ -39,23 +53,49 @@ import {
   addCaseNote,
   claimCase,
   getCaseAttachmentLink,
+  getCaseRegistry,
   getReassignOfficers,
   markCaseFlagReviewed,
   reassignCase,
+  recheckCaseRegistries,
   releaseCase,
 } from '../../../server/review-case';
-import type { CaseFlag, CaseLoad } from '../../../server/review-case.server';
-import type { ServiceError, ServiceResult } from '../../../server/service-call';
+import type { CaseFlag, CaseLoad, CaseRegistryView } from '../../../server/review-case.server';
+import {
+  SERVICE_UNAVAILABLE,
+  type ServiceError,
+  type ServiceResult,
+} from '../../../server/service-call';
 import { Page } from '../../page';
-import { ClaimDialog, ReassignDialog, ReleaseDialog, UnassignDialog } from './assignment-dialogs';
+import {
+  ClaimDialog,
+  ReassignDialog,
+  RecheckDialog,
+  ReleaseDialog,
+  UnassignDialog,
+} from './assignment-dialogs';
 import { CaseHeader, HeaderNote } from './case-header';
 import { ClarificationsTab } from './clarifications-tab';
 import { DECLARATION_ANCHORS, DeclarationPane } from './declaration-pane';
 import { flagAnchorId, FlagsTab } from './flags-tab';
 import { NotesTab } from './notes-tab';
+import { RegistryTab } from './registry-tab';
 import { TimelineTab } from './timeline-tab';
 
-type Dialog = 'claim' | 'release' | 'reassign' | 'unassign' | null;
+type Dialog = 'claim' | 'release' | 'reassign' | 'unassign' | 'recheck' | null;
+
+/**
+ * Waits between reads of the registry after a re-check: the lookups take seconds (more when a
+ * registry is retried), so early reads are close together and later ones further apart. About a
+ * minute and a half in all, after which the tab says the re-check is still running.
+ */
+const RECHECK_POLL_MS = [
+  1500, 2000, 2000, 3000, 3000, 5000, 5000, 5000, 8000, 8000, 10_000, 10_000, 15_000, 15_000,
+];
+
+function wait(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
 
 function failureText(error: ServiceError): string {
   if (error.kind === 'unauthenticated') return CASE_COPY.sessionEnded;
@@ -108,6 +148,25 @@ export function CaseView({ load, viewer, slug, now, tab, onTab }: CaseViewProps)
   const [downloads, setDownloads] = useState<Record<string, AttachmentState>>({});
   const [retrying, setRetrying] = useState(false);
   const conflict = useRef(false);
+  // The Registry tab's records: read when the tab first opens (an audited read of its own), and
+  // again after a re-check or Try again. Null until read; `failed` shows the last statuses.
+  const [registry, setRegistry] = useState<{ view: CaseRegistryView | null; failed: boolean }>({
+    view: null,
+    failed: false,
+  });
+  const [registryRetrying, setRegistryRetrying] = useState(false);
+  const registryRequested = useRef(false);
+  const [checking, setChecking] = useState(false);
+  const [cooldown, setCooldown] = useState<string | null>(null);
+  const mounted = useRef(true);
+  // A function, so the checks after each await are not narrowed away.
+  const isMounted = () => mounted.current;
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+    };
+  }, []);
   // The open tab follows the address (`tab`), and changes here at once, before the address does,
   // so a pin can open Flags and scroll to its flag in one go.
   const [active, setActive] = useState<CaseTab>(tab);
@@ -153,6 +212,76 @@ export function CaseView({ load, viewer, slug, now, tab, onTab }: CaseViewProps)
     await router.invalidate();
   }
 
+  function readRegistry(): Promise<ServiceResult<CaseRegistryView>> {
+    return getCaseRegistry({ data: { caseId: item.id } }).catch(
+      (): ServiceResult<CaseRegistryView> => SERVICE_UNAVAILABLE,
+    );
+  }
+
+  async function loadRegistry() {
+    registryRequested.current = true;
+    const result = await readRegistry();
+    if (!isMounted()) return;
+    setRegistry(result.ok ? { view: result.data, failed: false } : { view: null, failed: true });
+  }
+
+  useEffect(() => {
+    if (active !== 'registry' || registryRequested.current) return;
+    void loadRegistry();
+    // Read once, when the tab first opens; later reads follow a re-check or Try again.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [active]);
+
+  /** Reads the registry until the re-check's results are stored, then shows them. */
+  async function awaitRecheck(before: string | null) {
+    for (const delay of RECHECK_POLL_MS) {
+      await wait(delay);
+      if (!isMounted()) return;
+      const result = await readRegistry();
+      if (!isMounted()) return;
+      if (result.ok && recheckLanded(before, result.data.checkedAt)) {
+        registryRequested.current = true;
+        setRegistry({ view: result.data, failed: false });
+        setChecking(false);
+        toast({ title: REGISTRY_COPY.recheck.done });
+        await refresh();
+        return;
+      }
+    }
+    setChecking(false);
+    toast({ title: REGISTRY_COPY.recheck.slow });
+    await refresh();
+  }
+
+  async function recheckNow(): Promise<string | null> {
+    const before = registry.view?.checkedAt ?? detail.registry.checkedAt;
+    const result = await recheckCaseRegistries({ data: { caseId: item.id } });
+    if (result.ok) {
+      setDialog(null);
+      setCooldown(null);
+      setChecking(true);
+      void awaitRecheck(before);
+      return null;
+    }
+    if (result.refusal === null) return failureText(result.error);
+    setDialog(null);
+    if (result.refusal.kind === 'cooldown') {
+      const text = REGISTRY_COPY.recheck.cooldown(
+        minutesWords(cooldownMinutes(result.refusal.retryAfterSeconds)),
+      );
+      setCooldown(text);
+      toast({ title: text, urgency: 'assertive' });
+      return null;
+    }
+    // Someone else holds the case now, or it was determined: the page is out of date.
+    toast({
+      title: result.refusal.kind === 'closed' ? REGISTRY_COPY.recheck.closed : CASE_COPY.stale,
+      urgency: 'assertive',
+    });
+    await refresh();
+    return null;
+  }
+
   /** Runs an assignment change; resolves to an error for the dialog, or null when done. */
   async function assign(
     run: () => Promise<ServiceResult<unknown>>,
@@ -192,6 +321,16 @@ export function CaseView({ load, viewer, slug, now, tab, onTab }: CaseViewProps)
       setView('declaration');
     });
     const anchor = anchorIdFor(target, DECLARATION_ANCHORS);
+    if (anchor) scrollToId(anchor);
+  }
+
+  /** "Go to item" from a registry's match table: the declared item the record matched. */
+  function goToItem(itemId: string) {
+    flushSync(() => {
+      setHighlight(itemId);
+      setView('declaration');
+    });
+    const anchor = anchorIdFor({ itemId }, DECLARATION_ANCHORS);
     if (anchor) scrollToId(anchor);
   }
 
@@ -315,8 +454,46 @@ export function CaseView({ load, viewer, slug, now, tab, onTab }: CaseViewProps)
       </Button>
     ),
   };
-  // Later slices append theirs here: the registry Re-check (spec 07b), Propose determination.
+  // Later slices append theirs after the registry Re-check: Propose determination.
   const actions = assignmentActions(item, viewer).map((action) => ACTION_BUTTONS[action]);
+  const recheck = recheckAccess(item, viewer);
+  if (recheck !== 'hidden') {
+    const button = (
+      <Button
+        key="recheck"
+        size="sm"
+        variant="secondary"
+        disabled={recheck === 'forbidden' || checking}
+        onClick={() => {
+          setDialog('recheck');
+        }}
+      >
+        {checking ? <Spinner /> : <Icon icon={RefreshIcon} />}
+        {checking ? REGISTRY_COPY.recheck.running : REGISTRY_COPY.recheck.action}
+      </Button>
+    );
+    actions.push(
+      recheck === 'forbidden' ? (
+        <Tooltip key="recheck" content={REGISTRY_COPY.recheck.forbidden}>
+          <span tabIndex={0} className={cn(focusRing, 'inline-flex rounded-lg')}>
+            {button}
+          </span>
+        </Tooltip>
+      ) : (
+        button
+      ),
+    );
+  }
+
+  const layout = useMemo(() => {
+    if (registry.view) return registryLayout(registry.view, detail.flags, true);
+    if (!registry.failed) return null;
+    return registryLayout(
+      summaryView(detail.registry, document, detail.flags, item.declarantName),
+      detail.flags,
+      false,
+    );
+  }, [registry, detail.flags, detail.registry, document, item.declarantName]);
 
   const readOnly = readOnlyNote(item, viewer);
   const notes = (
@@ -338,6 +515,35 @@ export function CaseView({ load, viewer, slug, now, tab, onTab }: CaseViewProps)
         canReview={holder}
         editing={editing}
         pulse={pulse}
+        onEdit={(flag) => {
+          setEditing(flag.id);
+        }}
+        onCancel={() => {
+          setEditing(null);
+        }}
+        onReview={review}
+        onGo={goTo}
+      />
+    ),
+    registry: (
+      <RegistryTab
+        layout={layout}
+        failed={registry.failed}
+        retrying={registryRetrying}
+        onRetry={() => {
+          setRegistryRetrying(true);
+          void loadRegistry().finally(() => {
+            setRegistryRetrying(false);
+          });
+        }}
+        checking={checking}
+        cooldown={cooldown}
+        onGoToItem={goToItem}
+        document={document}
+        previousVersion={previousVersion}
+        currentVersion={item.currentVersion}
+        canReview={holder}
+        editing={editing}
         onEdit={(flag) => {
           setEditing(flag.id);
         }}
@@ -372,6 +578,11 @@ export function CaseView({ load, viewer, slug, now, tab, onTab }: CaseViewProps)
             <TabsTrigger key={key} value={key} className="gap-[5px] px-[7px] text-[13.5px]">
               {CASE_TAB_LABELS[key]}
               {count ? <TabsCount>{count}</TabsCount> : null}
+              {key === 'registry' && registryNeedsAttention(detail) ? (
+                <span role="img" aria-label={REGISTRY_COPY.attention} className="inline-flex">
+                  <Icon icon={Alert02Icon} strokeWidth={2.2} className="size-3.5 text-warning" />
+                </span>
+              ) : null}
             </TabsTrigger>
           );
         })}
@@ -457,6 +668,13 @@ export function CaseView({ load, viewer, slug, now, tab, onTab }: CaseViewProps)
         reference={item.reference}
         name={item.declarantName}
         onConfirm={claimNow}
+      />
+      <RecheckDialog
+        open={dialog === 'recheck'}
+        onOpenChange={(open) => {
+          setDialog(open ? 'recheck' : null);
+        }}
+        onConfirm={recheckNow}
       />
       <ReleaseDialog
         open={dialog === 'release'}

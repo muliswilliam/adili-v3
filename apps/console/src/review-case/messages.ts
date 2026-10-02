@@ -1,4 +1,4 @@
-import { formatDate, plural } from '@adili/ui';
+import { formatDate, formatDateTime, plural } from '@adili/ui';
 
 /**
  * Copy of the case view (spec 07a FE-3): the header, the assignment actions and their dialogs,
@@ -168,3 +168,85 @@ export const CASE_COPY = {
 
 /** A flag's review note, as the service takes it. */
 export const FLAG_NOTE_MAX = 1000;
+
+/**
+ * Copy of the Registry tab and the registry Re-check (spec 07b FE-2). English; the Swahili
+ * slots come with the i18n pass. Registry names are the registries' own.
+ */
+export const REGISTRY_COPY = {
+  tab: 'Registry',
+  attention: 'A registry could not be checked',
+  header:
+    'Registry checks compare the declaration with KRA, NTSA, BRS and ArdhiSasa. Mismatches are indicators for your review, not findings.',
+  lastChecked: (at: string) => `Last checked ${formatDateTime(at)}`,
+  notCheckedYet: 'Not checked yet',
+  personLabel: (name: string) => `Registry checks for ${name}`,
+  relation: { officer: 'Declarant', spouse: 'Spouse', child: 'Child' },
+  noIdTitle: 'Not checked: no national ID declared',
+  noIdBody: (name: string) => `Registries cannot be checked for ${name} without an ID.`,
+  loadFailed: 'Registry records could not be loaded. Status is shown from the last check.',
+  loading: 'Loading registry checks',
+  emptyTitle: 'No national IDs declared',
+  emptyBody: 'Registries are checked by national ID. None was declared for this household.',
+  flagsLabel: (system: string) => `${system} indicators`,
+
+  rows: {
+    matched: (count: number) => `${plural(count, 'record')}, all declared`,
+    allDeclared: 'All records declared',
+    noRecords: 'No records found',
+    kraMatched: 'PIN on record, compliant, income within 25%',
+    kraMatchedNoIncome: 'PIN on record, compliant',
+    mismatched: (count: number) => plural(count, 'indicator'),
+    mismatchedNoCount: 'Mismatches found',
+    unavailable: (system: string) =>
+      `Could not reach ${system}. Re-checked automatically every hour.`,
+    notChecked: 'Checks run after submission.',
+    noIdRow: 'No national ID declared',
+  },
+
+  table: {
+    registered: (date: string) => `registered ${date}`,
+    appointed: (date: string) => `appointed ${date}`,
+    shares: (count: number) => `${count.toLocaleString('en-KE')} shares`,
+    notInRegistry: {
+      ardhisasa: 'ArdhiSasa has no parcel with this number',
+      ntsa: 'NTSA has no vehicle with this registration',
+      brs: 'BRS has no company with this registration number',
+    },
+    supplier: (employer: string | null) =>
+      employer ? `On the ${employer} supplier list` : "On the employer's supplier list",
+    goToItem: 'Go to item',
+  },
+
+  kra: {
+    recordColumn: 'KRA record',
+    declaredColumn: 'Compared with the declaration',
+    caption: 'KRA record compared with the declaration. Income is shown as a percentage only.',
+    pin: 'PIN',
+    onRecord: 'On record',
+    pins: (count: number) => `${String(count)} PINs on record`,
+    noPin: 'No PIN for this ID',
+    compliance: 'Tax compliance',
+    statuses: { compliant: 'Compliant', 'non-compliant': 'Not compliant', unknown: 'Unknown' },
+    validUntil: (date: string) => `Certificate valid until ${date}`,
+    noCertificate: 'No valid compliance certificate',
+    income: 'Income declared to KRA',
+    incomeDifference: (percent: number) =>
+      `KRA-declared income differs by ${String(percent)}% from the income declared here.`,
+    incomeNotCompared: 'Income declared to KRA could not be compared.',
+  },
+
+  recheck: {
+    action: 'Re-check',
+    running: 'Checking…',
+    forbidden: 'Only the assigned reviewer or a supervisor can re-check the registries.',
+    title: 'Re-check registries',
+    body: 'Re-check all registries for this case? Reviewed flags keep your notes.',
+    note: 'Indicators that no longer apply are closed.',
+    confirm: 'Re-check',
+    done: 'Registry checks updated',
+    slow: 'The re-check is still running. Its results appear on the Registry tab when it finishes.',
+    cooldown: (minutes: string) => `Re-checked recently. Try again in ${minutes}.`,
+    closed: 'This case is determined. Its registries are no longer checked.',
+  },
+} as const;

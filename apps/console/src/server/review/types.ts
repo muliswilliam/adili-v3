@@ -13,3 +13,7 @@ export type CaseStatus = Schemas['CaseStatus'];
 export type ClarificationStatus = Schemas['ClarificationStatus'];
 export type Requirement = Schemas['Requirement'];
 export type TimelineEntry = Schemas['TimelineEntry'];
+export type RegistrySystem = Schemas['RegistrySystem'];
+export type RegistryCheckStatus = Schemas['RegistryCheckStatus'];
+export type RegistrySummary = Schemas['RegistrySummary'];
+export type RegistryView = Schemas['RegistryView'];

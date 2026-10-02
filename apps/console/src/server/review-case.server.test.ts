@@ -1,8 +1,16 @@
 import createClient from 'openapi-fetch';
 import { describe, expect, it } from 'vitest';
 
-import { CASE_ID, caseData, caseItem, DOCUMENT, ME, WAFULA } from '../review-case/fixtures';
-import { claim, loadCase, loadOfficers } from './review-case.server';
+import {
+  CASE_ID,
+  caseData,
+  caseItem,
+  DOCUMENT,
+  ME,
+  registryView,
+  WAFULA,
+} from '../review-case/fixtures';
+import { claim, loadCase, loadOfficers, loadRegistry, recheck } from './review-case.server';
 import type { paths } from './review/api.gen';
 
 type Handler = (request: Request) => Response | Promise<Response>;
@@ -138,5 +146,105 @@ describe('loadOfficers', () => {
       ME,
     );
     expect(result.ok).toBe(false);
+  });
+});
+
+describe('loadRegistry', () => {
+  it('reads the Registry tab of the case', async () => {
+    const urls: string[] = [];
+    const result = await loadRegistry(
+      client((request) => {
+        urls.push(new URL(request.url).pathname);
+        return json(200, registryView());
+      }),
+      CASE_ID,
+    );
+    expect(urls).toEqual([`/v1/review/cases/${CASE_ID}/registry`]);
+    if (!result.ok) throw new Error(JSON.stringify(result.error));
+    expect(result.data.persons.map((person) => person.personName)).toEqual([
+      'Wanjiku Njoki Kamau',
+      'Imani Wairimu Kamau',
+    ]);
+  });
+
+  it('passes on a gateway that could not give the records (502)', async () => {
+    const result = await loadRegistry(
+      client(() =>
+        json(502, {
+          type: 'integration-gateway-unavailable',
+          title: 'Upstream service unavailable',
+          status: 502,
+        }),
+      ),
+      CASE_ID,
+    );
+    expect(result).toMatchObject({ ok: false, error: { kind: 'unavailable' } });
+  });
+});
+
+describe('recheck', () => {
+  const problem = (status: number, type: string, extra: Record<string, unknown> = {}) =>
+    json(status, { type, title: type, status, ...extra });
+
+  it('starts a re-check (202)', async () => {
+    const methods: string[] = [];
+    const result = await recheck(
+      client((request) => {
+        methods.push(`${request.method} ${new URL(request.url).pathname}`);
+        return new Response(null, { status: 202 });
+      }),
+      CASE_ID,
+    );
+    expect(methods).toEqual([`POST /v1/review/cases/${CASE_ID}/recheck`]);
+    expect(result).toEqual({ ok: true });
+  });
+
+  it('says how long the cooldown lasts (429)', async () => {
+    expect(
+      await recheck(
+        client(() => problem(429, 'recheck-cooldown', { retryAfterSeconds: 420 })),
+        CASE_ID,
+      ),
+    ).toEqual({ ok: false, refusal: { kind: 'cooldown', retryAfterSeconds: 420 } });
+    // Without the field, the contract's ten minutes.
+    expect(
+      await recheck(
+        client(() => problem(429, 'recheck-cooldown')),
+        CASE_ID,
+      ),
+    ).toEqual({
+      ok: false,
+      refusal: { kind: 'cooldown', retryAfterSeconds: 600 },
+    });
+  });
+
+  it('tells a reviewer who is not the assignee (403) from a determined case (409)', async () => {
+    expect(
+      await recheck(
+        client(() => problem(403, 'not-the-assignee')),
+        CASE_ID,
+      ),
+    ).toEqual({
+      ok: false,
+      refusal: { kind: 'forbidden' },
+    });
+    expect(
+      await recheck(
+        client(() => problem(409, 'case-closed')),
+        CASE_ID,
+      ),
+    ).toEqual({
+      ok: false,
+      refusal: { kind: 'closed' },
+    });
+  });
+
+  it('passes on anything else as a service error', async () => {
+    expect(
+      await recheck(
+        client(() => problem(503, 'temporal-unavailable')),
+        CASE_ID,
+      ),
+    ).toMatchObject({ ok: false, refusal: null, error: { kind: 'unavailable' } });
   });
 });

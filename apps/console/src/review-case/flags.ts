@@ -3,6 +3,7 @@ import { COUNTRIES, findItem, formatDate, personFullName, typeLabel } from '@adi
 
 import type { CaseFlag as Flag } from '../server/review-case.server';
 import type { Severity } from '../server/review/types';
+import { roleWords } from './registry';
 
 /**
  * The flags tab's arithmetic (spec 07a FE-3): open flags grouped by severity, reviewed and closed
@@ -142,7 +143,7 @@ export function evidenceLine(
     case 'directorship-employer-supplier':
       return join([
         around(text(e.companyRegistrationNumber), (company) => `Company ${company}`),
-        around(text(e.role), (role) => `role ${role}`),
+        around(text(e.role), (role) => `role ${roleWords(role).toLowerCase()}`),
         flag.ruleId === 'directorship-employer-supplier' ? "on the employer's supplier list" : null,
       ]);
     case 'kra-pin-missing':
