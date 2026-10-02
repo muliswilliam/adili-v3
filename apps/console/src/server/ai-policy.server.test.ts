@@ -7,12 +7,7 @@ import {
   mockToken,
   resetAiGatewayMock,
 } from './ai-gateway/mock.server';
-import {
-  loadAiPolicyOverview,
-  loadTenantUsage,
-  saveGatePolicy,
-  saveTenantBudget,
-} from './ai-policy.server';
+import { loadAiPolicyOverview, saveGatePolicy, saveTenantBudget } from './ai-policy.server';
 import { createDirectoryClient } from './directory/client';
 
 const admin = () => mockAiGatewayClient('Amina Wanjiru', ['platform-admin']);
@@ -22,6 +17,8 @@ const COMMISSIONS = [
   { slug: 'jsc', name: 'Judicial Service Commission' },
   { slug: 'psc', name: 'Public Service Commission' },
   { slug: 'tsc', name: 'Teachers Service Commission' },
+  // Unknown to the gateway: no rules, no budget, no jobs.
+  { slug: 'nacada', name: 'National Authority for the Campaign Against Alcohol' },
 ];
 
 /** A directory answering `GET /v1/commissions` in pages of `pageSize`, recording the cursors. */
@@ -78,24 +75,44 @@ describe('S16 loadAiPolicyOverview', () => {
     const { tenants, routing } = result.data;
     expect(tenants.map((tenant) => tenant.name)).toEqual(COMMISSIONS.map((each) => each.name));
     const psc = tenants.find((tenant) => tenant.slug === 'psc');
-    expect(psc?.rules).toEqual([
-      expect.objectContaining({
-        dataClass: 'synthetic',
-        providerClass: 'external',
-        allowed: true,
-        approvalRef: 'EACC/AI/2026/014',
-      }),
-    ]);
+    expect(psc?.gate[0]).toEqual({
+      dataClass: 'synthetic',
+      providerClass: 'external',
+      allowed: true,
+      rule: expect.objectContaining({ approvalRef: 'EACC/AI/2026/014' }) as unknown,
+    });
+    expect(psc?.routed).toEqual(['external']);
     expect(psc?.usage).toMatchObject({ monthlyTokens: 3_000_000, tokensUsed: 1_926_400 });
-    // No policy at the gateway: blocked by default.
-    expect(tenants.find((tenant) => tenant.slug === 'tsc')?.rules).toEqual([]);
+    expect(tenants.find((tenant) => tenant.slug === 'tsc')?.gate[0]).toMatchObject({
+      allowed: false,
+      rule: { approvalRef: 'TSC resolution 12/2026' },
+    });
+    // Unknown to the gateway: the default gate and budget, nothing used.
+    const nacada = tenants.find((tenant) => tenant.slug === 'nacada');
+    expect(
+      nacada?.gate.map((cell) => [cell.dataClass, cell.providerClass, cell.allowed, cell.rule]),
+    ).toEqual([
+      ['synthetic', 'external', true, null],
+      ['synthetic', 'self-hosted', true, null],
+      ['restricted', 'external', false, null],
+      ['restricted', 'self-hosted', true, null],
+      ['highly-confidential', 'external', false, null],
+      ['highly-confidential', 'self-hosted', true, null],
+    ]);
+    expect(nacada?.usage).toMatchObject({
+      tenant: 'nacada',
+      monthlyTokens: 1_000_000,
+      perMinute: 60,
+      tokensUsed: 0,
+      jobs: 0,
+    });
     expect(routing.ok && routing.data.map((route) => route.task)).toContain('explain-flags');
   });
 
   it('follows the cursor to the last directory page', async () => {
     const { client, cursors } = directory(3);
     const result = await loadAiPolicyOverview(admin(), client);
-    expect(result.ok && result.data.tenants).toHaveLength(4);
+    expect(result.ok && result.data.tenants).toHaveLength(5);
     expect(cursors).toEqual([null, '3']);
   });
 
@@ -103,8 +120,7 @@ describe('S16 loadAiPolicyOverview', () => {
     const result = await loadAiPolicyOverview(admin(), directory().client);
     if (!result.ok || !result.data.routing.ok) throw new Error('not ok');
     expect(result.data.routing.data[0]?.params).toEqual({
-      temperature: 0,
-      maxTokens: 4_000,
+      maxOutputTokens: 4_000,
       timeoutMs: 60_000,
     });
   });
@@ -127,11 +143,15 @@ describe('S16 loadAiPolicyOverview', () => {
 });
 
 describe('S16 saveGatePolicy', () => {
-  it('allows external providers on synthetic data with the approval reference, audited by name', async () => {
+  it('allows external providers with the approval reference, audited by name', async () => {
+    expect(mockTenantAiStatus('tsc').enabled).toBe(false);
     const result = await saveGatePolicy(
       admin(),
       'tsc',
-      [{ dataClass: 'synthetic', providerClass: 'external', allowed: true }],
+      [
+        { dataClass: 'synthetic', providerClass: 'external', allowed: true },
+        { dataClass: 'highly-confidential', providerClass: 'external', allowed: true },
+      ],
       'EACC/AI/2026/022',
     );
     if (!result.ok) throw new Error(JSON.stringify(result.error));
@@ -141,14 +161,15 @@ describe('S16 saveGatePolicy', () => {
         providerClass: 'external',
         allowed: true,
         approvalRef: 'EACC/AI/2026/022',
-        changedBy: 'Amina Wanjiru',
+        changedByName: 'Amina Wanjiru',
       }),
+      expect.objectContaining({ dataClass: 'highly-confidential', allowed: true }),
     ]);
-    // The Commission's own status line follows.
+    // The Commission's own status line follows: TSC's declarations are highly confidential.
     expect(mockTenantAiStatus('tsc')).toEqual({
       enabled: true,
       providerClass: 'external',
-      dataClasses: ['synthetic'],
+      dataClasses: ['synthetic', 'highly-confidential'],
     });
   });
 
@@ -169,10 +190,11 @@ describe('S16 saveGatePolicy', () => {
       ['synthetic', false, 'EACC/AI/2026/030'],
       ['restricted', true, 'EACC/AI/2026/030'],
     ]);
+    // Nothing is routed to a self-hosted provider, so PSC's synthetic data has nowhere to go.
     expect(mockTenantAiStatus('psc')).toEqual({
-      enabled: true,
-      providerClass: 'self-hosted',
-      dataClasses: ['restricted'],
+      enabled: false,
+      providerClass: 'external',
+      dataClasses: [],
     });
   });
 
@@ -185,10 +207,23 @@ describe('S16 saveGatePolicy', () => {
     );
     expect(result).toMatchObject({
       ok: false,
-      saved: 0,
       error: { kind: 'problem', problem: { status: 400 } },
     });
     expect(mockTenantAiStatus('tsc').enabled).toBe(false);
+  });
+
+  it('stores none of the changes when one is invalid', async () => {
+    const result = await saveGatePolicy(
+      admin(),
+      'psc',
+      [
+        { dataClass: 'synthetic', providerClass: 'external', allowed: false },
+        { dataClass: 'synthetic', providerClass: 'external', allowed: true },
+      ],
+      'EACC/AI/2026/031',
+    );
+    expect(result).toMatchObject({ ok: false, error: { problem: { status: 400 } } });
+    expect(mockTenantAiStatus('psc').dataClasses).toEqual(['synthetic']);
   });
 
   it('is a 403 for anyone but a platform admin', async () => {
@@ -210,11 +245,10 @@ describe('S16 tenant budget', () => {
       perMinute: 90,
     });
     expect(result).toMatchObject({ ok: true, data: { monthlyTokens: 2_000_000, perMinute: 90 } });
-    const read = await loadTenantUsage(admin(), 'jsc');
-    expect(read).toMatchObject({
-      ok: true,
-      data: { monthlyTokens: 2_000_000, tokensUsed: 862_300 },
+    const read = await admin().GET('/v1/ai/tenants/{tenant}/usage', {
+      params: { path: { tenant: 'jsc' } },
     });
+    expect(read.data).toMatchObject({ monthlyTokens: 2_000_000, tokensUsed: 862_300 });
   });
 
   it('is a 400 for a limit under 1 a minute', async () => {

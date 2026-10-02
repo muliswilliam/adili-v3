@@ -116,10 +116,7 @@ export function AiPolicyView(props: AiPolicyViewProps) {
           {result === null ? (
             <Skeleton className="my-1 inline-block w-[180px] align-middle" />
           ) : overview ? (
-            m.enabledCount(
-              tenants.filter((tenant) => isEnabled(tenant.rules)).length,
-              tenants.length,
-            )
+            m.enabledCount(tenants.filter((tenant) => isEnabled(tenant)).length, tenants.length)
           ) : null}
         </p>
       </PageHead>
@@ -339,7 +336,7 @@ function DataClassHead({ dataClass }: { dataClass: DataClass }) {
 }
 
 function CommissionRow({ row, onOpen }: { row: AiTenantRow; onOpen: (slug: string) => void }) {
-  const enabled = isEnabled(row.rules);
+  const enabled = isEnabled(row);
   return (
     <TableRow>
       <TableHead scope="row" className="min-w-[220px] py-3 font-normal">

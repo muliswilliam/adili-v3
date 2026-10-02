@@ -56,7 +56,7 @@ export const en = {
   noMatchesText: 'Try another search or filter.',
   clearFilters: 'Clear filters',
   emptyTitle: 'No Commissions yet',
-  emptyText: 'Commissions created in the Commissions workspace appear here, blocked by default.',
+  emptyText: 'Commissions created in the Commissions workspace appear here, with the default gate.',
   loadErrorTitle: 'AI policy could not be loaded.',
   loadErrorDetail: 'Nothing has changed. Try again in a moment.',
   tryAgain: 'Try again',
@@ -75,14 +75,15 @@ export const en = {
   allCommissions: 'All Commissions',
   routingErrorTitle: 'Routing could not be loaded.',
   routingEmpty: 'No routes are configured.',
-  paramTemperature: 'Temperature',
-  paramMaxTokens: 'Max tokens',
+  paramMaxTokens: 'Max output tokens',
+  paramEffort: 'Effort',
+  effort: (effort: string) =>
+    (({ low: 'Low', medium: 'Medium', high: 'High' }) as Record<string, string>)[effort] ?? effort,
   paramTimeout: 'Timeout',
   seconds: (seconds: number) => `${formatNumber(seconds)} s`,
 
   // Commission drawer
   enabled: 'Enabled',
-  blockedEveryClass: 'Blocked for every data class',
   gatePolicy: 'Gate policy',
   gateCaption: 'Provider classes allowed per data class',
   columnDataClass: 'Data class',
@@ -100,7 +101,8 @@ export const en = {
   perMinute: (limit: number) => `${formatNumber(limit)} a minute`,
   usageLoadError: 'Usage could not be loaded. Try again in a moment.',
   changes: 'Changes',
-  noChanges: 'No changes. External providers are blocked by default.',
+  noChanges: 'No changes. The default applies: external providers see synthetic data only.',
+  defaultRule: 'Default',
   changeAllowed: (provider: string, data: string) =>
     `Allowed ${provider.toLowerCase()} providers for ${data.toLowerCase()} data`,
   changeBlocked: (provider: string, data: string) =>
@@ -134,8 +136,6 @@ export const en = {
   policySaved: 'Policy saved and recorded in the audit trail',
   saveError: 'The policy could not be saved.',
   saveErrorText: 'Nothing was changed. Try again in a moment.',
-  savePartial: (saved: number, total: number) =>
-    `${formatNumber(saved)} of ${formatNumber(total)} changes were saved before the error. The Commission now shows what was saved.`,
   saveForbidden: 'You no longer have access to change AI policy.',
   saveRejected: 'The gateway refused this change.',
 

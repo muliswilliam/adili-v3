@@ -27,7 +27,7 @@ export function DataClassesTip() {
 
 /** The provider classes allowed for one data class ("External"), or "Blocked". */
 export function GateCell({ row, dataClass }: { row: AiTenantRow; dataClass: DataClass }) {
-  const allowed = allowedProviders(row.rules, dataClass);
+  const allowed = allowedProviders(row.gate, dataClass);
   if (allowed.length === 0) {
     return <span className="text-[13.5px] text-muted-foreground">{m.blocked}</span>;
   }

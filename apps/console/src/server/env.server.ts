@@ -17,8 +17,8 @@ export const envSchema = bffEnvSchema.extend({
    */
   REVIEW_MOCK: z.stringbool().default(false),
   /**
-   * Serve the ai-gateway's policy, routing and usage endpoints from in-memory fixtures until the
-   * gateway implements them (#290). Honoured in `vite dev` and tests only, like REVIEW_MOCK.
+   * Serve the ai-gateway's policy, routing and usage endpoints from in-memory fixtures, so the
+   * console runs without the gateway. Honoured in `vite dev` and tests only, like REVIEW_MOCK.
    */
   AI_GATEWAY_MOCK: z.stringbool().default(false),
 });
