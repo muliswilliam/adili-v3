@@ -2,6 +2,7 @@ import { index, jsonb, pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-cor
 
 import type { Decision } from '../decision.js';
 import type { Scope } from '../scope.js';
+import type { WrittenNotice } from '../written-notice.js';
 
 /**
  * Law enforcement requests (Act s.36(2), Regs r.23): a written request by an officer of a
@@ -91,6 +92,7 @@ export const leaRequests = pgTable(
     scope: jsonb().$type<Scope>().notNull(),
     status: text().$type<LeaRequestStatus>().notNull(),
     resolvedRosterRecordId: uuid(),
+    /** The declarant: null until the roster record's officer has onboarded (spec 10 decision 2). */
     resolvedPersonId: uuid(),
     resolvedName: text(),
     verification: jsonb().$type<LeaVerification>(),
@@ -108,10 +110,17 @@ export const leaRequests = pgTable(
     packageVerificationId: text(),
     packageIssuedAt: timestamp({ withTimezone: true }),
     downloadExpiresAt: timestamp({ withTimezone: true }),
-    /** When the declarant was told of the grant (r.23(2): only after it). */
+    /**
+     * When the declarant was told of the grant (r.23(2): only after it): online, or the start of
+     * the day a written notice was served.
+     */
     declarantNotifiedAt: timestamp({ withTimezone: true }),
     /** When it closed without a decision: withdrawn by its officer. */
     closedAt: timestamp({ withTimezone: true }),
+    /** The written notice of the grant the access officer recorded; null when told online. */
+    writtenNotice: jsonb().$type<WrittenNotice>(),
+    /** When the declarant without an account was invited to onboard; null when not invited. */
+    declarantInvitedAt: timestamp({ withTimezone: true }),
     createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp({ withTimezone: true })
       .notNull()
@@ -122,6 +131,7 @@ export const leaRequests = pgTable(
     index('lea_requests_queue_idx').on(table.tenant, table.status, table.deadlineAt, table.id),
     index('lea_requests_officer_idx').on(table.officerSubject, table.receivedAt),
     index('lea_requests_declarant_idx').on(table.resolvedPersonId),
+    index('lea_requests_roster_record_idx').on(table.resolvedRosterRecordId),
   ],
 );
 

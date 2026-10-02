@@ -118,11 +118,17 @@ export class DecisionActivities {
     }
     const { decision, resolvedPersonId } = found;
     const scope = decision?.grantedScope;
-    if (decidedStatusOf(found) === 'denied' || !decision || !scope || resolvedPersonId === null) {
+    if (decidedStatusOf(found) === 'denied' || !decision || !scope) {
       throw invariantBroken('The request has no grant to issue a package for');
     }
 
     const context = { requestId };
+    if (resolvedPersonId === null) {
+      // A declarant served in writing who has still not onboarded has filed no declaration on
+      // Adili: nothing to disclose.
+      this.logger.warn(context, 'The declarant has no account: no package issued');
+      return { outcome: 'nothing-to-disclose' };
+    }
     let disclosure;
     try {
       disclosure = await this.declarations.renderDisclosure({

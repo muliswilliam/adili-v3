@@ -11,6 +11,7 @@ import type { LeaRequestActivities } from '../../src/lea/activities.js';
 import type {
   LeaBreachOutcome,
   LeaDecisionNoticeOutcome,
+  LeaDeclarantNoticeOutcome,
   LeaPackageOutcome,
   LeaReminderOutcome,
   LeaRequestSignal,
@@ -92,6 +93,10 @@ describe('LeaRequestWorkflow', () => {
       /** Activities (by recorded name) that fail without retrying. */
       fail?: readonly string[];
       on?: Partial<Record<string, () => Promise<void>>>;
+      /** What telling the declarant answers, call by call; `notified` after. */
+      told?: LeaDeclarantNoticeOutcome[];
+      /** What telling the declarant answers now, before `told`. */
+      toldNow?: () => LeaDeclarantNoticeOutcome | undefined;
     } = {},
   ): { mocks: Activities; recorded: Recorded } {
     const calls: string[] = [];
@@ -105,6 +110,7 @@ describe('LeaRequestWorkflow', () => {
       }
     };
     const states = [...(options.states ?? [])];
+    const told = [...(options.told ?? [])];
     const mocks: Activities = {
       // Not recorded: it runs first, then every six hours while the decision is awaited.
       leaRequestState: vi.fn((): Promise<LeaRequestState> =>
@@ -122,9 +128,9 @@ describe('LeaRequestWorkflow', () => {
         await record('decision-notice');
         return options.decided ?? 'granted';
       }),
-      notifyDeclarantOfLeaGrant: vi.fn(async () => {
+      notifyDeclarantOfLeaGrant: vi.fn(async (): Promise<LeaDeclarantNoticeOutcome> => {
         await record('notify-declarant');
-        return 'notified' as const;
+        return options.toldNow?.() ?? told.shift() ?? 'notified';
       }),
       issueLeaPackage: vi.fn(async (): Promise<LeaPackageOutcome> => {
         await record('issue-package');
@@ -396,4 +402,58 @@ describe('LeaRequestWorkflow', () => {
     expect(recorded.calls).toEqual(['breach', 'withdrawn-notice']);
     expect(dayOf(input, recorded, 'breach')).toBe(15);
   }, 60_000);
+
+  describe('a declarant with no account (spec 10 decision 2)', () => {
+    it('the package goes ahead; the declarant is told once the access officer records the written notice', async () => {
+      const input = await inputReceived();
+      let served = false;
+      const { mocks, recorded } = activities({
+        toldNow: () => (served ? 'notified' : 'awaiting-notice'),
+      });
+
+      const result = await env.run(leaRequest, options(mocks, input), async (handle) => {
+        await env.skipTime({ ms: 3 * DAY_MS });
+        await handle.signal('decided');
+        // Read every six hours meanwhile: still no account, no notice.
+        await env.skipTime({ ms: 4 * DAY_MS - 60_000 });
+        served = true;
+        await handle.signal('notified');
+        await env.skipTime({ ms: (DOWNLOAD_DAYS + 1) * DAY_MS });
+        return handle.result();
+      });
+
+      expect(result).toEqual({ outcome: 'decided' });
+      expect(recorded.calls.slice(0, 4)).toEqual([
+        'decision-notice',
+        'notify-declarant',
+        'issue-package',
+        'package-ready',
+      ]);
+      expect(recorded.calls.at(-1)).toBe('expire-package');
+      // Told on the signal, just before day 7; not again after.
+      expect(dayOf(input, recorded, 'notify-declarant')).toBeCloseTo(7, 2);
+      expect(await vi.mocked(mocks.notifyDeclarantOfLeaGrant).mock.results.at(-1)?.value).toBe(
+        'notified',
+      );
+      expect(dayOf(input, recorded, 'expire-package')).toBe(3 + DOWNLOAD_DAYS);
+    }, 60_000);
+
+    it('lost signals: telling the declarant runs again at each six-hour read, after the package if need be', async () => {
+      const input = await inputReceived();
+      const { mocks, recorded } = activities({
+        told: ['awaiting-notice', 'awaiting-notice', 'notified'],
+      });
+
+      const result = await env.run(leaRequest, options(mocks, input), async (handle) => {
+        await env.skipTime({ ms: DAY_MS });
+        await handle.signal('decided');
+        await env.skipTime({ ms: (DOWNLOAD_DAYS + 1) * DAY_MS });
+        return handle.result();
+      });
+
+      expect(result).toEqual({ outcome: 'decided' });
+      expect(mocks.notifyDeclarantOfLeaGrant).toHaveBeenCalledTimes(3);
+      expect(dayOf(input, recorded, 'notify-declarant')).toBe(1.5);
+    }, 60_000);
+  });
 });

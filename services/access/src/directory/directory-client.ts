@@ -136,6 +136,15 @@ export const DEFAULT_ACCESS_POLICY: AccessPolicy = {
   packageDownloadDays: 14,
 };
 
+/**
+ * An invitation to set up a declarant account the directory sent to a roster record's contacts
+ * (directory.yaml `OnboardingInvitation`): the channels it went out on, never the contacts.
+ */
+export interface OnboardingInvitationFacts {
+  sentAt: Date;
+  channels: ('email' | 'sms')[];
+}
+
 /** The directory is unreachable or answered outside its contract; callers retry. */
 export class DirectoryUnavailable extends Error {
   constructor(message: string, options?: ErrorOptions) {
@@ -169,6 +178,18 @@ export abstract class DirectoryClient {
    * full name contains it, by full name, at most `ROSTER_SEARCH_LIMIT`.
    */
   abstract searchRoster(slug: string, search: string): Promise<RosterCandidateFacts[]>;
+
+  /**
+   * Invites the officer of the Commission's roster record `recordId`, who has not onboarded, to
+   * set up their declarant account (the directory sends it to the roster's contacts), once per
+   * `idempotencyKey`. `onboarded` when they have an account meanwhile; null when the Commission
+   * has no such record.
+   */
+  abstract inviteToOnboard(
+    slug: string,
+    recordId: string,
+    idempotencyKey: string,
+  ): Promise<OnboardingInvitationFacts | 'onboarded' | null>;
 
   /** The Commission's staff accounts holding `role`, with the email they sign in with. */
   abstract staffWithRole(slug: string, role: StaffRole): Promise<StaffMember[]>;

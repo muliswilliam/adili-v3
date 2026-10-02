@@ -31,10 +31,10 @@ export const representationsInputSchema = z
       .trim()
       .max(8000)
       .meta({ description: "The declarant's representations; may be empty only with `consent`" }),
-    attachments: z
-      .array(z.uuid())
-      .max(MAX_REPRESENTATION_ATTACHMENTS)
-      .meta({ description: 'Clean uploads of purpose `access-representation` by the declarant' }),
+    attachments: z.array(z.uuid()).max(MAX_REPRESENTATION_ATTACHMENTS).meta({
+      description:
+        'Clean uploads of purpose `access-representation` by the caller (the declarant; the access officer for representations received in writing), or ones attached already',
+    }),
   })
   .superRefine((input, ctx) => {
     if (input.stance !== 'consent' && input.text === '') {
@@ -145,7 +145,8 @@ export function toDeclarantNotice(
     notifiedAt: row.notifiedAt.toISOString(),
     windowEndsAt: row.windowEndsAt?.toISOString() ?? null,
     canRespond: windowOpen(row, now),
-    representations: representationsRow === null ? null : toRepresentations(representationsRow),
+    representations:
+      representationsRow === null ? null : toRepresentations(representationsRow, 'declarant'),
     decision: row.decision,
   };
 }

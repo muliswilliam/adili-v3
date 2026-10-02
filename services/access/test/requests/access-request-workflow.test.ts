@@ -21,6 +21,7 @@ import type {
 } from '../../src/requests/contract.js';
 import type { DecisionActivities } from '../../src/requests/decision-activities.js';
 import { accessRequest } from '../../src/requests/workflows.js';
+import { writtenNoticeWindow } from '../../src/written-notice.js';
 
 /**
  * `AccessRequestWorkflow` against mocked activities in Temporal's time-skipping test environment:
@@ -108,6 +109,8 @@ describe('AccessRequestWorkflow', () => {
       issued?: 'nothing-to-disclose' | 'missing';
       on?: Partial<Record<string, () => Promise<void>>>;
       fail?: readonly string[];
+      /** The window a `notified` resolution answers, instead of seven days from it. */
+      windowEndsAt?: () => string | undefined;
     } = {},
   ): { mocks: Activities; recorded: Recorded } {
     const calls: string[] = [];
@@ -152,7 +155,9 @@ describe('AccessRequestWorkflow', () => {
         return outcome === 'notified'
           ? {
               outcome,
-              windowEndsAt: new Date(scheduledAt() + WINDOW_DAYS * DAY_MS).toISOString(),
+              windowEndsAt:
+                options.windowEndsAt?.() ??
+                new Date(scheduledAt() + WINDOW_DAYS * DAY_MS).toISOString(),
             }
           : { outcome };
       }),
@@ -699,6 +704,115 @@ describe('AccessRequestWorkflow', () => {
       expect(result).toEqual({ outcome: 'decided' });
       expect(recorded.calls).toEqual(['remind-5', 'resolution', 'close-window', ...GRANT_STEPS]);
       expect(dayOf(input, recorded, 'close-window')).toBe(5);
+    }, 60_000);
+  });
+
+  describe('an officer with no account (spec 10 decision 2)', () => {
+    /** Nairobi's calendar date of a workflow instant. */
+    const nairobiDay = (ms: number) =>
+      new Intl.DateTimeFormat('en-CA', { timeZone: 'Africa/Nairobi' }).format(new Date(ms));
+
+    it('waits for the written notice, then holds the window until the end of the seventh day after the day it was served', async () => {
+      const input = await inputReceived();
+      // The access officer records on day 9 a notice served two days earlier.
+      let notifiedOn: string | undefined;
+      const { mocks, recorded } = activities({
+        resolutions: ['awaiting-notice', 'notified'],
+        windowEndsAt: () =>
+          notifiedOn === undefined
+            ? undefined
+            : writtenNoticeWindow(notifiedOn, WINDOW_DAYS).windowEndsAt.toISOString(),
+        on: {
+          'remind-5': () => signalOwnWorkflow('resolved'),
+          'close-window': () => signalOwnWorkflow('withdrawn'),
+        },
+      });
+
+      await env.run(accessRequest, options(mocks, input), async (handle) => {
+        await env.skipTime({ ms: 9 * DAY_MS });
+        notifiedOn = nairobiDay(new Date(input.submittedAt).getTime() + 7 * DAY_MS);
+        await handle.signal('notified');
+        await env.skipTime({ ms: 10 * DAY_MS });
+      });
+
+      expect(recorded.calls.slice(0, 4)).toEqual([
+        'remind-5',
+        'resolution',
+        'resolution',
+        'close-window',
+      ]);
+      expect(dayOf(input, recorded, 'resolution')).toBe(9);
+      // Served on day 7 (Nairobi): the window ends when day 15 starts in Nairobi.
+      const closedAt = recorded.at.get('close-window') ?? Number.NaN;
+      const windowEndsAt = writtenNoticeWindow(notifiedOn ?? '', WINDOW_DAYS).windowEndsAt;
+      expect(Math.abs(closedAt - windowEndsAt.getTime())).toBeLessThan(1000);
+      expect(nairobiDay(closedAt)).toBe(
+        nairobiDay(new Date(input.submittedAt).getTime() + 15 * DAY_MS),
+      );
+    }, 60_000);
+
+    it('a notice served long ago: the window has passed, and the request goes under decision at once', async () => {
+      const input = await inputReceived();
+      let notifiedOn: string | undefined;
+      const { mocks, recorded } = activities({
+        resolutions: ['awaiting-notice', 'notified'],
+        windowEndsAt: () =>
+          notifiedOn === undefined
+            ? undefined
+            : writtenNoticeWindow(notifiedOn, WINDOW_DAYS).windowEndsAt.toISOString(),
+        on: {
+          'remind-5': () => signalOwnWorkflow('resolved'),
+          'close-window': () => signalOwnWorkflow('withdrawn'),
+        },
+      });
+
+      await env.run(accessRequest, options(mocks, input), async (handle) => {
+        await env.skipTime({ ms: 18 * DAY_MS });
+        // Served on day 6, recorded on day 18.
+        notifiedOn = nairobiDay(new Date(input.submittedAt).getTime() + 6 * DAY_MS);
+        await handle.signal('notified');
+        await env.skipTime({ ms: DAY_MS });
+      });
+
+      expect(recorded.calls.slice(1, 4)).toEqual(['resolution', 'resolution', 'close-window']);
+      expect(dayOf(input, recorded, 'close-window')).toBe(18);
+    }, 60_000);
+
+    it('the officer onboards before any notice: the declarant is notified online then, with the usual window', async () => {
+      const input = await inputReceived();
+      const { mocks, recorded } = activities({
+        resolutions: ['awaiting-notice', 'notified'],
+        on: {
+          'remind-5': () => signalOwnWorkflow('resolved'),
+          'close-window': () => signalOwnWorkflow('withdrawn'),
+        },
+      });
+
+      await env.run(accessRequest, options(mocks, input), async (handle) => {
+        await env.skipTime({ ms: 8 * DAY_MS });
+        await handle.signal('onboarded');
+        await env.skipTime({ ms: 10 * DAY_MS });
+      });
+
+      expect(dayOf(input, recorded, 'resolution')).toBe(8);
+      expect(dayOf(input, recorded, 'close-window')).toBe(8 + WINDOW_DAYS);
+    }, 60_000);
+
+    it('lost signals: the resolution step runs again at each six-hour read until the declarant is notified', async () => {
+      const input = await inputReceived();
+      const stored: Stored = { state: 'resolved' };
+      const { mocks, recorded } = activities({
+        stored,
+        resolutions: ['awaiting-notice', 'awaiting-notice', 'notified'],
+        on: { 'close-window': () => signalOwnWorkflow('withdrawn') },
+      });
+
+      await env.execute(accessRequest, options(mocks, input));
+
+      // Read at 6, 12 and 18 hours: notified at the third.
+      expect(mocks.resolution).toHaveBeenCalledTimes(3);
+      expect(dayOf(input, recorded, 'resolution')).toBe(0.75);
+      expect(dayOf(input, recorded, 'close-window')).toBe(0.75 + WINDOW_DAYS);
     }, 60_000);
   });
 });

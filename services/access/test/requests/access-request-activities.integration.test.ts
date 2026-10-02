@@ -141,6 +141,8 @@ describe('AccessRequestWorkflow activities (S3, S5)', () => {
       await update(input.requestId, {
         status: 'under-decision',
         resolvedRosterRecordId: randomUUID(),
+        resolvedPersonId: randomUUID(),
+        notifiedAt: new Date('2027-03-25T09:00:00.000Z'),
       });
       api.clock.set('2027-04-01T09:00:00.000Z');
 

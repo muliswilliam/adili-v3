@@ -24,6 +24,11 @@ export const registerEntrySchema = z.object({
   summary: z.string(),
   /** The request's reference (empty for self-access). */
   reference: z.string(),
+  /**
+   * Done on paper: the declarant was notified in writing (r.22(2)), or their representations were
+   * received in writing and entered by the access officer (spec 10 decision 2).
+   */
+  inWriting: z.boolean(),
 });
 
 export type RegisterEntry = z.infer<typeof registerEntrySchema>;
@@ -44,13 +49,26 @@ const SUMMARIES: Record<TimelineKind, string> = {
   'self-access': 'Certified copy issued',
 };
 
+/** The line of a step done on paper. */
+const IN_WRITING_SUMMARIES: Partial<Record<TimelineKind, string>> = {
+  notified: 'Declarant notified in writing',
+  representations: 'Representations received in writing',
+};
+
+/** Whether the entry records a step done on paper (its `details.channel` or `receivedInWriting`). */
+function inWriting(row: TimelineRow): boolean {
+  return row.details.channel === 'written' || row.details.receivedInWriting === true;
+}
+
 export function toRegisterEntry(row: TimelineRow): RegisterEntry {
+  const written = inWriting(row);
   return {
     id: row.id,
     kind: row.kind,
     at: row.at.toISOString(),
     actor: row.actorName ?? null,
-    summary: SUMMARIES[row.kind],
+    summary: (written ? IN_WRITING_SUMMARIES[row.kind] : undefined) ?? SUMMARIES[row.kind],
     reference: row.reference ?? '',
+    inWriting: written,
   };
 }

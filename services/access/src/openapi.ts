@@ -40,6 +40,7 @@ import {
   formKSchema,
 } from './requests/representation.js';
 import { scopeSchema, sectionSchema } from './scope.js';
+import { noticeSchema, writtenNoticeBody } from './written-notice.js';
 import {
   declarantVersionSchema,
   declarantVersionsSchema,
@@ -79,6 +80,8 @@ export const OPENAPI_SCHEMAS: Record<string, z.ZodType> = {
   RepresentationsInput: representationsInputSchema,
   FormKDeclarantNotice: formKDeclarantNoticeSchema,
   LeaDeclarantNotice: leaDeclarantNoticeSchema,
+  WrittenNotice: writtenNoticeBody,
+  Notice: noticeSchema,
   DeclarantNotice: declarantNoticeSchema,
   AccessCommission: accessCommissionSchema,
   AccessHistoryEntry: accessHistoryEntrySchema,

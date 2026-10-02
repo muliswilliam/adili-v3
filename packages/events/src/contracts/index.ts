@@ -38,8 +38,10 @@ export {
   type AccessRequestEventKind,
   type AccessRequestNotifiedData,
   type AccessRequestReceivedData,
+  type AccessRequestRepresentationsData,
   type AccessSubjectKind,
   CANNOT_IDENTIFY_DECLINE_REASON,
+  type DeclarantNoticeFacts,
   LEA_REQUEST_DECIDED,
   LEA_REQUEST_DOWNLOADED,
   LEA_REQUEST_EVENTS,
@@ -50,6 +52,9 @@ export {
   LEA_REQUEST_VERIFIED,
   LEA_REQUEST_WITHDRAWN,
   type LeaRequestEventKind,
+  type LeaRequestNotifiedData,
+  NOTICE_CHANNELS,
+  type NoticeChannel,
 } from './access.js';
 export {
   DECLARATION_ACKNOWLEDGED,

@@ -191,14 +191,49 @@ export interface AccessRequestIdentifiedData extends AccessRegisterEventData {
 }
 
 /**
- * `access.request.notified.v1`: the declarant was told of the request (Act s.36(3)); their window
- * for representations ends at `windowEndsAt`. (`lea.request.notified.v1`, the declarant told after
- * a grant, r.23(2), opens no window and carries the entry only.)
+ * How the declarant was told of a request: `online` (the service's message to their account), or
+ * `written` (r.22(2): the access officer served a written notice on an officer with no account,
+ * and recorded the date it was served).
  */
-export interface AccessRequestNotifiedData extends AccessRegisterEventData {
+export const NOTICE_CHANNELS = ['online', 'written'] as const;
+export type NoticeChannel = (typeof NOTICE_CHANNELS)[number];
+
+/**
+ * How the declarant was told: online (the service, no actor), or in writing on `notifiedOn` (the
+ * access officer who recorded it is the entry's actor).
+ */
+export interface DeclarantNoticeFacts {
+  channel: NoticeChannel;
+  /** `YYYY-MM-DD` (Nairobi): the day a written notice was served; null when told online. */
+  notifiedOn: string | null;
+}
+
+/**
+ * `access.request.notified.v1`: the declarant was told of the request (Act s.36(3)); their window
+ * for representations ends at `windowEndsAt`.
+ */
+export interface AccessRequestNotifiedData extends AccessRegisterEventData, DeclarantNoticeFacts {
   kind: 'notified';
   /** ISO 8601. */
   windowEndsAt: string;
+}
+
+/**
+ * `lea.request.notified.v1`: the declarant was told of a grant (r.23(2)), online or in writing; no
+ * window opens.
+ */
+export interface LeaRequestNotifiedData extends AccessRegisterEventData, DeclarantNoticeFacts {
+  kind: 'notified';
+}
+
+/**
+ * `access.request.representations.v1`: the declarant's representations were made or changed,
+ * by the declarant online, or `receivedInWriting` and entered by the access officer (the actor)
+ * on their behalf.
+ */
+export interface AccessRequestRepresentationsData extends AccessRegisterEventData {
+  kind: 'representations';
+  receivedInWriting: boolean;
 }
 
 /**

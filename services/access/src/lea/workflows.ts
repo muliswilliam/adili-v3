@@ -51,6 +51,8 @@ type Stop = LeaRequestResult['outcome'];
 
 interface RunState {
   stop: Stop | null;
+  /** The declarant onboarded, or was told in writing: telling them of the grant runs again. */
+  declarant: boolean;
 }
 
 /**
@@ -71,13 +73,19 @@ interface RunState {
  * request as it is, for an operator to reset it in Temporal.
  */
 export async function leaRequest(input: LeaRequestWorkflowInput): Promise<LeaRequestResult> {
-  const state: RunState = { stop: null };
+  const state: RunState = { stop: null, declarant: false };
   const on: Record<LeaRequestSignal, () => void> = {
     decided: () => {
       state.stop ??= 'decided';
     },
     withdrawn: () => {
       state.stop ??= 'withdrawn';
+    },
+    onboarded: () => {
+      state.declarant = true;
+    },
+    notified: () => {
+      state.declarant = true;
     },
   };
   for (const name of LEA_REQUEST_SIGNALS) setHandler(defineSignal(name), on[name]);
@@ -92,7 +100,7 @@ export async function leaRequest(input: LeaRequestWorkflowInput): Promise<LeaReq
       return { outcome: stop };
     }
     if (stop !== 'decided') return { outcome: stop };
-    return { outcome: await afterDecision(input) };
+    return { outcome: await afterDecision(input, state) };
   } catch (error) {
     if (error instanceof ActivityFailure) {
       log.error('LeaRequestWorkflow step failed after its retries', {
@@ -191,13 +199,45 @@ async function passOver<T>(
 /**
  * The decision is final: the agency's officer is told. A grant is told to the declarant, then
  * its package issued, announced to the officer, and expired at the end of its download window.
+ * A declarant with no account is told once they onboard or the access officer records the
+ * written notice, alongside the package.
  */
-async function afterDecision(input: LeaRequestWorkflowInput): Promise<Stop> {
+async function afterDecision(input: LeaRequestWorkflowInput, state: RunState): Promise<Stop> {
   const decided = await leaDecisionNotice(input);
   if (decided === 'missing') return 'missing';
   if (decided === 'denied') return 'decided';
 
-  if ((await notifyDeclarantOfLeaGrant(input)) === 'missing') return 'missing';
+  const told = await notifyDeclarantOfLeaGrant(input);
+  if (told === 'missing') return 'missing';
+  const [stop] = await Promise.all([
+    packageCourse(input),
+    told === 'awaiting-notice' ? untilDeclarantTold(input, state) : Promise.resolve(),
+  ]);
+  return stop;
+}
+
+/**
+ * Waits for the declarant with no account to onboard (`onboarded`, or the directory read at each
+ * check) or to be told in writing (`notified`), telling them online in the first case. A step
+ * that fails after its retries is tried again at the next check.
+ */
+async function untilDeclarantTold(input: LeaRequestWorkflowInput, state: RunState): Promise<void> {
+  for (;;) {
+    await condition(() => state.declarant, LEA_REQUEST_CHECK_INTERVAL);
+    state.declarant = false;
+    try {
+      if ((await notifyDeclarantOfLeaGrant(input)) !== 'awaiting-notice') return;
+    } catch (error) {
+      if (!(error instanceof ActivityFailure)) throw error;
+      log.warn('Could not tell the declarant of the grant; trying again later', {
+        requestId: input.requestId,
+      });
+    }
+  }
+}
+
+/** The grant's package: issued, announced to the officer, expired at the end of its window. */
+async function packageCourse(input: LeaRequestWorkflowInput): Promise<Stop> {
   const issued = await issueLeaPackage(input);
   // Nothing to disclose: the decision stands, with no package to issue.
   if (issued.outcome !== 'issued') return issued.outcome === 'missing' ? 'missing' : 'decided';

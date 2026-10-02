@@ -1,8 +1,9 @@
 import type { FieldEnvelope } from '@adili/data-access';
-import { index, jsonb, pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-core';
+import { boolean, index, jsonb, pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-core';
 
 import type { Decision } from '../decision.js';
 import type { Scope } from '../scope.js';
+import type { WrittenNotice } from '../written-notice.js';
 
 /**
  * Form K access requests (Act s.36(1), Regs r.22) and the declarant's representations on them
@@ -15,6 +16,11 @@ import type { Scope } from '../scope.js';
  * writes its requests; the applicant reads their own (`app.person` = `applicant_person_id`); the
  * declarant reads a request about them once notified (`resolved_person_id`, `notified_at`) and
  * writes their representations on it.
+ *
+ * The officer named may be resolved to a roster record whose officer has not onboarded (spec 10
+ * decision 2): `resolved_person_id` stays null until they do (linked by the roster record, on the
+ * directory's `declarant.onboarded.v1` or when the workflow reads the record), and meanwhile the
+ * access officer serves the notice in writing (r.22(2)) and records the day it was served.
  */
 
 /** access.yaml `AccessRequestStatus`. */
@@ -115,14 +121,25 @@ export const accessRequests = pgTable(
      * personnel file number as the roster had them then.
      */
     resolvedRosterRecordId: uuid(),
+    /** The declarant: null until the roster record's officer has onboarded. */
     resolvedPersonId: uuid(),
     resolvedName: text(),
     resolvedFileNumber: text(),
     resolvedBy: text(),
     resolvedAt: timestamp({ withTimezone: true }),
-    /** When the declarant was notified, and when their window for representations ends. */
+    /**
+     * When the officer resolved to a record without an account was invited to onboard (the
+     * directory sends it to the roster's contacts); null when not invited.
+     */
+    declarantInvitedAt: timestamp({ withTimezone: true }),
+    /**
+     * When the declarant was notified (online, or the start of the day a written notice was
+     * served), and when their window for representations ends.
+     */
     notifiedAt: timestamp({ withTimezone: true }),
     windowEndsAt: timestamp({ withTimezone: true }),
+    /** The written notice the access officer recorded (r.22(2)); null when told online. */
+    writtenNotice: jsonb().$type<WrittenNotice>(),
     submittedAt: timestamp({ withTimezone: true }).notNull(),
     /**
      * Received + the Commission's decision period at receipt (policy `access.decisionDays`, thirty
@@ -152,6 +169,7 @@ export const accessRequests = pgTable(
     ),
     index('access_requests_applicant_idx').on(table.applicantPersonId, table.submittedAt),
     index('access_requests_declarant_idx').on(table.resolvedPersonId, table.notifiedAt),
+    index('access_requests_roster_record_idx').on(table.resolvedRosterRecordId),
   ],
 );
 
@@ -167,18 +185,25 @@ export interface RepresentationAttachment {
 
 /**
  * The declarant's representations on a request: one per request, editable until the window
- * closes. The text is the declarant's own words to the access officer.
+ * closes. The text is the declarant's own words to the access officer: made online by the
+ * declarant, or received in writing and entered by the access officer on their behalf (a
+ * declarant served a written notice, r.22(2)).
  */
 export const representations = pgTable('representations', {
   requestId: uuid()
     .primaryKey()
     .references(() => accessRequests.id),
   tenant: text().notNull(),
-  /** The declarant (the request's `resolved_person_id`). */
-  personId: uuid().notNull(),
+  /** The declarant (the request's `resolved_person_id`); null until they have onboarded. */
+  personId: uuid(),
   stance: text().$type<RepresentationStance>().notNull(),
   text: text().notNull(),
   attachments: jsonb().$type<RepresentationAttachment[]>().notNull().default([]),
+  /** Received in writing and entered by the access officer, who is `recorded_by`. */
+  receivedInWriting: boolean().notNull().default(false),
+  /** Token subject and name of the access officer who entered them; null when made online. */
+  recordedBy: text(),
+  recordedByName: text(),
   submittedAt: timestamp({ withTimezone: true }).notNull(),
   updatedAt: timestamp({ withTimezone: true })
     .notNull()

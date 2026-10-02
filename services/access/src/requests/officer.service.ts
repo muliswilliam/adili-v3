@@ -1,4 +1,4 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable, Logger } from '@nestjs/common';
 import { notFoundIfInvisible, type Principal, type ReadAudit } from '@adili/api-kit';
 import { DATABASE, FieldCipher, withTenant } from '@adili/data-access';
 import { CANNOT_IDENTIFY_DECLINE_REASON } from '@adili/events/contracts';
@@ -11,6 +11,7 @@ import {
   requireAccessOfficer,
 } from '../access.js';
 import { Clock } from '../clock.js';
+import { accessPolicyOf } from '../commissions/responsible-commission.js';
 import type { AccessDatabase, AccessTransaction } from '../db/database.js';
 import {
   DECIDED_STATUS,
@@ -31,6 +32,8 @@ import {
   UploadNotFound,
 } from '../documents/documents-client.js';
 import type { LeaRequestRow } from '../lea/representation.js';
+import type { RepresentationsInput } from '../notices/representation.js';
+import { windowOpen } from '../notices/representation.js';
 import {
   LEA_OPEN_STATUSES,
   LEA_REQUEST_STATUSES,
@@ -53,6 +56,12 @@ import {
   problem,
 } from '../problems.js';
 import { AccessRegister, type RegisterRow } from '../register/access-register.js';
+import {
+  requireNoticeDay,
+  type WrittenNoticeBody,
+  writtenNoticeOf,
+  writtenNoticeWindow,
+} from '../written-notice.js';
 import { openFormK } from './form-k.js';
 import {
   type QueueItem,
@@ -78,6 +87,12 @@ import {
   CLOSED_STATUSES,
   representations,
 } from './schema.js';
+import {
+  cleanAttachments,
+  linkUploads,
+  releasedUploads,
+  releaseUploads,
+} from './representation-attachments.js';
 import { requestRow } from './request-row.js';
 import { officerTimeline, registerEntriesOf } from './timeline.js';
 
@@ -92,6 +107,8 @@ const RESOLVABLE: readonly AccessRequestStatus[] = ['submitted', 'officer-unreso
  */
 @Injectable()
 export class OfficerService {
+  private readonly logger = new Logger(OfficerService.name);
+
   constructor(
     @Inject(DATABASE) private readonly db: AccessDatabase,
     private readonly directory: DirectoryClient,
@@ -252,9 +269,11 @@ export class OfficerService {
   /**
    * The access officer resolves the officer Form K Part II names (S3). To a roster record of the
    * Commission: the record and its declarant are recorded on the request, and the workflow
-   * notifies the declarant (the `notified` register entry). The record must be onboarded (a
-   * declarant account to notify): 400 at `rosterRecordId` otherwise, as for a record the
-   * Commission does not have. To null: the officer cannot be identified, and the request closes
+   * notifies the declarant (the `notified` register entry). A record whose officer has not
+   * onboarded is taken too (spec 10 decision 2): the request keeps the record and no declarant
+   * until they onboard; the workflow invites them to, and the access officer serves the notice in
+   * writing and records it (`recordWrittenNotice`). A record the Commission does not have is 400
+   * at `rosterRecordId`. To null: the officer cannot be identified, and the request closes
    * as `cannot-identify` with its register entry and event (Form M counts it declined for reason
    * `other`); the workflow tells the applicant. Once only: 409 `officer-resolved`; closed or
    * decided requests are 409 `request-closed` / `request-decided`, and one held for the
@@ -273,7 +292,7 @@ export class OfficerService {
       notFoundIfInvisible(await withTenant(this.db, context, (tx) => requestRow(tx, requestId))),
     );
     const record =
-      body.rosterRecordId === null ? null : await this.onboardedRecord(tenant, body.rosterRecordId);
+      body.rosterRecordId === null ? null : await this.rosterRecord(tenant, body.rosterRecordId);
 
     const now = this.clock.now();
     const resolved = await withTenant(this.db, context, async (tx) => {
@@ -300,8 +319,9 @@ export class OfficerService {
         .returning();
       if (!updated) throw new Error('The access request was not resolved');
       if (record !== null) {
-        // Who identified the declarant, and as which record; the `notified` entry follows from
-        // the workflow.
+        // Who identified the declarant, and as which record (with no person yet when its
+        // officer has not onboarded); the `notified` entry follows from the workflow, or from the
+        // access officer's record of the written notice.
         await this.register.record(tx, {
           tenant,
           subjectKind: 'access-request',
@@ -311,7 +331,7 @@ export class OfficerService {
           kind: 'identified',
           actor: { subject: principal.subject, name: principal.name },
           at: now,
-          details: { rosterRecordId: record.id },
+          details: { rosterRecordId: record.id, onboarded: record.personId !== null },
           eventData: { rosterRecordId: record.id },
         });
       } else {
@@ -331,6 +351,178 @@ export class OfficerService {
     });
     await this.workflows.signal(requestId, 'resolved');
     return this.view(resolved);
+  }
+
+  /**
+   * The access officer records the written notice served on a declarant who has no account
+   * (spec 10 decision 2, r.22(2)): the day it was served, not in the future and not before the
+   * officer was identified (400 at `notifiedOn` otherwise). The request becomes
+   * `awaiting-representations`, notified from the start of that day, with the window ending
+   * the Commission's representation window (its policy in force) after it (the day of service
+   * not counted), and the `notified`
+   * register entry and event (channel `written`, the access officer its actor); the workflow
+   * then holds the window (closing it at once when it has passed). Only for a request resolved
+   * to an officer with no account and not yet notified: 409 `declarant-notified` once notified
+   * (online or in writing), 409 when the officer is unidentified or has an account (notified
+   * online), `request-decided` / `request-closed` as for the other steps.
+   */
+  async recordWrittenNotice(
+    principal: Principal,
+    requestId: string,
+    body: WrittenNoticeBody,
+  ): Promise<OfficerRequestView> {
+    const tenant = ownCommissionTenant(principal);
+    requireAccessOfficer(principal, 'record a written notice');
+    // The window is the Commission's in force as it opens: the request keeps it.
+    const { representationWindowDays } = await accessPolicyOf(this.directory, tenant);
+    const now = this.clock.now();
+    const recorded = await withTenant(
+      this.db,
+      { tenant, subject: principal.subject },
+      async (tx) => {
+        const current = notFoundIfInvisible(await requestRow(tx, requestId, { lock: true }));
+        requireAwaitingNotice(current);
+        if (current.resolvedAt === null) throw new Error('A resolved request has no resolvedAt');
+        requireNoticeDay(
+          body.notifiedOn,
+          { at: current.resolvedAt, what: 'the officer was identified' },
+          now,
+        );
+        const { notifiedAt, windowEndsAt } = writtenNoticeWindow(
+          body.notifiedOn,
+          representationWindowDays,
+        );
+        const [updated] = await tx
+          .update(accessRequests)
+          .set({
+            status: 'awaiting-representations',
+            notifiedAt,
+            windowEndsAt,
+            writtenNotice: writtenNoticeOf(
+              body.notifiedOn,
+              { subject: principal.subject, name: accessOfficerName(principal) },
+              now,
+            ),
+          })
+          .where(eq(accessRequests.id, current.id))
+          .returning();
+        if (!updated) throw new Error('The written notice was not recorded');
+        await this.register.record(tx, {
+          tenant,
+          subjectKind: 'access-request',
+          subjectId: updated.id,
+          reference: updated.reference,
+          personId: updated.resolvedPersonId,
+          kind: 'notified',
+          actor: { subject: principal.subject, name: principal.name },
+          at: now,
+          details: {
+            channel: 'written',
+            notifiedOn: body.notifiedOn,
+            windowEndsAt: windowEndsAt.toISOString(),
+          },
+          eventData: {
+            channel: 'written',
+            notifiedOn: body.notifiedOn,
+            windowEndsAt: windowEndsAt.toISOString(),
+          },
+        });
+        return notFoundIfInvisible(await officerRecord(tx, updated.id));
+      },
+    );
+    await this.workflows.signal(requestId, 'notified');
+    return this.view(recorded);
+  }
+
+  /**
+   * The access officer enters the representations a declarant served in writing made on paper
+   * (spec 10 decision 2), on their behalf: stance, text and the letter's scans (clean uploads
+   * of purpose `access-representation` the officer made, or ones attached already; 400 at
+   * `attachments.<n>` otherwise). Shown to everyone who reads them as received in writing, with
+   * the officer recorded as who entered them. The same window rules as the declarant's own: 409
+   * `representations-closed` after it; and only on a request notified in writing (409 when the
+   * declarant was notified online, and makes their own). Each save is a `representations`
+   * register entry and event (`receivedInWriting`); `consent` sends the request `under-decision`
+   * at once.
+   */
+  async enterRepresentations(
+    principal: Principal,
+    requestId: string,
+    input: RepresentationsInput,
+  ): Promise<OfficerRequestView> {
+    const tenant = ownCommissionTenant(principal);
+    requireAccessOfficer(principal, 'enter representations received in writing');
+    const context = { tenant, subject: principal.subject };
+    const before = notFoundIfInvisible(
+      await withTenant(this.db, context, (tx) => officerRecord(tx, requestId)),
+    );
+    requireWrittenWindowOpen(before.row, this.clock.now());
+    const attachments = await cleanAttachments(
+      this.documents,
+      tenant,
+      input.attachments,
+      principal.subject,
+      before.representations?.attachments ?? [],
+    );
+    await linkUploads(this.documents, tenant, input.attachments);
+
+    const { saved, released } = await withTenant(this.db, context, async (tx) => {
+      const current = notFoundIfInvisible(await requestRow(tx, requestId, { lock: true }));
+      const now = this.clock.now();
+      requireWrittenWindowOpen(current, now);
+      const [previous] = await tx
+        .select()
+        .from(representations)
+        .where(eq(representations.requestId, current.id))
+        .for('update');
+      const values = {
+        personId: current.resolvedPersonId,
+        stance: input.stance,
+        text: input.text,
+        attachments,
+        receivedInWriting: true,
+        recordedBy: principal.subject,
+        recordedByName: accessOfficerName(principal),
+      };
+      await tx
+        .insert(representations)
+        .values({ requestId: current.id, tenant, ...values, submittedAt: now })
+        .onConflictDoUpdate({
+          target: representations.requestId,
+          set: { ...values, updatedAt: now },
+        });
+      if (input.stance === 'consent') {
+        await tx
+          .update(accessRequests)
+          .set({ status: 'under-decision' })
+          .where(eq(accessRequests.id, current.id));
+      }
+      await this.register.record(tx, {
+        tenant,
+        subjectKind: 'access-request',
+        subjectId: current.id,
+        reference: current.reference,
+        personId: current.resolvedPersonId,
+        kind: 'representations',
+        actor: { subject: principal.subject, name: principal.name },
+        at: now,
+        details: {
+          stance: input.stance,
+          attachments: attachments.length,
+          amended: previous !== undefined,
+          receivedInWriting: true,
+        },
+        eventData: { receivedInWriting: true },
+      });
+      return {
+        saved: notFoundIfInvisible(await officerRecord(tx, current.id)),
+        released: releasedUploads(previous?.attachments ?? [], input.attachments),
+      };
+    });
+
+    await releaseUploads(this.documents, this.logger, tenant, released);
+    if (input.stance === 'consent') await this.workflows.signal(requestId, 'consented');
+    return this.view(saved);
   }
 
   /**
@@ -395,11 +587,8 @@ export class OfficerService {
     return this.view(decided);
   }
 
-  /** The roster record `recordId` of the Commission, onboarded; 400 otherwise. */
-  private async onboardedRecord(
-    tenant: string,
-    recordId: string,
-  ): Promise<RosterRecordFacts & { personId: string }> {
+  /** The roster record `recordId` of the Commission, onboarded or not; 400 otherwise. */
+  private async rosterRecord(tenant: string, recordId: string): Promise<RosterRecordFacts> {
     let record;
     try {
       record = await this.directory.rosterRecord(tenant, recordId);
@@ -412,16 +601,7 @@ export class OfficerService {
         { path: 'rosterRecordId', message: 'is not a roster record of the Commission' },
       ]);
     }
-    const { personId } = record;
-    if (personId === null) {
-      throw badRequest('The officer has not onboarded, so they cannot be notified.', [
-        {
-          path: 'rosterRecordId',
-          message: 'has not onboarded: the officer has no declarant account to be notified on',
-        },
-      ]);
-    }
-    return { ...record, personId };
+    return record;
   }
 
   private async view(found: OfficerRecord): Promise<OfficerRequestView> {
@@ -477,6 +657,50 @@ function requireResolvable(row: AccessRequestRow): void {
     throw conflict("The applicant's identity must be verified before the officer is identified.");
   }
   throw problem('officer-resolved', 'The officer this request names is resolved already.');
+}
+
+/**
+ * A request resolved to an officer with no account, not yet notified: what a written notice is
+ * recorded on.
+ */
+function requireAwaitingNotice(row: AccessRequestRow): void {
+  requireOpenRequest(row);
+  if (row.notifiedAt !== null) {
+    throw problem('declarant-notified', 'The declarant is notified of this request already.');
+  }
+  if (row.resolvedRosterRecordId === null || row.status === 'pending-applicant-verification') {
+    throw conflict('Identify the officer the request names before recording a notice.');
+  }
+  if (row.resolvedPersonId !== null) {
+    throw conflict('The declarant has an account: they are notified online.');
+  }
+}
+
+/**
+ * A request notified in writing whose window for representations is open at `now`: what the
+ * access officer enters representations received in writing on.
+ */
+function requireWrittenWindowOpen(row: AccessRequestRow, now: Date): void {
+  requireOpenRequest(row);
+  if (row.notifiedAt !== null && row.writtenNotice === null) {
+    throw conflict('The declarant was notified online: they make their own representations.');
+  }
+  if (!windowOpen(row, now)) {
+    throw problem(
+      'representations-closed',
+      'The window for representations on this request is closed (or not open yet).',
+    );
+  }
+}
+
+/** 409 for a decided or closed request. */
+function requireOpenRequest(row: AccessRequestRow): void {
+  if (row.status === 'granted' || row.status === 'partially-granted' || row.status === 'denied') {
+    throw problem('request-decided', 'The request is decided, and a decision is final.');
+  }
+  if (row.status === 'withdrawn' || row.status === 'cannot-identify') {
+    throw problem('request-closed', 'The request is closed.');
+  }
 }
 
 function requireUnderDecision(row: AccessRequestRow): void {

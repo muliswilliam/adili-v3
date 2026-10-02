@@ -2452,6 +2452,7 @@ components:
             - not-under-decision
             - not-pending-verification
             - lea-account-inactive
+            - declarant-notified
             - representations-closed
             - download-expired
             - scope-exceeds-request

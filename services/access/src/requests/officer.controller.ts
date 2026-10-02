@@ -1,4 +1,14 @@
-import { Body, Controller, Get, HttpCode, HttpStatus, Param, Post, Query } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  HttpCode,
+  HttpStatus,
+  Param,
+  Post,
+  Put,
+  Query,
+} from '@nestjs/common';
 import { ApiBody, ApiOkResponse, ApiOperation, ApiParam, ApiTags } from '@nestjs/swagger';
 import {
   AcceptIdempotencyKey,
@@ -19,6 +29,11 @@ import { z } from 'zod';
 
 import { OFFICER_ROUTE_ROLES } from '../access.js';
 import { type DecisionInput, decisionInputSchema } from '../decision.js';
+import {
+  type RepresentationsInput,
+  representationsInputSchema,
+} from '../notices/representation.js';
+import { type WrittenNoticeBody, writtenNoticeBody } from '../written-notice.js';
 import {
   type AttachmentDownload,
   type QueuePage,
@@ -127,7 +142,7 @@ export class OfficerController {
     summary:
       "Search the Commission's roster for the officer a request names (access officer; audited)",
     description:
-      'By personnel file number (its beginning) or part of the name, at most 20 records by full name. Only an `onboarded` record can be chosen: its declarant is notified.',
+      "By personnel file number (its beginning) or part of the name, at most 20 records by full name. Any can be chosen: an `onboarded` record's declarant is notified online; the officer of one not onboarded is invited to onboard and served a written notice (spec 10 decision 2).",
   })
   @ApiQueryParameters(rosterCandidatesQuery)
   @ApiOkResponse({ description: 'Records', schema: schemaRef('RosterCandidates') })
@@ -153,7 +168,7 @@ export class OfficerController {
     operationId: 'resolveRequestedOfficer',
     summary: 'Identify the officer on the roster, or record that they cannot be identified',
     description:
-      'A roster record: the declarant is notified next (`awaiting-representations`, with the window for representations). `rosterRecordId: null`: the request closes as `cannot-identify` (`access.request.cannot-identify.v1`, Form M decline reason `other`) and the applicant is told.',
+      'A roster record: the declarant is notified next (`awaiting-representations`, with the window for representations). A record whose officer has not onboarded (`declarantOnboarded: false`): they are invited to onboard, and the request waits for the access officer to record the written notice served on them (`recordWrittenNotice`), or for them to onboard. `rosterRecordId: null`: the request closes as `cannot-identify` (`access.request.cannot-identify.v1`, Form M decline reason `other`) and the applicant is told.',
   })
   @ApiBody({ required: true, schema: schemaRef('ResolveOfficer') })
   @ApiOkResponse({
@@ -162,7 +177,7 @@ export class OfficerController {
   })
   @ApiProblemResponse(
     400,
-    'requestId is not a UUID, the body failed validation, or `rosterRecordId` is not an onboarded roster record of the Commission',
+    'requestId is not a UUID, the body failed validation, or `rosterRecordId` is not a roster record of the Commission',
   )
   @ApiProblemResponse(403, 'The Commission supervisor reads requests; only its access officer acts')
   @ApiProblemResponse(404, NOT_THE_COMMISSIONS)
@@ -177,6 +192,68 @@ export class OfficerController {
     @Body(new ZodValidationPipe(resolveOfficerBody)) body: ResolveOfficerBody,
   ): Promise<OfficerRequestView> {
     return this.officer.resolve(principal, requestId, body);
+  }
+
+  @Post('v1/access/requests/:requestId/written-notice')
+  @HttpCode(HttpStatus.OK)
+  @Roles(...OFFICER_ROUTE_ROLES)
+  @AcceptIdempotencyKey()
+  @ApiParam(REQUEST_ID)
+  @ApiOperation({
+    operationId: 'recordWrittenNotice',
+    summary: 'Record the written notice served on a declarant with no account (r.22(2))',
+    description:
+      "Spec 10 decision 2: the officer identified has not onboarded, so the access officer serves the notice in writing and records the day (not in the future, not before the officer was identified). The request becomes `awaiting-representations`, notified from the start of that day (`notice.channel` `written`, `access.request.notified.v1`), and the window for representations ends at the end of the seventh day after it. The declarant's representations received in writing are entered with `enterRepresentationsReceivedInWriting`.",
+  })
+  @ApiBody({ required: true, schema: schemaRef('WrittenNotice') })
+  @ApiOkResponse({ description: 'Recorded', schema: schemaRef('OfficerRequestView') })
+  @ApiProblemResponse(
+    400,
+    'requestId is not a UUID, or the body failed validation: `notifiedOn` in the future or before the officer was identified',
+  )
+  @ApiProblemResponse(403, 'The Commission supervisor reads requests; only its access officer acts')
+  @ApiProblemResponse(404, NOT_THE_COMMISSIONS)
+  @ApiProblemResponse(
+    409,
+    'Problem code `declarant-notified` (notified already, online or in writing), `request-closed` or `request-decided`; or the officer is not identified yet, or has an account (notified online)',
+  )
+  recordWrittenNotice(
+    @CurrentPrincipal() principal: Principal,
+    @Param('requestId', new ZodValidationPipe(z.uuid())) requestId: string,
+    @Body(new ZodValidationPipe(writtenNoticeBody)) body: WrittenNoticeBody,
+  ): Promise<OfficerRequestView> {
+    return this.officer.recordWrittenNotice(principal, requestId, body);
+  }
+
+  @Put('v1/access/requests/:requestId/representations')
+  @Roles(...OFFICER_ROUTE_ROLES)
+  @AcceptIdempotencyKey()
+  @ApiParam(REQUEST_ID)
+  @ApiOperation({
+    operationId: 'enterRepresentationsReceivedInWriting',
+    summary: "Enter the declarant's representations received in writing, on their behalf",
+    description:
+      "Spec 10 decision 2: on a request notified in writing, while the window is open, the access officer enters what the declarant answered on paper: stance, text, and the letter's scans (the officer's clean uploads of purpose `access-representation`). They show as received in writing (`representations.receivedInWriting`), with the officer who entered them (`access.request.representations.v1`); `consent` sends the request `under-decision` at once. Entering them again replaces them, as the declarant's own do.",
+  })
+  @ApiBody({ required: true, schema: schemaRef('RepresentationsInput') })
+  @ApiOkResponse({ description: 'Saved', schema: schemaRef('OfficerRequestView') })
+  @ApiProblemResponse(
+    400,
+    'requestId is not a UUID, the body failed validation, or an attachment is not a clean `access-representation` upload of the caller (`attachments.<n>`)',
+  )
+  @ApiProblemResponse(403, 'The Commission supervisor reads requests; only its access officer acts')
+  @ApiProblemResponse(404, NOT_THE_COMMISSIONS)
+  @ApiProblemResponse(
+    409,
+    'Problem code `representations-closed` (the window is closed, or not open yet), `request-closed` or `request-decided`; or the declarant was notified online (they make their own)',
+  )
+  @ApiProblemResponse(503, 'The documents service cannot be reached; nothing was saved')
+  enterRepresentations(
+    @CurrentPrincipal() principal: Principal,
+    @Param('requestId', new ZodValidationPipe(z.uuid())) requestId: string,
+    @Body(new ZodValidationPipe(representationsInputSchema)) body: RepresentationsInput,
+  ): Promise<OfficerRequestView> {
+    return this.officer.enterRepresentations(principal, requestId, body);
   }
 
   @Post('v1/access/requests/:requestId/decision')

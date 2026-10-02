@@ -109,6 +109,9 @@ describe('Law enforcement requests (S11)', () => {
         verification: null,
         decision: null,
         declarantNotifiedAt: null,
+        declarantOnboarded: null,
+        declarantInvitedAt: null,
+        declarantNotice: null,
         package: null,
         timeline: [
           {
@@ -118,6 +121,7 @@ describe('Law enforcement requests (S11)', () => {
             actor: 'Peter Mwangi',
             summary: 'Request received',
             reference: body.reference,
+            inWriting: false,
           },
         ],
       });
@@ -536,10 +540,9 @@ describe('Law enforcement requests (S11)', () => {
       expect(api.notifications.sent).toEqual([]);
     });
 
-    it('needs both confirmations, a note and an onboarded roster record of the Commission: 400', async () => {
+    it('needs both confirmations, a note and a roster record of the Commission: 400', async () => {
       given();
       const { id } = await received();
-      const notOnboarded = api.directory.givenRosterRecord('psc', { personId: null });
       const tscRecord = api.directory.givenRosterRecord('tsc');
 
       const unconfirmed = await verifyLea(api, id, anne.id, officer, {
@@ -547,7 +550,6 @@ describe('Law enforcement requests (S11)', () => {
         reasonConfirmed: undefined,
         note: '',
       });
-      const pending = await verifyLea(api, id, notOnboarded.id);
       const other = await verifyLea(api, id, tscRecord.id);
 
       expect(unconfirmed.statusCode).toBe(400);
@@ -557,7 +559,6 @@ describe('Law enforcement requests (S11)', () => {
           .errors.map((e) => e.path)
           .sort(),
       ).toEqual(['note', 'provenanceConfirmed', 'reasonConfirmed']);
-      expect(pending.json()).toMatchObject({ status: 400, errors: [{ path: 'rosterRecordId' }] });
       expect(other.json()).toMatchObject({ status: 400, errors: [{ path: 'rosterRecordId' }] });
       expect((await leaRowOf(api, id)).status).toBe('received');
     });

@@ -22,6 +22,7 @@ import {
   DirectoryClient,
   DirectoryUnavailable,
   type LeaOfficerFacts,
+  type OnboardingInvitationFacts,
   type RosterCandidateFacts,
   type RosterRecordFacts,
   ROSTER_SEARCH_LIMIT,
@@ -81,6 +82,8 @@ export class FakeDirectory extends DirectoryClient {
   private readonly staff = new Map<string, StaffMember[]>();
   private readonly officers = new Map<string, LeaOfficerFacts>();
   private readonly policies = new Map<string, AccessPolicy>();
+  /** Each invitation to onboard sent, once per idempotency key. */
+  readonly invitations: { slug: string; recordId: string; idempotencyKey: string }[] = [];
   private readonly failures = new Failures();
 
   /** An active Commission on Adili since 1 January 2025, unless `listing` says otherwise. */
@@ -181,6 +184,14 @@ export class FakeDirectory extends DirectoryClient {
     return found;
   }
 
+  /** The officer of roster record `recordId` onboards: the record gets `personId`. */
+  onboard(recordId: string, personId: string = randomUUID()): string {
+    const found = this.records.get(recordId);
+    if (!found) throw new Error(`No roster record ${recordId}`);
+    this.records.set(recordId, { ...found, personId, state: 'onboarded' });
+    return personId;
+  }
+
   /** The applicant's identity status as the directory now holds it. */
   identityStatusOf(personId: string): ApplicantIdentityStatus | undefined {
     return this.applicants.get(personId)?.identityStatus;
@@ -195,6 +206,7 @@ export class FakeDirectory extends DirectoryClient {
   reset(): void {
     this.calls.length = 0;
     this.verifications.length = 0;
+    this.invitations.length = 0;
     this.applicants.clear();
     this.failingMethod = undefined;
     this.commissions.clear();
@@ -253,6 +265,22 @@ export class FakeDirectory extends DirectoryClient {
           reportingEntityName: record.reportingEntityName,
           state: record.state,
         }));
+    });
+  }
+
+  inviteToOnboard(
+    slug: string,
+    recordId: string,
+    idempotencyKey: string,
+  ): Promise<OnboardingInvitationFacts | 'onboarded' | null> {
+    return this.answer('inviteToOnboard', slug, () => {
+      const found = this.records.get(recordId);
+      if (found?.slug !== slug) return null;
+      if (found.personId !== null) return 'onboarded';
+      if (!this.invitations.some((sent) => sent.idempotencyKey === idempotencyKey)) {
+        this.invitations.push({ slug, recordId, idempotencyKey });
+      }
+      return { channels: ['email', 'sms'], sentAt: new Date() };
     });
   }
 
