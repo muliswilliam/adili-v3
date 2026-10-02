@@ -145,6 +145,13 @@ describe('ClarificationComposer', () => {
     expect(within(drawer()).getByText('Response due 28 Oct 2026')).toBeTruthy();
   });
 
+  it('grows an item’s text box with its text instead of scrolling inside it (e2e 11, 12)', async () => {
+    await renderComposer();
+    const text = within(drawer()).getByRole('textbox', { name: 'What you need' });
+    expect(text.className).toContain('field-sizing-content');
+    expect(text.className).not.toContain('resize-y');
+  });
+
   it('calls a clarification on an earlier one a further clarification (CONTEXT.md, M6)', async () => {
     await renderComposer({ followUpOf: { reference: 'CLR-TSC-2026-0000042-K' } });
     expect(screen.getByRole('dialog', { name: 'Further clarification' })).toBeTruthy();

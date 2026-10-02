@@ -596,6 +596,7 @@ function ItemCard({
         </div>
         <Textarea
           id={`${id}-text`}
+          autoGrow
           rows={3}
           value={item.text}
           placeholder={t.textPlaceholder}
@@ -692,6 +693,7 @@ function OpeningField({
       </div>
       <Textarea
         id={id}
+        autoGrow
         rows={3}
         value={opening.text}
         aria-invalid={tooLong ? true : undefined}
