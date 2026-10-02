@@ -1,3 +1,4 @@
+import { FORM_K_SECTIONS, type FormKSection } from '@adili/forms';
 import { z } from 'zod';
 
 /**
@@ -9,8 +10,8 @@ import { z } from 'zod';
  */
 
 /** The parts of a declaration a scope names (access.yaml `Section`). */
-export const SECTIONS = ['bio', 'income', 'assets', 'liabilities', 'other'] as const;
-export type Section = (typeof SECTIONS)[number];
+export const SECTIONS = FORM_K_SECTIONS;
+export type Section = FormKSection;
 
 export const sectionSchema = z.enum(SECTIONS);
 

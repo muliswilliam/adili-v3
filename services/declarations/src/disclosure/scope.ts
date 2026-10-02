@@ -1,4 +1,4 @@
-import type { DeclarationV1 } from '@adili/forms';
+import { type DeclarationV1, FORM_K_SECTIONS, type FormKSection } from '@adili/forms';
 
 /**
  * What a grant lets out of a submitted version (spec 10, Act s.36): the household members and
@@ -17,8 +17,8 @@ import type { DeclarationV1 } from '@adili/forms';
  * come along: they say what was declared and when, nothing of its content.
  */
 
-export const DISCLOSURE_SECTIONS = ['bio', 'income', 'assets', 'liabilities', 'other'] as const;
-export type DisclosureSection = (typeof DISCLOSURE_SECTIONS)[number];
+export const DISCLOSURE_SECTIONS = FORM_K_SECTIONS;
+export type DisclosureSection = FormKSection;
 
 export interface DisclosureScope {
   includeSpouses: boolean;

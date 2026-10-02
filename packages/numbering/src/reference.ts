@@ -1,3 +1,5 @@
+import type { ReadLegalBasisCode } from '@adili/api-kit';
+
 import { checkCharacter, hasValidCheckCharacter } from './check-character.js';
 import { ARQ, findScheme, LEA, type NumberingScheme, numberingSchemes } from './schemes.js';
 
@@ -134,6 +136,30 @@ export const GRANT_REFERENCE_PATTERN = /^(ARQ|LEA)-[A-Z][A-Z0-9]{1,19}-[0-9]{4}-
 
 /** The schemes an access grant is numbered in: Form K (`ARQ`) and law enforcement (`LEA`). */
 export const GRANT_SCHEMES: readonly NumberingScheme[] = [ARQ, LEA];
+
+/**
+ * The provisions an access grant rests on (ADR-008 `legal_basis`, one word per basis): Act
+ * s.36(1) for a Form K request (`ARQ`), s.36(2) with Regulation 23 for a law-enforcement request
+ * (`LEA`). The audit trail's read bases (api-kit `READ_LEGAL_BASES`) include them.
+ */
+export const GRANT_LEGAL_BASES = [
+  'act-s36-1',
+  'act-s36-2',
+] as const satisfies readonly ReadLegalBasisCode[];
+export type GrantLegalBasis = (typeof GRANT_LEGAL_BASES)[number];
+
+const LEGAL_BASIS_OF_SCHEME: Readonly<Record<string, GrantLegalBasis>> = {
+  [ARQ.code]: 'act-s36-1',
+  [LEA.code]: 'act-s36-2',
+};
+
+/**
+ * The legal basis that goes with a grant reference, by its scheme; undefined when `reference` is
+ * not a valid grant reference.
+ */
+export function grantLegalBasis(reference: string): GrantLegalBasis | undefined {
+  return isGrantReference(reference) ? LEGAL_BASIS_OF_SCHEME[reference.slice(0, 3)] : undefined;
+}
 
 /**
  * Whether `reference` is a valid access grant reference: an `ARQ` or `LEA` number of the right

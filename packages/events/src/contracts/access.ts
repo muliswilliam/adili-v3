@@ -1,4 +1,5 @@
 import type { ReadLegalBasisCode } from '@adili/api-kit';
+import { GRANT_LEGAL_BASES } from '@adili/numbering/references';
 
 /**
  * Event contracts the access service publishes (spec 10, Act s.36, ADR-008 access register): one
@@ -15,8 +16,7 @@ import type { ReadLegalBasisCode } from '@adili/api-kit';
  * trail's reads use (api-kit `READ_LEGAL_BASES`, ADR-008).
  */
 export const ACCESS_LEGAL_BASES = [
-  'act-s36-1',
-  'act-s36-2',
+  ...GRANT_LEGAL_BASES,
   'self-access',
 ] as const satisfies readonly ReadLegalBasisCode[];
 export type AccessLegalBasis = (typeof ACCESS_LEGAL_BASES)[number];
