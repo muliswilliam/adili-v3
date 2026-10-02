@@ -1,11 +1,12 @@
-import 'reflect-metadata';
+import { once } from 'node:events';
+import { createServer, type Server } from 'node:http';
+import type { AddressInfo } from 'node:net';
 
-import { Controller, Get } from '@nestjs/common';
-import { FastifyAdapter, type NestFastifyApplication } from '@nestjs/platform-fastify';
-import { Test } from '@nestjs/testing';
+import { pinoHttp } from 'pino-http';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 
-import { type BaseEnv, CoreModule, Public, TokenVerifier } from '../src/index.js';
+import type { BaseEnv } from '../src/index.js';
+import { requestLoggerOptions } from '../src/core.module.js';
 import { redactUrl } from '../src/log-redaction.js';
 
 const config: BaseEnv = {
@@ -17,54 +18,40 @@ const config: BaseEnv = {
   OIDC_AUDIENCE: 'adili-api',
 };
 
-@Controller()
-class QueueController {
-  @Public()
-  @Get('v1/queue')
-  queue() {
-    return { items: [] };
-  }
-}
-
+// nestjs-pino keeps one request logger per process, so a CoreModule test cannot choose
+// where it writes. Drive pino-http with the exact options CoreModule uses instead.
 describe('request log redaction', () => {
-  let app: NestFastifyApplication;
   const written: string[] = [];
-  // Read back exactly what pino writes, whatever stdout looks like in the runner.
-  const logDestination = { write: (line: string) => void written.push(line) };
+  let server: Server;
+  let baseUrl: string;
 
   beforeAll(async () => {
-    const moduleRef = await Test.createTestingModule({
-      imports: [CoreModule.forRoot({ serviceName: 'test', config, logDestination })],
-      controllers: [QueueController],
-    })
-      .overrideProvider(TokenVerifier)
-      .useValue({})
-      .compile();
-    app = moduleRef.createNestApplication<NestFastifyApplication>(new FastifyAdapter());
-    // A real socket, not inject(): pino-http logs on the response's finish event, which
-    // light-my-request does not emit the same way on every Node version.
-    await app.listen(0, '127.0.0.1');
+    const logger = pinoHttp(requestLoggerOptions('test', config), {
+      write: (line: string) => void written.push(line),
+    });
+    let nextId = 0;
+    server = createServer((request, response) => {
+      Object.assign(request, { id: `req-${String((nextId += 1))}` });
+      logger(request, response);
+      response.setHeader('content-type', 'application/json');
+      response.end('{"items":[]}');
+    });
+    server.listen(0, '127.0.0.1');
+    await once(server, 'listening');
+    baseUrl = `http://127.0.0.1:${String((server.address() as AddressInfo).port)}`;
   });
 
-  afterAll(async () => {
-    await app.close();
+  afterAll(() => {
+    server.close();
   });
 
   it('logs a queue search request without the searched name', async () => {
-    const response = await fetch(
-      `${await app.getUrl()}/v1/queue?search=Wanjiku%20Kamau&status=pending`,
-    );
+    const response = await fetch(`${baseUrl}/v1/queue?search=Wanjiku%20Kamau&status=pending`);
 
     expect(response.status).toBe(200);
-    // pino-http writes when the response finishes, which can land after inject() resolves.
-    await vi.waitFor(
-      () => {
-        expect(written.join('')).toContain('"statusCode":200');
-      },
-      {
-        timeout: 5_000,
-      },
-    );
+    await vi.waitFor(() => {
+      expect(written.join('')).toContain('"statusCode":200');
+    });
     const logged = written.join('');
     expect(logged).toContain('/v1/queue?search=[redacted]&status=pending');
     expect(logged).not.toContain('Wanjiku');

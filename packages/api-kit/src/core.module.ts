@@ -1,7 +1,6 @@
 import { type DynamicModule, Module, RequestMethod, type Type } from '@nestjs/common';
 import { APP_FILTER, APP_GUARD } from '@nestjs/core';
 import { LoggerModule } from 'nestjs-pino';
-import type { DestinationStream } from 'pino';
 import type { Options } from 'pino-http';
 
 import { JwtAuthGuard } from './auth/jwt-auth.guard.js';
@@ -20,11 +19,25 @@ export interface CoreModuleOptions {
    * or ready-made instances such as `new HttpReadinessCheck(...)`.
    */
   readiness?: (Type<ReadinessCheck> | ReadinessCheck)[];
-  /**
-   * Where log lines go instead of stdout, e.g. a stream a test reads back. Replaces the
-   * development pretty-printer when set.
-   */
-  logDestination?: DestinationStream;
+}
+
+/** The request logger's options; exported so tests can drive pino-http with them directly. */
+export function requestLoggerOptions(serviceName: string, config: BaseEnv): Options {
+  return {
+    name: serviceName,
+    level: config.LOG_LEVEL,
+    // Request IDs come from Fastify (x-request-id or generated).
+    genReqId: (request) => request.id,
+    redact: ['req.headers.authorization', 'req.headers.cookie'],
+    serializers: {
+      req: serializeRequest,
+      res: (response: { statusCode: number }) => ({ statusCode: response.statusCode }),
+    },
+    transport:
+      config.NODE_ENV === 'development'
+        ? { target: 'pino-pretty', options: { singleLine: true } }
+        : undefined,
+  };
 }
 
 /**
@@ -35,21 +48,6 @@ export interface CoreModuleOptions {
 export class CoreModule {
   static forRoot(options: CoreModuleOptions): DynamicModule {
     const { config } = options;
-    const pinoHttp: Options = {
-      name: options.serviceName,
-      level: config.LOG_LEVEL,
-      // Request IDs come from Fastify (x-request-id or generated).
-      genReqId: (request) => request.id,
-      redact: ['req.headers.authorization', 'req.headers.cookie'],
-      serializers: {
-        req: serializeRequest,
-        res: (response: { statusCode: number }) => ({ statusCode: response.statusCode }),
-      },
-      transport:
-        config.NODE_ENV === 'development' && !options.logDestination
-          ? { target: 'pino-pretty', options: { singleLine: true } }
-          : undefined,
-    };
     return {
       module: CoreModule,
       global: true,
@@ -57,7 +55,7 @@ export class CoreModule {
         LoggerModule.forRoot({
           // Probes hit these every few seconds; logging them buries real traffic.
           exclude: [{ path: 'health/{*probe}', method: RequestMethod.GET }],
-          pinoHttp: options.logDestination ? [pinoHttp, options.logDestination] : pinoHttp,
+          pinoHttp: requestLoggerOptions(options.serviceName, config),
         }),
       ],
       controllers: [HealthController],
