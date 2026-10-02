@@ -1,33 +1,58 @@
 /**
  * In-memory stand-in for the ai-gateway's policy endpoints (ai-gateway.yaml, tag `policy`), used
- * when AI_GATEWAY_MOCK is set until the gateway implements them (#290). One store for every
+ * when AI_GATEWAY_MOCK is set, so the console runs without the gateway. One store for every
  * caller; only platform admins (the token's `realm_access.roles`) get past the 403, as the
- * contract has it. Seeded from the prototype (07c-copilot): the demo tenant, PSC, JSC and the
- * Nairobi City County Public Service Board allow external providers on synthetic data; every
- * other tenant is blocked by default. JSC is at 86% of its budget and Nairobi City has used its
- * budget up; the local directory seed's Example Commission (`ec`) is enabled at 86% too. A tenant the store has not seen reads as blocked, with the default budget.
+ * contract has it. Seeded from the prototype (07c-copilot): the gateway's default gate (external
+ * providers see synthetic data only), the demo tenant, PSC, JSC and the Nairobi City County
+ * Public Service Board with recorded approvals for it, and TSC blocking it by resolution. JSC is
+ * at 86% of its budget and Nairobi City has used its budget up; the local directory seed's
+ * Example Commission (`ec`) is at 86% too. A tenant the store has not seen has the default gate
+ * and budget, and no usage.
  *
  * Also answers the review service's Commission AI status (review.yaml `getCommissionAiStatus`,
- * which proxies the gateway's tenant status) from the same store, so a policy saved here shows
- * on the Commission's own policy page (`mockTenantAiStatus`).
+ * which reads the gateway's tenant status) from the same store, so a policy saved here shows on
+ * the Commission's own policy page (`mockTenantAiStatus`).
  */
 import createClient from 'openapi-fetch';
 
 import { isRecord, json, problem, readJson } from '../mock-http';
 import type { paths } from './api.gen';
-import type { DataClass, GateRule, ProviderClass, Route, TenantUsage } from './types';
+import type {
+  DataClass,
+  GateRule,
+  GateRuleInput,
+  ProviderClass,
+  Route,
+  TenantUsage,
+} from './types';
 
 const DATA_CLASSES: readonly DataClass[] = ['synthetic', 'restricted', 'highly-confidential'];
 const PROVIDER_CLASSES: readonly ProviderClass[] = ['external', 'self-hosted'];
 
-/** The default budget of a tenant the gateway has not been told about. */
+/** The gateway's default gate: self-hosted providers see everything, external synthetic only. */
+const DEFAULT_GATE: GateRuleInput[] = DATA_CLASSES.flatMap((dataClass) =>
+  PROVIDER_CLASSES.map((providerClass) => ({
+    dataClass,
+    providerClass,
+    allowed: providerClass === 'self-hosted' || dataClass === 'synthetic',
+  })),
+);
+
+/** The default budget of a tenant without one of its own. */
 const DEFAULT_BUDGET = { monthlyTokens: 1_000_000, perMinute: 60 };
+
+/**
+ * Commissions whose declarations are demo data, so the review service sends them as `synthetic`
+ * (its AI_SYNTHETIC_DATA_TENANTS); every other Commission's go as `highly-confidential`.
+ */
+const SYNTHETIC_DATA_TENANTS = new Set(['demo', 'psc', 'jsc', 'cpsbnairobicity', 'ec']);
 
 type Counters = Omit<TenantUsage, 'tenant' | 'month'>;
 
+/** What the gateway knows of a tenant: its own rules, and its budget and usage once it has any. */
 interface StoredTenant {
   rules: GateRule[];
-  usage: Counters;
+  usage: Counters | null;
 }
 
 const tenants = new Map<string, StoredTenant>();
@@ -44,22 +69,16 @@ function counters(
   return { monthlyTokens, perMinute, tokensUsed, costMicros, jobs, blocked, failed };
 }
 
-function allowSynthetic(approvalRef: string, changedAt: string): GateRule {
+function syntheticRule(allowed: boolean, approvalRef: string, changedAt: string): GateRule {
   return {
     dataClass: 'synthetic',
     providerClass: 'external',
-    allowed: true,
+    allowed,
     approvalRef,
-    changedBy: 'Amina Wanjiru',
+    changedBy: '7d1c2a4e-0000-4000-8000-00000000a001',
+    changedByName: 'Amina Wanjiru',
     changedAt,
   };
-}
-
-/** Requests a tenant blocked by policy has had refused, made up but stable per slug. */
-function blockedCount(slug: string): number {
-  let hash = 0;
-  for (const char of slug) hash = (hash * 31 + char.charCodeAt(0)) % 997;
-  return hash % 90;
 }
 
 /** Back to the seeded store. */
@@ -67,25 +86,28 @@ export function resetAiGatewayMock() {
   tenants.clear();
   const seed: Record<string, StoredTenant> = {
     demo: {
-      rules: [allowSynthetic('EACC/AI/2026/001', '2026-08-04T06:12:00Z')],
+      rules: [syntheticRule(true, 'EACC/AI/2026/001', '2026-08-04T06:12:00Z')],
       usage: counters(2_000_000, 60, 412_800, 5_210_000, 318, 0, 2),
     },
     psc: {
-      rules: [allowSynthetic('EACC/AI/2026/014', '2026-09-01T08:40:00Z')],
+      rules: [syntheticRule(true, 'EACC/AI/2026/014', '2026-09-01T08:40:00Z')],
       usage: counters(3_000_000, 120, 1_926_400, 24_180_000, 1_482, 0, 11),
     },
     jsc: {
-      rules: [allowSynthetic('EACC/AI/2026/019', '2026-09-08T12:05:00Z')],
+      rules: [syntheticRule(true, 'EACC/AI/2026/019', '2026-09-08T12:05:00Z')],
       usage: counters(1_000_000, 60, 862_300, 10_940_000, 604, 0, 3),
     },
     cpsbnairobicity: {
-      rules: [allowSynthetic('EACC/AI/2026/021', '2026-09-10T07:20:00Z')],
+      rules: [syntheticRule(true, 'EACC/AI/2026/021', '2026-09-10T07:20:00Z')],
       usage: counters(1_500_000, 60, 1_500_000, 18_820_000, 1_120, 37, 5),
     },
-    tsc: { rules: [], usage: counters(1_000_000, 60, 0, 0, 0, 214, 0) },
+    tsc: {
+      rules: [syntheticRule(false, 'TSC resolution 12/2026', '2026-09-12T10:00:00Z')],
+      usage: counters(1_000_000, 60, 0, 0, 214, 214, 0),
+    },
     // The local directory seed's Example Commission, so a dev stack shows a budget near its end.
     ec: {
-      rules: [allowSynthetic('EACC/AI/2026/023', '2026-09-15T09:30:00Z')],
+      rules: [syntheticRule(true, 'EACC/AI/2026/023', '2026-09-15T09:30:00Z')],
       usage: counters(500_000, 30, 431_000, 5_460_000, 287, 0, 1),
     },
   };
@@ -95,46 +117,32 @@ export function resetAiGatewayMock() {
 function tenantOf(slug: string): StoredTenant {
   let tenant = tenants.get(slug);
   if (!tenant) {
-    tenant = {
-      rules: [],
-      usage: counters(
-        DEFAULT_BUDGET.monthlyTokens,
-        DEFAULT_BUDGET.perMinute,
-        0,
-        0,
-        0,
-        blockedCount(slug),
-        0,
-      ),
-    };
+    tenant = { rules: [], usage: null };
     tenants.set(slug, tenant);
   }
   return tenant;
 }
 
 const ROUTES: Route[] = [
-  route(null, 'summarize-declaration', 0, 4_000, 60_000),
-  route(null, 'explain-flags', 0, 3_000, 45_000),
-  route(null, 'draft-clarification', 0.2, 2_000, 10_000),
-  route('psc', 'draft-clarification', 0.2, 3_000, 10_000),
-  route(null, 'extract-document', 0, 2_000, 60_000),
-  route(null, 'answer-declarant-question', 0.3, 1_500, 30_000),
-  route(null, 'narrate-compliance-report', 0.2, 6_000, 120_000),
+  route(null, 'summarize-declaration', 4_000, 60_000),
+  route(null, 'explain-flags', 3_000, 45_000),
+  route(null, 'draft-clarification', 2_000, 10_000),
+  route('psc', 'draft-clarification', 3_000, 10_000),
 ];
 
 function route(
   tenant: string | null,
   task: Route['task'],
-  temperature: number,
-  maxTokens: number,
+  maxOutputTokens: number,
   timeoutMs: number,
 ): Route {
   return {
     tenant,
     task,
     provider: 'anthropic',
-    model: 'claude-opus-5',
-    params: { temperature, maxTokens, timeoutMs },
+    providerClass: 'external',
+    model: 'claude-opus-5-5',
+    params: { maxOutputTokens, timeoutMs },
   };
 }
 
@@ -144,56 +152,79 @@ function currentMonth(): string {
 }
 
 function usageOf(slug: string): TenantUsage {
-  return { tenant: slug, month: currentMonth(), ...tenantOf(slug).usage };
+  return {
+    tenant: slug,
+    month: currentMonth(),
+    ...(tenantOf(slug).usage ??
+      counters(DEFAULT_BUDGET.monthlyTokens, DEFAULT_BUDGET.perMinute, 0, 0, 0, 0, 0)),
+  };
 }
 
-/** What the review service's Commission AI status says for `slug` (review.yaml). */
+/** The tenant's gate for every cell: its rule where it has one, else the default. */
+function gateOf(slug: string): GateRuleInput[] {
+  const { rules } = tenantOf(slug);
+  return DEFAULT_GATE.map(
+    (cell) =>
+      rules.find(
+        (rule) => rule.dataClass === cell.dataClass && rule.providerClass === cell.providerClass,
+      ) ?? cell,
+  );
+}
+
+/**
+ * What the review service's Commission AI status says for `slug` (review.yaml): the gateway's
+ * tenant status for its routes (all external here), enabled when the Commission's data class is
+ * among the data classes the gate lets through.
+ */
 export function mockTenantAiStatus(slug: string): {
   enabled: boolean;
   providerClass: ProviderClass | null;
   dataClasses: DataClass[];
 } {
   ensureSeeded();
-  const allowed = tenantOf(slug).rules.filter((rule) => rule.allowed);
-  const providerClass =
-    PROVIDER_CLASSES.find((each) => allowed.some((rule) => rule.providerClass === each)) ?? null;
-  return {
-    enabled: providerClass !== null,
-    providerClass,
-    dataClasses: DATA_CLASSES.filter((each) =>
-      allowed.some((rule) => rule.providerClass === providerClass && rule.dataClass === each),
+  const providerClass: ProviderClass = 'external';
+  const gate = gateOf(slug);
+  const dataClasses = DATA_CLASSES.filter((dataClass) =>
+    gate.some(
+      (cell) =>
+        cell.dataClass === dataClass && cell.providerClass === providerClass && cell.allowed,
     ),
-  };
+  );
+  const sent: DataClass = SYNTHETIC_DATA_TENANTS.has(slug) ? 'synthetic' : 'highly-confidential';
+  return { enabled: dataClasses.includes(sent), providerClass, dataClasses };
 }
 
 interface Caller {
-  name: string;
+  subject: string;
+  name: string | null;
   roles: string[];
 }
 
 /** The caller from the token's claims; the mock does not verify it, the gateway would. */
 function callerOf(request: Request): Caller {
+  const unknown: Caller = { subject: 'unknown', name: null, roles: [] };
   const token = request.headers.get('authorization')?.replace(/^Bearer /, '') ?? '';
   try {
     const claims: unknown = JSON.parse(
       Buffer.from(token.split('.')[1] ?? '', 'base64url').toString('utf8'),
     );
-    if (!isRecord(claims)) return { name: 'Unknown', roles: [] };
+    if (!isRecord(claims)) return unknown;
     const access = claims.realm_access;
     const roles = isRecord(access) && Array.isArray(access.roles) ? access.roles : [];
     return {
-      name: typeof claims.name === 'string' ? claims.name : 'Unknown',
+      subject: typeof claims.sub === 'string' ? claims.sub : 'unknown',
+      name: typeof claims.name === 'string' ? claims.name : null,
       roles: roles.filter((role): role is string => typeof role === 'string'),
     };
   } catch {
-    return { name: 'Unknown', roles: [] };
+    return unknown;
   }
 }
 
 /** An unsigned token with the claims the mock reads, for tests. */
 export function mockToken(name: string, roles: readonly string[]): string {
   const part = (value: object) => Buffer.from(JSON.stringify(value)).toString('base64url');
-  return `${part({ alg: 'none' })}.${part({ name, realm_access: { roles } })}.`;
+  return `${part({ alg: 'none' })}.${part({ sub: `user-${name.toLowerCase().replace(/\W+/g, '-')}`, name, realm_access: { roles } })}.`;
 }
 
 /** A gateway client answered by this mock, as `name` holding `roles`, for tests. */
@@ -228,10 +259,13 @@ export async function mockAiGatewayFetch(request: Request): Promise<Response> {
   }
 
   if (method === 'GET' && pathname === '/v1/ai/policies') {
-    return json(
-      200,
-      [...tenants.entries()].map(([tenant, stored]) => ({ tenant, rules: stored.rules })),
-    );
+    return json(200, {
+      defaults: DEFAULT_GATE,
+      tenants: [...tenants.entries()]
+        .filter(([, stored]) => stored.rules.length > 0)
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([tenant, stored]) => ({ tenant, rules: sortRules(stored.rules) })),
+    });
   }
 
   const policy = /^\/v1\/ai\/policies\/([a-z][a-z0-9]{1,19})$/.exec(pathname);
@@ -240,6 +274,17 @@ export async function mockAiGatewayFetch(request: Request): Promise<Response> {
   }
 
   if (method === 'GET' && pathname === '/v1/ai/routing') return json(200, ROUTES);
+
+  if (method === 'GET' && pathname === '/v1/ai/usage') {
+    return json(200, {
+      month: currentMonth(),
+      defaults: DEFAULT_BUDGET,
+      tenants: [...tenants.entries()]
+        .filter(([, stored]) => stored.usage !== null)
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([tenant]) => usageOf(tenant)),
+    });
+  }
 
   const usage = /^\/v1\/ai\/tenants\/([a-z][a-z0-9]{1,19})\/usage$/.exec(pathname);
   if (usage?.[1]) {
@@ -250,38 +295,68 @@ export async function mockAiGatewayFetch(request: Request): Promise<Response> {
   return problem(404, 'Not found');
 }
 
+/** Rules in the contract's order: data class, then provider class. */
+function sortRules(rules: readonly GateRule[]): GateRule[] {
+  const rank = (rule: GateRule) =>
+    DATA_CLASSES.indexOf(rule.dataClass) * PROVIDER_CLASSES.length +
+    PROVIDER_CLASSES.indexOf(rule.providerClass);
+  return [...rules].sort((a, b) => rank(a) - rank(b));
+}
+
+/** Every rule or none, as the gateway applies them in one transaction. */
 async function setGatePolicy(request: Request, slug: string, caller: Caller) {
   const body = await readJson(request);
   const input = isRecord(body) ? body : {};
   const errors: { path: string; message: string }[] = [];
-  const dataClass = DATA_CLASSES.find((each) => each === input.dataClass);
-  const providerClass = PROVIDER_CLASSES.find((each) => each === input.providerClass);
   const approvalRef = typeof input.approvalRef === 'string' ? input.approvalRef.trim() : '';
-  if (!dataClass) errors.push({ path: '/dataClass', message: 'Unknown data class' });
-  if (!providerClass) errors.push({ path: '/providerClass', message: 'Unknown provider class' });
-  if (typeof input.allowed !== 'boolean') {
-    errors.push({ path: '/allowed', message: 'Must be true or false' });
+  const rawRules = Array.isArray(input.rules) ? input.rules : [];
+  const rules: GateRuleInput[] = [];
+  if (rawRules.length < 1 || rawRules.length > 6) {
+    errors.push({ path: '/rules', message: 'Send 1 to 6 rules' });
   }
+  rawRules.forEach((raw: unknown, index) => {
+    const rule = isRecord(raw) ? raw : {};
+    const dataClass = DATA_CLASSES.find((each) => each === rule.dataClass);
+    const providerClass = PROVIDER_CLASSES.find((each) => each === rule.providerClass);
+    if (!dataClass)
+      errors.push({ path: `/rules/${String(index)}/dataClass`, message: 'Unknown data class' });
+    if (!providerClass) {
+      errors.push({
+        path: `/rules/${String(index)}/providerClass`,
+        message: 'Unknown provider class',
+      });
+    }
+    if (typeof rule.allowed !== 'boolean') {
+      errors.push({ path: `/rules/${String(index)}/allowed`, message: 'Must be true or false' });
+    }
+    if (dataClass && providerClass) {
+      if (
+        rules.some((each) => each.dataClass === dataClass && each.providerClass === providerClass)
+      ) {
+        errors.push({
+          path: '/rules',
+          message: 'At most one rule per data class and provider class',
+        });
+      }
+      rules.push({ dataClass, providerClass, allowed: rule.allowed === true });
+    }
+  });
   if (approvalRef.length < 1 || approvalRef.length > 200) {
     errors.push({ path: '/approvalRef', message: 'Enter the approval reference' });
   }
-  if (!dataClass || !providerClass || errors.length > 0) return validation(errors);
+  if (errors.length > 0) return validation(errors);
 
   const tenant = tenantOf(slug);
-  tenant.rules = [
-    ...tenant.rules.filter(
-      (rule) => !(rule.dataClass === dataClass && rule.providerClass === providerClass),
-    ),
-    {
-      dataClass,
-      providerClass,
-      allowed: input.allowed === true,
-      approvalRef,
-      changedBy: caller.name,
-      changedAt: new Date().toISOString(),
-    },
-  ];
-  return json(200, { tenant: slug, rules: tenant.rules });
+  const changedAt = new Date().toISOString();
+  for (const rule of rules) {
+    tenant.rules = [
+      ...tenant.rules.filter(
+        (each) => !(each.dataClass === rule.dataClass && each.providerClass === rule.providerClass),
+      ),
+      { ...rule, approvalRef, changedBy: caller.subject, changedByName: caller.name, changedAt },
+    ];
+  }
+  return json(200, { tenant: slug, rules: sortRules(tenant.rules) });
 }
 
 async function setBudget(request: Request, slug: string) {
@@ -299,6 +374,6 @@ async function setBudget(request: Request, slug: string) {
     return validation(errors);
   }
   const tenant = tenantOf(slug);
-  tenant.usage = { ...tenant.usage, monthlyTokens, perMinute };
+  tenant.usage = { ...usageOf(slug), monthlyTokens, perMinute };
   return json(200, usageOf(slug));
 }

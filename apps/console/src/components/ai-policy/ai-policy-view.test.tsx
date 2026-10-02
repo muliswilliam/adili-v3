@@ -4,8 +4,8 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import type { ComponentProps } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 
-import type { GateRule, TenantUsage } from '../../server/ai-gateway/types';
-import type { AiPolicyOverview, AiTenantRow } from '../../server/ai-policy.server';
+import type { GateRule, GateRuleInput, TenantUsage } from '../../server/ai-gateway/types';
+import { type AiPolicyOverview, type AiTenantRow, gateOf } from '../../server/ai-policy.server';
 import type { ServiceResult } from '../../server/service-call';
 import { AiPolicyView } from './ai-policy-view';
 import type { SaveBudget } from './budget-dialog';
@@ -19,9 +19,27 @@ const allowSynthetic: GateRule = {
   providerClass: 'external',
   allowed: true,
   approvalRef: 'EACC/AI/2026/014',
-  changedBy: 'Amina Wanjiru',
+  changedBy: '7d1c2a4e-0000-4000-8000-00000000a001',
+  changedByName: 'Amina Wanjiru',
   changedAt: '2026-09-01T08:40:00Z',
 };
+
+/** The gateway's default gate: self-hosted sees everything, external synthetic data only. */
+const DEFAULTS: GateRuleInput[] = (
+  ['synthetic', 'restricted', 'highly-confidential'] as const
+).flatMap((dataClass) =>
+  (['external', 'self-hosted'] as const).map((providerClass) => ({
+    dataClass,
+    providerClass,
+    allowed: providerClass === 'self-hosted' || dataClass === 'synthetic',
+  })),
+);
+
+/** A Commission's gate and its routes, all to an external provider. */
+const policy = (rules: GateRule[]) => ({
+  gate: gateOf(DEFAULTS, rules),
+  routed: ['external' as const],
+});
 
 function usage(tokensUsed: number, monthlyTokens: number, extra: Partial<TenantUsage> = {}) {
   return {
@@ -41,25 +59,32 @@ function usage(tokensUsed: number, monthlyTokens: number, extra: Partial<TenantU
 const PSC: AiTenantRow = {
   slug: 'psc',
   name: 'Public Service Commission',
-  rules: [allowSynthetic],
+  ...policy([allowSynthetic]),
   usage: usage(1_926_400, 3_000_000, { perMinute: 120 }),
 };
 const JSC: AiTenantRow = {
   slug: 'jsc',
   name: 'Judicial Service Commission',
-  rules: [{ ...allowSynthetic, approvalRef: 'EACC/AI/2026/019' }],
+  ...policy([{ ...allowSynthetic, approvalRef: 'EACC/AI/2026/019' }]),
   usage: usage(862_300, 1_000_000),
 };
 const NAIROBI: AiTenantRow = {
   slug: 'cpsbnairobicity',
   name: 'Nairobi City County Public Service Board',
-  rules: [{ ...allowSynthetic, approvalRef: 'EACC/AI/2026/021' }],
+  ...policy([{ ...allowSynthetic, approvalRef: 'EACC/AI/2026/021' }]),
   usage: usage(1_500_000, 1_500_000),
 };
 const TSC: AiTenantRow = {
   slug: 'tsc',
   name: 'Teachers Service Commission',
-  rules: [],
+  ...policy([
+    {
+      ...allowSynthetic,
+      allowed: false,
+      approvalRef: 'TSC resolution 12/2026',
+      changedByName: null,
+    },
+  ]),
   usage: usage(0, 1_000_000, { blocked: 214, jobs: 0, failed: 0, costMicros: 0 }),
 };
 
@@ -72,15 +97,17 @@ const OVERVIEW: AiPolicyOverview = {
         tenant: null,
         task: 'explain-flags',
         provider: 'anthropic',
-        model: 'claude-opus-5',
-        params: { temperature: 0, maxTokens: 3_000, timeoutMs: 45_000 },
+        providerClass: 'external',
+        model: 'claude-opus-5-5',
+        params: { maxOutputTokens: 3_000, timeoutMs: 45_000 },
       },
       {
         tenant: 'psc',
         task: 'draft-clarification',
         provider: 'anthropic',
-        model: 'claude-opus-5',
-        params: { temperature: 0.2, maxTokens: 3_000, timeoutMs: 10_000 },
+        providerClass: 'external',
+        model: 'claude-opus-5-5',
+        params: { maxOutputTokens: 3_000, effort: 'low', timeoutMs: 10_000 },
       },
     ],
   },
@@ -121,6 +148,7 @@ describe('S16 AI policy: Commissions', () => {
     expect(screen.getByText('3 of 4 Commissions enabled')).toBeTruthy();
     expect(screen.getByRole('columnheader', { name: 'Usage, Sep 2026' })).toBeTruthy();
     const psc = rowOf('Public Service Commission');
+    // Only the routed provider class shows; nothing is routed to a self-hosted one.
     expect(psc.getByText('External')).toBeTruthy();
     expect(psc.getAllByText('Blocked')).toHaveLength(2);
     expect(psc.getByRole('meter').getAttribute('aria-label')).toBe(
@@ -202,13 +230,34 @@ describe('S16 AI policy: a Commission', () => {
     ).toBeTruthy();
   });
 
-  it('says a Commission without a policy is blocked by default', () => {
+  it('says a Commission whose routed provider may see nothing is not enabled, and who decided', () => {
     renderView();
     fireEvent.click(screen.getByRole('button', { name: 'Teachers Service Commission' }));
     const drawer = within(screen.getByRole('dialog', { name: 'Teachers Service Commission' }));
     expect(drawer.getByText('Not enabled')).toBeTruthy();
-    expect(drawer.getByText('Blocked for every data class')).toBeTruthy();
-    expect(drawer.getByText('No changes. External providers are blocked by default.')).toBeTruthy();
+    expect(drawer.getByText('No declaration data is sent to an AI provider')).toBeTruthy();
+    expect(drawer.getByText('Blocked external providers for synthetic data')).toBeTruthy();
+    // The rule names the account when the gateway has no display name for it.
+    expect(drawer.getByText(/^7d1c2a4e-0000-4000-8000-00000000a001 ·/)).toBeTruthy();
+    // Cells without a rule of the Commission's own follow the default.
+    expect(drawer.getAllByText('Default')).toHaveLength(5);
+  });
+
+  it('says when a Commission has only the default gate', () => {
+    renderView({
+      result: {
+        ok: true,
+        data: { ...OVERVIEW, tenants: [{ ...TSC, ...policy([]) }] },
+      },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Teachers Service Commission' }));
+    const drawer = within(screen.getByRole('dialog', { name: 'Teachers Service Commission' }));
+    expect(drawer.getByText('External provider, synthetic data only')).toBeTruthy();
+    expect(
+      drawer.getByText(
+        'No changes. The default applies: external providers see synthetic data only.',
+      ),
+    ).toBeTruthy();
   });
 
   it('allows external providers on synthetic data once the approval reference is recorded', async () => {
@@ -266,11 +315,11 @@ describe('S16 AI policy: a Commission', () => {
     ).toBeTruthy();
   });
 
-  it('says how much was saved when a later change fails', async () => {
+  it('says nothing was changed when the save fails', async () => {
+    invalidate.mockClear();
     const saveGate = vi.fn<SaveGate>().mockResolvedValue({
       ok: false,
       error: { kind: 'unavailable', detail: null },
-      saved: 1,
     });
     renderView({ saveGate });
     fireEvent.click(screen.getByRole('button', { name: 'Teachers Service Commission' }));
@@ -283,11 +332,16 @@ describe('S16 AI policy: a Commission', () => {
     });
     fireEvent.click(screen.getByRole('button', { name: 'Save policy' }));
     expect(await screen.findByText('The policy could not be saved.')).toBeTruthy();
-    expect(
-      screen.getByText(
-        '1 of 2 changes were saved before the error. The Commission now shows what was saved.',
-      ),
-    ).toBeTruthy();
+    expect(screen.getByText('Nothing was changed. Try again in a moment.')).toBeTruthy();
+    expect(saveGate).toHaveBeenCalledWith({
+      tenant: 'tsc',
+      changes: [
+        { dataClass: 'synthetic', providerClass: 'external', allowed: true },
+        { dataClass: 'restricted', providerClass: 'external', allowed: true },
+      ],
+      approvalRef: 'EACC/AI/2026/022',
+    });
+    expect(invalidate).not.toHaveBeenCalled();
   });
 
   it('checks the budget, warns below usage and saves it', async () => {
@@ -339,6 +393,34 @@ describe('S16 AI policy: routing', () => {
     expect(table.getByText('Public Service Commission')).toBeTruthy();
     expect(table.getAllByText('Anthropic')).toHaveLength(2);
     expect(table.getByText('45 s')).toBeTruthy();
+    expect(table.getAllByText('3,000')).toHaveLength(2);
+    expect(table.getByText('Low')).toBeTruthy();
+  });
+
+  it("says a route without parameters uses the task's own", () => {
+    renderView({
+      result: {
+        ok: true,
+        data: {
+          ...OVERVIEW,
+          routing: {
+            ok: true,
+            data: [
+              {
+                tenant: null,
+                task: 'summarize-declaration',
+                provider: 'anthropic',
+                providerClass: 'external',
+                model: 'claude-opus-5-5',
+                params: {},
+              },
+            ],
+          },
+        },
+      },
+      search: { tab: 'routing' },
+    });
+    expect(screen.getByText('Task defaults')).toBeTruthy();
     expect(screen.queryByRole('button', { name: /edit/i })).toBeNull();
   });
 

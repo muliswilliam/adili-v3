@@ -31,8 +31,8 @@ import { DataClassesTip, EnabledBadge } from './parts';
 import {
   accessOf,
   accessText,
-  allowingRule,
   budgetResetsOn,
+  changedByText,
   changeText,
   DATA_CLASSES,
   formatCost,
@@ -53,7 +53,7 @@ export interface CommissionDrawerProps {
 
 /**
  * One Commission's AI policy (spec 07c FE-4): whether AI assistance is enabled and how, the gate
- * with the approval reference of each allowed cell, this month's usage and budget, and the
+ * with the approval reference of each cell the Commission has a rule for, this month's usage and budget, and the
  * latest decision per cell; with the way to edit the policy and the budget.
  */
 export function CommissionDrawer({
@@ -123,11 +123,11 @@ function Section({ title, id, children }: { title: string; id: string; children:
 
 /** "Enabled" or "Not enabled", with what is allowed in words. */
 function AiStatusBadge({ row }: { row: AiTenantRow }) {
-  const enabled = isEnabled(row.rules);
+  const enabled = isEnabled(row);
   return (
     <p className="flex flex-wrap items-center gap-2 text-sm text-secondary-foreground">
       <EnabledBadge enabled={enabled} />
-      <span>{accessText(accessOf(row.rules)) ?? m.blockedEveryClass}</span>
+      <span>{accessText(accessOf(row)) ?? m.aiNotEnabledText}</span>
     </p>
   );
 }
@@ -166,21 +166,27 @@ function GateMatrix({ row }: { row: AiTenantRow }) {
                 {m.dataClass[dataClass]}
               </th>
               {PROVIDER_CLASSES.map((providerClass) => {
-                const rule = allowingRule(row.rules, dataClass, providerClass);
+                const cell = row.gate.find(
+                  (each) => each.dataClass === dataClass && each.providerClass === providerClass,
+                );
                 return (
                   <td key={providerClass} className="px-3 py-2.5">
-                    {rule ? (
-                      <>
-                        <span className="inline-flex items-center gap-1.5 font-medium text-success">
-                          <Icon icon={Tick02Icon} className="size-3.5" strokeWidth={2.4} />
-                          {m.allowed}
-                        </span>
-                        <span className="mt-0.5 block font-mono text-xs text-muted-foreground">
-                          {rule.approvalRef}
-                        </span>
-                      </>
+                    {cell?.allowed ? (
+                      <span className="inline-flex items-center gap-1.5 font-medium text-success">
+                        <Icon icon={Tick02Icon} className="size-3.5" strokeWidth={2.4} />
+                        {m.allowed}
+                      </span>
                     ) : (
                       <span className="text-muted-foreground">{m.blocked}</span>
+                    )}
+                    {cell?.rule ? (
+                      <span className="mt-0.5 block font-mono text-xs text-muted-foreground">
+                        {cell.rule.approvalRef}
+                      </span>
+                    ) : (
+                      <span className="mt-0.5 block text-xs text-muted-foreground">
+                        {m.defaultRule}
+                      </span>
                     )}
                   </td>
                 );
@@ -225,7 +231,7 @@ function Usage({ usage }: { usage: TenantUsage }) {
 }
 
 function Changes({ row }: { row: AiTenantRow }) {
-  const history = gateHistory(row.rules);
+  const history = gateHistory(row.gate);
   if (history.length === 0) {
     return <p className="text-[13px] text-muted-foreground">{m.noChanges}</p>;
   }
@@ -242,7 +248,7 @@ function Changes({ row }: { row: AiTenantRow }) {
           <div className="min-w-0">
             <p>{changeText(rule)}</p>
             <p className="text-[12.5px] text-muted-foreground">
-              {rule.changedBy} · {formatDateTime(rule.changedAt)} ·{' '}
+              {changedByText(rule)} · {formatDateTime(rule.changedAt)} ·{' '}
               <span className="font-mono">{rule.approvalRef}</span>
             </p>
           </div>

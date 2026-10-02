@@ -12,6 +12,7 @@ import {
   type ReviewTask,
   type RunTaskOptions,
   type TaskRequest,
+  type TenantAiStatus,
 } from './ai-gateway-client.js';
 
 /** The scope the review service's token needs for the gateway's tasks and jobs. */
@@ -50,6 +51,15 @@ const jobSchema = z.object({
 
 /** A recorded rating: the review service keeps nothing of the answer but that it was recorded. */
 const recorded = z.object({ jobId: z.uuid() }).transform(() => true);
+
+const DATA_CLASS = z.enum(['synthetic', 'restricted', 'highly-confidential']);
+
+const tenantStatusSchema = z.object({
+  tenant: z.string(),
+  enabled: z.boolean(),
+  providerClass: z.enum(['external', 'self-hosted']).nullable(),
+  dataClasses: z.array(DATA_CLASS),
+});
 
 /**
  * The ai-gateway's internal task and job API through the client generated from its contract
@@ -117,6 +127,13 @@ export class HttpAiGatewayClient extends AiGatewayClient {
           body: feedback,
         }),
       { status: 200, schema: recorded, otherwise: { 400: rejected, 404: () => false } },
+    );
+  }
+
+  tenantStatus(tenant: string): Promise<TenantAiStatus> {
+    return this.gateway.call(
+      (api) => api.GET('/internal/v1/tenants/{tenant}/status', { params: { path: { tenant } } }),
+      { status: 200, schema: tenantStatusSchema },
     );
   }
 }

@@ -12,6 +12,7 @@ import {
   type ReviewTask,
   type RunTaskOptions,
   type TaskRequest,
+  type TenantAiStatus,
 } from '../../src/ai-gateway/ai-gateway-client.js';
 import { InternalApiRejected } from '../../src/internal-api/rejected.js';
 
@@ -44,6 +45,7 @@ export class FakeAiGateway extends AiGatewayClient {
   private blockedFor: AiJobReason | null = null;
   private rejecting = false;
   private withinWait: ((call: TaskCall) => JobOutcome) | null = null;
+  private readonly statuses = new Map<string, Omit<TenantAiStatus, 'tenant'>>();
 
   /** The jobs created, in order. */
   get created(): (AiJob & { tenant: string })[] {
@@ -75,7 +77,13 @@ export class FakeAiGateway extends AiGatewayClient {
     this.withinWait = outcome;
   }
 
+  /** The tenant's AI status from now on; by default the gateway's default gate on an external route. */
+  givenTenantStatus(tenant: string, status: Omit<TenantAiStatus, 'tenant'>): void {
+    this.statuses.set(tenant, status);
+  }
+
   reset(): void {
+    this.statuses.clear();
     this.calls.length = 0;
     this.feedback.length = 0;
     this.jobs.clear();
@@ -143,6 +151,19 @@ export class FakeAiGateway extends AiGatewayClient {
     if (this.jobs.get(jobId)?.status !== 'succeeded') return Promise.resolve(false);
     this.feedback.push({ jobId, feedback: structuredClone(feedback) });
     return Promise.resolve(true);
+  }
+
+  tenantStatus(tenant: string): Promise<TenantAiStatus> {
+    if (this.failures > 0) {
+      this.failures -= 1;
+      return Promise.reject(new AiGatewayUnavailable('The ai-gateway is unavailable'));
+    }
+    const status = this.statuses.get(tenant) ?? {
+      enabled: true,
+      providerClass: 'external',
+      dataClasses: ['synthetic'],
+    };
+    return Promise.resolve({ tenant, ...structuredClone(status) });
   }
 
   /** Ends the job `succeeded` with `output`; answers `ai.job.completed.v1`. */

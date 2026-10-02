@@ -7,7 +7,12 @@ import type {
   ProviderClass,
   TenantUsage,
 } from '../../server/ai-gateway/types';
-import type { AiTenantRow, GateChange, RouteRow } from '../../server/ai-policy.server';
+import type {
+  AiTenantRow,
+  GateCellView,
+  GateChange,
+  RouteRow,
+} from '../../server/ai-policy.server';
 import { formatNumber } from '../format';
 import { messages as m } from './messages';
 
@@ -24,40 +29,21 @@ export const DATA_CLASSES: readonly DataClass[] = [
 export const PROVIDER_CLASSES: readonly ProviderClass[] = ['external', 'self-hosted'];
 
 export function isAllowed(
-  rules: readonly GateRule[],
+  gate: readonly GateCellView[],
   dataClass: DataClass,
   providerClass: ProviderClass,
 ): boolean {
-  return rules.some(
-    (rule) => rule.dataClass === dataClass && rule.providerClass === providerClass && rule.allowed,
-  );
-}
-
-/** The rule that allows `providerClass` for `dataClass`, with its approval reference. */
-export function allowingRule(
-  rules: readonly GateRule[],
-  dataClass: DataClass,
-  providerClass: ProviderClass,
-): GateRule | null {
-  return (
-    rules.find(
-      (rule) =>
-        rule.dataClass === dataClass && rule.providerClass === providerClass && rule.allowed,
-    ) ?? null
+  return gate.some(
+    (cell) => cell.dataClass === dataClass && cell.providerClass === providerClass && cell.allowed,
   );
 }
 
 /** The provider classes allowed for a data class, in the table's order. */
 export function allowedProviders(
-  rules: readonly GateRule[],
+  gate: readonly GateCellView[],
   dataClass: DataClass,
 ): ProviderClass[] {
-  return PROVIDER_CLASSES.filter((providerClass) => isAllowed(rules, dataClass, providerClass));
-}
-
-/** AI assistance is enabled when any provider class may process any data class. */
-export function isEnabled(rules: readonly GateRule[]): boolean {
-  return rules.some((rule) => rule.allowed);
+  return PROVIDER_CLASSES.filter((providerClass) => isAllowed(gate, dataClass, providerClass));
 }
 
 /** Provider classes with the data classes each may process, for the status text. */
@@ -66,13 +52,27 @@ export interface ProviderAccess {
   dataClasses: DataClass[];
 }
 
-export function accessOf(rules: readonly GateRule[]): ProviderAccess[] {
-  return PROVIDER_CLASSES.flatMap((providerClass) => {
+/**
+ * What the Commission's gate lets through to the provider classes its tasks are routed to: a
+ * class nothing is routed to receives nothing, whatever the gate allows it.
+ */
+export function accessOf(row: Pick<AiTenantRow, 'gate' | 'routed'>): ProviderAccess[] {
+  return PROVIDER_CLASSES.filter((each) => row.routed.includes(each)).flatMap((providerClass) => {
     const dataClasses = DATA_CLASSES.filter((dataClass) =>
-      isAllowed(rules, dataClass, providerClass),
+      isAllowed(row.gate, dataClass, providerClass),
     );
     return dataClasses.length > 0 ? [{ providerClass, dataClasses }] : [];
   });
+}
+
+/** AI assistance is enabled when a routed provider class may process some data class. */
+export function isEnabled(row: Pick<AiTenantRow, 'gate' | 'routed'>): boolean {
+  return accessOf(row).length > 0;
+}
+
+/** The Commission's explicit rules, allowing or blocking. */
+export function rulesOf(gate: readonly GateCellView[]): GateRule[] {
+  return gate.flatMap((cell) => (cell.rule ? [cell.rule] : []));
 }
 
 /**
@@ -110,10 +110,10 @@ export function usageShare(usage: TenantUsage): number {
 
 const FILTERS: Record<AiFilter, (row: AiTenantRow) => boolean> = {
   all: () => true,
-  enabled: (row) => isEnabled(row.rules),
-  'not-enabled': (row) => !isEnabled(row.rules),
+  enabled: (row) => isEnabled(row),
+  'not-enabled': (row) => !isEnabled(row),
   budget: (row) =>
-    isEnabled(row.rules) && row.usage !== null && usageShare(row.usage) >= BUDGET_FILTER_PERCENT,
+    isEnabled(row) && row.usage !== null && usageShare(row.usage) >= BUDGET_FILTER_PERCENT,
 };
 
 export const aiPolicySearch = z.object({
@@ -193,24 +193,23 @@ export function budgetResetsOn(month: string): string {
   return formatDate(next.toISOString());
 }
 
-/**
- * The cost in the provider's billing currency. The contract gives micro-units without naming the
- * currency; providers bill in US dollars, so it reads as dollars and cents.
- */
+/** The cost in US dollars and cents; the contract gives it in micro-dollars (`costMicros`). */
 export function formatCost(costMicros: number): string {
   return formatMoney(Math.round(costMicros / 10_000), { currency: 'USD', alwaysShowCents: true });
 }
 
 /** A route's parameters as label and value: the ones the console knows first, then the rest. */
 export function routeParams(params: RouteRow['params']): { label: string; value: string }[] {
-  const known: [string, string, (value: number) => string][] = [
-    ['temperature', m.paramTemperature, (value) => String(value)],
-    ['maxTokens', m.paramMaxTokens, (value) => formatNumber(value)],
-    ['timeoutMs', m.paramTimeout, (value) => m.seconds(Math.round(value / 1000))],
+  const known: [string, string, (value: number | string) => string][] = [
+    ['maxOutputTokens', m.paramMaxTokens, (value) => formatNumber(Number(value))],
+    ['effort', m.paramEffort, (value) => m.effort(String(value))],
+    ['timeoutMs', m.paramTimeout, (value) => m.seconds(Math.round(Number(value) / 1000))],
   ];
   const shown = known.flatMap(([key, label, format]) => {
     const value = params[key];
-    return typeof value === 'number' ? [{ label, value: format(value) }] : [];
+    return typeof value === 'number' || typeof value === 'string'
+      ? [{ label, value: format(value) }]
+      : [];
   });
   const others = Object.entries(params)
     .filter(([key]) => !known.some(([knownKey]) => knownKey === key))
@@ -224,8 +223,13 @@ export function routeParams(params: RouteRow['params']): { label: string; value:
 // --- Changes, the edit dialog and the budget form ---
 
 /** The gate's latest decisions, newest first: who allowed or blocked what, with the reference. */
-export function gateHistory(rules: readonly GateRule[]): GateRule[] {
-  return [...rules].sort((a, b) => b.changedAt.localeCompare(a.changedAt));
+export function gateHistory(gate: readonly GateCellView[]): GateRule[] {
+  return rulesOf(gate).sort((a, b) => b.changedAt.localeCompare(a.changedAt));
+}
+
+/** Who made a change: their name as the gateway recorded it, else their account id. */
+export function changedByText(rule: Pick<GateRule, 'changedBy' | 'changedByName'>): string {
+  return rule.changedByName ?? rule.changedBy;
 }
 
 export function changeText(rule: Pick<GateRule, 'dataClass' | 'providerClass' | 'allowed'>) {
@@ -237,22 +241,22 @@ export function changeText(rule: Pick<GateRule, 'dataClass' | 'providerClass' | 
 /** The edit dialog's checkboxes, keyed `dataClass|providerClass`. */
 export type GateDraft = Record<`${DataClass}|${ProviderClass}`, boolean>;
 
-export function gateDraft(rules: readonly GateRule[]): GateDraft {
+export function gateDraft(gate: readonly GateCellView[]): GateDraft {
   const draft = {} as GateDraft;
   for (const dataClass of DATA_CLASSES) {
     for (const providerClass of PROVIDER_CLASSES) {
-      draft[`${dataClass}|${providerClass}`] = isAllowed(rules, dataClass, providerClass);
+      draft[`${dataClass}|${providerClass}`] = isAllowed(gate, dataClass, providerClass);
     }
   }
   return draft;
 }
 
 /** The cells the draft changes, in table order. */
-export function gateChanges(rules: readonly GateRule[], draft: GateDraft): GateChange[] {
+export function gateChanges(gate: readonly GateCellView[], draft: GateDraft): GateChange[] {
   return DATA_CLASSES.flatMap((dataClass) =>
     PROVIDER_CLASSES.flatMap((providerClass) => {
       const allowed = draft[`${dataClass}|${providerClass}`];
-      return allowed === isAllowed(rules, dataClass, providerClass)
+      return allowed === isAllowed(gate, dataClass, providerClass)
         ? []
         : [{ dataClass, providerClass, allowed }];
     }),

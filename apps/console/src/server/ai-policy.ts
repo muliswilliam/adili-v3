@@ -3,10 +3,9 @@ import { getRequest } from '@tanstack/react-start/server';
 import { z } from 'zod';
 
 import { aiGatewayClient, type AiGatewayClient } from './ai-gateway/client.server';
-import type { TenantUsage } from './ai-gateway/types';
+import type { TenantPolicy, TenantUsage } from './ai-gateway/types';
 import {
   type AiPolicyOverview,
-  type GatePolicySave,
   loadAiPolicyOverview,
   saveGatePolicy,
   saveTenantBudget,
@@ -53,13 +52,13 @@ export const setGatePolicyInput = z.object({
   approvalRef: z.string().max(200),
 });
 
-/** Allows or blocks provider classes per data class, one audited call per changed cell. */
+/** Allows or blocks provider classes per data class: every change or none, audited. */
 export const setGatePolicy = createServerFn({ method: 'POST' })
   .validator(setGatePolicyInput)
-  .handler(({ data }): Promise<GatePolicySave> =>
+  .handler(({ data }): Promise<ServiceResult<TenantPolicy>> =>
     asPlatformAdmin((gateway) =>
       saveGatePolicy(gateway, data.tenant, data.changes, data.approvalRef),
-    ).then((result) => ('saved' in result || result.ok ? result : { ...result, saved: 0 })),
+    ),
   );
 
 export const setTenantBudgetInput = z.object({

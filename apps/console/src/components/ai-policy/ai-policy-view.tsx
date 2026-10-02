@@ -116,10 +116,7 @@ export function AiPolicyView(props: AiPolicyViewProps) {
           {result === null ? (
             <Skeleton className="my-1 inline-block w-[180px] align-middle" />
           ) : overview ? (
-            m.enabledCount(
-              tenants.filter((tenant) => isEnabled(tenant.rules)).length,
-              tenants.length,
-            )
+            m.enabledCount(tenants.filter((tenant) => isEnabled(tenant)).length, tenants.length)
           ) : null}
         </p>
       </PageHead>
@@ -339,7 +336,7 @@ function DataClassHead({ dataClass }: { dataClass: DataClass }) {
 }
 
 function CommissionRow({ row, onOpen }: { row: AiTenantRow; onOpen: (slug: string) => void }) {
-  const enabled = isEnabled(row.rules);
+  const enabled = isEnabled(row);
   return (
     <TableRow>
       <TableHead scope="row" className="min-w-[220px] py-3 font-normal">
@@ -463,6 +460,7 @@ function RoutingCard({ overview, failed }: { overview: AiPolicyOverview | null; 
 }
 
 function RouteRow({ route, scope }: { route: Route; scope: string | null }) {
+  const params = routeParams(route.params);
   return (
     <TableRow>
       <TableCell className="font-mono text-[12.5px] whitespace-nowrap">{route.task}</TableCell>
@@ -472,14 +470,18 @@ function RouteRow({ route, scope }: { route: Route; scope: string | null }) {
       <TableCell>{AI_PROVIDER_NAMES[route.provider] ?? route.provider}</TableCell>
       <TableCell className="font-mono text-[12.5px] whitespace-nowrap">{route.model}</TableCell>
       <TableCell className="min-w-[220px]">
-        <dl className="flex flex-wrap gap-x-3 gap-y-1 text-[12.5px] text-secondary-foreground">
-          {routeParams(route.params).map(({ label, value }) => (
-            <div key={label} className="flex gap-1">
-              <dt className="font-medium text-muted-foreground">{label}</dt>
-              <dd>{value}</dd>
-            </div>
-          ))}
-        </dl>
+        {params.length === 0 ? (
+          <span className="text-[12.5px] text-muted-foreground">{m.taskDefaults}</span>
+        ) : (
+          <dl className="flex flex-wrap gap-x-3 gap-y-1 text-[12.5px] text-secondary-foreground">
+            {params.map(({ label, value }) => (
+              <div key={label} className="flex gap-1">
+                <dt className="font-medium text-muted-foreground">{label}</dt>
+                <dd>{value}</dd>
+              </div>
+            ))}
+          </dl>
+        )}
       </TableCell>
     </TableRow>
   );

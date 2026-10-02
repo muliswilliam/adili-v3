@@ -1090,7 +1090,13 @@ export interface paths {
             };
             cookie?: never;
         };
-        /** Whether AI assistance is enabled for the Commission (commission-admin, supervisor) */
+        /**
+         * Whether AI assistance is enabled for the Commission (commission-admin, supervisor)
+         * @description The commission-admin and supervisors of the Commission; anyone else gets 404. Reads the
+         *     ai-gateway's tenant status (its routes and classification gate). `enabled` says whether
+         *     the copilot may run on this Commission's cases: the data class its declarations are sent
+         *     as is among `dataClasses`.
+         */
         get: operations["getCommissionAiStatus"];
         put?: never;
         post?: never;
@@ -4080,13 +4086,26 @@ export interface operations {
                 content: {
                     "application/json": {
                         enabled: boolean;
-                        /** @enum {string|null} */
+                        /**
+                         * @description The provider class the Commission's AI tasks are routed to
+                         * @enum {string|null}
+                         */
                         providerClass: "external" | "self-hosted" | null;
-                        dataClasses: string[];
+                        /** @description Data classes that provider class may process for the Commission */
+                        dataClasses: ("synthetic" | "restricted" | "highly-confidential")[];
                     };
                 };
             };
             404: components["responses"]["NotFound"];
+            /** @description Problem type `ai-gateway-unavailable`; the status could not be read */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
         };
     };
 }

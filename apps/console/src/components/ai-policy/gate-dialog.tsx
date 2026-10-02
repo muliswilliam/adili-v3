@@ -28,7 +28,9 @@ import {
 import { useRouter } from '@tanstack/react-router';
 import { type SyntheticEvent, useId, useState } from 'react';
 
-import type { AiTenantRow, GateChange, GatePolicySave } from '../../server/ai-policy.server';
+import type { TenantPolicy } from '../../server/ai-gateway/types';
+import type { AiTenantRow, GateChange } from '../../server/ai-policy.server';
+import type { ServiceResult } from '../../server/service-call';
 import { messages as m } from './messages';
 import { DataClassesTip } from './parts';
 import {
@@ -40,12 +42,12 @@ import {
   PROVIDER_CLASSES,
 } from './model';
 
-/** Saves the changed cells with one approval reference; the page passes the server function. */
+/** Saves the changed cells, all or none, on one approval reference; the page passes the server function. */
 export type SaveGate = (input: {
   tenant: string;
   changes: GateChange[];
   approvalRef: string;
-}) => Promise<GatePolicySave>;
+}) => Promise<ServiceResult<TenantPolicy>>;
 
 export interface GateDialogProps {
   row: AiTenantRow;
@@ -69,13 +71,13 @@ export function GateDialog({ row, save, onClose, onUnauthenticated }: GateDialog
   const id = useId();
   const router = useRouter();
   const { toast } = useToast();
-  const [draft, setDraft] = useState<GateDraft>(() => gateDraft(row.rules));
+  const [draft, setDraft] = useState<GateDraft>(() => gateDraft(row.gate));
   const [step, setStep] = useState<'edit' | 'confirm'>('edit');
   const [approvalRef, setApprovalRef] = useState('');
   const [refError, setRefError] = useState<string>();
   const [failure, setFailure] = useState<SaveFailure | null>(null);
   const [saving, setSaving] = useState(false);
-  const changes = gateChanges(row.rules, draft);
+  const changes = gateChanges(row.gate, draft);
   const refId = `${id}-ref`;
   const allowsExternal = changes.some(
     (change) => change.allowed && change.providerClass === 'external',
@@ -93,7 +95,10 @@ export function GateDialog({ row, save, onClose, onUnauthenticated }: GateDialog
     setFailure(null);
     setSaving(true);
     const result = await save({ tenant: row.slug, changes, approvalRef: approvalRef.trim() }).catch(
-      (): GatePolicySave => ({ ok: false, error: { kind: 'unavailable', detail: null }, saved: 0 }),
+      (): ServiceResult<TenantPolicy> => ({
+        ok: false,
+        error: { kind: 'unavailable', detail: null },
+      }),
     );
     setSaving(false);
     if (result.ok) {
@@ -106,8 +111,6 @@ export function GateDialog({ row, save, onClose, onUnauthenticated }: GateDialog
       onUnauthenticated();
       return;
     }
-    // Some cells may be stored already: reload so the drawer shows them.
-    if (result.saved > 0) void router.invalidate();
     const { error } = result;
     if (error.kind === 'problem' && error.problem.status === 400) {
       setRefError(m.approvalRefRequired);
@@ -117,11 +120,7 @@ export function GateDialog({ row, save, onClose, onUnauthenticated }: GateDialog
         ? { title: m.saveForbidden }
         : error.kind === 'problem' && error.problem.status === 400
           ? { title: m.saveRejected }
-          : {
-              title: m.saveError,
-              text:
-                result.saved > 0 ? m.savePartial(result.saved, changes.length) : m.saveErrorText,
-            },
+          : { title: m.saveError, text: m.saveErrorText },
     );
   };
 

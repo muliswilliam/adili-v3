@@ -26,6 +26,9 @@ export type DataClass = Schemas['DataClass'];
 export type AiJobStatus = Schemas['JobStatus'];
 export type AiJobReason = Schemas['JobReason'];
 
+/** ai-gateway.yaml `TenantAiStatus`: the tenant's routed provider class and what it may see. */
+export type TenantAiStatus = Schemas['TenantAiStatus'];
+
 /** ai-gateway.yaml `FeedbackInput`: an officer's rating of a job's output. */
 export type FeedbackInput = Schemas['FeedbackInput'];
 
@@ -113,4 +116,7 @@ export abstract class AiGatewayClient {
    * `AiGatewayUnavailable` when the gateway cannot take it.
    */
   abstract recordFeedback(jobId: string, feedback: FeedbackInput): Promise<boolean>;
+
+  /** `getTenantAiStatus`: whether AI assistance is enabled for the tenant, and for which data. */
+  abstract tenantStatus(tenant: string): Promise<TenantAiStatus>;
 }

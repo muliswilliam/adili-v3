@@ -36,6 +36,6 @@ const ATTEMPT_OVERHEAD_MS = 30_000;
       useValue: { outputRetentionDays: config.AI_OUTPUT_RETENTION_DAYS } satisfies JanitorOptions,
     },
   ],
-  exports: [JobExecutor, Routing, PolicyModule],
+  exports: [JobExecutor, Routing, PolicyModule, ProvidersModule],
 })
 export class JobsModule {}

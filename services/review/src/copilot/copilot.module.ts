@@ -4,6 +4,7 @@ import { AiGatewayModule } from '../ai-gateway/ai-gateway.module.js';
 import { DeclarationsModule } from '../declarations/declarations.module.js';
 import { DirectoryModule } from '../directory/directory.module.js';
 import { AiJobConsumer } from './ai-job.consumer.js';
+import { AiStatusController } from './ai-status.controller.js';
 import { CopilotController } from './copilot.controller.js';
 import { CopilotDraftPurge } from './copilot-draft-purge.js';
 import { CopilotDraftsController } from './copilot-drafts.controller.js';
@@ -16,8 +17,8 @@ import { CopilotWorkflows } from './copilot-workflows.js';
 
 /**
  * The AI reviewer copilot of a case (spec 07c): its view, refresh and ratings, clarification
- * drafts, and the `ai.job.*` consumer that records the gateway's outputs. `requestCopilot` runs on
- * the review worker (processing.module.ts).
+ * drafts, the `ai.job.*` consumer that records the gateway's outputs, and the Commission's AI
+ * status. `requestCopilot` runs on the review worker (processing.module.ts).
  */
 @Module({
   imports: [AiGatewayModule, CopilotRequestsModule, DeclarationsModule, DirectoryModule],
@@ -25,6 +26,7 @@ import { CopilotWorkflows } from './copilot-workflows.js';
     CopilotController,
     CopilotDraftsController,
     CopilotFeedbackController,
+    AiStatusController,
     AiJobConsumer,
   ],
   providers: [

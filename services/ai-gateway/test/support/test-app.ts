@@ -37,6 +37,8 @@ export interface TestApp {
   db: Database<typeof schema>;
   /** Signs an access token as the given OAuth client with the given scopes. */
   token: (options?: { clientId?: string; scope?: string }) => Promise<string>;
+  /** Signs a staff user's access token with the given realm roles. */
+  userToken: (options: { subject: string; roles: string[]; name?: string }) => Promise<string>;
   /**
    * Records the provider's response to the request the gateway will make for this task input
    * (minimised, wrapped), as record mode would, so the replay adapter serves it.
@@ -124,6 +126,14 @@ export async function createTestApp(options: TestAppOptions = {}): Promise<TestA
         .setIssuer(config.OIDC_ISSUER_URL)
         .setAudience(config.OIDC_AUDIENCE)
         .setSubject(`service-account-${clientId}`)
+        .setExpirationTime('5m')
+        .sign(privateKey),
+    userToken: ({ subject, roles, name }) =>
+      new SignJWT({ azp: 'console', scope: 'openid profile', realm_access: { roles }, name })
+        .setProtectedHeader({ alg: 'RS256', kid: 'test' })
+        .setIssuer(config.OIDC_ISSUER_URL)
+        .setAudience(config.OIDC_AUDIENCE)
+        .setSubject(subject)
         .setExpirationTime('5m')
         .sign(privateKey),
     record: async (taskName, input, result, { model = config.AI_MODEL } = {}) => {
