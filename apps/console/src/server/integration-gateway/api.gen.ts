@@ -525,18 +525,18 @@ export interface components {
             grounds: string;
             details: string;
         };
-        /** @description A referral and its ICMS registration */
+        /** @description A referral and its ICMS registration. ICMS registers a referral as it receives it, so the gateway currently always answers registered with a case number; pending and failed are reserved */
         IcmsReferral: {
             referralReference: string;
-            /** @description ICMS's case number, e.g. EACC/ICMS/2028/000123 */
-            caseNumber: string;
-            /** @enum {string} */
-            status: "registered";
+            /** @description ICMS's case number, e.g. EACC/ICMS/2028/000123. Currently always present; null is reserved for a pending registration */
+            caseNumber: string | null;
             /**
-             * Format: date-time
-             * @description When ICMS registered it, by ICMS's clock
+             * @description Currently always registered; pending and failed are reserved
+             * @enum {string}
              */
-            registeredAt: string;
+            status: "registered" | "pending" | "failed";
+            /** @description When ICMS registered it, by ICMS's clock. Currently always present; null is reserved for a pending registration */
+            registeredAt: string | null;
             /**
              * Format: date-time
              * @description When the gateway sent the referral ICMS answered

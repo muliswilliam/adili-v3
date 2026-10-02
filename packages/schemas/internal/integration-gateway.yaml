@@ -1464,16 +1464,23 @@ components:
         referralReference:
           type: string
         caseNumber:
-          type: string
-          description: ICMS's case number, e.g. EACC/ICMS/2028/000123
+          description: ICMS's case number, e.g. EACC/ICMS/2028/000123. Currently always present; null is reserved for a pending registration
+          type:
+            - string
+            - 'null'
         status:
           type: string
           enum:
             - registered
+            - pending
+            - failed
+          description: Currently always registered; pending and failed are reserved
         registeredAt:
-          type: string
-          format: date-time
-          description: When ICMS registered it, by ICMS's clock
+          anyOf:
+            - type: string
+              format: date-time
+            - type: 'null'
+          description: When ICMS registered it, by ICMS's clock. Currently always present; null is reserved for a pending registration
         sentAt:
           type: string
           format: date-time
@@ -1484,7 +1491,7 @@ components:
         - status
         - registeredAt
         - sentAt
-      description: A referral and its ICMS registration
+      description: A referral and its ICMS registration. ICMS registers a referral as it receives it, so the gateway currently always answers registered with a case number; pending and failed are reserved
     ProblemDetails:
       type: object
       properties:

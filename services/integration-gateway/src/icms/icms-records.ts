@@ -13,7 +13,15 @@ const ISSUER_CODE = /^[A-Za-z0-9][A-Za-z0-9_-]{0,19}$/;
 /** The referral's narrative as reporting cuts it (`ICMS_DETAILS_MAX`). */
 const DETAILS_MAX = 8_000;
 
+/** How ICMS answered a referral, as ICMS answers it (external/icms.yaml `StatusEnum`). */
 export const icmsStatusSchema = z.enum(ICMS_STATUSES);
+
+/**
+ * The status the internal contract (`IcmsReferral`) publishes: ICMS's, plus `pending` and
+ * `failed`, reserved for an ICMS that registers asynchronously. Callers handle all three; the
+ * adapter only ever answers `registered`.
+ */
+export const ICMS_REFERRAL_STATUSES = ['registered', 'pending', 'failed'] as const;
 
 export const referralReferenceSchema = z
   .string()
@@ -43,16 +51,25 @@ export type IcmsReferralRequest = z.infer<typeof icmsReferralRequestSchema>;
 export const icmsReferralSchema = z
   .object({
     referralReference: z.string(),
-    caseNumber: z.string().meta({ description: "ICMS's case number, e.g. EACC/ICMS/2028/000123" }),
-    status: icmsStatusSchema,
-    registeredAt: z.iso
-      .datetime({ offset: true })
-      .meta({ description: "When ICMS registered it, by ICMS's clock" }),
+    caseNumber: z.string().nullable().meta({
+      description:
+        "ICMS's case number, e.g. EACC/ICMS/2028/000123. Currently always present; null is reserved for a pending registration",
+    }),
+    status: z.enum(ICMS_REFERRAL_STATUSES).meta({
+      description: 'Currently always registered; pending and failed are reserved',
+    }),
+    registeredAt: z.iso.datetime({ offset: true }).nullable().meta({
+      description:
+        "When ICMS registered it, by ICMS's clock. Currently always present; null is reserved for a pending registration",
+    }),
     sentAt: z.iso
       .datetime({ offset: true })
       .meta({ description: 'When the gateway sent the referral ICMS answered' }),
   })
-  .meta({ description: 'A referral and its ICMS registration' });
+  .meta({
+    description:
+      'A referral and its ICMS registration. ICMS registers a referral as it receives it, so the gateway currently always answers registered with a case number; pending and failed are reserved',
+  });
 export type IcmsReferral = z.infer<typeof icmsReferralSchema>;
 
 // ICMS's own shapes (packages/schemas/external/icms.yaml).
