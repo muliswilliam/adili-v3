@@ -138,7 +138,10 @@ export const gatePolicies = pgTable(
     allowed: boolean().notNull(),
     /** The decision this rests on, e.g. a Commission resolution or an EACC approval number. */
     approvalRef: text().notNull(),
+    /** `sub` of the platform admin who made the change. */
     changedBy: text().notNull(),
+    /** Their display name at the time, for the policy page; null when the token had none. */
+    changedByName: text(),
     changedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [primaryKey({ columns: [table.tenant, table.dataClass, table.providerClass] })],
@@ -185,6 +188,50 @@ export const budgets = pgTable('budgets', {
   changedBy: text().notNull(),
   changedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
 });
+
+export const FEEDBACK_RATINGS = ['helpful', 'not-helpful'] as const;
+export type FeedbackRating = (typeof FEEDBACK_RATINGS)[number];
+export const FEEDBACK_REASONS = [
+  'inaccurate',
+  'missed-something',
+  'unclear',
+  'too-long',
+  'other',
+] as const;
+export type FeedbackReason = (typeof FEEDBACK_REASONS)[number];
+
+/**
+ * Reviewers' ratings of job outputs (spec 07c): one per reviewer per job, a later rating by the
+ * same reviewer replacing the earlier one. The note is the reviewer's own words and stays here;
+ * events carry the rating and reason only.
+ */
+export const feedback = pgTable(
+  'feedback',
+  {
+    /** Stable across updates: events name the rating by it, so counts can take the latest. */
+    id: uuid().notNull().unique(),
+    jobId: uuid()
+      .notNull()
+      .references(() => jobs.id),
+    /** The officer, as the calling service knows them (its token's `sub`). */
+    reviewerSubject: text().notNull(),
+    rating: text({ enum: FEEDBACK_RATINGS }).notNull(),
+    reason: text({ enum: FEEDBACK_REASONS }),
+    note: text(),
+    at: timestamp({ withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.jobId, table.reviewerSubject] }),
+    check('feedback_rating_check', sql`${table.rating} in ('helpful', 'not-helpful')`),
+    check(
+      'feedback_reason_check',
+      sql`${table.reason} is null or ${table.reason} in ('inaccurate', 'missed-something', 'unclear', 'too-long', 'other')`,
+    ),
+    check('feedback_note_length', sql`char_length(${table.note}) <= 1000`),
+  ],
+);
+
+export type FeedbackRow = typeof feedback.$inferSelect;
 
 export const AUDIT_ACTIONS = [
   'ai.job.finished',
@@ -248,6 +295,7 @@ export const schema = {
   routes,
   budgets,
   auditRecords,
+  feedback,
 };
 
 export * from '@adili/events/schema';

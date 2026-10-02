@@ -7,27 +7,39 @@ import { messages as m } from '../../components/policy/messages';
 import { PolicyCard } from '../../components/policy/policy-card';
 import { goToSignIn, signInRedirect } from '../../components/sign-in-redirect';
 import { opensOwnPolicy } from '../../components/workspaces';
+import { type CommissionAiStatus, getCommissionAiStatus } from '../../server/ai-status';
 import type { DirectoryResult, TenantPolicyHistory } from '../../server/directory/client';
 import { createTenantPolicyVersion, getTenantPolicy } from '../../server/policy';
-import { SERVICE_UNAVAILABLE } from '../../server/service-call';
+import { SERVICE_UNAVAILABLE, type ServiceResult } from '../../server/service-call';
 
 /** Staff of the Commission other than its admin: they do not see the policy (spec 04). */
 const notAdmin = 'not-admin' as const;
 
+interface PolicyLoad {
+  policy: DirectoryResult<TenantPolicyHistory>;
+  /** The Commission's AI status line (spec 07c FE-4). */
+  aiStatus: ServiceResult<CommissionAiStatus>;
+}
+
 /**
  * The obligations policy of the viewer's own Commission (spec 04 FE-4): the policy card with the
- * start date change, in the Obligations workspace, for commission admins only. The Commission's
+ * start date change and the AI status line (spec 07c FE-4), in the Obligations workspace, for
+ * commission admins only. The Commission's
  * other staff are told they have no access, and the policy is not fetched for them.
  */
 export const Route = createFileRoute('/obligations/policy')({
-  loader: async ({ context, location }) => {
+  loader: async ({ context, location }): Promise<PolicyLoad | typeof notAdmin | null> => {
     // The layout shows no page without the workspace; do not fetch the policy.
     if (!context.workspace) return null;
     if (!opensOwnPolicy(context.roles)) return notAdmin;
-    if (!context.tenant) return SERVICE_UNAVAILABLE;
-    const policy = await getTenantPolicy({ data: { slug: context.tenant } });
+    const slug = context.tenant;
+    if (!slug) return { policy: SERVICE_UNAVAILABLE, aiStatus: SERVICE_UNAVAILABLE };
+    const [policy, aiStatus] = await Promise.all([
+      getTenantPolicy({ data: { slug } }),
+      getCommissionAiStatus({ data: { slug } }),
+    ]);
     if (!policy.ok && policy.error.kind === 'unauthenticated') throw signInRedirect(location.href);
-    return policy;
+    return { policy, aiStatus };
   },
   head: () => ({ meta: [{ title: `${m.pageTitle} · Adili Online Console` }] }),
   staticData: { crumb: m.crumb },
@@ -45,11 +57,7 @@ function PolicyLoaded() {
   return <PolicyPage policy={policy} />;
 }
 
-function PolicyPage({
-  policy,
-}: {
-  policy: DirectoryResult<TenantPolicyHistory> | typeof notAdmin | null;
-}) {
+function PolicyPage({ policy }: { policy: PolicyLoad | typeof notAdmin | null }) {
   const { tenant } = Route.useRouteContext();
   return (
     <Page narrow>
@@ -67,14 +75,15 @@ function PolicyPage({
 }
 
 function PolicyBody({
-  policy,
+  policy: load,
   save,
 }: {
-  policy: DirectoryResult<TenantPolicyHistory> | typeof notAdmin | null;
+  policy: PolicyLoad | typeof notAdmin | null;
   save: Parameters<typeof PolicyCard>[0]['save'];
 }) {
-  if (policy === null) return <PolicyCardSkeleton />;
-  if (policy === notAdmin) return <NoAccess text={m.noAccess} />;
+  if (load === null) return <PolicyCardSkeleton />;
+  if (load === notAdmin) return <NoAccess text={m.noAccess} />;
+  const { policy, aiStatus } = load;
   if (!policy.ok) {
     const { error } = policy;
     if (
@@ -95,6 +104,7 @@ function PolicyBody({
     <PolicyCard
       history={policy.data}
       save={save}
+      aiStatus={aiStatus}
       onUnauthenticated={() => {
         goToSignIn('/obligations/policy');
       }}

@@ -4,8 +4,9 @@ import { and, asc, eq, isNull, or } from 'drizzle-orm';
 import { z } from 'zod';
 
 import { routes, type schema } from '../db/schema.js';
+import { providerClassSchema } from '../providers/port.js';
 import { ProviderRegistry } from '../providers/providers.module.js';
-import { TASK_NAMES, type TaskName } from '../tasks/task.js';
+import { TASK_NAMES, type TaskName, taskNameSchema } from '../tasks/task.js';
 
 export const ROUTING_OPTIONS = Symbol('ROUTING_OPTIONS');
 
@@ -15,12 +16,19 @@ export interface RoutingOptions {
 }
 
 /** Parameters a routing row may set for its calls; unset ones fall back to the task's. */
-export const routeParamsSchema = z.strictObject({
-  maxOutputTokens: z.number().int().positive().optional(),
-  effort: z.enum(['low', 'medium', 'high']).optional(),
-  /** Longest one provider call may take; the provider client's own timeout still applies. */
-  timeoutMs: z.number().int().positive().optional(),
-});
+export const routeParamsSchema = z
+  .strictObject({
+    maxOutputTokens: z.number().int().positive().optional(),
+    effort: z.enum(['low', 'medium', 'high']).optional(),
+    /** Longest one provider call may take; the provider client's own timeout still applies. */
+    timeoutMs: z
+      .number()
+      .int()
+      .positive()
+      .optional()
+      .meta({ description: 'Longest one provider call may take' }),
+  })
+  .meta({ description: "Call parameters; an unset one falls back to the task's own" });
 export type RouteParams = z.infer<typeof routeParamsSchema>;
 
 export interface Route {
@@ -30,11 +38,18 @@ export interface Route {
 }
 
 /** Contract `Route`: a row of the effective routing table. */
-export interface RouteView extends Route {
-  /** Null for the default route of every tenant. */
-  tenant: string | null;
-  task: TaskName;
-}
+export const routeViewSchema = z.object({
+  tenant: z.string().nullable().meta({ description: 'null is the default route' }),
+  task: taskNameSchema,
+  provider: z.string(),
+  providerClass: providerClassSchema.nullable().meta({
+    description:
+      "The provider's class, which the gate decides on; null when this gateway cannot reach the provider (its jobs fail `provider-unavailable`)",
+  }),
+  model: z.string(),
+  params: routeParamsSchema,
+});
+export type RouteView = z.infer<typeof routeViewSchema>;
 
 /**
  * Decides provider, model and call parameters for a job; callers never do (spec 07c). The
@@ -65,19 +80,25 @@ export class Routing {
   async table(): Promise<RouteView[]> {
     const rows = await this.db.select().from(routes).orderBy(asc(routes.task), asc(routes.tenant));
     const defaults = new Set(rows.filter((row) => row.tenant === null).map((row) => row.task));
+    const view = (tenant: string | null, task: TaskName, route: Route): RouteView => ({
+      tenant,
+      task,
+      provider: route.provider,
+      providerClass: this.providers.get(route.provider)?.providerClass ?? null,
+      model: route.model,
+      params: route.params,
+    });
     return [
-      ...rows.map((row) => ({
-        tenant: row.tenant,
-        task: row.task,
-        provider: row.provider,
-        model: row.model,
-        params: parseParams(row.params, row.id),
-      })),
-      ...TASK_NAMES.filter((task) => !defaults.has(task)).map((task) => ({
-        tenant: null,
-        task,
-        ...this.fallback(),
-      })),
+      ...rows.map((row) =>
+        view(row.tenant, row.task, {
+          provider: row.provider,
+          model: row.model,
+          params: parseParams(row.params, row.id),
+        }),
+      ),
+      ...TASK_NAMES.filter((task) => !defaults.has(task)).map((task) =>
+        view(null, task, this.fallback()),
+      ),
     ];
   }
 

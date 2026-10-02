@@ -13,6 +13,7 @@ import { CasesModule } from './cases/cases.module.js';
 import { ClarificationsModule } from './clarifications/clarifications.module.js';
 import { ClosuresModule } from './closures/closures.module.js';
 import { config, SERVICE_NAME } from './config.js';
+import { CopilotModule } from './copilot/copilot.module.js';
 import { schema } from './db/schema.js';
 import { DeterminationsModule } from './determinations/determinations.module.js';
 import { EnforcementModule } from './enforcement/enforcement.module.js';
@@ -49,6 +50,7 @@ import { ReferralsModule } from './referrals/referrals.module.js';
     ClosuresModule,
     EnforcementModule,
     ReferralsModule,
+    CopilotModule,
     ProcessingModule,
   ],
 })

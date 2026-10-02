@@ -61,10 +61,8 @@ const HOUSEHOLD_CHANGES: Change[] = [
   change('acquired', PEOPLE.officer, IDS.prado),
   change('unchanged', PEOPLE.grace, IDS.pharmacyProfit, 0),
   change('unchanged', PEOPLE.grace, IDS.plotShare, 0),
-  // The loan fell from KES 1,250,000 to 750,000. The comparison signs a decrease (-40), but the
-  // input is part of the fixture key: -40 here would orphan every household fixture until they
-  // are re-recorded. Flag 2's evidence carries the direction.
-  change('value-changed', PEOPLE.grace, IDS.pharmacyLoan, 40),
+  // The loan fell from KES 1,250,000 to 750,000: the comparison signs a decrease.
+  change('value-changed', PEOPLE.grace, IDS.pharmacyLoan, -40),
   change('acquired', PEOPLE.mary, IDS.marySalary),
   change('unchanged', PEOPLE.faith, IDS.faithFund, 0),
 ];
@@ -99,7 +97,8 @@ function input(
     kind: 'summarize-declaration',
     document,
     previousDocument,
-    changes,
+    // The review service sends only what changed: the documents hold the unchanged items.
+    changes: changes.filter((each) => each.kind !== 'unchanged'),
     flags,
     registryStatuses,
     language,

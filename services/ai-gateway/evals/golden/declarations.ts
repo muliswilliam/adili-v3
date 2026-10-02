@@ -151,3 +151,39 @@ export function withAxio(document: Declaration): Declaration {
   });
   return document;
 }
+
+const CATEGORIES = ['income', 'assets', 'liabilities'] as const;
+
+/**
+ * An item's context as the review service sends it to explain-flags and draft-clarification
+ * (`placedItemContext`, services/review/src/copilot/copilot-inputs.ts): which version holds it,
+ * its category, type, description, value in KES cents and change marking. Nothing else of the
+ * item is sent.
+ */
+export function itemContextOf(
+  document: Declaration,
+  itemId: string,
+  version: 'current' | 'previous',
+): Json {
+  for (const statement of document.statements) {
+    for (const category of CATEGORIES) {
+      const item = statement[category].find((each) => each.id === itemId);
+      if (!item) continue;
+      const value = (item.amount ?? item.value ?? item.outstanding) as { kesCents: number };
+      return {
+        version,
+        category,
+        type: item.type,
+        description: item.description,
+        valueKesCents: value.kesCents,
+        change: item.change,
+      };
+    }
+  }
+  throw new Error(`No item ${itemId}`);
+}
+
+/** The context of a statement-level selection (no item), as the review service sends it. */
+export function sectionContextOf(personKey: string): Json {
+  return { section: `statement:${personKey}`, personKey };
+}

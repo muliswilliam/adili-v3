@@ -13,6 +13,23 @@ export const TASK_NAMES = [
   'narrate-compliance-report',
 ] as const;
 export type TaskName = (typeof TASK_NAMES)[number];
+export const taskNameSchema = z.enum(TASK_NAMES);
+
+/** Contract `AiLabel`: present on every job output. */
+export const aiLabelSchema = z
+  .object({
+    aiAssisted: z.literal(true),
+    task: taskNameSchema,
+    promptVersion: z.number().int(),
+    provider: z.string(),
+    model: z.string(),
+    generatedAt: z.iso.datetime(),
+    disclaimer: z
+      .string()
+      .meta({ description: 'Fixed text: indicators, not findings; a named officer decides' }),
+  })
+  .meta({ description: 'Present on every output' });
+export type AiLabel = z.infer<typeof aiLabelSchema>;
 
 /**
  * Why an output that fits the schema still fails its task: a kind, and where (paragraph indexes,
@@ -47,6 +64,8 @@ export interface TaskDefinition<
   currentPromptVersion: number;
   /** `output` as JSON Schema, sent to the provider for structured output. */
   outputJsonSchema: JsonSchema;
+  /** The job's output (contract `<Task>Output`): `output` with the gateway's `label` first. */
+  jobOutput: z.ZodObject;
   /** The system prompt of a version; throws for a version the task does not have. */
   prompt(version: number): string;
 }
@@ -73,6 +92,7 @@ export function defineTask<TInput extends z.ZodObject, TOutput extends z.ZodObje
     ...spec,
     currentPromptVersion: Math.max(...spec.promptVersions),
     outputJsonSchema,
+    jobOutput: z.object({ label: aiLabelSchema, ...spec.output.shape }),
     prompt(version) {
       const prompt = prompts.get(version);
       if (prompt === undefined) {
@@ -81,17 +101,6 @@ export function defineTask<TInput extends z.ZodObject, TOutput extends z.ZodObje
       return prompt;
     },
   };
-}
-
-/** Contract `AiLabel`: present on every job output. */
-export interface AiLabel {
-  aiAssisted: true;
-  task: TaskName;
-  promptVersion: number;
-  provider: string;
-  model: string;
-  generatedAt: string;
-  disclaimer: string;
 }
 
 const DISCLAIMERS: Record<Language, string> = {

@@ -14,6 +14,7 @@ export interface ClarificationLetterPayload {
   commission: { name: string; issuerCode: string };
   declarationReference: string;
   clarificationReference: string;
+  opening: string | null;
   items: { label: string; requirementLabel: string; text: string }[];
   issuedAt: string;
   dueAt: string;
@@ -57,6 +58,7 @@ export class LetterPayloadService {
       commission: letter.commission,
       declarationReference,
       clarificationReference: reference,
+      opening: letter.opening ?? null,
       items: letter.items,
       issuedAt: issuedAt.toISOString(),
       dueAt: dueAt.toISOString(),

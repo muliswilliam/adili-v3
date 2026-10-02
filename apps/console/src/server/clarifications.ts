@@ -5,9 +5,12 @@ import { z } from 'zod';
 import { getBff } from './bff.server';
 import {
   type ClarificationDetail,
+  type IssueResult,
+  issueDraft,
   loadClarificationDetail,
   raiseFollowUp,
   resolve,
+  saveDraft,
   withdraw,
 } from './clarifications.server';
 import { documentsClient } from './documents/client.server';
@@ -62,6 +65,59 @@ export const raiseFollowUpClarification = createServerFn({ method: 'POST' })
   .handler(({ data }): Promise<ServiceResult<Clarification>> =>
     asReviewer((client) => raiseFollowUp(client, data.clarificationId)),
   );
+
+/** review.yaml `ClarificationItemInput`, as the composer sends it. */
+const item = z.object({
+  sectionKey: z.string().nullable(),
+  personKey: z.string().nullable(),
+  itemId: z.uuid().nullable(),
+  requirement: z.enum(['provide-omitted', 'explain-discrepancy', 'correct']),
+  text: z.string().trim().min(1).max(1000),
+});
+
+const composed = z.object({
+  caseId: id,
+  /** The draft being edited, or null for a new one. */
+  clarificationId: id.nullable(),
+  items: z.array(item).max(50),
+  /** The letter's opening paragraph (Draft with AI's), or null for none. */
+  opening: z.string().max(800).nullable(),
+  /** One per composer, reused on retry, so a retried create makes one draft. */
+  draftKey: id,
+});
+
+/** Saves the composer's items as a draft (spec 07a FE-4); the declarant does not see it. */
+export const saveClarificationDraft = createServerFn({ method: 'POST' })
+  .validator(composed)
+  .handler(({ data }): Promise<ServiceResult<Clarification>> =>
+    asReviewer((client) =>
+      saveDraft(
+        client,
+        data.caseId,
+        data.clarificationId,
+        { items: data.items, opening: data.opening },
+        data.draftKey,
+      ),
+    ),
+  );
+
+/**
+ * Saves and issues the composer's clarification (S12): the CLR reference, the letter, the
+ * declarant's notices and the 30-day clock. On failure the saved draft's id comes back.
+ */
+export const issueComposedClarification = createServerFn({ method: 'POST' })
+  .validator(composed.extend({ issueKey: id }))
+  .handler(async ({ data }): Promise<IssueResult> => {
+    const session = await getBff().getSession(getRequest());
+    if (!session) return { ok: false, error: { kind: 'unauthenticated' }, draftId: null };
+    return issueDraft(
+      reviewClient(session.accessToken),
+      data.caseId,
+      data.clarificationId,
+      { items: data.items, opening: data.opening },
+      { draft: data.draftKey, issue: data.issueKey },
+    );
+  });
 
 export interface DownloadLink {
   downloadUrl: string;

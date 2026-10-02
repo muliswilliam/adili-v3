@@ -13,7 +13,7 @@ import {
   InMemorySpanExporter,
   SimpleSpanProcessor,
 } from '@opentelemetry/sdk-trace-base';
-import { eq, sql } from 'drizzle-orm';
+import { and, eq, sql } from 'drizzle-orm';
 import { v7 as uuidv7 } from 'uuid';
 import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
@@ -105,6 +105,9 @@ describe('policy', { timeout: 90_000 }, () => {
 
   beforeAll(async () => {
     t = await createTestApp({ provider: external, extraProviders: [second] });
+    // Tenants whose synthetic data the external provider sees, as the demo tenant's does; the
+    // others keep the default.
+    await t.seedDemoGate('demo', 'budgeted', 'routed', 'audited', 'traced');
     auth = { authorization: `Bearer ${await t.token()}` };
     return () => t.close();
   });
@@ -171,23 +174,28 @@ describe('policy', { timeout: 90_000 }, () => {
       const payload = { tenant: 'approved', dataClass: 'restricted', input: summarizeInput };
       expect((await run('summarize-declaration', payload)).status).toBe('blocked');
 
-      const rule = await gate.set(
+      const policy = await gate.set(
         'approved',
         {
-          dataClass: 'restricted',
-          providerClass: 'external',
-          allowed: true,
+          rules: [{ dataClass: 'restricted', providerClass: 'external', allowed: true }],
           approvalRef: 'EACC/AI/2026/014',
         },
-        'platform-admin-1',
+        { subject: 'platform-admin-1', name: 'Amina Platform' },
       );
 
-      expect(rule).toMatchObject({ allowed: true, changedBy: 'platform-admin-1' });
+      expect(policy.rules).toMatchObject([
+        { allowed: true, changedBy: 'platform-admin-1', changedByName: 'Amina Platform' },
+      ]);
       expect((await run('summarize-declaration', payload)).status).toBe('succeeded');
       const [change] = await t.db
         .select()
         .from(auditRecords)
-        .where(eq(auditRecords.action, 'ai.gate-policy.changed'));
+        .where(
+          and(
+            eq(auditRecords.action, 'ai.gate-policy.changed'),
+            eq(auditRecords.tenant, 'approved'),
+          ),
+        );
       expect(change).toMatchObject({
         tenant: 'approved',
         actor: 'platform-admin-1',
@@ -212,12 +220,10 @@ describe('policy', { timeout: 90_000 }, () => {
       await t.app.get(GatePolicies).set(
         'closed',
         {
-          dataClass: 'synthetic',
-          providerClass: 'external',
-          allowed: false,
+          rules: [{ dataClass: 'synthetic', providerClass: 'external', allowed: false }],
           approvalRef: 'Commission resolution 7/2026',
         },
-        'platform-admin-1',
+        { subject: 'platform-admin-1', name: null },
       );
 
       const job = await run('summarize-declaration', {

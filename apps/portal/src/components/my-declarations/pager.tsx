@@ -25,43 +25,63 @@ export function pageNumbers(page: number, pages: number): { page: number; gap: b
 
 export interface PagerProps {
   page: number;
-  pageSize: PageSize;
+  pageSize: number;
   total: number;
   onPage: (page: number) => void;
-  onPageSize: (pageSize: PageSize) => void;
+  /** Offers the rows-per-page choice; without it the page size is fixed. */
+  onPageSize?: (pageSize: PageSize) => void;
+  /** What the pages are of, for assistive technology. */
+  label?: string;
+  className?: string;
 }
 
-/** The kit's numbered pager: the range shown, rows per page, previous, the pages, next. */
-export function Pager({ page, pageSize, total, onPage, onPageSize }: PagerProps) {
+/**
+ * The kit's numbered pager: the range shown, rows per page (when it can change), previous, the
+ * pages, next. A card of its own by default; `className` can set it in a card's footer instead.
+ */
+export function Pager({
+  page,
+  pageSize,
+  total,
+  onPage,
+  onPageSize,
+  label = COPY.pagination,
+  className,
+}: PagerProps) {
   const pages = Math.max(1, Math.ceil(total / pageSize));
   const from = total === 0 ? 0 : (page - 1) * pageSize + 1;
   const to = Math.min(total, page * pageSize);
   const arrow = 'size-8 [&_svg]:size-4';
   return (
     <nav
-      aria-label={COPY.pagination}
-      className="flex flex-wrap items-center gap-1.5 rounded-2xl bg-card px-4 py-2.5 text-[13.5px] text-muted-foreground shadow-card"
+      aria-label={label}
+      className={cn(
+        'flex flex-wrap items-center gap-1.5 rounded-2xl bg-card px-4 py-2.5 text-[13.5px] text-muted-foreground shadow-card',
+        className,
+      )}
     >
       <span aria-live="polite">{COPY.range(from, to, total)}</span>
       <span className="flex-1" />
-      <label className="mr-2 hidden items-center gap-1.5 text-[13px] sm:flex">
-        <span>{COPY.rows}</span>
-        <Select
-          aria-label={COPY.rowsPerPage}
-          className="h-8 w-[72px]"
-          value={String(pageSize)}
-          onValueChange={(value) => {
-            const size = PAGE_SIZES.find((candidate) => String(candidate) === value);
-            if (size) onPageSize(size);
-          }}
-        >
-          {PAGE_SIZES.map((size) => (
-            <SelectItem key={size} value={String(size)}>
-              {size}
-            </SelectItem>
-          ))}
-        </Select>
-      </label>
+      {onPageSize ? (
+        <label className="mr-2 hidden items-center gap-1.5 text-[13px] sm:flex">
+          <span>{COPY.rows}</span>
+          <Select
+            aria-label={COPY.rowsPerPage}
+            className="h-8 w-[72px]"
+            value={String(pageSize)}
+            onValueChange={(value) => {
+              const size = PAGE_SIZES.find((candidate) => String(candidate) === value);
+              if (size) onPageSize(size);
+            }}
+          >
+            {PAGE_SIZES.map((size) => (
+              <SelectItem key={size} value={String(size)}>
+                {size}
+              </SelectItem>
+            ))}
+          </Select>
+        </label>
+      ) : null}
       <Button
         type="button"
         variant="ghost"

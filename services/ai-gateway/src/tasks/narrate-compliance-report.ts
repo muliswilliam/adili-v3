@@ -64,7 +64,11 @@ const output = z.object({
       SECTION_PARAGRAPH_LIMITS.overview +
         SECTION_PARAGRAPH_LIMITS.findings +
         SECTION_PARAGRAPH_LIMITS.recommendations,
-    ),
+    )
+    .meta({
+      description:
+        'The job fails with reason `validation` unless every number in the text is in the input (separators stripped; a percentage is a rate ×100 rounded half up to the places written, at most two; years only as input FYs), every aggregate ref and candidate id is in the input, every finding narrates a candidate, and the paragraphs cover exactly the sections asked for (overview at most 3, findings 12, recommendations 6)',
+    }),
 });
 
 export type NarrateInput = z.infer<typeof input>;

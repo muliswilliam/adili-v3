@@ -31,8 +31,11 @@ const MAX_FREE_COUNT = 10;
  */
 const LEGAL_REFERENCES = [4, 25, 31, 35, 100, 2025];
 
-/** Minor-unit amounts: the input holds cents, the text uses whole units. */
-const MINOR_UNIT_KEYS = new Set(['kesCents', 'minorUnits']);
+/**
+ * Minor-unit amounts: the input holds cents, the text uses whole units. `valueKesCents` is how the
+ * review service gives an item's value in a task's item context.
+ */
+const MINOR_UNIT_KEYS = new Set(['kesCents', 'minorUnits', 'valueKesCents']);
 
 /** Refs and ids, not prose: their digits ("spouse:0192f1a0-…", "value-change-25") state nothing. */
 const REF_KEYS = new Set([

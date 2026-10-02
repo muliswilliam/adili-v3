@@ -6,7 +6,14 @@ import { readFileSync } from 'node:fs';
 import { FastifyAdapter, type NestFastifyApplication } from '@nestjs/platform-fastify';
 import { Test } from '@nestjs/testing';
 import { TokenVerifier } from '@adili/api-kit';
-import { createDatabase, DATABASE, type Database, withTenant } from '@adili/data-access';
+import {
+  createDatabase,
+  DATABASE,
+  type Database,
+  FieldCipher,
+  withTenant,
+} from '@adili/data-access';
+import { FakeCipher } from '@adili/data-access/testing';
 import { type EventEnvelope, OutboxRelay } from '@adili/events';
 import { TemporalWorkerReadinessCheck, WorkflowBundler } from '@adili/temporal';
 import { prebuiltWorkflowBundler, untilWorkerPolling } from '@adili/temporal/testing';
@@ -16,9 +23,12 @@ import { createLocalJWKSet, exportJWK, generateKeyPair, type JWK, SignJWT } from
 import { v7 as uuidv7 } from 'uuid';
 import { inject } from 'vitest';
 
+import { AiGatewayClient } from '../../src/ai-gateway/ai-gateway-client.js';
 import { AppModule } from '../../src/app.module.js';
 import type { ReviewTransaction } from '../../src/cases/case-lookup.js';
 import { Clock } from '../../src/clock.js';
+import { AiJobConsumer } from '../../src/copilot/ai-job.consumer.js';
+import { CopilotActivities } from '../../src/copilot/activities.js';
 import { type ReviewSchema, schema } from '../../src/db/schema.js';
 import { DeclarationsClient } from '../../src/declarations/declarations-client.js';
 import { DirectoryClient } from '../../src/directory/directory-client.js';
@@ -32,6 +42,7 @@ import { NotificationsClient } from '../../src/notifications/notifications-clien
 import { ProcessingActivities } from '../../src/processing/activities.js';
 import { DeclarationSubmittedConsumer } from '../../src/processing/declaration-submitted.consumer.js';
 import { ReferralIcmsRegisteredConsumer } from '../../src/referrals/icms-registered.consumer.js';
+import { FakeAiGateway } from './fake-ai-gateway.js';
 import { FakeClock } from './fake-clock.js';
 import { FakeDeclarations } from './fake-declarations.js';
 import { FakeDirectory } from './fake-directory.js';
@@ -70,6 +81,14 @@ export interface ReviewApi {
   /** The integration-gateway's payroll instructions. */
   gateway: FakeIntegrationGateway;
   clock: FakeClock;
+  /** The ai-gateway's tasks and jobs (spec 07c). */
+  ai: FakeAiGateway;
+  /** The field cipher (real encryption, keys derived from the tenant). */
+  cipher: FakeCipher;
+  /** The inbox consumer of the `ai.job.*` events. */
+  aiJobs: AiJobConsumer;
+  /** The copilot's activities, for driving its steps directly. */
+  copilot: CopilotActivities;
   /** The inbox consumer of `declaration.submitted.v1`, called as the RabbitMQ transport would. */
   consumer: DeclarationSubmittedConsumer;
   /** The inbox consumers of the obligation and clarification events that drive the ladder. */
@@ -144,6 +163,8 @@ export async function startReviewApi(): Promise<ReviewApi> {
   const notifications = new FakeNotifications();
   const gateway = new FakeIntegrationGateway();
   const clock = new FakeClock();
+  const ai = new FakeAiGateway();
+  const cipher = new FakeCipher();
   const moduleRef = await Test.createTestingModule({ imports: [AppModule] })
     .overrideProvider(DATABASE)
     .useValue(db)
@@ -161,6 +182,10 @@ export async function startReviewApi(): Promise<ReviewApi> {
     .useValue(gateway)
     .overrideProvider(Clock)
     .useValue(clock)
+    .overrideProvider(AiGatewayClient)
+    .useValue(ai)
+    .overrideProvider(FieldCipher)
+    .useValue(cipher)
     .overrideProvider(OutboxRelay)
     .useValue({})
     .overrideProvider(WorkflowBundler)
@@ -195,6 +220,10 @@ export async function startReviewApi(): Promise<ReviewApi> {
     notifications,
     gateway,
     clock,
+    ai,
+    cipher,
+    aiJobs: app.get(AiJobConsumer),
+    copilot: app.get(CopilotActivities),
     consumer: app.get(DeclarationSubmittedConsumer),
     enforcement: app.get(EnforcementConsumer),
     icmsRegistered: app.get(ReferralIcmsRegisteredConsumer),
@@ -241,6 +270,9 @@ export async function startReviewApi(): Promise<ReviewApi> {
       notifications.reset();
       gateway.reset();
       clock.reset();
+      ai.reset();
+      cipher.calls.length = 0;
+      cipher.unavailable = false;
     },
     async close() {
       // Close the app first: its worker drains in-flight activities while the pool and the HTTP

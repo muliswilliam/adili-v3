@@ -10,6 +10,8 @@
  * - `late`: responded 3 days after the due date, with a document.
  * - `answered`: responded on time; `further` follows it up and is open.
  * - `resolved` and `withdrawn` (letter revoked as issued in error).
+ * - `history1` to `history3`: resolved months ago on the 2024 biennial declaration
+ *   DCB-TSC-2024-0001207-3, so the list has a second page of earlier clarifications.
  *
  * A response needs an `Idempotency-Key` (a replay returns the first answer) and must answer
  * every point; attachments must be clean `clarification-attachment` uploads in the documents
@@ -37,11 +39,15 @@ export const MOCK_CLARIFICATION_IDS = {
   further: 'c1a70000-0000-4000-8000-000000000006',
   resolved: 'c1a70000-0000-4000-8000-000000000007',
   withdrawn: 'c1a70000-0000-4000-8000-000000000008',
+  history1: 'c1a70000-0000-4000-8000-000000000009',
+  history2: 'c1a70000-0000-4000-8000-00000000000a',
+  history3: 'c1a70000-0000-4000-8000-00000000000b',
 } as const;
 
 const CASE_ID = 'ca5e0000-0000-4000-8000-000000000001';
 const COMMISSION = { slug: 'tsc', name: 'Teachers Service Commission' };
 const DECLARATION_REFERENCE = 'DCI-TSC-2026-0003418-P';
+const BIENNIAL_REFERENCE = 'DCB-TSC-2024-0001207-3';
 
 type Item = DeclarantClarification['items'][number];
 
@@ -110,6 +116,7 @@ function clarification(
       status: 'issued',
     },
     followUpOf: null,
+    opening: null,
     response: null,
     commission: COMMISSION,
     declarationReference: DECLARATION_REFERENCE,
@@ -199,6 +206,27 @@ export function resetReviewMock(now: number = Date.now()) {
     resolvedAt: at(now, -44),
     resolutionNote: 'Registration corrected in the response.',
   });
+
+  const history: [string, number, Item[], number, boolean][] = [
+    [ids.history1, 5, [PLOT, SACCO], 140, true],
+    [ids.history2, 4, [VEHICLE], 160, false],
+    [ids.history3, 2, [SACCO], 200, true],
+  ];
+  for (const [id, n, items, issuedDaysAgo, late] of history) {
+    const old = clarification(id, n, items, issuedDaysAgo, now, {
+      declarationReference: BIENNIAL_REFERENCE,
+    });
+    const respondedAt = at(Date.parse(old.dueAt ?? ''), late ? 6 : -10);
+    seed({
+      ...old,
+      status: 'resolved',
+      respondedAt,
+      responseLate: late,
+      response: responded(items, respondedAt),
+      resolvedAt: at(Date.parse(respondedAt), 14),
+      resolutionNote: 'Response accepted.',
+    });
+  }
 
   const withdrawn = clarification(ids.withdrawn, 30, [VEHICLE], 15, now);
   seed({

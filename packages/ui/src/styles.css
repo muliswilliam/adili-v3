@@ -47,6 +47,7 @@
   --info-subtle: oklch(0.956 0.015 257.2); /* #eaf1fb */
   --info-subtle-foreground: oklch(0.436 0.128 258.5); /* #1f4f96 */
   --ai: oklch(0.536 0.215 287.5); /* #6d4ae0 */
+  --ai-foreground: oklch(1 0 0); /* #ffffff, text on --ai */
   --ai-subtle: oklch(0.954 0.022 297.4); /* #f1edfd */
   --ai-subtle-foreground: oklch(0.394 0.178 284.9); /* #43299f */
   /* Brand orange for UI accents. The logo keeps its own colour, --logo. */
@@ -54,6 +55,12 @@
   --brand-subtle: oklch(0.963 0.017 50.4); /* #fdf0e9 */
   --brand-subtle-foreground: oklch(0.539 0.162 40); /* #b8430f */
   --brand-faint: oklch(0.98 0.009 52.1); /* #fef7f3: selected rows, drag-over */
+  /* An officer's initials (AssigneeChip, NoteList); the signed-in officer's take the brand. */
+  --avatar: oklch(0.925 0.029 294.6); /* #e7e3f8 */
+  --avatar-foreground: oklch(0.425 0.152 285.9); /* #4b3a9c */
+  /* An internal note (NoteList): warm paper with a hairline. */
+  --note: oklch(0.994 0.008 91.5); /* #fffdf7 */
+  --note-border: oklch(0.929 0.033 89.9); /* #f0e7cf */
   /* A highlighter mark on printed text, e.g. the verification code in a sample footer. */
   --highlight: oklch(0.966 0.066 98.2); /* #fff5c2 */
   --logo: oklch(0.669 0.189 40.8); /* #f06225: the Dials logo only */
@@ -139,6 +146,7 @@
     --info-subtle: oklch(0.26 0.052 259); /* #14243d */
     --info-subtle-foreground: oklch(0.848 0.06 257.8); /* #b5cff5 */
     --ai: oklch(0.705 0.152 293.4); /* #a58bf5 */
+    --ai-foreground: oklch(0.205 0.06 289); /* #150f2b */
     --ai-subtle: oklch(0.255 0.078 289.4); /* #231a45 */
     --ai-subtle-foreground: oklch(0.844 0.08 295.1); /* #cfc2fb */
     --brand: oklch(0.681 0.178 40.3); /* #f06a36 */
@@ -155,6 +163,10 @@
     --glow: oklch(0.35 0.05 45);
     --glow-soft: oklch(0.25 0.03 45);
     --highlight: var(--warning-subtle);
+    --avatar: oklch(0.281 0.051 292.7); /* #2a2440 */
+    --avatar-foreground: oklch(0.842 0.07 294); /* #cdc3f5 */
+    --note: oklch(0.24 0.01 88.8); /* #211f1a */
+    --note-border: oklch(0.327 0.025 87.5); /* #3a3426 */
 
     --elevation-control: 0 1px 2px rgb(0 0 0 / 0.3), 0 0 0 1px var(--border);
     --elevation-control-hover: 0 1px 2px rgb(0 0 0 / 0.3), 0 0 0 1px var(--input);
@@ -196,6 +208,7 @@
   --color-info-subtle: var(--info-subtle);
   --color-info-subtle-foreground: var(--info-subtle-foreground);
   --color-ai: var(--ai);
+  --color-ai-foreground: var(--ai-foreground);
   --color-ai-subtle: var(--ai-subtle);
   --color-ai-subtle-foreground: var(--ai-subtle-foreground);
   --color-brand: var(--brand);
@@ -203,6 +216,10 @@
   --color-brand-subtle-foreground: var(--brand-subtle-foreground);
   --color-brand-faint: var(--brand-faint);
   --color-highlight: var(--highlight);
+  --color-avatar: var(--avatar);
+  --color-avatar-foreground: var(--avatar-foreground);
+  --color-note: var(--note);
+  --color-note-border: var(--note-border);
   --color-logo: var(--logo);
   --color-border: var(--border);
   --color-input: var(--input);

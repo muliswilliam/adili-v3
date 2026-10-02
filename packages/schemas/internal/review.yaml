@@ -400,7 +400,7 @@ paths:
       operationId: updateClarificationDraft
       parameters:
         - $ref: '#/components/parameters/OptionalIdempotencyKey'
-      summary: Update a draft's items
+      summary: Update a draft's items and opening paragraph
       requestBody:
         required: true
         content:
@@ -1715,7 +1715,19 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
         '409':
-          description: Already pending, or AI not enabled for this Commission
+          description: 'Already pending (problem type `copilot-pending`), or AI not enabled for this Commission (`ai-not-enabled`)'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '502':
+          description: The declarations service could not give the declaration; nothing was requested
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '503':
+          description: 'The ai-gateway cannot be reached (problem type `ai-gateway-unavailable`); nothing was requested'
           content:
             application/problem+json:
               schema:
@@ -1727,6 +1739,13 @@ paths:
       tags: [copilot]
       operationId: draftClarificationWithAi
       summary: Draft clarification items from selected flags and items (assignee); nothing is issued
+      description: >-
+        Builds the ai-gateway `draft-clarification` input from the case's current version (item
+        context) and flags, in the requested language, and waits up to 10 seconds for the job. A
+        draft not ready by then answers 202 and is polled with `getCopilotDraft`. Drafts are kept
+        for 24 hours and never become clarifications: the console inserts the items into the
+        composer, and the clarification endpoints issue them. A retry with the same
+        Idempotency-Key answers the same draft. Audited read (`review.copilot.drafted`).
       parameters:
         - $ref: '#/components/parameters/IdempotencyKey'
       requestBody:
@@ -1737,7 +1756,7 @@ paths:
               $ref: '#/components/schemas/CopilotDraftInput'
       responses:
         '200':
-          description: Draft ready
+          description: Draft ready, or failed (`failureReason`)
           content:
             application/json:
               schema:
@@ -1749,13 +1768,35 @@ paths:
               schema:
                 $ref: '#/components/schemas/CopilotDraft'
         '400':
-          $ref: '#/components/responses/ValidationProblem'
+          description: 'Body failed validation, or problem type `selection-not-on-case`: a flag the case does not have, an item or section its current version lacks, no selection, or more than 50 items'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
         '403':
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
         '409':
-          description: AI not enabled for this Commission
+          description: 'AI not enabled for this Commission (problem type `ai-not-enabled`), or a request with the same Idempotency-Key is still running (`idempotency-key-in-use`)'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '422':
+          description: Idempotency-Key reused with a different request body (problem type `idempotency-key-reused`)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '502':
+          description: The declarations service could not give the declaration; nothing was requested
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '503':
+          description: 'The ai-gateway (problem type `ai-gateway-unavailable`) or the Commission directory cannot be reached; nothing was requested'
           content:
             application/problem+json:
               schema:
@@ -1772,6 +1813,7 @@ paths:
       tags: [copilot]
       operationId: getCopilotDraft
       summary: Poll a pending draft (assignee)
+      description: Only the assignee who asked for it, for 24 hours; anyone else, or later, 404. Audited read (`review.copilot.draft-viewed`).
       responses:
         '200':
           description: Draft
@@ -1779,8 +1821,16 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/CopilotDraft'
+        '400':
+          $ref: '#/components/responses/ValidationProblem'
         '404':
           $ref: '#/components/responses/NotFound'
+        '503':
+          description: The ai-gateway cannot be reached (problem type `ai-gateway-unavailable`)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
   /v1/review/copilot/outputs/{jobId}/feedback:
     parameters:
       - name: jobId
@@ -1792,7 +1842,8 @@ paths:
     put:
       tags: [copilot]
       operationId: rateCopilotOutput
-      summary: Rate an AI output as helpful or not (reviewer, supervisor); one rating per reviewer per output
+      summary: Rate a copilot output shown on a case as helpful or not (the case's assignee); one rating per reviewer per output
+      description: "The output is named by its job: a summary or explanations shown on the case (`CopilotView.jobs`), or a ready clarification draft within its 24 hours (`CopilotDraft.jobId`). A second rating by the same reviewer replaces the first. The rating is forwarded to the ai-gateway, which announces it for reporting. Supervisors and other reviewers of the Commission read the copilot but do not rate it (403); anyone else, or a job that is not such an output (a pending draft's, say), gets 404."
       requestBody:
         required: true
         content:
@@ -1802,8 +1853,22 @@ paths:
       responses:
         '200':
           description: Recorded
+        '400':
+          $ref: '#/components/responses/ValidationProblem'
+        '403':
+          description: "The caller is not the case's assignee (problem type `not-the-assignee`)"
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
         '404':
           $ref: '#/components/responses/NotFound'
+        '503':
+          description: 'The ai-gateway cannot be reached (problem type `ai-gateway-unavailable`); nothing was recorded'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
   /v1/commissions/{slug}/ai-status:
     parameters:
       - $ref: '#/components/parameters/Slug'
@@ -1811,26 +1876,26 @@ paths:
       tags: [copilot]
       operationId: getCommissionAiStatus
       summary: Whether AI assistance is enabled for the Commission (commission-admin, supervisor)
+      description: |
+        The commission-admin and supervisors of the Commission; anyone else gets 404. Reads the
+        ai-gateway's tenant status (its routes and classification gate). `enabled` says whether
+        the copilot may run on this Commission's cases: the data class its declarations are sent
+        as is among `dataClasses`.
       responses:
         '200':
           description: Status
           content:
             application/json:
               schema:
-                type: object
-                required: [enabled, providerClass, dataClasses]
-                properties:
-                  enabled:
-                    type: boolean
-                  providerClass:
-                    type: [string, 'null']
-                    enum: [external, self-hosted, null]
-                  dataClasses:
-                    type: array
-                    items:
-                      type: string
+                $ref: '#/components/schemas/CommissionAiStatus'
         '404':
           $ref: '#/components/responses/NotFound'
+        '502':
+          description: Problem type `ai-gateway-unavailable`; the status could not be read
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
 components:
   securitySchemes:
     bearer:
@@ -2101,11 +2166,13 @@ components:
         forVersionId:
           type: [string, 'null']
           format: uuid
+          description: 'The version the outputs shown are for (while `stale`, an earlier one); the version requested while there are none'
         generatedAt:
           type: [string, 'null']
           format: date-time
         failureReason:
           type: [string, 'null']
+          description: "The ai-gateway's job reason (`validation`, `budget`, `provider`, ...), `policy` when not enabled, or `rejected` / `ai-gateway-unavailable`"
         summary:
           type: [object, 'null']
           description: ai-gateway SummarizeDeclarationOutput (label, overview, changesSincePrevious, sections, worthAttention)
@@ -2126,7 +2193,7 @@ components:
               format: uuid
         feedback:
           type: array
-          description: The caller's own ratings
+          description: "The caller's own ratings of the outputs shown (`jobs`)"
           items:
             type: object
             required: [jobId, rating]
@@ -2143,22 +2210,26 @@ components:
       properties:
         flagIds:
           type: array
+          maxItems: 50
           items:
             type: string
             format: uuid
         itemRefs:
           type: array
+          maxItems: 50
           items:
             type: object
             required: [personKey, itemId, sectionKey, requirement]
             properties:
               personKey:
                 type: [string, 'null']
+                maxLength: 80
               itemId:
                 type: [string, 'null']
                 format: uuid
               sectionKey:
                 type: [string, 'null']
+                maxLength: 100
               requirement:
                 oneOf:
                   - $ref: '#/components/schemas/Requirement'
@@ -2187,10 +2258,29 @@ components:
           type: [string, 'null']
         items:
           type: array
+          description: Empty until ready
           items:
             $ref: '#/components/schemas/ClarificationItemInput'
         failureReason:
           type: [string, 'null']
+          description: "The ai-gateway's job reason (`validation`, `budget`, `provider`, ...), or `rejected` when the gateway refused the request"
+    CommissionAiStatus:
+      type: object
+      required: [enabled, providerClass, dataClasses]
+      properties:
+        enabled:
+          type: boolean
+          description: "The copilot may run on the Commission's cases: the data class they are sent as is among `dataClasses`"
+        providerClass:
+          type: [string, 'null']
+          enum: [external, self-hosted, null]
+          description: The provider class the Commission's AI tasks are routed to; null when no route names a provider the ai-gateway can reach
+        dataClasses:
+          type: array
+          description: Data classes that provider class may process for the Commission
+          items:
+            type: string
+            enum: [synthetic, restricted, highly-confidential]
     CopilotFeedbackInput:
       type: object
       required: [rating, reason, note]
@@ -2448,6 +2538,12 @@ components:
           maxItems: 50
           items:
             $ref: '#/components/schemas/ClarificationItemInput'
+        opening:
+          type: [string, 'null']
+          maxLength: 800
+          description: >-
+            The letter's opening paragraph, printed before the items (e.g. from Draft with AI).
+            Left out or null: the letter has none. A draft's update replaces it like the items.
     ClarificationResponseInput:
       type: object
       required: [items]
@@ -2491,6 +2587,7 @@ components:
         - letter
         - followUpOf
         - response
+        - opening
       properties:
         id:
           type: string
@@ -2546,6 +2643,9 @@ components:
         followUpOf:
           type: [string, 'null']
           format: uuid
+        opening:
+          type: [string, 'null']
+          description: The letter's opening paragraph, printed before the items; null when it has none
         response:
           oneOf:
             - type: object
@@ -2627,6 +2727,7 @@ components:
           commission,
           declarationReference,
           clarificationReference,
+          opening,
           items,
           issuedAt,
           dueAt,
@@ -2647,6 +2748,9 @@ components:
           type: string
         clarificationReference:
           type: string
+        opening:
+          type: [string, 'null']
+          description: Printed before the items; null when the letter has no opening paragraph
         items:
           type: array
           items:

@@ -1,12 +1,20 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 
-import { loadClarificationDetail, raiseFollowUp, resolve, withdraw } from './clarifications.server';
+import {
+  issueDraft,
+  loadClarificationDetail,
+  raiseFollowUp,
+  resolve,
+  saveDraft,
+  withdraw,
+} from './clarifications.server';
 import {
   MOCK_CASE_IDS as CASES,
   MOCK_CLARIFICATION_IDS as K,
   mockReviewClient,
   resetReviewMock,
 } from './review/mock.server';
+import { MOCK_ITEM_IDS } from './review/copilot-mock.server';
 
 const NOW_MS = Date.parse('2026-09-28T09:00:00Z');
 const NOW = new Date(NOW_MS).toISOString();
@@ -79,7 +87,8 @@ describe('actions (S15)', () => {
     const steps = await mockReviewClient(ME, 'Grace Wanjiru').GET('/v1/review/cases/{caseId}', {
       params: { path: { caseId: CASES.mine } },
     });
-    expect(steps.data?.timeline.map((entry) => entry.ref)).toEqual([
+    const statusChanges = steps.data?.timeline.filter((entry) => entry.kind === 'status-changed');
+    expect(statusChanges?.map((entry) => entry.ref)).toEqual([
       'clarified',
       'ready-for-determination',
     ]);
@@ -117,6 +126,139 @@ describe('actions (S15)', () => {
     expect(await resolve(client(), K.overdue, 'Overdue')).toMatchObject({
       ok: false,
       error: { kind: 'problem', problem: { status: 409 } },
+    });
+  });
+});
+
+const PLOT_ITEM = {
+  sectionKey: 'statement:officer',
+  personKey: 'officer',
+  itemId: MOCK_ITEM_IDS.plot,
+  requirement: 'explain-discrepancy' as const,
+  text: 'Explain the 150% change in value.',
+};
+const KEYS = {
+  draft: 'd0000000-0000-4000-8000-000000000001',
+  issue: 'd0000000-0000-4000-8000-000000000002',
+};
+
+describe('saveDraft', () => {
+  it('creates a draft on the case, then updates the same one', async () => {
+    const created = await saveDraft(client(), CASES.mine, null, { items: [PLOT_ITEM] }, KEYS.draft);
+    if (!created.ok) throw new Error(JSON.stringify(created.error));
+    expect(created.data).toMatchObject({
+      caseId: CASES.mine,
+      status: 'draft',
+      reference: null,
+      items: [PLOT_ITEM],
+    });
+
+    const updated = await saveDraft(
+      client(),
+      CASES.mine,
+      created.data.id,
+      { items: [] },
+      KEYS.draft,
+    );
+    if (!updated.ok) throw new Error('not ok');
+    expect(updated.data).toMatchObject({ id: created.data.id, items: [] });
+  });
+
+  it('replays a create with the same key instead of making a second draft', async () => {
+    const first = await saveDraft(client(), CASES.mine, null, { items: [PLOT_ITEM] }, KEYS.draft);
+    const again = await saveDraft(client(), CASES.mine, null, { items: [PLOT_ITEM] }, KEYS.draft);
+    if (!first.ok || !again.ok) throw new Error('not ok');
+    expect(again.data.id).toBe(first.data.id);
+  });
+
+  it('refuses a case someone else holds (403)', async () => {
+    expect(
+      await saveDraft(client(), CASES.peters, null, { items: [PLOT_ITEM] }, KEYS.draft),
+    ).toMatchObject({
+      ok: false,
+      error: { kind: 'problem', problem: { status: 403 } },
+    });
+  });
+
+  it('refuses to change a clarification already issued (409)', async () => {
+    expect(
+      await saveDraft(client(), CASES.mine, K.issued, { items: [PLOT_ITEM] }, KEYS.draft),
+    ).toMatchObject({
+      ok: false,
+      error: { kind: 'problem', problem: { status: 409 } },
+    });
+  });
+});
+
+describe('issueDraft (S12)', () => {
+  it('saves the items and issues: CLR reference, due in 30 days, letter on its way', async () => {
+    const issued = await issueDraft(client(), CASES.mine, null, { items: [PLOT_ITEM] }, KEYS);
+    if (!issued.ok) throw new Error(JSON.stringify(issued.error));
+    expect(issued.data.status).toBe('issued');
+    expect(issued.data.reference).toMatch(/^CLR-TSC-2026-\d{7}-[0-9A-Z]$/);
+    expect(issued.data.items).toEqual([PLOT_ITEM]);
+    expect(issued.data.letter?.status).toBe('pending');
+    const { issuedAt, dueAt } = issued.data;
+    expect(Date.parse(dueAt ?? '') - Date.parse(issuedAt ?? '')).toBe(30 * 86_400_000);
+  });
+
+  it('issues a saved draft with its latest items', async () => {
+    const draft = await saveDraft(client(), CASES.mine, null, { items: [] }, KEYS.draft);
+    if (!draft.ok) throw new Error('not ok');
+    const issued = await issueDraft(
+      client(),
+      CASES.mine,
+      draft.data.id,
+      { items: [PLOT_ITEM] },
+      KEYS,
+    );
+    if (!issued.ok) throw new Error('not ok');
+    expect(issued.data).toMatchObject({ id: draft.data.id, status: 'issued', items: [PLOT_ITEM] });
+  });
+
+  it('keeps the draft when the six-month window has closed (409), with the date', async () => {
+    const result = await issueDraft(
+      client(),
+      CASES.windowClosed,
+      null,
+      { items: [PLOT_ITEM] },
+      KEYS,
+    );
+    expect(result).toMatchObject({
+      ok: false,
+      error: {
+        kind: 'problem',
+        problem: { status: 409, type: 'clarification-window-closed' },
+      },
+    });
+    if (result.ok) throw new Error('issued');
+    expect(result.draftId).toEqual(expect.any(String));
+    const kept = await client().GET('/v1/review/clarifications/{clarificationId}', {
+      params: { path: { clarificationId: result.draftId ?? '' } },
+    });
+    expect(kept.data).toMatchObject({ status: 'draft', items: [PLOT_ITEM] });
+  });
+
+  it('refuses a draft without items (400)', async () => {
+    expect(await issueDraft(client(), CASES.mine, null, { items: [] }, KEYS)).toMatchObject({
+      ok: false,
+      error: { kind: 'problem', problem: { status: 400 } },
+    });
+  });
+
+  it('replays an issue with the same key', async () => {
+    const first = await issueDraft(client(), CASES.mine, null, { items: [PLOT_ITEM] }, KEYS);
+    if (!first.ok) throw new Error('not ok');
+    const again = await issueDraft(
+      client(),
+      CASES.mine,
+      first.data.id,
+      { items: [PLOT_ITEM] },
+      KEYS,
+    );
+    expect(again).toMatchObject({
+      ok: true,
+      data: { id: first.data.id, reference: first.data.reference },
     });
   });
 });

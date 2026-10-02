@@ -1,0 +1,1 @@
+ALTER TABLE "gate_policies" ADD COLUMN "changed_by_name" text;
