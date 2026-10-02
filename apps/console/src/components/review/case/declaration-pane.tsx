@@ -8,6 +8,7 @@ import {
   Button,
   cn,
   DeclarationSummary,
+  focusRing,
   Icon,
 } from '@adili/ui';
 import { Flag02Icon, RefreshIcon, WifiDisconnected01Icon } from '@hugeicons/core-free-icons';
@@ -84,6 +85,7 @@ export function DeclarationPane({
                 type="button"
                 aria-label={copy.pinnedLabel(pin.count)}
                 className={cn(
+                  focusRing,
                   'inline-flex h-6 cursor-pointer items-center gap-[5px] rounded-full px-2 text-xs font-semibold [&_svg]:size-3',
                   PIN_TONES[pin.severity],
                 )}
