@@ -1,6 +1,6 @@
 import type { DeclarationV1 } from '@adili/forms';
 
-import type { ClarificationItem, ClarificationLetter } from '../cases/schema.js';
+import type { ClarificationItem, ClarificationLetter, LetterLanguage } from '../cases/schema.js';
 import {
   type DeclarationsClient,
   DeclarationsUnavailable,
@@ -18,8 +18,8 @@ export interface LetterCase {
 }
 
 /**
- * The letter of a clarification being issued: its opening paragraph, and each item labelled from
- * the case's current version as filed, read from declarations on the reviewer's behalf (audited
+ * The letter of a clarification being issued, in its language: its opening paragraph, and each
+ * item labelled from the case's current version as filed, read from declarations on the reviewer's behalf (audited
  * there), each marked when drafted with AI (ADR-007). A declarations outage is a 502: nothing is
  * issued, and the reviewer issues again.
  */
@@ -33,8 +33,10 @@ export async function composeLetter(
     opening,
     openingAiJobId,
     aiAssisted,
+    language,
   }: {
     items: ClarificationItem[];
+    language: LetterLanguage;
     opening: string | null;
     openingAiJobId: string | null;
     /** The clarification's sticky marker: some save named AI-drafted text. */
@@ -54,13 +56,14 @@ export async function composeLetter(
     throw declarationsUnavailable();
   }
   const lines = items.map((item) => ({
-    label: itemLabel(item, document),
-    requirementLabel: REQUIREMENT_LABELS[item.requirement],
+    label: itemLabel(item, document, language),
+    requirementLabel: REQUIREMENT_LABELS[language][item.requirement],
     text: item.text,
     aiAssisted: item.aiJobId != null,
   }));
   return {
     commission: { name: commission.name, issuerCode: commission.issuerCode },
+    language,
     opening,
     aiAssisted:
       aiAssisted ||

@@ -289,6 +289,7 @@ function clarificationView(
     followUpOf: row.followUpOf,
     opening: row.opening,
     openingAiJobId: row.openingAiJobId,
+    language: row.language,
     response:
       response === undefined
         ? null

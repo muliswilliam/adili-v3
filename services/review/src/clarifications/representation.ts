@@ -3,6 +3,7 @@ import type {
   ClarificationStatus,
   clarificationResponses,
   clarifications,
+  LetterLanguage,
 } from '../cases/schema.js';
 import { z } from 'zod';
 
@@ -59,6 +60,8 @@ export interface ClarificationView {
   opening: string | null;
   /** The Draft with AI job that drafted the opening paragraph; null when the reviewer wrote it. */
   openingAiJobId: string | null;
+  /** The letter's language (review.yaml `LetterLanguage`). */
+  language: LetterLanguage;
   response: {
     items: {
       index: number;
@@ -104,6 +107,7 @@ export function clarificationView(
     followUpOf: row.followUpOf,
     opening: row.opening,
     openingAiJobId: row.openingAiJobId,
+    language: row.language,
     response: response === null ? null : responseView(row.items, response),
   };
 }

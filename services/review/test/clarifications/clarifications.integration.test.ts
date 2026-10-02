@@ -129,6 +129,8 @@ describe('clarifications: drafts, issue, letter payload, declarant reads', () =>
       letter: null,
       response: null,
       opening: null,
+      // Left out: English.
+      language: 'en',
       items: twoItems.items,
     });
   });
@@ -463,6 +465,65 @@ describe('clarifications: drafts, issue, letter payload, declarant reads', () =>
     expect(payload.json()).toMatchObject({ opening });
   });
 
+  it("story 7: a Swahili letter keeps its language through updates and follow-ups, and the letter payload's labels and requirements are in it", async () => {
+    const caseId = await givenAssignedCase(api, version);
+    const created = await draft(caseId, { ...twoItems, language: 'sw' });
+    expect(created.statusCode, created.body).toBe(201);
+    const { id } = created.json<ClarificationView>();
+    expect(created.json<ClarificationView>().language).toBe('sw');
+    expect(
+      (
+        await api.send('POST', `/v1/review/cases/${caseId}/clarifications`, reviewerA, {
+          ...twoItems,
+          language: 'fr',
+        })
+      ).statusCode,
+    ).toBe(400);
+
+    // An update replaces it like the items: left out, the letter is in English.
+    const english = await api.send('PUT', `/v1/review/clarifications/${id}`, reviewerA, twoItems);
+    expect(english.json<ClarificationView>().language).toBe('en');
+    const swahili = await api.send('PUT', `/v1/review/clarifications/${id}`, reviewerA, {
+      ...twoItems,
+      language: 'sw',
+    });
+    expect(swahili.json<ClarificationView>().language).toBe('sw');
+
+    const issued = await issue(id);
+    expect(issued.statusCode, issued.body).toBe(200);
+    await vi.waitFor(
+      () => {
+        expect(api.documents.issued).toHaveLength(1);
+      },
+      { timeout: 45_000, interval: 250 },
+    );
+    const payload = await api.get(
+      `/internal/v1/review/clarifications/${id}/letter-payload`,
+      documentsService,
+      { 'x-acting-tenant': 'psc' },
+    );
+    expect(payload.statusCode, payload.body).toBe(200);
+    expect(payload.json()).toMatchObject({
+      language: 'sw',
+      items: [
+        {
+          label: 'Mali · Plot KSM/123 · James Otieno',
+          requirementLabel: 'Eleza tofauti au kutowiana kwa taarifa',
+          text: twoItems.items[0]?.text,
+        },
+        {
+          label: 'Mali · Toyota KDA 123A · Grace Otieno',
+          requirementLabel: 'Toa taarifa zilizoachwa',
+          text: twoItems.items[1]?.text,
+        },
+      ],
+    });
+
+    const followUp = await api.send('POST', `/v1/review/clarifications/${id}/follow-up`, reviewerA);
+    expect(followUp.statusCode, followUp.body).toBe(201);
+    expect(followUp.json<ClarificationView>().language).toBe('sw');
+  });
+
   it('ADR-007: text drafted with AI keeps its job through edits and issue, and the letter says so', async () => {
     const caseId = await givenAssignedCase(api, version);
     const jobId = randomUUID();
@@ -690,6 +751,7 @@ describe('clarifications: drafts, issue, letter payload, declarant reads', () =>
       commission: { name: 'Public Service Commission', issuerCode: 'PSC' },
       declarationReference: 'DCB-PSC-2027-0000042-7',
       clarificationReference: reference,
+      language: 'en',
       opening: null,
       aiAssisted: false,
       items: [

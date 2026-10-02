@@ -148,6 +148,8 @@ export interface ClarificationView {
   opening: string | null;
   /** The Draft with AI job that drafted the opening paragraph; null when the reviewer wrote it. */
   openingAiJobId: string | null;
+  /** The letter's language (review.yaml `LetterLanguage`). */
+  language: 'en' | 'sw';
   response: {
     items: {
       index: number;

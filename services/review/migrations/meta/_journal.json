@@ -127,6 +127,13 @@
       "when": 1790953981226,
       "tag": "0017_version_first_on_adili",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1790956808339,
+      "tag": "0018_clarification_language",
+      "breakpoints": true
     }
   ]
 }

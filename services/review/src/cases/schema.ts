@@ -84,6 +84,10 @@ export const OPEN_CLARIFICATION_STATUSES = ['issued', 'overdue'] as const;
 /** review.yaml `Requirement` (Act s.35(4)). */
 export const REQUIREMENTS = ['provide-omitted', 'explain-discrepancy', 'correct'] as const;
 
+/** A clarification letter's language (review.yaml `LetterLanguage`): English or Swahili. */
+export const LETTER_LANGUAGES = ['en', 'sw'] as const;
+export type LetterLanguage = (typeof LETTER_LANGUAGES)[number];
+
 /** Kinds of timeline entry; later slices add theirs. */
 export type TimelineKind =
   | 'case-created'
@@ -292,6 +296,11 @@ export interface ClarificationLetter {
    * issued before it was recorded.
    */
   aiAssisted?: boolean;
+  /**
+   * The letter's language: its own text, labels and requirements are in it. Absent from letters
+   * issued before it was recorded, which are English.
+   */
+  language?: LetterLanguage;
   items: { label: string; requirementLabel: string; text: string; aiAssisted?: boolean }[];
 }
 
@@ -318,6 +327,8 @@ export const clarifications = pgTable(
      * an item's or the opening's job never issues the letter unlabelled.
      */
     aiAssisted: boolean().notNull().default(false),
+    /** The letter's language, chosen in the composer; the issued letter fixes it. */
+    language: text({ enum: LETTER_LANGUAGES }).notNull().default('en'),
     issuedAt: timestamp({ withTimezone: true }),
     dueAt: timestamp({ withTimezone: true }),
     respondedAt: timestamp({ withTimezone: true }),
@@ -342,6 +353,7 @@ export const clarifications = pgTable(
       'clarifications_status_check',
       sql`${table.status} in (${inList(CLARIFICATION_STATUSES)})`,
     ),
+    check('clarifications_language_check', sql`${table.language} in (${inList(LETTER_LANGUAGES)})`),
   ],
 );
 

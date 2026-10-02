@@ -95,6 +95,7 @@ export class ClarificationsService {
           items: storedItems(input),
           opening: input.opening,
           openingAiJobId: input.openingAiJobId,
+          language: input.language,
           aiAssisted,
           createdBy: principal.subject,
         })
@@ -126,6 +127,7 @@ export class ClarificationsService {
           items: storedItems(input),
           opening: input.opening,
           openingAiJobId: input.openingAiJobId,
+          language: input.language,
           // Once AI-assisted, always: a save that leaves the jobs out keeps the label (ADR-007).
           aiAssisted: clarification.aiAssisted || aiAssisted,
         })
@@ -284,8 +286,8 @@ export class ClarificationsService {
   }
 
   /**
-   * The assignee raises a follow-up: a new draft of the same case with the items of the
-   * clarification it follows and `followUpOf` naming it, with a timeline entry in the same
+   * The assignee raises a follow-up: a new draft of the same case with the items, opening and
+   * language of the clarification it follows and `followUpOf` naming it, with a timeline entry in the same
    * transaction. Once issued it has its own `CLR` reference, letter and clock.
    */
   async followUp(principal: Principal, clarificationId: string): Promise<ClarificationView> {
@@ -315,6 +317,7 @@ export class ClarificationsService {
           items: clarification.items.map((item) => ({ ...item, id: uuidv7() })),
           opening: clarification.opening,
           openingAiJobId: clarification.openingAiJobId,
+          language: clarification.language,
           aiAssisted: clarification.aiAssisted,
           followUpOf: clarificationId,
           createdBy: principal.subject,
