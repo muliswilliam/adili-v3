@@ -17,13 +17,15 @@ export function migrationTags(): string[] {
  * Applies the committed migrations `tags` (all of them by default) in order, in one transaction
  * as drizzle's migrator does (a migration's transaction-local settings, e.g. `app.tenant` for a
  * backfill under FORCE row-level security, hold for its later statements), in the schema the
- * connection's search path names: a suite's private schema.
+ * connection's search path names: a suite's private schema. `after` runs last in the same
+ * transaction, to see what the migrations left set in it.
  */
-export async function applyMigrations(
+export async function applyMigrations<T = void>(
   db: Database<Record<string, unknown>>,
   tags: readonly string[] = migrationTags(),
-): Promise<void> {
-  await db.transaction(async (tx) => {
+  after?: (tx: Parameters<Parameters<typeof db.transaction>[0]>[0]) => Promise<T>,
+): Promise<T | undefined> {
+  return db.transaction(async (tx) => {
     for (const tag of tags) {
       // drizzle-kit qualifies foreign key targets with "public"; resolve them in the test schema.
       const migration = readFileSync(new URL(`${tag}.sql`, MIGRATIONS), 'utf8').replaceAll(
@@ -34,5 +36,6 @@ export async function applyMigrations(
         if (statement.trim()) await tx.execute(sql.raw(statement));
       }
     }
+    return after?.(tx);
   });
 }
