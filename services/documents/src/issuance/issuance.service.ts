@@ -410,8 +410,8 @@ export class IssuanceService {
     try {
       for (let attempt = 1; ; attempt++) {
         const read = await withTenant(this.db, context, async (tx) => ({
-          current: await findRecord(tx, request.documentId),
-          newer: await findRecord(tx, request.supersededBy),
+          current: await findRecord(tx, request.tenant, request.documentId),
+          newer: await findRecord(tx, request.tenant, request.supersededBy),
         }));
         const { current, newer } = supersedable(notFoundIfInvisible(read.current), read.newer);
         const statusChangedAt = this.clock.now();
@@ -423,8 +423,8 @@ export class IssuanceService {
         });
 
         const superseded = await withTenant(this.db, context, async (tx) => {
-          const locked = await this.lockedRecord(tx, current.document.id);
-          const lockedNewer = await this.lockedRecord(tx, newer.document.id);
+          const locked = await lockedRecord(tx, request.tenant, current.document.id);
+          const lockedNewer = await lockedRecord(tx, request.tenant, newer.document.id);
           if (!unchanged(locked, current) || !unchanged(lockedNewer, newer)) return null;
           const [updated] = await tx
             .update(verificationRecords)
@@ -469,8 +469,7 @@ export class IssuanceService {
    */
   async announce(tenant: string, actor: string, documentId: string): Promise<void> {
     await withTenant(this.db, { tenant, subject: actor }, async (tx) => {
-      const [row] = await withRecord(tx).where(eq(issuedDocuments.id, documentId));
-      const found = notFoundIfInvisible(row);
+      const found = notFoundIfInvisible(await findRecord(tx, tenant, documentId));
       await this.events.record(tx, {
         type: DOCUMENT_ISSUED,
         subject: found.document.id,
@@ -562,7 +561,9 @@ export class IssuanceService {
    * manifest). 404 for another tenant's document.
    */
   async getForTenant(tenant: string, actor: string, id: string): Promise<IssuedDocument> {
-    const found = await withTenant(this.db, { tenant, subject: actor }, (tx) => findRecord(tx, id));
+    const found = await withTenant(this.db, { tenant, subject: actor }, (tx) =>
+      findRecord(tx, tenant, id),
+    );
     const { document, record } = notFoundIfInvisible(found);
     return this.toIssuedDocument(document, record);
   }
@@ -577,7 +578,9 @@ export class IssuanceService {
     actor: string,
     id: string,
   ): Promise<{ download: DocumentDownload; document: DocumentRow }> {
-    const found = await withTenant(this.db, { tenant, subject: actor }, (tx) => findRecord(tx, id));
+    const found = await withTenant(this.db, { tenant, subject: actor }, (tx) =>
+      findRecord(tx, tenant, id),
+    );
     const { document } = notFoundIfInvisible(found);
     return { download: await this.presigned(document, this.clock.now()), document };
   }
@@ -649,18 +652,14 @@ export class IssuanceService {
   ): Promise<IssuedDocument | undefined> {
     const [found] = await withTenant(this.db, { tenant, subject: SYSTEM_SUBJECT }, (tx) =>
       withRecord(tx).where(
-        and(eq(issuedDocuments.type, type), eq(issuedDocuments.subjectRef, subjectRef)),
+        and(
+          eq(issuedDocuments.tenant, tenant),
+          eq(issuedDocuments.type, type),
+          eq(issuedDocuments.subjectRef, subjectRef),
+        ),
       ),
     );
     return found ? this.toIssuedDocument(found.document, found.record) : undefined;
-  }
-
-  /** A document with its record, the record locked for the rest of the transaction. */
-  private async lockedRecord(tx: Tx, id: string): Promise<DocumentWithRecord | undefined> {
-    const [found] = await withRecord(tx)
-      .where(eq(issuedDocuments.id, id))
-      .for('update', { of: verificationRecords });
-    return found;
   }
 
   private async store(key: string, pdf: Buffer): Promise<void> {
@@ -764,9 +763,31 @@ function withRecord(tx: Tx) {
     .innerJoin(verificationRecords, eq(verificationRecords.documentId, issuedDocuments.id));
 }
 
-/** A document with its verification record, unlocked; undefined when not visible. */
-async function findRecord(tx: Tx, id: string): Promise<DocumentWithRecord | undefined> {
-  const [found] = await withRecord(tx).where(eq(issuedDocuments.id, id));
+/**
+ * A document the tenant issued with its verification record, unlocked; undefined when it is not
+ * the tenant's. Filtered on the tenant as well as by RLS, which also admits EACC to every
+ * Commission's referral packages (issued_documents_eacc_read) for its own downloads only.
+ */
+async function findRecord(
+  tx: Tx,
+  tenant: string,
+  id: string,
+): Promise<DocumentWithRecord | undefined> {
+  const [found] = await withRecord(tx).where(
+    and(eq(issuedDocuments.id, id), eq(issuedDocuments.tenant, tenant)),
+  );
+  return found;
+}
+
+/** `findRecord`, the record locked for the rest of the transaction. */
+async function lockedRecord(
+  tx: Tx,
+  tenant: string,
+  id: string,
+): Promise<DocumentWithRecord | undefined> {
+  const [found] = await withRecord(tx)
+    .where(and(eq(issuedDocuments.id, id), eq(issuedDocuments.tenant, tenant)))
+    .for('update', { of: verificationRecords });
   return found;
 }
 

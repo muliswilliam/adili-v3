@@ -11,6 +11,7 @@ import { asc, eq } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { issuedDocuments, outbox, verificationRecords } from '../../src/db/schema.js';
+import { IssuanceService } from '../../src/issuance/issuance.service.js';
 import type { DocumentDownload, IssuedDocument } from '../../src/issuance/representation.js';
 import type { ReferralPackagePayload } from '../../src/issuance/templates/referral-package.v1.js';
 import { contractErrors, okResponse } from '../support/contract.js';
@@ -725,7 +726,8 @@ describe('S12 EACC downloads the referral packages Commissions send, and nothing
 
   const download = (id: string, caller: Caller) => api.get(`/v1/documents/${id}/download`, caller);
 
-  beforeAll(async () => {
+  /** A referral package the PSC issues, as the review service asks it. */
+  async function issuedPackage(): Promise<IssuedDocument> {
     const referralId = randomUUID();
     api.review.given('referral', 'psc', referralId, packagePayload());
     const response = await api.post(
@@ -741,7 +743,11 @@ describe('S12 EACC downloads the referral packages Commissions send, and nothing
       { idempotencyKey: null, headers: { 'x-acting-tenant': 'psc' } },
     );
     expect(response.statusCode, response.body).toBe(201);
-    referralPackage = response.json<IssuedDocument>();
+    return response.json<IssuedDocument>();
+  }
+
+  beforeAll(async () => {
+    referralPackage = await issuedPackage();
     ({ document: formM } = await issued(reportRequest(randomUUID(), 'form-m', submittedFormM())));
     ({ document: ncr } = await issued(ncrRequest(randomUUID())));
   });
@@ -825,6 +831,35 @@ describe('S12 EACC downloads the referral packages Commissions send, and nothing
     const analyst: Caller = { ...EACC_ANALYST, personId };
     expect((await download(letter.id, analyst)).statusCode).toBe(200);
     expect((await download(letter.id, EACC_SUPERVISOR)).statusCode).toBe(404);
+  });
+
+  it("answers 404 to a service acting for EACC on a Commission's package: no metadata, download, supersede or announcement", async () => {
+    const asEacc = { idempotencyKey: null, headers: { 'x-acting-tenant': 'eacc' } };
+    const get = (path: string) => api.get(path, REPORTING, asEacc.headers);
+    expect((await get(`/internal/v1/documents/${referralPackage.id}`)).statusCode).toBe(404);
+    expect((await get(`/internal/v1/documents/${referralPackage.id}/download`)).statusCode).toBe(
+      404,
+    );
+    const newer = await issuedPackage();
+    const supersede = await api.post(
+      `/internal/v1/documents/${referralPackage.id}/supersede`,
+      { supersededBy: newer.id },
+      REPORTING,
+      asEacc,
+    );
+    expect(supersede.statusCode, supersede.body).toBe(404);
+
+    const before = (await eventsAbout(referralPackage.id)).length;
+    await expect(
+      api.app.get(IssuanceService).announce('eacc', 'test', referralPackage.id),
+    ).rejects.toMatchObject({ problem: { status: 404 } });
+    expect(await eventsAbout(referralPackage.id)).toHaveLength(before);
+
+    // The Commission itself still reads it.
+    const asPsc = await api.get(`/internal/v1/documents/${referralPackage.id}`, REVIEW, {
+      'x-acting-tenant': 'psc',
+    });
+    expect(asPsc.statusCode).toBe(200);
   });
 
   it("answers 404 to EACC for any other document: a Commission's Form M, even EACC's own report", async () => {
