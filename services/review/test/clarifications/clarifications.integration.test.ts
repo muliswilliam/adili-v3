@@ -639,8 +639,13 @@ describe('clarifications: drafts, issue, letter payload, declarant reads', () =>
         downloadUrl: expect.stringContaining(documentId) as unknown,
       });
     }
+    // M13: each read for the staff member downloading, whom documents' audit names (ADR-013 §8.6).
     expect(api.documents.documentDownloads).toEqual(
-      Array.from({ length: 3 }, () => ({ documentId, tenant: 'psc' })),
+      [reviewerA, reviewerB, supervisor].map((caller) => ({
+        documentId,
+        tenant: 'psc',
+        actingSubject: caller.sub,
+      })),
     );
     const recorded = await audits();
     expect(recorded).toHaveLength(3);

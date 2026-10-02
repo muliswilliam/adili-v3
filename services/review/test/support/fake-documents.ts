@@ -47,9 +47,9 @@ export interface FakeUpload {
  * review service (as documents does when it renders the template) and records what it got.
  */
 export class FakeDocuments extends DocumentsClient {
-  readonly downloads: { uploadId: string; tenant: string }[] = [];
+  readonly downloads: { uploadId: string; tenant: string; actingSubject: string }[] = [];
   /** Every issued document's download link handed out, for which Commission. */
-  readonly documentDownloads: { documentId: string; tenant: string }[] = [];
+  readonly documentDownloads: { documentId: string; tenant: string; actingSubject: string }[] = [];
   readonly issued: IssuedLetter[] = [];
   readonly revoked: { documentId: string; tenant: string; reason: RevocationReason }[] = [];
   payloadSource: PayloadSource | undefined;
@@ -110,7 +110,11 @@ export class FakeDocuments extends DocumentsClient {
     this.failures = 0;
   }
 
-  getUploadDownload(uploadId: string, tenant: string): Promise<UploadDownload | null> {
+  getUploadDownload(
+    uploadId: string,
+    tenant: string,
+    actingSubject: string,
+  ): Promise<UploadDownload | null> {
     if (this.failures > 0) {
       this.failures -= 1;
       return Promise.reject(new DocumentsUnavailable('The documents service is unreachable'));
@@ -120,7 +124,7 @@ export class FakeDocuments extends DocumentsClient {
     if (upload.state !== 'clean') {
       return Promise.reject(new InternalApiRejected('documents', 409));
     }
-    this.downloads.push({ uploadId, tenant });
+    this.downloads.push({ uploadId, tenant, actingSubject });
     return Promise.resolve({
       downloadUrl: `https://objects.test/uploads/${uploadId}?signature=test`,
       expiresAt: new Date(Date.now() + 5 * 60_000).toISOString(),
@@ -130,14 +134,18 @@ export class FakeDocuments extends DocumentsClient {
     });
   }
 
-  getIssuedDocumentDownload(documentId: string, tenant: string): Promise<DocumentDownload | null> {
+  getIssuedDocumentDownload(
+    documentId: string,
+    tenant: string,
+    actingSubject: string,
+  ): Promise<DocumentDownload | null> {
     if (this.failures > 0) {
       this.failures -= 1;
       return Promise.reject(new DocumentsUnavailable('The documents service is unreachable'));
     }
     const found = this.known.get(documentId);
     if (found?.tenant !== tenant) return Promise.resolve(null);
-    this.documentDownloads.push({ documentId, tenant });
+    this.documentDownloads.push({ documentId, tenant, actingSubject });
     return Promise.resolve({
       downloadUrl: `https://objects.test/issued/${documentId}?signature=test`,
       expiresAt: new Date(Date.now() + 5 * 60_000).toISOString(),

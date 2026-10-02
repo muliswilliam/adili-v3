@@ -93,7 +93,7 @@ export interface paths {
         };
         /**
          * Short-lived presigned GET on a clean object, for services
-         * @description Service tokens with scope documents:internal, acting for the tenant in X-Acting-Tenant. The URL is valid for 5 minutes.
+         * @description Service tokens with scope documents:internal, acting for the tenant in X-Acting-Tenant. The URL is valid for 5 minutes. Audited under the tenant, naming whom the service reads for (X-Acting-Subject).
          */
         get: operations["getUploadDownload"];
         put?: never;
@@ -213,7 +213,7 @@ export interface paths {
         };
         /**
          * Short-lived presigned download of an issued PDF (services)
-         * @description Service tokens with scope documents:internal, acting for the tenant in X-Acting-Tenant: the issuing tenant's documents only. The service owning the record a document is about asks it for its staff (the review service for a reviewer opening a clarification letter), after checking the staff member may see that record; it audits that read with the staff member and the person. This read is audited too, under the issuing tenant and naming the person the document is about.
+         * @description Service tokens with scope documents:internal, acting for the tenant in X-Acting-Tenant: the issuing tenant's documents only. The service owning the record a document is about asks it for its staff (the review service for a reviewer opening a clarification letter), after checking the staff member may see that record; it audits that read with the staff member and the person. This read is audited too, under the issuing tenant, naming the person the document is about and the staff member the service reads for (X-Acting-Subject).
          */
         get: operations["internalGetDocumentDownload"];
         put?: never;
@@ -743,6 +743,8 @@ export interface operations {
             header: {
                 /** @description Tenant the calling service acts for; the resource must belong to it */
                 "X-Acting-Tenant": string;
+                /** @description The subject the service reads for (a reviewer opening an attachment, or the declarant whose response attaches it); recorded as the audit event's on-behalf-of, grants nothing (ADR-013 §8.6) */
+                "X-Acting-Subject"?: string;
             };
             path: {
                 id: string;
@@ -1060,6 +1062,8 @@ export interface operations {
             header: {
                 /** @description Tenant the calling service acts for; the resource must belong to it */
                 "X-Acting-Tenant": string;
+                /** @description The staff subject the service reads for (a reviewer downloading a clarification letter); recorded as the audit event's on-behalf-of, grants nothing (ADR-013 §8.6) */
+                "X-Acting-Subject"?: string;
             };
             path: {
                 documentId: string;

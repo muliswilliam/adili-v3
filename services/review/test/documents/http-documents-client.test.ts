@@ -37,19 +37,21 @@ describe('HttpDocumentsClient', () => {
     };
     const { documents, fetch } = client(json(link), json({ title: 'Not Found' }, 404));
 
-    expect(await documents.getUploadDownload(UPLOAD, 'psc')).toEqual({
+    expect(await documents.getUploadDownload(UPLOAD, 'psc', 'reviewer-a')).toEqual({
       downloadUrl: link.downloadUrl,
       expiresAt: link.expiresAt,
       purpose: 'declaration-attachment',
       fileName: 'receipt.pdf',
       sha256: link.sha256,
     });
-    expect(await documents.getUploadDownload(UPLOAD, 'psc')).toBeNull();
+    expect(await documents.getUploadDownload(UPLOAD, 'psc', 'reviewer-a')).toBeNull();
     const request = sent(fetch);
     expect(request.url).toBe(`http://documents.test/internal/v1/uploads/${UPLOAD}/download`);
     expect(Object.fromEntries(request.headers)).toMatchObject({
       authorization: 'Bearer service-token',
       'x-acting-tenant': 'psc',
+      // M13: whom the read is for, which documents' audit names (ADR-013 §8.6).
+      'x-acting-subject': 'reviewer-a',
     });
   });
 
@@ -61,13 +63,15 @@ describe('HttpDocumentsClient', () => {
     };
     const { documents, fetch } = client(json(link), json({ title: 'Not Found' }, 404));
 
-    expect(await documents.getIssuedDocumentDownload(UPLOAD, 'psc')).toEqual(link);
-    expect(await documents.getIssuedDocumentDownload(UPLOAD, 'psc')).toBeNull();
+    expect(await documents.getIssuedDocumentDownload(UPLOAD, 'psc', 'reviewer-a')).toEqual(link);
+    expect(await documents.getIssuedDocumentDownload(UPLOAD, 'psc', 'reviewer-a')).toBeNull();
     const request = sent(fetch);
     expect(request.url).toBe(`http://documents.test/internal/v1/documents/${UPLOAD}/download`);
     expect(Object.fromEntries(request.headers)).toMatchObject({
       authorization: 'Bearer service-token',
       'x-acting-tenant': 'psc',
+      // M13: whom the read is for, which documents' audit names (ADR-013 §8.6).
+      'x-acting-subject': 'reviewer-a',
     });
   });
 
@@ -100,12 +104,16 @@ describe('HttpDocumentsClient', () => {
 
   it('is refused (409) for an upload that is not clean', async () => {
     const { documents } = client(json({ type: 'upload-not-clean' }, 409));
-    await expect(documents.getUploadDownload(UPLOAD, 'psc')).rejects.toThrow(InternalApiRejected);
+    await expect(documents.getUploadDownload(UPLOAD, 'psc', 'reviewer-a')).rejects.toThrow(
+      InternalApiRejected,
+    );
   });
 
   it('is unavailable on any other answer', async () => {
     const { documents } = client(json({ title: 'Bad Gateway' }, 502));
-    await expect(documents.getUploadDownload(UPLOAD, 'psc')).rejects.toThrow(DocumentsUnavailable);
+    await expect(documents.getUploadDownload(UPLOAD, 'psc', 'reviewer-a')).rejects.toThrow(
+      DocumentsUnavailable,
+    );
   });
 
   it('revokes a document as issued in error, acting for the Commission; already revoked is done', async () => {

@@ -78,11 +78,18 @@ export class HttpDocumentsClient extends DocumentsClient {
     this.issuance = client(ISSUE_TIMEOUT_MS);
   }
 
-  async getUploadDownload(uploadId: string, tenant: string): Promise<UploadDownload | null> {
+  async getUploadDownload(
+    uploadId: string,
+    tenant: string,
+    actingSubject: string,
+  ): Promise<UploadDownload | null> {
     const found = await this.documents.call(
       (api) =>
         api.GET('/internal/v1/uploads/{id}/download', {
-          params: { path: { id: uploadId }, header: { 'X-Acting-Tenant': tenant } },
+          params: {
+            path: { id: uploadId },
+            header: { 'X-Acting-Tenant': tenant, 'X-Acting-Subject': actingSubject },
+          },
         }),
       {
         status: 200,
@@ -98,11 +105,15 @@ export class HttpDocumentsClient extends DocumentsClient {
   async getIssuedDocumentDownload(
     documentId: string,
     tenant: string,
+    actingSubject: string,
   ): Promise<DocumentDownload | null> {
     const found = await this.documents.call(
       (api) =>
         api.GET('/internal/v1/documents/{documentId}/download', {
-          params: { path: { documentId }, header: { 'X-Acting-Tenant': tenant } },
+          params: {
+            path: { documentId },
+            header: { 'X-Acting-Tenant': tenant, 'X-Acting-Subject': actingSubject },
+          },
         }),
       { status: 200, schema: documentDownloadSchema, otherwise: { 404: () => null } },
     );

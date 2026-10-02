@@ -539,7 +539,10 @@ describe('review case: assignment, detail, notes and flags', () => {
       expect(response.json()).toMatchObject({
         downloadUrl: expect.stringContaining(UPLOAD_ID) as unknown,
       });
-      expect(api.documents.downloads).toEqual([{ uploadId: UPLOAD_ID, tenant: 'psc' }]);
+      // M13: read for the reviewer, whom documents' audit names (ADR-013 §8.6).
+      expect(api.documents.downloads).toEqual([
+        { uploadId: UPLOAD_ID, tenant: 'psc', actingSubject: reviewerA.sub },
+      ]);
       expect(api.declarations.reads).toEqual([
         expect.objectContaining({
           declarationId: version.declarationId,

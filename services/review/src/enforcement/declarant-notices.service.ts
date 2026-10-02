@@ -5,7 +5,7 @@ import { EventPublisher } from '@adili/events';
 import { and, desc, eq, inArray, isNotNull, sql } from 'drizzle-orm';
 import { z } from 'zod';
 
-import { asPerson } from '../clarifications/declarant-clarifications.service.js';
+import { asPerson, personSubject } from '../clarifications/declarant-clarifications.service.js';
 import { letterDownloadUrl } from '../clarifications/links.js';
 import { Clock } from '../clock.js';
 import type { ReviewSchema } from '../db/schema.js';
@@ -92,7 +92,7 @@ export class DeclarantNoticesService {
       requireAnswerable(action);
       const response: ActionResponse = {
         text: input.text,
-        attachments: await this.verifiedAttachments(tenant, input.attachments),
+        attachments: await this.verifiedAttachments(tenant, personId, input.attachments),
         submittedAt: now.toISOString(),
       };
       const [updated] = await tx
@@ -116,13 +116,16 @@ export class DeclarantNoticesService {
   /** Each upload checked with documents, in the order given; the first one refused is a 409. */
   private async verifiedAttachments(
     tenant: string,
+    personId: string,
     uploadIds: readonly string[],
   ): Promise<ActionResponse['attachments']> {
     const verified: ActionResponse['attachments'] = [];
     for (const uploadId of uploadIds) {
       let upload;
       try {
-        upload = await withUpstream(() => this.documents.getUploadDownload(uploadId, tenant));
+        upload = await withUpstream(() =>
+          this.documents.getUploadDownload(uploadId, tenant, personSubject(personId)),
+        );
       } catch (error) {
         if (error instanceof InternalApiRejected) throw attachmentRefused(uploadId, 'not-clean');
         throw error;

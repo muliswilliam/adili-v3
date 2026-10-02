@@ -156,7 +156,7 @@ export class ClarificationsService {
     const letter = notFoundIfInvisible(letterId);
     let download: DocumentDownload | null;
     try {
-      download = await this.documents.getIssuedDocumentDownload(letter, tenant);
+      download = await this.documents.getIssuedDocumentDownload(letter, tenant, principal.subject);
     } catch (error) {
       if (error instanceof DocumentsUnavailable) {
         throw upstreamUnavailable('documents', 'The documents service could not give the link.');

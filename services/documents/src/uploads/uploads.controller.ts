@@ -2,6 +2,7 @@ import { Body, Controller, Get, HttpCode, HttpStatus, Param, Post } from '@nestj
 import {
   ApiBody,
   ApiCreatedResponse,
+  ApiHeader,
   ApiNoContentResponse,
   ApiOkResponse,
   ApiOperation,
@@ -145,7 +146,14 @@ export class InternalUploadsController {
     operationId: 'getUploadDownload',
     summary: 'Short-lived presigned GET on a clean object, for services',
     description:
-      'Service tokens with scope documents:internal, acting for the tenant in X-Acting-Tenant. The URL is valid for 5 minutes.',
+      'Service tokens with scope documents:internal, acting for the tenant in X-Acting-Tenant. The URL is valid for 5 minutes. Audited under the tenant, naming whom the service reads for (X-Acting-Subject).',
+  })
+  @ApiHeader({
+    name: 'X-Acting-Subject',
+    required: false,
+    description:
+      "The subject the service reads for (a reviewer opening an attachment, or the declarant whose response attaches it); recorded as the audit event's on-behalf-of, grants nothing (ADR-013 §8.6)",
+    schema: { type: 'string', maxLength: 255 },
   })
   @ApiOkResponse({
     description: 'Download URL valid for a few minutes',

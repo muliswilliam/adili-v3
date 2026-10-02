@@ -131,12 +131,16 @@ async function uploadAttachment(
 const complete = (id: string, caller: Caller = OFFICER) =>
   api.post(`/v1/uploads/${id}/complete`, undefined, caller);
 
-const download = (id: string, tenant: string | null = 'psc', caller: Caller = DIRECTORY) =>
-  api.get(
-    `/internal/v1/uploads/${id}/download`,
-    caller,
-    tenant === null ? {} : { 'x-acting-tenant': tenant },
-  );
+const download = (
+  id: string,
+  tenant: string | null = 'psc',
+  caller: Caller = DIRECTORY,
+  headers: Record<string, string> = {},
+) =>
+  api.get(`/internal/v1/uploads/${id}/download`, caller, {
+    ...(tenant === null ? {} : { 'x-acting-tenant': tenant }),
+    ...headers,
+  });
 
 const row = async (id: string) => {
   const [found] = await withTenant(api.db, { tenant: 'platform', subject: 'test' }, (tx) =>
@@ -657,7 +661,11 @@ describe('internal download', () => {
       'x-audited-read': { action: 'upload.download.issued', resource: 'upload' },
     });
 
-    expect((await download(clean.id)).statusCode).toBe(200);
+    // M13: the subject the service reads for, recorded as on-behalf-of (ADR-013 §8.6).
+    const response = await download(clean.id, 'psc', DIRECTORY, {
+      'x-acting-subject': 'reviewer-a',
+    });
+    expect(response.statusCode).toBe(200);
 
     const audited = await api.db
       .select()
@@ -672,6 +680,7 @@ describe('internal download', () => {
       data: {
         action: 'upload.download.issued',
         resource: { type: 'upload', params: { id: clean.id } },
+        actor: { subject: DIRECTORY.sub, onBehalfOf: 'reviewer-a' },
         outcome: 'success',
       },
     });

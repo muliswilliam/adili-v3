@@ -2,6 +2,7 @@ import { Body, Controller, Get, HttpCode, HttpStatus, Param, Post, Res } from '@
 import {
   ApiBody,
   ApiCreatedResponse,
+  ApiHeader,
   ApiOkResponse,
   ApiOperation,
   ApiParam,
@@ -150,7 +151,14 @@ export class InternalDocumentsController {
     operationId: 'internalGetDocumentDownload',
     summary: 'Short-lived presigned download of an issued PDF (services)',
     description:
-      "Service tokens with scope documents:internal, acting for the tenant in X-Acting-Tenant: the issuing tenant's documents only. The service owning the record a document is about asks it for its staff (the review service for a reviewer opening a clarification letter), after checking the staff member may see that record; it audits that read with the staff member and the person. This read is audited too, under the issuing tenant and naming the person the document is about.",
+      "Service tokens with scope documents:internal, acting for the tenant in X-Acting-Tenant: the issuing tenant's documents only. The service owning the record a document is about asks it for its staff (the review service for a reviewer opening a clarification letter), after checking the staff member may see that record; it audits that read with the staff member and the person. This read is audited too, under the issuing tenant, naming the person the document is about and the staff member the service reads for (X-Acting-Subject).",
+  })
+  @ApiHeader({
+    name: 'X-Acting-Subject',
+    required: false,
+    description:
+      "The staff subject the service reads for (a reviewer downloading a clarification letter); recorded as the audit event's on-behalf-of, grants nothing (ADR-013 §8.6)",
+    schema: { type: 'string', maxLength: 255 },
   })
   @ApiOkResponse({
     description: 'Download URL valid for five minutes',

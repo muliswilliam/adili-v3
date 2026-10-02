@@ -622,10 +622,11 @@ describe('S13 downloading', () => {
     expect(audits.filter((row) => JSON.stringify(row.envelope).includes(document.id))).toEqual([]);
   });
 
-  it("hands the issuing tenant's service a presigned URL for its staff, audited with the person", async () => {
+  it("hands the issuing tenant's service a presigned URL for its staff, audited with the person and the staff member", async () => {
     const document = await issued();
     const response = await api.get(`/internal/v1/documents/${document.id}/download`, REVIEW, {
       'x-acting-tenant': 'psc',
+      'x-acting-subject': 'reviewer-a',
     });
     expect(response.statusCode, response.body).toBe(200);
     const body = response.json<DocumentDownload>();
@@ -653,7 +654,8 @@ describe('S13 downloading', () => {
           tenant: 'psc',
           subjectPersonId: DECLARANT_PERSON,
         },
-        actor: { subject: REVIEW.sub },
+        // M13: the reviewer the service read for (ADR-013 §8.6).
+        actor: { subject: REVIEW.sub, onBehalfOf: 'reviewer-a' },
       },
     });
   });

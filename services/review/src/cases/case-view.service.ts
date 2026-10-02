@@ -107,7 +107,7 @@ export class CaseViewService {
     notFoundIfInvisible(pulled.attachments.find((attachment) => attachment.uploadId === upload));
     let link: AttachmentDownload | null;
     try {
-      const found = await this.documents.getUploadDownload(upload, tenant);
+      const found = await this.documents.getUploadDownload(upload, tenant, principal.subject);
       link = found && { downloadUrl: found.downloadUrl, expiresAt: found.expiresAt };
     } catch (error) {
       // A filed attachment is clean; one documents refuses is as good as unreachable.
