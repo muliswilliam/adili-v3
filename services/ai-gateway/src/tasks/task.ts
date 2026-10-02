@@ -15,6 +15,16 @@ export const TASK_NAMES = [
 export type TaskName = (typeof TASK_NAMES)[number];
 export const taskNameSchema = z.enum(TASK_NAMES);
 
+/**
+ * The tasks a Commission's officers call; the rest serve EACC alone (`narrate-compliance-report`
+ * drafts the national report). A Commission's AI status reads only these routes.
+ */
+export const COMMISSION_TASKS = [
+  'summarize-declaration',
+  'explain-flags',
+  'draft-clarification',
+] as const satisfies readonly TaskName[];
+
 /** Contract `AiLabel`: present on every job output. */
 export const aiLabelSchema = z
   .object({

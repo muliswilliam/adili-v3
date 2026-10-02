@@ -6,7 +6,7 @@ import { DATA_CLASSES, type DataClass, dataClassSchema } from '../jobs/task-requ
 import { GatePolicies } from '../policy/gate-policies.js';
 import { type ProviderClass, providerClassSchema } from '../providers/port.js';
 import { ProviderRegistry } from '../providers/providers.module.js';
-import { TASK_NAMES } from '../tasks/task.js';
+import { COMMISSION_TASKS } from '../tasks/task.js';
 
 /** Contract `TenantAiStatus`. */
 export const tenantAiStatusSchema = z.object({
@@ -26,9 +26,10 @@ export type TenantAiStatus = z.infer<typeof tenantAiStatusSchema>;
 
 /**
  * Whether AI assistance is enabled for a tenant (the Commission status line, spec 07c): the
- * provider classes its tasks are routed to, and the data classes every one of them may process
- * under its gate. Routes on more than one class report `external`, the one that leaves the
- * platform; a route naming a provider this gateway cannot reach sends nothing anywhere.
+ * provider classes its Commission tasks are routed to, and the data classes every one of them may
+ * process under its gate. EACC-only tasks are left out: a Commission never calls them. Routes on
+ * more than one class report `external`, the one that leaves the platform; a route naming a
+ * provider this gateway cannot reach sends nothing anywhere.
  */
 @Injectable()
 export class TenantStatus {
@@ -40,7 +41,7 @@ export class TenantStatus {
 
   async of(tenant: string): Promise<TenantAiStatus> {
     const [routes, gate] = await Promise.all([
-      Promise.all(TASK_NAMES.map((task) => this.routing.route(tenant, task))),
+      Promise.all(COMMISSION_TASKS.map((task) => this.routing.route(tenant, task))),
       this.gate.effective(tenant),
     ]);
     const classes = new Set(

@@ -8,7 +8,6 @@ import { afterEach, beforeAll, describe, expect, it } from 'vitest';
 
 import { auditRecords, gatePolicies, jobs, routes } from '../../src/db/schema.js';
 import { currentMonth } from '../../src/policy/budgets.js';
-import { TASK_NAMES, type TaskName } from '../../src/tasks/task.js';
 import { contractErrors } from '../support/contract.js';
 import { summarizeInput, summarizeOutput, usage } from '../support/inputs.js';
 import { ScriptedProvider } from '../support/scripted-provider.js';
@@ -422,18 +421,18 @@ describe('admin API', { timeout: 90_000 }, () => {
     });
 
     it('names the routed provider class; mixed routes read as external', async () => {
-      const routeAll = (tenant: string, tasks: readonly TaskName[]) =>
+      const routeAll = (tenant: string, tasks: string[]) =>
         t.db.insert(routes).values(
           tasks.map((task) => ({
             id: uuidv7(),
             tenant,
-            task,
+            task: task as 'explain-flags',
             provider: 'local',
             model: 'llama-4',
             changedBy: 'platform-admin-1',
           })),
         );
-      await routeAll('onprem', TASK_NAMES);
+      await routeAll('onprem', ['summarize-declaration', 'explain-flags', 'draft-clarification']);
       expect(await status('onprem')).toEqual({
         tenant: 'onprem',
         enabled: true,
@@ -451,14 +450,16 @@ describe('admin API', { timeout: 90_000 }, () => {
 
     it('is not enabled when no route names a reachable provider', async () => {
       await t.db.insert(routes).values(
-        TASK_NAMES.map((task) => ({
-          id: uuidv7(),
-          tenant: null,
-          task,
-          provider: 'elsewhere',
-          model: 'm',
-          changedBy: 'platform-admin-1',
-        })),
+        (['summarize-declaration', 'explain-flags', 'draft-clarification'] as const).map(
+          (task) => ({
+            id: uuidv7(),
+            tenant: null,
+            task,
+            provider: 'elsewhere',
+            model: 'm',
+            changedBy: 'platform-admin-1',
+          }),
+        ),
       );
       expect(await status('kcomm')).toEqual({
         tenant: 'kcomm',
