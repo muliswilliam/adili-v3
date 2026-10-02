@@ -2,6 +2,7 @@ import { asc, eq, sql } from 'drizzle-orm';
 import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
 import { outbox, verificationResults } from '../src/db/schema.js';
+import { KraAdapter } from '../src/registries/kra-adapter.js';
 import { REGISTRY_LOOKUP_PERFORMED } from '../src/verification/lookup-events.js';
 
 import { SEED, StubRegistries } from './support/stub-registries.js';
@@ -86,6 +87,23 @@ describe('registry lookups', () => {
     ).map(({ envelope }) => envelope);
 
   describe('S1 KRA', () => {
+    it('M4: takes a rate-limit slot for each compliance call after the PINs', async () => {
+      const adapter = new KraAdapter(registries.urls);
+      let further = 0;
+
+      const answer = await adapter.fetch(SEED.wanjiku, new AbortController().signal, {
+        another: () => {
+          further += 1;
+          return Promise.resolve();
+        },
+      });
+
+      expect(answer?.taxpayers).toHaveLength(1);
+      // The kit took the PINs' slot; the compliance call took one of its own.
+      expect(registries.calls.kra).toBe(2);
+      expect(further).toBe(1);
+    });
+
     it('answers the PIN with its compliance and declared income, then from the cache', async () => {
       const first = await lookup('kra/taxpayer-lookups', SEED.wanjiku);
 

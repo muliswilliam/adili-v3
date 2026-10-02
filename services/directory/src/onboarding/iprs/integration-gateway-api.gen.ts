@@ -133,7 +133,7 @@ export interface paths {
         };
         /**
          * Configured calls per minute of every system with an adapter (services)
-         * @description Service tokens with scope `registry`; no X-Acting-Tenant (configuration, no tenant data). A lookup answered from the cache spends none of it.
+         * @description Service tokens with scope `registry`; no X-Acting-Tenant (configuration, no tenant data). A lookup answered from the cache spends none of it; every call to the registry spends one, so a KRA lookup spends 1 + one per PIN.
          */
         get: operations["getRegistryRateLimits"];
         put?: never;

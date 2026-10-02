@@ -56,7 +56,7 @@ export type RegistryFailure =
 /** Calls per minute per system, as the gateway's .env.example configures them. */
 const DEFAULT_RATE_LIMITS: Record<string, number> = {
   iprs: 1_200,
-  kra: 30,
+  kra: 60,
   ntsa: 60,
   brs: 60,
   ardhisasa: 60,

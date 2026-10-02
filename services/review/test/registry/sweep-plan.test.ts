@@ -11,9 +11,9 @@ const request = (n: number): RegistryCheckRequest => ({
   versionId: `version-${String(n)}`,
   version: 1,
 });
-const candidate = (n: number, lookups: Record<string, number>): SweepCandidate => ({
+const candidate = (n: number, calls: Record<string, number>): SweepCandidate => ({
   request: request(n),
-  lookups,
+  calls,
 });
 
 describe('planSweep', () => {
@@ -26,9 +26,9 @@ describe('planSweep', () => {
 
     expect(plan).toEqual([
       { request: request(1), startAfterMs: 0 },
-      // NTSA has had no lookups yet: KRA's limit does not hold it back.
+      // NTSA has had no calls yet: KRA's limit does not hold it back.
       { request: request(2), startAfterMs: 0 },
-      // Four KRA lookups at one a minute (half of two): four minutes in.
+      // Four KRA calls at one a minute (half of two): four minutes in.
       { request: request(3), startAfterMs: 4 * 60_000 },
     ]);
   });
@@ -38,10 +38,10 @@ describe('planSweep', () => {
 
     const plan = planSweep(candidates, { ardhisasa: 60 }, { share: 0.5, windowMinutes: 45 });
 
-    // 30 lookups a minute for 45 minutes: 1350 lookups, 135 cases of ten, more than there are.
+    // 30 calls a minute for 45 minutes: 1350 calls, 135 cases of ten, more than there are.
     expect(plan).toHaveLength(100);
     const tight = planSweep(candidates, { ardhisasa: 2 }, { share: 0.5, windowMinutes: 45 });
-    // One lookup a minute: a case of ten every ten minutes, five within 45 minutes.
+    // One call a minute: a case of ten every ten minutes, five within 45 minutes.
     expect(tight.map((entry) => entry.request.caseId)).toEqual([
       'case-1',
       'case-2',

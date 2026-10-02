@@ -60,6 +60,12 @@ import { planSweep, type SweepCandidate } from './sweep-plan.js';
 /** Cases one sweep run considers at most, oldest check first; the plan takes what fits. */
 const SWEEP_CANDIDATES = 1_000;
 
+/**
+ * Calls a lookup makes to its registry, as the gateway's rate limits count them, where more than
+ * one: KRA's PINs, then each PIN's compliance (one PIN, usually).
+ */
+const CALLS_PER_LOOKUP: Readonly<Record<string, number>> = { kra: 2 };
+
 /** The reason a BRS status is unavailable when only the supplier check (`hr-suppliers`) is. */
 const SUPPLIER_CHECK_UNAVAILABLE = 'supplier-check-unavailable';
 
@@ -224,12 +230,12 @@ export class RegistryCheckActivities {
                 ),
               );
       return cases.map((request): SweepCandidate => {
-        const lookups: Record<string, number> = {};
+        const calls: Record<string, number> = {};
         for (const row of unavailable.filter((entry) => entry.caseId === request.caseId)) {
           const system = row.reason === SUPPLIER_CHECK_UNAVAILABLE ? 'hr-suppliers' : row.system;
-          lookups[system] = (lookups[system] ?? 0) + 1;
+          calls[system] = (calls[system] ?? 0) + (CALLS_PER_LOOKUP[system] ?? 1);
         }
-        return { request, lookups };
+        return { request, calls };
       });
     });
     return planSweep(candidates, limits);

@@ -12,17 +12,20 @@ export const SWEEP_RATE_SHARE = 0.5;
  */
 export const SWEEP_WINDOW_MINUTES = 45;
 
-/** A case the sweep may check, with the lookups its check sends each system (gateway names). */
+/** A case the sweep may check, with the calls its check sends each system (gateway names). */
 export interface SweepCandidate {
   request: RegistryCheckRequest;
-  /** Lookups per system: the case's unavailable ones; the answered ones come from the cache. */
-  lookups: Readonly<Record<string, number>>;
+  /**
+   * Registry calls per system, as the gateway's rate limits count them: those of the case's
+   * unavailable lookups (a KRA lookup is two); the answered ones come from the cache.
+   */
+  calls: Readonly<Record<string, number>>;
 }
 
 /**
  * Paces the sweep under the systems' rate limits (spec 07b, "bounded per run by the rate
  * limits"): the cases in the order given (oldest check first), each starting once every system
- * it looks up has had room, at `share` of its rate, for the lookups of the cases before it. A case
+ * it looks up has had room, at `share` of its rate, for the calls of the cases before it. A case
  * that could not start within `windowMinutes` ends the run's plan: it and the rest wait for the
  * next run, still oldest first. A system without a known limit does not hold a case back.
  */
@@ -33,17 +36,17 @@ export function planSweep(
 ): SweepCheck[] {
   const sent: Record<string, number> = {};
   const plan: SweepCheck[] = [];
-  for (const { request, lookups } of candidates) {
+  for (const { request, calls } of candidates) {
     const startMinutes = Math.max(
       0,
-      ...Object.entries(lookups).map(([system, count]) => {
+      ...Object.entries(calls).map(([system, count]) => {
         const rate = ratePerMinute[system];
         return count > 0 && rate !== undefined ? (sent[system] ?? 0) / (rate * share) : 0;
       }),
     );
     if (startMinutes >= windowMinutes) break;
     plan.push({ request, startAfterMs: Math.ceil(startMinutes * 60_000) });
-    for (const [system, count] of Object.entries(lookups)) {
+    for (const [system, count] of Object.entries(calls)) {
       sent[system] = (sent[system] ?? 0) + count;
     }
   }

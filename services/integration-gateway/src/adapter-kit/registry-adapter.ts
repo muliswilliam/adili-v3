@@ -18,8 +18,19 @@ export interface RegistryAdapter<T, S = string> {
    * Asks the registry about `subject` (e.g. a national ID). Resolves to the normalised answer,
    * or null when the registry has no record; anything else (network, 5xx, a body that breaks
    * the contract) rejects with an `UpstreamError`. Stops when `signal` aborts: the kit's timeout.
+   * The kit took the rate-limit slot of one call; an adapter that calls the registry more than
+   * once takes one for each further call from `calls` first.
    */
-  fetch(subject: S, signal: AbortSignal): Promise<T | null>;
+  fetch(subject: S, signal: AbortSignal, calls: UpstreamCalls): Promise<T | null>;
+}
+
+/** The rate limit of an adapter's further calls to its registry, within one lookup. */
+export interface UpstreamCalls {
+  /**
+   * Waits for the system's rate-limit slot for one more call. Rejects with
+   * `RateLimitExhausted` when none frees up within the max wait (the lookup is `rate-limited`).
+   */
+  another(): Promise<void>;
 }
 
 /**
