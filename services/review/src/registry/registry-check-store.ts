@@ -39,13 +39,14 @@ export const SYSTEM_LABELS: Record<RegistrySystem, string> = {
  *   kept as it is (reviewed or not, and open again if a check before had superseded it), a new
  *   one is added, and one the match no longer raises is closed `superseded-by-recheck`, with its
  *   note if reviewed, when its registry answered for its person this time. A registry still
- *   unavailable leaves its flags open: no answer is no reason to drop them. Storing the same match
- *   twice changes nothing.
+ *   unavailable leaves its flags open: no answer is no reason to drop them.
  * - the statuses per person and registry replace the previous check's;
  * - the score and band are the version's deterministic flags and its open registry flags
  *   together, the open-flag count (unreviewed and not closed) is recounted and
  *   `registryUnavailable` set for the queue;
  * - a timeline entry and `review.registry.checked.v1`.
+ *
+ * Storing the same check (its `sequence`) again writes nothing and answers as the first time.
  */
 export async function storeRegistryCheck(
   db: Database<ReviewSchema>,
@@ -62,6 +63,9 @@ export async function storeRegistryCheck(
       .for('update');
     if (found?.currentVersionId !== check.versionId) return { outcome: 'stale' };
     if (sequence < found.storedRegistryCheck) return { outcome: 'stale' };
+    // This check is stored already (the activity retried after its commit): the same lookups
+    // match the same, so nothing to write, no second timeline entry or event.
+    if (sequence === found.storedRegistryCheck) return checkedResult(match);
 
     const versionFlags = await tx
       .select()
@@ -157,12 +161,7 @@ export async function storeRegistryCheck(
           isNull(reviewFlags.closedReason),
         ),
       );
-    const statuses = match.checks.map(({ personKey, system, status, reason }): CheckStatus => ({
-      personKey,
-      system,
-      status,
-      reason,
-    }));
+    const statuses = statusesOf(match);
     const systems = systemStatuses(statuses);
     await tx
       .update(reviewCases)
@@ -197,8 +196,21 @@ export async function storeRegistryCheck(
         checks: statuses,
       },
     });
-    return { outcome: 'checked', flags: match.flags.length, statuses };
+    return checkedResult(match);
   });
+}
+
+function checkedResult(match: RegistryMatch): RegistryCheckResult {
+  return { outcome: 'checked', flags: match.flags.length, statuses: statusesOf(match) };
+}
+
+function statusesOf(match: RegistryMatch): CheckStatus[] {
+  return match.checks.map(({ personKey, system, status, reason }) => ({
+    personKey,
+    system,
+    status,
+    reason,
+  }));
 }
 
 /** What makes two flags the same indicator: the rule, the evidence and the items it points at. */

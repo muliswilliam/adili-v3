@@ -132,6 +132,10 @@ describe('registry checks', () => {
       ({ personKey, system, status, reason }) =>
         `${personKey} ${system} ${status} ${String(reason)}`,
     );
+  const timelineOf = (caseId: string) =>
+    api.asPlatform((tx) =>
+      tx.select().from(reviewTimeline).where(eq(reviewTimeline.caseId, caseId)),
+    );
   const registryFlags = async (caseId: string) =>
     (await flagsOf(caseId))
       .filter((flag) => !['no-previous-version'].includes(flag.ruleId))
@@ -356,9 +360,9 @@ describe('registry checks', () => {
     expect(await checksOf(request.caseId)).toContain('officer ntsa unavailable gateway-rejected');
   });
 
-  it('storing the same check twice changes nothing; a reviewed registry flag keeps its note', async () => {
+  it('M7: storing the same check twice changes nothing: no second timeline entry or event; a reviewed registry flag keeps its note', async () => {
     const request = await caseOf(wanjikuVersion());
-    const { lookups } = await check(request);
+    const { lookups, result: first } = await check(request);
     const [vehicle] = (await flagsOf(request.caseId)).filter(
       (flag) => flag.ruleId === 'registry-vehicle-undeclared',
     );
@@ -370,8 +374,14 @@ describe('registry checks', () => {
     );
     expect(reviewed.statusCode).toBe(200);
 
-    await registry.matchAndStoreRegistries({ check: request, lookups });
+    const timelineBefore = await timelineOf(request.caseId);
+    const eventsBefore = await api.db.select().from(outbox);
 
+    // The activity retried after its commit: the same check, the same sequence.
+    expect(await registry.matchAndStoreRegistries({ check: request, lookups })).toEqual(first);
+
+    expect(await timelineOf(request.caseId)).toEqual(timelineBefore);
+    expect(await api.db.select().from(outbox)).toHaveLength(eventsBefore.length);
     const flags = await flagsOf(request.caseId);
     expect(
       flags.filter(
