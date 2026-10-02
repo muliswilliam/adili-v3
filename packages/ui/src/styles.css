@@ -387,6 +387,18 @@
   }
 }
 
+/*
+ * A responsive table cell's heading on phones, read from its `data-label` (use as
+ * `max-sm:before:content-data-label`). The empty alternative text keeps screen readers from
+ * reading the heading twice; Safari before 17.4 rejects that syntax, so the plain `attr()` comes
+ * first as its fallback. A pair of `content-[...]` classes would not do: they set `--tw-content`,
+ * and a custom property never falls back.
+ */
+@utility content-data-label {
+  content: attr(data-label);
+  content: attr(data-label) / '';
+}
+
 /* The onboarding page background: the page colour with a warm glow rising from the bottom. */
 @utility bg-glow {
   background-color: var(--background);

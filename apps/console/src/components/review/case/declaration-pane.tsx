@@ -332,7 +332,7 @@ function PersonAvatar({ name, relation }: { name: string; relation: Relation }) 
  */
 const PHONE_TOTALS_ROW = 'max-sm:grid max-sm:gap-y-0.5 max-sm:py-2';
 const PHONE_TOTALS_CELL =
-  'max-sm:flex max-sm:justify-between max-sm:gap-3 max-sm:py-0 max-sm:pl-0 max-sm:before:font-normal max-sm:before:text-muted-foreground max-sm:before:content-[attr(data-label)_/_""]';
+  'max-sm:flex max-sm:justify-between max-sm:gap-3 max-sm:py-0 max-sm:pl-0 max-sm:before:font-normal max-sm:before:text-muted-foreground max-sm:before:content-data-label';
 
 function Totals({ view }: { view: DeclarationView }) {
   const cell = cn('py-2 pl-2.5 text-right tabular-nums', PHONE_TOTALS_CELL);

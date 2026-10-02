@@ -364,7 +364,7 @@ function CommissionsCard({
  */
 const PHONE_ROW = 'max-sm:grid max-sm:gap-y-1 max-sm:px-4 max-sm:py-3.5';
 const PHONE_LINE =
-  'max-sm:flex max-sm:min-h-6 max-sm:items-center max-sm:justify-between max-sm:gap-3 max-sm:p-0 max-sm:first:pl-0 max-sm:last:pr-0 max-sm:before:font-sans max-sm:before:text-[13px] max-sm:before:font-normal max-sm:before:text-muted-foreground max-sm:before:content-[attr(data-label)_/_""]';
+  'max-sm:flex max-sm:min-h-6 max-sm:items-center max-sm:justify-between max-sm:gap-3 max-sm:p-0 max-sm:first:pl-0 max-sm:last:pr-0 max-sm:before:font-sans max-sm:before:text-[13px] max-sm:before:font-normal max-sm:before:text-muted-foreground max-sm:before:content-data-label';
 
 /** "Highly confidential" carries the tip that says what each data class is. */
 function DataClassHead({ dataClass }: { dataClass: DataClass }) {
