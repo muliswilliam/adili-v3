@@ -313,4 +313,23 @@ describe('a streamed answer (ADR-019)', () => {
     ]);
     expect(failingHard(await scoreStreamed('tax rate on rent (en)', '<declined/>'))).toEqual([]);
   });
+
+  it('declines an answer holding a token the input never had, as the gateway does', async () => {
+    const { suite, golden } = goldenCase(
+      'answer-declarant-question',
+      'matatu co-owned with a brother (en)',
+    );
+    const provider = new ScriptedStreamProvider('external');
+    provider.scripts = [
+      {
+        chunks: ['<block>Declare [[PERSON_9]]’s share. <cite ids="act-sch1-note-13"/></block>'],
+        end: { status: 'completed' },
+      },
+    ];
+
+    expect(await runCase(suite.task, golden.input, provider, MODEL)).toEqual({
+      output: { declined: true, blocks: [], followUps: [] },
+      violations: [{ kind: 'unknown-token' }],
+    });
+  });
 });

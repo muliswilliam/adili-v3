@@ -44,6 +44,49 @@ describe('answer-declarant-question', () => {
       expect(['initial', 'biennial', 'final', null].map(typed)).toEqual([true, true, true, true]);
       expect(typed('annual')).toBe(false);
     });
+
+    const withResiduals = (residuals: unknown[]) =>
+      task.input.safeParse({ ...hintsInput, context: { ...hintsInput.context, residuals } })
+        .success;
+
+    it('takes as many residuals as a hint set has hints, twenty, and no more', () => {
+      const residual = hintsInput.context.residuals[0];
+      expect(withResiduals(Array.from({ length: 20 }, () => residual))).toBe(true);
+      expect(withResiduals(Array.from({ length: 21 }, () => residual))).toBe(false);
+    });
+
+    it('takes the rule ids and field paths the completeness check reports', () => {
+      const residual = (ruleId: string, fieldPath: string) =>
+        withResiduals([{ sectionKey: 'statement:officer', ruleId, fieldPath }]);
+      expect(
+        [
+          ['spouse-required', '/spouses'],
+          ['nil-or-items-required', '/assets'],
+          ['none-conflicts-with-items', '/children/none'],
+          ['required', '/assets/1/change/explanation'],
+          ['required', '/employment/designation'],
+          ['value-change-25', '/assets/10/value'],
+        ].map(([ruleId = '', fieldPath = '']) => residual(ruleId, fieldPath)),
+      ).toEqual([true, true, true, true, true, true]);
+    });
+
+    it('refuses rule ids and field paths that could carry a value', () => {
+      const residual = (ruleId: string, fieldPath: string) =>
+        withResiduals([{ sectionKey: 'statement:officer', ruleId, fieldPath }]);
+      expect(
+        [
+          ['required', '/vehicles/0/KDA 123X'],
+          ['required', '/assets/0/kda123x value'],
+          ['required', '/AB1234567'],
+          ['required', '/assets/01'],
+          ['required', 'assets/0'],
+          ['required', '/statements/Jane Wanjiku/assets'],
+          ['Required for KDA 123X', '/assets'],
+          ['required: 28765432', '/assets'],
+          ['required_', '/assets'],
+        ].map(([ruleId = '', fieldPath = '']) => residual(ruleId, fieldPath)),
+      ).toEqual(Array.from({ length: 9 }, () => false));
+    });
   });
 
   it('streams answers and runs hints as jobs', () => {
@@ -104,6 +147,29 @@ describe('answer-declarant-question', () => {
         { kind: 'hint-not-for-residual', block: 0 },
         { kind: 'hint-not-for-residual', block: 1 },
       ]);
+    });
+
+    it('passes twenty hints for twenty residuals, the most a hint set has', () => {
+      const input = {
+        ...hintsInput,
+        context: {
+          ...hintsInput.context,
+          residuals: Array.from({ length: 20 }, (_, i) => ({
+            sectionKey: 'statement:officer',
+            ruleId: 'required',
+            fieldPath: `/assets/${i}/value`,
+          })),
+        },
+      };
+      const output = {
+        declined: false,
+        blocks: input.context.residuals.map((each) => hint(each.sectionKey, each.fieldPath)),
+        followUps: [],
+      };
+
+      expect(task.input.safeParse(input).success).toBe(true);
+      expect(task.output.safeParse(output).success).toBe(true);
+      expect(validate(input, output)).toEqual([]);
     });
 
     it('fails a declined hint set and follow-ups', () => {

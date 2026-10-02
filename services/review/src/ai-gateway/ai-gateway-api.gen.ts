@@ -477,9 +477,9 @@ export interface components {
                 residuals: {
                     /** @description bio, household, other, or statement:<personKey> (declarations.yaml) */
                     sectionKey: string;
-                    /** @description The completeness rule that reports it */
+                    /** @description The completeness rule that reports it, e.g. nil-or-items-required */
                     ruleId: string;
-                    /** @description JSON pointer within the section */
+                    /** @description JSON pointer within the section, field names and indexes: /assets/1/value */
                     fieldPath: string;
                 }[];
             };

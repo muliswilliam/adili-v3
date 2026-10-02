@@ -218,6 +218,8 @@ export class JobsController {
     raw.on('close', () => {
       if (!raw.writableEnded) left.abort();
     });
+    // A caller gone while the stream opened closed the socket before the listener was there.
+    if (raw.destroyed) left.abort();
     const ping = setInterval(() => raw.write(': ping\n\n'), HEARTBEAT_MS);
     try {
       for await (const frame of stream.frames(left.signal)) {

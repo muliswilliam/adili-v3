@@ -11,11 +11,24 @@ const sectionKey = z
 
 const fieldPath = z.string().max(200).meta({ description: 'JSON pointer within the section' });
 
-const residual = z.object({
-  sectionKey,
-  ruleId: z.string().max(100).meta({ description: 'The completeness rule that reports it' }),
-  fieldPath,
+/**
+ * Why and where the completeness check reports a residual: a kebab-case rule id (as review.yaml's
+ * `RuleId`s are), and a pointer of `declaration.v1` field names (camelCase) and array indexes.
+ * Neither can carry a value, such as a registration or a name, which the context never holds.
+ */
+const ruleId = z
+  .string()
+  .max(100)
+  .regex(/^[a-z0-9]+(-[a-z0-9]+)*$/)
+  .meta({ description: 'The completeness rule that reports it, e.g. nil-or-items-required' });
+const residualPath = fieldPath.regex(/^(\/([a-z][A-Za-z0-9]*|0|[1-9][0-9]*))*$/).meta({
+  description: 'JSON pointer within the section, field names and indexes: /assets/1/value',
 });
+
+const residual = z.object({ sectionKey, ruleId, fieldPath: residualPath });
+
+/** Blocks an answer may have; a hint set has one per residual, so residuals are capped alike. */
+const MAX_BLOCKS = 20;
 
 const input = z
   .object({
@@ -43,7 +56,7 @@ const input = z
           children: z.number().int().min(0),
         }),
         sectionKey: sectionKey.nullable().meta({ description: 'The section the declarant is on' }),
-        residuals: z.array(residual).max(100).meta({
+        residuals: z.array(residual).max(MAX_BLOCKS).meta({
           description: 'What the completeness check still reports: where, and by which rule',
         }),
       })
@@ -86,7 +99,7 @@ const output = z.object({
         }),
       }),
     )
-    .max(20),
+    .max(MAX_BLOCKS),
   followUps: z.array(z.string().max(200)).max(3),
 });
 
@@ -102,7 +115,9 @@ export const answerDeclarantQuestion = defineTask({
   input,
   output,
   promptVersions: [1],
-  maxOutputTokens: 2048,
+  // Twenty hints, the most a call writes: the golden hint sets take about 230 output tokens a hint in
+  // Swahili, 170 in English, plus up to 560 for the call (thinking included), so about 5,000.
+  maxOutputTokens: 8192,
   streamed: (each) => each.mode === 'answer',
   validate: (each, answer) =>
     each.mode === 'answer' ? answerViolations(each, answer) : hintViolations(each, answer),

@@ -3,15 +3,12 @@ import { setTimeout as sleep } from 'node:timers/promises';
 import { HttpStatus, Injectable, Logger } from '@nestjs/common';
 import { type Principal, ProblemException } from '@adili/api-kit';
 import { type Database, InjectDatabase } from '@adili/data-access';
-import { EventPublisher } from '@adili/events';
-import { and, eq, sql } from 'drizzle-orm';
-import { v7 as uuidv7 } from 'uuid';
+import { eq } from 'drizzle-orm';
 
-import { CACHE_KEY, type Job, jobs, type schema, servesCache } from '../db/schema.js';
+import { type Job, jobs, type schema } from '../db/schema.js';
 import { CircuitBreaker } from '../policy/circuit-breaker.js';
 import { UnknownTokenError } from '../policy/minimisation.js';
 import { type PreparedPrompt, preparePrompt, streamedRequest } from '../policy/prompt.js';
-import { Budgets } from '../policy/budgets.js';
 import { GenAiTelemetry } from '../policy/telemetry.js';
 import {
   type GenerateRequest,
@@ -19,12 +16,12 @@ import {
   type ModelProvider,
   ProviderError,
   type StreamEvent,
+  type Usage,
 } from '../providers/port.js';
 import { ProviderRegistry } from '../providers/providers.module.js';
 import { findTask } from '../tasks/registry.js';
 import { TaggedAnswerReader } from '../tasks/tagged-answer.js';
 import type { OutputViolation, TaskDefinition } from '../tasks/task.js';
-import { Admission } from './admission.js';
 import {
   type AttemptMetrics,
   JobExecutor,
@@ -32,12 +29,11 @@ import {
   NO_CALL,
   type Outcome,
 } from './job-executor.js';
-import { recordJobEnded } from './job-ended.js';
 import { isTerminal, type JobReason } from './job-states.js';
 import { toJobView, type JobView } from './job-view.js';
 import { GRACE_SECONDS } from './jobs-janitor.js';
-import { jobKey, keyReused, MAX_CREATE_ATTEMPTS, promptVersionFor } from './jobs.service.js';
-import { parseParams, Routing } from './routing.js';
+import { JobsService } from './jobs.service.js';
+import { parseParams } from './routing.js';
 import { taskRequestSchema } from './task-request.js';
 
 /** One server-sent event of a task stream. */
@@ -82,14 +78,11 @@ export class TaskStreams {
 
   constructor(
     @InjectDatabase() private readonly db: Database<typeof schema>,
-    private readonly routing: Routing,
-    private readonly admission: Admission,
-    private readonly budgets: Budgets,
+    private readonly jobs: JobsService,
     private readonly executor: JobExecutor,
     private readonly providers: ProviderRegistry,
     private readonly breaker: CircuitBreaker,
     private readonly telemetry: GenAiTelemetry,
-    private readonly events: EventPublisher,
   ) {}
 
   /**
@@ -115,62 +108,17 @@ export class TaskStreams {
         detail: `Task ${task.name} runs this input as a job: POST /internal/v1/tasks/${task.name}.`,
       });
     }
-    const promptVersion = promptVersionFor(task, request.promptVersion);
-    const route = await this.routing.route(tenant, task.name);
-    const { fields, requestHash } = jobKey(task, request, promptVersion, route, tenant, principal);
-
-    for (let attempt = 0; attempt < MAX_CREATE_ATTEMPTS; attempt++) {
-      const [previous] = await this.db
-        .select()
-        .from(jobs)
-        .where(and(eq(jobs.caller, fields.caller), eq(jobs.idempotencyKey, idempotencyKey)));
-      if (previous) {
-        if (previous.requestHash !== requestHash) throw keyReused();
-        return replay(previous, false);
-      }
-      const [cached] = await this.db
-        .select()
-        .from(jobs)
-        .where(
-          and(...CACHE_KEY.map((column) => eq(jobs[column], fields[column])), servesCache(jobs)),
-        );
-      if (cached) return replay(cached, true);
-
-      const limit = await this.budgets.rateLimited(tenant);
-      if (limit.limited) {
-        throw ProblemException.fromCode('rate-limit-exceeded', {
-          detail: `Tenant ${tenant} has reached its per-minute limit of AI task calls.`,
-          extensions: { retryAfterSeconds: limit.retryAfterSeconds },
-        });
-      }
-      const ending = await this.admission.refusal(tenant, request.dataClass, route.provider);
-      const created = await this.db.transaction(async (tx) => {
-        const [job] = await tx
-          .insert(jobs)
-          .values({
-            id: uuidv7(),
-            ...fields,
-            params: route.params,
-            idempotencyKey,
-            requestHash,
-            ...(ending
-              ? { ...ending, finishedAt: sql`now()` }
-              : { input: request.input, status: 'running' as const, startedAt: sql`now()` }),
-          })
-          // Lost a race on the key or the cache entry: the next attempt reads the winner.
-          .onConflictDoNothing()
-          .returning();
-        if (job && isTerminal(job.status)) await recordJobEnded(tx, this.events, job);
-        return job;
-      });
-      if (!created) continue;
-      if (isTerminal(created.status)) {
-        this.telemetry.jobFinished(created);
-        throw refused(created);
-      }
-      return { frames: (signal) => this.run(created, task, signal) };
-    }
-    throw new Error('Could not create or find the job under contention');
+    const { kind, job } = await this.jobs.findOrCreate(
+      task,
+      request,
+      tenant,
+      principal,
+      idempotencyKey,
+      'running',
+    );
+    if (kind !== 'created') return replay(job, kind === 'cached');
+    if (isTerminal(job.status)) throw refused(job);
+    return { frames: (signal) => this.run(job, task, signal) };
   }
 
   /** Calls the provider and streams; every ending is recorded and ends the frames. */
@@ -204,6 +152,13 @@ export class TaskStreams {
     for (let attempt = 1; ; attempt++) {
       const reader = new TaggedAnswerReader();
       let streamed = false;
+      /** Characters the provider sent this attempt, for `estimated`. */
+      let received = 0;
+      // An attempt that ends without the final result has no usage: it is charged an estimate.
+      const estimated = (): AttemptMetrics => ({
+        ...metrics(),
+        usage: estimatedUsage(request, received),
+      });
       const span = this.telemetry.begin({
         jobId: job.id,
         tenant: job.tenant,
@@ -220,6 +175,7 @@ export class TaskStreams {
             result = event.result;
             continue;
           }
+          received += event.text.length;
           const text = reader.push(event.text);
           if (text === '') continue;
           streamed = true;
@@ -231,16 +187,12 @@ export class TaskStreams {
         if (error instanceof CallerGone) {
           this.breaker.release(provider.name);
           this.logger.log({ jobId: job.id }, 'The caller left mid-stream; failing the job');
-          await this.executor.finish(job, { status: 'failed', reason: 'provider' }, metrics());
+          await this.executor.finish(job, { status: 'failed', reason: 'provider' }, estimated());
           return;
         }
         if (error instanceof UnknownTokenError) {
           this.breaker.release(provider.name);
-          this.logger.warn(
-            { jobId: job.id, unknownTokens: error.unknownTokens },
-            'Streamed text holds identifier tokens the input never had',
-          );
-          yield* this.end(job, { status: 'failed', reason: 'validation' }, metrics());
+          yield* this.end(job, this.unknownToken(job, task, error), estimated());
           return;
         }
         const retryable = error instanceof ProviderError && error.retryable;
@@ -255,7 +207,7 @@ export class TaskStreams {
         }
         const reason: JobReason =
           error instanceof ProviderError && error.kind === 'timeout' ? 'timeout' : 'provider';
-        yield* this.end(job, { status: 'failed', reason }, metrics());
+        yield* this.end(job, { status: 'failed', reason }, received > 0 ? estimated() : metrics());
         return;
       }
       span.succeeded(result);
@@ -274,7 +226,7 @@ export class TaskStreams {
         last = delta === '' ? '' : prompt.restore(delta);
       } catch (error) {
         if (!(error instanceof UnknownTokenError)) throw error;
-        yield* this.end(job, { status: 'failed', reason: 'validation' }, metrics(result));
+        yield* this.end(job, this.unknownToken(job, task, error), metrics(result));
         return;
       }
       if (last !== '') yield { event: 'delta', data: { text: last } };
@@ -300,6 +252,15 @@ export class TaskStreams {
     );
     if (outcome.status === 'succeeded') return outcome;
     return this.decline(job, task, outcome.violations ?? [{ kind: 'invalid-output' }]);
+  }
+
+  /** Streamed text holding a token the input never had: a failed check, so a decline. */
+  private unknownToken(job: Job, task: TaskDefinition, error: UnknownTokenError): Outcome {
+    this.logger.warn(
+      { jobId: job.id, unknownTokens: error.unknownTokens },
+      'Streamed text holds identifier tokens the input never had',
+    );
+    return this.decline(job, task, [{ kind: 'unknown-token' }]);
   }
 
   private decline(job: Job, task: TaskDefinition, found: OutputViolation[]): Outcome {
@@ -369,6 +330,36 @@ async function* until(
   } finally {
     if (!done) void Promise.resolve(iterator.return?.()).catch(() => undefined);
   }
+}
+
+/**
+ * Characters per token of an estimate: fewer than the ~4 of English prose, so that Swahili, JSON
+ * and markup are not undercounted and an estimate leans high.
+ */
+const ESTIMATE_CHARS_PER_TOKEN = 3;
+
+/**
+ * An estimate of what a call that ended without its final result cost, since the port reports
+ * usage only with that result: the whole request as uncached input, and the text received as
+ * output (thinking the provider never sent is not counted). Priced like real usage, it keeps a
+ * stream the caller left, or that failed midway, in the tenant's budget; never zero, as the
+ * request is never empty.
+ */
+function estimatedUsage(request: GenerateRequest, received: number): Usage {
+  const sent = [
+    request.system ?? '',
+    ...request.messages.flatMap((message) =>
+      typeof message.content === 'string'
+        ? [message.content]
+        : message.content.map((part) => (part.type === 'text' ? part.text : part.attachment.data)),
+    ),
+  ].reduce((total, text) => total + text.length, 0);
+  return {
+    inputTokens: Math.ceil(sent / ESTIMATE_CHARS_PER_TOKEN),
+    outputTokens: Math.ceil(received / ESTIMATE_CHARS_PER_TOKEN),
+    cacheReadTokens: 0,
+    cacheWriteTokens: 0,
+  };
 }
 
 /** Frames for a job that already exists: its ending, or 409 while it still runs. */

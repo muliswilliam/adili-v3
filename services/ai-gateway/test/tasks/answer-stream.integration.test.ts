@@ -5,6 +5,7 @@ import { eq } from 'drizzle-orm';
 import { beforeAll, describe, expect, it } from 'vitest';
 
 import { auditRecords, jobs } from '../../src/db/schema.js';
+import { Budgets } from '../../src/policy/budgets.js';
 import { ProviderError } from '../../src/providers/port.js';
 import type { AnswerInput } from '../../src/tasks/answer-declarant-question.js';
 import { contractErrors } from '../support/contract.js';
@@ -233,12 +234,42 @@ describe('answer-declarant-question stream', { timeout: 90_000 }, () => {
     const unavailable = new ProviderError('unavailable', 'scripted', 'connection reset');
     provider.scripts = [{ chunks: ANSWER.slice(0, 2), end: { error: unavailable } }];
     const calls = provider.requests.length;
+    const key = randomUUID();
 
-    const { frames: all } = await stream();
+    const { frames: all } = await stream(answerInput, key);
 
     expect(all.at(-1)).toEqual({ event: 'error', data: { reason: 'provider' } });
     expect(prose(all)).not.toBe('');
     expect(provider.requests.length - calls).toBe(1);
+    const [job] = await t.db.select().from(jobs).where(eq(jobs.idempotencyKey, key));
+    // No final result, so no usage from the provider: the job is charged an estimate.
+    expect(job).toMatchObject({ status: 'failed', reason: 'provider' });
+    expect(job?.tokensIn).toBeGreaterThan(0);
+    expect(job?.tokensOut).toBeGreaterThan(0);
+    expect(job?.costMicros).toBeGreaterThan(0);
+  });
+
+  it('declines streamed text holding a token the input never had, mid-stream', async () => {
+    provider.scripts = [
+      answered([
+        '<block>Declare the matatu [[PERSON_9]] ',
+        'co-owns. <cite ids="p-note-13"/></block>',
+        '<followup>How do I show my share?</followup>',
+      ]),
+    ];
+
+    const { frames: all } = await stream();
+
+    expect(prose(all)).not.toContain('[[PERSON_9]]');
+    const job = finalJob(all);
+    expect(job).toMatchObject({
+      status: 'succeeded',
+      output: { declined: true, blocks: [], followUps: [] },
+    });
+    expect(await row(job.id)).toMatchObject({
+      violations: [{ kind: 'unknown-token' }],
+      tokensIn: expect.any(Number) as number,
+    });
   });
 
   it('serves an equal request from the cache as one delta and the cached job', async () => {
@@ -346,7 +377,7 @@ describe('answer-declarant-question stream', { timeout: 90_000 }, () => {
     });
   });
 
-  it('fails the job when the caller disconnects mid-stream', async () => {
+  it('fails the job when the caller disconnects mid-stream, charging an estimate', async () => {
     let started: () => void = () => undefined;
     const streaming = new Promise<void>((resolve) => {
       started = resolve;
@@ -361,6 +392,8 @@ describe('answer-declarant-question stream', { timeout: 90_000 }, () => {
         },
       },
     ];
+    const budgets = t.app.get(Budgets);
+    const before = await budgets.usage('demo');
     await t.app.listen({ port: 0, host: '127.0.0.1' });
     const { port } = t.app.getHttpServer().address() as AddressInfo;
     const caller = new AbortController();
@@ -393,6 +426,14 @@ describe('answer-declarant-question stream', { timeout: 90_000 }, () => {
         { timeout: 10_000 },
       )
       .toEqual({ status: 'failed', reason: 'provider' });
+    // The call is paid for without a final result: charged an estimate, which the budget counts.
+    const [job] = await t.db.select().from(jobs).where(eq(jobs.idempotencyKey, key));
+    expect(job?.tokensIn).toBeGreaterThan(0);
+    expect(job?.tokensOut).toBeGreaterThan(0);
+    expect(job?.costMicros).toBeGreaterThan(0);
+    const after = await budgets.usage('demo');
+    expect(after.tokensUsed - before.tokensUsed).toBe((job?.tokensIn ?? 0) + (job?.tokensOut ?? 0));
+    expect(after.costMicros - before.costMicros).toBe(job?.costMicros);
     // The only test on a real socket: the app closes once it is gone.
     t.app.getHttpServer().closeAllConnections();
   });

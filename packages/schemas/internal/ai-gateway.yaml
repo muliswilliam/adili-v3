@@ -1328,7 +1328,7 @@ components:
                 - type: 'null'
               description: The section the declarant is on
             residuals:
-              maxItems: 100
+              maxItems: 20
               type: array
               items:
                 type: object
@@ -1340,11 +1340,13 @@ components:
                   ruleId:
                     type: string
                     maxLength: 100
-                    description: The completeness rule that reports it
+                    pattern: ^[a-z0-9]+(-[a-z0-9]+)*$
+                    description: The completeness rule that reports it, e.g. nil-or-items-required
                   fieldPath:
                     type: string
                     maxLength: 200
-                    description: JSON pointer within the section
+                    pattern: ^(\/([a-z][A-Za-z0-9]*|0|[1-9][0-9]*))*$
+                    description: 'JSON pointer within the section, field names and indexes: /assets/1/value'
                 required:
                   - sectionKey
                   - ruleId

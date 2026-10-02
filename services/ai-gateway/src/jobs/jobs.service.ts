@@ -25,11 +25,17 @@ export interface RunTaskResult {
   replayed: boolean;
 }
 
+/** What a task request names: the job of its key, an equal request's cached job, or a new one. */
+export interface FoundJob {
+  kind: 'previous' | 'cached' | 'created';
+  job: Job;
+}
+
 /** Two concurrent requests can race for the same key or cache entry; the loser reads the winner. */
-export const MAX_CREATE_ATTEMPTS = 3;
+const MAX_CREATE_ATTEMPTS = 3;
 
 /** The prompt version a request runs: the one it pins, else the task's current one. */
-export function promptVersionFor(task: TaskDefinition, pinned: number | null): number {
+function promptVersionFor(task: TaskDefinition, pinned: number | null): number {
   const promptVersion = pinned ?? task.currentPromptVersion;
   if (!task.promptVersions.includes(promptVersion)) {
     throw new ProblemException({
@@ -46,7 +52,7 @@ export function promptVersionFor(task: TaskDefinition, pinned: number | null): n
  * A request's job identity: the cache key columns, and the hash of what the caller asked for
  * (the wait is not part of it, so a retry may wait differently).
  */
-export function jobKey(
+function jobKey(
   task: TaskDefinition,
   request: Pick<TaskRequest, 'dataClass' | 'subjectRef' | 'promptVersion' | 'input'>,
   promptVersion: number,
@@ -77,7 +83,7 @@ export function jobKey(
   };
 }
 
-export function keyReused(): ProblemException {
+function keyReused(): ProblemException {
   return new ProblemException({
     type: 'idempotency-key-reused',
     title: 'Idempotency-Key reused',
@@ -138,6 +144,35 @@ export class JobsService {
         detail: `Task ${task.name} answers this input over its stream endpoint, not as a job.`,
       });
     }
+    const found = await this.findOrCreate(
+      task,
+      request,
+      tenant,
+      principal,
+      idempotencyKey,
+      'queued',
+    );
+    return {
+      job: await this.startAndWait(found.job, request.waitSeconds),
+      replayed: found.kind === 'previous',
+    };
+  }
+
+  /**
+   * The job a task request names: the earlier job of its Idempotency-Key (`previous`; the same
+   * key for another request is 422), else a live or succeeded job of an equal request (`cached`),
+   * else a new one (`created`), in `initialStatus` or, when the classification gate or budget
+   * refuses it, already ended, with its audit record and event. A new job counts against the
+   * tenant's per-minute limit (beyond it: 429, no job).
+   */
+  async findOrCreate(
+    task: TaskDefinition,
+    request: TaskRequest,
+    tenant: string,
+    principal: Principal,
+    idempotencyKey: string,
+    initialStatus: 'queued' | 'running',
+  ): Promise<FoundJob> {
     const promptVersion = promptVersionFor(task, request.promptVersion);
     const route = await this.routing.route(tenant, task.name);
     const { fields, requestHash } = jobKey(task, request, promptVersion, route, tenant, principal);
@@ -149,7 +184,7 @@ export class JobsService {
         .where(and(eq(jobs.caller, fields.caller), eq(jobs.idempotencyKey, idempotencyKey)));
       if (previous) {
         if (previous.requestHash !== requestHash) throw keyReused();
-        return { job: await this.startAndWait(previous, request.waitSeconds), replayed: true };
+        return { kind: 'previous', job: previous };
       }
 
       const [cached] = await this.db
@@ -158,9 +193,7 @@ export class JobsService {
         .where(
           and(...CACHE_KEY.map((column) => eq(jobs[column], fields[column])), servesCache(jobs)),
         );
-      if (cached) {
-        return { job: await this.startAndWait(cached, request.waitSeconds), replayed: false };
-      }
+      if (cached) return { kind: 'cached', job: cached };
 
       const limit = await this.budgets.rateLimited(tenant);
       if (limit.limited) {
@@ -181,7 +214,11 @@ export class JobsService {
             requestHash,
             ...(ending
               ? { ...ending, finishedAt: sql`now()` }
-              : { input: request.input, status: 'queued' as const }),
+              : {
+                  input: request.input,
+                  status: initialStatus,
+                  ...(initialStatus === 'running' && { startedAt: sql`now()` }),
+                }),
           })
           // Lost a race on the key or the cache entry: the next attempt reads the winner.
           .onConflictDoNothing()
@@ -191,7 +228,7 @@ export class JobsService {
       });
       if (created) {
         if (isTerminal(created.status)) this.telemetry.jobFinished(created);
-        return { job: await this.startAndWait(created, request.waitSeconds), replayed: false };
+        return { kind: 'created', job: created };
       }
     }
     throw new Error('Could not create or find the job under contention');

@@ -8,6 +8,7 @@ import type {
 } from '../../src/providers/port.js';
 import { DEFAULT_AI_MODEL, providerEnvSchema } from '../../src/providers/provider-env.js';
 import { createModelProvider } from '../../src/providers/providers.module.js';
+import { UnknownTokenError } from '../../src/policy/minimisation.js';
 import { type PreparedPrompt, preparePrompt, streamedRequest } from '../../src/policy/prompt.js';
 import { TaggedAnswerReader } from '../../src/tasks/tagged-answer.js';
 import type { OutputViolation, TaskDefinition } from '../../src/tasks/task.js';
@@ -88,7 +89,15 @@ export async function runStreamed(
   }
   const { answer } = reader.end();
   if (!answer.ok) return { output: DECLINED, violations: answer.problems };
-  const output = task.output.parse(prompt.restore(task.output.parse(answer.answer)));
+  let restored: unknown;
+  try {
+    restored = prompt.restore(task.output.parse(answer.answer));
+  } catch (error) {
+    // A token the input never had: the gateway declines it, as any failed check (ADR-019).
+    if (!(error instanceof UnknownTokenError)) throw error;
+    return { output: DECLINED, violations: [{ kind: 'unknown-token' }] };
+  }
+  const output = task.output.parse(restored);
   return { output, violations: checks(task, input, output) };
 }
 
