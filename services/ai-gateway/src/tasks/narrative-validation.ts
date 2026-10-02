@@ -93,7 +93,7 @@ export function aggregateKeys(input: NarrateInput): Set<string> {
 }
 
 /** A financial year label, "2025/26", "2025-26" or "FY2025/2026", or a range of years, "2024–2026". */
-const FY_LABEL = /\b(?:FY\s?)?(\d{4})[/\-–](\d{2}|\d{4})\b/giu;
+const FY_LABEL = /\b(?:FY\s?)?(\d{4})[/\-\u2013](\d{2}|\d{4})\b/giu;
 
 /** A bare four-digit whole number in this range reads as a year, not a count ("in 2025"). */
 const YEARS = { from: 1900, to: 2099 };
@@ -134,8 +134,10 @@ const LABEL_GAP = '\uE000';
  * What joins two numbers of one range or list, "8.2 to 16.4%", "between 8.2 and 16.4%",
  * "8.2–16.4%" or "5.1, 8.2 and 16.4%", with at most an FY label before the join ("8.2 in
  * FY2024/25 to 16.4%"). Nothing else: a unit does not carry across other words or a sentence.
+ * The dash is a hyphen, an en dash or an em dash.
  */
-const RANGE_JOIN = /^\s*(?:(?:in\s+)?\uE000\s*)?(?:to|and|,(?:\s*(?:and|to)\b)?|[-–—])\s*$/iu;
+const RANGE_JOIN =
+  /^\s*(?:(?:in\s+)?\uE000\s*)?(?:to|and|,(?:\s*(?:and|to)\b)?|[-\u2013\u2014])\s*$/iu;
 
 /**
  * The numbers in `text`. A unit written once, after the last number of a range or list, is carried

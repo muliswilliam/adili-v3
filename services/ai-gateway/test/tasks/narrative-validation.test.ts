@@ -94,6 +94,7 @@ describe('narrative validation', () => {
     it('carries a unit written once across a range', () => {
       expect(foreign('The rate rose from 8.2 to 16.4 per cent.')).toEqual([]);
       expect(foreign('The rate was 8.2–16.4%, between 8.2 and 16.4%, or 8.2 - 16.4%.')).toEqual([]);
+      expect(foreign('The rate was 8.2\u201416.4%.')).toEqual([]);
       expect(foreign('The rate rose from 8.2 to 16.4 percentage points.')).toEqual([]);
       // A year is not one end of a range of percentages.
       expect(foreign('It rose from 8.2% in 2025 to 16.4% in 2026.')).toEqual([]);
