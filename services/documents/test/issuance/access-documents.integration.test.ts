@@ -806,6 +806,41 @@ describe('S13 issuing a certified copy', () => {
   });
 });
 
+describe('S13 a certified copy keeps each person with their statement', () => {
+  it('never leaves a name and its dates alone at the foot of a page', async () => {
+    // One more income line pushes Faith Otieno's name to the foot of page 3 when the heading
+    // breaks from the statement under it.
+    const payload = copyPayload();
+    const document = structuredClone(payload.document);
+    const [officer] = document.statements;
+    if (!officer?.income[0]) throw new Error('the fixture officer declares income');
+    officer.income.push(officer.income[0]);
+    const issuedCopy = await issued({
+      type: 'certified-copy',
+      templateVersion: 1,
+      subjectRef: `certified-copy:${randomUUID()}`,
+      subjectPersonId: DECLARANT_PERSON,
+      payload: { ...payload, document },
+    });
+    const texts = await pageTexts(await storedPdf(issuedCopy.id));
+    for (const statement of document.statements) {
+      const name = [
+        statement.personName.firstName,
+        statement.personName.otherNames,
+        statement.personName.surname,
+      ]
+        .filter(Boolean)
+        .join(' ');
+      const page = texts.find((text) => text.includes(`${name} Statement date`));
+      expect(page, name).toBeDefined();
+      // The first section of the statement follows on the same page.
+      expect(page).toMatch(
+        new RegExp(`${name} Statement date [^.]+\\. Income from [^.]+\\. INCOME`),
+      );
+    }
+  });
+});
+
 describe('S13 a certified copy ordered in person: the recording officer hands it over', () => {
   let document: IssuedDocument;
 

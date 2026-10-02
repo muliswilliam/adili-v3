@@ -105,6 +105,7 @@ export const CONTENT_STYLES = `
 .sec h2{font-size:11.5pt;font-weight:700;margin:0 0 2mm;padding-bottom:1.2mm;border-bottom:0.35mm solid ${INK};break-after:avoid}
 .sec h3{font-size:10pt;font-weight:700;margin:4mm 0 1.5mm;break-after:avoid}
 .sec h4{font-size:8.6pt;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;color:${MUTED};margin:3mm 0 1mm;break-after:avoid}
+.person{break-inside:avoid;break-after:avoid}
 .kv{display:grid;grid-template-columns:44mm 1fr;margin:0}
 .kv dt,.kv dd{margin:0;padding:1.3mm 0;border-bottom:0.25mm solid ${LINE}}
 .kv dt{color:${MUTED}}
@@ -396,7 +397,9 @@ function statementOf(entry: DisclosedStatement | Statement): string {
     ? `<p class="note">To the best of the declarant's knowledge: ${esc(entry.knowledgeLimitation)}</p>`
     : '';
   const period = `Statement date ${esc(formatDate(entry.statementDate))}. Income from ${esc(formatDate(entry.incomePeriod.from))} to ${esc(formatDate(entry.incomePeriod.to))}.`;
-  return `<h3>${esc(fullName(entry.personName))}</h3><p class="note">${period}</p>${income}${assets}${liabilities}${limitation}`;
+  // The person's name and dates stay with the start of their statement, never alone at the
+  // foot of a page.
+  return `<div class="person"><h3>${esc(fullName(entry.personName))}</h3><p class="note">${period}</p></div>${income}${assets}${liabilities}${limitation}`;
 }
 
 /** `Income, assets and liabilities`, or the part of it the statements carry. */
