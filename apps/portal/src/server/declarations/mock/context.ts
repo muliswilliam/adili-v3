@@ -1,9 +1,17 @@
-import type { Draft, Household, Officer, Statement } from '../../../declaration/contents';
+import type {
+  Draft,
+  Household,
+  ObligationType,
+  Officer,
+  Statement,
+} from '../../../declaration/contents';
 import type { CompletenessIssue, SectionKey } from '../types';
 
 /** What a section's completeness rules can see of the rest of the draft. */
 export interface RuleContext {
   key: SectionKey;
+  /** The declaration's type: an initial one follows no earlier declaration. */
+  type: ObligationType;
   statementDate: string;
   officer: Draft<Officer>;
   household: Draft<Household>;

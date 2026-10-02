@@ -13,6 +13,7 @@ const client = () =>
 function context(overrides: Partial<RuleContext> = {}): RuleContext {
   return {
     key: 'other',
+    type: 'biennial',
     statementDate: '2027-11-01',
     officer: {},
     household: {},

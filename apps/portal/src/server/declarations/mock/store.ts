@@ -76,6 +76,7 @@ export function context(stored: Stored, key: string): RuleContext {
   }
   return {
     key,
+    type: stored.header.type,
     statementDate: stored.header.statementDate,
     officer: stored.contents.get('bio') ?? {},
     household: stored.contents.get('household') ?? {},
