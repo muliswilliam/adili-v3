@@ -3,7 +3,7 @@ import { PLATFORM_TENANT } from '@adili/api-kit';
 import { InjectDatabase } from '@adili/data-access';
 import { EventPublisher } from '@adili/events';
 import { v7 as uuidv7 } from 'uuid';
-import { and, asc, eq, isNull, or, sql } from 'drizzle-orm';
+import { and, eq, isNull, or, sql } from 'drizzle-orm';
 import { z } from 'zod';
 
 import {
@@ -118,9 +118,7 @@ export class Routing {
    * then each Commission's by tenant. Saving a route never moves its row.
    */
   async table(): Promise<RouteView[]> {
-    const rows = await asPlatform(this.db, (tx) =>
-      tx.select().from(routes).orderBy(asc(routes.task), asc(routes.tenant)),
-    );
+    const rows = await asPlatform(this.db, (tx) => tx.select().from(routes));
     const defaults = new Set(rows.filter((row) => row.tenant === null).map((row) => row.task));
     return [
       ...rows.map((row) => this.view(row.tenant, row.task, routeOf(row))),
@@ -129,9 +127,10 @@ export class Routing {
       ),
     ].sort(
       (a, b) =>
-        TASK_NAMES.indexOf(a.task) - TASK_NAMES.indexOf(b.task) ||
+        taskOrder(a.task) - taskOrder(b.task) ||
+        byCodeUnits(a.task, b.task) ||
         Number(a.tenant !== null) - Number(b.tenant !== null) ||
-        (a.tenant ?? '').localeCompare(b.tenant ?? ''),
+        byCodeUnits(a.tenant ?? '', b.tenant ?? ''),
     );
   }
 
@@ -267,4 +266,15 @@ export function parseParams(params: unknown, source: string): RouteParams {
     throw new Error(`Invalid routing parameters (${source}): ${z.prettifyError(parsed.error)}`);
   }
   return parsed.data;
+}
+
+/** A task's place in `TASK_NAMES`; a stored task the gateway no longer knows goes last. */
+function taskOrder(task: string): number {
+  const index = (TASK_NAMES as readonly string[]).indexOf(task);
+  return index < 0 ? TASK_NAMES.length : index;
+}
+
+/** The same order on every runtime, whatever its locale (unlike `localeCompare`). */
+function byCodeUnits(a: string, b: string): number {
+  return a < b ? -1 : a > b ? 1 : 0;
 }

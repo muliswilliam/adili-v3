@@ -8,6 +8,7 @@ import { afterEach, beforeAll, describe, expect, it } from 'vitest';
 
 import { auditRecords, gatePolicies, jobs, routes } from '../../src/db/schema.js';
 import { currentMonth } from '../../src/policy/budgets.js';
+import type { TaskName } from '../../src/tasks/task.js';
 import { contractErrors } from '../support/contract.js';
 import { actingFor, summarizeInput, summarizeOutput, usage } from '../support/inputs.js';
 import { ScriptedProvider } from '../support/scripted-provider.js';
@@ -455,6 +456,37 @@ describe('admin API', { timeout: 90_000 }, () => {
         params: {},
         configured: true,
       });
+    });
+
+    it('orders the table by task, the default route first, then by Commission, on any runtime (N23)', async () => {
+      for (const [tenant, task] of [
+        ['tsc', 'explain-flags'],
+        [null, 'retired-task'],
+        ['kcomm', 'explain-flags'],
+      ] as const) {
+        await t.db.insert(routes).values({
+          id: uuidv7(),
+          tenant,
+          // A task the gateway no longer knows keeps its stored row: it goes last.
+          task: task as TaskName,
+          provider: 'local',
+          model: 'llama-4',
+          changedBy: 'platform-admin-1',
+        });
+      }
+
+      const table = (await request('GET', '/v1/ai/routing', admin)).json<
+        { task: string; tenant: string | null }[]
+      >();
+
+      expect(table.map(({ task, tenant }) => [task, tenant])).toEqual([
+        ['summarize-declaration', null],
+        ['explain-flags', null],
+        ['explain-flags', 'kcomm'],
+        ['explain-flags', 'tsc'],
+        ['draft-clarification', null],
+        ['retired-task', null],
+      ]);
     });
   });
 
