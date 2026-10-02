@@ -25,6 +25,7 @@ function entry(fields: Partial<AccessHistoryEntry>): AccessHistoryEntry {
     caseReference: null,
     outcome: null,
     certifiedCopy: null,
+    inWriting: false,
     ...fields,
   };
 }
@@ -36,6 +37,18 @@ describe('Who accessed in the declarant’s words', () => {
       title: 'Wanjiru Kamau asked to see your declaration',
       actor: 'Notified by Teachers Service Commission',
       reference: 'ARQ-TSC-2026-0000052-I',
+    });
+  });
+
+  it('says what was done on paper: the notice served and the representations received in writing', () => {
+    const notified = entry({ inWriting: true });
+    const sent = entry({ kind: 'representations', inWriting: true, at: '2026-09-22T07:00:00Z' });
+    expect(toRegisterEntry(notified, [notified, sent], []).actor).toBe(
+      'Notified in writing by Teachers Service Commission',
+    );
+    expect(toRegisterEntry(sent, [notified, sent], [])).toMatchObject({
+      title: 'You responded',
+      actor: 'You · received in writing',
     });
   });
 

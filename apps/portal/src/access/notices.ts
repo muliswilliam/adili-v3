@@ -221,7 +221,10 @@ export function historyOf(notice: DeclarantNotice): RegisterEntry[] {
       kind: 'notified',
       at: notice.notifiedAt,
       title: NOTICE_COPY.askedToSee(notice.applicantName),
-      actor: NOTICE_COPY.notifiedBy(code),
+      actor:
+        notice.noticeChannel === 'written'
+          ? NOTICE_COPY.notifiedInWritingBy(code)
+          : NOTICE_COPY.notifiedBy(code),
     },
   ];
   const sent = notice.representations;
@@ -231,7 +234,11 @@ export function historyOf(notice: DeclarantNotice): RegisterEntry[] {
       kind: 'representations',
       at: sent.updatedAt,
       title: STANCES[sent.stance].done.en,
-      actor: sent.updatedAt !== sent.submittedAt ? NOTICE_COPY.youEdited : NOTICE_COPY.you,
+      actor: sent.receivedInWriting
+        ? NOTICE_COPY.youInWriting
+        : sent.updatedAt !== sent.submittedAt
+          ? NOTICE_COPY.youEdited
+          : NOTICE_COPY.you,
     });
   }
   const { decision } = notice;

@@ -31,6 +31,7 @@ const NOTICES = {
       `A law-enforcement agency was ${verb} on ${date} (${agency}, case ${caseReference})`,
   ),
   notifiedOn: en((date: string) => `Notified ${date}`),
+  notifiedInWritingOn: en((date: string) => `Notified in writing ${date}`),
   decidedOn: en((date: string) => `Decided ${date}`),
   respondBy: en((date: string) => `Respond by ${date}`),
   editUntil: en((date: string) => `Edit until ${date}`),
@@ -61,6 +62,7 @@ const NOTICE = {
   pageTitle: en('Access request'),
   leaTitle: en('Law-enforcement access'),
   notified: en((date: string) => `Notified ${date}`),
+  notifiedInWriting: en((date: string) => `Notified in writing ${date}`),
   granted: en((date: string) => `Granted ${date}`),
 
   bannerNotice: en('Someone has requested access to your declaration.'),
@@ -139,7 +141,9 @@ const NOTICE = {
   history: en('History'),
   askedToSee: en((who: string) => `${who} asked to see your declaration`),
   notifiedBy: en((commission: string) => `Notified by ${commission}`),
+  notifiedInWritingBy: en((commission: string) => `Notified in writing by ${commission}`),
   youEdited: en('You · edited'),
+  youInWriting: en('You · received in writing'),
   officerOf: en((commission: string) => `Access officer, ${commission}`),
   agencyGranted: en(
     (agency: string, verb: string, caseReference: string) =>
@@ -200,6 +204,8 @@ const RESPONSE = {
   edit: en('Edit'),
   sentAt: en((at: string) => `Sent ${at}`),
   editedAt: en((at: string) => `Edited ${at}`),
+  inWriting: en('Received in writing'),
+  inWritingAt: en((at: string) => `Your letter, recorded by the Commission ${at}`),
 
   consentTitle: en('Consent to release?'),
   consentBody: en(

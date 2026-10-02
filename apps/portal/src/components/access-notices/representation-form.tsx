@@ -27,6 +27,7 @@ import {
 import {
   Cancel01Icon,
   File02Icon,
+  Mail01Icon,
   Message01Icon,
   PencilEdit02Icon,
   SentIcon,
@@ -333,7 +334,7 @@ export function SentResponseCard({
   canEdit: boolean;
   onEdit: () => void;
 }) {
-  const { stance, text, attachments, submittedAt, updatedAt } = representations;
+  const { stance, text, attachments, submittedAt, updatedAt, receivedInWriting } = representations;
   const edited = updatedAt !== submittedAt;
   return (
     <Card className="gap-0 p-0 sm:p-0">
@@ -352,10 +353,18 @@ export function SentResponseCard({
             <Icon icon={STANCE_ICONS[stance]} strokeWidth={2.2} />
             {STANCES[stance].done.en}
           </Badge>
+          {receivedInWriting ? (
+            <Badge variant="info">
+              <Icon icon={Mail01Icon} strokeWidth={2.2} />
+              {COPY.inWriting}
+            </Badge>
+          ) : null}
           <span className="text-sm text-muted-foreground">
-            {edited
-              ? COPY.editedAt(formatDateTime(updatedAt))
-              : COPY.sentAt(formatDateTime(submittedAt))}
+            {receivedInWriting
+              ? COPY.inWritingAt(formatDateTime(updatedAt))
+              : edited
+                ? COPY.editedAt(formatDateTime(updatedAt))
+                : COPY.sentAt(formatDateTime(submittedAt))}
           </span>
         </div>
         {text ? (

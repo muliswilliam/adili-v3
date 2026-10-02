@@ -239,6 +239,11 @@ function noticeEntries(notice: DeclarantNotice, now: number): AccessHistoryEntry
     summary: string,
     extra: Partial<AccessHistoryEntry> = {},
   ) => {
+    // The mock's notice served on paper: its notice and its letter were both in writing.
+    const inWriting =
+      (kind === 'notified' || kind === 'representations') &&
+      notice.kind === 'form-k' &&
+      notice.representations?.receivedInWriting;
     entries.push({
       ...base,
       // Unique per notice and entry, uuid-shaped: the notice's first and last groups kept.
@@ -248,14 +253,23 @@ function noticeEntries(notice: DeclarantNotice, now: number): AccessHistoryEntry
       summary,
       actor: null,
       outcome: null,
+      inWriting: inWriting ?? false,
       ...extra,
     });
   };
   if (notice.kind === 'form-k') {
-    add('notified', notice.notifiedAt, 'Declarant notified');
+    add(
+      'notified',
+      notice.notifiedAt,
+      notice.noticeChannel === 'written' ? 'Declarant notified in writing' : 'Declarant notified',
+    );
     const sent = notice.representations;
     if (sent) {
-      add('representations', sent.submittedAt, 'Representations received');
+      add(
+        'representations',
+        sent.submittedAt,
+        sent.receivedInWriting ? 'Representations received in writing' : 'Representations received',
+      );
       if (sent.updatedAt !== sent.submittedAt) {
         add('representations', sent.updatedAt, 'Representations received');
       }
@@ -296,6 +310,7 @@ function copyEntry(copy: MockCopy): AccessHistoryEntry | null {
     id: copy.id.replace(/^.{4}/, 'e0c1'),
     kind: 'self-access',
     at: copy.issuedAt,
+    inWriting: false,
     actor: null,
     summary: 'Certified copy issued',
     reference: copy.reference,

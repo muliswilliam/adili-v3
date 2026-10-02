@@ -35,6 +35,7 @@ function notice(fields: Partial<FormKDeclarantNotice> = {}): FormKDeclarantNotic
     canRespond: true,
     representations: null,
     decision: null,
+    noticeChannel: 'online',
     ...fields,
   };
 }
@@ -51,6 +52,7 @@ function leaNotice(fields: Partial<LeaDeclarantNotice> = {}): LeaDeclarantNotice
     outcome: 'grant',
     decidedAt: '2026-09-02T12:30:00Z',
     notifiedAt: '2026-09-02T13:30:00Z',
+    noticeChannel: 'online',
     ...fields,
   };
 }
@@ -61,6 +63,8 @@ const SENT = {
   attachments: [],
   submittedAt: '2026-09-30T07:00:00Z',
   updatedAt: '2026-09-30T07:00:00Z',
+  receivedInWriting: false,
+  recordedBy: null,
 };
 
 const DECISION = {
@@ -78,6 +82,11 @@ describe('the window', () => {
     expect(windowOpen(notice(), '2026-10-06T07:00:00Z')).toBe(false);
     expect(windowOpen(notice({ canRespond: false }), NOW)).toBe(false);
     expect(windowOpen(leaNotice(), NOW)).toBe(false);
+  });
+
+  it('says a notice served on paper was given in writing, by the Commission', () => {
+    const written = historyOf(notice({ noticeChannel: 'written' }))[0];
+    expect(written?.actor).toBe('Notified in writing by Teachers Service Commission');
   });
 
   it('waits for the declarant only until they respond', () => {

@@ -206,7 +206,9 @@ function Header({
           <Icon icon={Calendar03Icon} />
           {notice.kind === 'lea'
             ? COPY.granted(formatDate(notice.decidedAt))
-            : COPY.notified(formatDate(notice.notifiedAt))}
+            : notice.noticeChannel === 'written'
+              ? COPY.notifiedInWriting(formatDate(notice.notifiedAt))
+              : COPY.notified(formatDate(notice.notifiedAt))}
         </span>
       </div>
     </div>
