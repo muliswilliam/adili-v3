@@ -15,6 +15,8 @@ import { QueueTiles } from './queue-tiles';
 import { QueueToolbar } from './queue-toolbar';
 
 export interface QueueViewProps {
+  /** The Commission's name, for the heading; null while it loads or when it is unknown. */
+  commission: string | null;
   /** The counts behind the tiles; null while they load. */
   summary: ServiceResult<QueueSummary> | null;
   /** The first page for `search`; null while it loads. */
@@ -54,7 +56,7 @@ export function QueueView(props: QueueViewProps) {
 
   return (
     <Page>
-      <PageHead title={m.title} />
+      <PageHead title={props.commission ? m.titleOf(props.commission) : m.title} />
       <div className="flex flex-col gap-3">
         {summary && !summary.ok ? (
           bothFailed ? null : (

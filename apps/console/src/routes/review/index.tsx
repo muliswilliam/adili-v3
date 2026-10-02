@@ -12,6 +12,7 @@ import {
   queueSearchSchema,
 } from '../../review-queue/query';
 import type { QueueSummary } from '../../review-queue/rows';
+import { getCommission } from '../../server/commissions';
 import { getReviewers } from '../../server/review-case';
 import type { Reviewer } from '../../server/review-case.server';
 import { getReviewQueue, getReviewQueueSummary, type QueuePage } from '../../server/review-queue';
@@ -22,6 +23,8 @@ const PATH = '/review';
 interface QueueLoad {
   list: ServiceResult<QueuePage>;
   summary: ServiceResult<QueueSummary>;
+  /** The Commission's name for the heading; null when it could not be read. */
+  commission: string | null;
 }
 
 /**
@@ -41,11 +44,12 @@ export const Route = createFileRoute('/review/')({
     // The layout shows why there is no workspace; do not fetch one.
     if (!context.workspace) return null;
     const slug = context.viewer.directory.ok ? context.viewer.directory.principal.tenant : null;
-    if (!slug) return { list: SERVICE_UNAVAILABLE, summary: SERVICE_UNAVAILABLE };
+    if (!slug) return { list: SERVICE_UNAVAILABLE, summary: SERVICE_UNAVAILABLE, commission: null };
     const filters = queueSearchSchema.parse(location.search);
-    const [list, summary] = await Promise.all([
+    const [list, summary, commission] = await Promise.all([
       getReviewQueue({ data: { slug, filters, limit: QUEUE_PAGE_SIZE } }),
       getReviewQueueSummary({ data: { slug } }),
+      getCommission({ data: { slug } }).catch(() => null),
     ]);
     if (
       (!list.ok && list.error.kind === 'unauthenticated') ||
@@ -53,7 +57,7 @@ export const Route = createFileRoute('/review/')({
     ) {
       throw signInRedirect(location.href);
     }
-    return { list, summary };
+    return { list, summary, commission: commission?.ok ? commission.data.name : null };
   },
   head: () => ({ meta: [{ title: `${m.title} · Adili Online Console` }] }),
   pendingComponent: QueueLoading,
@@ -89,6 +93,7 @@ function QueuePageView({ load }: { load: QueueLoad | null }) {
 
   return (
     <QueueView
+      commission={load?.commission ?? null}
       summary={load?.summary ?? null}
       list={loading ? null : (load?.list ?? null)}
       search={search}

@@ -81,6 +81,7 @@ const supervisor = { ...ME, supervisor: true };
 
 function view(overrides: Partial<QueueViewProps> = {}) {
   const props: QueueViewProps = {
+    commission: 'Public Service Commission',
     summary: ok(SUMMARY),
     list: page([UNASSIGNED, HELD]),
     search: {},
@@ -116,6 +117,16 @@ beforeEach(() => {
 });
 
 describe('QueueView', () => {
+  it("is headed with the Commission's name, and without it while unknown", () => {
+    const { unmount } = render(view());
+    expect(screen.getByRole('heading', { level: 1 }).textContent).toBe(
+      'Review queue · Public Service Commission',
+    );
+    unmount();
+    render(view({ commission: null }));
+    expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('Review queue');
+  });
+
   it('shows the tiles with their split by priority and the overdue clarifications', () => {
     render(view());
     const tiles = screen.getByRole('group', { name: 'Cases by status' });
