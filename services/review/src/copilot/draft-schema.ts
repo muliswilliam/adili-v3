@@ -15,8 +15,8 @@ export const COPILOT_DRAFT_TTL_HOURS = 24;
 
 /**
  * A clarification draft the ai-gateway's `draft-clarification` task produces for a reviewer
- * (spec 07c S12): which job, for whom, how it ended and, once ready, the drafted text. Kept for a
- * day, then purged. It never becomes a clarification: the reviewer puts the items into the
+ * (spec 07c S12): which job, for whom, how it ended and, once ready, the drafted text. The text is
+ * kept for a day, then purged; the rest stays as the record of which job drafted what. It never becomes a clarification: the reviewer puts the items into the
  * composer and issues through the clarification endpoints.
  *
  * The drafted text holds declaration content, so it is stored only encrypted under the
@@ -38,11 +38,16 @@ export const reviewCopilotDrafts = pgTable(
     status: text({ enum: COPILOT_DRAFT_STATUSES }).notNull(),
     /** The gateway's job reason, or `rejected`. */
     failureReason: text(),
-    /** Base64 AES-256-GCM ciphertext of the draft (`DraftContent`); set once, and only, when ready. */
+    /** Base64 AES-256-GCM ciphertext of the draft (`DraftContent`); set once ready, until purged. */
     ciphertext: text(),
     envelope: jsonb().$type<FieldEnvelope>(),
     createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
     expiresAt: timestamp({ withTimezone: true }).notNull(),
+    /**
+     * When the purge removed the drafted text, past `expiresAt`. The row stays: which job drafted
+     * text on the case, for whom, names the AI-drafted items of clarifications (ADR-007).
+     */
+    purgedAt: timestamp({ withTimezone: true }),
   },
   (table) => [
     check(
@@ -51,7 +56,7 @@ export const reviewCopilotDrafts = pgTable(
     ),
     check(
       'review_copilot_drafts_content_check',
-      sql`(${table.status} = 'ready') = (${table.ciphertext} is not null and ${table.envelope} is not null)`,
+      sql`(${table.status} = 'ready' and ${table.purgedAt} is null) = (${table.ciphertext} is not null and ${table.envelope} is not null)`,
     ),
     index('review_copilot_drafts_expires_at_idx').on(table.expiresAt),
   ],

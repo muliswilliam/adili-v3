@@ -860,7 +860,7 @@ describe('review copilot', () => {
       expect(api.ai.feedback).toEqual([]);
     });
 
-    it('an invalid rating is 400; the gateway unreachable is 503 and nothing is recorded', async () => {
+    it('an invalid rating is 400, also when the gateway refuses it; the gateway unreachable is 503; nothing is recorded', async () => {
       const { caseId, summary } = await readyCase();
 
       for (const body of [
@@ -880,6 +880,13 @@ describe('review copilot', () => {
       expect(unavailable.json()).toMatchObject({ type: 'ai-gateway-unavailable' });
       expect((await view(caseId)).feedback).toEqual([]);
       expect(api.ai.feedback).toEqual([]);
+
+      // A rating the gateway refuses (its own validation) is the caller's 400, recorded nowhere.
+      api.ai.rejectRequests();
+      const refused = await api.send('PUT', feedbackPath(summary), reviewerA, helpful);
+      expect(refused.statusCode).toBe(400);
+      expect(refused.json()).toMatchObject({ type: 'feedback-rejected' });
+      expect((await view(caseId)).feedback).toEqual([]);
     });
   });
 });

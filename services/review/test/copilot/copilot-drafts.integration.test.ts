@@ -347,9 +347,19 @@ describe('review copilot drafts', () => {
     expect(api.ai.feedback.map((call) => [call.jobId, call.feedback.rating])).toEqual([
       [jobId, 'helpful'],
     ]);
+    // A draft is its requester's alone, as its poll is: anyone else, 404.
     expect((await api.send('PUT', feedbackPath(jobId), otherReviewer, helpful)).statusCode).toBe(
-      403,
+      404,
     );
+
+    // Also once the case is theirs: they did not ask for it.
+    await api.asPlatform((tx) =>
+      tx.update(reviewCases).set({ assignee: 'reviewer-b' }).where(eq(reviewCases.id, caseId)),
+    );
+    expect((await api.send('PUT', feedbackPath(jobId), otherReviewer, helpful)).statusCode).toBe(
+      404,
+    );
+    expect(api.ai.feedback).toHaveLength(1);
   });
 
   it('is for the assignee only: another reviewer or a supervisor 403, another Commission 404, and a draft is polled only by who asked', async () => {
@@ -429,7 +439,7 @@ describe('review copilot drafts', () => {
     expect(await draftRows()).toEqual([]);
   });
 
-  it('purges drafts after 24 hours; until the purge runs, an expired draft is already gone', async () => {
+  it("purges drafts' text after 24 hours, keeping which job drafted; until the purge runs, an expired draft is already gone", async () => {
     const { caseId, flagId } = await flaggedCase();
     const old = (await post(caseId, draftInput(flagId))).json<CopilotDraft>();
     const fresh = (await post(caseId, draftInput(flagId))).json<CopilotDraft>();
@@ -445,6 +455,16 @@ describe('review copilot drafts', () => {
 
     expect((await api.get(draftPath(old.id), assignee)).statusCode).toBe(404);
     expect(await api.app.get(CopilotDraftPurge).purge()).toBe(1);
-    expect((await draftRows()).map((r) => r.id)).toEqual([fresh.id]);
+    const rows = await draftRows();
+    expect(rows.find((r) => r.id === old.id)).toMatchObject({
+      jobId: old.jobId,
+      ciphertext: null,
+      envelope: null,
+      purgedAt: expect.any(Date) as Date,
+    });
+    expect(rows.find((r) => r.id === fresh.id)).toMatchObject({ purgedAt: null });
+    // Idempotent: a purged draft is not purged again.
+    expect(await api.app.get(CopilotDraftPurge).purge()).toBe(0);
+    expect((await api.get(draftPath(old.id), assignee)).statusCode).toBe(404);
   });
 });

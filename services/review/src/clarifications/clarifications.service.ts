@@ -83,7 +83,7 @@ export class ClarificationsService {
         .where(eq(reviewCases.id, caseId));
       const reviewCase = notFoundIfInvisible(found);
       requireAssignee(principal, reviewCase.assignee);
-      await requireDraftedOnCase(tx, caseId, input);
+      const aiAssisted = await requireDraftedOnCase(tx, principal, caseId, input);
       const [created] = await tx
         .insert(clarifications)
         .values({
@@ -95,6 +95,7 @@ export class ClarificationsService {
           items: storedItems(input),
           opening: input.opening,
           openingAiJobId: input.openingAiJobId,
+          aiAssisted,
           createdBy: principal.subject,
         })
         .returning();
@@ -112,13 +113,21 @@ export class ClarificationsService {
       const { clarification, reviewCase } = await lockForWork(tx, tenant, clarificationId);
       requireAssignee(principal, reviewCase.assignee);
       if (clarification.status !== 'draft') throw notADraft();
-      await requireDraftedOnCase(tx, reviewCase.id, input, aiJobIdsOf(clarification));
+      const aiAssisted = await requireDraftedOnCase(
+        tx,
+        principal,
+        reviewCase.id,
+        input,
+        aiJobIdsOf(clarification),
+      );
       const [updated] = await tx
         .update(clarifications)
         .set({
           items: storedItems(input),
           opening: input.opening,
           openingAiJobId: input.openingAiJobId,
+          // Once AI-assisted, always: a save that leaves the jobs out keeps the label (ADR-007).
+          aiAssisted: clarification.aiAssisted || aiAssisted,
         })
         .where(eq(clarifications.id, clarificationId))
         .returning();
@@ -306,6 +315,7 @@ export class ClarificationsService {
           items: clarification.items.map((item) => ({ ...item, id: uuidv7() })),
           opening: clarification.opening,
           openingAiJobId: clarification.openingAiJobId,
+          aiAssisted: clarification.aiAssisted,
           followUpOf: clarificationId,
           createdBy: principal.subject,
         })
@@ -454,27 +464,31 @@ function aiJobIdsOf(clarification: {
 }
 
 /**
- * Every Draft with AI job the input names (`aiJobId`, `openingAiJobId`) drafted on this case: a
- * ready draft of the case's, or one the clarification already names (its drafts may be purged
- * since). 400 otherwise, so the AI label (ADR-007) always points at a draft of the case.
+ * Every Draft with AI job the input names (`aiJobId`, `openingAiJobId`) drafted on this case by
+ * the caller: a ready draft of theirs (its text purged after its 24 hours or not: which job
+ * drafted it is kept, so the label survives the purge), or one the clarification already names.
+ * 400 otherwise, so the AI label (ADR-007) always points at a draft of the case. Whether the input
+ * names any.
  */
 async function requireDraftedOnCase(
   tx: ReviewTransaction,
+  principal: Principal,
   caseId: string,
   input: ClarificationInput,
   known = new Set<string>(),
-): Promise<void> {
+): Promise<boolean> {
   const named = [
     ...aiJobIdsOf({ items: storedItems(input), openingAiJobId: input.openingAiJobId }),
   ];
   const unknown = named.filter((id) => !known.has(id));
-  if (unknown.length === 0) return;
+  if (unknown.length === 0) return named.length > 0;
   const drafted = await tx
     .selectDistinct({ jobId: reviewCopilotDrafts.jobId })
     .from(reviewCopilotDrafts)
     .where(
       and(
         eq(reviewCopilotDrafts.caseId, caseId),
+        eq(reviewCopilotDrafts.requestedBy, principal.subject),
         eq(reviewCopilotDrafts.status, 'ready'),
         inArray(reviewCopilotDrafts.jobId, unknown),
       ),
@@ -485,11 +499,12 @@ async function requireDraftedOnCase(
         type: 'ai-draft-not-on-case',
         title: 'Bad Request',
         status: HttpStatus.BAD_REQUEST,
-        detail: 'An AI-drafted item or opening names no Draft with AI of this case.',
+        detail: 'An AI-drafted item or opening names no Draft with AI of yours on this case.',
       },
       { code: 'ai-draft-not-on-case' },
     );
   }
+  return true;
 }
 
 function notADraft(): ProblemException {

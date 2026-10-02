@@ -32,7 +32,14 @@ export async function composeLetter(
     items,
     opening,
     openingAiJobId,
-  }: { items: ClarificationItem[]; opening: string | null; openingAiJobId: string | null },
+    aiAssisted,
+  }: {
+    items: ClarificationItem[];
+    opening: string | null;
+    openingAiJobId: string | null;
+    /** The clarification's sticky marker: some save named AI-drafted text. */
+    aiAssisted: boolean;
+  },
 ): Promise<ClarificationLetter> {
   let document: DeclarationV1 | null;
   try {
@@ -55,7 +62,10 @@ export async function composeLetter(
   return {
     commission: { name: commission.name, issuerCode: commission.issuerCode },
     opening,
-    aiAssisted: (opening !== null && openingAiJobId !== null) || lines.some((l) => l.aiAssisted),
+    aiAssisted:
+      aiAssisted ||
+      (opening !== null && openingAiJobId !== null) ||
+      lines.some((l) => l.aiAssisted),
     items: lines,
   };
 }

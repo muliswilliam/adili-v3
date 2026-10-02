@@ -7,6 +7,7 @@ import { asc, eq } from 'drizzle-orm';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { clarificationWorkflowId } from '../../src/clarifications/contract.js';
+import { CopilotDraftPurge } from '../../src/copilot/copilot-draft-purge.js';
 import type {
   ClarificationView,
   DeclarantClarificationView,
@@ -535,6 +536,93 @@ describe('clarifications: drafts, issue, letter payload, declarant reads', () =>
       openingAiJobId: jobId,
       items: [{ aiJobId: jobId }, { aiJobId: null }],
     });
+  });
+
+  it('ADR-007: a clarification that named AI-drafted text stays AI-assisted when an edit drops the job', async () => {
+    const caseId = await givenAssignedCase(api, version);
+    const jobId = randomUUID();
+    await api.asPlatform((tx) =>
+      tx.insert(reviewCopilotDrafts).values({
+        id: randomUUID(),
+        tenant: 'psc',
+        caseId,
+        requestedBy: 'reviewer-a',
+        jobId,
+        status: 'ready',
+        ciphertext: 'sealed',
+        envelope: {} as never,
+        expiresAt: new Date(Date.now() + 3_600_000),
+      }),
+    );
+    const [drafted, written] = twoItems.items;
+    const created = await draft(caseId, { items: [{ ...drafted, aiJobId: jobId }, written] });
+    expect(created.statusCode, created.body).toBe(201);
+    const { id } = created.json<ClarificationView>();
+
+    // A client that leaves the job out of its next save.
+    const edited = await api.send('PUT', `/v1/review/clarifications/${id}`, reviewerA, twoItems);
+    expect(edited.statusCode, edited.body).toBe(200);
+
+    expect((await issue(id)).statusCode).toBe(200);
+    await vi.waitFor(
+      () => {
+        expect(api.documents.issued).toHaveLength(1);
+      },
+      { timeout: 45_000, interval: 250 },
+    );
+    const payload = await api.get(
+      `/internal/v1/review/clarifications/${id}/letter-payload`,
+      documentsService,
+      { 'x-acting-tenant': 'psc' },
+    );
+    expect(payload.json()).toMatchObject({ aiAssisted: true });
+  });
+
+  it("ADR-007: a draft's job names AI text after its 24 hours are purged, and only for the reviewer who drafted it", async () => {
+    const caseId = await givenAssignedCase(api, version);
+    const jobId = randomUUID();
+    const draftId = randomUUID();
+    await api.asPlatform((tx) =>
+      tx.insert(reviewCopilotDrafts).values({
+        id: draftId,
+        tenant: 'psc',
+        caseId,
+        requestedBy: 'reviewer-a',
+        jobId,
+        status: 'ready',
+        ciphertext: 'sealed',
+        envelope: {} as never,
+        expiresAt: new Date(Date.now() - 60_000),
+      }),
+    );
+    const [drafted, written] = twoItems.items;
+    const body = { items: [{ ...drafted, aiJobId: jobId }, written] };
+
+    // Another reviewer of the Commission (the case reassigned to them) cannot name it.
+    await api.asPlatform((tx) =>
+      tx.update(reviewCases).set({ assignee: 'reviewer-b' }).where(eq(reviewCases.id, caseId)),
+    );
+    const byOther = await draft(caseId, body, reviewerB);
+    expect(byOther.statusCode).toBe(400);
+    expect(byOther.json()).toMatchObject({ type: 'ai-draft-not-on-case' });
+    await api.asPlatform((tx) =>
+      tx.update(reviewCases).set({ assignee: 'reviewer-a' }).where(eq(reviewCases.id, caseId)),
+    );
+
+    // The purge removes the drafted text and keeps which job drafted it on the case.
+    expect(await api.app.get(CopilotDraftPurge).purge()).toBe(1);
+    const [purged] = await api.asPlatform((tx) =>
+      tx.select().from(reviewCopilotDrafts).where(eq(reviewCopilotDrafts.id, draftId)),
+    );
+    expect(purged).toMatchObject({ jobId, ciphertext: null, envelope: null });
+    expect(purged?.purgedAt).toBeInstanceOf(Date);
+
+    const created = await draft(caseId, body);
+    expect(created.statusCode, created.body).toBe(201);
+    expect(created.json<ClarificationView>().items.map((item) => item.aiJobId)).toEqual([
+      jobId,
+      null,
+    ]);
   });
 
   it('S12: issuing needs an Idempotency-Key, and a retry with the same key replays the answer', async () => {

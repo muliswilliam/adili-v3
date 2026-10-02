@@ -1,5 +1,5 @@
 {
-  "id": "5177b045-69a8-443d-aef8-0c18d973292f",
+  "id": "80b851db-027d-4e40-8904-6a8a56cf7b1d",
   "prevId": "c67cb3d5-db97-4076-bb1e-16ecaaec3270",
   "version": "7",
   "dialect": "postgresql",
@@ -463,6 +463,13 @@
           "type": "uuid",
           "primaryKey": false,
           "notNull": false
+        },
+        "ai_assisted": {
+          "name": "ai_assisted",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
         },
         "issued_at": {
           "name": "issued_at",
@@ -1731,6 +1738,12 @@
           "type": "timestamp with time zone",
           "primaryKey": false,
           "notNull": true
+        },
+        "purged_at": {
+          "name": "purged_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
         }
       },
       "indexes": {
@@ -1775,7 +1788,7 @@
         },
         "review_copilot_drafts_content_check": {
           "name": "review_copilot_drafts_content_check",
-          "value": "(\"review_copilot_drafts\".\"status\" = 'ready') = (\"review_copilot_drafts\".\"ciphertext\" is not null and \"review_copilot_drafts\".\"envelope\" is not null)"
+          "value": "(\"review_copilot_drafts\".\"status\" = 'ready' and \"review_copilot_drafts\".\"purged_at\" is null) = (\"review_copilot_drafts\".\"ciphertext\" is not null and \"review_copilot_drafts\".\"envelope\" is not null)"
         }
       },
       "isRLSEnabled": false

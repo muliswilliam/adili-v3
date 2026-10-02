@@ -307,6 +307,11 @@ export const clarifications = pgTable(
     opening: text(),
     /** The Draft with AI job that drafted the opening paragraph; null when the reviewer wrote it. */
     openingAiJobId: uuid(),
+    /**
+     * Whether any save named AI-drafted text (ADR-007): kept once set, so an edit that leaves out
+     * an item's or the opening's job never issues the letter unlabelled.
+     */
+    aiAssisted: boolean().notNull().default(false),
     issuedAt: timestamp({ withTimezone: true }),
     dueAt: timestamp({ withTimezone: true }),
     respondedAt: timestamp({ withTimezone: true }),
