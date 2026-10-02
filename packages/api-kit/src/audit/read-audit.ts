@@ -11,6 +11,12 @@ export interface AuditedResource {
    * whose officers a details request returned. A read of one resource names it in its path.
    */
   ids?: readonly string[];
+  /**
+   * The resource type (ADR-008 `resource`), when a batch read serves more than the route's one
+   * type (a queue of Form K and law enforcement requests names each kind's ids apart, with
+   * `ReadAudit.resources`); the route's `@AuditedRead` `resource` otherwise.
+   */
+  type?: string;
 }
 
 /**
@@ -67,7 +73,7 @@ export interface EventAlongsideRead {
  * event (`alongside`).
  */
 export class ReadAudit {
-  #resource: AuditedResource | undefined;
+  #resources: AuditedResource[] = [];
   #ownRecord = false;
   #legalBasis: ReadLegalBasis | undefined;
   #recipient: string | undefined;
@@ -75,7 +81,15 @@ export class ReadAudit {
 
   /** The resource read: the event is filed under its tenant and names the person it is about. */
   resource(resource: AuditedResource): void {
-    this.#resource = resource;
+    this.#resources = [resource];
+  }
+
+  /**
+   * The resources a batch read served, of more than one type: one audit event for each, naming
+   * its `type` and `ids`, so no id is filed under another resource's type.
+   */
+  resources(resources: readonly AuditedResource[]): void {
+    this.#resources = [...resources];
   }
 
   /**
@@ -114,9 +128,14 @@ export class ReadAudit {
     return this.#alongside;
   }
 
-  /** The resource the handler named, if any. */
+  /** The resource the handler named, if any (the first, when it named several). */
   get describedResource(): AuditedResource | undefined {
-    return this.#resource;
+    return this.#resources[0];
+  }
+
+  /** Every resource the handler named; empty when it named none. */
+  get describedResources(): readonly AuditedResource[] {
+    return this.#resources;
   }
 
   /** The legal basis the handler named, if any. */

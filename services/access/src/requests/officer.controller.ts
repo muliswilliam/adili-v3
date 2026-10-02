@@ -80,8 +80,17 @@ export class OfficerController {
     @CurrentReadAudit() audit: ReadAudit,
   ): Promise<QueuePage> {
     const page = await this.officer.queue(principal, slug, query);
-    // A batch read names the resources it served (ADR-008).
-    audit.resource({ tenant: slug, ids: page.items.map(({ id }) => id) });
+    // A batch read names the resources it served (ADR-008), each kind under its own type.
+    const served = [
+      { type: 'access-request', kind: 'form-k' },
+      { type: 'lea-request', kind: 'lea' },
+    ].map(({ type, kind }) => ({
+      tenant: slug,
+      type,
+      ids: page.items.filter((item) => item.kind === kind).map(({ id }) => id),
+    }));
+    const named = served.filter(({ ids }) => ids.length > 0);
+    audit.resources(named.length > 0 ? named : served.slice(0, 1));
     return page;
   }
 

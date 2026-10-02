@@ -83,7 +83,9 @@ type AuditedRequest = AuthenticatedRequest & {
  * parameters (and the ids a batch read names), the actor from the verified token and the route,
  * no response data; its `tenant` is the tenant whose data was read: the one the handler named
  * with `ReadAudit.resource` (with the person the data is about), else the route's `slug`, else
- * the tenant a service acts for, else the caller's. A read the handler marked
+ * the tenant a service acts for, else the caller's. A batch read the handler named several
+ * resource types for (`ReadAudit.resources`) is one event per type, each naming its ids. A read
+ * the handler marked
  * `ReadAudit.ownRecord` (the caller's own record) is not recorded; one it gave a legal basis
  * (`ReadAudit.legalBasis`) names the basis and the reference that authorises it, and a
  * disclosure (`ReadAudit.disclosure`) the recipient too. The acting headers (`X-Acting-Tenant`,
@@ -111,11 +113,15 @@ export class AuditedReadInterceptor implements NestInterceptor {
     return next.handle().pipe(
       mergeMap(async (body: unknown) => {
         const audit = readAuditOf(request);
-        // One multi-row insert: the audit event and those the read causes, both or neither.
-        await this.events.recordAll(this.db, [
-          ...(audit.isOwnRecord ? [] : [auditRead(mark, request, audit)]),
-          ...audit.eventsAlongside,
-        ]);
+        // A read the handler named several resource types for is one audit event per type.
+        const resources = audit.describedResources;
+        const reads = audit.isOwnRecord
+          ? []
+          : resources.length > 1
+            ? resources.map((resource) => auditRead(mark, request, audit, resource))
+            : [auditRead(mark, request, audit, resources[0])];
+        // One multi-row insert: the audit events and those the read causes, all or none.
+        await this.events.recordAll(this.db, [...reads, ...audit.eventsAlongside]);
         return body;
       }),
     );
@@ -126,8 +132,8 @@ function auditRead(
   mark: AuditedReadOptions,
   request: AuditedRequest,
   audit: ReadAudit,
+  resource: AuditedResource | undefined,
 ): NewEvent<AuditReadData> {
-  const resource: AuditedResource | undefined = audit.describedResource;
   const legalBasis = audit.describedLegalBasis;
   const recipient = audit.describedRecipient;
   const principal = request.principal;
@@ -145,7 +151,7 @@ function auditRead(
     data: {
       action: mark.action,
       resource: {
-        type: mark.resource,
+        type: resource?.type ?? mark.resource,
         params: { ...params },
         tenant: tenant ?? null,
         subjectPersonId: resource?.subjectPersonId ?? null,
