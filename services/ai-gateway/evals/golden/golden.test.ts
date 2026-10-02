@@ -178,11 +178,16 @@ describe('golden sets', () => {
       expect(openingFailures('Asante kwa tamko lako. Tutafuata sheria katika kila hatua.')).toEqual(
         [],
       );
+      expect(
+        openingFailures('Thank you for the act of declaring the plot you hold with your spouse.'),
+      ).toEqual([]);
       for (const citation of [
         'The points below are raised under the Act.',
         'As required by s. 35, the points below need your answer.',
         'Hoja zifuatazo zinahusu kifungu cha 35.',
         'Kwa mujibu wa Sheria ya Mgongano wa Maslahi, hoja zifuatazo zinahitaji jibu.',
+        // The Act by name, with its year (N33).
+        'The points below are raised under the Conflict of Interest Act of 2025.',
       ]) {
         expect(openingFailures(citation)).toEqual([
           expect.stringMatching(/^opening-lead-in: \/opening cites the Act: /),

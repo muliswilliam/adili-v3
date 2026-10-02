@@ -235,7 +235,7 @@ const REPEATS_THE_LETTER: { what: string; pattern: RegExp }[] = [
   {
     what: 'cites the Act',
     pattern:
-      /\b(?:sections?\s+\d|s\.\s?\d|(?:the|this|conflict of interest)\s+act\b(?!\s+(?:of|on)\b)|(?:kifungu|vifungu)\s+(?:cha|vya)\s+\d|sheria\s+ya\b)/i,
+      /\b(?:sections?\s+\d|s\.\s?\d|(?:the|this)\s+act\b(?!\s+(?:of|on)\b)|conflict\s+of\s+interest\s+act\b|(?:kifungu|vifungu)\s+(?:cha|vya)\s+\d|sheria\s+ya\b)/i,
   },
   { what: 'greets the declarant', pattern: /^\s*(?:dear|ndugu|mpendwa|bw\.|bi\.)\b/i },
   {
