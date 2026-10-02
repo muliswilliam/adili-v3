@@ -35,7 +35,7 @@ import type { CertifiedCopies } from '../certified-copies/use-certified-copies';
 /**
  * A Who accessed entry opened: the access request (who asked, why, for what, the declarant's
  * response and the decision), the law-enforcement grant (the agency, its case reference, the
- * outcome and its dates, never its reason or the scope), or the certified copy, with the
+ * outcome, its dates and the scope granted, never its reason), or the certified copy, with the
  * request's own timeline and what the declarant can do next (respond, open the request,
  * download the copy).
  */
@@ -236,8 +236,10 @@ function FormKFacts({
 }
 
 /**
- * A law-enforcement grant: the agency, its case reference, the outcome and its dates only (spec
- * 10 decision 4). From the notice when there is one, else from the register's grant entry.
+ * A law-enforcement grant: the agency, its case reference, the outcome, its dates and the scope
+ * granted (what was disclosed), never the agency's reason or the decision's reasons or grounds
+ * (spec 10 decision 4, round 2). From the notice when there is one, else from the register's
+ * grant entry.
  */
 function LeaFacts({
   entry,
@@ -254,6 +256,7 @@ function LeaFacts({
   const outcome =
     notice?.outcome ?? (decided?.outcome === 'partial-grant' ? 'partial-grant' : 'grant');
   const grantedAt = notice?.decidedAt ?? decided?.at ?? null;
+  const granted = notice?.grantedScope ?? decided?.scope ?? null;
   return (
     <Facts>
       <Fact term={COPY.agencyTerm}>{agency}</Fact>
@@ -267,6 +270,7 @@ function LeaFacts({
       </Fact>
       {grantedAt ? <Fact term={COPY.grantedOn}>{formatDate(grantedAt)}</Fact> : null}
       {notice ? <Fact term={COPY.notifiedOn}>{formatDate(notice.notifiedAt)}</Fact> : null}
+      {granted ? <Fact term={COPY.scopeDisclosed}>{scopeLine(granted)}</Fact> : null}
     </Facts>
   );
 }

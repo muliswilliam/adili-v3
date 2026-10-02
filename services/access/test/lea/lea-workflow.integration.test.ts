@@ -214,8 +214,9 @@ describe('LeaRequestWorkflow and its activities (S11)', () => {
       ]);
     }
 
-    // The declarant now sees the grant among their notices: the agency, the case, the outcome
-    // and the dates only (user decision 4), never the agency's reason or the decision's reasons.
+    // The declarant now sees the grant among their notices: the agency, the case, the outcome,
+    // the scope granted (what was disclosed) and the dates, never the agency's reason or the
+    // decision's reasons (user decisions 4 and round 2).
     const notices = await api.get('/v1/me/access-notices', declarantOf(anne));
     expect(contractErrors(okResponse('/v1/me/access-notices', 'get'), notices.json())).toEqual([]);
     expect(notices.json<DeclarantNotice[]>()).toEqual([
@@ -228,6 +229,13 @@ describe('LeaRequestWorkflow and its activities (S11)', () => {
         agency: { code: 'DCI', name: 'Directorate of Criminal Investigations' },
         caseReference: 'DCI/ECU/121/2027',
         outcome: 'grant',
+        grantedScope: {
+          years: [2026],
+          includeSpouses: true,
+          includeChildren: false,
+          sections: ['income', 'assets'],
+          includeClarifications: false,
+        },
         decidedAt: DECIDED_AT,
         notifiedAt: DECIDED_AT,
         noticeChannel: 'online',

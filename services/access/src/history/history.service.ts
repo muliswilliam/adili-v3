@@ -38,7 +38,8 @@ export class HistoryService {
 
   /**
    * The declarant's history, newest first. A Form K request's entries carry the purpose the
-   * notice told them (its Form K is opened after the transaction) and its scope.
+   * notice told them (its Form K is opened after the transaction); request entries carry the
+   * scope (round 2 decision: a law enforcement grant's too, never the agency's reason).
    */
   async list(principal: Principal): Promise<AccessHistoryEntry[]> {
     const personId = declarantPersonId(principal);
@@ -112,7 +113,7 @@ export class HistoryService {
             requester: row.applicantName,
             caseReference: null,
             purposeInGeneralTerms: null,
-            formKScope: {
+            scopes: {
               requested: row.scope,
               decided: row.decision !== null,
               granted: row.decision?.grantedScope ?? null,
@@ -142,7 +143,13 @@ export class HistoryService {
             requester: row.agencyName,
             caseReference: row.caseReference,
             purposeInGeneralTerms: null,
-            formKScope: null,
+            // Shown from the grant on, so always the scope granted (what was disclosed); a grant
+            // is of the requested scope.
+            scopes: {
+              requested: row.scope,
+              decided: true,
+              granted: row.decision?.grantedScope ?? row.scope,
+            },
             packageKind: row.packageKind,
             from: null,
           });
@@ -161,7 +168,7 @@ export class HistoryService {
             requester: null,
             caseReference: null,
             purposeInGeneralTerms: null,
-            formKScope: null,
+            scopes: null,
             packageKind: null,
             from: null,
           });

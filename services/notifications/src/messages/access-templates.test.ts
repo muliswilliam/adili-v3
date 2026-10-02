@@ -302,6 +302,37 @@ describe('access templates', () => {
     );
   });
 
+  it.each([
+    ['access-decision-applicant', ARQ, 'granted', PORTAL],
+    ['access-decision-applicant', ARQ, 'partially-granted', PORTAL],
+    ['lea-decision', LEA, 'granted', CONSOLE],
+  ] as const)(
+    'tells a %s grant (%s, %s) its documents are being prepared, never which (package or nil letter)',
+    (name, reference, outcome, signInUrl) => {
+      const params = { reference, commissionName: PSC, outcome, signInUrl };
+      const mail = renderTemplate(`${name}-email`, 'en', params);
+      const sms = renderTemplate(`${name}-sms`, 'en', params);
+      expect(mail.text).toContain(
+        'Your documents are being prepared. We will tell you when they are ready to download.',
+      );
+      expect(sms.text).toContain('Your documents are being prepared. Details at');
+      // Whether a package or a nil letter goes out is only known at issue.
+      for (const text of [mail.text, mail.html, sms.text]) {
+        expect(text).not.toMatch(/package|nil letter/i);
+      }
+    },
+  );
+
+  it.each([
+    ['access-decision-applicant', ARQ, 'denied', PORTAL],
+    ['access-decision-applicant', ARQ, 'cannot-identify', PORTAL],
+    ['lea-decision', LEA, 'denied', CONSOLE],
+  ] as const)('promises a %s %s (%s) no documents', (name, reference, outcome, signInUrl) => {
+    const params = { reference, commissionName: PSC, outcome, signInUrl };
+    expect(renderTemplate(`${name}-email`, 'en', params).text).not.toContain('documents');
+    expect(renderTemplate(`${name}-sms`, 'en', params).text).not.toContain('documents');
+  });
+
   it('tells the declarant their certified copy is ready with its verification code', () => {
     const rendered = renderTemplate('certified-copy-ready-email', 'en', ACCESS_TEMPLATES[9]?.[1]);
     expect(rendered.subject).toBe('Your certified copy of DCB-PSC-2027-0000001-1 is ready');
@@ -324,7 +355,7 @@ describe('access templates', () => {
       'access-nil-letter-ready': { reference: LONG_LEA, downloadUntil: '2026-09-30' },
       'access-officer-reminder': { task: 'decide', dueDate: '2026-09-30', daysLeft: 366 },
       'lea-grant-notice': { reference: LONG_LEA, grantedOn: '2026-09-30' },
-      'lea-decision': { reference: LONG_LEA },
+      'lea-decision': { reference: LONG_LEA, outcome: 'granted' },
       'lea-withdrawn': { reference: LONG_LEA },
       'certified-copy-ready': {
         reference: 'DCF-ABCDEFGHIJKLMNOPQRST-2027-9999999-V',

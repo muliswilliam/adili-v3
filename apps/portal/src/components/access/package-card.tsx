@@ -31,6 +31,7 @@ import {
 } from '../../access/package';
 import { getMyPackageDownload } from '../../server/access-requests';
 import { downloadFrom } from '../download';
+import { signInAgain } from '../sign-in';
 
 /** The longest delay setTimeout keeps (about 24.8 days). */
 const MAX_TIMEOUT_MS = 2 ** 31 - 1;
@@ -186,6 +187,8 @@ function ReadyActions({
       onDownloaded();
     } else if (link?.status === 'window-closed') {
       onWindowClosed();
+    } else if (link?.status === 'unauthenticated') {
+      signInAgain();
     } else {
       setFailed(true);
     }

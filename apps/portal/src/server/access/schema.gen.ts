@@ -1014,10 +1014,12 @@ export interface components {
             /** @description The agency's case reference */
             caseReference: string;
             /**
-             * @description Granted in full or in part (the scope disclosed is not shown)
+             * @description Granted in full or in part
              * @enum {string}
              */
             outcome: "grant" | "partial-grant";
+            /** @description What the grant disclosed: the years, whether the spouses and the children are included, and the sections */
+            grantedScope: components["schemas"]["Scope"];
             /** Format: date-time */
             decidedAt: string;
             /** Format: date-time */

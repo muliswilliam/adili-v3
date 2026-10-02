@@ -5,6 +5,7 @@ import { eq } from 'drizzle-orm';
 import { afterEach, beforeAll, describe, expect, it } from 'vitest';
 
 import { leaRequests } from '../../src/db/schema.js';
+import type { Scope } from '../../src/scope.js';
 import type { AccessHistoryEntry } from '../../src/history/representation.js';
 import { AccessRegister, type RegisterEntryInput } from '../../src/register/access-register.js';
 import { accessRequestWorkflowId } from '../../src/requests/contract.js';
@@ -188,6 +189,20 @@ describe('Who accessed my declaration (S12)', () => {
         return found.packageDocumentId === null ? undefined : found;
       });
       await api.endWorkflows([accessRequestWorkflowId(row.id)]);
+      // The decision served in writing (decision 2): it tells the scope granted, not the one
+      // requested.
+      const facts = { channel: 'written' as const, notifiedOn: '2027-03-21' };
+      await record({
+        subjectKind: 'access-request',
+        subjectId: row.id,
+        reference: row.reference,
+        personId: anne.personId,
+        kind: 'decision-notified',
+        actor: { subject: callers.officer.sub, name: callers.officer.name },
+        at: new Date('2027-03-21T09:00:00.000Z'),
+        details: facts,
+        eventData: facts,
+      });
 
       const entries = await historyOf(declarantOf(anne));
 
@@ -197,6 +212,7 @@ describe('Who accessed my declaration (S12)', () => {
       expect(byKind.get('representations')?.scope).toEqual(row.scope);
       expect(byKind.get('decided')).toMatchObject({ outcome: 'partial-grant', scope: granted });
       expect(byKind.get('package-issued')?.scope).toEqual(granted);
+      expect(byKind.get('decision-notified')?.scope).toEqual(granted);
       // The decision's reasons and grounds stay on the notice, not in the history.
       expect(JSON.stringify(entries)).not.toContain('Only the 2026 assets');
     });
@@ -271,6 +287,22 @@ describe('Who accessed my declaration (S12)', () => {
   });
 
   describe('law enforcement requests (seeded rows)', () => {
+    const LEA_SCOPE = {
+      years: [2025, 2026],
+      includeSpouses: true,
+      includeChildren: false,
+      sections: ['assets', 'income'],
+      includeClarifications: false,
+    } satisfies Scope;
+    /** The partial grant's scope: one year, no spouses, assets only. */
+    const LEA_GRANTED = {
+      years: [2026],
+      includeSpouses: false,
+      includeChildren: false,
+      sections: ['assets'],
+      includeClarifications: false,
+    } satisfies Scope;
+
     /** A DCI request about `personId`, verified by the PSC's access officer, not yet decided. */
     async function verifiedLeaRequest(
       personId: string,
@@ -297,13 +329,7 @@ describe('Who accessed my declaration (S12)', () => {
           officerSought: { name: 'Anne Njeri Mutua' },
           reason: 'Investigation into procurement',
           caseReference: 'DCI/INV/118/2027',
-          scope: {
-            years: [2026],
-            includeSpouses: false,
-            includeChildren: false,
-            sections: ['assets'],
-            includeClarifications: false,
-          },
+          scope: LEA_SCOPE,
           status: 'verified',
           resolvedRosterRecordId: randomUUID(),
           resolvedPersonId: personId,
@@ -330,7 +356,7 @@ describe('Who accessed my declaration (S12)', () => {
       return { id, reference };
     }
 
-    it('S12: a law enforcement request shows only once granted: the agency and case, the decision, package and downloads', async () => {
+    it('S12: a law enforcement request shows only once granted: the agency and case, the scope granted, the decision, package and downloads', async () => {
       const { anne } = givenCommissions(api, NOW);
       const personId = anne.personId ?? '';
       const { id, reference } = await verifiedLeaRequest(personId);
@@ -344,9 +370,9 @@ describe('Who accessed my declaration (S12)', () => {
           .set({
             status: 'granted',
             decision: {
-              outcome: 'grant',
-              grantedScope: null,
-              grounds: [],
+              outcome: 'partial-grant',
+              grantedScope: LEA_GRANTED,
+              grounds: ['prejudice-proceeding'],
               reasons: 'Investigation shown.',
               decidedBy: { subject: callers.officer.sub, name: callers.officer.name },
               decidedAt: decidedAt.toISOString(),
@@ -360,8 +386,8 @@ describe('Who accessed my declaration (S12)', () => {
         kind: 'decided',
         actor: { subject: callers.officer.sub, name: callers.officer.name },
         at: decidedAt,
-        details: { outcome: 'grant' },
-        eventData: { outcome: 'grant', grounds: [] },
+        details: { outcome: 'partial-grant' },
+        eventData: { outcome: 'partial-grant', grounds: ['prejudice-proceeding'] },
       });
       await record({
         ...common,
@@ -390,18 +416,21 @@ describe('Who accessed my declaration (S12)', () => {
           requester: 'Directorate of Criminal Investigations',
           caseReference: 'DCI/INV/118/2027',
           actor: null,
-          // Decision 4: never the agency's reason, nor the scope.
+          // Never the agency's reason (decision 4); the scope granted, what was disclosed, and
+          // not the one requested (round 2 decision).
           purposeInGeneralTerms: null,
-          scope: null,
+          scope: LEA_GRANTED,
         });
       }
-      expect(entries.at(-1)).toMatchObject({ outcome: 'grant' });
+      expect(entries.at(-1)).toMatchObject({ outcome: 'partial-grant' });
       // Neither the law enforcement officer nor the access officer is named.
       expect(JSON.stringify(entries)).not.toContain('Peter Mwangi');
       expect(JSON.stringify(entries)).not.toContain(callers.officer.name);
       // Agency, case, outcome and dates only: never the agency's reason or the decision's.
       expect(JSON.stringify(entries)).not.toContain('Investigation into procurement');
       expect(JSON.stringify(entries)).not.toContain('Investigation shown.');
+      // Nor the decision's grounds.
+      expect(JSON.stringify(entries)).not.toContain('prejudice-proceeding');
       expect(await historyOf(otieno)).toEqual([]);
     });
   });

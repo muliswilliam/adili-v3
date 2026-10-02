@@ -73,9 +73,10 @@ export const accessHistoryEntrySchema = registerEntrySchema.extend({
    */
   purposeInGeneralTerms: z.string().nullable(),
   /**
-   * What the Form K request reaches: the scope requested on steps before the decision, the scope
-   * granted on the decision and the steps after it (null after a denial); null for a law
-   * enforcement request (its scope is withheld, decision 4) and a certified copy.
+   * What the request reaches: for Form K the scope requested on steps before the decision, the
+   * scope granted on the decision and the steps after it (null after a denial); for a law
+   * enforcement request (shown only once granted) the scope granted, what was disclosed; null for
+   * a certified copy.
    */
   scope: scopeSchema.nullable(),
   /** A `decided` entry's outcome; null for every other kind. */
@@ -100,8 +101,11 @@ export interface HistorySubject {
   caseReference: string | null;
   /** Form K only: the applicant's stated reason; null otherwise. */
   purposeInGeneralTerms: string | null;
-  /** Form K only: the scope requested and, once decided, the scope granted (null on a denial). */
-  formKScope: { requested: Scope; decided: boolean; granted: Scope | null } | null;
+  /**
+   * The request's scope requested and, once decided, the scope granted (null on a denial); null
+   * for a certified copy.
+   */
+  scopes: { requested: Scope; decided: boolean; granted: Scope | null } | null;
   /** What the request's grant delivered; null before (or without) one, and for a certified copy. */
   packageKind: PackageKind | null;
 }
@@ -120,7 +124,11 @@ const NIL_LETTER_SUMMARIES: Partial<Record<AccessRegisterKind, string>> = {
 };
 
 /** Register kinds from the decision on: their scope is the one granted. */
-const DECIDED_KINDS: readonly AccessRegisterKind[] = ['decided', ...PACKAGE_ENTRY_KINDS];
+const DECIDED_KINDS: readonly AccessRegisterKind[] = [
+  'decided',
+  'decision-notified',
+  ...PACKAGE_ENTRY_KINDS,
+];
 
 /** Register kinds the applicant themselves acts on, named to the declarant (Form K only). */
 const APPLICANT_KINDS: readonly AccessRegisterKind[] = ['downloaded', 'withdrawn'];
@@ -144,7 +152,7 @@ export function toAccessHistoryEntry(
     requester: subject.requester,
     caseReference: subject.caseReference,
     purposeInGeneralTerms: subject.purposeInGeneralTerms,
-    scope: scopeOf(row.kind, subject.formKScope),
+    scope: scopeOf(row.kind, subject.scopes),
     actor:
       row.subjectKind === 'access-request' && APPLICANT_KINDS.includes(row.kind)
         ? (row.actorName ?? null)
@@ -164,9 +172,9 @@ export function toAccessHistoryEntry(
   };
 }
 
-function scopeOf(kind: AccessRegisterKind, formK: HistorySubject['formKScope']): Scope | null {
-  if (formK === null) return null;
-  return formK.decided && DECIDED_KINDS.includes(kind) ? formK.granted : formK.requested;
+function scopeOf(kind: AccessRegisterKind, scopes: HistorySubject['scopes']): Scope | null {
+  if (scopes === null) return null;
+  return scopes.decided && DECIDED_KINDS.includes(kind) ? scopes.granted : scopes.requested;
 }
 
 function outcomeOf(value: unknown): AccessOutcome | null {

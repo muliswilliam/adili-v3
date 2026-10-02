@@ -197,9 +197,10 @@ const REQUESTS = {
   packageNotIssued: en('Package not issued'),
   download: en('Download'),
   downloadLetter: en('Download letter'),
+  // Starts with the button's visible words ("Download", "Download letter"), WCAG 2.5.3.
   downloadFor: en(
     (what: 'package' | 'letter', reference: string, date: string) =>
-      `Download the ${what} for ${reference}, expires ${date}`,
+      `Download ${what} for ${reference}, expires ${date}`,
   ),
   downloading: en('Starting download…'),
   withdraw: en('Withdraw'),
@@ -329,6 +330,10 @@ const PACKAGE = {
   closedNext: en((date: string) => `The download window closed on ${date}.`),
   closedNowLead: en('The download window has closed.'),
   closedNowNext: en('The package can no longer be downloaded.'),
+  windowClosedFor: en(
+    (what: 'package' | 'letter', reference: string) =>
+      `The ${what} for ${reference} can no longer be downloaded.`,
+  ),
 
   stagePreparing: en('Package'),
   stagePreparingDetail: en('Being prepared'),

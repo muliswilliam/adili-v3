@@ -326,6 +326,27 @@ describe('Law enforcement requests (S11)', () => {
   });
 
   describe('queue', () => {
+    it('audits a mixed queue page under each kind, never an LEA id as an access request (ADR-008)', async () => {
+      given();
+      const lea = await received();
+      const formK = await submitRequest(api);
+      const before = (await api.events('audit.read.v1')).length;
+
+      expect((await api.get('/v1/commissions/psc/access/requests', officer)).statusCode).toBe(200);
+
+      const audited = (await api.events('audit.read.v1')).slice(before).map((event) => {
+        const data = event.data as {
+          action: string;
+          resource: { type: string; tenant: string; ids?: string[] };
+        };
+        return [data.action, data.resource.type, data.resource.tenant, data.resource.ids];
+      });
+      expect(audited).toEqual([
+        ['access.requests.listed', 'access-request', 'psc', [formK.id]],
+        ['access.requests.listed', 'lea-request', 'psc', [lea.id]],
+      ]);
+    });
+
     it("S11: the Commission's queue shows law enforcement requests (kind lea) with their 14-day deadline, among Form K requests by deadline", async () => {
       given();
       const lea = await received();

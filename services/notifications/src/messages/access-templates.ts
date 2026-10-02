@@ -153,6 +153,15 @@ const leaDecisionParams = z.strictObject({
 });
 type LeaDecisionParams = z.infer<typeof leaDecisionParams>;
 
+/**
+ * What a grant's recipient is told comes next. Neutral on purpose: whether the grant yields an
+ * access package or a nil letter (nothing held within the granted scope, spec 10 decision 1) is
+ * only known when the document is issued, and the ready message then names which.
+ */
+const DOCUMENTS_PREPARING =
+  'Your documents are being prepared. We will tell you when they are ready to download.';
+const DOCUMENTS_PREPARING_SMS = 'Your documents are being prepared.';
+
 const OUTCOME_WORDS: Record<(typeof APPLICANT_OUTCOMES)[number], string> = {
   granted: 'granted',
   'partially-granted': 'partly granted',
@@ -160,16 +169,20 @@ const OUTCOME_WORDS: Record<(typeof APPLICANT_OUTCOMES)[number], string> = {
   'cannot-identify': 'closed',
 };
 
+/** The SMS's word on what comes next, after a grant only (with its leading space). */
+function preparingSms(outcome: (typeof APPLICANT_OUTCOMES)[number]): string {
+  return outcome === 'granted' || outcome === 'partially-granted'
+    ? ` ${DOCUMENTS_PREPARING_SMS}`
+    : '';
+}
+
 function applicantDecisionEmail(params: ApplicantDecisionParams) {
   const request = `Your request ${params.reference} to ${params.commissionName} to see a declaration`;
   const body = {
-    granted: [
-      `${request} has been granted.`,
-      'Your access package is being prepared. We will tell you when it is ready to download.',
-    ],
+    granted: [`${request} has been granted.`, DOCUMENTS_PREPARING],
     'partially-granted': [
       `${request} has been partly granted: the Commission granted access to less than you asked for.`,
-      'Your access package is being prepared. We will tell you when it is ready to download.',
+      DOCUMENTS_PREPARING,
     ],
     denied: [`${request} has been refused.`, 'You may seek relief from the court.'],
     'cannot-identify': [
@@ -209,9 +222,10 @@ function leaDecisionEmail(params: LeaDecisionParams) {
   return email(`Request ${params.reference} ${granted ? 'granted' : 'refused'}`, [
     paragraph(
       granted
-        ? `Your law-enforcement request ${params.reference} to ${params.commissionName} has been granted. Your access package is being prepared; we will tell you when it is ready to download.`
+        ? `Your law-enforcement request ${params.reference} to ${params.commissionName} has been granted.`
         : `Your law-enforcement request ${params.reference} to ${params.commissionName} has been refused.`,
     ),
+    ...(granted ? [paragraph(DOCUMENTS_PREPARING)] : []),
     signInParagraph(params.signInUrl, 'to see the decision and its reasons.'),
   ]);
 }
@@ -438,7 +452,7 @@ export const accessTemplates = {
     params: applicantDecisionParams,
     copy: {
       en: (params) => ({
-        text: `Adili: your request ${params.reference} was ${OUTCOME_WORDS[params.outcome]}. Details at ${params.signInUrl}`,
+        text: `Adili: your request ${params.reference} was ${OUTCOME_WORDS[params.outcome]}.${preparingSms(params.outcome)} Details at ${params.signInUrl}`,
       }),
     },
   }),
@@ -527,7 +541,7 @@ export const accessTemplates = {
     params: leaDecisionParams,
     copy: {
       en: (params) => ({
-        text: `Adili: law-enforcement request ${params.reference} was ${OUTCOME_WORDS[params.outcome]}. Details at ${params.signInUrl}`,
+        text: `Adili: law-enforcement request ${params.reference} was ${OUTCOME_WORDS[params.outcome]}.${preparingSms(params.outcome)} Details at ${params.signInUrl}`,
       }),
     },
   }),

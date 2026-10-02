@@ -33,6 +33,7 @@ import { WITHDRAWABLE } from '../../access/progress';
 import type { PackageDownloadResult, RequestSummary } from '../../server/access-requests.server';
 import type { Unauthenticated } from '../../server/results';
 import { downloadFrom } from '../download';
+import { signInAgain } from '../sign-in';
 import { RequestStatusBadge, RequestStatusTile } from './request-status';
 
 export const REQUESTS_PAGE_SIZE = 10;
@@ -162,7 +163,8 @@ export interface RowActions {
 
 /**
  * Downloads a granted row's package (or nil letter) while its window is open, as the request
- * page does: each download is recorded; a window closed meanwhile reloads the list.
+ * page does: each download is recorded; a window closed meanwhile says so and reloads the list; a session
+ * that ended goes to sign in.
  */
 function RowDownload({
   request,
@@ -187,7 +189,14 @@ function RowDownload({
       downloadFrom(link.downloadUrl);
       toast({ title: PACKAGE_COPY.downloadStarted });
     } else if (link?.status === 'window-closed') {
+      // Said, not only reloaded: the row's button just disappears otherwise.
+      toast({
+        title: PACKAGE_COPY.closedNowLead,
+        description: PACKAGE_COPY.windowClosedFor(letter ? 'letter' : 'package', request.reference),
+      });
       actions.onChanged();
+    } else if (link?.status === 'unauthenticated') {
+      signInAgain();
     } else {
       toast({ title: PACKAGE_COPY.downloadFailed, urgency: 'assertive' });
     }

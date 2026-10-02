@@ -136,7 +136,7 @@ describe('Who accessed my declaration', () => {
     expect(within(drawer).queryByRole('link', { name: 'Open access request' })).toBeNull();
   });
 
-  it('shows a law-enforcement grant by agency, case, outcome and dates only', async () => {
+  it('shows a law-enforcement grant by agency, case, outcome, dates and the scope granted only', async () => {
     renderView({ filter: 'lea' });
     await click(
       screen.getByRole('button', {
@@ -155,8 +155,9 @@ describe('Who accessed my declaration', () => {
       Outcome: 'Partially granted',
       'Granted on': '15 May 2026',
       'Notified on': '15 May 2026',
+      'Scope granted (what was disclosed)': '2025 · You only · Assets',
     });
-    for (const hidden of [/scope/i, /purpose/i, /reasons/i, /grounds/i]) {
+    for (const hidden of [/scope asked/i, /purpose/i, /reasons/i, /grounds/i]) {
       expect(within(drawer).queryByText(hidden)).toBeNull();
     }
   });

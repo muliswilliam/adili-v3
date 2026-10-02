@@ -293,13 +293,16 @@ function noticeEntries(notice: DeclarantNotice, now: number): AccessHistoryEntry
       ? { outcome: notice.outcome, decidedAt: notice.decidedAt }
       : notice.decision;
   if (decided) {
-    // From the decision on, a Form K entry carries the scope granted (none after a denial).
+    // From the decision on, an entry carries the scope granted (none after a denial); a
+    // law-enforcement grant's is what was disclosed.
     const grantedScope =
-      notice.kind === 'form-k' && notice.decision
-        ? notice.decision.outcome === 'deny'
-          ? null
-          : (notice.decision.grantedScope ?? notice.scope)
-        : null;
+      notice.kind === 'lea'
+        ? notice.grantedScope
+        : notice.decision
+          ? notice.decision.outcome === 'deny'
+            ? null
+            : (notice.decision.grantedScope ?? notice.scope)
+          : null;
     add('decided', decided.decidedAt, 'Decision recorded', {
       outcome: decided.outcome,
       scope: grantedScope,

@@ -53,7 +53,12 @@ class ThingsController {
       audit.resource({ tenant: 'tsc', subjectPersonId: 'person-1' });
       audit.legalBasis({ basis: 'review-case', reference: 'case-1' });
     } else if (id === 'a-batch') audit.resource({ tenant: 'tsc', ids: ['thing-2', 'thing-3'] });
-    else if (id === 'downloaded') {
+    else if (id === 'a-mixed-batch') {
+      audit.resources([
+        { tenant: 'tsc', ids: ['thing-2'] },
+        { tenant: 'tsc', type: 'other-thing', ids: ['other-1', 'other-2'] },
+      ]);
+    } else if (id === 'downloaded') {
       audit.resource({ tenant: 'tsc', subjectPersonId: 'person-1' });
       audit.alongside({ type: 'thing.downloaded.v1', subject: id, tenant: 'tsc', data: { id } });
     } else if (id === 'mine-downloaded') {
@@ -344,6 +349,23 @@ describe('AuditedReadInterceptor', () => {
     expect(
       recorded.map((event) => (event.data as { resource: { ids?: string[] } }).resource.ids),
     ).toEqual([['thing-2', 'thing-3'], undefined]);
+  });
+
+  it('records one event per resource type a batch read names, each with its own ids', async () => {
+    const response = await app.inject({ method: 'GET', url: '/v1/things/a-mixed-batch' });
+
+    expect(response.statusCode).toBe(200);
+    expect(
+      recorded.map((event) => {
+        const { resource } = event.data as { resource: { type: string; ids?: string[] } };
+        return [event.tenant, resource.type, resource.ids];
+      }),
+    ).toEqual([
+      ['tsc', 'thing', ['thing-2']],
+      ['tsc', 'other-thing', ['other-1', 'other-2']],
+    ]);
+    // One insert: every audit event of the read, or none.
+    expect(inserts).toHaveLength(1);
   });
 
   it('records nothing when the caller read their own record', async () => {

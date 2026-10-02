@@ -64,7 +64,8 @@ import {
  * consent or add context, with documents) and their response once sent, editable until the
  * window closes; after the decision, the outcome with its grounds and reasons. A law-enforcement
  * grant shows once access was granted, without a form, and only its agency, case reference,
- * outcome and dates: never the agency's reason, the scope or the grounds (spec 10 decision 4).
+ * outcome, the scope granted (what was disclosed) and dates: never the agency's reason, the
+ * decision's reasons or its grounds (spec 10 decision 4, round 2).
  */
 export function NoticePage({ notice, now }: { notice: DeclarantNotice; now: string }) {
   return notice.kind === 'lea' ? (
@@ -373,7 +374,16 @@ function DecisionCard({ notice }: { notice: FormKDeclarantNotice }) {
 
 type ChipState = 'in' | 'withheld' | 'not-asked';
 
-function ScopeChip({ label, state }: { label: string; state: ChipState }) {
+function ScopeChip({
+  label,
+  state,
+  absent = COPY.notAsked,
+}: {
+  label: string;
+  state: ChipState;
+  /** What a `not-asked` chip says to a screen reader. */
+  absent?: string;
+}) {
   return (
     <li
       className={cn(
@@ -386,10 +396,7 @@ function ScopeChip({ label, state }: { label: string; state: ChipState }) {
       <Icon icon={state === 'in' ? Tick02Icon : Cancel01Icon} strokeWidth={2.6} />
       {label}
       {state === 'in' ? null : (
-        <span className="sr-only">
-          {' '}
-          ({state === 'withheld' ? COPY.notReleased : COPY.notAsked})
-        </span>
+        <span className="sr-only"> ({state === 'withheld' ? COPY.notReleased : absent})</span>
       )}
     </li>
   );
@@ -397,9 +404,18 @@ function ScopeChip({ label, state }: { label: string; state: ChipState }) {
 
 /**
  * A scope as rows of chips. With `granted` (a partial grant), what was asked but not released is
- * struck through as withheld.
+ * struck through as withheld. A household member the scope leaves out is an outlined chip, read
+ * as `absent` ("not asked" by default).
  */
-function ScopeView({ scope, granted }: { scope: Scope; granted: Scope | null }) {
+function ScopeView({
+  scope,
+  granted,
+  absent,
+}: {
+  scope: Scope;
+  granted: Scope | null;
+  absent?: string;
+}) {
   const asked = (on: boolean, kept: boolean | undefined): ChipState =>
     !on ? 'not-asked' : granted && !kept ? 'withheld' : 'in';
   const sections = SCOPE_SECTIONS.filter((section) => scope.sections.includes(section));
@@ -425,10 +441,12 @@ function ScopeView({ scope, granted }: { scope: Scope; granted: Scope | null }) 
             <ScopeChip
               label={COPY.spouse}
               state={asked(scope.includeSpouses, granted?.includeSpouses)}
+              absent={absent}
             />
             <ScopeChip
               label={COPY.children}
               state={asked(scope.includeChildren, granted?.includeChildren)}
+              absent={absent}
             />
           </ul>
         </Row>
@@ -494,14 +512,17 @@ function RequestCard({ notice }: { notice: FormKDeclarantNotice }) {
   );
 }
 
-/** A law-enforcement grant: the agency, its case reference, the outcome and its dates only. */
+/**
+ * A law-enforcement grant: the agency, its case reference, the outcome, its dates and the scope
+ * granted, which is what was disclosed. The scope the agency asked for is not shown.
+ */
 function LeaRequestCard({ notice }: { notice: LeaDeclarantNotice }) {
   return (
     <Card className="gap-0 p-0 sm:p-0">
       <div className="border-b border-border px-5 py-4 sm:px-6">
         <CardTitle>{COPY.request}</CardTitle>
       </div>
-      <div className="px-5 py-5 sm:px-6">
+      <div className="grid gap-5 px-5 py-5 sm:px-6">
         <Rows>
           <Row term={COPY.agency}>{notice.agency.name}</Row>
           <Row term={COPY.caseReference}>
@@ -512,6 +533,10 @@ function LeaRequestCard({ notice }: { notice: LeaDeclarantNotice }) {
           <Row term={COPY.grantedOn}>{formatDate(notice.decidedAt)}</Row>
           <Row term={COPY.notifiedOn}>{formatDate(notice.notifiedAt)}</Row>
         </Rows>
+        <div className="grid gap-2.5 border-t border-border pt-5">
+          <p className="text-[13.5px] font-medium">{COPY.scopeDisclosed}</p>
+          <ScopeView scope={notice.grantedScope} granted={null} absent={COPY.notDisclosed} />
+        </div>
       </div>
     </Card>
   );

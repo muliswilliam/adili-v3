@@ -6,6 +6,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { STATUSES } from '../../access/copy';
 import { downloadFrom } from '../download';
+import { signInAgain } from '../sign-in';
 import { RequestsList } from './requests-list';
 import { IDS, NOW, seededRequests, toSummary } from './testing';
 
@@ -13,6 +14,7 @@ vi.mock('@tanstack/react-router', async () =>
   (await import('../declaration/testing-mocks')).routerMock(),
 );
 vi.mock('../download', async () => (await import('../declaration/testing-mocks')).downloadMock());
+vi.mock('../sign-in', () => ({ signInAgain: vi.fn() }));
 
 const ACTIONS = { onWithdraw: vi.fn(), onChanged: vi.fn(), download: vi.fn() };
 const packageDownload = ACTIONS.download;
@@ -181,7 +183,7 @@ describe('RequestsList (S17)', () => {
     packageDownload.mockResolvedValue({ status: 'ok', downloadUrl: '/package.pdf' });
 
     const button = screen.getByRole('button', {
-      name: new RegExp(`^Download the package for ${granted.reference}, expires \\d+ Oct 2026$`),
+      name: new RegExp(`^Download package for ${granted.reference}, expires \\d+ Oct 2026$`),
     });
     expect(button.textContent).toBe('Download');
     await act(async () => {
@@ -201,22 +203,45 @@ describe('RequestsList (S17)', () => {
     renderList(
       <RequestsList requests={shown} page={1} now={NOW} onPage={vi.fn()} actions={ACTIONS} />,
     );
-    const downloads = screen.getAllByRole('button', { name: /^Download the / });
+    const downloads = screen.getAllByRole('button', { name: /^Download (package|letter) for / });
     expect(downloads).toHaveLength(1);
     expect(downloads[0]?.textContent).toBe('Download letter');
+    // The accessible name starts with the visible label (WCAG 2.5.3, label in name).
+    expect(downloads[0]?.getAttribute('aria-label')).toMatch(/^Download letter for /);
   });
 
-  it('reloads the list when the window closed meanwhile', async () => {
+  it('says the window closed meanwhile and reloads the list', async () => {
     const requests = (await rows()).filter((each) => each.id === IDS.granted);
     renderList(
       <RequestsList requests={requests} page={1} now={NOW} onPage={vi.fn()} actions={ACTIONS} />,
     );
     packageDownload.mockResolvedValue({ status: 'window-closed' });
     await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: /^Download the package/ }));
+      fireEvent.click(screen.getByRole('button', { name: /^Download package/ }));
       await Promise.resolve();
     });
     expect(ACTIONS.onChanged).toHaveBeenCalled();
+    expect(downloadFrom).not.toHaveBeenCalled();
+    expect(screen.getByText('The download window has closed.')).toBeTruthy();
+    expect(
+      screen.getByText(
+        `The package for ${requests[0]?.reference ?? ''} can no longer be downloaded.`,
+      ),
+    ).toBeTruthy();
+  });
+
+  it('sends the applicant to sign in when their session ended, with no failure toast', async () => {
+    const requests = (await rows()).filter((each) => each.id === IDS.granted);
+    renderList(
+      <RequestsList requests={requests} page={1} now={NOW} onPage={vi.fn()} actions={ACTIONS} />,
+    );
+    packageDownload.mockResolvedValue({ status: 'unauthenticated' });
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /^Download package/ }));
+      await Promise.resolve();
+    });
+    expect(signInAgain).toHaveBeenCalledOnce();
+    expect(screen.queryByText('We could not start the download. Try again.')).toBeNull();
     expect(downloadFrom).not.toHaveBeenCalled();
   });
 
