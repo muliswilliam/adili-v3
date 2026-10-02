@@ -1,12 +1,6 @@
 import { Button, Icon } from '@adili/ui';
 import { UserGroupIcon } from '@hugeicons/core-free-icons';
-import {
-  createFileRoute,
-  getRouteApi,
-  Link,
-  useNavigate,
-  useRouterState,
-} from '@tanstack/react-router';
+import { createFileRoute, getRouteApi, Link, useNavigate } from '@tanstack/react-router';
 
 import { messages as m } from '../../../../components/obligations/messages';
 import {
@@ -22,12 +16,20 @@ import { getObligation, listCommissionObligations } from '../../../../server/obl
 
 export const Route = createFileRoute('/commissions/$slug/obligations/')({
   validateSearch: obligationsSearchSchema,
-  loaderDeps: ({ search }) => search,
-  loader: async ({ deps, params, location, context }) => {
+  // The filters are not loader deps: a new set of deps is a new match, which the router replaces
+  // with the loading page once its loader takes over a second (the search box losing focus
+  // mid-word). Without, and with `shouldReload`, a filter change reloads the same match in the
+  // background; the loader reads the filters off the location it is loading for.
+  shouldReload: true,
+  loader: async ({ params, location, context }) => {
     // The layout shows no Commission without the workspace; do not fetch its obligations.
     if (!context.workspace) return null;
     const list = await listCommissionObligations({
-      data: { slug: params.slug, ...deps, limit: OBLIGATIONS_PAGE_SIZE },
+      data: {
+        slug: params.slug,
+        ...obligationsSearchSchema.parse(location.search),
+        limit: OBLIGATIONS_PAGE_SIZE,
+      },
     });
     if (!list.ok && list.error.kind === 'unauthenticated') throw signInRedirect(location.href);
     return list;
@@ -53,15 +55,11 @@ function ObligationsLoaded() {
 /** A Commission's obligations as a platform admin sees them: the Commission staff's view. */
 function CommissionObligationsPage({ list }: { list: DeclarationsResult<ObligationPage> | null }) {
   const { slug } = Route.useParams();
-  const committed = Route.useSearch();
+  const search = Route.useSearch();
   const summary = layout.useLoaderData();
   const navigate = useNavigate({ from: '/commissions/$slug/obligations/' });
-  const path = `/commissions/${slug}/obligations`;
-  const pending = useRouterState({
-    select: (state) =>
-      state.status === 'pending' && state.location.pathname === path ? state.location.search : null,
-  });
-  const search = pending ? obligationsSearchSchema.parse(pending) : committed;
+  // Filter changes keep this page mounted while the loader runs in the background.
+  const loading = Route.useMatch({ select: (match) => match.isFetching !== false });
 
   const changeSearch = (next: ObligationsSearch, options?: { replace?: boolean }) => {
     void navigate({ search: next, replace: options?.replace });
@@ -78,12 +76,12 @@ function CommissionObligationsPage({ list }: { list: DeclarationsResult<Obligati
   return (
     <ObligationsView
       summary={summary ?? null}
-      list={pending ? null : list}
+      list={loading ? null : list}
       search={search}
       onSearchChange={changeSearch}
       loadPage={(cursor) =>
         listCommissionObligations({
-          data: { slug, ...committed, cursor, limit: OBLIGATIONS_PAGE_SIZE },
+          data: { slug, ...search, cursor, limit: OBLIGATIONS_PAGE_SIZE },
         })
       }
       loadObligation={(id) => getObligation({ data: { id } })}
