@@ -71,7 +71,6 @@ export function QueueView(props: QueueViewProps) {
             cycles={props.cycles}
             officers={props.officers}
             href={props.href}
-            disabled={list !== null && !list.ok}
           />
           {list === null ? (
             <ListSkeleton />

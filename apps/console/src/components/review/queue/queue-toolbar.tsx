@@ -11,7 +11,7 @@ import {
   Cancel01Icon,
   Clock01Icon,
   MessageQuestionIcon,
-  WifiDisconnected02Icon,
+  WifiOff02Icon,
 } from '@hugeicons/core-free-icons';
 import { useId } from 'react';
 
@@ -43,7 +43,6 @@ export interface QueueToolbarProps {
   officers: readonly Officer[] | null;
   /** The page's address, for Copy link. */
   href: string;
-  disabled?: boolean;
 }
 
 const SELECT = 'h-9 w-auto text-sm';
@@ -59,7 +58,6 @@ export function QueueToolbar({
   cycles,
   officers,
   href,
-  disabled = false,
 }: QueueToolbarProps) {
   const id = useId();
   const assignee = search.assignee ?? ANY;
@@ -78,7 +76,6 @@ export function QueueToolbar({
           placeholder={m.searchPlaceholder}
           maxLength={100}
           applied={search.search ?? ''}
-          disabled={disabled}
           className="max-w-105 min-w-60 flex-1"
           onSearch={(value) => {
             onSearchChange(withFilter(search, 'search', value || undefined), { replace: true });
@@ -87,7 +84,6 @@ export function QueueToolbar({
         <Select
           aria-label={m.statusLabel}
           value={search.status ?? ALL}
-          disabled={disabled}
           className={`${SELECT} min-w-36`}
           onValueChange={(value) => {
             onSearchChange(
@@ -109,7 +105,6 @@ export function QueueToolbar({
         <Select
           aria-label={m.priorityLabel}
           value={search.band ?? ALL}
-          disabled={disabled}
           className={`${SELECT} min-w-34`}
           onValueChange={(value) => {
             onSearchChange(
@@ -131,7 +126,6 @@ export function QueueToolbar({
         <Select
           aria-label={m.typeLabel}
           value={search.type ?? ALL}
-          disabled={disabled}
           className={`${SELECT} min-w-28`}
           onValueChange={(value) => {
             onSearchChange(
@@ -153,7 +147,6 @@ export function QueueToolbar({
         <Select
           aria-label={m.cycleLabel}
           value={search.cycle === undefined ? ALL : String(search.cycle)}
-          disabled={disabled}
           className={`${SELECT} min-w-28`}
           onValueChange={(value) => {
             onSearchChange(withFilter(search, 'cycle', value === ALL ? undefined : Number(value)));
@@ -169,7 +162,6 @@ export function QueueToolbar({
         <Select
           aria-label={m.assigneeLabel}
           value={assignee}
-          disabled={disabled}
           className={`${SELECT} min-w-30`}
           onValueChange={(value) => {
             onSearchChange(withFilter(search, 'assignee', value === ANY ? undefined : value));
@@ -191,7 +183,6 @@ export function QueueToolbar({
         <FilterChip
           icon={Clock01Icon}
           pressed={search.late === true}
-          disabled={disabled}
           onPressedChange={() => {
             onSearchChange(toggleSwitch(search, 'late'));
           }}
@@ -201,7 +192,6 @@ export function QueueToolbar({
         <FilterChip
           icon={MessageQuestionIcon}
           pressed={search.openClarification === true}
-          disabled={disabled}
           onPressedChange={() => {
             onSearchChange(toggleSwitch(search, 'openClarification'));
           }}
@@ -209,9 +199,8 @@ export function QueueToolbar({
           {m.openClarification}
         </FilterChip>
         <FilterChip
-          icon={WifiDisconnected02Icon}
+          icon={WifiOff02Icon}
           pressed={search.registryUnavailable === true}
-          disabled={disabled}
           onPressedChange={() => {
             onSearchChange(toggleSwitch(search, 'registryUnavailable'));
           }}

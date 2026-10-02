@@ -27,7 +27,8 @@ export function QueueTiles({ summary, search, onSearchChange }: QueueTilesProps)
     return (
       <div aria-busy="true" aria-label={m.tilesLabel} role="group" className={GRID}>
         {QUEUE_TILES.map((tile) => (
-          <StatTileSkeleton key={tile} lines={3} />
+          // The height of a loaded tile with its three bands, so nothing moves when they arrive.
+          <StatTileSkeleton key={tile} lines={3} className="min-h-[167px]" />
         ))}
       </div>
     );

@@ -31,7 +31,7 @@ import {
   MoreVerticalIcon,
   Search01Icon,
   UserRemove01Icon,
-  WifiDisconnected02Icon,
+  WifiOff02Icon,
 } from '@hugeicons/core-free-icons';
 import { Link } from '@tanstack/react-router';
 import { useState } from 'react';
@@ -184,7 +184,7 @@ function RegistryIcon({ item }: { item: CaseListItem }) {
           focusRing,
         )}
       >
-        <Icon icon={WifiDisconnected02Icon} className="size-4" />
+        <Icon icon={WifiOff02Icon} className="size-4" />
       </span>
     </Tooltip>
   );
