@@ -42,7 +42,7 @@ import { REQUIREMENT_LABELS } from '../../clarification/labels';
 import { clarificationTargets, labelOf } from '../../clarification/targets';
 import { historyOf, statusLine } from '../../clarification/view';
 import { Page, PageHead, SectionCard } from '../page';
-import { ResolveDialog, WithdrawDialog } from './clarification-dialogs';
+import { ResolveDialog, type SubmitFailureText, WithdrawDialog } from './clarification-dialogs';
 import { StatusBadge, TONES } from './status-badge';
 import { ClarificationComposer } from './composer/clarification-composer';
 import { useDraftWithAi } from './draft-with-ai/use-draft-with-ai';
@@ -65,6 +65,20 @@ function failureText(error: ServiceError): string {
     return 'This clarification has changed. Reload to see it.';
   }
   return 'We could not save this. Try again.';
+}
+
+/**
+ * Why a withdrawal failed. Documents could not revoke the letter (503 `documents-unavailable`):
+ * review withdraws nothing then, so say the letter stands and nothing changed.
+ */
+function withdrawFailureText(error: ServiceError): SubmitFailureText {
+  if (error.kind === 'unavailable' && error.problemType === 'documents-unavailable') {
+    return {
+      title: 'The letter could not be revoked.',
+      detail: 'Nothing changed: the clarification is still issued. Try again later.',
+    };
+  }
+  return failureText(error);
 }
 
 /** 403 and 409 mean the page is out of date: say so and reload rather than retry. */
@@ -102,7 +116,8 @@ export function ClarificationDetailView({
   async function done(
     result: Awaited<ReturnType<typeof resolveClarification>>,
     success: string,
-  ): Promise<string | null> {
+    failure: (error: ServiceError) => SubmitFailureText = failureText,
+  ): Promise<SubmitFailureText | null> {
     if (!result.ok) {
       if (isStale(result.error)) {
         setDialog(null);
@@ -110,7 +125,7 @@ export function ClarificationDetailView({
         await router.invalidate();
         return null;
       }
-      return failureText(result.error);
+      return failure(result.error);
     }
     setDialog(null);
     toast({ title: success });
@@ -216,7 +231,8 @@ export function ClarificationDetailView({
       re: <span className="font-mono">{reviewCase.reference}</span>
     </span>,
     plural(clarification.items.length, 'item'),
-    clarification.issuedAt ? `Issued ${formatDate(clarification.issuedAt)}` : 'Draft',
+    // A draft says so in its badge.
+    clarification.issuedAt ? `Issued ${formatDate(clarification.issuedAt)}` : null,
     clarification.dueAt ? `Due ${formatDate(clarification.dueAt)}` : null,
   ].filter(Boolean);
 
@@ -233,7 +249,12 @@ export function ClarificationDetailView({
         <p className="mt-1.5 flex flex-wrap gap-x-2 text-sm text-muted-foreground">
           {meta.map((part, index) => (
             <span key={index}>
-              {index > 0 ? '· ' : ''}
+              {/* As much space each side of the dot. */}
+              {index > 0 ? (
+                <span aria-hidden="true" className="mr-2">
+                  ·
+                </span>
+              ) : null}
               {part}
             </span>
           ))}
@@ -294,6 +315,7 @@ export function ClarificationDetailView({
         />
         {clarification.letter ? (
           <LetterCard
+            clarificationId={clarification.id}
             letter={clarification.letter}
             preview={
               <LetterPreview
@@ -365,6 +387,7 @@ export function ClarificationDetailView({
           done(
             await withdrawClarification({ data: { clarificationId: clarification.id, reason } }),
             'Clarification withdrawn',
+            withdrawFailureText,
           )
         }
       />
@@ -381,7 +404,7 @@ function useDownload() {
   ) => {
     const result = await link.catch(() => ({ ok: false }) as const);
     if (result.ok) window.location.assign(result.data.downloadUrl);
-    else toast({ title: failed });
+    else toast({ title: failed, urgency: 'assertive' });
   };
 }
 
@@ -488,9 +511,11 @@ function ItemsAndResponses({
 }
 
 function LetterCard({
+  clarificationId,
   letter,
   preview,
 }: {
+  clarificationId: string;
   letter: NonNullable<Clarification['letter']>;
   /** The letter as the declarant reads it, shown on request. */
   preview: ReactNode;
@@ -515,7 +540,7 @@ function LetterCard({
               size="sm"
               onClick={() => {
                 void download(
-                  getLetterLink({ data: { documentId: letter.documentId } }),
+                  getLetterLink({ data: { clarificationId } }),
                   'The letter could not be downloaded. Try again.',
                 );
               }}

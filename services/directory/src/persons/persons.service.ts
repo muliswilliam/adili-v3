@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { notFoundIfInvisible, PLATFORM_TENANT } from '@adili/api-kit';
 import { type Database, InjectDatabase, type TenantContext, withTenant } from '@adili/data-access';
-import { and, asc, eq, exists } from 'drizzle-orm';
+import { and, asc, eq, exists, inArray, or } from 'drizzle-orm';
 
 import type { Transaction } from '../commissions/commissions.service.js';
 import { commissions, type DirectorySchema, persons, rosterRecords } from '../db/schema.js';
@@ -16,17 +16,23 @@ import type {
  * Reading persons (spec 03): a declarant's own profile, found by the subject of their token, and
  * the helpdesk's lookup by officer reference, and a person's verified contacts for notifications.
  * Persons are platform-level; their roster records are read in the platform context, since the
- * reads span Commissions.
+ * reads span Commissions. Applicants' own reads and writes are `ApplicantsService`'s.
  */
 @Injectable()
 export class PersonsService {
   constructor(@InjectDatabase() private readonly db: Database<DirectorySchema>) {}
 
-  /** The person whose Keycloak account is `subject`, with their roster records; 404 if none. */
+  /**
+   * The declarant whose Keycloak account is `subject`, with their roster records; 404 if none
+   * (a law-enforcement officer's person is not a declarant).
+   */
   async declarantProfile(subject: string): Promise<DeclarantProfile> {
     return withTenant(this.db, { tenant: PLATFORM_TENANT, subject }, async (tx) => {
-      const [found] = await tx.select().from(persons).where(eq(persons.keycloakUserId, subject));
-      const person = notFoundIfInvisible(found);
+      const [found] = await tx
+        .select()
+        .from(persons)
+        .where(and(eq(persons.keycloakUserId, subject), eq(persons.kind, 'declarant')));
+      const person = notFoundIfInvisible(found?.ofr ? { ...found, ofr: found.ofr } : undefined);
       const records = await tx
         .select({
           slug: commissions.slug,
@@ -62,7 +68,6 @@ export class PersonsService {
       const [person] = await tx
         .select({
           id: persons.id,
-          ofr: persons.ofr,
           fullName: persons.fullName,
           createdAt: persons.createdAt,
         })
@@ -76,7 +81,7 @@ export class PersonsService {
         .orderBy(asc(rosterRecords.tenant));
       return {
         personId: found.id,
-        ofr: found.ofr,
+        ofr,
         fullName: found.fullName,
         commissions: records.map((record) => record.tenant),
         createdAt: found.createdAt.toISOString(),
@@ -84,43 +89,61 @@ export class PersonsService {
     });
   }
 
-  /** The contacts verified at the person's latest onboarding, null where none; 404 if no person. */
+  /**
+   * A declarant's contacts verified at their latest onboarding, null where none; a
+   * law-enforcement officer's provisioned ones; an applicant's entered at applicant onboarding.
+   * 404 if no such person, or a declarant not onboarded at the acting tenant. Officers and
+   * applicants belong to no Commission and request from any, so any tenant's messages may reach
+   * them.
+   */
   async contacts(context: TenantContext, personId: string): Promise<PersonContacts> {
     const [person] = await withTenant(this.db, context, (tx) =>
       tx
         .select({ personId: persons.id, email: persons.email, phone: persons.phone })
         .from(persons)
-        .where(onboardedAt(tx, context.tenant, personId))
+        .where(
+          and(
+            eq(persons.id, personId),
+            or(
+              inArray(persons.kind, ['law-enforcement', 'applicant']),
+              onboardedAt(tx, context.tenant),
+            ),
+          ),
+        )
         .limit(1),
     );
     return notFoundIfInvisible(person);
   }
 
-  /** The national ID the person was onboarded with; 404 if no person onboarded at the tenant. */
+  /**
+   * The national ID a declarant was onboarded with; 404 if no declarant onboarded at the tenant
+   * has this id (law-enforcement officers and applicants are not looked up in registries).
+   */
   async nationalId(context: TenantContext, personId: string): Promise<PersonNationalId> {
     const [person] = await withTenant(this.db, context, (tx) =>
       tx
         .select({ nationalId: persons.nationalId })
         .from(persons)
-        .where(onboardedAt(tx, context.tenant, personId))
+        .where(
+          and(
+            eq(persons.id, personId),
+            eq(persons.kind, 'declarant'),
+            onboardedAt(tx, context.tenant),
+          ),
+        )
         .limit(1),
     );
-    return notFoundIfInvisible(person);
+    // A declarant always has one; only an applicant may have a passport instead.
+    return notFoundIfInvisible(person?.nationalId ? { nationalId: person.nationalId } : null);
   }
 }
 
-/**
- * The person `personId`, if onboarded at the acting tenant: its roster records are the only ones
- * RLS shows.
- */
-function onboardedAt(tx: Transaction, tenant: string, personId: string) {
-  return and(
-    eq(persons.id, personId),
-    exists(
-      tx
-        .select({ id: rosterRecords.id })
-        .from(rosterRecords)
-        .where(and(eq(rosterRecords.personId, persons.id), eq(rosterRecords.tenant, tenant))),
-    ),
+/** The person is onboarded at the acting tenant: its roster records are the only ones RLS shows. */
+function onboardedAt(tx: Transaction, tenant: string) {
+  return exists(
+    tx
+      .select({ id: rosterRecords.id })
+      .from(rosterRecords)
+      .where(and(eq(rosterRecords.personId, persons.id), eq(rosterRecords.tenant, tenant))),
   );
 }

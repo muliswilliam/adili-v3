@@ -1,12 +1,6 @@
 import { Button, Icon } from '@adili/ui';
 import { Settings01Icon, Upload04Icon, UserGroupIcon } from '@hugeicons/core-free-icons';
-import {
-  createFileRoute,
-  getRouteApi,
-  Link,
-  useNavigate,
-  useRouterState,
-} from '@tanstack/react-router';
+import { createFileRoute, getRouteApi, Link, useNavigate } from '@tanstack/react-router';
 
 import { messages as m } from '../../components/obligations/messages';
 import {
@@ -17,6 +11,7 @@ import {
 import { notOnboardedRosterLink } from '../../components/obligations/roster-links';
 import { ObligationsView } from '../../components/obligations/obligations-view';
 import { messages as policyMessages } from '../../components/policy/messages';
+import { type LoadedFor, useReloadingInPlace } from '../../components/reload-in-place';
 import { signInRedirect } from '../../components/sign-in-redirect';
 import { opensOwnPolicy, ROSTER_WRITE_ROLES, workspaceFor } from '../../components/workspaces';
 import type { DeclarationsResult, ObligationPage } from '../../server/declarations/client';
@@ -27,21 +22,25 @@ const PATH = '/obligations';
 
 export const Route = createFileRoute('/obligations/')({
   validateSearch: obligationsSearchSchema,
-  loaderDeps: ({ search }) => search,
+  // Filter changes reload this match in place, not as a new one: see `useReloadingInPlace`.
+  shouldReload: true,
   loader: async ({
-    deps,
     location,
     context,
-  }): Promise<DeclarationsResult<ObligationPage> | null> => {
+  }): Promise<(LoadedFor & { list: DeclarationsResult<ObligationPage> }) | null> => {
     // The layout shows no list without the workspace; do not fetch one.
     if (!context.workspace) return null;
     const slug = context.tenant;
-    if (!slug) return SERVICE_UNAVAILABLE;
+    if (!slug) return { list: SERVICE_UNAVAILABLE, loadedFor: location.searchStr };
     const list = await listCommissionObligations({
-      data: { slug, ...deps, limit: OBLIGATIONS_PAGE_SIZE },
+      data: {
+        slug,
+        ...obligationsSearchSchema.parse(location.search),
+        limit: OBLIGATIONS_PAGE_SIZE,
+      },
     });
     if (!list.ok && list.error.kind === 'unauthenticated') throw signInRedirect(location.href);
-    return list;
+    return { list, loadedFor: location.searchStr };
   },
   head: () => ({ meta: [{ title: `${m.title} · Adili Online Console` }] }),
   pendingComponent: ObligationsLoading,
@@ -51,29 +50,28 @@ export const Route = createFileRoute('/obligations/')({
 const layout = getRouteApi('/obligations');
 
 function ObligationsLoading() {
-  return <ObligationsPage list={null} />;
+  return <ObligationsPage loaded={null} />;
 }
 
 function ObligationsLoaded() {
-  const list = Route.useLoaderData();
+  const loaded = Route.useLoaderData();
   // The layout shows why there is no workspace.
-  if (!list) return null;
-  return <ObligationsPage list={list} />;
+  if (!loaded) return null;
+  return <ObligationsPage loaded={loaded} />;
 }
 
-/** The workspace page; `list` is null while the first page loads. */
-function ObligationsPage({ list }: { list: DeclarationsResult<ObligationPage> | null }) {
-  const committed = Route.useSearch();
+/** The workspace page; `loaded` is null while the first page loads. */
+function ObligationsPage({
+  loaded,
+}: {
+  loaded: (LoadedFor & { list: DeclarationsResult<ObligationPage> }) | null;
+}) {
+  const list = loaded?.list ?? null;
+  const search = Route.useSearch();
   const { roles, tenant } = Route.useRouteContext();
   const data = layout.useLoaderData();
   const navigate = useNavigate({ from: `${PATH}/` });
-  // Filter changes keep this page mounted (and the search box focused) while the loader runs;
-  // the toolbar shows the filters being loaded rather than the previous ones.
-  const pending = useRouterState({
-    select: (state) =>
-      state.status === 'pending' && state.location.pathname === PATH ? state.location.search : null,
-  });
-  const search = pending ? obligationsSearchSchema.parse(pending) : committed;
+  const loading = useReloadingInPlace(loaded);
   const roster = data?.commission.ok ? data.commission.data.roster : null;
   // The roster is the reporting officer's and the commission admin's; reviewers do not open it.
   const opensRoster = workspaceFor(roles, 'roster') !== undefined;
@@ -86,7 +84,7 @@ function ObligationsPage({ list }: { list: DeclarationsResult<ObligationPage> | 
   return (
     <ObligationsView
       summary={data?.summary ?? null}
-      list={pending ? null : list}
+      list={loading ? null : list}
       search={search}
       onSearchChange={changeSearch}
       actions={
@@ -102,7 +100,7 @@ function ObligationsPage({ list }: { list: DeclarationsResult<ObligationPage> | 
       }
       loadPage={(cursor) =>
         listCommissionObligations({
-          data: { slug: tenant ?? '', ...committed, cursor, limit: OBLIGATIONS_PAGE_SIZE },
+          data: { slug: tenant ?? '', ...search, cursor, limit: OBLIGATIONS_PAGE_SIZE },
         })
       }
       loadObligation={(id) => getObligation({ data: { id } })}

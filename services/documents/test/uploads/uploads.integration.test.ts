@@ -100,16 +100,17 @@ async function upload(bytes: Uint8Array, contentType: string = CSV, caller: Call
   return reservation;
 }
 
-/** Uploads a declaration attachment as the declarant's portal does: reserve, then PUT. */
+/** Uploads a declarant's attachment as the portal does: reserve, then PUT. */
 async function uploadAttachment(
   bytes: Uint8Array,
   contentType: string,
   caller: Caller = DECLARANT,
+  purpose = 'declaration-attachment',
 ): Promise<UploadReservation> {
   const response = await api.post(
     '/v1/uploads',
     {
-      purpose: 'declaration-attachment',
+      purpose,
       contentType,
       declaredSize: bytes.length,
       fileName: 'Title deed.pdf',
@@ -130,12 +131,16 @@ async function uploadAttachment(
 const complete = (id: string, caller: Caller = OFFICER) =>
   api.post(`/v1/uploads/${id}/complete`, undefined, caller);
 
-const download = (id: string, tenant: string | null = 'psc', caller: Caller = DIRECTORY) =>
-  api.get(
-    `/internal/v1/uploads/${id}/download`,
-    caller,
-    tenant === null ? {} : { 'x-acting-tenant': tenant },
-  );
+const download = (
+  id: string,
+  tenant: string | null = 'psc',
+  caller: Caller = DIRECTORY,
+  headers: Record<string, string> = {},
+) =>
+  api.get(`/internal/v1/uploads/${id}/download`, caller, {
+    ...(tenant === null ? {} : { 'x-acting-tenant': tenant }),
+    ...headers,
+  });
 
 const row = async (id: string) => {
   const [found] = await withTenant(api.db, { tenant: 'platform', subject: 'test' }, (tx) =>
@@ -436,6 +441,118 @@ describe('S21 declaration attachments (spec 05)', () => {
   });
 });
 
+describe('S17 clarification attachments (spec 07a)', () => {
+  const PURPOSE = 'clarification-attachment';
+  /** The review service's account, checking a response's attachments. */
+  const REVIEW: Caller = {
+    sub: 'service-account-review',
+    azp: 'review',
+    scope: 'documents:internal',
+  };
+
+  async function cleanClarificationAttachment(): Promise<UploadReservation> {
+    const reservation = await uploadAttachment(PDF_FILE, PDF, DECLARANT, PURPOSE);
+    expect((await complete(reservation.id, DECLARANT)).statusCode).toBe(200);
+    return reservation;
+  }
+
+  it.each([
+    ['a PDF', PDF_FILE, PDF],
+    ['a JPEG', JPEG_PHOTO, JPEG],
+    ['a PNG', PNG, PNG_TYPE],
+    ['a HEIC photo', HEIC_PHOTO, HEIC],
+  ])('completes %s to clean for the declarant who uploaded it', async (_, bytes, type) => {
+    const reservation = await uploadAttachment(bytes, type, DECLARANT, PURPOSE);
+    expect(reservation.maxSize).toBe(20 * MB);
+    expect(new URL(reservation.uploadUrl).pathname).toBe(
+      `/quarantine/clarification-attachment/${reservation.id}`,
+    );
+
+    const response = await complete(reservation.id, DECLARANT);
+
+    expect(response.statusCode).toBe(200);
+    const body = response.json<Upload>();
+    expect(contractErrors(okResponse('/v1/uploads/{id}/complete', 'post'), body)).toEqual([]);
+    expect(body).toMatchObject({
+      purpose: PURPOSE,
+      state: 'clean',
+      contentType: type,
+      detectedType: type,
+      sha256: sha256(bytes),
+      size: bytes.length,
+    });
+  });
+
+  it.each([
+    ['a CSV', CSV],
+    ['an XLSX', XLSX],
+    ['a GIF', 'image/gif'],
+  ])('refuses %s with 400', async (_, contentType) => {
+    const response = await api.post(
+      '/v1/uploads',
+      { purpose: PURPOSE, contentType, declaredSize: 10 },
+      DECLARANT,
+    );
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json<Problem>().errors?.map((error) => error.path)).toEqual(['contentType']);
+  });
+
+  it('refuses a declared size over 20 MB with 400, and takes exactly 20 MB', async () => {
+    const request = { purpose: PURPOSE, contentType: PDF };
+
+    const over = await api.post(
+      '/v1/uploads',
+      { ...request, declaredSize: 20 * MB + 1 },
+      DECLARANT,
+    );
+    const limit = await api.post('/v1/uploads', { ...request, declaredSize: 20 * MB }, DECLARANT);
+
+    expect(over.statusCode).toBe(400);
+    expect(over.json<Problem>().errors?.map((error) => error.path)).toEqual(['declaredSize']);
+    expect(limit.statusCode).toBe(201);
+  });
+
+  it('is for declarants only, and shows an attachment to its uploader only', async () => {
+    const request = { purpose: PURPOSE, contentType: PDF, declaredSize: 10 };
+    expect((await api.post('/v1/uploads', request, OFFICER)).statusCode).toBe(403);
+    expect((await api.post('/v1/uploads', request, COMMISSION_ADMIN)).statusCode).toBe(403);
+
+    const reservation = await uploadAttachment(PDF_FILE, PDF, DECLARANT, PURPOSE);
+    for (const caller of [OTHER_DECLARANT, OFFICER]) {
+      expect((await api.get(`/v1/uploads/${reservation.id}`, caller)).statusCode).toBe(404);
+    }
+  });
+
+  it('hands the review service a download naming the purpose, the file name and the hash', async () => {
+    const clean = await cleanClarificationAttachment();
+
+    const response = await download(clean.id, 'psc', REVIEW);
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json<UploadDownload>()).toMatchObject({
+      purpose: PURPOSE,
+      fileName: 'Title deed.pdf',
+      sha256: sha256(PDF_FILE),
+    });
+  });
+
+  it('is never swept as an orphan: the review service records no link', async () => {
+    const clean = await cleanClarificationAttachment();
+    await withTenant(api.db, { tenant: 'platform', subject: 'test' }, (tx) =>
+      tx
+        .update(uploads)
+        .set({ completedAt: sql`now() - interval '90 days'` })
+        .where(eq(uploads.id, clean.id)),
+    );
+
+    await api.app.get(UploadsService).sweepOrphans();
+
+    expect((await row(clean.id)).state).toBe('clean');
+    expect(await objectStatus('clean', `clarification-attachment/${clean.id}`)).toBe(200);
+  });
+});
+
 describe('Idempotency-Key (ADR-013 §7.5)', () => {
   const request = {
     purpose: 'roster-import',
@@ -544,7 +661,11 @@ describe('internal download', () => {
       'x-audited-read': { action: 'upload.download.issued', resource: 'upload' },
     });
 
-    expect((await download(clean.id)).statusCode).toBe(200);
+    // M13: the subject the service reads for, recorded as on-behalf-of (ADR-013 §8.6).
+    const response = await download(clean.id, 'psc', DIRECTORY, {
+      'x-acting-subject': 'reviewer-a',
+    });
+    expect(response.statusCode).toBe(200);
 
     const audited = await api.db
       .select()
@@ -559,6 +680,7 @@ describe('internal download', () => {
       data: {
         action: 'upload.download.issued',
         resource: { type: 'upload', params: { id: clean.id } },
+        actor: { subject: DIRECTORY.sub, onBehalfOf: 'reviewer-a' },
         outcome: 'success',
       },
     });

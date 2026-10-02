@@ -3,11 +3,13 @@ import { countryName, formatDate, formatNumber, plural } from '@adili/ui';
 import type { Flag, Severity } from '../server/review/types';
 import { type DeclarationView, itemLabel, relationOf, statementFor } from './declaration';
 import { CATEGORY_LABELS, SEVERITY_ORDER } from './labels';
+import { roleWords } from './registry';
 
 /**
  * The case's flags as the Flags tab lists them (spec 07a FE-3, S11): open flags grouped by
- * severity, high first; reviewed flags after them with the reviewer's note; flags closed by a
- * registry re-check last. Each flag's evidence in words, and the items it concerns. Pure.
+ * severity, high first; reviewed flags after them with the reviewer's note (a reviewed flag a
+ * registry re-check then closed stays with them, keeping its note); flags a re-check closed
+ * before anyone reviewed them last. Each flag's evidence in words, and the items it concerns. Pure.
  */
 
 export interface FlagGroups<F extends Flag = Flag> {
@@ -24,8 +26,8 @@ export function groupFlags<F extends Flag>(flags: F[]): FlagGroups<F> {
       severity,
       flags: open.filter((flag) => flag.severity === severity),
     })).filter((group) => group.flags.length > 0),
-    reviewed: flags.filter((flag) => flag.reviewed !== null && !flag.closedReason),
-    closed: flags.filter((flag) => Boolean(flag.closedReason)),
+    reviewed: flags.filter((flag) => flag.reviewed !== null),
+    closed: flags.filter((flag) => flag.reviewed === null && Boolean(flag.closedReason)),
     openCount: open.length,
   };
 }
@@ -104,6 +106,49 @@ export function evidenceLine(flag: Pick<Flag, 'ruleId' | 'evidence'>): string | 
     }
     case 'no-previous-version':
       return 'No previous version';
+    case 'registry-parcel-undeclared':
+    case 'declared-parcel-not-found': {
+      const parcel = str(e.parcelNumber);
+      return parcel ? `Parcel ${parcel}` : null;
+    }
+    case 'registry-vehicle-undeclared':
+    case 'declared-vehicle-not-found': {
+      const vehicle = str(e.registrationNumber);
+      return vehicle ? `Vehicle ${vehicle}` : null;
+    }
+    case 'registry-directorship-undeclared':
+    case 'declared-company-not-found':
+    case 'directorship-employer-supplier': {
+      const company = str(e.companyRegistrationNumber);
+      const role = str(e.role);
+      const parts = [
+        company ? `Company ${company}` : null,
+        role ? `role ${roleWords(role).toLowerCase()}` : null,
+        flag.ruleId === 'directorship-employer-supplier' ? "on the employer's supplier list" : null,
+      ].filter(Boolean);
+      return parts.length > 0 ? parts.join(' · ') : null;
+    }
+    case 'kra-pin-missing':
+      return 'No KRA PIN found for this national ID';
+    case 'kra-non-compliant': {
+      const pins = num(e.pins);
+      return pins === null ? 'Not tax compliant' : `${plural(pins, 'PIN')} · not tax compliant`;
+    }
+    case 'kra-income-mismatch': {
+      const difference = num(e.differencePercent);
+      if (difference === null) return null;
+      return `Income declared to KRA ${e.direction === 'below' ? 'lower' : 'higher'} by ${formatNumber(difference)}%`;
+    }
+    case 'registry-supplier-check-not-run': {
+      const companies = num(e.companies);
+      return companies === null
+        ? null
+        : `${String(companies)} ${companies === 1 ? 'company' : 'companies'} listed at BRS`;
+    }
+    case 'registry-company-dissolved': {
+      const company = str(e.companyRegistrationNumber);
+      return company ? `Company ${company} dissolved` : null;
+    }
     default:
       return null;
   }
@@ -152,6 +197,26 @@ export function openFlagsByItem<F extends Flag>(flags: F[]): Map<string, F[]> {
     }
   }
   return byItem;
+}
+
+/**
+ * The open flags on a section as a whole (a reference with no item: a category declared nil, a
+ * registry record no item declares), by section key (`bio`, `household`, `other`, or
+ * `statement:<personKey>` for a person's statement), for the pins on the pane's headings.
+ */
+export function openFlagsBySection<F extends Flag>(flags: F[]): Map<string, F[]> {
+  const bySection = new Map<string, F[]>();
+  for (const flag of flags) {
+    if (flag.reviewed !== null || flag.closedReason) continue;
+    for (const ref of flag.itemRefs) {
+      if (ref.itemId) continue;
+      const key = ref.sectionKey ?? `statement:${ref.personKey}`;
+      const list = bySection.get(key) ?? [];
+      if (!list.includes(flag)) list.push(flag);
+      bySection.set(key, list);
+    }
+  }
+  return bySection;
 }
 
 /** The highest severity among flags. */

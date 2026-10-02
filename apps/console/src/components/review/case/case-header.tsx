@@ -21,6 +21,7 @@ import {
   UserMultipleIcon,
   UserSwitchIcon,
 } from '@hugeicons/core-free-icons';
+import type { ReactNode } from 'react';
 
 import type { CaseActions } from '../../../review-case/case';
 import { versionLine, windowLine } from '../../../review-case/case';
@@ -50,6 +51,7 @@ export function CaseHeader({
   supervisor,
   now,
   onAction,
+  extraActions = [],
 }: {
   detail: CaseViewDetail;
   /** The reporting entity, from the declaration when it could be read. */
@@ -59,6 +61,8 @@ export function CaseHeader({
   supervisor: boolean;
   now: number;
   onAction: (action: 'claim' | 'release' | 'reassign' | 'unassign') => void;
+  /** Case actions of later slices, after the assignment ones (spec 07b's registry Re-check). */
+  extraActions?: ReactNode[];
 }) {
   const item = detail.case;
   const window = windowLine(item.windowEndsAt, now);
@@ -67,7 +71,7 @@ export function CaseHeader({
   const supervisorOfRecord =
     supervisor && history.some((reviewer) => reviewer.subject === viewer.subject);
 
-  const buttons = [];
+  const buttons: ReactNode[] = [];
   if (actions.claim) {
     buttons.push(
       <Button
@@ -126,6 +130,8 @@ export function CaseHeader({
       </Button>,
     );
   }
+
+  buttons.push(...extraActions);
 
   return (
     <header className="mb-[18px] grid gap-3.5">

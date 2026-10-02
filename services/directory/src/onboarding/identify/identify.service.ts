@@ -113,7 +113,8 @@ function noMatch(): ProblemException {
   return ProblemException.fromCode('no-match');
 }
 
-function alreadyOnboarded(): ProblemException {
+/** 409 `already-onboarded`, with links to sign in and to recover access. */
+export function alreadyOnboarded(): ProblemException {
   const portal = config.PORTAL_URL.replace(/\/+$/, '');
   return ProblemException.fromCode('already-onboarded', {
     extensions: {

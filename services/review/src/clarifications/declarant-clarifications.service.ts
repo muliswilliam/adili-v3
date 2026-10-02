@@ -96,7 +96,7 @@ export class DeclarantClarificationsService {
       const clarification = notFoundIfInvisible(locked);
       requireAnswerable(clarification.status);
       const answers = answersOf(clarification, input);
-      const attachments = await this.verifiedAttachments(tenant, answers);
+      const attachments = await this.verifiedAttachments(tenant, personId, answers);
       const late = clarification.dueAt !== null && now > clarification.dueAt;
 
       await tx
@@ -134,6 +134,7 @@ export class DeclarantClarificationsService {
   /** Each upload checked with documents, in the order given; the first one refused is a 409. */
   private async verifiedAttachments(
     tenant: string,
+    personId: string,
     answers: Answer[],
   ): Promise<ClarificationResponseAttachment[]> {
     const verified: ClarificationResponseAttachment[] = [];
@@ -141,7 +142,9 @@ export class DeclarantClarificationsService {
       for (const uploadId of attachments) {
         let upload;
         try {
-          upload = await withUpstream(() => this.documents.getUploadDownload(uploadId, tenant));
+          upload = await withUpstream(() =>
+            this.documents.getUploadDownload(uploadId, tenant, personSubject(personId)),
+          );
         } catch (error) {
           if (error instanceof InternalApiRejected) throw attachmentRefused(uploadId, 'not-clean');
           throw error;
@@ -235,7 +238,8 @@ interface Answer {
   attachments: string[];
 }
 
-function personSubject(personId: string): string {
+/** The subject a declarant acts as in review's records and in the reads made for them. */
+export function personSubject(personId: string): string {
   return `person:${personId}`;
 }
 

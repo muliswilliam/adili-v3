@@ -50,6 +50,8 @@ export interface NormalisedRosterRow {
    * Absent from rows staged before spec 05b; read as null. Pre-fills the declaration's bio.
    */
   workStation?: string | null;
+  /** The HR and payroll systems' code for the employer, e.g. `KEMSA`. */
+  employerCode: string | null;
   /** `YYYY-MM-DD` */
   appointmentDate: string | null;
   /** Lower-cased to `declaration.v1`'s values. Absent from rows staged before spec 05b. */
@@ -123,6 +125,17 @@ export function createRowValidator(
     const jobGroup = optionalText(raw.jobGroup, 10, 'jobGroup', fail);
     const reportingEntity = optionalText(raw.reportingEntity, 200, 'reportingEntity', fail);
     const workStation = optionalText(raw.workStation, 100, 'workStation', fail);
+    const employerCode = optional(raw.employerCode, (value) =>
+      value.length > 40
+        ? fail('employerCode', 'too-long', 'Enter up to 40 characters')
+        : EMPLOYER_CODE.test(value)
+          ? value
+          : fail(
+              'employerCode',
+              'format',
+              'Use only letters, digits, _ or -, starting with a letter or digit',
+            ),
+    );
 
     const appointmentDate = optional(raw.appointmentDate, (value) => {
       const iso = parseDate(value);
@@ -190,6 +203,7 @@ export function createRowValidator(
         jobGroup,
         reportingEntity,
         workStation,
+        employerCode,
         appointmentDate,
         maritalStatus,
         email,
@@ -201,6 +215,8 @@ export function createRowValidator(
 }
 
 const FILE_NUMBER = /^[A-Za-z0-9/.-]+$/;
+/** The integration gateway's employer code (its supplier check takes no other). */
+const EMPLOYER_CODE = /^[A-Za-z0-9][A-Za-z0-9_-]*$/;
 
 function isMaritalStatus(value: string): value is MaritalStatus {
   return (MARITAL_STATUSES as readonly string[]).includes(value);

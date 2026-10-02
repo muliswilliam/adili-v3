@@ -1,4 +1,4 @@
-import { type BadgeProps, plural } from '@adili/ui';
+import { type BadgeProps, formatNumber, plural } from '@adili/ui';
 
 import type { ClarificationStatus, Requirement } from '../server/review/types';
 
@@ -60,7 +60,7 @@ export const COPY = {
   back: 'Clarifications',
   allClarifications: 'All clarifications',
   title: (followUp: boolean) => (followUp ? 'Further clarification' : 'Clarification'),
-  declaration: (reference: string) => `Declaration ${reference}`,
+  declaration: 'Declaration',
   askedOpen: 'What your Commission asks',
   aiAssisted:
     'Parts of this clarification were drafted with AI assistance, then checked and approved by a reviewer at your Commission.',
@@ -70,7 +70,7 @@ export const COPY = {
   point: (n: number, of: number) => `Point ${String(n)} of ${String(of)}`,
   yourResponse: 'Your response',
   responseLabel: (n: number) => `Your response to point ${String(n)}`,
-  counter: (used: number) => `${used.toLocaleString('en')} / 2,000`,
+  counter: (used: number) => `${formatNumber(used)} / ${formatNumber(2000)}`,
   missing: 'Write your response to this point.',
   tooLong: 'Keep your response to 2,000 characters or fewer.',
   documentsFor: (n: number) => `Documents for point ${String(n)}`,

@@ -113,6 +113,7 @@ describe('HttpDirectoryClient', () => {
       personnelFileNumber: 'PSC/2019/0077',
       fullName: 'Grace Wanjiru',
       reportingEntity: { id: '0199b000-0000-7000-8000-0000000000f2', name: 'State Department' },
+      employerCode: null,
       tenant: 'psc',
     };
     const records = [record, { ...record, employerCode: 'MOH', reportingEntity: null }];
@@ -183,5 +184,29 @@ describe('HttpDirectoryClient', () => {
     expect(
       await directory.getRosterRecord('psc', '0199b000-0000-7000-8000-0000000000f3'),
     ).toBeNull();
+  });
+
+  it("lists the Commission's staff holding a role, by subject and name, dropping their emails", async () => {
+    const requests: Request[] = [];
+    const directory = new HttpDirectoryClient({
+      directoryUrl: 'http://directory.test',
+      tokens: { token: () => Promise.resolve('token'), invalidate: vi.fn() },
+      fetch: (input) => {
+        requests.push(input as Request);
+        return Promise.resolve(
+          Response.json({
+            items: [{ subject: 'reviewer-a', email: 'asha@psc.go.ke', name: 'Asha Njeri' }],
+          }),
+        );
+      },
+    });
+
+    expect(await directory.listStaff('psc', 'reviewer')).toEqual([
+      { subject: 'reviewer-a', name: 'Asha Njeri' },
+    ]);
+    expect(requests[0]?.url).toBe(
+      'http://directory.test/internal/v1/commissions/psc/staff?role=reviewer',
+    );
+    expect(requests[0]?.headers.get('x-acting-tenant')).toBe('psc');
   });
 });

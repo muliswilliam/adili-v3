@@ -3,7 +3,7 @@ import { ArrowLeft01Icon, HelpCircleIcon } from '@hugeicons/core-free-icons';
 import { Link, useMatches, useSearch } from '@tanstack/react-router';
 import type { ReactNode } from 'react';
 
-import { STEP_COUNT, STEP_NAMES, type StepNumber } from './steps';
+import { STEP_NAMES } from './steps';
 
 /**
  * What every Get started page shares inside the auth shell: the Back button and stepper of the
@@ -36,12 +36,21 @@ export function OnboardingFrame({ children }: { children: ReactNode }) {
   );
 }
 
-/** Six segments: done steps ink, the current one half ink (the kit's `.stepper`). */
-export function OnboardingStepper({ step }: { step: StepNumber }) {
+/**
+ * One segment per step (the declarant's six unless `names` says otherwise): done steps ink, the
+ * current one half ink (the kit's `.stepper`).
+ */
+export function OnboardingStepper({
+  step,
+  names = STEP_NAMES,
+}: {
+  step: number;
+  names?: readonly string[];
+}) {
   return (
     <div className="mb-[26px]">
       <div aria-hidden="true" className="mb-2 flex gap-1.5">
-        {STEP_NAMES.map((name, index) => (
+        {names.map((name, index) => (
           <span
             key={name}
             data-state={index + 1 < step ? 'done' : index + 1 === step ? 'current' : undefined}
@@ -53,8 +62,8 @@ export function OnboardingStepper({ step }: { step: StepNumber }) {
         ))}
       </div>
       <p aria-live="polite" className="text-[13px] font-medium text-muted-foreground">
-        Step {step} of {STEP_COUNT}
-        <span className="sr-only">: {STEP_NAMES[step - 1]}</span>
+        Step {step} of {names.length}
+        <span className="sr-only">: {names[step - 1]}</span>
       </p>
     </div>
   );
@@ -81,15 +90,23 @@ export function commissionNameFrom(loaderData: unknown, slug?: string): string |
 
 /**
  * Who to ask for help. The contract gives the Commission but not its reporting officer's name,
- * so the Commission is named when known.
+ * so the Commission is named when known. `children` replaces the line, e.g. for applicants, who
+ * have no Commission.
  */
-export function HelpLine({ commissionName }: { commissionName?: string | null }) {
+export function HelpLine({
+  commissionName,
+  children,
+}: {
+  commissionName?: string | null;
+  children?: ReactNode;
+}) {
   return (
     <p className="mt-7 flex items-start gap-2 border-t pt-4 text-[13.5px] text-muted-foreground">
       <Icon icon={HelpCircleIcon} className="mt-0.5" />
-      {commissionName
-        ? `Need help? Contact ${commissionName}'s reporting officer.`
-        : "Need help? Contact your Commission's reporting officer."}
+      {children ??
+        (commissionName
+          ? `Need help? Contact ${commissionName}'s reporting officer.`
+          : "Need help? Contact your Commission's reporting officer.")}
     </p>
   );
 }

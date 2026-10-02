@@ -1,6 +1,6 @@
 <!doctype html>
 <!-- PROTOTYPE - throwaway. Question: what does a declarant see and do after submitting (clarifications and responses, compliance determinations, notices, warnings, salary stoppage and reinstatement, access requests about their declaration)? Covers tickets #170, #173, #199, #205, #208, #255 and the compact RegisterTimeline of #268 (portal parts). Open by double-clicking. State is in memory. -->
-<!-- Demo assumption: John Kennedy's initial declaration DCI-TSC-2026-0003418-P (statement date 1 Apr 2026) was received on 28 Apr 2026, so TSC's six-month clarification window closes on 28 Oct 2026. -->
+<!-- Demo assumption: John Kennedy's initial declaration DCI-TSC-2026-0003418-U (statement date 1 Apr 2026) was received on 28 Apr 2026, so TSC's six-month clarification window closes on 28 Oct 2026. -->
 <html lang="en">
   <head>
     <meta charset="utf-8" />
@@ -980,7 +980,7 @@
         email: 'dials@tsc.go.ke',
       };
       const DECL = {
-        ref: 'DCI-TSC-2026-0003418-P',
+        ref: 'DCI-TSC-2026-0003418-U',
         type: 'Initial declaration',
         statementDate: '2026-04-01',
         receivedAt: '2026-04-28T14:12:00',
@@ -1102,7 +1102,7 @@
         return Object.assign(
           {
             id: 'c1',
-            ref: 'CLR-TSC-2026-0000871-X',
+            ref: 'CLR-TSC-2026-0000871-K',
             status: 'issued',
             issuedAt,
             dueAt,
@@ -1126,13 +1126,13 @@
         return Object.assign(
           {
             id: 'n1',
-            ref: 'ADM-TSC-2026-0000233-K',
+            ref: 'ADM-TSC-2026-0000233-D',
             step: 'notice-to-comply',
             status: 'issued',
             issuedAt: null,
             actBy: null,
             whatToDo: 'respond-to-clarification',
-            subjectRef: 'CLR-TSC-2026-0000519-4',
+            subjectRef: 'CLR-TSC-2026-0000519-L',
             subjectId: 'c1',
             response: null,
             salaryEffective: null,
@@ -1179,7 +1179,7 @@
         const ladderClar = (issued, extra = {}) =>
           clar({
             id: 'c1',
-            ref: 'CLR-TSC-2026-0000519-4',
+            ref: 'CLR-TSC-2026-0000519-L',
             issuedAt: issued,
             items: ITEMS_B,
             verification: VER[1],
@@ -1226,10 +1226,10 @@
             w.clars = [
               clar({
                 id: 'c2',
-                ref: 'CLR-TSC-2026-0000944-7',
+                ref: 'CLR-TSC-2026-0000944-I',
                 issuedAt: '2026-09-18T12:00:00',
                 items: ITEMS_FU,
-                followUpOf: 'CLR-TSC-2026-0000871-X',
+                followUpOf: 'CLR-TSC-2026-0000871-K',
                 verification: VER[2],
               }),
               clar({
@@ -1238,7 +1238,7 @@
                 status: 'responded',
                 respondedAt: '2026-08-28T19:12:00',
                 response: mkResponse(ITEMS_A, '2026-08-28T19:12:00'),
-                followUpRef: 'CLR-TSC-2026-0000944-7',
+                followUpRef: 'CLR-TSC-2026-0000944-I',
               }),
             ];
             break;
@@ -1265,11 +1265,11 @@
             break;
           case 'escalated':
           case 'notice-issued':
-            w.clars = [ladderClar('2026-08-10T09:00:00', { noticeRef: 'ADM-TSC-2026-0000233-K' })];
+            w.clars = [ladderClar('2026-08-10T09:00:00', { noticeRef: 'ADM-TSC-2026-0000233-D' })];
             w.notices = [notice({ issuedAt: '2026-09-14T10:00:00', actBy: '2026-09-28T23:59:00' })];
             break;
           case 'notice-responded':
-            w.clars = [ladderClar('2026-08-10T09:00:00', { noticeRef: 'ADM-TSC-2026-0000233-K' })];
+            w.clars = [ladderClar('2026-08-10T09:00:00', { noticeRef: 'ADM-TSC-2026-0000233-D' })];
             w.notices = [
               notice({
                 issuedAt: '2026-09-14T10:00:00',
@@ -1286,7 +1286,7 @@
           case 'notice-file':
             w.notices = [
               notice({
-                ref: 'ADM-TSC-2026-0000187-Q',
+                ref: 'ADM-TSC-2026-0000187-U',
                 issuedAt: '2026-09-21T10:00:00',
                 actBy: '2026-10-05T23:59:00',
                 whatToDo: 'file-declaration',
@@ -1296,11 +1296,11 @@
             ];
             break;
           case 'warning':
-            w.clars = [ladderClar('2026-07-27T09:00:00', { noticeRef: 'ADM-TSC-2026-0000301-3' })];
+            w.clars = [ladderClar('2026-07-27T09:00:00', { noticeRef: 'ADM-TSC-2026-0000301-L' })];
             w.notices = [
               notice({
                 id: 'n2',
-                ref: 'ADM-TSC-2026-0000301-3',
+                ref: 'ADM-TSC-2026-0000301-L',
                 step: 'warning',
                 issuedAt: '2026-09-16T10:00:00',
                 actBy: '2026-09-30T23:59:00',
@@ -1320,7 +1320,7 @@
                 respondedAt: '2026-09-20T18:40:00',
                 late: true,
                 response: mkResponse(ITEMS_B, '2026-09-20T18:40:00'),
-                noticeRef: 'ADM-TSC-2026-0000233-K',
+                noticeRef: 'ADM-TSC-2026-0000233-D',
                 reminderSentAt: '2026-08-30T09:00:00',
               }),
             ];
@@ -1334,11 +1334,11 @@
             ];
             break;
           case 'stop-scheduled':
-            w.clars = [ladderClar('2026-07-10T09:00:00', { noticeRef: 'ADM-TSC-2026-0000358-W' })];
+            w.clars = [ladderClar('2026-07-10T09:00:00', { noticeRef: 'ADM-TSC-2026-0000358-O' })];
             w.notices = [
               notice({
                 id: 'n3',
-                ref: 'ADM-TSC-2026-0000358-W',
+                ref: 'ADM-TSC-2026-0000358-O',
                 step: 'salary-stoppage',
                 issuedAt: '2026-09-22T15:00:00',
                 actBy: null,
@@ -1347,7 +1347,7 @@
               }),
               notice({
                 id: 'n2',
-                ref: 'ADM-TSC-2026-0000301-3',
+                ref: 'ADM-TSC-2026-0000301-L',
                 step: 'warning',
                 issuedAt: '2026-09-01T10:00:00',
                 actBy: '2026-09-15T23:59:00',
@@ -1372,14 +1372,14 @@
                       late: true,
                       respondedAt: '2026-09-22T09:10:00',
                       response: mkResponse(ITEMS_B, '2026-09-22T09:10:00'),
-                      noticeRef: 'ADM-TSC-2026-0000358-W',
+                      noticeRef: 'ADM-TSC-2026-0000358-O',
                     }
-                  : { noticeRef: disc ? 'ADM-TSC-2026-0000402-B' : 'ADM-TSC-2026-0000358-W' },
+                  : { noticeRef: disc ? 'ADM-TSC-2026-0000402-B' : 'ADM-TSC-2026-0000358-O' },
               ),
             ];
             const stop = notice({
               id: 'n3',
-              ref: 'ADM-TSC-2026-0000358-W',
+              ref: 'ADM-TSC-2026-0000358-O',
               step: 'salary-stoppage',
               issuedAt: disc ? '2026-08-12T15:00:00' : '2026-08-20T15:00:00',
               salaryEffective: '2026-08-31T00:00:00',
@@ -1391,7 +1391,7 @@
               stop.compliedAt = '2026-09-22T09:10:00';
               stop.reinstatement = {
                 sentAt: '2026-09-22T09:12:00',
-                ref: 'ADM-TSC-2026-0000358-W-R',
+                ref: 'ADM-TSC-2026-0000358-O-R',
                 ackAt: name === 'reinstated' ? '2026-09-23T07:30:00' : null,
                 effective: '2026-09-30T00:00:00',
               };
@@ -1412,7 +1412,7 @@
               stop,
               notice({
                 id: 'n2',
-                ref: 'ADM-TSC-2026-0000301-3',
+                ref: 'ADM-TSC-2026-0000301-L',
                 step: 'warning',
                 issuedAt: disc ? '2026-07-14T10:00:00' : '2026-07-24T10:00:00',
                 actBy: disc ? '2026-07-28T23:59:00' : '2026-08-07T23:59:00',
@@ -1519,8 +1519,8 @@
             id: 'd1',
             ref:
               outcome === 'compliant-no-issues'
-                ? 'CMP-TSC-2026-0118204-5'
-                : 'CMP-TSC-2026-0004102-7',
+                ? 'CMP-TSC-2026-0118204-M'
+                : 'CMP-TSC-2026-0004102-U',
             outcome,
             decidedAt: '2026-09-24T12:30:00',
             declarationRef: DECL.ref,
@@ -1615,7 +1615,7 @@
         return Object.assign(
           {
             id: 'a1',
-            ref: 'ARQ-TSC-2026-0000052-3',
+            ref: 'ARQ-TSC-2026-0000052-I',
             kind: 'form-k',
             comm: COMM,
             applicant: 'Wanjiru Kamau',
@@ -1635,7 +1635,7 @@
         lea1: () =>
           accReq({
             id: 'a2',
-            ref: 'LEA-TSC-2026-0000007-M',
+            ref: 'LEA-TSC-2026-0000007-E',
             kind: 'lea',
             applicant: null,
             agency: 'Asset Recovery Agency',
@@ -1660,7 +1660,7 @@
         arq1: () =>
           accReq({
             id: 'a3',
-            ref: 'ARQ-TSC-2026-0000045-X',
+            ref: 'ARQ-TSC-2026-0000045-G',
             applicant: 'Kevin Mutua Njoroge',
             purpose: 'Civil claim over a land sale in Kapsaret',
             scope: scope([2026], true, true, ['income', 'assets', 'liabilities', 'other']),
@@ -1692,7 +1692,7 @@
         arq39: () =>
           accReq({
             id: 'a4',
-            ref: 'ARQ-TSC-2026-0000039-K',
+            ref: 'ARQ-TSC-2026-0000039-C',
             applicant: 'Samuel Otieno Ouma',
             purpose: 'A private dispute with the officer',
             scope: scope([2026], true, true, SEC_KEYS),
@@ -1710,7 +1710,7 @@
         arq31: () =>
           accReq({
             id: 'a5',
-            ref: 'ARQ-TSC-2026-0000031-6',
+            ref: 'ARQ-TSC-2026-0000031-S',
             applicant: 'Brian Kiptoo Rotich',
             purpose: 'Checking a tender award at the school',
             scope: scope([2026], false, false, ['income', 'assets']),
@@ -1728,7 +1728,7 @@
         psc27: () =>
           accReq({
             id: 'a6',
-            ref: 'ARQ-PSC-2026-0000027-2',
+            ref: 'ARQ-PSC-2026-0000027-3',
             comm: PSC_C,
             applicant: 'Achieng Odhiambo',
             purpose: 'Academic research on declarations by education officers',
@@ -1758,7 +1758,7 @@
         psc19: () =>
           accReq({
             id: 'a7',
-            ref: 'ARQ-PSC-2026-0000019-7',
+            ref: 'ARQ-PSC-2026-0000019-3',
             comm: PSC_C,
             applicant: 'Joseph Maina Kariuki',
             purpose: 'Suspected conflict of interest in a supplies contract',

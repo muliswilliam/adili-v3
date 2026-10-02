@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { historyOf, statusLine } from './view';
+import { clarificationCrumb, historyOf, statusLine } from './view';
 
 const base = {
   issuedAt: '2026-09-20T09:00:00Z',
@@ -128,5 +128,33 @@ describe('historyOf', () => {
     expect(
       historyOf({ ...base, status: 'draft', issuedAt: null, dueAt: null, reference: null }, NOW),
     ).toEqual([]);
+  });
+});
+
+describe('clarificationCrumb', () => {
+  const CASE = 'c45e0000-0000-4000-8000-000000000001';
+  const loaded = (reference: string | null) => ({
+    ok: true,
+    data: { clarification: { reference }, case: { id: CASE, reference: 'DCI-PSC-2026-0000001-Y' } },
+  });
+  const toCase = { label: 'DCI-PSC-2026-0000001-Y', to: `/review/cases/${CASE}` };
+
+  it('links the case it is on, then names the clarification by its reference', () => {
+    expect(clarificationCrumb(loaded('CLR-PSC-2026-0000001-A'))).toEqual({
+      before: [toCase],
+      label: 'CLR-PSC-2026-0000001-A',
+    });
+  });
+
+  it('calls a draft a draft clarification', () => {
+    expect(clarificationCrumb(loaded(null))).toEqual({
+      before: [toCase],
+      label: 'Draft clarification',
+    });
+  });
+
+  it('says Clarification when it could not be loaded, and nothing while loading', () => {
+    expect(clarificationCrumb({ ok: false, error: { kind: 'unavailable' } })).toBe('Clarification');
+    expect(clarificationCrumb(undefined)).toBeNull();
   });
 });

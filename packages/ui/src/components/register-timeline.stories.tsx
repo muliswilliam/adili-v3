@@ -15,6 +15,7 @@ const actors: Partial<Record<(typeof REGISTER_KINDS)[number], string>> = {
   withdrawn: 'Mercy Wanjiku Kamau (applicant)',
   downloaded: 'Mercy Wanjiku Kamau (applicant)',
   representations: 'Anne Njeri Mutua (declarant)',
+  identified: 'Lucy Wambui',
   'package-issued': 'Adili Online',
   expired: 'Adili Online',
 };
@@ -109,6 +110,16 @@ export const WhoAccessed: Story = {
   render: (args) => (
     <Card className="max-w-2xl overflow-hidden p-0 sm:p-0">
       <RegisterList {...args} />
+    </Card>
+  ),
+};
+
+/** RegisterList whose rows open the entry (Who accessed opens a drawer). */
+export const WhoAccessedSelectable: Story = {
+  args: { entries: declarantCopy, label: 'Who accessed my declaration' },
+  render: (args) => (
+    <Card className="max-w-2xl overflow-hidden p-0 sm:p-0">
+      <RegisterList {...args} onSelect={() => undefined} />
     </Card>
   ),
 };

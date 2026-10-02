@@ -194,8 +194,43 @@
     {
       "idx": 27,
       "version": "7",
-      "when": 1790919033915,
-      "tag": "0027_roster_hr_fields",
+      "when": 1790884952427,
+      "tag": "0027_law_enforcement_officers",
+      "breakpoints": true
+    },
+    {
+      "idx": 28,
+      "version": "7",
+      "when": 1790884975319,
+      "tag": "0028_agencies_seed",
+      "breakpoints": true
+    },
+    {
+      "idx": 29,
+      "version": "7",
+      "when": 1790887397040,
+      "tag": "0029_applicant_onboarding",
+      "breakpoints": true
+    },
+    {
+      "idx": 30,
+      "version": "7",
+      "when": 1790924226323,
+      "tag": "0030_onboarding_invitations",
+      "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "7",
+      "when": 1790966851965,
+      "tag": "0031_roster_employer_code",
+      "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "7",
+      "when": 1790970134691,
+      "tag": "0032_roster_hr_fields",
       "breakpoints": true
     }
   ]

@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { slugSchema } from '../commissions/create-commission.js';
 import { ofrSchema } from '../onboarding/representation.js';
 import { rosterRecordStateSchema } from '../roster/records/representation.js';
+import { IDENTITY_DOCUMENT_KINDS, IDENTITY_STATUSES } from './schema.js';
 
 /** Representations of a person (a declarant) to themself and to the helpdesk. */
 
@@ -53,10 +54,13 @@ export const findPersonQuery = z.object({
 });
 export type FindPersonQuery = z.infer<typeof findPersonQuery>;
 
-/** The contacts notifications sends a person's messages to (spec 04). */
+/** The contacts notifications sends a person's messages to (spec 04; applicants', spec 10). */
 export const personContactsSchema = z.object({
   personId: z.uuid(),
-  email: z.string().nullable().meta({ description: 'Verified at onboarding; null when none' }),
+  email: z.string().nullable().meta({
+    description:
+      "Verified at onboarding (an applicant's: as entered, proved by the set-password link); null when none",
+  }),
   phone: z
     .string()
     .nullable()
@@ -69,3 +73,47 @@ export const personNationalIdSchema = z.object({
   nationalId: z.string().meta({ description: 'Digits only, as verified at onboarding' }),
 });
 export type PersonNationalId = z.infer<typeof personNationalIdSchema>;
+/** An applicant's identity document as entered at onboarding (spec 10). */
+export const applicantIdentityDocumentSchema = z.object({
+  kind: z.enum(IDENTITY_DOCUMENT_KINDS),
+  number: z.string().meta({
+    description: 'National ID digits, or the passport number upper-cased without spaces',
+  }),
+  country: z.string().nullable().meta({
+    description: "A passport's issuing country, ISO 3166-1 alpha-2; null for a national ID",
+  }),
+});
+
+/** The signed-in applicant's own particulars, which pre-fill Part I of Form K (spec 10). */
+export const applicantProfileSchema = z.object({
+  personId: z.uuid(),
+  fullName: z.string().meta({ description: 'First, other and surname as entered' }),
+  identityDocument: applicantIdentityDocumentSchema,
+  identityStatus: z.enum(IDENTITY_STATUSES),
+  contacts: z.object({
+    email: z.string().nullable(),
+    phone: z.string().nullable().meta({ description: 'E.164, verified at onboarding' }),
+  }),
+});
+export type ApplicantProfile = z.infer<typeof applicantProfileSchema>;
+
+/** An applicant as the access service reads them (spec 10). */
+export const internalApplicantSchema = applicantProfileSchema.extend({
+  identityVerifiedAt: z.iso
+    .datetime()
+    .nullable()
+    .meta({ description: 'When the identity became verified; null while pending' }),
+  identityVerifiedBy: z.string().nullable().meta({
+    description:
+      "Subject of the access officer who verified a passport applicant's particulars; null when IPRS verified a national ID, or while pending",
+  }),
+});
+export type InternalApplicant = z.infer<typeof internalApplicantSchema>;
+
+/** Body of `POST /internal/v1/applicants/{personId}/identity-verification`. */
+export const verifyApplicantIdentityBody = z.object({
+  verifiedBy: z.string().min(1).max(255).meta({
+    description: 'Subject (`sub`) of the access officer who checked the particulars entered',
+  }),
+});
+export type VerifyApplicantIdentityBody = z.infer<typeof verifyApplicantIdentityBody>;

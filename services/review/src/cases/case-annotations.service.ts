@@ -93,7 +93,13 @@ export class CaseAnnotationsService {
       const [open] = await tx
         .select({ count: count() })
         .from(reviewFlags)
-        .where(and(eq(reviewFlags.caseId, row.id), isNull(reviewFlags.reviewedAt)));
+        .where(
+          and(
+            eq(reviewFlags.caseId, row.id),
+            isNull(reviewFlags.reviewedAt),
+            isNull(reviewFlags.closedReason),
+          ),
+        );
       await tx
         .update(reviewCases)
         .set({ openFlags: open?.count ?? 0 })

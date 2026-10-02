@@ -8,6 +8,7 @@ import type {
   SourceRef,
 } from '../ai-gateway/ai-gateway-client.js';
 import { REQUIREMENTS, type reviewFlags } from '../cases/schema.js';
+import { letterLanguageSchema, requirementSchema } from '../clarifications/representation.js';
 import { type PlacedItem, placedItems, statementSectionKey } from '../rules/match.js';
 import { flagInput, itemRef, placedItemContext } from './copilot-inputs.js';
 
@@ -23,11 +24,11 @@ export const copilotDraftInput = z.object({
         personKey: z.string().max(80).nullable(),
         itemId: z.uuid().nullable(),
         sectionKey: z.string().max(100).nullable(),
-        requirement: z.enum(REQUIREMENTS).nullable(),
+        requirement: requirementSchema.nullable(),
       }),
     )
     .max(MAX_DRAFT_SELECTIONS),
-  language: z.enum(['en', 'sw']),
+  language: letterLanguageSchema,
 });
 export type CopilotDraftInput = z.infer<typeof copilotDraftInput>;
 

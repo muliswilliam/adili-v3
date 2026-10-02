@@ -4,7 +4,7 @@ Seed content for the in-app glossary, reference-number tooltips and the public h
 
 ## How to read a reference number
 
-`DCB-TSC-2027-0012345-K`
+`DCB-TSC-2027-0012345-A`
 
 | Part | Example | Meaning |
 |---|---|---|
@@ -76,4 +76,4 @@ County codes 001-047 follow the standard Kenyan county numbering (e.g. 047 = Nai
 | **Form K** | The prescribed form to request access to a declaration (Regs r.22). |
 | **Form M** | The prescribed compliance report from a Commission to EACC (Regs r.25(2)). |
 | **Verification code** | The code under a document's QR code, used to check the document is genuine (ADR-010). |
-| **Reference number** | The human-readable number of a record, e.g. `DCB-TSC-2027-0012345-K` (ADR-011). |
+| **Reference number** | The human-readable number of a record, e.g. `DCB-TSC-2027-0012345-A` (ADR-011). |

@@ -31,6 +31,8 @@ export interface MessagesOptions {
   /** The most of the budget a contact lookup may take. */
   contactLookupTimeoutMs: number;
   recipientHashKey: string;
+  /** Refuse portal links that are not https (`NODE_ENV=production`). */
+  httpsLinksOnly: boolean;
 }
 
 /**
@@ -81,7 +83,9 @@ export class MessagesService {
    */
   async send(request: SendMessage, caller: Principal): Promise<MessageView> {
     const deadline = Date.now() + this.options.providerTimeoutMs;
-    const content = renderTemplate(request.template, request.locale, request.params);
+    const content = renderTemplate(request.template, request.locale, request.params, {
+      httpsLinksOnly: this.options.httpsLinksOnly,
+    });
     const id = uuidv7();
 
     const resolution = await this.resolve(request, id);

@@ -6,6 +6,7 @@ import {
   DirectoryUnavailable,
   type LadderPolicy,
   type PayrollRosterFacts,
+  type StaffMember,
 } from '../../src/directory/directory-client.js';
 
 /** The platform defaults: six months to request clarification, thirty days to answer. */
@@ -30,6 +31,7 @@ export class FakeDirectory extends DirectoryClient {
   private readonly policies = new Map<string, ClarificationPolicy>();
   private readonly ladders = new Map<string, LadderPolicy>();
   private readonly rosters = new Map<string, PayrollRosterFacts>();
+  private readonly staff = new Map<string, StaffMember[]>();
 
   givenCommission(slug: string, policy: ClarificationPolicy = DEFAULT_CLARIFICATION_POLICY): void {
     this.policies.set(slug, policy);
@@ -44,7 +46,20 @@ export class FakeDirectory extends DirectoryClient {
     this.rosters.set(`${tenant}:${recordId}`, facts);
   }
 
+  /** The Commission's staff holding `role`. */
+  givenStaff(slug: string, role: 'reviewer' | 'supervisor', members: StaffMember[]): void {
+    this.staff.set(`${slug}:${role}`, structuredClone(members));
+  }
+
+  listStaff(slug: string, role: 'reviewer' | 'supervisor'): Promise<StaffMember[]> {
+    if (!this.policies.has(slug)) {
+      return Promise.reject(new DirectoryUnavailable(`No Commission ${slug}`));
+    }
+    return Promise.resolve(structuredClone(this.staff.get(`${slug}:${role}`) ?? []));
+  }
+
   reset(): void {
+    this.staff.clear();
     this.policies.clear();
     this.ladders.clear();
     this.rosters.clear();

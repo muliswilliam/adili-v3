@@ -2,9 +2,11 @@ import { PLATFORM_TENANT } from '@adili/api-kit';
 import { randomUUID } from 'node:crypto';
 
 import { withTenant } from '@adili/data-access';
+import { TEMPORAL_CLIENT } from '@adili/temporal';
+import type { Client as TemporalClient } from '@temporalio/client';
 import ExcelJS from 'exceljs';
-import { asc, eq, sql } from 'drizzle-orm';
-import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { asc, eq, inArray, sql } from 'drizzle-orm';
+import { afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
 import {
   outbox,
@@ -56,6 +58,29 @@ beforeEach(async () => {
   ]);
 });
 
+/**
+ * Waits for the imports a test left running (it failed, or timed out polling) to end: the next
+ * test's reset truncates the tables under them, which deadlocks with a chunk being applied.
+ */
+afterEach(async () => {
+  const running = await asPlatform((tx) =>
+    tx
+      .select({ id: rosterImports.id })
+      .from(rosterImports)
+      .where(inArray(rosterImports.state, ['pending', 'processing'])),
+  );
+  const temporal = api.app.get<TemporalClient>(TEMPORAL_CLIENT);
+  // An import's workflow id is its id; one never started (or gone) has nothing to wait for.
+  await Promise.all(
+    running.map(({ id }) =>
+      temporal.workflow
+        .getHandle(id)
+        .result()
+        .catch(() => undefined),
+    ),
+  );
+}, 120_000);
+
 function start(body: unknown, caller: Caller = OFFICER, idempotencyKey?: string) {
   return api.post(IMPORTS, body, caller, { idempotencyKey });
 }
@@ -68,13 +93,14 @@ async function startImport(content: string, declaredComplete = true): Promise<Ro
   return response.json<RosterImport>();
 }
 
-/** Polls the import like the console does until it has ended. */
+/** Polls the import like the console does until it has ended, for up to `withinMs`. */
 async function untilEnded(
   id: string,
   caller: Caller = OFFICER,
   imports = IMPORTS,
+  withinMs = 25_000,
 ): Promise<RosterImport> {
-  const deadline = Date.now() + 25_000;
+  const deadline = Date.now() + withinMs;
   for (;;) {
     const response = await api.get(`${imports}/${id}`, caller);
     expect(response.statusCode, response.body).toBe(200);
@@ -85,8 +111,12 @@ async function untilEnded(
   }
 }
 
-async function importFile(content: string, declaredComplete = true): Promise<RosterImport> {
-  return untilEnded((await startImport(content, declaredComplete)).id);
+async function importFile(
+  content: string,
+  declaredComplete = true,
+  withinMs?: number,
+): Promise<RosterImport> {
+  return untilEnded((await startImport(content, declaredComplete)).id, OFFICER, IMPORTS, withinMs);
 }
 
 /** Roster tables are under FORCE RLS; the test reads them in the platform context. */
@@ -160,8 +190,8 @@ describe('S4 file import', () => {
         flaggedAbsent: 0,
         exitsRecorded: 0,
       },
-      // The file has spec 02's columns, not spec 05b's.
-      mapping: { ignored: [], missing: ['work_station', 'marital_status'] },
+      // The file has spec 02's columns, not spec 05b's or the employer code.
+      mapping: { ignored: [], missing: ['work_station', 'marital_status', 'employer_code'] },
       failure: null,
     });
     expect(done.mapping?.matched).toHaveLength(9);
@@ -223,32 +253,37 @@ describe('S4 file import', () => {
     ]);
   });
 
-  it('applies files larger than a chunk in chunks of 1,000 rows', async () => {
-    const rows = Array.from(
-      { length: 2_500 },
-      (_, index) =>
-        `PSC/${String(index).padStart(5, '0')},Officer Number ${index},${String(10_000_000 + index)},,,,,,`,
-    );
+  // Three chunks through compose Temporal take seconds alone, and far longer on a loaded host.
+  it(
+    'applies files larger than a chunk in chunks of 1,000 rows',
+    { timeout: 120_000 },
+    async () => {
+      const rows = Array.from(
+        { length: 2_500 },
+        (_, index) =>
+          `PSC/${String(index).padStart(5, '0')},Officer Number ${index},${String(10_000_000 + index)},,,,,,`,
+      );
 
-    const done = await importFile(csv(rows), false);
+      const done = await importFile(csv(rows), false, 110_000);
 
-    expect(done).toMatchObject({
-      state: 'completed',
-      totalRows: 2_500,
-      processedRows: 2_500,
-      counts: { accepted: 2_500, created: 2_500, rejected: 0 },
-    });
-    const chunks = await asPlatform((tx) =>
-      tx
-        .selectDistinct({ chunk: rosterImportRows.chunkIndex })
-        .from(rosterImportRows)
-        .where(eq(rosterImportRows.importId, done.id)),
-    );
-    expect(chunks.map(({ chunk }) => chunk).sort()).toEqual([0, 1, 2]);
-    expect(await summary()).toMatchObject({ expected: 2_500 });
-    // A partial import still records the latest import, but not a latest complete one.
-    expect((await summary())?.lastCompleteImportAt).toBeNull();
-  });
+      expect(done).toMatchObject({
+        state: 'completed',
+        totalRows: 2_500,
+        processedRows: 2_500,
+        counts: { accepted: 2_500, created: 2_500, rejected: 0 },
+      });
+      const chunks = await asPlatform((tx) =>
+        tx
+          .selectDistinct({ chunk: rosterImportRows.chunkIndex })
+          .from(rosterImportRows)
+          .where(eq(rosterImportRows.importId, done.id)),
+      );
+      expect(chunks.map(({ chunk }) => chunk).sort()).toEqual([0, 1, 2]);
+      expect(await summary()).toMatchObject({ expected: 2_500 });
+      // A partial import still records the latest import, but not a latest complete one.
+      expect((await summary())?.lastCompleteImportAt).toBeNull();
+    },
+  );
 
   it('rejects invalid rows into the report and applies the rest', async () => {
     const done = await importFile(
@@ -687,7 +722,10 @@ describe('previewing an import', () => {
       format: 'csv',
       missingRequired: [],
       estimatedRows: 3,
-      mapping: { ignored: ['Station Code'], missing: ['work_station', 'marital_status'] },
+      mapping: {
+        ignored: ['Station Code'],
+        missing: ['work_station', 'marital_status', 'employer_code'],
+      },
     });
     expect(body.mapping.matched[0]).toEqual({
       source: 'personnel_file_number',

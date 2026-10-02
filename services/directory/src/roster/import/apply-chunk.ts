@@ -28,6 +28,7 @@ interface RecordValues {
   jobGroup: string | null;
   reportingEntityId: string | null;
   workStation: string | null;
+  employerCode: string | null;
   appointmentDate: string | null;
   maritalStatus: MaritalStatus | null;
   email: string | null;
@@ -271,6 +272,7 @@ const RECORD_FIELDS = [
   'jobGroup',
   'reportingEntityId',
   'workStation',
+  'employerCode',
   'appointmentDate',
   'maritalStatus',
   'email',
@@ -289,6 +291,8 @@ function recordValues(row: NormalisedRosterRow, reportingEntityId: string | null
     designation: row.designation,
     jobGroup: row.jobGroup,
     reportingEntityId,
+    // Rows staged before the column existed have none.
+    employerCode: row.employerCode ?? null,
     // Rows staged before spec 05b have neither.
     workStation: row.workStation ?? null,
     appointmentDate: row.appointmentDate,
@@ -406,6 +410,7 @@ async function recordsByFileNumber(
       jobGroup: rosterRecords.jobGroup,
       reportingEntityId: rosterRecords.reportingEntityId,
       workStation: rosterRecords.workStation,
+      employerCode: rosterRecords.employerCode,
       appointmentDate: rosterRecords.appointmentDate,
       maritalStatus: rosterRecords.maritalStatus,
       email: rosterRecords.email,
@@ -469,6 +474,7 @@ async function updateRecords(
     job_group: values.jobGroup,
     reporting_entity_id: values.reportingEntityId,
     work_station: values.workStation,
+    employer_code: values.employerCode,
     appointment_date: values.appointmentDate,
     marital_status: values.maritalStatus,
     email: values.email,
@@ -483,6 +489,7 @@ async function updateRecords(
       job_group = source.job_group,
       reporting_entity_id = source.reporting_entity_id,
       work_station = source.work_station,
+      employer_code = source.employer_code,
       appointment_date = source.appointment_date,
       marital_status = source.marital_status,
       email = source.email,
@@ -505,6 +512,7 @@ async function updateRecords(
       job_group text,
       reporting_entity_id uuid,
       work_station text,
+      employer_code text,
       appointment_date date,
       marital_status text,
       email text,

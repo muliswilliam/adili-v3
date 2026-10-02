@@ -1,7 +1,7 @@
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http';
 import type { AddressInfo } from 'node:net';
 
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { HttpRosterUploads } from '../../src/roster/import/http-roster-uploads.js';
 import {
@@ -212,8 +212,6 @@ describe('HttpRosterUploads', () => {
   });
 
   describe('reading a large file', () => {
-    const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
-
     /** Storage sending `count` chunks, `gapMs` apart. */
     function slowStorage(count: number, gapMs: number): void {
       const ok = documents();
@@ -251,17 +249,52 @@ describe('HttpRosterUploads', () => {
     });
 
     it('does not count time the reader spends on a chunk', async () => {
-      slowStorage(3, 5);
-      const { uploads } = adapter(undefined, { headersTimeoutMs: 100, idleTimeoutMs: 50 });
+      // Fake timers and a hand-fed body: the reader's slow step is an exact clock advance, so
+      // nothing here depends on how fast the machine is.
+      vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+      try {
+        let feed!: ReadableStreamDefaultController<Uint8Array>;
+        const storage = new ReadableStream<Uint8Array>({
+          start: (controller) => {
+            feed = controller;
+          },
+        });
+        const stubbed: typeof fetch = (input, init) => {
+          // No sockets: undici's own timers would be frozen with the fake ones.
+          if (!new Request(input).url.includes('/files/'))
+            return Promise.resolve(Response.json(uploadDownload()));
+          // Like a real download: aborting the request breaks the body.
+          init?.signal?.addEventListener('abort', () => {
+            feed.error(init.signal?.reason);
+          });
+          return Promise.resolve(new Response(storage));
+        };
+        const uploads = new HttpRosterUploads({
+          documentsUrl: `${baseUrl}/`,
+          tokens: { token: () => Promise.resolve('token'), invalidate: () => undefined },
+          headersTimeoutMs: 100,
+          idleTimeoutMs: 50,
+          fetch: stubbed,
+        });
+        const encode = (row: string) => new TextEncoder().encode(row);
 
-      const upload = await uploads.open(REF);
-      let read = '';
-      for await (const chunk of upload.body) {
-        read += Buffer.from(chunk).toString('utf8');
-        await sleep(120); // backpressure: staging writing a batch
+        const upload = await uploads.open(REF);
+        const chunks = upload.body[Symbol.asyncIterator]();
+        feed.enqueue(encode('row 0\n'));
+        expect((await chunks.next()).value).toEqual(encode('row 0\n'));
+
+        // The reader is busy with that chunk (staging writing a batch) for far longer than the
+        // idle timeout, and asks for no chunk meanwhile.
+        await vi.advanceTimersByTimeAsync(10_000);
+        feed.enqueue(encode('row 1\n'));
+
+        // The wait for the next chunk starts only now, so it is not timed out.
+        expect((await chunks.next()).value).toEqual(encode('row 1\n'));
+        feed.close();
+        expect((await chunks.next()).done).toBe(true);
+      } finally {
+        vi.useRealTimers();
       }
-
-      expect(read).toContain('row 2');
     });
 
     it('gives up on storage that stalls part way', async () => {

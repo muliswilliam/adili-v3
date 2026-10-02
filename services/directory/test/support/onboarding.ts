@@ -347,3 +347,91 @@ export async function givenIdentityMismatch(
     tx.update(rosterRecords).set({ identityMismatchAt: at }).where(eq(rosterRecords.id, recordId)),
   );
 }
+
+export interface StartApplicantInput {
+  identityDocument: { kind: 'national-id' | 'passport'; number: string; country?: string };
+  names: { surname: string; firstName: string; otherNames?: string };
+  phone: string;
+  email: string;
+}
+
+/** `POST /v1/onboarding/applicants` from the client address `ip`. */
+export function startApplicant(api: DirectoryApi, body: StartApplicantInput, ip?: string) {
+  return api.anonymous({ method: 'POST', url: '/v1/onboarding/applicants', body, ip });
+}
+
+/**
+ * A call on an applicant's session: `path` below `/v1/onboarding/applicants/{id}` (e.g.
+ * `/otp/verify`), with `secret` in X-Onboarding-Secret (none if undefined) and, for a POST, a
+ * fresh Idempotency-Key.
+ */
+export function onApplicantSession(
+  api: DirectoryApi,
+  method: 'GET' | 'POST',
+  id: string,
+  path: string,
+  secret: string | undefined,
+  body?: unknown,
+  ip?: string,
+) {
+  return api.anonymous({
+    method,
+    url: `/v1/onboarding/applicants/${id}${path}`,
+    headers: {
+      ...(secret === undefined ? {} : { 'x-onboarding-secret': secret }),
+      ...(method === 'POST' ? { 'idempotency-key': randomUUID() } : {}),
+    },
+    body,
+    ip,
+  });
+}
+
+export interface ApplicantFixture {
+  kind?: 'national-id' | 'passport';
+  /** A national ID's digits or a passport number. */
+  number?: string;
+  /** A passport's country; `UG` by default for a passport. */
+  country?: string;
+  fullName?: string;
+  identityStatus?: 'verified' | 'pending-verification';
+  keycloakUserId?: string;
+  email?: string | null;
+  /** E.164. */
+  phone?: string | null;
+}
+
+/**
+ * Arranges an applicant as applicant onboarding's complete step leaves them: a person of kind
+ * `applicant` (a passport holder, `pending-verification`, by default) with a Keycloak user id.
+ */
+export async function givenApplicant(
+  api: DirectoryApi,
+  fixture: ApplicantFixture = {},
+): Promise<{ personId: string; keycloakUserId: string }> {
+  const kind = fixture.kind ?? 'passport';
+  const number = fixture.number ?? (kind === 'passport' ? 'B1234567' : '23456789');
+  const identityStatus =
+    fixture.identityStatus ?? (kind === 'passport' ? 'pending-verification' : 'verified');
+  const keycloakUserId = fixture.keycloakUserId ?? randomUUID();
+  const createdAt = api.clock.now();
+  return withTenant(api.db, { tenant: PLATFORM_TENANT, subject: 'test' }, async (tx) => {
+    const [person] = await tx
+      .insert(persons)
+      .values({
+        kind: 'applicant',
+        nationalId: kind === 'national-id' ? number : null,
+        passportNumber: kind === 'passport' ? number : null,
+        passportCountry: kind === 'passport' ? (fixture.country ?? 'UG') : null,
+        fullName: fixture.fullName ?? 'Amina Nakato Okello',
+        identityStatus,
+        identityVerifiedAt: identityStatus === 'verified' ? createdAt : null,
+        keycloakUserId,
+        email: fixture.email === undefined ? 'amina.okello@example.com' : fixture.email,
+        phone: fixture.phone === undefined ? '+256772123456' : fixture.phone,
+        createdAt,
+      })
+      .returning({ id: persons.id });
+    if (!person) throw new Error('insert returned no row');
+    return { personId: person.id, keycloakUserId };
+  });
+}

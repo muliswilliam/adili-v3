@@ -41,7 +41,7 @@ export function EmptyState({
         <div
           aria-hidden="true"
           className={cn(
-            'mb-3.5 flex size-[30px] items-center justify-center rounded-[9px] [&_svg]:size-4',
+            'mb-3.5 flex size-[30px] items-center justify-center rounded-tile [&_svg]:size-4',
             tone ? toneClassNames[tone] : 'bg-muted text-muted-foreground',
           )}
         >

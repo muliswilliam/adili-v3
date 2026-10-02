@@ -8,6 +8,7 @@ import {
   internalObligationDetailsSchema,
   internalObligationSchema,
   internalPersonObligationSchema,
+  internalPersonVersionSchema,
   internalPreviousVersionSchema,
   internalVersionDocumentSchema,
 } from './service-reads/representation.js';
@@ -58,6 +59,19 @@ import {
   summaryCycleSchema,
 } from './obligations/representation.js';
 import { declarationReferenceSchema } from './declaration/reference.js';
+import {
+  disclosedVersionSchema,
+  disclosureCountsRequestSchema,
+  disclosureCountsSchema,
+  disclosureDocumentSchema,
+  disclosureRequestSchema,
+  disclosureYearCountsSchema,
+  fullDocumentRequestSchema,
+  disclosureSectionSchema,
+  fullVersionDocumentSchema,
+  grantReferenceSchema,
+  legalBasisSchema,
+} from './disclosure/representation.js';
 import {
   acknowledgementSchema,
   acknowledgementStatusSchema,
@@ -122,6 +136,17 @@ export const OPENAPI_SCHEMAS: Record<string, z.ZodType> = {
   SubmitProblem: submitProblemSchema,
   AcknowledgementSlip: acknowledgementSlipSchema,
   AcknowledgementPayload: acknowledgementPayloadSchema,
+  DisclosureSection: disclosureSectionSchema,
+  LegalBasis: legalBasisSchema,
+  GrantReference: grantReferenceSchema,
+  DisclosureRequest: disclosureRequestSchema,
+  DisclosedVersion: disclosedVersionSchema,
+  DisclosureDocument: disclosureDocumentSchema,
+  DisclosureCountsRequest: disclosureCountsRequestSchema,
+  DisclosureYearCounts: disclosureYearCountsSchema,
+  DisclosureCounts: disclosureCountsSchema,
+  FullDocumentRequest: fullDocumentRequestSchema,
+  FullVersionDocument: fullVersionDocumentSchema,
   HelpLanguage: helpLanguageSchema,
   HelpTag: helpTagSchema,
   HelpPassage: helpPassageSchema,
@@ -130,6 +155,7 @@ export const OPENAPI_SCHEMAS: Record<string, z.ZodType> = {
   CorpusPassage: corpusPassageSchema,
   CorpusImportResult: corpusImportResultSchema,
   InternalVersionDocument: internalVersionDocumentSchema,
+  InternalPersonVersion: internalPersonVersionSchema,
   InternalPreviousVersion: internalPreviousVersionSchema,
   InternalObligation: internalObligationSchema,
   InternalPersonObligation: internalPersonObligationSchema,

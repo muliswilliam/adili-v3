@@ -1,7 +1,15 @@
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
-import { formatScope, isSameScope, isScopeWithin, type Scope, ScopePicker } from './scope-picker';
+import {
+  formatScope,
+  formatScopeSections,
+  formatScopeYears,
+  isSameScope,
+  isScopeWithin,
+  type Scope,
+  ScopePicker,
+} from './scope-picker';
 
 const requested: Scope = {
   years: [2025, 2026],
@@ -37,7 +45,7 @@ describe('ScopePicker', () => {
     ).toEqual(['years', 'years']);
     const people = screen.getByRole('group', { name: 'People' });
     expect(within(people).getAllByRole('checkbox')).toEqual(
-      ['The declarant', 'Spouses', 'Children', 'Clarifications'].map((name) =>
+      ['The declarant', 'Spouses', 'Children'].map((name) =>
         within(people).getByRole('checkbox', { name }),
       ),
     );
@@ -73,21 +81,47 @@ describe('ScopePicker', () => {
     expect(onChange).toHaveBeenLastCalledWith({ ...empty, sections: ['income', 'liabilities'] });
   });
 
-  it('includes spouses, children and clarifications', () => {
+  it('includes spouses and children', () => {
     const onChange = renderPicker();
 
     fireEvent.click(screen.getByRole('checkbox', { name: 'Spouses' }));
     expect(onChange).toHaveBeenLastCalledWith({ ...empty, includeSpouses: true });
     fireEvent.click(screen.getByRole('checkbox', { name: 'Children' }));
     expect(onChange).toHaveBeenLastCalledWith({ ...empty, includeChildren: true });
-    fireEvent.click(screen.getByRole('checkbox', { name: 'Clarifications' }));
+  });
+
+  it("offers the declarant's clarifications under their own legend, for Form K", () => {
+    const onChange = renderPicker({ clarifications: true });
+
+    const group = screen.getByRole('group', { name: 'Clarifications' });
+    const box = within(group).getByRole('checkbox', { name: 'The declarant’s clarifications' });
+    expect(box.getAttribute('aria-describedby')).toBe(
+      within(group)
+        .getByText(/answers to the Commission’s requests/)
+        .closest('p')?.id,
+    );
+    fireEvent.click(box);
     expect(onChange).toHaveBeenLastCalledWith({ ...empty, includeClarifications: true });
   });
 
-  it('leaves clarifications out when the request cannot include them', () => {
-    renderPicker({ clarifications: false });
+  it('leaves clarifications out when the request cannot include them (law enforcement)', () => {
+    renderPicker();
 
-    expect(screen.queryByRole('checkbox', { name: 'Clarifications' })).toBeNull();
+    expect(screen.queryByRole('checkbox', { name: /clarification/i })).toBeNull();
+  });
+
+  it('offers clarifications to grant only when they were requested', () => {
+    renderPicker({
+      clarifications: true,
+      value: { ...requested, includeClarifications: false },
+      restrictTo: { ...requested, includeClarifications: false },
+    });
+
+    const box = screen.getByRole('checkbox', { name: 'The declarant’s clarifications' });
+    expect(box).toHaveProperty('disabled', true);
+    expect(
+      within(screen.getByRole('group', { name: 'Clarifications' })).getByText('Not requested'),
+    ).toBeDefined();
   });
 
   it('offers only what was requested when restricted, and says why the rest is off', () => {
@@ -219,7 +253,7 @@ describe('isSameScope', () => {
 describe('formatScope', () => {
   it('summarises years, people, sections and clarifications', () => {
     expect(formatScope(requested)).toBe(
-      '2025, 2026 · Declarant and spouses · Income, assets, liabilities · clarifications',
+      '2025, 2026 · Declarant and spouses · Income, assets, liabilities, clarifications',
     );
     expect(
       formatScope({ ...empty, years: [2026], includeChildren: true, sections: ['bio', 'other'] }),
@@ -229,6 +263,19 @@ describe('formatScope', () => {
     );
     expect(formatScope({ ...empty, years: [2026], sections: ['income'] })).toBe(
       '2026 · Declarant only · Income',
+    );
+  });
+
+  it("takes another reader's words for the people", () => {
+    expect(formatScope(requested, () => 'You and spouse')).toBe(
+      '2025, 2026 · You and spouse · Income, assets, liabilities, clarifications',
+    );
+  });
+
+  it('formats years and sections on their own', () => {
+    expect(formatScopeYears({ years: [2026, 2024] })).toBe('2024, 2026');
+    expect(formatScopeSections({ sections: ['other', 'bio'] })).toBe(
+      'Personal details, other information',
     );
   });
 });

@@ -35,6 +35,7 @@ const record = (state: string, overrides: Record<string, unknown> = {}) => ({
   reportingEntity: null,
   workStation: 'Ardhi House, Nairobi',
   maritalStatus: 'married',
+  employerCode: null,
   state,
   appointmentDate: '2018-01-08',
   exitDate: null,
@@ -114,6 +115,12 @@ describe('HttpDirectoryClient', () => {
       reminderOffsetsDays: [30, 14, 7],
       clarification: { issueWindowMonths: 6, replyWindowDays: 30 },
       formMDue: '07-31',
+      access: {
+        decisionDays: 30,
+        leaDecisionDays: 14,
+        representationWindowDays: 7,
+        packageDownloadDays: 7,
+      },
       createdBy: 'sub',
       createdByName: null,
       createdAt: '2026-09-28T18:00:00.000Z',
@@ -132,15 +139,19 @@ describe('HttpDirectoryClient', () => {
   });
 
   it('lists every Commission, acting for no tenant', async () => {
+    const listed = { status: 'active', obligationsStartDate: '2025-07-01' };
     const list = conforming('InternalCommissionList', {
       items: [
-        { slug: 'psc', issuerCode: 'PSC', name: 'Public Service Commission' },
-        { slug: 'tsc', issuerCode: 'TSC', name: 'Teachers Service Commission' },
+        { slug: 'psc', issuerCode: 'PSC', name: 'Public Service Commission', ...listed },
+        { slug: 'tsc', issuerCode: 'TSC', name: 'Teachers Service Commission', ...listed },
       ],
     });
     const { client, requests } = clientAnswering(() => json(list));
 
-    await expect(client.listCommissions()).resolves.toEqual((list as { items: unknown[] }).items);
+    await expect(client.listCommissions()).resolves.toEqual([
+      { slug: 'psc', issuerCode: 'PSC', name: 'Public Service Commission' },
+      { slug: 'tsc', issuerCode: 'TSC', name: 'Teachers Service Commission' },
+    ]);
     expect(requests[0]?.url.pathname).toBe('/internal/v1/commissions');
     expect(requests[0]?.actingTenant).toBeNull();
   });

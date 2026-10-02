@@ -44,10 +44,11 @@ export interface PolicyCardProps {
 }
 
 /**
- * The obligations policy of a Commission (spec 04 FE-4): statutory periods, reminder offsets and
- * the obligations start date, which those who may change it do through a dialog that saves a new
- * version; for the Commission's own admins whether AI assistance is enabled (spec 07c); then the
- * version history, newest first.
+ * The obligations policy of a Commission (spec 04 FE-4): statutory periods, reminder offsets, the
+ * periods of access to declarations (spec 10, read only: each request's clock reads them as it
+ * starts) and the obligations start date, which those who may change it do through a dialog that
+ * saves a new version; for the Commission's own admins whether AI assistance is enabled (spec 07c);
+ * then the version history, newest first.
  */
 export function PolicyCard({
   history,
@@ -90,6 +91,14 @@ export function PolicyCard({
           <span className="block">{m.finalPeriod(current.finalDueAfterExitDays)}</span>
         </PolicyRow>
         <PolicyRow term={m.reminders}>{reminderOffsetsText(current.reminderOffsetsDays)}</PolicyRow>
+        <PolicyRow term={m.accessPeriods}>
+          <span className="block">{m.formKDecision(current.access.decisionDays)}</span>
+          <span className="block">{m.leaDecision(current.access.leaDecisionDays)}</span>
+          <span className="block">
+            {m.representationWindow(current.access.representationWindowDays)}
+          </span>
+          <span className="block">{m.packageDownload(current.access.packageDownloadDays)}</span>
+        </PolicyRow>
         <PolicyRow
           term={m.startDate}
           action={

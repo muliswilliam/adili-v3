@@ -15,6 +15,7 @@ import {
   flagNoteError,
   groupFlags,
   openFlagsByItem,
+  openFlagsBySection,
   topSeverity,
 } from './flags';
 
@@ -43,11 +44,49 @@ describe('groupFlags', () => {
     expect(groups.closed.map((flag) => flag.id)).toEqual(['closed']);
     expect(groups.openCount).toBe(4);
   });
+
+  it('keeps a reviewed flag a re-check then closed with the reviewed, with its note', () => {
+    const reviewedThenClosed: Flag = { ...byId(F.late), closedReason: 'superseded-by-recheck' };
+    const groups = groupFlags([reviewedThenClosed]);
+    expect(groups.reviewed.map((flag) => flag.id)).toEqual([F.late]);
+    expect(groups.closed).toEqual([]);
+  });
 });
 
 describe('evidenceLine', () => {
   const line = (ruleId: Flag['ruleId'], evidence: Flag['evidence']) =>
     evidenceLine({ ruleId, evidence });
+
+  it.each([
+    [
+      'registry-parcel-undeclared',
+      { parcelNumber: 'KAJIADO/KITENGELA/48213' },
+      'Parcel KAJIADO/KITENGELA/48213',
+    ],
+    [
+      'directorship-employer-supplier',
+      { companyRegistrationNumber: 'PVT-7XK2M9', role: 'director', declared: true },
+      "Company PVT-7XK2M9 · role director · on the employer's supplier list",
+    ],
+    [
+      'registry-directorship-undeclared',
+      { companyRegistrationNumber: 'PVT-9XYZ2L4Q', role: 'director_shareholder' },
+      'Company PVT-9XYZ2L4Q · role director and shareholder',
+    ],
+    [
+      'kra-income-mismatch',
+      { differencePercent: 40, direction: 'below' },
+      'Income declared to KRA lower by 40%',
+    ],
+    ['registry-supplier-check-not-run', { companies: 2 }, '2 companies listed at BRS'],
+    [
+      'registry-company-dissolved',
+      { companyRegistrationNumber: 'PVT-9XYZ2L4Q' },
+      'Company PVT-9XYZ2L4Q dissolved',
+    ],
+  ] as const)('%s reads its registry facts (spec 07b)', (ruleId, evidence, expected) => {
+    expect(line(ruleId, evidence)).toBe(expected);
+  });
 
   it('says each rule’s facts in words, without amounts', () => {
     expect(line('value-change-25', { changePercent: 41, direction: 'up' })).toBe(
@@ -81,7 +120,7 @@ describe('evidenceLine', () => {
   });
 
   it('says nothing for a rule it has no words for, or facts it cannot read', () => {
-    expect(line('kra-pin-missing', {})).toBeNull();
+    expect(line('registry-parcel-number-missing', {})).toBeNull();
     expect(line('late-filing', {})).toBeNull();
   });
 });
@@ -119,6 +158,24 @@ describe('flag pins', () => {
     expect(topSeverity([byId(F.foreign), byId(F.acquisition)])).toBe('medium');
     expect(flagItemId(byId(F.valueChange))).toBe(I.plot);
     expect(flagItemId(byId(F.growth))).toBeNull();
+  });
+
+  it('Q10: counts the open flags on a section as a whole, by its section key', () => {
+    const nil: Flag = {
+      ...byId(F.growth),
+      id: 'nil',
+      itemRefs: [{ personKey: 'officer', itemId: null, sectionKey: 'statement:officer' }],
+    };
+    const household: Flag = {
+      ...byId(F.growth),
+      id: 'household',
+      itemRefs: [{ personKey: 'spouse-1', itemId: null, sectionKey: 'household' }],
+    };
+    const reviewed: Flag = { ...household, id: 'reviewed', reviewed: byId(F.late).reviewed };
+    const pins = openFlagsBySection([nil, household, reviewed, byId(F.valueChange)]);
+    expect(pins.get('statement:officer')?.map((flag) => flag.id)).toEqual(['nil']);
+    expect(pins.get('household')?.map((flag) => flag.id)).toEqual(['household']);
+    expect(pins.size).toBe(2);
   });
 
   it('needs a note of up to 1,000 characters to mark a flag reviewed', () => {

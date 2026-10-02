@@ -1,6 +1,8 @@
+import { DeclarationSchema } from '@adili/forms';
 import type { z } from 'zod';
 
 import {
+  clarificationLetterSource,
   disclosureLevelSchema,
   documentDownloadSchema,
   documentStatusSchema,
@@ -8,8 +10,14 @@ import {
   issueDocumentBody,
   issuedDocumentSchema,
   supersedeDocumentBody,
+  watermarkSchema,
 } from './issuance/representation.js';
+import { accessNilLetterPayload } from './issuance/templates/access-nil-letter.v1.js';
+import { accessPackagePayload } from './issuance/templates/access-package.v1.js';
 import { acknowledgementSlipPayload } from './issuance/templates/acknowledgement-slip.v1.js';
+import { certifiedCopyPayload } from './issuance/templates/certified-copy.v1.js';
+import { disclosedDeclarationSchema } from './issuance/templates/declaration-content.js';
+import { commissionRefSchema } from './issuance/templates/references.js';
 import { uploadPurposeSchema } from './uploads/purposes.js';
 import {
   createUploadBody,
@@ -20,6 +28,9 @@ import {
   uploadSchema,
   uploadStateSchema,
 } from './uploads/representation.js';
+
+const declaration = DeclarationSchema.shape;
+const statement = declaration.statements.element.shape;
 
 /** Named schemas of the documents service's OpenAPI document (`#/components/schemas/<name>`). */
 export const OPENAPI_SCHEMAS: Record<string, z.ZodType> = {
@@ -34,9 +45,26 @@ export const OPENAPI_SCHEMAS: Record<string, z.ZodType> = {
   DisclosureLevel: disclosureLevelSchema,
   DocumentStatus: documentStatusSchema,
   IssueDocument: issueDocumentBody,
+  ClarificationLetterSource: clarificationLetterSource,
   SupersedeDocument: supersedeDocumentBody,
   IssuedDocument: issuedDocumentSchema,
   DocumentDownload: documentDownloadSchema,
+  Watermark: watermarkSchema,
+  CommissionRef: commissionRefSchema,
   AcknowledgementSlipPayload: acknowledgementSlipPayload,
+  AccessPackagePayload: accessPackagePayload,
+  AccessNilLetterPayload: accessNilLetterPayload,
+  CertifiedCopyPayload: certifiedCopyPayload,
+  DisclosedDeclaration: disclosedDeclarationSchema,
+  DeclarationV1: DeclarationSchema,
+  // Parts of declaration.v1 both payloads print, named so the contract states them once.
+  DeclarationOfficer: declaration.officer,
+  DeclarationSpouses: declaration.spouses,
+  DeclarationChildren: declaration.children,
+  DeclarationOtherInformation: declaration.otherInformation,
+  DeclarationIncomeItem: statement.income.element,
+  DeclarationAssetItem: statement.assets.element,
+  DeclarationLiabilityItem: statement.liabilities.element,
+  PersonName: statement.personName,
   InternalUpload: internalUploadSchema,
 };

@@ -9,14 +9,24 @@ import {
   CardHeader,
   CardIcon,
   CardTitle,
+  cn,
   DescriptionItem,
   DescriptionList,
+  focusRingInset,
   formatDate,
   Icon,
   MaskedContact,
   OfficerReference,
 } from '@adili/ui';
-import { AlertCircleIcon, SecurityCheckIcon, UserCheck01Icon } from '@hugeicons/core-free-icons';
+import {
+  AlertCircleIcon,
+  ArrowRight01Icon,
+  SecurityCheckIcon,
+  Stamp01Icon,
+  UserCheck01Icon,
+  ViewIcon,
+} from '@hugeicons/core-free-icons';
+import { Link } from '@tanstack/react-router';
 
 import type { DeclarantAccount } from '../../server/declarant.server';
 
@@ -60,7 +70,15 @@ export function DeclarantCard({ account }: { account: DeclarantAccount }) {
           </DescriptionItem>
         </DescriptionList>
       </CardContent>
-      <CardFooter className="mt-5 flex-nowrap items-start gap-2 border-t text-[13.5px] text-muted-foreground">
+      <nav aria-label="Transparency" className="mt-4 grid border-t">
+        <AccountLink to="/access/history" icon={ViewIcon}>
+          Who accessed my declaration
+        </AccountLink>
+        <AccountLink to="/access/certified-copies" icon={Stamp01Icon}>
+          Certified copies
+        </AccountLink>
+      </nav>
+      <CardFooter className="flex-nowrap items-start gap-2 text-[13.5px] text-muted-foreground">
         <Icon icon={SecurityCheckIcon} className="mt-px size-4 shrink-0" aria-hidden="true" />
         <ul className="grid gap-0.5">
           {account.commissions.map((commission) => {
@@ -77,6 +95,31 @@ export function DeclarantCard({ account }: { account: DeclarantAccount }) {
         </ul>
       </CardFooter>
     </Card>
+  );
+}
+
+/** A row to one of the declarant's transparency pages (spec 10 FE-4). */
+function AccountLink({
+  to,
+  icon,
+  children,
+}: {
+  to: '/access/history' | '/access/certified-copies';
+  icon: typeof ViewIcon;
+  children: string;
+}) {
+  return (
+    <Link
+      to={to}
+      className={cn(
+        focusRingInset,
+        '-mx-5 flex items-center gap-3 border-b px-5 py-3 text-[14.5px] font-medium transition-colors hover:bg-muted/50 sm:-mx-6 sm:px-6',
+      )}
+    >
+      <Icon icon={icon} className="size-[18px] text-muted-foreground" />
+      <span className="flex-1">{children}</span>
+      <Icon icon={ArrowRight01Icon} className="size-4 text-muted-foreground" />
+    </Link>
   );
 }
 

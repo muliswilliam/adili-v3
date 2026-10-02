@@ -5,6 +5,8 @@ import {
   ApiProblemResponse,
   ApiQueryParameters,
   AuditedRead,
+  CurrentReadAudit,
+  type ReadAudit,
   CurrentPrincipal,
   type Principal,
   InternalApi,
@@ -89,7 +91,9 @@ export class DeclarantProfileController {
 /**
  * Internal: not routed by the public entrypoint. Contacts are personal data: only the
  * notifications service's token carries `directory:person-contacts`, and it names the tenant it
- * sends for in X-Acting-Tenant (ADR-013 §8.1, ADR-017); a person not onboarded there is 404.
+ * sends for in X-Acting-Tenant (ADR-013 §8.1, ADR-017); a declarant not onboarded there is 404.
+ * Law-enforcement officers and applicants, who belong to no Commission, are reached for any
+ * tenant (spec 10, ADR-013 §8.9).
  */
 @ApiTags('internal')
 @Controller('internal/v1/persons')
@@ -104,20 +108,26 @@ export class InternalPersonsController {
     operationId: 'internalGetPersonContacts',
     summary: 'Verified contacts of a person (notifications)',
     description:
-      'Service tokens with scope directory:person-contacts (the notifications service only), acting for the tenant a message is sent for; audited. The email and phone verified at the latest onboarding, null where none. 404 when the person is unknown or not onboarded at that tenant.',
+      "Service tokens with scope directory:person-contacts (the notifications service only), acting for the tenant a message is sent for; audited. A declarant's email and phone verified at the latest onboarding, null where none; a law-enforcement officer's official email and phone as provisioned, and an applicant's as entered at applicant onboarding, whatever the acting tenant (officers and applicants request from any Commission). 404 when the person is unknown, or a declarant not onboarded at that tenant.",
   })
   @ApiOkResponse({
     description: 'Contacts, null where none is verified',
     schema: schemaRef('PersonContacts'),
   })
   @ApiProblemResponse(400, 'personId is not a UUID')
-  @ApiProblemResponse(404, 'No person has this id, or not one onboarded at the acting tenant')
-  contacts(
+  @ApiProblemResponse(
+    404,
+    'No person has this id, or a declarant not onboarded at the acting tenant',
+  )
+  async contacts(
     @CurrentPrincipal() principal: Principal,
     @ActingTenant() tenant: string,
     @Param('personId', new ZodValidationPipe(z.uuid())) personId: string,
+    @CurrentReadAudit() audit: ReadAudit,
   ): Promise<PersonContacts> {
-    return this.persons.contacts({ tenant, subject: principal.subject }, personId);
+    const contacts = await this.persons.contacts({ tenant, subject: principal.subject }, personId);
+    audit.resource({ tenant, subjectPersonId: personId });
+    return contacts;
   }
 }
 

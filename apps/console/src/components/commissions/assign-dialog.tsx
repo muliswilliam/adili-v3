@@ -14,6 +14,7 @@ import {
   FormField,
   Icon,
   Input,
+  formatPhone,
 } from '@adili/ui';
 import {
   Alert02Icon,
@@ -44,7 +45,7 @@ import {
   EMPTY_ASSIGN_DRAFT,
 } from './assign-form';
 import { messages as m } from './messages';
-import { formatPhone, normalisePhone } from './phone';
+import { normalisePhone } from './phone';
 
 interface DialogState {
   draft: AssignDraft;

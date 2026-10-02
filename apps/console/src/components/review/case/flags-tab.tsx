@@ -7,6 +7,7 @@ import {
   formatDate,
   Icon,
   Label,
+  SeverityBadge,
   Spinner,
   Textarea,
   Tooltip,
@@ -21,7 +22,7 @@ import {
   SparklesIcon,
   Tick02Icon,
 } from '@hugeicons/core-free-icons';
-import { useEffect, useId, useRef, useState } from 'react';
+import { type ReactNode, useEffect, useId, useRef, useState } from 'react';
 
 import type { CaseFlag } from '../../../server/review-case.server';
 import type { DeclarationView } from '../../../review-case/declaration';
@@ -34,7 +35,7 @@ import {
   flagNoteError,
   groupFlags,
 } from '../../../review-case/flags';
-import { SeverityBadge } from '../copilot/severity-badge';
+import { RULE_SYSTEMS, SYSTEM_NAMES } from '../../../review-case/registry';
 import { InfoTip } from './info-tip';
 import { messages as t } from './messages';
 
@@ -45,61 +46,71 @@ import { messages as t } from './messages';
  * reviewer's note.
  */
 
-export interface FlagsTabProps {
-  flags: CaseFlag[];
+/** What a flag card needs from the case, wherever flags are listed (Flags and Registry tabs). */
+export interface FlagCardContext {
   view: DeclarationView | null;
   declarant: string;
   /** The reviewer holding the case may mark flags reviewed. */
   canReview: boolean;
   /** The copilot has explanations to open. */
   canExplain: boolean;
-  /** The flag to draw attention to (a pin was followed); a new `key` each time. */
-  pulse: { flagId: string; key: number } | null;
   onGoToItem: (itemId: string) => void;
   onExplain: (flagId: string) => void;
   /** Saves the note; resolves to an error to show, or null once saved. */
   onReview: (flagId: string, note: string) => Promise<string | null>;
 }
 
-export function FlagsTab({
-  flags,
-  view,
-  declarant,
-  canReview,
-  canExplain,
-  pulse,
-  onGoToItem,
-  onExplain,
-  onReview,
-}: FlagsTabProps) {
+export interface FlagsTabProps extends FlagCardContext {
+  flags: CaseFlag[];
+  /** The flag to draw attention to (a pin was followed); a new `key` each time. */
+  pulse: { flagId: string; key: number } | null;
+}
+
+/**
+ * Renders flags as cards, one review form open at a time. `showSystem` badges a registry's flag
+ * with its registry's name (the Registry tab lists them under it, without).
+ */
+export function useFlagCards(
+  context: FlagCardContext,
+  {
+    pulse = null,
+    showSystem = true,
+  }: { pulse?: { flagId: string; key: number } | null; showSystem?: boolean } = {},
+): (flag: CaseFlag) => ReactNode {
   const [formFor, setFormFor] = useState<string | null>(null);
+  const { view, declarant, onReview, ...actions } = context;
+  return (flag: CaseFlag) => {
+    const system = showSystem ? RULE_SYSTEMS[flag.ruleId] : undefined;
+    return (
+      <FlagCard
+        key={flag.id}
+        flag={flag}
+        evidence={evidenceLine(flag)}
+        concerns={concernsLine(flag, view, declarant)}
+        view={view}
+        system={system ? SYSTEM_NAMES[system] : null}
+        {...actions}
+        pulse={pulse?.flagId === flag.id ? pulse.key : null}
+        formOpen={formFor === flag.id}
+        onOpenForm={() => {
+          setFormFor(flag.id);
+        }}
+        onCloseForm={() => {
+          setFormFor(null);
+        }}
+        onReview={async (note) => {
+          const failed = await onReview(flag.id, note);
+          if (!failed) setFormFor(null);
+          return failed;
+        }}
+      />
+    );
+  };
+}
+
+export function FlagsTab({ flags, pulse, ...context }: FlagsTabProps) {
   const groups = groupFlags(flags);
-  const card = (flag: CaseFlag) => (
-    <FlagCard
-      key={flag.id}
-      flag={flag}
-      evidence={evidenceLine(flag)}
-      concerns={concernsLine(flag, view, declarant)}
-      view={view}
-      canReview={canReview}
-      canExplain={canExplain}
-      pulse={pulse?.flagId === flag.id ? pulse.key : null}
-      formOpen={formFor === flag.id}
-      onOpenForm={() => {
-        setFormFor(flag.id);
-      }}
-      onCloseForm={() => {
-        setFormFor(null);
-      }}
-      onGoToItem={onGoToItem}
-      onExplain={onExplain}
-      onReview={async (note) => {
-        const failed = await onReview(flag.id, note);
-        if (!failed) setFormFor(null);
-        return failed;
-      }}
-    />
-  );
+  const card = useFlagCards(context, { pulse });
 
   return (
     <div className="grid gap-3.5">
@@ -178,11 +189,12 @@ const STRIPES = {
   info: 'before:bg-input',
 } as const;
 
-function FlagCard({
+export function FlagCard({
   flag,
   view,
   evidence,
   concerns,
+  system = null,
   canReview,
   canExplain,
   pulse,
@@ -197,6 +209,8 @@ function FlagCard({
   view: DeclarationView | null;
   evidence: string | null;
   concerns: string;
+  /** The registry a registry's flag came from, as a badge. */
+  system?: string | null;
   canReview: boolean;
   canExplain: boolean;
   pulse: number | null;
@@ -226,23 +240,6 @@ function FlagCard({
     'relative grid scroll-mt-[60px] gap-1.5 overflow-hidden rounded-xl py-[13px] pr-3.5 pl-4 outline-none before:absolute before:inset-y-0 before:left-0 before:w-1',
     pulsing && 'animate-pulse-ring motion-reduce:animate-none',
   );
-
-  if (flag.closedReason) {
-    return (
-      <article
-        ref={ref}
-        id={flagAnchorId(flag.id)}
-        tabIndex={-1}
-        className={cn(base, 'bg-background opacity-85 ring-1 ring-border before:bg-input')}
-      >
-        <div className="flex items-center gap-2">
-          <SeverityBadge severity={flag.severity} size="sm" />
-          <h4 className="text-sm font-medium text-secondary-foreground">{flag.title}</h4>
-        </div>
-        <p className="text-[13px] text-muted-foreground">{t.flags.closedLine}</p>
-      </article>
-    );
-  }
 
   if (flag.reviewed) {
     return (
@@ -274,6 +271,23 @@ function FlagCard({
     );
   }
 
+  if (flag.closedReason) {
+    return (
+      <article
+        ref={ref}
+        id={flagAnchorId(flag.id)}
+        tabIndex={-1}
+        className={cn(base, 'bg-background opacity-85 ring-1 ring-border before:bg-input')}
+      >
+        <div className="flex items-center gap-2">
+          <SeverityBadge severity={flag.severity} size="sm" />
+          <h4 className="text-sm font-medium text-secondary-foreground">{flag.title}</h4>
+        </div>
+        <p className="text-[13px] text-muted-foreground">{t.flags.closedLine}</p>
+      </article>
+    );
+  }
+
   // Without the declaration there is no item to go to.
   const itemId = view ? flagItemId(flag) : null;
   return (
@@ -288,6 +302,7 @@ function FlagCard({
         <h4 className="min-w-0 flex-1 text-sm leading-[1.35] font-semibold">
           {flag.title} <InfoTip label={t.flags.aboutIndicator} content={flag.indicator} />
         </h4>
+        {system ? <Badge className="h-[22px] text-xs">{system}</Badge> : null}
         {flag.recomputed ? <Badge className="h-[22px] text-xs">{t.flags.recomputed}</Badge> : null}
       </div>
       {evidence ? (

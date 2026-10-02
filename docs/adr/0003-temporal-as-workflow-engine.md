@@ -1,6 +1,6 @@
 # ADR-003: Temporal as the workflow engine
 
-- **Status:** Accepted
+- **Status:** Accepted; amended 2026-10-02: starting workflows with their transaction, recovering lost signals and final refusals (decision 7, spec 10)
 - **Date:** 2026-09-24
 - **Deciders:** Adili V3 DIALs team
 - **Related:** [ADR-001](0001-postgresql-as-sole-structured-data-store.md), [research/dials-scope-and-scale.md](../research/dials-scope-and-scale.md)
@@ -49,6 +49,10 @@ Other forces:
    - Task queues per domain, with horizontally scaled workers
    - **History shard count fixed at cluster creation** (plan 512+ for production; it can't be changed later)
 6. **Roles vs the message queue:** Temporal owns long-running, stateful processes. RabbitMQ carries fire-and-forget domain events (audit fan-out, notifications, analytics) via the transactional outbox. Neither replaces the other.
+7. **Starting, waiting and failing safely.** *Amended 2026-10-02 (spec 10).* The database is the source of truth (decision 2), and Temporal is not part of its transactions, so:
+   - **Start inside the transaction, act after it ends.** A workflow is started inside the transaction that creates or changes its record, before that transaction takes any lock other transactions queue for (a reference counter), and is passed the transaction's id (`pg_current_xact_id()`). Temporal unreachable fails the start and rolls the transaction back, so a record never commits without its workflow (starting after commit would leave it without one whenever the process died in between). The first activity waits until that transaction has ended (`pg_xact_status`): committed means the record is real, rolled back ends the run at once, and it never reads an uncommitted record as missing or stale. No database lock is held across a Temporal call.
+   - **Signals only save waiting.** A signal sent after commit can be lost (Temporal down for a moment, a failed call that is only logged). Every wait on a signal therefore also wakes on a timer and re-reads the record through an activity, so a lost signal delays a step by at most one interval and never stalls the run.
+   - **Bounded retries, refusals final.** Activities retry transient failures (timeouts, 5xx, an unavailable dependency) with a bounded number of attempts. A refusal that no retry can change (a 4xx from a callee, a broken invariant) is raised as non-retryable (`ApplicationFailure.nonRetryable`), so the workflow handles it at once.
 
 ## Alternatives considered
 

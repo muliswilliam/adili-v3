@@ -6,7 +6,7 @@ import { saveDeclarationSection } from '../../server/declarations';
 import { BIO_MESSAGES } from '../../declaration/bio';
 import { BioSection, ROSTER_NOTE } from './bio-section';
 import { ROSTER_HINT } from '../../declaration/copy';
-import { DECLARATION_ID, renderWorkspace, sampleBio } from './testing';
+import { DECLARATION_ID, renderWorkspace, sampleBio, sampleDeclaration } from './testing';
 
 vi.mock('@tanstack/react-router', async () => (await import('./testing-mocks')).routerMock());
 vi.mock('../../server/declarations', async () => (await import('./testing-mocks')).serverMock());
@@ -111,6 +111,15 @@ describe('BioSection', () => {
       expect(screen.getByText(message)).toBeTruthy();
     }
     expect(document.activeElement).toBe(textbox('Date of birth'));
+  });
+
+  it('does not ask whether marital status changed on an initial declaration, the first', () => {
+    renderWorkspace(<BioSection section={sampleBio({ maritalStatus: 'married' })} etag={'"1"'} />, {
+      step: 'bio',
+      declaration: sampleDeclaration({ type: 'initial' }),
+    });
+
+    expect(screen.queryByRole('checkbox', { name: /changed since last declaration/i })).toBeNull();
   });
 
   it('asks for an explanation when marital status changed', () => {

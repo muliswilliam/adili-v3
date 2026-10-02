@@ -4,6 +4,7 @@ import { and, eq, isNotNull, isNull } from 'drizzle-orm';
 import { v7 as uuidv7 } from 'uuid';
 
 import type { ReviewSchema } from '../db/schema.js';
+import { registryChecks } from '../registry/schema.js';
 import type {
   ProcessingInput,
   UpsertCaseOutcome,
@@ -129,7 +130,8 @@ export async function upsertCase(
  * transaction the case moves to the version, its unreviewed flags are replaced by the version's,
  * reviewed flags are kept (with their note and version) marked `recomputed`, the score, band and
  * open-flag count follow the new flags, and a timeline entry and `review.case.updated.v1` record
- * it. Status, assignee, receipt, lateness and the clarification window are left as they are: they
+ * it. The registry statuses were the old version's: they are dropped, so every registry reads
+ * not checked (and none unavailable) until the new version's check stores its own. Status, assignee, receipt, lateness and the clarification window are left as they are: they
  * are version 1's (Act s.35(2)), and an amendment never resets them.
  */
 async function amendCase(
@@ -149,6 +151,7 @@ async function amendCase(
     .where(and(eq(reviewFlags.caseId, caseId), isNull(reviewFlags.reviewedAt)));
   await insertFlags(tx, input, caseId, flags);
   await recordVersion(tx, { input, facts, flags }, caseId, true);
+  await tx.delete(registryChecks).where(eq(registryChecks.caseId, caseId));
 
   const caseScore = score(flags);
   const caseBand = band(caseScore);
@@ -160,6 +163,7 @@ async function amendCase(
       score: caseScore,
       band: caseBand,
       openFlags: flags.length,
+      registryUnavailable: false,
       declarantName: declarant.declarantName,
       personnelFileNumber: declarant.personnelFileNumber,
       designation: declarant.designation,

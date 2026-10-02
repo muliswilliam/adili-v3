@@ -6,6 +6,14 @@
  */
 export const ACTING_TENANT_HEADER = 'x-acting-tenant';
 
+/**
+ * Header in which a calling service names whom it acts for on an internal route (the officer it
+ * reads for, the declarant asking for a copy), recorded as the actor's `onBehalfOf` in the audit
+ * trail (ADR-008 `actor.on-behalf-of`). Trusted, like `X-Acting-Tenant`, only once
+ * `@InternalApi()` admitted the call.
+ */
+export const ACTING_SUBJECT_HEADER = 'x-acting-subject';
+
 export interface ServiceTokenClientOptions {
   /** Realm issuer, e.g. `http://localhost:8080/realms/adili` (the service's OIDC_ISSUER_URL). */
   issuerUrl: string;

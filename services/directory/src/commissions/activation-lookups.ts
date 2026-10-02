@@ -14,9 +14,10 @@ export const NOT_INVITED_TTL_SECONDS = 5 * 60;
 export type ActivationLookup = { notInvited: true } | { notInvited: false; version: string | null };
 
 /**
- * Remembers, for a short while, which subjects have no `invited` reporting-officer assignment,
- * so that observing activations costs almost nothing for everyone else. A cache only: it never
- * throws, and a failure reads as "unknown" so the caller falls back to the database.
+ * Remembers, for a short while, which subjects have no `invited` reporting-officer assignment or
+ * law-enforcement officer account, so that observing activations costs almost nothing for
+ * everyone else. A cache only: it never throws, and a failure reads as "unknown" so the caller
+ * falls back to the database.
  */
 export abstract class ActivationLookups {
   abstract lookup(subject: string): Promise<ActivationLookup>;

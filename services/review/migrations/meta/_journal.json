@@ -141,6 +141,27 @@
       "when": 1790959505048,
       "tag": "0019_draft_language",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1790959565048,
+      "tag": "0020_registry_checks",
+      "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1790959625048,
+      "tag": "0021_flag_closed_reason",
+      "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1790959685048,
+      "tag": "0022_registry_check_sequence",
+      "breakpoints": true
     }
   ]
 }

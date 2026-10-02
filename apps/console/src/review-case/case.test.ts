@@ -1,7 +1,14 @@
 import { describe, expect, it } from 'vitest';
 
 import type { Assignee } from '../server/review/types';
-import { assignableReviewers, caseActions, noteError, versionLine, windowLine } from './case';
+import {
+  assignableReviewers,
+  assignmentActions,
+  caseActions,
+  noteError,
+  versionLine,
+  windowLine,
+} from './case';
 
 const ME: Assignee = { subject: 'me', name: 'Faith Achieng' };
 const PETER: Assignee = { subject: 'peter', name: 'Peter Mwangi' };
@@ -10,7 +17,7 @@ const NOW = Date.parse('2026-10-02T09:00:00Z');
 
 describe('caseActions (S8)', () => {
   it('lets a reviewer claim an unassigned case, and nothing else', () => {
-    expect(caseActions({ assignee: null }, ME.subject, false)).toEqual({
+    expect(caseActions({ assignee: null, status: 'assigned' }, ME.subject, false)).toEqual({
       mine: false,
       claim: true,
       release: false,
@@ -22,7 +29,7 @@ describe('caseActions (S8)', () => {
   });
 
   it('lets the holder release the case and mark its flags reviewed', () => {
-    expect(caseActions({ assignee: ME }, ME.subject, false)).toMatchObject({
+    expect(caseActions({ assignee: ME, status: 'assigned' }, ME.subject, false)).toMatchObject({
       mine: true,
       claim: false,
       release: true,
@@ -33,7 +40,7 @@ describe('caseActions (S8)', () => {
   });
 
   it('shows another reviewer’s case read-only', () => {
-    expect(caseActions({ assignee: PETER }, ME.subject, false)).toMatchObject({
+    expect(caseActions({ assignee: PETER, status: 'assigned' }, ME.subject, false)).toMatchObject({
       claim: false,
       release: false,
       reviewFlags: false,
@@ -42,17 +49,36 @@ describe('caseActions (S8)', () => {
   });
 
   it('lets a supervisor reassign or unassign any case, and assign an unassigned one', () => {
-    expect(caseActions({ assignee: PETER }, ME.subject, true)).toMatchObject({
+    expect(caseActions({ assignee: PETER, status: 'assigned' }, ME.subject, true)).toMatchObject({
       reassign: 'reassign',
       unassign: true,
       release: false,
       heldBy: null,
     });
-    expect(caseActions({ assignee: null }, ME.subject, true)).toMatchObject({
+    expect(caseActions({ assignee: null, status: 'assigned' }, ME.subject, true)).toMatchObject({
       claim: true,
       reassign: 'assign',
       unassign: false,
     });
+  });
+});
+
+describe('assignmentActions', () => {
+  const reviewer = { subject: ME.subject, supervisor: false };
+  const supervisor = { subject: ME.subject, supervisor: true };
+  it.each([
+    ['a reviewer, nobody holds it', null, reviewer, ['claim']],
+    ['a reviewer holding it', ME, reviewer, ['release']],
+    ['a reviewer, another holds it', PETER, reviewer, []],
+    ['a supervisor, nobody holds it', null, supervisor, ['claim', 'assign']],
+    ['a supervisor holding it', ME, supervisor, ['release', 'reassign', 'unassign']],
+    ['a supervisor, another holds it', PETER, supervisor, ['reassign', 'unassign']],
+  ] as const)('%s', (_name, assignee, viewer, actions) => {
+    expect(assignmentActions({ assignee, status: 'assigned' }, viewer)).toEqual(actions);
+  });
+
+  it('offers nothing on a determined case', () => {
+    expect(assignmentActions({ assignee: ME, status: 'determined' }, supervisor)).toEqual([]);
   });
 });
 

@@ -121,6 +121,23 @@ const ITEM_NOUNS: Record<Category, string> = {
   liabilities: 'Liability',
 };
 
+/**
+ * Fields named by the end of their path, where the last part alone is ambiguous ("place" is the
+ * place of birth); before the labels by last part.
+ */
+const PATH_LABELS: [suffix: string, label: string][] = [
+  ['birth/date', 'Date of birth'],
+  ['birth/place', 'Place of birth'],
+  ['maritalStatusChange/explanation', 'Explanation of the change in marital status'],
+  ['address/postal', 'Postal address'],
+  ['address/physical', 'Physical address'],
+  ['employment/nature', 'Nature of employment'],
+  ['employment/natureOther', 'Nature of employment'],
+  ['original/minorUnits', 'Original amount'],
+  ['change/kind', 'What changed'],
+  ['change/explanation', 'Explanation of the change'],
+];
+
 /** `acquisitionDate` → "Acquisition date": a field the list above does not name. */
 function humanize(field: string): string {
   const words = field.replace(/([a-z0-9])([A-Z])/g, '$1 $2').toLowerCase();
@@ -141,7 +158,13 @@ export function issueText(issue: CompletenessIssue, document: SummaryDocument): 
   const parts = issue.path.split('/').slice(1);
   const named = parts.filter((part) => !/^\d+$/.test(part) && !VALUE_PARTS.has(part));
   const last = named.at(-1);
-  const field = last ? (FIELD_LABELS[last] ?? humanize(last)) : 'This answer';
+  const tail = named.join('/');
+  const compound = PATH_LABELS.find(([suffix]) => tail === suffix || tail.endsWith(`/${suffix}`));
+  const field = compound
+    ? compound[1]
+    : last
+      ? (FIELD_LABELS[last] ?? humanize(last))
+      : 'This answer';
   const [category, index] = parts;
   const personKey = issue.sectionKey.startsWith('statement:')
     ? issue.sectionKey.slice('statement:'.length)

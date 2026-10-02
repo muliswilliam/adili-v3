@@ -138,8 +138,11 @@ export const revokedReasons: Record<RevokedReason, string> = {
 /** Names of the document types the verification API returns (`document.type`). */
 export const documentTypeNames: Record<string, string> = {
   'acknowledgement-slip': 'Acknowledgement slip',
+  'access-package': 'Access package',
+  'access-nil-letter': 'Nil letter',
+  'certified-copy': 'Certified copy',
   'compliance-certificate': 'Compliance certificate',
-  'clarification-request': 'Clarification request',
+  'clarification-letter': 'Clarification letter',
 };
 
 /** A document type's name; an unknown type reads as its words, e.g. `form-m-report` → "Form m report". */

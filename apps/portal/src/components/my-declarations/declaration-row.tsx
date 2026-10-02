@@ -32,6 +32,7 @@ import { type ReactNode, useId, useState } from 'react';
 
 import { amendAvailability } from '../../declaration/my-declarations';
 import type { DeclarationListItem, DeclarationVersion } from '../../server/declarations/types';
+import { getMyCertifiedCopies } from '../../server/certified-copies';
 import { getMyDeclarationVersions } from '../../server/my-declarations';
 import type { FiledDeclaration } from '../../server/my-declarations.server';
 import { DISCARDED_TOAST, DiscardDraftButton } from '../declaration/discard-dialog';
@@ -42,6 +43,8 @@ import {
 import { referenceParts } from '../../declaration/reference-parts';
 import { signInAgain } from '../sign-in';
 import { type SlipDownload, useSlipDownload } from '../slip-download';
+import { CopyAction, CopyNote } from '../certified-copies/copy-action';
+import { type CertifiedCopies, useCertifiedCopies } from '../certified-copies/use-certified-copies';
 import { AmendButton } from './amend-dialog';
 import { MY_DECLARATIONS_COPY as COPY } from './copy';
 
@@ -238,12 +241,20 @@ function Verified({ count }: { count: number }) {
 type VersionsLoad =
   { step: 'loading' } | { step: 'failed' } | { step: 'loaded'; versions: DeclarationVersion[] };
 
-/** The declaration's versions, read when its row first expands (and again on Try again). */
-function useVersions(declarationId: string) {
+/**
+ * The declaration's versions, read when its row first expands (and again on Try again), with
+ * the certified copies asked for so far. Without those the copy buttons still work: asking
+ * again for a version answers with its copy.
+ */
+function useVersions(declarationId: string, copies: CertifiedCopies) {
   const [load, setLoad] = useState<VersionsLoad | null>(null);
   async function fetchVersions() {
     setLoad({ step: 'loading' });
-    const result = await getMyDeclarationVersions({ data: { declarationId } }).catch(() => null);
+    const [result, known] = await Promise.all([
+      getMyDeclarationVersions({ data: { declarationId } }).catch(() => null),
+      getMyCertifiedCopies().catch(() => null),
+    ]);
+    if (known?.status === 'ok') copies.remember(known.copies);
     if (result?.status === 'unauthenticated') {
       signInAgain();
       return;
@@ -257,14 +268,18 @@ function useVersions(declarationId: string) {
 
 function VersionList({
   title,
+  declaration,
   load,
   onRetry,
   slips,
+  copies,
 }: {
   title: string;
+  declaration: FiledDeclaration;
   load: VersionsLoad;
   onRetry: () => void;
   slips: SlipDownload;
+  copies: CertifiedCopies;
 }) {
   if (load.step === 'loading') {
     return (
@@ -295,28 +310,47 @@ function VersionList({
   }
   return (
     <ul aria-label={COPY.versionsOf(title)}>
-      {load.versions.map((version) => (
-        <li
-          key={version.version}
-          className="flex flex-wrap items-center gap-3 border-b border-border py-2.5 text-sm last:border-b-0"
-        >
-          <VersionBadge
-            version={version.version}
-            state={version.supersededAt === null ? 'current' : 'superseded'}
-          />
-          <span className="min-w-[160px] flex-1">
-            {COPY.submittedAt(version.submittedAt)}
-            {version.late ? ` · ${COPY.lateVersion}` : ''}
-          </span>
-          <Verified count={version.acknowledgement.verifiedCount} />
-          <SlipButton
-            version={version.version}
-            acknowledgement={version.acknowledgement}
-            slips={slips}
-            variant="ghost"
-          />
-        </li>
-      ))}
+      {load.versions.map((version) => {
+        const target = {
+          commission: declaration.commission.slug,
+          declarationId: declaration.id,
+          version: version.version,
+        };
+        return (
+          <li
+            key={version.version}
+            className="flex flex-wrap items-center gap-3 border-b border-border py-2.5 text-sm last:border-b-0"
+          >
+            <VersionBadge
+              version={version.version}
+              state={version.supersededAt === null ? 'current' : 'superseded'}
+            />
+            <span className="grid min-w-[160px] flex-1 gap-0.5">
+              <span>
+                {COPY.submittedAt(version.submittedAt)}
+                {version.late ? ` · ${COPY.lateVersion}` : ''}
+              </span>
+              <CopyNote target={target} copies={copies} />
+            </span>
+            <Verified count={version.acknowledgement.verifiedCount} />
+            <SlipButton
+              version={version.version}
+              acknowledgement={version.acknowledgement}
+              slips={slips}
+              variant="ghost"
+            />
+            {/* A steady width, so the slips line up whatever the copy's state. */}
+            <span className="flex min-w-[178px] justify-end">
+              <CopyAction
+                target={target}
+                label={COPY.versionOf(title, version.version)}
+                copies={copies}
+                variant="ghost"
+              />
+            </span>
+          </li>
+        );
+      })}
     </ul>
   );
 }
@@ -325,13 +359,14 @@ function VersionList({
  * A submitted declaration (spec 06 FE-4): reference, type, Commission, statement date, version,
  * when it was submitted, late, verified count and the slip; Amend until the due date, then
  * "Amendments closed"; Continue and Discard amendment while amending. Expands to every
- * version, older ones superseded, each with its slip.
+ * version, older ones superseded, each with its slip and a certified copy (spec 10 FE-4).
  */
 export function FiledRow({ declaration }: { declaration: FiledDeclaration }) {
   const router = useRouter();
   const { toast } = useToast();
   const slips = useSlipDownload();
-  const versions = useVersions(declaration.id);
+  const copies = useCertifiedCopies();
+  const versions = useVersions(declaration.id, copies);
   const [expanded, setExpanded] = useState(false);
   const versionsId = useId();
   const title = obligationTypeLabel(declaration.type, declaration.statementDate);
@@ -416,9 +451,11 @@ export function FiledRow({ declaration }: { declaration: FiledDeclaration }) {
           {expanded && versions.load ? (
             <VersionList
               title={title}
+              declaration={declaration}
               load={versions.load}
               onRetry={() => void versions.fetchVersions()}
               slips={slips}
+              copies={copies}
             />
           ) : null}
           {expanded && amend.kind === 'closed' ? (

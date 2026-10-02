@@ -1,12 +1,16 @@
-import { DECLARANT } from '@adili/roles';
+import { APPLICANT, DECLARANT, LAW_ENFORCEMENT, LAW_ENFORCEMENT_TENANT } from '@adili/roles';
 
 import {
   type ActivationEmailOptions,
+  APPLICANT_REQUIRED_ACTIONS,
+  type ApplicantIdentityStatus,
+  type CreateApplicantUserInput,
   ApiClientExists,
   ApiClientNotFound,
   type ApiClientSecret,
   type CreateApiClientInput,
   type CreateDeclarantUserInput,
+  type CreateLawEnforcementUserInput,
   type CreateStaffUserInput,
   DECLARANT_REQUIRED_ACTIONS,
   EmailTaken,
@@ -16,6 +20,7 @@ import {
   type IdentityUser,
   IdentityUserNotFound,
   type Restore,
+  STAFF_REQUIRED_ACTIONS,
   type StaffContact,
   type StaffProfile,
   UsernameTaken,
@@ -84,6 +89,9 @@ export const ACTIVATION_EMAIL_TIMEOUT_MS = 25_000;
  */
 export const COMMISSION_NAME_ATTRIBUTE = 'commissionName';
 export const INVITED_ROLE_ATTRIBUTE = 'invitedRole';
+
+/** An applicant account's identity status (spec 10), admin-only in the realm's user profile. */
+export const IDENTITY_STATUS_ATTRIBUTE = 'identityStatus';
 
 /** Refresh the service-account token this long before Keycloak says it expires. */
 const TOKEN_EXPIRY_MARGIN_MS = 30_000;
@@ -163,7 +171,8 @@ export class KeycloakIdentityProvisioning extends IdentityProvisioning {
           user.emailVerified === true &&
           email !== undefined &&
           user.attributes?.tenant?.[0] === tenant;
-        if (reachable) staff.push({ subject: user.id, email });
+        const name = [user.firstName, user.lastName].filter(Boolean).join(' ');
+        if (reachable) staff.push({ subject: user.id, email, name: name || email });
       }
       if (page.length < STAFF_PAGE) break;
     }
@@ -183,6 +192,27 @@ export class KeycloakIdentityProvisioning extends IdentityProvisioning {
         requiredActions: input.requiredActions,
       },
       input.role,
+    );
+  }
+
+  async createLawEnforcementUser(input: CreateLawEnforcementUserInput): Promise<string> {
+    const email = keycloakEmail(input.email);
+    return this.createUser(
+      {
+        username: email,
+        email,
+        ...splitName(input.name),
+        enabled: true,
+        emailVerified: false,
+        attributes: {
+          tenant: [LAW_ENFORCEMENT_TENANT],
+          agency: [input.agency],
+          person_id: [input.personId],
+          phone: [input.phone],
+        },
+        requiredActions: STAFF_REQUIRED_ACTIONS,
+      },
+      LAW_ENFORCEMENT,
     );
   }
 
@@ -211,6 +241,44 @@ export class KeycloakIdentityProvisioning extends IdentityProvisioning {
       await this.deleteUser(leftover.id);
       return this.createUser(representation, DECLARANT);
     }
+  }
+
+  async createApplicantUser(input: CreateApplicantUserInput): Promise<string> {
+    const email = keycloakEmail(input.email);
+    return this.createUser(
+      {
+        username: email,
+        email,
+        firstName: input.firstName,
+        lastName: input.lastName,
+        enabled: true,
+        // The set-password link proves the email (Keycloak marks it verified when it is used).
+        emailVerified: false,
+        attributes: {
+          person_id: [input.personId],
+          phone: [input.phone],
+          [IDENTITY_STATUS_ATTRIBUTE]: [input.identityStatus],
+        },
+        requiredActions: APPLICANT_REQUIRED_ACTIONS,
+      },
+      APPLICANT,
+    );
+  }
+
+  async setIdentityStatus(
+    userId: string,
+    status: ApplicantIdentityStatus,
+  ): Promise<Restore | null> {
+    const user = await this.user(userId);
+    const previous = user.attributes?.[IDENTITY_STATUS_ATTRIBUTE];
+    if (previous?.length === 1 && previous[0] === status) return null;
+    await this.putUser(userId, withAttribute(user, IDENTITY_STATUS_ATTRIBUTE, [status]));
+    return async () => {
+      await this.putUser(
+        userId,
+        withAttribute(await this.user(userId), IDENTITY_STATUS_ATTRIBUTE, previous),
+      );
+    };
   }
 
   async addTenantToUser(userId: string, tenant: string): Promise<Restore | null> {
@@ -632,6 +700,19 @@ function withProfile(user: UserRepresentation, profile: Profile): UserRepresenta
     firstName: profile.firstName ?? '',
     lastName: profile.lastName ?? '',
     attributes,
+  };
+}
+
+/** The full representation with the attribute `name` set to `value`, or removed if undefined. */
+function withAttribute(
+  user: UserRepresentation,
+  name: string,
+  value: string[] | undefined,
+): UserRepresentation {
+  const others = Object.entries(user.attributes ?? {}).filter(([held]) => held !== name);
+  return {
+    ...user,
+    attributes: Object.fromEntries(value === undefined ? others : [...others, [name, value]]),
   };
 }
 

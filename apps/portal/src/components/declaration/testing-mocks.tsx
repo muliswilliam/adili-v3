@@ -82,6 +82,15 @@ export function myDeclarationsMock() {
   return { getMyDeclarationsPage: vi.fn(), getMyDeclarationVersions: vi.fn() };
 }
 
+export function certifiedCopiesMock() {
+  return {
+    getMyCertifiedCopies: vi.fn(() => Promise.resolve({ status: 'ok', copies: [] })),
+    getMyCertifiedCopy: vi.fn(),
+    getMyCertifiedCopyDownload: vi.fn(),
+    requestMyCertifiedCopy: vi.fn(),
+  };
+}
+
 export function downloadMock() {
   return { downloadFrom: vi.fn() };
 }

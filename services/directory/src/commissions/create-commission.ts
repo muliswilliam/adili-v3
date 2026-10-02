@@ -1,11 +1,14 @@
 import { PLATFORM_TENANT, TENANT_KEY } from '@adili/api-kit';
+import { LAW_ENFORCEMENT_TENANT } from '@adili/roles';
 import { z } from 'zod';
 
 /**
- * Tenant keys that can never be a Commission's slug: the platform-wide RLS context, and `new`,
- * which would collide with the console's create route (`/commissions/new`).
+ * Tenant keys that can never be a Commission's slug: the platform-wide RLS context, the tenant of
+ * law enforcement accounts (their RLS context in the access service, so a Commission slugged
+ * `lea` would share its rows with every officer), and `new`, which would collide with the
+ * console's create route (`/commissions/new`).
  */
-export const RESERVED_SLUGS: readonly string[] = [PLATFORM_TENANT, 'new'];
+export const RESERVED_SLUGS: readonly string[] = [PLATFORM_TENANT, LAW_ENFORCEMENT_TENANT, 'new'];
 
 /** `OfficerCategoryCode` in the contract: one paragraph of Act s.32 or Regs r.5 (seeded list). */
 export const OFFICER_CATEGORY_CODES = [
@@ -38,7 +41,7 @@ export const slugSchema = z
   .regex(TENANT_KEY, 'Use 2 to 20 lowercase letters or digits, starting with a letter')
   .refine((slug) => !RESERVED_SLUGS.includes(slug), 'This key is reserved')
   .meta({
-    description: `Tenant key. Lowercase letter followed by lowercase letters or digits, 2-20 chars. Upper-cased it is the issuer code in reference numbers. ${RESERVED_SLUGS.map((slug) => `\`${slug}\``).join(' and ')} are reserved.`,
+    description: `Tenant key. Lowercase letter followed by lowercase letters or digits, 2-20 chars. Upper-cased it is the issuer code in reference numbers. Reserved: ${RESERVED_SLUGS.map((slug) => `\`${slug}\``).join(', ')}.`,
     not: { enum: RESERVED_SLUGS },
     examples: ['psc', 'tsc', 'cpsb047', 'naeth'],
   });

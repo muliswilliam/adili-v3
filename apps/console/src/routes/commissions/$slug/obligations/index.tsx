@@ -1,12 +1,6 @@
 import { Button, Icon } from '@adili/ui';
 import { UserGroupIcon } from '@hugeicons/core-free-icons';
-import {
-  createFileRoute,
-  getRouteApi,
-  Link,
-  useNavigate,
-  useRouterState,
-} from '@tanstack/react-router';
+import { createFileRoute, getRouteApi, Link, useNavigate } from '@tanstack/react-router';
 
 import { messages as m } from '../../../../components/obligations/messages';
 import {
@@ -16,21 +10,27 @@ import {
 } from '../../../../components/obligations/obligations-query';
 import { commissionNotOnboardedRosterLink } from '../../../../components/obligations/roster-links';
 import { ObligationsView } from '../../../../components/obligations/obligations-view';
+import { type LoadedFor, useReloadingInPlace } from '../../../../components/reload-in-place';
 import { signInRedirect } from '../../../../components/sign-in-redirect';
 import type { DeclarationsResult, ObligationPage } from '../../../../server/declarations/client';
 import { getObligation, listCommissionObligations } from '../../../../server/obligations';
 
 export const Route = createFileRoute('/commissions/$slug/obligations/')({
   validateSearch: obligationsSearchSchema,
-  loaderDeps: ({ search }) => search,
-  loader: async ({ deps, params, location, context }) => {
+  // Filter changes reload this match in place, not as a new one: see `useReloadingInPlace`.
+  shouldReload: true,
+  loader: async ({ params, location, context }) => {
     // The layout shows no Commission without the workspace; do not fetch its obligations.
     if (!context.workspace) return null;
     const list = await listCommissionObligations({
-      data: { slug: params.slug, ...deps, limit: OBLIGATIONS_PAGE_SIZE },
+      data: {
+        slug: params.slug,
+        ...obligationsSearchSchema.parse(location.search),
+        limit: OBLIGATIONS_PAGE_SIZE,
+      },
     });
     if (!list.ok && list.error.kind === 'unauthenticated') throw signInRedirect(location.href);
-    return list;
+    return { list, loadedFor: location.searchStr };
   },
   head: () => ({ meta: [{ title: `${m.title} · Adili Online Console` }] }),
   pendingComponent: ObligationsLoading,
@@ -40,28 +40,28 @@ export const Route = createFileRoute('/commissions/$slug/obligations/')({
 const layout = getRouteApi('/commissions/$slug/obligations');
 
 function ObligationsLoading() {
-  return <CommissionObligationsPage list={null} />;
+  return <CommissionObligationsPage loaded={null} />;
 }
 
 function ObligationsLoaded() {
-  const list = Route.useLoaderData();
+  const loaded = Route.useLoaderData();
   // The layout shows why there is no workspace.
-  if (!list) return null;
-  return <CommissionObligationsPage list={list} />;
+  if (!loaded) return null;
+  return <CommissionObligationsPage loaded={loaded} />;
 }
 
 /** A Commission's obligations as a platform admin sees them: the Commission staff's view. */
-function CommissionObligationsPage({ list }: { list: DeclarationsResult<ObligationPage> | null }) {
+function CommissionObligationsPage({
+  loaded,
+}: {
+  loaded: (LoadedFor & { list: DeclarationsResult<ObligationPage> }) | null;
+}) {
+  const list = loaded?.list ?? null;
   const { slug } = Route.useParams();
-  const committed = Route.useSearch();
+  const search = Route.useSearch();
   const summary = layout.useLoaderData();
   const navigate = useNavigate({ from: '/commissions/$slug/obligations/' });
-  const path = `/commissions/${slug}/obligations`;
-  const pending = useRouterState({
-    select: (state) =>
-      state.status === 'pending' && state.location.pathname === path ? state.location.search : null,
-  });
-  const search = pending ? obligationsSearchSchema.parse(pending) : committed;
+  const loading = useReloadingInPlace(loaded);
 
   const changeSearch = (next: ObligationsSearch, options?: { replace?: boolean }) => {
     void navigate({ search: next, replace: options?.replace });
@@ -78,12 +78,12 @@ function CommissionObligationsPage({ list }: { list: DeclarationsResult<Obligati
   return (
     <ObligationsView
       summary={summary ?? null}
-      list={pending ? null : list}
+      list={loading ? null : list}
       search={search}
       onSearchChange={changeSearch}
       loadPage={(cursor) =>
         listCommissionObligations({
-          data: { slug, ...committed, cursor, limit: OBLIGATIONS_PAGE_SIZE },
+          data: { slug, ...search, cursor, limit: OBLIGATIONS_PAGE_SIZE },
         })
       }
       loadObligation={(id) => getObligation({ data: { id } })}

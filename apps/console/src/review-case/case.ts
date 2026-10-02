@@ -25,21 +25,49 @@ export interface CaseActions {
 }
 
 export function caseActions(
-  item: Pick<CaseListItem, 'assignee'>,
+  item: Pick<CaseListItem, 'assignee' | 'status'>,
   viewerSubject: string,
   supervisor: boolean,
 ): CaseActions {
   const holder = item.assignee;
   const mine = holder?.subject === viewerSubject;
+  // A determined case is settled: nobody claims, releases or hands it on.
+  const open = item.status !== 'determined';
   return {
     mine,
-    claim: holder === null,
-    release: mine,
-    reassign: supervisor ? (holder ? 'reassign' : 'assign') : null,
-    unassign: supervisor && holder !== null,
+    claim: open && holder === null,
+    release: open && mine,
+    reassign: open && supervisor ? (holder ? 'reassign' : 'assign') : null,
+    unassign: open && supervisor && holder !== null,
     reviewFlags: mine,
     heldBy: holder && !mine && !supervisor ? holder : null,
   };
+}
+
+/** Who is looking at a case: the queue's rows and the case view decide their actions by it. */
+export interface CaseViewer {
+  subject: string;
+  supervisor: boolean;
+}
+
+/**
+ * An assignment action on a case, as the queue's row menus and the case header offer them.
+ * Assign is Reassign with nobody holding the case.
+ */
+export type AssignmentAction = 'claim' | 'release' | 'reassign' | 'unassign' | 'assign';
+
+/** The assignment actions `caseActions` allows, in the order they are offered. */
+export function assignmentActions(
+  item: Pick<CaseListItem, 'assignee' | 'status'>,
+  viewer: CaseViewer,
+): AssignmentAction[] {
+  const allowed = caseActions(item, viewer.subject, viewer.supervisor);
+  const actions: AssignmentAction[] = [];
+  if (allowed.claim) actions.push('claim');
+  if (allowed.release) actions.push('release');
+  if (allowed.reassign) actions.push(allowed.reassign);
+  if (allowed.unassign) actions.push('unassign');
+  return actions;
 }
 
 export interface WindowLine {

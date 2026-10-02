@@ -16,7 +16,7 @@ _Avoid_: RC (in prose), employer, organisation
 
 **Reporting entity**:
 The public body a declarant works for. Used for categorisation only; it never accesses declarations.
-_Avoid_: employer, agency, institution
+_Avoid_: employer, agency (that word is kept for a law enforcement agency), institution
 
 **Reporting officer**:
 The person EACC assigns to a Responsible Commission to import and maintain its roster and resolve onboarding no-matches.
@@ -26,8 +26,16 @@ _Avoid_: HR focal point, admin
 The oversight body. Receives compliance reports and referrals; not a super-tenant.
 
 **Applicant**:
-Any person requesting access to a declaration under Form K.
+Any person requesting access to a declaration under Form K. Has an account of their own, tied to no Responsible Commission, made by applicant onboarding.
 _Avoid_: requester, third party
+
+**Law enforcement agency**:
+A body empowered to ask for a declaration for an investigation (Act s.36(2)), e.g. the DCI or ODPP, registered on the platform with the legal basis it acts under. Say "agency" alone only where the law enforcement context is clear.
+_Avoid_: LEA (in prose), authority, reporting entity
+
+**Law enforcement officer**:
+A person provisioned by a platform admin with an account for one law enforcement agency, who files law enforcement requests with any Responsible Commission and sees only their own. Neither a declarant nor staff of a Commission.
+_Avoid_: investigator, LEA user, officer (alone)
 
 ### Onboarding
 
@@ -48,8 +56,12 @@ The confirmed departure from office of a roster record's declarant, as at an exi
 _Avoid_: termination, removal, offboarding
 
 **Onboarding**:
-The one-time process that turns a roster record into a declarant account: Commission selection, file-number match, email and phone OTP, Keycloak account.
+The one-time process that turns a roster record into a declarant account: Commission selection, file-number match, email and phone OTP, Keycloak account. Unqualified, it always means a declarant's.
 _Avoid_: registration, sign-up, invitation
+
+**Applicant onboarding**:
+The one-time process that makes an applicant account, with no roster record: identity document (a national ID checked with IPRS, or a passport an access officer verifies later), names, phone OTP, email, Keycloak account.
+_Avoid_: registration, sign-up, onboarding (alone)
 
 ### Declaring
 
@@ -95,6 +107,18 @@ _Avoid_: reference number, document ID, serial
 
 ### Review
 
+**Registry check**:
+The comparison of a declaration's items with what KRA, NTSA, BRS and ArdhiSasa hold for each person whose national ID is known (Regs r.20(1)(b)), run when the declaration is processed. Each person has a status per registry: matched, mismatched, unavailable, not checked, or no ID. Mismatches are flags: indicators, never findings.
+_Avoid_: verification (that is the gateway's stored lookup), registry audit
+
+**Re-check**:
+A registry check run again for a case: asked for by its assignee or a supervisor (at most every ten minutes), or by the hourly sweep of cases with a registry unavailable. A flag the re-check no longer raises is closed as superseded by the re-check; a reviewed one keeps its note.
+_Avoid_: refresh, re-verification
+
+**Paused registry**:
+A registry a platform administrator stopped the gateway from calling during a known outage: its lookups are unavailable (reason paused) until it is resumed, answers already cached still serve.
+_Avoid_: disabled, switched off
+
 **Clarification**:
 A Responsible Commission's request that a declarant explain or complete a declaration (Act s.35).
 _Avoid_: query, question, follow-up
@@ -134,13 +158,29 @@ A Form K request to see a declaration or clarification (Act s.36(1)).
 _Avoid_: FOI request, disclosure request
 
 **Law enforcement request**:
-A written request by a law enforcement agency for a declaration (Act s.36(2)).
+A written request by a law enforcement agency for a declaration (Act s.36(2)), filed by one of its law enforcement officers.
 _Avoid_: LEA request (in prose), subpoena
+
+**Access package**:
+The signed PDF a granted access request or law enforcement request delivers: the declarations in scope, cut to the granted years, household members and sections, watermarked with its recipient and downloadable by them for a limited window.
+_Avoid_: disclosure (for the document), export, report
+
+**Nil letter**:
+The signed letter a granted access request or law enforcement request delivers instead of an access package when the Commission holds no declaration within the granted scope; watermarked with its recipient and downloadable by them for the same window.
+_Avoid_: empty package, no-package notice
+
+**Scope preview**:
+The access officer's view, before deciding, of how much a scope holds of the declarant's declarations: counts per declaration year, section, household member kind and clarifications, never their content; audited like a disclosure.
+_Avoid_: draft package, disclosure preview
+
+**Certified copy**:
+A signed, full copy of one submitted version of a declarant's own declaration, issued to the declarant or their representative on a self-access application (Administrative Mechanism 32).
+_Avoid_: duplicate, printout, access package
 
 **Compliance report**:
 Form M, a Commission's report to EACC.
 _Avoid_: return, submission
 
 **Reference number**:
-The human-readable identifier of a record, e.g. `DCB-TSC-2027-0012345-K`.
+The human-readable identifier of a record, e.g. `DCB-TSC-2027-0012345-A`.
 _Avoid_: ID, code, ticket number

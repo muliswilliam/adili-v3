@@ -1,4 +1,4 @@
-import { cn, focusRing } from '@adili/ui';
+import { cn, focusRing, SeverityBadge } from '@adili/ui';
 import type { ReactNode } from 'react';
 
 import type { CopilotSourceRef, CopilotSummary } from '../../../server/copilot.server';
@@ -13,7 +13,6 @@ import {
 } from './panel-parts';
 import type { SummaryBlock } from './copilot-view';
 import { messages as t } from './messages';
-import { SeverityBadge } from './severity-badge';
 
 /** The Summary tab: overview, changes since the previous version, by person, worth attention. */
 export function SummaryTab({

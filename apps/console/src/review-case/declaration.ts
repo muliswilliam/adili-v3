@@ -1,3 +1,4 @@
+import { DeclarationSchema, type DeclarationV1 } from '@adili/forms';
 import { countryName, countyName, formatDate } from '@adili/ui';
 
 import {
@@ -273,6 +274,16 @@ function otherInformationOf(other: unknown): string[] {
 }
 
 /** The document as the case view shows it, or null when it is not a declaration it can read. */
+/**
+ * The document as `declaration.v1`, checked against its schema, for what reads it as typed (the
+ * Registry tab's people and items); null when it is missing or does not parse.
+ */
+export function parseDeclaration(document: Record<string, unknown> | null): DeclarationV1 | null {
+  if (!document) return null;
+  const parsed = DeclarationSchema.safeParse(document);
+  return parsed.success ? parsed.data : null;
+}
+
 export function readDeclaration(document: Record<string, unknown> | null): DeclarationView | null {
   if (document?.schemaVersion !== 'declaration.v1') return null;
   const statements = arrayOf(document.statements).flatMap((raw) => statementOf(raw) ?? []);

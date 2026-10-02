@@ -99,6 +99,32 @@ describe('createRowValidator', () => {
     ).toEqual([{ field: 'workStation', code: 'too-long', message: 'Enter up to 100 characters' }]);
   });
 
+  it('takes an employer code as the integration gateway does, up to 40 characters', () => {
+    const validate = createRowValidator();
+    const employerCode = (value: string, row: number) =>
+      validate(
+        {
+          ...base,
+          personnelFileNumber: `A${row}`,
+          nationalId: `1234567${row}`,
+          employerCode: value,
+        },
+        row,
+      );
+
+    expect(employerCode(' KEMSA ', 2).normalised?.employerCode).toBe('KEMSA');
+    expect(employerCode('MOH_HQ-2', 3).normalised?.employerCode).toBe('MOH_HQ-2');
+    expect(employerCode('-KEMSA', 4).errors).toEqual([
+      {
+        field: 'employerCode',
+        code: 'format',
+        message: 'Use only letters, digits, _ or -, starting with a letter or digit',
+      },
+    ]);
+    expect(employerCode('KE MSA', 5).errors).toMatchObject([{ code: 'format' }]);
+    expect(employerCode('K'.repeat(41), 6).errors).toMatchObject([{ code: 'too-long' }]);
+  });
+
   it('accepts an appointment date of today and rejects tomorrow', () => {
     const validate = createRowValidator({ today: '2026-09-28' });
 

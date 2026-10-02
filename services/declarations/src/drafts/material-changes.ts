@@ -9,7 +9,8 @@ import { FLAGGED_INTERESTS } from './sections.js';
  * changed since the last declaration, person by person in First Schedule order, each with a
  * reference to its item, then the declarant's directorships and memberships flagged as changed.
  * A flag still missing its kind or explanation is left out; its section reports it as
- * incomplete. Pure: the caller passes the live (not archived) statements.
+ * incomplete. Pure: the caller passes the live (not archived) statements, as the declaration's
+ * type holds them (`asDeclaredFor`), so an initial declaration, which follows none, has none.
  */
 
 /** `declaration.v1` `MaterialChangeEntry`. */

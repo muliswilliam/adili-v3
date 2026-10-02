@@ -1,5 +1,6 @@
 import { Body, Controller, Get, HttpCode, Param, Post, Req } from '@nestjs/common';
 import {
+  ApiBody,
   ApiCreatedResponse,
   ApiOkResponse,
   ApiOperation,
@@ -22,10 +23,7 @@ import {
 import { z } from 'zod';
 
 import { reviewTenant } from '../cases/access.js';
-import {
-  DeterminationLetterService,
-  type LetterDownloadView,
-} from './determination-letter.service.js';
+import { DeterminationLetterService } from './determination-letter.service.js';
 import {
   type DeterminationInput,
   determinationInput,
@@ -33,7 +31,7 @@ import {
   reasonInput,
 } from './determination-input.js';
 import { DeterminationsService } from './determinations.service.js';
-import type { DeterminationView } from './representation.js';
+import type { DeterminationView, LetterDownloadView } from './representation.js';
 
 const NOT_VISIBLE = 'Not found, or not visible to the caller';
 const DECIDER =
@@ -60,6 +58,7 @@ export class DeterminationsController {
   @Post('cases/:caseId/determinations')
   @ApiUuidParam('caseId')
   @AcceptIdempotencyKey()
+  @ApiBody({ required: true, schema: schemaRef('DeterminationInput') })
   @ApiOperation({
     operationId: 'proposeDetermination',
     summary: 'Propose a compliance determination (assignee)',
@@ -144,6 +143,7 @@ export class DeterminationsController {
   @HttpCode(200)
   @ApiUuidParam('determinationId')
   @AcceptIdempotencyKey()
+  @ApiBody({ required: true, schema: schemaRef('ReasonInput') })
   @ApiOperation({
     operationId: 'returnDetermination',
     summary: 'Return to the proposer with a reason',

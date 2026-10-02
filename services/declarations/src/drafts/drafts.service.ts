@@ -85,6 +85,7 @@ import {
 } from './sections.js';
 import { deleteSuggestions } from '../suggestions/expiry.js';
 import { personNames, statementChanges, writeStatementChanges } from './statements.js';
+import { asDeclaredFor } from './since-last.js';
 import { reviewDraft } from './summary.js';
 import {
   declarationAttachments,
@@ -476,7 +477,11 @@ export class DraftsService {
     const state = notFoundIfInvisible(
       await withPerson(this.db, person, (tx) => readSection(tx, declarationId, key)),
     );
-    const opened = await this.sections.open(state.declaration.tenant, state.section);
+    const opened = asDeclaredFor(
+      state.declaration.type,
+      key,
+      await this.sections.open(state.declaration.tenant, state.section),
+    );
     // Paragraph 9's material changes follow the items as they are now, not as `other` was saved.
     const contents =
       key === 'other'
@@ -569,7 +574,14 @@ export class DraftsService {
       }
     }
 
-    const prepared = await this.prepare(person, declaration, key, body, stored, section.metadata);
+    const prepared = await this.prepare(
+      person,
+      declaration,
+      key,
+      asDeclaredFor(declaration.type, key, body),
+      stored,
+      section.metadata,
+    );
     const household =
       key === 'household' ? householdPeople(prepared, declaration.statementDate) : null;
     const contents = household?.contents ?? prepared;
@@ -737,7 +749,13 @@ export class DraftsService {
     const personKey = statementPersonKey(key);
     let draft: DraftSections;
     if (key === 'bio' || key === 'household') {
-      const other = sibling ? await this.sections.open(declaration.tenant, sibling) : undefined;
+      const other = sibling
+        ? asDeclaredFor(
+            declaration.type,
+            sibling.sectionKey,
+            await this.sections.open(declaration.tenant, sibling),
+          )
+        : undefined;
       draft =
         key === 'bio' ? { bio: contents, household: other } : { bio: other, household: contents };
     } else if (personKey) {
@@ -771,7 +789,11 @@ export class DraftsService {
     for (const row of rows) {
       const personKey = statementPersonKey(row.sectionKey);
       if (!personKey && row.sectionKey !== 'bio') continue;
-      const contents = await this.sections.open(declaration.tenant, row);
+      const contents = asDeclaredFor(
+        declaration.type,
+        row.sectionKey,
+        await this.sections.open(declaration.tenant, row),
+      );
       if (personKey) statements.push([personKey, contents]);
       else bio = contents;
     }

@@ -49,8 +49,8 @@ describe('parseRosterFile: CSV', () => {
         { source: 'phone', field: 'phone' },
       ],
       ignored: ['Station Code'],
-      // Spec 05b's columns, which the fixture predates.
-      missing: ['work_station', 'marital_status'],
+      // Columns the fixture predates: spec 05b's and the employer code.
+      missing: ['work_station', 'marital_status', 'employer_code'],
     });
 
     const rows = await parsed(file);
@@ -86,6 +86,7 @@ describe('parseRosterFile: CSV', () => {
       maritalStatus: null,
       email: null,
       phone: null,
+      employerCode: null,
     });
     expect(rows[2]?.normalised).toMatchObject({
       fullName: 'Wanjiru "Shiru" Kamau',
@@ -114,6 +115,7 @@ describe('parseRosterFile: CSV', () => {
       'work_station',
       'marital_status',
       'email',
+      'employer_code',
     ]);
     const rows = await parsed(file);
     expect(rows.map((row) => row.normalised)).toEqual([
@@ -150,6 +152,7 @@ describe('parseRosterFile: CSV', () => {
           'marital_status',
           'email',
           'phone',
+          'employer_code',
         ],
       },
     });
@@ -314,6 +317,7 @@ describe('parseRosterFile: XLSX', () => {
         'Married',
         'A@B.CO.KE',
         712345678,
+        'KEMSA',
         'Uasin Gishu',
       ]);
       zeros.getCell(1).numFmt = '000000';

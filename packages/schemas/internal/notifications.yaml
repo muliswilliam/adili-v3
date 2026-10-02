@@ -116,10 +116,38 @@ components:
         - onboarding-otp-sms
         - login-otp-sms
         - login-otp-email
+        - onboarding-invitation-email
+        - onboarding-invitation-sms
         - obligation-reminder-sms
         - obligation-reminder-email
         - acknowledgement-email
         - acknowledgement-sms
+        - clarification-issued-email
+        - clarification-issued-sms
+        - clarification-reminder-email
+        - clarification-reminder-sms
+        - access-acknowledgement-email
+        - access-acknowledgement-sms
+        - access-request-notified-email
+        - access-request-notified-sms
+        - access-decision-applicant-email
+        - access-decision-applicant-sms
+        - access-decision-declarant-email
+        - access-decision-declarant-sms
+        - access-package-ready-email
+        - access-package-ready-sms
+        - access-nil-letter-ready-email
+        - access-nil-letter-ready-sms
+        - access-officer-reminder-email
+        - access-officer-reminder-sms
+        - lea-grant-notice-email
+        - lea-grant-notice-sms
+        - lea-decision-email
+        - lea-decision-sms
+        - lea-withdrawn-email
+        - lea-withdrawn-sms
+        - certified-copy-ready-email
+        - certified-copy-ready-sms
       description: Registered templates; each declares its channel and params
     Recipient:
       oneOf:
@@ -162,7 +190,7 @@ components:
           propertyNames:
             type: string
           additionalProperties: {}
-          description: Validated against the template's parameter schema. `obligation-reminder-sms` and `obligation-reminder-email` take exactly `type` (initial, biennial, final), `commissionName` (1 to 120 characters), `statementDate` and `dueDate` (`YYYY-MM-DD`, due on or after statement), `daysLeft` (integer 0 to 366) and `portalUrl` (http or https URL). `acknowledgement-email` and `acknowledgement-sms` take exactly `reference` (a DCI, DCB or DCF declaration reference with a valid check character), `type` (the one the reference names), `version` (integer 1 to 99; above 1 the copy names the version, an amendment), `commissionName`, `statementDate`, `verificationCode` (`ADL-` and hyphenated groups of 0-9 and A-Z, at most 40 characters) and `portalUrl`; the email links to the portal and attaches nothing, the SMS carries only the reference and verification code.
+          description: "Validated against the template's parameter schema. `obligation-reminder-sms` and `obligation-reminder-email` take exactly `type` (initial, biennial, final), `commissionName` (1 to 120 characters), `statementDate` and `dueDate` (`YYYY-MM-DD`, due on or after statement), `daysLeft` (integer 0 to 366) and `portalUrl` (an https URL; http is accepted in development and test only, never in production). `onboarding-invitation-email` and `onboarding-invitation-sms` (a roster officer with no account, invited to set it up) take exactly `commissionName` and `getStartedUrl` (http or https URL), and name no request. `acknowledgement-email` and `acknowledgement-sms` take exactly `reference` (a DCI, DCB or DCF declaration reference with a valid check character), `type` (the one the reference names), `version` (integer 1 to 99; above 1 the copy names the version, an amendment), `commissionName`, `statementDate`, `verificationCode` (`ADL-` and hyphenated groups of 0-9 and A-Z, at most 40 characters) and `portalUrl`; the email links to the portal and attaches nothing, the SMS carries only the reference and verification code. `clarification-issued-email` and `clarification-issued-sms` take exactly `reference` (a CLR clarification reference with a valid check character), `commissionName`, `dueDate` (`YYYY-MM-DD`, the last day to respond) and `portalUrl` (the page where the declarant reads the letter and responds); `clarification-reminder-email` and `clarification-reminder-sms` take the same and `daysLeft` (integer 0 to 366). The emails link to the portal and attach no letter. The access templates (spec 10), each an `-email` and an `-sms`, take a `signInUrl` (http or https URL: the portal, or the console for officers) and a `commissionName`, and name the request only: `access-acknowledgement` (to the applicant, Form K received) `reference` (ARQ), `decideBy` (`YYYY-MM-DD`) and `identityStatus` (verified, pending-verification: a passport applicant's particulars are still to be checked); `access-request-notified` (to the declarant) `reference` (ARQ) and `respondBy` (`YYYY-MM-DD`); `access-decision-applicant` `reference` (ARQ) and `outcome` (granted, partially-granted, denied, cannot-identify); `access-decision-declarant` `reference` (ARQ) and `outcome` (granted, partially-granted, denied); `access-package-ready` `reference` (ARQ or LEA) and `downloadUntil` (`YYYY-MM-DD`); `access-nil-letter-ready` (instead of the package, when the Commission holds no declaration within the granted scope: the signed letter saying so is ready) the same; `access-officer-reminder` `reference` (ARQ or LEA), `task` (verify-applicant, identify-officer, record-notice, decide), `dueDate` (`YYYY-MM-DD`) and `daysLeft` (0 to 366); `lea-grant-notice` (to the declarant) `reference` (LEA), `agencyName` and `grantedOn` (`YYYY-MM-DD`); `lea-decision` `reference` (LEA) and `outcome` (granted, denied); `certified-copy-ready` `reference` (a declaration reference), `version` (1 to 99) and `verificationCode`."
         locale:
           default: en
           type: string
@@ -242,6 +270,7 @@ components:
             - iprs-unavailable
             - identity-unavailable
             - email-in-use
+            - identity-mismatch
             - step-up-required
             - incomplete
             - before-statement-date
@@ -254,6 +283,18 @@ components:
             - consent-required
             - no-id
             - not-new
+            - no-applicant-record
+            - request-decided
+            - request-closed
+            - officer-resolved
+            - not-under-decision
+            - not-pending-verification
+            - lea-account-inactive
+            - declarant-notified
+            - representations-closed
+            - download-window-closed
+            - scope-exceeds-request
+            - grounds-required
           description: Machine-readable cause, from the platform registry; clients map it to copy and never show `title` or `detail`
         detail:
           type: string

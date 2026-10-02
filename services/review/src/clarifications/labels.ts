@@ -81,9 +81,12 @@ export function itemLabel(
       }
     }
   }
+  // A section other than a statement names itself, whoever the item concerns.
+  const section = item.sectionKey ? words.sections[item.sectionKey] : undefined;
+  if (section) return section;
   if (statement) return [words.statement, fullName(statement.personName)].join(' · ');
   if (item.personKey !== null || item.sectionKey?.startsWith('statement:')) return words.statement;
-  return (item.sectionKey && words.sections[item.sectionKey]) ?? words.declaration;
+  return words.declaration;
 }
 
 function personKeyOf(sectionKey: string | null): string | null {

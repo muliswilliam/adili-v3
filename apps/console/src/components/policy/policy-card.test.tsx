@@ -26,6 +26,12 @@ function version(v: number, overrides: Partial<TenantPolicyVersion> = {}): Tenan
     reminderOffsetsDays: [30, 14, 7],
     clarification: { issueWindowMonths: 6, replyWindowDays: 30 },
     formMDue: '07-31',
+    access: {
+      decisionDays: 30,
+      leaDecisionDays: 14,
+      representationWindowDays: 7,
+      packageDownloadDays: 14,
+    },
     createdBy: '0199a0b4-0000-7000-8000-0000000000aa',
     createdByName: 'Amina Wanjiru',
     createdAt: '2026-08-03T06:14:00Z',
@@ -70,6 +76,26 @@ describe('S19 policy card', () => {
       'v2Effective 26 Sep 2026, 10:30In forceObligations start date 1 Jul 2026 · by Daniel Kiprop',
       'v1Effective 3 Aug 2026, 09:14Platform defaults · by Amina Wanjiru',
     ]);
+  });
+
+  it("shows the Commission's periods of access to declarations, read only", () => {
+    renderCard({
+      current: version(2, {
+        access: {
+          decisionDays: 21,
+          leaDecisionDays: 10,
+          representationWindowDays: 5,
+          packageDownloadDays: 7,
+        },
+      }),
+      previous: [v1],
+    });
+    const card = screen.getByRole('region', { name: 'Policy' });
+    expect(card.textContent).toContain('Access to declarations');
+    expect(card.textContent).toContain('Form K decision: 21 days after receipt');
+    expect(card.textContent).toContain('Law enforcement decision: 10 days after receipt');
+    expect(card.textContent).toContain('Representations: 5 days after the declarant is notified');
+    expect(card.textContent).toContain('Package download: 7 days after issue');
   });
 
   it('leaves out who created a version when the directory does not know their name', () => {

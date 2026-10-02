@@ -25,6 +25,7 @@ import { createLocalJWKSet, exportJWK, generateKeyPair, type JWK, SignJWT } from
 
 import { AcknowledgementConsumer } from '../../src/acknowledgements/acknowledgement.consumer.js';
 import { AppModule } from '../../src/app.module.js';
+import { Clock } from '../../src/clock.js';
 import {
   type DocumentsSchema,
   issuedDocuments,
@@ -34,11 +35,14 @@ import {
 } from '../../src/db/schema.js';
 import { DeclarationsClient } from '../../src/declarations/declarations-client.js';
 import { OpenBao } from '../../src/issuance/openbao.js';
+import { ReviewClient } from '../../src/review/review-client.js';
 import { GotenbergRenderer, PdfRenderer } from '../../src/issuance/renderer.js';
 import { ClamdScanner, MalwareScanner } from '../../src/scanning/malware-scanner.js';
 import { S3, S3_PUBLIC } from '../../src/storage/storage.module.js';
 import { COMPLETE_BUDGET_MS } from '../../src/uploads/uploads.service.js';
+import { FakeClock } from './fake-clock.js';
 import { FakeDeclarations } from './fake-declarations.js';
+import { FakeReview } from './fake-review.js';
 
 const ISSUER = 'http://keycloak.test/realms/adili';
 const AUDIENCE = 'adili-api';
@@ -108,8 +112,12 @@ export interface DocumentsApi {
   s3: S3Client;
   /** The declarations internal API the acknowledgement payloads are pulled from. */
   declarations: FakeDeclarations;
+  /** The review internal API the clarification letter payloads are pulled from. */
+  review: FakeReview;
   /** Gotenberg, which a test can take down. */
   renderer: SwitchableRenderer;
+  /** The service's clock: the system time, which a test may move forward. */
+  clock: FakeClock;
   /** The acknowledgement consumers, called as the RabbitMQ transport would. */
   consumers: AcknowledgementConsumer;
   /** The suite's own consumer service name (`events` option): its queue and dead-letter queue. */
@@ -156,7 +164,9 @@ export async function startDocumentsApi(options: DocumentsApiOptions = {}): Prom
   const s3 = testS3Client();
   const { signer, jwk } = await tokenSigner();
   const declarations = new FakeDeclarations();
+  const review = new FakeReview();
   const renderer = new SwitchableRenderer(options.gotenbergUrl ?? requireEnv('TEST_GOTENBERG_URL'));
+  const clock = new FakeClock();
   let builder = Test.createTestingModule({ imports: [AppModule] })
     .overrideProvider(DATABASE)
     .useValue(db)
@@ -170,6 +180,10 @@ export async function startDocumentsApi(options: DocumentsApiOptions = {}): Prom
     .useValue(renderer)
     .overrideProvider(DeclarationsClient)
     .useValue(declarations)
+    .overrideProvider(ReviewClient)
+    .useValue(review)
+    .overrideProvider(Clock)
+    .useValue(clock)
     // Events stay in the outbox for assertions; nothing reaches the shared broker.
     .overrideProvider(OutboxRelay)
     .useValue({})
@@ -213,7 +227,9 @@ export async function startDocumentsApi(options: DocumentsApiOptions = {}): Prom
     db,
     s3,
     declarations,
+    review,
     renderer,
+    clock,
     consumers: app.get(AcknowledgementConsumer),
     consumerService,
     async publish(event) {

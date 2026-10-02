@@ -9,19 +9,42 @@ import {
   TENANT_KEY,
 } from '@adili/api-kit';
 import { COMMISSION_ADMIN } from '@adili/roles';
+import { z } from 'zod';
 
-import { AiGatewayClient, AiGatewayUnavailable } from '../ai-gateway/ai-gateway-client.js';
+import {
+  AiGatewayClient,
+  AiGatewayUnavailable,
+  type DataClass,
+} from '../ai-gateway/ai-gateway-client.js';
 import { dataClassOf } from './copilot-requests.js';
 import { aiGatewayUnavailable } from './problems.js';
 
+/** The ai-gateway's data classes (ai-gateway.yaml `DataClass`). */
+const DATA_CLASSES = [
+  'synthetic',
+  'restricted',
+  'highly-confidential',
+] as const satisfies readonly DataClass[];
+
 /** review.yaml `CommissionAiStatus`. */
-export interface CommissionAiStatus {
-  enabled: boolean;
-  providerClass: 'external' | 'self-hosted' | null;
-  /** The routed provider (`anthropic`...), of `providerClass`. */
-  provider: string | null;
-  dataClasses: string[];
-}
+export const commissionAiStatusSchema = z.object({
+  enabled: z.boolean().meta({
+    description:
+      "The copilot may run on the Commission's cases: the data class they are sent as is among `dataClasses`",
+  }),
+  providerClass: z.enum(['external', 'self-hosted']).nullable().meta({
+    description:
+      "The provider class the Commission's AI tasks are routed to; null when no route names a provider the ai-gateway can reach",
+  }),
+  provider: z.string().nullable().meta({
+    description:
+      "The provider the Commission's AI tasks are routed to (`anthropic`...), of `providerClass`; null when `providerClass` is",
+  }),
+  dataClasses: z.array(z.enum(DATA_CLASSES)).meta({
+    description: 'Data classes that provider class may process for the Commission',
+  }),
+});
+export type CommissionAiStatus = z.infer<typeof commissionAiStatusSchema>;
 
 /**
  * The Commission's AI status line (spec 07c): the ai-gateway's tenant status, read for the
@@ -39,10 +62,12 @@ export class AiStatusController {
   @ApiOperation({
     operationId: 'getCommissionAiStatus',
     summary: 'Whether AI assistance is enabled for the Commission (commission-admin)',
+    description:
+      "The commission-admin of the Commission; anyone else gets 404. Reads the ai-gateway's tenant status (its routes and classification gate). `enabled` says whether the copilot may run on this Commission's cases: the data class its declarations are sent as is among `dataClasses`.",
   })
   @ApiOkResponse({ description: 'Status', schema: schemaRef('CommissionAiStatus') })
   @ApiProblemResponse(404, 'Not found, or not visible to the caller')
-  @ApiProblemResponse(503, 'Problem type `ai-gateway-unavailable`')
+  @ApiProblemResponse(503, 'Problem type `ai-gateway-unavailable`; the status could not be read')
   async status(
     @CurrentPrincipal() principal: Principal,
     @Param('slug') slug: string,

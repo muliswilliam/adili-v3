@@ -7,6 +7,7 @@ import { nilConflictsWithItems, statementCompleteness } from './statement';
 function context(key = 'statement:officer'): RuleContext {
   return {
     key,
+    type: 'biennial',
     statementDate: '2027-11-01',
     officer: {},
     household: {},

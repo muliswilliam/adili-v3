@@ -240,12 +240,7 @@ function withSecret(row: CredentialRow, secret: string): RosterApiCredentialWith
 /** Maps identity failures to the problem the caller receives; others pass through. */
 function asProblem(error: unknown, unavailable: string): unknown {
   if (error instanceof IdentityUnavailable) {
-    return new ProblemException({
-      type: 'identity-unavailable',
-      title: 'Identity provider unavailable',
-      status: HttpStatus.BAD_GATEWAY,
-      detail: unavailable,
-    });
+    return ProblemException.fromCode('identity-unavailable', { detail: unavailable });
   }
   if (error instanceof ApiClientNotFound) {
     return new ProblemException({

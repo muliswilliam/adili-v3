@@ -1,0 +1,1 @@
+ALTER TABLE "verification_results" ADD COLUMN "subject_person_id" uuid;

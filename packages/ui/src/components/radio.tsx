@@ -8,8 +8,17 @@ export type RadioCardProps = Omit<ComponentProps<'input'>, 'type'> & {
   label: ReactNode;
   /** Secondary text under the label, linked to the radio with `aria-describedby`. */
   description?: ReactNode;
-  /** Decorative icon at the end of the card, e.g. an `Icon`. */
+  /**
+   * Decorative icon, e.g. an `Icon`: at the end of the card, or in the tile at the top of a
+   * `tile` card.
+   */
   icon?: ReactNode;
+  /**
+   * `row` (default): the radio dot, then the label. `tile`: the kit's `.choice.tile`, a taller
+   * card with the icon in a tile at the top that inks in when chosen, and no dot; for a few big
+   * choices side by side.
+   */
+  layout?: 'row' | 'tile';
 };
 
 /**
@@ -20,6 +29,7 @@ export function RadioCard({
   label,
   description,
   icon,
+  layout = 'row',
   id,
   className,
   disabled,
@@ -28,12 +38,14 @@ export function RadioCard({
 }: RadioCardProps) {
   const fieldIds = useFieldIds({ id, hint: description, ownDescribedBy });
   const labelId = `${fieldIds.id}-label`;
+  const tile = layout === 'tile';
 
   return (
     <label
       htmlFor={fieldIds.id}
       className={cn(
         'relative flex min-h-11 cursor-pointer items-start gap-2.5 rounded-lg bg-control px-3 py-2.5 text-[14.5px] font-medium shadow-control transition-shadow select-none hover:shadow-control-hover has-checked:shadow-control-selected has-focus-visible:outline-3 has-focus-visible:outline-ring/15 has-disabled:cursor-not-allowed has-disabled:opacity-50',
+        tile && 'min-h-[78px] flex-col gap-2 p-3',
         className,
       )}
     >
@@ -47,11 +59,20 @@ export function RadioCard({
         className="peer pointer-events-none absolute opacity-0"
         {...props}
       />
-      <span
-        aria-hidden="true"
-        className="mt-0.5 size-[18px] shrink-0 rounded-full bg-control shadow-[inset_0_0_0_1.5px_var(--input)] transition-shadow peer-checked:shadow-[inset_0_0_0_5px_var(--primary)]"
-      />
-      <span className="grid flex-1 gap-0.5">
+      {tile ? (
+        <span
+          aria-hidden="true"
+          className="grid size-[30px] shrink-0 place-items-center rounded-lg bg-muted text-secondary-foreground transition-colors peer-checked:bg-foreground peer-checked:text-background [&_svg]:size-[17px]"
+        >
+          {icon}
+        </span>
+      ) : (
+        <span
+          aria-hidden="true"
+          className="mt-0.5 size-[18px] shrink-0 rounded-full bg-control shadow-[inset_0_0_0_1.5px_var(--input)] transition-shadow peer-checked:shadow-[inset_0_0_0_5px_var(--primary)]"
+        />
+      )}
+      <span className={cn('grid min-w-0 gap-0.5', !tile && 'flex-1')}>
         <span id={labelId}>{label}</span>
         {description ? (
           <FieldHint id={fieldIds.hintId} className="font-normal">
@@ -59,7 +80,7 @@ export function RadioCard({
           </FieldHint>
         ) : null}
       </span>
-      {icon ? (
+      {icon && !tile ? (
         <span aria-hidden="true" className="mt-0.5 flex text-muted-foreground">
           {icon}
         </span>
@@ -73,6 +94,13 @@ export type RadioGroupProps = ComponentProps<'fieldset'> & {
   hint?: ReactNode;
   /** When set, the group is marked invalid and described by the message. */
   error?: ReactNode;
+  /** Keeps the legend for screen readers only, when a heading above already asks the question. */
+  legendHidden?: boolean;
+  /**
+   * `2` lays the choices out side by side, e.g. two `tile` cards; `3` puts three side by side
+   * from `sm` and stacks them on a phone.
+   */
+  columns?: 1 | 2 | 3;
 };
 
 /**
@@ -83,6 +111,8 @@ export function RadioGroup({
   legend,
   hint,
   error,
+  legendHidden = false,
+  columns = 1,
   id,
   className,
   children,
@@ -100,11 +130,24 @@ export function RadioGroup({
       aria-invalid={error ? true : props['aria-invalid']}
       className={cn('grid min-w-0 gap-1.5', className)}
     >
-      <legend className="mb-1 text-sm leading-5 font-medium text-secondary-foreground">
+      <legend
+        className={cn(
+          'mb-1 text-sm leading-5 font-medium text-secondary-foreground',
+          legendHidden && 'sr-only',
+        )}
+      >
         {legend}
       </legend>
       {hint ? <FieldHint id={fieldIds.hintId}>{hint}</FieldHint> : null}
-      <div className="grid gap-2">{children}</div>
+      <div
+        className={cn(
+          'grid gap-2',
+          columns === 2 && 'grid-cols-2',
+          columns === 3 && 'sm:grid-cols-3',
+        )}
+      >
+        {children}
+      </div>
       {error ? <FieldError id={fieldIds.errorId}>{error}</FieldError> : null}
     </fieldset>
   );

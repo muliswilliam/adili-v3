@@ -6,11 +6,14 @@ import {
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import {
+  ACTING_SUBJECT_HEADER,
   type AuditedReadOptions,
   type AuditedResource,
   type AuthenticatedRequest,
   auditedReadOf,
+  type ReadAudit,
   readAuditOf,
+  type ReadLegalBasis,
 } from '@adili/api-kit';
 import { type Database, InjectDatabase } from '@adili/data-access';
 import { mergeMap, type Observable } from 'rxjs';
@@ -20,12 +23,6 @@ import type { NewEvent } from './envelope.js';
 
 /** A read of sensitive data, for the audit trail (ADR-008 Pipeline step 2). */
 export const AUDIT_READ = 'audit.read.v1';
-
-/**
- * The header in which a calling service names the officer it reads for (`X-Acting-Subject` on
- * internal reads), recorded as the actor's `onBehalfOf` (ADR-008 `actor.on-behalf-of`).
- */
-export const ACTING_SUBJECT_HEADER = 'x-acting-subject';
 
 export interface AuditReadData extends Record<string, unknown> {
   /** The route's audit action, e.g. `roster.record.viewed`. */
@@ -51,8 +48,17 @@ export interface AuditReadData extends Record<string, unknown> {
     /** The subject the caller says it acts for (`X-Acting-Subject`); absent when it names none. */
     onBehalfOf?: string;
   };
-  /** Why the data was read, when the handler named it (ADR-008 `legal_basis`). */
-  legalBasis?: string;
+  /**
+   * Why the data was read, when the handler named it (ADR-008 `legal_basis`): the basis (a
+   * provision such as `act-s36-1`, or the work served such as `review-case`) and the reference
+   * under it (a grant's `ARQ` or `LEA` reference, the case id; null when none).
+   */
+  legalBasis?: ReadLegalBasis;
+  /**
+   * Whom a disclosing read handed the data to (ADR-008 `recipient`): the grant's recipient, the
+   * declarant of a certified copy. Absent for reads that disclose to no one but the reader.
+   */
+  recipient?: string;
   outcome: 'success';
   request: {
     method: string;
@@ -75,17 +81,19 @@ type AuditedRequest = AuthenticatedRequest & {
  * `@AuditedRead` (api-kit), before the response is sent: a read the audit trail cannot record
  * fails instead of going unrecorded. The event carries the action, the resource's path
  * parameters (and the ids a batch read names), the actor from the verified token and the route,
- * no response data; its `tenant`
- * is the tenant whose data was read: the one the handler named with `ReadAudit.resource` (with
- * the person the data is about), else the route's `slug`, else the tenant a service acts for,
- * else the caller's. A read the handler marked `ReadAudit.ownRecord` (the caller's own record)
- * is not recorded. The acting headers (`X-Acting-Tenant`, and `X-Acting-Subject` as the actor's
- * `onBehalfOf`) count only when api-kit's `InternalApi()` guard admitted the call, which takes
- * service tokens with the route's internal scope alone (ADR-013 §8.1); anywhere else a caller
- * could name whomever it liked. Registered for every route by
- * `EventsModule`; routes without the mark pass through untouched. Refused requests never reach
- * it (guards run first); they are the
- * audit service's to record from denials.
+ * no response data; its `tenant` is the tenant whose data was read: the one the handler named
+ * with `ReadAudit.resource` (with the person the data is about), else the route's `slug`, else
+ * the tenant a service acts for, else the caller's. A batch read the handler named several
+ * resource types for (`ReadAudit.resources`) is one event per type, each naming its ids. A read
+ * the handler marked
+ * `ReadAudit.ownRecord` (the caller's own record) is not recorded; one it gave a legal basis
+ * (`ReadAudit.legalBasis`) names the basis and the reference that authorises it, and a
+ * disclosure (`ReadAudit.disclosure`) the recipient too. The acting headers (`X-Acting-Tenant`,
+ * and `X-Acting-Subject` as the actor's `onBehalfOf`) count only when api-kit's `InternalApi()`
+ * guard admitted the call, which takes service tokens with the route's internal scope alone
+ * (ADR-013 §8.1); anywhere else a caller could name whomever it liked. Registered for every route
+ * by `EventsModule`; routes without the mark pass through untouched. Refused requests never
+ * reach it (guards run first); they are the audit service's to record from denials.
  */
 @Injectable()
 export class AuditedReadInterceptor implements NestInterceptor {
@@ -105,9 +113,15 @@ export class AuditedReadInterceptor implements NestInterceptor {
     return next.handle().pipe(
       mergeMap(async (body: unknown) => {
         const audit = readAuditOf(request);
-        if (!audit.isOwnRecord) {
-          await this.events.record(this.db, auditRead(mark, request, audit.describedResource));
-        }
+        // A read the handler named several resource types for is one audit event per type.
+        const resources = audit.describedResources;
+        const reads = audit.isOwnRecord
+          ? []
+          : resources.length > 1
+            ? resources.map((resource) => auditRead(mark, request, audit, resource))
+            : [auditRead(mark, request, audit, resources[0])];
+        // One multi-row insert: the audit events and those the read causes, all or none.
+        await this.events.recordAll(this.db, [...reads, ...audit.eventsAlongside]);
         return body;
       }),
     );
@@ -117,8 +131,11 @@ export class AuditedReadInterceptor implements NestInterceptor {
 function auditRead(
   mark: AuditedReadOptions,
   request: AuditedRequest,
+  audit: ReadAudit,
   resource: AuditedResource | undefined,
 ): NewEvent<AuditReadData> {
+  const legalBasis = audit.describedLegalBasis;
+  const recipient = audit.describedRecipient;
   const principal = request.principal;
   const params = request.params ?? {};
   const route = request.routeOptions.url ?? request.url;
@@ -134,7 +151,7 @@ function auditRead(
     data: {
       action: mark.action,
       resource: {
-        type: mark.resource,
+        type: resource?.type ?? mark.resource,
         params: { ...params },
         tenant: tenant ?? null,
         subjectPersonId: resource?.subjectPersonId ?? null,
@@ -149,7 +166,10 @@ function auditRead(
           ? { onBehalfOf: actingSubject }
           : {}),
       },
-      ...(resource?.legalBasis === undefined ? {} : { legalBasis: resource.legalBasis }),
+      ...(legalBasis === undefined
+        ? {}
+        : { legalBasis: { basis: legalBasis.basis, reference: legalBasis.reference } }),
+      ...(recipient === undefined ? {} : { recipient }),
       outcome: 'success',
       request: { method: request.method, route },
     },

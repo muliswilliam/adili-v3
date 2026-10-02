@@ -5,6 +5,7 @@ import type { ReactNode } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
+  getLetterLink,
   raiseFollowUpClarification,
   resolveClarification,
   withdrawClarification,
@@ -79,6 +80,7 @@ vi.mock('../../server/copilot', async () => {
 const resolveMock = vi.mocked(resolveClarification);
 const withdrawMock = vi.mocked(withdrawClarification);
 const followUpMock = vi.mocked(raiseFollowUpClarification);
+const letterMock = vi.mocked(getLetterLink);
 
 const NOW_MS = Date.parse('2026-09-28T09:00:00Z');
 const NOW = new Date(NOW_MS).toISOString();
@@ -110,7 +112,7 @@ const button = (name: string) => screen.queryByRole('button', { name });
 
 beforeEach(() => {
   resetReviewMock(NOW_MS);
-  for (const mock of [resolveMock, withdrawMock, followUpMock, navigate, invalidate]) {
+  for (const mock of [resolveMock, withdrawMock, followUpMock, letterMock, navigate, invalidate]) {
     mock.mockClear();
   }
 });
@@ -130,6 +132,23 @@ describe('ClarificationDetailView: states', () => {
     expect(
       screen.getByText('Your access to this declaration is recorded in the audit trail.'),
     ).toBeTruthy();
+  });
+
+  it('says Draft once on a draft, in its badge, not again in the line under it', async () => {
+    const detail = await detailOf(CASES.mine, K.issued);
+    renderDetail({
+      ...detail,
+      clarification: {
+        ...detail.clarification,
+        status: 'draft',
+        reference: null,
+        issuedAt: null,
+        dueAt: null,
+        letter: null,
+      },
+    });
+    expect(screen.getAllByText('Draft')).toHaveLength(1);
+    expect(screen.getByText('2 items')).toBeTruthy();
   });
 
   it('shows a late response beside each item with its documents', async () => {
@@ -414,6 +433,44 @@ describe('ClarificationDetailView: actions (S15)', () => {
       data: { clarificationId: K.issued, reason: 'Issued against the wrong item' },
     });
     expect(screen.getByText('Clarification withdrawn')).toBeTruthy();
+  });
+
+  it("downloads the letter through the review service's letter download, by clarification", async () => {
+    renderDetail(await detailOf(CASES.mine, K.issued));
+    letterMock.mockResolvedValue({ ok: false, error: { kind: 'unavailable', detail: null } });
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Download PDF' }));
+      await Promise.resolve();
+    });
+    expect(letterMock).toHaveBeenCalledWith({ data: { clarificationId: K.issued } });
+    expect(screen.getByText('The letter could not be downloaded. Try again.')).toBeTruthy();
+  });
+
+  it('says above the buttons, not under the reason, that nothing changed when the letter could not be revoked', async () => {
+    renderDetail(await detailOf(CASES.mine, K.issued));
+    withdrawMock.mockResolvedValue({
+      ok: false,
+      error: {
+        kind: 'unavailable',
+        detail: 'The documents service cannot be reached. Try again shortly.',
+        problemType: 'documents-unavailable',
+      },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Withdraw' }));
+    const dialog = screen.getByRole('dialog');
+    const reason = within(dialog).getByLabelText('Reason');
+    fireEvent.change(reason, { target: { value: 'Issued against the wrong item' } });
+    await act(async () => {
+      fireEvent.click(within(dialog).getByRole('button', { name: 'Withdraw clarification' }));
+      await Promise.resolve();
+    });
+    const alert = within(dialog).getByRole('alert');
+    expect(alert.textContent).toBe(
+      'The letter could not be revoked.Nothing changed: the clarification is still issued. Try again later.',
+    );
+    expect(reason.getAttribute('aria-invalid')).toBeNull();
+    expect(reason.getAttribute('aria-describedby')).toBeNull();
+    expect(invalidate).not.toHaveBeenCalled();
   });
 
   it('reloads when the service says the page is out of date (403 or 409)', async () => {

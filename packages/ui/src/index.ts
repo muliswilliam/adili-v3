@@ -25,7 +25,16 @@ export {
   type AssigneeChipProps,
   initialsOf,
 } from './components/assignee-chip';
+export { Avatar, type AvatarProps, type AvatarTone } from './components/avatar';
 export { Badge, type BadgeProps, badgeVariants } from './components/badge';
+export {
+  BREAKER_BADGE_MESSAGES,
+  BREAKER_STATES,
+  BreakerBadge,
+  type BreakerBadgeMessages,
+  type BreakerBadgeProps,
+  type BreakerState,
+} from './components/breaker-badge';
 export { Button, type ButtonProps, buttonVariants } from './components/button';
 export {
   Card,
@@ -162,6 +171,31 @@ export {
   DialogTrigger,
 } from './components/dialog';
 export {
+  type AttachmentState,
+  DECLARATION_SUMMARY_MESSAGES,
+  type DeclarationItemContext,
+  DeclarationSummary,
+  type DeclarationSummaryMessages,
+  type DeclarationSummaryProps,
+} from './components/declaration-summary';
+export {
+  anchorIdFor,
+  DECLARATION_LABELS,
+  type DeclarationLabels,
+  type DeclarationTarget,
+  findItem,
+  itemAnchorId,
+  type LocatedItem,
+  personFullName,
+  personKind,
+  type PersonKind,
+  sectionAnchorId,
+  STATEMENT_CATEGORIES,
+  type StatementCategory,
+  type StatementItem,
+  typeLabel,
+} from './lib/declaration-summary';
+export {
   Drawer,
   DrawerBody,
   DrawerClose,
@@ -214,8 +248,23 @@ export { Label } from './components/label';
 export { LateBadge, type LateBadgeProps } from './components/late-badge';
 export { Logo, LogoMark, LogoWordmark, type LogoProps } from './components/logo';
 export { MaskedContact, type MaskedContactProps } from './components/masked-contact';
-// The masking rules live in @adili/contacts (the services mask with them too).
-export { type ContactChannel, maskContact, maskEmail, maskPhone } from '@adili/contacts';
+// The masking and display rules live in @adili/contacts (the services mask with them too).
+export {
+  type ContactChannel,
+  formatPhone,
+  maskContact,
+  maskEmail,
+  maskPhone,
+} from '@adili/contacts';
+export {
+  MATCH_RELATIONS,
+  MATCH_TABLE_MESSAGES,
+  type MatchRelation,
+  MatchTable,
+  type MatchTableMessages,
+  type MatchTableProps,
+  type MatchTableRow,
+} from './components/match-table';
 export {
   Menu,
   MenuContent,
@@ -225,19 +274,29 @@ export {
   type MenuNoteProps,
   MenuTrigger,
 } from './components/menu';
+export { Meter, type MeterProps } from './components/meter';
 export { MoneyInput, type MoneyInputProps } from './components/money-input';
 export { type CaseNote, NoteList, type NoteListProps } from './components/note-list';
 export { OtpInput, type OtpInputProps } from './components/otp-input';
 export { OfficerReference } from './components/officer-reference';
 export { PercentInput, type PercentInputProps } from './components/percent-input';
 export {
+  PRIORITY_BADGE_MESSAGES,
   PRIORITY_BANDS,
   PRIORITY_NOTE,
   type PriorityBand,
   PriorityBadge,
   type PriorityBadgeMessages,
   type PriorityBadgeProps,
+  SignalBars,
 } from './components/priority-badge';
+export {
+  type Severity,
+  SEVERITIES,
+  SEVERITY_LABELS,
+  SeverityBadge,
+  type SeverityBadgeProps,
+} from './components/severity-badge';
 export { ProgressBar, type ProgressBarProps } from './components/progress-bar';
 export { QrCode, qrCodePath, type QrCodeProps } from './components/qr-code';
 export {
@@ -287,9 +346,13 @@ export {
 } from './components/save-indicator';
 export {
   formatScope,
+  formatScopePeople,
+  formatScopeSections,
+  formatScopeYears,
   isSameScope,
   isScopeWithin,
   type Scope,
+  SCOPE_CLARIFICATIONS_LABEL,
   SCOPE_SECTIONS,
   ScopePicker,
   type ScopePickerProps,
@@ -335,6 +398,8 @@ export {
   StatTile,
   type StatTileBreakdownItem,
   type StatTileProps,
+  StatTileSkeleton,
+  type StatTileSkeletonProps,
   type StatTileTone,
 } from './components/stat-tile';
 export {
@@ -389,7 +454,25 @@ export {
   TableRowLink,
   type TableRowLinkProps,
 } from './components/table';
-export { Tabs, TabsContent, TabsCount, TabsList, TabsTrigger } from './components/tabs';
+export {
+  SYSTEM_CHECK_STATUSES,
+  SYSTEM_STATUS_ROW_MESSAGES,
+  type SystemCheckStatus,
+  SystemStatusList,
+  type SystemStatusListProps,
+  SystemStatusRow,
+  type SystemStatusRowMessages,
+  type SystemStatusRowProps,
+} from './components/system-status-row';
+export {
+  Tabs,
+  TabsContent,
+  TabsCount,
+  TabsLink,
+  TabsList,
+  TabsNav,
+  TabsTrigger,
+} from './components/tabs';
 export {
   Timeline,
   type TimelineEvent,
@@ -425,7 +508,26 @@ export {
   useCountdown,
   useCountdownAnnouncement,
 } from './lib/countdown';
-export { focusRing, focusRingInset, focusRingWithin } from './lib/focus';
+export { focusRing, focusRingInset, focusRingWithin, textLink } from './lib/focus';
+export {
+  type AccessOutcome,
+  accessMessages,
+  accessMessagesSw,
+  accessOutcomeLabels,
+  accessOutcomeTones,
+  type AccessRequestStatus,
+  type AccessStatusMeta,
+  accessStatusMeta,
+  applicantAccessStatusMeta,
+  DECIDED_ACCESS_STATUSES,
+  GRANTED_ACCESS_STATUSES,
+  leaStatusMeta,
+  type LeaRequestStatus,
+  type MatchesAccessCopy,
+  OPEN_ACCESS_STATUSES,
+  type GrantPackageStatus,
+  grantPackageStatus,
+} from './lib/access';
 export {
   daysInMonth,
   formatDayMonthYear,
@@ -444,6 +546,7 @@ export {
   formatTime,
   msUntilKenyanMidnight,
 } from './lib/format-date';
+export { type IdempotencyKeys, useIdempotencyKey } from './lib/use-idempotency-key';
 export { useToday } from './lib/use-today';
 export {
   obligationCycleLabel,
@@ -469,6 +572,7 @@ export {
 } from './lib/obligations';
 export type { Assert, Same } from './lib/type-checks';
 export { useObligationDetail } from './lib/use-obligation-detail';
+export { initials } from './lib/initials';
 export { listNames } from './lib/list-names';
 export {
   formatDigest,

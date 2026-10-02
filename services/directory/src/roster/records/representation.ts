@@ -117,6 +117,14 @@ export const internalRosterRecordSchema = z.object({
     .enum(MARITAL_STATUSES)
     .nullable()
     .meta({ description: 'As `declaration.v1` names it; null when the roster gives none' }),
+  employerCode: z
+    .string()
+    .nullable()
+    .meta({
+      description:
+        "The HR and payroll systems' code for the employer, as the roster gives it; null when it gives none",
+      examples: ['KEMSA'],
+    }),
   state: rosterRecordStateSchema,
   appointmentDate: z.iso.date().nullable().meta({ description: 'Null when the roster gives none' }),
   exitDate: z.iso.date().nullable().meta({ description: 'Set while the record is exited' }),
@@ -147,3 +155,18 @@ export const internalRosterRecordPageSchema = z.object({
     .meta({ description: 'Pass as `cursor` for the next page; null on the last page' }),
 });
 export type InternalRosterRecordPage = z.infer<typeof internalRosterRecordPageSchema>;
+
+/**
+ * An invitation to set up a declarant account sent to a roster record's contacts (spec 10): which
+ * channels it went out on, never the contacts themselves.
+ */
+export const onboardingInvitationSchema = z.object({
+  id: z.uuid(),
+  rosterRecordId: z.uuid(),
+  channels: z.array(z.enum(['email', 'sms'])).meta({
+    description:
+      'The channels notifications sent it on; empty when the roster holds no contact, or none could be reached',
+  }),
+  sentAt: z.iso.datetime(),
+});
+export type OnboardingInvitation = z.infer<typeof onboardingInvitationSchema>;

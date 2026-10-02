@@ -1,7 +1,8 @@
 import { Body, Controller, HttpCode, Post } from '@nestjs/common';
-import { ApiBody, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import {
   ActingTenant,
+  ApiJsonBody,
   ApiProblemResponse,
   AuditedRead,
   CurrentPrincipal,
@@ -9,10 +10,10 @@ import {
   InternalApi,
   type Principal,
   type ReadAudit,
+  schemaRef,
   ZodValidationPipe,
 } from '@adili/api-kit';
 import { REVIEW_INTERNAL_SCOPE } from '@adili/roles';
-import { z } from 'zod';
 
 import { ClarificationDetailsService } from './clarification-details.service.js';
 import {
@@ -34,12 +35,19 @@ export class ClarificationDetailsController {
   @Post('details')
   @HttpCode(200)
   @AuditedRead({ action: 'review.clarifications.details.read', resource: 'clarification' })
-  @ApiBody({ schema: z.toJSONSchema(clarificationDetailsRequest) as object })
+  @ApiJsonBody(clarificationDetailsRequest)
   @ApiOperation({
     operationId: 'internalClarificationDetails',
     summary: 'Clarifications of a Commission in a batch, for Form M section 4 (reporting, spec 09)',
   })
-  @ApiOkResponse({ description: 'The clarifications, one per known id' })
+  @ApiOkResponse({
+    description: 'The clarifications, one per known id',
+    schema: {
+      type: 'object',
+      required: ['items'],
+      properties: { items: { type: 'array', items: schemaRef('InternalClarificationDetails') } },
+    },
+  })
   @ApiProblemResponse(400, 'Body failed validation: no ids, more than 1,000, or one not a UUID')
   async details(
     @CurrentPrincipal() principal: Principal,

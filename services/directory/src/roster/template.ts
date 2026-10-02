@@ -26,7 +26,7 @@ const GENERAL_NOTES = [
 ];
 
 /**
- * The roster template in `format`, generated from the roster columns: the nine headers and a
+ * The roster template in `format`, generated from the roster columns: the ten headers and a
  * sample row. The XLSX adds a Notes sheet documenting each column, and formats the identifier
  * columns (`textCell`) as text so Excel keeps their leading zeros.
  */

@@ -14,6 +14,7 @@ import {
   reviewFlags,
   reviewTimeline,
 } from '../../src/db/schema.js';
+import { VIEW_DECLARATIONS_BUDGET_MS } from '../../src/internal-api/view-budget.js';
 import type { Flag } from '../../src/rules/index.js';
 import { asset, declaration, statement } from '../fixtures/declarations.js';
 import { contractErrors, okResponse } from '../support/contract.js';
@@ -463,6 +464,24 @@ describe('review case: assignment, detail, notes and flags', () => {
       expect(await eventsOf('review.case.viewed.v1')).toHaveLength(0);
     });
 
+    it('S9: a declarations service that hangs is 502 with the case within the view budget, before the console gives up', async () => {
+      const { caseId } = await givenCase();
+      api.declarations.stallReads(1);
+
+      const started = performance.now();
+      const response = await api.get(at(casePath, { caseId }), reviewerA);
+      const elapsed = performance.now() - started;
+
+      expect(response.statusCode).toBe(502);
+      expect(response.json()).toMatchObject({
+        type: 'declarations-unavailable',
+        case: { id: caseId },
+        document: null,
+      });
+      expect(elapsed).toBeGreaterThanOrEqual(VIEW_DECLARATIONS_BUDGET_MS - 50);
+      expect(elapsed).toBeLessThan(VIEW_DECLARATIONS_BUDGET_MS + 2_000);
+    });
+
     it('S9: lists every version the case processed and pulls only the current one', async () => {
       // A first declaration on Adili: the rules found nothing to compare it with.
       const { caseId, version } = await givenCase('psc', [
@@ -543,7 +562,10 @@ describe('review case: assignment, detail, notes and flags', () => {
       expect(response.json()).toMatchObject({
         downloadUrl: expect.stringContaining(UPLOAD_ID) as unknown,
       });
-      expect(api.documents.downloads).toEqual([{ uploadId: UPLOAD_ID, tenant: 'psc' }]);
+      // M13: read for the reviewer, whom documents' audit names (ADR-013 §8.6).
+      expect(api.documents.downloads).toEqual([
+        { uploadId: UPLOAD_ID, tenant: 'psc', actingSubject: reviewerA.sub },
+      ]);
       expect(api.declarations.reads).toEqual([
         expect.objectContaining({
           declarationId: version.declarationId,

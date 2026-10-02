@@ -13,7 +13,7 @@ import {
   uuid,
 } from 'drizzle-orm/pg-core';
 
-import type { Evidence, ItemRef } from '../rules/index.js';
+import type { Evidence, ItemRef, RuleId } from '../rules/index.js';
 
 /**
  * The review database (spec 07a): review cases, their risk flags, assignment history,
@@ -63,6 +63,14 @@ export const PRIORITY_BANDS = ['low', 'medium', 'high'] as const;
 /** review.yaml `Severity`. */
 export const FLAG_SEVERITIES = ['info', 'low', 'medium', 'high'] as const;
 
+/**
+ * review.yaml `Flag.closedReason`: why a flag no longer counts. A registry flag a later check of
+ * the same registry no longer raises is `superseded-by-recheck` (spec 07b); reviewed or not, it
+ * keeps its note.
+ */
+export const FLAG_CLOSED_REASONS = ['superseded-by-recheck'] as const;
+export type FlagClosedReason = (typeof FLAG_CLOSED_REASONS)[number];
+
 /** How a case's assignee changed: the reviewer-of-record history spec 08 reads. */
 export const ASSIGNMENT_KINDS = ['claimed', 'released', 'reassigned', 'unassigned'] as const;
 export type AssignmentKind = (typeof ASSIGNMENT_KINDS)[number];
@@ -107,7 +115,9 @@ export type TimelineKind =
   | 'determination-approved'
   | 'determination-returned'
   | 'determination-withdrawn'
-  | 'sampled-for-review';
+  | 'sampled-for-review'
+  | 'registry-checked'
+  | 'registry-rechecked';
 
 const inList = (values: readonly string[]) => sql.raw(values.map((v) => `'${v}'`).join(', '));
 
@@ -156,6 +166,19 @@ export const reviewCases = pgTable(
     /** That roster record's reporting entity: the bulk closure filter. */
     reportingEntityId: uuid(),
     openFlags: integer().notNull().default(0),
+    /**
+     * Whether a registry could not be checked for someone on the case at its latest registry check
+     * (spec 07b): the queue's filter and icon. Kept with `registry_checks` in one transaction.
+     */
+    registryUnavailable: boolean().notNull().default(false),
+    /**
+     * Registry checks of the case are numbered as they start (re-check, sweep and processing run
+     * them on their own workflows): the last number handed out, and the number of the check whose
+     * statuses are stored. A check that started before the stored one is stale and stores nothing,
+     * so a slow check never overwrites a newer one.
+     */
+    registryCheckSequence: integer().notNull().default(0),
+    storedRegistryCheck: integer().notNull().default(0),
     openClarifications: integer().notNull().default(0),
     /** When the closure sweep diverted the case to review instead of proposing its closure. */
     sampledAt: timestamp({ withTimezone: true }),
@@ -179,6 +202,10 @@ export const reviewCases = pgTable(
     index('review_cases_tenant_assignee_idx').on(table.tenant, table.assignee),
     // The closure sweep's eligibility: a cycle's low-band cases, by status.
     index('review_cases_closure_idx').on(table.tenant, table.cycleYear, table.band, table.status),
+    // The hourly sweep of cases with a registry still unavailable (spec 07b): few, across tenants.
+    index('review_cases_registry_unavailable_idx')
+      .on(table.id)
+      .where(sql`${table.registryUnavailable}`),
     check('review_cases_type_check', sql`${table.type} in (${inList(DECLARATION_TYPES)})`),
     check('review_cases_band_check', sql`${table.band} in (${inList(PRIORITY_BANDS)})`),
     check('review_cases_status_check', sql`${table.status} in (${inList(CASE_STATUSES)})`),
@@ -246,7 +273,7 @@ export const reviewFlags = pgTable(
       .references(() => reviewCases.id),
     /** The version whose processing raised it. */
     versionId: uuid().notNull(),
-    ruleId: text().notNull(),
+    ruleId: text().$type<RuleId>().notNull(),
     severity: text({ enum: FLAG_SEVERITIES }).notNull(),
     title: text().notNull(),
     indicator: text().notNull(),
@@ -258,11 +285,17 @@ export const reviewFlags = pgTable(
     reviewNote: text(),
     /** A reviewed flag kept when a later version was processed; its evidence is of its version. */
     recomputed: boolean().notNull().default(false),
+    /** Why the flag no longer counts toward the score or the open flags; null while it does. */
+    closedReason: text({ enum: FLAG_CLOSED_REASONS }),
     createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [
     index('review_flags_case_id_idx').on(table.caseId),
     check('review_flags_severity_check', sql`${table.severity} in (${inList(FLAG_SEVERITIES)})`),
+    check(
+      'review_flags_closed_reason_check',
+      sql`${table.closedReason} in (${inList(FLAG_CLOSED_REASONS)})`,
+    ),
   ],
 );
 

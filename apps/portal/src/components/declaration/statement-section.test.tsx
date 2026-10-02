@@ -388,6 +388,23 @@ describe('StatementSection: item editors', () => {
     expect(screen.getByText(ITEM_MESSAGES.negative)).toBeTruthy();
   });
 
+  it('does not ask whether an item changed since the last declaration on an initial declaration', () => {
+    renderWorkspace(
+      <StatementSection section={statement({ liabilities: [mortgage] })} etag={'"1"'} />,
+      {
+        step: 'statement:officer',
+        declaration: sampleDeclaration({ type: 'initial', sections: sections({}, household) }),
+      },
+    );
+    openTab(/^Liabilities/);
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Edit Mortgage: Mortgage on the Kapsoya house' }),
+    );
+
+    expect(screen.getByRole('textbox', { name: 'Creditor' })).toBeTruthy();
+    expect(screen.queryByRole('checkbox', { name: /Changed since last declaration/ })).toBeNull();
+  });
+
   it('shows a liability with its change flag and the liability kinds', () => {
     renderStatement(statement({ liabilities: [mortgage] }));
     openTab(/^Liabilities/);

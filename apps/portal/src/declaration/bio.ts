@@ -1,4 +1,9 @@
-import type { Draft, Officer } from './contents';
+import {
+  type Draft,
+  followsEarlierDeclaration,
+  type ObligationType,
+  type Officer,
+} from './contents';
 import { ageOn, blank } from './format';
 
 /** The fields the declarant fills in on Your details (paragraphs 2-5). */
@@ -61,9 +66,14 @@ export const BIO_MESSAGES = {
  * What stops Your details from being complete, keyed by field. The rules follow
  * declaration.v1 (`officer`) and the spec's bio table: date of birth 18-100 years before the
  * statement date, place 2-100 characters, addresses 3-200, an explanation when marital status
- * changed, and a description when the nature of employment is Other.
+ * changed since the last declaration (none for an initial declaration, which does not ask; an
+ * old draft may still hold the flag), and a description when the nature of employment is Other.
  */
-export function bioIssues(officer: Draft<Officer>, statementDate: string): BioIssues {
+export function bioIssues(
+  officer: Draft<Officer>,
+  statementDate: string,
+  type: ObligationType,
+): BioIssues {
   const issues: BioIssues = {};
   const birthDate = officer.birth?.date;
   if (blank(birthDate)) {
@@ -80,7 +90,11 @@ export function bioIssues(officer: Draft<Officer>, statementDate: string): BioIs
   if (!officer.maritalStatus) {
     issues.maritalStatus = { kind: 'missing', message: BIO_MESSAGES.maritalStatus };
   }
-  if (officer.maritalStatusChange?.changed && blank(officer.maritalStatusChange.explanation)) {
+  if (
+    followsEarlierDeclaration(type) &&
+    officer.maritalStatusChange?.changed &&
+    blank(officer.maritalStatusChange.explanation)
+  ) {
     issues.maritalChange = { kind: 'missing', message: BIO_MESSAGES.maritalChange };
   }
 

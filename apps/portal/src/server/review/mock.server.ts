@@ -58,6 +58,8 @@ const PLOT: Item = {
   requirement: 'explain-discrepancy',
   text: 'The value of this plot is 150% higher than in your 2024 declaration, but no acquisition or improvement is recorded. Explain the change.',
   label: 'Assets · Plot Kisumu/Manyatta/1234 · John Kennedy',
+  aiJobId: null,
+  aiLanguage: null,
 };
 const SACCO: Item = {
   sectionKey: 'statement:officer',
@@ -66,6 +68,8 @@ const SACCO: Item = {
   requirement: 'provide-omitted',
   text: 'Your payslip shows a monthly deduction to Mwalimu National SACCO, but no SACCO loan is declared. Provide the loan details.',
   label: 'Liabilities · John Kennedy',
+  aiJobId: null,
+  aiLanguage: null,
 };
 const VEHICLE: Item = {
   sectionKey: 'statement:officer',
@@ -74,6 +78,8 @@ const VEHICLE: Item = {
   requirement: 'correct',
   text: 'The registration number KDA 123A does not match the vehicle described. Correct the entry.',
   label: 'Assets · Toyota Axio KDA 123A · John Kennedy',
+  aiJobId: null,
+  aiLanguage: null,
 };
 
 const clarifications = new Map<string, DeclarantClarification>();
