@@ -45,6 +45,17 @@ describe('DeclarationSummary', () => {
     ).toEqual(['7,300,000', '29,255,000', '7,680,000']);
   });
 
+  it('labels each total with its column, which a narrow card shows in place of the header row', () => {
+    render(<DeclarationSummary document={WANJIKU_DECLARATION} />);
+
+    const total = screen.getByRole('rowheader', { name: 'Total' }).closest('tr') as HTMLElement;
+    expect(
+      within(total)
+        .getAllByRole('cell')
+        .map((cell) => cell.dataset.label),
+    ).toEqual(['Income', 'Assets', 'Liabilities']);
+  });
+
   it('lists each item with its type, description, value and change tag, and nil categories', () => {
     render(<DeclarationSummary document={WANJIKU_DECLARATION} />);
 

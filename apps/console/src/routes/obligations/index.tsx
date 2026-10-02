@@ -11,6 +11,7 @@ import {
 import { notOnboardedRosterLink } from '../../components/obligations/roster-links';
 import { ObligationsView } from '../../components/obligations/obligations-view';
 import { messages as policyMessages } from '../../components/policy/messages';
+import { useReloadingInPlace } from '../../components/reload-in-place';
 import { signInRedirect } from '../../components/sign-in-redirect';
 import { opensOwnPolicy, ROSTER_WRITE_ROLES, workspaceFor } from '../../components/workspaces';
 import type { DeclarationsResult, ObligationPage } from '../../server/declarations/client';
@@ -21,10 +22,7 @@ const PATH = '/obligations';
 
 export const Route = createFileRoute('/obligations/')({
   validateSearch: obligationsSearchSchema,
-  // The filters are not loader deps: a new set of deps is a new match, which the router replaces
-  // with the loading page once its loader takes over a second (the search box losing focus
-  // mid-word). Without, and with `shouldReload`, a filter change reloads the same match in the
-  // background; the loader reads the filters off the location it is loading for.
+  // Filter changes reload this match in place, not as a new one: see `useReloadingInPlace`.
   shouldReload: true,
   loader: async ({ location, context }): Promise<DeclarationsResult<ObligationPage> | null> => {
     // The layout shows no list without the workspace; do not fetch one.
@@ -65,9 +63,7 @@ function ObligationsPage({ list }: { list: DeclarationsResult<ObligationPage> | 
   const { roles, tenant } = Route.useRouteContext();
   const data = layout.useLoaderData();
   const navigate = useNavigate({ from: `${PATH}/` });
-  // Filter changes keep this page mounted (and the search box focused) while the loader runs in
-  // the background: the toolbar has the new filters already, the list says it is loading them.
-  const loading = Route.useMatch({ select: (match) => match.isFetching !== false });
+  const loading = useReloadingInPlace();
   const roster = data?.commission.ok ? data.commission.data.roster : null;
   // The roster is the reporting officer's and the commission admin's; reviewers do not open it.
   const opensRoster = workspaceFor(roles, 'roster') !== undefined;

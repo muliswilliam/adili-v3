@@ -76,7 +76,8 @@ export function QueueToolbar({
           placeholder={m.searchPlaceholder}
           maxLength={100}
           applied={search.search ?? ''}
-          className="max-w-105 min-w-60 flex-1"
+          // Wide enough for the whole placeholder, short of a phone too narrow for it.
+          className="max-w-105 min-w-[min(100%,280px)] flex-1"
           onSearch={(value) => {
             onSearchChange(withFilter(search, 'search', value || undefined), { replace: true });
           }}

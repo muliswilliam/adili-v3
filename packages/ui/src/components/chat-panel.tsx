@@ -53,7 +53,7 @@ export function ChatPanel({
       aria-labelledby={titleId}
       className={cn(
         'flex h-full min-h-0 flex-col bg-card text-card-foreground',
-        variant === 'sheet' && 'rounded-t-[22px] shadow-pop',
+        variant === 'sheet' && 'rounded-t-sheet shadow-pop',
         className,
       )}
       {...props}

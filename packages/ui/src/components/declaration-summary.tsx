@@ -37,6 +37,7 @@ import {
   STATEMENT_CATEGORIES,
   type StatementCategory,
   type StatementItem,
+  type StatementTotals,
   statementTotals,
   typeLabel,
 } from '../lib/declaration-summary';
@@ -565,6 +566,88 @@ function OtherInformation({
   );
 }
 
+/** A totals cell; on a narrow card, where the header row is hidden, its column labels it. */
+const TOTALS_CELL =
+  'py-2 pl-2.5 text-right @max-md:py-0 @max-md:pl-0 @max-md:text-left @max-md:before:block @max-md:before:text-[12px] @max-md:before:font-normal @max-md:before:text-muted-foreground @max-md:before:content-[attr(data-label)]';
+/** A totals row: a table row, and on a narrow card the person above three labelled amounts. */
+const TOTALS_ROW = '@max-md:grid @max-md:grid-cols-3 @max-md:gap-x-2.5 @max-md:gap-y-1.5';
+
+/**
+ * Totals per person and for the household. A table where its four columns fit; on a narrow card
+ * (a phone, or a narrow pane) each person's name sits above their three amounts, each labelled,
+ * rather than the table scrolling sideways out of view.
+ */
+function TotalsTable({
+  messages,
+  rows,
+  grand,
+}: {
+  messages: Pick<
+    typeof DECLARATION_SUMMARY_MESSAGES,
+    'totals' | 'income' | 'assets' | 'liabilities' | 'total'
+  >;
+  rows: { key: string; person: ReactNode; totals: StatementTotals }[];
+  grand: StatementTotals;
+}) {
+  const amounts = (totals: StatementTotals) =>
+    (
+      [
+        [messages.income, totals.income],
+        [messages.assets, totals.assets],
+        [messages.liabilities, totals.liabilities],
+      ] as const
+    ).map(([label, cents]) => (
+      <td key={label} data-label={label} className={TOTALS_CELL}>
+        {formatMoney(cents)}
+      </td>
+    ));
+  return (
+    <div className="@container">
+      <table className="w-full border-collapse text-[13.5px] tabular-nums @max-md:block">
+        {/* On a narrow card only "Totals (KES)" shows: each amount carries its column's name. */}
+        <thead className="@max-md:block">
+          <tr className="border-b text-[12.5px] text-muted-foreground @max-md:block">
+            <th scope="col" className="py-1.5 text-left font-medium @max-md:block">
+              {messages.totals}
+            </th>
+            <th scope="col" className="py-1.5 pl-2.5 text-right font-medium @max-md:sr-only">
+              {messages.income}
+            </th>
+            <th scope="col" className="py-1.5 pl-2.5 text-right font-medium @max-md:sr-only">
+              {messages.assets}
+            </th>
+            <th scope="col" className="py-1.5 pl-2.5 text-right font-medium @max-md:sr-only">
+              {messages.liabilities}
+            </th>
+          </tr>
+        </thead>
+        <tbody className="@max-md:block">
+          {rows.map((row) => (
+            <tr key={row.key} className={cn('border-b', TOTALS_ROW, '@max-md:py-3')}>
+              <th
+                scope="row"
+                className="py-2 text-left font-normal @max-md:col-span-3 @max-md:py-0"
+              >
+                {row.person}
+              </th>
+              {amounts(row.totals)}
+            </tr>
+          ))}
+          <tr className={cn('font-semibold', TOTALS_ROW, '@max-md:pt-3')}>
+            <th
+              scope="row"
+              className="pt-2 text-left font-semibold @max-md:col-span-3 @max-md:pt-0"
+            >
+              {messages.total}
+            </th>
+            {amounts(grand)}
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 /**
  * A declaration as filed (declaration.v1), read-only, in First Schedule order: totals per
  * person, paragraphs 1 to 5, spouses (6), dependent children (7), each person's financial
@@ -642,61 +725,30 @@ export function DeclarationSummary({
     ).flatMap(([term, value]): [string, ReactNode][] => (value?.trim() ? [[term, value]] : [])),
   ];
 
-  const money = (cents: number) => formatMoney(cents);
   return (
     <div className={cn('min-w-0', className)} {...props}>
       <Section>
-        <div className="overflow-x-auto">
-          <table className="w-full border-collapse text-[13.5px] tabular-nums">
-            <thead>
-              <tr className="border-b text-[12.5px] text-muted-foreground">
-                <th scope="col" className="py-1.5 text-left font-medium">
-                  {messages.totals}
-                </th>
-                <th scope="col" className="py-1.5 pl-2.5 text-right font-medium">
-                  {messages.income}
-                </th>
-                <th scope="col" className="py-1.5 pl-2.5 text-right font-medium">
-                  {messages.assets}
-                </th>
-                <th scope="col" className="py-1.5 pl-2.5 text-right font-medium">
-                  {messages.liabilities}
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {statements.map((statement) => {
-                const totals = statementTotals(statement);
-                const name = nameOf(statement);
-                return (
-                  <tr key={statement.personKey} className="border-b">
-                    <th scope="row" className="py-2 text-left font-normal">
-                      <span className="flex items-center gap-2">
-                        <Avatar
-                          name={name}
-                          tone={TONE[personKind(statement.personKey)]}
-                          className="size-7 text-[11.5px]"
-                        />
-                        {name}
-                      </span>
-                    </th>
-                    <td className="py-2 pl-2.5 text-right">{money(totals.income)}</td>
-                    <td className="py-2 pl-2.5 text-right">{money(totals.assets)}</td>
-                    <td className="py-2 pl-2.5 text-right">{money(totals.liabilities)}</td>
-                  </tr>
-                );
-              })}
-              <tr className="font-semibold">
-                <th scope="row" className="pt-2 text-left font-semibold">
-                  {messages.total}
-                </th>
-                <td className="pt-2 pl-2.5 text-right">{money(grand.income)}</td>
-                <td className="pt-2 pl-2.5 text-right">{money(grand.assets)}</td>
-                <td className="pt-2 pl-2.5 text-right">{money(grand.liabilities)}</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
+        <TotalsTable
+          messages={messages}
+          rows={statements.map((statement) => {
+            const name = nameOf(statement);
+            return {
+              key: statement.personKey,
+              person: (
+                <span className="flex items-center gap-2">
+                  <Avatar
+                    name={name}
+                    tone={TONE[personKind(statement.personKey)]}
+                    className="size-7 shrink-0 text-[11.5px]"
+                  />
+                  {name}
+                </span>
+              ),
+              totals: statementTotals(statement),
+            };
+          })}
+          grand={grand}
+        />
       </Section>
 
       <Section

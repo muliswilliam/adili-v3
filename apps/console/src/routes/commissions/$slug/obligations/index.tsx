@@ -10,16 +10,14 @@ import {
 } from '../../../../components/obligations/obligations-query';
 import { commissionNotOnboardedRosterLink } from '../../../../components/obligations/roster-links';
 import { ObligationsView } from '../../../../components/obligations/obligations-view';
+import { useReloadingInPlace } from '../../../../components/reload-in-place';
 import { signInRedirect } from '../../../../components/sign-in-redirect';
 import type { DeclarationsResult, ObligationPage } from '../../../../server/declarations/client';
 import { getObligation, listCommissionObligations } from '../../../../server/obligations';
 
 export const Route = createFileRoute('/commissions/$slug/obligations/')({
   validateSearch: obligationsSearchSchema,
-  // The filters are not loader deps: a new set of deps is a new match, which the router replaces
-  // with the loading page once its loader takes over a second (the search box losing focus
-  // mid-word). Without, and with `shouldReload`, a filter change reloads the same match in the
-  // background; the loader reads the filters off the location it is loading for.
+  // Filter changes reload this match in place, not as a new one: see `useReloadingInPlace`.
   shouldReload: true,
   loader: async ({ params, location, context }) => {
     // The layout shows no Commission without the workspace; do not fetch its obligations.
@@ -58,8 +56,7 @@ function CommissionObligationsPage({ list }: { list: DeclarationsResult<Obligati
   const search = Route.useSearch();
   const summary = layout.useLoaderData();
   const navigate = useNavigate({ from: '/commissions/$slug/obligations/' });
-  // Filter changes keep this page mounted while the loader runs in the background.
-  const loading = Route.useMatch({ select: (match) => match.isFetching !== false });
+  const loading = useReloadingInPlace();
 
   const changeSearch = (next: ObligationsSearch, options?: { replace?: boolean }) => {
     void navigate({ search: next, replace: options?.replace });

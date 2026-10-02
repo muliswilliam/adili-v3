@@ -20,7 +20,7 @@ export const QUEUE_COPY = {
   overdue: (count: number) => `${plural(count, 'clarification')} overdue`,
 
   searchLabel: 'Search by reference, file number or name',
-  searchPlaceholder: 'Search reference, file number or name',
+  searchPlaceholder: 'Reference, file number or name',
   statusLabel: 'Status',
   statusAll: 'All statuses',
   priorityLabel: 'Priority',
