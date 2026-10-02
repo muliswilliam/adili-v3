@@ -29,16 +29,16 @@ type DownloadedEntry = Omit<RegisterEntryBase, 'at' | 'actor' | 'details'> & {
   recipient: { subject: string; name: string };
 };
 
-/**
- * Each download of a grant's package or nil letter (S7, S11): documents hands the recipient (the
- * applicant, or the law enforcement officer) a link with their own token and emits
- * `document.downloaded.v1`;
- * the access register records it as `downloaded`, with the recipient as actor, once per event
- * (inbox), in the request's Commission. Other documents are not the register's.
- */
 /** What a grant delivers to its recipient: its package, or the nil letter (decision 1). */
 const GRANT_DOCUMENT_TYPES: ReadonlySet<string> = new Set(['access-package', 'access-nil-letter']);
 
+/**
+ * Each download of a grant's package or nil letter (S7, S11): documents hands the recipient (the
+ * applicant, or the law enforcement officer) a link with their own token and emits
+ * `document.downloaded.v1`; the access register records it as `downloaded`, with the recipient as
+ * actor, once per event (inbox), in the request's Commission. Other documents are not the
+ * register's.
+ */
 @Controller()
 export class DownloadsConsumer {
   private readonly logger = new Logger(DownloadsConsumer.name);
