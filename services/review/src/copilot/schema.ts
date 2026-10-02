@@ -89,6 +89,10 @@ export const reviewCopilots = pgTable(
     // A rating names the output by its job.
     index('review_copilots_summary_job_id_idx').on(table.summaryJobId),
     index('review_copilots_explanations_job_id_idx').on(table.explanationsJobId),
+    // The pages of a Commission's not-enabled copilots that a policy change requests again.
+    index('review_copilots_not_enabled_idx')
+      .on(table.tenant, table.caseId)
+      .where(sql`${table.status} = 'not-enabled'`),
   ],
 );
 
