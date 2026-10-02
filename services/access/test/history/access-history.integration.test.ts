@@ -292,6 +292,9 @@ describe('Who accessed my declaration (S12)', () => {
       // Neither the law enforcement officer nor the access officer is named.
       expect(JSON.stringify(entries)).not.toContain('Peter Mwangi');
       expect(JSON.stringify(entries)).not.toContain(callers.officer.name);
+      // Agency, case, outcome and dates only: never the agency's reason or the decision's.
+      expect(JSON.stringify(entries)).not.toContain('Investigation into procurement');
+      expect(JSON.stringify(entries)).not.toContain('Investigation shown.');
       expect(await historyOf(otieno)).toEqual([]);
     });
   });

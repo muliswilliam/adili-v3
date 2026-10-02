@@ -74,6 +74,7 @@ const ACCESS_TEMPLATES: [string, Record<string, unknown>][] = [
     },
   ],
   ['lea-decision', { reference: LEA, commissionName: PSC, outcome: 'denied', signInUrl: CONSOLE }],
+  ['lea-withdrawn', { reference: LEA, commissionName: PSC, signInUrl: CONSOLE }],
   [
     'certified-copy-ready',
     {
@@ -255,13 +256,25 @@ describe('access templates', () => {
     expect(rendered.text).toContain('Regulation 23(2)');
   });
 
+  it('tells the access officers a law-enforcement request was withdrawn before its decision', () => {
+    const params = { reference: LEA, commissionName: PSC, signInUrl: CONSOLE };
+    const rendered = renderTemplate('lea-withdrawn-email', 'en', params);
+    expect(rendered.subject).toBe(`Request ${LEA} withdrawn`);
+    expect(rendered.text).toContain(
+      `Law-enforcement request ${LEA} to ${PSC} was withdrawn by the officer who made it, before a decision.`,
+    );
+    expect(renderTemplate('lea-withdrawn-sms', 'en', params).text).toBe(
+      `Adili: law-enforcement request ${LEA} was withdrawn before a decision. Nothing more is needed.`,
+    );
+  });
+
   it('tells the declarant their certified copy is ready with its verification code', () => {
-    const rendered = renderTemplate('certified-copy-ready-email', 'en', ACCESS_TEMPLATES[8]?.[1]);
+    const rendered = renderTemplate('certified-copy-ready-email', 'en', ACCESS_TEMPLATES[9]?.[1]);
     expect(rendered.subject).toBe('Your certified copy of DCB-PSC-2027-0000001-1 is ready');
     expect(rendered.text).toContain('ADL-7Q4K-M2XR-9HTC-2B7F-Q3ZD-8WNA-9K');
     expect(
       issuesOf('certified-copy-ready-sms', {
-        ...ACCESS_TEMPLATES[8]?.[1],
+        ...ACCESS_TEMPLATES[9]?.[1],
         reference: 'DCB-PSC-2027-0000001-2',
       }),
     ).toEqual(['params.reference']);
@@ -277,6 +290,7 @@ describe('access templates', () => {
       'access-officer-reminder': { task: 'decide', dueDate: '2026-09-30', daysLeft: 366 },
       'lea-grant-notice': { reference: LONG_LEA, grantedOn: '2026-09-30' },
       'lea-decision': { reference: LONG_LEA },
+      'lea-withdrawn': { reference: LONG_LEA },
       'certified-copy-ready': {
         reference: 'DCF-ABCDEFGHIJKLMNOPQRST-2027-9999999-V',
         version: 99,

@@ -10,7 +10,7 @@ export const en = {
   receivedLine: (agency: string, date: string) => `${agency} · received ${date}`,
   decisionDue: 'Decision due',
   decisionDueOn: (date: string) => `Decision due ${date}`,
-  breached: '14-day deadline breached',
+  breached: 'Deadline breached',
   notFoundTitle: 'Request not found',
   notFoundText: 'The link may be wrong, or the request belongs to another Commission.',
   backToRequests: 'Back to access requests',
@@ -23,6 +23,13 @@ export const en = {
   declarantNotified: (date: string) => `Declarant notified after grant, on ${date}.`,
   declarantBeingNotified: 'The declarant is being notified of the grant.',
   notToldDenied: (agency: string) => `The declarant was not told. ${agency} received the reasons.`,
+  notToldWithdrawn: 'The declarant was not told. The request was withdrawn before a decision.',
+
+  // Withdrawn
+  closedTitle: 'Closed',
+  withdrawnOutcome: 'Withdrawn by the agency',
+  withdrawnBy: (officer: string, agency: string, at: string) =>
+    `${officer} (${agency}) withdrew it on ${at}, before a decision. Nothing more is needed.`,
 
   // Written request
   writtenRequest: 'Written request',

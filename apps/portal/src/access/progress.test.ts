@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { IDS, seededRequest } from '../components/access/testing';
-import { decisionClock } from './progress';
+import { decisionClock, requestStages } from './progress';
 
 describe('decisionClock', () => {
   it('counts Kenyan calendar days, moving on at midnight in Nairobi', async () => {
@@ -32,7 +32,33 @@ describe('decisionClock', () => {
     });
   });
 
+  it('runs for the Commission’s own decision period, not a fixed 30 days', async () => {
+    const request = {
+      ...(await seededRequest(IDS.deciding)),
+      submittedAt: '2026-10-01T09:00:00Z',
+      decisionDeadlineAt: '2026-10-22T09:00:00Z',
+    };
+    expect(decisionClock(request, Date.parse('2026-10-02T09:00:00Z'))).toMatchObject({
+      day: 1,
+      of: 21,
+      daysLeft: 20,
+    });
+  });
+
   it('stops once the request is decided or closed', async () => {
     expect(decisionClock(await seededRequest(IDS.denied), Date.now())).toBeNull();
+  });
+});
+
+describe('requestStages', () => {
+  it('names no fixed window before the officer is notified', async () => {
+    const request = await seededRequest(IDS.submitted);
+    const notified = requestStages(request, Date.parse(request.submittedAt)).find(
+      (stage) => stage.id === 'notified',
+    );
+    expect(notified).toMatchObject({
+      state: 'upcoming',
+      detail: 'They then have a window to respond',
+    });
   });
 });

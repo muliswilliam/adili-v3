@@ -3,10 +3,12 @@ import { z } from 'zod';
 
 import type { paths } from './directory-api.gen.js';
 import {
+  type AccessPolicy,
   type ApplicantFacts,
   type ApplicantVerificationInput,
   type CommissionFacts,
   type CommissionListing,
+  DEFAULT_ACCESS_POLICY,
   DirectoryClient,
   DirectoryUnavailable,
   type LeaOfficerFacts,
@@ -17,7 +19,7 @@ import {
   type StaffRole,
 } from './directory-client.js';
 
-/** How long a Commission is reused before it is pulled again. */
+/** How long a Commission, or its policy, is reused before it is pulled again. */
 export const COMMISSION_CACHE_TTL_MS = 5 * 60 * 1000;
 
 export interface HttpDirectoryClientOptions {
@@ -107,20 +109,38 @@ const leaOfficerSchema = z.object({
   activatedAt: z.iso.datetime({ offset: true }).nullable(),
 });
 
+const days = z.int().positive();
+
+/**
+ * The access periods of a policy version. Each is optional: a directory that predates them leaves
+ * them out, and each one missing takes the default.
+ */
+const policySchema = z.object({
+  access: z
+    .object({
+      decisionDays: days.optional(),
+      leaDecisionDays: days.optional(),
+      representationWindowDays: days.optional(),
+      packageDownloadDays: days.optional(),
+    })
+    .optional(),
+});
+
 const none = (): null => null;
 
 /**
  * The directory's internal API through the client generated from its contract
  * (packages/schemas/internal/directory.yaml → directory-api.gen.ts via `pnpm generate:api`) on
  * api-kit's service client, with the access service's own token (`directory:internal`), acting
- * for the Commission in `X-Acting-Tenant` (ADR-013 §8.8). A Commission is cached for a few
- * minutes: a name changes rarely.
+ * for the Commission in `X-Acting-Tenant` (ADR-013 §8.8). A Commission and its access periods are
+ * cached for a few minutes: they change rarely, and a clock keeps the periods it started with.
  */
 export class HttpDirectoryClient extends DirectoryClient {
   private readonly directory: ServiceClient<paths>;
   private readonly applicants: ServiceClient<paths>;
   private readonly lawEnforcement: ServiceClient<paths>;
   private readonly commissions = new Map<string, { commission: CommissionFacts; until: number }>();
+  private readonly policies = new Map<string, { policy: AccessPolicy; until: number }>();
   private readonly ttlMs: number;
   private readonly now: () => number;
 
@@ -168,6 +188,24 @@ export class HttpDirectoryClient extends DirectoryClient {
     const commission = { slug: found.slug, issuerCode: found.issuerCode, name: found.name };
     this.commissions.set(slug, { commission, until: this.now() + this.ttlMs });
     return commission;
+  }
+
+  async accessPolicy(slug: string): Promise<AccessPolicy> {
+    const cached = this.policies.get(slug);
+    if (cached && cached.until > this.now()) return cached.policy;
+    const found = await this.directory.call(
+      (api) =>
+        api.GET('/internal/v1/commissions/{slug}/policy', {
+          params: { path: { slug }, header: { 'X-Acting-Tenant': slug } },
+        }),
+      { status: 200, schema: policySchema },
+    );
+    const policy: AccessPolicy = { ...DEFAULT_ACCESS_POLICY };
+    for (const key of Object.keys(policy) as (keyof AccessPolicy)[]) {
+      policy[key] = found.access?.[key] ?? DEFAULT_ACCESS_POLICY[key];
+    }
+    this.policies.set(slug, { policy, until: this.now() + this.ttlMs });
+    return policy;
   }
 
   async listCommissions(): Promise<CommissionListing[]> {

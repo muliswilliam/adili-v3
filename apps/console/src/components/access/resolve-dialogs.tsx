@@ -108,13 +108,15 @@ function Footer({
 
 /**
  * "Identify as …?" (S3): the officer Form K names is this roster record. The declarant is then
- * notified and has seven days for representations; it cannot be changed.
+ * notified and has the Commission's window for representations (`windowDays`, from its policy in
+ * force; the closing date is left out when the policy could not be read); it cannot be changed.
  */
 export function ResolveDialog({
   record,
   now,
+  windowDays,
   ...props
-}: ConfirmProps & { record: RosterCandidate | null; now: string }) {
+}: ConfirmProps & { record: RosterCandidate | null; now: string; windowDays: number | null }) {
   return (
     <Dialog open={props.open && record !== null} onOpenChange={props.onOpenChange}>
       <DialogContent busy={props.busy}>
@@ -145,11 +147,13 @@ export function ResolveDialog({
                 title: m.resolveDeclarantNotified,
                 text: m.resolveDeclarantNotifiedText,
               },
-              {
-                icon: Clock01Icon,
-                title: m.resolveWindow(formatDate(addDays(now, 7))),
-                text: m.resolveWindowText,
-              },
+              windowDays === null
+                ? { icon: Clock01Icon, title: m.resolveWindowOpens, text: m.resolveWindowUnknown }
+                : {
+                    icon: Clock01Icon,
+                    title: m.resolveWindow(formatDate(addDays(now, windowDays))),
+                    text: m.resolveWindowText(windowDays),
+                  },
               { icon: SquareLock02Icon, title: m.resolveFinal },
             ]}
           />

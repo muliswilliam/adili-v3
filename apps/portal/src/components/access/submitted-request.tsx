@@ -8,9 +8,13 @@ import type { AccessRequest } from '../../server/access/types';
 
 /**
  * The acknowledgement on screen once Form K is filed: the ARQ reference, the day it was
- * received and the 30 days the Commission has to decide; for a passport applicant, that the
+ * received and the day by which the Commission must decide (its decision period is the
+ * Commission's own policy, so it is read from the request); for a passport applicant, that the
  * Commission checks their identity first.
  */
+/** A date kept on one line: "1 Nov 2026" does not break before its year. */
+const unbroken = (date: string) => date.replaceAll(' ', '\u00a0');
+
 export function SubmittedRequest({ request }: { request: AccessRequest }) {
   const pending = request.status === 'pending-applicant-verification';
   return (
@@ -24,7 +28,7 @@ export function SubmittedRequest({ request }: { request: AccessRequest }) {
         size="lg"
       />
       <p className="mt-4 max-w-[440px] text-pretty text-muted-foreground">
-        {COPY.acknowledged(day(request.submittedAt))}
+        {COPY.acknowledged(day(request.submittedAt), unbroken(day(request.decisionDeadlineAt)))}
       </p>
       {pending ? (
         <Alert variant="warning" className="mt-5 max-w-[480px] text-left">

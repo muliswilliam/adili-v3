@@ -498,7 +498,10 @@ export function leaQueueItems(now: number): QueueItem[] {
       deadlineAt: request.deadlineAt,
       windowEndsAt: null,
       late: OPEN.includes(request.status) && now > Date.parse(request.deadlineAt),
-      closedAt: request.decision?.decidedAt ?? null,
+      closedAt:
+        request.decision?.decidedAt ??
+        request.timeline.find((each) => each.kind === 'withdrawn')?.at ??
+        null,
     }));
 }
 
@@ -506,6 +509,9 @@ const isLeaOfficer = (caller: MockCaller) => caller.roles.includes('law-enforcem
 
 /** Whether the request is the signed-in law enforcement officer's (the demo officer's). */
 const isMine = (request: LeaRequest) => request.officer.subject === DEMO_OFFICER.subject;
+
+/** The officer's own steps, which name them on their timeline. */
+const OWN_STEPS: readonly RegisterEntry['kind'][] = ['received', 'downloaded', 'withdrawn'];
 
 /** The officer's view: their own name on the timeline, nobody else's. */
 function asOfficerView(request: LeaRequest): LeaRequest {
@@ -515,7 +521,7 @@ function asOfficerView(request: LeaRequest): LeaRequest {
       ? { ...request.verification, by: { subject: '', name: '' }, note: '' }
       : null,
     timeline: request.timeline.map((each) =>
-      each.kind === 'received' || each.kind === 'downloaded' ? each : { ...each, actor: null },
+      OWN_STEPS.includes(each.kind) ? each : { ...each, actor: null },
     ),
   };
 }
@@ -622,6 +628,21 @@ async function decide(request: Request, stored: Stored, caller: MockCaller): Pro
   return json(200, stored.request);
 }
 
+/** The filing officer withdraws the request before its decision; `stuck` is 503 to try errors. */
+function withdraw(stored: Stored, caller: MockCaller): Response {
+  const { request: lea } = stored;
+  if (/stuck/i.test(lea.caseReference)) return problem(503, 'Service unavailable');
+  if (lea.decision) return conflict('The request is decided', 'request-decided');
+  if (lea.status === 'withdrawn') return conflict('The request is closed', 'request-closed');
+  const now = new Date().toISOString();
+  stored.request = {
+    ...lea,
+    status: 'withdrawn',
+    timeline: [...lea.timeline, entry('withdrawn', now, caller.name, lea.reference)],
+  };
+  return json(200, asOfficerView(stored.request));
+}
+
 async function submit(request: Request, caller: MockCaller): Promise<Response> {
   const body = await readJson(request);
   if (!isRecord(body) || !isRecord(body.officerSought) || !isRecord(body.scope)) {
@@ -719,6 +740,11 @@ export async function mockLeaFetch(request: Request): Promise<Response | null> {
   const action = match[2];
 
   if (method === 'GET' && action === undefined) return json(200, viewFor(caller, stored.request));
+  if (method === 'POST' && action === 'withdraw') {
+    if (!isLeaOfficer(caller)) return problem(403, 'Only the officer who filed it withdraws it');
+    await delay(500);
+    return withdraw(stored, caller);
+  }
   if (isLeaOfficer(caller)) return problem(403, 'Only the access officer acts');
   if (!caller.roles.includes('access-officer')) {
     return problem(403, 'The Commission supervisor reads requests; only its access officer acts');

@@ -12,11 +12,13 @@ import {
   type VersionDocument,
 } from '../../src/declarations/declarations-client.js';
 import {
+  type AccessPolicy,
   type ApplicantFacts,
   type ApplicantIdentityStatus,
   type ApplicantVerificationInput,
   type CommissionFacts,
   type CommissionListing,
+  DEFAULT_ACCESS_POLICY,
   DirectoryClient,
   DirectoryUnavailable,
   type LeaOfficerFacts,
@@ -78,6 +80,7 @@ export class FakeDirectory extends DirectoryClient {
   private readonly records = new Map<string, RosterCandidateFacts & { slug: string }>();
   private readonly staff = new Map<string, StaffMember[]>();
   private readonly officers = new Map<string, LeaOfficerFacts>();
+  private readonly policies = new Map<string, AccessPolicy>();
   private readonly failures = new Failures();
 
   /** An active Commission on Adili since 1 January 2025, unless `listing` says otherwise. */
@@ -112,6 +115,13 @@ export class FakeDirectory extends DirectoryClient {
     };
     this.records.set(found.id, { ...found, slug });
     return found;
+  }
+
+  /** The Commission's policy sets `periods`; the defaults otherwise (and for every other one). */
+  givenAccessPolicy(slug: string, periods: Partial<AccessPolicy>): AccessPolicy {
+    const policy = { ...DEFAULT_ACCESS_POLICY, ...periods };
+    this.policies.set(slug, policy);
+    return policy;
   }
 
   givenStaff(slug: string, role: StaffRole, ...members: StaffMember[]): void {
@@ -191,6 +201,7 @@ export class FakeDirectory extends DirectoryClient {
     this.records.clear();
     this.staff.clear();
     this.officers.clear();
+    this.policies.clear();
     this.failures.reset();
   }
 
@@ -199,6 +210,12 @@ export class FakeDirectory extends DirectoryClient {
       const found = this.commissions.get(slug);
       return found ? { slug: found.slug, issuerCode: found.issuerCode, name: found.name } : null;
     });
+  }
+
+  accessPolicy(slug: string): Promise<AccessPolicy> {
+    return this.answer('accessPolicy', slug, () => ({
+      ...(this.policies.get(slug) ?? DEFAULT_ACCESS_POLICY),
+    }));
   }
 
   listCommissions(): Promise<CommissionListing[]> {

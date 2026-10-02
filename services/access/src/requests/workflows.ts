@@ -20,8 +20,8 @@ import {
   type AccessRequestResult,
   type AccessRequestSignal,
   type AccessRequestWorkflowInput,
-  dayAfterReceipt,
   OFFICER_REMINDER_DAYS,
+  reminderDueAt,
   REQUEST_CHECK_INTERVAL,
   type RequestState,
 } from './contract.js';
@@ -70,8 +70,8 @@ interface RunState {
  * The decision is told to both parties; a grant's package is issued to the applicant, who is
  * told it is ready, and it expires at the end of its download window (fourteen days).
  * Alongside, from receipt, the access officers are reminded at day five while the officer is
- * unidentified (or the applicant unverified) and of the thirty-day deadline at days twenty and
- * twenty-eight. A request the officer cannot identify closes, with the applicant told.
+ * unidentified (or the applicant unverified) and of the decision deadline (the Commission's
+ * period at receipt, thirty days by default) ten and two days before it. A request the officer cannot identify closes, with the applicant told.
  * Withdrawal ends it at any point before the decision.
  *
  * Every wait recovers from a lost signal by reading the request every `REQUEST_CHECK_INTERVAL`.
@@ -318,18 +318,19 @@ async function afterDecision(input: AccessRequestWorkflowInput): Promise<'decide
 }
 
 /**
- * The access officers' reminders, counted from receipt. One whose next reminder is due already
+ * The access officers' reminders: day five from receipt, then ten and two days before the decision
+ * deadline (`reminderDueAt`). One whose next reminder is due already
  * (a run that fell behind, e.g. after an outage) is passed over, so a late run sends one
  * reminder, not several. A reminder that fails after its retries is logged and passed over.
  */
 async function reminders(input: AccessRequestWorkflowInput, state: RunState): Promise<void> {
   const done = () => state.ended || state.stop !== null;
   for (const [index, day] of OFFICER_REMINDER_DAYS.entries()) {
-    const wait = dayAfterReceipt(input.submittedAt, day).getTime() - Date.now();
+    const wait = reminderDueAt(input, day).getTime() - Date.now();
     if (wait > 0) await condition(done, wait);
     if (done()) return;
     const next = OFFICER_REMINDER_DAYS[index + 1];
-    if (next !== undefined && dayAfterReceipt(input.submittedAt, next).getTime() <= Date.now()) {
+    if (next !== undefined && reminderDueAt(input, next).getTime() <= Date.now()) {
       continue;
     }
     let reminded;

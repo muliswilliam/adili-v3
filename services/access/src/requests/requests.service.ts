@@ -9,9 +9,8 @@ import { v7 as uuidv7 } from 'uuid';
 
 import { applicantPersonId } from '../access.js';
 import { addDays, Clock, nairobiYear } from '../clock.js';
-import { config } from '../config.js';
 import type { AccessDatabase, AccessTransaction } from '../db/database.js';
-import { responsibleCommission } from '../commissions/responsible-commission.js';
+import { accessPolicyOf, responsibleCommission } from '../commissions/responsible-commission.js';
 import {
   type ApplicantFacts,
   DirectoryClient,
@@ -83,12 +82,14 @@ export class RequestsService {
         ]),
     );
     const applicantRecord = await this.applicant(personId, commission.slug);
+    const policy = await accessPolicyOf(this.directory, commission.slug);
     const identityStatus = applicantRecord.identityStatus;
     const formK = withApplicantParticulars(withoutMeta(validated.value), applicantRecord);
 
     const id = uuidv7();
     const now = this.clock.now();
-    const decisionDeadlineAt = addDays(now, config.ACCESS_DECISION_DAYS);
+    // The Commission's decision period in force at receipt: the request keeps it.
+    const decisionDeadlineAt = addDays(now, policy.decisionDays);
     // Sealed before the transaction, and the workflow started in it before the reference is
     // allocated: the per-Commission reference counter stays locked only for the inserts, not
     // across a call to OpenBao or Temporal.
@@ -103,6 +104,7 @@ export class RequestsService {
           tenant: commission.slug,
           requestId: id,
           submittedAt: now.toISOString(),
+          decisionDeadlineAt: decisionDeadlineAt.toISOString(),
           transactionId: await currentTransactionId(tx),
         });
         const reference = await allocateReference(tx, ARQ, {

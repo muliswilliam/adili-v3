@@ -16,6 +16,7 @@ import {
   searchLeaRoster,
   submitLeaRequest,
   verifyLeaRequest,
+  withdrawLeaRequest,
 } from './lea-requests.server';
 
 /**
@@ -76,6 +77,13 @@ export const decideLea = createServerFn({ method: 'POST' })
     asAccessViewer((client) =>
       decideLeaRequest(client, data.requestId, data.input, data.idempotencyKey),
     ),
+  );
+
+/** The signed-in law enforcement officer withdraws one of their requests before its decision. */
+export const withdrawLea = createServerFn({ method: 'POST' })
+  .validator(z.object({ requestId: id, idempotencyKey }))
+  .handler(({ data }): Promise<AccessResult<LeaRequest>> =>
+    asAccessViewer((client) => withdrawLeaRequest(client, data.requestId, data.idempotencyKey)),
   );
 
 export const getMyLeaRequests = createServerFn({ method: 'GET' }).handler(

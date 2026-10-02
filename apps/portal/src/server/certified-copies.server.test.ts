@@ -207,9 +207,14 @@ describe('who accessed my declaration (S12)', () => {
     expect(kinds.has('verified')).toBe(false);
     expect(kinds.has('cannot-identify')).toBe(false);
     const lea = result.entries.filter((entry) => entry.subjectKind === 'lea-request');
-    expect(lea.map((entry) => entry.kind).sort()).toEqual(
-      ['decided', 'downloaded', 'expired', 'package-issued'].sort(),
-    );
+    for (const subject of new Set(lea.map((entry) => entry.subjectId))) {
+      expect(
+        lea
+          .filter((entry) => entry.subjectId === subject)
+          .map((entry) => entry.kind)
+          .sort(),
+      ).toEqual(['decided', 'downloaded', 'expired', 'package-issued'].sort());
+    }
     expect(lea.every((entry) => entry.actor === null)).toBe(true);
   });
 

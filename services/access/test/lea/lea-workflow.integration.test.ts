@@ -21,6 +21,7 @@ import {
   leaRowOf,
   submitLea,
   verifyLea,
+  withdrawLea,
 } from '../support/lea.js';
 import { callers, declarantOf, ENDED_TRANSACTION, givenCommissions } from '../support/requests.js';
 
@@ -209,7 +210,8 @@ describe('LeaRequestWorkflow and its activities (S11)', () => {
       ]);
     }
 
-    // The declarant now sees the grant among their notices, with the agency and the case.
+    // The declarant now sees the grant among their notices: the agency, the case, the outcome
+    // and the dates only (user decision 4), never the agency's reason or the decision's reasons.
     const notices = await api.get('/v1/me/access-notices', declarantOf(anne));
     expect(contractErrors(okResponse('/v1/me/access-notices', 'get'), notices.json())).toEqual([]);
     expect(notices.json<DeclarantNotice[]>()).toEqual([
@@ -219,19 +221,15 @@ describe('LeaRequestWorkflow and its activities (S11)', () => {
         kind: 'lea',
         commission: { slug: 'psc', name: 'Public Service Commission' },
         status: 'granted',
-        applicantName: 'Directorate of Criminal Investigations',
-        purposeInGeneralTerms:
-          'An investigation by a law enforcement agency (Conflict of Interest Act, s.36(2))',
         agency: { code: 'DCI', name: 'Directorate of Criminal Investigations' },
         caseReference: 'DCI/ECU/121/2027',
-        scope: LEA_INPUT.scope,
+        outcome: 'grant',
+        decidedAt: DECIDED_AT,
         notifiedAt: DECIDED_AT,
-        windowEndsAt: null,
-        canRespond: false,
-        representations: null,
-        decision: expect.objectContaining({ outcome: 'grant', reasons: GRANT_REASONS }) as unknown,
       },
     ]);
+    expect(notices.body).not.toContain(GRANT_REASONS);
+    expect(notices.body).not.toContain(LEA_INPUT.reason);
     // It takes no representations.
     const representations = await api.send(
       'PUT',
@@ -418,6 +416,37 @@ describe('LeaRequestWorkflow and its activities (S11)', () => {
         (await api.get('/v1/commissions/psc/access/requests?kind=lea', officer)).json<QueuePage>()
           .items[0],
       ).toMatchObject({ late: false });
+    });
+
+    it('withdrawn by its officer: the access officers are told by email, once each; the declarant never', async () => {
+      const { id, reference } = await receivedOnly();
+      expect((await withdrawLea(api, id)).statusCode).toBe(200);
+
+      expect(await activities.leaWithdrawnNotice(workflowInput(id))).toBe('sent');
+      expect(await activities.leaWithdrawnNotice(workflowInput(id))).toBe('sent');
+
+      expect(api.notifications.sent).toEqual([
+        expect.objectContaining({
+          channel: 'email',
+          recipient: { kind: 'address', to: 'peter.access@psc.go.ke' },
+          template: 'lea-withdrawn-email',
+          tenant: 'psc',
+          params: {
+            reference,
+            commissionName: 'Public Service Commission',
+            signInUrl: `http://localhost:3020/access/lea-requests/${id}`,
+          },
+        }),
+        expect.objectContaining({ recipient: { kind: 'address', to: 'jane.access@psc.go.ke' } }),
+      ]);
+      expect(new Set(api.notifications.sent.map((m) => m.idempotencyKey)).size).toBe(2);
+    });
+
+    it('a request not withdrawn gets no withdrawal notice', async () => {
+      const { id } = await receivedOnly();
+
+      expect(await activities.leaWithdrawnNotice(workflowInput(id))).toBe('skipped');
+      expect(api.notifications.sent).toEqual([]);
     });
 
     it('a decided request gets no reminder and no breach flag', async () => {

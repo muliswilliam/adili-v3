@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { ToastProvider } from '@adili/ui';
-import { render, screen } from '@testing-library/react';
+import { cleanup, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
 import type { AccessRequest } from '../../server/access/types';
@@ -20,16 +20,20 @@ function show(request: AccessRequest) {
 }
 
 describe('SubmittedRequest (S2)', () => {
-  it('shows the ARQ reference and the acknowledgement', async () => {
+  it('shows the ARQ reference and the acknowledgement, with the request’s own deadline', async () => {
     const request = await seededRequest(IDS.submitted);
     show(request);
     expect(screen.getByRole('heading', { name: 'Request submitted' })).toBeTruthy();
     expect(screen.getByText(request.reference)).toBeTruthy();
     expect(
       screen.getByText(
-        'Acknowledged 2 Oct 2026. The Commission has 30 days to decide. You will be notified.',
+        'Acknowledged 2 Oct 2026. The Commission has until 1 Nov 2026 to decide. You will be notified.',
       ),
     ).toBeTruthy();
+    // A Commission with a shorter decision period: the deadline is the request's, not 30 days.
+    cleanup();
+    show({ ...request, decisionDeadlineAt: '2026-10-23T09:00:00Z' });
+    expect(screen.getByText(/The Commission has until 23 Oct 2026 to decide\./)).toBeTruthy();
     expect(screen.getByRole('link', { name: 'View request' }).getAttribute('href')).toBe(
       `/access/requests/${request.id}`,
     );

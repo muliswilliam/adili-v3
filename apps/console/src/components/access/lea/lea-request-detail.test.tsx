@@ -17,6 +17,7 @@ import {
   loadLeaRequest,
   searchLeaRoster,
   verifyLeaRequest,
+  withdrawLeaRequest,
 } from '../../../server/lea-requests.server';
 import { LeaRequestDetail } from './lea-request-detail';
 
@@ -150,9 +151,24 @@ describe('a law enforcement request, for the access officer (spec 10 FE-6, S11)'
     expect(link.getAttribute('href')).toBe(`/access/lea-requests/${L.received}/decide`);
   });
 
-  it('marks a request undecided past 14 days as breached', async () => {
+  it('a request its officer withdrew reads closed: who withdrew it and when, no action, the declarant not told', async () => {
+    const officer = mockAccessClient(['law-enforcement'], 'Suleiman Ali');
+    await withdrawLeaRequest(officer, L.received, crypto.randomUUID());
+    renderDetail(await requestOf(L.received));
+
+    expect(within(side()).getByText('Withdrawn by the agency')).toBeTruthy();
+    expect(side().textContent).toMatch(/Suleiman Ali \(DCI\) withdrew it on .+, before a decision/);
+    expect(within(side()).queryByRole('button')).toBeNull();
+    expect(within(side()).queryByRole('link')).toBeNull();
+    expect(
+      screen.getByText('The declarant was not told. The request was withdrawn before a decision.'),
+    ).toBeTruthy();
+    expect(screen.queryByText('Decision due')).toBeNull();
+  });
+
+  it('marks a request undecided past its deadline as breached', async () => {
     renderDetail(await requestOf(L.breach));
-    expect(screen.getByText('14-day deadline breached')).toBeTruthy();
+    expect(screen.getByText('Deadline breached')).toBeTruthy();
   });
 
   it('opens Decide once verified; the supervisor only reads', async () => {

@@ -201,6 +201,14 @@ describe("A grant's package: downloads and expiry (S7)", () => {
   });
 
   describe('issue', () => {
+    it("the package is downloadable for the Commission's download window in force at issue", async () => {
+      api.directory.givenAccessPolicy('psc', { packageDownloadDays: 7 });
+      const { row } = await packaged();
+
+      expect(api.documents.issued).toMatchObject([{ downloadWindowDays: 7 }]);
+      expect(row.downloadExpiresAt).toEqual(new Date('2027-03-27T12:00:00.000Z'));
+    });
+
     it('a retried issue issues nothing twice', async () => {
       const { input, row } = await packaged();
 

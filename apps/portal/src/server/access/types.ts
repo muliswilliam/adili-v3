@@ -35,8 +35,15 @@ export function readAccessRequest(request: Schemas['AccessRequest']): AccessRequ
   return request as unknown as AccessRequest;
 }
 
-/** A request the declarant was notified about, with their representations and the outcome. */
+/** A request the declarant was notified about: a Form K request, or a law-enforcement grant. */
 export type DeclarantNotice = Schemas['DeclarantNotice'];
+/** A Form K request: who asked and why, the window for their response, and the outcome. */
+export type FormKDeclarantNotice = Schemas['FormKDeclarantNotice'];
+/**
+ * A law-enforcement grant, shown once access was granted: the agency, its case reference, the
+ * outcome and its dates only, never the agency's reason, the scope or the decision's grounds.
+ */
+export type LeaDeclarantNotice = Schemas['LeaDeclarantNotice'];
 export type Representations = Schemas['Representations'];
 export type RepresentationsInput = Schemas['RepresentationsInput'];
 export type RepresentationStance = Representations['stance'];

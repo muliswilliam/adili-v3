@@ -4,6 +4,7 @@ import { desc, eq, sql } from 'drizzle-orm';
 
 import type { Transaction } from './commissions.service.js';
 import { policyChanged } from './events.js';
+import { withPolicyDefaults } from './policy.js';
 import type { TenantPolicyHistory, TenantPolicyVersion } from './policy-representation.js';
 import { commissions, tenantPolicyVersions } from './schema.js';
 
@@ -91,8 +92,11 @@ export async function createPolicyVersion(
       version: current.version + 1,
       effectiveFrom: command.effectiveFrom,
       policy: command.reminderOffsetsDays
-        ? { ...current.policy, reminderOffsetsDays: command.reminderOffsetsDays }
-        : current.policy,
+        ? {
+            ...withPolicyDefaults(current.policy),
+            reminderOffsetsDays: command.reminderOffsetsDays,
+          }
+        : withPolicyDefaults(current.policy),
       obligationsStartDate: command.obligationsStartDate,
       createdBy: command.createdBy,
       createdByName: command.createdByName,
@@ -107,17 +111,19 @@ export async function createPolicyVersion(
 }
 
 function toTenantPolicyVersion(row: VersionRow): TenantPolicyVersion {
+  const policy = withPolicyDefaults(row.policy);
   return {
     id: row.id,
     version: row.version,
     effectiveFrom: row.effectiveFrom.toISOString(),
     obligationsStartDate: row.obligationsStartDate,
-    initialDueAfterAppointmentDays: row.policy.initialDueAfterAppointmentDays,
-    biennial: row.policy.biennial,
-    finalDueAfterExitDays: row.policy.finalDueAfterExitDays,
-    reminderOffsetsDays: row.policy.reminderOffsetsDays,
-    clarification: row.policy.clarification,
-    formMDue: row.policy.formMDue,
+    initialDueAfterAppointmentDays: policy.initialDueAfterAppointmentDays,
+    biennial: policy.biennial,
+    finalDueAfterExitDays: policy.finalDueAfterExitDays,
+    reminderOffsetsDays: policy.reminderOffsetsDays,
+    clarification: policy.clarification,
+    formMDue: policy.formMDue,
+    access: policy.access,
     createdBy: row.createdBy,
     createdByName: row.createdByName,
     createdAt: row.createdAt.toISOString(),

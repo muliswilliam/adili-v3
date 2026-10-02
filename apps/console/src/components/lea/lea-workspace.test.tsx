@@ -12,11 +12,13 @@ import {
   setAccessMockLatency,
 } from '../../server/access/mock.server';
 import type { LeaRequest } from '../../server/access/types';
-import { getLeaPackageLink, sendLeaRequest } from '../../server/lea-requests';
+import { getLeaPackageLink, sendLeaRequest, withdrawLea } from '../../server/lea-requests';
 import {
+  decideLeaRequest,
   listMyLeaRequests,
   loadLeaRequest,
   submitLeaRequest,
+  withdrawLeaRequest,
 } from '../../server/lea-requests.server';
 import { MyRequest } from './my-request';
 import { MyRequests } from './my-requests';
@@ -54,6 +56,7 @@ vi.mock('../../server/access-requests', () => ({}));
 vi.mock('../../server/lea-requests', () => ({
   sendLeaRequest: vi.fn(),
   getLeaPackageLink: vi.fn(),
+  withdrawLea: vi.fn(),
 }));
 
 const lea = () => mockAccessClient([LAW_ENFORCEMENT], 'Suleiman Ali');
@@ -90,6 +93,9 @@ beforeEach(() => {
   invalidate.mockClear();
   vi.mocked(sendLeaRequest).mockImplementation(({ data }) =>
     submitLeaRequest(lea(), data.input, data.idempotencyKey),
+  );
+  vi.mocked(withdrawLea).mockImplementation(({ data }) =>
+    withdrawLeaRequest(lea(), data.requestId, data.idempotencyKey),
   );
 });
 
@@ -189,6 +195,105 @@ describe("the officer's requests (spec 10 FE-6)", () => {
   });
 });
 
+describe('withdrawing a request before its decision (user decision 5)', () => {
+  const officer = () => mockAccessClient(['access-officer'], 'Lucy Wambui');
+
+  it('asks first, then withdraws it, says so and reloads the page', async () => {
+    wrap(<MyRequest request={await requestOf(L.received)} now={NOW} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Withdraw request' }));
+    const dialog = await screen.findByRole('dialog', { name: /^Withdraw LEA-PSC-2026-/ });
+    expect(dialog.textContent).toContain('The Commission stops work on it');
+    expect(dialog.textContent).toContain('This cannot be undone');
+
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Withdraw request' }));
+
+    expect(await screen.findByText(/^LEA-PSC-2026-\S+ withdrawn$/)).toBeTruthy();
+    expect(invalidate).toHaveBeenCalled();
+    expect(withdrawLea).toHaveBeenCalledWith({
+      data: { requestId: L.received, idempotencyKey: expect.any(String) as string },
+    });
+    const withdrawn = await requestOf(L.received);
+    expect(withdrawn.status).toBe('withdrawn');
+  });
+
+  it('keeps the request when the officer thinks better of it', async () => {
+    wrap(<MyRequest request={await requestOf(L.received)} now={NOW} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Withdraw request' }));
+    const dialog = await screen.findByRole('dialog');
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Keep request' }));
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog')).toBeNull();
+    });
+    expect(withdrawLea).not.toHaveBeenCalled();
+  });
+
+  it('decided meanwhile (409 request-decided): closes the dialog, says why, reloads', async () => {
+    const page = await requestOf(L.received);
+    await decideLeaRequest(
+      officer(),
+      L.received,
+      { outcome: 'deny', grounds: ['not-objectives'], reasons: 'Not shown.' },
+      crypto.randomUUID(),
+    );
+    wrap(<MyRequest request={page} now={NOW} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Withdraw request' }));
+    const dialog = await screen.findByRole('dialog');
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Withdraw request' }));
+
+    expect(
+      await screen.findByText(
+        'The Commission has decided this request, so it can no longer be withdrawn.',
+      ),
+    ).toBeTruthy();
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog')).toBeNull();
+    });
+    expect(invalidate).toHaveBeenCalled();
+  });
+
+  it('the service down: stays in the dialog to try again with the same key', async () => {
+    vi.mocked(withdrawLea).mockResolvedValue({
+      ok: false,
+      error: { kind: 'unavailable', detail: null },
+    });
+    wrap(<MyRequest request={await requestOf(L.received)} now={NOW} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Withdraw request' }));
+    const dialog = await screen.findByRole('dialog');
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Withdraw request' }));
+    expect(
+      await within(dialog).findByText(
+        'We could not withdraw the request. Nothing changed. Try again.',
+      ),
+    ).toBeTruthy();
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Withdraw request' }));
+    await waitFor(() => {
+      expect(withdrawLea).toHaveBeenCalledTimes(2);
+    });
+    const [first, second] = vi.mocked(withdrawLea).mock.calls;
+    expect(second?.[0]).toEqual(first?.[0]);
+  });
+
+  it('offers no withdrawal once decided; a withdrawn request says when, in the list too', async () => {
+    wrap(<MyRequest request={await requestOf(L.denied)} now={NOW} />);
+    expect(screen.queryByRole('button', { name: 'Withdraw request' })).toBeNull();
+
+    await withdrawLeaRequest(lea(), L.received, crypto.randomUUID());
+    const withdrawn = await requestOf(L.received);
+    wrap(<MyRequest request={withdrawn} now={NOW} />);
+    const decision = screen.getAllByRole('region', { name: 'Decision' }).at(-1);
+    expect(decision?.textContent).toMatch(/You withdrew this request on .+, before a decision/);
+    expect(screen.getAllByRole('list', { name: 'Progress' }).at(-1)?.textContent).toContain(
+      'Withdrawn',
+    );
+
+    wrap(<MyRequests result={{ ok: true, data: await mine() }} now={NOW} />);
+    const row = screen
+      .getAllByRole('row')
+      .find((each) => each.textContent.includes('DCI/ECU/142/2026'));
+    expect(row?.textContent).toMatch(/Withdrawn \d/);
+  });
+});
+
 describe('a new written request (S11)', () => {
   function fillIn() {
     fireEvent.click(screen.getByRole('combobox', { name: 'Commission' }));
@@ -216,7 +321,7 @@ describe('a new written request (S11)', () => {
     expect(screen.queryByRole('checkbox', { name: /Clarifications/ })).toBeNull();
   });
 
-  it('S11: sends it, then gives the LEA reference and the 14-day deadline', async () => {
+  it("S11: sends it, then gives the LEA reference and the Commission's deadline", async () => {
     wrap(<NewRequestForm commissions={MOCK_COMMISSIONS} />);
     fillIn();
     fireEvent.click(screen.getByRole('button', { name: 'Send request' }));

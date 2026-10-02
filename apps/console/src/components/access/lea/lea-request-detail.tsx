@@ -21,6 +21,7 @@ import {
   InformationCircleIcon,
   JusticeScale01Icon,
   Notification03Icon,
+  Undo02Icon,
   ViewOffSlashIcon,
 } from '@hugeicons/core-free-icons';
 import { Link } from '@tanstack/react-router';
@@ -32,7 +33,7 @@ import { usePollWhile } from '../../use-poll-while';
 import { Grid, NotGiven, Part, Value } from '../form-k-card';
 import { scopePeople } from '../format';
 import { StatusBadge } from '../queue-list';
-import { Muted, SideCard, WaitingCard } from '../side-cards';
+import { Muted, OutcomeLine, SideCard, WaitingCard } from '../side-cards';
 import { DecidedCard } from '../decision/decided-card';
 import { PackageCard, usePackageState } from '../decision/package-card';
 import { isBreached, isOpenLea, leaStep, leaTimelineOf } from './lea-view';
@@ -128,6 +129,7 @@ export function LeaRequestDetail({
           {step.kind === 'verify' ? <LeaVerifyCard request={request} /> : null}
           {step.kind === 'waiting' ? <WaitingCard text={step.text} /> : null}
           {step.kind === 'decide' ? <DecideCard request={request} readOnly={readOnly} /> : null}
+          {step.kind === 'withdrawn' ? <WithdrawnCard request={request} /> : null}
           {request.decision ? <DecidedCard decision={request.decision} /> : null}
           {pkg ? (
             <PackageCard
@@ -161,9 +163,30 @@ function WhoIsTold({ request }: { request: LeaRequest }) {
     <Alert role="status" className="mb-4">
       <Icon icon={ViewOffSlashIcon} />
       <AlertDescription>
-        {request.status === 'denied' ? m.notToldDenied(request.agency.code) : m.toldAfterGrant}
+        {request.status === 'denied'
+          ? m.notToldDenied(request.agency.code)
+          : request.status === 'withdrawn'
+            ? m.notToldWithdrawn
+            : m.toldAfterGrant}
       </AlertDescription>
     </Alert>
+  );
+}
+
+/** Withdrawn by the officer who filed it, before a decision (user decision 5): closed. */
+function WithdrawnCard({ request }: { request: LeaRequest }) {
+  const withdrawn = request.timeline.find((entry) => entry.kind === 'withdrawn');
+  return (
+    <SideCard id="closed" title={m.closedTitle}>
+      <OutcomeLine icon={Undo02Icon} tone="default">
+        {m.withdrawnOutcome}
+      </OutcomeLine>
+      {withdrawn ? (
+        <p className="text-sm text-muted-foreground">
+          {m.withdrawnBy(request.officer.name, request.agency.code, formatDateTime(withdrawn.at))}
+        </p>
+      ) : null}
+    </SideCard>
   );
 }
 

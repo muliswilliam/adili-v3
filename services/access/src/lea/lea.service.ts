@@ -1,6 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { notFoundIfInvisible, type Principal, type ReadAudit } from '@adili/api-kit';
-import { DATABASE, type TenantContext, withTenant } from '@adili/data-access';
+import { DATABASE, switchTenant, type TenantContext, withTenant } from '@adili/data-access';
 import type { AccessRequestReceivedData } from '@adili/events/contracts';
 import { allocateReference, LEA } from '@adili/numbering';
 import { LAW_ENFORCEMENT_TENANT } from '@adili/roles';
@@ -14,9 +14,8 @@ import {
   requireAccessOfficer,
 } from '../access.js';
 import { addDays, Clock, nairobiYear } from '../clock.js';
-import { config } from '../config.js';
 import type { AccessDatabase, AccessTransaction } from '../db/database.js';
-import { responsibleCommission } from '../commissions/responsible-commission.js';
+import { accessPolicyOf, responsibleCommission } from '../commissions/responsible-commission.js';
 import { decisionOf, type DecisionInput, isDecisionRejection } from '../decision.js';
 import {
   DirectoryClient,
@@ -82,10 +81,12 @@ export class LeaService {
       ]),
     );
     const officer = await this.activeOfficer(principal, personId, commission.slug);
+    const policy = await accessPolicyOf(this.directory, commission.slug);
 
     const id = uuidv7();
     const now = this.clock.now();
-    const deadlineAt = addDays(now, config.LEA_DECISION_DAYS);
+    // The Commission's decision period in force at receipt: the request keeps it.
+    const deadlineAt = addDays(now, policy.leaDecisionDays);
     const { row, entry } = await withTenant(
       this.db,
       { tenant: commission.slug, subject: principal.subject },
@@ -328,6 +329,55 @@ export class LeaService {
     });
     await this.workflows.signal(requestId, 'decided');
     return this.view(decided, reader, principal);
+  }
+
+  /**
+   * The filing officer withdraws their request before its decision (user decision 5): it
+   * becomes `withdrawn`, with the `withdrawn` register entry and its event
+   * (`lea.request.withdrawn.v1`), in the Commission's context where the request belongs; then the
+   * workflow is told, which tells the Commission's access officers and ends. Only the officer who
+   * filed it (anyone else 404); a decided request 409 `request-decided`, a withdrawn one 409
+   * `request-closed`.
+   */
+  async withdraw(principal: Principal, requestId: string): Promise<LeaRequest> {
+    leaOfficerPersonId(principal);
+    const now = this.clock.now();
+    const reader: Reader = {
+      kind: 'lea-officer',
+      context: { tenant: LAW_ENFORCEMENT_TENANT, subject: principal.subject },
+    };
+    const withdrawn = await withTenant(this.db, reader.context, async (tx) => {
+      // The officer's own request, found in the law enforcement context; the withdrawal is then
+      // recorded in the Commission's, where the request and its register belong.
+      const own = notFoundIfInvisible(
+        await leaRow(tx, requestId, { officerSubject: principal.subject }),
+      );
+      await switchTenant(tx, { tenant: own.tenant, subject: principal.subject });
+      const current = notFoundIfInvisible(await leaRow(tx, own.id, { lock: true }));
+      requireUndecided(current);
+      const [updated] = await tx
+        .update(leaRequests)
+        .set({ status: 'withdrawn', closedAt: now })
+        .where(eq(leaRequests.id, current.id))
+        .returning();
+      if (!updated) throw new Error('The law enforcement request was not withdrawn');
+      await this.register.record(tx, {
+        tenant: updated.tenant,
+        subjectKind: 'lea-request',
+        subjectId: updated.id,
+        reference: updated.reference,
+        personId: updated.resolvedPersonId,
+        kind: 'withdrawn',
+        actor: { subject: principal.subject, name: updated.officerName },
+        at: now,
+      });
+      return {
+        row: updated,
+        entries: (await registerEntriesOf(tx, [updated.id], 'lea-request')).get(updated.id) ?? [],
+      };
+    });
+    await this.workflows.signal(requestId, 'withdrawn');
+    return this.view(withdrawn, reader, principal);
   }
 
   private view(found: LeaRecord, reader: Reader, principal: Principal): LeaRequest {

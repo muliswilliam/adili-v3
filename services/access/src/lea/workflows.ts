@@ -16,19 +16,19 @@ import {
 import { ACTIVITY_RETRY } from '../activity-retry.js';
 import type { LeaRequestActivities } from './activities.js';
 import {
-  dayAfterLeaReceipt,
-  LEA_REMINDER_DAY,
   LEA_REQUEST_CHECK_INTERVAL,
   LEA_REQUEST_SIGNALS,
   type LeaRequestResult,
   type LeaRequestSignal,
   type LeaRequestState,
   type LeaRequestWorkflowInput,
+  leaReminderDueAt,
 } from './contract.js';
 
 const {
   leaRequestState,
   remindLeaOfficers,
+  leaWithdrawnNotice,
   flagLeaBreach,
   leaDecisionNotice,
   notifyDeclarantOfLeaGrant,
@@ -62,7 +62,8 @@ interface RunState {
  * (full or partial) is then told to the declarant (only now, r.23(2)), its scoped disclosure is
  * issued as the officer's Confidential, watermarked package, the officer is told it is ready,
  * and it expires at the end of its download window. A denial is told to the officer only, with
- * its reasons behind sign-in; the declarant never hears of it.
+ * its reasons behind sign-in; the declarant never hears of it. The filing officer may withdraw
+ * it before the decision: the run tells the access officers and ends.
  *
  * The wait for the decision recovers from a lost signal by reading the request every
  * `LEA_REQUEST_CHECK_INTERVAL`. A reminder or breach flag that fails after its retries is logged
@@ -85,6 +86,11 @@ export async function leaRequest(input: LeaRequestWorkflowInput): Promise<LeaReq
     const received = await untilRecorded(input);
     if (received !== 'undecided') state.stop ??= received;
     const [stop] = await Promise.all([untilDecided(input, state), clock(input, state)]);
+    if (stop === 'withdrawn') {
+      // The access officers are told; one that cannot be is logged, and the run still ends.
+      await passOver(input, leaWithdrawnNotice);
+      return { outcome: stop };
+    }
     if (stop !== 'decided') return { outcome: stop };
     return { outcome: await afterDecision(input) };
   } catch (error) {
@@ -142,14 +148,15 @@ async function untilDecided(input: LeaRequestWorkflowInput, state: RunState): Pr
 }
 
 /**
- * The fourteen-day clock while the request is undecided: the reminder at day ten (passed over
- * when the deadline is due already), then the breach flag at the deadline. Either failing after
+ * The decision clock while the request is undecided (fourteen days by default): the reminder four
+ * days before the deadline (passed over when the deadline is due already), then the breach flag
+ * at the deadline. Either failing after
  * its retries is logged and passed over.
  */
 async function clock(input: LeaRequestWorkflowInput, state: RunState): Promise<void> {
   const decided = () => state.stop !== null;
   const deadline = new Date(input.deadlineAt).getTime();
-  const reminder = dayAfterLeaReceipt(input.receivedAt, LEA_REMINDER_DAY).getTime();
+  const reminder = leaReminderDueAt(input).getTime();
 
   if (reminder < deadline) {
     if (reminder > Date.now()) await condition(decided, reminder - Date.now());
@@ -173,7 +180,7 @@ async function passOver<T>(
     return await step(input);
   } catch (error) {
     if (!(error instanceof ActivityFailure)) throw error;
-    log.warn('A step of the law enforcement request clock failed', {
+    log.warn('A step of the law enforcement request workflow failed', {
       requestId: input.requestId,
       activity: error.activityType,
     });

@@ -252,7 +252,7 @@ const REQUEST = {
   officerChecking: en((commission: string) => `${commission} is checking its roster`),
   officerNotIdentified: en('Officer could not be identified'),
   officerNotified: en('Officer notified'),
-  officerNotifiedFuture: en('They get 7 days to respond'),
+  officerNotifiedFuture: en('They then have a window to respond'),
   officerResponding: en('They can respond before the decision'),
   decided: en('Decision'),
   decisionDueOn: en((date: string) => `Due ${date}`),
@@ -373,11 +373,11 @@ export const STATUS_BANNERS: Record<
 const SUBMITTED = {
   title: en('Request submitted'),
   acknowledged: en(
-    (date: string) =>
-      `Acknowledged ${date}. The Commission has 30 days to decide. You will be notified.`,
+    (date: string, deadline: string) =>
+      `Acknowledged ${date}. The Commission has until ${deadline} to decide. You will be notified.`,
   ),
   passport: en(
-    'Your identity will be verified by the Commission before it starts. The 30 days run from today.',
+    'Your identity will be verified by the Commission before it starts. The decision period runs from today.',
   ),
   view: en('View request'),
   myRequests: en('My requests'),

@@ -263,6 +263,35 @@ describe('AccessRequestWorkflow activities (S3, S5)', () => {
       expect(api.notifications.sent).toHaveLength(2);
     });
 
+    it("S3: the window is the Commission's representation window in force when it opens", async () => {
+      const input = await received();
+      await update(input.requestId, {
+        resolvedRosterRecordId: randomUUID(),
+        resolvedPersonId: randomUUID(),
+      });
+      api.directory.givenAccessPolicy('psc', { representationWindowDays: 10 });
+
+      const notified = await activities.resolution(input);
+
+      expect(notified).toEqual({ outcome: 'notified', windowEndsAt: '2027-03-14T09:00:00.000Z' });
+      expect((await rowOf(api, input.requestId)).windowEndsAt).toEqual(
+        new Date('2027-03-14T09:00:00.000Z'),
+      );
+    });
+
+    it('the directory unreachable: the resolution fails for the workflow to retry, nothing recorded', async () => {
+      const input = await received();
+      await update(input.requestId, {
+        resolvedRosterRecordId: randomUUID(),
+        resolvedPersonId: randomUUID(),
+      });
+      api.directory.failCalls(1, 'accessPolicy');
+
+      await expect(activities.resolution(input)).rejects.toThrow();
+      expect((await rowOf(api, input.requestId)).notifiedAt).toBeNull();
+      expect(await api.events('access.request.notified.v1')).toEqual([]);
+    });
+
     it('a request with no resolution behind the signal is unresolved; a withdrawn one withdrawn', async () => {
       const input = await received();
 

@@ -20,7 +20,10 @@ export interface LeaRequestWorkflowInput {
   requestId: string;
   /** ISO 8601: received (the reminder counts its days from it). */
   receivedAt: string;
-  /** ISO 8601: the decision deadline (received + `LEA_DECISION_DAYS`, fourteen). */
+  /**
+   * ISO 8601: the decision deadline (received + the Commission's law enforcement decision period at
+   * receipt, fourteen days by default).
+   */
   deadlineAt: string;
   /**
    * The receiving transaction (Postgres `xid8`): the workflow reads the request only once it has
@@ -39,10 +42,11 @@ export const LEA_REQUEST_SIGNALS = ['decided', 'withdrawn'] as const;
 export type LeaRequestSignal = (typeof LEA_REQUEST_SIGNALS)[number];
 
 /**
- * Days after receipt the access officers are reminded while the request is undecided (spec 10,
- * S11). At the deadline (day fourteen) an undecided request is flagged as breached.
+ * Days before the deadline the access officers are reminded while the request is undecided
+ * (spec 10, S11: day ten of the default fourteen). At the deadline an undecided request is flagged
+ * as breached.
  */
-export const LEA_REMINDER_DAY = 10;
+export const LEA_REMINDER_DAYS_BEFORE_DEADLINE = 4;
 
 /**
  * What a reminder or the breach flag did: done (`sent` / `flagged`), `skipped` because the
@@ -50,6 +54,9 @@ export const LEA_REMINDER_DAY = 10;
  */
 export type LeaReminderOutcome = 'sent' | 'skipped' | 'missing';
 export type LeaBreachOutcome = 'flagged' | 'skipped' | 'missing';
+
+/** What the withdrawal notice did: `sent` to the access officers, `skipped`, or `missing`. */
+export type LeaWithdrawnNoticeOutcome = 'sent' | 'skipped' | 'missing';
 
 /**
  * Where the request stands, read from the request itself (`leaRequestState`): first, once the
@@ -82,7 +89,9 @@ export interface LeaRequestResult {
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
-/** The instant `day` days after receipt. */
-export function dayAfterLeaReceipt(receivedAt: string, day: number): Date {
-  return new Date(new Date(receivedAt).getTime() + day * DAY_MS);
+/** When the access officers are reminded: four days before the deadline. */
+export function leaReminderDueAt(input: Pick<LeaRequestWorkflowInput, 'deadlineAt'>): Date {
+  return new Date(
+    new Date(input.deadlineAt).getTime() - LEA_REMINDER_DAYS_BEFORE_DEADLINE * DAY_MS,
+  );
 }

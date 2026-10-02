@@ -22,14 +22,20 @@ import { HISTORY_COPY as COPY } from '../../access/history-copy';
 import { entriesOfSubject, toRegisterEntry } from '../../access/history';
 import { STANCES } from '../../access/notice-copy';
 import { needsResponse, noticeState, scopeLine } from '../../access/notices';
-import type { AccessHistoryEntry, DeclarantNotice } from '../../server/access/types';
+import type {
+  AccessHistoryEntry,
+  DeclarantNotice,
+  FormKDeclarantNotice,
+  LeaDeclarantNotice,
+} from '../../server/access/types';
 import { NoticeStateBadge } from '../access-notices/notice-parts';
 import { GroundsList } from '../access/request-parts';
 import type { CertifiedCopies } from '../certified-copies/use-certified-copies';
 
 /**
  * A Who accessed entry opened: the access request (who asked, why, for what, the declarant's
- * response and the decision), the law-enforcement grant, or the certified copy, with the
+ * response and the decision), the law-enforcement grant (the agency, its case reference, the
+ * outcome and its dates, never its reason or the scope), or the certified copy, with the
  * request's own timeline and what the declarant can do next (respond, open the request,
  * download the copy).
  */
@@ -104,7 +110,8 @@ function RequestContent({
 }) {
   const lea = entry.subjectKind === 'lea-request';
   const timeline = entriesOfSubject(entry, all).map((each) => toRegisterEntry(each, all, notices));
-  const waiting = notice !== null && needsResponse(notice, now);
+  const respondBy =
+    notice?.kind === 'form-k' && needsResponse(notice, now) ? notice.windowEndsAt : null;
   return (
     <DrawerContent>
       <DrawerHeader>
@@ -116,9 +123,9 @@ function RequestContent({
       </DrawerHeader>
       <DrawerBody>
         {lea ? (
-          <LeaFacts entry={entry} notice={notice} />
+          <LeaFacts entry={entry} all={all} notice={notice?.kind === 'lea' ? notice : null} />
         ) : (
-          <FormKFacts entry={entry} notice={notice} now={now} />
+          <FormKFacts entry={entry} notice={notice?.kind === 'form-k' ? notice : null} now={now} />
         )}
         <section className="mt-1 grid gap-3">
           <h3 className="text-[15px] font-semibold">{COPY.timeline}</h3>
@@ -127,10 +134,10 @@ function RequestContent({
       </DrawerBody>
       {notice ? (
         <DrawerFooter>
-          {waiting && notice.windowEndsAt ? (
+          {respondBy ? (
             <Button asChild>
               <Link to="/access/notices/$id" params={{ id: notice.requestId }}>
-                {COPY.respondBy(formatDate(notice.windowEndsAt))}
+                {COPY.respondBy(formatDate(respondBy))}
               </Link>
             </Button>
           ) : (
@@ -152,7 +159,7 @@ function FormKFacts({
   now,
 }: {
   entry: AccessHistoryEntry;
-  notice: DeclarantNotice | null;
+  notice: FormKDeclarantNotice | null;
   now: string;
 }) {
   if (!notice) {
@@ -209,31 +216,38 @@ function FormKFacts({
   );
 }
 
+/**
+ * A law-enforcement grant: the agency, its case reference, the outcome and its dates only (spec
+ * 10 decision 4). From the notice when there is one, else from the register's grant entry.
+ */
 function LeaFacts({
   entry,
+  all,
   notice,
 }: {
   entry: AccessHistoryEntry;
-  notice: DeclarantNotice | null;
+  all: AccessHistoryEntry[];
+  notice: LeaDeclarantNotice | null;
 }) {
-  const decided = entry.kind === 'decided' ? entry : null;
-  const grantedAt = notice?.decision?.decidedAt ?? decided?.at ?? null;
-  const scope = notice?.decision?.grantedScope ?? notice?.scope ?? null;
+  const decided = entriesOfSubject(entry, all).find((each) => each.kind === 'decided') ?? null;
+  const agency = notice?.agency.name ?? entry.requester ?? COPY.someone;
+  const caseReference = notice?.caseReference ?? entry.caseReference;
+  const outcome =
+    notice?.outcome ?? (decided?.outcome === 'partial-grant' ? 'partial-grant' : 'grant');
+  const grantedAt = notice?.decidedAt ?? decided?.at ?? null;
   return (
     <Facts>
-      <Fact term={COPY.agencyTerm}>{entry.requester ?? COPY.someone}</Fact>
-      {entry.caseReference ? (
+      <Fact term={COPY.agencyTerm}>{agency}</Fact>
+      {caseReference ? (
         <Fact term={COPY.caseReference}>
-          <span className="font-mono text-[14px]">{entry.caseReference}</span>
+          <span className="font-mono text-[14px]">{caseReference}</span>
         </Fact>
       ) : null}
-      {scope ? <Fact term={COPY.scopeGranted}>{scopeLine(scope)}</Fact> : null}
-      <Fact term={COPY.decision}>
-        <span className="inline-flex flex-wrap items-center gap-2">
-          <NoticeStateBadge state="grant" />
-          {grantedAt ? <Muted>{formatDate(grantedAt)}</Muted> : null}
-        </span>
+      <Fact term={COPY.outcome}>
+        <NoticeStateBadge state={outcome} />
       </Fact>
+      {grantedAt ? <Fact term={COPY.grantedOn}>{formatDate(grantedAt)}</Fact> : null}
+      {notice ? <Fact term={COPY.notifiedOn}>{formatDate(notice.notifiedAt)}</Fact> : null}
     </Facts>
   );
 }

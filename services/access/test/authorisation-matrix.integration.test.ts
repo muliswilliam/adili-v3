@@ -104,7 +104,8 @@ describe('Access authorisation matrix (S16)', () => {
     };
 
     // A Form K request notified to Anne, with her representations and an attachment; another,
-    // only received, for the applicant to withdraw; a law enforcement request; a self-access
+    // only received, for the applicant to withdraw; two law enforcement requests (one for the
+    // officer to withdraw); a self-access
     // application whose copy is issued; and Anne's own certified copy.
     const notified = await notifiedRequest(api, anne);
     const attachment = api.documents.givenUpload('psc', { uploadedBy: anneDeclarant.sub });
@@ -117,6 +118,7 @@ describe('Access authorisation matrix (S16)', () => {
     expect(represented.statusCode, represented.body).toBe(200);
     const toWithdraw = await submitRequest(api);
     const lea = await submitLea(api);
+    const leaToWithdraw = await submitLea(api);
     const application = await api.send(
       'POST',
       '/v1/commissions/psc/access/self-access',
@@ -230,6 +232,12 @@ describe('Access authorisation matrix (S16)', () => {
           note: 'Sent from the DCI account; reason and case reference stated.',
         },
         expected: officerAct(200),
+      },
+      {
+        method: 'POST',
+        path: `/v1/lea/requests/${leaToWithdraw.id}/withdraw`,
+        body: {},
+        expected: { 'law-enforcement': 200 },
       },
       // A denial without grounds: 400 `grounds-required`.
       {

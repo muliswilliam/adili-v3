@@ -405,6 +405,7 @@ function build(seed: Seed, now: number): Stored {
       resolvedFileNumber: record?.personnelFileNumber ?? null,
       representations,
       windowEndsAt,
+      representationWindowDays: windowEndsAt === null ? WINDOW_DAYS : null,
     },
   };
 }
@@ -890,6 +891,7 @@ function advance(stored: Stored, now: number) {
     ...stored.view,
     status: 'awaiting-representations',
     windowEndsAt: iso(Date.parse(at), WINDOW_DAYS),
+    representationWindowDays: null,
     timeline: [...stored.view.timeline, entry('notified', at, null, stored.view.reference)],
   };
 }

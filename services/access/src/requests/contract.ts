@@ -21,8 +21,14 @@ export function accessRequestWorkflowId(requestId: string): string {
 export interface AccessRequestWorkflowInput {
   tenant: string;
   requestId: string;
-  /** ISO 8601: received (the reminders count their days from it). */
+  /** ISO 8601: received (the day-five reminder counts from it). */
   submittedAt: string;
+  /**
+   * ISO 8601: the decision deadline (received + the Commission's decision period at receipt); the
+   * deadline reminders count back from it. Absent from runs started before policies set the
+   * period: those read thirty days from receipt (`decisionDeadlineOf`).
+   */
+  decisionDeadlineAt?: string;
   /**
    * The receiving transaction (Postgres `xid8`): the workflow reads the request only once it has
    * ended (workflow-control.ts).
@@ -48,15 +54,19 @@ export const ACCESS_REQUEST_SIGNALS = [
 export type AccessRequestSignal = (typeof ACCESS_REQUEST_SIGNALS)[number];
 
 /**
- * Days after receipt the access officer is reminded (spec 10): to identify the officer (or first
- * to verify a passport applicant) at day five while they have not, and of the decision deadline
- * (day thirty) at days twenty and twenty-eight. Day five also marks a request going ahead
+ * The access officer's reminders (spec 10), each named by its day under the default thirty-day
+ * decision period: to identify the officer (or first to verify a passport applicant) at day five
+ * after receipt while they have not, and of the decision deadline ten and two days before it
+ * (days twenty and twenty-eight of thirty). Day five also marks a request going ahead
  * `officer-unresolved`.
  */
 export const IDENTIFY_REMINDER_DAY = 5;
 export const DEADLINE_REMINDER_DAYS = [20, 28] as const;
 export const OFFICER_REMINDER_DAYS = [IDENTIFY_REMINDER_DAY, ...DEADLINE_REMINDER_DAYS] as const;
 export type OfficerReminderDay = (typeof OFFICER_REMINDER_DAYS)[number];
+
+/** The default decision period, for runs whose input carries no deadline. */
+const DEFAULT_DECISION_DAYS = 30;
 
 export interface OfficerReminderRequest extends AccessRequestWorkflowInput {
   day: OfficerReminderDay;
@@ -143,4 +153,20 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 /** The instant `day` days after receipt. */
 export function dayAfterReceipt(submittedAt: string, day: number): Date {
   return new Date(new Date(submittedAt).getTime() + day * DAY_MS);
+}
+
+/** The request's decision deadline: its input's, else thirty days from receipt. */
+export function decisionDeadlineOf(input: AccessRequestWorkflowInput): Date {
+  return input.decisionDeadlineAt === undefined
+    ? dayAfterReceipt(input.submittedAt, DEFAULT_DECISION_DAYS)
+    : new Date(input.decisionDeadlineAt);
+}
+
+/**
+ * When the reminder `day` is due: day five from receipt; a deadline reminder as many days before
+ * the deadline as it is before day thirty (ten, two).
+ */
+export function reminderDueAt(input: AccessRequestWorkflowInput, day: OfficerReminderDay): Date {
+  if (day === IDENTIFY_REMINDER_DAY) return dayAfterReceipt(input.submittedAt, day);
+  return new Date(decisionDeadlineOf(input).getTime() - (DEFAULT_DECISION_DAYS - day) * DAY_MS);
 }

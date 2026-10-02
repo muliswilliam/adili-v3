@@ -91,8 +91,8 @@ export const en = {
 
   // Sent
   sentTitle: 'Request sent',
-  sentText: (date: string, commission: string, deadline: string) =>
-    `Received ${date}. ${commission} has 14 days to decide, by ${deadline}.`,
+  sentText: (date: string, commission: string, days: number, deadline: string) =>
+    `Received ${date}. ${commission} has ${plural(days, 'day')} to decide, by ${deadline}.`,
   viewRequest: 'View request',
   allRequests: 'All requests',
 
@@ -137,6 +137,26 @@ export const en = {
   downloadFailed: 'The package could not be downloaded. Try again.',
   windowClosedToast: 'The download window has closed.',
   withdrawn: 'Withdrawn',
+  withdrawnOn: (date: string) => `Withdrawn ${date}`,
+  withdrawnNote: (date: string) =>
+    `You withdrew this request on ${date}, before a decision. The Commission has closed it.`,
+
+  // Withdraw
+  withdraw: 'Withdraw request',
+  withdrawHint: 'No longer needed?',
+  withdrawTitle: (reference: string) => `Withdraw ${reference}?`,
+  withdrawLead: (commission: string) =>
+    `${commission} has not decided it yet. Withdraw it if the investigation no longer needs the declaration.`,
+  withdrawStops: 'The Commission stops work on it',
+  withdrawStopsText: 'Its access officers are told. The declarant is never told of it.',
+  withdrawFinal: 'This cannot be undone',
+  withdrawFinalText: 'Send a new request if you need access again.',
+  keepRequest: 'Keep request',
+  withdrawConfirm: 'Withdraw request',
+  withdrawnToast: (reference: string) => `${reference} withdrawn`,
+  withdrawDecided: 'The Commission has decided this request, so it can no longer be withdrawn.',
+  withdrawClosed: 'This request is already closed.',
+  withdrawFailed: 'We could not withdraw the request. Nothing changed. Try again.',
 };
 
 /** Swahili translations, key by key; empty until reviewed. */

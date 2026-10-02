@@ -13,7 +13,8 @@ import { define, email, longDate, NEVER_ASKS, paragraph, signInParagraph } from 
 /**
  * Templates of access to declarations (spec 10): to the declarant (a request was made, what was
  * decided, a law-enforcement grant), to the applicant (the acknowledgement of their Form K) or
- * law-enforcement officer (the decision, the package), to the access officer (reminders) and the declarant's certified copy. They name
+ * law-enforcement officer (the decision, the package), to the access officer (reminders, a
+ * law-enforcement request withdrawn) and the declarant's certified copy. They name
  * the request and the Commission only: who asked, why, and what was disclosed stay behind
  * sign-in.
  */
@@ -212,6 +213,24 @@ function leaDecisionEmail(params: LeaDecisionParams) {
         : `Your law-enforcement request ${params.reference} to ${params.commissionName} has been refused.`,
     ),
     signInParagraph(params.signInUrl, 'to see the decision and its reasons.'),
+  ]);
+}
+
+// ---- To the access officers: a law-enforcement request withdrawn before its decision ----
+
+const leaWithdrawnParams = z.strictObject({
+  reference: leaReference,
+  commissionName,
+  signInUrl,
+});
+type LeaWithdrawnParams = z.infer<typeof leaWithdrawnParams>;
+
+function leaWithdrawnEmail(params: LeaWithdrawnParams) {
+  return email(`Request ${params.reference} withdrawn`, [
+    paragraph(
+      `Law-enforcement request ${params.reference} to ${params.commissionName} was withdrawn by the officer who made it, before a decision. Nothing more is needed on it: it is closed, and the declarant is not told.`,
+    ),
+    signInParagraph(params.signInUrl, 'to see the request.'),
   ]);
 }
 
@@ -470,6 +489,20 @@ export const accessTemplates = {
     copy: {
       en: (params) => ({
         text: `Adili: law-enforcement request ${params.reference} was ${OUTCOME_WORDS[params.outcome]}. Details at ${params.signInUrl}`,
+      }),
+    },
+  }),
+  'lea-withdrawn-email': define({
+    channel: 'email',
+    params: leaWithdrawnParams,
+    copy: { en: leaWithdrawnEmail },
+  }),
+  'lea-withdrawn-sms': define({
+    channel: 'sms',
+    params: leaWithdrawnParams,
+    copy: {
+      en: (params) => ({
+        text: `Adili: law-enforcement request ${params.reference} was withdrawn before a decision. Nothing more is needed.`,
       }),
     },
   }),

@@ -81,7 +81,7 @@ export const MOCK_ACCESS_COMMISSIONS: MockCommission[] = [
 ];
 
 const DECISION_DAYS = 30;
-/** The access service's default download window (PACKAGE_DOWNLOAD_DAYS). */
+/** The default download window of a Commission's policy (access.packageDownloadDays). */
 const PACKAGE_DAYS = 14;
 const DAY = 86_400_000;
 

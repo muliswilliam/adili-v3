@@ -198,6 +198,26 @@ describe('AccessRequestWorkflow', () => {
     expect(mocks.resolution).not.toHaveBeenCalled();
   }, 60_000);
 
+  it("S5: the deadline reminders count back from the Commission's deadline: ten and two days before a 21-day one", async () => {
+    const received = await inputReceived();
+    const input = {
+      ...received,
+      decisionDeadlineAt: new Date(
+        new Date(received.submittedAt).getTime() + 21 * DAY_MS,
+      ).toISOString(),
+    };
+    const { mocks, recorded } = activities({
+      on: { 'remind-28': () => signalOwnWorkflow('withdrawn') },
+    });
+
+    await env.execute(accessRequest, options(mocks, input));
+
+    expect(recorded.calls).toEqual(['remind-5', 'remind-20', 'remind-28']);
+    expect(dayOf(input, recorded, 'remind-5')).toBe(5);
+    expect(dayOf(input, recorded, 'remind-20')).toBe(11);
+    expect(dayOf(input, recorded, 'remind-28')).toBe(19);
+  }, 60_000);
+
   it('S3: resolved, the declarant is notified; S5: the window elapses after 7 days and the request goes under decision, with the deadline reminders', async () => {
     const input = await inputReceived();
     const { mocks, recorded } = activities({

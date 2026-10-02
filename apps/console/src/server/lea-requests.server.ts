@@ -63,6 +63,22 @@ export function verifyLeaRequest(
   );
 }
 
+/**
+ * `POST .../withdraw`: the filing officer withdraws their request before a decision (409 once
+ * decided or withdrawn). The key makes a retry safe.
+ */
+export function withdrawLeaRequest(
+  client: AccessClient,
+  id: string,
+  idempotencyKey: string,
+): Promise<AccessResult<LeaRequest>> {
+  return callService(() =>
+    client.POST('/v1/lea/requests/{leaRequestId}/withdraw', {
+      params: { path: { leaRequestId: id }, header: { 'Idempotency-Key': idempotencyKey } },
+    }),
+  );
+}
+
 /** `POST .../decision`: grant or deny, final. */
 export function decideLeaRequest(
   client: AccessClient,

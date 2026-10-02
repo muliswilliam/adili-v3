@@ -5,6 +5,7 @@ import {
   Button,
   Card,
   Combobox,
+  daysBetween,
   formatDate,
   FormField,
   Icon,
@@ -53,7 +54,7 @@ const fieldId = (base: string, field: LeaField) => `${base}-${field}`;
  * A new written request (spec 10 FE-6, S11, Regs r.23(1)): the Commission, the officer sought,
  * the reason and the case reference, and the scope. The declarant is told only after a grant.
  * Sent once per form with its Idempotency-Key, so a retry after a network failure cannot file
- * it twice; then the LEA reference and the 14-day deadline.
+ * it twice; then the LEA reference and the deadline the Commission's policy sets.
  */
 export function NewRequestForm({ commissions }: { commissions: AccessCommission[] }) {
   const id = useId();
@@ -373,7 +374,7 @@ function SubmitAlert({ failure }: { failure: LeaSubmitFailure }) {
   );
 }
 
-/** Sent: the LEA reference, and the Commission's 14 days to decide. */
+/** Sent: the LEA reference, and the days the Commission's policy gives it to decide. */
 function RequestSent({ request }: { request: LeaRequest }) {
   return (
     <Card className="px-6 py-10 text-center">
@@ -385,6 +386,7 @@ function RequestSent({ request }: { request: LeaRequest }) {
           {m.sentText(
             formatDate(request.receivedAt),
             request.commission.name,
+            daysBetween(request.receivedAt, request.deadlineAt),
             formatDate(request.deadlineAt),
           )}
         </p>

@@ -124,7 +124,10 @@ export const accessRequests = pgTable(
     notifiedAt: timestamp({ withTimezone: true }),
     windowEndsAt: timestamp({ withTimezone: true }),
     submittedAt: timestamp({ withTimezone: true }).notNull(),
-    /** Received + `ACCESS_DECISION_DAYS` (30). */
+    /**
+     * Received + the Commission's decision period at receipt (policy `access.decisionDays`, thirty
+     * days by default).
+     */
     decisionDeadlineAt: timestamp({ withTimezone: true }).notNull(),
     decision: jsonb().$type<Decision>(),
     /** When it closed without a decision: withdrawn, or the officer cannot be identified. */

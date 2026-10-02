@@ -95,7 +95,10 @@ export const leaRequests = pgTable(
     resolvedName: text(),
     verification: jsonb().$type<LeaVerification>(),
     receivedAt: timestamp({ withTimezone: true }).notNull(),
-    /** Received + `LEA_DECISION_DAYS` (14). */
+    /**
+     * Received + the Commission's law enforcement decision period at receipt (policy
+     * `access.leaDecisionDays`, fourteen days by default).
+     */
     deadlineAt: timestamp({ withTimezone: true }).notNull(),
     /** When the access officer was reminded (day 10), and when the deadline passed undecided. */
     remindedAt: timestamp({ withTimezone: true }),
@@ -107,6 +110,8 @@ export const leaRequests = pgTable(
     downloadExpiresAt: timestamp({ withTimezone: true }),
     /** When the declarant was told of the grant (r.23(2): only after it). */
     declarantNotifiedAt: timestamp({ withTimezone: true }),
+    /** When it closed without a decision: withdrawn by its officer. */
+    closedAt: timestamp({ withTimezone: true }),
     createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp({ withTimezone: true })
       .notNull()

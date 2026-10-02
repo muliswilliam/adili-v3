@@ -11,7 +11,9 @@
  * - window closed without a response, and window closed with an objection (under decision);
  * - partially granted after an objection with a document, denied, granted after consent;
  * - withdrawn by the applicant after the declarant added context;
- * - a law-enforcement agency granted access.
+ * - a law-enforcement agency granted access, and another granted part of what it asked. A
+ *   law-enforcement notice carries the agency, its case reference, the outcome and its dates
+ *   only, never the agency's reason or the scope.
  *
  * Saving within the window keeps the first `submittedAt`; `consent` puts the request under
  * decision and closes the window. The text `Unavailable` answers 503, as when the access or key
@@ -25,6 +27,8 @@ import { isRecord, json, problem, readJson } from '../mock-http';
 import type {
   Decision,
   DeclarantNotice,
+  FormKDeclarantNotice,
+  LeaDeclarantNotice,
   Representations,
   RepresentationStance,
   Scope,
@@ -53,6 +57,7 @@ export const MOCK_NOTICE_IDS = {
   granted: 'b7e10000-0000-4000-8000-000000000007',
   withdrawn: 'b7e10000-0000-4000-8000-000000000008',
   lea: 'b7e10000-0000-4000-8000-000000000009',
+  leaPartial: 'b7e10000-0000-4000-8000-000000000010',
 } as const;
 
 const scope = (
@@ -101,16 +106,14 @@ function seed(now: number) {
     id: string,
     sequence: number,
     notifiedAt: string,
-    fields: Partial<DeclarantNotice>,
-  ): DeclarantNotice => ({
+    fields: Partial<FormKDeclarantNotice>,
+  ): FormKDeclarantNotice => ({
     requestId: id,
     reference: reference(sequence),
     kind: 'form-k',
     commission: TSC,
     status: 'under-decision',
     applicantName: 'Wanjiru Kamau',
-    agency: null,
-    caseReference: null,
     purposeInGeneralTerms: 'Journalistic research on school procurement in Nakuru County',
     scope: scope([2026], true, false, ['income', 'assets', 'liabilities']),
     notifiedAt,
@@ -118,6 +121,22 @@ function seed(now: number) {
     canRespond: false,
     representations: null,
     decision: null,
+    ...fields,
+  });
+  const lea = (
+    id: string,
+    sequence: number,
+    decidedAt: string,
+    fields: Pick<LeaDeclarantNotice, 'agency' | 'caseReference' | 'outcome'>,
+  ): LeaDeclarantNotice => ({
+    requestId: id,
+    reference: reference(sequence, LEA),
+    kind: 'lea',
+    commission: TSC,
+    status: 'granted',
+    decidedAt,
+    // The declarant hears of a grant shortly after it.
+    notifiedAt: new Date(Date.parse(decidedAt) + HOUR).toISOString(),
     ...fields,
   });
   const ids = MOCK_NOTICE_IDS;
@@ -213,23 +232,16 @@ function seed(now: number) {
         ago(128),
       ),
     }),
-    {
-      ...notice(ids.lea, 7, ago(26), {
-        status: 'granted',
-        applicantName: 'Asset Recovery Agency',
-        agency: { code: 'ARA', name: 'Asset Recovery Agency' },
-        caseReference: 'ARA/INV/2026/014',
-        purposeInGeneralTerms:
-          'Investigation under the Proceeds of Crime and Anti-Money Laundering Act',
-        scope: scope([2026], true, true, ALL),
-        windowEndsAt: null,
-        decision: decision('grant', ago(26, 1), 'Lawful request in an ongoing investigation.', {
-          grantedScope: scope([2026], true, true, ALL),
-        }),
-      }),
-      kind: 'lea',
-      reference: reference(7, LEA),
-    },
+    lea(ids.lea, 7, ago(26, 1), {
+      agency: { code: 'ARA', name: 'Asset Recovery Agency' },
+      caseReference: 'ARA/INV/2026/014',
+      outcome: 'grant',
+    }),
+    lea(ids.leaPartial, 4, ago(140), {
+      agency: { code: 'DCI', name: 'Directorate of Criminal Investigations' },
+      caseReference: 'DCI/ECU/2026/0331',
+      outcome: 'partial-grant',
+    }),
   ];
   notices.clear();
   closeOnSave.clear();
@@ -258,7 +270,8 @@ function save(id: string, body: unknown, key: string | null): Response {
     if (replay) return json(replay.status, replay.body);
   }
   const found = notices.get(id);
-  if (!found) return problem(404, 'No such request about the declarant');
+  // A law-enforcement grant takes no representations: the service knows no such Form K request.
+  if (found?.kind !== 'form-k') return problem(404, 'No such request about the declarant');
   if (
     !isRecord(body) ||
     typeof body.stance !== 'string' ||

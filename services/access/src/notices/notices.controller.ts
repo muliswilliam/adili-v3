@@ -15,6 +15,7 @@ import { z } from 'zod';
 import { NoticesService } from './notices.service.js';
 import {
   type DeclarantNotice,
+  type FormKDeclarantNotice,
   type RepresentationsInput,
   representationsInputSchema,
 } from './representation.js';
@@ -31,7 +32,7 @@ export class NoticesController {
     operationId: 'listMyAccessNotices',
     summary: 'Requests the declarant has been notified about, with windows and outcomes',
     description:
-      'Their own only, latest notified first: Form K requests from notification on; law enforcement requests (kind `lea`, with `agency` and `caseReference`, no representations) only once granted and the declarant told (r.23(2)).',
+      "Their own only, latest notified first: Form K requests from notification on; law enforcement requests (kind `lea`: the agency, its case reference, the outcome and the dates only, never the agency's reason or the decision's reasons or grounds; no representations) only once granted and the declarant told (r.23(2)). Form K notices carry the applicant's reason verbatim.",
   })
   @ApiOkResponse({
     description: 'Notices',
@@ -54,7 +55,7 @@ export class NoticesController {
       'One submission per request, changed as often as needed until the window closes (`access.request.representations.v1` each time). `consent` puts the request under decision at once and closes the window.',
   })
   @ApiBody({ required: true, schema: schemaRef('RepresentationsInput') })
-  @ApiOkResponse({ description: 'Saved', schema: schemaRef('DeclarantNotice') })
+  @ApiOkResponse({ description: 'Saved', schema: schemaRef('FormKDeclarantNotice') })
   @ApiProblemResponse(
     400,
     'requestId is not a UUID, the body failed validation, or an attachment is not a clean `access-representation` upload of the declarant',
@@ -69,7 +70,7 @@ export class NoticesController {
     @CurrentPrincipal() principal: Principal,
     @Param('requestId', new ZodValidationPipe(z.uuid())) requestId: string,
     @Body(new ZodValidationPipe(representationsInputSchema)) body: RepresentationsInput,
-  ): Promise<DeclarantNotice> {
+  ): Promise<FormKDeclarantNotice> {
     return this.notices.submit(principal, requestId, body);
   }
 }

@@ -85,12 +85,12 @@ describe('Who accessed my declaration', () => {
 
   it('filters by what the entries are about, with counts', async () => {
     const { onFilter } = renderView({ filter: 'lea' });
-    const lea = screen.getByRole('button', { name: 'Law enforcement 4 entries' });
+    const lea = screen.getByRole('button', { name: 'Law enforcement 8 entries' });
     expect(lea.getAttribute('aria-pressed')).toBe('true');
     const rows = within(
       screen.getByRole('group', { name: 'Who accessed my declaration' }),
     ).getAllByRole('listitem');
-    expect(rows).toHaveLength(4);
+    expect(rows).toHaveLength(8);
     await click(screen.getByRole('button', { name: 'Certified copies 2 entries' }));
     expect(onFilter).toHaveBeenCalledWith('copy');
   });
@@ -116,8 +116,33 @@ describe('Who accessed my declaration', () => {
     renderView({ filter: 'lea' });
     await click(screen.getByRole('button', { name: /Asset Recovery Agency was granted access/ }));
     const drawer = screen.getByRole('dialog', { name: 'Law-enforcement request' });
-    expect(drawer.textContent).toContain('ARA/INV/118/2026');
+    expect(drawer.textContent).toContain('ARA/INV/2026/014');
     expect(drawer.textContent).toContain('Granted');
+  });
+
+  it('shows a law-enforcement grant by agency, case, outcome and dates only', async () => {
+    renderView({ filter: 'lea' });
+    await click(
+      screen.getByRole('button', {
+        name: /Directorate of Criminal Investigations was partially granted access/,
+      }),
+    );
+    const drawer = screen.getByRole('dialog', { name: 'Law-enforcement request' });
+    const facts = Object.fromEntries(
+      within(drawer)
+        .getAllByRole('term')
+        .map((term) => [term.textContent, term.nextElementSibling?.textContent]),
+    );
+    expect(facts).toEqual({
+      Agency: 'Directorate of Criminal Investigations',
+      'Case reference': 'DCI/ECU/2026/0331',
+      Outcome: 'Partially granted',
+      'Granted on': '15 May 2026',
+      'Notified on': '15 May 2026',
+    });
+    for (const hidden of [/scope/i, /purpose/i, /reasons/i, /grounds/i]) {
+      expect(within(drawer).queryByText(hidden)).toBeNull();
+    }
   });
 
   it('opens a certified copy and downloads it', async () => {

@@ -27,12 +27,8 @@ const NOTICES = {
   someone: en('Someone has requested access to your declaration'),
   from: en((applicant: string) => `Access request from ${applicant}`),
   lea: en(
-    (date: string, agency: string) =>
-      `A law-enforcement agency was granted access on ${date} (${agency})`,
-  ),
-  leaCase: en(
-    (date: string, agency: string, caseReference: string) =>
-      `A law-enforcement agency was granted access on ${date} (${agency}, case ${caseReference})`,
+    (verb: string, date: string, agency: string, caseReference: string) =>
+      `A law-enforcement agency was ${verb} on ${date} (${agency}, case ${caseReference})`,
   ),
   notifiedOn: en((date: string) => `Notified ${date}`),
   decidedOn: en((date: string) => `Decided ${date}`),
@@ -103,6 +99,9 @@ const NOTICE = {
   agency: en('Agency'),
   caseReference: en('Case reference'),
   commission: en('Commission'),
+  outcome: en('Outcome'),
+  grantedOn: en('Granted on'),
+  notifiedOn: en('Notified on'),
   purpose: en('Purpose'),
   scopeAsked: en('Scope asked'),
   scopeAskedAndGranted: en('Scope asked and granted'),
@@ -142,11 +141,11 @@ const NOTICE = {
   notifiedBy: en((commission: string) => `Notified by ${commission}`),
   youEdited: en('You · edited'),
   officerOf: en((commission: string) => `Access officer, ${commission}`),
-  agencyGranted: en((agency: string) => `${agency} was granted access`),
-  agencyGrantedCase: en(
-    (agency: string, caseReference: string) =>
-      `${agency} was granted access (case ${caseReference})`,
+  agencyGranted: en(
+    (agency: string, verb: string, caseReference: string) =>
+      `${agency} was ${verb} (case ${caseReference})`,
   ),
+  youWereNotified: en('You were notified'),
 
   notFoundTitle: en('Access request not found'),
   notFoundText: en('The link may be wrong, or it is not about your declaration.'),

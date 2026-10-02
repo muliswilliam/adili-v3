@@ -142,6 +142,35 @@ describe('Form K submission (S2)', () => {
     expect(JSON.stringify(events)).not.toMatch(/Mercy|Njeri|journalist|land allocations/);
   });
 
+  it("S2: the decision deadline is the Commission's decision period in force at receipt", async () => {
+    given();
+    api.directory.givenAccessPolicy('psc', { decisionDays: 21 });
+
+    const response = await submit(COMPLETE);
+
+    expect(response.statusCode, response.body).toBe(201);
+    expect(response.json<{ decisionDeadlineAt: string }>().decisionDeadlineAt).toBe(
+      '2027-03-25T09:00:00.000Z',
+    );
+    const [received] = await api.events('access.request.received.v1');
+    expect(received?.data).toMatchObject({ decisionDeadlineAt: '2027-03-25T09:00:00.000Z' });
+    // The policy changing later leaves the request's deadline as it was.
+    api.directory.givenAccessPolicy('psc', { decisionDays: 40 });
+    const [row] = await api.asPlatform((tx) => tx.select().from(accessRequests));
+    expect(row?.decisionDeadlineAt).toEqual(new Date('2027-03-25T09:00:00.000Z'));
+  });
+
+  it("S2: the Commission's policy unreadable (directory down) is 503, and nothing is stored", async () => {
+    given();
+    api.directory.failCalls(1, 'accessPolicy');
+
+    const response = await submit(COMPLETE);
+
+    expect(response.statusCode).toBe(503);
+    expect(await api.asPlatform((tx) => tx.select().from(accessRequests))).toEqual([]);
+    expect(await api.events()).toEqual([]);
+  });
+
   it("S2: Part I's particulars are the directory's, whatever an API caller sends: the name stored and watermarked is the account's", async () => {
     given();
     const partI = COMPLETE.partI as Record<string, unknown>;

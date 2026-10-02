@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { ACCESS_OFFICER } from '@adili/roles';
-import { ToastProvider, TooltipProvider } from '@adili/ui';
+import { addDays, formatDate, ToastProvider, TooltipProvider } from '@adili/ui';
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -134,6 +134,9 @@ describe('RequestDetailView (spec 10 FE-5)', () => {
       name: 'Identify as Josephine Akinyi Ouma?',
     });
     expect(dialog.textContent).toContain('The declarant is notified');
+    expect(dialog.textContent).toContain(
+      "7 days under the Commission's policy, or earlier if they consent.",
+    );
     expect(dialog.textContent).toContain('This cannot be changed');
     fireEvent.click(within(dialog).getByRole('button', { name: 'Identify and notify' }));
 
@@ -148,6 +151,34 @@ describe('RequestDetailView (spec 10 FE-5)', () => {
       },
     });
     expect(await screen.findByText(/identified\. The declarant is being notified/)).toBeTruthy();
+  });
+
+  it("the identify dialog closes the window by the Commission's policy; without it, no date", async () => {
+    const view = await viewOf(R.identify);
+    renderDetail({ ...view, representationWindowDays: 10 });
+    const pick = async () => {
+      const card = within(side()).getByRole('region', { name: 'Identify officer' });
+      fireEvent.change(within(card).getByRole('searchbox', { name: /Search the roster/ }), {
+        target: { value: 'Ouma' },
+      });
+      fireEvent.submit(formOf(within(card).getByRole('searchbox')));
+      const results = await within(card).findByRole('list', { name: 'Roster records' });
+      fireEvent.click(
+        within(results).getByRole('button', { name: 'Select Josephine Akinyi Ouma' }),
+      );
+      return screen.findByRole('dialog', { name: 'Identify as Josephine Akinyi Ouma?' });
+    };
+    const dialog = await pick();
+    expect(dialog.textContent).toContain(
+      "10 days under the Commission's policy, or earlier if they consent.",
+    );
+    expect(dialog.textContent).toContain(`Representations close ${formatDate(addDays(NOW, 10))}`);
+    cleanup();
+
+    renderDetail({ ...view, representationWindowDays: null });
+    const unknown = await pick();
+    expect(unknown.textContent).toContain('Their window for representations opens');
+    expect(unknown.textContent).not.toContain('Representations close');
   });
 
   it('says when no roster record matches', async () => {

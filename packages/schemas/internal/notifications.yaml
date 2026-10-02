@@ -136,6 +136,8 @@ components:
         - lea-grant-notice-sms
         - lea-decision-email
         - lea-decision-sms
+        - lea-withdrawn-email
+        - lea-withdrawn-sms
         - certified-copy-ready-email
         - certified-copy-ready-sms
       description: Registered templates; each declares its channel and params
