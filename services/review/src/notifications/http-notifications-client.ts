@@ -63,9 +63,10 @@ export class HttpNotificationsClient extends NotificationsClient {
           body: {
             channel: message.channel,
             recipient: { kind: 'person', personId: message.personId },
-            // Review's templates join notifications' contract with #157; until then notifications
-            // refuses them with 422 (InternalApiRejected), which the activities do not retry.
-            template: message.template as string as MessageTemplate,
+            // The clarification templates are in notifications' contract; the decision, notice
+            // and salary ones (spec 08) join it later, and until then notifications refuses them
+            // with 400 (InternalApiRejected), which the activities do not retry.
+            template: message.template as MessageTemplate,
             params: message.params,
             locale: 'en',
             tenant: message.tenant,

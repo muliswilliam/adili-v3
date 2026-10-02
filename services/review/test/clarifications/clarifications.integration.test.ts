@@ -245,7 +245,7 @@ describe('clarifications: drafts, issue, letter payload, declarant reads', () =>
         template: 'clarification-issued-email',
         tenant: 'psc',
         params: {
-          commission: 'Public Service Commission',
+          commissionName: 'Public Service Commission',
           reference: issued.reference,
           dueDate: '2028-01-19',
           portalUrl,
@@ -257,7 +257,7 @@ describe('clarifications: drafts, issue, letter payload, declarant reads', () =>
         template: 'clarification-issued-sms',
         tenant: 'psc',
         params: {
-          commission: 'Public Service Commission',
+          commissionName: 'Public Service Commission',
           reference: issued.reference,
           dueDate: '2028-01-19',
           portalUrl,

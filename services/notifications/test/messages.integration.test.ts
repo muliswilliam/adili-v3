@@ -644,5 +644,102 @@ describe('internal messages API', () => {
         expect(directory.lookups).toHaveLength(0);
       });
     });
+
+    describe('clarification issued and reminder', () => {
+      const portalUrl =
+        'https://portal.adili.go.ke/clarifications/0199a8f0-6666-7000-8000-000000000001';
+      const issuedParams = {
+        reference: 'CLR-PSC-2028-0000451-1',
+        commissionName: 'Public Service Commission',
+        dueDate: '2028-09-30',
+        portalUrl,
+      };
+      const clarification = (
+        notice: 'issued' | 'reminder',
+        channel: 'sms' | 'email',
+        personId: string,
+      ) => ({
+        channel,
+        recipient: { kind: 'person', personId },
+        template: `clarification-${notice}-${channel}`,
+        params: notice === 'reminder' ? { ...issuedParams, daysLeft: 10 } : issuedParams,
+        tenant: 'psc',
+      });
+
+      it.each([
+        ['issued', 'Clarification request CLR-PSC-2028-0000451-1'],
+        [
+          'reminder',
+          'Reminder: clarification request CLR-PSC-2028-0000451-1 is due on 30 September 2028',
+        ],
+      ] as const)(
+        'emails the %s notice to the verified address, with no letter attached',
+        async (notice, subject) => {
+          const personId = newPerson();
+          directory.set(personId, { email: 'wanjiku@example.go.ke', phone: '+254712345678' });
+
+          const response = await send(clarification(notice, 'email', personId));
+
+          expect(response.statusCode).toBe(201);
+          expect(response.json()).toMatchObject({
+            channel: 'email',
+            template: `clarification-${notice}-email`,
+            status: 'sent',
+            error: null,
+          });
+          expect(email.sent).toHaveLength(1);
+          const sent = email.sent[0];
+          expect(sent?.to).toBe('wanjiku@example.go.ke');
+          expect(sent?.subject).toBe(subject);
+          for (const value of [
+            'CLR-PSC-2028-0000451-1',
+            'Public Service Commission',
+            '30 September 2028',
+            portalUrl,
+          ]) {
+            expect(sent?.text).toContain(value);
+            expect(sent?.html).toContain(value);
+          }
+          expect(Object.keys(sent ?? {}).sort()).toEqual(['html', 'subject', 'text', 'to']);
+          expect(sms.sent).toHaveLength(0);
+          expect(directory.lookups).toEqual([{ personId, tenant: 'psc' }]);
+        },
+      );
+
+      it.each([
+        [
+          'issued',
+          `Adili: Public Service Commission has sent you clarification request CLR-PSC-2028-0000451-1. Respond by 30 September 2028 at ${portalUrl}`,
+        ],
+        [
+          'reminder',
+          `Adili: clarification request CLR-PSC-2028-0000451-1 is due on 30 September 2028 (10 days). Respond at ${portalUrl}`,
+        ],
+      ] as const)('texts the %s notice to the verified phone', async (notice, text) => {
+        const personId = newPerson();
+        directory.set(personId, { email: 'wanjiku@example.go.ke', phone: '+254712345678' });
+
+        const response = await send(clarification(notice, 'sms', personId));
+
+        expect(response.statusCode).toBe(201);
+        expect(response.json()).toMatchObject({
+          template: `clarification-${notice}-sms`,
+          status: 'sent',
+        });
+        expect(sms.sent).toEqual([{ to: '+254712345678', text }]);
+        expect(email.sent).toHaveLength(0);
+      });
+
+      it('rejects a reminder without days left before looking anyone up', async () => {
+        const response = await send({
+          ...clarification('reminder', 'sms', newPerson()),
+          params: issuedParams,
+        });
+
+        expect(response.statusCode).toBe(400);
+        expect(response.json()).toMatchObject({ errors: [{ path: 'params.daysLeft' }] });
+        expect(directory.lookups).toHaveLength(0);
+      });
+    });
   });
 });

@@ -37,7 +37,7 @@ Reference numbers are sequential and so guessable. They are **never used as publ
 | Code | Record | Example |
 |---|---|---|
 | `DCI` / `DCB` / `DCF` | Initial / biennial / final declaration (the number is also the acknowledgement receipt number) | `DCB-TSC-2027-0012345-K` |
-| `CLR` | Clarification request (s.35) | `CLR-PSC-2028-0000451-3` |
+| `CLR` | Clarification request (s.35) | `CLR-PSC-2028-0000451-1` |
 | `CMP` | Compliance determination | `CMP-PSC-2028-0003120-P` |
 | `ADM` | Administrative action (notice, warning, salary stoppage, disciplinary) | `ADM-CPSB047-2028-0000087-X` |
 | `ARQ` | Access request, Form K (s.36, Reg 22) | `ARQ-JSC-2028-0000012-5` |

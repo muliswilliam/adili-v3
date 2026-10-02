@@ -10,6 +10,8 @@ export default defineConfig({
   test: {
     include: ['test/**/*.integration.test.ts'],
     testTimeout: 30_000,
+    // beforeAll migrates a fresh schema, which can take over 10 seconds on a busy shared Postgres.
+    hookTimeout: 30_000,
     env: {
       ...parseEnv(readFileSync('.env.example', 'utf8')),
       LOG_LEVEL: 'fatal',
