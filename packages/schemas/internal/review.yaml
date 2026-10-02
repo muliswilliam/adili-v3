@@ -4004,6 +4004,10 @@ components:
     ClarificationLetterPayload:
       type: object
       properties:
+        declarantPersonId:
+          type: string
+          format: uuid
+          description: 'Who may download the letter: the documents service checks the issue request against it. Not printed'
         declarantName:
           type: string
         commission:
@@ -4045,6 +4049,7 @@ components:
           type: string
           format: uri
       required:
+        - declarantPersonId
         - declarantName
         - commission
         - declarationReference

@@ -1332,6 +1332,11 @@ export interface components {
             requirementLabels: string[];
         };
         ClarificationLetterPayload: {
+            /**
+             * Format: uuid
+             * @description Who may download the letter: the documents service checks the issue request against it. Not printed
+             */
+            declarantPersonId: string;
             declarantName: string;
             commission: {
                 name: string;

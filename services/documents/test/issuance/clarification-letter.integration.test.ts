@@ -85,9 +85,13 @@ function letterPayload(
 }
 
 /** A clarification the review service holds the letter payload of, for the tenant. */
-function clarification(payload: unknown = letterPayload(), tenant = 'tsc'): string {
+function clarification(
+  payload: object = letterPayload(),
+  tenant = 'tsc',
+  declarantPersonId: string | null = DECLARANT_PERSON,
+): string {
   const id = randomUUID();
-  api.review.given(tenant, id, payload);
+  api.review.given(tenant, id, declarantPersonId ? { ...payload, declarantPersonId } : payload);
   return id;
 }
 
@@ -304,6 +308,39 @@ describe('S17 issuing a clarification letter: refusals and outages', () => {
     expect(response.statusCode).toBe(400);
     expect(response.json<Problem>().errors?.[0]).toMatchObject({ path: 'payload' });
     expect(await registered(`clarification:${id}`)).toEqual([]);
+  });
+
+  it("refuses a request naming another person than the clarification's declarant with 400", async () => {
+    const id = clarification();
+    const response = await issue({ ...letterBody(id), subjectPersonId: randomUUID() });
+    expect(response.statusCode).toBe(400);
+    expect(response.json<Problem>().errors).toEqual([
+      expect.objectContaining({ path: 'subjectPersonId' }),
+    ]);
+    const nobody = await issue({ ...letterBody(id), subjectPersonId: null });
+    expect(nobody.statusCode).toBe(400);
+    expect(await registered(`clarification:${id}`)).toEqual([]);
+  });
+
+  it("refuses a subject other than the clarification's with 400, before pulling", async () => {
+    const id = clarification();
+    const pulls = api.review.pulls.length;
+    const response = await issue({
+      ...letterBody(id),
+      subjectRef: `clarification:${randomUUID()}`,
+    });
+    expect(response.statusCode).toBe(400);
+    expect(response.json<Problem>().errors).toEqual([
+      expect.objectContaining({ path: 'subjectRef' }),
+    ]);
+    expect(api.review.pulls).toHaveLength(pulls);
+  });
+
+  it('refuses a pulled payload that names no declarant with 400', async () => {
+    const id = clarification(letterPayload(), 'tsc', null);
+    const response = await issue(letterBody(id));
+    expect(response.statusCode).toBe(400);
+    expect(response.json<Problem>().errors?.[0]).toMatchObject({ path: 'payload' });
   });
 
   it('refuses a request carrying the letter fields instead of the clarification id', async () => {

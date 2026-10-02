@@ -23,6 +23,7 @@ import {
 } from '@adili/events/contracts';
 import { and, eq } from 'drizzle-orm';
 import { v7 as uuidv7 } from 'uuid';
+import { z } from 'zod';
 
 import { config, SYSTEM_SUBJECT } from '../config.js';
 import type { DocumentsSchema } from '../db/schema.js';
@@ -50,6 +51,17 @@ interface DocumentWithRecord {
   document: DocumentRow;
   record: RecordRow;
 }
+/**
+ * Who the review service says the letter is for, beside the fields the template renders: the
+ * issue request's `subjectPersonId` must be this person.
+ */
+const letterSubject = z.looseObject({ declarantPersonId: z.uuid() });
+
+/** The subject of the letter of a clarification: one letter per clarification. */
+function clarificationSubjectRef(clarificationId: string): string {
+  return `clarification:${clarificationId}`;
+}
+
 /** Tries at a supersede whose records keep changing between signing and writing. */
 const MAX_SUPERSEDE_ATTEMPTS = 3;
 
@@ -111,6 +123,17 @@ export class IssuanceService {
         {
           path: 'templateVersion',
           message: `No template ${request.type} v${request.templateVersion}`,
+        },
+      ]);
+    }
+    if (
+      request.type === CLARIFICATION_LETTER &&
+      request.subjectRef !== clarificationSubjectRef(request.payload.clarificationId)
+    ) {
+      throw validationProblem([
+        {
+          path: 'subjectRef',
+          message: `A clarification letter's subject is ${clarificationSubjectRef(request.payload.clarificationId)}`,
         },
       ]);
     }
@@ -250,14 +273,16 @@ export class IssuanceService {
   /**
    * The fields the template renders: the request's own, or those the review service holds for
    * the letter's record (pulled for the same tenant). A record the review service does not hold
-   * is a refused request (400); a review service that fails is a 502, so the caller retries.
+   * is a refused request (400), and so is a request naming another person than the record's
+   * declarant as the one who may download the letter; a review service that fails is a 502, so
+   * the caller retries.
    */
   private async fieldsOf(request: IssueRequest): Promise<{ payload: unknown; pulled: boolean }> {
     if (request.type !== CLARIFICATION_LETTER) return { payload: request.payload, pulled: false };
     const { clarificationId } = request.payload;
+    let pulled: unknown;
     try {
-      const payload = await this.review.clarificationLetterPayload(request.tenant, clarificationId);
-      return { payload, pulled: true };
+      pulled = await this.review.clarificationLetterPayload(request.tenant, clarificationId);
     } catch (error) {
       if (error instanceof ClarificationNotFound) {
         throw validationProblem([
@@ -278,6 +303,22 @@ export class IssuanceService {
       }
       throw error;
     }
+    const subject = letterSubject.safeParse(pulled);
+    if (!subject.success) {
+      throw validationProblem([
+        { path: 'payload', message: 'The pulled payload names no declarant person id' },
+      ]);
+    }
+    const { declarantPersonId, ...payload } = subject.data;
+    if (request.subjectPersonId !== declarantPersonId) {
+      throw validationProblem([
+        {
+          path: 'subjectPersonId',
+          message: "Must be the clarification's declarant, who alone may download the letter",
+        },
+      ]);
+    }
+    return { payload, pulled: true };
   }
 
   /**
