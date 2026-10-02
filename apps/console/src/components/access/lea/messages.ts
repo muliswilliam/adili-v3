@@ -1,4 +1,18 @@
 /**
+ * Where the declarant stands, as the register's first entry reads it now: told after the grant
+ * (online, or in writing), never told (denied or withdrawn: Regulation 23(2) tells only of a
+ * grant), or not yet.
+ */
+export type ReceivedDeclarant = 'not-yet' | 'never' | 'notified' | 'notified-in-writing';
+
+const RECEIVED_DECLARANT: Record<ReceivedDeclarant, string> = {
+  'not-yet': 'Declarant not told yet.',
+  never: 'Declarant not told.',
+  notified: 'Declarant notified after grant.',
+  'notified-in-writing': 'Declarant notified in writing after grant.',
+};
+
+/**
  * Copy of law enforcement requests in the Access requests workspace (spec 10 FE-6), from the
  * console prototype (`apps/console/prototype/10-access.prototype.html`): the access officer's
  * request page, verification and decision. English, with an empty Swahili slot (`sw`), as
@@ -68,7 +82,8 @@ export const en = {
   registerTitle: 'Register',
   registerLabel: 'Access register',
   whereItStands: 'Where the request stands',
-  receivedSummary: (caseReference: string) => `Case ${caseReference}. Declarant not told yet.`,
+  receivedSummary: (caseReference: string, declarant: ReceivedDeclarant) =>
+    `Case ${caseReference}. ${RECEIVED_DECLARANT[declarant]}`,
   requestVerified: 'Request verified',
   officerIdentifiedSummary: (name: string) => `Officer identified: ${name}.`,
   notifiedAfterGrant: 'Declarant notified after grant',

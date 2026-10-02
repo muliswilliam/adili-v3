@@ -15,6 +15,8 @@ function request(over: Partial<LeaRequest>): LeaRequest {
     officer: { subject: 's', name: 'Suleiman Ali' },
     resolvedName: null,
     decision: null,
+    declarantNotifiedAt: null,
+    declarantNotice: null,
     timeline: [],
     ...over,
   } as LeaRequest;
@@ -100,6 +102,43 @@ describe('leaTimelineOf', () => {
     });
     expect(entries[2]).toMatchObject({ outcome: 'deny', summary: 'DCI told with reasons.' });
     expect(entries[3]).toMatchObject({ title: 'Declarant notified after grant' });
+  });
+
+  it('reads the received entry by where the declarant stands now: told online or in writing, never, or not yet', () => {
+    const received = {
+      id: '1',
+      kind: 'received' as const,
+      at: NOW,
+      actor: null,
+      summary: '',
+      reference: 'x',
+      inWriting: false,
+    };
+    const summaryOf = (over: Partial<LeaRequest>) =>
+      leaTimelineOf(request({ timeline: [received], ...over }))[0]?.summary;
+    const notice = (channel: 'online' | 'written') =>
+      ({
+        channel,
+        notifiedAt: NOW,
+        notifiedOn: null,
+        recordedBy: null,
+      }) as LeaRequest['declarantNotice'];
+    expect(summaryOf({ status: 'verified' })).toBe(
+      'Case DCI/ECU/142/2026. Declarant not told yet.',
+    );
+    expect(summaryOf({ status: 'granted' })).toBe('Case DCI/ECU/142/2026. Declarant not told yet.');
+    expect(
+      summaryOf({ status: 'granted', declarantNotifiedAt: NOW, declarantNotice: notice('online') }),
+    ).toBe('Case DCI/ECU/142/2026. Declarant notified after grant.');
+    expect(
+      summaryOf({
+        status: 'granted',
+        declarantNotifiedAt: NOW,
+        declarantNotice: notice('written'),
+      }),
+    ).toBe('Case DCI/ECU/142/2026. Declarant notified in writing after grant.');
+    expect(summaryOf({ status: 'denied' })).toBe('Case DCI/ECU/142/2026. Declarant not told.');
+    expect(summaryOf({ status: 'withdrawn' })).toBe('Case DCI/ECU/142/2026. Declarant not told.');
   });
 
   it('reads the steps of a nil letter as the letter, not a package (decision 1)', () => {
