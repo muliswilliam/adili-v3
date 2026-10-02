@@ -5,10 +5,10 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { submitMyRepresentations } from '../../server/access-notices';
 import type { SaveResult } from '../../server/access-notices.server';
-import type { DeclarantNotice } from '../../server/access/types';
+import type { DeclarantNotice, FormKDeclarantNotice } from '../../server/access/types';
 import { completeAttachmentUpload, createAttachmentUpload } from '../../server/documents/uploads';
 import { NoticePage } from './notice-page';
-import { IDS, NOW, seededNotice } from './testing';
+import { IDS, NOW, seededFormKNotice, seededNotice } from './testing';
 
 vi.mock('@tanstack/react-router', async () =>
   (await import('../declaration/testing-mocks')).routerMock(),
@@ -57,7 +57,7 @@ async function press(name: string, scope: HTMLElement = document.body) {
 }
 
 /** What the service answers to a save: the notice with the body applied. */
-function saved(notice: DeclarantNotice, change: Partial<DeclarantNotice>): SaveResult {
+function saved(notice: FormKDeclarantNotice, change: Partial<FormKDeclarantNotice>): SaveResult {
   return { status: 'saved', notice: { ...notice, ...change } };
 }
 
@@ -92,7 +92,7 @@ describe('a request waiting for the declarant (S4)', () => {
   });
 
   it('sends an objection, then shows it with Edit until the window closes', async () => {
-    const notice = await seededNotice(IDS.awaiting);
+    const notice = await seededFormKNotice(IDS.awaiting);
     renderPage(notice);
     fireEvent.click(screen.getByRole('radio', { name: 'Object' }));
     fireEvent.change(screen.getByLabelText('Your reasons'), {
@@ -136,7 +136,7 @@ describe('a request waiting for the declarant (S4)', () => {
   });
 
   it('confirms a consent, which closes the window early', async () => {
-    const notice = await seededNotice(IDS.awaiting);
+    const notice = await seededFormKNotice(IDS.awaiting);
     renderPage(notice);
     fireEvent.click(screen.getByRole('radio', { name: 'Consent' }));
     expect(screen.getByLabelText(/^Comments/)).toBeTruthy();
@@ -299,10 +299,30 @@ describe('after the window and the decision', () => {
     expect(banner()).toMatch(
       /^A law-enforcement agency was granted access on 6 Sep 2026 \(Asset Recovery Agency, case ARA\/INV\/2026\/014\)\./,
     );
-    expect(screen.getByText('Scope granted')).toBeTruthy();
-    expect(screen.getByText('Case reference')).toBeTruthy();
     expect(screen.getAllByText('ARA/INV/2026/014', { selector: 'span' })).not.toHaveLength(0);
     expect(screen.queryByRole('radiogroup')).toBeNull();
     expect(screen.queryByText('Your response')).toBeNull();
+  });
+
+  it('shows only the agency, case reference, outcome and dates of a law-enforcement grant', async () => {
+    renderPage(await seededNotice(IDS.leaPartial));
+    const facts = Object.fromEntries(
+      screen
+        .getAllByRole('term')
+        .map((term) => [term.textContent, term.nextElementSibling?.textContent]),
+    );
+    expect(facts).toEqual({
+      Agency: 'Directorate of Criminal Investigations',
+      'Case reference': 'DCI/ECU/2026/0331',
+      Commission: 'Teachers Service Commission',
+      Outcome: 'Partially granted',
+      'Granted on': '15 May 2026',
+      'Notified on': '15 May 2026',
+    });
+    expect(banner()).toMatch(/^A law-enforcement agency was partially granted access on /);
+    for (const hidden of [/scope/i, /purpose/i, /reasons/i, /grounds/i, /decision/i, /window/i]) {
+      expect(screen.queryByText(hidden)).toBeNull();
+    }
+    expect(screen.getByText('You were notified')).toBeTruthy();
   });
 });

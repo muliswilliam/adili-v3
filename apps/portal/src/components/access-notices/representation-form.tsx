@@ -50,7 +50,7 @@ import {
   textError,
 } from '../../access/representation-form';
 import type {
-  DeclarantNotice,
+  FormKDeclarantNotice,
   Representations,
   RepresentationStance,
 } from '../../server/access/types';
@@ -164,7 +164,7 @@ export function RepresentationFormCard({
   onSubmit,
   onCancel,
 }: {
-  notice: DeclarantNotice;
+  notice: FormKDeclarantNotice;
   state: RepresentationFormState;
   /** Changing a sent response: Save changes and Cancel. */
   editing: boolean;
@@ -388,7 +388,7 @@ export function ConsentDialog({
 }: {
   open: boolean;
   busy: boolean;
-  notice: DeclarantNotice;
+  notice: FormKDeclarantNotice;
   onOpenChange: (open: boolean) => void;
   onConfirm: () => void;
 }) {
@@ -422,7 +422,7 @@ export function ConsentDialog({
 }
 
 /** The toast after a save. */
-export function savedToast(notice: DeclarantNotice, first: boolean): string {
+export function savedToast(notice: FormKDeclarantNotice, first: boolean): string {
   if (notice.representations?.stance === 'consent') return COPY.sentConsent(notice.commission.name);
   if (first && notice.windowEndsAt) {
     return COPY.sentFirst(notice.commission.name, formatDate(notice.windowEndsAt));

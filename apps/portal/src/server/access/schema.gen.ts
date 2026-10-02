@@ -272,6 +272,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/lea/requests/{leaRequestId}/withdraw": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * The filing officer withdraws their request before a decision
+         * @description Only the officer who filed it, while it is `received` or `verified`. It becomes `withdrawn` (`lea.request.withdrawn.v1`, in the access register) and the Commission's access officers are told by email; the declarant is never told. Idempotent per Idempotency-Key.
+         */
+        post: operations["withdrawLeaRequest"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/lea/requests/{leaRequestId}/roster-candidates": {
         parameters: {
             query?: never;
@@ -341,7 +361,7 @@ export interface paths {
         };
         /**
          * Requests the declarant has been notified about, with windows and outcomes
-         * @description Their own only, latest notified first: Form K requests from notification on; law enforcement requests (kind `lea`, with `agency` and `caseReference`, no representations) only once granted and the declarant told (r.23(2)).
+         * @description Their own only, latest notified first: Form K requests from notification on; law enforcement requests (kind `lea`: the agency, its case reference, the outcome and the dates only, never the agency's reason or the decision's reasons or grounds; no representations) only once granted and the declarant told (r.23(2)). Form K notices carry the applicant's reason verbatim.
          */
         get: operations["listMyAccessNotices"];
         put?: never;
@@ -666,6 +686,8 @@ export interface components {
             resolvedFileNumber: string | null;
             representations: components["schemas"]["Representations"] | null;
             windowEndsAt: string | null;
+            /** @description Days the declarant would have for representations if notified now (the Commission's policy in force), for the access officer identifying the officer; null once notified (see `windowEndsAt`), or when the policy cannot be read */
+            representationWindowDays: number | null;
         };
         VerifyApplicantIdentity: {
             verified: boolean;
@@ -739,12 +761,12 @@ export interface components {
             /** @description Clean uploads of purpose `access-representation` by the declarant */
             attachments: string[];
         };
-        DeclarantNotice: {
+        FormKDeclarantNotice: {
             /** Format: uuid */
             requestId: string;
             reference: string;
-            /** @enum {string} */
-            kind: "form-k" | "lea";
+            /** @constant */
+            kind: "form-k";
             commission: {
                 slug: string;
                 name: string;
@@ -752,13 +774,6 @@ export interface components {
             status: components["schemas"]["AccessRequestStatus"];
             applicantName: string;
             purposeInGeneralTerms: string;
-            /** @description The agency of a law enforcement request (from its grant); null for Form K */
-            agency: {
-                code: string;
-                name: string;
-            } | null;
-            /** @description The agency's case reference of a law enforcement request (from its grant); null for Form K */
-            caseReference: string | null;
             scope: components["schemas"]["Scope"];
             /** Format: date-time */
             notifiedAt: string;
@@ -767,6 +782,35 @@ export interface components {
             representations: components["schemas"]["Representations"] | null;
             decision: components["schemas"]["Decision"] | null;
         };
+        LeaDeclarantNotice: {
+            /** Format: uuid */
+            requestId: string;
+            reference: string;
+            /** @constant */
+            kind: "lea";
+            commission: {
+                slug: string;
+                name: string;
+            };
+            /** @constant */
+            status: "granted";
+            agency: {
+                code: string;
+                name: string;
+            };
+            /** @description The agency's case reference */
+            caseReference: string;
+            /**
+             * @description Granted in full or in part (the scope disclosed is not shown)
+             * @enum {string}
+             */
+            outcome: "grant" | "partial-grant";
+            /** Format: date-time */
+            decidedAt: string;
+            /** Format: date-time */
+            notifiedAt: string;
+        };
+        DeclarantNotice: components["schemas"]["FormKDeclarantNotice"] | components["schemas"]["LeaDeclarantNotice"];
         AccessCommission: {
             /** @description The form-k.v1 `responsibleCommission` */
             slug: string;
@@ -2066,6 +2110,80 @@ export interface operations {
             };
         };
     };
+    withdrawLeaRequest: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Client-generated UUID, unique per logical request; reuse on retry */
+                "Idempotency-Key": string;
+            };
+            path: {
+                leaRequestId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Withdrawn */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LeaRequest"];
+                };
+            };
+            /** @description leaRequestId is not a UUID */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /**
+             * @description Not a law enforcement officer account
+             *
+             *     Requires one of the roles: law-enforcement
+             */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description No such request of the caller's (another officer's, another Commission's, EACC's or anyone else's view) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Problem code `request-decided` (a decision is final) or `request-closed` (withdrawn already) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Idempotency-Key reused with a different request body */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
     listLeaRosterCandidates: {
         parameters: {
             query: {
@@ -2367,7 +2485,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["DeclarantNotice"];
+                    "application/json": components["schemas"]["FormKDeclarantNotice"];
                 };
             };
             /** @description requestId is not a UUID, the body failed validation, or an attachment is not a clean `access-representation` upload of the declarant */

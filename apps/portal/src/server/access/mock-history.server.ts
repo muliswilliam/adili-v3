@@ -228,8 +228,8 @@ function noticeEntries(notice: DeclarantNotice, now: number): AccessHistoryEntry
     subjectId: notice.requestId,
     reference: notice.reference,
     commission: notice.commission,
-    requester: notice.applicantName,
-    caseReference: notice.kind === 'lea' ? 'ARA/INV/118/2026' : null,
+    requester: notice.kind === 'lea' ? notice.agency.name : notice.applicantName,
+    caseReference: notice.kind === 'lea' ? notice.caseReference : null,
     certifiedCopy: null,
   };
   const entries: AccessHistoryEntry[] = [];
@@ -251,31 +251,35 @@ function noticeEntries(notice: DeclarantNotice, now: number): AccessHistoryEntry
       ...extra,
     });
   };
-  const lea = notice.kind === 'lea';
-  if (!lea) add('notified', notice.notifiedAt, 'Declarant notified');
-  const sent = notice.representations;
-  if (!lea && sent) {
-    add('representations', sent.submittedAt, 'Representations received');
-    if (sent.updatedAt !== sent.submittedAt) {
-      add('representations', sent.updatedAt, 'Representations received');
+  if (notice.kind === 'form-k') {
+    add('notified', notice.notifiedAt, 'Declarant notified');
+    const sent = notice.representations;
+    if (sent) {
+      add('representations', sent.submittedAt, 'Representations received');
+      if (sent.updatedAt !== sent.submittedAt) {
+        add('representations', sent.updatedAt, 'Representations received');
+      }
+    }
+    if (notice.status === 'withdrawn') {
+      const at = sent ? Date.parse(sent.updatedAt) + 2 * DAY : Date.parse(notice.notifiedAt) + DAY;
+      add('withdrawn', new Date(at).toISOString(), 'Request withdrawn', {
+        actor: notice.applicantName,
+      });
     }
   }
-  if (notice.status === 'withdrawn') {
-    const at = sent ? Date.parse(sent.updatedAt) + 2 * DAY : Date.parse(notice.notifiedAt) + DAY;
-    add('withdrawn', new Date(at).toISOString(), 'Request withdrawn', {
-      actor: notice.applicantName,
-    });
-  }
-  const { decision } = notice;
-  if (decision) {
-    add('decided', decision.decidedAt, 'Decision recorded', { outcome: decision.outcome });
-    if (decision.outcome !== 'deny') {
-      const issuedAt = Date.parse(decision.decidedAt) + 4 * MINUTE;
+  const decided =
+    notice.kind === 'lea'
+      ? { outcome: notice.outcome, decidedAt: notice.decidedAt }
+      : notice.decision;
+  if (decided) {
+    add('decided', decided.decidedAt, 'Decision recorded', { outcome: decided.outcome });
+    if (decided.outcome !== 'deny') {
+      const issuedAt = Date.parse(decided.decidedAt) + 4 * MINUTE;
       add('package-issued', new Date(issuedAt).toISOString(), 'Package issued');
       const downloadedAt = issuedAt + DAY - 3 * HOUR;
       if (downloadedAt < now) {
         add('downloaded', new Date(downloadedAt).toISOString(), 'Package downloaded', {
-          actor: lea ? null : notice.applicantName,
+          actor: notice.kind === 'lea' ? null : notice.applicantName,
         });
       }
       const expiresAt = issuedAt + PACKAGE_DAYS * DAY;

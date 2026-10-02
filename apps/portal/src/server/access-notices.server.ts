@@ -1,5 +1,5 @@
 import type { AccessClient } from './access/client.server';
-import type { DeclarantNotice, RepresentationsInput } from './access/types';
+import type { DeclarantNotice, FormKDeclarantNotice, RepresentationsInput } from './access/types';
 import { attempt, type NotFound, notFound, type Unavailable, unavailable } from './results';
 
 /**
@@ -35,7 +35,7 @@ export async function loadNotice(client: AccessClient, requestId: string): Promi
 }
 
 export type SaveResult =
-  | { status: 'saved'; notice: DeclarantNotice }
+  | { status: 'saved'; notice: FormKDeclarantNotice }
   /** 409 `representations-closed`: the window closed, or the request closed, while editing. */
   | { status: 'closed' }
   /** 400: an attachment is not a clean upload of the declarant, or the body was refused. */

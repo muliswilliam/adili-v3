@@ -18,7 +18,7 @@ import {
   Undo02Icon,
 } from '@hugeicons/core-free-icons';
 
-import type { DeclarantNotice, Outcome, Scope } from '../server/access/types';
+import type { DeclarantNotice, LeaDeclarantNotice, Outcome, Scope } from '../server/access/types';
 import { NOTICE_COPY, NOTICES_COPY, OUTCOMES, STANCES } from './notice-copy';
 
 /**
@@ -44,7 +44,7 @@ export function windowOpen(notice: DeclarantNotice, now: string): boolean {
 
 /** Waits for the declarant: the window is open and they have not responded. */
 export function needsResponse(notice: DeclarantNotice, now: string): boolean {
-  return windowOpen(notice, now) && notice.representations === null;
+  return notice.kind === 'form-k' && windowOpen(notice, now) && notice.representations === null;
 }
 
 export function noticeState(notice: DeclarantNotice, now: string): NoticeState {
@@ -54,6 +54,14 @@ export function noticeState(notice: DeclarantNotice, now: string): NoticeState {
   if (notice.decision) return notice.decision.outcome;
   if (windowOpen(notice, now)) return notice.representations ? 'saved' : 'awaiting';
   return 'under-decision';
+}
+
+/**
+ * The state a notice's badge shows: a law-enforcement grant by its outcome (granted or partially
+ * granted), anything else by where it stands.
+ */
+export function badgeState(notice: DeclarantNotice, now: string): NoticeState {
+  return notice.kind === 'lea' ? notice.outcome : noticeState(notice, now);
 }
 
 export interface StateMeta {
@@ -91,26 +99,18 @@ export function sortNotices(notices: DeclarantNotice[], now: string): DeclarantN
   );
 }
 
-/** When access was granted to a law-enforcement agency (the notice comes after the grant). */
-export function leaGrantedAt(notice: DeclarantNotice): string {
-  return notice.decision?.decidedAt ?? notice.notifiedAt;
-}
-
 /**
  * "A law-enforcement agency was granted access on 2 Sep 2026 (Asset Recovery Agency, case
- * ARA/INV/2026/014)": the agency and its case reference from the grant.
+ * ARA/INV/2026/014)": the outcome, the agency and its case reference from the grant. Never the
+ * agency's reason or the decision's grounds (spec 10 decision 4).
  */
-export function leaTitle(notice: DeclarantNotice): string {
-  const date = formatDate(leaGrantedAt(notice));
-  const agency = agencyName(notice);
-  return notice.caseReference
-    ? NOTICES_COPY.leaCase(date, agency, notice.caseReference)
-    : NOTICES_COPY.lea(date, agency);
-}
-
-/** The agency a law enforcement notice names: its name, or the applicant name it was sent as. */
-export function agencyName(notice: DeclarantNotice): string {
-  return notice.agency?.name ?? notice.applicantName;
+export function leaTitle(notice: LeaDeclarantNotice): string {
+  return NOTICES_COPY.lea(
+    OUTCOMES[notice.outcome].verb.en,
+    formatDate(notice.decidedAt),
+    notice.agency.name,
+    notice.caseReference,
+  );
 }
 
 /** Whose details a scope covers, in a few words: "You and spouse". */
@@ -128,7 +128,9 @@ export function scopeLine(scope: Scope): string {
 
 /** Calendar days until the window ends, in Kenyan time (0 on the last day). */
 export function daysLeft(notice: DeclarantNotice, now: string): number {
-  return notice.windowEndsAt ? daysBetween(now, notice.windowEndsAt) : 0;
+  return notice.kind === 'form-k' && notice.windowEndsAt
+    ? daysBetween(now, notice.windowEndsAt)
+    : 0;
 }
 
 export interface WindowView {
@@ -147,8 +149,9 @@ export interface WindowView {
  * countdown while open, else how it closed. Null when there is no window to show.
  */
 export function windowView(notice: DeclarantNotice, now: string): WindowView | null {
+  if (notice.kind !== 'form-k') return null;
   const { windowEndsAt } = notice;
-  if (notice.kind !== 'form-k' || !windowEndsAt || notice.decision) return null;
+  if (!windowEndsAt || notice.decision) return null;
   if (notice.status === 'withdrawn' || notice.status === 'cannot-identify') return null;
   const of = Math.max(1, daysBetween(notice.notifiedAt, windowEndsAt));
   const open = windowOpen(notice, now);
@@ -194,12 +197,21 @@ export function historyOf(notice: DeclarantNotice): RegisterEntry[] {
       {
         id: 'granted',
         kind: 'decided',
-        at: leaGrantedAt(notice),
-        outcome: 'grant',
-        title: notice.caseReference
-          ? NOTICE_COPY.agencyGrantedCase(agencyName(notice), notice.caseReference)
-          : NOTICE_COPY.agencyGranted(agencyName(notice)),
+        at: notice.decidedAt,
+        outcome: notice.outcome,
+        title: NOTICE_COPY.agencyGranted(
+          notice.agency.name,
+          OUTCOMES[notice.outcome].verb.en,
+          notice.caseReference,
+        ),
         actor: NOTICE_COPY.officerOf(code),
+      },
+      {
+        id: 'notified',
+        kind: 'notified',
+        at: notice.notifiedAt,
+        title: NOTICE_COPY.youWereNotified,
+        actor: NOTICE_COPY.notifiedBy(code),
       },
     ];
   }

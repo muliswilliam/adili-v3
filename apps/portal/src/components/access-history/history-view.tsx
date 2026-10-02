@@ -25,7 +25,11 @@ import {
   visibleEntries,
 } from '../../access/history';
 import { needsResponse, sortNotices } from '../../access/notices';
-import type { AccessHistoryEntry, DeclarantNotice } from '../../server/access/types';
+import type {
+  AccessHistoryEntry,
+  DeclarantNotice,
+  FormKDeclarantNotice,
+} from '../../server/access/types';
 import { Pager } from '../access/requests-list';
 import { UnavailableAlert } from '../access-notices/notices-shell';
 import { useCertifiedCopies } from '../certified-copies/use-certified-copies';
@@ -82,7 +86,10 @@ export function HistoryView({
   const counts = countByFilter(all);
   const list = filterEntries(all, filter);
   const shown = pageOfEntries(list, page);
-  const waiting = sortNotices(notices, now).find((notice) => needsResponse(notice, now));
+  const waiting = sortNotices(notices, now).find(
+    (notice): notice is FormKDeclarantNotice =>
+      notice.kind === 'form-k' && needsResponse(notice, now),
+  );
   const open = all.find((entry) => entry.id === openId) ?? null;
   return (
     <div className="grid gap-4">
@@ -156,7 +163,7 @@ export function HistoryView({
 }
 
 /** "Wanjiru Kamau asked to see your declaration. Respond by 29 Sep 2026." with Respond. */
-function WaitingCallout({ notice }: { notice: DeclarantNotice }) {
+function WaitingCallout({ notice }: { notice: FormKDeclarantNotice }) {
   return (
     <Alert
       variant="warning"

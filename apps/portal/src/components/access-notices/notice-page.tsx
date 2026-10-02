@@ -35,19 +35,16 @@ import { Link, useRouter } from '@tanstack/react-router';
 import { type ReactNode, type RefObject, useRef, useState } from 'react';
 
 import { NOTICE_COPY as COPY, OUTCOMES, RESPONSE_COPY } from '../../access/notice-copy';
-import {
-  agencyName,
-  historyOf,
-  leaGrantedAt,
-  leaTitle,
-  noticeState,
-  windowOpen,
-  windowView,
-} from '../../access/notices';
+import { badgeState, historyOf, leaTitle, windowOpen, windowView } from '../../access/notices';
 import { accessReferenceParts } from '../../access/reference';
 import { checkRepresentations } from '../../access/representation-form';
 import { submitMyRepresentations } from '../../server/access-notices';
-import type { DeclarantNotice, Scope } from '../../server/access/types';
+import type {
+  DeclarantNotice,
+  FormKDeclarantNotice,
+  LeaDeclarantNotice,
+  Scope,
+} from '../../server/access/types';
 import { loginHref } from '../sign-in';
 import { GroundsList } from '../access/request-parts';
 import { NoticeStateBadge } from './notice-parts';
@@ -65,9 +62,39 @@ import {
  * by whom and why in general terms, the window for their response with the form (object,
  * consent or add context, with documents) and their response once sent, editable until the
  * window closes; after the decision, the outcome with its grounds and reasons. A law-enforcement
- * grant shows once access was granted, without a form.
+ * grant shows once access was granted, without a form, and only its agency, case reference,
+ * outcome and dates: never the agency's reason, the scope or the grounds (spec 10 decision 4).
  */
-export function NoticePage(props: { notice: DeclarantNotice; now: string }) {
+export function NoticePage({ notice, now }: { notice: DeclarantNotice; now: string }) {
+  return notice.kind === 'lea' ? (
+    <LeaNoticePage notice={notice} now={now} />
+  ) : (
+    <FormKNoticePage notice={notice} now={now} />
+  );
+}
+
+function LeaNoticePage({ notice, now }: { notice: LeaDeclarantNotice; now: string }) {
+  const headingRef = useRef<HTMLHeadingElement>(null);
+  return (
+    <main className="mx-auto grid w-full max-w-[1000px] flex-1 content-start gap-6 px-4 pt-5 pb-16 sm:px-7 sm:pt-8">
+      <Header notice={notice} now={now} headingRef={headingRef} />
+      <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_320px]">
+        <div className="grid min-w-0 gap-5">
+          <LeaBanner notice={notice} />
+          <LeaRequestCard notice={notice} />
+        </div>
+        <aside className="grid gap-5">
+          <Card className="gap-4">
+            <CardTitle>{COPY.history}</CardTitle>
+            <RegisterTimeline entries={historyOf(notice)} label={COPY.history} />
+          </Card>
+        </aside>
+      </div>
+    </main>
+  );
+}
+
+function FormKNoticePage(props: { notice: FormKDeclarantNotice; now: string }) {
   // A saved response replaces the loaded notice without a reload.
   const [notice, setNotice] = useState(props.notice);
   const [editing, setEditing] = useState(false);
@@ -76,8 +103,7 @@ export function NoticePage(props: { notice: DeclarantNotice; now: string }) {
   const headingRef = useRef<HTMLHeadingElement>(null);
   const { now } = props;
   const open = windowOpen(notice, now) && !conflict;
-  const lea = notice.kind === 'lea';
-  const showForm = !lea && ((open && (!notice.representations || editing)) || conflict);
+  const showForm = (open && (!notice.representations || editing)) || conflict;
 
   return (
     <main className="mx-auto grid w-full max-w-[1000px] flex-1 content-start gap-6 px-4 pt-5 pb-16 sm:px-7 sm:pt-8">
@@ -87,7 +113,7 @@ export function NoticePage(props: { notice: DeclarantNotice; now: string }) {
           <Banner notice={notice} now={now} conflict={conflict} />
           {/* On a phone the countdown comes before the request, not after the form. */}
           <WindowCard notice={notice} now={now} className="lg:hidden" />
-          {lea ? null : <DecisionCard notice={notice} />}
+          <DecisionCard notice={notice} />
           <RequestCard notice={notice} />
           {showForm ? (
             <ResponseForm
@@ -118,7 +144,7 @@ export function NoticePage(props: { notice: DeclarantNotice; now: string }) {
                 setEditing(false);
               }}
             />
-          ) : !lea && notice.representations ? (
+          ) : notice.representations ? (
             <SentResponseCard
               representations={notice.representations}
               canEdit={open}
@@ -175,11 +201,11 @@ function Header({
             size="sm"
           />
         )}
-        <NoticeStateBadge state={noticeState(notice, now)} />
+        <NoticeStateBadge state={badgeState(notice, now)} />
         <span className="inline-flex items-center gap-1.5 text-[14px] text-muted-foreground [&_svg]:size-4">
           <Icon icon={Calendar03Icon} />
-          {lea
-            ? COPY.granted(formatDate(leaGrantedAt(notice)))
+          {notice.kind === 'lea'
+            ? COPY.granted(formatDate(notice.decidedAt))
             : COPY.notified(formatDate(notice.notifiedAt))}
         </span>
       </div>
@@ -216,33 +242,35 @@ const DECIDED_BANNERS = {
   deny: { variant: 'success', icon: UnavailableIcon },
 } as const;
 
+/** The grant, and why the declarant hears of it only now. */
+function LeaBanner({ notice }: { notice: LeaDeclarantNotice }) {
+  return (
+    <BannerBox variant="info" icon={PoliceBadgeIcon} lead={`${leaTitle(notice)}.`}>
+      <Tooltip content={COPY.leaWhyNow}>
+        <button
+          type="button"
+          className="inline-flex items-center gap-1 align-bottom font-medium underline decoration-current/40 underline-offset-3 hover:decoration-current [&_svg]:size-3.5"
+        >
+          <Icon icon={InformationCircleIcon} />
+          {COPY.whyNow}
+        </button>
+      </Tooltip>
+    </BannerBox>
+  );
+}
+
 /** What happened and what happens next, for every state the declarant can see. */
 function Banner({
   notice,
   now,
   conflict,
 }: {
-  notice: DeclarantNotice;
+  notice: FormKDeclarantNotice;
   now: string;
   conflict: boolean;
 }) {
   const commission = notice.commission.name;
   const windowEnd = notice.windowEndsAt ? formatDateTime(notice.windowEndsAt) : '';
-  if (notice.kind === 'lea') {
-    return (
-      <BannerBox variant="info" icon={PoliceBadgeIcon} lead={`${leaTitle(notice)}.`}>
-        <Tooltip content={COPY.leaWhyNow}>
-          <button
-            type="button"
-            className="inline-flex items-center gap-1 align-bottom font-medium underline decoration-current/40 underline-offset-3 hover:decoration-current [&_svg]:size-3.5"
-          >
-            <Icon icon={InformationCircleIcon} />
-            {COPY.whyNow}
-          </button>
-        </Tooltip>
-      </BannerBox>
-    );
-  }
   if (conflict) {
     return (
       <BannerBox variant="warning" icon={Clock01Icon} lead={COPY.bannerConflict}>
@@ -319,7 +347,7 @@ function Row({ term, children }: { term: ReactNode; children: ReactNode }) {
   );
 }
 
-function DecisionCard({ notice }: { notice: DeclarantNotice }) {
+function DecisionCard({ notice }: { notice: FormKDeclarantNotice }) {
   const { decision } = notice;
   if (!decision) return null;
   return (
@@ -428,8 +456,7 @@ function ScopeView({ scope, granted }: { scope: Scope; granted: Scope | null }) 
   );
 }
 
-function RequestCard({ notice }: { notice: DeclarantNotice }) {
-  const lea = notice.kind === 'lea';
+function RequestCard({ notice }: { notice: FormKDeclarantNotice }) {
   const partial =
     notice.decision?.outcome === 'partial-grant' ? notice.decision.grantedScope : null;
   return (
@@ -438,29 +465,40 @@ function RequestCard({ notice }: { notice: DeclarantNotice }) {
         <CardTitle>{COPY.request}</CardTitle>
       </div>
       <div className="grid gap-5 px-5 py-5 sm:px-6">
-        {lea ? (
-          <Rows>
-            <Row term={COPY.agency}>{agencyName(notice)}</Row>
-            {notice.caseReference ? (
-              <Row term={COPY.caseReference}>
-                <span className="font-mono">{notice.caseReference}</span>
-              </Row>
-            ) : null}
-            <Row term={COPY.commission}>{notice.commission.name}</Row>
-          </Rows>
-        ) : (
-          <Rows>
-            <Row term={COPY.applicant}>{notice.applicantName}</Row>
-            <Row term={COPY.commission}>{notice.commission.name}</Row>
-            <Row term={COPY.purpose}>{notice.purposeInGeneralTerms}</Row>
-          </Rows>
-        )}
+        <Rows>
+          <Row term={COPY.applicant}>{notice.applicantName}</Row>
+          <Row term={COPY.commission}>{notice.commission.name}</Row>
+          <Row term={COPY.purpose}>{notice.purposeInGeneralTerms}</Row>
+        </Rows>
         <div className="grid gap-2.5 border-t border-border pt-5">
           <p className="text-[13.5px] font-medium">
-            {lea ? COPY.scopeGranted : partial ? COPY.scopeAskedAndGranted : COPY.scopeAsked}
+            {partial ? COPY.scopeAskedAndGranted : COPY.scopeAsked}
           </p>
           <ScopeView scope={notice.scope} granted={partial} />
         </div>
+      </div>
+    </Card>
+  );
+}
+
+/** A law-enforcement grant: the agency, its case reference, the outcome and its dates only. */
+function LeaRequestCard({ notice }: { notice: LeaDeclarantNotice }) {
+  return (
+    <Card className="gap-0 p-0 sm:p-0">
+      <div className="border-b border-border px-5 py-4 sm:px-6">
+        <CardTitle>{COPY.request}</CardTitle>
+      </div>
+      <div className="px-5 py-5 sm:px-6">
+        <Rows>
+          <Row term={COPY.agency}>{notice.agency.name}</Row>
+          <Row term={COPY.caseReference}>
+            <span className="font-mono">{notice.caseReference}</span>
+          </Row>
+          <Row term={COPY.commission}>{notice.commission.name}</Row>
+          <Row term={COPY.outcome}>{OUTCOMES[notice.outcome].label.en}</Row>
+          <Row term={COPY.grantedOn}>{formatDate(notice.decidedAt)}</Row>
+          <Row term={COPY.notifiedOn}>{formatDate(notice.notifiedAt)}</Row>
+        </Rows>
       </div>
     </Card>
   );
@@ -472,7 +510,7 @@ function WindowCard({
   now,
   className,
 }: {
-  notice: DeclarantNotice;
+  notice: FormKDeclarantNotice;
   now: string;
   className?: string;
 }) {
@@ -518,10 +556,10 @@ function ResponseForm({
   onConflict,
   onCancel,
 }: {
-  notice: DeclarantNotice;
+  notice: FormKDeclarantNotice;
   editing: boolean;
   conflict: boolean;
-  onSaved: (notice: DeclarantNotice) => void;
+  onSaved: (notice: FormKDeclarantNotice) => void;
   onConflict: () => void;
   onCancel: () => void;
 }) {

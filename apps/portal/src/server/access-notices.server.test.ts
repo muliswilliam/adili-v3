@@ -59,7 +59,27 @@ describe('listNotices', () => {
       IDS.denied,
       IDS.granted,
       IDS.withdrawn,
+      IDS.leaPartial,
     ]);
+  });
+
+  it('gives a law-enforcement grant its agency, case, outcome and dates only', async () => {
+    const result = await listNotices(client());
+    if (result.status !== 'ok') throw new Error(result.status);
+    const lea = result.notices.find((notice) => notice.requestId === IDS.leaPartial);
+    expect(lea && Object.keys(lea).sort()).toEqual([
+      'agency',
+      'caseReference',
+      'commission',
+      'decidedAt',
+      'kind',
+      'notifiedAt',
+      'outcome',
+      'reference',
+      'requestId',
+      'status',
+    ]);
+    expect(lea).toMatchObject({ kind: 'lea', status: 'granted', outcome: 'partial-grant' });
   });
 
   it('reads someone the service does not know as a declarant as having no requests', async () => {
@@ -80,7 +100,9 @@ describe('listNotices', () => {
 describe('loadNotice', () => {
   it('picks the request out of the list, or says it is not about the declarant', async () => {
     const found = await loadNotice(client(), IDS.partial);
-    expect(found.status === 'ok' && found.notice.decision?.outcome).toBe('partial-grant');
+    expect(
+      found.status === 'ok' && found.notice.kind === 'form-k' && found.notice.decision?.outcome,
+    ).toBe('partial-grant');
     expect(await loadNotice(client(), crypto.randomUUID())).toEqual({ status: 'not-found' });
   });
 });
@@ -167,6 +189,15 @@ describe('saveRepresentations (S4)', () => {
       await saveRepresentations(
         client(),
         crypto.randomUUID(),
+        { stance: 'object', text: 'x', attachments: [] },
+        key(),
+      ),
+    ).toEqual({ status: 'not-found' });
+    // A law-enforcement grant takes no representations.
+    expect(
+      await saveRepresentations(
+        client(),
+        IDS.lea,
         { stance: 'object', text: 'x', attachments: [] },
         key(),
       ),

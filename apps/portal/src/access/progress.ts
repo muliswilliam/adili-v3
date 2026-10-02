@@ -161,7 +161,8 @@ export function requestStages(request: AccessRequest, now: number, windowClosed 
 }
 
 /**
- * Where the 30-day decision clock stands, for an open request; null once it has stopped. Days
+ * Where the decision clock stands, for an open request; null once it has stopped. Its length is
+ * the Commission's decision period, from submission to the request's deadline. Days
  * count in Kenyan calendar days, as the deadline chips do, so the clock moves on at midnight.
  */
 export function decisionClock(

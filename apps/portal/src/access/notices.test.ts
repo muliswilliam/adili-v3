@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 
-import type { DeclarantNotice } from '../server/access/types';
+import type { FormKDeclarantNotice, LeaDeclarantNotice } from '../server/access/types';
 import {
+  badgeState,
   historyOf,
   leaTitle,
   needsResponse,
@@ -14,7 +15,7 @@ import {
 
 const NOW = '2026-10-02T07:00:00Z';
 
-function notice(fields: Partial<DeclarantNotice> = {}): DeclarantNotice {
+function notice(fields: Partial<FormKDeclarantNotice> = {}): FormKDeclarantNotice {
   return {
     requestId: 'b7e10000-0000-4000-8000-000000000001',
     reference: 'ARQ-TSC-2026-0000052-I',
@@ -22,8 +23,6 @@ function notice(fields: Partial<DeclarantNotice> = {}): DeclarantNotice {
     commission: { slug: 'tsc', name: 'Teachers Service Commission' },
     status: 'awaiting-representations',
     applicantName: 'Wanjiru Kamau',
-    agency: null,
-    caseReference: null,
     purposeInGeneralTerms: 'Journalistic research',
     scope: {
       years: [2026],
@@ -36,6 +35,22 @@ function notice(fields: Partial<DeclarantNotice> = {}): DeclarantNotice {
     canRespond: true,
     representations: null,
     decision: null,
+    ...fields,
+  };
+}
+
+function leaNotice(fields: Partial<LeaDeclarantNotice> = {}): LeaDeclarantNotice {
+  return {
+    requestId: 'b7e10000-0000-4000-8000-000000000009',
+    reference: 'LEA-TSC-2026-0000007-E',
+    kind: 'lea',
+    commission: { slug: 'tsc', name: 'Teachers Service Commission' },
+    status: 'granted',
+    agency: { code: 'ARA', name: 'Asset Recovery Agency' },
+    caseReference: 'ARA/INV/2026/014',
+    outcome: 'grant',
+    decidedAt: '2026-09-02T12:30:00Z',
+    notifiedAt: '2026-09-02T13:30:00Z',
     ...fields,
   };
 }
@@ -62,12 +77,13 @@ describe('the window', () => {
     expect(windowOpen(notice(), NOW)).toBe(true);
     expect(windowOpen(notice(), '2026-10-06T07:00:00Z')).toBe(false);
     expect(windowOpen(notice({ canRespond: false }), NOW)).toBe(false);
-    expect(windowOpen(notice({ kind: 'lea' }), NOW)).toBe(false);
+    expect(windowOpen(leaNotice(), NOW)).toBe(false);
   });
 
   it('waits for the declarant only until they respond', () => {
     expect(needsResponse(notice(), NOW)).toBe(true);
     expect(needsResponse(notice({ representations: SENT }), NOW)).toBe(false);
+    expect(needsResponse(leaNotice(), NOW)).toBe(false);
   });
 
   it('counts down in calendar days while open, red on the last day', () => {
@@ -106,7 +122,7 @@ describe('the window', () => {
       ),
     ).toBeNull();
     expect(windowView(notice({ status: 'withdrawn', canRespond: false }), NOW)).toBeNull();
-    expect(windowView(notice({ kind: 'lea', windowEndsAt: null }), NOW)).toBeNull();
+    expect(windowView(leaNotice(), NOW)).toBeNull();
   });
 });
 
@@ -133,7 +149,13 @@ describe('noticeState', () => {
       noticeState(notice({ status: 'denied', canRespond: false, decision: decided('deny') }), NOW),
     ).toBe('deny');
     expect(noticeState(notice({ status: 'withdrawn', canRespond: false }), NOW)).toBe('withdrawn');
-    expect(noticeState(notice({ kind: 'lea', status: 'granted' }), NOW)).toBe('lea');
+    expect(noticeState(leaNotice(), NOW)).toBe('lea');
+  });
+
+  it('badges a law-enforcement grant by its outcome, anything else by its state', () => {
+    expect(badgeState(leaNotice(), NOW)).toBe('grant');
+    expect(badgeState(leaNotice({ outcome: 'partial-grant' }), NOW)).toBe('partial-grant');
+    expect(badgeState(notice(), NOW)).toBe('awaiting');
   });
 });
 
@@ -204,25 +226,33 @@ describe('the history', () => {
     ]);
   });
 
-  it('shows a law-enforcement grant only', () => {
-    const lea = notice({
-      kind: 'lea',
-      applicantName: 'ARA',
-      agency: { code: 'ARA', name: 'Asset Recovery Agency' },
-      caseReference: 'ARA/INV/2026/014',
-      decision: { ...DECISION, outcome: 'grant', decidedAt: '2026-09-02T12:30:00Z' },
-    });
-    expect(historyOf(lea).map((entry) => entry.title)).toEqual([
-      'Asset Recovery Agency was granted access (case ARA/INV/2026/014)',
-    ]);
-    expect(historyOf({ ...lea, caseReference: null })[0]?.title).toBe(
-      'Asset Recovery Agency was granted access',
+  it('shows a law-enforcement grant and the notice only, without reasons or scope', () => {
+    const lea = leaNotice();
+    expect(historyOf(lea).map((entry) => [entry.kind, entry.at, entry.title, entry.actor])).toEqual(
+      [
+        [
+          'decided',
+          '2026-09-02T12:30:00Z',
+          'Asset Recovery Agency was granted access (case ARA/INV/2026/014)',
+          'Access officer, Teachers Service Commission',
+        ],
+        [
+          'notified',
+          '2026-09-02T13:30:00Z',
+          'You were notified',
+          'Notified by Teachers Service Commission',
+        ],
+      ],
     );
+    expect(historyOf(leaNotice({ outcome: 'partial-grant' }))[0]).toMatchObject({
+      outcome: 'partial-grant',
+      title: 'Asset Recovery Agency was partially granted access (case ARA/INV/2026/014)',
+    });
     expect(leaTitle(lea)).toBe(
       'A law-enforcement agency was granted access on 2 Sep 2026 (Asset Recovery Agency, case ARA/INV/2026/014)',
     );
-    expect(leaTitle({ ...lea, caseReference: null })).toBe(
-      'A law-enforcement agency was granted access on 2 Sep 2026 (Asset Recovery Agency)',
+    expect(leaTitle(leaNotice({ outcome: 'partial-grant' }))).toBe(
+      'A law-enforcement agency was partially granted access on 2 Sep 2026 (Asset Recovery Agency, case ARA/INV/2026/014)',
     );
   });
 });

@@ -60,6 +60,10 @@ describe('Who accessed in the declarant’s words', () => {
       title: 'Asset Recovery Agency was granted access',
       actor: 'Case ARA/INV/118/2026',
     });
+    const partial = { ...lea, outcome: 'partial-grant' as const };
+    expect(toRegisterEntry(partial, [partial], []).title).toBe(
+      'Asset Recovery Agency was partially granted access',
+    );
     const downloaded = entry({
       kind: 'downloaded',
       subjectKind: 'lea-request',
@@ -124,7 +128,7 @@ describe('filters and pages', () => {
     const counts = countByFilter(entries);
     expect(counts.all).toBe(entries.length);
     expect(counts['form-k'] + counts.lea + counts.copy).toBe(entries.length);
-    expect(counts.lea).toBe(4);
+    expect(counts.lea).toBe(8);
     expect(counts.copy).toBe(2);
     expect(filterEntries(entries, 'lea').every((each) => each.subjectKind === 'lea-request')).toBe(
       true,

@@ -104,8 +104,8 @@ export function toRegisterEntry(
       };
     case 'representations': {
       if (!isFirstResponse(entry, all)) return { ...base, title: COPY.edited, actor: COPY.you };
-      const stance = notices.find((notice) => notice.requestId === entry.subjectId)?.representations
-        ?.stance;
+      const notice = notices.find((each) => each.requestId === entry.subjectId);
+      const stance = notice?.kind === 'form-k' ? notice.representations?.stance : undefined;
       return {
         ...base,
         title: stance ? STANCES[stance].done.en : COPY.responded,
@@ -116,7 +116,7 @@ export function toRegisterEntry(
       if (lea) {
         return {
           ...base,
-          title: COPY.agencyGranted(who),
+          title: COPY.agencyGranted(who, OUTCOMES[entry.outcome ?? 'grant'].verb.en),
           actor: entry.caseReference ? COPY.caseOf(entry.caseReference) : null,
           tone: 'info',
         };
