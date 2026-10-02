@@ -148,6 +148,25 @@ describe('CaseCopilot (S15)', () => {
     expect(screen.getByText('Indicators, not findings. A named reviewer decides.')).toBeTruthy();
   });
 
+  it("ends every label's description with the output's disclaimer (design.md AiLabel, Q10)", async () => {
+    await mount();
+    const labels = screen.getAllByRole('img', { name: /AI-assisted|^AI\./ });
+    expect(labels.length).toBeGreaterThan(1);
+    for (const label of labels) {
+      expect(label.getAttribute('aria-label')).toMatch(
+        /indicators, not findings: a named reviewer examines the record and decides\.$/,
+      );
+    }
+    fireEvent.mouseDown(screen.getByRole('tab', { name: /Flags/ }));
+    fireEvent.click(screen.getByRole('tab', { name: /Flags/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Value changed by 150%/ }));
+    const explained = screen.getAllByRole('img', { name: /^AI\./ });
+    expect(explained.length).toBeGreaterThan(0);
+    for (const label of explained) {
+      expect(label.getAttribute('aria-label')).toMatch(/examines the record and decides\.$/);
+    }
+  });
+
   it('opens a source in the declaration pane, highlighted', async () => {
     document.body.insertAdjacentHTML(
       'beforeend',

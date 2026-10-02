@@ -1,6 +1,5 @@
 import {
   AiLabel,
-  type AiLabelDetails,
   Button,
   cn,
   Icon,
@@ -76,7 +75,7 @@ export function PanelLabel({
   return (
     <div className="flex px-3.5 pt-2">
       <AiLabel
-        details={labelDetails(label)}
+        details={label}
         text={t.label(
           formatRelativeTime(generatedAt, now),
           versionNumber(copilot.forVersionId, versions),
@@ -84,16 +83,6 @@ export function PanelLabel({
       />
     </div>
   );
-}
-
-export function labelDetails(label: CopilotAiLabel): AiLabelDetails {
-  return {
-    task: label.task,
-    provider: label.provider,
-    model: label.model,
-    promptVersion: label.promptVersion,
-    generatedAt: label.generatedAt,
-  };
 }
 
 export function PanelBody({ children, className }: { children: ReactNode; className?: string }) {
@@ -230,7 +219,7 @@ export function Block({
         <h3 id={headingId} className="text-[13.5px] font-semibold">
           {title}
         </h3>
-        <AiLabel size="sm" text={t.labelShort} details={labelDetails(label)} />
+        <AiLabel size="sm" text={t.labelShort} details={label} />
       </div>
       {children}
       {rating}

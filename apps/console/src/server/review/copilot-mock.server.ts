@@ -369,7 +369,9 @@ export function mockFlags(versionId: string): Flag[] {
   ];
 }
 
-const DISCLAIMER = 'Indicators, not findings. A named officer decides.';
+// As the ai-gateway labels English outputs (`services/ai-gateway/src/tasks/task.ts`).
+const DISCLAIMER =
+  'AI-assisted. These are indicators, not findings: a named reviewer examines the record and decides.';
 
 function label(task: string, promptVersion: number, generatedAt: string) {
   return {
