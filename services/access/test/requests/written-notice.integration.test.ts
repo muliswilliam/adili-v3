@@ -20,6 +20,7 @@ import type { RosterCandidateFacts } from '../../src/directory/directory-client.
 import type { AccessHistoryEntry } from '../../src/history/representation.js';
 import type { DeclarantNotice, FormKDeclarantNotice } from '../../src/notices/representation.js';
 import { AccessRequestActivities } from '../../src/requests/activities.js';
+import { onboardedNoticeWorkflowId } from '../../src/onboarded-notices/contract.js';
 import { accessRequestWorkflowId } from '../../src/requests/contract.js';
 import {
   DECLARANT_ONBOARDED,
@@ -30,6 +31,7 @@ import { type AccessApi, type Caller, startAccessApi } from '../support/access-a
 import { contractErrors, okResponse } from '../support/contract.js';
 import {
   callers,
+  decide,
   ENDED_TRANSACTION,
   givenCommissions,
   notifiedRequest,
@@ -444,6 +446,97 @@ describe('An officer with no account: written notice and representations receive
         receivedInWriting: false,
         attachments: [{ uploadId: scan.id }],
       });
+    });
+
+    it('onboarded while the window is open: told online too, with the last day of the window', async () => {
+      const { bwire, id, reference } = await noticeServed();
+      const personId = api.directory.onboard(bwire.id);
+
+      await onboarded(bwire.id, personId);
+
+      const sent = await api.eventually(() => {
+        const found = api.notifications.sent.filter((message) =>
+          message.template.startsWith('access-request-notified-'),
+        );
+        return found.length === 2 ? found : undefined;
+      });
+      expect(sent.map((message) => message.template).sort()).toEqual([
+        'access-request-notified-email',
+        'access-request-notified-sms',
+      ]);
+      for (const message of sent) {
+        expect(message).toMatchObject({
+          recipient: { kind: 'person', personId },
+          tenant: 'psc',
+          // The window ends at the end of 13 March in Nairobi.
+          params: { reference, respondBy: '2027-03-13' },
+        });
+      }
+      // Still the written notice: no second notification, window unchanged.
+      expect(await rowOf(api, id)).toMatchObject({
+        notifiedAt: new Date(NOTIFIED_AT),
+        windowEndsAt: new Date(WINDOW_ENDS_AT),
+      });
+      expect((await entriesOf(id)).filter((entry) => entry.kind === 'notified')).toHaveLength(1);
+    });
+
+    it('onboarded after the decision: told the outcome online', async () => {
+      const { bwire, id } = await noticeServed();
+      // Their consent, received in writing, closes the window; the request is decided (a
+      // denial: no package to wait on).
+      expect((await enter(id, { stance: 'consent', text: '', attachments: [] })).statusCode).toBe(
+        200,
+      );
+      const decided = await decide(api, id, {
+        outcome: 'deny',
+        grounds: ['frivolous-vexatious'],
+        reasons: 'No reason connected to public duties.',
+      });
+      expect(decided.statusCode, decided.body).toBe(200);
+      // The decision's notices went out while Bwire had no account: to the applicant alone.
+      await api.temporal.workflow.getHandle(accessRequestWorkflowId(id)).result();
+      expect(
+        api.notifications.sent.filter((message) => message.template.startsWith('access-decision-')),
+      ).toHaveLength(2);
+      const personId = api.directory.onboard(bwire.id);
+
+      await onboarded(bwire.id, personId);
+
+      const sent = await api.eventually(() =>
+        api.notifications.sent.find(
+          (message) => message.template === 'access-decision-declarant-email',
+        ),
+      );
+      expect(sent).toMatchObject({
+        recipient: { kind: 'person', personId },
+        params: { outcome: 'denied' },
+      });
+      expect(
+        api.notifications.sent.filter((message) =>
+          message.template.startsWith('access-request-notified-'),
+        ),
+      ).toEqual([]);
+    });
+
+    it('onboarded after the window closed, before the decision: nothing now, the decision tells them', async () => {
+      const { bwire, id } = await noticeServed();
+      expect((await enter(id, { stance: 'consent', text: '', attachments: [] })).statusCode).toBe(
+        200,
+      );
+      const personId = api.directory.onboard(bwire.id);
+
+      await onboarded(bwire.id, personId);
+
+      const run: unknown = await api.temporal.workflow
+        .getHandle(onboardedNoticeWorkflowId(id))
+        .result();
+      expect(run).toEqual({ outcome: 'not-relevant' });
+      expect(
+        api.notifications.sent.filter(
+          (message) =>
+            message.recipient.kind === 'person' && message.recipient.personId === personId,
+        ),
+      ).toEqual([]);
     });
 
     it('onboarded before any written notice: the declarant is notified online', async () => {

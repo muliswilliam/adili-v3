@@ -32,6 +32,7 @@ import { ReviewClient } from '../../src/review/review-client.js';
 import { DirectoryClient } from '../../src/directory/directory-client.js';
 import { DocumentsClient } from '../../src/documents/documents-client.js';
 import { leaRequestWorkflowId } from '../../src/lea/contract.js';
+import { onboardedNoticeWorkflowId } from '../../src/onboarded-notices/contract.js';
 import { accessRequestWorkflowId } from '../../src/requests/contract.js';
 import { certifiedCopyWorkflowId } from '../../src/self-access/contract.js';
 import { NotificationsClient } from '../../src/notifications/notifications-client.js';
@@ -248,6 +249,7 @@ export async function startAccessApi(): Promise<AccessApi> {
         ...requests.map(({ id }) => accessRequestWorkflowId(id)),
         ...copies.map(({ id }) => certifiedCopyWorkflowId(id)),
         ...leaRows.map(({ id }) => leaRequestWorkflowId(id)),
+        ...[...requests, ...leaRows].map(({ id }) => onboardedNoticeWorkflowId(id)),
       ];
       for (const id of workflowIds) {
         try {

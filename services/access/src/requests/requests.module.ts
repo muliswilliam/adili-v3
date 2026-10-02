@@ -3,6 +3,7 @@ import { Module } from '@nestjs/common';
 import { CipherModule } from '../cipher.module.js';
 import { ClockModule } from '../clock.module.js';
 import { LeaRequestWorkflowsModule } from '../lea/lea-workflows.js';
+import { OnboardedNoticeWorkflowsModule } from '../onboarded-notices/onboarded-notice-workflows.js';
 import { RegisterModule } from '../register/access-register.js';
 import { UpstreamModule } from '../upstream.module.js';
 import { AcknowledgementConsumer } from './acknowledgement.consumer.js';
@@ -32,6 +33,7 @@ import { RequestsService } from './requests.service.js';
     RegisterModule,
     AccessRequestWorkflowsModule,
     LeaRequestWorkflowsModule,
+    OnboardedNoticeWorkflowsModule,
   ],
   controllers: [
     RequestsController,

@@ -194,7 +194,7 @@ describe('Law enforcement grants to an officer with no account: written notice',
     ).toBe(403);
   });
 
-  it('once the officer onboards, the grant shows among their notices', async () => {
+  it('once the officer onboards, the grant shows among their notices, and they are told of it online', async () => {
     const { id, reference } = await granted();
     api.clock.set(RECORDED_AT);
     expect((await recordNotice(id, { notifiedOn: NOTIFIED_ON })).statusCode).toBe(200);
@@ -231,5 +231,20 @@ describe('Law enforcement grants to an officer with no account: written notice',
         noticeChannel: 'written',
       }),
     ]);
+    // The written notice told them; their new account is told online too.
+    const sent = await api.eventually(() => {
+      const found = api.notifications.sent.filter((message) =>
+        message.template.startsWith('lea-grant-notice-'),
+      );
+      return found.length === 2 ? found : undefined;
+    });
+    for (const message of sent) {
+      expect(message).toMatchObject({
+        recipient: { kind: 'person', personId },
+        params: { reference, grantedOn: '2027-01-18' },
+      });
+    }
+    // Still notified in writing, once.
+    expect(await leaRowOf(api, id)).toMatchObject({ declarantNotifiedAt: new Date(NOTIFIED_AT) });
   });
 });
