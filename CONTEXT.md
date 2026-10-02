@@ -16,7 +16,7 @@ _Avoid_: RC (in prose), employer, organisation
 
 **Reporting entity**:
 The public body a declarant works for. Used for categorisation only; it never accesses declarations.
-_Avoid_: employer, agency, institution
+_Avoid_: employer, agency (that word is kept for a law enforcement agency), institution
 
 **Reporting officer**:
 The person EACC assigns to a Responsible Commission to import and maintain its roster and resolve onboarding no-matches.
@@ -26,8 +26,16 @@ _Avoid_: HR focal point, admin
 The oversight body. Receives compliance reports and referrals; not a super-tenant.
 
 **Applicant**:
-Any person requesting access to a declaration under Form K.
+Any person requesting access to a declaration under Form K. Has an account of their own, tied to no Responsible Commission, made by applicant onboarding.
 _Avoid_: requester, third party
+
+**Law enforcement agency**:
+A body empowered to ask for a declaration for an investigation (Act s.36(2)), e.g. the DCI or ODPP, registered on the platform with the legal basis it acts under. Say "agency" alone only where the law enforcement context is clear.
+_Avoid_: LEA (in prose), authority, reporting entity
+
+**Law enforcement officer**:
+A person provisioned by a platform admin with an account for one law enforcement agency, who files law enforcement requests with any Responsible Commission and sees only their own. Neither a declarant nor staff of a Commission.
+_Avoid_: investigator, LEA user, officer (alone)
 
 ### Onboarding
 
@@ -48,8 +56,12 @@ The confirmed departure from office of a roster record's declarant, as at an exi
 _Avoid_: termination, removal, offboarding
 
 **Onboarding**:
-The one-time process that turns a roster record into a declarant account: Commission selection, file-number match, email and phone OTP, Keycloak account.
+The one-time process that turns a roster record into a declarant account: Commission selection, file-number match, email and phone OTP, Keycloak account. Unqualified, it always means a declarant's.
 _Avoid_: registration, sign-up, invitation
+
+**Applicant onboarding**:
+The one-time process that makes an applicant account, with no roster record: identity document (a national ID checked with IPRS, or a passport an access officer verifies later), names, phone OTP, email, Keycloak account.
+_Avoid_: registration, sign-up, onboarding (alone)
 
 ### Declaring
 
@@ -126,8 +138,16 @@ A Form K request to see a declaration or clarification (Act s.36(1)).
 _Avoid_: FOI request, disclosure request
 
 **Law enforcement request**:
-A written request by a law enforcement agency for a declaration (Act s.36(2)).
+A written request by a law enforcement agency for a declaration (Act s.36(2)), filed by one of its law enforcement officers.
 _Avoid_: LEA request (in prose), subpoena
+
+**Access package**:
+The signed PDF a granted access request or law enforcement request delivers: the declarations in scope, cut to the granted years, household members and sections, watermarked with its recipient and downloadable by them for a limited window.
+_Avoid_: disclosure (for the document), export, report
+
+**Certified copy**:
+A signed, full copy of one submitted version of a declarant's own declaration, issued to the declarant or their representative on a self-access application (Administrative Mechanism 32).
+_Avoid_: duplicate, printout, access package
 
 **Compliance report**:
 Form M, a Commission's report to EACC.
