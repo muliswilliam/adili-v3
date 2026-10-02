@@ -54,7 +54,7 @@ export interface components {
          * @description Registered templates; each declares its channel and params
          * @enum {string}
          */
-        TemplateId: "onboarding-otp-email" | "onboarding-otp-sms" | "login-otp-sms" | "login-otp-email" | "obligation-reminder-sms" | "obligation-reminder-email" | "acknowledgement-email" | "acknowledgement-sms";
+        TemplateId: "onboarding-otp-email" | "onboarding-otp-sms" | "login-otp-sms" | "login-otp-email" | "obligation-reminder-sms" | "obligation-reminder-email" | "acknowledgement-email" | "acknowledgement-sms" | "clarification-issued-email" | "clarification-issued-sms" | "clarification-reminder-email" | "clarification-reminder-sms";
         Recipient: {
             /** @constant */
             kind: "address";
@@ -73,7 +73,7 @@ export interface components {
             channel: components["schemas"]["Channel"];
             recipient: components["schemas"]["Recipient"];
             template: components["schemas"]["TemplateId"];
-            /** @description Validated against the template's parameter schema. `obligation-reminder-sms` and `obligation-reminder-email` take exactly `type` (initial, biennial, final), `commissionName` (1 to 120 characters), `statementDate` and `dueDate` (`YYYY-MM-DD`, due on or after statement), `daysLeft` (integer 0 to 366) and `portalUrl` (http or https URL). `acknowledgement-email` and `acknowledgement-sms` take exactly `reference` (a DCI, DCB or DCF declaration reference with a valid check character), `type` (the one the reference names), `version` (integer 1 to 99; above 1 the copy names the version, an amendment), `commissionName`, `statementDate`, `verificationCode` (`ADL-` and hyphenated groups of 0-9 and A-Z, at most 40 characters) and `portalUrl`; the email links to the portal and attaches nothing, the SMS carries only the reference and verification code. */
+            /** @description Validated against the template's parameter schema. `obligation-reminder-sms` and `obligation-reminder-email` take exactly `type` (initial, biennial, final), `commissionName` (1 to 120 characters), `statementDate` and `dueDate` (`YYYY-MM-DD`, due on or after statement), `daysLeft` (integer 0 to 366) and `portalUrl` (http or https URL). `acknowledgement-email` and `acknowledgement-sms` take exactly `reference` (a DCI, DCB or DCF declaration reference with a valid check character), `type` (the one the reference names), `version` (integer 1 to 99; above 1 the copy names the version, an amendment), `commissionName`, `statementDate`, `verificationCode` (`ADL-` and hyphenated groups of 0-9 and A-Z, at most 40 characters) and `portalUrl`; the email links to the portal and attaches nothing, the SMS carries only the reference and verification code. `clarification-issued-email` and `clarification-issued-sms` take exactly `reference` (a CLR clarification reference with a valid check character), `commissionName`, `dueDate` (`YYYY-MM-DD`, the last day to respond) and `portalUrl` (the page where the declarant reads the letter and responds); `clarification-reminder-email` and `clarification-reminder-sms` take the same and `daysLeft` (integer 0 to 366). The emails link to the portal and attach no letter. */
             params: {
                 [key: string]: unknown;
             };
