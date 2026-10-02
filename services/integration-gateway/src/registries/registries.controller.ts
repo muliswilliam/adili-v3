@@ -64,7 +64,8 @@ const LOOKUPS = {
     path: 'ntsa/vehicle-lookups',
     operationId: 'lookupNtsaVehicles',
     summary: 'Vehicles registered to a national ID',
-    found: 'No vehicles is found with none.',
+    found:
+      'found with an empty list: NTSA lists no vehicles for the national ID (never not-found).',
     result: 'NtsaResult',
     empty: { vehicles: [] },
   },
@@ -72,7 +73,8 @@ const LOOKUPS = {
     path: 'brs/directorship-lookups',
     operationId: 'lookupBrsDirectorships',
     summary: 'Directorships and shareholdings of a national ID',
-    found: 'No companies is found with none.',
+    found:
+      'found with an empty list: BRS lists no companies for the national ID (never not-found).',
     result: 'BrsResult',
     empty: { directorships: [] },
   },
@@ -80,7 +82,8 @@ const LOOKUPS = {
     path: 'ardhisasa/parcel-lookups',
     operationId: 'lookupArdhisasaParcels',
     summary: 'Land parcels registered to a national ID',
-    found: 'No parcels is found with none.',
+    found:
+      'found with an empty list: ArdhiSasa lists no parcels for the national ID (never not-found).',
     result: 'ArdhisasaResult',
     empty: { parcels: [] },
   },

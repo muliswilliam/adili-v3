@@ -55,7 +55,7 @@ export interface paths {
         put?: never;
         /**
          * Vehicles registered to a national ID
-         * @description A read, posted so the national ID travels in the body rather than the URL (URLs end up in access logs, traces and problem details). Safe to repeat. Every lookup, answered or not, is recorded with its legal basis and case reference, the answer encrypted under the acting tenant, and emits registry.lookup.performed.v1. Answers (found and not found) are cached for 24 hours. A registry that gives no answer is outcome unavailable with a reason, never an error. No vehicles is found with none. Requires a service token with scope `registry` acting for the Commission.
+         * @description A read, posted so the national ID travels in the body rather than the URL (URLs end up in access logs, traces and problem details). Safe to repeat. Every lookup, answered or not, is recorded with its legal basis and case reference, the answer encrypted under the acting tenant, and emits registry.lookup.performed.v1. Answers (found and not found) are cached for 24 hours. A registry that gives no answer is outcome unavailable with a reason, never an error. found with an empty list: NTSA lists no vehicles for the national ID (never not-found). Requires a service token with scope `registry` acting for the Commission.
          */
         post: operations["lookupNtsaVehicles"];
         delete?: never;
@@ -75,7 +75,7 @@ export interface paths {
         put?: never;
         /**
          * Directorships and shareholdings of a national ID
-         * @description A read, posted so the national ID travels in the body rather than the URL (URLs end up in access logs, traces and problem details). Safe to repeat. Every lookup, answered or not, is recorded with its legal basis and case reference, the answer encrypted under the acting tenant, and emits registry.lookup.performed.v1. Answers (found and not found) are cached for 24 hours. A registry that gives no answer is outcome unavailable with a reason, never an error. No companies is found with none. Requires a service token with scope `registry` acting for the Commission.
+         * @description A read, posted so the national ID travels in the body rather than the URL (URLs end up in access logs, traces and problem details). Safe to repeat. Every lookup, answered or not, is recorded with its legal basis and case reference, the answer encrypted under the acting tenant, and emits registry.lookup.performed.v1. Answers (found and not found) are cached for 24 hours. A registry that gives no answer is outcome unavailable with a reason, never an error. found with an empty list: BRS lists no companies for the national ID (never not-found). Requires a service token with scope `registry` acting for the Commission.
          */
         post: operations["lookupBrsDirectorships"];
         delete?: never;
@@ -95,7 +95,7 @@ export interface paths {
         put?: never;
         /**
          * Land parcels registered to a national ID
-         * @description A read, posted so the national ID travels in the body rather than the URL (URLs end up in access logs, traces and problem details). Safe to repeat. Every lookup, answered or not, is recorded with its legal basis and case reference, the answer encrypted under the acting tenant, and emits registry.lookup.performed.v1. Answers (found and not found) are cached for 24 hours. A registry that gives no answer is outcome unavailable with a reason, never an error. No parcels is found with none. Requires a service token with scope `registry` acting for the Commission.
+         * @description A read, posted so the national ID travels in the body rather than the URL (URLs end up in access logs, traces and problem details). Safe to repeat. Every lookup, answered or not, is recorded with its legal basis and case reference, the answer encrypted under the acting tenant, and emits registry.lookup.performed.v1. Answers (found and not found) are cached for 24 hours. A registry that gives no answer is outcome unavailable with a reason, never an error. found with an empty list: ArdhiSasa lists no parcels for the national ID (never not-found). Requires a service token with scope `registry` acting for the Commission.
          */
         post: operations["lookupArdhisasaParcels"];
         delete?: never;
