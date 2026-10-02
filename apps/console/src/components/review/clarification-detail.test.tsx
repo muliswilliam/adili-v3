@@ -210,7 +210,7 @@ describe('ClarificationDetailView: drafts and the letter (#170)', () => {
     expect(within(items).getByText('Financial statement · John Kennedy Otieno')).toBeTruthy();
   });
 
-  it('continues a draft in the composer, for the officer holding the case', async () => {
+  it('continues a draft in the composer, for the reviewer holding the case', async () => {
     renderDetail(await detailOf(CASES.mine, K.draft));
     expect(screen.getByText('Not sent.')).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Continue draft' }));
@@ -406,7 +406,7 @@ describe('ClarificationDetailView: actions (S15)', () => {
       fireEvent.click(screen.getByRole('button', { name: 'Raise follow-up' }));
       await Promise.resolve();
     });
-    expect(screen.getByText('Only the officer holding the case can do this.')).toBeTruthy();
+    expect(screen.getByText('Only the reviewer holding the case can do this.')).toBeTruthy();
     expect(invalidate).toHaveBeenCalled();
     expect(navigate).not.toHaveBeenCalled();
   });

@@ -5,7 +5,7 @@ import type { Assignee, CaseDetail, CaseListItem } from '../server/review/types'
 /**
  * Who may do what on a review case, and the facts its header states (spec 07a FE-3, S8):
  * reviewers and supervisors claim an unassigned case and release their own; a supervisor
- * reassigns or unassigns any, or assigns an unassigned one. The officer holding the case marks
+ * reassigns or unassigns any, or assigns an unassigned one. The reviewer holding the case marks
  * its flags reviewed; anyone else reads it. Notes are open to every reviewer and supervisor of
  * the Commission, so a colleague can leave word. Pure.
  */
@@ -15,7 +15,7 @@ export interface CaseActions {
   mine: boolean;
   claim: boolean;
   release: boolean;
-  /** Supervisor: reassign (held) or assign (unassigned) to another officer. */
+  /** Supervisor: reassign (held) or assign (unassigned) to another reviewer. */
   reassign: 'reassign' | 'assign' | null;
   unassign: boolean;
   /** Mark reviewed on the open flags. */
@@ -80,21 +80,21 @@ export function versionLine(detail: Pick<CaseDetail, 'case' | 'versions'>): {
 }
 
 /**
- * Officers a supervisor can hand the case to: those the case already knows (its reviewers of
+ * Reviewers a supervisor can hand the case to: those the case already knows (its reviewers of
  * record) and the supervisor themself, never the current holder. review.yaml has no list of a
  * Commission's reviewers yet, so these are the only subjects the console can name.
  */
-export function assignableOfficers(
+export function assignableReviewers(
   detail: Pick<CaseDetail, 'case' | 'reviewerHistory'>,
   viewer: Assignee,
 ): Assignee[] {
-  const officers: Assignee[] = [];
-  for (const officer of [...detail.reviewerHistory, viewer]) {
-    if (officer.subject === detail.case.assignee?.subject) continue;
-    if (officers.some((each) => each.subject === officer.subject)) continue;
-    officers.push(officer);
+  const reviewers: Assignee[] = [];
+  for (const reviewer of [...detail.reviewerHistory, viewer]) {
+    if (reviewer.subject === detail.case.assignee?.subject) continue;
+    if (reviewers.some((each) => each.subject === reviewer.subject)) continue;
+    reviewers.push(reviewer);
   }
-  return officers;
+  return reviewers;
 }
 
 export const NOTE_MAX_LENGTH = 2000;

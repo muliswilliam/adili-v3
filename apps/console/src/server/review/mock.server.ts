@@ -1037,7 +1037,7 @@ async function assignmentOrNote(
         type: 'case-already-assigned',
         title: 'Case already assigned',
         status: 409,
-        detail: 'Another officer holds this case. Ask a supervisor to reassign it.',
+        detail: 'Another reviewer holds this case. Ask a supervisor to reassign it.',
       });
     }
     return hand(caller, 'Claimed');
@@ -1111,7 +1111,7 @@ async function act(
   const stored = found ? cases.get(found.caseId) : undefined;
   if (!found || !stored) return problem(404, 'Not found');
   if (holderOf(stored, caller)?.subject !== caller.subject) {
-    return problem(403, 'Only the officer holding the case can act on its clarifications');
+    return problem(403, 'Only the reviewer holding the case can act on its clarifications');
   }
 
   if (action === 'resolve') {
@@ -1208,7 +1208,7 @@ async function createDraft(request: Request, caseId: string, caller: Assignee) {
   const stored = cases.get(caseId);
   if (!stored) return problem(404, 'Not found');
   if (holderOf(stored, caller)?.subject !== caller.subject) {
-    return problem(403, 'Only the officer holding the case can write its clarifications');
+    return problem(403, 'Only the reviewer holding the case can write its clarifications');
   }
   const content = await contentOf(request);
   if (content === null) return problem(400, 'Items are not valid');
@@ -1222,7 +1222,7 @@ async function updateDraft(request: Request, id: string, caller: Assignee) {
   const stored = found ? cases.get(found.caseId) : undefined;
   if (!found || !stored) return problem(404, 'Not found');
   if (holderOf(stored, caller)?.subject !== caller.subject) {
-    return problem(403, 'Only the officer holding the case can write its clarifications');
+    return problem(403, 'Only the reviewer holding the case can write its clarifications');
   }
   if (found.status !== 'draft') return problem(409, 'Not a draft', 'not-a-draft');
   const content = await contentOf(request);
@@ -1237,7 +1237,7 @@ function issueDraft(id: string, caller: Assignee): Promise<Response> {
   const stored = found ? cases.get(found.caseId) : undefined;
   if (!found || !stored) return Promise.resolve(problem(404, 'Not found'));
   if (holderOf(stored, caller)?.subject !== caller.subject) {
-    return Promise.resolve(problem(403, 'Only the officer holding the case can issue'));
+    return Promise.resolve(problem(403, 'Only the reviewer holding the case can issue'));
   }
   if (found.status !== 'draft') return Promise.resolve(problem(409, 'Not a draft', 'not-a-draft'));
   if (found.items.length === 0) {

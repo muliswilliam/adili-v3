@@ -78,7 +78,7 @@ describe('CaseClarifications', () => {
     expect(draft?.textContent).toBe('Draft (no reference yet)Not sent · 1 itemDraft');
   });
 
-  it('opens the composer for the officer holding the case while the window is open', async () => {
+  it('opens the composer for the reviewer holding the case while the window is open', async () => {
     const onNew = await renderTab(CASES.mine);
     expect(screen.getByText(/^Window open until /)).toBeTruthy();
     fireEvent.click(newButton());
@@ -91,7 +91,7 @@ describe('CaseClarifications', () => {
     expect(screen.getByText(/^The clarification window closed on /)).toBeTruthy();
   });
 
-  it('disables it for anyone but the officer holding the case', async () => {
+  it('disables it for anyone but the reviewer holding the case', async () => {
     await renderTab(CASES.peters);
     expect(newButton().hasAttribute('disabled')).toBe(true);
     expect(

@@ -45,7 +45,7 @@ describe('newClarificationBlock', () => {
   const NOW = '2026-09-28T09:00:00Z';
   const me = { subject: 'me', name: 'Faith Achieng' };
 
-  it('lets the officer holding the case compose while the window is open', () => {
+  it('lets the reviewer holding the case compose while the window is open', () => {
     expect(
       newClarificationBlock({ assignee: me, windowEndsAt: '2026-10-02T09:00:00Z' }, 'me', NOW),
     ).toBeNull();

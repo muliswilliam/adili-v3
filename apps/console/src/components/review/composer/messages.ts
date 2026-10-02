@@ -51,10 +51,10 @@ export const en = {
   issueFailedTitle: 'This clarification could not be issued.',
   windowClosed: (date: string) =>
     `The clarification window closed on ${formatDate(date)}. Your draft is kept.`,
-  notMine: 'Only the officer holding the case can issue its clarifications. Your draft is kept.',
+  notMine: 'Only the reviewer holding the case can issue its clarifications. Your draft is kept.',
   issueUnavailable: 'The review service did not answer. Your draft is kept; try again.',
   saveFailed: 'The draft could not be saved. Try again.',
-  saveStale: 'Only the officer holding the case can change its clarifications.',
+  saveStale: 'Only the reviewer holding the case can change its clarifications.',
   sessionEnded: 'Your session has ended. Sign in again.',
 
   responseDue: (date: string) => `Response due ${formatDate(date)}`,

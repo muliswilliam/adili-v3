@@ -128,7 +128,7 @@ describe('Draft with AI against the review mock (S12)', () => {
     });
   });
 
-  it('is 403 for anyone but the officer holding the case', async () => {
+  it('is 403 for anyone but the reviewer holding the case', async () => {
     const result = requestDraft(client(), CASES.peters, input(), KEY);
     await vi.advanceTimersByTimeAsync(MOCK_DRAFT_WAIT_MS);
     expect(await result).toMatchObject({
@@ -146,7 +146,7 @@ describe('readDraft', () => {
     provider: 'anthropic',
     model: 'claude',
     generatedAt: '2026-10-02T08:00:00Z',
-    disclaimer: 'Indicators, not findings. A named officer decides.',
+    disclaimer: 'Indicators, not findings. A named reviewer decides.',
   };
   const item = {
     sectionKey: 'bio',
@@ -175,7 +175,7 @@ describe('readDraft', () => {
         provider: 'anthropic',
         model: 'claude',
         generatedAt: '2026-10-02T08:00:00Z',
-        disclaimer: 'Indicators, not findings. A named officer decides.',
+        disclaimer: 'Indicators, not findings. A named reviewer decides.',
       },
       opening: null,
       items: [item],

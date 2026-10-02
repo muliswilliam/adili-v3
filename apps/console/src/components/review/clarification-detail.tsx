@@ -36,6 +36,7 @@ import type { ClarificationDetail } from '../../server/clarifications.server';
 import type { Clarification } from '../../server/review/types';
 import type { ServiceError } from '../../server/service-call';
 import { clarificationActions } from '../../clarification/actions';
+import { reportingEntityOf } from '../../review-case/declaration';
 import { REQUIREMENT_LABELS } from '../../clarification/labels';
 import { clarificationTargets, labelOf } from '../../clarification/targets';
 import { historyOf, statusLine } from '../../clarification/view';
@@ -44,11 +45,11 @@ import { ResolveDialog, WithdrawDialog } from './clarification-dialogs';
 import { StatusBadge, TONES } from './status-badge';
 import { ClarificationComposer } from './composer/clarification-composer';
 import { useDraftWithAi } from './draft-with-ai/use-draft-with-ai';
-import { employerOf, type LetterCommission, LetterPreview } from './composer/letter-preview';
+import { type LetterCommission, LetterPreview } from './composer/letter-preview';
 
 /**
  * One clarification on a review case (spec 07a FE-4, S15): each item beside the declarant's
- * answer and documents, the letter, where it stands, its history, and for the officer holding
+ * answer and documents, the letter, where it stands, its history, and for the reviewer holding
  * the case the actions: once the declarant has responded, Mark resolved (note) or Raise
  * follow-up (a draft with `followUpOf`); before that, Withdraw (reason; letter revoked).
  * Everyone else reads it.
@@ -57,7 +58,7 @@ import { employerOf, type LetterCommission, LetterPreview } from './composer/let
 function failureText(error: ServiceError): string {
   if (error.kind === 'unauthenticated') return 'Your session has ended. Sign in again.';
   if (error.kind === 'problem' && error.problem.status === 403) {
-    return 'Only the officer holding the case can do this.';
+    return 'Only the reviewer holding the case can do this.';
   }
   if (error.kind === 'problem' && error.problem.status === 409) {
     return 'This clarification has changed. Reload to see it.';
@@ -297,7 +298,7 @@ export function ClarificationDetailView({
               <LetterPreview
                 commission={commission}
                 reviewCase={reviewCase}
-                employer={employerOf(document)}
+                reportingEntity={reportingEntityOf(document)}
                 items={clarification.items.map((item) => ({
                   label: labelOf(item, clarificationTargets(document)),
                   requirement: item.requirement,

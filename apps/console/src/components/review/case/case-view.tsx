@@ -16,8 +16,8 @@ import { useRouter } from '@tanstack/react-router';
 import { type ReactNode, useCallback, useMemo, useState } from 'react';
 
 import { newClarificationBlock } from '../../../clarification/list';
-import { assignableOfficers, caseActions, versionLine } from '../../../review-case/case';
-import { readDeclaration } from '../../../review-case/declaration';
+import { assignableReviewers, caseActions, versionLine } from '../../../review-case/case';
+import { readDeclaration, reportingEntityOf } from '../../../review-case/declaration';
 import { groupFlags, openFlagsByItem } from '../../../review-case/flags';
 import { timelineEvents } from '../../../review-case/timeline';
 import {
@@ -44,7 +44,7 @@ import {
 import { CaseClarifications } from '../case-clarifications';
 import { useDraftWithAi } from '../draft-with-ai/use-draft-with-ai';
 import { ClarificationComposer } from '../composer/clarification-composer';
-import { employerOf, type LetterCommission } from '../composer/letter-preview';
+import type { LetterCommission } from '../composer/letter-preview';
 import { CaseHeader } from './case-header';
 import { DeclarationPane, DeclarationUnavailable, DeclarationUnreadable } from './declaration-pane';
 import { FlagsTab } from './flags-tab';
@@ -148,7 +148,7 @@ export function CaseView({ load, now, supervisor, commission, onReload, copilot 
     const result = await claimCase({ data: { caseId: item.id } });
     setDialog(null);
     if (!result.ok && result.error.kind === 'problem' && result.error.problem.status === 409) {
-      // Another officer claimed it first: read who (waiting for the new case), and say so.
+      // Another reviewer claimed it first: read who (waiting for the new case), and say so.
       await router.invalidate({ sync: true });
       const fresh = router.state.matches.find((match) => match.routeId === CASE_ROUTE)?.loaderData;
       const winner = fresh?.ok ? fresh.data.detail.case.assignee?.name : null;
@@ -324,7 +324,7 @@ export function CaseView({ load, now, supervisor, commission, onReload, copilot 
     <Page>
       <CaseHeader
         detail={detail}
-        employer={employerOf(detail.document)}
+        reportingEntity={reportingEntityOf(detail.document)}
         viewer={viewer}
         actions={actions}
         supervisor={supervisor}
@@ -417,17 +417,17 @@ export function CaseView({ load, now, supervisor, commission, onReload, copilot 
         reference={item.reference}
         declarant={item.declarantName}
         holder={holder}
-        officers={assignableOfficers(detail, viewer)}
+        reviewers={assignableReviewers(detail, viewer)}
         viewerSubject={viewer.subject}
         reviewersOfRecord={detail.reviewerHistory}
-        onConfirm={async (officer) => {
+        onConfirm={async (reviewer) => {
           const result = await reassignCase({
-            data: { caseId: item.id, assignee: officer.subject },
+            data: { caseId: item.id, assignee: reviewer.subject },
           });
           setDialog(null);
           await settle(
             result,
-            holder ? t.toasts.reassigned(officer.name) : t.toasts.assigned(officer.name),
+            holder ? t.toasts.reassigned(reviewer.name) : t.toasts.assigned(reviewer.name),
           );
         }}
       />

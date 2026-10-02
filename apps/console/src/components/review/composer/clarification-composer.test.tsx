@@ -36,7 +36,7 @@ const AI: AiLabelDetails = {
 
 const client = () => mockReviewClient(ME, 'Grace Wanjiru');
 
-/** The server functions, answered by the review mock as the officer holding the cases. */
+/** The server functions, answered by the review mock as the reviewer holding the cases. */
 function mockServer(): ComposerServer & {
   save: ReturnType<typeof vi.fn>;
   issue: ReturnType<typeof vi.fn>;

@@ -306,7 +306,7 @@ function Section({
 
 /** The kit's household avatars: the declarant in brand orange, spouses blue, children green. */
 const AVATAR_TONES: Record<Relation, string> = {
-  officer: 'from-household-declarant to-brand',
+  declarant: 'from-household-declarant to-brand',
   spouse: 'from-household-spouse to-household-spouse-solid',
   child: 'from-household-child to-household-child-solid',
 };

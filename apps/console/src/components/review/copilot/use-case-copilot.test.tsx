@@ -203,7 +203,7 @@ describe('useCaseCopilot', () => {
     await act(async () => {
       problem = await result.current.refresh();
     });
-    expect(problem).toBe('Only the officer holding the case or a supervisor can refresh it.');
+    expect(problem).toBe('Only the reviewer holding the case or a supervisor can refresh it.');
   });
 
   it('starts from the view it is given without reading it again', async () => {

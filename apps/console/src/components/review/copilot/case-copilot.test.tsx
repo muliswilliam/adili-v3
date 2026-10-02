@@ -145,7 +145,7 @@ describe('CaseCopilot (S15)', () => {
       const block = screen.getByRole('region', { name: title });
       expect(within(block).getByRole('img', { name: /^AI\. Summary · Anthropic/ })).toBeTruthy();
     }
-    expect(screen.getByText('Indicators, not findings. A named officer decides.')).toBeTruthy();
+    expect(screen.getByText('Indicators, not findings. A named reviewer decides.')).toBeTruthy();
   });
 
   it('opens a source in the declaration pane, highlighted', async () => {
@@ -261,7 +261,7 @@ describe('CaseCopilot (S15)', () => {
       return Promise.resolve();
     });
     expect(
-      screen.getByText('Only the officer holding the case or a supervisor can refresh it.'),
+      screen.getByText('Only the reviewer holding the case or a supervisor can refresh it.'),
     ).toBeTruthy();
   });
 

@@ -64,16 +64,17 @@ import {
 } from '../../../clarification/composer';
 import { REQUIREMENT_LABELS } from '../../../clarification/labels';
 import { type ClarificationTarget, clarificationTargets } from '../../../clarification/targets';
+import { reportingEntityOf } from '../../../review-case/declaration';
 import { issueComposedClarification, saveClarificationDraft } from '../../../server/clarifications';
 import type { IssueResult } from '../../../server/clarifications.server';
 import type { CaseListItem, Clarification, Requirement } from '../../../server/review/types';
 import type { ServiceError, ServiceResult } from '../../../server/service-call';
-import { employerOf, type LetterCommission, LetterPreview } from './letter-preview';
+import { type LetterCommission, LetterPreview } from './letter-preview';
 import { messages as t } from './messages';
 import { isInOpenPicker, TargetPicker } from './target-picker';
 
 /**
- * The clarification composer (spec 07a FE-4, S12, S19): a wide drawer where the officer holding
+ * The clarification composer (spec 07a FE-4, S12, S19): a wide drawer where the reviewer holding
  * the case writes the items, each pointing at a section, statement or item of the current
  * version with what s.35(4) requires and the text, previews the letter, saves a draft or issues
  * it after a confirm. Ready to mount on the case view (#164) and on a draft's detail page; see
@@ -340,7 +341,7 @@ function ComposerBody({
           <LetterPreview
             commission={commission}
             reviewCase={reviewCase}
-            employer={employerOf(document)}
+            reportingEntity={reportingEntityOf(document)}
             items={state.items.map((item) => ({
               label: item.target?.label ?? null,
               requirement: item.requirement,

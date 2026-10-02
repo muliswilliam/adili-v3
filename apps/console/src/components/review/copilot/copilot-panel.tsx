@@ -662,7 +662,7 @@ function WhyDialog({
 }
 
 /**
- * The rating of one output (a job): the officer holding the case rates it; a supervisor sees
+ * The rating of one output (a job): the reviewer holding the case rates it; a supervisor sees
  * the rating; anyone else sees nothing. One rating per reviewer per output, as review.yaml has it.
  */
 function Rating({

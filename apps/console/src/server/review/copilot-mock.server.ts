@@ -769,7 +769,7 @@ async function requestDraft(
   caller: Assignee,
   held: boolean,
 ): Promise<Response> {
-  if (!held) return problem(403, 'Only the officer holding the case drafts with AI');
+  if (!held) return problem(403, 'Only the reviewer holding the case drafts with AI');
   const stored = store.get(caseId);
   if (stored?.view.status === 'not-enabled') {
     return json(409, {
@@ -882,7 +882,7 @@ export async function copilotRoute(
       return json(200, forCaller(stored, current(caseId, stored, now), caller));
     }
     if (method === 'POST' && view[2]) {
-      if (!held) return problem(403, 'Only the officer holding the case or a supervisor');
+      if (!held) return problem(403, 'Only the reviewer holding the case or a supervisor');
       const { status } = current(caseId, stored, now);
       if (status === 'pending' || status === 'stale') return problem(409, 'Already pending');
       if (status === 'not-enabled') return problem(409, 'AI assistance is not enabled');
@@ -913,7 +913,7 @@ export async function copilotRoute(
         ]) => jobs.summarize === jobId || jobs.explain === jobId,
       ) ?? [];
     if (!caseId || !stored || holds(caseId) === null) return problem(404, 'Not found');
-    if (!holds(caseId)) return problem(403, 'Only the officer holding the case rates its copilot');
+    if (!holds(caseId)) return problem(403, 'Only the reviewer holding the case rates its copilot');
     const body = await readJson(request);
     const valid =
       isRecord(body) &&

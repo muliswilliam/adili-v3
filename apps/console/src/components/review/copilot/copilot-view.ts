@@ -9,7 +9,7 @@ import { messages as t } from './messages';
  * pure, so each state is tested without rendering.
  */
 
-/** Who is looking: the officer holding the case rates and refreshes; a supervisor reads and refreshes. */
+/** Who is looking: the reviewer holding the case rates and refreshes; a supervisor reads and refreshes. */
 export type CopilotAccess = 'assignee' | 'supervisor' | 'viewer';
 
 export type LauncherTone = 'ready' | 'busy' | 'warning' | 'off';

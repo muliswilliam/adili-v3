@@ -27,8 +27,8 @@ export interface LetterItem {
 export interface LetterPreviewProps {
   commission: LetterCommission;
   reviewCase: Pick<CaseListItem, 'reference' | 'declarantName' | 'personnelFileNumber' | 'type'>;
-  /** The declarant's employer, from the declaration as filed. */
-  employer: string | null;
+  /** The declarant's reporting entity, from the declaration as filed (`reportingEntityOf`). */
+  reportingEntity: string | null;
   items: readonly LetterItem[];
   /** Draft with AI's opening paragraph, when there is one. */
   opening?: string | null;
@@ -45,7 +45,7 @@ export interface LetterPreviewProps {
 export function LetterPreview({
   commission,
   reviewCase,
-  employer,
+  reportingEntity,
   items,
   opening,
   reference,
@@ -90,10 +90,10 @@ export function LetterPreview({
         {reviewCase.declarantName}
         <br />
         {t.letter.fileNumber(reviewCase.personnelFileNumber)}
-        {employer ? (
+        {reportingEntity ? (
           <>
             <br />
-            {employer}
+            {reportingEntity}
           </>
         ) : null}
       </p>
@@ -152,14 +152,4 @@ export function LetterPreview({
       ) : null}
     </article>
   );
-}
-
-/** The declarant's employer in the declaration as filed, for the letter's address block. */
-export function employerOf(document: Record<string, unknown> | null): string | null {
-  const officer = document?.officer;
-  if (typeof officer !== 'object' || officer === null) return null;
-  const employment = (officer as Record<string, unknown>).employment;
-  if (typeof employment !== 'object' || employment === null) return null;
-  const employer = (employment as Record<string, unknown>).employer;
-  return typeof employer === 'string' && employer ? employer : null;
 }

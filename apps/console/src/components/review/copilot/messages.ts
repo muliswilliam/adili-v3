@@ -22,7 +22,7 @@ export const en = {
   label: (when: string, version: string) =>
     `AI-assisted · generated ${when} for version ${version}`,
   labelShort: 'AI',
-  disclaimer: 'Indicators, not findings. A named officer decides.',
+  disclaimer: 'Indicators, not findings. A named reviewer decides.',
   notEnabled: 'AI assistance is not enabled for this Commission.',
   learnWhy: 'Learn why',
   why: {
@@ -87,7 +87,7 @@ export const en = {
   refreshFailed: {
     pending: 'Already updating.',
     notEnabled: 'AI assistance is not enabled for this Commission.',
-    forbidden: 'Only the officer holding the case or a supervisor can refresh it.',
+    forbidden: 'Only the reviewer holding the case or a supervisor can refresh it.',
     unavailable: 'Copilot could not be refreshed. Try again.',
   },
   sections: {
@@ -98,7 +98,7 @@ export const en = {
   },
   categories: { income: 'Income', assets: 'Assets', liabilities: 'Liabilities' },
   statementOf: (name: string, relation: string) => `${name} · ${relation}`,
-  relations: { officer: 'Declarant', spouse: 'Spouse', child: 'Child' },
+  relations: { declarant: 'Declarant', spouse: 'Spouse', child: 'Child' },
 };
 
 export const sw: Partial<Record<keyof typeof en, string>> = {};

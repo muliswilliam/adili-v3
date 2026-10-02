@@ -39,7 +39,7 @@ const LABEL = {
   model: 'claude-opus-5',
   promptVersion: 2,
   generatedAt: '2026-09-28T08:59:00.000Z',
-  disclaimer: 'Indicators, not findings. A named officer decides.',
+  disclaimer: 'Indicators, not findings. A named reviewer decides.',
 };
 const READY: AiDraft = {
   status: 'ready',
@@ -418,7 +418,7 @@ describe('Draft with AI in the composer (spec 07c FE-3, S12)', () => {
     expect(draftButton().hasAttribute('disabled')).toBe(true);
   });
 
-  it('tells the reviewer when only the officer holding the case may draft (403)', async () => {
+  it('tells the reviewer when only the reviewer holding the case may draft (403)', async () => {
     renderHost({
       server: fakeDraftServer({
         request: {
@@ -434,6 +434,6 @@ describe('Draft with AI in the composer (spec 07c FE-3, S12)', () => {
     fireEvent.click(draftButton());
     await settle();
 
-    expect(screen.getByText('Only the officer holding the case can draft with AI.')).toBeTruthy();
+    expect(screen.getByText('Only the reviewer holding the case can draft with AI.')).toBeTruthy();
   });
 });
