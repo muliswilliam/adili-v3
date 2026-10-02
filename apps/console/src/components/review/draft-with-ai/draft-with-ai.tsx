@@ -146,6 +146,10 @@ export function DraftWithAi({
   const [phase, setPhase] = useState<Phase>('idle');
   // The composer closed (this unmounted) while drafting: drop the answer.
   const alive = useRef(true);
+  // The Idempotency-Key of the draft last asked for that got no answer (a timeout, the network),
+  // with what it was asked for: asking again for the same is a retry of that draft, which the
+  // review service answers without drafting (and paying for) it twice. Any answer drops it.
+  const unanswered = useRef<{ input: string; key: string } | null>(null);
   useEffect(() => {
     alive.current = true;
     return () => {
@@ -162,11 +166,14 @@ export function DraftWithAi({
     if (count === 0 || busy) return;
     setPhase('busy');
     const input = draftInput(selection, flags, api.targets, language);
+    const asked = JSON.stringify(input);
+    const key = unanswered.current?.input === asked ? unanswered.current.key : crypto.randomUUID();
+    unanswered.current = { input: asked, key };
     let outcome: Awaited<ReturnType<typeof fetchDraft>>;
     try {
       outcome = await fetchDraft(
         server,
-        { ...input, caseId, key: crypto.randomUUID() },
+        { ...input, caseId, key },
         () => alive.current,
         () => {
           setPhase('pending');
@@ -178,6 +185,9 @@ export function DraftWithAi({
       return;
     }
     if (outcome === null) return;
+    const answered =
+      outcome !== 'timeout' && !(!outcome.ok && outcome.error.kind === 'unavailable');
+    if (answered) unanswered.current = null;
     if (outcome === 'timeout') {
       finish(t.failed(reasonText('timeout')), true);
       return;

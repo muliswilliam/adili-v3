@@ -164,14 +164,22 @@ function Host({
 function renderHost(props: Partial<Parameters<typeof Host>[0]> = {}) {
   const server = props.server ?? fakeDraftServer();
   const composer = props.composer ?? fakeComposerServer();
-  render(
+  const tree = (copilotStatus: CopilotStatus | null | undefined) => (
     <TooltipProvider>
       <ToastProvider>
-        <Host server={server} composer={composer} copilotStatus={props.copilotStatus} />
+        <Host server={server} composer={composer} copilotStatus={copilotStatus} />
       </ToastProvider>
-    </TooltipProvider>,
+    </TooltipProvider>
   );
-  return { server, composer };
+  const { rerender } = render(tree(props.copilotStatus));
+  return {
+    server,
+    composer,
+    /** Rerenders with the copilot's status changed. */
+    setCopilotStatus: (status: CopilotStatus | null) => {
+      rerender(tree(status));
+    },
+  };
 }
 
 const drawer = () => screen.getByRole('dialog');
@@ -372,6 +380,46 @@ describe('Draft with AI in the composer (spec 07c FE-3, S12)', () => {
     expect(draftButton().textContent).toBe('Draft with AI');
     expect(draftButton().hasAttribute('disabled')).toBe(false);
     expect(drafting().getAttribute('aria-busy')).toBe('false');
+  });
+
+  it('retries a draft that got no answer with the same Idempotency-Key, a new pick with a new one (M5)', async () => {
+    const server = fakeDraftServer();
+    server.request.mockResolvedValueOnce(unavailable);
+    server.request.mockRejectedValueOnce(new Error('Failed to fetch'));
+    server.request.mockResolvedValueOnce(ok({ status: 'failed', id: 'd1', reason: 'provider' }));
+    renderHost({ server });
+    pick('Value changed by 150% since the previous declaration');
+    fireEvent.click(draftButton());
+    await settle();
+    fireEvent.click(draftButton());
+    await settle();
+    fireEvent.click(draftButton());
+    await settle();
+    const keys = server.request.mock.calls.map(([request]) => request.key);
+    // The first two got no answer (timed out, network): the draft may still be written, so the
+    // retries ask for the same one rather than start (and pay for) another.
+    expect(keys[1]).toBe(keys[0]);
+    expect(keys[2]).toBe(keys[0]);
+
+    // That draft failed: another try is a new draft.
+    fireEvent.click(draftButton());
+    await settle();
+    expect(server.request.mock.calls[3]?.[0].key).not.toBe(keys[0]);
+
+    // So is one from another selection.
+    server.request.mockResolvedValueOnce(unavailable);
+    pick('Plot Kisumu/Manyatta/1234 (John Kennedy Otieno)');
+    fireEvent.click(draftButton());
+    await settle();
+    const changed = server.request.mock.calls[4]?.[0].key;
+    expect(changed).not.toBe(server.request.mock.calls[3]?.[0].key);
+    fireEvent.keyDown(within(drafting()).getByRole('combobox', { name: 'Language' }), {
+      key: 'Enter',
+    });
+    fireEvent.click(screen.getByRole('option', { name: 'Swahili' }));
+    fireEvent.click(draftButton());
+    await settle();
+    expect(server.request.mock.calls[5]?.[0].key).not.toBe(changed);
   });
 
   it('says a failed draft is not available and keeps the picks for another try', async () => {
