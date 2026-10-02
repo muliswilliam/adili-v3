@@ -14,6 +14,7 @@ import {
   loadOfficers,
   markFlagReviewed,
   loadRegistry,
+  loadRegistryStatus,
   type Officer,
   reassign,
   recheck,
@@ -127,6 +128,13 @@ export const getCaseRegistry = createServerFn({ method: 'GET' })
   .validator(z.object({ caseId: id }))
   .handler(({ data }): Promise<ServiceResult<CaseRegistryView>> =>
     asOfficer((client) => loadRegistry(client, data.caseId)),
+  );
+
+/** When the case's latest registry check was stored: polled while a re-check runs, unaudited. */
+export const getCaseRegistryStatus = createServerFn({ method: 'GET' })
+  .validator(z.object({ caseId: id }))
+  .handler(({ data }): Promise<ServiceResult<{ checkedAt: string | null }>> =>
+    asOfficer((client) => loadRegistryStatus(client, data.caseId)),
   );
 
 /** Re-checks the case's registries: the assignee or a supervisor, once every 10 minutes. */

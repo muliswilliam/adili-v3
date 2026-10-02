@@ -16,7 +16,7 @@ import {
 } from '@adili/api-kit';
 
 import { RecheckService } from './recheck.service.js';
-import type { RegistryView } from './representation.js';
+import type { RegistryStatus, RegistryView } from './representation.js';
 import { RegistryViewService } from './registry-view.service.js';
 
 /** The registry cross-checks of a case (spec 07b): the Registry tab, and a re-check. */
@@ -46,6 +46,23 @@ export class RegistryController {
     @Param('caseId') caseId: string,
   ): Promise<RegistryView> {
     return this.registry.view(principal, caseId);
+  }
+
+  @Get('registry/status')
+  @ApiParam({ name: 'caseId', schema: { type: 'string', format: 'uuid' } })
+  @ApiOperation({
+    operationId: 'getCaseRegistryStatus',
+    summary: "When the case's latest registry check was stored",
+    description:
+      "Reviewers and supervisors of the case's Commission; anyone else gets 404. What a client polls while a re-check runs, before reading the registry view once: read from review alone (no declaration, no registry records), so not an audited read.",
+  })
+  @ApiOkResponse({ description: 'Registry status', schema: schemaRef('RegistryStatus') })
+  @ApiProblemResponse(404, 'Not found, or not visible to the caller')
+  status(
+    @CurrentPrincipal() principal: Principal,
+    @Param('caseId') caseId: string,
+  ): Promise<RegistryStatus> {
+    return this.registry.status(principal, caseId);
   }
 
   @Post('recheck')

@@ -10,7 +10,14 @@ import {
   registryView,
   WAFULA,
 } from '../review-case/fixtures';
-import { claim, loadCase, loadOfficers, loadRegistry, recheck } from './review-case.server';
+import {
+  claim,
+  loadCase,
+  loadOfficers,
+  loadRegistry,
+  loadRegistryStatus,
+  recheck,
+} from './review-case.server';
 import type { paths } from './review/api.gen';
 
 type Handler = (request: Request) => Response | Promise<Response>;
@@ -179,6 +186,21 @@ describe('loadRegistry', () => {
       CASE_ID,
     );
     expect(result).toMatchObject({ ok: false, error: { kind: 'unavailable' } });
+  });
+});
+
+describe('loadRegistryStatus', () => {
+  it("reads when the case's latest check was stored, off the audited registry view", async () => {
+    const urls: string[] = [];
+    const result = await loadRegistryStatus(
+      client((request) => {
+        urls.push(new URL(request.url).pathname);
+        return json(200, { checkedAt: '2026-10-02T09:01:00.000Z' });
+      }),
+      CASE_ID,
+    );
+    expect(urls).toEqual([`/v1/review/cases/${CASE_ID}/registry/status`]);
+    expect(result).toEqual({ ok: true, data: { checkedAt: '2026-10-02T09:01:00.000Z' } });
   });
 });
 

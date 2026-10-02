@@ -53,6 +53,7 @@ import {
   addCaseNote,
   getCaseAttachmentLink,
   getCaseRegistry,
+  getCaseRegistryStatus,
   markCaseFlagReviewed,
   recheckCaseRegistries,
 } from '../../../server/review-case';
@@ -70,7 +71,7 @@ import { RegistryTab } from './registry-tab';
 import { TimelineTab } from './timeline-tab';
 
 /**
- * Waits between reads of the registry after a re-check: the lookups take seconds (more when a
+ * Waits between reads of the registry status after a re-check: the lookups take seconds (more when a
  * registry is retried), so early reads are close together and later ones further apart. About a
  * minute and a half in all, after which the tab says the re-check is still running.
  */
@@ -204,16 +205,25 @@ export function CaseView({ load, viewer, slug, now, tab, onTab }: CaseViewProps)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [active]);
 
-  /** Reads the registry until the re-check's results are stored, then shows them. */
+  /**
+   * Polls when the case's latest check was stored (an unaudited read) until the re-check's has
+   * landed, then reads the Registry tab's records once (the audited read) and shows them.
+   */
   async function awaitRecheck(before: string | null) {
     for (const delay of RECHECK_POLL_MS) {
       await wait(delay);
       if (!isMounted()) return;
-      const result = await readRegistry();
+      const status = await getCaseRegistryStatus({ data: { caseId: item.id } }).catch(
+        () => SERVICE_UNAVAILABLE,
+      );
       if (!isMounted()) return;
-      if (result.ok && recheckLanded(before, result.data.checkedAt)) {
+      if (status.ok && recheckLanded(before, status.data.checkedAt)) {
+        const result = await readRegistry();
+        if (!isMounted()) return;
         registryRequested.current = true;
-        setRegistry({ view: result.data, failed: false });
+        setRegistry(
+          result.ok ? { view: result.data, failed: false } : { view: null, failed: true },
+        );
         setChecking(false);
         toast({ title: REGISTRY_COPY.recheck.done });
         await refresh();

@@ -5,7 +5,7 @@ import type { DeclarationV1, PersonName } from '@adili/forms';
 import { and, asc, eq, inArray } from 'drizzle-orm';
 
 import { caseTenant } from '../cases/access.js';
-import { findCase } from '../cases/case-lookup.js';
+import { findCase, type ReviewTransaction } from '../cases/case-lookup.js';
 import { type Assignee, flagView } from '../cases/representation.js';
 import { reviewAssignments, reviewFlags } from '../cases/schema.js';
 import type { ReviewSchema } from '../db/schema.js';
@@ -36,7 +36,12 @@ import {
   registryRows,
   registrySystemOf,
 } from '../rules/index.js';
-import { latestCheck, type RegistrySystemView, type RegistryView } from './representation.js';
+import {
+  latestCheck,
+  type RegistryStatus,
+  type RegistrySystemView,
+  type RegistryView,
+} from './representation.js';
 import { registryChecks } from './schema.js';
 
 type CheckRow = typeof registryChecks.$inferSelect;
@@ -56,6 +61,18 @@ export class RegistryViewService {
     private readonly gateway: IntegrationGatewayClient,
   ) {}
 
+  /**
+   * When the current version's latest check was stored: what a client polls while a re-check
+   * runs. Read from review alone (no declaration, no records), so not an audited read.
+   */
+  async status(principal: Principal, caseId: string): Promise<RegistryStatus> {
+    const tenant = caseTenant(principal);
+    const checks = await withTenant(this.db, { tenant, subject: principal.subject }, async (tx) =>
+      currentChecks(tx, await findCase(tx, tenant, caseId)),
+    );
+    return { checkedAt: latestCheck(checks) };
+  }
+
   async view(principal: Principal, caseId: string): Promise<RegistryView> {
     const tenant = caseTenant(principal);
     const { row, checks, flags, names } = await withTenant(
@@ -63,17 +80,7 @@ export class RegistryViewService {
       { tenant, subject: principal.subject },
       async (tx) => {
         const found = await findCase(tx, tenant, caseId);
-        // The current version's only: another version's result ids are records matched against
-        // other declared items, never to be paired with this document.
-        const checkRows = await tx
-          .select()
-          .from(registryChecks)
-          .where(
-            and(
-              eq(registryChecks.caseId, found.id),
-              eq(registryChecks.versionId, found.currentVersionId),
-            ),
-          );
+        const checkRows = await currentChecks(tx, found);
         const flagRows = await tx
           .select()
           .from(reviewFlags)
@@ -217,6 +224,25 @@ export class RegistryViewService {
       throw error;
     }
   }
+}
+
+/**
+ * The checks of the case's current version only: another version's result ids are records matched
+ * against other declared items, never to be paired with this document.
+ */
+function currentChecks(
+  tx: ReviewTransaction,
+  found: { id: string; currentVersionId: string },
+): Promise<CheckRow[]> {
+  return tx
+    .select()
+    .from(registryChecks)
+    .where(
+      and(
+        eq(registryChecks.caseId, found.id),
+        eq(registryChecks.versionId, found.currentVersionId),
+      ),
+    );
 }
 
 interface CaseKeys {

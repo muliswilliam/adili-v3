@@ -2772,6 +2772,33 @@ paths:
       x-audited-read:
         action: review.case.registry.viewed
         resource: review-case
+  /v1/review/cases/{caseId}/registry/status:
+    get:
+      tags:
+        - cases
+      summary: When the case's latest registry check was stored
+      description: "Reviewers and supervisors of the case's Commission; anyone else gets 404. What a client polls while a re-check runs, before reading the registry view once: read from review alone (no declaration, no registry records), so not an audited read."
+      operationId: getCaseRegistryStatus
+      parameters:
+        - name: caseId
+          required: true
+          in: path
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Registry status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RegistryStatus'
+        '404':
+          description: Not found, or not visible to the caller
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
   /v1/review/cases/{caseId}/recheck:
     post:
       tags:
@@ -4177,6 +4204,17 @@ components:
       required:
         - checkedAt
         - persons
+    RegistryStatus:
+      type: object
+      properties:
+        checkedAt:
+          anyOf:
+            - type: string
+              format: date-time
+            - type: 'null'
+          description: When the current version's latest check was stored; null before one
+      required:
+        - checkedAt
     DeterminationOutcome:
       type: string
       enum:

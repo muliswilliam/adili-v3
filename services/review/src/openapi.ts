@@ -74,7 +74,7 @@ import {
   referralSchema,
   referralStatusSchema,
 } from './referrals/representation.js';
-import { registryViewSchema } from './registry/representation.js';
+import { registryStatusSchema, registryViewSchema } from './registry/representation.js';
 
 /**
  * Named schemas of the review service's OpenAPI document (`#/components/schemas/<name>`), which
@@ -109,6 +109,7 @@ export const OPENAPI_SCHEMAS: Record<string, z.ZodType> = {
   RegistryCheck: registryCheckSchema,
   RegistrySummary: registrySummarySchema,
   RegistryView: registryViewSchema,
+  RegistryStatus: registryStatusSchema,
   DeterminationOutcome: determinationOutcomeSchema,
   ProposalStatus: proposalStatusSchema,
   ProposerKind: proposerKindSchema,

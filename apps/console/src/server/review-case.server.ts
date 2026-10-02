@@ -185,6 +185,20 @@ export async function loadRegistry(
   return { ok: true, data: view as CaseRegistryView };
 }
 
+/**
+ * `GET .../registry/status`: when the case's latest registry check was stored. Not an audited
+ * read (no declaration, no records), so the case view polls it while a re-check runs and reads
+ * the Registry tab once the new check has landed.
+ */
+export async function loadRegistryStatus(
+  client: ReviewClient,
+  caseId: string,
+): Promise<ServiceResult<{ checkedAt: string | null }>> {
+  return callService(() =>
+    client.GET('/v1/review/cases/{caseId}/registry/status', { params: { path: { caseId } } }),
+  );
+}
+
 /** Why review refused a re-check, beyond the usual service errors. */
 export type RecheckRefusal =
   /** Re-checked within the last 10 minutes (429); the next one is accepted after this. */

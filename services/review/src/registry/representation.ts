@@ -53,6 +53,18 @@ export const registryViewSchema = z.object({
 });
 export type RegistryView = z.infer<typeof registryViewSchema>;
 
+/**
+ * review.yaml `RegistryStatus`: when the case's latest registry check was stored, and nothing
+ * else, so a client waiting for a re-check can ask often without an audited read each time.
+ */
+export const registryStatusSchema = z.object({
+  checkedAt: z.iso
+    .datetime()
+    .nullable()
+    .meta({ description: "When the current version's latest check was stored; null before one" }),
+});
+export type RegistryStatus = z.infer<typeof registryStatusSchema>;
+
 /** People in the order the Registry tab lists them: the officer, then the household by key. */
 export function byPersonAndSystem<T extends { personKey: string; system: RegistrySystem }>(
   a: T,

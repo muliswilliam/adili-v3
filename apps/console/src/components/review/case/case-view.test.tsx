@@ -22,6 +22,7 @@ import {
   addCaseNote,
   claimCase,
   getCaseRegistry,
+  getCaseRegistryStatus,
   getReassignOfficers,
   markCaseFlagReviewed,
   reassignCase,
@@ -49,6 +50,7 @@ vi.mock('../../../server/review-case', () => ({
   claimCase: vi.fn(),
   getCaseAttachmentLink: vi.fn(),
   getCaseRegistry: vi.fn(),
+  getCaseRegistryStatus: vi.fn(),
   getReassignOfficers: vi.fn(),
   markCaseFlagReviewed: vi.fn(),
   reassignCase: vi.fn(),
@@ -429,8 +431,10 @@ describe('CaseView: Registry tab', () => {
     const after = { ...registryView(), checkedAt: '2026-10-02T09:01:00.000Z' };
     vi.mocked(getCaseRegistry)
       .mockResolvedValueOnce(ok(registryView()))
-      .mockResolvedValueOnce(ok(registryView()))
       .mockResolvedValue(ok(after));
+    vi.mocked(getCaseRegistryStatus)
+      .mockResolvedValueOnce(ok({ checkedAt: registryView().checkedAt }))
+      .mockResolvedValue(ok({ checkedAt: after.checkedAt }));
     vi.mocked(recheckCaseRegistries).mockResolvedValue({ ok: true });
     render(view(held(), reviewer, 'registry'));
     await screen.findByRole('list', { name: 'Registry checks for Wanjiku Njoki Kamau' });
@@ -458,6 +462,9 @@ describe('CaseView: Registry tab', () => {
     expect(await screen.findByText('Registry checks updated')).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Re-check' })).toBeTruthy();
     expect(invalidate).toHaveBeenCalled();
+    // Polled the unaudited status; read the audited records once when the tab opened, once after.
+    expect(getCaseRegistryStatus).toHaveBeenCalledTimes(2);
+    expect(getCaseRegistry).toHaveBeenCalledTimes(2);
   });
 
   it('says when the next re-check is accepted (429)', async () => {
