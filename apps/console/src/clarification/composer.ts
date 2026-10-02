@@ -23,8 +23,14 @@ export interface ComposerItem {
   target: ClarificationTarget | null;
   requirement: Requirement | null;
   text: string;
-  /** The AI label of an item Draft with AI inserted; null for the reviewer's own. */
+  /** The AI label of an item Draft with AI inserted in this sitting; null otherwise. */
   ai: AiLabelDetails | null;
+  /**
+   * The Draft with AI job that drafted the item, saved and issued with it (review.yaml
+   * `ClarificationItemInput.aiJobId`) so it stays labelled AI-assisted (ADR-007), also once
+   * edited and in a saved draft, whose label details are not kept. Null for the reviewer's own.
+   */
+  aiJobId: string | null;
   /** An inserted item the reviewer has changed since ("AI draft, edited"). */
   edited: boolean;
 }
@@ -36,6 +42,8 @@ export interface ComposerItem {
 export interface ComposerOpening {
   text: string;
   ai: AiLabelDetails | null;
+  /** The Draft with AI job that drafted it (review.yaml `ClarificationInput.openingAiJobId`). */
+  aiJobId: string | null;
   edited: boolean;
 }
 
@@ -51,12 +59,16 @@ export interface ComposerSeed extends Partial<TargetRef> {
   requirement: Requirement | null;
   text: string;
   label?: string | null;
+  /** A saved item's drafting job; a drafted one's comes from `ComposerDraft.jobId`. */
+  aiJobId?: string | null;
 }
 
 /** What Draft with AI returns (review.yaml `CopilotDraft`), or seeds from elsewhere. */
 export interface ComposerDraft {
   /** The AI label of the draft; null for items the reviewer seeds without AI. */
   label: AiLabelDetails | null;
+  /** The Draft with AI job (`CopilotDraft.jobId`); null for items seeded without AI. */
+  jobId: string | null;
   opening: string | null;
   items: ComposerSeed[];
 }
@@ -72,7 +84,7 @@ export type ComposerAction =
   | { type: 'discard-opening' };
 
 function blank(key: string): ComposerItem {
-  return { key, target: null, requirement: null, text: '', ai: null, edited: false };
+  return { key, target: null, requirement: null, text: '', ai: null, aiJobId: null, edited: false };
 }
 
 const isBlank = (item: ComposerItem) =>
@@ -83,6 +95,7 @@ function seeded(
   seeds: readonly ComposerSeed[],
   targets: readonly ClarificationTarget[],
   ai: AiLabelDetails | null,
+  jobId: string | null,
 ): ComposerState {
   let next = state.next;
   const items = seeds.map((seed) => ({
@@ -99,6 +112,7 @@ function seeded(
     requirement: seed.requirement,
     text: seed.text,
     ai,
+    aiJobId: seed.aiJobId ?? jobId,
     edited: false,
   }));
   return { ...state, items: [...state.items, ...items], next };
@@ -111,17 +125,22 @@ export function emptyComposer(): ComposerState {
 
 /** A saved draft (or a follow-up's pre-filled draft), its items on their targets. */
 export function draftComposer(
-  { items, opening }: { items: readonly ComposerSeed[]; opening: string | null },
+  {
+    items,
+    opening,
+    openingAiJobId = null,
+  }: { items: readonly ComposerSeed[]; opening: string | null; openingAiJobId?: string | null },
   targets: readonly ClarificationTarget[],
 ): ComposerState {
   return seeded(
     {
       items: [],
-      opening: opening ? { text: opening, ai: null, edited: false } : null,
+      opening: opening ? { text: opening, ai: null, aiJobId: openingAiJobId, edited: false } : null,
       next: 1,
     },
     items,
     targets,
+    null,
     null,
   );
 }
@@ -160,12 +179,21 @@ export function composerReducer(state: ComposerState, action: ComposerAction): C
       // A lone blank item is the composer's starting point, not the reviewer's work.
       const kept =
         state.items.length === 1 && state.items[0] && isBlank(state.items[0]) ? [] : state.items;
-      const inserted = seeded({ ...state, items: kept }, draft.items, targets, draft.label);
+      const inserted = seeded(
+        { ...state, items: kept },
+        draft.items,
+        targets,
+        draft.label,
+        draft.jobId,
+      );
       // A new draft's opening replaces an earlier one only while nobody has written in it.
       const replaceable =
         state.opening === null || (state.opening.ai !== null && !state.opening.edited);
       return draft.opening && replaceable
-        ? { ...inserted, opening: { text: draft.opening, ai: draft.label, edited: false } }
+        ? {
+            ...inserted,
+            opening: { text: draft.opening, ai: draft.label, aiJobId: draft.jobId, edited: false },
+          }
         : inserted;
     }
     case 'opening':
@@ -173,6 +201,7 @@ export function composerReducer(state: ComposerState, action: ComposerAction): C
         ...state,
         opening: {
           ai: state.opening?.ai ?? null,
+          aiJobId: state.opening?.aiJobId ?? null,
           text: action.text,
           edited: state.opening?.ai != null,
         },
@@ -220,11 +249,14 @@ export function composerProblems(state: ComposerState, intent: 'save' | 'issue')
  * Check `composerProblems` first.
  */
 export function composerToInput(state: ComposerState): {
-  items: (TargetRef & { requirement: Requirement; text: string })[];
+  items: (TargetRef & { requirement: Requirement; text: string; aiJobId: string | null })[];
   opening: string | null;
+  openingAiJobId: string | null;
 } {
+  const opening = state.opening?.text.trim() ? state.opening : null;
   return {
-    opening: state.opening?.text.trim() ? state.opening.text.trim() : null,
+    opening: opening ? opening.text.trim() : null,
+    openingAiJobId: opening?.aiJobId ?? null,
     items: state.items.flatMap((item) =>
       isBlank(item) || !item.requirement
         ? []
@@ -235,6 +267,7 @@ export function composerToInput(state: ComposerState): {
               itemId: item.target?.ref.itemId ?? null,
               requirement: item.requirement,
               text: item.text.trim(),
+              aiJobId: item.aiJobId,
             },
           ],
     ),

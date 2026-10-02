@@ -13,6 +13,7 @@ import {
 import { clarificationTargets } from './targets';
 
 const targets = clarificationTargets(MOCK_DECLARATION);
+const JOB = '0199a000-0000-7000-8000-00000000d0b1';
 const plot = targets.find((target) => target.ref.itemId === MOCK_ITEM_IDS.plot);
 const bio = targets.find((target) => target.key === 'section:bio');
 const AI: AiLabelDetails = {
@@ -39,7 +40,15 @@ function filled(): ComposerState {
 describe('composer state', () => {
   it('starts a new clarification with one blank item', () => {
     expect(emptyComposer().items).toEqual([
-      { key: 'item-1', target: null, requirement: null, text: '', ai: null, edited: false },
+      {
+        key: 'item-1',
+        target: null,
+        requirement: null,
+        text: '',
+        ai: null,
+        aiJobId: null,
+        edited: false,
+      },
     ]);
     expect(emptyComposer().opening).toBeNull();
   });
@@ -71,6 +80,7 @@ describe('composer state', () => {
     expect(state.opening).toEqual({
       text: 'Thank you for your declaration.',
       ai: null,
+      aiJobId: null,
       edited: false,
     });
     expect(state.items).toEqual([
@@ -80,6 +90,7 @@ describe('composer state', () => {
         requirement: 'explain-discrepancy',
         text: 'Explain the change.',
         ai: null,
+        aiJobId: null,
         edited: false,
       },
     ]);
@@ -103,6 +114,7 @@ describe('Draft with AI insertion (spec 07c FE-3)', () => {
   };
   const draft = {
     label: AI,
+    jobId: JOB,
     opening: 'Thank you for your declaration.',
     items: [
       {
@@ -124,12 +136,14 @@ describe('Draft with AI insertion (spec 07c FE-3)', () => {
         requirement: 'explain-discrepancy',
         text: 'The plot is valued 150% higher. Explain the change.',
         ai: AI,
+        aiJobId: JOB,
         edited: false,
       },
     ]);
     expect(state.opening).toEqual({
       text: 'Thank you for your declaration.',
       ai: AI,
+      aiJobId: JOB,
       edited: false,
     });
   });
@@ -147,7 +161,7 @@ describe('Draft with AI insertion (spec 07c FE-3)', () => {
     state = composerReducer(state, { type: 'text', key: 'item-2', text: 'Explain the value.' });
     expect(state.items[0]?.edited).toBe(true);
     state = composerReducer(state, { type: 'opening', text: 'Dear officer,' });
-    expect(state.opening).toEqual({ text: 'Dear officer,', ai: AI, edited: true });
+    expect(state.opening).toEqual({ text: 'Dear officer,', ai: AI, aiJobId: JOB, edited: true });
     expect(filled().items[0]?.edited).toBe(false);
   });
 
@@ -159,7 +173,7 @@ describe('Draft with AI insertion (spec 07c FE-3)', () => {
 
     state = composerReducer(state, { type: 'opening', text: 'Dear officer,' });
     state = composerReducer(state, { type: 'insert', draft, targets });
-    expect(state.opening).toEqual({ text: 'Dear officer,', ai: AI, edited: true });
+    expect(state.opening).toEqual({ text: 'Dear officer,', ai: AI, aiJobId: JOB, edited: true });
 
     const saved = draftComposer({ items: [], opening: 'Saved opening.' }, targets);
     expect(composerReducer(saved, { type: 'insert', draft, targets }).opening?.text).toBe(
@@ -175,10 +189,69 @@ describe('Draft with AI insertion (spec 07c FE-3)', () => {
   it('inserts the reviewer’s own items too, unlabelled', () => {
     const state = composerReducer(emptyComposer(), {
       type: 'insert',
-      draft: { label: null, opening: null, items: [{ ...drafted, requirement: null }] },
+      draft: {
+        label: null,
+        jobId: null,
+        opening: null,
+        items: [{ ...drafted, requirement: null }],
+      },
       targets,
     });
-    expect(state.items[0]).toMatchObject({ target: plot, requirement: null, ai: null });
+    expect(state.items[0]).toMatchObject({
+      target: plot,
+      requirement: null,
+      ai: null,
+      aiJobId: null,
+    });
+  });
+});
+
+describe('AI-assisted text stays labelled (ADR-007)', () => {
+  const draft = {
+    label: AI,
+    jobId: JOB,
+    opening: 'Thank you for your declaration.',
+    items: [
+      {
+        sectionKey: 'statement:officer',
+        personKey: 'officer',
+        itemId: MOCK_ITEM_IDS.plot,
+        requirement: 'explain-discrepancy' as const,
+        text: 'Explain the change.',
+      },
+    ],
+  };
+
+  it('saves the drafting job with each drafted item and the opening, also once edited', () => {
+    let state = composerReducer(filled(), { type: 'insert', draft, targets });
+    state = composerReducer(state, { type: 'text', key: 'item-2', text: 'Explain the value.' });
+    state = composerReducer(state, { type: 'opening', text: 'Dear declarant,' });
+    const input = composerToInput(state);
+    expect(input.items.map((item) => item.aiJobId)).toEqual([null, JOB]);
+    expect(input.openingAiJobId).toBe(JOB);
+  });
+
+  it('keeps the drafting job of a saved draft, labelled without the details it did not keep', () => {
+    const state = draftComposer(
+      {
+        items: [{ ...draft.items[0], aiJobId: JOB } as never],
+        opening: 'Thank you.',
+        openingAiJobId: JOB,
+      },
+      targets,
+    );
+    expect(state.items[0]).toMatchObject({ ai: null, aiJobId: JOB });
+    expect(state.opening).toMatchObject({ ai: null, aiJobId: JOB });
+    expect(composerToInput(state)).toMatchObject({
+      items: [{ aiJobId: JOB }],
+      openingAiJobId: JOB,
+    });
+  });
+
+  it('drops the job with the opening once the reviewer clears it', () => {
+    let state = composerReducer(emptyComposer(), { type: 'insert', draft, targets });
+    state = composerReducer(state, { type: 'opening', text: '  ' });
+    expect(composerToInput(state)).toMatchObject({ opening: null, openingAiJobId: null });
   });
 });
 
@@ -233,6 +306,7 @@ describe('composerToInput', () => {
     const state = composerReducer(filled(), { type: 'add' });
     expect(composerToInput(state)).toEqual({
       opening: null,
+      openingAiJobId: null,
       items: [
         {
           sectionKey: 'statement:officer',
@@ -240,6 +314,7 @@ describe('composerToInput', () => {
           itemId: MOCK_ITEM_IDS.plot,
           requirement: 'explain-discrepancy',
           text: 'Explain the change.',
+          aiJobId: null,
         },
       ],
     });
@@ -250,7 +325,7 @@ describe('the opening paragraph', () => {
   const withOpening = (text: string) =>
     composerReducer(filled(), {
       type: 'insert',
-      draft: { label: AI, opening: text, items: [] },
+      draft: { label: AI, jobId: JOB, opening: text, items: [] },
       targets,
     });
 

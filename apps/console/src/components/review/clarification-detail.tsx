@@ -1,4 +1,5 @@
 import {
+  AiLabel,
   Alert,
   AlertDescription,
   AlertTitle,
@@ -305,6 +306,10 @@ export function ClarificationDetailView({
                   text: item.text,
                 }))}
                 opening={clarification.opening}
+                aiAssisted={
+                  clarification.openingAiJobId !== null ||
+                  clarification.items.some((item) => item.aiJobId)
+                }
                 reference={clarification.reference}
                 verificationId={clarification.letter.verificationId}
                 date={clarification.issuedAt ?? now}
@@ -406,8 +411,17 @@ function ItemsAndResponses({
           <li key={index}>
             <Card className="grid gap-4 p-0 sm:p-0 min-[900px]:grid-cols-2 min-[900px]:gap-0">
               <div className="grid content-start gap-2 p-5">
-                <p className="text-xs font-medium text-muted-foreground">
+                <p className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
                   {index + 1}. What we asked
+                  {item.aiJobId ? (
+                    <AiLabel
+                      size="sm"
+                      text="AI-assisted"
+                      messages={{
+                        noDetails: 'Drafted with AI, then approved by the reviewer who issued it',
+                      }}
+                    />
+                  ) : null}
                 </p>
                 <p className="font-medium">{labelOf(item, targets)}</p>
                 <Badge variant="default">{REQUIREMENT_LABELS[item.requirement]}</Badge>

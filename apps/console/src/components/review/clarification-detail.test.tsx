@@ -262,6 +262,19 @@ describe('ClarificationDetailView: drafts and the letter (#170)', () => {
     expect(screen.getByRole('dialog', { name: 'Clarification draft' })).toBeTruthy();
   });
 
+  it('labels the items and opening drafted with AI, and the letter says so (ADR-007)', async () => {
+    renderDetail(await detailOf(CASES.mine, K.issued));
+    const [first, second] = screen
+      .getAllByRole('listitem')
+      .filter((each) => each.textContent.includes('What we asked'));
+    if (!first || !second) throw new Error('no items');
+    expect(within(first).getByRole('img', { name: /^AI-assisted\./ })).toBeTruthy();
+    expect(within(second).queryByRole('img', { name: /^AI-assisted/ })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Show letter' }));
+    const letter = screen.getByRole('article', { name: 'Letter preview' });
+    expect(within(letter).getByText(/drafted with AI assistance/)).toBeTruthy();
+  });
+
   it('shows the issued letter on request', async () => {
     renderDetail(await detailOf(CASES.mine, K.issued));
     expect(screen.queryByRole('article', { name: 'Letter preview' })).toBeNull();

@@ -196,7 +196,12 @@ export function DraftWithAi({
       return;
     }
     if (done.status === 'ready') {
-      api.insert({ label: done.label, opening: done.opening, items: done.items });
+      api.insert({
+        label: done.label,
+        jobId: done.jobId,
+        opening: done.opening,
+        items: done.items,
+      });
       onSelectionChange(NO_SELECTION);
       finish(t.inserted(done.items.length), false);
     }

@@ -49,6 +49,8 @@ export const COPY = {
   title: (followUp: boolean) => (followUp ? 'Further clarification' : 'Clarification'),
   declaration: (reference: string) => `Declaration ${reference}`,
   askedOpen: 'What your Commission asks',
+  aiAssisted:
+    'Parts of this clarification were drafted with AI assistance, then checked and approved by a reviewer at your Commission.',
   askedAnswered: 'What was asked and your response',
   askedClosed: 'What was asked',
   answerOnce: 'Answer every point. You can respond once.',

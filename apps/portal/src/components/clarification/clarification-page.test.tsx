@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { ToastProvider } from '@adili/ui';
-import { act, fireEvent, render, screen, within } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { respondToMyClarification } from '../../server/clarifications';
@@ -101,6 +101,15 @@ describe('ClarificationPage: open', () => {
       `/api/mock-letters/${IDS.open}`,
     );
     expect(screen.getByText('0 of 2 points answered')).toBeTruthy();
+  });
+
+  it('says when parts were drafted with AI and approved at the Commission (ADR-007)', () => {
+    const note = /drafted with AI assistance, then checked and approved/;
+    renderPage(fixture(IDS.open));
+    expect(screen.queryByText(note)).toBeNull();
+    cleanup();
+    renderPage({ ...fixture(IDS.open), openingAiJobId: '0199a000-0000-7000-8000-00000000d0b1' });
+    expect(screen.getByText(note)).toBeTruthy();
   });
 
   it('will not submit until every point is answered, and says which one (S20)', () => {

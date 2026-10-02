@@ -117,6 +117,7 @@ function clarification(
     },
     followUpOf: null,
     opening: null,
+    openingAiJobId: null,
     response: null,
     commission: COMMISSION,
     declarationReference: DECLARATION_REFERENCE,

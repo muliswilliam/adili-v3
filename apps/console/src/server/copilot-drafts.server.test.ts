@@ -169,6 +169,7 @@ describe('readDraft', () => {
     expect(readDraft(draft)).toEqual({
       status: 'ready',
       id: 'd',
+      jobId: 'j',
       label: {
         task: 'draft-clarification',
         promptVersion: 1,

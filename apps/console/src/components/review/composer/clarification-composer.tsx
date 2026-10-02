@@ -1,5 +1,6 @@
 import {
   AiLabel,
+  type AiLabelDetails,
   Alert,
   AlertDescription,
   AlertTitle,
@@ -169,6 +170,7 @@ type Failure =
   | { kind: 'window-closed'; windowEndsAt: string }
   | { kind: 'not-mine' }
   | { kind: 'no-items' }
+  | { kind: 'ai-draft-gone' }
   | { kind: 'unavailable' }
   | { kind: 'session' };
 
@@ -184,6 +186,7 @@ function failureOf(error: ServiceError, windowEndsAt: string): Failure {
       };
     }
     if (problem.status === 403) return { kind: 'not-mine' };
+    if (problem.type === 'ai-draft-not-on-case') return { kind: 'ai-draft-gone' };
     if (problem.status === 400) return { kind: 'no-items' };
   }
   return { kind: 'unavailable' };
@@ -206,7 +209,12 @@ function ComposerBody({
   const { toast } = useToast();
   const targets = useMemo(() => clarificationTargets(document), [document]);
   const [state, dispatch] = useReducer(composerReducer, null, () => {
-    if (draft) return draftComposer({ items: draft.items, opening: draft.opening }, targets);
+    if (draft) {
+      return draftComposer(
+        { items: draft.items, opening: draft.opening, openingAiJobId: draft.openingAiJobId },
+        targets,
+      );
+    }
     const start = emptyComposer();
     return seed ? composerReducer(start, { type: 'insert', draft: seed, targets }) : start;
   });
@@ -261,7 +269,9 @@ function ComposerBody({
             ? t.sessionEnded
             : failed.kind === 'not-mine'
               ? t.saveStale
-              : t.saveFailed,
+              : failed.kind === 'ai-draft-gone'
+                ? t.aiDraftGone
+                : t.saveFailed,
         urgency: 'assertive',
       });
       return;
@@ -348,6 +358,10 @@ function ComposerBody({
               text: item.text,
             }))}
             opening={state.opening?.text ?? null}
+            aiAssisted={
+              state.items.some(isAiAssisted) ||
+              (state.opening !== null && isAiAssisted(state.opening))
+            }
             date={now}
             dueAt={dueAt}
           />
@@ -375,7 +389,7 @@ function ComposerBody({
                       index={index}
                       targets={targets}
                       problems={problems?.items[item.key]}
-                      removable={item.ai !== null || state.items.length > 1}
+                      removable={isAiAssisted(item) || state.items.length > 1}
                       pickerOpen={opened === item.key}
                       dispatch={dispatch}
                     />
@@ -447,9 +461,11 @@ function FailureAlert({ failure }: { failure: Failure }) {
         ? t.notMine
         : failure.kind === 'no-items'
           ? t.addOneItem
-          : failure.kind === 'session'
-            ? t.sessionEnded
-            : t.issueUnavailable;
+          : failure.kind === 'ai-draft-gone'
+            ? t.aiDraftGone
+            : failure.kind === 'session'
+              ? t.sessionEnded
+              : t.issueUnavailable;
   return (
     <Alert variant="destructive">
       <Icon icon={failure.kind === 'window-closed' ? SquareLock02Icon : AlertCircleIcon} />
@@ -493,7 +509,7 @@ function ItemCard({
       aria-labelledby={`${id}-title`}
       className={cn(
         'grid gap-3.5 rounded-2xl bg-card px-4 pt-3.5 pb-4',
-        invalid ? 'shadow-control-error' : item.ai ? AI_CARD : 'shadow-card',
+        invalid ? 'shadow-control-error' : isAiAssisted(item) ? AI_CARD : 'shadow-card',
       )}
     >
       <div className="flex min-h-8 items-center gap-2">
@@ -506,21 +522,19 @@ function ItemCard({
         <h3 id={`${id}-title`} className="text-[14.5px] font-semibold">
           {t.item(n)}
         </h3>
-        {item.ai ? (
-          <AiLabel details={item.ai} text={t.aiDraft} edited={item.edited} size="sm" />
-        ) : null}
+        {isAiAssisted(item) ? <AiDraftLabel ai={item.ai} edited={item.edited} /> : null}
         <span className="flex-1" />
         {removable ? (
           <Button
             variant="ghost"
             size="xs"
-            aria-label={item.ai ? t.discardItemLabel(n) : t.removeItemLabel(n)}
+            aria-label={isAiAssisted(item) ? t.discardItemLabel(n) : t.removeItemLabel(n)}
             onClick={() => {
               dispatch({ type: 'remove', key: item.key });
             }}
           >
             <Icon icon={Delete02Icon} />
-            {item.ai ? t.discardItem : t.removeItem}
+            {isAiAssisted(item) ? t.discardItem : t.removeItem}
           </Button>
         ) : null}
       </div>
@@ -600,6 +614,23 @@ function ItemCard({
 /** A drafted item's card: the card's shadow with the AI colour down its left edge. */
 const AI_CARD = 'shadow-card-ai';
 
+/** Drafted with AI: inserted in this sitting, or saved with its drafting job (ADR-007). */
+const isAiAssisted = (part: { ai: unknown; aiJobId: string | null }) =>
+  part.ai !== null || part.aiJobId !== null;
+
+/**
+ * The label on drafted text: "AI draft" (then "AI draft, edited") with its details while the
+ * composer has them; "AI-assisted" on a saved draft's, whose label details were not kept and
+ * which the reviewer may have edited before saving.
+ */
+function AiDraftLabel({ ai, edited }: { ai: AiLabelDetails | null; edited: boolean }) {
+  return ai ? (
+    <AiLabel details={ai} text={t.aiDraft} edited={edited} size="sm" />
+  ) : (
+    <AiLabel text={t.aiAssisted} messages={{ noDetails: t.aiAssistedTip }} size="sm" />
+  );
+}
+
 /** The letter's opening paragraph (Draft with AI's, or a saved draft's); editable, or discarded. */
 function OpeningField({
   opening,
@@ -618,16 +649,14 @@ function OpeningField({
     <section
       className={cn(
         'grid gap-1.5 rounded-2xl bg-card px-4 pt-3.5 pb-4',
-        tooLong ? 'shadow-control-error' : opening.ai ? AI_CARD : 'shadow-card',
+        tooLong ? 'shadow-control-error' : isAiAssisted(opening) ? AI_CARD : 'shadow-card',
       )}
     >
       <div className="flex min-h-8 items-center gap-2">
         <Label htmlFor={id} className="text-[14.5px] font-semibold text-foreground">
           {t.openingLabel}
         </Label>
-        {opening.ai ? (
-          <AiLabel details={opening.ai} text={t.aiDraft} edited={opening.edited} size="sm" />
-        ) : null}
+        {isAiAssisted(opening) ? <AiDraftLabel ai={opening.ai} edited={opening.edited} /> : null}
         <span className="flex-1" />
         <span
           className={cn(

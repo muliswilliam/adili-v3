@@ -32,6 +32,11 @@ export interface LetterPreviewProps {
   items: readonly LetterItem[];
   /** Draft with AI's opening paragraph, when there is one. */
   opening?: string | null;
+  /**
+   * Some of the text (the opening or an item) was drafted with AI: the letter says so, as the
+   * issued one does (`ClarificationLetterPayload.aiAssisted`, ADR-007).
+   */
+  aiAssisted?: boolean;
   /** Set once issued; until then the preview says when they are allocated. */
   reference?: string | null;
   verificationId?: string | null;
@@ -48,6 +53,7 @@ export function LetterPreview({
   reportingEntity,
   items,
   opening,
+  aiAssisted = false,
   reference,
   verificationId,
   date,
@@ -118,6 +124,9 @@ export function LetterPreview({
       </ol>
       <p>{t.letter.respond(dueAt)}</p>
       <p className="mt-3.5">{t.letter.signOff}</p>
+      {aiAssisted ? (
+        <p className="mt-2 font-sans text-[11.5px] italic">{t.letter.aiAssisted}</p>
+      ) : null}
       <footer className="mt-[18px] flex items-center gap-3.5 border-t pt-3 font-sans text-[11.5px] text-muted-foreground">
         {verificationId ? (
           <QrCode

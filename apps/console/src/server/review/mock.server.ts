@@ -84,6 +84,9 @@ export const MOCK_CASE_IDS = {
   unavailable: 'ca5e0000-0000-4000-8000-000000000006',
 } as const;
 
+/** The Draft with AI job behind the AI-assisted parts of the issued clarification. */
+export const MOCK_DRAFT_JOB_ID = '0199a000-0000-7000-8000-00000000d0b1';
+
 export const MOCK_CLARIFICATION_IDS = {
   issued: 'c1a70000-0000-4000-8000-000000000101',
   late: 'c1a70000-0000-4000-8000-000000000102',
@@ -279,6 +282,7 @@ function clarification(
     },
     followUpOf: null,
     opening: null,
+    openingAiJobId: null,
     response: null,
     ...overrides,
   };
@@ -612,7 +616,14 @@ export function resetReviewMock(
   );
 
   const seed = (value: Clarification) => clarifications.set(value.id, value);
-  seed(clarification(K.issued, C.mine, 42, [PLOT, SACCO], 8, now));
+  // Drafted with AI (the plot's item and the opening), then edited and issued (ADR-007 label).
+  seed(
+    clarification(K.issued, C.mine, 42, [{ ...PLOT, aiJobId: MOCK_DRAFT_JOB_ID }, SACCO], 8, now, {
+      opening:
+        'Thank you for your biennial declaration. The points below relate to changes since your previous declaration.',
+      openingAiJobId: MOCK_DRAFT_JOB_ID,
+    }),
+  );
   const late = clarification(K.late, C.mine, 17, [PLOT, SACCO], 40, now);
   const lateAt = at(Date.parse(late.dueAt ?? ''), 3);
   seed({
@@ -739,6 +750,7 @@ function draftOf(
     letter: null,
     followUpOf,
     opening: null,
+    openingAiJobId: null,
     response: null,
   };
 }
@@ -1140,6 +1152,7 @@ async function act(
   const draft = {
     ...draftOf(randomUUID(), found.caseId, found.items, found.id),
     opening: found.opening,
+    openingAiJobId: found.openingAiJobId,
   };
   clarifications.set(draft.id, draft);
   return json(201, draft);
@@ -1169,7 +1182,7 @@ async function once(request: Request, work: () => Promise<Response>): Promise<Re
 /** review.yaml `ClarificationInput`, checked as the service does; null when invalid. */
 async function contentOf(
   request: Request,
-): Promise<{ items: Item[]; opening: string | null } | null> {
+): Promise<{ items: Item[]; opening: string | null; openingAiJobId: string | null } | null> {
   const body = await readJson(request);
   const items = isRecord(body) ? body.items : null;
   if (!Array.isArray(items) || items.length > 50) return null;
@@ -1177,6 +1190,8 @@ async function contentOf(
   if (opening !== null && (typeof opening !== 'string' || opening.trim().length > 800)) {
     return null;
   }
+  const openingAiJobId = isRecord(body) ? (body.openingAiJobId ?? null) : null;
+  if (openingAiJobId !== null && typeof openingAiJobId !== 'string') return null;
   const valid: Item[] = [];
   const optional = (value: unknown) => (typeof value === 'string' ? value : null);
   for (const item of items) {
@@ -1190,10 +1205,15 @@ async function contentOf(
       itemId: optional(item.itemId),
       requirement: requirement as Item['requirement'],
       text: text.trim(),
+      aiJobId: optional(item.aiJobId),
     });
   }
   const trimmed = opening?.trim() ?? '';
-  return { items: valid, opening: trimmed === '' ? null : trimmed };
+  return {
+    items: valid,
+    opening: trimmed === '' ? null : trimmed,
+    openingAiJobId: trimmed === '' ? null : openingAiJobId,
+  };
 }
 
 async function createDraft(request: Request, caseId: string, caller: Assignee) {
@@ -1204,7 +1224,7 @@ async function createDraft(request: Request, caseId: string, caller: Assignee) {
   }
   const content = await contentOf(request);
   if (content === null) return problem(400, 'Items are not valid');
-  const draft = { ...draftOf(randomUUID(), caseId, content.items, null), opening: content.opening };
+  const draft = { ...draftOf(randomUUID(), caseId, content.items, null), ...content };
   clarifications.set(draft.id, draft);
   return json(201, draft);
 }
