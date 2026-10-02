@@ -1,7 +1,7 @@
 import { HttpStatus, Injectable } from '@nestjs/common';
 import { notFoundIfInvisible, type Principal, ProblemException } from '@adili/api-kit';
 import { type Database, InjectDatabase, withTenant } from '@adili/data-access';
-import { and, eq, inArray, or, sql } from 'drizzle-orm';
+import { and, eq, gt, inArray, or, sql } from 'drizzle-orm';
 import { z } from 'zod';
 
 import { AiGatewayClient, AiGatewayUnavailable } from '../ai-gateway/ai-gateway-client.js';
@@ -9,6 +9,7 @@ import { caseTenant } from '../cases/access.js';
 import { findCase, type ReviewTransaction, visibleId } from '../cases/case-lookup.js';
 import type { ReviewSchema } from '../db/schema.js';
 import { upstreamUnavailable } from '../internal-api/upstream.js';
+import { reviewCopilotDrafts } from './draft-schema.js';
 import {
   COPILOT_RATINGS,
   type CopilotRating,
@@ -31,9 +32,9 @@ export interface CopilotRatingView {
 }
 
 /**
- * The case whose copilot shows the output of job `jobId` (its summary or its explanations);
- * null when no case of the transaction's tenant shows it. Drafts (spec 07c BE-6) are rated by
- * the same route: add their lookup here.
+ * The case whose copilot shows the output of job `jobId` (its summary or its explanations, or a
+ * clarification draft ready within its 24 hours); null when no case of the transaction's tenant
+ * shows it.
  */
 export async function caseShowingOutput(
   tx: ReviewTransaction,
@@ -43,7 +44,19 @@ export async function caseShowingOutput(
     .select({ caseId: reviewCopilots.caseId })
     .from(reviewCopilots)
     .where(or(eq(reviewCopilots.summaryJobId, jobId), eq(reviewCopilots.explanationsJobId, jobId)));
-  return shown?.caseId ?? null;
+  if (shown) return shown.caseId;
+  const [drafted] = await tx
+    .select({ caseId: reviewCopilotDrafts.caseId })
+    .from(reviewCopilotDrafts)
+    .where(
+      and(
+        eq(reviewCopilotDrafts.jobId, jobId),
+        eq(reviewCopilotDrafts.status, 'ready'),
+        gt(reviewCopilotDrafts.expiresAt, sql`now()`),
+      ),
+    )
+    .limit(1);
+  return drafted?.caseId ?? null;
 }
 
 /** The officer's own ratings of the outputs `jobIds`. */

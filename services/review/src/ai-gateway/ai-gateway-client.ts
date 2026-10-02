@@ -12,9 +12,12 @@ export type FlagInput = Schemas['FlagInput'];
 export type ChangeInput = Schemas['ChangeInput'];
 /** ai-gateway.yaml `SourceRef`. */
 export type SourceRef = Schemas['SourceRef'];
+/** ai-gateway.yaml `DraftClarificationInput` and `DraftClarificationOutput`. */
+export type DraftClarificationInput = Schemas['DraftClarificationInput'];
+export type DraftClarificationOutput = Schemas['DraftClarificationOutput'];
 
 /** The tasks the review service runs (ai-gateway.yaml `TaskName`). */
-export type ReviewTask = 'summarize-declaration' | 'explain-flags';
+export type ReviewTask = 'summarize-declaration' | 'explain-flags' | 'draft-clarification';
 
 /** ai-gateway.yaml `DataClass`: how sensitive the input is; the gateway's gate decides who may see it. */
 export type DataClass = Schemas['DataClass'];
@@ -27,7 +30,19 @@ export type AiJobReason = Schemas['JobReason'];
 export type FeedbackInput = Schemas['FeedbackInput'];
 
 /** The inputs of the tasks the review service runs. */
-export type ReviewTaskInput = SummarizeDeclarationInput | ExplainFlagsInput;
+export type ReviewTaskInput =
+  SummarizeDeclarationInput | ExplainFlagsInput | DraftClarificationInput;
+
+/**
+ * The longest a task call waits for its job to end (ADR-013 lists the call's budget): a reviewer
+ * waits on a draft, and a job not done by then is polled.
+ */
+export const MAX_TASK_WAIT_SECONDS = 10;
+
+export interface RunTaskOptions {
+  /** Up to `MAX_TASK_WAIT_SECONDS`; default 0, the job as created. */
+  waitSeconds?: number;
+}
 
 /** A task call (ai-gateway.yaml `TaskRequest`), narrowed to the inputs the review service sends. */
 export interface TaskRequest {
@@ -77,12 +92,17 @@ export class AiGatewayUnavailable extends Error {
  */
 export abstract class AiGatewayClient {
   /**
-   * `runTask` with no wait: the job as created (queued), or as it is when the request was already
-   * answered (a replay of the key, or a cached result). Idempotent by `idempotencyKey`. Throws
-   * `AiGatewayUnavailable` when the gateway cannot take it and `InternalApiRejected` when it
-   * refuses the request.
+   * `runTask`: the job as created (queued), or as it is when the request was already answered (a
+   * replay of the key, or a cached result); with `waitSeconds`, as it is once it ended or the wait
+   * ran out. Idempotent by `idempotencyKey`. Throws `AiGatewayUnavailable` when the gateway cannot
+   * take it and `InternalApiRejected` when it refuses the request.
    */
-  abstract runTask(task: ReviewTask, request: TaskRequest, idempotencyKey: string): Promise<AiJob>;
+  abstract runTask(
+    task: ReviewTask,
+    request: TaskRequest,
+    idempotencyKey: string,
+    options?: RunTaskOptions,
+  ): Promise<AiJob>;
 
   /** `getJob`: the job with its output once succeeded; null when the gateway has no such job. */
   abstract getJob(jobId: string): Promise<AiJob | null>;

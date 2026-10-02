@@ -72,7 +72,8 @@ export function copilotInputs({
   return { summarize, explain };
 }
 
-function flagInput(flag: typeof reviewFlags.$inferSelect): FlagInput {
+/** A case's flag as the gateway's tasks take it. */
+export function flagInput(flag: typeof reviewFlags.$inferSelect): FlagInput {
   return {
     id: flag.id,
     ruleId: flag.ruleId,
@@ -143,21 +144,27 @@ function itemContext(
     if (!found) continue;
     seen.add(ref.itemId);
     const { placed, version } = found;
-    context.push({
-      ref: itemRef(placed),
-      context: {
-        version,
-        category: placed.category,
-        type: placed.item.type,
-        description: placed.item.description,
-        valueKesCents: valueOf(placed.item),
-      },
-    });
+    context.push({ ref: itemRef(placed), context: placedItemContext(placed, version) });
   }
   return context;
 }
 
-function itemRef({ personKey, item }: PlacedItem): SourceRef {
+/** What a task is told of an item: its category, type, description and value. */
+export function placedItemContext(
+  placed: PlacedItem,
+  version: 'current' | 'previous',
+): Record<string, unknown> {
+  return {
+    version,
+    category: placed.category,
+    type: placed.item.type,
+    description: placed.item.description,
+    valueKesCents: valueOf(placed.item),
+  };
+}
+
+/** The source ref of an item: its statement, person and id. */
+export function itemRef({ personKey, item }: PlacedItem): SourceRef {
   return {
     sectionKey: statementSectionKey(personKey),
     personKey,

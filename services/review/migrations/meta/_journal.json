@@ -113,6 +113,13 @@
       "when": 1790923590275,
       "tag": "0015_copilot_ratings",
       "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1790924216821,
+      "tag": "0016_copilot_drafts",
+      "breakpoints": true
     }
   ]
 }
