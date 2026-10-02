@@ -46,7 +46,7 @@ Every fixture is keyed by the full request: prompt text, model, input and output
 3. Read the failures and the new outputs; repeat.
 4. `eval:prune`, then commit the prompt with `evals/fixtures`. Reviewers read the fixture diffs: they are the model's actual answers.
 
-The committed fixtures were recorded on `claude-sonnet-5` against Anthropic directly, with native structured output. Production runs `claude-opus-5-5`. Re-record them against the production model before the gate is relied on for a model or provider change.
+The committed fixtures were recorded on `claude-sonnet-5` against Anthropic directly, with native structured output. The `narrate-compliance-report` fixtures are the exception: they were recorded on `claude-sonnet-5` through an Anthropic-compatible gateway with `ANTHROPIC_STRUCTURED_OUTPUT=prompted` (that gateway drops `output_config`); re-record them natively with the next prompt version. Production runs `claude-opus-5-5`. Re-record them against the production model before the gate is relied on for a model or provider change.
 
 Swahili outputs and the Swahili verdict terms in `lib/verdict.ts` need a Swahili speaker's review before merge.
 
