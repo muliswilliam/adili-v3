@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 
 import { describe, expect, it } from 'vitest';
 
-import { sourceRefProblems } from '../../src/policy/source-refs.js';
+import { problemCounts, sourceRefProblems } from '../../src/policy/source-refs.js';
 import { explainInput, FLAG_ID } from '../support/inputs.js';
 
 const document = JSON.parse(
@@ -73,14 +73,23 @@ describe('sourceRefProblems (spec 07c S4)', () => {
     ).toHaveLength(1);
   });
 
+  it('counts problems by code, never quoting what the model wrote', () => {
+    const problems = sourceRefProblems(explainInput, {
+      explanations: [{ flagId: 'Grace Otieno', refs: [] }],
+      refs: [{ sectionKey: null, personKey: 'Grace', itemId: null, fieldPath: null }],
+    });
+
+    expect(problemCounts(problems)).toEqual({ 'unknown-flag': 1, 'unknown-ref': 1 });
+  });
+
   it('rejects flag ids the input does not hold', () => {
     const unknown = '0199a8f0-2222-7000-8000-00000000ffff';
 
     expect(
       sourceRefProblems(explainInput, { explanations: [{ flagId: unknown, refs: [] }] }),
-    ).toEqual([`flag ${unknown} is not in the input`]);
+    ).toEqual([{ code: 'unknown-flag', message: `flag ${unknown} is not in the input` }]);
     expect(
       sourceRefProblems(explainInput, { worthAttention: [{ flagIds: [FLAG_ID, unknown] }] }),
-    ).toEqual([`flag ${unknown} is not in the input`]);
+    ).toEqual([{ code: 'unknown-flag', message: `flag ${unknown} is not in the input` }]);
   });
 });

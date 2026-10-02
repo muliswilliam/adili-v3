@@ -8,16 +8,15 @@ import { v7 as uuidv7 } from 'uuid';
 import { CACHE_KEY, type Job, jobs, type schema } from '../db/schema.js';
 import { hashJson } from '../hashing.js';
 import { Budgets } from '../policy/budgets.js';
-import { GatePolicies } from '../policy/gate-policies.js';
 import { GenAiTelemetry } from '../policy/telemetry.js';
-import { ProviderRegistry } from '../providers/providers.module.js';
 import { findTask } from '../tasks/registry.js';
+import { Admission } from './admission.js';
 import { recordJobEnded } from './job-ended.js';
 import { JobWorkflows } from './job-workflows.js';
-import { CACHEABLE_STATUSES, isTerminal, type JobReason } from './job-states.js';
+import { CACHEABLE_STATUSES, isTerminal } from './job-states.js';
 import { toJobView, type JobView } from './job-view.js';
-import { type Route, Routing } from './routing.js';
-import { type TaskRequest, taskRequestSchema } from './task-request.js';
+import { Routing } from './routing.js';
+import { taskRequestSchema } from './task-request.js';
 
 export interface RunTaskResult {
   job: JobView;
@@ -34,8 +33,7 @@ export class JobsService {
   constructor(
     @InjectDatabase() private readonly db: Database<typeof schema>,
     private readonly routing: Routing,
-    private readonly providers: ProviderRegistry,
-    private readonly gate: GatePolicies,
+    private readonly admission: Admission,
     private readonly budgets: Budgets,
     private readonly workflows: JobWorkflows,
     private readonly events: EventPublisher,
@@ -141,7 +139,11 @@ export class JobsService {
           extensions: { retryAfterSeconds: limit.retryAfterSeconds },
         });
       }
-      const ending = await this.admission(request, route);
+      const ending = await this.admission.refusal(
+        request.tenant,
+        request.dataClass,
+        route.provider,
+      );
       const created = await this.db.transaction(async (tx) => {
         const [job] = await tx
           .insert(jobs)
@@ -167,21 +169,6 @@ export class JobsService {
       }
     }
     throw new Error('Could not create or find the job under contention');
-  }
-
-  /** Why a new job must end at once, without reaching a provider; undefined when it may run. */
-  private async admission(
-    request: TaskRequest,
-    route: Route,
-  ): Promise<{ status: 'failed' | 'blocked'; reason: JobReason } | undefined> {
-    const provider = this.providers.get(route.provider);
-    if (!provider) return { status: 'failed', reason: 'provider-unavailable' };
-    if (!(await this.gate.admits(request.tenant, request.dataClass, provider.providerClass))) {
-      return { status: 'blocked', reason: 'policy' };
-    }
-    if (await this.budgets.exhausted(request.tenant))
-      return { status: 'blocked', reason: 'budget' };
-    return undefined;
   }
 
   /** A job is visible only to the caller that created it. */

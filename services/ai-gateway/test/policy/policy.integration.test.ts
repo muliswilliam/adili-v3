@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 
+import { Logger } from '@nestjs/common';
 import { outbox } from '@adili/events';
 import { metrics, SpanKind, trace } from '@opentelemetry/api';
 import {
@@ -15,7 +16,7 @@ import {
 } from '@opentelemetry/sdk-trace-base';
 import { and, eq, sql } from 'drizzle-orm';
 import { v7 as uuidv7 } from 'uuid';
-import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { auditRecords, routes } from '../../src/db/schema.js';
 import { Budgets } from '../../src/policy/budgets.js';
@@ -319,6 +320,72 @@ describe('policy', { timeout: 90_000 }, () => {
       );
       expect(tables.rows[0]?.text).not.toMatch(/\[\[[A-Z_]+_\d+\]\]/);
     });
+
+    it('fails an output holding a token the input never had', async () => {
+      answer = () => completed(explainOutput('The plot of [[PERSON_7]] rose in value.'));
+
+      const job = await run('explain-flags', { tenant: 'demo', dataClass: 'synthetic', input });
+
+      expect(job).toMatchObject({ status: 'failed', reason: 'validation', output: null });
+    });
+
+    it('logs no identifier, whatever the model writes back', async () => {
+      const logged: string[] = [];
+      const capture = (...args: unknown[]) => {
+        logged.push(JSON.stringify(args));
+      };
+      const spies = [
+        ...(['log', 'warn', 'error', 'debug', 'verbose'] as const).map((level) =>
+          vi.spyOn(Logger.prototype, level).mockImplementation(capture),
+        ),
+        vi.spyOn(process.stdout, 'write').mockImplementation((chunk) => {
+          logged.push(String(chunk));
+          return true;
+        }),
+        vi.spyOn(process.stderr, 'write').mockImplementation((chunk) => {
+          logged.push(String(chunk));
+          return true;
+        }),
+      ];
+      try {
+        // An answer quoting identifiers where ids belong, one restoring fine, one with a token
+        // the input never had: each is logged, and none may carry what it quotes.
+        const answers = [
+          completed({
+            explanations: [
+              {
+                ...explainOutput('x').explanations[0],
+                refs: [
+                  {
+                    sectionKey: `Kileleshwa ${owner.email}`,
+                    personKey: 'Wanjiru Achieng 28765432',
+                    itemId: null,
+                    fieldPath: '/AB1234567',
+                  },
+                ],
+              },
+            ],
+          }),
+          completed(explainOutput('The plot of [[PERSON_1]] rose in value.')),
+          completed(explainOutput('The plot of [[PERSON_7]] rose in value.')),
+        ];
+        for (const [i, next] of answers.entries()) {
+          answer = () => next;
+          await run('explain-flags', {
+            tenant: 'demo',
+            dataClass: 'synthetic',
+            input: { ...input, language: i % 2 === 0 ? 'en' : 'sw' },
+            subjectRef: `review-case:${randomUUID()}`,
+          });
+        }
+      } finally {
+        for (const spy of spies) spy.mockRestore();
+      }
+
+      const text = logged.join('\n');
+      expect(text).toContain('Model output refers to what the input does not hold');
+      for (const identifier of identifiers) expect(text).not.toContain(identifier);
+    });
   });
 
   describe('injection defence and validation (S4)', () => {
@@ -459,6 +526,26 @@ describe('policy', { timeout: 90_000 }, () => {
         retryAfterSeconds: expect.any(Number) as number,
       });
       expect(Number(response.headers['retry-after'])).toBeGreaterThan(0);
+    });
+
+    it('warns about an external model without a list price instead of pricing it quietly', async () => {
+      answer = () => ({ ...completed(summarizeOutput), model: 'claude-unlisted-9' });
+      const warn = vi.spyOn(Logger.prototype, 'warn');
+      try {
+        const job = await run('summarize-declaration', {
+          tenant: 'demo',
+          dataClass: 'synthetic',
+          input: { ...summarizeInput, registryStatuses: [], language: 'sw' },
+        });
+
+        expect(job).toMatchObject({ status: 'succeeded', usage: { costMicros: 0 } });
+        expect(warn).toHaveBeenCalledWith(
+          expect.objectContaining({ model: 'claude-unlisted-9' }),
+          'No list price for an external model: the call counts as costing 0',
+        );
+      } finally {
+        warn.mockRestore();
+      }
     });
   });
 

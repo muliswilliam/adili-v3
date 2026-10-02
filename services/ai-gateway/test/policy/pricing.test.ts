@@ -16,7 +16,7 @@ describe('costMicros', () => {
     ).toBe(4000 + 10_000 + 400 + 500);
   });
 
-  it('costs nothing for a model without a price (self-hosted)', () => {
+  it('has no cost for a model without a list price', () => {
     expect(
       costMicros('llama-local', {
         inputTokens: 1000,
@@ -24,7 +24,7 @@ describe('costMicros', () => {
         cacheReadTokens: 0,
         cacheWriteTokens: 0,
       }),
-    ).toBe(0);
+    ).toBeUndefined();
   });
 });
 
