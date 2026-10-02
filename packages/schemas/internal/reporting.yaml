@@ -1370,6 +1370,7 @@ components:
             Keys of the figures the candidate rests on, in the ai-gateway scheme
             (`NarrateComplianceReportInput`): `national.<name>`, `commission.<code>.<name>`, prefixed
             `fy<fy>.` for a prior year
+          minItems: 1
           items:
             type: string
     NarrativeParagraph:

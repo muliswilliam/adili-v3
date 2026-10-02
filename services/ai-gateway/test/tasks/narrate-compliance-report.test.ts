@@ -27,7 +27,7 @@ describe('narrate-compliance-report input', () => {
     }
   });
 
-  it("takes a candidate's values as reporting.yaml's PatternCandidate allows them", () => {
+  const patternCandidate = (() => {
     const contract = parse(
       readFileSync(
         createRequire(import.meta.url).resolve('@adili/schemas/internal/reporting.yaml'),
@@ -36,10 +36,11 @@ describe('narrate-compliance-report input', () => {
     ) as object;
     const ajv = new Ajv2020({ strict: false });
     ajv.addSchema(contract, 'reporting.yaml');
-    const patternCandidate = ajv.compile({
-      $ref: 'reporting.yaml#/components/schemas/PatternCandidate',
-    });
-    const [candidate] = narrateInput.candidates;
+    return ajv.compile({ $ref: 'reporting.yaml#/components/schemas/PatternCandidate' });
+  })();
+  const [candidate] = narrateInput.candidates;
+
+  it("takes a candidate's values as reporting.yaml's PatternCandidate allows them", () => {
     const withValues = (values: unknown) => ({ ...candidate, values });
 
     for (const values of [
@@ -53,5 +54,22 @@ describe('narrate-compliance-report input', () => {
 
       expect({ values, gateway }).toEqual({ values, gateway: reporting });
     }
+  });
+
+  it("takes a candidate's aggregate keys as reporting.yaml's PatternCandidate allows them", () => {
+    const withKeys = (aggregateKeys: unknown) => ({ ...candidate, aggregateKeys });
+
+    for (const aggregateKeys of [
+      ['commission.tsc.nonFilerRate', 'fy2025.commission.tsc.nonFilerRate'],
+      ['national.filed'],
+      [],
+      [0.164],
+    ]) {
+      const reporting = patternCandidate(withKeys(aggregateKeys));
+      const gateway = parseInput({ candidates: [withKeys(aggregateKeys)] }).success;
+
+      expect({ aggregateKeys, gateway }).toEqual({ aggregateKeys, gateway: reporting });
+    }
+    expect(patternCandidate(withKeys([]))).toBe(false);
   });
 });
