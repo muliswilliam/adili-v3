@@ -4,7 +4,7 @@ import type { AccessTransaction } from '../db/database.js';
 import type { AccessSubjectKind } from '@adili/events/contracts';
 
 import type { RegisterRow } from '../register/access-register.js';
-import { type RegisterEntry, toRegisterEntry } from '../register/representation.js';
+import { inTimeline, type RegisterEntry, toRegisterEntry } from '../register/representation.js';
 import { accessRegister } from '../register/schema.js';
 
 /**
@@ -35,7 +35,7 @@ export async function registerEntriesOf(
 
 /** The whole timeline, as the Commission's access officer and supervisor see it. */
 export function officerTimeline(rows: readonly RegisterRow[]): RegisterEntry[] {
-  return rows.map(toRegisterEntry);
+  return rows.filter(inTimeline).map(toRegisterEntry);
 }
 
 /**
@@ -48,6 +48,7 @@ export function applicantTimeline(
   applicantSubject: string,
 ): RegisterEntry[] {
   return rows
+    .filter(inTimeline)
     .filter((row) => row.kind !== 'representations')
     .map((row) => {
       const entry = toRegisterEntry(row);
