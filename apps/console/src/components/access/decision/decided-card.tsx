@@ -1,4 +1,4 @@
-import { formatDateTime, groundMeta } from '@adili/ui';
+import { accessOutcomeLabels, formatDateTime, groundMeta } from '@adili/ui';
 import { CheckmarkCircle02Icon, UnavailableIcon } from '@hugeicons/core-free-icons';
 import type { ReactNode } from 'react';
 
@@ -33,7 +33,7 @@ export function DecidedCard({ decision }: { decision: Decision }) {
         icon={deny ? UnavailableIcon : CheckmarkCircle02Icon}
         tone={deny ? 'destructive' : 'success'}
       >
-        {m.decided[decision.outcome]}
+        {accessOutcomeLabels[decision.outcome]}
       </OutcomeLine>
       <dl className="grid gap-3 text-sm">
         {decision.outcome === 'partial-grant' && decision.grantedScope ? (

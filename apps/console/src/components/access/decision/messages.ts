@@ -1,11 +1,14 @@
-import { plural } from '@adili/ui';
+import { formatNumber, plural } from '@adili/ui';
+
+import { DECISION_REASONS_MAX } from '../../../server/access/schemas';
 
 import type { Outcome } from './decision-rules';
 
 /**
  * Copy of the decision form, the decision summary and the package status (spec 10, #260), from
  * the console prototype (`apps/console/prototype/10-access.prototype.html`, `#decide`). Shared by
- * Form K and law enforcement requests (#265). English only, as `access/messages.ts`.
+ * Form K and law enforcement requests (#265). English, with an empty Swahili slot (`sw`), as
+ * `access/messages.ts`.
  */
 export const en = {
   // Decide page
@@ -27,7 +30,7 @@ export const en = {
   sameAsRequested: 'This is the full requested scope. Choose Grant instead.',
   reasons: 'Reasons',
   reasonsPlaceholder: 'Why you decided this, in plain words',
-  reasonsCount: (count: number) => `${count.toLocaleString('en-KE')} / 4,000`,
+  reasonsCount: (count: number) => `${formatNumber(count)} / ${formatNumber(DECISION_REASONS_MAX)}`,
   cancel: 'Cancel',
   recordDecision: 'Record decision',
 
@@ -96,11 +99,6 @@ export const en = {
 
   // Decision summary
   final: 'Final',
-  decided: {
-    grant: 'Granted',
-    'partial-grant': 'Partially granted',
-    deny: 'Denied',
-  } satisfies Record<Outcome, string>,
   grounds: 'Regulation 24 grounds',
   decidedBy: 'Decided by',
 
@@ -120,5 +118,8 @@ export const en = {
   verificationCode: 'Verification code',
   onlyRecipient: (name: string) => `Only ${name} can download it.`,
 };
+
+/** Swahili translations, key by key; empty until reviewed. */
+export const sw: Partial<Record<keyof typeof en, string>> = {};
 
 export const messages = en;

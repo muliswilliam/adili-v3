@@ -79,7 +79,7 @@ function useCommand() {
 }
 
 /**
- * "Verify applicant" for a passport applicant's request (S2): the access officer checks the
+ * "Verify applicant identity" for a passport applicant's request (S2): the access officer checks the
  * particulars entered against the passport and records how. The request is then released to
  * be identified.
  */

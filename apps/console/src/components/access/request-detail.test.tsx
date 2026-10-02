@@ -203,7 +203,7 @@ describe('RequestDetailView (spec 10 FE-5)', () => {
       ),
     );
     renderDetail(await viewOf(R.verify));
-    const card = within(side()).getByRole('region', { name: 'Verify applicant' });
+    const card = within(side()).getByRole('region', { name: 'Verify applicant identity' });
     expect(card.textContent).toContain('G2837465 · GH');
     fireEvent.click(within(card).getByRole('button', { name: 'Record verification' }));
     expect(

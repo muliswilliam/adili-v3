@@ -1,4 +1,5 @@
 import {
+  accessOutcomeLabels,
   Alert,
   AlertDescription,
   Badge,
@@ -128,7 +129,7 @@ function Progress({ request }: { request: LeaRequest }) {
     {
       title: m.decision,
       detail: decision
-        ? m.decidedAt(m.outcome[decision.outcome], formatDateTime(decision.decidedAt))
+        ? m.decidedAt(accessOutcomeLabels[decision.outcome], formatDateTime(decision.decidedAt))
         : m.dueOn(formatDate(request.deadlineAt)),
       done: decision !== null,
     },
@@ -187,7 +188,7 @@ function Side({ request, now }: { request: LeaRequest; now: string }) {
     return (
       <SideCard id="decision" title={m.decisionTitle}>
         <OutcomeLine icon={UnavailableIcon} tone="destructive">
-          {m.outcome.deny}
+          {accessOutcomeLabels.deny}
         </OutcomeLine>
         <dl className="grid gap-3 text-sm">
           {decision.grounds.length > 0 ? (
@@ -276,7 +277,7 @@ function Side({ request, now }: { request: LeaRequest; now: string }) {
         </SideCard>
         <SideCard id="decision" title={m.decisionTitle}>
           <OutcomeLine icon={CheckmarkCircle02Icon} tone="success">
-            {m.outcome[decision.outcome]}
+            {accessOutcomeLabels[decision.outcome]}
           </OutcomeLine>
           <dl className="grid gap-3 text-sm">
             {decision.outcome === 'partial-grant' && decision.grantedScope ? (

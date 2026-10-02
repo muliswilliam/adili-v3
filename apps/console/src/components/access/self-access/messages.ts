@@ -2,8 +2,9 @@ import { plural } from '@adili/ui';
 
 /**
  * Copy of the Certified copies screens (spec 10 slice #302, in-person self-access), from the
- * console prototype (`apps/console/prototype/10-access.prototype.html`, #304). English only, as
- * `access/messages.ts`; kept apart so the decision and law enforcement screens do not collide.
+ * console prototype (`apps/console/prototype/10-access.prototype.html`, #304). English, with an
+ * empty Swahili slot (`sw`), as `access/messages.ts`; kept apart so the decision and law
+ * enforcement screens do not collide.
  */
 export const en = {
   title: 'Certified copies',
@@ -228,5 +229,8 @@ export const en = {
   markFailed: 'We could not save this. Try again.',
   supervisorWaits: 'The access officer hands over the copy and marks it.',
 } as const;
+
+/** Swahili translations, key by key; empty until reviewed. */
+export const sw: Partial<Record<keyof typeof en, string>> = {};
 
 export const messages = en;

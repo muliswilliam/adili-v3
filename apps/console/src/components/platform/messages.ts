@@ -4,8 +4,8 @@ import type { LeaOfficerState } from '../../server/directory/client';
 
 /**
  * Copy of Platform settings, law-enforcement accounts (spec 10 FE-6), from the console prototype
- * (`apps/console/prototype/10-access.prototype.html`, persona platform-admin). English only, as
- * the other console areas.
+ * (`apps/console/prototype/10-access.prototype.html`, persona platform-admin).
+ * English, with an empty Swahili slot (`sw`), as the other console areas.
  */
 export const en = {
   title: 'Law-enforcement accounts',
@@ -124,6 +124,9 @@ export const en = {
   revokeFailed: 'The account was not revoked. Try again.',
   revokeBusy: 'Another change to this officer is still being processed. Try again shortly.',
 };
+
+/** Swahili translations, key by key; empty until reviewed. */
+export const sw: Partial<Record<keyof typeof en, string>> = {};
 
 export const messages = en;
 
