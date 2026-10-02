@@ -25,6 +25,9 @@ ajv.addSchema(
   'ai-gateway.yaml',
 );
 const validTaskRequest = ajv.compile({ $ref: 'ai-gateway.yaml#/components/schemas/TaskRequest' });
+const validFeedbackInput = ajv.compile({
+  $ref: 'ai-gateway.yaml#/components/schemas/FeedbackInput',
+});
 
 /** The task and job calls at the client seam, as ai-gateway.yaml has them. */
 describe('HttpAiGatewayClient', () => {
@@ -141,6 +144,45 @@ describe('HttpAiGatewayClient', () => {
         client(fetch).runTask('summarize-declaration', request, key),
       ).rejects.toBeInstanceOf(AiGatewayUnavailable);
     }
+  });
+
+  describe('recordFeedback', () => {
+    const feedback = {
+      reviewerSubject: 'reviewer-a',
+      rating: 'not-helpful',
+      reason: 'unclear',
+      note: 'Hard to follow.',
+    } as const;
+
+    it('puts the rating for the job and answers true once recorded', async () => {
+      const fetch = vi.fn<typeof globalThis.fetch>(() =>
+        Promise.resolve(
+          Response.json({ ...feedback, jobId: job.id, at: '2028-01-20T08:10:00.000Z' }),
+        ),
+      );
+
+      expect(await client(fetch).recordFeedback(job.id, feedback)).toBe(true);
+      const sent = fetch.mock.calls[0]?.[0] as Request;
+      expect(sent.url).toBe(`http://ai.test/internal/v1/jobs/${job.id}/feedback`);
+      expect(sent.method).toBe('PUT');
+      const body: unknown = await sent.json();
+      expect(body).toEqual(feedback);
+      expect(validFeedbackInput(body), JSON.stringify(validFeedbackInput.errors)).toBe(true);
+    });
+
+    it('a job the gateway has no output of (404) is false; 400 is rejected; an outage unavailable', async () => {
+      const answering = (status: number) =>
+        vi.fn<typeof globalThis.fetch>(() =>
+          Promise.resolve(Response.json({ title: 'No' }, { status })),
+        );
+      expect(await client(answering(404)).recordFeedback(job.id, feedback)).toBe(false);
+      await expect(client(answering(400)).recordFeedback(job.id, feedback)).rejects.toBeInstanceOf(
+        InternalApiRejected,
+      );
+      await expect(client(answering(503)).recordFeedback(job.id, feedback)).rejects.toBeInstanceOf(
+        AiGatewayUnavailable,
+      );
+    });
   });
 
   it("reads a tenant's AI status; an answer outside the contract is unavailable", async () => {

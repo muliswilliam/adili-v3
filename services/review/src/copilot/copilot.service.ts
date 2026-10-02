@@ -8,6 +8,7 @@ import { findCase } from '../cases/case-lookup.js';
 import type { ReviewSchema } from '../db/schema.js';
 import { DeclarationsUnavailable } from '../declarations/declarations-client.js';
 import { declarationsUnavailable, upstreamUnavailable } from '../internal-api/upstream.js';
+import { type CopilotRatingView, ratingsOf } from './copilot-feedback.js';
 import { copilotOf, copilotOutputRecordId, CopilotRequests } from './copilot-requests.js';
 import type { CopilotRow, CopilotStatus } from './schema.js';
 
@@ -23,8 +24,8 @@ export interface CopilotView {
   explanations: Record<string, unknown> | null;
   /** The jobs of the outputs shown, which reviewers rate. */
   jobs: { summarize: string | null; explain: string | null };
-  /** The caller's own ratings (spec 07c BE-6). */
-  feedback: { jobId: string; rating: 'helpful' | 'not-helpful' }[];
+  /** The caller's own ratings of the outputs shown. */
+  feedback: CopilotRatingView[];
 }
 
 /**
@@ -46,12 +47,18 @@ export class CopilotService {
    */
   async view(principal: Principal, caseId: string): Promise<CopilotView> {
     const tenant = caseTenant(principal);
-    const { row, record } = await withTenant(
+    const { row, record, feedback } = await withTenant(
       this.db,
       { tenant, subject: principal.subject },
       async (tx) => {
         const found = await findCase(tx, tenant, caseId);
-        return { row: found, record: await copilotOf(tx, found.id) };
+        const copilot = await copilotOf(tx, found.id);
+        const shown = [copilot?.summaryJobId ?? null, copilot?.explanationsJobId ?? null];
+        return {
+          row: found,
+          record: copilot,
+          feedback: await ratingsOf(tx, principal.subject, shown),
+        };
       },
     );
     if (!record) {
@@ -74,7 +81,7 @@ export class CopilotService {
       summary: await this.open(tenant, record, 'summary'),
       explanations: await this.open(tenant, record, 'explanations'),
       jobs: { summarize: record.summaryJobId, explain: record.explanationsJobId },
-      feedback: [],
+      feedback,
     };
   }
 

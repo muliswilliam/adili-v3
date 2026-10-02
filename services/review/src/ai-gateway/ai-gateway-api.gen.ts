@@ -69,7 +69,10 @@ export interface paths {
             cookie?: never;
         };
         get?: never;
-        /** Record or update a reviewer's rating of a job's output */
+        /**
+         * Record or update a reviewer's rating of a job's output (caller service only)
+         * @description One rating per reviewer per job: a second rating by the same reviewer replaces the first. Only a succeeded job of the caller has an output to rate. Each rating announces `ai.feedback.recorded.v1` (no note, no reviewer).
+         */
         put: operations["recordFeedback"];
         post?: never;
         delete?: never;
@@ -505,6 +508,7 @@ export interface components {
             }[];
         };
         FeedbackInput: {
+            /** @description The officer rating the output, as the calling service knows them (token `sub`) */
             reviewerSubject: string;
             /** @enum {string} */
             rating: "helpful" | "not-helpful";
@@ -791,7 +795,16 @@ export interface operations {
                     "application/json": components["schemas"]["Feedback"];
                 };
             };
-            404: components["responses"]["NotFound"];
+            400: components["responses"]["ValidationProblem"];
+            /** @description No succeeded job with this id visible to the caller */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
         };
     };
     getTenantAiStatus: {

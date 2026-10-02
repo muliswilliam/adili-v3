@@ -7,6 +7,7 @@ import {
   type AiJob,
   AiGatewayClient,
   AiGatewayUnavailable,
+  type FeedbackInput,
   type ReviewTask,
   type TaskRequest,
   type TenantAiStatus,
@@ -42,6 +43,9 @@ const jobSchema = z.object({
   output: z.record(z.string(), z.unknown()).nullable(),
   finishedAt: z.string().nullable(),
 });
+
+/** A recorded rating: the review service keeps nothing of the answer but that it was recorded. */
+const recorded = z.object({ jobId: z.uuid() }).transform(() => true);
 
 const DATA_CLASS = z.enum(['synthetic', 'restricted', 'highly-confidential']);
 
@@ -93,6 +97,18 @@ export class HttpAiGatewayClient extends AiGatewayClient {
     return this.gateway.call(
       (api) => api.GET('/internal/v1/jobs/{jobId}', { params: { path: { jobId } } }),
       { status: 200, schema: jobSchema, otherwise: { 404: () => null } },
+    );
+  }
+
+  recordFeedback(jobId: string, feedback: FeedbackInput): Promise<boolean> {
+    const rejected = rejectedBy('ai-gateway');
+    return this.gateway.call(
+      (api) =>
+        api.PUT('/internal/v1/jobs/{jobId}/feedback', {
+          params: { path: { jobId } },
+          body: feedback,
+        }),
+      { status: 200, schema: recorded, otherwise: { 400: rejected, 404: () => false } },
     );
   }
 
