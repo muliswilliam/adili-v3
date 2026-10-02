@@ -7,8 +7,8 @@
  *
  * Every text pair meets WCAG 2.2 AA (4.5:1) in both themes: foreground, muted-foreground and
  * secondary-foreground on the page, card and muted fills; each -foreground on its solid; each
- * -subtle-foreground on its -subtle fill; and the solid status colours that badges use on their
- * -subtle fill. The dark placeholder meets it on the card and on muted (read-only controls). Two
+ * -subtle-foreground on its -subtle fill; avatar-foreground on avatar; and the solid status
+ * colours that badges use on their -subtle fill. The dark placeholder meets it on the card and on muted (read-only controls). Two
  * exceptions, both deliberate: the light placeholder (#8f8d89, 3.3:1 on card and 3.0:1 on muted,
  * taken from the kit and open with design) and disabled buttons, which WCAG exempts. The solid
  * info and brand colours miss 4.5:1 on their light -subtle fills, so text on those fills uses
@@ -49,6 +49,10 @@
   --ai: oklch(0.536 0.215 287.5); /* #6d4ae0 */
   --ai-subtle: oklch(0.954 0.022 297.4); /* #f1edfd */
   --ai-subtle-foreground: oklch(0.394 0.178 284.9); /* #43299f */
+  /* Other people's initials (Avatar): lilac like the kit's .achip .av, its own token so it never
+     reads as the AI colour and can change without it. */
+  --avatar: oklch(0.925 0.029 294.6); /* #e7e3f8 */
+  --avatar-foreground: oklch(0.425 0.152 285.9); /* #4b3a9c */
   /* Brand orange for UI accents. The logo keeps its own colour, --logo. */
   --brand: oklch(0.648 0.188 39); /* #e95a24 */
   --brand-subtle: oklch(0.963 0.017 50.4); /* #fdf0e9 */
@@ -143,6 +147,8 @@
     --ai: oklch(0.705 0.152 293.4); /* #a58bf5 */
     --ai-subtle: oklch(0.255 0.078 289.4); /* #231a45 */
     --ai-subtle-foreground: oklch(0.844 0.08 295.1); /* #cfc2fb */
+    --avatar: oklch(0.283 0.049 291.4); /* #2a2540 */
+    --avatar-foreground: oklch(0.843 0.064 293.9); /* #cdc4f2 */
     --brand: oklch(0.681 0.178 40.3); /* #f06a36 */
     --brand-subtle: oklch(0.268 0.051 44.2); /* #3a1d10 */
     --brand-subtle-foreground: oklch(0.828 0.099 46.8); /* #fdb38f */
@@ -202,6 +208,8 @@
   --color-ai: var(--ai);
   --color-ai-subtle: var(--ai-subtle);
   --color-ai-subtle-foreground: var(--ai-subtle-foreground);
+  --color-avatar: var(--avatar);
+  --color-avatar-foreground: var(--avatar-foreground);
   --color-brand: var(--brand);
   --color-brand-subtle: var(--brand-subtle);
   --color-brand-subtle-foreground: var(--brand-subtle-foreground);
@@ -248,7 +256,8 @@
   --shadow-art-item: var(--elevation-art-item);
 }
 
-/* Skeleton shimmer, the indeterminate progress sweep, the drawer's slide in and the chat's typing marks. */
+/* Skeleton shimmer, the indeterminate progress sweep, the drawer's slide in, the chat's typing marks
+   and the highlight on a row a reviewer jumped to. */
 @theme {
   --animate-shimmer: shimmer 1.2s linear infinite;
   --animate-indeterminate: indeterminate 1.3s ease-in-out infinite;
@@ -256,6 +265,22 @@
   /* A streaming answer's caret and the three dots while Adili is thinking. */
   --animate-caret: caret 1s steps(2) infinite;
   --animate-typing: typing 1.2s infinite;
+  /* A row a reviewer was sent to ("Go to item"), and a card they came back to: one pulse that
+     settles on the row's tint (the kit's .ditem.hl hlpulse and .flag.pulse flagpulse). */
+  --animate-highlight: highlight 1.6s ease-out;
+  --animate-ring-pulse: ring-pulse 1.6s ease-out;
+
+  @keyframes highlight {
+    from {
+      background-color: var(--brand-subtle);
+    }
+  }
+
+  @keyframes ring-pulse {
+    from {
+      box-shadow: 0 0 0 3px var(--brand);
+    }
+  }
 
   @keyframes caret {
     50% {

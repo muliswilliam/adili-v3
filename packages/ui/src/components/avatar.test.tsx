@@ -10,7 +10,7 @@ describe('Avatar', () => {
     const avatar = container.firstElementChild as HTMLElement;
     expect(avatar.textContent).toBe('PM');
     expect(avatar.getAttribute('aria-hidden')).toBe('true');
-    expect(avatar.className).toContain('bg-ai-subtle');
+    expect(avatar.className).toContain('bg-avatar');
   });
 
   it('takes the brand gradient for the signed-in user', () => {

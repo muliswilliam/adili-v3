@@ -22,7 +22,7 @@ export {
   type AttachmentStatus,
   formatFileSize,
 } from './components/attachment-list';
-export { Avatar, type AvatarProps } from './components/avatar';
+export { Avatar, type AvatarProps, type AvatarTone } from './components/avatar';
 export { Badge, type BadgeProps, badgeVariants } from './components/badge';
 export {
   BREAKER_BADGE_MESSAGES,
@@ -166,6 +166,31 @@ export {
   type DiffTableRow,
 } from './components/diff-table';
 export {
+  type AttachmentState,
+  DECLARATION_SUMMARY_MESSAGES,
+  type DeclarationItemContext,
+  DeclarationSummary,
+  type DeclarationSummaryMessages,
+  type DeclarationSummaryProps,
+} from './components/declaration-summary';
+export {
+  anchorIdFor,
+  DECLARATION_LABELS,
+  type DeclarationLabels,
+  type DeclarationTarget,
+  findItem,
+  itemAnchorId,
+  type LocatedItem,
+  personFullName,
+  personKind,
+  type PersonKind,
+  sectionAnchorId,
+  STATEMENT_CATEGORIES,
+  type StatementCategory,
+  type StatementItem,
+  typeLabel,
+} from './lib/declaration-summary';
+export {
   Drawer,
   DrawerBody,
   DrawerClose,
@@ -251,7 +276,15 @@ export {
   PriorityBadge,
   type PriorityBadgeMessages,
   type PriorityBadgeProps,
+  SignalBars,
 } from './components/priority-badge';
+export {
+  type Severity,
+  SEVERITIES,
+  SEVERITY_LABELS,
+  SeverityBadge,
+  type SeverityBadgeProps,
+} from './components/severity-badge';
 export { ProgressBar, type ProgressBarProps } from './components/progress-bar';
 export { QrCode, qrCodePath, type QrCodeProps } from './components/qr-code';
 export {

@@ -33,6 +33,9 @@ importers:
       '@adili/bff-auth':
         specifier: workspace:*
         version: link:../../packages/bff-auth
+      '@adili/forms':
+        specifier: workspace:*
+        version: link:../../packages/forms
       '@adili/roles':
         specifier: workspace:*
         version: link:../../packages/roles

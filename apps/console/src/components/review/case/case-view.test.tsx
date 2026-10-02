@@ -1,0 +1,314 @@
+// @vitest-environment jsdom
+import { ToastProvider, TooltipProvider } from '@adili/ui';
+import { act, fireEvent, render, screen, within } from '@testing-library/react';
+import type { ReactNode } from 'react';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+
+import {
+  caseData,
+  caseItem,
+  DOCUMENT,
+  flag,
+  ME,
+  PLOT,
+  SALARY,
+  WAFULA,
+} from '../../../review-case/fixtures';
+import type { CaseTab } from '../../../review-case/tabs';
+import {
+  addCaseNote,
+  claimCase,
+  getReassignOfficers,
+  markCaseFlagReviewed,
+  reassignCase,
+  releaseCase,
+} from '../../../server/review-case';
+import type { CaseLoad } from '../../../server/review-case.server';
+import { CaseView } from './case-view';
+
+const invalidate = vi.fn(() => Promise.resolve());
+const scrollIntoView = vi.fn();
+
+vi.mock('@tanstack/react-router', () => ({
+  Link: ({ to, children, ...props }: { to: string; children: ReactNode }) => (
+    <a href={to} {...props}>
+      {children}
+    </a>
+  ),
+  useRouter: () => ({ invalidate }),
+}));
+// The Clarifications tab reuses the clarification detail's status badge.
+vi.mock('../../../server/clarifications', () => ({}));
+vi.mock('../../../server/review-case', () => ({
+  addCaseNote: vi.fn(),
+  claimCase: vi.fn(),
+  getCaseAttachmentLink: vi.fn(),
+  getReassignOfficers: vi.fn(),
+  markCaseFlagReviewed: vi.fn(),
+  reassignCase: vi.fn(),
+  releaseCase: vi.fn(),
+}));
+
+const NOW = Date.parse('2026-10-02T09:00:00Z');
+const reviewer = { ...ME, supervisor: false };
+const supervisor = { ...ME, supervisor: true };
+
+function load(overrides: Partial<CaseLoad> = {}): CaseLoad {
+  return { detail: caseData(), document: DOCUMENT, documentUnavailable: false, ...overrides };
+}
+
+function view(
+  loaded: CaseLoad,
+  viewer: typeof reviewer = reviewer,
+  tab: CaseTab = 'flags',
+  onTab = vi.fn(),
+) {
+  return (
+    <TooltipProvider>
+      <ToastProvider>
+        <CaseView load={loaded} viewer={viewer} slug="psc" now={NOW} tab={tab} onTab={onTab} />
+      </ToastProvider>
+    </TooltipProvider>
+  );
+}
+
+const ok = <T,>(data: T) => ({ ok: true as const, data });
+
+beforeEach(() => {
+  vi.clearAllMocks();
+  Element.prototype.scrollIntoView = scrollIntoView;
+  window.matchMedia = vi.fn().mockReturnValue({ matches: false }) as typeof window.matchMedia;
+});
+
+describe('CaseView', () => {
+  it('shows an unassigned case with Claim, and its flags grouped by severity', () => {
+    render(view(load()));
+
+    expect(screen.getByRole('heading', { level: 1, name: 'Wanjiku Kamau' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Claim' })).toBeTruthy();
+    expect(screen.queryByText(/Read-only/)).toBeNull();
+    expect(
+      screen.getByText('Flags are indicators to guide your review. They are not findings.'),
+    ).toBeTruthy();
+    const groups = screen.getAllByRole('region').map((each) => each.getAttribute('aria-label'));
+    expect(groups).toContain('High: 1');
+    expect(groups.indexOf('High: 1')).toBeLessThan(groups.indexOf('Medium: 2'));
+    // Only the officer holding the case marks flags reviewed.
+    expect(screen.queryByRole('button', { name: 'Mark reviewed' })).toBeNull();
+    expect(
+      screen.getByText('Your access to this declaration is recorded in the audit trail.'),
+    ).toBeTruthy();
+  });
+
+  it('claims the case', async () => {
+    vi.mocked(claimCase).mockResolvedValue(ok(caseItem({ assignee: ME })));
+    render(view(load()));
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Claim' }));
+      await Promise.resolve();
+    });
+
+    expect(claimCase).toHaveBeenCalledWith({ data: { caseId: caseItem().id } });
+    expect(invalidate).toHaveBeenCalled();
+    expect(await screen.findByText('Case claimed. You hold it now.')).toBeTruthy();
+  });
+
+  it('says who claimed it first when the claim lost the race (409)', async () => {
+    vi.mocked(claimCase).mockResolvedValue({
+      ok: false,
+      error: {
+        kind: 'problem',
+        problem: { type: 'case-already-assigned', title: 'Case already assigned', status: 409 },
+      },
+    });
+    const { rerender } = render(view(load()));
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Claim' }));
+      await Promise.resolve();
+    });
+    expect(invalidate).toHaveBeenCalled();
+    // The reload brings the case as Wafula holds it.
+    rerender(
+      view(
+        load({ detail: caseData({ case: caseItem({ assignee: WAFULA, status: 'assigned' }) }) }),
+      ),
+    );
+
+    expect(await screen.findByText('Already claimed by Wafula Barasa')).toBeTruthy();
+    expect(screen.getByText('Read-only. Wafula Barasa holds this case.')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Claim' })).toBeNull();
+  });
+
+  it('marks a flag reviewed with a note, which is required', async () => {
+    vi.mocked(markCaseFlagReviewed).mockResolvedValue(ok(flag()));
+    render(view(load({ detail: caseData({ case: caseItem({ assignee: ME }) }) })));
+
+    const card = screen.getByText('Value down 42% from the previous version').closest('li');
+    if (!card) throw new Error('no flag card');
+    fireEvent.click(within(card).getByRole('button', { name: 'Mark reviewed' }));
+    const form = within(card).getByRole('form');
+    await act(async () => {
+      fireEvent.click(within(form).getByRole('button', { name: 'Mark reviewed' }));
+      await Promise.resolve();
+    });
+    expect(within(form).getByText('Add a note to record what you concluded.')).toBeTruthy();
+    expect(markCaseFlagReviewed).not.toHaveBeenCalled();
+
+    fireEvent.change(within(form).getByLabelText('What did you conclude?'), {
+      target: { value: '  Explained by the bank statement.  ' },
+    });
+    await act(async () => {
+      fireEvent.click(within(form).getByRole('button', { name: 'Mark reviewed' }));
+      await Promise.resolve();
+    });
+
+    expect(markCaseFlagReviewed).toHaveBeenCalledWith({
+      data: { caseId: caseItem().id, flagId: flag().id, note: 'Explained by the bank statement.' },
+    });
+    expect(invalidate).toHaveBeenCalled();
+    expect(await screen.findByText('Marked reviewed')).toBeTruthy();
+  });
+
+  it('collapses a reviewed flag with its note and reviewer', () => {
+    const reviewed = flag({
+      reviewed: {
+        at: '2026-10-02T07:47:00Z',
+        by: WAFULA,
+        note: 'Explained by the bank statement.',
+      },
+    });
+    render(view(load({ detail: caseData({ flags: [reviewed] }) })));
+
+    const group = screen.getByRole('region', { name: 'Reviewed' });
+    expect(within(group).getByText('Reviewed by Wafula Barasa on 2 Oct 2026')).toBeTruthy();
+    expect(within(group).getByText('Explained by the bank statement.')).toBeTruthy();
+    expect(within(group).queryByText('Go to item')).toBeNull();
+    expect(screen.getByText('0 open · 1 reviewed')).toBeTruthy();
+  });
+
+  it('goes to a flag’s item and highlights it, and a pin brings its flag back', () => {
+    const onTab = vi.fn();
+    render(view(load(), reviewer, 'notes', onTab));
+
+    const salary = document.querySelector<HTMLElement>(`[data-item-id="${SALARY}"]`);
+    if (!salary) throw new Error('no salary item');
+    fireEvent.click(
+      within(salary).getByRole('button', { name: '1 indicator on this item. Show in flags.' }),
+    );
+    expect(onTab).toHaveBeenCalledWith('flags');
+    const card = screen.getByText('Value down 42% from the previous version').closest('li');
+    if (!card) throw new Error('no flag card');
+    expect(card.dataset.pulse).toBe('true');
+
+    fireEvent.click(within(card).getByRole('button', { name: 'Go to item' }));
+    const item = document.querySelector(`[data-item-id="${SALARY}"]`);
+    expect(item?.getAttribute('data-highlighted')).toBe('true');
+    expect(
+      document.querySelector(`[data-item-id="${PLOT}"]`)?.hasAttribute('data-highlighted'),
+    ).toBe(false);
+    expect(scrollIntoView).toHaveBeenCalled();
+  });
+
+  it('adds a note', async () => {
+    vi.mocked(addCaseNote).mockResolvedValue(
+      ok({ id: 'n1', author: ME, text: 'Checked the parcel.', at: '2026-10-02T09:00:00Z' }),
+    );
+    render(view(load(), reviewer, 'notes'));
+
+    expect(
+      screen.getByText('Notes are internal to your Commission. The declarant never sees them.'),
+    ).toBeTruthy();
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Add note' }));
+      await Promise.resolve();
+    });
+    expect(screen.getByText('Write a note first.')).toBeTruthy();
+
+    fireEvent.change(screen.getByLabelText('Add note'), {
+      target: { value: 'Checked the parcel.' },
+    });
+    expect(screen.getByText('19 / 2,000')).toBeTruthy();
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Add note' }));
+      await Promise.resolve();
+    });
+    expect(addCaseNote).toHaveBeenCalledWith({
+      data: { caseId: caseItem().id, text: 'Checked the parcel.' },
+    });
+    expect(await screen.findByText('Note added')).toBeTruthy();
+  });
+
+  it('shows the case without the declaration when it could not be loaded', async () => {
+    render(view(load({ document: null, documentUnavailable: true })));
+
+    expect(screen.getByText('The declaration could not be loaded.')).toBeTruthy();
+    expect(screen.getByText('Assets grew faster than declared income')).toBeTruthy();
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
+      await Promise.resolve();
+    });
+    expect(invalidate).toHaveBeenCalled();
+  });
+
+  it('lets a holder release the case after confirming', async () => {
+    vi.mocked(releaseCase).mockResolvedValue(ok(caseItem()));
+    render(view(load({ detail: caseData({ case: caseItem({ assignee: ME }) }) })));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Release' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Release this case?' });
+    await act(async () => {
+      fireEvent.click(within(dialog).getByRole('button', { name: 'Release case' }));
+      await Promise.resolve();
+    });
+    expect(releaseCase).toHaveBeenCalled();
+    expect(await screen.findByText('Case released to the queue')).toBeTruthy();
+  });
+
+  it('lets a supervisor reassign to an officer of the Commission', async () => {
+    vi.mocked(getReassignOfficers).mockResolvedValue(
+      ok([{ subject: 'm', name: 'Mercy Wambui', open: 11, ofRecord: true }]),
+    );
+    vi.mocked(reassignCase).mockResolvedValue(ok(caseItem()));
+    render(
+      view(
+        load({
+          detail: caseData({ case: caseItem({ assignee: WAFULA }), reviewerHistory: [WAFULA] }),
+        }),
+        supervisor,
+      ),
+    );
+
+    expect(screen.getByRole('button', { name: 'Unassign' })).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Reassign' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Reassign case' });
+    expect(within(dialog).getByText('Currently held by Wafula Barasa.')).toBeTruthy();
+    const mercy = await within(dialog).findByRole('radio', { name: 'Mercy Wambui' });
+    expect(within(dialog).getByText('11 open cases · already a reviewer of record')).toBeTruthy();
+    expect(getReassignOfficers).toHaveBeenCalledWith({
+      data: { slug: 'psc', assignee: WAFULA.subject, reviewerHistory: [WAFULA] },
+    });
+
+    fireEvent.click(mercy);
+    await act(async () => {
+      fireEvent.click(within(dialog).getByRole('button', { name: 'Reassign' }));
+      await Promise.resolve();
+    });
+    expect(reassignCase).toHaveBeenCalledWith({
+      data: { caseId: caseItem().id, assignee: 'm' },
+    });
+    expect(await screen.findByText('Reassigned to Mercy Wambui')).toBeTruthy();
+  });
+
+  it('cues a supervisor who held the case', () => {
+    render(view(load({ detail: caseData({ reviewerHistory: [ME] }) }), supervisor));
+
+    expect(
+      screen.getByText(
+        'You are a reviewer of record, so another supervisor must approve the determination.',
+      ),
+    ).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Assign to a reviewer' })).toBeTruthy();
+  });
+});
