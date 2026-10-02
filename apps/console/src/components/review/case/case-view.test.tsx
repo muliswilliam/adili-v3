@@ -577,9 +577,16 @@ describe('CaseView: Registry tab', () => {
       await Promise.resolve();
     });
 
+    // The toast and the tab say it; the blocked button is described by it.
     expect(await screen.findAllByText('Re-checked recently. Try again in 7 minutes.')).toHaveLength(
-      2,
+      3,
     );
+    expect(
+      screen.getByRole('button', {
+        name: 'Re-check',
+        description: 'Re-checked recently. Try again in 7\u00a0minutes.',
+      }),
+    ).toBeTruthy();
     expect(screen.queryByRole('dialog')).toBeNull();
   });
 
@@ -596,22 +603,39 @@ describe('CaseView: Registry tab', () => {
     });
     render(view(load({ detail }), reviewer, 'registry'));
 
-    const button = screen.getByRole('button', { name: 'Re-check' });
-    expect((button as HTMLButtonElement).disabled).toBe(true);
-    expect(screen.getByLabelText('Re-checked recently. Try again in 7 minutes.')).toBeTruthy();
+    // Q16: blocked but focusable, named, and described by why; a press does nothing.
+    const button = screen.getByRole('button', {
+      name: 'Re-check',
+      description: 'Re-checked recently. Try again in 7\u00a0minutes.',
+    });
+    expect(button.getAttribute('aria-disabled')).toBe('true');
+    expect((button as HTMLButtonElement).disabled).toBe(false);
+    button.focus();
+    expect(document.activeElement).toBe(button);
+    fireEvent.click(button);
+    expect(screen.queryByRole('dialog')).toBeNull();
     // Nothing was refused on this page: the tab does not repeat it.
-    expect(screen.queryByText('Re-checked recently. Try again in 7 minutes.')).toBeNull();
+    expect(
+      within(screen.getByRole('tabpanel')).queryByText(
+        'Re-checked recently. Try again in 7 minutes.',
+      ),
+    ).toBeNull();
 
     await act(async () => {
       await vi.advanceTimersByTimeAsync(60_000);
     });
-    expect(screen.getByLabelText('Re-checked recently. Try again in 6 minutes.')).toBeTruthy();
+    expect(
+      screen.getByRole('button', {
+        name: 'Re-check',
+        description: 'Re-checked recently. Try again in 6\u00a0minutes.',
+      }),
+    ).toBeTruthy();
 
     await act(async () => {
       await vi.advanceTimersByTimeAsync(5 * 60_000 + 30_000);
     });
-    expect(screen.queryByLabelText(/Re-checked recently/)).toBeNull();
-    const enabled = screen.getByRole('button', { name: 'Re-check' });
+    const enabled = screen.getByRole('button', { name: 'Re-check', description: '' });
+    expect(enabled.hasAttribute('aria-disabled')).toBe(false);
     expect((enabled as HTMLButtonElement).disabled).toBe(false);
     fireEvent.click(enabled);
     expect(await screen.findByRole('dialog', { name: 'Re-check registries' })).toBeTruthy();
@@ -626,8 +650,16 @@ describe('CaseView: Registry tab', () => {
       ),
     );
 
-    const button = screen.getByRole('button', { name: 'Re-check' });
-    expect((button as HTMLButtonElement).disabled).toBe(true);
+    // Q16: blocked but focusable, named, and described by why; a press does nothing.
+    const button = screen.getByRole('button', {
+      name: 'Re-check',
+      description: 'Only the assigned reviewer or a supervisor can re-check the registries.',
+    });
+    expect(button.getAttribute('aria-disabled')).toBe('true');
+    button.focus();
+    expect(document.activeElement).toBe(button);
+    fireEvent.click(button);
+    expect(screen.queryByRole('dialog')).toBeNull();
     // Not read until the tab opens: each read is an audited view of the declaration.
     expect(getCaseRegistry).not.toHaveBeenCalled();
   });
