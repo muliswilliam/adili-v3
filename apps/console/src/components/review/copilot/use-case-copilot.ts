@@ -44,6 +44,20 @@ export interface CaseCopilot {
   rate: (jobId: string, feedback: Feedback) => Promise<void>;
 }
 
+const UNAVAILABLE = { ok: false, error: { kind: 'unavailable', detail: null } } as const;
+
+/**
+ * A server function's answer, or "unavailable" when the call itself failed (the network, or the
+ * server function threw): the panel then says so instead of waiting forever.
+ */
+async function settled<T>(call: () => Promise<ServiceResult<T>>): Promise<ServiceResult<T>> {
+  try {
+    return await call();
+  } catch {
+    return UNAVAILABLE;
+  }
+}
+
 function refreshError(result: Exclude<ServiceResult<Copilot>, { ok: true }>): string {
   const { error } = result;
   if (error.kind === 'unauthenticated') return t.sessionEnded;
@@ -70,7 +84,7 @@ export function useCaseCopilot(caseId: string, api: CopilotApi, initial?: Copilo
   const [stoppedRound, setStoppedRound] = useState<number | null>(null);
   // Ratings saved in this session, with their reason and note (the view carries ratings only).
   const [saved, setSaved] = useState<Record<string, Feedback>>({});
-  const read = useEffectEvent((id: string) => api.read(id));
+  const read = useEffectEvent((id: string) => settled(() => api.read(id)));
   const busy = isBusy(copilot);
   const skipFirstRead = initial !== undefined;
 
@@ -123,10 +137,7 @@ export function useCaseCopilot(caseId: string, api: CopilotApi, initial?: Copilo
       timer = setTimeout(() => void poll(), delay);
     };
     const poll = async () => {
-      const result = await read(caseId).catch((): ServiceResult<Copilot> => ({
-        ok: false,
-        error: { kind: 'unavailable', detail: null },
-      }));
+      const result = await read(caseId);
       if (cancelled) return;
       if (result.ok) {
         setCopilot(result.data);
@@ -160,15 +171,15 @@ export function useCaseCopilot(caseId: string, api: CopilotApi, initial?: Copilo
         setLoadRound((value) => value + 1);
         return;
       }
-      // "Check again": read now, then poll again for two minutes.
-      void api.read(caseId).then((result) => {
+      // "Check again": read now, then poll again for two minutes (also when this read fails).
+      void settled(() => api.read(caseId)).then((result) => {
         if (result.ok) setCopilot(result.data);
         setPollRound((value) => value + 1);
       });
     },
     refresh: async () => {
       setRefreshing(true);
-      const result = await api.refresh(caseId);
+      const result = await settled(() => api.refresh(caseId));
       setRefreshing(false);
       if (result.ok) {
         setCopilot(result.data);
@@ -177,14 +188,14 @@ export function useCaseCopilot(caseId: string, api: CopilotApi, initial?: Copilo
       }
       // 409: someone else refreshed it, or AI was turned off; read where it stands.
       if (result.error.kind === 'problem' && result.error.problem.status === 409) {
-        const now = await api.read(caseId);
+        const now = await settled(() => api.read(caseId));
         if (now.ok) setCopilot(now.data);
       }
       return refreshError(result);
     },
     ratingOf: (jobId) => (jobId ? (saved[jobId] ?? fromView(jobId)) : null),
     rate: async (jobId, feedback) => {
-      const result = await api.rate(jobId, feedback);
+      const result = await settled(() => api.rate(jobId, feedback));
       if (!result.ok) throw new Error('Rating not saved');
       setSaved((current) => ({ ...current, [jobId]: feedback }));
     },

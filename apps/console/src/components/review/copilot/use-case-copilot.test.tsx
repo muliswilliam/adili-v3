@@ -113,6 +113,49 @@ describe('useCaseCopilot', () => {
     expect(result.current.copilot?.status).toBe('ready');
   });
 
+  it('says the first read failed when the call itself throws, instead of loading forever', async () => {
+    const api = fakeApi([], ok(copilot('ready')));
+    api.read.mockRejectedValueOnce(new Error('Failed to fetch'));
+    const { result } = renderHook(() => useCaseCopilot(CASE, api));
+    await settle();
+    expect(result.current.error).toBe('unavailable');
+    act(() => {
+      result.current.retry();
+    });
+    await settle();
+    expect(result.current.copilot?.status).toBe('ready');
+  });
+
+  it('polls on after Check again when that read throws', async () => {
+    const api = fakeApi([ok(copilot('stale'))]);
+    const { result } = renderHook(() => useCaseCopilot(CASE, api));
+    await settle();
+    await wait(POLL_STOP_AFTER_MS);
+    expect(result.current.stopped).toBe(true);
+    api.read.mockRejectedValueOnce(new Error('Failed to fetch'));
+    act(() => {
+      result.current.retry();
+    });
+    await settle();
+    expect(result.current.stopped).toBe(false);
+    const polls = api.read.mock.calls.length;
+    await wait(2000);
+    expect(api.read).toHaveBeenCalledTimes(polls + 1);
+  });
+
+  it('stops refreshing and says so when the refresh call throws', async () => {
+    const api = fakeApi([ok(copilot('ready'))]);
+    api.refresh.mockRejectedValueOnce(new Error('Failed to fetch'));
+    const { result } = renderHook(() => useCaseCopilot(CASE, api));
+    await settle();
+    let problem: string | null = null;
+    await act(async () => {
+      problem = await result.current.refresh();
+    });
+    expect(problem).toBe('Copilot could not be refreshed. Try again.');
+    expect(result.current.refreshing).toBe(false);
+  });
+
   it('reads a 404 as not found', async () => {
     const api = fakeApi([
       { ok: false, error: { kind: 'problem', problem: { type: 'x', title: 'x', status: 404 } } },

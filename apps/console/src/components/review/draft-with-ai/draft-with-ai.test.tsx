@@ -353,6 +353,24 @@ describe('Draft with AI in the composer (spec 07c FE-3, S12)', () => {
     ).toBeTruthy();
   });
 
+  it('is ready again when the draft call itself throws, instead of drafting forever', async () => {
+    const server = fakeDraftServer();
+    server.request.mockRejectedValueOnce(new Error('Failed to fetch'));
+    renderHost({ server });
+    pick('Value changed by 150% since the previous declaration');
+    fireEvent.click(draftButton());
+    await settle();
+
+    expect(
+      screen.getByText(
+        'Draft not available (AI service unavailable). You can write the items manually.',
+      ),
+    ).toBeTruthy();
+    expect(draftButton().textContent).toBe('Draft with AI');
+    expect(draftButton().hasAttribute('disabled')).toBe(false);
+    expect(drafting().getAttribute('aria-busy')).toBe('false');
+  });
+
   it('says a failed draft is not available and keeps the picks for another try', async () => {
     renderHost({
       server: fakeDraftServer({ request: ok({ status: 'failed', id: 'd1', reason: 'budget' }) }),

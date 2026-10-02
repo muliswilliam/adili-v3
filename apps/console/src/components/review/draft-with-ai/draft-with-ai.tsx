@@ -162,14 +162,21 @@ export function DraftWithAi({
     if (count === 0 || busy) return;
     setPhase('busy');
     const input = draftInput(selection, flags, api.targets, language);
-    const outcome = await fetchDraft(
-      server,
-      { ...input, caseId, key: crypto.randomUUID() },
-      () => alive.current,
-      () => {
-        setPhase('pending');
-      },
-    );
+    let outcome: Awaited<ReturnType<typeof fetchDraft>>;
+    try {
+      outcome = await fetchDraft(
+        server,
+        { ...input, caseId, key: crypto.randomUUID() },
+        () => alive.current,
+        () => {
+          setPhase('pending');
+        },
+      );
+    } catch {
+      // The call itself failed (the network, or the server function threw).
+      if (alive.current) finish(t.failed(reasonText('provider-unavailable')), true);
+      return;
+    }
     if (outcome === null) return;
     if (outcome === 'timeout') {
       finish(t.failed(reasonText('timeout')), true);
