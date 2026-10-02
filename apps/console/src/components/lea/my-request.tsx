@@ -1,4 +1,5 @@
 import {
+  accessOutcomeLabels,
   Alert,
   AlertDescription,
   Badge,
@@ -11,6 +12,8 @@ import {
   deadlineSoonDays,
   formatDate,
   formatDateTime,
+  formatScopeSections,
+  formatScopeYears,
   groundMeta,
   Icon,
   Spinner,
@@ -24,17 +27,17 @@ import {
   UnavailableIcon,
 } from '@hugeicons/core-free-icons';
 import { useRouter } from '@tanstack/react-router';
-import { type ReactNode, useEffect } from 'react';
+import type { ReactNode } from 'react';
 
 import type { LeaRequest } from '../../server/access/types';
 import { Grid, Part, Value } from '../access/form-k-card';
-import { scopeText } from '../access/decision/scope-text';
-import { scopePeople, scopeSections, scopeYears } from '../access/format';
+import { scopePeople, scopeText } from '../access/format';
 import { OutcomeLine, SideCard } from '../access/side-cards';
 import { Page } from '../page';
+import { usePollWhile } from '../use-poll-while';
 import { messages as m } from './messages';
 import { MineBadge } from './my-requests';
-import { packageState, usePackageDownload } from './package';
+import { type PackageState, usePackageDownload, usePackageState } from './package';
 
 const PACKAGE_POLL_MS = 3000;
 const PACKAGE_POLLS = 20;
@@ -46,8 +49,8 @@ const PACKAGE_POLLS = 20;
  */
 export function MyRequest({ request, now }: { request: LeaRequest; now: string }) {
   const { officerSought: sought, scope } = request;
-  const state = packageState(request, Date.parse(now));
-  usePackagePolling(state.kind === 'preparing');
+  const state = usePackageState(request, now);
+  usePollWhile(state.kind === 'preparing', PACKAGE_POLL_MS, PACKAGE_POLLS);
   return (
     <Page>
       <div className="mb-[22px] min-w-0">
@@ -93,9 +96,9 @@ export function MyRequest({ request, now }: { request: LeaRequest; now: string }
               </Part>
               <Part title={m.scope}>
                 <Grid>
-                  <Value term={m.years}>{scopeYears(scope)}</Value>
+                  <Value term={m.years}>{formatScopeYears(scope)}</Value>
                   <Value term={m.people}>{scopePeople(scope)}</Value>
-                  <Value term={m.sections}>{scopeSections(scope)}</Value>
+                  <Value term={m.sections}>{formatScopeSections(scope)}</Value>
                 </Grid>
               </Part>
             </div>
@@ -103,7 +106,7 @@ export function MyRequest({ request, now }: { request: LeaRequest; now: string }
           <Progress request={request} />
         </div>
         <aside className="order-first grid min-w-0 gap-4 min-[1080px]:order-none">
-          <Side request={request} now={now} />
+          <Side request={request} now={now} state={state} />
         </aside>
       </div>
     </Page>
@@ -127,7 +130,7 @@ function Progress({ request }: { request: LeaRequest }) {
     {
       title: m.decision,
       detail: decision
-        ? m.decidedAt(m.outcome[decision.outcome], formatDateTime(decision.decidedAt))
+        ? m.decidedAt(accessOutcomeLabels[decision.outcome], formatDateTime(decision.decidedAt))
         : m.dueOn(formatDate(request.deadlineAt)),
       done: decision !== null,
     },
@@ -177,7 +180,7 @@ function Item({ term, children }: { term: string; children: ReactNode }) {
   );
 }
 
-function Side({ request, now }: { request: LeaRequest; now: string }) {
+function Side({ request, now, state }: { request: LeaRequest; now: string; state: PackageState }) {
   const router = useRouter();
   const { busy, download } = usePackageDownload(() => void router.invalidate());
   const { decision } = request;
@@ -186,7 +189,7 @@ function Side({ request, now }: { request: LeaRequest; now: string }) {
     return (
       <SideCard id="decision" title={m.decisionTitle}>
         <OutcomeLine icon={UnavailableIcon} tone="destructive">
-          {m.outcome.deny}
+          {accessOutcomeLabels.deny}
         </OutcomeLine>
         <dl className="grid gap-3 text-sm">
           {decision.grounds.length > 0 ? (
@@ -209,7 +212,6 @@ function Side({ request, now }: { request: LeaRequest; now: string }) {
   }
 
   if (request.status === 'granted' && decision) {
-    const state = packageState(request, Date.parse(now));
     const header = (
       <Badge variant="destructive">
         <Icon icon={SquareLock02Icon} strokeWidth={2.2} />
@@ -275,7 +277,7 @@ function Side({ request, now }: { request: LeaRequest; now: string }) {
         </SideCard>
         <SideCard id="decision" title={m.decisionTitle}>
           <OutcomeLine icon={CheckmarkCircle02Icon} tone="success">
-            {m.outcome[decision.outcome]}
+            {accessOutcomeLabels[decision.outcome]}
           </OutcomeLine>
           <dl className="grid gap-3 text-sm">
             {decision.outcome === 'partial-grant' && decision.grantedScope ? (
@@ -314,24 +316,4 @@ function Side({ request, now }: { request: LeaRequest; now: string }) {
       </p>
     </SideCard>
   );
-}
-
-/** While the package of a fresh grant is prepared, look again a few times. */
-function usePackagePolling(active: boolean) {
-  const router = useRouter();
-  useEffect(() => {
-    if (!active) return;
-    let polls = 0;
-    const timer = setInterval(() => {
-      polls += 1;
-      if (polls > PACKAGE_POLLS) {
-        clearInterval(timer);
-        return;
-      }
-      void router.invalidate();
-    }, PACKAGE_POLL_MS);
-    return () => {
-      clearInterval(timer);
-    };
-  }, [active, router]);
 }

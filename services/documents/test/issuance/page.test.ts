@@ -6,6 +6,7 @@ import {
   formatDate,
   formatDateTime,
   htmlDocument,
+  verificationPanel,
   watermarked,
   watermarkText,
 } from '../../src/issuance/templates/page.js';
@@ -74,5 +75,18 @@ describe('document formatting', () => {
     expect(esc(`<b>"O'Brien" & co</b>`)).toBe(
       '&lt;b&gt;&quot;O&#39;Brien&quot; &amp; co&lt;/b&gt;',
     );
+  });
+});
+
+describe('verificationPanel', () => {
+  it('names the document, gives its code and says what the check shows', () => {
+    const panel = verificationPanel(
+      'package',
+      'ADL-7Q4K-M2XR',
+      'The check shows only whether the package is valid.',
+    );
+    expect(panel).toContain('Check that this package is genuine');
+    expect(panel).toContain('<div class="vcode mono nw">ADL-7Q4K-M2XR</div>');
+    expect(panel).toContain('The check shows only whether the package is valid.');
   });
 });

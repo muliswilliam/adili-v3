@@ -18,13 +18,13 @@ import { Download01Icon, SquareLock01Icon } from '@hugeicons/core-free-icons';
 import { Link } from '@tanstack/react-router';
 import type { ReactNode } from 'react';
 
-import { GROUNDS } from '../../access/copy';
 import { HISTORY_COPY as COPY } from '../../access/history-copy';
 import { entriesOfSubject, toRegisterEntry } from '../../access/history';
 import { STANCES } from '../../access/notice-copy';
 import { needsResponse, noticeState, scopeLine } from '../../access/notices';
 import type { AccessHistoryEntry, DeclarantNotice } from '../../server/access/types';
 import { NoticeStateBadge } from '../access-notices/notice-parts';
+import { GroundsList } from '../access/request-parts';
 import type { CertifiedCopies } from '../certified-copies/use-certified-copies';
 
 /**
@@ -197,11 +197,7 @@ function FormKFacts({
       ) : null}
       {decision && decision.grounds.length > 0 ? (
         <Fact term={COPY.grounds}>
-          <ul className="grid gap-0.5">
-            {decision.grounds.map((ground) => (
-              <li key={ground}>{GROUNDS[ground].en}</li>
-            ))}
-          </ul>
+          <GroundsList grounds={decision.grounds} />
         </Fact>
       ) : null}
       {decision ? (

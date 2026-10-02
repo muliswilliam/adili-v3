@@ -60,7 +60,9 @@ export const UPLOAD_PURPOSES = {
    * Evidence with a declarant's representations on an access request: a letter, a court order;
    * or, uploaded by the access officer recording a written self-access application, a
    * representative's written authority and ID (spec 10). The access service links it to the
-   * representations or the application, and takes only the caller's own uploads.
+   * representations or the application, and takes only the caller's own uploads. The name
+   * predates the officer's uploads and is kept: it is in stored uploads, their object keys and
+   * the contract.
    */
   'access-representation': {
     roles: [DECLARANT, ACCESS_OFFICER],

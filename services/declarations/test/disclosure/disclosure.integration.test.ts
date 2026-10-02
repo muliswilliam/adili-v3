@@ -12,7 +12,7 @@ import type {
   FullVersionDocument,
 } from '../../src/disclosure/representation.js';
 import type { SubmissionResult } from '../../src/submission/representation.js';
-import { contractErrors, okResponse, responseBody } from '../support/contract.js';
+import { contractErrors, responseBody } from '../support/contract.js';
 import {
   type Caller,
   type DeclarationsApi,
@@ -43,7 +43,7 @@ const ACCESS_OFFICER = 'access-officer-3';
 const ACCESS: Caller = {
   sub: 'service-account-access',
   azp: 'access',
-  scope: 'declarations:internal',
+  scope: 'declarations:disclosures',
 };
 
 let api: DeclarationsApi;
@@ -306,22 +306,27 @@ function fullDocument(
     personId = WANJIKU,
     tenant = 'psc',
     actingSubject = `account-${WANJIKU}`,
+    recipient = `account-${WANJIKU}`,
   }: {
     version?: number;
     personId?: string | null;
     tenant?: string;
     actingSubject?: string | null;
+    recipient?: string | null;
   } = {},
 ) {
-  const query = personId === null ? '' : `?personId=${personId}`;
   return api.request(
-    'GET',
-    `/internal/v1/declarations/${declarationId}/versions/${String(version)}/full-document${query}`,
+    'POST',
+    `/internal/v1/declarations/${declarationId}/versions/${String(version)}/full-document`,
     ACCESS,
     {
       headers: {
         'x-acting-tenant': tenant,
         ...(actingSubject === null ? {} : { 'x-acting-subject': actingSubject }),
+      },
+      body: {
+        ...(personId === null ? {} : { personId }),
+        ...(recipient === null ? {} : { recipient }),
       },
     },
   );
@@ -405,17 +410,30 @@ describe('the scoped disclosure of a grant (S9)', () => {
   });
 
   it('S9: the read is audited with the grant reference, legal basis and recipient, and no content', async () => {
-    await seeded(WANJIKU, [householdDeclaration(2027)]);
+    const { declarationId } = await seeded(WANJIKU, [householdDeclaration(2027)]);
+    // Another year's version, outside the grant: the audit does not name it.
+    await seeded(WANJIKU, [householdDeclaration(2025)], { sequence: 2 });
 
     expect((await disclosure()).statusCode).toBe(200);
 
+    const served = await api.asPlatform((tx) =>
+      tx
+        .select({ id: declarationVersions.id })
+        .from(declarationVersions)
+        .where(eq(declarationVersions.declarationId, declarationId)),
+    );
     const [event, ...more] = await audited();
     expect(more).toEqual([]);
     expect(event).toMatchObject({
       tenant: 'psc',
       data: {
         action: 'declaration.disclosed',
-        resource: { type: 'declaration', tenant: 'psc', subjectPersonId: WANJIKU },
+        resource: {
+          type: 'declaration',
+          tenant: 'psc',
+          subjectPersonId: WANJIKU,
+          ids: served.map((row) => row.id),
+        },
         actor: {
           subject: 'service-account-access',
           clientId: 'access',
@@ -454,7 +472,12 @@ describe('the scoped disclosure of a grant (S9)', () => {
       'type',
     ]);
     expect(content.officer).toEqual(document.officer);
-    expect(content.spouses).toEqual(document.spouses);
+    // The spouse as declared, but for the national ID, which never leaves (data minimisation).
+    expect(content.spouses).toEqual({
+      none: false,
+      items: [{ id: SPOUSE, name: { firstName: 'Spouse', surname: 'Kamau' }, separated: false }],
+    });
+    expect(response.body).not.toContain('22334455');
     expect(content.statements?.map((statement) => statement.personKey)).toEqual([
       'officer',
       `spouse:${SPOUSE}`,
@@ -542,7 +565,7 @@ describe('the scoped disclosure of a grant (S9)', () => {
     });
   });
 
-  it('refuses any token but a service with declarations:internal', async () => {
+  it('refuses any token but a service with declarations:disclosures', async () => {
     await seeded(WANJIKU, [householdDeclaration(2027)]);
 
     const officer: Caller = { sub: 'officer-1', tenant: 'psc', roles: ['access-officer'] };
@@ -550,6 +573,10 @@ describe('the scoped disclosure of a grant (S9)', () => {
     expect((await disclosure({}, { caller: declarant(WANJIKU) })).statusCode).toBe(403);
     expect(
       (await disclosure({}, { caller: { ...ACCESS, scope: 'documents:internal' } })).statusCode,
+    ).toBe(403);
+    // The documents and review services read declarations for Commission staff, never this.
+    expect(
+      (await disclosure({}, { caller: { ...ACCESS, scope: 'declarations:internal' } })).statusCode,
     ).toBe(403);
   });
 });
@@ -574,7 +601,7 @@ describe("the full document of a version for the declarant's certified copy (S13
 
     expect(response.statusCode, response.body).toBe(200);
     const body = response.json<FullVersionDocument>();
-    expect(contractErrors(okResponse(FULL_DOCUMENT, 'get'), body)).toEqual([]);
+    expect(contractErrors(responseBody(FULL_DOCUMENT, 'post', 200), body)).toEqual([]);
     const [row] = await api.asPlatform((tx) =>
       tx
         .select()
@@ -621,6 +648,27 @@ describe("the full document of a version for the declarant's certified copy (S13
     expect(JSON.stringify(event)).not.toContain('Shamba');
   });
 
+  it('names the representative as recipient of a copy an access officer recorded for them, the officer as actor', async () => {
+    const version = await submitted();
+
+    const response = await fullDocument(version, {
+      actingSubject: ACCESS_OFFICER,
+      recipient: 'Peter Kamau',
+    });
+
+    expect(response.statusCode, response.body).toBe(200);
+    const [event, ...more] = await audited();
+    expect(more).toEqual([]);
+    expect(event?.data).toMatchObject({
+      action: 'declaration.full-document.pulled',
+      resource: { subjectPersonId: WANJIKU },
+      actor: { subject: 'service-account-access', onBehalfOf: ACCESS_OFFICER },
+      legalBasis: { basis: 'self-access', reference: null },
+      recipient: 'Peter Kamau',
+      request: { method: 'POST' },
+    });
+  });
+
   it("S13: is 404 for another person, another Commission's or an unknown version", async () => {
     const version = await submitted();
 
@@ -631,11 +679,34 @@ describe("the full document of a version for the declarant's certified copy (S13
     expect(await audited()).toEqual([]);
   });
 
-  it('is 400 without the declarant or the acting subject', async () => {
+  it('is 400 without the declarant, the recipient or the acting subject', async () => {
     const version = await submitted();
 
     expect((await fullDocument(version, { personId: null })).statusCode).toBe(400);
     expect((await fullDocument(version, { personId: 'not-a-uuid' })).statusCode).toBe(400);
     expect((await fullDocument(version, { actingSubject: null })).statusCode).toBe(400);
+    expect((await fullDocument(version, { recipient: null })).statusCode).toBe(400);
+    expect((await fullDocument(version, { recipient: ' ' })).statusCode).toBe(400);
+  });
+
+  it('refuses a service token without declarations:disclosures', async () => {
+    const version = await submitted();
+
+    const reviewToken: Caller = {
+      sub: 'service-account-review',
+      azp: 'review',
+      scope: 'declarations:internal',
+    };
+    const response = await api.request(
+      'POST',
+      `/internal/v1/declarations/${version.declarationId}/versions/1/full-document`,
+      reviewToken,
+      {
+        headers: { 'x-acting-tenant': 'psc', 'x-acting-subject': 'someone' },
+        body: { personId: WANJIKU, recipient: 'someone' },
+      },
+    );
+    expect(response.statusCode).toBe(403);
+    expect(await audited()).toEqual([]);
   });
 });

@@ -60,7 +60,7 @@ beforeEach(() => {
 });
 
 describe('deciding a law enforcement request (spec 10 FE-6, S11)', () => {
-  it('offers grant and deny once verified, never a partial grant or clarifications', async () => {
+  it('offers grant and deny once verified, never a partial grant', async () => {
     renderPage(await requestOf(L.verified));
     const outcome = screen.getByRole('radiogroup', { name: 'Outcome' });
     expect(

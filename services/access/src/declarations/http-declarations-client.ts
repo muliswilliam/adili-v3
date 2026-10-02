@@ -1,7 +1,7 @@
 import { createServiceClient, type ServiceClient, type ServiceTokenClient } from '@adili/api-kit';
 import { z } from 'zod';
 
-import { refusedWith } from '../internal-api/internal-api.js';
+import { refusedWith } from '../upstream-refusal.js';
 import type { paths } from './declarations-api.gen.js';
 import {
   DeclarationsClient,
@@ -16,6 +16,11 @@ import {
 export interface HttpDeclarationsClientOptions {
   declarationsUrl: string;
   tokens: Pick<ServiceTokenClient, 'token' | 'invalidate'>;
+  /**
+   * Tokens with `declarations:disclosures`, for scoped disclosures and full documents: the
+   * declarations decrypted for a third party, which only the access service's token opens.
+   */
+  disclosureTokens: Pick<ServiceTokenClient, 'token' | 'invalidate'>;
   /** Per attempt. Default ADR-013's 2 s. */
   timeoutMs?: number;
   /** For tests. */
@@ -53,12 +58,15 @@ const none = (): null => null;
 /**
  * The declarations internal API through the client generated from its contract
  * (packages/schemas/internal/declarations.yaml → declarations-api.gen.ts via
- * `pnpm generate:api`), with the access service's own token (`declarations:internal`), the
+ * `pnpm generate:api`), with the access service's own token (`declarations:disclosures` for
+ * disclosures and full documents, `declarations:internal` for a declarant's versions), the
  * Commission in `X-Acting-Tenant` and, in `X-Acting-Subject`, the deciding officer (disclosure)
- * or who asked for a certified copy (full document), whom declarations audits the read for.
+ * or who asked for a certified copy (full document), whom declarations audits the read for; the
+ * recipient a read hands the declaration to goes in the body.
  */
 export class HttpDeclarationsClient extends DeclarationsClient {
   private readonly declarations: ServiceClient<paths>;
+  private readonly disclosures: ServiceClient<paths>;
 
   constructor(options: HttpDeclarationsClientOptions) {
     super();
@@ -70,11 +78,19 @@ export class HttpDeclarationsClient extends DeclarationsClient {
       timeoutMs: options.timeoutMs,
       fetch: options.fetch,
     });
+    this.disclosures = createServiceClient<paths>({
+      baseUrl: options.declarationsUrl,
+      service: 'declarations',
+      tokens: options.disclosureTokens,
+      unavailable: (message, cause) => new DeclarationsUnavailable(message, cause),
+      timeoutMs: options.timeoutMs,
+      fetch: options.fetch,
+    });
   }
 
   async renderDisclosure(request: DisclosureRequest): Promise<DisclosureDocument | null> {
     const { tenant, officerSubject, ...body } = request;
-    const disclosure = await this.declarations.call(
+    const disclosure = await this.disclosures.call(
       (api) =>
         api.POST('/internal/v1/declarations/disclosures', {
           params: { header: { 'X-Acting-Tenant': tenant, 'X-Acting-Subject': officerSubject } },
@@ -90,22 +106,22 @@ export class HttpDeclarationsClient extends DeclarationsClient {
   }
 
   async fullDocument(request: FullDocumentRequest): Promise<VersionDocument | null> {
-    const document = await this.declarations.call(
+    const document = await this.disclosures.call(
       (api) =>
-        api.GET('/internal/v1/declarations/{declarationId}/versions/{version}/full-document', {
+        api.POST('/internal/v1/declarations/{declarationId}/versions/{version}/full-document', {
           params: {
             path: { declarationId: request.declarationId, version: request.version },
-            query: { personId: request.personId },
             header: {
               'X-Acting-Tenant': request.tenant,
               'X-Acting-Subject': request.actingSubject,
             },
           },
+          body: { personId: request.personId, recipient: request.recipient },
         }),
       {
         status: 200,
         schema: versionDocumentSchema,
-        otherwise: { 404: none, ...refusedWith('declarations', [403]) },
+        otherwise: { 404: none, ...refusedWith('declarations', [400, 403]) },
       },
     );
     return document as VersionDocument | null;

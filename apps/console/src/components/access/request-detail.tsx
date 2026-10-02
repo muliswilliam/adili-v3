@@ -8,15 +8,14 @@ import {
   formatDate,
   RegisterTimeline,
 } from '@adili/ui';
-import { useRouter } from '@tanstack/react-router';
-import { useEffect } from 'react';
 
 import type { OfficerRequestView } from '../../server/access/types';
 import { ReadOnlyBadge } from '../commissions/badges';
 import { Page } from '../page';
+import { usePollWhile } from '../use-poll-while';
 import { IdentifyOfficerCard, VerifyApplicantCard } from './action-cards';
 import { DecidedCard } from './decision/decided-card';
-import { PackageCard, packageState } from './decision/package-card';
+import { PackageCard, usePackageState } from './decision/package-card';
 import { FormKCard, formKOf } from './form-k-card';
 import { messages as m } from './messages';
 import { StatusBadge } from './queue-list';
@@ -53,16 +52,14 @@ export function RequestDetailView({
 }) {
   const step = requestStep(view, readOnly);
   const form = formKOf(view);
-  const pkg = view.decision
-    ? packageState(
-        view.decision,
-        view.package,
-        view.timeline.filter((entry) => entry.kind === 'downloaded').map((entry) => entry.at),
-        Date.parse(now),
-      )
-    : null;
-  useReloadWhile(step.kind === 'notifying', NOTIFY_POLL_MS, NOTIFY_POLLS);
-  useReloadWhile(pkg?.state === 'preparing', PACKAGE_POLL_MS, PACKAGE_POLLS);
+  const pkg = usePackageState(
+    view.decision ?? null,
+    view.package ?? null,
+    view.timeline.filter((entry) => entry.kind === 'downloaded').map((entry) => entry.at),
+    now,
+  );
+  usePollWhile(step.kind === 'notifying', NOTIFY_POLL_MS, NOTIFY_POLLS);
+  usePollWhile(pkg?.state === 'preparing', PACKAGE_POLL_MS, PACKAGE_POLLS);
   // The decision deadline goes in the header until a side card shows it.
   const deadlineInHead =
     isOpen(view) && view.status !== 'awaiting-representations' && view.status !== 'under-decision';
@@ -155,28 +152,4 @@ function StepCard({
     case 'withdrawn':
       return <ClosedCard view={view} />;
   }
-}
-
-/**
- * While the workflow does something the page waits on (notifying the declarant of a resolution,
- * issuing a grant's package: seconds), reload the request a few times so the page moves on by
- * itself.
- */
-function useReloadWhile(active: boolean, everyMs: number, times: number) {
-  const router = useRouter();
-  useEffect(() => {
-    if (!active) return;
-    let polls = 0;
-    const timer = setInterval(() => {
-      polls += 1;
-      if (polls > times) {
-        clearInterval(timer);
-        return;
-      }
-      void router.invalidate();
-    }, everyMs);
-    return () => {
-      clearInterval(timer);
-    };
-  }, [active, everyMs, times, router]);
 }

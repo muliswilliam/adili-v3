@@ -5,7 +5,10 @@
 export { ALPHABET, checkCharacter, hasValidCheckCharacter } from './check-character.js';
 export {
   format,
+  GRANT_REFERENCE_PATTERN,
+  GRANT_SCHEMES,
   InvalidReferenceError,
+  isGrantReference,
   type InvalidReferenceReason,
   issuerCode,
   type ParsedReference,

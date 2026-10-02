@@ -10,7 +10,7 @@ import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { HttpStatus, Inject, Injectable, Logger } from '@nestjs/common';
 import { errorType, notFoundIfInvisible, ProblemException } from '@adili/api-kit';
 import { type Database, InjectDatabase, withPerson, withTenant } from '@adili/data-access';
-import { EventPublisher } from '@adili/events';
+import { EventPublisher, type NewEvent } from '@adili/events';
 import {
   DOCUMENT_DOWNLOADED,
   DOCUMENT_ISSUED,
@@ -22,6 +22,7 @@ import {
   type DocumentType,
   newVerificationId,
 } from '@adili/events/contracts';
+import { ACCESS_OFFICER } from '@adili/roles';
 import { and, arrayContains, eq } from 'drizzle-orm';
 import { v7 as uuidv7 } from 'uuid';
 
@@ -82,6 +83,8 @@ export interface Downloader {
   subject: string;
   /** The token's tenant: staff may download what their Commission named them on. */
   tenant: string | null;
+  /** The token's roles: an additional downloader must still be an access officer. */
+  roles: readonly string[];
 }
 
 export interface IssueOutcome {
@@ -396,12 +399,17 @@ export class IssuanceService {
    * A five-minute presigned GET of the signed PDF, for the subject person and the issuing
    * Commission's staff named as additional downloaders only (404 for anyone else), and only
    * within the document's download window (410 `download-window-closed` after it). Each link
-   * handed out is recorded as `document.downloaded.v1` under the issuer.
+   * handed out is to be recorded as `downloaded`, `document.downloaded.v1` under the issuer, which
+   * the route records with the read's audit event, in one insert.
    */
   async download(
     caller: Downloader,
     id: string,
-  ): Promise<{ download: DocumentDownload; document: DocumentRow }> {
+  ): Promise<{
+    download: DocumentDownload;
+    document: DocumentRow;
+    downloaded: NewEvent<DocumentDownloadedData>;
+  }> {
     const { subject } = caller;
     const { document, record } = await this.owned(caller, id);
     const now = this.clock.now();
@@ -418,8 +426,11 @@ export class IssuanceService {
       new GetObjectCommand({ Bucket: config.S3_BUCKET_ISSUED, Key: document.objectKey }),
       { expiresIn: DOWNLOAD_URL_TTL_SECONDS },
     );
-    await withTenant(this.db, { tenant: document.tenant, subject }, (tx) =>
-      this.events.record(tx, {
+    const expiresAt = new Date(now.getTime() + DOWNLOAD_URL_TTL_SECONDS * 1000);
+    return {
+      download: { downloadUrl, expiresAt: expiresAt.toISOString(), sha256: document.sha256 },
+      document,
+      downloaded: {
         type: DOCUMENT_DOWNLOADED,
         subject: document.id,
         tenant: document.tenant,
@@ -432,23 +443,19 @@ export class IssuanceService {
           downloadedBy: subject,
           downloadedAt: now.toISOString(),
           downloadExpiresAt: document.downloadExpiresAt?.toISOString() ?? null,
-        } satisfies DocumentDownloadedData,
-      }),
-    );
-    const expiresAt = new Date(now.getTime() + DOWNLOAD_URL_TTL_SECONDS * 1000);
-    return {
-      download: { downloadUrl, expiresAt: expiresAt.toISOString(), sha256: document.sha256 },
-      document,
+        },
+      },
     };
   }
 
   /**
    * The document when the caller is its subject person (read under the person policy across
-   * Commissions) or, failing that, staff of the issuing Commission named among its additional
-   * downloaders (read in their own tenant's context); anyone else gets the same 404.
+   * Commissions) or, failing that, an access officer of the issuing Commission named among its
+   * additional downloaders (read in their own tenant's context): one who is no longer an access
+   * officer there downloads it no more. Anyone else gets the same 404.
    */
   private async owned(
-    { personId, subject, tenant }: Downloader,
+    { personId, subject, tenant, roles }: Downloader,
     id: string,
   ): Promise<{ document: DocumentRow; record: RecordRow }> {
     const [asSubjectPerson] = personId
@@ -457,17 +464,18 @@ export class IssuanceService {
         )
       : [];
     if (asSubjectPerson) return asSubjectPerson;
-    const [asDownloader] = tenant
-      ? await withTenant(this.db, { tenant, subject }, (tx) =>
-          withRecord(tx).where(
-            and(
-              eq(issuedDocuments.id, id),
-              eq(issuedDocuments.tenant, tenant),
-              arrayContains(issuedDocuments.additionalDownloaders, [subject]),
+    const [asDownloader] =
+      tenant && roles.includes(ACCESS_OFFICER)
+        ? await withTenant(this.db, { tenant, subject }, (tx) =>
+            withRecord(tx).where(
+              and(
+                eq(issuedDocuments.id, id),
+                eq(issuedDocuments.tenant, tenant),
+                arrayContains(issuedDocuments.additionalDownloaders, [subject]),
+              ),
             ),
-          ),
-        )
-      : [];
+          )
+        : [];
     return notFoundIfInvisible(asDownloader);
   }
 

@@ -10,7 +10,8 @@
  *   (package for 13 more days), partially granted (2 more days), denied, cannot identify
  *   officer, withdrawn;
  * - granted with the package's window ending in about five hours, granted with the window
- *   closed (downloaded twice), and granted today with the package still being prepared.
+ *   closed (downloaded twice), granted today with the package still being prepared, and granted
+ *   three days ago with no package issued.
  *
  * Commissions: the Public Service Commission (2025, 2026), the Teachers Service Commission,
  * the National Police Service Commission, the Judicial Service Commission (2026) and the Kiambu
@@ -43,7 +44,7 @@
  * (`failNextAccessCall`).
  */
 import { validateFormK, type FormKV1 } from '@adili/forms';
-import { addDays } from '@adili/ui';
+import { addDays, DECIDED_ACCESS_STATUSES } from '@adili/ui';
 import { ARQ, format } from '@adili/numbering/references';
 
 import { json, problem, readJson } from '../mock-http';
@@ -164,7 +165,8 @@ type SeedKey =
   | 'withdrawn'
   | 'expiring'
   | 'expired'
-  | 'preparing';
+  | 'preparing'
+  | 'unissued';
 
 interface Seed {
   key: SeedKey;
@@ -207,13 +209,12 @@ const ALL_SECTIONS: FormKV1['scope']['sections'] = [
 const scope = (
   years: number[],
   sections: FormKV1['scope']['sections'],
-  people: { spouses?: boolean; children?: boolean; clarifications?: boolean } = {},
+  people: { spouses?: boolean; children?: boolean } = {},
 ): FormKV1['scope'] => ({
   years,
   includeSpouses: people.spouses ?? false,
   includeChildren: people.children ?? false,
   sections,
-  includeClarifications: people.clarifications ?? false,
 });
 
 const SEEDS: Seed[] = [
@@ -277,7 +278,6 @@ const SEEDS: Seed[] = [
     otherInformation: 'My press card number is KMC-2024-11873 (Media Council of Kenya).',
     scope: scope([2025, 2026], ['assets', 'liabilities', 'other'], {
       spouses: true,
-      clarifications: true,
     }),
   },
   {
@@ -487,6 +487,31 @@ const SEEDS: Seed[] = [
       grounds: [],
       reasons:
         'The applicant shows a legitimate interest in the handling of court fees, and access to the liabilities declared promotes the objectives of the Act.',
+    },
+    package: { preparing: true },
+  },
+  {
+    // Granted days ago and no package was issued (nothing to disclose, or issuing failed).
+    key: 'unissued',
+    commission: 'psc',
+    status: 'granted',
+    submittedDaysAgo: 24,
+    notified: 22,
+    decided: 3,
+    officer: {
+      name: 'Daniel Kiprotich Rotich',
+      entity: 'Kenya Forest Service',
+      workStation: 'Karura, Nairobi',
+    },
+    informationSought: 'Other information in the 2025 declaration.',
+    reason:
+      'Forest land was allocated to private developers while the officer led the station. The declaration shows whether the officer declared an interest in the developers.',
+    scope: scope([2025], ['other']),
+    decision: {
+      outcome: 'grant',
+      grounds: [],
+      reasons:
+        'The applicant shows a legitimate interest in the allocation of public forest land, which promotes the objectives of the Act.',
     },
     package: { preparing: true },
   },
@@ -703,7 +728,6 @@ async function submit(request: Request): Promise<Response> {
   return json(201, created);
 }
 
-const DECIDED = new Set(['granted', 'partially-granted', 'denied']);
 const CLOSED = new Set(['withdrawn', 'cannot-identify']);
 
 function withdraw(id: string, key: string | null): Response {
@@ -728,7 +752,8 @@ function withdraw(id: string, key: string | null): Response {
     };
     found.timeline.push(entry('decided', decidedAt, found.reference, 'Decision made'));
   }
-  if (DECIDED.has(found.status)) return problem(409, 'A decision is final', 'request-decided');
+  if (DECIDED_ACCESS_STATUSES.has(found.status))
+    return problem(409, 'A decision is final', 'request-decided');
   if (CLOSED.has(found.status)) return problem(409, 'The request is closed', 'request-closed');
   const at = new Date().toISOString();
   found.status = 'withdrawn';

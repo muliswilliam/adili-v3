@@ -1,11 +1,11 @@
 import {
+  accessOutcomeLabels,
   daysBetween,
   formatDate,
   formatDateTime,
+  formatScope,
   type IconProps,
   type RegisterEntry,
-  SCOPE_SECTIONS,
-  scopeSectionLabels,
   type Tone,
 } from '@adili/ui';
 import {
@@ -70,13 +70,13 @@ export const STATE_META: Record<NoticeState, StateMeta> = {
     tone: 'info',
     icon: BalanceScaleIcon,
   },
-  grant: { label: OUTCOMES.grant.label.en, tone: 'success', icon: Tick02Icon },
+  grant: { label: accessOutcomeLabels.grant, tone: 'success', icon: Tick02Icon },
   'partial-grant': {
-    label: OUTCOMES['partial-grant'].label.en,
+    label: accessOutcomeLabels['partial-grant'],
     tone: 'warning',
     icon: CheckListIcon,
   },
-  deny: { label: OUTCOMES.deny.label.en, tone: 'destructive', icon: UnavailableIcon },
+  deny: { label: accessOutcomeLabels.deny, tone: 'destructive', icon: UnavailableIcon },
   withdrawn: { label: NOTICES_COPY.statusWithdrawn, tone: 'default', icon: Undo02Icon },
   closed: { label: NOTICES_COPY.statusClosed, tone: 'default', icon: UnavailableIcon },
   lea: { label: NOTICES_COPY.statusLea, tone: 'info', icon: PoliceBadgeIcon },
@@ -102,10 +102,15 @@ export function leaGrantedAt(notice: DeclarantNotice): string {
  */
 export function leaTitle(notice: DeclarantNotice): string {
   const date = formatDate(leaGrantedAt(notice));
-  const agency = notice.agency?.name ?? notice.applicantName;
+  const agency = agencyName(notice);
   return notice.caseReference
     ? NOTICES_COPY.leaCase(date, agency, notice.caseReference)
     : NOTICES_COPY.lea(date, agency);
+}
+
+/** The agency a law enforcement notice names: its name, or the applicant name it was sent as. */
+export function agencyName(notice: DeclarantNotice): string {
+  return notice.agency?.name ?? notice.applicantName;
 }
 
 /** Whose details a scope covers, in a few words: "You and spouse". */
@@ -118,13 +123,7 @@ export function scopePeople(scope: Scope): string {
 
 /** A scope on one line: "2026 · You and spouse · Income, assets, liabilities". */
 export function scopeLine(scope: Scope): string {
-  const sections = SCOPE_SECTIONS.filter((section) => scope.sections.includes(section)).map(
-    (section, index) =>
-      index === 0 ? scopeSectionLabels[section] : scopeSectionLabels[section].toLowerCase(),
-  );
-  if (scope.includeClarifications) sections.push(NOTICES_COPY.clarifications);
-  const years = [...scope.years].sort((a, b) => a - b).join(', ');
-  return [years, scopePeople(scope), sections.join(', ')].join(' · ');
+  return formatScope(scope, scopePeople);
 }
 
 /** Calendar days until the window ends, in Kenyan time (0 on the last day). */
@@ -197,7 +196,9 @@ export function historyOf(notice: DeclarantNotice): RegisterEntry[] {
         kind: 'decided',
         at: leaGrantedAt(notice),
         outcome: 'grant',
-        title: NOTICE_COPY.agencyGranted(notice.applicantName),
+        title: notice.caseReference
+          ? NOTICE_COPY.agencyGrantedCase(agencyName(notice), notice.caseReference)
+          : NOTICE_COPY.agencyGranted(agencyName(notice)),
         actor: NOTICE_COPY.officerOf(code),
       },
     ];

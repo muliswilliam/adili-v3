@@ -11,6 +11,7 @@ import {
   Undo02Icon,
   UserCheck01Icon,
   UserRemove01Icon,
+  UserSearch01Icon,
 } from '@hugeicons/core-free-icons';
 import { type ReactNode, useId } from 'react';
 
@@ -24,6 +25,7 @@ import { Icon, type IconProps } from './icon';
 export const REGISTER_KINDS = [
   'received',
   'verified',
+  'identified',
   'notified',
   'representations',
   'decided',
@@ -50,6 +52,7 @@ interface EntryMeta {
 export const registerKindMeta: Record<RegisterKind, EntryMeta> = {
   received: { label: 'Request received', icon: InboxIcon, tone: 'default' },
   verified: { label: 'Verified', icon: UserCheck01Icon, tone: 'info' },
+  identified: { label: 'Officer identified', icon: UserSearch01Icon, tone: 'info' },
   notified: { label: 'Declarant notified', icon: Notification03Icon, tone: 'info' },
   representations: { label: 'Representations received', icon: Message01Icon, tone: 'default' },
   decided: { label: 'Decision recorded', icon: JusticeScale01Icon, tone: 'default' },

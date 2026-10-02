@@ -5,7 +5,7 @@ import { eq } from 'drizzle-orm';
 import { v5 as uuidv5 } from 'uuid';
 
 import type { AccessDatabase } from '../db/database.js';
-import { InternalApiRejected } from '../internal-api/internal-api.js';
+import { UpstreamRefused } from '../upstream-refusal.js';
 import type { AccessMessage, NotificationsClient } from '../notifications/notifications-client.js';
 import { systemContext } from '../system-context.js';
 import type { AccessRequestRow } from './representation.js';
@@ -51,23 +51,8 @@ export async function send(
       logger.warn({ ...context, reason: sent.error }, 'Access message not delivered');
     }
   } catch (error) {
-    if (!(error instanceof InternalApiRejected)) throw error;
+    if (!(error instanceof UpstreamRefused)) throw error;
     logger.error({ ...context, err: errorType(error) }, 'Access message refused by notifications');
-  }
-}
-
-/**
- * Logs an upstream service's refusal of a call (declarations, documents) before it propagates to
- * be retried; an outage is not logged here (Temporal records the retries).
- */
-export function logRefusal(
-  logger: Logger,
-  error: unknown,
-  context: Record<string, unknown>,
-  message: string,
-): void {
-  if (error instanceof InternalApiRejected) {
-    logger.error({ ...context, err: errorType(error) }, message);
   }
 }
 

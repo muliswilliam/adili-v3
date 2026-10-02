@@ -76,7 +76,6 @@ describe("The declarant's notices and representations (S4)", () => {
             includeSpouses: true,
             includeChildren: false,
             sections: ['income', 'assets', 'liabilities'],
-            includeClarifications: true,
           },
           notifiedAt: NOTIFIED_AT,
           windowEndsAt: '2027-03-12T09:00:00.000Z',
@@ -151,12 +150,17 @@ describe("The declarant's notices and representations (S4)", () => {
       expect(view.representations).toMatchObject({ stance: 'object', text: OBJECTION });
       expect(view.timeline.map((entry) => entry.kind)).toEqual([
         'received',
+        'identified',
         'notified',
         'representations',
       ]);
       // The applicant sees neither the representations nor that they were made.
       const mine = (await api.get(`/v1/access/requests/${row.id}`, mercy)).json<AccessRequest>();
-      expect(mine.timeline.map((entry) => entry.kind)).toEqual(['received', 'notified']);
+      expect(mine.timeline.map((entry) => entry.kind)).toEqual([
+        'received',
+        'identified',
+        'notified',
+      ]);
     });
 
     it('S4: the declarant edits them before the window ends; attachments taken off are released', async () => {

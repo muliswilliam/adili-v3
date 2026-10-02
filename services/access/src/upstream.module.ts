@@ -1,9 +1,11 @@
 import { Module } from '@nestjs/common';
 import { ServiceTokenClient } from '@adili/api-kit';
 import {
+  DECLARATIONS_DISCLOSURES_SCOPE,
   DECLARATIONS_INTERNAL_SCOPE,
   DIRECTORY_APPLICANTS_SCOPE,
   DIRECTORY_INTERNAL_SCOPE,
+  DIRECTORY_LAW_ENFORCEMENT_SCOPE,
   DOCUMENTS_INTERNAL_SCOPE,
   MESSAGES_SCOPE,
 } from '@adili/roles';
@@ -29,7 +31,7 @@ const tokens = (scope: string) =>
 
 /**
  * The other services' internal APIs the access service calls, with its own token through clients
- * generated from their contracts (ADR-013 §2, §8.7): Commissions, roster records, staff and
+ * generated from their contracts (ADR-013 §2, §8.8): Commissions, roster records, staff and
  * applicants (directory), scoped disclosures and full documents (declarations), packages, certified copies
  * and representation attachments (documents), and messages (notifications).
  */
@@ -42,6 +44,7 @@ const tokens = (scope: string) =>
           directoryUrl: config.DIRECTORY_URL,
           tokens: tokens(DIRECTORY_INTERNAL_SCOPE),
           applicantTokens: tokens(DIRECTORY_APPLICANTS_SCOPE),
+          lawEnforcementTokens: tokens(DIRECTORY_LAW_ENFORCEMENT_SCOPE),
         }),
     },
     {
@@ -50,6 +53,7 @@ const tokens = (scope: string) =>
         new HttpDeclarationsClient({
           declarationsUrl: config.DECLARATIONS_URL,
           tokens: tokens(DECLARATIONS_INTERNAL_SCOPE),
+          disclosureTokens: tokens(DECLARATIONS_DISCLOSURES_SCOPE),
         }),
     },
     {

@@ -1,4 +1,4 @@
-import { cn, type Scope } from '@adili/ui';
+import { cn, type Ground, groundMeta, type Scope } from '@adili/ui';
 import type { ReactNode } from 'react';
 
 import { FORM_K_COPY as COPY } from '../../access/copy';
@@ -37,7 +37,26 @@ function Chips({ values }: { values: string[] }) {
   );
 }
 
-/** A Form K scope as rows of chips: years, people, sections and, when asked, clarifications. */
+/**
+ * A decision's Regulation 24 grounds: each ground's short label, then the regulation's own words
+ * quoted under it (the console's `GroundsSelect` cites the same text, from `groundMeta`).
+ */
+export function GroundsList({ grounds }: { grounds: readonly Ground[] }) {
+  return (
+    <ul className="grid gap-2">
+      {grounds.map((ground) => (
+        <li key={ground} className="grid gap-0.5">
+          <span className="font-medium">{groundMeta[ground].label}</span>
+          <q className="text-[13.5px] font-normal text-muted-foreground">
+            {groundMeta[ground].text}
+          </q>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+/** A Form K scope as rows of chips: years, people and sections. */
 export function ScopeRows({ scope }: { scope: Scope }) {
   const chips = scopeChips(scope);
   return (
@@ -51,11 +70,6 @@ export function ScopeRows({ scope }: { scope: Scope }) {
       <PartRow term={COPY.sections}>
         <Chips values={chips.sections} />
       </PartRow>
-      {chips.clarifications ? (
-        <PartRow term={COPY.clarifications}>
-          <Chips values={[COPY.included]} />
-        </PartRow>
-      ) : null}
     </PartRows>
   );
 }

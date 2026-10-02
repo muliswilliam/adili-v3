@@ -128,17 +128,21 @@ function toProfile(person: PersonRow): ApplicantProfile {
   return {
     personId: person.id,
     fullName: person.fullName,
-    identityDocument:
-      person.nationalId !== null
-        ? { kind: 'national-id', number: person.nationalId, country: null }
-        : {
-            kind: 'passport',
-            number: person.passportNumber ?? '',
-            country: person.passportCountry,
-          },
+    identityDocument: identityDocumentOf(person),
     identityStatus: person.identityStatus,
     contacts: { email: person.email, phone: person.phone },
   };
+}
+
+/** An applicant's national ID, or their passport: onboarding stores one of the two. */
+function identityDocumentOf(person: PersonRow): ApplicantProfile['identityDocument'] {
+  if (person.nationalId !== null) {
+    return { kind: 'national-id', number: person.nationalId, country: null };
+  }
+  if (person.passportNumber === null) {
+    throw new Error(`Applicant ${person.id} has neither a national ID nor a passport`);
+  }
+  return { kind: 'passport', number: person.passportNumber, country: person.passportCountry };
 }
 
 function toInternal(person: PersonRow): InternalApplicant {

@@ -24,9 +24,10 @@
  * with the `declarant` realm role gets the profile listed under their username in
  * DECLARANT_PROFILES, or the Teachers Service Commission demo profile; anyone else gets 403, as
  * the directory answers callers without the role. `GET /v1/me/applicant` does the same for
- * applicants (`mock-applicant.server.ts`).
+ * applicants (`applicant-profile-mock.server.ts`).
  *
- * Applicant onboarding (Get started as an applicant) is answered by `applicant-mock.server.ts`.
+ * Applicant onboarding (Get started as an applicant) is answered by
+ * `applicant-onboarding-mock.server.ts`.
  *
  * Every code is 123456; 000000 is treated as expired. Codes follow the spec's rules otherwise:
  * five wrong codes or a fourth resend end the session, and resends wait 60 seconds. The
@@ -35,8 +36,8 @@
 import { maskContact } from '@adili/ui';
 
 import { json } from '../mock-http';
-import { mockApplicantOnboardingFetch } from './applicant-mock.server';
-import { myApplicantProfile } from './mock-applicant.server';
+import { mockApplicantOnboardingFetch } from './applicant-onboarding-mock.server';
+import { myApplicantProfile } from './applicant-profile-mock.server';
 import type {
   DeclarantProfile,
   IdentifyDeclarant,

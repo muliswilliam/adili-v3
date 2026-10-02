@@ -33,14 +33,15 @@ export class DisclosureService {
 
   /**
    * The `disclosure.v1` document of a grant: for each granted year, the version in force of each
-   * of the person's declarations at the Commission, cut to the granted persons and sections. 404
-   * when the person has none in any granted year (or is not the Commission's declarant).
+   * of the person's declarations at the Commission, cut to the granted persons and sections, and
+   * the ids of the versions it discloses, for the audit trail. 404 when the person has none in
+   * any granted year (or is not the Commission's declarant).
    */
   async render(
     tenant: string,
     subject: string,
     request: DisclosureRequest,
-  ): Promise<DisclosureDocument> {
+  ): Promise<{ disclosure: DisclosureDocument; versionIds: string[] }> {
     const found = await withTenant(this.db, { tenant, subject }, async (tx) => {
       const rows = await tx
         .select({
@@ -73,7 +74,7 @@ export class DisclosureService {
     );
     // Ordered by statement date: the person as they named themselves last.
     const latest = opened.reduce((_, next) => next);
-    return {
+    const disclosure: DisclosureDocument = {
       schemaVersion: 'disclosure.v1',
       grantReference: request.grantReference,
       personName: declaredName(latest.document),
@@ -87,6 +88,7 @@ export class DisclosureService {
         content: { ...disclose(document, scope) },
       })),
     };
+    return { disclosure, versionIds: rows.map((row) => row.version.id) };
   }
 
   /**

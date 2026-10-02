@@ -10,7 +10,6 @@ const requested: Scope = {
   includeSpouses: true,
   includeChildren: true,
   sections: ['income', 'liabilities'],
-  includeClarifications: true,
 };
 
 // The side cards' server functions (attachment links) are not used here.
@@ -26,7 +25,6 @@ function renderForm(more: Partial<DecisionFormProps> = {}) {
       <ToastProvider>
         <DecisionForm
           requestedScope={requested}
-          clarifications
           deadline={{ due: new Date(Date.now() + 3 * 86_400_000).toISOString(), soonDays: 10 }}
           reasonsHint="Sent to the applicant and the declarant."
           finality={() => ({ title: 'This decision is final.' })}
@@ -81,19 +79,11 @@ describe('DecisionForm (#260, S6)', () => {
     for (const name of ['Assets', 'Personal details', 'Other information']) {
       expect(screen.getByRole<HTMLInputElement>('checkbox', { name }).disabled).toBe(true);
     }
-    for (const name of ['2025', '2026', 'Spouses', 'Children', 'Income', 'Clarifications']) {
+    for (const name of ['2025', '2026', 'Spouses', 'Children', 'Income']) {
       expect(screen.getByRole<HTMLInputElement>('checkbox', { name }).disabled).toBe(false);
     }
     // The whole request is a grant, not a partial grant.
-    for (const name of [
-      '2025',
-      '2026',
-      'Spouses',
-      'Children',
-      'Clarifications',
-      'Income',
-      'Liabilities',
-    ]) {
+    for (const name of ['2025', '2026', 'Spouses', 'Children', 'Income', 'Liabilities']) {
       tick(name);
     }
     expect(
@@ -144,7 +134,6 @@ describe('DecisionForm (#260, S6)', () => {
           includeSpouses: true,
           includeChildren: false,
           sections: ['income'],
-          includeClarifications: false,
         },
         grounds: ['public-interest'],
         reasons: 'Narrowed to what the purpose needs.',
@@ -226,7 +215,7 @@ describe('DecisionForm (#260, S6)', () => {
     choose('Grant');
     expect(
       screen.getByText(
-        'Releases the full requested scope: 2025, 2026 · Officer, spouses and children · Income, liabilities · clarifications.',
+        'Releases the full requested scope: 2025, 2026 · Officer, spouses and children · Income, liabilities.',
       ),
     ).toBeTruthy();
     reasons('Yes.');
@@ -244,7 +233,6 @@ describe('DecisionForm (#260, S6)', () => {
         includeSpouses: false,
         includeChildren: false,
         sections: ['assets'],
-        includeClarifications: false,
       },
     });
     expect(screen.getByRole<HTMLInputElement>('radio', { name: 'Partial grant' }).disabled).toBe(
@@ -255,8 +243,8 @@ describe('DecisionForm (#260, S6)', () => {
     ).toBeTruthy();
   });
 
-  it('LEA: Grant and Deny only, no clarifications', () => {
-    renderForm({ outcomes: ['grant', 'deny'], clarifications: false });
+  it('LEA: Grant and Deny only', () => {
+    renderForm({ outcomes: ['grant', 'deny'] });
     expect(screen.getAllByRole('radio')).toHaveLength(2);
   });
 });

@@ -5,10 +5,9 @@ import {
   PROOF_CONTENT_TYPES,
   PROOF_MAX_BYTES,
 } from '../components/access/self-access/proof-upload';
-import { accessClient } from './access/client.server';
 import { selfAccessDocumentsClient } from './access/documents-client.server';
 import type { RosterCandidates } from './access/types';
-import { withViewerClient } from './as-viewer.server';
+import { asAccessViewer, withViewerClient } from './as-viewer.server';
 import { commissionSlug } from './commission-slug';
 import type { Upload, UploadReservation } from './documents/client';
 import {
@@ -37,12 +36,6 @@ import {
 
 const id = z.uuid();
 
-function asOfficer<T>(
-  work: (client: ReturnType<typeof accessClient>) => Promise<SelfAccessResult<T>>,
-) {
-  return withViewerClient(accessClient, work);
-}
-
 function asDocumentsOfficer<T>(
   work: (client: ReturnType<typeof selfAccessDocumentsClient>) => Promise<SelfAccessResult<T>>,
 ) {
@@ -52,13 +45,13 @@ function asDocumentsOfficer<T>(
 export const findDeclarants = createServerFn({ method: 'GET' })
   .validator(z.object({ slug: commissionSlug, q: z.string().trim().min(2).max(200) }))
   .handler(({ data }): Promise<SelfAccessResult<RosterCandidates>> =>
-    asOfficer((client) => searchDeclarants(client, data.slug, data.q)),
+    asAccessViewer((client) => searchDeclarants(client, data.slug, data.q)),
   );
 
 export const getDeclarantVersions = createServerFn({ method: 'GET' })
   .validator(z.object({ slug: commissionSlug, rosterRecordId: id }))
   .handler(({ data }): Promise<SelfAccessResult<DeclarantVersions>> =>
-    asOfficer((client) => declarantVersions(client, data.slug, data.rosterRecordId)),
+    asAccessViewer((client) => declarantVersions(client, data.slug, data.rosterRecordId)),
   );
 
 const applicationInput = z.object({
@@ -80,25 +73,27 @@ const applicationInput = z.object({
 export const recordSelfAccessApplication = createServerFn({ method: 'POST' })
   .validator(z.object({ slug: commissionSlug, input: applicationInput, idempotencyKey: id }))
   .handler(({ data }): Promise<SelfAccessResult<SelfAccessApplicationDetail>> =>
-    asOfficer((client) => recordApplication(client, data.slug, data.input, data.idempotencyKey)),
+    asAccessViewer((client) =>
+      recordApplication(client, data.slug, data.input, data.idempotencyKey),
+    ),
   );
 
 export const getSelfAccessApplications = createServerFn({ method: 'GET' })
   .validator(z.object({ slug: commissionSlug, cursor: z.string().max(500).optional() }))
   .handler(({ data }): Promise<SelfAccessResult<SelfAccessPage>> =>
-    asOfficer((client) => listApplications(client, data.slug, data.cursor)),
+    asAccessViewer((client) => listApplications(client, data.slug, data.cursor)),
   );
 
 export const getSelfAccessApplication = createServerFn({ method: 'GET' })
   .validator(z.object({ applicationId: id }))
   .handler(({ data }): Promise<SelfAccessResult<SelfAccessApplicationDetail>> =>
-    asOfficer((client) => loadApplication(client, data.applicationId)),
+    asAccessViewer((client) => loadApplication(client, data.applicationId)),
   );
 
 export const markSelfAccessDelivered = createServerFn({ method: 'POST' })
   .validator(z.object({ applicationId: id, idempotencyKey: id }))
   .handler(({ data }): Promise<SelfAccessResult<SelfAccessApplicationDetail>> =>
-    asOfficer((client) => markDelivered(client, data.applicationId, data.idempotencyKey)),
+    asAccessViewer((client) => markDelivered(client, data.applicationId, data.idempotencyKey)),
   );
 
 export const createProofUpload = createServerFn({ method: 'POST' })

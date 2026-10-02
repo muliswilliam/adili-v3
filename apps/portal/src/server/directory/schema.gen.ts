@@ -1093,7 +1093,7 @@ export interface paths {
         };
         /**
          * A law-enforcement officer's account and agency (access)
-         * @description Service tokens with scope directory:internal, acting for any tenant; audited. The officer's agency, the Keycloak account their tokens are issued to, and its state: the access service records a request's provenance from it and refuses requests from accounts that are not, or no longer, active.
+         * @description Service tokens with scope directory:law-enforcement (the access service only), acting for any tenant; audited. The officer's agency, the Keycloak account their tokens are issued to, and its state: the access service records a request's provenance from it and refuses requests from accounts that are not, or no longer, active.
          */
         get: operations["internalGetLeaOfficer"];
         put?: never;
@@ -1133,7 +1133,7 @@ export interface components {
             tokenId: string | null;
         };
         /**
-         * @description Tenant key. Lowercase letter followed by lowercase letters or digits, 2-20 chars. Upper-cased it is the issuer code in reference numbers. `platform` and `new` are reserved.
+         * @description Tenant key. Lowercase letter followed by lowercase letters or digits, 2-20 chars. Upper-cased it is the issuer code in reference numbers. Reserved: `platform`, `lea`, `new`.
          * @example psc
          * @example tsc
          * @example cpsb047
@@ -6187,7 +6187,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
-            /** @description Requires a service token with scope directory:internal */
+            /** @description Requires a service token with scope directory:law-enforcement */
             403: {
                 headers: {
                     [name: string]: unknown;

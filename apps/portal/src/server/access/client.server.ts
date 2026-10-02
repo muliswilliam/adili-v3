@@ -1,6 +1,6 @@
 import { mockableClient } from '@adili/api-kit/client';
 
-import type { paths as DocumentsPaths } from '../documents/schema.gen';
+import { createDocumentsClient, type DocumentsClient } from '../documents/client.server';
 import { env } from '../env.server';
 import type { paths } from './schema.gen';
 
@@ -34,18 +34,14 @@ export type AccessClient = ReturnType<typeof accessClient>;
  * their certified copies this way. Mocked by the access mock under ACCESS_MOCK, since it holds
  * both.
  */
-export function subjectDocumentsClient(accessToken: string) {
-  const config = env();
-  return mockableClient<DocumentsPaths>({
-    baseUrl: config.DOCUMENTS_API_URL,
-    headers: { authorization: `Bearer ${accessToken}` },
-    timeoutMs: 10_000,
-    // Inline, so production builds drop the mock (see mockableClient).
+export function subjectDocumentsClient(accessToken: string): DocumentsClient {
+  return createDocumentsClient({
+    accessToken,
     mock:
-      import.meta.env.DEV && config.ACCESS_MOCK
+      import.meta.env.DEV && env().ACCESS_MOCK
         ? async (request) => (await import('./mock.server')).mockAccessFetch(request)
         : null,
   });
 }
 
-export type SubjectDocumentsClient = ReturnType<typeof subjectDocumentsClient>;
+export type SubjectDocumentsClient = DocumentsClient;

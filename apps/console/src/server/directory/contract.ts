@@ -11,8 +11,11 @@ type OfficerCategoryCode = components['schemas']['OfficerCategoryCode'];
 /** `Slug`: a lowercase letter, then lowercase letters or digits, 2 to 20 characters in all. */
 export const SLUG_PATTERN = /^[a-z][a-z0-9]{1,19}$/;
 
-/** Tenant keys no Commission may take (`new` is the create route, `/commissions/new`). */
-export const RESERVED_SLUGS: readonly string[] = ['platform', 'new'];
+/**
+ * Tenant keys no Commission may take: `platform` and `lea` are RLS contexts (cross-tenant work,
+ * law enforcement accounts), `new` is the create route (`/commissions/new`).
+ */
+export const RESERVED_SLUGS: readonly string[] = ['platform', 'lea', 'new'];
 
 /** `CreateCommission.name` length. */
 export const NAME_LENGTH = { min: 3, max: 120 } as const;

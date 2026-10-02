@@ -9,19 +9,22 @@ import {
 } from '@nestjs/swagger';
 import {
   ApiProblemResponse,
+  ActingTenant,
   AuditedRead,
+  CurrentReadAudit,
+  type ReadAudit,
   CurrentPrincipal,
+  InternalApi,
   type Principal,
   RequireIdempotencyKey,
   Roles,
   schemaRef,
   ZodValidationPipe,
 } from '@adili/api-kit';
-import { LAW_ENFORCEMENT, PLATFORM_ADMIN } from '@adili/roles';
+import { DIRECTORY_LAW_ENFORCEMENT_SCOPE, LAW_ENFORCEMENT, PLATFORM_ADMIN } from '@adili/roles';
 import { z } from 'zod';
 
 import { STAFF_ROLES } from '../commissions/access.js';
-import { DirectoryInternalApi } from '../internal-api.js';
 import { LawEnforcementOfficersService } from './officers.service.js';
 import {
   type Agency,
@@ -149,11 +152,12 @@ export class LawEnforcementController {
  * Internal: not routed by the public entrypoint. The access service checks the provenance of a
  * law enforcement request against the officer's account (r.23(1)), acting for the Commission the
  * request is addressed to (X-Acting-Tenant, for the audit trail): officers belong to no
- * Commission, so any acting tenant reads them.
+ * Commission, so any acting tenant reads them. Officers' names and accounts are personal data:
+ * only the access service's token carries `directory:law-enforcement`.
  */
 @ApiTags('internal')
 @Controller('internal/v1/law-enforcement/officers')
-@DirectoryInternalApi()
+@InternalApi(DIRECTORY_LAW_ENFORCEMENT_SCOPE)
 export class InternalLawEnforcementController {
   constructor(private readonly officers: LawEnforcementOfficersService) {}
 
@@ -164,15 +168,19 @@ export class InternalLawEnforcementController {
     operationId: 'internalGetLeaOfficer',
     summary: "A law-enforcement officer's account and agency (access)",
     description:
-      "Service tokens with scope directory:internal, acting for any tenant; audited. The officer's agency, the Keycloak account their tokens are issued to, and its state: the access service records a request's provenance from it and refuses requests from accounts that are not, or no longer, active.",
+      "Service tokens with scope directory:law-enforcement (the access service only), acting for any tenant; audited. The officer's agency, the Keycloak account their tokens are issued to, and its state: the access service records a request's provenance from it and refuses requests from accounts that are not, or no longer, active.",
   })
   @ApiOkResponse({ description: 'The officer', schema: schemaRef('InternalLeaOfficer') })
   @ApiProblemResponse(400, 'personId is not a UUID')
   @ApiProblemResponse(404, 'No law-enforcement officer has this id')
-  find(
+  async find(
     @CurrentPrincipal() principal: Principal,
+    @ActingTenant() tenant: string,
     @Param('personId', new ZodValidationPipe(z.uuid())) personId: string,
+    @CurrentReadAudit() audit: ReadAudit,
   ): Promise<InternalLeaOfficer> {
-    return this.officers.internalOfficer(principal.subject, personId);
+    const officer = await this.officers.internalOfficer(principal.subject, personId);
+    audit.resource({ tenant, subjectPersonId: officer.personId });
+    return officer;
   }
 }

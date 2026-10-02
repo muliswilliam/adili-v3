@@ -1,4 +1,5 @@
 import {
+  AttachmentList,
   Badge,
   Button,
   Card,
@@ -10,11 +11,12 @@ import {
   formatDateTime,
   Icon,
   type IconProps,
+  IconTile,
+  MenuItem,
   Spinner,
   useToast,
 } from '@adili/ui';
 import {
-  Attachment01Icon,
   CheckmarkCircle02Icon,
   Download01Icon,
   JusticeScale01Icon,
@@ -29,8 +31,10 @@ import type { ReactNode } from 'react';
 
 import { getRepresentationAttachmentLink } from '../../server/access-requests';
 import type { OfficerRequestView, Representations } from '../../server/access/types';
+import { downloadFrom } from '../download';
 import { goToSignIn } from '../sign-in-redirect';
 import { messages as m } from './messages';
+import { Muted } from './muted';
 import { lastEntry } from './request-view';
 
 /** A side card: a title on a hairline header, then its body (the prototype's `.sec-h`/`.sec-b`). */
@@ -64,14 +68,7 @@ export function SideCard({
   );
 }
 
-/** Text on a muted panel: where a step stands, or nothing yet. */
-export function Muted({ children }: { children: ReactNode }) {
-  return (
-    <div className="rounded-lg bg-muted px-3.5 py-3 text-sm text-secondary-foreground">
-      {children}
-    </div>
-  );
-}
+export { Muted } from './muted';
 
 /** Where a step only the access officer takes stands, for the supervisor. */
 export function WaitingCard({ text }: { text: string }) {
@@ -141,20 +138,15 @@ export function OutcomeLine({
   children,
 }: {
   icon: IconProps['icon'];
-  tone: 'success' | 'destructive' | 'muted';
+  tone: 'success' | 'destructive' | 'default';
   children: ReactNode;
 }) {
-  const tint =
-    tone === 'success'
-      ? 'bg-success-subtle text-success'
-      : tone === 'destructive'
-        ? 'bg-destructive-subtle text-destructive'
-        : 'bg-muted text-muted-foreground';
   return (
     <div className="flex items-center gap-2.5 text-[16px] font-semibold">
-      <span className={`grid size-8 place-items-center rounded-full ${tint}`} aria-hidden="true">
-        <Icon icon={icon} className="size-4" strokeWidth={2.2} />
-      </span>
+      {/* Round, as the prototype's outcome mark. */}
+      <IconTile tone={tone} size="sm" className="rounded-full [&_svg]:size-4">
+        <Icon icon={icon} strokeWidth={2.2} />
+      </IconTile>
       {children}
     </div>
   );
@@ -166,7 +158,7 @@ export function ClosedCard({ view }: { view: OfficerRequestView }) {
   const closed = lastEntry(view, cannot ? 'cannot-identify' : 'withdrawn');
   return (
     <SideCard id="closed" title={m.closedTitle}>
-      <OutcomeLine icon={cannot ? UserRemove01Icon : Undo02Icon} tone="muted">
+      <OutcomeLine icon={cannot ? UserRemove01Icon : Undo02Icon} tone="default">
         {cannot ? m.cannotIdentifyOutcome : m.withdrawnOutcome}
       </OutcomeLine>
       {closed ? (
@@ -241,7 +233,7 @@ export function RepresentationsCard({ view }: { view: OfficerRequestView }) {
       data: { requestId: view.id, uploadId },
     }).catch(() => null);
     if (result?.ok) {
-      window.location.assign(result.data.downloadUrl);
+      downloadFrom(result.data.downloadUrl);
       return;
     }
     if (result?.error.kind === 'unauthenticated') {
@@ -276,36 +268,26 @@ export function RepresentationsCard({ view }: { view: OfficerRequestView }) {
             <p className="text-sm leading-relaxed whitespace-pre-line">{reps.text}</p>
           ) : null}
           {reps.attachments.length > 0 ? (
-            <ul className="grid grid-cols-[minmax(0,1fr)] gap-2" aria-label={m.attachmentsLabel}>
-              {reps.attachments.map((file) => (
-                <li
-                  key={file.uploadId}
-                  className="flex items-center gap-3 rounded-lg border px-3 py-2.5"
+            <AttachmentList
+              label={m.attachmentsLabel}
+              attachments={reps.attachments.map((file) => ({
+                id: file.uploadId,
+                name: file.fileName,
+                status: 'linked',
+                detail: m.scannedClean,
+              }))}
+              messages={{ actions: m.attachmentActions }}
+              menuItems={(file) => (
+                <MenuItem
+                  icon={Download01Icon}
+                  onSelect={() => {
+                    void download(file.id);
+                  }}
                 >
-                  <span
-                    aria-hidden="true"
-                    className="grid size-8 shrink-0 place-items-center rounded-md bg-muted text-muted-foreground"
-                  >
-                    <Icon icon={Attachment01Icon} className="size-4" />
-                  </span>
-                  <div className="min-w-0 flex-1">
-                    <div className="truncate text-sm font-medium" title={file.fileName}>
-                      {file.fileName}
-                    </div>
-                    <div className="text-xs text-muted-foreground">{m.scannedClean}</div>
-                  </div>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="size-8 [&_svg]:size-4"
-                    aria-label={m.openAttachment(file.fileName)}
-                    onClick={() => void download(file.uploadId)}
-                  >
-                    <Icon icon={Download01Icon} />
-                  </Button>
-                </li>
-              ))}
-            </ul>
+                  {m.download}
+                </MenuItem>
+              )}
+            />
           ) : null}
           {reps.stance === 'consent' ? (
             <p className="text-[13px] text-muted-foreground">{m.consentClosedEarly}</p>

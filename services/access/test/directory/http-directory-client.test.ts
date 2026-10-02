@@ -35,6 +35,10 @@ function clientAnswering(answer: () => Response) {
   const client = new HttpDirectoryClient({
     directoryUrl: 'http://directory.test',
     tokens: { token: () => Promise.resolve('reference-token'), invalidate: () => undefined },
+    lawEnforcementTokens: {
+      token: () => Promise.resolve('law-enforcement-token'),
+      invalidate: () => undefined,
+    },
     applicantTokens: {
       token: () => Promise.resolve('applicants-token'),
       invalidate: () => undefined,
@@ -60,6 +64,9 @@ describe('HttpDirectoryClient: applicants', () => {
     await expect(client.applicant(PERSON, 'psc')).resolves.toEqual({
       personId: PERSON,
       identityStatus: 'pending-verification',
+      fullName: 'Daniel Otieno',
+      identityDocument: { kind: 'passport', number: 'AK123456', country: 'UG' },
+      contacts: { email: 'd.otieno@example.org', phone: '+256772123456' },
     });
     expect(sent).toHaveLength(1);
     expect(sent[0]?.method).toBe('GET');
@@ -86,7 +93,7 @@ describe('HttpDirectoryClient: applicants', () => {
         verifiedBy: 'officer-psc',
         idempotencyKey: KEY,
       }),
-    ).resolves.toEqual({ personId: PERSON, identityStatus: 'verified' });
+    ).resolves.toMatchObject({ personId: PERSON, identityStatus: 'verified' });
     expect(sent[0]?.method).toBe('POST');
     expect(sent[0]?.url).toBe(
       `http://directory.test/internal/v1/applicants/${PERSON}/identity-verification`,
@@ -236,7 +243,7 @@ describe('HttpDirectoryClient: law enforcement officers', () => {
     revokedAt: null,
   };
 
-  it("reads an officer's account and agency for the Commission addressed, with the reference token", async () => {
+  it("reads an officer's account and agency for the Commission addressed, with the law-enforcement token", async () => {
     const { client, sent } = clientAnswering(() => json(OFFICER, 200));
 
     await expect(client.leaOfficer(PERSON, 'psc')).resolves.toEqual({
@@ -251,7 +258,7 @@ describe('HttpDirectoryClient: law enforcement officers', () => {
       `http://directory.test/internal/v1/law-enforcement/officers/${PERSON}`,
     );
     expect(sent[0]?.headers.get('x-acting-tenant')).toBe('psc');
-    expect(sent[0]?.headers.get('authorization')).toBe('Bearer reference-token');
+    expect(sent[0]?.headers.get('authorization')).toBe('Bearer law-enforcement-token');
   });
 
   it('an unknown officer is null; an answer outside the contract is an outage', async () => {

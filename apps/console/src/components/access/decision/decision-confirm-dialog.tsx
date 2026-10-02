@@ -13,7 +13,6 @@ import {
 import { JusticeScale01Icon, Package01Icon, SquareLock02Icon } from '@hugeicons/core-free-icons';
 
 import { Consequences } from '../resolve-dialogs';
-import { PACKAGE_DOWNLOAD_DAYS } from './package-card';
 import type { Outcome } from './decision-rules';
 import { messages as m } from './messages';
 
@@ -65,7 +64,7 @@ export function DecisionConfirmDialog({
                     {
                       icon: Package01Icon,
                       title: m.packageGoesTo(packageRecipient),
-                      text: m.packageScope(packageScope, PACKAGE_DOWNLOAD_DAYS),
+                      text: m.packageScope(packageScope),
                     },
                   ]),
             ]}

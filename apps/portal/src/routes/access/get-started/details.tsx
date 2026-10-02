@@ -1,6 +1,7 @@
 import { createFileRoute, redirect } from '@tanstack/react-router';
 import { z } from 'zod';
 
+import { APPLICANT_TITLES_COPY } from '../../../components/applicant-onboarding/copy';
 import { DetailsStep } from '../../../components/applicant-onboarding/details-step';
 import { redirectIfApplicantInProgress } from '../../../components/applicant-onboarding/guard';
 import { getApplicantOnboardingSession } from '../../../server/applicant-onboarding';
@@ -11,7 +12,7 @@ export const Route = createFileRoute('/access/get-started/details')({
     kind: z.enum(['national-id', 'passport']).optional(),
   }),
   staticData: { applicantStep: 2, applicantBack: '/access/get-started' },
-  head: () => ({ meta: [{ title: 'Your details · Adili Online' }] }),
+  head: () => ({ meta: [{ title: APPLICANT_TITLES_COPY.details }] }),
   loaderDeps: ({ search }) => ({ kind: search.kind }),
   loader: async ({ deps }) => {
     redirectIfApplicantInProgress(await getApplicantOnboardingSession());

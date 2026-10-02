@@ -194,12 +194,22 @@ export function StatusBadge({ status }: { status: QueueItem['status'] }) {
   return <Badge variant={tone}>{label}</Badge>;
 }
 
+const sameName = (a: string, b: string) =>
+  a.trim().replace(/\s+/g, ' ').toLowerCase() === b.trim().replace(/\s+/g, ' ').toLowerCase();
+
+/**
+ * The officer: once identified, the roster's name and file number, and the name the request
+ * sought when it differs (spec 10 "officer sought / resolved"); before that, the name sought.
+ */
 function Officer({ item }: { item: QueueItem }) {
   if (item.resolvedName) {
     return (
       <>
         <div className="font-medium">{item.resolvedName}</div>
         {item.resolvedFileNumber ? <Sub>{m.fileNumber(item.resolvedFileNumber)}</Sub> : null}
+        {sameName(item.officerSought, item.resolvedName) ? null : (
+          <Sub>{m.soughtAs(item.officerSought)}</Sub>
+        )}
       </>
     );
   }
@@ -225,22 +235,31 @@ export function QueueDeadline({ item }: { item: QueueItem }) {
       </span>
     );
   }
-  const window = item.status === 'awaiting-representations' && item.windowEndsAt !== null;
-  const due = window && item.windowEndsAt ? item.windowEndsAt : item.deadlineAt;
-  const soonDays = window
-    ? deadlineSoonDays.representations
-    : item.kind === 'lea'
-      ? deadlineSoonDays.lawEnforcement
-      : deadlineSoonDays.decision;
+  const windowEndsAt = item.status === 'awaiting-representations' ? item.windowEndsAt : null;
+  // A late request shows its decision deadline, late, even while representations are open.
+  if (windowEndsAt && !item.late) {
+    return (
+      <>
+        <DeadlineChip
+          due={windowEndsAt}
+          soonDays={deadlineSoonDays.representations}
+          label={m.representationsClose}
+        />
+        <Sub>{m.closesOn(shortDate(windowEndsAt))}</Sub>
+      </>
+    );
+  }
   return (
     <>
       <DeadlineChip
-        due={due}
-        soonDays={soonDays}
-        label={window ? m.representationsClose : m.decisionDue}
-        late={window ? false : item.late}
+        due={item.deadlineAt}
+        soonDays={item.kind === 'lea' ? deadlineSoonDays.lawEnforcement : deadlineSoonDays.decision}
+        label={m.decisionDue}
+        late={item.late}
       />
-      <Sub>{window ? m.closesOn(shortDate(due)) : m.dueOn(shortDate(due))}</Sub>
+      <Sub>
+        {windowEndsAt ? m.closesOn(shortDate(windowEndsAt)) : m.dueOn(shortDate(item.deadlineAt))}
+      </Sub>
     </>
   );
 }

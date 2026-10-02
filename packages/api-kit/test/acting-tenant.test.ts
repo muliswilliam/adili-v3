@@ -7,6 +7,7 @@ import { createLocalJWKSet, exportJWK, generateKeyPair, SignJWT } from 'jose';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import {
+  ActingSubject,
   ActingTenant,
   type BaseEnv,
   CoreModule,
@@ -31,8 +32,8 @@ const config: BaseEnv = {
 @InternalApi('things:internal')
 class InternalThingsController {
   @Get()
-  get(@ActingTenant() tenant: string) {
-    return { tenant };
+  get(@ActingTenant() tenant: string, @ActingSubject() subject: unknown) {
+    return { tenant, ...(subject === undefined ? {} : { subject }) };
   }
 }
 
@@ -99,6 +100,22 @@ describe('InternalApi and ActingTenant', () => {
 
     expect(response.statusCode, response.body).toBe(200);
     expect(response.json()).toEqual({ tenant: 'psc' });
+  });
+
+  it('reads whom the service acts for from X-Acting-Subject', async () => {
+    const token = await signToken({ scope: 'things:internal' });
+    const response = await app.inject({
+      method: 'GET',
+      url: '/internal/v1/things',
+      headers: {
+        authorization: `Bearer ${token}`,
+        'x-acting-tenant': 'psc',
+        'x-acting-subject': 'officer-7',
+      },
+    });
+
+    expect(response.statusCode, response.body).toBe(200);
+    expect(response.json()).toEqual({ tenant: 'psc', subject: 'officer-7' });
   });
 
   it('refuses tokens without the scope with 403, whatever their roles and headers', async () => {

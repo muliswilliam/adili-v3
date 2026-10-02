@@ -322,7 +322,7 @@ paths:
     get:
       tags:
         - officer
-      summary: Full request for the access officer (Form K, representations, register)
+      summary: Full request for the access officer (Form K, representations, register; audited)
       description: The Commission's access officer and supervisor read it; another Commission's request, and EACC, get 404. The timeline is the request's whole access register, actors named.
       operationId: getAccessRequestForOfficer
       parameters:
@@ -363,6 +363,9 @@ paths:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/ProblemDetails'
+      x-audited-read:
+        action: access.request.viewed
+        resource: access-request
   /v1/access/requests/{requestId}/representations/attachments/{uploadId}/download:
     get:
       tags:
@@ -421,7 +424,7 @@ paths:
     get:
       tags:
         - officer
-      summary: Search the Commission's roster for the officer a request names (access officer)
+      summary: Search the Commission's roster for the officer a request names (access officer; audited)
       description: 'By personnel file number (its beginning) or part of the name, at most 20 records by full name. Only an `onboarded` record can be chosen: its declarant is notified.'
       operationId: listRosterCandidates
       parameters:
@@ -473,6 +476,9 @@ paths:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/ProblemDetails'
+      x-audited-read:
+        action: access.roster-candidates.listed
+        resource: roster-record
   /v1/access/requests/{requestId}/resolve:
     post:
       tags:
@@ -657,13 +663,13 @@ paths:
           description: |-
             The Commission supervisor reads requests; only its access officer acts
 
-            Requires one of the roles: access-officer, supervisor
+            Requires one of the roles: access-officer, supervisor, eacc-analyst, eacc-supervisor
           content:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/ProblemDetails'
         '404':
-          description: No such request at the Commission
+          description: No such request at the caller's Commission (another Commission's, EACC's or anyone else's view)
           content:
             application/problem+json:
               schema:
@@ -769,7 +775,7 @@ paths:
     get:
       tags:
         - lea
-      summary: One request (the officer who filed it, or the Commission's access officer)
+      summary: One request (the officer who filed it, or the Commission's access officer; audited)
       description: The officer who filed it sees it with only their own name on the timeline; the Commission's access officer and supervisor see it whole. The package (`package.documentId`) is downloaded by the filing officer from documents until `package.downloadExpiresAt`.
       operationId: getLeaRequest
       parameters:
@@ -807,12 +813,15 @@ paths:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/ProblemDetails'
+      x-audited-read:
+        action: lea.request.viewed
+        resource: lea-request
   /v1/lea/requests/{leaRequestId}/roster-candidates:
     get:
       tags:
         - lea
         - officer
-      summary: Search the Commission's roster for the officer a law enforcement request names
+      summary: Search the Commission's roster for the officer a law enforcement request names (audited)
       description: 'As for Form K: by personnel file number (its beginning) or part of the name, at most 20 records by full name. Only an `onboarded` record can be chosen when verifying: its declarant is told after a grant.'
       operationId: listLeaRosterCandidates
       parameters:
@@ -864,6 +873,9 @@ paths:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/ProblemDetails'
+      x-audited-read:
+        action: lea.roster-candidates.listed
+        resource: roster-record
   /v1/lea/requests/{leaRequestId}/verify:
     post:
       tags:
@@ -1318,6 +1330,9 @@ paths:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/ProblemDetails'
+      x-audited-read:
+        action: access.self-access.declarants.listed
+        resource: roster-record
   /v1/commissions/{slug}/access/self-access/declarants/{rosterRecordId}/versions:
     get:
       tags:
@@ -1372,6 +1387,9 @@ paths:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/ProblemDetails'
+      x-audited-read:
+        action: access.self-access.versions.listed
+        resource: roster-record
   /v1/commissions/{slug}/access/self-access:
     post:
       tags:
@@ -1547,6 +1565,9 @@ paths:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/ProblemDetails'
+      x-audited-read:
+        action: access.self-access.viewed
+        resource: self-access-application
   /v1/access/self-access/{applicationId}/delivered:
     post:
       tags:
@@ -1675,14 +1696,12 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/Section'
-        includeClarifications:
-          type: boolean
       required:
         - years
         - includeSpouses
         - includeChildren
         - sections
-        - includeClarifications
+      additionalProperties: false
     Decision:
       type: object
       properties:
@@ -1835,6 +1854,7 @@ components:
           enum:
             - received
             - verified
+            - identified
             - notified
             - representations
             - decided
@@ -2289,6 +2309,7 @@ components:
           enum:
             - received
             - verified
+            - identified
             - notified
             - representations
             - decided

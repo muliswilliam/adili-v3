@@ -2,6 +2,7 @@ import { ACCESS_OFFICER, SUPERVISOR } from '@adili/roles';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
 import {
+  asOfficerView,
   attachmentLink,
   decideRequest,
   loadQueue,
@@ -65,8 +66,8 @@ describe('the queue (S16)', () => {
   });
 
   it('filters: needs action, awaiting representations, late, decided, closed, and search', async () => {
-    expect(await ids({ kind: 'form-k', filter: 'late' })).toEqual([R.late]);
-    expect(await ids({ filter: 'window' })).toEqual([R.window]);
+    expect(await ids({ kind: 'form-k', filter: 'late' })).toEqual([R.late, R.lateWindow]);
+    expect(await ids({ filter: 'window' })).toEqual([R.lateWindow, R.window]);
     expect(await ids({ kind: 'form-k', filter: 'closed' })).toEqual([R.withdrawn, R.cannot]);
     expect(await ids({ filter: 'action' })).toEqual(
       expect.arrayContaining([R.verify, R.identify, R.unresolved, R.objection]),
@@ -84,7 +85,7 @@ describe('the queue (S16)', () => {
     expect(all).toEqual(expect.arrayContaining([R.late, L.received, L.breach, L.verified]));
     // Not another Commission's.
     expect(all).not.toContain(L.tsc);
-    expect(await ids({ filter: 'late' })).toEqual([R.late, L.breach]);
+    expect(await ids({ filter: 'late' })).toEqual([R.late, R.lateWindow, L.breach]);
     const lea = await loadQueue(officer(), 'psc', { kind: 'lea' }, 100);
     if (!lea.ok) throw new Error('not ok');
     expect(lea.data.items.every((item) => item.kind === 'lea')).toBe(true);
@@ -118,6 +119,14 @@ describe('a request (S3)', () => {
     expect(result.data.representations?.stance).toBe('object');
     expect(result.data.resolvedName).toBe('Grace Atieno Odhiambo');
     expect(result.data.timeline.map((entry) => entry.kind)).toContain('notified');
+  });
+
+  it('reads the Form K as form-k.v1 at the client boundary, and a drifted one as unavailable', async () => {
+    const loaded = await loadRequest(officer(), R.objection);
+    if (!loaded.ok) throw new Error('not ok');
+    const view = { ...loaded.data, formK: { ...loaded.data.formK, partII: { surname: 1 } } };
+    const drifted = await asOfficerView(Promise.resolve({ ok: true, data: view }));
+    expect(drifted).toMatchObject({ ok: false, error: { kind: 'unavailable' } });
   });
 
   it('searches the roster, saying which records can be chosen', async () => {
@@ -203,7 +212,6 @@ describe('the decision (S6, #260)', () => {
     includeSpouses: true,
     includeChildren: false,
     sections: ['income' as const],
-    includeClarifications: false,
   };
 
   it('records a partial grant of a narrower scope; the package follows', async () => {

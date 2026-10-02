@@ -118,6 +118,26 @@ export function applicantOnboarded(data: ApplicantOnboardedData): NewEvent<Appli
   return { type: APPLICANT_ONBOARDED, subject: data.personId, data };
 }
 
+export const APPLICANT_IDENTITY_MISMATCH = 'applicant.identity-mismatch.v1';
+
+export interface ApplicantIdentityMismatchData extends Record<string, unknown> {
+  /** The refused start, which leaves no session behind. */
+  attemptId: string;
+  /** Keyed hash of the client IP (as on sessions), null when unknown: for abuse analytics. */
+  clientIpHash: string | null;
+}
+
+/**
+ * IPRS knew no such national ID, or not under the names entered, when an applicant started
+ * onboarding (spec 10): nothing is stored, but the refusal is recorded, as the declarant's
+ * `onboarding.identity-mismatch.v1` is. No `tenant`: applicants belong to no Commission.
+ */
+export function applicantIdentityMismatch(
+  data: ApplicantIdentityMismatchData,
+): NewEvent<ApplicantIdentityMismatchData> {
+  return { type: APPLICANT_IDENTITY_MISMATCH, subject: data.attemptId, data };
+}
+
 export const ONBOARDING_ABUSE_THRESHOLD = 'onboarding.abuse-threshold.v1';
 
 export interface OnboardingAbuseThresholdData extends Record<string, unknown> {

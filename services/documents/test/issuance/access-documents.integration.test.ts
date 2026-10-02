@@ -9,7 +9,7 @@ import {
   documentDownloadedDataSchema,
   documentIssuedDataSchema,
 } from '@adili/events/contracts/schemas';
-import { asc, eq } from 'drizzle-orm';
+import { asc, desc, eq } from 'drizzle-orm';
 import { afterEach, beforeAll, describe, expect, it } from 'vitest';
 
 import { issuedDocuments, outbox, verificationRecords } from '../../src/db/schema.js';
@@ -109,7 +109,15 @@ function disclosedContent(): DisclosedDeclaration {
     statementDate: DECLARATION.statementDate,
     incomePeriod: DECLARATION.incomePeriod,
     officer: DECLARATION.officer,
-    spouses: DECLARATION.spouses,
+    spouses: {
+      none: DECLARATION.spouses.none,
+      items: DECLARATION.spouses.items.map((item) => {
+        const disclosed: Partial<typeof item> = { ...item };
+        delete disclosed.nationalId;
+        delete disclosed.kraPin;
+        return disclosed as NonNullable<DisclosedDeclaration['spouses']>['items'][number];
+      }),
+    },
     statements: [officer, spouse],
     attestation: DECLARATION.attestation,
   };
@@ -347,6 +355,24 @@ describe('S10 an access package needs its watermark, window and recipient', () =
     expect(response.json<Problem>().errors).toEqual([expect.objectContaining({ path })]);
   });
 
+  it.each([
+    ["a spouse's national ID", 'spouses', { nationalId: '12345678' }],
+    ["a spouse's KRA PIN", 'spouses', { kraPin: 'A012345678Z' }],
+    ["a child's national ID", 'children', { nationalId: '87654321' }],
+    ["a child's date of birth", 'children', { dateOfBirth: '2015-03-14' }],
+  ] as const)('refuses a disclosure carrying %s (data minimisation)', async (_, members, field) => {
+    const payload = packagePayload();
+    const content = payload.disclosure.versions[0]?.content as Record<string, unknown>;
+    const child = { id: CHILD?.id, name: CHILD?.name, includedAtStatementDate: true };
+    const member = members === 'spouses' ? disclosedContent().spouses?.items[0] : child;
+    content[members] = { none: false, items: [{ ...member, ...field }] };
+    const response = await issue(packageBody({ payload }));
+    expect(response.statusCode, response.body).toBe(400);
+    expect(response.json<Problem>().errors).toEqual([
+      expect.objectContaining({ path: `payload.disclosure.versions.0.content.${members}.items.0` }),
+    ]);
+  });
+
   it('refuses a disclosure with an undisclosable field, naming it', async () => {
     const payload = packagePayload();
     const content = payload.disclosure.versions[0]?.content as Record<string, unknown>;
@@ -578,6 +604,19 @@ describe('S13 a certified copy ordered in person: the recording officer hands it
     ]);
   });
 
+  it('records the download and its audit event together, in one insert', async () => {
+    await download(document.id, ACCESS_OFFICER);
+
+    const rows = await api.db
+      .select({ type: outbox.eventType, envelope: outbox.envelope, createdAt: outbox.createdAt })
+      .from(outbox)
+      .orderBy(desc(outbox.id))
+      .limit(2);
+    expect(rows.map((row) => row.type).sort()).toEqual(['audit.read.v1', 'document.downloaded.v1']);
+    // Written by the one statement: the same transaction timestamp.
+    expect(rows[0]?.createdAt).toEqual(rows[1]?.createdAt);
+  });
+
   it('still downloads for the declarant', async () => {
     expect((await download(document.id, DECLARANT)).statusCode).toBe(200);
   });
@@ -586,8 +625,17 @@ describe('S13 a certified copy ordered in person: the recording officer hands it
     const otherOfficer: Caller = { ...ACCESS_OFFICER, sub: 'officer-2' };
     const otherCommission: Caller = { ...ACCESS_OFFICER, tenant: 'tsc' };
     const supervisor: Caller = { sub: 'supervisor-1', tenant: 'psc', roles: ['supervisor'] };
+    // The officer named on it, since moved to another role at the Commission: no longer theirs.
+    const reassigned: Caller = { ...ACCESS_OFFICER, roles: ['reporting-officer'] };
     const before = (await eventsAbout(document.id)).length;
-    for (const caller of [otherOfficer, otherCommission, supervisor, APPLICANT, LEA_OFFICER]) {
+    for (const caller of [
+      otherOfficer,
+      otherCommission,
+      supervisor,
+      reassigned,
+      APPLICANT,
+      LEA_OFFICER,
+    ]) {
       expect((await download(document.id, caller)).statusCode).toBe(404);
       expect((await api.get(`/v1/documents/${document.id}`, caller)).statusCode).toBe(404);
     }

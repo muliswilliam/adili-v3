@@ -1,5 +1,6 @@
 import { type Ground, isSameScope, isScopeWithin, type Scope } from '@adili/ui';
 
+import { DECISION_REASONS_MAX } from '../../../server/access/schemas';
 import type { components } from '../../../server/access/api.gen';
 import type { AccessProblem } from '../../../server/access/types';
 import type { ServiceError } from '../../../server/service-call';
@@ -16,7 +17,7 @@ export type DecisionInput = components['schemas']['DecisionInput'];
 export type Decision = components['schemas']['Decision'];
 export type Package = components['schemas']['Package'];
 
-export const REASONS_MAX = 4000;
+export const REASONS_MAX = DECISION_REASONS_MAX;
 
 /** What the officer has filled in so far. */
 export interface DecisionDraft {
@@ -33,7 +34,6 @@ export function emptyScope(): Scope {
     includeSpouses: false,
     includeChildren: false,
     sections: [],
-    includeClarifications: false,
   };
 }
 
@@ -61,13 +61,12 @@ export function needsGrounds(outcome: Outcome | null): boolean {
  * Whether anything of the request can be left out: a request for one year and one section of
  * the declarant alone can be granted or denied, not partially granted.
  */
-export function canNarrow(requested: Scope, clarifications: boolean): boolean {
+export function canNarrow(requested: Scope): boolean {
   return (
     requested.years.length > 1 ||
     requested.sections.length > 1 ||
     requested.includeSpouses ||
-    requested.includeChildren ||
-    (clarifications && requested.includeClarifications)
+    requested.includeChildren
   );
 }
 
@@ -115,10 +114,7 @@ export function hasErrors(errors: DecisionErrors): boolean {
  * The `DecisionInput` for a valid draft: a grant of the requested scope sends none and no
  * grounds; a partial grant its narrowed scope and grounds; a denial grounds only.
  */
-export function decisionInput(
-  draft: DecisionDraft & { outcome: Outcome },
-  clarifications: boolean,
-): DecisionInput {
+export function decisionInput(draft: DecisionDraft & { outcome: Outcome }): DecisionInput {
   const reasons = draft.reasons.trim();
   switch (draft.outcome) {
     case 'grant':
@@ -126,11 +122,7 @@ export function decisionInput(
     case 'partial-grant':
       return {
         outcome: 'partial-grant',
-        grantedScope: {
-          ...draft.scope,
-          // Law enforcement requests never cover clarifications.
-          includeClarifications: clarifications && draft.scope.includeClarifications,
-        },
+        grantedScope: draft.scope,
         grounds: draft.grounds,
         reasons,
       };

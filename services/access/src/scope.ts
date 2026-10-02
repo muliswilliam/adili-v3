@@ -13,20 +13,19 @@ export type Section = (typeof SECTIONS)[number];
 
 export const sectionSchema = z.enum(SECTIONS);
 
-export const scopeSchema = z.object({
+/** Strict: any other field (clarifications, say, which no access covers) is a 400 at its path. */
+export const scopeSchema = z.strictObject({
   years: z.array(z.int().min(2025)).min(1).max(50),
   includeSpouses: z.boolean(),
   includeChildren: z.boolean(),
   sections: z.array(sectionSchema).min(1),
-  /** Law enforcement requests never include clarifications. */
-  includeClarifications: z.boolean(),
 });
 
 export type Scope = z.infer<typeof scopeSchema>;
 
 /**
  * Whether `granted` asks for nothing `requested` does not: no other year or section, and no
- * household member or clarifications the request left out.
+ * household member the request left out.
  */
 export function isWithinScope(granted: Scope, requested: Scope): boolean {
   const years = new Set(requested.years);
@@ -35,7 +34,6 @@ export function isWithinScope(granted: Scope, requested: Scope): boolean {
     granted.years.every((year) => years.has(year)) &&
     granted.sections.every((section) => sections.has(section)) &&
     (!granted.includeSpouses || requested.includeSpouses) &&
-    (!granted.includeChildren || requested.includeChildren) &&
-    (!granted.includeClarifications || requested.includeClarifications)
+    (!granted.includeChildren || requested.includeChildren)
   );
 }

@@ -1,4 +1,4 @@
-import { formatDate, type Scope, scopeSectionLabels, SCOPE_SECTIONS } from '@adili/ui';
+import { formatDate, formatScope, type Scope } from '@adili/ui';
 
 import { messages as m } from './messages';
 
@@ -20,16 +20,7 @@ export function scopePeople(scope: Scope): string {
   return m.officerOnly;
 }
 
-/** `Income, assets`: the sections in the form's order, the first capitalised. */
-export function scopeSections(scope: Scope): string {
-  return SCOPE_SECTIONS.filter((section) => scope.sections.includes(section))
-    .map((section, index) =>
-      index === 0 ? scopeSectionLabels[section] : scopeSectionLabels[section].toLowerCase(),
-    )
-    .join(', ');
-}
-
-/** `2025, 2026`, in order. */
-export function scopeYears(scope: Scope): string {
-  return [...scope.years].sort((a, b) => a - b).join(', ');
+/** `2025, 2026 · Officer and spouses · Income, liabilities`, in the officer's words. */
+export function scopeText(scope: Scope): string {
+  return formatScope(scope, scopePeople);
 }

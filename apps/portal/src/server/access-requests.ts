@@ -27,6 +27,7 @@ import {
 import { getBff } from './bff.server';
 import { directoryClient, type DirectoryClient } from './directory/client.server';
 import type { Unauthenticated } from './results';
+import { type WithNow, withNow } from './with-now';
 
 /** Server functions for the applicant's access requests (spec 10). Tokens stay on the server. */
 
@@ -48,14 +49,6 @@ async function asApplicant<T>(
     documents: subjectDocumentsClient(session.accessToken),
   });
 }
-
-/** With the server's clock, so day counts read the same on the server and in the browser. */
-type WithNow<T> = T & { now: string };
-
-const withNow = async <T extends object>(result: Promise<T>): Promise<WithNow<T>> => ({
-  ...(await result),
-  now: new Date().toISOString(),
-});
 
 /**
  * Whether the signed-in user is an applicant (the directory has their applicant record), so the

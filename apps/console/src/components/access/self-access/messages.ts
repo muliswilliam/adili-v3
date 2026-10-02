@@ -2,8 +2,9 @@ import { plural } from '@adili/ui';
 
 /**
  * Copy of the Certified copies screens (spec 10 slice #302, in-person self-access), from the
- * console prototype (`apps/console/prototype/10-access.prototype.html`, #304). English only, as
- * `access/messages.ts`; kept apart so the decision and law enforcement screens do not collide.
+ * console prototype (`apps/console/prototype/10-access.prototype.html`, #304). English, with an
+ * empty Swahili slot (`sw`), as `access/messages.ts`; kept apart so the decision and law
+ * enforcement screens do not collide.
  */
 export const en = {
   title: 'Certified copies',
@@ -62,17 +63,8 @@ export const en = {
   formIntro:
     'For a declarant who applies in writing at the Commission, in person or through someone they authorised.',
   declarantTitle: 'Declarant',
-  rosterSearchLabel: 'Search the roster by name or file number',
-  rosterSearchPlaceholder: 'Name or file number',
-  searching: 'Searching the roster…',
-  rosterSearchFailed: 'We could not search the roster. Try again in a moment.',
-  noRosterMatch: 'No roster record matches.',
-  rosterResults: 'Roster records',
-  select: 'Select',
-  selectRecord: (name: string) => `Select ${name}`,
   change: 'Change',
   changeDeclarant: 'Change the declarant',
-  notOnboarded: 'Not onboarded',
   notOnboardedHint: 'Has no declarant account, so no declaration to copy.',
   declarantRequired: 'Find the declarant on the roster.',
 
@@ -201,6 +193,8 @@ export const en = {
   restricted: 'Restricted',
   preparing: 'Preparing the certified copy.',
   preparingSlow: 'This is taking longer than usual. The page updates when the copy is ready.',
+  preparingStopped: 'This is taking longer than usual. Check again in a few minutes.',
+  checkAgain: 'Check again',
   failedText: 'Could not issue the copy. Nothing was issued.',
   failedHint:
     'Record the application again to try once more. If it fails again, contact the platform administrator.',
@@ -228,5 +222,8 @@ export const en = {
   markFailed: 'We could not save this. Try again.',
   supervisorWaits: 'The access officer hands over the copy and marks it.',
 } as const;
+
+/** Swahili translations, key by key; empty until reviewed. */
+export const sw: Partial<Record<keyof typeof en, string>> = {};
 
 export const messages = en;

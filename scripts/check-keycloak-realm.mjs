@@ -50,6 +50,17 @@ for (const name of [
 }
 
 const clients = new Map((realm.clients ?? []).map((client) => [client.clientId, client]));
+// Keycloak stores descriptions in varchar(255) columns: a longer one fails the realm import.
+for (const [kind, items, name] of [
+  ['client', realm.clients ?? [], 'clientId'],
+  ['client scope', realm.clientScopes ?? [], 'name'],
+]) {
+  for (const item of items) {
+    if ((item.description ?? '').length > 255) {
+      fail(`${kind} ${item[name]} has a description over 255 characters`);
+    }
+  }
+}
 for (const [id, port, secret] of [
   ['portal', 3010, 'portal-dev-secret'],
   ['console', 3020, 'console-dev-secret'],
@@ -82,15 +93,6 @@ for (const id of ['portal', 'console']) {
   } else if (personId.config['access.token.claim'] !== 'true') {
     fail(`${id}: the person_id claim must be on the access token`);
   }
-}
-// Law-enforcement officers (spec 10) sign in to the console; their agency is a token claim.
-const agency = (clients.get('console')?.protocolMappers ?? []).find(
-  (mapper) =>
-    mapper.protocolMapper === 'oidc-usermodel-attribute-mapper' &&
-    mapper.config?.['user.attribute'] === 'agency',
-);
-if (agency?.config?.['claim.name'] !== 'agency' || agency.config['access.token.claim'] !== 'true') {
-  fail('console needs an agency user attribute mapper to the agency access token claim (spec 10)');
 }
 
 const flows = new Map((realm.authenticationFlows ?? []).map((flow) => [flow.alias, flow]));
@@ -223,6 +225,8 @@ for (const name of [
   'declarations:internal',
   'directory:roster-national-id',
   'directory:applicants',
+  'directory:law-enforcement',
+  'declarations:disclosures',
   'reports:submit',
 ]) {
   const scope = scopes.get(name);
@@ -271,12 +275,36 @@ if (directory) {
 // policy after roster events, reminders through notifications, and declaration attachments in
 // documents, spec 05) and notifications (a person's verified contacts).
 // The documents service pulls a submitted version's acknowledgement slip payload from
-// declarations (spec 06).
+// declarations (spec 06). The access service (spec 10) reads Commissions, applicants and
+// law-enforcement officers from the directory, asks declarations for disclosures, issues packages
+// and certified copies with documents and sends messages.
 for (const [id, needed] of [
   ['declarations', ['directory:internal', 'messages', 'documents:internal']],
+  // Form M (spec 09): Commissions and staff, officer and clarification details, its PDFs, emails.
+  [
+    'reporting',
+    [
+      'directory:internal',
+      'declarations:internal',
+      'review:internal',
+      'documents:internal',
+      'messages',
+    ],
+  ],
   ['notifications', ['directory:person-contacts']],
   ['documents', ['declarations:internal']],
-  ['access', ['directory:internal', 'directory:applicants', 'declarations:internal', 'messages']],
+  [
+    'access',
+    [
+      'directory:internal',
+      'directory:applicants',
+      'directory:law-enforcement',
+      'declarations:internal',
+      'declarations:disclosures',
+      'documents:internal',
+      'messages',
+    ],
+  ],
 ]) {
   const client = clients.get(id);
   if (!client) {
@@ -306,6 +334,15 @@ for (const client of realm.clients ?? []) {
   // Applicants' particulars likewise: only access reads them and records verifications (spec 10).
   if (client.clientId !== 'access' && scopesOf.includes('directory:applicants')) {
     fail(`${client.clientId} must not get directory:applicants (access only)`);
+  }
+  // Law-enforcement officers' accounts likewise: only access checks a request's provenance.
+  if (client.clientId !== 'access' && scopesOf.includes('directory:law-enforcement')) {
+    fail(`${client.clientId} must not get directory:law-enforcement (access only)`);
+  }
+  // Declarations decrypted for a third party: only access asks for disclosures and certified
+  // copies; nothing else in the platform does (spec 10).
+  if (client.clientId !== 'access' && scopesOf.includes('declarations:disclosures')) {
+    fail(`${client.clientId} must not get declarations:disclosures (access only)`);
   }
 }
 // API clients the directory creates get `basic` (the `sub` claim) with their own scope.

@@ -6,12 +6,21 @@ export {
 export {
   type AuditedResource,
   CurrentReadAudit,
+  type EventAlongsideRead,
   ReadAudit,
   readAuditOf,
+  READ_LEGAL_BASES,
   type ReadDisclosure,
   type ReadLegalBasis,
+  type ReadLegalBasisCode,
 } from './audit/read-audit.js';
-export { ActingTenant, InternalApi, PLATFORM_TENANT, TENANT_KEY } from './auth/acting-tenant.js';
+export {
+  ActingSubject,
+  ActingTenant,
+  InternalApi,
+  PLATFORM_TENANT,
+  TENANT_KEY,
+} from './auth/acting-tenant.js';
 export { CurrentPrincipal } from './auth/current-principal.decorator.js';
 export { type AuthenticatedRequest, JwtAuthGuard } from './auth/jwt-auth.guard.js';
 export { callerOf, type Principal, principalSchema } from './auth/principal.js';
@@ -24,6 +33,7 @@ export {
 export { Public } from './auth/public.decorator.js';
 export { notFoundIfInvisible, Roles, RolesGuard, Scopes } from './auth/roles.js';
 export {
+  ACTING_SUBJECT_HEADER,
   ACTING_TENANT_HEADER,
   ServiceTokenClient,
   type ServiceTokenClientOptions,

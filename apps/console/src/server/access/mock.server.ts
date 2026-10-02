@@ -7,7 +7,10 @@
  * - `verify`: a passport applicant's request, held for the access officer's check.
  * - `identify`: received today, Josephine Akinyi Ouma sought (search "Ouma").
  * - `unresolved`: officer-unresolved after its day-5 reminder, "Mrs Kamau" sought.
- * - `window`: the declarant notified two days ago; no representations yet.
+ * - `window`: the declarant notified two days ago; no representations yet. Form K names the
+ *   officer "Peter Kamau"; the roster record is Peter Mwangi Kamau.
+ * - `lateWindow`: identified only after its decision deadline passed; the declarant notified
+ *   yesterday, so it is late while representations are still open.
  * - `objection`: under decision, the declarant objected with two attachments; due in 3 days.
  * - `consent`: the declarant consented, which closed the window early.
  * - `late`: under decision with context, 7 days past its decision deadline.
@@ -15,7 +18,8 @@
  * - `cannot`, `withdrawn`: closed; `denied`: decided with two grounds.
  * - `granted`: package issued, not downloaded yet; `partial`: partially granted, its package
  *   downloaded twice; `endsToday`: the download window ends today; `expired`: the window closed;
- *   `preparing`: granted a minute ago, the package not issued yet (it stays so).
+ *   `preparing`: granted a minute ago, the package not issued yet (it stays so); `noPackage`:
+ *   granted two days ago and never issued one (as a grant with nothing to disclose, #259).
  * - Older decided requests fill a second page.
  *
  * Only the access officer acts (roster search, resolve, verify); a supervisor gets 403, as the
@@ -32,7 +36,7 @@
  */
 import { randomUUID } from 'node:crypto';
 
-import { addDays } from '@adili/ui';
+import { addDays, isScopeWithin } from '@adili/ui';
 import createClient from 'openapi-fetch';
 
 import { isRecord, json, problem, readJson } from '../mock-http';
@@ -74,6 +78,8 @@ export const MOCK_REQUEST_IDS = {
   endsToday: 'a11c0000-0000-4000-8000-000000000014',
   expired: 'a11c0000-0000-4000-8000-000000000015',
   preparing: 'a11c0000-0000-4000-8000-000000000016',
+  noPackage: 'a11c0000-0000-4000-8000-000000000017',
+  lateWindow: 'a11c0000-0000-4000-8000-000000000018',
 } as const;
 
 const PSC = { slug: 'psc', name: 'Public Service Commission' };
@@ -208,7 +214,6 @@ const SCOPE_2026_ASSETS = {
   includeSpouses: false,
   includeChildren: false,
   sections: ['assets' as const],
-  includeClarifications: false,
 };
 
 interface Stored {
@@ -456,7 +461,7 @@ const SEEDS: Seed[] = [
     reference: 'ARQ-PSC-2026-0000142-Y',
     applicant: MERCY,
     sought: {
-      name: 'Peter Mwangi Kamau',
+      name: 'Peter Kamau',
       entity: 'State Department for Housing and Urban Development',
       workStation: 'Ardhi House, Nairobi',
     },
@@ -470,7 +475,6 @@ const SEEDS: Seed[] = [
       includeSpouses: true,
       includeChildren: false,
       sections: ['assets', 'liabilities'],
-      includeClarifications: false,
     },
     receivedDaysAgo: 4,
     status: 'awaiting-representations',
@@ -495,7 +499,6 @@ const SEEDS: Seed[] = [
       includeSpouses: true,
       includeChildren: true,
       sections: ['income', 'liabilities'],
-      includeClarifications: true,
     },
     receivedDaysAgo: 27,
     status: 'under-decision',
@@ -648,7 +651,6 @@ const SEEDS: Seed[] = [
       includeSpouses: true,
       includeChildren: true,
       sections: ['bio', 'income', 'assets', 'liabilities', 'other'],
-      includeClarifications: true,
     },
     receivedDaysAgo: 45,
     status: 'denied',
@@ -680,7 +682,6 @@ const SEEDS: Seed[] = [
       includeSpouses: true,
       includeChildren: true,
       sections: ['income', 'assets', 'liabilities'],
-      includeClarifications: true,
     },
     receivedDaysAgo: 34,
     status: 'partially-granted',
@@ -696,7 +697,6 @@ const SEEDS: Seed[] = [
         includeSpouses: true,
         includeChildren: false,
         sections: ['assets', 'liabilities'],
-        includeClarifications: true,
       },
       grounds: ['public-interest'],
     },
@@ -768,6 +768,45 @@ const SEEDS: Seed[] = [
       outcome: 'grant',
       afterDays: -0.001,
       reasons: 'A legitimate research interest in public procurement.',
+    },
+  },
+  {
+    id: R.lateWindow,
+    reference: 'ARQ-PSC-2026-0000143-W',
+    applicant: PAUL,
+    sought: {
+      name: 'Lilian Wairimu Njoroge',
+      entity: 'The National Treasury',
+      workStation: 'Treasury Building, Nairobi',
+    },
+    informationSought: 'Income declared in 2026.',
+    reason: 'A supplier payment audit.',
+    scope: { ...SCOPE_2026_ASSETS, sections: ['income'] },
+    receivedDaysAgo: 32,
+    status: 'awaiting-representations',
+    resolved: K.lilian,
+    notifiedAfterDays: 31,
+  },
+  {
+    id: R.noPackage,
+    reference: 'ARQ-PSC-2026-0000141-0',
+    applicant: ESTHER,
+    sought: {
+      name: 'Lilian Wairimu Njoroge',
+      entity: 'The National Treasury',
+      workStation: 'Treasury Building, Nairobi',
+    },
+    informationSought: 'Other information declared in 2025.',
+    reason: 'Our research on public finance.',
+    scope: { ...SCOPE_2026_ASSETS, years: [2025], sections: ['other'] },
+    receivedDaysAgo: 30,
+    status: 'granted',
+    resolved: K.lilian,
+    notifiedAfterDays: 2,
+    decision: {
+      outcome: 'grant',
+      afterDays: -2,
+      reasons: 'A legitimate research interest in public finance.',
     },
   },
 ];
@@ -1043,16 +1082,6 @@ function badDecision(path: string, message: string, code?: string): Response {
 
 type MockScope = OfficerRequestView['formK']['scope'];
 
-function within(scope: MockScope, requested: MockScope): boolean {
-  return (
-    scope.years.every((year) => requested.years.includes(year)) &&
-    scope.sections.every((section) => requested.sections.includes(section)) &&
-    (!scope.includeSpouses || requested.includeSpouses) &&
-    (!scope.includeChildren || requested.includeChildren) &&
-    (!scope.includeClarifications || requested.includeClarifications)
-  );
-}
-
 const DECIDED_STATUS = {
   grant: 'granted',
   'partial-grant': 'partially-granted',
@@ -1109,8 +1138,8 @@ async function decide(request: Request, stored: Stored, caller: Caller): Promise
     );
   }
   const requested = current.formK.scope;
-  const exceeds = scope !== null && !within(scope, requested);
-  const whole = scope !== null && !exceeds && within(requested, scope);
+  const exceeds = scope !== null && !isScopeWithin(scope, requested);
+  const whole = scope !== null && !exceeds && isScopeWithin(requested, scope);
   if (exceeds) {
     return badDecision(
       'grantedScope',

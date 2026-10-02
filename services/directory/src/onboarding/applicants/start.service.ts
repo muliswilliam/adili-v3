@@ -1,10 +1,14 @@
+import { randomUUID } from 'node:crypto';
+
 import { Injectable, Logger } from '@nestjs/common';
 import { errorType, PLATFORM_TENANT, ProblemException } from '@adili/api-kit';
 import { type Database, InjectDatabase, withTenant } from '@adili/data-access';
+import { EventPublisher } from '@adili/events';
 
 import { Clock } from '../../clock.js';
 import { config } from '../../config.js';
 import type { DirectorySchema } from '../../db/schema.js';
+import { applicantIdentityMismatch } from '../events.js';
 import { alreadyOnboarded } from '../identify/identify.service.js';
 import { IprsLookup, IprsUnavailable } from '../iprs/iprs-lookup.js';
 import { namesMatch } from '../iprs/name-rule.js';
@@ -23,7 +27,8 @@ import type {
  *
  * - National ID: IPRS is asked first, outside any transaction, through the integration-gateway.
  *   No such person, or names that break the name rule (`name-rule.ts`, the names entered in place
- *   of a roster name): 409 `identity-mismatch`, nothing stored. IPRS unavailable: 503
+ *   of a roster name): 409 `identity-mismatch`, nothing stored but
+ *   `applicant.identity-mismatch.v1` (ids and the hashed client IP). IPRS unavailable: 503
  *   `iprs-unavailable`.
  * - Passport: not checked; the account will be `pending-verification` until an access officer
  *   verifies the particulars entered.
@@ -45,6 +50,7 @@ export class ApplicantStartService {
     private readonly otp: OtpIssuer,
     private readonly iprs: IprsLookup,
     private readonly clock: Clock,
+    private readonly events: EventPublisher,
   ) {}
 
   async start(
@@ -52,12 +58,15 @@ export class ApplicantStartService {
     clientIp: string | undefined,
   ): Promise<ApplicantOnboardingSessionCreated> {
     const { identityDocument: document, names } = body;
+    const clientIpHash = clientIp ? keyedHash(config.ONBOARDING_HMAC_KEY, 'ip', clientIp) : null;
     if (document.kind === 'national-id') {
       const fullName = [names.firstName, names.otherNames, names.surname].filter(Boolean).join(' ');
-      await this.checkIprs(document.number, fullName);
+      if (!(await this.iprsMatches(document.number, fullName))) {
+        await this.recordMismatch(clientIpHash);
+        throw ProblemException.fromCode('identity-mismatch');
+      }
     }
 
-    const clientIpHash = clientIp ? keyedHash(config.ONBOARDING_HMAC_KEY, 'ip', clientIp) : null;
     return this.otp.sending((issue) =>
       withTenant(this.db, { tenant: PLATFORM_TENANT, subject: ONBOARDING_SUBJECT }, async (tx) => {
         const now = this.clock.now();
@@ -86,8 +95,8 @@ export class ApplicantStartService {
     );
   }
 
-  /** IPRS knows `nationalId` under these names, or 409 `identity-mismatch` (503 if it cannot say). */
-  private async checkIprs(nationalId: string, fullName: string): Promise<void> {
+  /** Whether IPRS knows `nationalId` under these names (503 `iprs-unavailable` if it cannot say). */
+  private async iprsMatches(nationalId: string, fullName: string): Promise<boolean> {
     let person;
     try {
       person = await this.iprs.find(nationalId);
@@ -96,8 +105,13 @@ export class ApplicantStartService {
       this.logger.warn({ err: errorType(error) }, 'IPRS check of an applicant not run');
       throw ProblemException.fromCode('iprs-unavailable');
     }
-    if (!person || !namesMatch(person, fullName)) {
-      throw ProblemException.fromCode('identity-mismatch');
-    }
+    return person !== null && namesMatch(person, fullName);
+  }
+
+  /** Records a start IPRS refused, with no session and nothing of the person (ADR-008). */
+  private async recordMismatch(clientIpHash: string | null): Promise<void> {
+    await withTenant(this.db, { tenant: PLATFORM_TENANT, subject: ONBOARDING_SUBJECT }, (tx) =>
+      this.events.record(tx, applicantIdentityMismatch({ attemptId: randomUUID(), clientIpHash })),
+    );
   }
 }

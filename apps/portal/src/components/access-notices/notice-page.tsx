@@ -34,9 +34,9 @@ import {
 import { Link, useRouter } from '@tanstack/react-router';
 import { type ReactNode, type RefObject, useRef, useState } from 'react';
 
-import { GROUNDS } from '../../access/copy';
 import { NOTICE_COPY as COPY, OUTCOMES, RESPONSE_COPY } from '../../access/notice-copy';
 import {
+  agencyName,
   historyOf,
   leaGrantedAt,
   leaTitle,
@@ -49,6 +49,7 @@ import { checkRepresentations } from '../../access/representation-form';
 import { submitMyRepresentations } from '../../server/access-notices';
 import type { DeclarantNotice, Scope } from '../../server/access/types';
 import { loginHref } from '../sign-in';
+import { GroundsList } from '../access/request-parts';
 import { NoticeStateBadge } from './notice-parts';
 import {
   ConsentDialog,
@@ -330,11 +331,7 @@ function DecisionCard({ notice }: { notice: DeclarantNotice }) {
       <Rows>
         {decision.grounds.length > 0 ? (
           <Row term={COPY.grounds}>
-            <ul className="grid gap-1">
-              {decision.grounds.map((ground) => (
-                <li key={ground}>{GROUNDS[ground].en}</li>
-              ))}
-            </ul>
+            <GroundsList grounds={decision.grounds} />
           </Row>
         ) : null}
         <Row term={COPY.reasons}>{decision.reasons}</Row>
@@ -415,16 +412,6 @@ function ScopeView({ scope, granted }: { scope: Scope; granted: Scope | null }) 
             ))}
           </ul>
         </Row>
-        {scope.includeClarifications ? (
-          <Row term={COPY.clarifications}>
-            <ul className="flex flex-wrap gap-1.5">
-              <ScopeChip
-                label={COPY.included}
-                state={asked(true, granted?.includeClarifications)}
-              />
-            </ul>
-          </Row>
-        ) : null}
       </Rows>
       {granted ? (
         <div
@@ -453,7 +440,12 @@ function RequestCard({ notice }: { notice: DeclarantNotice }) {
       <div className="grid gap-5 px-5 py-5 sm:px-6">
         {lea ? (
           <Rows>
-            <Row term={COPY.agency}>{notice.applicantName}</Row>
+            <Row term={COPY.agency}>{agencyName(notice)}</Row>
+            {notice.caseReference ? (
+              <Row term={COPY.caseReference}>
+                <span className="font-mono">{notice.caseReference}</span>
+              </Row>
+            ) : null}
             <Row term={COPY.commission}>{notice.commission.name}</Row>
           </Rows>
         ) : (

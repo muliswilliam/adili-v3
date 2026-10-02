@@ -100,6 +100,26 @@ describe('ApplicationDetailView (slice #302)', () => {
     ).toBeTruthy();
   });
 
+  it('stops looking after two minutes, and checks again when asked', async () => {
+    vi.useFakeTimers();
+    renderDetail(await applicationOf(A.preparing));
+    act(() => {
+      vi.advanceTimersByTime(10 * 60_000);
+    });
+    expect(invalidate).toHaveBeenCalledTimes(60);
+    expect(
+      within(copyCard()).getByText(
+        'This is taking longer than usual. Check again in a few minutes.',
+      ),
+    ).toBeTruthy();
+    fireEvent.click(within(copyCard()).getByRole('button', { name: 'Check again' }));
+    expect(invalidate).toHaveBeenCalledTimes(61);
+    act(() => {
+      vi.advanceTimersByTime(2000);
+    });
+    expect(invalidate).toHaveBeenCalledTimes(62);
+  });
+
   it('says a failed copy was not issued, and that it is late', async () => {
     renderDetail(await applicationOf(A.failed));
     expect(

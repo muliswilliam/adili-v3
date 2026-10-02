@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 
-import { eq } from 'drizzle-orm';
+import { desc, eq } from 'drizzle-orm';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
 import { commissionRefs, declarationVersions, outbox } from '../../src/db/schema.js';
@@ -322,13 +322,24 @@ describe("a person's versions (spec 10 certified copies)", () => {
       'version',
     ]);
 
+    // The audit names the versions listed, by id, latest first.
+    const ids = (
+      await api.asPlatform((tx) =>
+        tx
+          .select({ id: declarationVersions.id })
+          .from(declarationVersions)
+          .where(eq(declarationVersions.declarationId, filed.declarationId))
+          .orderBy(desc(declarationVersions.version)),
+      )
+    ).map((row) => row.id);
+    expect(ids).toHaveLength(2);
     const audits = await auditReads();
     expect(audits).toContainEqual(
       expect.objectContaining({
         tenant: 'psc',
         data: expect.objectContaining({
           action: 'declaration.versions.listed',
-          resource: expect.objectContaining({ subjectPersonId: ACHIENG }) as unknown,
+          resource: expect.objectContaining({ subjectPersonId: ACHIENG, ids }) as unknown,
         }) as unknown,
       }),
     );

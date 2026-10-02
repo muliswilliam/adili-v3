@@ -138,6 +138,7 @@ describe('GET /internal/v1/applicants/{personId}', () => {
         tenant: 'psc',
         data: expect.objectContaining({
           action: 'applicant.read',
+          resource: expect.objectContaining({ subjectPersonId: njoki.personId }) as unknown,
           actor: expect.objectContaining({ subject: 'service-account-access' }) as unknown,
         }) as unknown,
       }),

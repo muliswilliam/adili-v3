@@ -5,6 +5,8 @@ import {
   ApiProblemResponse,
   ApiQueryParameters,
   AuditedRead,
+  CurrentReadAudit,
+  type ReadAudit,
   CurrentPrincipal,
   type Principal,
   InternalApi,
@@ -84,7 +86,7 @@ export class DeclarantProfileController {
  * notifications service's token carries `directory:person-contacts`, and it names the tenant it
  * sends for in X-Acting-Tenant (ADR-013 §8.1, ADR-017); a declarant not onboarded there is 404.
  * Law-enforcement officers and applicants, who belong to no Commission, are reached for any
- * tenant (spec 10).
+ * tenant (spec 10, ADR-013 §8.8).
  */
 @ApiTags('internal')
 @Controller('internal/v1/persons')
@@ -110,11 +112,14 @@ export class InternalPersonsController {
     404,
     'No person has this id, or a declarant not onboarded at the acting tenant',
   )
-  contacts(
+  async contacts(
     @CurrentPrincipal() principal: Principal,
     @ActingTenant() tenant: string,
     @Param('personId', new ZodValidationPipe(z.uuid())) personId: string,
+    @CurrentReadAudit() audit: ReadAudit,
   ): Promise<PersonContacts> {
-    return this.persons.contacts({ tenant, subject: principal.subject }, personId);
+    const contacts = await this.persons.contacts({ tenant, subject: principal.subject }, personId);
+    audit.resource({ tenant, subjectPersonId: personId });
+    return contacts;
   }
 }

@@ -11,7 +11,7 @@ describe('navFor', () => {
       expect(labels([role])).toEqual([['Platform', ['Commissions', 'National obligations']]]);
     }
     expect(labels(['platform-admin'])).toEqual([
-      ['Platform', ['Commissions', 'National obligations', 'Agency accounts']],
+      ['Platform', ['Commissions', 'National obligations', 'Law-enforcement accounts']],
     ]);
     expect(navFor(['platform-admin'])[0]?.items.map((item) => item.to)).toEqual([
       '/commissions',
