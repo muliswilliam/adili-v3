@@ -308,6 +308,40 @@ describe('access row-level security', () => {
     ).toHaveLength(1);
   });
 
+  it('the applicant reads every entry of their request but the representations one; the declarant reads it', async () => {
+    const declarant = randomUUID();
+    const applicant = randomUUID();
+    const request = await givenRequest({
+      applicantPersonId: applicant,
+      resolvedPersonId: declarant,
+      notifiedAt: new Date(),
+      status: 'awaiting-representations',
+    });
+    await api.asPlatform((tx) =>
+      entry(tx, {
+        tenant: 'psc',
+        subjectKind: 'access-request',
+        subjectId: request.id,
+        reference: request.reference,
+        personId: declarant,
+        kind: 'representations',
+        details: { stance: 'object' },
+      }),
+    );
+    const kinds = (personId: string) =>
+      api.asPerson(personId, async (tx) =>
+        (await tx.select().from(accessRegister)).map((row) => row.kind).sort(),
+      );
+
+    expect(await kinds(applicant)).toEqual(['received']);
+    expect(await kinds(declarant)).toEqual(['received', 'representations']);
+    expect(
+      await api.asTenant({ tenant: 'psc', subject: 'officer' }, async (tx) =>
+        (await tx.select().from(accessRegister)).map((row) => row.kind).sort(),
+      ),
+    ).toEqual(['received', 'representations']);
+  });
+
   it("a declarant's save (an upsert under their person context, as the service makes it) cannot reach another declarant's representations of the same Commission", async () => {
     const anne = randomUUID();
     const brian = randomUUID();
