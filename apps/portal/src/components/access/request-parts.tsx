@@ -37,7 +37,7 @@ function Chips({ values }: { values: string[] }) {
   );
 }
 
-/** A Form K scope as rows of chips: years, people, sections and, when asked, clarifications. */
+/** A Form K scope as rows of chips: years, people and sections. */
 export function ScopeRows({ scope }: { scope: Scope }) {
   const chips = scopeChips(scope);
   return (
@@ -51,11 +51,6 @@ export function ScopeRows({ scope }: { scope: Scope }) {
       <PartRow term={COPY.sections}>
         <Chips values={chips.sections} />
       </PartRow>
-      {chips.clarifications ? (
-        <PartRow term={COPY.clarifications}>
-          <Chips values={[COPY.included]} />
-        </PartRow>
-      ) : null}
     </PartRows>
   );
 }

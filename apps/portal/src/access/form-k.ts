@@ -67,7 +67,6 @@ export function emptyDraft(): FormKDraft {
       includeSpouses: false,
       includeChildren: false,
       sections: [],
-      includeClarifications: false,
     },
     declared: false,
   };
@@ -125,7 +124,6 @@ const scopeSchema = z.object({
       .refine((sections) => new Set(sections).size === sections.length, {
         error: COPY.sectionsMissing,
       }),
-    includeClarifications: z.boolean(),
   }),
 });
 

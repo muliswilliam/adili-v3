@@ -56,7 +56,6 @@ const NOTICES = {
   youAnd: en((others: string) => `You and ${others}`),
   youSpouseChildren: en('You, spouse and children'),
   youOnly: en('You only'),
-  clarifications: en('clarifications'),
 };
 
 export const NOTICES_COPY = english(NOTICES);
@@ -110,8 +109,6 @@ const NOTICE = {
   years: en('Declaration year'),
   people: en('People'),
   sections: en('Sections'),
-  clarifications: en('Clarifications'),
-  included: en('Included'),
   you: en('You'),
   spouse: en('Spouse'),
   children: en('Children'),

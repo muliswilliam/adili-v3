@@ -30,7 +30,6 @@ function notice(fields: Partial<DeclarantNotice> = {}): DeclarantNotice {
       includeSpouses: true,
       includeChildren: false,
       sections: ['liabilities', 'income', 'assets'],
-      includeClarifications: false,
     },
     notifiedAt: '2026-09-29T07:00:00Z',
     windowEndsAt: '2026-10-06T07:00:00Z',
@@ -172,9 +171,8 @@ describe('scopeLine', () => {
         includeSpouses: true,
         includeChildren: true,
         sections: ['bio'],
-        includeClarifications: true,
       }),
-    ).toBe('2025, 2026 · You, spouse and children · Personal details, clarifications');
+    ).toBe('2025, 2026 · You, spouse and children · Personal details');
     expect(scopeLine({ ...notice().scope, includeSpouses: false, includeChildren: true })).toMatch(
       / · You and children · /,
     );

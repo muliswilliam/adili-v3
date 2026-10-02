@@ -2,10 +2,9 @@ import {
   daysBetween,
   formatDate,
   formatDateTime,
+  formatScope,
   type IconProps,
   type RegisterEntry,
-  SCOPE_SECTIONS,
-  scopeSectionLabels,
   type Tone,
 } from '@adili/ui';
 import {
@@ -118,13 +117,7 @@ export function scopePeople(scope: Scope): string {
 
 /** A scope on one line: "2026 · You and spouse · Income, assets, liabilities". */
 export function scopeLine(scope: Scope): string {
-  const sections = SCOPE_SECTIONS.filter((section) => scope.sections.includes(section)).map(
-    (section, index) =>
-      index === 0 ? scopeSectionLabels[section] : scopeSectionLabels[section].toLowerCase(),
-  );
-  if (scope.includeClarifications) sections.push(NOTICES_COPY.clarifications);
-  const years = [...scope.years].sort((a, b) => a - b).join(', ');
-  return [years, scopePeople(scope), sections.join(', ')].join(' · ');
+  return formatScope(scope, scopePeople);
 }
 
 /** Calendar days until the window ends, in Kenyan time (0 on the last day). */

@@ -157,8 +157,6 @@ const FORM_K = {
   spouses: en('Spouses'),
   children: en('Children'),
   sections: en('Sections'),
-  clarifications: en('Clarifications'),
-  included: en('Included'),
   declaration: en(
     'I declare that the information I have given above is true, complete and correct to the best of my knowledge.',
   ),
