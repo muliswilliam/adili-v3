@@ -12,8 +12,12 @@ import {
   setAccessMockLatency,
 } from '../../../server/access/mock.server';
 import type { LeaRequest } from '../../../server/access/types';
-import { decideLea } from '../../../server/lea-requests';
-import { decideLeaRequest, loadLeaRequest } from '../../../server/lea-requests.server';
+import { decideLea, previewLea } from '../../../server/lea-requests';
+import {
+  decideLeaRequest,
+  loadLeaRequest,
+  previewLeaScope,
+} from '../../../server/lea-requests.server';
 import { LeaDecidePage } from './decide-page';
 
 const invalidate = vi.fn(() => Promise.resolve());
@@ -25,7 +29,7 @@ vi.mock('@tanstack/react-router', () => ({
   Link: ({ children, to }: { children: ReactNode; to: string }) => <a href={to}>{children}</a>,
 }));
 vi.mock('../../../server/access-requests', () => ({}));
-vi.mock('../../../server/lea-requests', () => ({ decideLea: vi.fn() }));
+vi.mock('../../../server/lea-requests', () => ({ decideLea: vi.fn(), previewLea: vi.fn() }));
 
 const client = () => mockAccessClient([ACCESS_OFFICER]);
 
@@ -56,6 +60,10 @@ beforeEach(() => {
   navigate.mockClear();
   vi.mocked(decideLea).mockImplementation(({ data }) =>
     decideLeaRequest(client(), data.requestId, data.input, data.idempotencyKey),
+  );
+  vi.mocked(previewLea).mockReset();
+  vi.mocked(previewLea).mockImplementation(({ data }) =>
+    previewLeaScope(client(), data.requestId, data.scope),
   );
 });
 
@@ -90,6 +98,15 @@ describe('deciding a law enforcement request (spec 10 FE-6, S11)', () => {
       expect(navigate).toHaveBeenCalled();
     });
     expect((await requestOf(L.verified)).status).toBe('granted');
+  });
+
+  it('decision 1: previews what the requested scope holds once verified, and not before', async () => {
+    renderPage(await requestOf(L.verified));
+    const counts = await screen.findByRole('region', { name: 'What the requested scope holds' });
+    await waitFor(() => {
+      expect(counts.textContent).toContain('2 declarations');
+    });
+    expect(counts.textContent).not.toContain('Clarifications');
   });
 
   it('offers only a denial before verification, with Regulation 24 grounds', async () => {
