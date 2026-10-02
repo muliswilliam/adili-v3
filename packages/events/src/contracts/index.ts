@@ -23,6 +23,7 @@ export {
   type DocumentStatus,
   type DocumentSupersededData,
   ACKNOWLEDGEMENT_SLIP,
+  CLARIFICATION_LETTER,
   DOCUMENT_TYPES,
   type DocumentType,
   newVerificationId,

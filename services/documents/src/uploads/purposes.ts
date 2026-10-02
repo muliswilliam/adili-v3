@@ -56,6 +56,18 @@ export const UPLOAD_PURPOSES = {
     uploaderOnly: true,
     linked: true,
   },
+  /**
+   * Evidence the declarant attaches to their response to a clarification (spec 07a). The review
+   * service checks each one at the response (clean, this purpose) and keeps its name and hash
+   * with the response, so it records no link and the orphan sweep leaves these alone.
+   */
+  'clarification-attachment': {
+    roles: [DECLARANT],
+    contentTypes: [PDF, JPEG, PNG, HEIC],
+    maxSize: 20 * MB,
+    uploaderOnly: true,
+    linked: false,
+  },
 } as const satisfies Record<string, UploadPurposePolicy>;
 
 export type UploadPurpose = keyof typeof UPLOAD_PURPOSES;

@@ -15,7 +15,7 @@ paths:
       tags:
         - uploads
       summary: Reserve an upload and get a presigned PUT to quarantine
-      description: "The purpose's roles only (roster-import: reporting-officer; declaration-attachment: declarant). The PUT URL is valid for 15 minutes and accepts exactly the declared Content-Type and size."
+      description: "The purpose's roles only (roster-import: reporting-officer; declaration-attachment and clarification-attachment: declarant). The PUT URL is valid for 15 minutes and accepts exactly the declared Content-Type and size."
       operationId: createUpload
       parameters:
         - name: Idempotency-Key
@@ -401,7 +401,7 @@ paths:
       tags:
         - internal
       summary: Render, sign and register a document (services)
-      description: "Service tokens with scope documents:internal, issuing for the tenant in X-Acting-Tenant. Renders the type's versioned template to PDF through Gotenberg with the verification code and QR in the footer of every page, PAdES-signs it with the documents signing certificate, stores its SHA-256 in an Ed25519-signed verification record, stores the PDF and emits `document.issued.v1`. The disclosure level and public payload are the template's. One document per type and subject: issuing again returns it with 200."
+      description: "Service tokens with scope documents:internal, issuing for the tenant in X-Acting-Tenant. Renders the type's versioned template to PDF through Gotenberg with the verification code and QR in the footer of every page, PAdES-signs it with the documents signing certificate, stores its SHA-256 in an Ed25519-signed verification record, stores the PDF and emits `document.issued.v1`. The disclosure level and public payload are the template's. A clarification letter names its clarification; its fields are pulled from the review service (internalGetClarificationLetterPayload) for the same tenant. One document per type and subject: issuing again returns it with 200."
       operationId: issueDocument
       parameters:
         - name: X-Acting-Tenant
@@ -438,7 +438,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/IssuedDocument'
         '400':
-          description: Request failed validation, or the payload is not the template's
+          description: Request failed validation, the payload (or the one pulled) is not the template's, or the review service holds no issued clarification with the id for the tenant
           content:
             application/problem+json:
               schema:
@@ -456,7 +456,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetails'
         '502':
-          description: 'Problem type `renderer-unavailable`, `signer-unavailable` or `storage-unavailable`: nothing was issued; retry'
+          description: 'Problem type `renderer-unavailable`, `signer-unavailable`, `storage-unavailable` or `review-unavailable`: nothing was issued; retry'
           content:
             application/problem+json:
               schema:
@@ -623,6 +623,7 @@ components:
       enum:
         - roster-import
         - declaration-attachment
+        - clarification-attachment
       description: Sets allowed content types and the size limit
     UploadState:
       type: string
@@ -788,6 +789,7 @@ components:
       type: string
       enum:
         - acknowledgement-slip
+        - clarification-letter
       description: Document types with a template; later specs add theirs
     DisclosureLevel:
       type: string
@@ -804,10 +806,15 @@ components:
         - revoked
         - expired
     IssueDocument:
+      oneOf:
+        - $ref: '#/components/schemas/IssueAcknowledgementSlip'
+        - $ref: '#/components/schemas/IssueClarificationLetter'
+    IssueAcknowledgementSlip:
       type: object
       properties:
         type:
-          $ref: '#/components/schemas/DocumentType'
+          type: string
+          const: acknowledgement-slip
         templateVersion:
           type: integer
           minimum: 1
@@ -831,6 +838,44 @@ components:
         - subjectRef
         - subjectPersonId
         - payload
+    IssueClarificationLetter:
+      type: object
+      properties:
+        type:
+          type: string
+          const: clarification-letter
+        templateVersion:
+          type: integer
+          minimum: 1
+        subjectRef:
+          type: string
+          pattern: ^[a-z][a-z-]*:[0-9a-f-]{36}$
+          description: The record the document is about; one document per type and subject. Issuing again returns it
+          examples:
+            - declaration-version:0192f0c4-8a51-7cc2-9d1e-3b3f2a7e4c10
+        subjectPersonId:
+          anyOf:
+            - type: string
+              format: uuid
+            - type: 'null'
+          description: The person who may download the document (the declarant); null for none
+        payload:
+          $ref: '#/components/schemas/ClarificationLetterSource'
+      required:
+        - type
+        - templateVersion
+        - subjectRef
+        - subjectPersonId
+        - payload
+    ClarificationLetterSource:
+      type: object
+      properties:
+        clarificationId:
+          type: string
+          format: uuid
+      required:
+        - clarificationId
+      description: The clarification whose letter this is; the fields the template renders are pulled from the review service's letter payload endpoint
     SupersedeDocument:
       type: object
       properties:

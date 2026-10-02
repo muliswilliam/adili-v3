@@ -12,6 +12,7 @@ import { errorType, notFoundIfInvisible, ProblemException } from '@adili/api-kit
 import { type Database, InjectDatabase, withPerson, withTenant } from '@adili/data-access';
 import { EventPublisher } from '@adili/events';
 import {
+  CLARIFICATION_LETTER,
   DOCUMENT_ISSUED,
   DOCUMENT_SUPERSEDED,
   type DocumentEventData,
@@ -25,12 +26,13 @@ import { v7 as uuidv7 } from 'uuid';
 
 import { config, SYSTEM_SUBJECT } from '../config.js';
 import type { DocumentsSchema } from '../db/schema.js';
+import { ClarificationNotFound, ReviewClient, ReviewUnavailable } from '../review/review-client.js';
 import { S3, S3_PUBLIC } from '../storage/storage.module.js';
 import { dependencyProblem, IssuanceDependencyUnavailable } from './errors.js';
 import { PadesSigner } from './pades.js';
 import { RecordSigner, type SignedRecord } from './record-signer.js';
 import { PdfRenderer } from './renderer.js';
-import type { DocumentDownload, IssuedDocument } from './representation.js';
+import type { DocumentDownload, IssueDocumentBody, IssuedDocument } from './representation.js';
 import { issuedDocuments, verificationRecords } from './schema.js';
 import { footerDocument } from './templates/page.js';
 import { templateOf } from './templates/registry.js';
@@ -51,17 +53,15 @@ interface DocumentWithRecord {
 /** Tries at a supersede whose records keep changing between signing and writing. */
 const MAX_SUPERSEDE_ATTEMPTS = 3;
 
-/** A request to issue a document for a tenant (the issuing Commission). */
-export interface IssueRequest {
+/**
+ * A request to issue a document for a tenant (the issuing Commission): the fields the template
+ * renders, or for a letter of the review service the record they are pulled for.
+ */
+export type IssueRequest = IssueDocumentBody & {
   tenant: string;
   /** `sub` of the service or user asking, recorded on the document. */
   actor: string;
-  type: DocumentType;
-  templateVersion: number;
-  subjectRef: string;
-  subjectPersonId: string | null;
-  payload: unknown;
-}
+};
 
 export interface IssueOutcome {
   document: IssuedDocument;
@@ -94,13 +94,15 @@ export class IssuanceService {
     private readonly pades: PadesSigner,
     private readonly records: RecordSigner,
     private readonly events: EventPublisher,
+    private readonly review: ReviewClient,
     @Inject(VERIFY_BASE_URL) private readonly verifyBaseUrl: string,
   ) {}
 
   /**
-   * Issues a document, or returns the one of the same type already issued for the subject.
-   * Throws 400 for an unknown template or a payload the template refuses, 502 when the
-   * renderer, the signer or storage fails.
+   * Issues a document, or returns the one of the same type already issued for the subject (before
+   * its fields are checked or pulled). Throws 400 for an unknown template, a payload the template
+   * refuses or a clarification the review service does not hold; 502 when the renderer, the
+   * signer, storage or the review service fails.
    */
   async issue(request: IssueRequest): Promise<IssueOutcome> {
     const template = templateOf(request.type, request.templateVersion);
@@ -112,18 +114,21 @@ export class IssuanceService {
         },
       ]);
     }
-    const parsed = template.payload.safeParse(request.payload);
-    if (!parsed.success) {
-      throw validationProblem(
-        parsed.error.issues.map((issue) => ({
-          path: ['payload', ...issue.path].join('.'),
-          message: issue.message,
-        })),
-      );
-    }
     const existing = await this.findBySubject(request.tenant, request.type, request.subjectRef);
     if (existing) return { document: existing, created: false };
 
+    const fields = await this.fieldsOf(request);
+    const parsed = template.payload.safeParse(fields.payload);
+    if (!parsed.success) {
+      throw validationProblem(
+        parsed.error.issues.map((issue) => ({
+          path: fields.pulled ? 'payload' : ['payload', ...issue.path].join('.'),
+          message: fields.pulled
+            ? `The pulled ${[...issue.path].join('.') || 'payload'} is not the template's: ${issue.message}`
+            : issue.message,
+        })),
+      );
+    }
     const payload = parsed.data;
     const documentId = uuidv7();
     const verificationId = newVerificationId();
@@ -240,6 +245,39 @@ export class IssuanceService {
     const winner = await this.findBySubject(request.tenant, request.type, request.subjectRef);
     if (!winner) throw new Error(`document for ${request.subjectRef} vanished`);
     return { document: winner, created: false };
+  }
+
+  /**
+   * The fields the template renders: the request's own, or those the review service holds for
+   * the letter's record (pulled for the same tenant). A record the review service does not hold
+   * is a refused request (400); a review service that fails is a 502, so the caller retries.
+   */
+  private async fieldsOf(request: IssueRequest): Promise<{ payload: unknown; pulled: boolean }> {
+    if (request.type !== CLARIFICATION_LETTER) return { payload: request.payload, pulled: false };
+    const { clarificationId } = request.payload;
+    try {
+      const payload = await this.review.clarificationLetterPayload(request.tenant, clarificationId);
+      return { payload, pulled: true };
+    } catch (error) {
+      if (error instanceof ClarificationNotFound) {
+        throw validationProblem([
+          {
+            path: 'payload.clarificationId',
+            message: 'The review service holds no issued clarification with this id for the tenant',
+          },
+        ]);
+      }
+      if (error instanceof ReviewUnavailable) {
+        this.logger.error(
+          { err: errorType(error), cause: error.message, dependency: 'review' },
+          'Pulling a letter payload failed',
+        );
+        throw dependencyProblem(
+          new IssuanceDependencyUnavailable('review', error.message, { cause: error }),
+        );
+      }
+      throw error;
+    }
   }
 
   /**

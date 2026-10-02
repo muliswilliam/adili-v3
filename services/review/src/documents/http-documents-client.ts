@@ -93,9 +93,9 @@ export class HttpDocumentsClient extends DocumentsClient {
       (api) =>
         api.POST('/internal/v1/documents/issue', {
           params: { header: { 'X-Acting-Tenant': tenant } },
-          // Review's letters and the referral package join documents' contract with their
-          // templates (the clarification letter with #156); until then documents refuses them
-          // with 400 (InternalApiRejected), which the activities do not retry.
+          // The clarification letter is in documents' contract (#156); the decision and action
+          // letters and the referral package join it with their templates. Until then documents
+          // refuses them with 400 (InternalApiRejected), which the activities do not retry.
           body: request as unknown as IssueDocumentBody,
         }),
       // 200: issued before (one document per type and subject), answered again.

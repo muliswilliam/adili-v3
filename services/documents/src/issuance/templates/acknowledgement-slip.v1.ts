@@ -1,9 +1,4 @@
-import {
-  type DeclarationType,
-  declarationSchemes,
-  InvalidReferenceError,
-  parse,
-} from '@adili/numbering/references';
+import { type DeclarationType, declarationSchemes } from '@adili/numbering/references';
 import { ACKNOWLEDGEMENT_SLIP } from '@adili/events/contracts';
 import { z } from 'zod';
 
@@ -20,24 +15,13 @@ import {
   SOFT,
   signatureNote,
 } from './page.js';
+import { isDeclarationReference } from './references.js';
 import type { DocumentTemplate } from './template.js';
 
 const DECLARATION_TYPES = Object.keys(declarationSchemes) as [
   DeclarationType,
   ...DeclarationType[],
 ];
-const DECLARATION_SCHEMES = Object.values(declarationSchemes);
-
-/** A valid ADR-011 declaration reference number, e.g. `DCB-PSC-2027-0000001-1`. */
-function isDeclarationReference(reference: string): boolean {
-  try {
-    parse(reference, DECLARATION_SCHEMES);
-    return true;
-  } catch (error) {
-    if (error instanceof InvalidReferenceError) return false;
-    throw error;
-  }
-}
 
 /**
  * What the declarations service's acknowledgement payload endpoint returns for a submitted

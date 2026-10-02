@@ -111,7 +111,7 @@ export class InternalDocumentsController {
     operationId: 'issueDocument',
     summary: 'Render, sign and register a document (services)',
     description:
-      "Service tokens with scope documents:internal, issuing for the tenant in X-Acting-Tenant. Renders the type's versioned template to PDF through Gotenberg with the verification code and QR in the footer of every page, PAdES-signs it with the documents signing certificate, stores its SHA-256 in an Ed25519-signed verification record, stores the PDF and emits `document.issued.v1`. The disclosure level and public payload are the template's. One document per type and subject: issuing again returns it with 200.",
+      "Service tokens with scope documents:internal, issuing for the tenant in X-Acting-Tenant. Renders the type's versioned template to PDF through Gotenberg with the verification code and QR in the footer of every page, PAdES-signs it with the documents signing certificate, stores its SHA-256 in an Ed25519-signed verification record, stores the PDF and emits `document.issued.v1`. The disclosure level and public payload are the template's. A clarification letter names its clarification; its fields are pulled from the review service (internalGetClarificationLetterPayload) for the same tenant. One document per type and subject: issuing again returns it with 200.",
   })
   @ApiBody({ required: true, schema: schemaRef('IssueDocument') })
   @ApiCreatedResponse({ description: 'Issued', schema: schemaRef('IssuedDocument') })
@@ -119,10 +119,13 @@ export class InternalDocumentsController {
     description: 'Issued for this subject already; the document issued',
     schema: schemaRef('IssuedDocument'),
   })
-  @ApiProblemResponse(400, "Request failed validation, or the payload is not the template's")
+  @ApiProblemResponse(
+    400,
+    "Request failed validation, the payload (or the one pulled) is not the template's, or the review service holds no issued clarification with the id for the tenant",
+  )
   @ApiProblemResponse(
     502,
-    'Problem type `renderer-unavailable`, `signer-unavailable` or `storage-unavailable`: nothing was issued; retry',
+    'Problem type `renderer-unavailable`, `signer-unavailable`, `storage-unavailable` or `review-unavailable`: nothing was issued; retry',
   )
   async issue(
     @CurrentPrincipal() principal: Principal,
