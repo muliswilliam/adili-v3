@@ -46,6 +46,20 @@ export const LIABILITY = {
   change: { changed: true, kind: 'acquisition', explanation: 'Took the loan in 2026' },
 };
 
+/** Where the income and the plot were pre-filled from (05b `ItemSource`); the loan has none. */
+export const INCOME_SOURCE = {
+  kind: 'kra',
+  suggestionId: '0192f1a0-5a11-7000-8000-00000000b001',
+  aiJobId: '0192f1a0-5a11-7000-8000-00000000b003',
+  at: '2027-10-02T08:15:00.000Z',
+};
+export const ASSET_SOURCE = {
+  kind: 'ardhisasa',
+  suggestionId: '0192f1a0-5a11-7000-8000-00000000a001',
+  verificationResultId: '0192f1a0-5a11-7000-8000-00000000a002',
+  at: '2027-10-02T08:15:00.000Z',
+};
+
 export function submissionFixtures(api: () => DeclarationsApi) {
   /** The declarant's token without the step-up; their account's `sub` is fixed. */
   function declarant(personId: string): Caller {
@@ -174,11 +188,32 @@ export function submissionFixtures(api: () => DeclarationsApi) {
     return draft;
   }
 
+  /** The draft's income and plot saved again as pre-filled (with `source`); the loan as typed. */
+  async function sourceItems(personId: string, id: string): Promise<void> {
+    const officer = await section(personId, id, 'statement:officer');
+    await save(personId, id, 'statement:officer', {
+      ...officer,
+      income: [{ ...INCOME, source: INCOME_SOURCE }],
+      assets: [{ ...ASSET, source: ASSET_SOURCE }],
+      liabilities: [LIABILITY],
+    });
+  }
+
   function submit(id: string, caller: Caller, key: string | null = randomUUID()) {
     return api().request('POST', `/v1/declarations/${id}/submit`, caller, {
       headers: key === null ? {} : { 'idempotency-key': key },
     });
   }
 
-  return { declarant, steppedUp, givenObligation, started, save, section, completeDraft, submit };
+  return {
+    declarant,
+    steppedUp,
+    givenObligation,
+    started,
+    save,
+    section,
+    completeDraft,
+    sourceItems,
+    submit,
+  };
 }

@@ -15,7 +15,17 @@ import {
   type DeclarationsApi,
   startDeclarationsApi,
 } from '../support/declarations-api.js';
-import { DUE_DATE, DUE_DAY, STATEMENT_DATE, submissionFixtures } from '../support/submission.js';
+import {
+  ASSET,
+  ASSET_SOURCE,
+  DUE_DATE,
+  DUE_DAY,
+  INCOME,
+  INCOME_SOURCE,
+  LIABILITY,
+  STATEMENT_DATE,
+  submissionFixtures,
+} from '../support/submission.js';
 
 /**
  * Spec 07a #155 over HTTP: the review service reads a submitted version as filed (decrypted, with
@@ -44,9 +54,8 @@ const DIRECTORY: Caller = {
 };
 
 let api: DeclarationsApi;
-const { declarant, steppedUp, givenObligation, completeDraft, submit } = submissionFixtures(
-  () => api,
-);
+const { declarant, steppedUp, givenObligation, completeDraft, sourceItems, submit } =
+  submissionFixtures(() => api);
 
 beforeAll(async () => {
   api = await startDeclarationsApi();
@@ -174,6 +183,29 @@ describe('version document (S16)', () => {
     expect(read.rosterRecordId).toMatch(/^[0-9a-f-]{36}$/);
     expect(read.document).toMatchObject({ schemaVersion: 'declaration.v1' });
     expect(read.attachments).toEqual([]);
+  });
+
+  it("carries each item's source as the declarant saved it, and none on an item typed in (05b)", async () => {
+    const draft = await completeDraft(ACHIENG);
+    await sourceItems(ACHIENG, draft.id);
+    const filed = await submit(draft.id, steppedUp(ACHIENG));
+    expect(filed.statusCode, filed.body).toBe(201);
+
+    const response = await readDocument(draft.id);
+
+    expect(response.statusCode, response.body).toBe(200);
+    const read = response.json<InternalVersionDocument>();
+    expect(contractErrors(okResponse(DOCUMENT, 'get'), read)).toEqual([]);
+    const [officer] = read.document.statements as {
+      income: Record<string, unknown>[];
+      assets: Record<string, unknown>[];
+      liabilities: Record<string, unknown>[];
+    }[];
+    // As saved, nothing added or reshaped.
+    expect(officer?.income).toEqual([{ ...INCOME, source: INCOME_SOURCE }]);
+    expect(officer?.assets).toEqual([{ ...ASSET, source: ASSET_SOURCE }]);
+    expect(officer?.liabilities).toEqual([LIABILITY]);
+    expect(officer?.liabilities[0]).not.toHaveProperty('source');
   });
 
   it('records the read with the reviewer it is for and the case as its legal basis', async () => {
