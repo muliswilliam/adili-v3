@@ -438,7 +438,15 @@ describe('Check registries: consent and the status strip (S1, S2)', () => {
   });
 
   it('disables the check when the service says the person has no national ID', async () => {
-    lookupsMock.mockResolvedValue({ status: 'no-id' });
+    // The answer arrives a moment later, as over the network: the button is disabled meanwhile.
+    lookupsMock.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          setTimeout(() => {
+            resolve({ status: 'no-id' });
+          }, 100);
+        }),
+    );
     renderPanel();
 
     fireEvent.click(within(registries()).getByRole('button', { name: 'Check registries' }));
@@ -446,13 +454,13 @@ describe('Check registries: consent and the status strip (S1, S2)', () => {
     fireEvent.click(within(dialog).getByRole('checkbox', { name: 'I request this check' }));
     fireEvent.click(within(dialog).getByRole('button', { name: 'Continue' }));
 
-    await waitFor(() => {
-      expect(within(registries()).getByRole('button', { name: 'Check registries' })).toHaveProperty(
-        'disabled',
-        true,
-      );
-    });
-    expect(within(registries()).getByText(REGISTRY_COPY.noOwnId)).toBeTruthy();
+    // Wait for the refusal itself: the button is also disabled while the request is in flight, so
+    // waiting for the disabled button alone can pass before the answer arrives.
+    expect(await within(registries()).findByText(REGISTRY_COPY.noOwnId)).toBeTruthy();
+    expect(within(registries()).getByRole('button', { name: 'Check registries' })).toHaveProperty(
+      'disabled',
+      true,
+    );
   });
 });
 
