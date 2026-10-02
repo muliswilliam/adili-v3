@@ -213,7 +213,14 @@ describe('review copilot drafts', () => {
     expect(await api.asPlatform((tx) => tx.select().from(clarifications))).toEqual([]);
     const rows = await draftRows();
     expect(rows).toEqual([
-      expect.objectContaining({ id: draft.id, caseId, requestedBy: 'reviewer-a', status: 'ready' }),
+      // The language it was asked in, which the clarification's drafted parts record (Q36).
+      expect.objectContaining({
+        id: draft.id,
+        caseId,
+        requestedBy: 'reviewer-a',
+        status: 'ready',
+        language: 'sw',
+      }),
     ]);
     const stored = await api.asPlatform((tx) =>
       tx.execute<{ row: string }>(sql`select t::text as row from review_copilot_drafts t`),

@@ -2651,6 +2651,7 @@ components:
         - response
         - opening
         - openingAiJobId
+        - openingAiLanguage
         - language
       properties:
         id:
@@ -2674,6 +2675,14 @@ components:
                   label:
                     type: string
                     description: Human label of the target (e.g. "Assets · Plot KSM/123 · Grace Otieno")
+                  aiLanguage:
+                    oneOf:
+                      - $ref: '#/components/schemas/LetterLanguage'
+                      - type: 'null'
+                    description: >-
+                      The language the item's Draft with AI job (`aiJobId`) drafted in, recorded on
+                      save; it may differ from the letter's `language` when that changed after.
+                      Null when the reviewer wrote the item.
         issuedAt:
           type: [string, 'null']
           format: date-time
@@ -2714,6 +2723,13 @@ components:
           type: [string, 'null']
           format: uuid
           description: The Draft with AI job that drafted the opening paragraph; null when written by the reviewer
+        openingAiLanguage:
+          oneOf:
+            - $ref: '#/components/schemas/LetterLanguage'
+            - type: 'null'
+          description: >-
+            The language the opening's Draft with AI job drafted in; it may differ from the
+            letter's `language` when that changed after. Null when written by the reviewer.
         language:
           $ref: '#/components/schemas/LetterLanguage'
         response:

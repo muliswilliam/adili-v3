@@ -194,6 +194,7 @@ export class CopilotDraftsService {
           caseId: row.id,
           requestedBy: principal.subject,
           selectionHash,
+          language: selection.language,
           jobId: job?.id ?? null,
           ...sealed,
           expiresAt: sql`now() + make_interval(hours => ${COPILOT_DRAFT_TTL_HOURS})`,

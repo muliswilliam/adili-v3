@@ -62,6 +62,7 @@ import {
   type MockDeclarant,
   MOCK_DECLARATION,
   MOCK_FLAG_IDS,
+  mockDraftLanguage,
   mockFlags,
   resetCopilotMock,
 } from './copilot-mock.server';
@@ -284,6 +285,7 @@ function clarification(
     followUpOf: null,
     opening: null,
     openingAiJobId: null,
+    openingAiLanguage: null,
     language: 'en',
     response: null,
     ...overrides,
@@ -622,11 +624,20 @@ export function resetReviewMock(
   const seed = (value: Clarification) => clarifications.set(value.id, value);
   // Drafted with AI (the plot's item and the opening), then edited and issued (ADR-007 label).
   seed(
-    clarification(K.issued, C.mine, 42, [{ ...PLOT, aiJobId: MOCK_DRAFT_JOB_ID }, SACCO], 8, now, {
-      opening:
-        'Thank you for your biennial declaration. The points below relate to changes since your previous declaration.',
-      openingAiJobId: MOCK_DRAFT_JOB_ID,
-    }),
+    clarification(
+      K.issued,
+      C.mine,
+      42,
+      [{ ...PLOT, aiJobId: MOCK_DRAFT_JOB_ID, aiLanguage: 'en' }, SACCO],
+      8,
+      now,
+      {
+        opening:
+          'Thank you for your biennial declaration. The points below relate to changes since your previous declaration.',
+        openingAiJobId: MOCK_DRAFT_JOB_ID,
+        openingAiLanguage: 'en',
+      },
+    ),
   );
   const late = clarification(K.late, C.mine, 17, [PLOT, SACCO], 40, now);
   const lateAt = at(Date.parse(late.dueAt ?? ''), 3);
@@ -755,6 +766,7 @@ function draftOf(
     followUpOf,
     opening: null,
     openingAiJobId: null,
+    openingAiLanguage: null,
     language: 'en',
     response: null,
   };
@@ -1158,6 +1170,7 @@ async function act(
     ...draftOf(randomUUID(), found.caseId, found.items, found.id),
     opening: found.opening,
     openingAiJobId: found.openingAiJobId,
+    openingAiLanguage: found.openingAiLanguage,
     language: found.language,
   };
   clarifications.set(draft.id, draft);
@@ -1188,7 +1201,10 @@ async function once(request: Request, work: () => Promise<Response>): Promise<Re
 /** review.yaml `ClarificationInput`, checked as the service does; null when invalid. */
 async function contentOf(
   request: Request,
-): Promise<Pick<Clarification, 'items' | 'opening' | 'openingAiJobId' | 'language'> | null> {
+): Promise<Pick<
+  Clarification,
+  'items' | 'opening' | 'openingAiJobId' | 'openingAiLanguage' | 'language'
+> | null> {
   const body = await readJson(request);
   const items = isRecord(body) ? body.items : null;
   if (!Array.isArray(items) || items.length > 50) return null;
@@ -1215,6 +1231,8 @@ async function contentOf(
       requirement: requirement as Item['requirement'],
       text: text.trim(),
       aiJobId: optional(item.aiJobId),
+      // The service records the language the job drafted in (a seeded job's is English).
+      aiLanguage: draftedLanguage(optional(item.aiJobId)),
     });
   }
   const trimmed = opening?.trim() ?? '';
@@ -1222,9 +1240,13 @@ async function contentOf(
     items: valid,
     opening: trimmed === '' ? null : trimmed,
     openingAiJobId: trimmed === '' ? null : openingAiJobId,
+    openingAiLanguage: trimmed === '' ? null : draftedLanguage(openingAiJobId),
     language,
   };
 }
+
+const draftedLanguage = (jobId: string | null): 'en' | 'sw' | null =>
+  jobId === MOCK_DRAFT_JOB_ID ? 'en' : mockDraftLanguage(jobId);
 
 async function createDraft(request: Request, caseId: string, caller: Assignee) {
   const stored = cases.get(caseId);

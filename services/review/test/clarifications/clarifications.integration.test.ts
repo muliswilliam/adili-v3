@@ -148,7 +148,7 @@ describe('clarifications: drafts, issue, letter payload, declarant reads', () =>
       ),
     ).toEqual([]);
     expect(updated.json<ClarificationView>().items).toEqual(
-      twoItems.items.map((item) => ({ ...item, aiJobId: null })),
+      twoItems.items.map((item) => ({ ...item, aiJobId: null, aiLanguage: null })),
     );
 
     expect((await issue(id)).statusCode).toBe(200);
@@ -598,6 +598,74 @@ describe('clarifications: drafts, issue, letter payload, declarant reads', () =>
       openingAiJobId: jobId,
       items: [{ aiJobId: jobId }, { aiJobId: null }],
     });
+  });
+
+  it('Q36: each drafted part keeps the language its job drafted in, through a letter language change, purge and follow-up', async () => {
+    const caseId = await givenAssignedCase(api, version);
+    const jobId = randomUUID();
+    await api.asPlatform((tx) =>
+      tx.insert(reviewCopilotDrafts).values({
+        id: randomUUID(),
+        tenant: 'psc',
+        caseId,
+        requestedBy: 'reviewer-a',
+        selectionHash: 'selection',
+        language: 'sw',
+        jobId,
+        status: 'ready',
+        ciphertext: 'sealed',
+        envelope: {} as never,
+        expiresAt: new Date(Date.now() + 3_600_000),
+      }),
+    );
+    const [drafted, written] = twoItems.items;
+    const body = {
+      items: [{ ...drafted, aiJobId: jobId }, written],
+      opening: 'Tume inakuomba ufafanue mambo yafuatayo.',
+      openingAiJobId: jobId,
+      language: 'sw' as const,
+    };
+    const created = await draft(caseId, body);
+    expect(created.statusCode, created.body).toBe(201);
+    const view = created.json<ClarificationView>();
+    expect(view.items.map((item) => item.aiLanguage)).toEqual(['sw', null]);
+    expect(view.openingAiLanguage).toBe('sw');
+
+    // The letter turns English and the draft's row goes: the parts still say Swahili.
+    await api.asPlatform((tx) => tx.delete(reviewCopilotDrafts));
+    const english = await api.send('PUT', `/v1/review/clarifications/${view.id}`, reviewerA, {
+      ...body,
+      language: 'en',
+    });
+    expect(english.statusCode, english.body).toBe(200);
+    const updated = english.json<ClarificationView>();
+    expect(
+      contractErrors(okResponse('/v1/review/clarifications/{clarificationId}', 'put'), updated),
+    ).toEqual([]);
+    expect(updated).toMatchObject({
+      language: 'en',
+      openingAiLanguage: 'sw',
+      items: [
+        { aiJobId: jobId, aiLanguage: 'sw' },
+        { aiJobId: null, aiLanguage: null },
+      ],
+    });
+
+    // Dropping the opening's job drops its language.
+    const reviewer = await api.send('PUT', `/v1/review/clarifications/${view.id}`, reviewerA, {
+      ...body,
+      openingAiJobId: null,
+    });
+    expect(reviewer.json<ClarificationView>().openingAiLanguage).toBeNull();
+
+    expect((await issue(view.id)).statusCode).toBe(200);
+    const followUp = await api.send(
+      'POST',
+      `/v1/review/clarifications/${view.id}/follow-up`,
+      reviewerA,
+    );
+    expect(followUp.statusCode, followUp.body).toBe(201);
+    expect(followUp.json<ClarificationView>().items[0]?.aiLanguage).toBe('sw');
   });
 
   it('ADR-007: a clarification that named AI-drafted text stays AI-assisted when an edit drops the job', async () => {

@@ -118,6 +118,7 @@ function clarification(
     followUpOf: null,
     opening: null,
     openingAiJobId: null,
+    openingAiLanguage: null,
     language: 'en',
     response: null,
     commission: COMMISSION,

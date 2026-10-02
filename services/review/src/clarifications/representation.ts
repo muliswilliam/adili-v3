@@ -39,6 +39,8 @@ export interface ClarificationItemView {
   text: string;
   /** The Draft with AI job that drafted the item; null when the reviewer wrote it. */
   aiJobId: string | null;
+  /** The language that job drafted in; null when the reviewer wrote it or it is not known. */
+  aiLanguage: LetterLanguage | null;
 }
 
 /** review.yaml `Clarification`. */
@@ -60,6 +62,8 @@ export interface ClarificationView {
   opening: string | null;
   /** The Draft with AI job that drafted the opening paragraph; null when the reviewer wrote it. */
   openingAiJobId: string | null;
+  /** The language that job drafted the opening in; null when not drafted or not known. */
+  openingAiLanguage: LetterLanguage | null;
   /** The letter's language (review.yaml `LetterLanguage`). */
   language: LetterLanguage;
   response: {
@@ -107,6 +111,7 @@ export function clarificationView(
     followUpOf: row.followUpOf,
     opening: row.opening,
     openingAiJobId: row.openingAiJobId,
+    openingAiLanguage: row.openingAiLanguage,
     language: row.language,
     response: response === null ? null : responseView(row.items, response),
   };
@@ -120,6 +125,7 @@ function itemView(item: ClarificationItem): ClarificationItemView {
     requirement: item.requirement,
     text: item.text,
     aiJobId: item.aiJobId ?? null,
+    aiLanguage: item.aiLanguage ?? null,
   };
 }
 

@@ -266,6 +266,7 @@ function clarificationView(
       requirement: item.requirement,
       text: item.text,
       aiJobId: item.aiJobId ?? null,
+      aiLanguage: item.aiLanguage ?? null,
     })),
     issuedAt: row.issuedAt?.toISOString() ?? null,
     dueAt: row.dueAt?.toISOString() ?? null,
@@ -289,6 +290,7 @@ function clarificationView(
     followUpOf: row.followUpOf,
     opening: row.opening,
     openingAiJobId: row.openingAiJobId,
+    openingAiLanguage: row.openingAiLanguage,
     language: row.language,
     response:
       response === undefined

@@ -279,6 +279,11 @@ export interface ClarificationItem {
    * content stays labelled); null or absent when the reviewer wrote it.
    */
   aiJobId?: string | null;
+  /**
+   * The language that job drafted in (`review_copilot_drafts.language`), recorded with it on
+   * save; null or absent when the reviewer wrote the item.
+   */
+  aiLanguage?: LetterLanguage | null;
 }
 
 /**
@@ -322,6 +327,8 @@ export const clarifications = pgTable(
     opening: text(),
     /** The Draft with AI job that drafted the opening paragraph; null when the reviewer wrote it. */
     openingAiJobId: uuid(),
+    /** The language that job drafted the opening in; null when the reviewer wrote it. */
+    openingAiLanguage: text({ enum: LETTER_LANGUAGES }),
     /**
      * Whether any save named AI-drafted text (ADR-007): kept once set, so an edit that leaves out
      * an item's or the opening's job never issues the letter unlabelled.
@@ -354,6 +361,10 @@ export const clarifications = pgTable(
       sql`${table.status} in (${inList(CLARIFICATION_STATUSES)})`,
     ),
     check('clarifications_language_check', sql`${table.language} in (${inList(LETTER_LANGUAGES)})`),
+    check(
+      'clarifications_opening_ai_language_check',
+      sql`${table.openingAiLanguage} in (${inList(LETTER_LANGUAGES)})`,
+    ),
   ],
 );
 

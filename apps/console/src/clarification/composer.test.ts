@@ -172,6 +172,35 @@ describe('Draft with AI insertion (spec 07c FE-3)', () => {
     expect(filled().items.map((item) => foreignLanguageOf(item, 'sw'))).toEqual([null]);
   });
 
+  it('opens a saved draft with the language each drafted part was drafted in, from the service (Q36)', () => {
+    const state = draftComposer(
+      {
+        items: [
+          {
+            sectionKey: 'statement:officer',
+            personKey: 'officer',
+            itemId: MOCK_ITEM_IDS.plot,
+            requirement: 'explain-discrepancy',
+            text: 'Explain the change.',
+            aiJobId: JOB,
+            aiLanguage: 'en',
+          },
+          { requirement: 'correct', text: 'Correct it.' },
+        ],
+        opening: 'Thank you for your declaration.',
+        openingAiJobId: JOB,
+        openingAiLanguage: 'en',
+        language: 'sw',
+      },
+      targets,
+    );
+    expect(state.items.map((item) => foreignLanguageOf(item, state.language))).toEqual([
+      'en',
+      null,
+    ]);
+    expect(state.opening && foreignLanguageOf(state.opening, state.language)).toBe('en');
+  });
+
   it('starts a letter in English, takes the chosen language and sends it (S7)', () => {
     expect(emptyComposer().language).toBe('en');
     const state = composerReducer(filled(), { type: 'language', language: 'sw' });

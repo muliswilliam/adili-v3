@@ -542,12 +542,26 @@ const store = new Map<string, StoredCopilot>();
 interface StoredDraft {
   caseId: string;
   requester: string;
+  /** The language it was asked in, which a clarification's drafted parts record. */
+  language: 'en' | 'sw';
   readyAt: number;
   draft: Record<string, unknown> & { status: 'pending' | 'ready' | 'failed' };
   ready: Record<string, unknown>;
 }
 
 const drafts = new Map<string, StoredDraft>();
+
+/**
+ * The language a Draft with AI job drafted in, as the review service records it on a saved
+ * item or opening (`aiLanguage`, `openingAiLanguage`); null for no such job.
+ */
+export function mockDraftLanguage(jobId: string | null | undefined): 'en' | 'sw' | null {
+  if (!jobId) return null;
+  for (const { draft, language } of drafts.values()) {
+    if (draft.jobId === jobId) return language;
+  }
+  return null;
+}
 /** Drafts by `subject|case|Idempotency-Key`, so a retry answers the same draft. */
 const draftKeys = new Map<string, string>();
 let delayOnFirstRead: { caseId: string; ms: number } | null = null;
@@ -850,6 +864,7 @@ async function requestDraft(
   const kept: StoredDraft = {
     caseId,
     requester: caller.subject,
+    language,
     readyAt: now + MOCK_DRAFT_DELAY_MS - MOCK_DRAFT_WAIT_MS,
     draft,
     ready,

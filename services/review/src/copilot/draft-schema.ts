@@ -2,7 +2,7 @@ import type { FieldEnvelope } from '@adili/data-access';
 import { sql } from 'drizzle-orm';
 import { check, index, jsonb, pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-core';
 
-import { reviewCases } from '../cases/schema.js';
+import { LETTER_LANGUAGES, reviewCases } from '../cases/schema.js';
 import { inList } from '../db/sql-list.js';
 
 /** review.yaml `CopilotDraft.status`. */
@@ -37,6 +37,11 @@ export const reviewCopilotDrafts = pgTable(
      * selection is refused (`idempotency-key-reused`), as no answer is stored for replay.
      */
     selectionHash: text().notNull(),
+    /**
+     * The language the draft was asked in (review.yaml `LetterLanguage`): a clarification's items
+     * and opening from its job record it, so a letter that changed language since can say so.
+     */
+    language: text({ enum: LETTER_LANGUAGES }).notNull().default('en'),
     /** Null when the gateway refused the request: no job was created. */
     jobId: uuid(),
     status: text({ enum: COPILOT_DRAFT_STATUSES }).notNull(),
@@ -57,6 +62,10 @@ export const reviewCopilotDrafts = pgTable(
     check(
       'review_copilot_drafts_status_check',
       sql`${table.status} in (${inList(COPILOT_DRAFT_STATUSES)})`,
+    ),
+    check(
+      'review_copilot_drafts_language_check',
+      sql`${table.language} in (${inList(LETTER_LANGUAGES)})`,
     ),
     check(
       'review_copilot_drafts_content_check',

@@ -229,6 +229,7 @@ function ComposerBody({
           items: draft.items,
           opening: draft.opening,
           openingAiJobId: draft.openingAiJobId,
+          openingAiLanguage: draft.openingAiLanguage,
           language: draft.language,
         },
         targets,

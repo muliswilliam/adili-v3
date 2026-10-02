@@ -34,7 +34,10 @@ export interface ComposerItem {
   aiJobId: string | null;
   /** An inserted item the reviewer has changed since ("AI draft, edited"). */
   edited: boolean;
-  /** The language Draft with AI drafted it in, in this sitting; null when not known. */
+  /**
+   * The language Draft with AI drafted it in: in this sitting, or as saved with its job
+   * (review.yaml `aiLanguage`); null for the reviewer's own or when not known.
+   */
   language: DraftLanguage | null;
 }
 
@@ -48,7 +51,10 @@ export interface ComposerOpening {
   /** The Draft with AI job that drafted it (review.yaml `ClarificationInput.openingAiJobId`). */
   aiJobId: string | null;
   edited: boolean;
-  /** The language Draft with AI drafted it in, in this sitting; null when not known. */
+  /**
+   * The language Draft with AI drafted it in: in this sitting, or as saved with its job
+   * (review.yaml `aiLanguage`); null for the reviewer's own or when not known.
+   */
   language: DraftLanguage | null;
 }
 
@@ -71,6 +77,8 @@ export interface ComposerSeed extends Partial<TargetRef> {
   label?: string | null;
   /** A saved item's drafting job; a drafted one's comes from `ComposerDraft.jobId`. */
   aiJobId?: string | null;
+  /** The language a saved item's job drafted in (review.yaml `aiLanguage`). */
+  aiLanguage?: DraftLanguage | null;
 }
 
 /** What Draft with AI returns (review.yaml `CopilotDraft`), or seeds from elsewhere. */
@@ -137,7 +145,7 @@ function seeded(
     ai,
     aiJobId: seed.aiJobId ?? jobId,
     edited: false,
-    language,
+    language: seed.aiLanguage ?? language,
   }));
   return { ...state, items: [...state.items, ...items], next };
 }
@@ -153,11 +161,13 @@ export function draftComposer(
     items,
     opening,
     openingAiJobId = null,
+    openingAiLanguage = null,
     language = DEFAULT_DRAFT_LANGUAGE,
   }: {
     items: readonly ComposerSeed[];
     opening: string | null;
     openingAiJobId?: string | null;
+    openingAiLanguage?: DraftLanguage | null;
     language?: DraftLanguage;
   },
   targets: readonly ClarificationTarget[],
@@ -166,7 +176,13 @@ export function draftComposer(
     {
       items: [],
       opening: opening
-        ? { text: opening, ai: null, aiJobId: openingAiJobId, edited: false, language: null }
+        ? {
+            text: opening,
+            ai: null,
+            aiJobId: openingAiJobId,
+            edited: false,
+            language: openingAiLanguage,
+          }
         : null,
       language,
       next: 1,

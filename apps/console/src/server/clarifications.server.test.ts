@@ -197,7 +197,7 @@ describe('issueDraft (S12)', () => {
     if (!issued.ok) throw new Error(JSON.stringify(issued.error));
     expect(issued.data.status).toBe('issued');
     expect(issued.data.reference).toMatch(/^CLR-TSC-2026-\d{7}-[0-9A-Z]$/);
-    expect(issued.data.items).toEqual([PLOT_ITEM]);
+    expect(issued.data.items).toEqual([{ ...PLOT_ITEM, aiLanguage: null }]);
     expect(issued.data.letter?.status).toBe('pending');
     const { issuedAt, dueAt } = issued.data;
     expect(Date.parse(dueAt ?? '') - Date.parse(issuedAt ?? '')).toBe(30 * 86_400_000);

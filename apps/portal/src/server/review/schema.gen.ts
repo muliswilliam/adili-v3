@@ -1403,6 +1403,8 @@ export interface components {
             items: (components["schemas"]["ClarificationItemInput"] & {
                 /** @description Human label of the target (e.g. "Assets · Plot KSM/123 · Grace Otieno") */
                 label?: string;
+                /** @description The language the item's Draft with AI job (`aiJobId`) drafted in, recorded on save; it may differ from the letter's `language` when that changed after. Null when the reviewer wrote the item. */
+                aiLanguage?: components["schemas"]["LetterLanguage"] | null;
             })[];
             /** Format: date-time */
             issuedAt: string | null;
@@ -1430,6 +1432,8 @@ export interface components {
              * @description The Draft with AI job that drafted the opening paragraph; null when written by the reviewer
              */
             openingAiJobId: string | null;
+            /** @description The language the opening's Draft with AI job drafted in; it may differ from the letter's `language` when that changed after. Null when written by the reviewer. */
+            openingAiLanguage: components["schemas"]["LetterLanguage"] | null;
             language: components["schemas"]["LetterLanguage"];
             response: {
                 items: {
