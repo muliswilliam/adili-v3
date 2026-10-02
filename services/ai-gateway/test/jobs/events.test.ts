@@ -19,6 +19,7 @@ const job: Job = {
   reason: null,
   provider: 'replay',
   model: 'claude-opus-5-5',
+  params: {},
   output: null,
   outputHash: 'output',
   outputPurgedAt: null,

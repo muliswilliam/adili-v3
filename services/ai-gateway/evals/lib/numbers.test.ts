@@ -57,6 +57,12 @@ describe('foreignNumbers', () => {
     expect(foreignNumbers('Ongezeko la asilimia 25.', input)).toEqual(['25']);
   });
 
+  it('reads an item context value in cents as shillings', () => {
+    expect(foreignNumbers('A balance of KES 1,290,000.', { valueKesCents: 129_000_000 })).toEqual(
+      [],
+    );
+  });
+
   it('accepts a signed change written without its sign', () => {
     expect(foreignNumbers('The loan fell by 15%.', { changes: [{ percent: -15 }] })).toEqual([]);
     expect(foreignNumbers('A repayment of KES 5,000.', { change: { kesCents: -500_000 } })).toEqual(

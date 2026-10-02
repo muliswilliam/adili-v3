@@ -26,6 +26,7 @@ import {
   Home01Icon,
   Search01Icon,
   Settings01Icon,
+  SparklesIcon,
   TaskDone01Icon,
   UserGroupIcon,
 } from '@hugeicons/core-free-icons';
@@ -183,6 +184,7 @@ const WORKSPACE_ICONS: Record<string, IconProps['icon']> = {
   compliance: FileChartColumnIcon,
   audit: Search01Icon,
   support: CustomerSupportIcon,
+  'ai-policy': SparklesIcon,
   platform: Settings01Icon,
 };
 

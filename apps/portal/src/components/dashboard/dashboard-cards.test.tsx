@@ -4,8 +4,10 @@ import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import type { ReactNode } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 
+import type { MyClarificationsLoad } from '../../server/clarifications';
 import type { DeclarantAccount, DeclarantAccountResult } from '../../server/declarant.server';
 import type { DeclarationListResult } from '../../server/declarations.server';
+import { mockClarification, MOCK_CLARIFICATION_IDS } from '../../server/review/mock.server';
 import type { Viewer } from '../../server/viewer';
 import { DashboardCards } from './dashboard-cards';
 
@@ -34,6 +36,7 @@ const account: DeclarantAccount = {
 function renderCards(
   declarant: DeclarantAccountResult,
   declarations: Promise<DeclarationListResult> | null = null,
+  clarifications: Promise<MyClarificationsLoad> | null = null,
 ) {
   const viewer: Viewer = {
     user: { name: 'Mwangi Kamau', username: 'OFR-0000312-7', email: 'mwangi.kamau@tsc.go.ke' },
@@ -48,6 +51,7 @@ function renderCards(
       <DashboardCards
         viewer={viewer}
         declarations={declarations}
+        clarifications={clarifications}
         obligations={<section>Your obligations</section>}
       />
     </ToastProvider>,
@@ -166,5 +170,45 @@ describe('DashboardCards', () => {
 
     expect(screen.queryByLabelText('Loading your declarations')).toBeNull();
     expect(screen.getByText('No declarations yet')).toBeTruthy();
+  });
+
+  describe('Clarifications card', () => {
+    const NOW = '2026-09-28T09:00:00.000Z';
+    const noDeclarations = Promise.resolve<DeclarationListResult>({
+      status: 'ok',
+      declarations: [],
+    });
+
+    async function renderWith(load: MyClarificationsLoad) {
+      const clarifications = Promise.resolve(load);
+      await act(async () => {
+        renderCards({ status: 'onboarded', account }, noDeclarations, clarifications);
+        await clarifications;
+      });
+    }
+
+    it('lists the clarifications that need a response, with View all', async () => {
+      const open = mockClarification(MOCK_CLARIFICATION_IDS.open);
+      const resolved = mockClarification(MOCK_CLARIFICATION_IDS.resolved);
+      if (!open || !resolved) throw new Error('fixtures');
+      await renderWith({ status: 'ok', clarifications: [open, resolved], now: NOW });
+
+      const card = screen.getByRole('region', { name: 'Clarifications' });
+      expect(within(card).getByRole('link', { name: 'View all clarifications' })).toBeTruthy();
+      expect(within(card).getByText('2 points on your initial declaration')).toBeTruthy();
+      expect(within(card).queryByText('Resolved')).toBeNull();
+    });
+
+    it('is not there when there are none', async () => {
+      await renderWith({ status: 'ok', clarifications: [], now: NOW });
+      expect(screen.queryByRole('region', { name: 'Clarifications' })).toBeNull();
+      expect(screen.getByText('No declarations yet')).toBeTruthy();
+    });
+
+    it('is not there when the list could not load', async () => {
+      await renderWith({ status: 'unavailable', now: NOW });
+      expect(screen.queryByRole('region', { name: 'Clarifications' })).toBeNull();
+      expect(screen.getByText('Your obligations')).toBeTruthy();
+    });
   });
 });

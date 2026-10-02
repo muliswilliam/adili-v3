@@ -14,6 +14,7 @@ import {
 } from '@adili/temporal';
 
 import { OPENBAO } from './cipher.module.js';
+import { AiUsageModule } from './ai-usage/ai-usage.module.js';
 import { ComplianceReportsModule } from './compliance-reports/compliance-reports.module.js';
 import { config, SERVICE_NAME } from './config.js';
 import { schema } from './db/schema.js';
@@ -49,6 +50,7 @@ import { ReportingWorkerModule } from './worker.module.js';
       namespace: config.TEMPORAL_NAMESPACE,
     }),
     ProjectionsModule,
+    AiUsageModule,
     ComplianceReportsModule,
     NationalReportsModule,
     ReferralsModule,

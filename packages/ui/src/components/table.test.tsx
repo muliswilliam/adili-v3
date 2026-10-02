@@ -50,6 +50,24 @@ describe('Table', () => {
     ).toBe('row');
   });
 
+  it('states each part’s role, so a row restyled as a card on phones stays a table row (Q32)', () => {
+    render(<CommissionsTable />);
+
+    const table = screen.getByRole('table', { name: 'Commissions' });
+    expect(table.getAttribute('role')).toBe('table');
+    for (const group of table.querySelectorAll('thead, tbody')) {
+      expect(group.getAttribute('role')).toBe('rowgroup');
+    }
+    for (const row of table.querySelectorAll('tr')) expect(row.getAttribute('role')).toBe('row');
+    for (const cell of table.querySelectorAll('td')) expect(cell.getAttribute('role')).toBe('cell');
+    expect(screen.getByRole('columnheader', { name: 'Name' }).getAttribute('role')).toBe(
+      'columnheader',
+    );
+    expect(
+      screen.getByRole('rowheader', { name: 'Public Service Commission' }).getAttribute('role'),
+    ).toBe('rowheader');
+  });
+
   it('renders the row link as a single keyboard-reachable link', () => {
     render(<CommissionsTable />);
 

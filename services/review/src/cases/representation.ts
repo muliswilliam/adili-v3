@@ -131,7 +131,10 @@ export interface ClarificationView {
   caseId: string;
   reference: string | null;
   status: ClarificationStatus;
-  items: Omit<ClarificationItem, 'id'>[];
+  items: (Omit<ClarificationItem, 'id' | 'aiJobId' | 'aiLanguage'> & {
+    aiJobId: string | null;
+    aiLanguage: 'en' | 'sw' | null;
+  })[];
   issuedAt: string | null;
   dueAt: string | null;
   respondedAt: string | null;
@@ -144,6 +147,14 @@ export interface ClarificationView {
     status: 'pending' | 'issued' | 'revoked';
   } | null;
   followUpOf: string | null;
+  /** The letter's opening paragraph, before the items; null when it has none. */
+  opening: string | null;
+  /** The Draft with AI job that drafted the opening paragraph; null when the reviewer wrote it. */
+  openingAiJobId: string | null;
+  /** The language that job drafted the opening in; null when not drafted or not known. */
+  openingAiLanguage: 'en' | 'sw' | null;
+  /** The letter's language (review.yaml `LetterLanguage`). */
+  language: 'en' | 'sw';
   response: {
     items: {
       index: number;
@@ -161,6 +172,8 @@ export interface CaseVersionView {
   submittedAt: string;
   late: boolean;
   amendment: boolean;
+  /** No earlier declaration on Adili to compare it with when it was processed. */
+  firstOnAdili: boolean;
 }
 
 /** review.yaml `CaseDetail`; `document` is null when declarations could not be read. */

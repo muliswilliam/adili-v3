@@ -34,6 +34,19 @@ describe('IconTile', () => {
     expect(className).toContain('bg-art-tile');
   });
 
+  it('comes in a 30px and a 40px size too', () => {
+    render(
+      <>
+        <IconTile data-testid="xs" size="xs" />
+        <IconTile data-testid="lg" size="lg" />
+      </>,
+    );
+
+    expect(screen.getByTestId('xs').className).toContain('size-[30px]');
+    expect(screen.getByTestId('lg').className).toContain('size-10');
+    expect(screen.getByTestId('lg').className).toContain('rounded-xl');
+  });
+
   it('lets the caller merge layout classes', () => {
     render(<IconTile data-testid="tile" className="mb-2" />);
 

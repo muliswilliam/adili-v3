@@ -16,6 +16,15 @@ export {
   type AttachmentStatus,
   formatFileSize,
 } from './components/attachment-list';
+export {
+  type Assignee,
+  AssigneeAvatar,
+  type AssigneeAvatarProps,
+  AssigneeChip,
+  type AssigneeChipMessages,
+  type AssigneeChipProps,
+  initialsOf,
+} from './components/assignee-chip';
 export { Badge, type BadgeProps, badgeVariants } from './components/badge';
 export { Button, type ButtonProps, buttonVariants } from './components/button';
 export {
@@ -129,6 +138,18 @@ export {
   DescriptionList,
 } from './components/description-list';
 export {
+  DIFF_HIGHLIGHT_PERCENT,
+  diffDelta,
+  type DiffGroup,
+  type DiffKind,
+  diffKind,
+  diffPercent,
+  type DiffRow,
+  DiffTable,
+  type DiffTableMessages,
+  type DiffTableProps,
+} from './components/diff-table';
+export {
   Dialog,
   DialogBody,
   DialogClose,
@@ -205,9 +226,18 @@ export {
   MenuTrigger,
 } from './components/menu';
 export { MoneyInput, type MoneyInputProps } from './components/money-input';
+export { type CaseNote, NoteList, type NoteListProps } from './components/note-list';
 export { OtpInput, type OtpInputProps } from './components/otp-input';
 export { OfficerReference } from './components/officer-reference';
 export { PercentInput, type PercentInputProps } from './components/percent-input';
+export {
+  PRIORITY_BANDS,
+  PRIORITY_NOTE,
+  type PriorityBand,
+  PriorityBadge,
+  type PriorityBadgeMessages,
+  type PriorityBadgeProps,
+} from './components/priority-badge';
 export { ProgressBar, type ProgressBarProps } from './components/progress-bar';
 export { QrCode, qrCodePath, type QrCodeProps } from './components/qr-code';
 export {
@@ -277,7 +307,7 @@ export {
   type SegmentedChoiceOption,
   type SegmentedChoiceProps,
 } from './components/segmented-choice';
-export { Select, SelectItem, type SelectProps } from './components/select';
+export { Select, SelectGroup, SelectItem, type SelectProps } from './components/select';
 export { SiteFooter } from './components/site-footer';
 export { SiteHeader, type SiteHeaderProps } from './components/site-header';
 export { Skeleton } from './components/skeleton';
@@ -299,6 +329,7 @@ export {
   type SourceRefTarget,
   sourceRefTarget,
 } from './components/source-ref-link';
+export { SplitPane, type SplitPaneProps } from './components/split-pane';
 export { Spinner } from './components/spinner';
 export {
   StatTile,
@@ -359,6 +390,12 @@ export {
   type TableRowLinkProps,
 } from './components/table';
 export { Tabs, TabsContent, TabsCount, TabsList, TabsTrigger } from './components/tabs';
+export {
+  Timeline,
+  type TimelineEvent,
+  type TimelineMessages,
+  type TimelineProps,
+} from './components/timeline';
 export { Textarea } from './components/textarea';
 export { type ToastOptions, ToastProvider, type ToastUrgency, useToast } from './components/toast';
 export { Tooltip, type TooltipProps, TooltipProvider } from './components/tooltip';
@@ -448,4 +485,4 @@ export {
   parseMoney,
   shapeMoneyText,
 } from './lib/money';
-export { COUNTIES, COUNTRIES } from './lib/places';
+export { COUNTIES, COUNTRIES, countryName, countyName } from './lib/places';

@@ -1,7 +1,7 @@
 /**
  * Verdict language: wording that states or recommends a compliance determination, an
  * administrative action or a referral (CONTEXT.md). AI output describes and points at things to
- * check; a named officer decides (ADR-007, Agenda Track 6). Accusatory tone ("concealed",
+ * check; a named reviewer decides (ADR-007, Agenda Track 6). Accusatory tone ("concealed",
  * "suspicious") is a quality concern, not this check.
  *
  * The Swahili list is a draft for a Swahili speaker to review.

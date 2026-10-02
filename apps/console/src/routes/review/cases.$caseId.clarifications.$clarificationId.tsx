@@ -1,12 +1,14 @@
 import { Button, EmptyState, Icon } from '@adili/ui';
 import { Search01Icon } from '@hugeicons/core-free-icons';
 import { createFileRoute, Link, notFound } from '@tanstack/react-router';
+import { z } from 'zod';
 
 import { LoadError } from '../../components/load-error';
 import { Page, PageHead } from '../../components/page';
 import { ClarificationDetailView } from '../../components/review/clarification-detail';
 import { signInRedirect } from '../../components/sign-in-redirect';
 import { getClarificationDetail } from '../../server/clarifications';
+import { getCommission } from '../../server/commissions';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 
@@ -20,19 +22,31 @@ function crumbOf(loaderData: unknown): string | null {
 
 /** A clarification on a review case, with its response and actions (spec 07a FE-4, S15). */
 export const Route = createFileRoute('/review/cases/$caseId/clarifications/$clarificationId')({
+  validateSearch: z.object({ compose: z.boolean().optional() }),
   loader: async ({ params, location, context }) => {
-    if (!context.workspace) return null;
+    // A case is missing to anyone outside review (S18); the layout explains a failed access read.
+    if (!context.viewer.directory.ok) return null;
+    if (!context.workspace) throw notFound();
     if (!UUID.test(params.caseId) || !UUID.test(params.clarificationId)) throw notFound();
-    const result = await getClarificationDetail({
-      data: { caseId: params.caseId, clarificationId: params.clarificationId },
-    });
+    const { tenant } = context.viewer.directory.principal;
+    const [result, commission] = await Promise.all([
+      getClarificationDetail({
+        data: { caseId: params.caseId, clarificationId: params.clarificationId },
+      }),
+      // The letter's letterhead; the issuer code stands in when the directory does not answer.
+      tenant ? getCommission({ data: { slug: tenant } }).catch(() => null) : null,
+    ]);
     if (!result.ok && result.error.kind === 'unauthenticated') throw signInRedirect(location.href);
     if (!result.ok && result.error.kind === 'problem') {
       // Another Commission's case or clarification reads as missing.
       const { status } = result.error.problem;
       if (status === 404 || status === 403) throw notFound();
     }
-    return result;
+    const letterhead = {
+      name: commission?.ok ? commission.data.name : (tenant ?? '').toUpperCase(),
+      issuerCode: commission?.ok ? commission.data.issuerCode : (tenant ?? '').toUpperCase(),
+    };
+    return { ...result, commission: letterhead };
   },
   staticData: { crumb: ({ loaderData }) => crumbOf(loaderData) },
   head: () => ({ meta: [{ title: 'Clarification · Adili Online Console' }] }),
@@ -56,6 +70,7 @@ export const Route = createFileRoute('/review/cases/$caseId/clarifications/$clar
 function ClarificationRoute() {
   const load = Route.useLoaderData();
   const { supervisor } = Route.useRouteContext();
+  const { compose } = Route.useSearch();
   if (!load) return null;
   if (!load.ok) {
     return (
@@ -75,6 +90,8 @@ function ClarificationRoute() {
       detail={load.data}
       now={load.now}
       supervisor={supervisor}
+      commission={load.commission}
+      compose={compose === true}
     />
   );
 }

@@ -1,28 +1,35 @@
 import { appendFile } from 'node:fs/promises';
 
 import type { ModelProvider, StructuredRequest } from '../../src/providers/port.js';
-import { providerEnvSchema } from '../../src/providers/provider-env.js';
+import { DEFAULT_AI_MODEL, providerEnvSchema } from '../../src/providers/provider-env.js';
 import { createModelProvider } from '../../src/providers/providers.module.js';
-import { buildProviderRequest } from '../../src/tasks/provider-request.js';
+import { type PreparedPrompt, preparePrompt } from '../../src/policy/prompt.js';
 import type { TaskDefinition } from '../../src/tasks/task.js';
 import type { CaseResult, SoftResult } from './score.js';
 
 /**
- * The provider request a job for this golden input makes: the task's current prompt, the input
- * as the task parses it. Fixtures are keyed by it, so the runner and the prune script share it.
+ * The prompt a job for this golden input sends: the input as the task parses it, minimised and
+ * wrapped as untrusted with the gateway rules (`preparePrompt`, as the job executor builds it).
+ * Fixtures are keyed by its request, so the runner and the prune script share it.
  */
+export function evalPrompt(task: TaskDefinition, input: unknown, model: string): PreparedPrompt {
+  return preparePrompt(task, task.currentPromptVersion, task.input.parse(input), model);
+}
+
+/** The provider request a job for this golden input makes. */
 export function evalRequest(
   task: TaskDefinition,
   input: unknown,
   model: string,
 ): StructuredRequest {
-  return buildProviderRequest(task, task.currentPromptVersion, task.input.parse(input), model);
+  return evalPrompt(task, input, model).request;
 }
 
 /**
- * Runs one golden input through the task layer as a job would: the provider request the gateway
- * builds, the provider (replay in CI), the task's output schema. Gateway policy (gate,
- * minimisation, audit) is the job path's concern and tested there.
+ * Runs one golden input through the task layer as a job would: the request the gateway sends,
+ * the provider (replay in CI), the task's output schema, then the identifiers restored and the
+ * schema checked again. The output is what a job would store, minus its label. The gate, budget
+ * and audit are the job path's concern and tested there; the refs check is a hard scorer.
  */
 export async function runTask(
   task: TaskDefinition,
@@ -30,18 +37,20 @@ export async function runTask(
   provider: ModelProvider,
   model: string,
 ): Promise<unknown> {
-  const result = await provider.generateStructured(evalRequest(task, input, model));
+  const prompt = evalPrompt(task, input, model);
+  const result = await provider.generateStructured(prompt.request);
   if (result.status !== 'completed') {
     throw new Error(`${task.name}: the provider returned ${result.status}, not an output`);
   }
-  return task.output.parse(result.output);
+  return task.output.parse(prompt.restore(task.output.parse(result.output)));
 }
 
 /**
- * The model the fixtures are recorded with. Fixtures are keyed by model, so evals pin it rather
- * than follow the service default; `AI_MODEL` overrides it to record and compare another model.
+ * The model the fixtures are recorded with: the service default, which production runs.
+ * Fixtures are keyed by model, so changing the default misses them until they are recorded
+ * again; `AI_MODEL` overrides it to record and compare another model.
  */
-export const EVAL_MODEL = 'claude-sonnet-5';
+export const EVAL_MODEL = DEFAULT_AI_MODEL;
 
 export function evalModel(): string {
   return process.env.AI_MODEL ?? EVAL_MODEL;

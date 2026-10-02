@@ -106,6 +106,41 @@
       "when": 1790872477746,
       "tag": "0014_case_designation",
       "breakpoints": true
+    },
+    {
+      "idx": 15,
+      "version": "7",
+      "when": 1790944840219,
+      "tag": "0015_copilot",
+      "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1790948808883,
+      "tag": "0016_copilot_not_enabled_idx",
+      "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1790953981226,
+      "tag": "0017_version_first_on_adili",
+      "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1790956808339,
+      "tag": "0018_clarification_language",
+      "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1790959505048,
+      "tag": "0019_draft_language",
+      "breakpoints": true
     }
   ]
 }

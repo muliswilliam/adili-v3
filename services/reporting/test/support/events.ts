@@ -19,7 +19,9 @@ export function envelope(
   const source =
     type.startsWith('obligation.') || type.startsWith('declaration.')
       ? 'adili/declarations'
-      : 'adili/review';
+      : type.startsWith('ai.')
+        ? 'adili/ai-gateway'
+        : 'adili/review';
   return {
     specversion: '1.0',
     id: uuidv7(),
@@ -223,4 +225,49 @@ function addDays(date: string, days: number): string {
   const at = new Date(`${date}T00:00:00.000Z`);
   at.setUTCDate(at.getUTCDate() + days);
   return at.toISOString().slice(0, 10);
+}
+
+/** `review.copilot.updated.v1` (review spec 07c): the copilot of a case changed status. */
+export function copilotUpdated(
+  tenant: string,
+  fixture: { caseId: string; status: string; time: string },
+): EventEnvelope {
+  return envelope(
+    'review.copilot.updated.v1',
+    tenant,
+    fixture.caseId,
+    { caseId: fixture.caseId, status: fixture.status, forVersionId: randomUUID() },
+    fixture.time,
+  );
+}
+
+/** `ai.feedback.recorded.v1` (ai-gateway spec 07c): a reviewer rated an output or a block of it. */
+export function aiFeedbackRecorded(
+  tenant: string,
+  fixture: {
+    feedbackId: string;
+    jobId?: string;
+    task?: string;
+    rating: 'helpful' | 'not-helpful';
+    reason?: string | null;
+    block?: string | null;
+    recordedAt: string;
+  },
+): EventEnvelope {
+  return envelope(
+    'ai.feedback.recorded.v1',
+    tenant,
+    fixture.feedbackId,
+    {
+      feedbackId: fixture.feedbackId,
+      jobId: fixture.jobId ?? randomUUID(),
+      task: fixture.task ?? 'summarize-declaration',
+      tenant,
+      rating: fixture.rating,
+      reason: fixture.reason ?? null,
+      block: fixture.block ?? null,
+      recordedAt: fixture.recordedAt,
+    },
+    fixture.recordedAt,
+  );
 }

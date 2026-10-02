@@ -87,7 +87,10 @@ describe('review case: assignment, detail, notes and flags', () => {
   ];
 
   /** A submitted version held by the fake declarations service and its case; returns both. */
-  async function givenCase(tenant = 'psc'): Promise<{ caseId: string; version: StoredVersion }> {
+  async function givenCase(
+    tenant = 'psc',
+    raised: Flag[] = flags,
+  ): Promise<{ caseId: string; version: StoredVersion }> {
     const version = submittedVersion({
       tenant,
       submittedAt: '2027-12-15T09:30:00.000Z',
@@ -138,7 +141,7 @@ describe('review case: assignment, detail, notes and flags', () => {
         late: version.late,
         dueDate: version.dueDate,
       },
-      flags,
+      flags: raised,
     });
     // Processing read the version as the system; the tests count the reviewers' reads.
     api.declarations.reads.length = 0;
@@ -358,6 +361,7 @@ describe('review case: assignment, detail, notes and flags', () => {
               submittedAt: version.submittedAt,
               late: false,
               amendment: false,
+              firstOnAdili: false,
             },
           ],
           notes: [{ text: 'Checked the title', author: { subject: 'reviewer-a' } }],
@@ -460,7 +464,18 @@ describe('review case: assignment, detail, notes and flags', () => {
     });
 
     it('S9: lists every version the case processed and pulls only the current one', async () => {
-      const { caseId, version } = await givenCase();
+      // A first declaration on Adili: the rules found nothing to compare it with.
+      const { caseId, version } = await givenCase('psc', [
+        ...flags,
+        {
+          ruleId: 'no-previous-version',
+          severity: 'info',
+          title: 'First declaration on Adili',
+          indicator: 'An indicator',
+          evidence: {},
+          itemRefs: [],
+        },
+      ]);
       const amended: StoredVersion = {
         ...version,
         versionId: randomUUID(),
@@ -495,13 +510,21 @@ describe('review case: assignment, detail, notes and flags', () => {
       expect(response.statusCode, response.body).toBe(200);
       expect(response.json()).toMatchObject({
         versions: [
-          { versionId: version.versionId, version: 1, late: false, amendment: false },
+          // Version 1 stays a first declaration on Adili though the amendment replaced its flags.
+          {
+            versionId: version.versionId,
+            version: 1,
+            late: false,
+            amendment: false,
+            firstOnAdili: true,
+          },
           {
             versionId: amended.versionId,
             version: 2,
             submittedAt: '2028-01-20T10:00:00.000Z',
             late: true,
             amendment: true,
+            firstOnAdili: false,
           },
         ],
       });
