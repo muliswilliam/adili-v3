@@ -51,19 +51,28 @@ describe('composer state', () => {
     expect(state.items.map((item) => item.key)).toEqual(['item-2']);
   });
 
-  it('opens a saved draft with its items on their targets', () => {
+  it('opens a saved draft with its items on their targets and its opening paragraph', () => {
     const state = draftComposer(
-      [
-        {
-          sectionKey: 'statement:officer',
-          personKey: 'officer',
-          itemId: MOCK_ITEM_IDS.plot,
-          requirement: 'explain-discrepancy',
-          text: 'Explain the change.',
-        },
-      ],
+      {
+        items: [
+          {
+            sectionKey: 'statement:officer',
+            personKey: 'officer',
+            itemId: MOCK_ITEM_IDS.plot,
+            requirement: 'explain-discrepancy',
+            text: 'Explain the change.',
+          },
+        ],
+        opening: 'Thank you for your declaration.',
+      },
       targets,
     );
+    // Saved, it is the reviewer's text: no AI label any more.
+    expect(state.opening).toEqual({
+      text: 'Thank you for your declaration.',
+      ai: null,
+      edited: false,
+    });
     expect(state.items).toEqual([
       {
         key: 'item-1',
@@ -77,7 +86,10 @@ describe('composer state', () => {
   });
 
   it('opens a draft without items empty, so the reviewer adds one', () => {
-    expect(draftComposer([], targets).items).toEqual([]);
+    expect(draftComposer({ items: [], opening: null }, targets)).toMatchObject({
+      items: [],
+      opening: null,
+    });
   });
 });
 
@@ -139,6 +151,22 @@ describe('Draft with AI insertion (spec 07c FE-3)', () => {
     expect(filled().items[0]?.edited).toBe(false);
   });
 
+  it('replaces an untouched drafted opening, but never one the reviewer wrote or saved', () => {
+    const again = { ...draft, opening: 'Asante kwa tamko lako.' };
+    let state = composerReducer(emptyComposer(), { type: 'insert', draft, targets });
+    state = composerReducer(state, { type: 'insert', draft: again, targets });
+    expect(state.opening?.text).toBe('Asante kwa tamko lako.');
+
+    state = composerReducer(state, { type: 'opening', text: 'Dear officer,' });
+    state = composerReducer(state, { type: 'insert', draft, targets });
+    expect(state.opening).toEqual({ text: 'Dear officer,', ai: AI, edited: true });
+
+    const saved = draftComposer({ items: [], opening: 'Saved opening.' }, targets);
+    expect(composerReducer(saved, { type: 'insert', draft, targets }).opening?.text).toBe(
+      'Saved opening.',
+    );
+  });
+
   it('discards the opening paragraph', () => {
     const state = composerReducer(emptyComposer(), { type: 'insert', draft, targets });
     expect(composerReducer(state, { type: 'discard-opening' }).opening).toBeNull();
@@ -157,7 +185,12 @@ describe('Draft with AI insertion (spec 07c FE-3)', () => {
 describe('composerProblems', () => {
   it('requires at least one item to issue (S19)', () => {
     const none = composerReducer(emptyComposer(), { type: 'remove', key: 'item-1' });
-    expect(composerProblems(none, 'issue')).toEqual({ none: true, items: {}, any: true });
+    expect(composerProblems(none, 'issue')).toEqual({
+      none: true,
+      opening: null,
+      items: {},
+      any: true,
+    });
     expect(composerProblems(none, 'save').any).toBe(false);
   });
 
@@ -167,6 +200,7 @@ describe('composerProblems', () => {
     state = composerReducer(state, { type: 'requirement', key: 'item-1', requirement: null });
     expect(composerProblems(state, 'issue')).toEqual({
       none: false,
+      opening: null,
       items: {
         'item-1': { requirement: 'required', text: 'required' },
         'item-2': { target: 'required', requirement: 'required', text: 'required' },
@@ -198,6 +232,7 @@ describe('composerToInput', () => {
   it('is review.yaml ClarificationInput, blank items left out', () => {
     const state = composerReducer(filled(), { type: 'add' });
     expect(composerToInput(state)).toEqual({
+      opening: null,
       items: [
         {
           sectionKey: 'statement:officer',
@@ -207,6 +242,32 @@ describe('composerToInput', () => {
           text: 'Explain the change.',
         },
       ],
+    });
+  });
+});
+
+describe('the opening paragraph', () => {
+  const withOpening = (text: string) =>
+    composerReducer(filled(), {
+      type: 'insert',
+      draft: { label: AI, opening: text, items: [] },
+      targets,
+    });
+
+  it('is saved and issued trimmed, and a blank one as none', () => {
+    expect(composerToInput(withOpening('  Thank you.  ')).opening).toBe('Thank you.');
+    const blanked = composerReducer(withOpening('Thank you.'), { type: 'opening', text: '   ' });
+    expect(composerToInput(blanked).opening).toBeNull();
+  });
+
+  it('keeps to 800 characters', () => {
+    expect(composerProblems(withOpening('x'.repeat(800)), 'issue')).toMatchObject({
+      opening: null,
+      any: false,
+    });
+    expect(composerProblems(withOpening('x'.repeat(801)), 'save')).toMatchObject({
+      opening: 'too-long',
+      any: true,
     });
   });
 });

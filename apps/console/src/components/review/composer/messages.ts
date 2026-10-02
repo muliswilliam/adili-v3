@@ -44,6 +44,7 @@ export const en = {
 
   openingLabel: 'Opening paragraph',
   discardOpeningLabel: 'Discard drafted opening paragraph',
+  openingTooLong: 'Keep the opening paragraph to 800 characters or fewer.',
 
   completeItems: 'Complete the highlighted items.',
   addOneItem: 'Add at least one item.',

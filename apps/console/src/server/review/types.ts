@@ -14,3 +14,5 @@ export type Flag = Schemas['Flag'];
 export type Requirement = Schemas['Requirement'];
 export type Severity = Schemas['Severity'];
 export type TimelineEntry = Schemas['TimelineEntry'];
+export type CopilotDraft = Schemas['CopilotDraft'];
+export type CopilotDraftInput = Schemas['CopilotDraftInput'];

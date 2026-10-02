@@ -19,6 +19,7 @@ import {
   mockReviewClient,
   resetReviewMock,
 } from '../../server/review/mock.server';
+import type { CopilotDraftInput } from '../../server/review/types';
 import { ClarificationDetailView, LETTER_REFRESH_MS } from './clarification-detail';
 
 const navigate = vi.fn(() => Promise.resolve());
@@ -56,6 +57,24 @@ vi.mock('../../server/clarifications', () => ({
   saveClarificationDraft: vi.fn(),
   issueComposedClarification: vi.fn(),
 }));
+
+vi.mock('../../server/copilot', async () => {
+  const { pollDraft, requestDraft } = await import('../../server/copilot-drafts.server');
+  const { mockReviewClient } = await import('../../server/review/mock.server');
+  const client = () => mockReviewClient(ME, 'Grace Wanjiru');
+  return {
+    draftClarificationWithAi: vi.fn(
+      ({
+        data: { caseId, key, ...input },
+      }: {
+        data: CopilotDraftInput & { caseId: string; key: string };
+      }) => requestDraft(client(), caseId, input, key),
+    ),
+    getCopilotDraft: vi.fn(({ data }: { data: { draftId: string } }) =>
+      pollDraft(client(), data.draftId),
+    ),
+  };
+});
 
 const resolveMock = vi.mocked(resolveClarification);
 const withdrawMock = vi.mocked(withdrawClarification);

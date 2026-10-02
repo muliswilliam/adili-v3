@@ -17,6 +17,11 @@ export const envSchema = bffEnvSchema.extend({
    */
   REVIEW_MOCK: z.stringbool().default(false),
   /**
+   * With REVIEW_MOCK: `not-enabled` seeds every mock case's copilot as not enabled for the
+   * Commission (the panel's and Draft with AI's disabled states); `ready` by default.
+   */
+  REVIEW_MOCK_COPILOT: z.enum(['ready', 'not-enabled']).default('ready'),
+  /**
    * Serve the ai-gateway's policy, routing and usage endpoints from in-memory fixtures, so the
    * console runs without the gateway. Honoured in `vite dev` and tests only, like REVIEW_MOCK.
    */

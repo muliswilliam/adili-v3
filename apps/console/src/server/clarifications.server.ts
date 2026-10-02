@@ -1,6 +1,7 @@
 import { isOutstanding } from '../clarification/labels';
 import type { ReviewClient } from './review/client.server';
 import type { components } from './review/api.gen';
+import type { DraftFlag } from '../clarification/draft-selection';
 import type { CaseListItem, Clarification, ClarificationStatus } from './review/types';
 import { callService, type ServiceError, type ServiceResult } from './service-call';
 
@@ -38,6 +39,8 @@ export interface ClarificationDetail {
    * which the composer offers targets from; null when the declarations service did not answer.
    */
   document: JsonObject | null;
+  /** The case's flags, which Draft with AI in the composer drafts from. */
+  flags: DraftFlag[];
 }
 
 function refOf(clarification: Clarification): ClarificationRef {
@@ -90,6 +93,13 @@ export async function loadClarificationDetail(
       original: original ? refOf(original) : null,
       followUps: all.filter((each) => each.followUpOf === clarification.id).map(refOf),
       document: detail.data.document as JsonObject | null,
+      flags: detail.data.flags.map(({ id, title, severity, reviewed, closedReason }) => ({
+        id,
+        title,
+        severity,
+        reviewed,
+        closedReason,
+      })),
     },
   };
 }
@@ -137,8 +147,11 @@ export function raiseFollowUp(
 /** review.yaml `ClarificationItemInput`. */
 export type ClarificationItemInput = Schemas['ClarificationItemInput'];
 
+/** review.yaml `ClarificationInput`: the items and the letter's opening paragraph. */
+export type ClarificationInput = Schemas['ClarificationInput'];
+
 /**
- * Saves the composer's items: `POST /v1/review/cases/{caseId}/clarifications` for a new draft
+ * Saves the composer's items and opening paragraph: `POST /v1/review/cases/{caseId}/clarifications` for a new draft
  * (with `key`, so a retry does not make a second one), else `PUT .../clarifications/{id}` (only
  * while it is a draft; 409 after).
  */
@@ -146,21 +159,21 @@ export function saveDraft(
   client: ReviewClient,
   caseId: string,
   clarificationId: string | null,
-  items: ClarificationItemInput[],
+  content: ClarificationInput,
   key: string,
 ): Promise<ServiceResult<Clarification>> {
   if (clarificationId === null) {
     return callService(() =>
       client.POST('/v1/review/cases/{caseId}/clarifications', {
         params: { path: { caseId }, header: { 'Idempotency-Key': key } },
-        body: { items },
+        body: content,
       }),
     );
   }
   return callService(() =>
     client.PUT('/v1/review/clarifications/{clarificationId}', {
       params: { path: { clarificationId } },
-      body: { items },
+      body: content,
     }),
   );
 }
@@ -181,10 +194,10 @@ export async function issueDraft(
   client: ReviewClient,
   caseId: string,
   clarificationId: string | null,
-  items: ClarificationItemInput[],
+  content: ClarificationInput,
   keys: { draft: string; issue: string },
 ): Promise<IssueResult> {
-  const saved = await saveDraft(client, caseId, clarificationId, items, keys.draft);
+  const saved = await saveDraft(client, caseId, clarificationId, content, keys.draft);
   const replay =
     !saved.ok &&
     clarificationId !== null &&

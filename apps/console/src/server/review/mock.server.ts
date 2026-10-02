@@ -40,6 +40,7 @@ import createClient from 'openapi-fetch';
 
 import { isOutstanding } from '../../clarification/labels';
 import { mockTenantAiStatus } from '../ai-gateway/mock.server';
+import { type Env, envSchema } from '../env.server';
 import { isRecord, json, problem, readJson } from '../mock-http';
 import type { paths } from './api.gen';
 import { copilotRoute, mockCaseContent, resetCopilotMock } from './copilot-mock.server';
@@ -213,7 +214,10 @@ export function mockReviewClient(subject: string, name: string) {
 }
 
 /** Seeds the fixtures with "now" at `now` (tests pass a fixed time). */
-export function resetReviewMock(now: number = Date.now()) {
+export function resetReviewMock(
+  now: number = Date.now(),
+  { copilot = 'ready' }: { copilot?: Env['REVIEW_MOCK_COPILOT'] } = {},
+) {
   cases.clear();
   clarifications.clear();
   letterReadyAt.clear();
@@ -278,7 +282,7 @@ export function resetReviewMock(now: number = Date.now()) {
   seed(clarification(K.petersOverdue, C.peters, 3, [PLOT], 35, now, { status: 'overdue' }));
   seed(draftOf(K.draft, C.mine, [PLOT], null));
   for (const each of cases.values()) refreshCase(each);
-  resetCopilotMock(now, C);
+  resetCopilotMock(now, C, { notEnabled: copilot === 'not-enabled' });
 }
 
 /** A bearer token the mock reads `sub` and `name` from (tests; unsigned). */
@@ -394,7 +398,10 @@ async function textField(request: Request, field: string, max: number): Promise<
 }
 
 function ensureSeeded() {
-  if (cases.size === 0) resetReviewMock();
+  if (cases.size > 0) return;
+  // Read here, not through env(): the mock seeds itself in tests that set no service URLs.
+  const copilot = envSchema.shape.REVIEW_MOCK_COPILOT.parse(process.env.REVIEW_MOCK_COPILOT);
+  resetReviewMock(Date.now(), { copilot });
 }
 
 export function mockReviewFetch(request: Request): Promise<Response> {
@@ -622,7 +629,8 @@ async function contentOf(
       text: text.trim(),
     });
   }
-  return { items: valid, opening: opening?.trim() || null };
+  const trimmed = opening?.trim() ?? '';
+  return { items: valid, opening: trimmed === '' ? null : trimmed };
 }
 
 async function createDraft(request: Request, caseId: string, caller: Assignee) {

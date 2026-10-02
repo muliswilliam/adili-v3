@@ -80,6 +80,8 @@ const composed = z.object({
   /** The draft being edited, or null for a new one. */
   clarificationId: id.nullable(),
   items: z.array(item).max(50),
+  /** The letter's opening paragraph (Draft with AI's), or null for none. */
+  opening: z.string().max(800).nullable(),
   /** One per composer, reused on retry, so a retried create makes one draft. */
   draftKey: id,
 });
@@ -89,7 +91,13 @@ export const saveClarificationDraft = createServerFn({ method: 'POST' })
   .validator(composed)
   .handler(({ data }): Promise<ServiceResult<Clarification>> =>
     asReviewer((client) =>
-      saveDraft(client, data.caseId, data.clarificationId, data.items, data.draftKey),
+      saveDraft(
+        client,
+        data.caseId,
+        data.clarificationId,
+        { items: data.items, opening: data.opening },
+        data.draftKey,
+      ),
     ),
   );
 
@@ -106,7 +114,7 @@ export const issueComposedClarification = createServerFn({ method: 'POST' })
       reviewClient(session.accessToken),
       data.caseId,
       data.clarificationId,
-      data.items,
+      { items: data.items, opening: data.opening },
       { draft: data.draftKey, issue: data.issueKey },
     );
   });

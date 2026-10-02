@@ -43,6 +43,7 @@ import { Page, PageHead, SectionCard } from '../page';
 import { ResolveDialog, WithdrawDialog } from './clarification-dialogs';
 import { StatusBadge, TONES } from './status-badge';
 import { ClarificationComposer } from './composer/clarification-composer';
+import { useDraftWithAi } from './draft-with-ai/use-draft-with-ai';
 import { employerOf, type LetterCommission, LetterPreview } from './composer/letter-preview';
 
 /**
@@ -86,6 +87,7 @@ export function ClarificationDetailView({
 }) {
   const { clarification, mine, windowOpen, othersOpen, original, followUps, document } = detail;
   const reviewCase = detail.case;
+  const drafting = useDraftWithAi({ caseId: reviewCase.id, flags: detail.flags });
   const router = useRouter();
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -301,6 +303,7 @@ export function ClarificationDetailView({
                   requirement: item.requirement,
                   text: item.text,
                 }))}
+                opening={clarification.opening}
                 reference={clarification.reference}
                 verificationId={clarification.letter.verificationId}
                 date={clarification.issuedAt ?? now}
@@ -326,6 +329,7 @@ export function ClarificationDetailView({
           draft={clarification}
           followUpOf={original}
           now={now}
+          tools={drafting.tools}
           onSaved={() => void router.invalidate()}
           onIssued={() => void router.invalidate()}
         />

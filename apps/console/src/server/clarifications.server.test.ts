@@ -143,7 +143,7 @@ const KEYS = {
 
 describe('saveDraft', () => {
   it('creates a draft on the case, then updates the same one', async () => {
-    const created = await saveDraft(client(), CASES.mine, null, [PLOT_ITEM], KEYS.draft);
+    const created = await saveDraft(client(), CASES.mine, null, { items: [PLOT_ITEM] }, KEYS.draft);
     if (!created.ok) throw new Error(JSON.stringify(created.error));
     expect(created.data).toMatchObject({
       caseId: CASES.mine,
@@ -152,27 +152,37 @@ describe('saveDraft', () => {
       items: [PLOT_ITEM],
     });
 
-    const updated = await saveDraft(client(), CASES.mine, created.data.id, [], KEYS.draft);
+    const updated = await saveDraft(
+      client(),
+      CASES.mine,
+      created.data.id,
+      { items: [] },
+      KEYS.draft,
+    );
     if (!updated.ok) throw new Error('not ok');
     expect(updated.data).toMatchObject({ id: created.data.id, items: [] });
   });
 
   it('replays a create with the same key instead of making a second draft', async () => {
-    const first = await saveDraft(client(), CASES.mine, null, [PLOT_ITEM], KEYS.draft);
-    const again = await saveDraft(client(), CASES.mine, null, [PLOT_ITEM], KEYS.draft);
+    const first = await saveDraft(client(), CASES.mine, null, { items: [PLOT_ITEM] }, KEYS.draft);
+    const again = await saveDraft(client(), CASES.mine, null, { items: [PLOT_ITEM] }, KEYS.draft);
     if (!first.ok || !again.ok) throw new Error('not ok');
     expect(again.data.id).toBe(first.data.id);
   });
 
   it('refuses a case someone else holds (403)', async () => {
-    expect(await saveDraft(client(), CASES.peters, null, [PLOT_ITEM], KEYS.draft)).toMatchObject({
+    expect(
+      await saveDraft(client(), CASES.peters, null, { items: [PLOT_ITEM] }, KEYS.draft),
+    ).toMatchObject({
       ok: false,
       error: { kind: 'problem', problem: { status: 403 } },
     });
   });
 
   it('refuses to change a clarification already issued (409)', async () => {
-    expect(await saveDraft(client(), CASES.mine, K.issued, [PLOT_ITEM], KEYS.draft)).toMatchObject({
+    expect(
+      await saveDraft(client(), CASES.mine, K.issued, { items: [PLOT_ITEM] }, KEYS.draft),
+    ).toMatchObject({
       ok: false,
       error: { kind: 'problem', problem: { status: 409 } },
     });
@@ -181,7 +191,7 @@ describe('saveDraft', () => {
 
 describe('issueDraft (S12)', () => {
   it('saves the items and issues: CLR reference, due in 30 days, letter on its way', async () => {
-    const issued = await issueDraft(client(), CASES.mine, null, [PLOT_ITEM], KEYS);
+    const issued = await issueDraft(client(), CASES.mine, null, { items: [PLOT_ITEM] }, KEYS);
     if (!issued.ok) throw new Error(JSON.stringify(issued.error));
     expect(issued.data.status).toBe('issued');
     expect(issued.data.reference).toMatch(/^CLR-TSC-2026-\d{7}-[0-9A-Z]$/);
@@ -192,15 +202,27 @@ describe('issueDraft (S12)', () => {
   });
 
   it('issues a saved draft with its latest items', async () => {
-    const draft = await saveDraft(client(), CASES.mine, null, [], KEYS.draft);
+    const draft = await saveDraft(client(), CASES.mine, null, { items: [] }, KEYS.draft);
     if (!draft.ok) throw new Error('not ok');
-    const issued = await issueDraft(client(), CASES.mine, draft.data.id, [PLOT_ITEM], KEYS);
+    const issued = await issueDraft(
+      client(),
+      CASES.mine,
+      draft.data.id,
+      { items: [PLOT_ITEM] },
+      KEYS,
+    );
     if (!issued.ok) throw new Error('not ok');
     expect(issued.data).toMatchObject({ id: draft.data.id, status: 'issued', items: [PLOT_ITEM] });
   });
 
   it('keeps the draft when the six-month window has closed (409), with the date', async () => {
-    const result = await issueDraft(client(), CASES.windowClosed, null, [PLOT_ITEM], KEYS);
+    const result = await issueDraft(
+      client(),
+      CASES.windowClosed,
+      null,
+      { items: [PLOT_ITEM] },
+      KEYS,
+    );
     expect(result).toMatchObject({
       ok: false,
       error: {
@@ -217,16 +239,22 @@ describe('issueDraft (S12)', () => {
   });
 
   it('refuses a draft without items (400)', async () => {
-    expect(await issueDraft(client(), CASES.mine, null, [], KEYS)).toMatchObject({
+    expect(await issueDraft(client(), CASES.mine, null, { items: [] }, KEYS)).toMatchObject({
       ok: false,
       error: { kind: 'problem', problem: { status: 400 } },
     });
   });
 
   it('replays an issue with the same key', async () => {
-    const first = await issueDraft(client(), CASES.mine, null, [PLOT_ITEM], KEYS);
+    const first = await issueDraft(client(), CASES.mine, null, { items: [PLOT_ITEM] }, KEYS);
     if (!first.ok) throw new Error('not ok');
-    const again = await issueDraft(client(), CASES.mine, first.data.id, [PLOT_ITEM], KEYS);
+    const again = await issueDraft(
+      client(),
+      CASES.mine,
+      first.data.id,
+      { items: [PLOT_ITEM] },
+      KEYS,
+    );
     expect(again).toMatchObject({
       ok: true,
       data: { id: first.data.id, reference: first.data.reference },
