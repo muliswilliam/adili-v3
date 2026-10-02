@@ -307,7 +307,7 @@ export {
   type SegmentedChoiceOption,
   type SegmentedChoiceProps,
 } from './components/segmented-choice';
-export { Select, SelectItem, type SelectProps } from './components/select';
+export { Select, SelectGroup, SelectItem, type SelectProps } from './components/select';
 export { SiteFooter } from './components/site-footer';
 export { SiteHeader, type SiteHeaderProps } from './components/site-header';
 export { Skeleton } from './components/skeleton';
