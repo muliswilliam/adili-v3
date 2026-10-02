@@ -248,6 +248,7 @@ export function IdentifyOfficerCard({ view, now }: { view: OfficerRequestView; n
         open={selected !== null}
         record={selected}
         now={now}
+        windowDays={view.representationWindowDays}
         busy={command.busy}
         error={command.error}
         onOpenChange={(open) => {

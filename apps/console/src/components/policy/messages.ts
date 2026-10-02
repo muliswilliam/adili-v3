@@ -18,6 +18,13 @@ export const en = {
     `Biennial: statement ${statement}, due ${due}`,
   finalPeriod: (days: number) => `Final: ${formatNumber(days)} days after leaving office`,
   reminders: 'Reminders',
+  accessPeriods: 'Access to declarations',
+  formKDecision: (days: number) => `Form K decision: ${formatNumber(days)} days after receipt`,
+  leaDecision: (days: number) =>
+    `Law enforcement decision: ${formatNumber(days)} days after receipt`,
+  representationWindow: (days: number) =>
+    `Representations: ${formatNumber(days)} days after the declarant is notified`,
+  packageDownload: (days: number) => `Package download: ${formatNumber(days)} days after issue`,
   remindersNone: 'No reminders',
   remindersBeforeDue: (list: string) => `${list} days before due`,
   startDate: 'Obligations start date',

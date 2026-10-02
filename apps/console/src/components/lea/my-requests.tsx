@@ -28,6 +28,7 @@ import { CursorPager } from '../cursor-pager';
 import { LoadError } from '../load-error';
 import { messages as m } from './messages';
 import { usePackageDownload, usePackageState } from './package';
+import { withdrawnAt } from './withdraw-request';
 
 /** Requests per page of the list. */
 export const MY_REQUESTS_PAGE_SIZE = 20;
@@ -198,7 +199,9 @@ function Action({ request, now }: { request: LeaRequest; now: string }) {
   }
   return (
     <span className="text-[13px] text-muted-foreground">
-      {request.decision ? m.decidedOn(formatDate(request.decision.decidedAt)) : m.withdrawn}
+      {request.decision
+        ? m.decidedOn(formatDate(request.decision.decidedAt))
+        : m.withdrawnOn(formatDate(withdrawnAt(request) ?? request.receivedAt))}
     </span>
   );
 }

@@ -155,7 +155,11 @@ export const en = {
   resolveDeclarantNotified: 'The declarant is notified',
   resolveDeclarantNotifiedText: 'With the purpose in general terms and the requested scope.',
   resolveWindow: (date: string) => `Representations close ${date}`,
-  resolveWindowText: '7 days, or earlier if they consent.',
+  resolveWindowText: (days: number) =>
+    `${plural(days, 'day')} under the Commission's policy, or earlier if they consent.`,
+  resolveWindowOpens: 'Their window for representations opens',
+  resolveWindowUnknown:
+    "As long as the Commission's policy sets, or until they consent. The closing date shows once they are notified.",
   resolveFinal: 'This cannot be changed',
   cancel: 'Cancel',
   identifyAndNotify: 'Identify and notify',

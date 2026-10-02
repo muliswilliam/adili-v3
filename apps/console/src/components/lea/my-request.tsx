@@ -25,6 +25,7 @@ import {
   SquareLock02Icon,
   Timer02Icon,
   UnavailableIcon,
+  Undo02Icon,
 } from '@hugeicons/core-free-icons';
 import { useRouter } from '@tanstack/react-router';
 import type { ReactNode } from 'react';
@@ -38,6 +39,7 @@ import { usePollWhile } from '../use-poll-while';
 import { messages as m } from './messages';
 import { MineBadge } from './my-requests';
 import { type PackageState, usePackageDownload, usePackageState } from './package';
+import { WithdrawRequest, withdrawnAt } from './withdraw-request';
 
 const PACKAGE_POLL_MS = 3000;
 const PACKAGE_POLLS = 20;
@@ -120,6 +122,7 @@ function NotGiven() {
 /** Received, verified by the Commission, decided: done steps ticked, the rest waiting. */
 function Progress({ request }: { request: LeaRequest }) {
   const { decision } = request;
+  const withdrawn = withdrawnAt(request);
   const steps: { title: string; detail: string; done: boolean }[] = [
     { title: m.received, detail: formatDateTime(request.receivedAt), done: true },
     {
@@ -127,16 +130,20 @@ function Progress({ request }: { request: LeaRequest }) {
       detail: request.verification ? formatDateTime(request.verification.at) : m.waiting,
       done: request.verification !== null,
     },
-    {
-      title: m.decision,
-      detail: decision
-        ? m.decidedAt(accessOutcomeLabels[decision.outcome], formatDateTime(decision.decidedAt))
-        : m.dueOn(formatDate(request.deadlineAt)),
-      done: decision !== null,
-    },
+    request.status === 'withdrawn'
+      ? { title: m.withdrawn, detail: withdrawn ? formatDateTime(withdrawn) : '', done: true }
+      : {
+          title: m.decision,
+          detail: decision
+            ? m.decidedAt(accessOutcomeLabels[decision.outcome], formatDateTime(decision.decidedAt))
+            : m.dueOn(formatDate(request.deadlineAt)),
+          done: decision !== null,
+        },
   ];
-  // A denial can come before any verification: that step was never reached.
-  const shown = decision && !request.verification ? steps.filter((_, index) => index !== 1) : steps;
+  // A denial or a withdrawal can come before any verification: that step was never reached.
+  const closedEarly =
+    (decision !== null || request.status === 'withdrawn') && !request.verification;
+  const shown = closedEarly ? steps.filter((_, index) => index !== 1) : steps;
   return (
     <Card className="min-w-0 p-0 sm:p-0" role="region" aria-labelledby="progress-title">
       <CardHeader className="border-b px-5 py-4">
@@ -291,9 +298,15 @@ function Side({ request, now, state }: { request: LeaRequest; now: string; state
   }
 
   if (request.status === 'withdrawn') {
+    const at = withdrawnAt(request);
     return (
       <SideCard id="decision" title={m.decisionTitle}>
-        <p className="text-sm text-muted-foreground">{m.withdrawn}</p>
+        <OutcomeLine icon={Undo02Icon} tone="default">
+          {m.withdrawn}
+        </OutcomeLine>
+        <p className="text-sm text-muted-foreground">
+          {at ? m.withdrawnNote(formatDate(at)) : m.withdrawn}
+        </p>
       </SideCard>
     );
   }
@@ -314,6 +327,7 @@ function Side({ request, now, state }: { request: LeaRequest; now: string; state
         {request.status === 'verified' ? `${m.verifiedNote} ` : ''}
         {m.dueNote(formatDate(request.deadlineAt))}
       </p>
+      <WithdrawRequest request={request} />
     </SideCard>
   );
 }
