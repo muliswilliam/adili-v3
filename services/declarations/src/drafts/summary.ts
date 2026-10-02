@@ -9,6 +9,7 @@ import {
 import { assessSections } from './completeness.js';
 import { composeMaterialChanges } from './material-changes.js';
 import { type SectionContents, statementPersonKey } from './sections.js';
+import { asDeclaredFor } from './since-last.js';
 
 /**
  * The summary of a draft (spec 05, S11 and S12), pure: the `declaration.v1` document assembled
@@ -125,12 +126,18 @@ export interface DraftReview {
  * Reviews the live sections: assembles the document, assesses each section as its own view
  * reports it (rules and schema, with paragraph 9 as composed), validates the whole document, and
  * blocks on every section never saved (it has not been declared until the declarant saves it).
+ * Sections are taken as the declaration's type holds them: an initial's changes since the last
+ * declaration, which it does not ask, are left out even where an older draft stored them.
  */
 export function reviewDraft(
   frame: DocumentFrame,
-  live: readonly LiveSection[],
+  stored: readonly LiveSection[],
   completeness: readonly { key: DeclarationSectionKey; completeness: string }[],
 ): DraftReview {
+  const live = stored.map(({ key, contents }) => ({
+    key,
+    contents: asDeclaredFor(frame.type, key, contents),
+  }));
   const document = assembleDocument(frame, live);
   const statements = new Map<PersonKey, SectionContents>();
   const byKey = new Map<string, SectionContents>();

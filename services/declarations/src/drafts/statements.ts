@@ -23,6 +23,7 @@ import {
   statementKey,
   statementPersonKey,
 } from './sections.js';
+import { asDeclaredFor } from './since-last.js';
 
 /**
  * The financial statements' lifecycle (spec 05 S5): what a household save does to them, writing
@@ -99,7 +100,11 @@ export async function statementChanges(
       const row = byKey.get(key);
       if (!row) return null;
       const restoring = row.metadata.archived === true;
-      const stored = await cipher.open(declaration.tenant, row);
+      const stored = asDeclaredFor(
+        declaration.type,
+        key,
+        await cipher.open(declaration.tenant, row),
+      );
       const sameName = isDeepStrictEqual(stored.personName, who.personName);
       if (!restoring && sameName) return null;
       const contents = sameName ? stored : { ...stored, ...frame(who) };
