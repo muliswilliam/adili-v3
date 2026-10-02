@@ -307,6 +307,57 @@ describe('access row-level security', () => {
     ).toHaveLength(1);
   });
 
+  it("a declarant's save (an upsert under their person context, as the service makes it) cannot reach another declarant's representations of the same Commission", async () => {
+    const anne = randomUUID();
+    const brian = randomUUID();
+    const aboutAnne = await givenRequest({
+      resolvedPersonId: anne,
+      notifiedAt: new Date(),
+      status: 'awaiting-representations',
+    });
+    // Brian is a notified declarant of the same Commission: its policy would admit him.
+    await givenRequest({
+      resolvedPersonId: brian,
+      notifiedAt: new Date(),
+      status: 'awaiting-representations',
+    });
+    const values = (personId: string) => ({
+      requestId: aboutAnne.id,
+      tenant: 'psc',
+      personId,
+      stance: 'object' as const,
+      text: 'I object.',
+      submittedAt: new Date(),
+    });
+    await api.asPerson(anne, (tx) => tx.insert(representations).values(values(anne)));
+
+    for (const personId of [brian, anne]) {
+      expect(
+        await refusal(
+          api.asPerson(brian, (tx) =>
+            tx
+              .insert(representations)
+              .values(values(personId))
+              .onConflictDoUpdate({
+                target: representations.requestId,
+                set: { stance: 'consent', text: 'Consented.' },
+              }),
+          ),
+        ),
+      ).toBe('42501');
+    }
+    const changed = await api.asPerson(brian, (tx) =>
+      tx
+        .update(representations)
+        .set({ stance: 'consent' })
+        .where(eq(representations.requestId, aboutAnne.id))
+        .returning(),
+    );
+    expect(changed).toEqual([]);
+    const [kept] = await api.asPlatform((tx) => tx.select().from(representations));
+    expect(kept).toMatchObject({ personId: anne, stance: 'object' });
+  });
+
   it('a law enforcement officer reads the requests they filed only, with their entries', async () => {
     const mine = await givenLeaRequest({ tenant: 'psc', officerSubject: 'lea-officer-a' });
     const mineElsewhere = await givenLeaRequest({ tenant: 'tsc', officerSubject: 'lea-officer-a' });
