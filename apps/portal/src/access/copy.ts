@@ -295,7 +295,7 @@ const PACKAGE = {
   ),
   downloadFailed: en('We could not start the download. Try again.'),
   downloadStarted: en('Download started. Each download is recorded.'),
-  preparingTitle: en('Preparing your package…'),
+  preparingTitle: en('Preparing your documents…'),
   preparingText: en('Usually a few minutes. We will SMS and email you when it is ready.'),
 
   readyNext: en((at: string) => `Download your package by ${at}.`),
@@ -307,7 +307,7 @@ const PACKAGE = {
     (time: string) =>
       `Some of what you asked for was not granted. Download your package today, by ${time}.`,
   ),
-  preparingNext: en('Your package is being prepared.'),
+  preparingNext: en('Your documents are being prepared.'),
   failedTitle: en('We could not issue your package.'),
   failedText: en(
     (commission: string) =>

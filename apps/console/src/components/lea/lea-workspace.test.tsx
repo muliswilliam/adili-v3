@@ -137,7 +137,7 @@ describe("the officer's requests (spec 10 FE-6)", () => {
     if (!granted.decision) throw new Error('not decided');
     const preparing = { ...granted, package: null, packageFailedAt: null };
     const { unmount } = wrap(<MyRequest request={preparing} now={NOW} />);
-    expect(screen.getByText(/^Preparing your package/)).toBeTruthy();
+    expect(screen.getByText(/^Preparing your documents/)).toBeTruthy();
     unmount();
 
     wrap(<MyRequest request={await requestOf(L.failed)} now={NOW} />);

@@ -236,11 +236,11 @@ describe('RequestPage package (#261, S7)', () => {
     expect(stage('Download window closed, done')).toBeTruthy();
   });
 
-  it('says the package is being prepared until it is issued', async () => {
+  it('says the documents are being prepared until they are issued', async () => {
     show(await seededRequest(IDS.preparing));
-    expect(screen.getByText('Preparing your package…')).toBeTruthy();
+    expect(screen.getByText('Preparing your documents…')).toBeTruthy();
     expect(screen.queryByRole('button', { name: 'Download' })).toBeNull();
-    expect(screen.getByText(/Your package is being prepared\./)).toBeTruthy();
+    expect(screen.getByText(/Your documents are being prepared\./)).toBeTruthy();
   });
 
   it('says the package could not be issued when issuing failed, apart from preparing', async () => {
@@ -252,7 +252,7 @@ describe('RequestPage package (#261, S7)', () => {
       ),
     ).toBeTruthy();
     expect(screen.getByText(/Your package could not be issued yet\./)).toBeTruthy();
-    expect(screen.queryByText('Preparing your package…')).toBeNull();
+    expect(screen.queryByText('Preparing your documents…')).toBeNull();
     expect(screen.queryByRole('button', { name: 'Download' })).toBeNull();
     expect(stage('Package, stopped')).toBeTruthy();
   });

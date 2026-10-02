@@ -134,7 +134,7 @@ export const en = {
   yourDownloads: 'Your downloads',
   watermarked: 'Watermarked with your name. Every download is recorded.',
   packagePreparing:
-    'Preparing your package: the granted scope is rendered, watermarked and signed.',
+    'Preparing your documents: the granted scope is rendered, watermarked and signed.',
   packageFailed: `${accessMessages.packageFailed} Contact the Commission if it is not ready soon.`,
   nilLetterTitle: accessMessages.nilLetter,
   nilLetter: (commission: string) =>
