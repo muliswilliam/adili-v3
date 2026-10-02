@@ -438,6 +438,9 @@ describe('S10 an access package of the bio section only', () => {
     const all = (await pageTexts(await storedPdf(document.id))).join(' ');
     expect(all).toContain('Biodata');
     expect(all).toContain(DECLARATION.officer.birth.place);
+    // The biodata names the Commission, not its tenant key.
+    expect(all).not.toMatch(/Responsible Commission\s*psc\b/);
+    expect(all.split('Public Service Commission (PSC)').length - 1).toBe(2);
     expect(all).not.toContain('INCOME');
     expect(all).not.toContain('Household');
     for (const spouse of DECLARATION.spouses.items)

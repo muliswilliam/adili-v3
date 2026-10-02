@@ -92,6 +92,11 @@ export interface ContentOptions {
    * never on a disclosure to someone else.
    */
   householdIdentifiers: boolean;
+  /**
+   * The Commission that holds the declaration. The biodata names it, rather than by the tenant
+   * key the declaration stores (`responsibleCommission`, e.g. `psc`).
+   */
+  commission: { slug: string; name: string; issuerCode: string };
 }
 
 /** Styles of the rendered content, for the template's stylesheet. */
@@ -251,8 +256,13 @@ function rows(entries: [string, string | undefined | null][]): string {
     .join('');
 }
 
-function bio(officer: DeclarationV1['officer']): string {
+function bio(officer: DeclarationV1['officer'], options: ContentOptions): string {
   const { employment } = officer;
+  const { commission } = options;
+  const responsibleCommission =
+    employment.responsibleCommission === commission.slug
+      ? `${commission.name} (${commission.issuerCode})`
+      : employment.responsibleCommission;
   const nature =
     employment.nature === 'other' && employment.natureOther
       ? employment.natureOther
@@ -274,7 +284,7 @@ function bio(officer: DeclarationV1['officer']): string {
     ['Job group', employment.jobGroup],
     ['Date of appointment', employment.appointmentDate && formatDate(employment.appointmentDate)],
     ['Work station', employment.workStation],
-    ['Responsible Commission', employment.responsibleCommission],
+    ['Responsible Commission', responsibleCommission],
   ])}</dl></section>`;
 }
 
@@ -436,7 +446,7 @@ export function declarationContent(
   options: ContentOptions,
 ): string {
   return [
-    content.officer ? bio(content.officer) : '',
+    content.officer ? bio(content.officer, options) : '',
     household(content.spouses, content.children, options),
     statements(content.statements ?? []),
     otherInformation(content.otherInformation),
