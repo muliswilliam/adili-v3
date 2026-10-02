@@ -485,6 +485,7 @@ describe('admin API', { timeout: 90_000 }, () => {
         ['explain-flags', 'kcomm'],
         ['explain-flags', 'tsc'],
         ['draft-clarification', null],
+        ['narrate-compliance-report', null],
         ['retired-task', null],
       ]);
     });
@@ -536,6 +537,7 @@ describe('admin API', { timeout: 90_000 }, () => {
         ['summarize-declaration', 'rcomm'],
         ['explain-flags', null],
         ['draft-clarification', null],
+        ['narrate-compliance-report', null],
       ]);
       expect(table).toContainEqual(
         expect.objectContaining({ tenant: 'rcomm', model: 'claude-sonnet-5' }),
