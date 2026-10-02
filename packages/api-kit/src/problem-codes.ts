@@ -79,6 +79,10 @@ export const PROBLEM_CODES = {
     status: HttpStatus.CONFLICT,
     title: 'Acknowledgement in progress',
   },
+  /** Registry lookups: the declarant did not say they request the check; nothing ran. */
+  'consent-required': { status: HttpStatus.BAD_REQUEST, title: 'Consent required' },
+  /** Registry lookups: the person has no national ID in Household to be looked up by. */
+  'no-id': { status: HttpStatus.BAD_REQUEST, title: 'No national ID' },
 } as const satisfies Record<string, { status: HttpStatus; title: string }>;
 
 export type ProblemCode = keyof typeof PROBLEM_CODES;
