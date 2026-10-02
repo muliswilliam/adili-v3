@@ -24,14 +24,14 @@ import {
 import { ProviderRegistry } from '../providers/providers.module.js';
 import { inputLanguage } from '../tasks/common.js';
 import { findTask } from '../tasks/registry.js';
-import { aiLabel, type TaskDefinition } from '../tasks/task.js';
+import { aiLabel, type OutputViolation, type TaskDefinition } from '../tasks/task.js';
 import { recordJobEnded } from './job-ended.js';
 import { type JobReason, LIVE_STATUSES } from './job-states.js';
 import { parseParams } from './routing.js';
 
 type Outcome =
   | { status: 'succeeded'; output: Record<string, unknown> }
-  | { status: 'failed' | 'blocked'; reason: JobReason };
+  | { status: 'failed' | 'blocked'; reason: JobReason; violations?: OutputViolation[] };
 
 /** What one provider call cost; absent when the job ends without a call. */
 interface AttemptMetrics {
@@ -280,6 +280,15 @@ export class JobExecutor {
       );
       return { status: 'failed', reason: 'validation' };
     }
+    // The task's own checks read the output as stored: identifiers restored, as in the input.
+    const violations = task.validate?.(task.input.parse(job.input), restored.data) ?? [];
+    if (violations.length > 0) {
+      this.logger.warn(
+        { jobId: job.id, task: job.task, violations: violations.slice(0, 20) },
+        'Model output failed the task checks',
+      );
+      return { status: 'failed', reason: 'validation', violations };
+    }
     const language = inputLanguage(job.input);
     const label = aiLabel(
       {
@@ -308,6 +317,7 @@ export class JobExecutor {
         .set({
           status: outcome.status,
           reason: outcome.status === 'succeeded' ? null : outcome.reason,
+          violations: outcome.status === 'succeeded' ? null : (outcome.violations ?? null),
           output,
           outputHash: output && hashJson(output),
           input: null,

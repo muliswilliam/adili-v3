@@ -1,5 +1,7 @@
 /** Synthetic task inputs and model outputs for tests. No real person appears here. */
 
+import type { NarrateInput, NarrateOutput } from '../../src/tasks/narrate-compliance-report.js';
+
 const ITEM_ID = '0199a8f0-1111-7000-8000-000000000001';
 export const FLAG_ID = '0199a8f0-2222-7000-8000-000000000002';
 
@@ -83,3 +85,76 @@ export function taskRequest(input: object, overrides: object = {}) {
     ...overrides,
   };
 }
+
+/** Synthetic aggregates for FY2026 with one prior year. */
+export const narrateInput: NarrateInput = {
+  kind: 'narrate-compliance-report',
+  fy: 2026,
+  totals: { expected: 12_480, filed: 11_204, late: 960 },
+  rates: { filingRate: 0.8977, lateRate: 0.0769 },
+  commissionTable: [
+    {
+      code: 'tsc',
+      name: 'Teachers Service Commission',
+      figures: { expected: 8_200, nonFilerRate: 0.164 },
+    },
+    {
+      code: 'psc',
+      name: 'Public Service Commission',
+      figures: { expected: 4_280, nonFilerRate: 0.051 },
+    },
+  ],
+  priorYears: [
+    {
+      fy: 2025,
+      totals: { expected: 12_010, filed: 11_350 },
+      rates: { filingRate: 0.945 },
+      commissionTable: [
+        {
+          code: 'tsc',
+          name: 'Teachers Service Commission',
+          figures: { expected: 7_900, nonFilerRate: 0.082 },
+        },
+      ],
+    },
+  ],
+  candidates: [
+    {
+      id: 'rate-change:tsc:nonFilerRate',
+      kind: 'rate-change',
+      subject: 'tsc',
+      values: { from: 0.082, to: 0.164, change: 1 },
+      aggregateKeys: ['fy2025.commission.tsc.nonFilerRate', 'commission.tsc.nonFilerRate'],
+    },
+  ],
+  section: 'all',
+  language: 'en',
+};
+
+export const narrateOutput: NarrateOutput = {
+  paragraphs: [
+    {
+      section: 'overview',
+      text: 'In FY2025/26, 11,204 of 12,480 expected declarations were filed, a filing rate of 89.8%, down from 94.5% in 2025.',
+      aggregateRefs: [
+        'national.filed',
+        'national.expected',
+        'national.filingRate',
+        'fy2025.national.filingRate',
+      ],
+      candidateIds: [],
+    },
+    {
+      section: 'findings',
+      text: "The Teachers Service Commission's non-filer rate doubled, from 8.2% to 16.4%.",
+      aggregateRefs: ['commission.tsc.nonFilerRate', 'fy2025.commission.tsc.nonFilerRate'],
+      candidateIds: ['rate-change:tsc:nonFilerRate'],
+    },
+    {
+      section: 'recommendations',
+      text: 'EACC should ask the Teachers Service Commission to account for its non-filers.',
+      aggregateRefs: ['commission.tsc.nonFilerRate'],
+      candidateIds: ['rate-change:tsc:nonFilerRate'],
+    },
+  ],
+};

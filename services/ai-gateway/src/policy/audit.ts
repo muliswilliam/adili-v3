@@ -34,6 +34,7 @@ export async function auditJob(tx: Writer, job: Job): Promise<void> {
     latencyMs: job.latencyMs,
     outcome: job.status,
     reason: job.reason,
+    violations: job.violations,
   });
 }
 

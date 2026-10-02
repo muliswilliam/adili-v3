@@ -1,0 +1,175 @@
+import type { NarrateInput, NarrateOutput } from './narrate-compliance-report.js';
+import type { OutputViolation } from './task.js';
+
+/** The NCR narrative sections a paragraph belongs to. */
+export const NARRATIVE_SECTIONS = ['overview', 'findings', 'recommendations'] as const;
+type Section = (typeof NARRATIVE_SECTIONS)[number];
+
+/** Paragraphs a section may hold: a draft the analyst can edit, not a report of every row. */
+export const SECTION_PARAGRAPH_LIMITS: Readonly<Record<Section, number>> = {
+  overview: 3,
+  findings: 12,
+  recommendations: 6,
+};
+
+/**
+ * Why a drafted NCR narrative fails (spec 09b S2); empty when every figure it states and every
+ * key and candidate it cites is in the input.
+ */
+export function narrativeViolations(input: NarrateInput, output: NarrateOutput): OutputViolation[] {
+  const known = inputNumbers(input);
+  const years = new Set([input.fy, ...input.priorYears.map((each) => each.fy)]);
+  const keys = aggregateKeys(input);
+  const candidates = new Set(input.candidates.map((each) => each.id));
+  return [
+    ...output.paragraphs.flatMap((paragraph, index) => paragraphViolations(paragraph, index)),
+    ...sectionViolations(input.section, output),
+  ];
+
+  function paragraphViolations(
+    paragraph: NarrateOutput['paragraphs'][number],
+    index: number,
+  ): OutputViolation[] {
+    return [
+      ...foreignNumbers(paragraph.text, known, years).map(() => ({
+        kind: 'foreign-number',
+        paragraph: index,
+      })),
+      ...paragraph.aggregateRefs
+        .filter((ref) => !keys.has(ref))
+        .map((ref) => ({ kind: 'unknown-ref', paragraph: index, ref })),
+      ...paragraph.candidateIds
+        .filter((candidate) => !candidates.has(candidate))
+        .map((candidate) => ({ kind: 'unknown-candidate', paragraph: index, candidate })),
+      // A finding narrates a computed pattern; it does not discover one (ADR-007).
+      ...(paragraph.section === 'findings' && paragraph.candidateIds.length === 0
+        ? [{ kind: 'finding-without-candidate', paragraph: index }]
+        : []),
+      ...(input.section !== 'all' && paragraph.section !== input.section
+        ? [{ kind: 'wrong-section', paragraph: index, section: paragraph.section }]
+        : []),
+    ];
+  }
+}
+
+/** Each section asked for has at least one paragraph and no more than its limit. */
+function sectionViolations(
+  asked: NarrateInput['section'],
+  output: NarrateOutput,
+): OutputViolation[] {
+  const sections = asked === 'all' ? NARRATIVE_SECTIONS : [asked];
+  return sections.flatMap((section): OutputViolation[] => {
+    const count = output.paragraphs.filter((each) => each.section === section).length;
+    const limit = SECTION_PARAGRAPH_LIMITS[section];
+    if (count === 0) return [{ kind: 'missing-section', section }];
+    if (count > limit) return [{ kind: 'too-many-paragraphs', section, limit }];
+    return [];
+  });
+}
+
+/**
+ * The aggregate key of every figure in the input: `national.<name>` for totals and rates,
+ * `commission.<code>.<name>` for a Commission row, and the same prefixed `fy<fy>.` for a prior
+ * year. Codes and names are not figures and have no key.
+ */
+export function aggregateKeys(input: NarrateInput): Set<string> {
+  const years = [
+    { prefix: '', year: input },
+    ...input.priorYears.map((year) => ({ prefix: `fy${year.fy}.`, year })),
+  ];
+  return new Set(
+    years.flatMap(({ prefix, year }) => [
+      ...[...Object.keys(year.totals), ...Object.keys(year.rates)].map(
+        (name) => `${prefix}national.${name}`,
+      ),
+      ...year.commissionTable.flatMap(({ code, figures }) =>
+        Object.keys(figures).map((name) => `${prefix}commission.${code}.${name}`),
+      ),
+    ]),
+  );
+}
+
+/** A financial year label, "2025/26" or "FY2025/2026", by the year it ends in. */
+const FY_LABEL = /\b(?:FY\s?)?(\d{4})\/(\d{2}|\d{4})\b/giu;
+
+/**
+ * A number as written: digits with optional thousands separators (comma, thin or narrow
+ * no-break space), decimals, and a percentage unit. Digits after a letter and a dot count
+ * ("s.31"); digits after a number's own separator do not.
+ */
+const NUMBER =
+  /(?<!\d|\d[.,])(\d{1,3}(?:[,\u2009\u202f]\d{3})+|\d+)(?:\.(\d+))?(\s*(?:%|per\s?cent\b|percentage points?\b|pp\b))?/giu;
+
+interface Mention {
+  value: number;
+  /** Decimal places as written: the precision a figure was rounded to. */
+  decimals: number;
+  percent: boolean;
+}
+
+function mentions(text: string): Mention[] {
+  return [...text.matchAll(NUMBER)].map(([, integer = '', fraction, unit]) => ({
+    value: Number(`${integer.replaceAll(/[,\u2009\u202f]/g, '')}.${fraction ?? '0'}`),
+    decimals: fraction?.length ?? 0,
+    percent: Boolean(unit),
+  }));
+}
+
+/** The figures the input states, unsigned: a fall of 0.12 reads as "fell by 12%". */
+function inputNumbers(input: NarrateInput): number[] {
+  const years = [input, ...input.priorYears];
+  const figures = years.flatMap((year) => [
+    year.fy,
+    ...Object.values(year.totals),
+    ...Object.values(year.rates),
+    ...year.commissionTable.flatMap((row) => Object.values(row.figures)),
+  ]);
+  const values = input.candidates.flatMap((candidate) => Object.values(candidate.values));
+  return [...figures, ...values]
+    .filter((value): value is number => typeof value === 'number')
+    .map((value) => Math.abs(value));
+}
+
+function round(value: number, decimals: number): number {
+  const scale = 10 ** decimals;
+  return Math.round(value * scale) / scale;
+}
+
+function same(a: number, b: number): boolean {
+  return Math.abs(a - b) <= 1e-9 * Math.max(1, Math.abs(a), Math.abs(b));
+}
+
+/**
+ * Whether the input states a mention. A percentage matches a fraction ×100 or a value already in
+ * percent, rounded as written; a whole number matches exactly; a decimal matches rounded as
+ * written. Nothing derived: a difference or ratio passes only when the input carries it.
+ */
+function stated({ value, decimals, percent }: Mention, known: readonly number[]): boolean {
+  if (percent) {
+    return known.some(
+      (each) => same(round(each * 100, decimals), value) || same(round(each, decimals), value),
+    );
+  }
+  if (decimals === 0) return known.some((each) => same(each, value));
+  return known.some((each) => same(round(each, decimals), value));
+}
+
+/** The mentions in `text` the input does not state; a year label counts when it is an input FY. */
+function foreignNumbers(
+  text: string,
+  known: readonly number[],
+  years: ReadonlySet<number>,
+): Mention[] {
+  const labels = [...text.matchAll(FY_LABEL)];
+  const foreignLabels = labels
+    .filter(([, start = '', end = '']) => !years.has(fyEnd(Number(start), end)))
+    .map((): Mention => ({ value: Number.NaN, decimals: 0, percent: false }));
+  const rest = text.replaceAll(FY_LABEL, ' ');
+  return [...foreignLabels, ...mentions(rest).filter((mention) => !stated(mention, known))];
+}
+
+/** The year an FY label ends in; NaN when its years are not consecutive ("2025/27"). */
+function fyEnd(start: number, end: string): number {
+  const year = end.length === 2 ? Math.floor(start / 100) * 100 + Number(end) : Number(end);
+  return year === start + 1 ? year : Number.NaN;
+}

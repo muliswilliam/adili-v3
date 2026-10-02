@@ -24,7 +24,7 @@ import {
 } from '../jobs/job-states.js';
 import { DATA_CLASSES } from '../jobs/task-request.js';
 import { PROVIDER_CLASSES } from '../providers/port.js';
-import { TASK_NAMES } from '../tasks/task.js';
+import { type OutputViolation, TASK_NAMES } from '../tasks/task.js';
 
 /** `status in ('a', 'b')` for a partial index predicate; the values are constants, not input. */
 export function statusIn(column: AnyColumn, statuses: readonly JobStatus[]): SQL {
@@ -85,6 +85,11 @@ export const jobs = pgTable(
     outputHash: text(),
     /** Set when the retention window cleared `output`; the job then no longer serves the cache. */
     outputPurgedAt: timestamp({ withTimezone: true }),
+    /**
+     * Why an output that fit the schema failed its task's own checks (reason `validation`):
+     * kinds and where, never output text or figures. Not part of the contract's `Job`.
+     */
+    violations: jsonb().$type<OutputViolation[]>(),
     tokensIn: integer().notNull().default(0),
     tokensOut: integer().notNull().default(0),
     costMicros: integer().notNull().default(0),
@@ -218,6 +223,8 @@ export const auditRecords = pgTable(
     latencyMs: integer(),
     outcome: text({ enum: JOB_STATUSES }),
     reason: text({ enum: JOB_REASONS }),
+    /** The job's `violations`, when its output failed its task's own checks. */
+    violations: jsonb().$type<OutputViolation[]>(),
     // A change (`ai.gate-policy.changed`, `ai.budget.changed`).
     approvalRef: text(),
     /** What changed: the values before and after. */

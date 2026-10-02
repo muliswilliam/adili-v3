@@ -10,8 +10,18 @@ export const TASK_NAMES = [
   'summarize-declaration',
   'explain-flags',
   'draft-clarification',
+  'narrate-compliance-report',
 ] as const;
 export type TaskName = (typeof TASK_NAMES)[number];
+
+/**
+ * Why an output that fits the schema still fails its task: a kind, and where (paragraph indexes,
+ * keys, ids). Never output text or figures, as these are stored with the job and its audit record.
+ */
+export interface OutputViolation {
+  kind: string;
+  [detail: string]: string | number;
+}
 
 interface TaskSpec<TInput extends z.ZodObject, TOutput extends z.ZodObject> {
   name: TaskName;
@@ -23,6 +33,11 @@ interface TaskSpec<TInput extends z.ZodObject, TOutput extends z.ZodObject> {
   promptVersions: readonly [number, ...number[]];
   /** Output limit of every call for this task. */
   maxOutputTokens: number;
+  /**
+   * The task's own checks of an output against its input, beyond the schema and source refs. Any
+   * violation fails the job with reason `validation`.
+   */
+  validate?: (input: z.infer<TInput>, output: z.infer<TOutput>) => OutputViolation[];
 }
 
 export interface TaskDefinition<
