@@ -15,7 +15,6 @@ import {
   flagNoteError,
   groupFlags,
   openFlagsByItem,
-  seedFromFlags,
   topSeverity,
 } from './flags';
 
@@ -112,7 +111,7 @@ describe('concernsLine', () => {
   });
 });
 
-describe('flag pins and seeds', () => {
+describe('flag pins', () => {
   it('counts the open flags on each item, and the most severe', () => {
     const pins = openFlagsByItem(flags);
     expect(pins.get(I.plot)?.map((flag) => flag.id)).toEqual([F.valueChange]);
@@ -120,30 +119,6 @@ describe('flag pins and seeds', () => {
     expect(topSeverity([byId(F.foreign), byId(F.acquisition)])).toBe('medium');
     expect(flagItemId(byId(F.valueChange))).toBe(I.plot);
     expect(flagItemId(byId(F.growth))).toBeNull();
-  });
-
-  it('starts a clarification with one item per thing the picked flags point at', () => {
-    const seed = seedFromFlags(flags, [F.valueChange, F.growth, F.valueChange, 'gone']);
-    expect(seed).toEqual({
-      label: null,
-      opening: null,
-      items: [
-        {
-          sectionKey: 'statement:officer',
-          personKey: 'officer',
-          itemId: I.plot,
-          requirement: null,
-          text: '',
-        },
-        {
-          sectionKey: 'statement:officer',
-          personKey: 'officer',
-          itemId: null,
-          requirement: null,
-          text: '',
-        },
-      ],
-    });
   });
 
   it('needs a note of up to 1,000 characters to mark a flag reviewed', () => {

@@ -15,11 +15,10 @@ import { Clock01Icon, SquareLock02Icon } from '@hugeicons/core-free-icons';
 import { useRouter } from '@tanstack/react-router';
 import { type ReactNode, useCallback, useMemo, useState } from 'react';
 
-import { type ComposerDraft } from '../../../clarification/composer';
 import { newClarificationBlock } from '../../../clarification/list';
 import { assignableOfficers, caseActions, versionLine } from '../../../review-case/case';
 import { readDeclaration } from '../../../review-case/declaration';
-import { groupFlags, openFlagsByItem, seedFromFlags } from '../../../review-case/flags';
+import { groupFlags, openFlagsByItem } from '../../../review-case/flags';
 import { timelineEvents } from '../../../review-case/timeline';
 import {
   addCaseNote,
@@ -43,10 +42,8 @@ import {
   UnassignDialog,
 } from './assignment-dialogs';
 import { CaseClarifications } from '../case-clarifications';
-import {
-  ClarificationComposer,
-  type ClarificationComposerProps,
-} from '../composer/clarification-composer';
+import { useDraftWithAi } from '../draft-with-ai/use-draft-with-ai';
+import { ClarificationComposer } from '../composer/clarification-composer';
 import { employerOf, type LetterCommission } from '../composer/letter-preview';
 import { CaseHeader } from './case-header';
 import { DeclarationPane, DeclarationUnavailable, DeclarationUnreadable } from './declaration-pane';
@@ -71,8 +68,6 @@ export interface CaseViewProps {
   commission: LetterCommission;
   /** Re-reads the case (the declaration's Try again). */
   onReload?: () => Promise<void>;
-  /** Draft with AI (#288), above the composer's items. */
-  composerTools?: ClarificationComposerProps['tools'];
   /** Fakes the Copilot in tests. */
   copilot?: Pick<CaseCopilotProps, 'api' | 'initial'>;
 }
@@ -92,15 +87,7 @@ function isStale(error: ServiceError): boolean {
   return error.kind === 'problem' && (error.problem.status === 403 || error.problem.status === 409);
 }
 
-export function CaseView({
-  load,
-  now,
-  supervisor,
-  commission,
-  onReload,
-  composerTools,
-  copilot,
-}: CaseViewProps) {
+export function CaseView({ load, now, supervisor, commission, onReload, copilot }: CaseViewProps) {
   const { detail, documentUnavailable, viewer } = load;
   const item = detail.case;
   const nowMs = Date.parse(now);
@@ -120,13 +107,18 @@ export function CaseView({
   const [dialog, setDialog] = useState<AssignmentDialog | null>(null);
   const [downloading, setDownloading] = useState<ReadonlySet<string>>(new Set());
   const [retrying, setRetrying] = useState(false);
-  const [composer, setComposer] = useState<{ open: boolean; seed: ComposerDraft | null }>({
-    open: false,
-    seed: null,
-  });
-  // Flags picked in the copilot for a clarification ("Add to clarification").
-  const [picked, setPicked] = useState<string[]>([]);
+  const [composing, setComposing] = useState(false);
   const composeBlocked = newClarificationBlock(item, viewer.subject, now);
+  // Flags picked in the copilot ("Add to clarification") are Draft with AI's in the composer.
+  const drafting = useDraftWithAi({
+    caseId: item.id,
+    flags: detail.flags,
+    copilotStatus,
+    onCompose: () => {
+      setComposing(true);
+    },
+    composeDisabled: composeBlocked !== null,
+  });
 
   const onStatusChange = useCallback((status: Copilot['status'] | null) => {
     setCopilotStatus(status);
@@ -235,23 +227,7 @@ export function CaseView({
       onOpenChange={setCopilotOpen}
       explain={explain}
       onStatusChange={onStatusChange}
-      selection={{
-        flagIds: picked,
-        onToggle: (flagId) => {
-          setPicked((current) =>
-            current.includes(flagId)
-              ? current.filter((each) => each !== flagId)
-              : [...current, flagId],
-          );
-        },
-        onClear: () => {
-          setPicked([]);
-        },
-        onCompose: () => {
-          setComposer({ open: true, seed: seedFromFlags(detail.flags, picked) });
-        },
-        composeDisabled: composeBlocked !== null,
-      }}
+      selection={drafting.copilotSelection}
       {...copilot}
     />
   );
@@ -312,7 +288,7 @@ export function CaseView({
               subject={viewer.subject}
               now={now}
               onNew={() => {
-                setComposer({ open: true, seed: null });
+                setComposing(true);
               }}
             />
           </TabsContent>
@@ -384,19 +360,16 @@ export function CaseView({
       </p>
 
       <ClarificationComposer
-        open={composer.open}
-        onOpenChange={(open) => {
-          setComposer((current) => ({ ...current, open }));
-        }}
+        open={composing}
+        onOpenChange={setComposing}
         reviewCase={item}
         document={detail.document}
         commission={commission}
         now={now}
-        seed={composer.seed}
-        tools={composerTools}
+        tools={drafting.tools}
         onSaved={() => void router.invalidate()}
         onIssued={() => {
-          setPicked([]);
+          drafting.clear();
           setCopilotOpen(false);
           setTab('clarifications');
           void router.invalidate();
