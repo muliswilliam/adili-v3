@@ -65,8 +65,13 @@ export const en = {
   noChanges: 'No material changes.',
   noAttention: 'No open flags.',
   openFlag: (title: string) => `Open flag: ${title}`,
-  rateSummary: 'Rate this summary',
-  rateExplanations: 'Rate the flag explanations',
+  rate: {
+    overview: 'Rate the overview',
+    changes: 'Rate the changes since previous version',
+    sections: 'Rate the by person summary',
+    attention: 'Rate what is worth attention',
+    explanation: (flag: string) => `Rate the explanation of ${flag}`,
+  },
   flags: {
     none: 'No flags',
     noneDetail: 'Nothing to explain on this case.',

@@ -24,6 +24,14 @@ async function asReviewer<T>(
 
 const caseInput = z.object({ caseId: z.uuid() });
 
+/** review.yaml `CopilotBlock`: a summary block, an explanation's `flag:<id>`, or null. */
+const copilotBlock = z
+  .string()
+  .regex(
+    /^(overview|changes|sections|worth-attention|flag:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/,
+  )
+  .nullable();
+
 export const getCaseCopilot = createServerFn({ method: 'GET' })
   .validator(caseInput)
   .handler(({ data }): Promise<ServiceResult<Copilot>> =>
@@ -40,6 +48,7 @@ export const rateCopilotOutput = createServerFn({ method: 'POST' })
   .validator(
     z.object({
       jobId: z.uuid(),
+      block: copilotBlock,
       rating: z.enum(['helpful', 'not-helpful']),
       reason: z.enum(['inaccurate', 'missed-something', 'unclear', 'too-long', 'other']).nullable(),
       note: z.string().max(1000).nullable(),

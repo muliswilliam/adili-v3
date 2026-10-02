@@ -203,10 +203,13 @@ export function RetryButton({
 export function Block({
   title,
   label,
+  rating,
   children,
 }: {
   title: string;
   label: CopilotAiLabel;
+  /** The block's own rating (`Rating`), under its content. */
+  rating?: ReactNode;
   children: ReactNode;
 }) {
   const headingId = useId();
@@ -222,6 +225,7 @@ export function Block({
         <AiLabel size="sm" text={t.labelShort} details={labelDetails(label)} />
       </div>
       {children}
+      {rating}
     </section>
   );
 }

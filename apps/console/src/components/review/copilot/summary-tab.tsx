@@ -11,6 +11,7 @@ import {
   type ResolveRef,
   textClassName,
 } from './panel-parts';
+import type { SummaryBlock } from './copilot-view';
 import { messages as t } from './messages';
 import { SeverityBadge } from './severity-badge';
 
@@ -22,7 +23,7 @@ export function SummaryTab({
   hasPrevious,
   onOpenSource,
   onOpenFlag,
-  rating,
+  rate,
 }: {
   summary: CopilotSummary;
   flags: Flag[];
@@ -30,7 +31,8 @@ export function SummaryTab({
   hasPrevious: boolean;
   onOpenSource: OpenSource;
   onOpenFlag: (flagId: string) => void;
-  rating: ReactNode;
+  /** The rating of one block, named by `group`. */
+  rate: (block: SummaryBlock, group: string) => ReactNode;
 }) {
   const { label } = summary;
   const refs = (list: CopilotSourceRef[]) => (
@@ -39,10 +41,10 @@ export function SummaryTab({
   const flagById = new Map(flags.map((flag) => [flag.id, flag]));
   return (
     <>
-      <Block title={t.blocks.overview} label={label}>
+      <Block title={t.blocks.overview} label={label} rating={rate('overview', t.rate.overview)}>
         <p className={textClassName}>{summary.overview}</p>
       </Block>
-      <Block title={t.blocks.changes} label={label}>
+      <Block title={t.blocks.changes} label={label} rating={rate('changes', t.rate.changes)}>
         {summary.changesSincePrevious.length > 0 ? (
           <ul className="grid gap-3">
             {summary.changesSincePrevious.map((change) => (
@@ -57,7 +59,7 @@ export function SummaryTab({
         )}
       </Block>
       {summary.sections.length > 0 ? (
-        <Block title={t.blocks.sections} label={label}>
+        <Block title={t.blocks.sections} label={label} rating={rate('sections', t.rate.sections)}>
           <div className="grid gap-2.5">
             {summary.sections.map((section) => {
               const head = resolveRef({
@@ -81,7 +83,11 @@ export function SummaryTab({
           </div>
         </Block>
       ) : null}
-      <Block title={t.blocks.attention} label={label}>
+      <Block
+        title={t.blocks.attention}
+        label={label}
+        rating={rate('worth-attention', t.rate.attention)}
+      >
         {summary.worthAttention.length > 0 ? (
           <ul className="grid gap-3">
             {summary.worthAttention.map((point) => (
@@ -100,7 +106,6 @@ export function SummaryTab({
           <p className={quietClassName}>{t.noAttention}</p>
         )}
       </Block>
-      {rating}
     </>
   );
 }

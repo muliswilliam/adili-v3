@@ -213,25 +213,33 @@ describe('useCaseCopilot', () => {
     expect(api.read).not.toHaveBeenCalled();
   });
 
-  it("keeps the caller's ratings: from the view, then as saved", async () => {
+  it("keeps the caller's ratings per block: from the view, then as saved", async () => {
     const api = fakeApi(
       [],
-      ok(copilot('ready', { feedback: [{ jobId: JOB, rating: 'helpful' }] })),
+      ok(copilot('ready', { feedback: [{ jobId: JOB, block: 'overview', rating: 'helpful' }] })),
     );
     const { result } = renderHook(() => useCaseCopilot(CASE, api));
     await settle();
-    expect(result.current.ratingOf(JOB)).toEqual({ rating: 'helpful', reason: null, note: null });
+    expect(result.current.ratingOf(JOB, 'overview')).toEqual({
+      rating: 'helpful',
+      reason: null,
+      note: null,
+    });
+    expect(result.current.ratingOf(JOB, 'changes')).toBeNull();
     const feedback = { rating: 'not-helpful', reason: 'too-long', note: null } as const;
     await act(async () => {
-      await result.current.rate(JOB, feedback);
+      await result.current.rate(JOB, 'changes', feedback);
     });
-    expect(api.rate).toHaveBeenCalledWith(JOB, feedback);
-    expect(result.current.ratingOf(JOB)).toEqual(feedback);
+    expect(api.rate).toHaveBeenCalledWith(JOB, 'changes', feedback);
+    expect(result.current.ratingOf(JOB, 'changes')).toEqual(feedback);
+    expect(result.current.ratingOf(JOB, 'overview')?.rating).toBe('helpful');
 
     api.rate.mockResolvedValueOnce({ ok: false, error: { kind: 'unavailable', detail: null } });
     await expect(
-      act(() => result.current.rate(JOB, { rating: 'helpful', reason: null, note: null })),
+      act(() =>
+        result.current.rate(JOB, 'changes', { rating: 'helpful', reason: null, note: null }),
+      ),
     ).rejects.toThrow();
-    expect(result.current.ratingOf(JOB)).toEqual(feedback);
+    expect(result.current.ratingOf(JOB, 'changes')).toEqual(feedback);
   });
 });

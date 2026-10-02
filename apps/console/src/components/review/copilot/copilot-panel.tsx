@@ -3,7 +3,7 @@ import { Alert02Icon, Cancel01Icon, RefreshIcon } from '@hugeicons/core-free-ico
 import { type ReactNode, useEffect, useId, useState } from 'react';
 
 import type { CaseDetail, Flag } from '../../../server/review/types';
-import type { CopilotAccess } from './copilot-view';
+import { type CopilotAccess, explanationBlock } from './copilot-view';
 import { flagAnchor, FlagsTab, SelectionBar } from './flags-tab';
 import {
   AiTile,
@@ -83,7 +83,8 @@ export function CopilotPanel({
   const { copilot, error, stopped, refreshing } = state;
   const status = copilot?.status ?? null;
   const busy = status === 'pending' || status === 'stale';
-  const canRefresh = access !== 'viewer' && status !== 'not-enabled' && copilot !== null;
+  // Not enabled may have changed since (the Commission's AI policy): a refresh asks again.
+  const canRefresh = access !== 'viewer' && copilot !== null;
 
   function openFlag(flagId: string) {
     setTab('flags');
@@ -231,15 +232,15 @@ export function CopilotPanel({
             hasPrevious={hasPrevious}
             onOpenSource={onOpenSource}
             onOpenFlag={openFlag}
-            rating={
+            rate={(block, group) => (
               <Rating
                 state={state}
                 access={access}
                 jobId={copilot.jobs.summarize}
-                label={content.label}
-                group={t.rateSummary}
+                block={block}
+                group={group}
               />
-            }
+            )}
           />
         </TabContent>
         <TabContent value="flags" stale={stale} stopped={stopped} onCheckAgain={state.retry}>
@@ -255,17 +256,15 @@ export function CopilotPanel({
             resolveRef={resolveRef}
             onOpenSource={onOpenSource}
             selection={access === 'assignee' ? selection : undefined}
-            rating={
-              copilot.explanations ? (
-                <Rating
-                  state={state}
-                  access={access}
-                  jobId={copilot.jobs.explain}
-                  label={copilot.explanations.label}
-                  group={t.rateExplanations}
-                />
-              ) : null
-            }
+            rate={(flagId, group) => (
+              <Rating
+                state={state}
+                access={access}
+                jobId={copilot.jobs.explain}
+                block={explanationBlock(flagId)}
+                group={group}
+              />
+            )}
           />
         </TabContent>
       </>

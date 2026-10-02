@@ -13,7 +13,7 @@ import { type CopilotApi, useCaseCopilot } from './use-case-copilot';
 export const copilotApi: CopilotApi = {
   read: (caseId) => getCaseCopilot({ data: { caseId } }),
   refresh: (caseId) => refreshCaseCopilot({ data: { caseId } }),
-  rate: (jobId, feedback) => rateCopilotOutput({ data: { jobId, ...feedback } }),
+  rate: (jobId, block, feedback) => rateCopilotOutput({ data: { jobId, block, ...feedback } }),
 };
 
 export interface CaseCopilotProps {

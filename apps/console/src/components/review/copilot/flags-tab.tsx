@@ -36,7 +36,7 @@ export function FlagsTab({
   resolveRef,
   onOpenSource,
   selection,
-  rating,
+  rate,
 }: {
   flags: Flag[];
   explanations: CopilotExplanation[];
@@ -47,7 +47,8 @@ export function FlagsTab({
   resolveRef: ResolveRef;
   onOpenSource: OpenSource;
   selection: FlagSelection | undefined;
-  rating: ReactNode;
+  /** The rating of one flag's explanation, named by `group`. */
+  rate: (flagId: string, group: string) => ReactNode;
 }) {
   if (flags.length === 0) {
     return (
@@ -76,10 +77,10 @@ export function FlagsTab({
             resolveRef={resolveRef}
             onOpenSource={onOpenSource}
             selection={selection}
+            rating={rate(flag.id, t.rate.explanation(flag.title))}
           />
         ))}
       </div>
-      {rating}
     </>
   );
 }
@@ -95,6 +96,7 @@ export function FlagExplanation({
   resolveRef,
   onOpenSource,
   selection,
+  rating,
 }: {
   flag: Flag;
   explanation: CopilotExplanation | null;
@@ -105,6 +107,8 @@ export function FlagExplanation({
   resolveRef: ResolveRef;
   onOpenSource: OpenSource;
   selection: FlagSelection | undefined;
+  /** The explanation's own rating (`Rating`), under it. */
+  rating: ReactNode;
 }) {
   const bodyId = useId();
   const done = flagDone(flag);
@@ -188,6 +192,7 @@ export function FlagExplanation({
                 resolveRef={resolveRef}
                 onOpenSource={onOpenSource}
               />
+              {rating}
             </>
           ) : (
             <p className={quietClassName}>{t.flags.noExplanation}</p>
