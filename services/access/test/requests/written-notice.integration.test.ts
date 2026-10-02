@@ -467,6 +467,8 @@ describe('An officer with no account: written notice and representations receive
         receivedInWriting: true,
         recordedBy: 'Peter Access',
       });
+      // Entered once, not edited.
+      expect(view.representations?.updatedAt).toBe(view.representations?.submittedAt);
       expect(view.timeline.at(-1)).toMatchObject({
         kind: 'representations',
         actor: 'Peter Access',

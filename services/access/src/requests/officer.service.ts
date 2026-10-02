@@ -542,7 +542,7 @@ export class OfficerService {
       };
       await tx
         .insert(representations)
-        .values({ requestId: current.id, tenant, ...values, submittedAt: now })
+        .values({ requestId: current.id, tenant, ...values, submittedAt: now, updatedAt: now })
         .onConflictDoUpdate({
           target: representations.requestId,
           set: { ...values, updatedAt: now },
