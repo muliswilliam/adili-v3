@@ -1,3 +1,5 @@
+import type { ReadLegalBasisCode } from '@adili/api-kit';
+
 /**
  * Event contracts the access service publishes (spec 10, Act s.36, ADR-008 access register): one
  * event per access-register entry, read by the audit service (every entry, with its legal basis)
@@ -8,10 +10,15 @@
 
 /**
  * The law each access-register entry rests on: Act s.36(1) for Form K requests, s.36(2) with
- * Regulation 23 for law enforcement requests, Administrative Mechanism 32 for a declarant's
- * access to their own declaration (certified copies).
+ * Regulation 23 for law enforcement requests, `self-access` (Administrative Mechanism 32) for a
+ * declarant's access to their own declaration (certified copies). The same words the audit
+ * trail's reads use (api-kit `READ_LEGAL_BASES`, ADR-008).
  */
-export const ACCESS_LEGAL_BASES = ['act-s36-1', 'act-s36-2', 'admin-mechanism-32'] as const;
+export const ACCESS_LEGAL_BASES = [
+  'act-s36-1',
+  'act-s36-2',
+  'self-access',
+] as const satisfies readonly ReadLegalBasisCode[];
 export type AccessLegalBasis = (typeof ACCESS_LEGAL_BASES)[number];
 
 /** What an access-register entry is about. */

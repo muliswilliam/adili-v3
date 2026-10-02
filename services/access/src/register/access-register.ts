@@ -18,7 +18,7 @@ export type RegisterRow = typeof accessRegister.$inferSelect;
 export const LEGAL_BASIS: Record<AccessSubjectKind, AccessLegalBasis> = {
   'access-request': 'act-s36-1',
   'lea-request': 'act-s36-2',
-  'self-access': 'admin-mechanism-32',
+  'self-access': 'self-access',
 };
 
 /** A step to record in the access register. */

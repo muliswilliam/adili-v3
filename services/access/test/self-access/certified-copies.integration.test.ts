@@ -163,7 +163,7 @@ describe('Certified copies (S13)', () => {
         tenant: 'psc',
         subjectKind: 'self-access',
         kind: 'self-access',
-        legalBasis: 'admin-mechanism-32',
+        legalBasis: 'self-access',
         personId: anne.personId,
         reference: null,
         actor: anne.sub,

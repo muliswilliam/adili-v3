@@ -430,7 +430,7 @@ describe('access row-level security', () => {
           reference: null,
           personId,
           kind: 'self-access',
-          legalBasis: 'admin-mechanism-32',
+          legalBasis: 'self-access',
         });
       }
     });

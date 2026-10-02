@@ -27,7 +27,7 @@ describe('access register events', () => {
     expect(LEGAL_BASIS).toEqual({
       'access-request': 'act-s36-1',
       'lea-request': 'act-s36-2',
-      'self-access': 'admin-mechanism-32',
+      'self-access': 'self-access',
     });
   });
 });
