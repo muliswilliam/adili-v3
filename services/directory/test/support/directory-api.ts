@@ -35,6 +35,10 @@ import { IprsLookup } from '../../src/onboarding/iprs/iprs-lookup.js';
 import { InMemoryOtpDelivery } from '../../src/onboarding/otp/in-memory-otp-delivery.js';
 import { OtpDelivery } from '../../src/onboarding/otp/otp-delivery.js';
 import {
+  InMemoryInvitationDelivery,
+  InvitationDelivery,
+} from '../../src/roster/records/invitation-delivery.js';
+import {
   OnboardingExpirySchedule,
   onboardingExpiryScheduleId,
 } from '../../src/onboarding/sessions/expiry-schedule.js';
@@ -103,6 +107,8 @@ export interface DirectoryApi {
   clock: TestClock;
   /** Onboarding one-time codes sent, with their codes (standing in for notifications). */
   otpDelivery: InMemoryOtpDelivery;
+  /** Invitations to onboard sent to roster contacts (standing in for notifications). */
+  invitations: InMemoryInvitationDelivery;
   /** IPRS as the confirm step sees it (standing in for the integration-gateway). */
   iprs: InMemoryIprsLookup;
   /** The suite's onboarding session expiry schedule, paused: trigger it to run the sweep. */
@@ -168,6 +174,7 @@ export async function startDirectoryApi(options: DirectoryApiOptions = {}): Prom
   const uploads = new InMemoryRosterUploads();
   const clock = new TestClock();
   const otpDelivery = new InMemoryOtpDelivery();
+  const invitations = new InMemoryInvitationDelivery();
   const iprs = new InMemoryIprsLookup();
   // The suite's own key prefix, so rate limit budgets and throttles start fresh and never meet
   // another suite's (or an earlier run's) on the shared Valkey.
@@ -194,6 +201,8 @@ export async function startDirectoryApi(options: DirectoryApiOptions = {}): Prom
     .useValue(() => clock.now().getTime())
     .overrideProvider(OtpDelivery)
     .useValue(otpDelivery)
+    .overrideProvider(InvitationDelivery)
+    .useValue(invitations)
     .overrideProvider(IprsLookup)
     .useValue(iprs)
     .overrideProvider(RATE_LIMIT_POLICIES)
@@ -249,6 +258,7 @@ export async function startDirectoryApi(options: DirectoryApiOptions = {}): Prom
     activationLookups,
     clock,
     otpDelivery,
+    invitations,
     iprs,
     expirySchedule,
     anonymous({ method = 'GET', url: path, body, headers = {}, ip = '203.0.113.10' }) {
@@ -284,10 +294,11 @@ export async function startDirectoryApi(options: DirectoryApiOptions = {}): Prom
     },
     async reset() {
       await db.execute(
-        sql`truncate onboarding_otps, onboarding_sessions, onboarding_failures, law_enforcement_officers, persons, numbering_counters, roster_import_batches, roster_import_rows, roster_exits, roster_records, reporting_entities, roster_summaries, roster_imports, roster_api_credentials, reporting_officer_assignments, tenant_policy_versions, commission_categories, commissions, outbox, inbox, idempotency_keys`,
+        sql`truncate onboarding_invitations, onboarding_otps, onboarding_sessions, onboarding_failures, law_enforcement_officers, persons, numbering_counters, roster_import_batches, roster_import_rows, roster_exits, roster_records, reporting_entities, roster_summaries, roster_imports, roster_api_credentials, reporting_officer_assignments, tenant_policy_versions, commission_categories, commissions, outbox, inbox, idempotency_keys`,
       );
       identity.reset();
       otpDelivery.reset();
+      invitations.reset();
       iprs.reset();
       clock.reset();
       uploads.reset();
