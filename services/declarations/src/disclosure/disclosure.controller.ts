@@ -1,15 +1,7 @@
-import {
-  Body,
-  Controller,
-  createParamDecorator,
-  type ExecutionContext,
-  HttpCode,
-  HttpStatus,
-  Param,
-  Post,
-} from '@nestjs/common';
+import { Body, Controller, HttpCode, HttpStatus, Param, Post } from '@nestjs/common';
 import { ApiBody, ApiHeader, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import {
+  ActingSubject,
   ActingTenant,
   ApiProblemResponse,
   AuditedRead,
@@ -36,17 +28,6 @@ import {
   type FullVersionDocument,
   SELF_ACCESS,
 } from './representation.js';
-
-/**
- * The `X-Acting-Subject` header, validated by the pipe given: required here, as a disclosure
- * always names whom the service acts for.
- */
-const ActingSubject = createParamDecorator(
-  (_: unknown, context: ExecutionContext): unknown =>
-    context.switchToHttp().getRequest<{ headers: Record<string, unknown> }>().headers[
-      'x-acting-subject'
-    ],
-);
 
 /**
  * Internal: not routed by the public entrypoint. The access service (spec 10) asks here for what
