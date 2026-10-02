@@ -92,8 +92,10 @@ export const nationalReportAggregates = pgTable('national_report_aggregates', {
 /**
  * The narrative, paragraph by paragraph. A paragraph keeps its id while its text stays; editing
  * it clears `aiDraft` (spec 09b labels AI-drafted paragraphs until an analyst edits them).
- * `aggregateRefs` are dot paths into the aggregates (`national.initial.rate`), `candidateIds`
- * spec 09b's pattern candidates: both empty for what an analyst types.
+ * `aggregateRefs` are aggregate keys in the ai-gateway scheme (`national.<name>`,
+ * `commission.<code>.<name>`, prefixed `fy<fy>.` for a prior year), not dot paths into the
+ * aggregates; building those keys from the aggregates is #326 and #334's work. `candidateIds` are
+ * spec 09b's pattern candidates. Both are empty for what an analyst types.
  */
 export const nationalReportParagraphs = pgTable(
   'national_report_paragraphs',
