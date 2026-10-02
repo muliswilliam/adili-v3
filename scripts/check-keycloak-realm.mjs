@@ -274,6 +274,17 @@ if (directory) {
 // declarations (spec 06).
 for (const [id, needed] of [
   ['declarations', ['directory:internal', 'messages', 'documents:internal']],
+  // Form M (spec 09): Commissions and staff, officer and clarification details, its PDFs, emails.
+  [
+    'reporting',
+    [
+      'directory:internal',
+      'declarations:internal',
+      'review:internal',
+      'documents:internal',
+      'messages',
+    ],
+  ],
   ['notifications', ['directory:person-contacts']],
   ['documents', ['declarations:internal']],
   ['access', ['directory:internal', 'directory:applicants', 'declarations:internal', 'messages']],

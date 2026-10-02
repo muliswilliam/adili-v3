@@ -451,6 +451,29 @@
           }
         }
       ]
+    },
+    {
+      "clientId": "reporting",
+      "name": "Reporting service",
+      "description": "Service account the reporting service uses for Form M: Commissions and staff from the directory, officer details from declarations, clarifications and ICMS payloads from review, its PDFs from documents, emails through notifications",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "clientAuthenticatorType": "client-secret",
+      "secret": "reporting-dev-secret",
+      "standardFlowEnabled": false,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": true,
+      "defaultClientScopes": [
+        "basic",
+        "declarations:internal",
+        "directory:internal",
+        "documents:internal",
+        "review:internal",
+        "messages"
+      ],
+      "optionalClientScopes": []
     }
   ],
   "clientScopes": [
