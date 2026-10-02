@@ -25,7 +25,8 @@ export interface RegistryAdapter<T, S = string> {
    * or null when the registry has no record; anything else (network, 5xx, a body that breaks
    * the contract) rejects with an `UpstreamError`. Stops when `signal` aborts: the kit's timeout.
    * The kit reserved the rate-limit slots of `callsPerLookup` calls; an adapter that makes more
-   * (a second PIN's compliance) charges them through `calls`.
+   * (a second PIN's compliance) charges them through `calls`, and one that makes fewer (no PIN)
+   * returns the rest.
    */
   fetch(subject: S, signal: AbortSignal, calls: UpstreamCalls): Promise<T | null>;
 }
@@ -34,7 +35,8 @@ export interface RegistryAdapter<T, S = string> {
 export interface UpstreamCalls {
   /**
    * Charges `count` more calls to the system's rate limit. Never waits or refuses: the lookup is
-   * under way, so later lookups queue for them instead.
+   * under way, so later lookups queue for them instead. A negative `count` returns that many of
+   * the reserved slots, unused.
    */
   charge(count: number): Promise<void>;
 }

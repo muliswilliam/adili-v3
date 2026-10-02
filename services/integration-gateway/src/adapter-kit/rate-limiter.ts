@@ -11,7 +11,8 @@ import type { SystemPolicy } from './system-policies.js';
  * script, so every instance shares a system's bucket. A reservation of `cost` calls takes them
  * all at once: when the bucket lacks room it takes the next free slots and is told how long to
  * wait for them, unless that is longer than the max wait: then it takes nothing and gets -1. A
- * negative max wait is a charge: it takes the calls whatever the bucket holds and never waits.
+ * negative max wait is a charge: it takes the calls whatever the bucket holds and never waits; a
+ * negative cost returns that many reserved calls, never past the bucket being idle now.
  * Time comes from the Valkey server, so instances with skewed clocks agree.
  */
 const RESERVE = `
@@ -24,6 +25,7 @@ local now = tonumber(time[1]) * 1000 + math.floor(tonumber(time[2]) / 1000)
 local tat = tonumber(redis.call('GET', KEYS[1]) or '0')
 if tat < now then tat = now end
 local next_tat = tat + cost * interval
+if next_tat < now then next_tat = now end
 local wait = 0
 if max_wait >= 0 then
   wait = next_tat - burst * interval - now
@@ -58,10 +60,11 @@ export class RateLimiter {
 
   /**
    * Charges `calls` the lookup is already making (beyond those it reserved) to `system`'s
-   * bucket, without waiting or refusing: later lookups queue for them instead.
+   * bucket, without waiting or refusing: later lookups queue for them instead. Negative `calls`
+   * returns reserved slots the lookup did not use.
    */
   async charge(system: System, policy: SystemPolicy, calls: number): Promise<void> {
-    if (calls > 0) await this.take(system, policy, calls, -1);
+    if (calls !== 0) await this.take(system, policy, calls, -1);
   }
 
   private async take(

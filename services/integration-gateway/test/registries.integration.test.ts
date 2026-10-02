@@ -99,13 +99,16 @@ describe('registry lookups', () => {
 
       const one = await adapter.fetch(SEED.wanjiku, new AbortController().signal, { charge });
       const two = await adapter.fetch(SEED.twoPins, new AbortController().signal, { charge });
+      const none = await adapter.fetch(SEED.unknown, new AbortController().signal, { charge });
 
       expect(adapter.callsPerLookup).toBe(2);
       expect(one?.taxpayers).toHaveLength(1);
       expect(two?.taxpayers).toHaveLength(2);
-      // The PINs and one compliance each, then the second PIN's compliance.
-      expect(registries.calls.kra).toBe(5);
-      expect(charged).toEqual([0, 1]);
+      expect(none).toBeNull();
+      // The PINs and one compliance each, then the second PIN's compliance, then the PINs alone.
+      expect(registries.calls.kra).toBe(6);
+      // A taxpayer with no PIN returns the compliance call's slot it never used.
+      expect(charged).toEqual([0, 1, -1]);
     });
 
     it('answers the PIN with its compliance and declared income, then from the cache', async () => {
@@ -627,6 +630,19 @@ describe('KRA lookups at the configured rate limit', () => {
     const responses = [await lookup(SEED.wanjiku), await lookup(SEED.peter)];
 
     expect(responses.map((response) => response.json<Body>().outcome)).toEqual(['found', 'found']);
+    expect(registries.calls.kra).toBe(4);
+  });
+
+  it('N9: returns the unused compliance slot of a lookup that finds no PIN', async () => {
+    // Each takes the one call it made: kept, their four slots would hold the next two seconds.
+    const unknown = [await lookup(SEED.unknown), await lookup(SEED.imani)];
+    const found = await lookup(SEED.wanjiku);
+
+    expect(unknown.map((response) => response.json<Body>().outcome)).toEqual([
+      'not-found',
+      'not-found',
+    ]);
+    expect(found.json<Body>().outcome).toBe('found');
     expect(registries.calls.kra).toBe(4);
   });
 

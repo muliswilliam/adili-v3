@@ -42,7 +42,8 @@ const NO_COMPLIANCE: KraTaxpayers['taxpayers'][number]['compliance'] = {
  * KRA (external/kra.yaml): the PINs of a national ID (`findTaxpayersByIdNumber`), then each
  * PIN's compliance and declared annual income (`getTaxCompliance`), all within the one timeout
  * the kit gives the lookup. A lookup spends 1 + one per PIN of KRA's rate limit: the kit
- * reserves two (most IDs have one PIN), and a second PIN's call is charged. No PIN is not found.
+ * reserves two (most IDs have one PIN), a second PIN's call is charged and, with no PIN, the
+ * unused compliance slot returned. No PIN is not found.
  */
 @Injectable()
 export class KraAdapter implements RegistryAdapter<KraTaxpayers> {
@@ -65,8 +66,9 @@ export class KraAdapter implements RegistryAdapter<KraTaxpayers> {
       kraPinsSchema,
       signal,
     );
+    // The PINs' call, then one per PIN, against the calls the kit reserved.
+    await calls.charge(1 + (pins?.length ?? 0) - KRA_CALLS_PER_LOOKUP);
     if (!pins || pins.length === 0) return null;
-    await calls.charge(pins.length - (KRA_CALLS_PER_LOOKUP - 1));
     const taxpayers = await Promise.all(
       pins.map(async ({ pin, registered_on }) => {
         const compliance = await getFromRegistry(
