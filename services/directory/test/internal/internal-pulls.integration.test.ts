@@ -678,7 +678,9 @@ describe('Commission staff by role (spec 09 reminders and chase)', () => {
 
     expect(response.statusCode, response.body).toBe(200);
     expect(response.json()).toEqual({
-      items: [{ subject: officer, email: 'access.officer@psc.go.ke' }],
+      items: [
+        { subject: officer, email: 'access.officer@psc.go.ke', name: 'access.officer@psc.go.ke' },
+      ],
     });
   });
 
