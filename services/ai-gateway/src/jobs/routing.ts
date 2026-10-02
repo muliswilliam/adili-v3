@@ -59,6 +59,10 @@ export const routeViewSchema = z.object({
   }),
   model: z.string(),
   params: routeParamsSchema,
+  configured: z.boolean().meta({
+    description:
+      "True for a task with no default route, which follows the gateway's configured provider and model; false for a route set through this API",
+  }),
 });
 export type RouteView = z.infer<typeof routeViewSchema>;
 
@@ -114,12 +118,10 @@ export class Routing {
       tx.select().from(routes).orderBy(asc(routes.task), asc(routes.tenant)),
     );
     const defaults = new Set(rows.filter((row) => row.tenant === null).map((row) => row.task));
-    const view = (tenant: string | null, task: TaskName, route: Route) =>
-      this.view(tenant, task, route);
     return [
-      ...rows.map((row) => view(row.tenant, row.task, routeOf(row))),
+      ...rows.map((row) => this.view(row.tenant, row.task, routeOf(row))),
       ...TASK_NAMES.filter((task) => !defaults.has(task)).map((task) =>
-        view(null, task, this.fallback()),
+        this.view(null, task, this.fallback(), true),
       ),
     ];
   }
@@ -228,7 +230,7 @@ export class Routing {
       : asTenant(this.db, tenant, work, actor));
   }
 
-  private view(tenant: string | null, task: TaskName, route: Route): RouteView {
+  private view(tenant: string | null, task: TaskName, route: Route, configured = false): RouteView {
     return {
       tenant,
       task,
@@ -236,6 +238,7 @@ export class Routing {
       providerClass: this.providers.get(route.provider)?.providerClass ?? null,
       model: route.model,
       params: route.params,
+      configured,
     };
   }
 

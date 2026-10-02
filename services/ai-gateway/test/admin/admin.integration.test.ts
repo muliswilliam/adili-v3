@@ -436,6 +436,7 @@ describe('admin API', { timeout: 90_000 }, () => {
         providerClass: 'self-hosted',
         model: 'llama-4',
         params: { maxOutputTokens: 2048, timeoutMs: 30_000 },
+        configured: false,
       });
       expect(table).toContainEqual(
         expect.objectContaining({ tenant: 'tsc', provider: 'elsewhere', providerClass: null }),
@@ -447,6 +448,7 @@ describe('admin API', { timeout: 90_000 }, () => {
         providerClass: 'external',
         model: MODEL,
         params: {},
+        configured: true,
       });
     });
   });
@@ -468,6 +470,7 @@ describe('admin API', { timeout: 90_000 }, () => {
         providerClass: 'self-hosted',
         model: 'llama-4',
         params: { maxOutputTokens: 2048 },
+        configured: false,
       });
       const override = await request(
         'PUT',
@@ -554,6 +557,16 @@ describe('admin API', { timeout: 90_000 }, () => {
           .statusCode,
       ).toBe(204);
       expect(await t.db.select().from(routes)).toEqual([]);
+      // Reset: the task is back on the configured provider and model.
+      expect((await request('GET', '/v1/ai/routing', admin)).json()).toContainEqual({
+        tenant: null,
+        task: 'summarize-declaration',
+        provider: 'scripted',
+        providerClass: 'external',
+        model: MODEL,
+        params: {},
+        configured: true,
+      });
     });
 
     it('refuses a provider this gateway cannot reach, and an invalid route', async () => {

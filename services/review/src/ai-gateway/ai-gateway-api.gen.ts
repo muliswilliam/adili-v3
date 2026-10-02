@@ -501,6 +501,8 @@ export interface components {
             providerClass: components["schemas"]["ProviderClass"] | null;
             model: string;
             params: components["schemas"]["RouteParams"];
+            /** @description True for a task with no default route, which follows the gateway's configured provider and model; false for a route set through this API */
+            configured: boolean;
         };
         /** @description A task's route: provider, model and call parameters */
         RouteInput: {
