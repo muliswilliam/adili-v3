@@ -483,6 +483,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/internal/v1/review/clarifications/disclosures": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * The clarifications an access grant discloses with the declarations (access, spec 10)
+         * @description Service tokens with scope review:disclosures (the access service only), acting for the Commission in X-Acting-Tenant. A Form K grant that includes clarifications (Act s.36(1), Regulation 22(1)) discloses those issued on the declarations it disclosed: every clarification issued on each named declaration of the person at the Commission (never a draft or a withdrawn one), oldest issued first, each item as its letter put it with the declarant's answer (text and the names of the files attached; not the files), cut to the granted household members and sections. An item goes out only when everything it can concern is granted: a spouse's or child's needs them included; `bio` needs bio, `household` bio with spouses and children, `other` other information, a financial statement's income, assets and liabilities, the declaration as a whole every section and both household members. A clarification with no item in the scope is left out; the reviewer's resolution note never goes out. Audited (`audit.read.v1`, action `clarification.disclosed`) with the legal basis, the grant reference, the recipient and the clarifications served. A read: no Idempotency-Key, safe to retry.
+         */
+        post: operations["internalDiscloseClarifications"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/internal/v1/review/referrals/{referralId}/icms-payload": {
         parameters: {
             query?: never;
@@ -1385,6 +1405,64 @@ export interface components {
             declarationReference: string;
             /** Format: uri */
             letterDownloadUrl: string | null;
+        };
+        ClarificationDisclosureRequest: {
+            /**
+             * Format: uuid
+             * @description The declarant whose clarifications are disclosed
+             */
+            personId: string;
+            /** @description ADR-011: the grant's ARQ (Form K) or LEA reference, with a valid check character */
+            grantReference: string;
+            /**
+             * @description act-s36-1 goes with an ARQ reference, act-s36-2 with an LEA reference
+             * @enum {string}
+             */
+            legalBasis: "act-s36-1" | "act-s36-2";
+            /** @description The account the clarifications are handed to (the applicant); recorded in the audit event */
+            recipientSubject: string;
+            /** @description The declarations the grant disclosed (declarations' `disclosure.v1` versions) */
+            declarationReferences: string[];
+            includeSpouses: boolean;
+            includeChildren: boolean;
+            sections: ("bio" | "income" | "assets" | "liabilities" | "other")[];
+        };
+        ClarificationDisclosure: {
+            grantReference: string;
+            /** @description Oldest issued first; empty when none was issued or none is in the scope */
+            clarifications: components["schemas"]["DisclosedClarification"][];
+        };
+        DisclosedClarification: {
+            /** @description The declaration it was issued on */
+            declarationReference: string;
+            /** @description `CLR-...` */
+            reference: string;
+            /** @enum {string} */
+            status: "issued" | "overdue" | "responded" | "resolved";
+            /** Format: date-time */
+            issuedAt: string;
+            /** Format: date-time */
+            dueAt: string;
+            /** Format: date-time */
+            respondedAt: string | null;
+            responseLate: boolean;
+            /** Format: date-time */
+            resolvedAt: string | null;
+            items: components["schemas"]["DisclosedClarificationItem"][];
+        };
+        DisclosedClarificationItem: {
+            /** @description What the item concerns, as the letter put it */
+            label: string;
+            /** @description What Act s.35(4) required of the declarant */
+            requirementLabel: string;
+            /** @description The reviewer's request */
+            text: string;
+            /** @description The declarant's answer; null when not answered */
+            response: null | {
+                text: string;
+                /** @description Names of the files attached to the answer; the files are not disclosed */
+                attachmentNames: string[];
+            };
         };
         InternalClarificationDetails: {
             /** Format: uuid */
@@ -2820,6 +2898,37 @@ export interface operations {
                     "application/json": {
                         items: components["schemas"]["InternalClarificationDetails"][];
                     };
+                };
+            };
+            400: components["responses"]["ValidationProblem"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    internalDiscloseClarifications: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Tenant the calling service acts for; the resource must belong to it */
+                "X-Acting-Tenant": components["parameters"]["ActingTenant"];
+                /** @description The access officer who decided the grant; recorded in the audit event */
+                "X-Acting-Subject": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ClarificationDisclosureRequest"];
+            };
+        };
+        responses: {
+            /** @description The clarifications in the granted scope, oldest issued first */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ClarificationDisclosure"];
                 };
             };
             400: components["responses"]["ValidationProblem"];
