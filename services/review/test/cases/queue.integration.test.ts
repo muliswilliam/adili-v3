@@ -299,7 +299,45 @@ describe('review queue and summary', () => {
       'ready-for-determination': 0,
     });
     expect(summary.byBand).toEqual({ low: 1, medium: 1, high: 1 });
+    expect(summary.byStatusAndBand.unassigned).toEqual({ low: 1, medium: 1, high: 0 });
+    expect(summary.byStatusAndBand['awaiting-clarification']).toEqual({
+      low: 0,
+      medium: 0,
+      high: 1,
+    });
+    expect(summary.byStatusAndBand.determined).toEqual({ low: 0, medium: 0, high: 0 });
+    expect(summary.mine).toEqual({ low: 0, medium: 0, high: 0 });
     expect(summary.overdueClarifications).toBe(1);
+  });
+
+  it("S7: summary counts the caller's cases that are not determined", async () => {
+    const held = await givenCase({
+      severities: ['high', 'high'],
+      submittedAt: '2027-12-01T08:00:00Z',
+    });
+    const done = await givenCase({ severities: ['medium'], submittedAt: '2027-12-02T08:00:00Z' });
+    const others = await givenCase({ submittedAt: '2027-12-03T08:00:00Z' });
+    await api.asPlatform(async (tx) => {
+      await tx
+        .update(reviewCases)
+        .set({ status: 'assigned', assignee: 'reviewer-a' })
+        .where(eq(reviewCases.id, held));
+      await tx
+        .update(reviewCases)
+        .set({ status: 'determined', assignee: 'reviewer-a' })
+        .where(eq(reviewCases.id, done));
+      await tx
+        .update(reviewCases)
+        .set({ status: 'assigned', assignee: 'reviewer-b' })
+        .where(eq(reviewCases.id, others));
+    });
+
+    const mine = await api.get('/v1/commissions/psc/review/queue/summary', reviewer);
+    const theirs = await api.get('/v1/commissions/psc/review/queue/summary', supervisor);
+
+    expect(mine.json<QueueSummary>().mine).toEqual({ low: 0, medium: 0, high: 1 });
+    expect(theirs.json<QueueSummary>().mine).toEqual({ low: 0, medium: 0, high: 0 });
+    expect(mine.json<QueueSummary>().byStatus).toMatchObject({ assigned: 2, determined: 1 });
   });
 
   it('S7/S18: a Commission sees its own cases; everyone else gets 404', async () => {

@@ -3175,11 +3175,45 @@ components:
             type: string
           additionalProperties:
             type: integer
+        byStatusAndBand:
+          type: object
+          propertyNames:
+            type: string
+          additionalProperties:
+            type: object
+            properties:
+              low:
+                type: integer
+              medium:
+                type: integer
+              high:
+                type: integer
+            required:
+              - low
+              - medium
+              - high
+          description: Every status with its cases per band (the queue's tiles break their counts down)
+        mine:
+          type: object
+          properties:
+            low:
+              type: integer
+            medium:
+              type: integer
+            high:
+              type: integer
+          required:
+            - low
+            - medium
+            - high
+          description: Cases the caller holds that are not determined, per band
         overdueClarifications:
           type: integer
       required:
         - byStatus
         - byBand
+        - byStatusAndBand
+        - mine
         - overdueClarifications
     Flag:
       type: object
