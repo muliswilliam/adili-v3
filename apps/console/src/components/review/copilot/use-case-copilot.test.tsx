@@ -68,6 +68,28 @@ describe('useCaseCopilot', () => {
     expect(api.read).toHaveBeenCalledTimes(3);
   });
 
+  it('reads a not-enabled copilot once a minute, and polls quickly once a policy approval requested it (Q29)', async () => {
+    const api = fakeApi([
+      ok(copilot('not-enabled')),
+      ok(copilot('not-enabled')),
+      ok(copilot('pending')),
+      ok(copilot('ready')),
+    ]);
+    const { result } = renderHook(() => useCaseCopilot(CASE, api));
+    await settle();
+    expect(result.current.copilot?.status).toBe('not-enabled');
+    await wait(59_000);
+    expect(api.read).toHaveBeenCalledTimes(1);
+    await wait(1_000);
+    expect(api.read).toHaveBeenCalledTimes(2);
+    await wait(60_000);
+    expect(result.current.copilot?.status).toBe('pending');
+    await wait(2_000);
+    expect(result.current.copilot?.status).toBe('ready');
+    await wait(300_000);
+    expect(api.read).toHaveBeenCalledTimes(4);
+  });
+
   it('stops after two minutes, and Check again starts over', async () => {
     const api = fakeApi([ok(copilot('stale'))]);
     const { result } = renderHook(() => useCaseCopilot(CASE, api));

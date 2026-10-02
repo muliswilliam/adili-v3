@@ -16,6 +16,12 @@ export interface CopilotApi {
 /** Waits between polls while the copilot is pending or stale: quick at first, then every 15 s. */
 export const POLL_DELAYS_MS = [2_000, 3_000, 5_000, 8_000, 13_000, 15_000] as const;
 
+/**
+ * While AI is not enabled for the Commission, how often the copilot is read again: an approval
+ * of its AI policy or route requests the copilot again, and the panel follows without a reload.
+ */
+export const NOT_ENABLED_POLL_MS = 60_000;
+
 /** Polling stops this long after it started; "Check again" starts it over. */
 export const POLL_STOP_AFTER_MS = 120_000;
 
@@ -73,7 +79,9 @@ function refreshError(result: Exclude<ServiceResult<Copilot>, { ok: true }>): st
  * The Copilot of a review case: read once, then, while it is pending or stale, read again after
  * 2, 3, 5, 8 and 13 seconds and every 15 seconds after that, for up to two minutes. Polls are
  * sequential, so a slow review service is never asked twice at once; a failed poll is retried
- * on the same schedule. Refresh and ratings go through `api`.
+ * on the same schedule. While AI is not enabled it is read once a minute, with no end (the page
+ * hidden, it waits), so a policy approval shows without a reload. Refresh and ratings go through
+ * `api`.
  */
 export function useCaseCopilot(caseId: string, api: CopilotApi, initial?: Copilot): CaseCopilot {
   const [copilot, setCopilot] = useState<Copilot | null>(initial ?? null);
@@ -90,6 +98,7 @@ export function useCaseCopilot(caseId: string, api: CopilotApi, initial?: Copilo
   const [saved, setSaved] = useState<Record<string, Feedback>>({});
   const read = useEffectEvent((id: string) => settled(() => api.read(id)));
   const busy = isBusy(copilot);
+  const notEnabled = copilot?.status === 'not-enabled';
   const skipFirstRead = initial !== undefined;
 
   // The first read (unless the caller passed one in), and each retry after it failed.
@@ -159,6 +168,24 @@ export function useCaseCopilot(caseId: string, api: CopilotApi, initial?: Copilo
       clearTimeout(timer);
     };
   }, [caseId, busy, pollRound]);
+
+  // Slowly, while AI is not enabled: an approval turns it pending, and the polling above.
+  useEffect(() => {
+    if (!notEnabled || sessionEnded) return;
+    let cancelled = false;
+    const timer = setInterval(() => {
+      if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return;
+      void read(caseId).then((result) => {
+        if (cancelled) return;
+        if (result.ok) setCopilot(result.data);
+        else if (result.error.kind === 'unauthenticated') setSessionEnded(true);
+      });
+    }, NOT_ENABLED_POLL_MS);
+    return () => {
+      cancelled = true;
+      clearInterval(timer);
+    };
+  }, [caseId, notEnabled, sessionEnded]);
 
   const fromView = (jobId: string, block: CopilotBlock): Feedback | null => {
     const rating = copilot?.feedback.find(
