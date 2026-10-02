@@ -255,20 +255,22 @@ function Section({
       )}
     >
       {title ? (
-        <h3 className="mb-3 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[15px] font-semibold tracking-[-0.01em]">
-          {number ? (
-            <span className="rounded-sm bg-muted px-[7px] py-0.5 text-[11.5px] font-semibold tracking-[0.02em] text-muted-foreground">
-              {number}
-            </span>
-          ) : null}
-          {title}
-          {aside ? (
-            <span className="text-[13px] font-normal text-muted-foreground">{aside}</span>
-          ) : null}
-          {extras ? (
-            <span className="ml-auto text-sm font-normal tracking-normal">{extras}</span>
-          ) : null}
-        </h3>
+        // The extras (a pin to the section's flags) sit beside the heading, not in it, so its
+        // accessible name stays the section's.
+        <div className="mb-3 flex flex-wrap items-center gap-x-2.5 gap-y-1">
+          <h3 className="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[15px] font-semibold tracking-[-0.01em]">
+            {number ? (
+              <span className="rounded-sm bg-muted px-[7px] py-0.5 text-[11.5px] font-semibold tracking-[0.02em] text-muted-foreground">
+                {number}
+              </span>
+            ) : null}
+            {title}
+            {aside ? (
+              <span className="text-[13px] font-normal text-muted-foreground">{aside}</span>
+            ) : null}
+          </h3>
+          {extras ? <div className="ml-auto text-sm">{extras}</div> : null}
+        </div>
       ) : null}
       {children}
     </section>
