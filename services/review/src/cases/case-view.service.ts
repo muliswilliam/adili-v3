@@ -239,6 +239,7 @@ async function caseData(
       submittedAt: version.submittedAt.toISOString(),
       late: version.late,
       amendment: version.amendment,
+      firstOnAdili: version.firstOnAdili,
     })),
     reviewerHistory,
     determinations: determinationRows.map(determinationView),

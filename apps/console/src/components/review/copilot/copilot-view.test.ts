@@ -71,8 +71,22 @@ describe('budgetResetDate', () => {
 
 describe('versionNumber', () => {
   const versions = [
-    { versionId: 'v1', version: 1, submittedAt: '', late: false, amendment: false },
-    { versionId: 'v2', version: 2, submittedAt: '', late: false, amendment: true },
+    {
+      versionId: 'v1',
+      version: 1,
+      submittedAt: '',
+      late: false,
+      amendment: false,
+      firstOnAdili: true,
+    },
+    {
+      versionId: 'v2',
+      version: 2,
+      submittedAt: '',
+      late: false,
+      amendment: true,
+      firstOnAdili: false,
+    },
   ];
   it('is the number of the version the copilot was produced for', () => {
     expect(versionNumber('v1', versions)).toBe('1');
@@ -86,11 +100,31 @@ describe('flags', () => {
     expect(titles).toEqual(['high', 'medium', 'medium', 'info', 'low']);
   });
 
-  it('knows a first declaration by its rule', () => {
-    const flags = mockFlags('v');
-    const [one] = flags;
-    if (!one) throw new Error('no flags');
-    expect(hasPreviousDeclaration(flags)).toBe(true);
-    expect(hasPreviousDeclaration([{ ...one, ruleId: 'no-previous-version' }])).toBe(false);
+  it('knows a first declaration by the version the output is for (e2e 18)', () => {
+    const versions = [
+      {
+        versionId: 'v1',
+        version: 1,
+        submittedAt: '',
+        late: false,
+        amendment: false,
+        firstOnAdili: true,
+      },
+      {
+        versionId: 'v2',
+        version: 2,
+        submittedAt: '',
+        late: false,
+        amendment: true,
+        firstOnAdili: false,
+      },
+    ];
+    // Version 1's output, stale after the amendment, had nothing to compare.
+    expect(hasPreviousDeclaration(versions, 'v1')).toBe(false);
+    expect(hasPreviousDeclaration(versions, 'v2')).toBe(true);
+    // No output yet: the current version.
+    expect(hasPreviousDeclaration(versions, null)).toBe(true);
+    expect(hasPreviousDeclaration(versions.slice(0, 1), null)).toBe(false);
+    expect(hasPreviousDeclaration([], null)).toBe(true);
   });
 });

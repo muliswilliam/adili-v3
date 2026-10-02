@@ -4,7 +4,7 @@ import { useEffect, useMemo } from 'react';
 import { getCaseCopilot, rateCopilotOutput, refreshCaseCopilot } from '../../../server/copilot';
 import type { Copilot } from '../../../server/copilot.server';
 import type { CaseDetail } from '../../../server/review/types';
-import { type CopilotAccess, hasPreviousDeclaration } from './copilot-view';
+import type { CopilotAccess } from './copilot-view';
 import { CopilotLauncher, CopilotPanel, type CopilotPanelProps } from './copilot-panel';
 import { highlightInDeclaration, type ResolvedRef, sourceRefResolver } from './source-refs';
 import { type CopilotApi, useCaseCopilot } from './use-case-copilot';
@@ -98,7 +98,6 @@ export function CaseCopilot({
       flags={detail.flags}
       versions={detail.versions}
       resolveRef={resolveRef}
-      hasPrevious={hasPreviousDeclaration(detail.flags)}
       onClose={() => {
         onOpenChange(false);
       }}

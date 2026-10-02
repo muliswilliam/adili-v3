@@ -183,7 +183,8 @@ export const reviewCases = pgTable(
 
 /**
  * Every submitted version a case has processed, as the version's metadata gave it: number,
- * submission, lateness and whether it amended an earlier one. Facts only, no content.
+ * submission, lateness, whether it amended an earlier one and whether it had any earlier
+ * declaration to compare with. Facts only, no content.
  */
 export const reviewCaseVersions = pgTable(
   'review_case_versions',
@@ -198,6 +199,11 @@ export const reviewCaseVersions = pgTable(
     submittedAt: timestamp({ withTimezone: true }).notNull(),
     late: boolean().notNull(),
     amendment: boolean().notNull(),
+    /**
+     * The rules found no earlier declaration on Adili to compare it with (`no-previous-version`).
+     * Kept here because an amendment replaces the version's unreviewed flags, that one included.
+     */
+    firstOnAdili: boolean().notNull().default(false),
     processedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [uniqueIndex('review_case_versions_case_version_key').on(table.caseId, table.version)],

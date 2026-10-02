@@ -91,6 +91,7 @@ const detail: Pick<CaseDetail, 'flags' | 'document' | 'versions'> = {
       submittedAt: '2026-04-01T00:00:00Z',
       late: false,
       amendment: false,
+      firstOnAdili: false,
     },
   ],
 };
@@ -334,6 +335,7 @@ function renderState(
     sessionEnded = false,
   }: { access?: CopilotAccess; stopped?: boolean; sessionEnded?: boolean } = {},
   flags = mockFlags(CASE),
+  versions: CaseDetail['versions'] = detail.versions,
 ) {
   const at = '2026-10-01T06:00:00Z';
   const copilot: Copilot = readCopilotView({
@@ -365,9 +367,8 @@ function renderState(
         state={state}
         access={access}
         flags={flags}
-        versions={detail.versions}
+        versions={versions}
         resolveRef={sourceRefResolver(MOCK_DECLARATION)}
-        hasPrevious={!flags.some((flag) => flag.ruleId === 'no-previous-version')}
         onClose={vi.fn()}
         onRefresh={onRefresh}
         onOpenSource={vi.fn()}
@@ -444,7 +445,6 @@ describe('CopilotPanel states (S15)', () => {
           flags={mockFlags(CASE)}
           versions={detail.versions}
           resolveRef={sourceRefResolver(MOCK_DECLARATION)}
-          hasPrevious
           onClose={vi.fn()}
           onRefresh={vi.fn()}
           onOpenSource={vi.fn()}
@@ -508,20 +508,43 @@ describe('CopilotPanel states (S15)', () => {
   });
 
   it('first declaration: nothing to compare', () => {
-    const flags = mockFlags(CASE);
-    const [one] = flags;
-    if (!one) throw new Error('no flags');
-    const first = {
-      ...one,
-      id: 'f1a90000-0000-4000-8000-0000000000ff',
-      ruleId: 'no-previous-version' as const,
-    };
+    const [v1] = detail.versions;
+    if (!v1) throw new Error('no version');
     renderState(
       { summary: { ...mockSummary('2026-10-01T06:00:00Z'), changesSincePrevious: [] } },
       {},
-      [...flags, first],
+      mockFlags(CASE),
+      [{ ...v1, firstOnAdili: true }],
     );
     expect(screen.getByText('First declaration on Adili. Nothing to compare.')).toBeTruthy();
+  });
+
+  it('stale after an amendment: version 1’s output still says it had nothing to compare (e2e 18)', () => {
+    const [v1] = detail.versions;
+    if (!v1) throw new Error('no version');
+    // The amendment replaced version 1's flags, its no-previous-version among them.
+    renderState(
+      {
+        status: 'stale',
+        forVersionId: v1.versionId,
+        summary: { ...mockSummary('2026-10-01T06:00:00Z'), changesSincePrevious: [] },
+      },
+      {},
+      mockFlags('fe150000-0000-4000-8000-000000000002'),
+      [
+        { ...v1, firstOnAdili: true },
+        {
+          versionId: 'fe150000-0000-4000-8000-000000000002',
+          version: 2,
+          submittedAt: '2026-05-01T00:00:00Z',
+          late: false,
+          amendment: true,
+          firstOnAdili: false,
+        },
+      ],
+    );
+    expect(screen.getByText('First declaration on Adili. Nothing to compare.')).toBeTruthy();
+    expect(screen.queryByText('No material changes.')).toBeNull();
   });
 
   it('no changes on a later declaration', () => {

@@ -3,7 +3,7 @@ import { Alert02Icon, Cancel01Icon, RefreshIcon } from '@hugeicons/core-free-ico
 import { type ReactNode, useEffect, useId, useState } from 'react';
 
 import type { CaseDetail, Flag } from '../../../server/review/types';
-import { type CopilotAccess, explanationBlock } from './copilot-view';
+import { type CopilotAccess, explanationBlock, hasPreviousDeclaration } from './copilot-view';
 import { flagAnchor, FlagsTab, SelectionBar } from './flags-tab';
 import {
   AiTile,
@@ -44,8 +44,6 @@ export interface CopilotPanelProps {
   versions: CaseDetail['versions'];
   /** Reads a source ref against the case's declaration; null leaves the ref out. */
   resolveRef: ResolveRef;
-  /** The case has an earlier declaration, so "Changes since previous version" can say none. */
-  hasPrevious: boolean;
   onClose: () => void;
   /** Re-requests the outputs; the container shows what went wrong. */
   onRefresh: () => void;
@@ -69,7 +67,6 @@ export function CopilotPanel({
   flags,
   versions,
   resolveRef,
-  hasPrevious,
   onClose,
   onRefresh,
   onOpenSource,
@@ -117,6 +114,8 @@ export function CopilotPanel({
   }, [pulse]);
 
   const content = copilot && (status === 'ready' || status === 'stale') ? copilot.summary : null;
+  // Whether "Changes since previous version" can say none: for the version the output is for.
+  const hasPrevious = hasPreviousDeclaration(versions, copilot?.forVersionId ?? null);
 
   const top = (
     <div className="sticky top-0 z-[3] rounded-t-2xl bg-card">

@@ -2456,7 +2456,7 @@ components:
           description: Every version the case has processed, from the review service's own records; only the current one's document is pulled
           items:
             type: object
-            required: [versionId, version, submittedAt, late, amendment]
+            required: [versionId, version, submittedAt, late, amendment, firstOnAdili]
             properties:
               versionId:
                 type: string
@@ -2464,6 +2464,9 @@ components:
               amendment:
                 type: boolean
                 description: The version amended an earlier one of the same declaration
+              firstOnAdili:
+                type: boolean
+                description: The rules found no earlier declaration on Adili to compare the version with (`no-previous-version`), kept after an amendment replaces that flag
               version:
                 type: integer
               submittedAt:

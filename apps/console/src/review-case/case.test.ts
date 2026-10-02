@@ -82,6 +82,7 @@ describe('versionLine', () => {
     submittedAt: `2026-0${String(n)}-01T09:00:00Z`,
     late: false,
     amendment,
+    firstOnAdili: false,
   });
 
   it('names the version and when an amendment came', () => {

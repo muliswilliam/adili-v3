@@ -165,6 +165,8 @@ export interface CaseVersionView {
   submittedAt: string;
   late: boolean;
   amendment: boolean;
+  /** No earlier declaration on Adili to compare it with when it was processed. */
+  firstOnAdili: boolean;
 }
 
 /** review.yaml `CaseDetail`; `document` is null when declarations could not be read. */

@@ -231,6 +231,7 @@ function storedCase(item: CaseListItem, overrides: Partial<StoredCase> = {}): St
         submittedAt: item.receivedAt,
         late: item.late,
         amendment: false,
+        firstOnAdili: (overrides.flags ?? []).some((flag) => flag.ruleId === 'no-previous-version'),
       },
     ],
     declarationsDown: false,
@@ -494,6 +495,7 @@ export function resetReviewMock(
           submittedAt: mineItem.receivedAt,
           late: true,
           amendment: false,
+          firstOnAdili: false,
         },
         {
           versionId: C.mine,
@@ -501,6 +503,7 @@ export function resetReviewMock(
           submittedAt: atMinutes(now, -15, 182),
           late: false,
           amendment: true,
+          firstOnAdili: false,
         },
       ],
       notes: [

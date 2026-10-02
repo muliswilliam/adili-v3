@@ -78,11 +78,19 @@ export function sortFlags(flags: Flag[]): Flag[] {
 }
 
 /**
- * The case has an earlier declaration to compare with. The rules flag a first declaration on
- * Adili (`no-previous-version`); without that flag there is one.
+ * The version an output is for had an earlier declaration to compare with: not a first
+ * declaration on Adili (`firstOnAdili`, which the rules' `no-previous-version` set). Read from
+ * the case's versions, not its flags: an amendment replaces the earlier version's flags, so a
+ * stale output of version 1 would otherwise read version 2's. No version (none ready yet) reads
+ * the current one.
  */
-export const hasPreviousDeclaration = (flags: Flag[]): boolean =>
-  !flags.some((flag) => flag.ruleId === 'no-previous-version');
+export function hasPreviousDeclaration(
+  versions: CaseDetail['versions'],
+  versionId: string | null,
+): boolean {
+  const version = versions.find((each) => each.versionId === versionId) ?? versions.at(-1);
+  return version ? !version.firstOnAdili : true;
+}
 
 /** The blocks of a summary, each rated on its own (review.yaml `CopilotBlock`). */
 export type SummaryBlock = 'overview' | 'changes' | 'sections' | 'worth-attention';

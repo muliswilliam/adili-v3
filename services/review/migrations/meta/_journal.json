@@ -120,6 +120,13 @@
       "when": 1790948808883,
       "tag": "0016_copilot_not_enabled_idx",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1790953981226,
+      "tag": "0017_version_first_on_adili",
+      "breakpoints": true
     }
   ]
 }
