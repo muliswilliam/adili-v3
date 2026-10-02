@@ -192,7 +192,6 @@ describe('Who accessed my declaration (S12)', () => {
             includeSpouses: false,
             includeChildren: false,
             sections: ['assets'],
-            includeClarifications: false,
           },
           status: 'verified',
           resolvedRosterRecordId: randomUUID(),

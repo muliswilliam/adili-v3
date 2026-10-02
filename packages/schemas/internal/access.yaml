@@ -1675,14 +1675,12 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/Section'
-        includeClarifications:
-          type: boolean
       required:
         - years
         - includeSpouses
         - includeChildren
         - sections
-        - includeClarifications
+      additionalProperties: false
     Decision:
       type: object
       properties:

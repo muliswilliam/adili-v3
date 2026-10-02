@@ -1,6 +1,6 @@
 {
-  "description": "Part IV, the declaration of truth, is missing",
-  "errors": ["partIV"],
+  "description": "The scope asks for clarifications, which Form K access does not cover (spec 10: years, household and sections only)",
+  "errors": ["scope.includeClarifications"],
   "document": {
     "schemaVersion": "form-k.v1",
     "responsibleCommission": "psc",
@@ -27,15 +27,16 @@
       "reason": "Reporting on land allocations approved by the officer's department, where a conflict of interest has been alleged.",
       "otherInformation": "The story is in the public interest; I am accredited with the Media Council of Kenya."
     },
+    "partIV": {
+      "text": "I declare that the information I have given above is true, complete and correct to the best of my knowledge.",
+      "declaredAt": "2026-09-18T13:02:00+03:00"
+    },
     "scope": {
       "years": [2025, 2026],
       "includeSpouses": true,
       "includeChildren": false,
-      "sections": ["income", "assets", "liabilities"]
-    },
-    "meta": {
-      "reference": "ARQ-PSC-2026-0000001-7",
-      "submittedAt": "2026-09-18T13:02:04+03:00"
+      "sections": ["income", "assets", "liabilities"],
+      "includeClarifications": true
     }
   }
 }

@@ -44,10 +44,7 @@ export const leaRequestInputSchema = z.strictObject({
     .min(1)
     .max(100)
     .meta({ description: "The agency's case reference: one request per case" }),
-  scope: scopeSchema.refine((scope) => !scope.includeClarifications, {
-    path: ['includeClarifications'],
-    message: 'must be false: law enforcement requests do not include clarifications',
-  }),
+  scope: scopeSchema,
 });
 
 export type LeaRequestInput = z.infer<typeof leaRequestInputSchema>;
