@@ -2,6 +2,7 @@ import { ACCESS_OFFICER, SUPERVISOR } from '@adili/roles';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
 import {
+  asOfficerView,
   attachmentLink,
   decideRequest,
   loadQueue,
@@ -120,6 +121,14 @@ describe('a request (S3)', () => {
     expect(result.data.timeline.map((entry) => entry.kind)).toContain('notified');
   });
 
+  it('reads the Form K as form-k.v1 at the client boundary, and a drifted one as unavailable', async () => {
+    const loaded = await loadRequest(officer(), R.objection);
+    if (!loaded.ok) throw new Error('not ok');
+    const view = { ...loaded.data, formK: { ...loaded.data.formK, partII: { surname: 1 } } };
+    const drifted = await asOfficerView(Promise.resolve({ ok: true, data: view }));
+    expect(drifted).toMatchObject({ ok: false, error: { kind: 'unavailable' } });
+  });
+
   it('searches the roster, saying which records can be chosen', async () => {
     const result = await searchRoster(officer(), R.identify, 'ouma');
     if (!result.ok) throw new Error('not ok');
@@ -203,7 +212,6 @@ describe('the decision (S6, #260)', () => {
     includeSpouses: true,
     includeChildren: false,
     sections: ['income' as const],
-    includeClarifications: false,
   };
 
   it('records a partial grant of a narrower scope; the package follows', async () => {

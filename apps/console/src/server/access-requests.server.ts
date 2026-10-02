@@ -1,4 +1,4 @@
-import type { FormKV1 } from '@adili/forms';
+import { validateFormK } from '@adili/forms';
 
 import { type QueueSearch, queueServiceQuery } from '../components/access/queue-query';
 import type { components } from './access/api.gen';
@@ -36,13 +36,21 @@ export function loadQueue(
   );
 }
 
-/** The access service's view, with its Form K as the form-k.v1 document the service validated. */
-async function asOfficerView(
+/**
+ * The access service's view, its Form K read as a form-k.v1 document. The contract names it an
+ * open object, so it is checked here, at the client boundary: one that does not validate is
+ * contract drift, shown as the service being unavailable rather than read wrongly.
+ */
+export async function asOfficerView(
   call: Promise<ServiceResult<Schemas['OfficerRequestView'], AccessProblem>>,
 ): Promise<AccessResult<OfficerRequestView>> {
   const result = await call;
   if (!result.ok) return result;
-  return { ok: true, data: { ...result.data, formK: result.data.formK as unknown as FormKV1 } };
+  const formK = validateFormK(result.data.formK);
+  if (!formK.ok) {
+    return { ok: false, error: { kind: 'unavailable', detail: 'The Form K is not form-k.v1.' } };
+  }
+  return { ok: true, data: { ...result.data, formK: formK.value } };
 }
 
 /** `GET /v1/access/requests/{requestId}/officer`: Form K, representations and the register. */
