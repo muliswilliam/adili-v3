@@ -298,7 +298,7 @@ function SystemRow({ row, now, action }: { row: SystemCoverage; now: Date; actio
         </span>
       }
     >
-      <Details row={row} />
+      <Details row={row} withAction={action !== undefined && action !== null} />
     </SystemStatusRow>
   );
 }
@@ -343,7 +343,7 @@ function Metric({ term, children }: { term: string; children: ReactNode }) {
   );
 }
 
-function Details({ row }: { row: SystemCoverage }) {
+function Details({ row, withAction }: { row: SystemCoverage; withAction: boolean }) {
   const callout = row.paused ? (
     <Alert variant="warning" role="status">
       <Icon icon={PauseIcon} />
@@ -365,27 +365,39 @@ function Details({ row }: { row: SystemCoverage }) {
     </Alert>
   ) : null;
   const { owner } = systemInfo(row.system);
-  const items: [string, string][] = [
-    ...(owner === null ? [] : [[m.operatedBy, owner] satisfies [string, string]]),
-    [m.rateLimit, m.rateLimitValue(row.rateLimitPerMinute)],
-    [m.cacheLifetime, m.cacheLifetimeValue(formatDuration(row.cacheTtlSeconds))],
-    [m.failedCalls, formatNumber(row.failures24h)],
-    // The row shows Paused in the breaker's place; the breaker's own state is kept here.
-    ...(row.paused
-      ? [[m.breaker, BREAKER_BADGE_MESSAGES[row.breaker]] satisfies [string, string]]
-      : []),
+  // Each in the row's column above it (from wide screens): who runs it and its failures under
+  // the name, the rate limit and timeout under Calls, the cache and breaker under Last success.
+  const items: [string, string, DetailColumn][] = [
+    ...(owner === null ? [] : [[m.operatedBy, owner, 'name'] satisfies DetailItem]),
+    [m.rateLimit, m.rateLimitValue(row.rateLimitPerMinute), 'calls'],
+    [m.cacheLifetime, m.cacheLifetimeValue(formatDuration(row.cacheTtlSeconds)), 'last'],
+    [m.failedCalls, formatNumber(row.failures24h), 'name'],
+    [m.timeout, m.timeoutValue(formatDuration(row.timeoutMs / 1000)), 'calls'],
     [
       m.breakerRule,
       m.breakerRuleValue(row.breakerFailureThreshold, formatDuration(row.breakerCooldownSeconds)),
+      'last',
     ],
-    [m.timeout, m.timeoutValue(formatDuration(row.timeoutMs / 1000))],
+    // The row shows Paused in the breaker's place; the breaker's own state is kept here.
+    ...(row.paused
+      ? [[m.breaker, BREAKER_BADGE_MESSAGES[row.breaker], 'name'] satisfies DetailItem]
+      : []),
   ];
   return (
     <div className="grid gap-3.5 pl-10 max-sm:pl-0">
       {callout}
-      <dl className="grid gap-x-6 gap-y-3 sm:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)_minmax(0,1fr)]">
-        {items.map(([term, value]) => (
-          <div key={term} className="min-w-0">
+      <dl
+        className={cn(
+          'grid gap-x-2.5 gap-y-3 sm:grid-cols-2 sm:gap-x-6',
+          withAction ? DETAIL_COLUMNS_WITH_ACTION : DETAIL_COLUMNS,
+        )}
+      >
+        {items.map(([term, value, column]) => (
+          <div
+            key={term}
+            data-column={column}
+            className={cn('min-w-0 lg:pr-4', COLUMN_START[column])}
+          >
             <dt className="text-xs text-muted-foreground">{term}</dt>
             <dd className="text-sm">{value}</dd>
           </div>
@@ -394,6 +406,26 @@ function Details({ row }: { row: SystemCoverage }) {
     </div>
   );
 }
+
+/** The row's column a detail sits under: the name, Calls, or Last success. */
+type DetailColumn = 'name' | 'calls' | 'last';
+type DetailItem = [string, string, DetailColumn];
+
+const COLUMN_START: Record<DetailColumn, string> = {
+  name: 'lg:col-start-1',
+  calls: 'lg:col-start-2',
+  last: 'lg:col-start-3',
+};
+
+/**
+ * The details' columns, from wide screens, lined up with the row above (SystemStatusRow): the
+ * first under the name; the second from Calls to Cache hit rate (`Metrics`: 92px, 20px gap,
+ * 128px, 20px gap, less the 10px gap between columns); the third from Last success (124px) over
+ * the badge (178px), the Pause or Resume button (104px) and the chevron (16px), with the row's
+ * 10px gaps between them.
+ */
+const DETAIL_COLUMNS = 'lg:grid-cols-[minmax(0,1fr)_250px_338px] lg:gap-x-2.5';
+const DETAIL_COLUMNS_WITH_ACTION = 'lg:grid-cols-[minmax(0,1fr)_250px_452px] lg:gap-x-2.5';
 
 function CoverageSkeleton() {
   return (

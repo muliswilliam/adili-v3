@@ -207,6 +207,24 @@ describe('S15 Integrations page', () => {
     details.getByText(/Opened after repeated failures\. Calls are not being sent/);
   });
 
+  it("lines each detail up under the row's column above it", () => {
+    renderView({ result: ok([coverage({ system: 'kra', paused: true })]) });
+    fireEvent.click(screen.getByRole('button', { name: 'KRA iTax' }));
+
+    const columns = [...row('kra').querySelectorAll<HTMLElement>('dl [data-column]')].map(
+      (item) => [item.querySelector('dt')?.textContent, item.dataset.column],
+    );
+    expect(columns).toEqual([
+      ['Operated by', 'name'],
+      ['Rate limit', 'calls'],
+      ['Cache lifetime', 'last'],
+      ['Failed calls (24 h)', 'name'],
+      ['Timeout', 'calls'],
+      ['Breaker rule', 'last'],
+      ['Breaker', 'name'],
+    ]);
+  });
+
   it('shows never for a system that has not answered yet', () => {
     renderView({ result: ok([coverage({ system: 'brs' })]) });
 
