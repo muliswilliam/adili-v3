@@ -247,7 +247,7 @@ export function ScopePicker({
           <ScopeGroup legend={SCOPE_CLARIFICATIONS_LABEL} className="@min-[600px]:col-span-3">
             {flag(
               'includeClarifications',
-              "The declarant's clarifications",
+              'The declarant’s clarifications',
               'Their answers to the Commission’s requests for clarification on these declarations',
             )}
           </ScopeGroup>

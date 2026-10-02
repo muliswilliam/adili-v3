@@ -94,7 +94,7 @@ describe('ScopePicker', () => {
     const onChange = renderPicker({ clarifications: true });
 
     const group = screen.getByRole('group', { name: 'Clarifications' });
-    const box = within(group).getByRole('checkbox', { name: "The declarant's clarifications" });
+    const box = within(group).getByRole('checkbox', { name: 'The declarant’s clarifications' });
     expect(box.getAttribute('aria-describedby')).toBe(
       within(group).getByText(/answers to the Commission’s requests/).closest('p')?.id,
     );
@@ -115,7 +115,7 @@ describe('ScopePicker', () => {
       restrictTo: { ...requested, includeClarifications: false },
     });
 
-    const box = screen.getByRole('checkbox', { name: "The declarant's clarifications" });
+    const box = screen.getByRole('checkbox', { name: 'The declarant’s clarifications' });
     expect(box).toHaveProperty('disabled', true);
     expect(
       within(screen.getByRole('group', { name: 'Clarifications' })).getByText('Not requested'),

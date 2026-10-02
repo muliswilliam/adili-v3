@@ -16,7 +16,7 @@ const requested: Scope = {
 // The side cards' server functions (attachment links) are not used here.
 vi.mock('../../../server/access-requests', () => ({}));
 
-const CLARIFICATIONS = "The declarant's clarifications";
+const CLARIFICATIONS = 'The declarant’s clarifications';
 
 const submit = vi.fn<DecisionFormProps['submit']>();
 const onDecided = vi.fn();

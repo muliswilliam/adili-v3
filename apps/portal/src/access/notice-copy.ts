@@ -110,7 +110,7 @@ const NOTICE = {
   people: en('People'),
   sections: en('Sections'),
   clarifications: en('Clarifications'),
-  included: en('Included'),
+  yourClarifications: en('Your clarifications'),
   you: en('You'),
   spouse: en('Spouse'),
   children: en('Children'),
