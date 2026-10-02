@@ -21,6 +21,12 @@ const navLink = cn(
 );
 
 /**
+ * The router marks a link current on any URL under its path, so /access/requests would be current on
+ * New request and on every request too. Matching exactly leaves `current` to decide.
+ */
+const EXACT = { exact: true, includeSearch: false } as const;
+
+/**
  * The chrome around the applicant's access request pages: the header with My requests and New
  * request, and the footer. `current` marks the page the applicant is on in the navigation.
  */
@@ -40,6 +46,7 @@ export function AccessShell({
               <Link
                 to="/access/requests"
                 search={{}}
+                activeOptions={EXACT}
                 aria-current={current === 'requests' ? 'page' : undefined}
                 className={navLink}
               >
@@ -49,6 +56,7 @@ export function AccessShell({
               </Link>
               <Link
                 to="/access/requests/new"
+                activeOptions={EXACT}
                 aria-current={current === 'new' ? 'page' : undefined}
                 className={navLink}
               >
