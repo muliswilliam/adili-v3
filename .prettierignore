@@ -23,3 +23,5 @@ packages/schemas/internal/documents.yaml
 packages/schemas/internal/notifications.yaml
 # Recorded Temporal histories (replay fixtures)
 services/*/test/**/workflow-histories
+# Recorded model responses (ai-gateway eval fixtures), rewritten on every recording
+services/ai-gateway/evals/fixtures

@@ -1,7 +1,10 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { describe, expect, it } from 'vitest';
 
-import { AnthropicAdapter } from '../../src/providers/anthropic.adapter.js';
+import {
+  AnthropicAdapter,
+  type AnthropicAdapterOptions,
+} from '../../src/providers/anthropic.adapter.js';
 import {
   ProviderError,
   type StreamEvent,
@@ -18,7 +21,11 @@ interface Captured {
 type Handler = (request: Captured, signal: AbortSignal | undefined) => Response | Promise<Response>;
 
 /** The real SDK over an in-process fetch, so request shapes and error classes are the SDK's own. */
-function fakeAnthropic(handler: Handler, options: { timeout?: number } = {}) {
+function fakeAnthropic(
+  handler: Handler,
+  options: { timeout?: number } & Omit<AnthropicAdapterOptions, 'client'> = {},
+) {
+  const { timeout = 5_000, ...adapterOptions } = options;
   const requests: Captured[] = [];
   const fetch = async (input: string | URL | Request, init?: RequestInit): Promise<Response> => {
     const captured: Captured = {
@@ -37,9 +44,9 @@ function fakeAnthropic(handler: Handler, options: { timeout?: number } = {}) {
     baseURL: 'http://anthropic.test',
     fetch,
     maxRetries: 0,
-    timeout: options.timeout ?? 5_000,
+    timeout,
   });
-  return { adapter: new AnthropicAdapter({ client }), requests };
+  return { adapter: new AnthropicAdapter({ client, ...adapterOptions }), requests };
 }
 
 /** The nth captured request; fails the test when it was never sent. */
@@ -272,6 +279,53 @@ describe('AnthropicAdapter', () => {
     await expect(adapter.generateStructured(structured)).rejects.toMatchObject({
       kind: 'invalid-response',
       retryable: false,
+    });
+  });
+
+  it('rejects fenced JSON when structured output is native', async () => {
+    const { adapter } = fakeAnthropic(() =>
+      json(message({ content: [{ type: 'text', text: '```json\n{"summary":"x"}\n```' }] })),
+    );
+
+    await expect(adapter.generateStructured(structured)).rejects.toMatchObject({
+      kind: 'invalid-response',
+    });
+  });
+
+  it('asks for the schema in the system prompt when structured output is prompted', async () => {
+    const { adapter, requests } = fakeAnthropic(
+      () =>
+        json(
+          message({
+            content: [{ type: 'text', text: '```json\n{"summary":"Two assets declared."}\n```' }],
+          }),
+        ),
+      { structuredOutput: 'prompted' },
+    );
+
+    const result = await adapter.generateStructured({ ...structured, effort: 'low' });
+
+    const body = nth(requests, 0).body;
+    expect(body).toMatchObject({ output_config: { effort: 'low' } });
+    expect(body?.output_config).not.toHaveProperty('format');
+    const [system] = body?.system as { text: string; cache_control: unknown }[];
+    expect(system?.text).toMatch(/^You summarise synthetic declarations\.\n\n/);
+    expect(system?.text).toContain(JSON.stringify(schema));
+    expect(system?.cache_control).toEqual({ type: 'ephemeral' });
+    expect(result).toMatchObject({
+      status: 'completed',
+      output: { summary: 'Two assets declared.' },
+    });
+  });
+
+  it('still types prompted output that is not one JSON object as an invalid response', async () => {
+    const { adapter } = fakeAnthropic(
+      () => json(message({ content: [{ type: 'text', text: 'Here you go: {"summary":"x"}' }] })),
+      { structuredOutput: 'prompted' },
+    );
+
+    await expect(adapter.generateStructured(structured)).rejects.toMatchObject({
+      kind: 'invalid-response',
     });
   });
 
