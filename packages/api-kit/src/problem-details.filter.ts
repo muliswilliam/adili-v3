@@ -11,6 +11,7 @@ import type { FastifyReply, FastifyRequest } from 'fastify';
 import { type Observable, throwError } from 'rxjs';
 import { ZodError } from 'zod';
 
+import { redactUrl } from './log-redaction.js';
 import { PROBLEM_CODES, type ProblemCode } from './problem-codes.js';
 
 export interface ProblemDetails {
@@ -113,7 +114,7 @@ export class ProblemDetailsFilter implements ExceptionFilter {
     const http = host.switchToHttp();
     const request = http.getRequest<FastifyRequest>();
     const reply = http.getResponse<FastifyReply>();
-    const problem = toProblemDetails(exception, request.url);
+    const problem = toProblemDetails(exception, redactUrl(request.url));
 
     if (problem.status >= 500) {
       this.logger.error(exception);
