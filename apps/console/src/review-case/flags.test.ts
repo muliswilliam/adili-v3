@@ -94,6 +94,12 @@ describe('evidenceLine', () => {
       "Company PVT-7XK2M9 · role director · on the employer's supplier list",
     ],
     [
+      'registry-directorship-undeclared',
+      { companyRegistrationNumber: 'PVT-9XYZ2L4Q', role: 'director_shareholder' },
+      null,
+      'Company PVT-9XYZ2L4Q · role director and shareholder',
+    ],
+    [
       'kra-income-mismatch',
       { differencePercent: 40, direction: 'below' },
       null,

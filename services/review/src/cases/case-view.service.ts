@@ -16,6 +16,7 @@ import {
 import { DocumentsClient, DocumentsUnavailable } from '../documents/documents-client.js';
 import { InternalApiRejected } from '../internal-api/rejected.js';
 import { declarationsUnavailable, upstreamUnavailable } from '../internal-api/upstream.js';
+import { VIEW_DECLARATIONS_BUDGET_MS, within } from '../internal-api/view-budget.js';
 import { registrySummary } from '../registry/representation.js';
 import { registryChecks } from '../registry/schema.js';
 import { SYSTEM_SUBJECT } from '../system-context.js';
@@ -126,11 +127,16 @@ export class CaseViewService {
   private async pull(principal: Principal, row: CaseRow): Promise<PulledVersion> {
     let pulled: PulledVersion | null;
     try {
-      pulled = await this.declarations.getVersionDocument(row.declarationId, row.currentVersion, {
-        tenant: row.tenant,
-        actingSubject: principal.subject,
-        caseId: row.id,
-      });
+      pulled = await within(
+        VIEW_DECLARATIONS_BUDGET_MS,
+        () =>
+          this.declarations.getVersionDocument(row.declarationId, row.currentVersion, {
+            tenant: row.tenant,
+            actingSubject: principal.subject,
+            caseId: row.id,
+          }),
+        () => new DeclarationsUnavailable('The declarations service did not answer in time'),
+      );
     } catch (error) {
       if (error instanceof DeclarationsUnavailable) throw declarationsUnavailable();
       throw error;

@@ -1,8 +1,16 @@
 import { DeclarationSchema, type DeclarationV1 } from '@adili/forms';
 
 import type { ReviewClient } from './review/client.server';
-import type { Assignee, CaseDetail, CaseListItem, CaseStatus, Flag, Note } from './review/types';
-import { callService, type ServiceResult } from './service-call';
+import type {
+  Assignee,
+  CaseDetail,
+  CaseListItem,
+  CaseStatus,
+  Flag,
+  Note,
+  RegistryView,
+} from './review/types';
+import { callService, type ServiceError, type ServiceResult } from './service-call';
 
 /**
  * The review service's case endpoints for the case view (spec 07a FE-3, review.yaml), folded
@@ -16,6 +24,25 @@ export type JsonValue =
 
 /** A flag whose evidence is plain JSON, as review.yaml has it: facts, never amounts. */
 export type CaseFlag = Omit<Flag, 'evidence'> & { evidence: Record<string, JsonValue> };
+
+type RegistryPersonView = RegistryView['persons'][number];
+type RegistrySystemView = RegistryPersonView['systems'][number];
+
+/** A registry record beside a declared item, the record as plain JSON (as the gateway holds it). */
+export type CaseRegistryRow = Omit<RegistrySystemView['rows'][number], 'registryRecord'> & {
+  registryRecord: Record<string, JsonValue>;
+};
+
+/** review.yaml `RegistryView` with plain JSON records and evidence, as a server function sends it. */
+export interface CaseRegistryView {
+  checkedAt: string | null;
+  persons: (Omit<RegistryPersonView, 'systems'> & {
+    systems: (Omit<RegistrySystemView, 'rows' | 'flags'> & {
+      rows: CaseRegistryRow[];
+      flags: CaseFlag[];
+    })[];
+  })[];
+}
 
 /** The case detail without its document, which is parsed separately. */
 export type CaseData = Omit<CaseDetail, 'document' | 'flags'> & {
@@ -137,6 +164,71 @@ export async function markFlagReviewed(
     }),
   );
   return result.ok ? { ok: true, data: result.data } : result;
+}
+
+/**
+ * `GET .../registry`: per person and registry, the latest check's status with the registry's
+ * records (pulled from the integration-gateway for this read) beside the declared items. A 502
+ * means the declaration or the records could not be read; the case's own registry summary still
+ * has the statuses.
+ */
+export async function loadRegistry(
+  client: ReviewClient,
+  caseId: string,
+): Promise<ServiceResult<CaseRegistryView>> {
+  const result = await callService(() =>
+    client.GET('/v1/review/cases/{caseId}/registry', { params: { path: { caseId } } }),
+  );
+  if (!result.ok) return result;
+  // Parsed from JSON, so the records and the evidence are JSON values.
+  const view: unknown = result.data;
+  return { ok: true, data: view as CaseRegistryView };
+}
+
+/** Why review refused a re-check, beyond the usual service errors. */
+export type RecheckRefusal =
+  /** Re-checked within the last 10 minutes (429); the next one is accepted after this. */
+  | { kind: 'cooldown'; retryAfterSeconds: number }
+  /** Neither the assignee nor a supervisor (403). */
+  | { kind: 'forbidden' }
+  /** The case is determined (409). */
+  | { kind: 'closed' };
+
+export type RecheckResult =
+  | { ok: true }
+  | { ok: false; refusal: RecheckRefusal }
+  | { ok: false; refusal: null; error: ServiceError };
+
+/** review.yaml's cooldown: what a 429 without `retryAfterSeconds` waits for. */
+const COOLDOWN_SECONDS = 600;
+
+/**
+ * `POST .../recheck` (202): the registries are checked again in the background; the case's
+ * registry summary shows the new check once it is stored.
+ */
+export async function recheck(client: ReviewClient, caseId: string): Promise<RecheckResult> {
+  const result = await callService(() =>
+    client.POST('/v1/review/cases/{caseId}/recheck', { params: { path: { caseId } } }),
+  );
+  if (result.ok) return { ok: true };
+  const { error } = result;
+  if (error.kind === 'problem') {
+    const problem: { status: number; retryAfterSeconds?: unknown } = error.problem;
+    if (problem.status === 429) {
+      const seconds = problem.retryAfterSeconds;
+      return {
+        ok: false,
+        refusal: {
+          kind: 'cooldown',
+          retryAfterSeconds:
+            typeof seconds === 'number' && seconds > 0 ? seconds : COOLDOWN_SECONDS,
+        },
+      };
+    }
+    if (problem.status === 403) return { ok: false, refusal: { kind: 'forbidden' } };
+    if (problem.status === 409) return { ok: false, refusal: { kind: 'closed' } };
+  }
+  return { ok: false, refusal: null, error };
 }
 
 /** An officer a supervisor can give the case to. */

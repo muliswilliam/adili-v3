@@ -1,6 +1,6 @@
 import type { DeclarationV1 } from '@adili/forms';
 
-import type { CaseData, CaseFlag } from '../server/review-case.server';
+import type { CaseData, CaseFlag, CaseRegistryView } from '../server/review-case.server';
 import type { CaseListItem } from '../server/review/types';
 
 /** A review case for tests of the case view: Wanjiku Kamau's declaration, three flags. */
@@ -167,5 +167,129 @@ export function caseData(overrides: Partial<CaseData> = {}): CaseData {
     determinations: [],
     registry: { checkedAt: null, checks: [] },
     ...overrides,
+  };
+}
+
+export const CHECKED_AT = '2026-10-02T07:30:00.000Z';
+
+/** Wanjiku's undeclared Prado (NTSA), as review raises it. */
+export const VEHICLE_FLAG = flag({
+  id: '0192f1a0-0000-7000-8000-0000000f0101',
+  ruleId: 'registry-vehicle-undeclared',
+  severity: 'medium',
+  title: 'Vehicle in the registry not declared',
+  indicator: "NTSA lists a vehicle in this person's name that the declaration does not.",
+  evidence: { registrationNumber: 'KDK 482M' },
+  itemRefs: [{ personKey: 'officer', itemId: null, sectionKey: 'statement:officer' }],
+});
+
+/** Wanjiku's directorship in a KEMSA supplier (BRS). */
+export const SUPPLIER_FLAG = flag({
+  id: '0192f1a0-0000-7000-8000-0000000f0102',
+  ruleId: 'directorship-employer-supplier',
+  severity: 'high',
+  title: 'Director of a company that supplies the employer',
+  indicator: "BRS lists a role in a company on the employer's supplier list.",
+  evidence: { companyRegistrationNumber: 'PVT-9XYZ2L4Q', role: 'director_shareholder' },
+  itemRefs: [{ personKey: 'officer', itemId: null, sectionKey: 'statement:officer' }],
+});
+
+type RegistrySystemEntry = CaseRegistryView['persons'][number]['systems'][number];
+
+function registrySystem(overrides: Partial<RegistrySystemEntry>): RegistrySystemEntry {
+  return {
+    system: 'kra',
+    status: 'matched',
+    reason: null,
+    checkedAt: CHECKED_AT,
+    resultId: '0192f1a0-0000-7000-8000-0000000c0001',
+    rows: [],
+    flags: [],
+    ...overrides,
+  };
+}
+
+/**
+ * The Registry tab of Wanjiku's case: KRA matched, NTSA mismatched (the Prado), BRS mismatched
+ * (the supplier), ArdhiSasa unavailable (paused); a child declared without a national ID.
+ */
+export function registryView(): CaseRegistryView {
+  return {
+    checkedAt: CHECKED_AT,
+    persons: [
+      {
+        personKey: 'officer',
+        personName: 'Wanjiku Njoki Kamau',
+        hasNationalId: true,
+        systems: [
+          registrySystem({
+            rows: [
+              {
+                registryRecord: {
+                  pinPresent: true,
+                  complianceStatus: 'compliant',
+                  validUntil: '2027-06-30',
+                  incomeDifferencePercent: 12,
+                  incomeDirection: 'above',
+                },
+                declaredItemId: null,
+                relation: 'matched',
+              },
+            ],
+          }),
+          registrySystem({
+            system: 'ntsa',
+            status: 'mismatched',
+            rows: [
+              {
+                registryRecord: {
+                  registrationNumber: 'KDK 482M',
+                  make: 'Toyota',
+                  model: 'Land Cruiser Prado',
+                  yearOfManufacture: 2023,
+                  registeredOn: '2024-11-04',
+                },
+                declaredItemId: null,
+                relation: 'not-declared',
+              },
+            ],
+            flags: [VEHICLE_FLAG],
+          }),
+          registrySystem({
+            system: 'brs',
+            status: 'mismatched',
+            rows: [
+              {
+                registryRecord: {
+                  companyRegistrationNumber: 'PVT-9XYZ2L4Q',
+                  companyName: 'Afya Bora Medical Supplies Limited',
+                  companyStatus: 'active',
+                  role: 'director_shareholder',
+                  shares: 400,
+                  appointedOn: '2022-02-14',
+                },
+                declaredItemId: null,
+                relation: 'not-declared',
+              },
+            ],
+            flags: [SUPPLIER_FLAG],
+          }),
+          registrySystem({
+            system: 'ardhisasa',
+            status: 'unavailable',
+            reason: 'paused',
+            resultId: null,
+          }),
+        ],
+      },
+      {
+        personKey: 'child:6a1f0000-0000-4000-8000-000000000001',
+        personName: 'Imani Wairimu Kamau',
+        hasNationalId: false,
+        systems: (['kra', 'ntsa', 'brs', 'ardhisasa'] as const).map((system) =>
+          registrySystem({ system, status: 'no-id', resultId: null }),
+        ),
+      },
+    ],
   };
 }

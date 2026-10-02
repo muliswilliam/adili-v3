@@ -24,6 +24,7 @@ import {
 import {
   Alert02Icon,
   ArrowLeftRightIcon,
+  RefreshIcon,
   Undo02Icon,
   UserCheck01Icon,
   UserMultiple02Icon,
@@ -31,7 +32,7 @@ import {
 } from '@hugeicons/core-free-icons';
 import { type ReactNode, useEffect, useState } from 'react';
 
-import { CASE_COPY } from '../../../review-case/messages';
+import { CASE_COPY, REGISTRY_COPY } from '../../../review-case/messages';
 import type { Officer } from '../../../server/review-case.server';
 import type { ServiceResult } from '../../../server/service-call';
 
@@ -187,6 +188,25 @@ export function UnassignDialog({
       icon={UserRemove01Icon}
       title={copy.title}
       body={copy.body(reference, holder)}
+      cancel={CASE_COPY.cancel}
+      confirm={copy.confirm}
+    />
+  );
+}
+
+/**
+ * Re-check the case's registries (spec 07b): the lookups run again in the background; reviewed
+ * flags keep their notes and indicators that no longer apply are closed.
+ */
+export function RecheckDialog(props: ConfirmProps) {
+  const copy = REGISTRY_COPY.recheck;
+  return (
+    <ConfirmDialog
+      {...props}
+      icon={RefreshIcon}
+      title={copy.title}
+      body={copy.body}
+      callout={<p className="text-[13px] text-muted-foreground">{copy.note}</p>}
       cancel={CASE_COPY.cancel}
       confirm={copy.confirm}
     />

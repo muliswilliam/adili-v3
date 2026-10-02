@@ -5,16 +5,17 @@ import { isOpen } from './flags';
 
 /**
  * The review tabs beside the declaration (spec 07a FE-3: Flags · Clarifications · Notes ·
- * Timeline), in order, with the count each shows. The open tab is in the address
- * (`?tab=notes`), so a link opens it and Back returns to the previous one. A tab added later
- * (spec 07b's Registry, after Flags) is one more entry here and one more panel in the case view.
+ * Timeline, with spec 07b's Registry after Flags), in order, with the count each shows. The open
+ * tab is in the address (`?tab=notes`), so a link opens it and Back returns to the previous one.
+ * A tab added later is one more entry here and one more panel in the case view.
  */
-export const CASE_TABS = ['flags', 'clarifications', 'notes', 'timeline'] as const;
+export const CASE_TABS = ['flags', 'registry', 'clarifications', 'notes', 'timeline'] as const;
 
 export type CaseTab = (typeof CASE_TABS)[number];
 
 export const CASE_TAB_LABELS: Record<CaseTab, string> = {
   flags: 'Flags',
+  registry: 'Registry',
   clarifications: 'Clarifications',
   notes: 'Notes',
   timeline: 'Timeline',
@@ -39,6 +40,8 @@ export function tabCount(
       return detail.clarifications.length;
     case 'notes':
       return detail.notes.length;
+    // The Registry tab marks an unreachable registry instead (`registryNeedsAttention`).
+    case 'registry':
     case 'timeline':
       return null;
   }

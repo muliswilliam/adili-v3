@@ -27,6 +27,7 @@ import { useId, useState } from 'react';
 
 import { evidenceLine, flagTargetLine, groupFlags } from '../../../review-case/flags';
 import { CASE_COPY, FLAG_NOTE_MAX } from '../../../review-case/messages';
+import { RULE_SYSTEMS, SYSTEM_NAMES } from '../../../review-case/registry';
 import type { CaseFlag } from '../../../server/review-case.server';
 
 const copy = CASE_COPY.flags;
@@ -37,20 +38,6 @@ const EDGE: Record<CaseFlag['severity'], string> = {
   medium: 'before:bg-warning',
   low: 'before:bg-info',
   info: 'before:bg-input',
-};
-
-/** The registry a registry rule compares with, as a badge on its flag. */
-const SYSTEMS: Partial<Record<CaseFlag['ruleId'], string>> = {
-  'registry-parcel-undeclared': 'ArdhiSasa',
-  'declared-parcel-not-found': 'ArdhiSasa',
-  'registry-vehicle-undeclared': 'NTSA',
-  'declared-vehicle-not-found': 'NTSA',
-  'registry-directorship-undeclared': 'BRS',
-  'declared-company-not-found': 'BRS',
-  'directorship-employer-supplier': 'BRS',
-  'kra-pin-missing': 'KRA',
-  'kra-non-compliant': 'KRA',
-  'kra-income-mismatch': 'KRA',
 };
 
 /** The DOM id of a flag's card, to scroll back to it from a pin. */
@@ -134,6 +121,7 @@ function OpenFlag({
   canReview,
   editing,
   pulse,
+  showSystem,
   onEdit,
   onCancel,
   onReview,
@@ -145,10 +133,12 @@ function OpenFlag({
   canReview: boolean;
   editing: boolean;
   pulse: boolean;
+  showSystem: boolean;
 }) {
   const evidence = evidenceLine(flag, previousVersion);
   const target = flagTargetLine(flag, document);
-  const system = SYSTEMS[flag.ruleId];
+  const ruleSystem = RULE_SYSTEMS[flag.ruleId];
+  const system = showSystem && ruleSystem ? SYSTEM_NAMES[ruleSystem] : null;
   const canGo = document !== null && flag.itemRefs.length > 0;
   return (
     <li
@@ -279,6 +269,31 @@ function ClosedFlag({ flag }: { flag: CaseFlag }) {
   );
 }
 
+/**
+ * One flag as it stands: open (with Go to item and, for the holder, Mark reviewed), reviewed
+ * (with the note), or closed by a registry re-check. The Registry tab lists a registry's flags
+ * with it, without the registry's badge.
+ */
+export function FlagCard({
+  flag,
+  currentVersion,
+  showSystem = true,
+  ...props
+}: FlagActions & {
+  flag: CaseFlag;
+  document: DeclarationV1 | null;
+  previousVersion: number | null;
+  currentVersion: number;
+  canReview: boolean;
+  editing: boolean;
+  pulse: boolean;
+  showSystem?: boolean;
+}) {
+  if (flag.reviewed) return <ReviewedFlag flag={flag} currentVersion={currentVersion} />;
+  if (flag.closedReason) return <ClosedFlag flag={flag} />;
+  return <OpenFlag flag={flag} showSystem={showSystem} {...props} />;
+}
+
 export interface FlagActions {
   onEdit: (flag: CaseFlag) => void;
   onCancel: () => void;
@@ -374,6 +389,7 @@ export function FlagsTab({
                 canReview={canReview}
                 editing={editing === flag.id}
                 pulse={pulse === flag.id}
+                showSystem
                 {...actions}
               />
             ))}

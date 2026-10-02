@@ -2,25 +2,30 @@
 import { ToastProvider, TooltipProvider } from '@adili/ui';
 import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import type { ReactNode } from 'react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
   caseData,
   caseItem,
+  CHECKED_AT,
   DOCUMENT,
   flag,
   ME,
   PLOT,
+  registryView,
   SALARY,
+  VEHICLE_FLAG,
   WAFULA,
 } from '../../../review-case/fixtures';
 import type { CaseTab } from '../../../review-case/tabs';
 import {
   addCaseNote,
   claimCase,
+  getCaseRegistry,
   getReassignOfficers,
   markCaseFlagReviewed,
   reassignCase,
+  recheckCaseRegistries,
   releaseCase,
 } from '../../../server/review-case';
 import type { CaseLoad } from '../../../server/review-case.server';
@@ -43,9 +48,11 @@ vi.mock('../../../server/review-case', () => ({
   addCaseNote: vi.fn(),
   claimCase: vi.fn(),
   getCaseAttachmentLink: vi.fn(),
+  getCaseRegistry: vi.fn(),
   getReassignOfficers: vi.fn(),
   markCaseFlagReviewed: vi.fn(),
   reassignCase: vi.fn(),
+  recheckCaseRegistries: vi.fn(),
   releaseCase: vi.fn(),
 }));
 
@@ -310,5 +317,181 @@ describe('CaseView', () => {
       ),
     ).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Assign to a reviewer' })).toBeTruthy();
+  });
+});
+
+describe('CaseView: Registry tab', () => {
+  const held = () =>
+    load({ detail: caseData({ case: caseItem({ assignee: ME, status: 'assigned' }) }) });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('reads the registry when the tab opens and shows a status row per registry and person', async () => {
+    vi.mocked(getCaseRegistry).mockResolvedValue(ok(registryView()));
+    render(view(held(), reviewer, 'registry'));
+
+    expect(
+      screen.getByText(
+        'Registry checks compare the declaration with KRA, NTSA, BRS and ArdhiSasa. Mismatches are indicators for your review, not findings.',
+      ),
+    ).toBeTruthy();
+    const wanjiku = await screen.findByRole('list', {
+      name: 'Registry checks for Wanjiku Njoki Kamau',
+    });
+    expect(getCaseRegistry).toHaveBeenCalledWith({ data: { caseId: caseItem().id } });
+    expect(within(wanjiku).getByText('PIN on record, compliant, income within 25%')).toBeTruthy();
+    expect(
+      within(wanjiku).getByText('Could not reach ArdhiSasa. Re-checked automatically every hour.'),
+    ).toBeTruthy();
+    expect(within(wanjiku).getAllByText('Mismatched')).toHaveLength(2);
+    const imani = screen.getByRole('list', { name: 'Registry checks for Imani Wairimu Kamau' });
+    expect(within(imani).getByText('Not checked: no national ID declared')).toBeTruthy();
+    expect(
+      within(imani).getByText('Registries cannot be checked for Imani without an ID.'),
+    ).toBeTruthy();
+  });
+
+  it('opens a registry to its records and indicators, and marks one reviewed there', async () => {
+    vi.mocked(getCaseRegistry).mockResolvedValue(ok(registryView()));
+    vi.mocked(markCaseFlagReviewed).mockResolvedValue(ok({ ...VEHICLE_FLAG }));
+    render(view(held(), reviewer, 'registry'));
+
+    fireEvent.click(await screen.findByRole('button', { name: 'NTSA' }));
+    const table = screen.getByRole('table', { name: 'NTSA records beside the declared items' });
+    expect(within(table).getByRole('rowheader', { name: /KDK 482M/ })).toBeTruthy();
+    expect(within(table).getByText('Not declared')).toBeTruthy();
+    const indicators = screen.getByRole('list', { name: 'NTSA indicators' });
+    fireEvent.click(within(indicators).getByRole('button', { name: 'Mark reviewed' }));
+    fireEvent.change(screen.getByLabelText('What did you conclude?'), {
+      target: { value: 'Bought in 2024; the officer will amend.' },
+    });
+    await act(async () => {
+      fireEvent.click(within(indicators).getByRole('button', { name: 'Mark reviewed' }));
+      await Promise.resolve();
+    });
+
+    expect(markCaseFlagReviewed).toHaveBeenCalledWith({
+      data: {
+        caseId: caseItem().id,
+        flagId: VEHICLE_FLAG.id,
+        note: 'Bought in 2024; the officer will amend.',
+      },
+    });
+    expect(await screen.findByText('Marked reviewed')).toBeTruthy();
+  });
+
+  it("shows the last check's statuses when the records could not be loaded", async () => {
+    vi.mocked(getCaseRegistry)
+      .mockResolvedValueOnce({ ok: false, error: { kind: 'unavailable', detail: null } })
+      .mockResolvedValueOnce(ok(registryView()));
+    const detail = caseData({
+      case: caseItem({ assignee: ME, status: 'assigned' }),
+      registry: {
+        checkedAt: CHECKED_AT,
+        checks: [
+          {
+            personKey: 'officer',
+            system: 'ntsa',
+            status: 'unavailable',
+            reason: 'timeout',
+            checkedAt: CHECKED_AT,
+            resultId: null,
+          },
+        ],
+      },
+    });
+    render(view(load({ detail }), reviewer, 'registry'));
+
+    expect(
+      await screen.findByText(
+        'Registry records could not be loaded. Status is shown from the last check.',
+      ),
+    ).toBeTruthy();
+    expect(
+      screen.getByText('Could not reach NTSA. Re-checked automatically every hour.'),
+    ).toBeTruthy();
+    // The tab is marked: a registry could not be checked.
+    expect(screen.getByRole('img', { name: 'A registry could not be checked' })).toBeTruthy();
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
+      await Promise.resolve();
+    });
+    expect(
+      await screen.findByRole('list', { name: 'Registry checks for Imani Wairimu Kamau' }),
+    ).toBeTruthy();
+  });
+
+  it('re-checks after confirming, says it is checking, then shows the new results', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const after = { ...registryView(), checkedAt: '2026-10-02T09:01:00.000Z' };
+    vi.mocked(getCaseRegistry)
+      .mockResolvedValueOnce(ok(registryView()))
+      .mockResolvedValueOnce(ok(registryView()))
+      .mockResolvedValue(ok(after));
+    vi.mocked(recheckCaseRegistries).mockResolvedValue({ ok: true });
+    render(view(held(), reviewer, 'registry'));
+    await screen.findByRole('list', { name: 'Registry checks for Wanjiku Njoki Kamau' });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Re-check' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Re-check registries' });
+    expect(
+      within(dialog).getByText(
+        'Re-check all registries for this case? Reviewed flags keep your notes.',
+      ),
+    ).toBeTruthy();
+    await act(async () => {
+      fireEvent.click(within(dialog).getByRole('button', { name: 'Re-check' }));
+      await Promise.resolve();
+    });
+
+    expect(recheckCaseRegistries).toHaveBeenCalledWith({ data: { caseId: caseItem().id } });
+    const running = screen.getByRole('button', { name: 'Checking…' });
+    expect((running as HTMLButtonElement).disabled).toBe(true);
+    expect(screen.getAllByText('Checking…').length).toBeGreaterThan(1);
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(4000);
+    });
+    expect(await screen.findByText('Registry checks updated')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Re-check' })).toBeTruthy();
+    expect(invalidate).toHaveBeenCalled();
+  });
+
+  it('says when the next re-check is accepted (429)', async () => {
+    vi.mocked(getCaseRegistry).mockResolvedValue(ok(registryView()));
+    vi.mocked(recheckCaseRegistries).mockResolvedValue({
+      ok: false,
+      refusal: { kind: 'cooldown', retryAfterSeconds: 400 },
+    });
+    render(view(held(), reviewer, 'registry'));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Re-check' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Re-check registries' });
+    await act(async () => {
+      fireEvent.click(within(dialog).getByRole('button', { name: 'Re-check' }));
+      await Promise.resolve();
+    });
+
+    expect(await screen.findAllByText('Re-checked recently. Try again in 7 minutes.')).toHaveLength(
+      2,
+    );
+    expect(screen.queryByRole('dialog')).toBeNull();
+  });
+
+  it('disables Re-check for a reviewer who does not hold the case', () => {
+    vi.mocked(getCaseRegistry).mockResolvedValue(ok(registryView()));
+    render(
+      view(
+        load({ detail: caseData({ case: caseItem({ assignee: WAFULA, status: 'assigned' }) }) }),
+      ),
+    );
+
+    const button = screen.getByRole('button', { name: 'Re-check' });
+    expect((button as HTMLButtonElement).disabled).toBe(true);
+    // Not read until the tab opens: each read is an audited view of the declaration.
+    expect(getCaseRegistry).not.toHaveBeenCalled();
   });
 });

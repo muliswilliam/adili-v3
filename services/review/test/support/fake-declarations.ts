@@ -91,7 +91,7 @@ export function biennialObligation(
 /**
  * The declarations internal API for tests: submitted versions per Commission, the previous-version
  * lookup, and a record of every document read (who read it, for which case). `failReads` makes
- * the next reads fail, as a declarations outage would.
+ * the next reads fail, as a declarations outage would; `stallReads` makes them hang.
  */
 export class FakeDeclarations extends DeclarationsClient {
   readonly reads: {
@@ -108,6 +108,7 @@ export class FakeDeclarations extends DeclarationsClient {
   /** Every person obligation history read: whose, at which Commission. */
   readonly historyReads: { personId: string; tenant: string }[] = [];
   private failures = 0;
+  private stalls = 0;
 
   given(...versions: StoredVersion[]): void {
     this.versions.push(...versions);
@@ -136,6 +137,11 @@ export class FakeDeclarations extends DeclarationsClient {
     this.failures = count;
   }
 
+  /** The next `count` document reads never answer, as a declarations service that hangs. */
+  stallReads(count: number): void {
+    this.stalls = count;
+  }
+
   reset(): void {
     this.reads.length = 0;
     this.versions.length = 0;
@@ -143,6 +149,7 @@ export class FakeDeclarations extends DeclarationsClient {
     this.histories.clear();
     this.historyReads.length = 0;
     this.failures = 0;
+    this.stalls = 0;
   }
 
   getVersionDocument(
@@ -152,6 +159,10 @@ export class FakeDeclarations extends DeclarationsClient {
   ): Promise<PulledVersion | null> {
     if (this.failing()) {
       return Promise.reject(new DeclarationsUnavailable('The declarations service is unreachable'));
+    }
+    if (this.stalls > 0) {
+      this.stalls -= 1;
+      return new Promise<never>(() => undefined);
     }
     this.reads.push({ declarationId, version, ...context, caseId: context.caseId });
     const found = this.versions.find(

@@ -14,6 +14,7 @@ import {
   reviewFlags,
   reviewTimeline,
 } from '../../src/db/schema.js';
+import { VIEW_DECLARATIONS_BUDGET_MS } from '../../src/internal-api/view-budget.js';
 import type { Flag } from '../../src/rules/index.js';
 import { asset, declaration, statement } from '../fixtures/declarations.js';
 import { contractErrors, okResponse } from '../support/contract.js';
@@ -457,6 +458,24 @@ describe('review case: assignment, detail, notes and flags', () => {
       expect((body.flags as unknown[]).length).toBe(2);
       expect(body.versions).toHaveLength(1);
       expect(await eventsOf('review.case.viewed.v1')).toHaveLength(0);
+    });
+
+    it('S9: a declarations service that hangs is 502 with the case within the view budget, before the console gives up', async () => {
+      const { caseId } = await givenCase();
+      api.declarations.stallReads(1);
+
+      const started = performance.now();
+      const response = await api.get(at(casePath, { caseId }), reviewerA);
+      const elapsed = performance.now() - started;
+
+      expect(response.statusCode).toBe(502);
+      expect(response.json()).toMatchObject({
+        type: 'declarations-unavailable',
+        case: { id: caseId },
+        document: null,
+      });
+      expect(elapsed).toBeGreaterThanOrEqual(VIEW_DECLARATIONS_BUDGET_MS - 50);
+      expect(elapsed).toBeLessThan(VIEW_DECLARATIONS_BUDGET_MS + 2_000);
     });
 
     it('S9: lists every version the case processed and pulls only the current one', async () => {

@@ -24,6 +24,11 @@ import { REGISTRY_RECORDS } from '../integration-gateway/registry-records.js';
 import { InternalApiRejected } from '../internal-api/rejected.js';
 import { declarationsUnavailable, upstreamUnavailable } from '../internal-api/upstream.js';
 import {
+  VIEW_DECLARATIONS_BUDGET_MS,
+  VIEW_REGISTRY_RECORDS_BUDGET_MS,
+  within,
+} from '../internal-api/view-budget.js';
+import {
   householdIds,
   REGISTRY_RULE_IDS,
   REGISTRY_SYSTEMS,
@@ -142,11 +147,16 @@ export class RegistryViewService {
   ): Promise<DeclarationV1> {
     let pulled: PulledVersion | null;
     try {
-      pulled = await this.declarations.getVersionDocument(row.declarationId, row.currentVersion, {
-        tenant: row.tenant,
-        actingSubject: principal.subject,
-        caseId: row.id,
-      });
+      pulled = await within(
+        VIEW_DECLARATIONS_BUDGET_MS,
+        () =>
+          this.declarations.getVersionDocument(row.declarationId, row.currentVersion, {
+            tenant: row.tenant,
+            actingSubject: principal.subject,
+            caseId: row.id,
+          }),
+        () => new DeclarationsUnavailable('The declarations service did not answer in time'),
+      );
     } catch (error) {
       if (error instanceof DeclarationsUnavailable) throw declarationsUnavailable();
       throw error;
@@ -181,15 +191,20 @@ export class RegistryViewService {
         check.resultId !== null && (check.status === 'matched' || check.status === 'mismatched'),
     );
     try {
-      const read = await Promise.all(
-        answered.map(async (check) => {
-          const stored = await this.gateway.getStoredResult(check.resultId, tenant);
-          const parsed =
-            stored?.outcome === 'found'
-              ? REGISTRY_RECORDS[check.system].safeParse(stored.payload)
-              : null;
-          return parsed?.success ? ([[check.id, parsed.data]] as const) : [];
-        }),
+      const read = await within(
+        VIEW_REGISTRY_RECORDS_BUDGET_MS,
+        () =>
+          Promise.all(
+            answered.map(async (check) => {
+              const stored = await this.gateway.getStoredResult(check.resultId, tenant);
+              const parsed =
+                stored?.outcome === 'found'
+                  ? REGISTRY_RECORDS[check.system].safeParse(stored.payload)
+                  : null;
+              return parsed?.success ? ([[check.id, parsed.data]] as const) : [];
+            }),
+          ),
+        () => new IntegrationGatewayUnavailable('The integration-gateway did not answer in time'),
       );
       return new Map(read.flat());
     } catch (error) {
