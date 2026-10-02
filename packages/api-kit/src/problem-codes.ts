@@ -114,8 +114,11 @@ export const PROBLEM_CODES = {
   'declarant-notified': { status: HttpStatus.CONFLICT, title: 'Declarant already notified' },
   /** Access: the declarant's window for representations has closed. */
   'representations-closed': { status: HttpStatus.CONFLICT, title: 'Representations closed' },
-  /** Access: the granted package's download window has ended. */
-  'download-expired': { status: HttpStatus.GONE, title: 'Download window ended' },
+  /**
+   * Documents: the document's download window has ended (an access package, nil letter or other
+   * document issued with a window); it is not served any more.
+   */
+  'download-window-closed': { status: HttpStatus.GONE, title: 'Download window closed' },
   /** Access: a partial grant's scope reaches beyond the scope the request asked for. */
   'scope-exceeds-request': { status: HttpStatus.BAD_REQUEST, title: 'Scope exceeds the request' },
   /** Access: denials and partial grants must cite Regulation 24 grounds. */

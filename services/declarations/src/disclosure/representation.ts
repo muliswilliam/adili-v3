@@ -1,4 +1,10 @@
-import { ARQ, GRANT_REFERENCE_PATTERN, isGrantReference, LEA } from '@adili/numbering/references';
+import {
+  GRANT_LEGAL_BASES,
+  GRANT_REFERENCE_PATTERN,
+  grantLegalBasis,
+  type GrantLegalBasis,
+  isGrantReference,
+} from '@adili/numbering/references';
 import { z } from 'zod';
 
 import { declarationReferenceSchema } from '../declaration/reference.js';
@@ -12,22 +18,11 @@ import { DISCLOSURE_SECTIONS } from './scope.js';
  * packages/schemas/internal/declarations.yaml, is generated from them (`pnpm contracts`).
  */
 
-/** The grant's scheme code (`ARQ`, `LEA`), or undefined when it is not a valid reference. */
-function grantScheme(reference: string): string | undefined {
-  return isGrantReference(reference) ? reference.slice(0, 3) : undefined;
-}
-
 /**
  * The provision a grant rests on: Act s.36(1) for a Form K request (`ARQ`), s.36(2) for a
  * law-enforcement request (`LEA`, Regulation 23).
  */
-export const LEGAL_BASES = ['act-s36-1', 'act-s36-2'] as const;
-export type LegalBasis = (typeof LEGAL_BASES)[number];
-
-const BASIS_OF_SCHEME: Record<string, LegalBasis> = {
-  [ARQ.code]: 'act-s36-1',
-  [LEA.code]: 'act-s36-2',
-};
+export type LegalBasis = GrantLegalBasis;
 
 /** The legal basis of a certified copy, the declarant's access to their own record (AM 32). */
 export const SELF_ACCESS = 'self-access';
@@ -37,7 +32,7 @@ export const disclosureSectionSchema = z.enum(DISCLOSURE_SECTIONS).meta({
     "`bio`: the officer's particulars, with the included spouses' and children's; `income`, `assets`, `liabilities`: those parts of the included persons' statements; `other`: other information",
 });
 
-export const legalBasisSchema = z.enum(LEGAL_BASES).meta({
+export const legalBasisSchema = z.enum(GRANT_LEGAL_BASES).meta({
   description: 'Act s.36(1) for a Form K grant (ARQ), s.36(2) for a law-enforcement grant (LEA)',
 });
 
@@ -70,13 +65,10 @@ export const disclosureRequestSchema = z
     includeChildren: z.boolean(),
     sections: z.array(disclosureSectionSchema).min(1).max(DISCLOSURE_SECTIONS.length),
   })
-  .refine(
-    (request) => BASIS_OF_SCHEME[grantScheme(request.grantReference) ?? ''] === request.legalBasis,
-    {
-      path: ['legalBasis'],
-      message: 'act-s36-1 goes with an ARQ reference, act-s36-2 with an LEA reference',
-    },
-  )
+  .refine((request) => grantLegalBasis(request.grantReference) === request.legalBasis, {
+    path: ['legalBasis'],
+    message: 'act-s36-1 goes with an ARQ reference, act-s36-2 with an LEA reference',
+  })
   .meta({ description: 'The granted scope of an access request, and whom it is disclosed to' });
 export type DisclosureRequest = z.infer<typeof disclosureRequestSchema>;
 
@@ -99,13 +91,10 @@ export const disclosureCountsRequestSchema = z
     includeChildren: z.boolean(),
     sections: z.array(disclosureSectionSchema).min(1).max(DISCLOSURE_SECTIONS.length),
   })
-  .refine(
-    (request) => BASIS_OF_SCHEME[grantScheme(request.grantReference) ?? ''] === request.legalBasis,
-    {
-      path: ['legalBasis'],
-      message: 'act-s36-1 goes with an ARQ reference, act-s36-2 with an LEA reference',
-    },
-  )
+  .refine((request) => grantLegalBasis(request.grantReference) === request.legalBasis, {
+    path: ['legalBasis'],
+    message: 'act-s36-1 goes with an ARQ reference, act-s36-2 with an LEA reference',
+  })
   .meta({ description: 'A scope an access officer is about to decide on, to be counted' });
 export type DisclosureCountsRequest = z.infer<typeof disclosureCountsRequestSchema>;
 

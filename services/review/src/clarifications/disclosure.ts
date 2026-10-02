@@ -1,4 +1,11 @@
-import { ARQ, GRANT_REFERENCE_PATTERN, isGrantReference, LEA } from '@adili/numbering/references';
+import { FORM_K_SECTIONS, type FormKSection } from '@adili/forms';
+import {
+  GRANT_LEGAL_BASES,
+  GRANT_REFERENCE_PATTERN,
+  grantLegalBasis,
+  type GrantLegalBasis,
+  isGrantReference,
+} from '@adili/numbering/references';
 import { z } from 'zod';
 
 import type {
@@ -28,24 +35,13 @@ import { itemLabel, REQUIREMENT_LABELS } from './labels.js';
  */
 
 /** The sections of an access scope (access.yaml `Section`, declarations' `DisclosureSection`). */
-export const DISCLOSURE_SECTIONS = ['bio', 'income', 'assets', 'liabilities', 'other'] as const;
-export type DisclosureSection = (typeof DISCLOSURE_SECTIONS)[number];
+export const DISCLOSURE_SECTIONS = FORM_K_SECTIONS;
+export type DisclosureSection = FormKSection;
 
 const FINANCIAL_SECTIONS = ['income', 'assets', 'liabilities'] as const;
 
 /** The provisions a grant rests on: Act s.36(1) (Form K, `ARQ`), s.36(2) (law enforcement, `LEA`). */
-export const LEGAL_BASES = ['act-s36-1', 'act-s36-2'] as const;
-export type LegalBasis = (typeof LEGAL_BASES)[number];
-
-const BASIS_OF_SCHEME: Record<string, LegalBasis> = {
-  [ARQ.code]: 'act-s36-1',
-  [LEA.code]: 'act-s36-2',
-};
-
-/** The legal basis that goes with a grant reference, by its scheme. */
-function basisOf(reference: string): LegalBasis | undefined {
-  return isGrantReference(reference) ? BASIS_OF_SCHEME[reference.slice(0, 3)] : undefined;
-}
+export type LegalBasis = GrantLegalBasis;
 
 /** The statuses of a clarification an access grant can disclose: issued, never a draft or withdrawn. */
 export const DISCLOSED_STATUSES = ['issued', 'overdue', 'responded', 'resolved'] as const;
@@ -60,7 +56,7 @@ const grantScopeFields = {
     .string()
     .regex(GRANT_REFERENCE_PATTERN)
     .refine(isGrantReference, { message: 'not a valid ARQ or LEA reference (check character)' }),
-  legalBasis: z.enum(LEGAL_BASES),
+  legalBasis: z.enum(GRANT_LEGAL_BASES),
   declarationReferences: z.array(z.string().min(1).max(64)).min(1).max(MAX_DECLARATIONS),
   includeSpouses: z.boolean(),
   includeChildren: z.boolean(),
@@ -75,7 +71,7 @@ const LEGAL_BASIS_OF_REFERENCE = {
 export const clarificationDisclosureRequest = z
   .strictObject({ ...grantScopeFields, recipientSubject: z.string().min(1).max(255) })
   .refine(
-    (request) => basisOf(request.grantReference) === request.legalBasis,
+    (request) => grantLegalBasis(request.grantReference) === request.legalBasis,
     LEGAL_BASIS_OF_REFERENCE,
   );
 export type ClarificationDisclosureRequest = z.infer<typeof clarificationDisclosureRequest>;
@@ -87,7 +83,7 @@ export type ClarificationDisclosureRequest = z.infer<typeof clarificationDisclos
 export const clarificationCountsRequest = z
   .strictObject(grantScopeFields)
   .refine(
-    (request) => basisOf(request.grantReference) === request.legalBasis,
+    (request) => grantLegalBasis(request.grantReference) === request.legalBasis,
     LEGAL_BASIS_OF_REFERENCE,
   );
 export type ClarificationCountsRequest = z.infer<typeof clarificationCountsRequest>;

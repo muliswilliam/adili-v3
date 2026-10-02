@@ -3,7 +3,7 @@ import { createRequire } from 'node:module';
 import { dirname, join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
-import { type FormKV1, validateFormK } from './index.js';
+import { FORM_K_SECTIONS, type FormKV1, validateFormK } from './index.js';
 import { MAX_REPORTED_ERRORS } from './validate.js';
 
 const require = createRequire(import.meta.url);
@@ -123,5 +123,14 @@ describe('validateFormK', () => {
       ok: false,
       errors: [{ path: '', message: 'must be object' }],
     });
+  });
+});
+
+describe('FORM_K_SECTIONS', () => {
+  it('names every section form-k.v1 allows, in its order', () => {
+    const schema = require('@adili/schemas/forms/form-k.v1.json') as {
+      properties: { scope: { properties: { sections: { items: { enum: string[] } } } } };
+    };
+    expect(FORM_K_SECTIONS).toEqual(schema.properties.scope.properties.sections.items.enum);
   });
 });
