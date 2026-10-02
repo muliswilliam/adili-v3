@@ -260,6 +260,10 @@ function actionLetter(
       path: ['step'],
     }),
 
+    links(payload) {
+      return { respondUrl: payload.respondUrl };
+    },
+
     reference(payload) {
       return payload.reference;
     },

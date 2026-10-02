@@ -703,6 +703,57 @@ describe('S13 the referral package', () => {
   });
 });
 
+describe('spec 08 printed links in production', () => {
+  let production: DocumentsApi;
+
+  beforeAll(async () => {
+    production = await startDocumentsApi({ httpsLinksOnly: true });
+  });
+
+  afterAll(async () => {
+    await production.close();
+  });
+
+  const issueIn = (body: unknown) =>
+    production.post('/internal/v1/documents/issue', body, REVIEW, {
+      idempotencyKey: null,
+      headers: { 'x-acting-tenant': 'psc' },
+    });
+
+  it.each([
+    ['a decision letter', 'determination', decisionPayload, decisionBody, 'portalUrl'],
+    [
+      'a notice to comply',
+      'action',
+      actionPayload,
+      (id: string) => actionBody('notice-to-comply', id),
+      'respondUrl',
+    ],
+  ] as const)(
+    'refuses %s whose portal link is http with 400, and issues it with https',
+    async (_name, record, payload, body, field) => {
+      const held = (link: string) => {
+        const id = randomUUID();
+        production.review.given(record, 'psc', id, {
+          ...payload({ [field]: link }),
+          declarantPersonId: DECLARANT_PERSON,
+        });
+        return id;
+      };
+      const issued = (await production.outbox()).length;
+      const refused = await issueIn(body(held('http://portal.adili.go.ke/notices/1')));
+      expect(refused.statusCode, refused.body).toBe(400);
+      expect(refused.json<Problem>().errors).toEqual([
+        { path: 'payload', message: `The pulled ${field} must be an https URL` },
+      ]);
+      expect(await production.outbox()).toHaveLength(issued);
+
+      const https = await issueIn(body(held('https://portal.adili.go.ke/notices/1')));
+      expect(https.statusCode, https.body).toBe(201);
+    },
+  );
+});
+
 describe('spec 08 issuing: refusals and outages', () => {
   it('refuses a record the review service does not hold for the tenant with 400', async () => {
     const id = determination(decisionPayload(), 'tsc');

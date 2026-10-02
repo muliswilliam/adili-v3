@@ -34,6 +34,7 @@ import {
   uploads,
 } from '../../src/db/schema.js';
 import { DeclarationsClient } from '../../src/declarations/declarations-client.js';
+import { HTTPS_LINKS_ONLY } from '../../src/issuance/issuance.service.js';
 import { OpenBao } from '../../src/issuance/openbao.js';
 import { ReviewClient } from '../../src/review/review-client.js';
 import { GotenbergRenderer, PdfRenderer } from '../../src/issuance/renderer.js';
@@ -72,6 +73,8 @@ export interface DocumentsApiOptions {
   gotenbergUrl?: string;
   /** OpenBao the service signs with; defaults to `TEST_OPENBAO_URL`. */
   openbaoUrl?: string;
+  /** Refuse printed links that are not https, as in production. */
+  httpsLinksOnly?: boolean;
   /**
    * Consume events from RabbitMQ (`TEST_RABBITMQ_URL`) on a queue of the suite's own, so events
    * reach the consumers as in the service (retries, dead-lettering); `publish` sends them.
@@ -194,6 +197,9 @@ export async function startDocumentsApi(options: DocumentsApiOptions = {}): Prom
       options.scanner ??
         new ClamdScanner(requireEnv('TEST_CLAMAV_HOST'), Number(requireEnv('TEST_CLAMAV_PORT'))),
     );
+  if (options.httpsLinksOnly !== undefined) {
+    builder = builder.overrideProvider(HTTPS_LINKS_ONLY).useValue(options.httpsLinksOnly);
+  }
   if (options.completeBudgetMs !== undefined) {
     builder = builder.overrideProvider(COMPLETE_BUDGET_MS).useValue(options.completeBudgetMs);
   }

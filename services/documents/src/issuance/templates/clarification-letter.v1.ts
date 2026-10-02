@@ -8,6 +8,7 @@ import {
   letterCommissionSchema,
   letterMeta,
   portalLink,
+  portalUrlSchema,
   restrictedVerifyNote,
   subjectLine,
 } from './letter.js';
@@ -49,7 +50,7 @@ export const clarificationLetterPayload = z
     issuedAt: z.iso.datetime({ offset: true }),
     dueAt: z.iso.datetime({ offset: true }),
     /** The portal page where the declarant answers this clarification. */
-    portalUrl: z.url({ protocol: /^https?$/ }),
+    portalUrl: portalUrlSchema,
   })
   .refine(
     (payload) => numberedBy(payload.clarificationReference, CLR, payload.commission.issuerCode),
@@ -98,6 +99,10 @@ export const clarificationLetterV1: DocumentTemplate<ClarificationLetterPayload>
   disclosureLevel: 'restricted',
   title: 'Clarification letter',
   payload: clarificationLetterPayload,
+
+  links(payload) {
+    return { portalUrl: payload.portalUrl };
+  },
 
   reference(payload) {
     return payload.clarificationReference;

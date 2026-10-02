@@ -46,6 +46,12 @@ import type { DocumentTemplate } from './templates/template.js';
 /** Injection token of the verify app's origin (`VERIFY_BASE_URL`). */
 export const VERIFY_BASE_URL = Symbol('VERIFY_BASE_URL');
 
+/**
+ * Injection token: refuse a printed link that is not https (`NODE_ENV=production`; the portal
+ * runs on plain http in development and test).
+ */
+export const HTTPS_LINKS_ONLY = Symbol('HTTPS_LINKS_ONLY');
+
 /** Lifespan of the presigned GET handed to the owner, or to a service for its staff. */
 const DOWNLOAD_URL_TTL_SECONDS = 5 * 60;
 
@@ -156,6 +162,7 @@ export class IssuanceService {
     private readonly clock: Clock,
     private readonly review: ReviewClient,
     @Inject(VERIFY_BASE_URL) private readonly verifyBaseUrl: string,
+    @Inject(HTTPS_LINKS_ONLY) private readonly httpsLinksOnly: boolean,
   ) {}
 
   /**
@@ -208,6 +215,20 @@ export class IssuanceService {
       ]);
     }
     const payload = parsed.data;
+    if (this.httpsLinksOnly) {
+      const insecure = Object.entries(template.links?.(payload) ?? {}).filter(
+        ([, link]) => new URL(link).protocol !== 'https:',
+      );
+      if (insecure.length > 0) {
+        throw validationProblem(
+          insecure.map(([field]) =>
+            fields.pulled
+              ? { path: 'payload', message: `The pulled ${field} must be an https URL` }
+              : { path: `payload.${field}`, message: 'Must be an https URL' },
+          ),
+        );
+      }
+    }
     const documentId = uuidv7();
     const verificationId = newVerificationId();
     const issuedAt = this.clock.now();

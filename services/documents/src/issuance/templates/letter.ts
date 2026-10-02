@@ -27,7 +27,11 @@ export const letterCommissionSchema = z.object({
   issuerCode: z.string().regex(ISSUER_CODE),
 });
 
-/** A portal link printed in a letter (http in development, https otherwise). */
+/**
+ * A portal link printed in a letter: https, or http in development and test, where the portal
+ * runs on plain http locally. The template names it in `links`, and issuance refuses an http one
+ * in production (`NODE_ENV=production`), as notifications does for the links it sends.
+ */
 export const portalUrlSchema = z.url({ protocol: /^https?$/ }).max(500);
 
 export const LETTER_STYLES = `${LETTERHEAD_STYLES}

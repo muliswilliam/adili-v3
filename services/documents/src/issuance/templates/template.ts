@@ -39,6 +39,11 @@ export interface DocumentTemplate<TPayload = unknown> {
   subjectVersion(payload: TPayload): number | null;
   /** What the verify page may show; null for confidential documents. */
   publicPayload(payload: TPayload, context: { issuedAt: Date }): PublicPayload | null;
+  /**
+   * The links the document prints for its reader to follow, by payload field (`portalUrl`):
+   * outside development and test issuance refuses one that is not https (`portalUrlSchema`).
+   */
+  links?(payload: TPayload): Record<string, string>;
   /** The footer fields the template decides; issuance adds the code, URL and date. */
   footer(payload: TPayload): Pick<FooterFields, 'issuerName' | 'reference' | 'version' | 'mark'>;
   /** The main page's HTML document. */

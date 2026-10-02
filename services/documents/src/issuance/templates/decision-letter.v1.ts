@@ -126,6 +126,10 @@ export const decisionLetterV1: DocumentTemplate<DecisionLetterPayload> = {
   title: 'Decision letter',
   payload: decisionLetterPayload,
 
+  links(payload) {
+    return { portalUrl: payload.portalUrl };
+  },
+
   reference(payload) {
     return payload.determinationReference;
   },
