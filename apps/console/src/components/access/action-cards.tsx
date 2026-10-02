@@ -10,6 +10,7 @@ import {
   Textarea,
   useIdempotencyKey,
   useToast,
+  formatPhone,
 } from '@adili/ui';
 import { AlertCircleIcon, UserCheck01Icon, UserRemove01Icon } from '@hugeicons/core-free-icons';
 import { useRouter } from '@tanstack/react-router';
@@ -23,7 +24,7 @@ import {
 import type { AccessResult } from '../../server/access-requests.server';
 import type { OfficerRequestView, RosterCandidate } from '../../server/access/types';
 import { goToSignIn } from '../sign-in-redirect';
-import { formatPhone, formKOf } from './form-k-card';
+import { formKOf } from './form-k-card';
 import { messages as m } from './messages';
 import { actionFailure, verifyNoteError } from './request-view';
 import { CannotIdentifyDialog, ResolveDialog } from './resolve-dialogs';

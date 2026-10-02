@@ -15,6 +15,7 @@ import {
   TableHeader,
   TableRow,
   useToast,
+  formatPhone,
 } from '@adili/ui';
 import { Search01Icon, UserAdd01Icon } from '@hugeicons/core-free-icons';
 import { useNavigate, useRouter } from '@tanstack/react-router';
@@ -23,7 +24,6 @@ import { useId, useState } from 'react';
 import type { Agency, LeaOfficerAccount } from '../../server/directory/client';
 import { revokeLeaOfficer } from '../../server/lea-accounts';
 import type { AgencyOfficers } from '../../server/lea-accounts.server';
-import { formatPhone } from '../commissions/phone';
 import { CursorPager } from '../cursor-pager';
 import { Page } from '../page';
 import { SearchBox } from '../search-box';

@@ -8,6 +8,7 @@ import {
   formatScopeSections,
   formatScopeYears,
   Icon,
+  formatPhone,
 } from '@adili/ui';
 import { Tick02Icon } from '@hugeicons/core-free-icons';
 import type { ReactNode } from 'react';
@@ -157,10 +158,4 @@ export function FormKCard({ view }: { view: OfficerRequestView }) {
 
 export function NotGiven() {
   return <span className="font-normal text-muted-foreground">{m.notGiven}</span>;
-}
-
-/** `+254722418903` → `+254 722 418 903`; other countries' numbers as given. */
-export function formatPhone(phone: string): string {
-  const kenyan = /^\+254(\d{3})(\d{3})(\d{3})$/.exec(phone);
-  return kenyan ? `+254 ${kenyan[1]} ${kenyan[2]} ${kenyan[3]}` : phone;
 }
