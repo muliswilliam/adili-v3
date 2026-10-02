@@ -160,7 +160,7 @@ describe('S4 file import', () => {
         flaggedAbsent: 0,
         exitsRecorded: 0,
       },
-      mapping: { ignored: [], missing: [] },
+      mapping: { ignored: [], missing: ['employer_code'] },
       failure: null,
     });
     expect(done.mapping?.matched).toHaveLength(9);
@@ -686,7 +686,7 @@ describe('previewing an import', () => {
       format: 'csv',
       missingRequired: [],
       estimatedRows: 3,
-      mapping: { ignored: ['Station Code'], missing: [] },
+      mapping: { ignored: ['Station Code'], missing: ['employer_code'] },
     });
     expect(body.mapping.matched[0]).toEqual({
       source: 'personnel_file_number',

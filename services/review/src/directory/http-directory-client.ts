@@ -57,12 +57,12 @@ const commissionSchema = z.object({
 });
 
 /**
- * The roster record's fields payroll needs. `employerCode` is optional: the directory's record
- * does not carry it yet.
+ * The roster record's fields payroll and the registry check need. `employerCode` is null when the
+ * roster gives none.
  */
 const rosterRecordSchema = z.object({
   personnelFileNumber: z.string().min(1),
-  employerCode: z.string().min(1).nullish(),
+  employerCode: z.string().min(1).nullable(),
   reportingEntity: z.object({ id: z.uuid() }).nullish(),
 });
 
@@ -166,7 +166,7 @@ export class HttpDirectoryClient extends DirectoryClient {
     return {
       personalNumber: found.personnelFileNumber,
       nationalId: identity.nationalId,
-      employerCode: found.employerCode ?? null,
+      employerCode: found.employerCode,
       reportingEntityId: found.reportingEntity?.id ?? null,
     };
   }

@@ -49,7 +49,7 @@ describe('parseRosterFile: CSV', () => {
         { source: 'phone', field: 'phone' },
       ],
       ignored: ['Station Code'],
-      missing: [],
+      missing: ['employer_code'],
     });
 
     const rows = await parsed(file);
@@ -83,6 +83,7 @@ describe('parseRosterFile: CSV', () => {
       appointmentDate: null,
       email: null,
       phone: null,
+      employerCode: null,
     });
     expect(rows[2]?.normalised).toMatchObject({
       fullName: 'Wanjiru "Shiru" Kamau',
@@ -104,7 +105,13 @@ describe('parseRosterFile: CSV', () => {
       'appointment_date',
       'phone',
     ]);
-    expect(file.mapping.missing).toEqual(['designation', 'job_group', 'reporting_entity', 'email']);
+    expect(file.mapping.missing).toEqual([
+      'designation',
+      'job_group',
+      'reporting_entity',
+      'email',
+      'employer_code',
+    ]);
     const rows = await parsed(file);
     expect(rows.map((row) => row.normalised)).toEqual([
       expect.objectContaining({
@@ -132,7 +139,14 @@ describe('parseRosterFile: CSV', () => {
           { source: 'designation', field: 'designation' },
         ],
         ignored: [],
-        missing: ['job_group', 'reporting_entity', 'appointment_date', 'email', 'phone'],
+        missing: [
+          'job_group',
+          'reporting_entity',
+          'appointment_date',
+          'email',
+          'phone',
+          'employer_code',
+        ],
       },
     });
   });
@@ -294,6 +308,7 @@ describe('parseRosterFile: XLSX', () => {
         new Date(Date.UTC(2019, 0, 7)),
         'A@B.CO.KE',
         712345678,
+        'KEMSA',
         'Uasin Gishu',
       ]);
       zeros.getCell(1).numFmt = '000000';

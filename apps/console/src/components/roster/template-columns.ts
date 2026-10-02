@@ -1,7 +1,7 @@
 import type { components } from '../../server/directory/api.gen';
 
 /**
- * The nine roster template columns as the wizard's template step lists them. Mirrors the
+ * The ten roster template columns as the wizard's template step lists them. Mirrors the
  * directory's column definitions, the single source for its parser and the template file. The
  * names are checked against the directory contract at compile time (below); the rules and
  * examples copy the template's notes. Column names stay English identifiers in every UI language.
@@ -68,6 +68,12 @@ export const TEMPLATE_COLUMNS: readonly TemplateColumn[] = [
     required: false,
     format: 'Kenyan mobile (07…, 01…) or international (+…)',
     example: '0712345678',
+  },
+  {
+    name: 'employer_code',
+    required: false,
+    format: 'Up to 40 letters, digits, _ or -, starting with a letter or digit',
+    example: 'TSC',
   },
 ];
 

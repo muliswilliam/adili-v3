@@ -46,6 +46,8 @@ export interface NormalisedRosterRow {
   designation: string | null;
   jobGroup: string | null;
   reportingEntity: string | null;
+  /** The HR and payroll systems' code for the employer, e.g. `KEMSA`. */
+  employerCode: string | null;
   /** `YYYY-MM-DD` */
   appointmentDate: string | null;
   email: string | null;
@@ -112,6 +114,17 @@ export function createRowValidator(
     const designation = optionalText(raw.designation, 100, 'designation', fail);
     const jobGroup = optionalText(raw.jobGroup, 10, 'jobGroup', fail);
     const reportingEntity = optionalText(raw.reportingEntity, 200, 'reportingEntity', fail);
+    const employerCode = optional(raw.employerCode, (value) =>
+      value.length > 40
+        ? fail('employerCode', 'too-long', 'Enter up to 40 characters')
+        : EMPLOYER_CODE.test(value)
+          ? value
+          : fail(
+              'employerCode',
+              'format',
+              'Use only letters, digits, _ or -, starting with a letter or digit',
+            ),
+    );
 
     const appointmentDate = optional(raw.appointmentDate, (value) => {
       const iso = parseDate(value);
@@ -171,6 +184,7 @@ export function createRowValidator(
         designation,
         jobGroup,
         reportingEntity,
+        employerCode,
         appointmentDate,
         email,
         phone,
@@ -181,6 +195,8 @@ export function createRowValidator(
 }
 
 const FILE_NUMBER = /^[A-Za-z0-9/.-]+$/;
+/** The integration gateway's employer code (its supplier check takes no other). */
+const EMPLOYER_CODE = /^[A-Za-z0-9][A-Za-z0-9_-]*$/;
 
 /** Trims and collapses runs of whitespace (including non-breaking spaces) to one space. */
 function collapse(value: string | null | undefined): string {

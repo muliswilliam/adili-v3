@@ -113,6 +113,7 @@ describe('HttpDirectoryClient', () => {
       personnelFileNumber: 'PSC/2019/0077',
       fullName: 'Grace Wanjiru',
       reportingEntity: { id: '0199b000-0000-7000-8000-0000000000f2', name: 'State Department' },
+      employerCode: null,
       tenant: 'psc',
     };
     const records = [record, { ...record, employerCode: 'MOH', reportingEntity: null }];
