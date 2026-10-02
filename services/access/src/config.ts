@@ -36,17 +36,6 @@ export const envSchema = baseEnvSchema.extend({
    */
   OPENBAO_ADDR: z.url(),
   OPENBAO_TOKEN: z.string().min(1),
-  /** Days the access officer has to decide a Form K request from its receipt (Act s.36). */
-  ACCESS_DECISION_DAYS: z.coerce.number().int().min(1).default(30),
-  /** Days the access officer has to decide a law enforcement request from its receipt (r.23). */
-  LEA_DECISION_DAYS: z.coerce.number().int().min(1).default(14),
-  /**
-   * Days the declarant has for representations once notified (Administrative Mechanisms 28-34);
-   * a Commission policy may later set its own.
-   */
-  REPRESENTATION_WINDOW_DAYS: z.coerce.number().int().min(1).default(7),
-  /** Days a granted package stays downloadable by its recipient (ADR-010 §6). */
-  PACKAGE_DOWNLOAD_DAYS: z.coerce.number().int().min(1).default(14),
   /**
    * Days the Commission has to provide the certified copy a written self-access application asks
    * for, from its receipt (Administrative Mechanism 32).

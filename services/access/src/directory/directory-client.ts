@@ -112,6 +112,30 @@ export interface StaffMember {
   email: string;
 }
 
+/**
+ * The periods a Commission runs access requests on (directory.yaml `TenantPolicyVersion.access`),
+ * from its policy version in force. Each clock reads them when it starts: a request keeps the
+ * periods it started with when the policy changes later.
+ */
+export interface AccessPolicy {
+  /** Days the access officer has to decide a Form K request from its receipt (Act s.36(1)). */
+  decisionDays: number;
+  /** Days the access officer has to decide a law enforcement request from its receipt (r.23). */
+  leaDecisionDays: number;
+  /** Days the declarant has for representations once notified (Administrative Mechanisms 28-34). */
+  representationWindowDays: number;
+  /** Days a granted package stays downloadable by its recipient (ADR-010 §6). */
+  packageDownloadDays: number;
+}
+
+/** The periods a Commission's policy leaves out (spec 10's): a directory that predates them. */
+export const DEFAULT_ACCESS_POLICY: AccessPolicy = {
+  decisionDays: 30,
+  leaDecisionDays: 14,
+  representationWindowDays: 7,
+  packageDownloadDays: 14,
+};
+
 /** The directory is unreachable or answered outside its contract; callers retry. */
 export class DirectoryUnavailable extends Error {
   constructor(message: string, options?: ErrorOptions) {
@@ -127,6 +151,12 @@ export class DirectoryUnavailable extends Error {
 export abstract class DirectoryClient {
   /** The Commission's name and issuer code; null when no active Commission has this slug. */
   abstract findCommission(slug: string): Promise<CommissionFacts | null>;
+
+  /**
+   * The access periods of the Commission's policy version in force, each the default
+   * (`DEFAULT_ACCESS_POLICY`) when the policy carries none. Cached for a few minutes.
+   */
+  abstract accessPolicy(slug: string): Promise<AccessPolicy>;
 
   /** Every Commission on the platform, with its status and earliest obligations-start date. */
   abstract listCommissions(): Promise<CommissionListing[]>;

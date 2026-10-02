@@ -14,9 +14,8 @@ import {
   requireAccessOfficer,
 } from '../access.js';
 import { addDays, Clock, nairobiYear } from '../clock.js';
-import { config } from '../config.js';
 import type { AccessDatabase, AccessTransaction } from '../db/database.js';
-import { responsibleCommission } from '../commissions/responsible-commission.js';
+import { accessPolicyOf, responsibleCommission } from '../commissions/responsible-commission.js';
 import { decisionOf, type DecisionInput, isDecisionRejection } from '../decision.js';
 import {
   DirectoryClient,
@@ -82,10 +81,12 @@ export class LeaService {
       ]),
     );
     const officer = await this.activeOfficer(principal, personId, commission.slug);
+    const policy = await accessPolicyOf(this.directory, commission.slug);
 
     const id = uuidv7();
     const now = this.clock.now();
-    const deadlineAt = addDays(now, config.LEA_DECISION_DAYS);
+    // The Commission's decision period in force at receipt: the request keeps it.
+    const deadlineAt = addDays(now, policy.leaDecisionDays);
     const { row, entry } = await withTenant(
       this.db,
       { tenant: commission.slug, subject: principal.subject },

@@ -9,7 +9,6 @@ import {
   rethrowAsActivityFailure,
 } from '../activity-failures.js';
 import { Clock, nairobiDate } from '../clock.js';
-import { config } from '../config.js';
 import type { AccessDatabase } from '../db/database.js';
 import { DeclarationsClient } from '../declarations/declarations-client.js';
 import { DirectoryClient } from '../directory/directory-client.js';
@@ -246,7 +245,7 @@ export class LeaRequestActivities {
    * scope for the declarant (legal basis Act s.36(2), the grant's `LEA` reference, the deciding
    * access officer and the law enforcement officer as recipient, audited there), and documents
    * issues it as the officer's Confidential `access-package`, watermarked with their name and
-   * agency, the reference and the date, downloadable by them for `PACKAGE_DOWNLOAD_DAYS`. Both
+   * agency, the reference and the date, downloadable by them for the Commission's download window in force now. Both
    * calls run in this one activity, so the disclosure never enters the workflow's history. The
    * request records the package with the `package-issued` register entry and its event.
    */
@@ -315,7 +314,7 @@ export class LeaRequestActivities {
           reference: found.reference,
           date: nairobiDate(this.clock.now()),
         },
-        downloadWindowDays: config.PACKAGE_DOWNLOAD_DAYS,
+        downloadWindowDays: (await this.directory.accessPolicy(tenant)).packageDownloadDays,
         idempotencyKey: messageKey(requestId, 'lea-package'),
       });
     } catch (error) {

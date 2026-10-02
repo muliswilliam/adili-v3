@@ -1,7 +1,13 @@
 import { describe, expect, it } from 'vitest';
 
-import { DirectoryUnavailable } from '../../src/directory/directory-client.js';
-import { HttpDirectoryClient } from '../../src/directory/http-directory-client.js';
+import {
+  DEFAULT_ACCESS_POLICY,
+  DirectoryUnavailable,
+} from '../../src/directory/directory-client.js';
+import {
+  COMMISSION_CACHE_TTL_MS,
+  HttpDirectoryClient,
+} from '../../src/directory/http-directory-client.js';
 
 const PERSON = '7d3f9b2a-4c1e-4a8b-9f60-2e5d8c1b0a47';
 const KEY = '4b0f3c8e-5d6a-5e7f-8a9b-0c1d2e3f4a5b';
@@ -30,9 +36,10 @@ interface Sent {
 }
 
 /** A client against a directory answering `answer`, recording what it was sent. */
-function clientAnswering(answer: () => Response) {
+function clientAnswering(answer: () => Response, options: { now?: () => number } = {}) {
   const sent: Sent[] = [];
   const client = new HttpDirectoryClient({
+    ...options,
     directoryUrl: 'http://directory.test',
     tokens: { token: () => Promise.resolve('reference-token'), invalidate: () => undefined },
     lawEnforcementTokens: {
@@ -199,6 +206,56 @@ describe('HttpDirectoryClient: staff by role', () => {
     );
     expect(sent[0]?.headers.get('x-acting-tenant')).toBe('psc');
     expect(sent[0]?.headers.get('authorization')).toBe('Bearer reference-token');
+  });
+});
+
+describe('HttpDirectoryClient: access policy', () => {
+  const ACCESS = {
+    decisionDays: 21,
+    leaDecisionDays: 10,
+    representationWindowDays: 5,
+    packageDownloadDays: 7,
+  };
+
+  it("reads the access periods of the Commission's policy in force, acting for it", async () => {
+    const { client, sent } = clientAnswering(() => json({ version: 3, access: ACCESS }, 200));
+
+    await expect(client.accessPolicy('psc')).resolves.toEqual(ACCESS);
+    expect(sent[0]?.url).toBe('http://directory.test/internal/v1/commissions/psc/policy');
+    expect(sent[0]?.headers.get('x-acting-tenant')).toBe('psc');
+    expect(sent[0]?.headers.get('authorization')).toBe('Bearer reference-token');
+  });
+
+  it('takes the default of each period the policy leaves out', async () => {
+    const { client } = clientAnswering(() => json({ access: { decisionDays: 21 } }, 200));
+    const { client: older } = clientAnswering(() => json({ version: 1 }, 200));
+
+    await expect(client.accessPolicy('psc')).resolves.toEqual({
+      ...DEFAULT_ACCESS_POLICY,
+      decisionDays: 21,
+    });
+    await expect(older.accessPolicy('psc')).resolves.toEqual(DEFAULT_ACCESS_POLICY);
+  });
+
+  it('reuses a policy for five minutes, per Commission, then pulls it again', async () => {
+    let now = 0;
+    const { client, sent } = clientAnswering(() => json({ access: ACCESS }, 200), {
+      now: () => now,
+    });
+
+    await client.accessPolicy('psc');
+    await client.accessPolicy('psc');
+    await client.accessPolicy('tsc');
+    expect(sent).toHaveLength(2);
+    now = COMMISSION_CACHE_TTL_MS + 1;
+    await client.accessPolicy('psc');
+    expect(sent).toHaveLength(3);
+  });
+
+  it('a period outside the contract is an outage the caller retries', async () => {
+    const { client } = clientAnswering(() => json({ access: { decisionDays: 0 } }, 200));
+
+    await expect(client.accessPolicy('psc')).rejects.toBeInstanceOf(DirectoryUnavailable);
   });
 });
 

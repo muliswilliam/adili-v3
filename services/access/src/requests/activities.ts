@@ -5,7 +5,6 @@ import { and, eq, inArray, isNull } from 'drizzle-orm';
 
 import { requireTransactionEnded } from '../activity-failures.js';
 import { addDays, Clock, nairobiDate } from '../clock.js';
-import { config } from '../config.js';
 import type { AccessDatabase } from '../db/database.js';
 import { DirectoryClient } from '../directory/directory-client.js';
 import { NotificationsClient } from '../notifications/notifications-client.js';
@@ -79,7 +78,7 @@ export class AccessRequestActivities {
   /**
    * After the access officer resolved the officer named (S3). Resolved to a roster record: the
    * declarant is notified, once: the request becomes `awaiting-representations` with its window
-   * (`REPRESENTATION_WINDOW_DAYS` from now), the `notified` register entry and its event; then
+   * (the Commission's representation window from now), the `notified` register entry and its event; then
    * the declarant is told by email and SMS (a person recipient: notifications reads their
    * contacts from the directory), without who asked or why, which wait behind sign-in. Recorded
    * as unidentifiable: the applicant is told the request closed.
@@ -108,7 +107,12 @@ export class AccessRequestActivities {
     if (found.status === 'withdrawn') return { outcome: 'withdrawn' };
     if (found.resolvedPersonId === null) return { outcome: 'unresolved' };
 
-    const notified = await recordNotified(this.db, this.register, this.clock.now(), found);
+    // The window is the Commission's in force as it opens: the request keeps it.
+    const { representationWindowDays } = await this.directory.accessPolicy(tenant);
+    const notified = await recordNotified(this.db, this.register, found, {
+      now: this.clock.now(),
+      windowDays: representationWindowDays,
+    });
     if (notified.status === 'withdrawn') return { outcome: 'withdrawn' };
     const { resolvedPersonId, windowEndsAt } = notified;
     if (resolvedPersonId === null || windowEndsAt === null) return { outcome: 'unresolved' };
@@ -254,18 +258,18 @@ async function markUnresolved(
 }
 
 /**
- * Records the declarant's notification, once: the window opens `now`, with the `notified`
- * register entry and its event. A request notified already, or no longer waiting for it, is
- * returned as it is.
+ * Records the declarant's notification, once: the window opens `now` for `windowDays`, with the
+ * `notified` register entry and its event. A request notified already, or no longer waiting for
+ * it, is returned as it is.
  */
 async function recordNotified(
   db: AccessDatabase,
   register: AccessRegister,
-  now: Date,
   found: AccessRequestRow,
+  { now, windowDays }: { now: Date; windowDays: number },
 ): Promise<AccessRequestRow> {
   return withTenant(db, systemContext(found.tenant), async (tx) => {
-    const windowEndsAt = addDays(now, config.REPRESENTATION_WINDOW_DAYS);
+    const windowEndsAt = addDays(now, windowDays);
     const [updated] = await tx
       .update(accessRequests)
       .set({ status: 'awaiting-representations', notifiedAt: now, windowEndsAt })

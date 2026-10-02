@@ -175,6 +175,23 @@ describe('LeaRequestWorkflow', () => {
     expect(mocks.flagLeaBreach).toHaveBeenCalledWith(input);
   }, 60_000);
 
+  it("S11: the clock runs to the Commission's deadline: a 10-day one reminds at day 6 and flags at day 10", async () => {
+    const received = await inputReceived();
+    const input = {
+      ...received,
+      deadlineAt: new Date(new Date(received.receivedAt).getTime() + 10 * DAY_MS).toISOString(),
+    };
+    const { mocks, recorded } = activities({
+      on: { breach: () => signalOwnWorkflow('withdrawn') },
+    });
+
+    await env.execute(leaRequest, options(mocks, input));
+
+    expect(recorded.calls).toEqual(['remind', 'breach']);
+    expect(dayOf(input, recorded, 'remind')).toBe(6);
+    expect(dayOf(input, recorded, 'breach')).toBe(10);
+  }, 60_000);
+
   it('S11: a grant before day 10: no reminder or breach; the officer told, then the declarant, then the package issued, announced and expired after 14 days', async () => {
     const input = await inputReceived();
     const { mocks, recorded } = activities();

@@ -37,7 +37,7 @@ import type { AccessHistoryEntry, CertifiedCopy, DeclarantNotice } from './types
 const MINUTE = 60_000;
 const HOUR = 60 * MINUTE;
 const DAY = 24 * HOUR;
-/** The access service's default download window (PACKAGE_DOWNLOAD_DAYS). */
+/** The default download window of a Commission's policy (access.packageDownloadDays). */
 const PACKAGE_DAYS = 14;
 /** How long the mock takes to issue a copy. */
 const ISSUE_MS = 3000;

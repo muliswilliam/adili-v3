@@ -16,14 +16,13 @@ import {
 import { ACTIVITY_RETRY } from '../activity-retry.js';
 import type { LeaRequestActivities } from './activities.js';
 import {
-  dayAfterLeaReceipt,
-  LEA_REMINDER_DAY,
   LEA_REQUEST_CHECK_INTERVAL,
   LEA_REQUEST_SIGNALS,
   type LeaRequestResult,
   type LeaRequestSignal,
   type LeaRequestState,
   type LeaRequestWorkflowInput,
+  leaReminderDueAt,
 } from './contract.js';
 
 const {
@@ -142,14 +141,15 @@ async function untilDecided(input: LeaRequestWorkflowInput, state: RunState): Pr
 }
 
 /**
- * The fourteen-day clock while the request is undecided: the reminder at day ten (passed over
- * when the deadline is due already), then the breach flag at the deadline. Either failing after
+ * The decision clock while the request is undecided (fourteen days by default): the reminder four
+ * days before the deadline (passed over when the deadline is due already), then the breach flag
+ * at the deadline. Either failing after
  * its retries is logged and passed over.
  */
 async function clock(input: LeaRequestWorkflowInput, state: RunState): Promise<void> {
   const decided = () => state.stop !== null;
   const deadline = new Date(input.deadlineAt).getTime();
-  const reminder = dayAfterLeaReceipt(input.receivedAt, LEA_REMINDER_DAY).getTime();
+  const reminder = leaReminderDueAt(input).getTime();
 
   if (reminder < deadline) {
     if (reminder > Date.now()) await condition(decided, reminder - Date.now());

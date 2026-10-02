@@ -249,6 +249,27 @@ describe('Law enforcement requests (S11)', () => {
       expect(response.statusCode).toBe(503);
       expect(await api.events()).toEqual([]);
     });
+
+    it("S11: the deadline is the Commission's law enforcement decision period in force at receipt", async () => {
+      given();
+      api.directory.givenAccessPolicy('psc', { leaDecisionDays: 10 });
+
+      const request = await received();
+
+      expect(request.deadlineAt).toBe('2027-01-21T07:00:00.000Z');
+      const [event] = await api.events('lea.request.received.v1');
+      expect(event?.data).toMatchObject({ decisionDeadlineAt: '2027-01-21T07:00:00.000Z' });
+    });
+
+    it("stores nothing when the Commission's policy cannot be read: 503", async () => {
+      given();
+      api.directory.failCalls(1, 'accessPolicy');
+
+      const response = await submitLeaResponse(api, LEA_INPUT, peter);
+
+      expect(response.statusCode).toBe(503);
+      expect(await api.asPlatform((tx) => tx.select().from(leaRequests))).toEqual([]);
+    });
   });
 
   describe('reading', () => {

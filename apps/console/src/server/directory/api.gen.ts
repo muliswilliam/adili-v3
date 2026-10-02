@@ -1325,6 +1325,29 @@ export interface components {
              * @example 07-31
              */
             formMDue: string;
+            /** @description Periods of access to declarations (spec 10). Each clock reads the version in force when it starts. */
+            access: {
+                /**
+                 * @description Days to decide a Form K request from its receipt (Act s.36(1), Regs r.22)
+                 * @example 30
+                 */
+                decisionDays: number;
+                /**
+                 * @description Days to decide a law enforcement request from its receipt (Act s.36(2), Regs r.23)
+                 * @example 14
+                 */
+                leaDecisionDays: number;
+                /**
+                 * @description Days the declarant has for representations once notified (Administrative Mechanisms 28-34)
+                 * @example 7
+                 */
+                representationWindowDays: number;
+                /**
+                 * @description Days a granted access package stays downloadable by its recipient
+                 * @example 14
+                 */
+                packageDownloadDays: number;
+            };
             /** @description `sub` of who created the version */
             createdBy: string;
             /** @description Their display name at the time; null when unknown */
