@@ -14,7 +14,8 @@ export type CommissionAiStatus =
 
 /**
  * `GET /v1/commissions/{slug}/ai-status` on the review service (spec 07c FE-4): the Commission's
- * own admins and supervisors; 404 for anyone else and for another Commission.
+ * own commission admin only (the spec's role table); 404 for anyone else, supervisors included,
+ * and for another Commission.
  */
 export const getCommissionAiStatus = createServerFn({ method: 'GET' })
   .validator(z.object({ slug: commissionSlug }))

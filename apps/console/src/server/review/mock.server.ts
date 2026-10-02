@@ -42,10 +42,11 @@
  * and the declaration document and flags of case `mine`, come from `copilot-mock.server.ts`.
  *
  * A Commission's AI status (`GET /v1/commissions/{slug}/ai-status`, spec 07c) comes from the
- * ai-gateway mock's store, as the service proxies the gateway; the mock does not check roles.
+ * ai-gateway mock's store, as the service proxies the gateway; only commission admins read it.
  */
 import { randomUUID } from 'node:crypto';
 
+import { COMMISSION_ADMIN } from '@adili/roles';
 import { addDays } from '@adili/ui';
 
 import createClient from 'openapi-fetch';
@@ -869,7 +870,9 @@ async function route(request: Request): Promise<Response> {
 
   const aiStatus = /^\/v1\/commissions\/([^/]+)\/ai-status$/.exec(pathname);
   if (method === 'GET' && aiStatus?.[1]) {
-    // The review service proxies the gateway's tenant status; so does the mock (spec 07c).
+    // The review service proxies the gateway's tenant status; so does the mock (spec 07c). Only
+    // the Commission's admin reads it; anyone else, supervisors included, gets 404.
+    if (!mockCallerOf(request).roles.includes(COMMISSION_ADMIN)) return problem(404, 'Not found');
     return json(200, mockTenantAiStatus(aiStatus[1]));
   }
 
