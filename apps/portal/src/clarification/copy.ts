@@ -44,7 +44,8 @@ export const STATUSES = {
 } satisfies Record<ClarificationStatus, { label: Label; variant: BadgeProps['variant'] }>;
 
 export const COPY = {
-  back: 'Your dashboard',
+  back: 'Clarifications',
+  allClarifications: 'All clarifications',
   title: (followUp: boolean) => (followUp ? 'Further clarification' : 'Clarification'),
   declaration: (reference: string) => `Declaration ${reference}`,
   askedOpen: 'What your Commission asks',
@@ -142,4 +143,36 @@ export const COPY = {
   unavailableTitle: 'We could not load this clarification',
   unavailableBody: 'Check your connection and try again in a few minutes.',
   tryAgain: 'Try again',
+} as const;
+
+/** Words for the declarant's clarification list and the dashboard's Clarifications card. */
+export const LIST_COPY = {
+  title: 'Clarifications',
+  needsResponse: 'Needs your response',
+  earlier: 'Earlier',
+  all: 'All clarifications',
+  viewAll: 'View all',
+  viewAllLabel: 'View all clarifications',
+
+  rowTitle: (points: number, declaration: string) =>
+    `${plural(points, 'point')} on your ${declaration}`,
+  declaration: 'declaration',
+  issued: (date: string) => `Issued ${date}`,
+  due: (date: string) => `due ${date}`,
+  responded: (date: string) => `responded ${date}`,
+  resolved: (date: string) => `resolved ${date}`,
+  withdrawn: 'withdrawn',
+  reminderSent: (date: string) => `Reminder sent ${date}`,
+  respondedLate: (days: number) => `Responded ${plural(days, 'day')} late`,
+  furtherClarification: 'Further clarification',
+  furtherSent: 'Further clarification sent',
+
+  loading: 'Loading your clarifications',
+  emptyTitle: 'No clarification requests',
+  emptyBody: 'If one arrives, we will SMS and email you. You will have 30 days to respond.',
+  unavailableTitle: 'We could not load your clarifications',
+  unavailableBody: 'Check your connection and try again.',
+  tryAgain: 'Try again',
+
+  pagination: 'Pages of your earlier clarifications',
 } as const;

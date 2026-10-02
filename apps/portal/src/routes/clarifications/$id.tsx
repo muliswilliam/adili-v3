@@ -35,7 +35,7 @@ export const Route = createFileRoute('/clarifications/$id')({
         <h1 className="text-[26px] font-semibold tracking-[-0.015em]">{COPY.notFoundTitle}</h1>
         <p className="text-muted-foreground">{COPY.notFoundBody}</p>
         <Button asChild variant="secondary" className="justify-self-center">
-          <Link to="/">{COPY.back}</Link>
+          <Link to="/clarifications">{COPY.allClarifications}</Link>
         </Button>
       </main>
     </Page>
